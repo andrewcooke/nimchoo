@@ -1,0 +1,8 @@
+nimble.paths
+nimbledeps/
+/nimchoo
+/tests/all
+/tests/test_*
+!/tests/test_*.nim
+nimble.develop
+*~
