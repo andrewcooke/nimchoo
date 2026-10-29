@@ -58,8 +58,19 @@ validation against choochoo; update to current SDK later).
        scale/units/etc, so the field's own scale/units are not parsed for them; dynamic
        choices keep sheet order (first match wins) with ref values resolved to numbers
        at load time; subfields are ordinary fields in `Message.fields` (number = none).
-4. [ ] Low-level binary: file header, CRC, base type decoding (both endians),
-       bad values, time conversion.  Unit tests.
+4. [x] Low-level binary: `src/nimchoo/binary.nim` (CRC, base type sizes/bad
+       markers/decoding in both endians, strings, FIT time + `expandTimestamp16`,
+       `FileHeader`/`readHeader`/`problems`).  Tests in `tests/test_binary.nim`.
+       Conventions: `Option` for legitimately absent values (bad values, unknown base
+       type byte); `FitError` only when we cannot continue; diagnostics returned
+       (`problems`, `backwards` flag) rather than logged.  Behaviour follows choochoo
+       (all-bad arrays -> none; isolated bad elements in arrays stay raw, as the SDK
+       CSV does - revisit if it matters).  Timestamps are FIT seconds (int64);
+       `fitToUnix` / `fitToTime` convert.  `crc16` over a whole valid file is 0.
+       Scan of the 76 test .fit files: 67 clean; 9 report problems - 7 in
+       `python-fitparse/` (some deliberately broken) and 2 in `other/` whose header
+       data size is 0 (2018-02-24-10-04-10, 2018-04-15-09-18-20).  Step 5 should
+       decide how to treat those (tokenise to end of file?).
 5. [ ] Tokenizer: iterator over tokens with explicit state (definitions, developer
        definitions/fields, data, compressed timestamps, checksum).
 6. [ ] Message decoding: scaling, composite, dynamic (dependency ordering),
