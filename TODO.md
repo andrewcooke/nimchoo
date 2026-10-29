@@ -101,9 +101,40 @@ validation against choochoo; update to current SDK later).
        the data).
        Decision: a truncated final record stays an error for now (could become a warning
        that stops tokenizing, no checksum token, if the truncated files turn out useful).
-6. [ ] Message decoding: scaling, composite, dynamic (dependency ordering),
-       accumulators (with rollover), timestamp_16.  Plain records (no laziness /
-       filter pipeline initially).
+6. [x] Message decoding: `src/nimchoo/decode.nim` (`Reader` + `records` iterator;
+       `Decoder.decode` for single tokens; `Record`, `FieldValue`, `field`,
+       `valueName`).  Tests in `tests/test_decode.nim` (hand-built files, first
+       records of sdk Activity/DeveloperData vs the SDK CSVs, all sdk/personal files
+       decode with no warnings), plus a profile test that no dynamic field refers to
+       another dynamic field.  Shared test builder in `tests/fitbuilder.nim`.
+       All 76 test files: 166,689 records in ~0.65s (release); the 4 truncated files
+       raise FitError from the tokenizer as in step 5; no decoder warnings.
+       Design (differences from choochoo are deliberate - check them in step 7):
+       * Values stay numeric (`FieldValue.ints/floats/strings` + profile `typeName`;
+         `valueName` maps enums to names).  Bad fields are omitted.  Unknown fields /
+         messages are kept with empty names.
+       * The definition's base type drives binary decoding (choochoo used the profile
+         type with the definition's count).  Enums never scaled; scale 1/offset 0 stays
+         int; otherwise float `v/scale - offset`; isolated bad array elements unscaled.
+       * Composites expand into their components, decoded as the target field; the
+         composite itself is NOT emitted (the SDK CSV does emit e.g. `speed` next to
+         `enhanced_speed`).  Outermost component scale/offset wins.  Components are bit
+         ranges of the whole field, any size (byte arrays > 8 bytes work); components
+         that do not fit are ignored (profile lists 10 x 12 bits for the 12-byte
+         `hr.event_timestamp_12`; choochoo emitted zeros).
+       * Dynamic fields: first matching choice, trying referenced fields in first-seen
+         order.  Components can target dynamic fields (event.data16 -> data).  Decoded in
+         three passes (plain, composite, dynamic) instead of choochoo's dependency sort;
+         output keeps definition order.
+       * Accumulators keyed by (message number, field name) (choochoo: name only), SDK
+         rollover arithmetic; reset for chained files.
+       * Developer fields registered from field_description records (also scale/offset,
+         which choochoo ignored); undescribed ones are skipped with a warning.
+       * 19 profile fields have non-integer scales (0.7111111 on *_power_phase,
+         10430.38 on aviation_attitude.*).  Choochoo parsed scales as ints and silently
+         used 1; we use the real values.
+       * Duplicate names (eg altitude/enhanced_altitude both present) are separate
+         entries; `field` returns the first (choochoo concatenated them).
 7. [ ] Validation: simple debug dump command; compare against
        `../choochoo/data/test` (76 .fit files; Garmin SDK CSV outputs are
        independent ground truth).

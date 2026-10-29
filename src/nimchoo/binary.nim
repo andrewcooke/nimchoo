@@ -124,13 +124,14 @@ func decodeString(data: openArray[byte]): seq[string] {.raises: [].} =
     for i, b in data: s[i] = char(b mod 0x7f)
     splitStrings(s)
 
-func decode*(bt: BaseType, data: openArray[byte],
-             endian: Endianness): Option[RawValues] {.raises: [].} =
-  ## All elements in `data`.  None if every element is bad.  Isolated bad
-  ## elements in an array are returned raw (as the SDK CSV does).
+func decode*(bt: BaseType, data: openArray[byte], endian: Endianness,
+             checkBad = true): Option[RawValues] {.raises: [].} =
+  ## All elements in `data`.  None if every element is bad (unless `checkBad`
+  ## is false).  Isolated bad elements in an array are returned raw (as the SDK
+  ## CSV does).
   if bt == btString:
     return some(RawValues(kind: rkString, strings: decodeString(data)))
-  if isBad(bt, data, endian): return none(RawValues)
+  if checkBad and isBad(bt, data, endian): return none(RawValues)
   let sz = bt.size
   let n = data.len div sz
   template part(i: int): untyped = data.toOpenArray(i * sz, i * sz + sz - 1)

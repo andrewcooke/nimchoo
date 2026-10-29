@@ -82,3 +82,11 @@ suite "profile":
             check c.refField in m.fields
             check c.target in m.fields
     check numbers.deduplicate.len == numbers.len
+
+  test "dynamic fields do not reference other dynamic fields":
+    for m in p.messages.values:
+      for f in m.fields.values:
+        if f.kind == fkDynamic:
+          for r in f.refs:
+            if r in m.fields:
+              check m.fields[r].kind != fkDynamic
