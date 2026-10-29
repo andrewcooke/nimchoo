@@ -29,6 +29,12 @@ type
     dataType*: string          ## bytes 8-11, should be ".FIT"
     checksum*: Option[uint16]  ## bytes 12-13, if present and non-zero
 
+proc readBytes*(path: string): seq[byte] =
+  ## Whole file as bytes.
+  let s = readFile(path)
+  result = newSeq[byte](s.len)
+  for i, c in s: result[i] = byte(c)
+
 # --- CRC
 
 const crcTable: array[16, uint16] = [

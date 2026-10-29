@@ -5,7 +5,7 @@
 ## Objects refer to each other by name (type names, field names) rather than
 ## by reference, so a Profile is an immutable-in-spirit value with no cycles.
 
-import std/[options, sequtils, strutils, tables]
+import std/[options, sequtils, sets, strutils, tables]
 import ./xlsxrows
 
 type
@@ -288,3 +288,10 @@ proc loadProfile*(path: string): Profile =
   let types = loadTypes(sheetRows(path, "Types"))
   let (messages, byNumber) = loadMessages(sheetRows(path, "Messages"), types)
   Profile(types: types, messages: messages, byNumber: byNumber)
+
+func timestamp16Fields*(p: Profile): HashSet[(int, int)] =
+  ## (message number, field number) of every timestamp_16 field.
+  for m in p.messages.values:
+    for f in m.fields.values:
+      if f.number.isSome and f.typeName == "timestamp_16":
+        result.incl (m.number, f.number.get)

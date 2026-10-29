@@ -71,8 +71,36 @@ validation against choochoo; update to current SDK later).
        `python-fitparse/` (some deliberately broken) and 2 in `other/` whose header
        data size is 0 (2018-02-24-10-04-10, 2018-04-15-09-18-20).  Step 5 should
        decide how to treat those (tokenise to end of file?).
-5. [ ] Tokenizer: iterator over tokens with explicit state (definitions, developer
-       definitions/fields, data, compressed timestamps, checksum).
+5. [x] Tokenizer: `src/nimchoo/tokens.nim` (`Tokenizer`, `Token`, `Definition`;
+       `initTokenizer(data, ts16)`, `next`, `tokens` iterator).  Tests in
+       `tests/test_tokens.nim` (hand-built files + all sdk/personal files).
+       * Tokens are small values: byte range + index into `Tokenizer.defs` (every
+         definition seen; local type -> def via private `active` table).  Needs only a
+         `HashSet` of timestamp_16 (message, field) pairs from the profile
+         (`timestamp16Fields`); field 253 is the timestamp in any message.
+         Developer field *definitions* (msg 206) are step 6; sizes come from the
+         definition so tokenizing doesn't need them.
+       * Uses header `dataSize` when it fits (else falls back to end of file - 2, with a
+         warning), and handles chained FIT files (a second ".FIT" header after the CRC;
+         definitions reset, timestamp kept).
+       * Raises `FitError` (with offset) for: data with no definition, truncated
+         definition/data message, compressed timestamp before any timestamp.  Tokens
+         before the error have already been yielded.  Other oddities go in `warnings`.
+       * Note: absolute timestamps in real files are not monotonic (sdk
+         MonitoringFile: monitoring_info is stamped 61h before the preceding
+         device_info), so no monotonic check.
+       Scan of all 76 test files: 72 tokenize fully, 4 raise: python-fitparse
+       `activity-settings-nodata` (truncated definition), `activity-unexpected-eof`
+       (truncated data), and `other/2018-02-24-10-04-10`, `other/2018-04-15-09-18-20`
+       (header dataSize 0 and cut off mid-record, no CRC) - all genuinely truncated
+       (what fix/repair was for).  Chained-file handling reads `activity-activity-filecrc`
+       and `python-fitparse/event_timestamp` as two files.  Warnings only in
+       python-fitparse*/ and other/ files (`other/38014592427` has 17 timestamp_16
+       small backwards jumps, as in choochoo issue 5;
+       `python-fitparse-fix/event_timestamp` has 256 warnings from junk bytes inside
+       the data).
+       Decision: a truncated final record stays an error for now (could become a warning
+       that stops tokenizing, no checksum token, if the truncated files turn out useful).
 6. [ ] Message decoding: scaling, composite, dynamic (dependency ordering),
        accumulators (with rollover), timestamp_16.  Plain records (no laziness /
        filter pipeline initially).

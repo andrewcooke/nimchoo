@@ -6,9 +6,6 @@ const
   sdkDir = "../choochoo/data/test/source/sdk/"
   personalDir = "../choochoo/data/test/source/personal/"
 
-proc bytesOf(path: string): seq[byte] =
-  for c in readFile(path): result.add byte(c)
-
 func b(xs: varargs[int]): seq[byte] =
   xs.mapIt(byte(it))
 
@@ -23,10 +20,10 @@ func hasProblem(ps: seq[string], prefix: string): bool =
 suite "crc":
   test "whole valid file has zero residue":
     for path in [sdkDir & "Activity.fit", personalDir & "2018-03-04-qdp.fit"]:
-      check crc16(bytesOf(path)) == 0
+      check crc16(readBytes(path)) == 0
 
   test "incremental":
-    let d = bytesOf(sdkDir & "Activity.fit")
+    let d = readBytes(sdkDir & "Activity.fit")
     check crc16(d[50 .. ^1], crc16(d[0 .. 49])) == crc16(d)
 
   test "empty":
@@ -151,7 +148,7 @@ suite "time":
 suite "file header":
   test "valid files":
     for path in [sdkDir & "Activity.fit", personalDir & "2018-03-04-qdp.fit"]:
-      let d = bytesOf(path)
+      let d = readBytes(path)
       let h = readHeader(d)
       check h.dataType == ".FIT"
       check h.size in [12, 14]
@@ -163,7 +160,7 @@ suite "file header":
       discard readHeader(b(12, 16, 0))
 
   test "corrupt data byte":
-    var d = bytesOf(sdkDir & "Activity.fit")
+    var d = readBytes(sdkDir & "Activity.fit")
     let h = readHeader(d)
     d[h.size + 10] = d[h.size + 10] xor 0xff
     let ps = problems(h, d)
@@ -171,20 +168,20 @@ suite "file header":
     check ps.hasProblem("Bad file checksum")
 
   test "corrupt data type":
-    var d = bytesOf(sdkDir & "Activity.fit")
+    var d = readBytes(sdkDir & "Activity.fit")
     d[8] = byte('X')
     let ps = problems(readHeader(d), d)
     check ps.hasProblem("Data type incorrect")
 
   test "truncated file":
-    let d = bytesOf(sdkDir & "Activity.fit")
+    let d = readBytes(sdkDir & "Activity.fit")
     let cut = d[0 ..< d.len - 5]
     let ps = problems(readHeader(cut), cut)
     check ps.hasProblem("Data size incorrect")
     check ps.hasProblem("Bad file checksum")
 
   test "corrupt header checksum":
-    var d = bytesOf(personalDir & "2018-03-04-qdp.fit")
+    var d = readBytes(personalDir & "2018-03-04-qdp.fit")
     let h = readHeader(d)
     if h.checksum.isSome:
       d[4] = d[4] xor 1  # data size changes, so header crc is now wrong
