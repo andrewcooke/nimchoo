@@ -35,6 +35,7 @@ type
   Record* = object
     name*: string       ## "" if the message is not in the profile
     number*: int        ## global message number
+    local*: int         ## local message type
     defn*: int          ## index into Tokenizer.defs
     timestamp*: Option[int64]  ## FIT seconds
     fields*: seq[FieldValue]
@@ -89,6 +90,23 @@ type
     acc: int
     check, dev: bool
 
+type
+  EventKind* = enum evDefinition, evRecord
+
+  DefField* = tuple[name: string, count: int]  ## name "" if unknown
+
+  Event* = object
+    ## A definition or a decoded data message, in file order.
+    offset*: int
+    case kind*: EventKind
+    of evDefinition:
+      local*: int
+      message*: string    ## "" if unknown
+      number*: int        ## global message number
+      fields*: seq[DefField]
+    of evRecord:
+      record*: Record
+
 const maxDepth = 8
 
 proc initDecoder*(p: Profile): Decoder =
@@ -127,12 +145,6 @@ proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
   template mk(k: ValueKind): FieldValue =
     FieldValue(kind: k, name: sp.name, number: sp.number, units: sp.units,
                typeName: sp.typeName, dev: sp.dev)
-  if sp.kind == tkTimestamp16:
-    if ctx.ts.isNone: return none(FieldValue)
-    var fv = mk(vkInt)
-    fv.typeName = "date_time"
-    fv.ints = @[ctx.ts.get]
-    return some(fv)
   if sp.kind == tkBool:
     var fv = mk(vkInt)
     for x in data: fv.ints.add(if x != 0: 1'i64 else: 0'i64)
@@ -321,7 +333,8 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
   if not d.plans[idx].ready: d.plans[idx] = d.buildPlan(p, t.defs[idx])
   let globalNum = t.defs[idx].globalNum
   let endian = t.defs[idx].endian
-  result = Record(name: d.plans[idx].msg.name, number: globalNum, defn: idx,
+  result = Record(name: d.plans[idx].msg.name, number: globalNum,
+                  local: t.defs[idx].local, defn: idx,
                   timestamp: tok.timestamp)
   var ctx = RecCtx(msgNum: globalNum, offset: tok.offset, ts: tok.timestamp)
   let n = d.plans[idx].slots.len
@@ -407,9 +420,39 @@ func warnings*(r: Reader): seq[Warning] =
   ## Tokenizer warnings followed by decoder warnings.
   r.tokenizer.warnings & r.decoder.warnings
 
-iterator records*(r: var Reader, p: Profile): Record {.raises: [FitError].} =
-  ## Every data message in the file, in order.  Raises FitError as the
-  ## tokenizer does (records before the error have already been yielded).
+proc definitionEventImpl(d: var Decoder, p: Profile, t: Tokenizer,
+                         tok: Token): Event =
+  let idx = tok.defn
+  if d.plans.len <= idx: d.plans.setLen(idx + 1)
+  if not d.plans[idx].ready: d.plans[idx] = d.buildPlan(p, t.defs[idx])
+  result = Event(kind: evDefinition, offset: tok.offset,
+                 local: t.defs[idx].local, number: t.defs[idx].globalNum,
+                 message: d.plans[idx].msg.name)
+  for s in d.plans[idx].slots:
+    let name = if s.field.isSome: s.field.get.name else: ""
+    let sz = if s.def.base.isSome: s.def.base.get.size else: 1
+    result.fields.add (name, s.def.size div sz)
+  for dv in t.defs[idx].devFields:
+    let key = (dv.devIndex, dv.number)
+    if key in d.devFields:
+      result.fields.add (d.devFields[key].name, dv.size div d.devFields[key].base.size)
+    else:
+      result.fields.add ("", dv.size)
+
+proc definitionEvent(d: var Decoder, p: Profile, t: Tokenizer,
+                     tok: Token): Event {.raises: [].} =
+  ## Event for a definition token.  Developer field names are those described
+  ## so far, so this must be called in file order.
+  try:
+    result = d.definitionEventImpl(p, t, tok)
+  except KeyError as e:  # all lookups are guarded, so this is a bug
+    d.warn(tok.offset, "internal error (missing key): " & e.msg)
+    result = Event(kind: evDefinition, offset: tok.offset)
+
+iterator events*(r: var Reader, p: Profile): Event {.raises: [FitError].} =
+  ## Every definition and data message in the file, in order.  Raises
+  ## FitError as the tokenizer does (events before the error have already been
+  ## yielded).
   while true:
     let tok = r.tokenizer.next()
     if tok.isNone: break
@@ -419,9 +462,17 @@ iterator records*(r: var Reader, p: Profile): Record {.raises: [FitError].} =
         r.decoder.accum.clear()
         r.decoder.devFields.clear()
       r.started = true
+    of tokDefinition:
+      yield r.decoder.definitionEvent(p, r.tokenizer, tok.get)
     of tokData:
-      yield r.decoder.decode(p, r.tokenizer, tok.get)
+      yield Event(kind: evRecord, offset: tok.get.offset,
+                  record: r.decoder.decode(p, r.tokenizer, tok.get))
     else: discard
+
+iterator records*(r: var Reader, p: Profile): Record {.raises: [FitError].} =
+  ## Every data message in the file, in order (see `events`).
+  for ev in r.events(p):
+    if ev.kind == evRecord: yield ev.record
 
 # --- access
 
@@ -430,15 +481,17 @@ func field*(r: Record, name: string): Option[FieldValue] =
   for f in r.fields:
     if f.name == name: return some(f)
 
-func valueName*(p: Profile, f: FieldValue, i = 0): string =
+func valueName*(p: Profile, f: FieldValue, i = 0): string {.raises: [].} =
   ## Profile name of an enumerated value, else the value as text.
   case f.kind
   of vkInt:
     if i >= f.ints.len: return ""
     let v = f.ints[i]
-    if f.typeName in p.types and p.types[f.typeName].kind == tkMapping and
-        v in p.types[f.typeName].toName:
-      return p.types[f.typeName].toName[v]
+    try:
+      if f.typeName in p.types and p.types[f.typeName].kind == tkMapping and
+          v in p.types[f.typeName].toName:
+        return p.types[f.typeName].toName[v]
+    except KeyError: discard  # guarded above
     $v
   of vkFloat:
     if i >= f.floats.len: "" else: $f.floats[i]

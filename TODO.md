@@ -135,9 +135,45 @@ validation against choochoo; update to current SDK later).
          used 1; we use the real values.
        * Duplicate names (eg altitude/enhanced_altitude both present) are separate
          entries; `field` returns the first (choochoo concatenated them).
-7. [ ] Validation: simple debug dump command; compare against
-       `../choochoo/data/test` (76 .fit files; Garmin SDK CSV outputs are
-       independent ground truth).
+7. [x] Validation: `nch fit` + comparison against the SDK CSVs.
+       * Structure (decision): a single `nch` command; `src/nch.nim` is a thin
+         dispatcher, each subcommand is a module under `src/nimchoo/commands/` with
+         `run(args): int` (global options such as database connections are to be
+         parsed in `nch.nim` before the command name).  Library modules stay in
+         `src/nimchoo/`.
+       * `nch fit [--csv] [--profile PATH] FILE`: readable dump (enumerations by name,
+         times as ISO UTC, developer fields as `dev.name`) or SDK-format CSV
+         including definition rows.  Warnings/errors go to stderr; output before an
+         error is kept.  Default profile is embedded (`data/Profile.xlsx` copy,
+         `staticRead`, written to a temp file because `xl` only loads from a path).
+       * `decode.nim` gained `events` (definitions + records, with developer field
+         names as described so far), `Record.local`; `csvout.nim` writes the rows.
+       * Harness: `tests/csvcompare.nim` (choochoo's CSVEqualContext rules: row by
+         row, first three cells equal, per-field value/units, `unknown` skipped,
+         `.0`/bool fixes, numbers as floats, header/checksum rows dropped, SDK-only
+         composite fields skipped, `Activity.fit` ignores `timer_trigger`),
+         `tests/test_sdkcsv.nim` (one test per file; stale allow-list entries fail),
+         `nimble csvreport` (differences grouped by message/field/kind, for triage).
+       * Result: all 47 files with a CSV match.  sdk (10) and personal (16) match
+         exactly, with no allowances.  python-fitparse (16) and other (5) match apart
+         from differences allowed only in those directories (`allowed` in
+         csvcompare.nim): older-SDK CSVs (cycling `total_cycles` vs our
+         `total_strokes`; `session.num_lengths` unknown to its profile; distance
+         rounded to 2dp for compressed-speed-distance) and `event.timer_trigger`
+         where `data` and `data16` both produce it (the SDK merges into `0|0`, we
+         keep two entries).  One CSV there (2015-10-13-08-43-15) is choochoo output.
+       * One decoder change came out of this: `timestamp_16` fields now stay raw
+         (as the SDK prints them); `Record.timestamp` has the expanded time.
+       * Not regenerated: python-fitparse/other CSVs could be regenerated with the
+         SDK's FitCSVTool (`../choochoo/dev/build-csv.sh`; no Java/SDK on this VM) to
+         remove the older-SDK allowances.
+       * Open: should duplicate field names (eg `timer_trigger` from `data` and
+         `data16`) be merged into one array as the SDK/choochoo do?  Currently kept as
+         separate entries (and `field` returns the first).
+       * Known and accepted differences from choochoo: composite fields themselves
+         are not emitted; the 19 fractional scales use their real values; accumulators
+         are per (message, field).  None of these showed up as a mismatch against the
+         SDK output.
 
 ### Notes on the profile spreadsheet
 

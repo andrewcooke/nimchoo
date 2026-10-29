@@ -1,8 +1,9 @@
 nimble.paths
 nimbledeps/
-/nimchoo
+/nch
 /tests/all
 /tests/test_*
 !/tests/test_*.nim
 nimble.develop
 *~
+/tests/csvreport

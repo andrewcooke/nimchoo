@@ -191,7 +191,7 @@ suite "decode: timestamps":
     check recs[1].fv("timestamp").ints == @[1004'i64]
     check recs[1].timestamp == some(1004'i64)
 
-  test "timestamp_16 gets the expanded time":
+  test "timestamp_16 stays raw; the record gets the expanded time":
     let msg = p.messages["monitoring"]
     let n16 = msg.fields["timestamp_16"].number.get
     let body = defn(0, msg.number, @[(253, 4, uint32T)]) &
@@ -199,8 +199,9 @@ suite "decode: timestamps":
       defn(1, msg.number, @[(n16, 2, uint16T)]) & b(1) & le16(0x5e5e)
     let (r, recs) = decodeAll(body)
     check r.warnings.len == 0
-    check recs[1].fv("timestamp_16").ints == @[0x15c5c'i64 + 0x202]
-    check recs[1].fv("timestamp_16").typeName == "date_time"
+    check recs[1].fv("timestamp_16").ints == @[0x5e5e'i64]
+    check recs[1].fv("timestamp_16").typeName == "timestamp_16"
+    check recs[1].timestamp == some(0x15c5c'i64 + 0x202)
 
 suite "decode: unknown parts":
   test "unknown field number":
