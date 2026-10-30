@@ -5,6 +5,8 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
+{.push raises: [].}
+
 const
   exitOk* = 0
   exitFailure* = 1  ## the work failed (unusable input, I/O error)

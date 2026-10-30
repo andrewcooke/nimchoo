@@ -5,6 +5,8 @@
 ## `data` is a bug and raises an IndexDefect).  Where an offset or length comes
 ## from the file being read, call `canRead` first and raise your own error.
 
+{.push raises: [].}
+
 proc readBytes*(path: string): seq[byte] {.raises: [IOError].} =
   ## Whole file as bytes.
   let s = readFile(path)

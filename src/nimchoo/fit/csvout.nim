@@ -6,6 +6,8 @@
 import std/[sequtils, strutils]
 import ./records
 
+{.push raises: [].}
+
 func quoted(s: string): string =
   '"' & s.replace("\"", "\"\"") & '"'
 

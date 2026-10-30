@@ -7,6 +7,8 @@
 import std/[options, strutils, unicode]
 import ./bytes
 
+{.push raises: [].}
+
 type
   BaseType* = enum
     ## Order follows the FIT base type numbers.

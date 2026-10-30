@@ -2,6 +2,8 @@
 
 import std/times
 
+{.push raises: [].}
+
 const fitEpoch* = 631_065_600'i64  ## 1989-12-31T00:00:00Z as unix time
 
 func fitToUnix*(t: int64): int64 {.raises: [].} = t + fitEpoch

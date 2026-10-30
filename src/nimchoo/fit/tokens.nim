@@ -15,6 +15,8 @@ import ./time
 import ../warnings
 export warnings
 
+{.push raises: [].}
+
 const
   timestampFieldNo* = 253  ## global field number of `timestamp`
 

@@ -6,6 +6,8 @@ import std/[options, tables]
 import ../lookup
 import ../profile/model
 
+{.push raises: [].}
+
 type
   ValueKind* = enum vkInt, vkFloat, vkString
 

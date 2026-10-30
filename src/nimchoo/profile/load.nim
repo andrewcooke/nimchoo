@@ -9,15 +9,17 @@ import ../xlsx
 import ./model
 export errors, model
 
+{.push raises: [].}
+
 const
   overrides = ["date_time", "local_date_time", "timestamp_16"]
 
 # --- parsing helpers
 
-proc fail(sheet: string, row: int, msg: string) {.noreturn.} =
+proc fail(sheet: string, row: int, msg: string) {.noreturn, raises: [ProfileError].} =
   raiseProfile(sheet & " row " & $(row + 1) & ": " & msg, sheet, row + 1)
 
-proc parseNum*(s: string): int64 =
+proc parseNum*(s: string): int64 {.raises: [ValueError].} =
   ## Integer cell: decimal, 0x hex, or a float spelling of an integer ("1.0").
   let t = s.strip
   if t.startsWith("0x") or t.startsWith("0X"):
@@ -34,14 +36,14 @@ proc split(s: string): seq[string] =
   ## Comma-separated cell; "" gives no items.
   if s.len == 0: @[] else: s.split(',').mapIt(it.strip)
 
-proc intCell(sheet: string, row: int, what, s: string): int64 =
+proc intCell(sheet: string, row: int, what, s: string): int64 {.raises: [ProfileError].} =
   ## An integer cell (see `parseNum`).  Raises ProfileError, with the sheet and
   ## (0-based) row, if it is not one.
   try: parseNum(s)
   except ValueError: fail(sheet, row, "bad " & what & " " & s)
 
 proc floatCell(sheet: string, row: int, what, s: string,
-               default: float): float =
+               default: float): float {.raises: [ProfileError].} =
   ## A finite number in a cell, or `default` if the cell is empty.  Raises
   ## ProfileError, with the sheet and (0-based) row, if it is not a number.
   if s.len == 0: return default
@@ -70,7 +72,7 @@ proc seedTypes(): Table[string, FitType] =
   result["timestamp_16"] =
     FitType(name: "timestamp_16", base: btUint16, kind: tkTimestamp16)
 
-proc loadTypes*(rows: seq[Row]): Table[string, FitType] =
+proc loadTypes*(rows: seq[Row]): Table[string, FitType] {.raises: [ProfileError].} =
   ## Columns: 0 type_name, 1 base_type, 2 value_name, 3 value.
   result = seedTypes()
   var cur = ""   # name of the mapping being filled, or "" if none
@@ -96,7 +98,7 @@ proc isSubfieldRow(row: Row): bool =
   row.cell(0).len == 0 and row.cell(1).len == 0 and row.cell(2).len > 0
 
 proc component(i: int, target, bits, units, scale, offset,
-               accum: string): Component =
+               accum: string): Component {.raises: [ProfileError].} =
   let n = intCell("Messages", i, "component bits", bits)
   if n < 1 or n > 64:
     fail("Messages", i, "component bits out of range: " & bits)
@@ -106,7 +108,7 @@ proc component(i: int, target, bits, units, scale, offset,
             accumulate: accum.len > 0 and
                         intCell("Messages", i, "component accumulate", accum) != 0)
 
-proc composite(row: Row, i: int, f: Field): Field =
+proc composite(row: Row, i: int, f: Field): Field {.raises: [ProfileError].} =
   ## `f` is a plain field; add the components from the row.
   let
     names = split(row.cell(5))
@@ -124,7 +126,7 @@ proc composite(row: Row, i: int, f: Field): Field =
     result.components.add component(i, name, bits.at(k), units.at(k),
                                     scale.at(k), offset.at(k), accum.at(k))
 
-proc plainField(row: Row, i: int): Field =
+proc plainField(row: Row, i: int): Field {.raises: [ProfileError].} =
   let
     name = row.cell(2)
     isComposite = row.cell(5).len > 0  # scale etc are per-component lists
@@ -146,7 +148,7 @@ proc plainField(row: Row, i: int): Field =
     kind: fkPlain)
 
 proc resolveRef(types: Table[string, FitType], msg: Message,
-                refField, value: string, row: int): int64 =
+                refField, value: string, row: int): int64 {.raises: [ProfileError].} =
   ## Number for `value` of field `refField`, via its mapping if it has one.
   ## `row` (0-based) is the sheet row the reference came from, for errors.
   if refField notin msg.fields:
@@ -162,7 +164,7 @@ proc resolveRef(types: Table[string, FitType], msg: Message,
     intCell("Messages", row, "reference value", value)
 
 proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
-    (Table[string, Message], Table[int, string]) =
+    (Table[string, Message], Table[int, string]) {.raises: [ProfileError].} =
   ## Columns: 0 msg_name, 1 field_no, 2 field_name, 3 field_type, 5 components,
   ## 6 scale, 7 offset, 8 units, 9 bits, 10 accumulate, 11 ref_name, 12 ref_value.
   var
@@ -172,7 +174,7 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
     # raw ref values for dynamic fields, parallel to Field.choices
     pending: Table[string, seq[(string, int)]]  # (raw value, sheet row)
 
-  proc finish() =
+  proc finish() {.raises: [ProfileError].} =
     if cur.len == 0: return
     for fname, raws in pending:
       if messages.must(cur).fields.must(fname).kind != fkDynamic: continue
@@ -234,13 +236,13 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
   finish()
   (messages, byNumber)
 
-proc loadProfileFromBytes*(xlsx: string): Profile =
+proc loadProfileFromBytes*(xlsx: string): Profile {.raises: [ProfileError, XlsxError].} =
   ## Read the Types and Messages sheets of an xlsx file held in memory.
   let wb = openWorkbook(xlsx)
   let types = loadTypes(wb.rows("Types"))
   let (messages, byNumber) = loadMessages(wb.rows("Messages"), types)
   Profile(types: types, messages: messages, byNumber: byNumber)
 
-proc loadProfile*(path: string): Profile =
+proc loadProfile*(path: string): Profile {.raises: [ProfileError, XlsxError, IOError].} =
   ## Read the Types and Messages sheets of the xlsx file at `path`.
   loadProfileFromBytes(readFile(path))

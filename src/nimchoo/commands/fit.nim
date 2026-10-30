@@ -12,6 +12,8 @@ import ../errors
 import ../profile/model
 import ../warnings
 
+{.push raises: [].}
+
 const usage* = """usage: nch fit [--csv] [--profile PATH] FILE
 
 Read a FIT file and print its messages.

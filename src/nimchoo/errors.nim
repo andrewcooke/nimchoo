@@ -4,6 +4,8 @@
 ## Defects, from `doAssert`/`raiseAssert` and the built-in checks.  Ordinary
 ## absence is an `Option`.  See "Conventions" in TODO.md.)
 
+{.push raises: [].}
+
 type
   NchError* = object of CatchableError
     ## Base of all errors raised on unusable input.

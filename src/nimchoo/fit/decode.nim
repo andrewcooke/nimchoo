@@ -20,6 +20,8 @@ import ./bytes
 import ./records
 import ./tokens
 
+{.push raises: [].}
+
 const
   fieldDescriptionNum* = 206  ## global message number of field_description
 

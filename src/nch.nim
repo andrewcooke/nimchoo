@@ -7,6 +7,8 @@ import std/os
 import nimchoo/commands/common
 import nimchoo/commands/fit
 
+{.push raises: [].}
+
 const usage = """usage: nch COMMAND [ARGS]
 
 commands:

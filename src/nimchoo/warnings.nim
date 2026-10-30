@@ -3,6 +3,8 @@
 ## that callers and tests can act on what happened rather than on its text.
 ## Things that do stop us are errors (see errors.nim).
 
+{.push raises: [].}
+
 type
   WarningKind* = enum
     # the file header and checksums

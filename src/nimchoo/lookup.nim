@@ -8,6 +8,8 @@
 
 import std/tables
 
+{.push raises: [].}
+
 func must*[K, V](t: Table[K, V], key: K): lent V =
   ## `t[key]`, for a key that has to be there.
   doAssert key in t, "internal error: missing key " & $key

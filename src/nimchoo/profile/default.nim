@@ -3,12 +3,14 @@
 
 import ./load
 
+{.push raises: [].}
+
 const embedded = staticRead("../../../data/Profile.xlsx")
 
-proc loadDefaultProfile*(): Profile =
+proc loadDefaultProfile*(): Profile {.raises: [ProfileError, XlsxError].} =
   ## The embedded profile.
   loadProfileFromBytes(embedded)
 
-proc loadProfileOrDefault*(path: string): Profile =
+proc loadProfileOrDefault*(path: string): Profile {.raises: [ProfileError, XlsxError, IOError].} =
   ## The profile at `path`, or the embedded one if `path` is empty.
   if path.len == 0: loadDefaultProfile() else: loadProfile(path)

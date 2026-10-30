@@ -6,6 +6,8 @@ import ../warnings
 import ./bytes
 import ./crc
 
+{.push raises: [].}
+
 type
   FileHeader* = object
     size*: int                 ## byte 0 (12 or 14)

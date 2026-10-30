@@ -13,6 +13,8 @@ import ./lookup
 import ./fit/bytes
 export errors
 
+{.push raises: [].}
+
 type
   Row* = Table[int, string]  ## sparse row: 0-based column -> value
 

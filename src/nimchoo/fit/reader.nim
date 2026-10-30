@@ -10,6 +10,8 @@ import ./decode
 import ./records
 import ./tokens
 
+{.push raises: [].}
+
 type
   Reader* = object
     tokenizer*: Tokenizer

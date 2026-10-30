@@ -8,6 +8,8 @@
 import std/[options, sets, tables]
 import ../fit/basetype
 
+{.push raises: [].}
+
 type
   TypeKind* = enum
     tkBase,           ## a base type used directly (uint16, string, ...)
