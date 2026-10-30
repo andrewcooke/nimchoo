@@ -2,7 +2,7 @@ import std/[sets, strutils, unittest]
 import nimchoo/errors
 import nimchoo/fit/header
 import nimchoo/errors
-import nimchoo/profile
+import nimchoo/profile/load
 import nimchoo/tokens
 import nimchoo/xlsx
 import ./fitbuilder

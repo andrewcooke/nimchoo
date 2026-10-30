@@ -5,7 +5,7 @@
 import std/[sets, strutils, tables, unittest]
 import nimchoo/fit/bytes
 import nimchoo/commands/fit
-import nimchoo/profile
+import nimchoo/profile/load
 import nimchoo/tokens
 import ./csvcompare
 

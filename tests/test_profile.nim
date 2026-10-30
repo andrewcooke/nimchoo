@@ -1,6 +1,6 @@
 import std/[algorithm, sequtils, tables, unittest]
 import nimchoo/fit/basetype
-import nimchoo/profile
+import nimchoo/profile/load
 
 const path = "../choochoo/data/sdk/Profile.xlsx"
 let p = loadProfile(path)

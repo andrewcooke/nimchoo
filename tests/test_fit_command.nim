@@ -3,8 +3,8 @@ import nimchoo/errors
 import nimchoo/fit/bytes
 import nimchoo/commands/fit
 import nimchoo/decode
-import nimchoo/defaultprofile
-import nimchoo/profile
+import nimchoo/profile/default
+import nimchoo/profile/load
 import nimchoo/tokens
 import ./fitbuilder
 

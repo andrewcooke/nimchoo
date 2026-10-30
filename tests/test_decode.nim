@@ -1,7 +1,7 @@
 import std/[options, os, sequtils, strutils, tables, unittest]
 import nimchoo/fit/bytes
 import nimchoo/decode
-import nimchoo/profile
+import nimchoo/profile/load
 import nimchoo/tokens
 import ./fitbuilder
 

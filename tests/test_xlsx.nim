@@ -1,12 +1,12 @@
 import std/[strutils, tables, unittest]
-import nimchoo/xlsxrows
+import nimchoo/xlsx
 import ./xlsxbuilder
 
 const profile = "../choochoo/data/sdk/Profile.xlsx"
 
-suite "xlsxrows":
+suite "xlsx files":
   test "Types sheet: known value":
-    let rows = sheetRows(profile, "Types")
+    let rows = readWorkbook(profile).rows("Types")
     check rows[0].cell(0) == "Type Name"
     var found = false
     for r in rows:
@@ -16,13 +16,13 @@ suite "xlsxrows":
     check found
 
   test "absent cells are empty strings":
-    let rows = sheetRows(profile, "Types")
+    let rows = readWorkbook(profile).rows("Types")
     check rows[1].cell(99) == ""
 
   test "from memory and from a file give the same rows":
     let wb = openWorkbook(readFile(profile))
     check wb.sheetNames.len == 2
-    check wb.rows("Messages") == sheetRows(profile, "Messages")
+    check wb.rows("Messages") == readWorkbook(profile).rows("Messages")
 
 # --- small hand-made xlsx files (stored, not deflated, zips)
 

@@ -6,9 +6,9 @@ import ../fit/time
 import ./common
 import ../csvout
 import ../decode
-import ../defaultprofile
+import ../profile/default
 import ../errors
-import ../profile
+import ../profile/model
 import ../tokens
 
 const usage* = """usage: nch fit [--csv] [--profile PATH] FILE

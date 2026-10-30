@@ -1,9 +1,9 @@
 ## The FIT profile built into the executable (data/Profile.xlsx), so that
 ## tools work without `--profile`.
 
-import ./profile
+import ./load
 
-const embedded = staticRead("../../data/Profile.xlsx")
+const embedded = staticRead("../../../data/Profile.xlsx")
 
 proc loadDefaultProfile*(): Profile =
   ## The embedded profile.

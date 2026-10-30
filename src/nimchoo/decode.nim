@@ -16,7 +16,7 @@ import ./errors
 import ./fit/basetype
 import ./fit/bytes
 import ./lookup
-import ./profile
+import ./profile/model
 import ./tokens
 import ./warnings
 

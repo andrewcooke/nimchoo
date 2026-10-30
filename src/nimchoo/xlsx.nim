@@ -296,3 +296,11 @@ proc rows*(wb: Workbook, sheet: string): seq[Row] {.raises: [XlsxError].} =
   if sheet notin wb.sheets:
     raiseXlsx("no sheet called " & sheet)
   parseSheet(wb.file(wb.sheets.must(sheet)), wb.sheets.must(sheet), wb.shared)
+
+proc readWorkbook*(path: string): Workbook {.raises: [XlsxError, IOError].} =
+  ## The xlsx file at `path`.
+  openWorkbook(readFile(path))
+
+func cell*(row: Row, col: int): string =
+  ## Value in column `col` of a row, or "" if absent.
+  row.getOrDefault(col)
