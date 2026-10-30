@@ -1,4 +1,4 @@
-import std/[options, os, sequtils, strutils, tables, unittest]
+import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
 import nimchoo/fit/bytes
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
@@ -319,3 +319,16 @@ suite "decode: real files":
           fail()
     check files > 20
     check records > 1000
+
+suite "decode: warnings":
+  test "the reader merges tokenizer and decoder warnings in file order":
+    # message 1: an undescribed developer field (a decoder warning); message 2
+    # has the reserved bit set (a tokenizer warning, at a later offset)
+    let body = defn(0, 20, @[(3, 1, uint8T)], dev = @[(1, 2, 0)]) &
+      b(0, 99) & le16(7) &
+      b(0x10, 98) & le16(8)
+    let (r, _) = decodeAll(body)
+    check r.warnings.mapIt(it.kind) == @[wkUndescribedDevField, wkReservedBit,
+                                         wkUndescribedDevField]
+    var offsets = r.warnings.mapIt(it.offset)
+    check offsets == offsets.sorted

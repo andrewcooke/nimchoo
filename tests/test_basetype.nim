@@ -1,35 +1,11 @@
-import std/[options, sequtils, times, unittest]
-import nimchoo/errors
-import nimchoo/fit/[basetype, bytes, crc, header, time]
-import nimchoo/profile/load
-import nimchoo/warnings
-
-const
-  sdkDir = "../choochoo/data/test/source/sdk/"
-  personalDir = "../choochoo/data/test/source/personal/"
-
-func b(xs: varargs[int]): seq[byte] =
-  xs.mapIt(byte(it))
+import std/[options, unittest]
+import nimchoo/fit/basetype
+import ./fitbuilder
 
 func ints(bt: BaseType, data: seq[byte], e = littleEndian): seq[int64] =
   let r = decode(bt, data, e)
   doAssert r.isSome
   r.get.ints
-
-func hasKind(ps: seq[Warning], k: WarningKind): bool =
-  ps.anyIt(it.kind == k)
-
-suite "crc":
-  test "whole valid file has zero residue":
-    for path in [sdkDir & "Activity.fit", personalDir & "2018-03-04-qdp.fit"]:
-      check crc16(readBytes(path)) == 0
-
-  test "incremental":
-    let d = readBytes(sdkDir & "Activity.fit")
-    check crc16(d[50 .. ^1], crc16(d[0 .. 49])) == crc16(d)
-
-  test "empty":
-    check crc16(newSeq[byte]()) == 0
 
 suite "base type byte":
   test "known":
@@ -125,66 +101,3 @@ suite "strings":
     check strs(b(ord('a'), 0xff, 0)) == @["a\x01"]
   test "empty":
     check strs(b(0, 0)) == @[""]
-
-suite "time":
-  test "fit epoch":
-    check fitToUnix(0) == 631065600
-    check fitToTime(0).utc.format("yyyy-MM-dd'T'HH:mm:ss'Z'") ==
-      "1989-12-31T00:00:00Z"
-    check fitToTime(86400).utc.format("yyyy-MM-dd") == "1990-01-01"
-
-  # the three cases from choochoo's Date16 docstring, scaled to 16 bits
-  test "timestamp_16: simple increment":
-    let r = expandTimestamp16(0x5e5e, 0x15c5c)
-    check r.time == 0x15c5c + 0x202
-    check not r.backwards
-  test "timestamp_16: small decrement":
-    let r = expandTimestamp16(0x5a5a, 0x15c5c)
-    check r.time == 0x15c5c - 0x202
-    check r.backwards
-  test "timestamp_16: wrap-around":
-    let r = expandTimestamp16(0x0010, 0x1fff0)
-    check r.time == 0x20010
-    check not r.backwards
-
-suite "file header":
-  test "valid files":
-    for path in [sdkDir & "Activity.fit", personalDir & "2018-03-04-qdp.fit"]:
-      let d = readBytes(path)
-      let h = readHeader(d)
-      check h.dataType == ".FIT"
-      check h.size in [12, 14]
-      check h.dataSize + h.size + 2 == d.len
-      check problems(h, d).len == 0
-
-  test "too short":
-    expect FitError:
-      discard readHeader(b(12, 16, 0))
-
-  test "corrupt data byte":
-    var d = readBytes(sdkDir & "Activity.fit")
-    let h = readHeader(d)
-    d[h.size + 10] = d[h.size + 10] xor 0xff
-    let ps = problems(h, d)
-    check ps.len == 1
-    check ps.hasKind(wkFileChecksum)
-
-  test "corrupt data type":
-    var d = readBytes(sdkDir & "Activity.fit")
-    d[8] = byte('X')
-    let ps = problems(readHeader(d), d)
-    check ps.hasKind(wkDataType)
-
-  test "truncated file":
-    let d = readBytes(sdkDir & "Activity.fit")
-    let cut = d[0 ..< d.len - 5]
-    let ps = problems(readHeader(cut), cut)
-    check ps.hasKind(wkDataSize)
-    check ps.hasKind(wkFileChecksum)
-
-  test "corrupt header checksum":
-    var d = readBytes(personalDir & "2018-03-04-qdp.fit")
-    let h = readHeader(d)
-    if h.checksum.isSome:
-      d[4] = d[4] xor 1  # data size changes, so header crc is now wrong
-      check problems(readHeader(d), d).hasKind(wkHeaderChecksum)
