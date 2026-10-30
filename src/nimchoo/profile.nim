@@ -283,11 +283,16 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
   finish()
   (messages, byNumber)
 
+proc loadProfileFromBytes*(xlsx: string): Profile =
+  ## Read the Types and Messages sheets of an xlsx file held in memory.
+  let wb = openWorkbook(xlsx)
+  let types = loadTypes(wb.rows("Types"))
+  let (messages, byNumber) = loadMessages(wb.rows("Messages"), types)
+  Profile(types: types, messages: messages, byNumber: byNumber)
+
 proc loadProfile*(path: string): Profile =
   ## Read the Types and Messages sheets of the xlsx file at `path`.
-  let types = loadTypes(sheetRows(path, "Types"))
-  let (messages, byNumber) = loadMessages(sheetRows(path, "Messages"), types)
-  Profile(types: types, messages: messages, byNumber: byNumber)
+  loadProfileFromBytes(readFile(path))
 
 func timestamp16Fields*(p: Profile): HashSet[(int, int)] =
   ## (message number, field number) of every timestamp_16 field.

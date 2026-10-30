@@ -10,7 +10,6 @@ bin           = @["nch"]
 # Dependencies
 
 requires "nim >= 2.2.0"
-requires "xl"
 requires "zippy >= 0.10.4"
 
 task test, "Run all tests":

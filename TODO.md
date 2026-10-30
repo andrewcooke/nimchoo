@@ -18,7 +18,20 @@ validation against choochoo; update to current SDK later).
 * Out of scope for now: fix/repair (`fix.py`, `repair_*`), output formats,
   garmin download.
 
-### Step 1 result
+### Update: own xlsx reader (replaced `xl`)
+
+`xl` was only ever meant as a stopgap (HEAD-only dependency, loads from a path only so
+the embedded profile needed a temp file).  `src/nimchoo/xlsx.nim` now reads xlsx from
+memory: it parses the zip central directory itself (zippy's zip reader is path-only),
+inflates entries with zippy, and reads the workbook / relationships / shared strings /
+sheet xml with `std/parsexml`.  Handles namespace prefixes (the profile uses `x:`), a
+BOM, rich-text shared strings, inline strings and entities.  Identical cells to `xl`
+on both profile sheets (13,225 non-empty cells), ~17 ms; `xl` is no longer a
+dependency (only zippy).  Tests use hand-made stored-zip xlsx files for the edge
+cases.  `xlsxrows.nim` is now a thin layer over it; `loadProfileFromBytes` loads the
+embedded profile without a temp file.
+
+### Step 1 result (historical: how `xl` was chosen)
 
 * nimble `xlsx` 0.4.8 does NOT compile on nim 2.2.12 (C codegen error in
   `parseOverride`); it also extracts to a temp dir.  Rejected.
@@ -145,7 +158,7 @@ validation against choochoo; update to current SDK later).
          times as ISO UTC, developer fields as `dev.name`) or SDK-format CSV
          including definition rows.  Warnings/errors go to stderr; output before an
          error is kept.  Default profile is embedded (`data/Profile.xlsx` copy,
-         `staticRead`, written to a temp file because `xl` only loads from a path).
+         `staticRead`, loaded from memory).
        * `decode.nim` gained `events` (definitions + records, with developer field
          names as described so far), `Record.local`; `csvout.nim` writes the rows.
        * Harness: `tests/csvcompare.nim` (choochoo's CSVEqualContext rules: row by

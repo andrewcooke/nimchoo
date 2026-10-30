@@ -1,0 +1,248 @@
+## A minimal xlsx reader: just enough to read the cell values of worksheets as
+## strings, from bytes in memory.  An xlsx file is a zip of XML files; we read
+## the zip directory ourselves (zippy only opens zips from a path) and inflate
+## entries with zippy.
+##
+## Cell values are returned as the text in the file: numbers are not
+## converted, shared strings are resolved, formulas are not evaluated.
+
+import std/[parsexml, streams, strutils, tables]
+import zippy
+
+type
+  XlsxError* = object of CatchableError
+
+  Row* = Table[int, string]  ## sparse row: 0-based column -> value
+
+  ZipEntry = object
+    compression, compressedSize, offset: int
+
+  Workbook* = object
+    data: string
+    entries: Table[string, ZipEntry]
+    sheets: Table[string, string]   ## sheet name -> path of its xml in the zip
+    shared: seq[string]             ## shared strings
+
+# --- zip
+
+func u16(s: string, o: int): int =
+  if o < 0 or o + 2 > s.len: raise newException(XlsxError, "truncated zip file")
+  ord(s[o]) or (ord(s[o + 1]) shl 8)
+
+func u32(s: string, o: int): int =
+  u16(s, o) or (u16(s, o + 2) shl 16)
+
+func zipEntries(z: string): Table[string, ZipEntry] =
+  ## The central directory of a zip file.
+  var eocd = -1
+  var i = z.len - 22
+  while i >= 0 and i >= z.len - 22 - 65535:
+    if z[i] == 'P' and z[i + 1] == 'K' and z[i + 2] == '\5' and z[i + 3] == '\6':
+      eocd = i
+      break
+    dec i
+  if eocd < 0: raise newException(XlsxError, "not a zip file")
+  var p = u32(z, eocd + 16)
+  for _ in 0 ..< u16(z, eocd + 10):
+    if u32(z, p) != 0x02014b50:
+      raise newException(XlsxError, "bad zip central directory")
+    let nameLen = u16(z, p + 28)
+    if p + 46 + nameLen > z.len:
+      raise newException(XlsxError, "truncated zip file")
+    result[z[p + 46 ..< p + 46 + nameLen]] = ZipEntry(
+      compression: u16(z, p + 10), compressedSize: u32(z, p + 20),
+      offset: u32(z, p + 42))
+    p += 46 + nameLen + u16(z, p + 30) + u16(z, p + 32)
+
+func extract(z: string, e: ZipEntry): string =
+  let p = e.offset
+  if u32(z, p) != 0x04034b50:
+    raise newException(XlsxError, "bad zip local header")
+  let start = p + 30 + u16(z, p + 26) + u16(z, p + 28)
+  if start + e.compressedSize > z.len:
+    raise newException(XlsxError, "truncated zip file")
+  let raw = z[start ..< start + e.compressedSize]
+  case e.compression
+  of 0: raw
+  of 8:
+    try: uncompress(raw, dfDeflate)
+    except ZippyError as ex:
+      raise newException(XlsxError, "cannot inflate: " & ex.msg)
+  else:
+    raise newException(XlsxError, "unsupported zip compression " & $e.compression)
+
+proc file(wb: Workbook, path: string): string =
+  if path notin wb.entries:
+    raise newException(XlsxError, "no " & path & " in the xlsx file")
+  extract(wb.data, wb.entries[path])
+
+# --- xml
+
+proc openXml(xml: string): XmlParser =
+  const bom = "\xEF\xBB\xBF"
+  let text = if xml.startsWith(bom): xml[bom.len .. ^1] else: xml
+  result.open(newStringStream(text), "xml", {reportWhitespace})
+
+func local(name: string): string =
+  ## An element or attribute name without its namespace prefix.
+  let i = name.rfind(':')
+  if i < 0: name else: name[i + 1 .. ^1]
+
+proc parseSharedStrings(xml: string): seq[string] =
+  ## One string per <si>: the text of its <t> elements (rich text runs are
+  ## joined; phonetic runs <rPh> are left out).
+  var x = openXml(xml)
+  defer: x.close()
+  var inT, inPh = false
+  var cur = ""
+  while true:
+    x.next()
+    case x.kind
+    of xmlEof: break
+    of xmlElementStart, xmlElementOpen:
+      case local(x.elementName)
+      of "si": cur = ""
+      of "t": inT = true
+      of "rPh": inPh = true
+      else: discard
+    of xmlElementEnd:
+      case local(x.elementName)
+      of "si": result.add cur
+      of "t": inT = false
+      of "rPh": inPh = false
+      else: discard
+    of xmlCharData, xmlWhitespace, xmlCData:
+      if inT and not inPh: cur.add x.charData
+    else: discard
+
+proc parseRelationships(xml: string): Table[string, string] =
+  ## id -> target
+  var x = openXml(xml)
+  defer: x.close()
+  var id, target = ""
+  while true:
+    x.next()
+    case x.kind
+    of xmlEof: break
+    of xmlElementOpen:
+      if local(x.elementName) == "Relationship": id = ""; target = ""
+    of xmlAttribute:
+      case x.attrKey
+      of "Id": id = x.attrValue
+      of "Target": target = x.attrValue
+      else: discard
+    of xmlElementClose, xmlElementEnd:
+      if id.len > 0 and target.len > 0:
+        result[id] = target
+        id = ""; target = ""
+    else: discard
+
+proc parseSheetNames(xml: string): seq[(string, string)] =
+  ## (name, relationship id) of each sheet in workbook.xml
+  var x = openXml(xml)
+  defer: x.close()
+  var name, rid = ""
+  var inSheet = false
+  while true:
+    x.next()
+    case x.kind
+    of xmlEof: break
+    of xmlElementOpen:
+      inSheet = local(x.elementName) == "sheet"
+      name = ""; rid = ""
+    of xmlAttribute:
+      if inSheet:
+        case local(x.attrKey)
+        of "name": name = x.attrValue
+        of "id": rid = x.attrValue  # r:id (sheetId is a different name)
+        else: discard
+    of xmlElementClose, xmlElementEnd:
+      if inSheet and name.len > 0:
+        result.add (name, rid)
+      inSheet = false
+    else: discard
+
+func cellPosition(r: string): (int, int) =
+  ## (row, col), both 0-based, of a reference like "AB12"
+  var col, row = 0
+  var letters = 0
+  for c in r:
+    if c in {'A' .. 'Z'}:
+      col = col * 26 + (ord(c) - ord('A') + 1)
+      inc letters
+    elif c in {'0' .. '9'}:
+      row = row * 10 + (ord(c) - ord('0'))
+    else:
+      raise newException(XlsxError, "bad cell reference " & r)
+  if letters == 0 or row == 0:
+    raise newException(XlsxError, "bad cell reference " & r)
+  (row - 1, col - 1)
+
+proc parseSheet(xml: string, shared: seq[string]): seq[Row] =
+  var x = openXml(xml)
+  defer: x.close()
+  var cellRef, ctype, text = ""
+  var inC, inV, inT = false
+  while true:
+    x.next()
+    case x.kind
+    of xmlEof: break
+    of xmlElementOpen, xmlElementStart:
+      case local(x.elementName)
+      of "c": inC = true; cellRef = ""; ctype = ""; text = ""
+      of "v": inV = true
+      of "t": inT = inC
+      else: discard
+    of xmlAttribute:
+      if inC and not inV:
+        case x.attrKey
+        of "r": cellRef = x.attrValue
+        of "t": ctype = x.attrValue
+        else: discard
+    of xmlElementEnd:
+      case local(x.elementName)
+      of "v": inV = false
+      of "t": inT = false
+      of "c":
+        inC = false
+        if text.len > 0:
+          if cellRef.len == 0:
+            raise newException(XlsxError, "cell without a reference")
+          let (row, col) = cellPosition(cellRef)
+          var value = text
+          if ctype == "s":
+            let i = try: parseInt(text) except ValueError: -1
+            if i < 0 or i >= shared.len:
+              raise newException(XlsxError, "bad shared string " & text)
+            value = shared[i]
+          while result.len <= row: result.add Row()
+          result[row][col] = value
+      else: discard
+    of xmlCharData, xmlWhitespace, xmlCData:
+      if inC and (inV or inT): text.add x.charData
+    else: discard
+
+# --- workbook
+
+proc openWorkbook*(data: string): Workbook =
+  ## Raises XlsxError if `data` is not an xlsx file.
+  result.data = data
+  result.entries = zipEntries(data)
+  let rels = parseRelationships(result.file("xl/_rels/workbook.xml.rels"))
+  for (name, rid) in parseSheetNames(result.file("xl/workbook.xml")):
+    if rid in rels:
+      let target = rels[rid]
+      result.sheets[name] =
+        if target.startsWith("/"): target[1 .. ^1] else: "xl/" & target
+  if "xl/sharedStrings.xml" in result.entries:
+    result.shared = parseSharedStrings(result.file("xl/sharedStrings.xml"))
+
+func sheetNames*(wb: Workbook): seq[string] =
+  for name in wb.sheets.keys: result.add name
+
+proc rows*(wb: Workbook, sheet: string): seq[Row] =
+  ## All rows of `sheet`, indexed by 0-based row number (empty rows are empty
+  ## tables).  Raises XlsxError if there is no such sheet.
+  if sheet notin wb.sheets:
+    raise newException(XlsxError, "no sheet called " & sheet)
+  parseSheet(wb.file(wb.sheets[sheet]), wb.shared)
