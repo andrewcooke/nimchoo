@@ -1,5 +1,42 @@
 # TODO
 
+## Conventions
+
+### Error handling
+
+Four kinds of things go wrong, and each has one mechanism:
+
+1. **Bugs are Defects.** A violated precondition or a "can't happen" case uses
+   `doAssert`/`raiseAssert` (or the built-in bounds checks).  Never caught, never turned
+   into a warning, so tests fail loudly.  A table lookup that must succeed uses
+   `must`/`mustMut` (`src/nimchoo/lookup.nim`), which asserts instead of raising
+   `KeyError`.
+2. **Input we cannot use is an exception**: a corrupt FIT file, a bad profile, a file that
+   is not an xlsx.  All are subtypes of `NchError` (`src/nimchoo/errors.nim`:
+   `FitError` with `offset`, `ProfileError` with `sheet` and `row`, `XlsxError`), raised
+   with the `raiseFit` / `raiseProfile` / `raiseXlsx` helpers, and listed in
+   `{.raises.}`.
+3. **Ordinary absence is an `Option`**: a bad (invalid) field value, an unknown base type,
+   a missing field.  No sentinel values.
+4. **Oddities we can recover from are warnings**, collected on the tokenizer/decoder
+   (`warnings`), never logged or printed by library code.  (To become typed, see
+   "Next".)
+
+Rules that follow:
+* `try` only at boundaries: the CLI, and where a third-party or `std` call is wrapped into
+  one of our errors (`xlsx.nim` wraps `parsexml` and `zippy`).  Never
+  `except CatchableError`/`KeyError`/`Exception`, and never turn a caught bug into a warning.
+* Public procs declare `{.raises: [...].}` (I/O procs list `IOError`/`OSError`), so the
+  compiler checks what they can throw; pure `func`s are `{.raises: [].}`.
+* **CLI contract** (`src/nimchoo/commands/common.nim`): a command's `run(args): int` is
+  `{.raises: [].}`; it returns 0 for success, 1 when the work failed (unusable input,
+  I/O error) after one line on stderr and no trace, and 2 for a usage error.  Anything
+  else that escapes is a bug and is allowed to crash with a trace.
+
+Next (the "structure task"): typed warnings (a `WarningKind`, one shared sink), and
+`{.push raises: [].}` in every library module, together with a review of module layout
+and shared abstractions.
+
 ## Task 1: translate the choochoo FIT parser to nim
 
 Source: `../choochoo/py/ch2/fit/` (`profile/*`, `format/{read,tokens,records}.py`).

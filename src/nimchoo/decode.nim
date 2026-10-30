@@ -8,7 +8,8 @@
 ## registered from `field_description` records as they are decoded, so
 ## records must be decoded in file order (use `Reader`).
 ##
-## Nothing here raises for odd data; diagnostics go to `warnings`.
+## Odd data does not raise: it adds to `warnings`.  (A broken internal
+## invariant is a bug and an AssertionDefect, see lookup.nim.)
 
 import std/[options, tables]
 import ./binary
