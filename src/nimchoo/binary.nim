@@ -7,11 +7,11 @@
 ## diagnostics are returned rather than logged.
 
 import std/[options, strutils, times, unicode]
+import ./errors
 import ./profile
+export errors
 
 type
-  FitError* = object of CatchableError
-
   RawKind* = enum rkInt, rkFloat, rkString
 
   RawValues* = object
@@ -181,8 +181,7 @@ proc readHeader*(data: openArray[byte]): FileHeader {.raises: [FitError].} =
   ## Raises FitError only if the data is too short to hold a header; use
   ## `problems` to check consistency.
   if data.len < 12:
-    raise newException(FitError,
-      "too short for a FIT header (" & $data.len & " bytes)")
+    raiseFit("too short for a FIT header (" & $data.len & " bytes)")
   result.size = int(data[0])
   result.protocolVersion = int(data[1])
   result.profileVersion = u16le(data, 2)

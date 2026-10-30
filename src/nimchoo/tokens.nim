@@ -66,7 +66,7 @@ proc initTokenizer*(data: sink seq[byte],
   for i in 0 ..< 16: result.active[i] = -1
 
 proc fail(offset: int, msg: string) {.noreturn, raises: [FitError].} =
-  raise newException(FitError, msg & " (at offset " & $offset & ")")
+  raiseFit(offset, msg)
 
 proc warn(t: var Tokenizer, offset: int, msg: string) =
   t.warnings.add (offset, msg)

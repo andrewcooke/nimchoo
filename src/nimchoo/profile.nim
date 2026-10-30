@@ -6,11 +6,11 @@
 ## by reference, so a Profile is an immutable-in-spirit value with no cycles.
 
 import std/[options, sequtils, sets, strutils, tables]
+import ./errors
 import ./xlsxrows
+export errors
 
 type
-  ProfileError* = object of CatchableError
-
   BaseType* = enum
     ## Order follows the FIT base type list used by choochoo.
     btEnum = "enum", btSint8 = "sint8", btUint8 = "uint8",
@@ -86,7 +86,7 @@ const
 # --- parsing helpers
 
 proc fail(sheet: string, row: int, msg: string) {.noreturn.} =
-  raise newException(ProfileError, sheet & " row " & $(row + 1) & ": " & msg)
+  raiseProfile(sheet & " row " & $(row + 1) & ": " & msg, sheet, row + 1)
 
 proc parseNum*(s: string): int64 =
   ## Integer cell: decimal, 0x hex, or a float spelling of an integer ("1.0").
@@ -199,12 +199,12 @@ proc resolveRef(types: Table[string, FitType], msg: Message,
                 refField, value: string): int64 =
   ## Number for `value` of field `refField`, via its mapping if it has one.
   if refField notin msg.fields:
-    raise newException(ProfileError,
+    raiseProfile(
       msg.name & ": dynamic reference to unknown field " & refField)
   let t = types[msg.fields[refField].typeName]
   if t.kind == tkMapping:
     if value notin t.toValue:
-      raise newException(ProfileError,
+      raiseProfile(
         msg.name & "." & refField & ": no value " & value & " in " & t.name)
     t.toValue[value]
   else:
@@ -233,7 +233,7 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
     cur = ""
 
   if "mesg_num" notin types:
-    raise newException(ProfileError, "no mesg_num type")
+    raiseProfile("no mesg_num type")
   let mesgNum = types["mesg_num"]
 
   for i, row in rows:

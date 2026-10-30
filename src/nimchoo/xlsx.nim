@@ -8,10 +8,10 @@
 
 import std/[parsexml, streams, strutils, tables]
 import zippy
+import ./errors
+export errors
 
 type
-  XlsxError* = object of CatchableError
-
   Row* = Table[int, string]  ## sparse row: 0-based column -> value
 
   ZipEntry = object
@@ -26,7 +26,7 @@ type
 # --- zip
 
 func u16(s: string, o: int): int =
-  if o < 0 or o + 2 > s.len: raise newException(XlsxError, "truncated zip file")
+  if o < 0 or o + 2 > s.len: raiseXlsx("truncated zip file")
   ord(s[o]) or (ord(s[o + 1]) shl 8)
 
 func u32(s: string, o: int): int =
@@ -41,14 +41,14 @@ func zipEntries(z: string): Table[string, ZipEntry] =
       eocd = i
       break
     dec i
-  if eocd < 0: raise newException(XlsxError, "not a zip file")
+  if eocd < 0: raiseXlsx("not a zip file")
   var p = u32(z, eocd + 16)
   for _ in 0 ..< u16(z, eocd + 10):
     if u32(z, p) != 0x02014b50:
-      raise newException(XlsxError, "bad zip central directory")
+      raiseXlsx("bad zip central directory")
     let nameLen = u16(z, p + 28)
     if p + 46 + nameLen > z.len:
-      raise newException(XlsxError, "truncated zip file")
+      raiseXlsx("truncated zip file")
     result[z[p + 46 ..< p + 46 + nameLen]] = ZipEntry(
       compression: u16(z, p + 10), compressedSize: u32(z, p + 20),
       offset: u32(z, p + 42))
@@ -57,23 +57,23 @@ func zipEntries(z: string): Table[string, ZipEntry] =
 func extract(z: string, e: ZipEntry): string =
   let p = e.offset
   if u32(z, p) != 0x04034b50:
-    raise newException(XlsxError, "bad zip local header")
+    raiseXlsx("bad zip local header")
   let start = p + 30 + u16(z, p + 26) + u16(z, p + 28)
   if start + e.compressedSize > z.len:
-    raise newException(XlsxError, "truncated zip file")
+    raiseXlsx("truncated zip file")
   let raw = z[start ..< start + e.compressedSize]
   case e.compression
   of 0: raw
   of 8:
     try: uncompress(raw, dfDeflate)
     except ZippyError as ex:
-      raise newException(XlsxError, "cannot inflate: " & ex.msg)
+      raiseXlsx("cannot inflate: " & ex.msg)
   else:
-    raise newException(XlsxError, "unsupported zip compression " & $e.compression)
+    raiseXlsx("unsupported zip compression " & $e.compression)
 
 proc file(wb: Workbook, path: string): string =
   if path notin wb.entries:
-    raise newException(XlsxError, "no " & path & " in the xlsx file")
+    raiseXlsx("no " & path & " in the xlsx file")
   extract(wb.data, wb.entries[path])
 
 # --- xml
@@ -173,9 +173,9 @@ func cellPosition(r: string): (int, int) =
     elif c in {'0' .. '9'}:
       row = row * 10 + (ord(c) - ord('0'))
     else:
-      raise newException(XlsxError, "bad cell reference " & r)
+      raiseXlsx("bad cell reference " & r)
   if letters == 0 or row == 0:
-    raise newException(XlsxError, "bad cell reference " & r)
+    raiseXlsx("bad cell reference " & r)
   (row - 1, col - 1)
 
 proc parseSheet(xml: string, shared: seq[string]): seq[Row] =
@@ -207,13 +207,13 @@ proc parseSheet(xml: string, shared: seq[string]): seq[Row] =
         inC = false
         if text.len > 0:
           if cellRef.len == 0:
-            raise newException(XlsxError, "cell without a reference")
+            raiseXlsx("cell without a reference")
           let (row, col) = cellPosition(cellRef)
           var value = text
           if ctype == "s":
             let i = try: parseInt(text) except ValueError: -1
             if i < 0 or i >= shared.len:
-              raise newException(XlsxError, "bad shared string " & text)
+              raiseXlsx("bad shared string " & text)
             value = shared[i]
           while result.len <= row: result.add Row()
           result[row][col] = value
@@ -244,5 +244,5 @@ proc rows*(wb: Workbook, sheet: string): seq[Row] =
   ## All rows of `sheet`, indexed by 0-based row number (empty rows are empty
   ## tables).  Raises XlsxError if there is no such sheet.
   if sheet notin wb.sheets:
-    raise newException(XlsxError, "no sheet called " & sheet)
+    raiseXlsx("no sheet called " & sheet)
   parseSheet(wb.file(wb.sheets[sheet]), wb.shared)
