@@ -29,12 +29,8 @@ proc main() =
       err = e.msg
     var ignore: HashSet[string]
     for k in ignoredFields.getOrDefault(pair.name): ignore.incl k
-    var round2: HashSet[string]
-    for k in roundedFields.getOrDefault(pair.name): round2.incl k
-    var diffs: seq[Diff]
-    for d in compareCsv(lines.join("\n"), readFile(pair.csvPath),
-                        composites, ignore, round2):
-      if isAllowed(pair.dir, d) < 0: diffs.add d
+    let diffs = compareCsv(lines.join("\n"), readFile(pair.csvPath),
+                           composites, ignore)
     let label = pair.dir & "/" & pair.name
     if diffs.len == 0 and err.len == 0:
       inc clean

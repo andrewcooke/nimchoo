@@ -152,24 +152,27 @@ validation against choochoo; update to current SDK later).
          row, first three cells equal, per-field value/units, `unknown` skipped,
          `.0`/bool fixes, numbers as floats, header/checksum rows dropped, SDK-only
          composite fields skipped, `Activity.fit` ignores `timer_trigger`),
-         `tests/test_sdkcsv.nim` (one test per file; stale allow-list entries fail),
+         `tests/test_sdkcsv.nim` (one test per file),
          `nimble csvreport` (differences grouped by message/field/kind, for triage).
-       * Result: all 47 files with a CSV match.  sdk (10) and personal (16) match
-         exactly, with no allowances.  python-fitparse (16) and other (5) match apart
-         from differences allowed only in those directories (`allowed` in
-         csvcompare.nim): older-SDK CSVs (cycling `total_cycles` vs our
-         `total_strokes`; `session.num_lengths` unknown to its profile; distance
-         rounded to 2dp for compressed-speed-distance) and `event.timer_trigger`
-         where `data` and `data16` both produce it (the SDK merges into `0|0`, we
-         keep two entries).  One CSV there (2015-10-13-08-43-15) is choochoo output.
-       * One decoder change came out of this: `timestamp_16` fields now stay raw
-         (as the SDK prints them); `Record.timestamp` has the expanded time.
-       * Not regenerated: python-fitparse/other CSVs could be regenerated with the
-         SDK's FitCSVTool (`../choochoo/dev/build-csv.sh`; no Java/SDK on this VM) to
-         remove the older-SDK allowances.
-       * Open: should duplicate field names (eg `timer_trigger` from `data` and
-         `data16`) be merged into one array as the SDK/choochoo do?  Currently kept as
-         separate entries (and `field` returns the first).
+       * Scope (decision): the comparison covers `sdk/` and `personal/` (26 files),
+         whose CSVs match the SDK version of Profile.xlsx; all 26 match exactly.
+         The CSVs in `python-fitparse/` and `other/` (21) are from an older SDK /
+         profile and are no longer compared (the other 50 files just have to decode
+         without warnings).  They differed only in: cycling `total_cycles` vs our
+         `total_strokes`, `session.num_lengths` unknown to their profile, distance
+         rounded to 2dp, and one choochoo-made CSV.  Regenerating them with the SDK's
+         FitCSVTool (`../choochoo/dev/build-csv.sh`; no Java/SDK on this VM) would
+         allow comparing all 76 files.
+       * `timestamp_16` fields stay raw (as the SDK prints them); `Record.timestamp`
+         has the expanded time.
+       * Duplicate names (decision): one entry per name per record.  `FieldValue.bits`
+         is the width of the source it was decoded from; the widest source wins (most
+         precise; eg `data` 32 bits over `data16` 16 bits, `enhanced_altitude` over
+         the value derived from `altitude`), the first on a tie; invalid values are
+         dropped first, so a valid narrow value survives an invalid wide one.  Several
+         values for one name from the *same* composite (eg the eight event_timestamps
+         of `hr.event_timestamp_12`) are concatenated into one array.  The harness
+         accepts the SDK's `x|x` (it merges the two sources) for our `x`.
        * Known and accepted differences from choochoo: composite fields themselves
          are not emitted; the 19 fractional scales use their real values; accumulators
          are per (message, field).  None of these showed up as a mismatch against the

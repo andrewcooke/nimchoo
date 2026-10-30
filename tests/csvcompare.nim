@@ -52,20 +52,19 @@ func sameValue(a, b: string): bool =
   let (x, y) = (fixValue(a), fixValue(b))
   if x == y: return true
   let (xs, ys) = (x.split('|'), y.split('|'))
-  if xs.len != ys.len: return false
+  if xs.len != ys.len:
+    # the SDK merges the same field from two sources into an array of repeats
+    # (eg 0|0); we keep one entry per name
+    let (one, many) = if xs.len == 1: (xs[0], ys) else: (ys[0], xs)
+    if min(xs.len, ys.len) != 1: return false
+    for m in many:
+      let (u, v) = (fixValue(one), fixValue(m))
+      if u != v and not sameNumber(u, v): return false
+    return true
   for i in 0 ..< xs.len:
     let (u, v) = (fixValue(xs[i]), fixValue(ys[i]))
     if u != v and not sameNumber(u, v): return false
   true
-
-func rounded(v: string): string =
-  ## `v` rounded (half up) to 2 decimal places, if it is a number with more.
-  try:
-    let x = parseFloat(v)
-    if '.' in v and v.split('.')[1].len > 2:
-      return formatFloat(x + 0.0000001, ffDecimal, 2)
-  except ValueError: discard
-  v
 
 func compositeNames*(p: Profile): Table[string, HashSet[string]] =
   ## message name -> names of its composite fields
@@ -76,11 +75,9 @@ func compositeNames*(p: Profile): Table[string, HashSet[string]] =
 
 proc compareCsv*(ours, theirs: string,
                  composites: Table[string, HashSet[string]],
-                 ignore: HashSet[string] = initHashSet[string](),
-                 round2: HashSet[string] = initHashSet[string]()): seq[Diff] =
+                 ignore: HashSet[string] = initHashSet[string]()): seq[Diff] =
   ## Differences between our CSV text and the SDK's.  `theirs` starts with a
-  ## title row, which is dropped.  Values of keys in `round2` are compared
-  ## after rounding ours to 2 decimal places (as choochoo's ROUND_DISTANCE).
+  ## title row, which is dropped.
   let us = readCsv(ours)
   var them = readCsv(theirs)
   if them.len > 0: them.delete(0)
@@ -118,8 +115,7 @@ proc compareCsv*(ours, theirs: string,
         if ours[0].len == 0: continue
         result.add Diff(row: row, kind: dkExtra, message: message, key: key,
                         ours: ours[0])
-      elif not sameValue(if key in round2: rounded(ours[0]) else: ours[0],
-                         theirs[0]):
+      elif not sameValue(ours[0], theirs[0]):
         result.add Diff(row: row, kind: dkValue, message: message, key: key,
                         ours: ours[0], theirs: theirs[0])
       elif ours[0].len > 0 and ours[1] != theirs[1]:
@@ -133,7 +129,7 @@ proc compareCsv*(ours, theirs: string,
 
 const
   testRoot* = "../choochoo/data/test/"
-  csvDirs* = ["sdk", "personal", "python-fitparse", "other"]
+  csvDirs* = ["sdk", "personal"]
 
 type SdkPair* = object
   dir*, name*: string          ## eg "sdk", "Activity.fit"
@@ -157,50 +153,3 @@ proc sdkPairs*(): seq[SdkPair] =
 const ignoredFields* = {
   "Activity.fit": @["timer_trigger"],  # choochoo: the SDK value makes no sense
 }.toTable
-
-# --- allowed differences
-
-type Allowed* = object
-  ## A known, intentional difference.  Only `dirs` are allowed to differ this
-  ## way (sdk/ and personal/ must match exactly).
-  dirs*: seq[string]
-  message*, key*: string
-  kinds*: set[DiffKind]
-  reason*: string
-
-const older = "older SDK version than Profile.xlsx"
-const allowed* = [
-  Allowed(dirs: @["python-fitparse", "other"], message: "lap",
-          key: "total_cycles", kinds: {dkMissing},
-          reason: older & ": cycling laps use total_cycles, we use total_strokes"),
-  Allowed(dirs: @["python-fitparse", "other"], message: "lap",
-          key: "total_strokes", kinds: {dkExtra},
-          reason: older & ": cycling laps use total_cycles, we use total_strokes"),
-  Allowed(dirs: @["python-fitparse", "other"], message: "session",
-          key: "total_cycles", kinds: {dkMissing},
-          reason: older & ": cycling sessions use total_cycles, we use total_strokes"),
-  Allowed(dirs: @["python-fitparse", "other"], message: "session",
-          key: "total_strokes", kinds: {dkExtra},
-          reason: older & ": cycling sessions use total_cycles, we use total_strokes"),
-  Allowed(dirs: @["python-fitparse", "other"], message: "session",
-          key: "num_lengths", kinds: {dkExtra},
-          reason: older & ": field not in its profile (shown as unknown)"),
-  Allowed(dirs: @["python-fitparse", "other"], message: "event",
-          key: "timer_trigger", kinds: {dkValue},
-          reason: "data and data16 both give timer_trigger; the SDK merges them " &
-                  "into one array (0|0), we keep two entries (cf choochoo merge_duplicates)"),
-]
-
-# per-file fields compared after rounding to 2 decimal places (as choochoo's
-# ROUND_DISTANCE: the CSV was written by an older SDK that rounded)
-const roundedFields* = {
-  "compressed-speed-distance.fit": @["distance"],
-}.toTable
-
-proc isAllowed*(dir: string, d: Diff): int =
-  ## Index into `allowed` of the entry that covers `d`, or -1.
-  for i, a in allowed:
-    if dir in a.dirs and d.message == a.message and d.key == a.key and
-        d.kind in a.kinds:
-      return i
-  -1

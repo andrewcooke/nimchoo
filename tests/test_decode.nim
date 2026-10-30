@@ -101,8 +101,8 @@ suite "decode: composite fields":
     check recs[0].fv("distance").units == "m"
 
   test "composite larger than 8 bytes (hr.event_timestamp_12)":
-    # 8 x 12 bits: 1, 2, ... 8 packed low bits first; the profile lists 10
-    # components, the extra two do not fit and are ignored
+    # 8 x 12 bits: 1, 2, ... 8 packed low bits first, giving one array; the
+    # profile lists 10 components, the extra two do not fit and are ignored
     var big: seq[byte] = newSeq[byte](12)
     for i in 0 ..< 8:
       for k in 0 ..< 12:
@@ -113,9 +113,9 @@ suite "decode: composite fields":
     let body = defn(0, msg.number, @[(10, 12, byteT)]) & b(0) & big
     let (r, recs) = decodeAll(body)
     check r.warnings.len == 0
-    check recs[0].fields.len == 8
-    check recs[0].fields.mapIt(it.name).deduplicate == @["event_timestamp"]
-    check recs[0].fields.mapIt(it.floats[0]) ==
+    check recs[0].fields.len == 1
+    check recs[0].fields[0].name == "event_timestamp"
+    check recs[0].fields[0].floats ==
       @[1.0 / 1024, 2.0 / 1024, 3.0 / 1024, 4.0 / 1024, 5.0 / 1024,
         6.0 / 1024, 7.0 / 1024, 8.0 / 1024]
 
@@ -128,6 +128,30 @@ suite "decode: composite fields":
     let body = defn(0, 20, @[(6, 2, uint16T)]) & b(0) & le16(0xffff)
     let (_, recs) = decodeAll(body)
     check recs[0].fields.len == 0
+
+  test "one entry per name: the widest source wins (data over data16)":
+    # event.data16 (16 bits, via a component) and event.data (32 bits) both
+    # give timer_trigger; use different values to see which one is kept
+    let body = defn(0, 21, @[(0, 1, enumT), (2, 2, uint16T), (3, 4, uint32T)]) &
+      b(0, 0) & le16(4) & le32(9)
+    let (_, recs) = decodeAll(body)
+    check recs[0].names == @["event", "timer_trigger"]
+    check recs[0].fv("timer_trigger").ints == @[9'i64]
+    check recs[0].fv("timer_trigger").bits == 32
+
+  test "one entry per name: enhanced_altitude over altitude":
+    let body = defn(0, 20, @[(2, 2, uint16T), (78, 4, uint32T)]) &
+      b(0) & le16(3000) & le32(3500)
+    let (_, recs) = decodeAll(body)
+    check recs[0].names == @["enhanced_altitude"]
+    check recs[0].fv("enhanced_altitude").floats == @[200.0]  # 3500 / 5 - 500
+
+  test "one entry per name: the narrow value is kept if the wide one is bad":
+    let body = defn(0, 20, @[(2, 2, uint16T), (78, 4, uint32T)]) &
+      b(0) & le16(3000) & le32(0xffffffff'i64)
+    let (_, recs) = decodeAll(body)
+    check recs[0].names == @["enhanced_altitude"]
+    check recs[0].fv("enhanced_altitude").floats == @[100.0]
 
   test "accumulated component rolls over":
     let body = defn(0, 20, @[(8, 3, byteT)]) &

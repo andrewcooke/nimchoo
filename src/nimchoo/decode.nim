@@ -27,6 +27,7 @@ type
     units*: string
     typeName*: string   ## profile type (mapping, date_time, bool...) or base type
     dev*: bool          ## developer field
+    bits*: int          ## width in bits of the source it was decoded from
     case kind*: ValueKind
     of vkInt: ints*: seq[int64]
     of vkFloat: floats*: seq[float]
@@ -79,6 +80,7 @@ type
   Override = object
     scale, offset: Option[float]
     acc: int                     ## accumulator width in bits (0 = none)
+    bits: int                    ## width of the outermost component (0 = none)
     depth: int
 
   Spec = object
@@ -88,6 +90,7 @@ type
     base: BaseType
     scale, offset: float
     acc: int
+    bits: int
     check, dev: bool
 
 type
@@ -144,7 +147,7 @@ proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
   ## Decode `data` as described by `sp`: bad check, accumulation and scaling.
   template mk(k: ValueKind): FieldValue =
     FieldValue(kind: k, name: sp.name, number: sp.number, units: sp.units,
-               typeName: sp.typeName, dev: sp.dev)
+               typeName: sp.typeName, dev: sp.dev, bits: sp.bits)
   if sp.kind == tkBool:
     var fv = mk(vkInt)
     for x in data: fv.ints.add(if x != 0: 1'i64 else: 0'i64)
@@ -193,6 +196,19 @@ proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
 
 # --- one profile field
 
+proc addMerging(fs: var seq[FieldValue], v: FieldValue) =
+  ## Add `v`.  A composite can give several values for one name (eg the eight
+  ## event_timestamps of hr.event_timestamp_12): they become one array.
+  if v.name.len > 0:
+    for f in fs.mitems:
+      if f.name == v.name and f.kind == v.kind:
+        case v.kind
+        of vkInt: f.ints.add v.ints
+        of vkFloat: f.floats.add v.floats
+        of vkString: f.strings.add v.strings
+        return
+  fs.add v
+
 proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
                  defBase: Option[BaseType], data: openArray[byte],
                  endian: Endianness, ctx: RecCtx, ov: Override,
@@ -230,11 +246,13 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
         scale: (if ov.scale.isSome: ov.scale else: some(c.scale)),
         offset: (if ov.offset.isSome: ov.offset else: some(c.offset)),
         acc: (if ov.acc > 0: ov.acc elif c.accumulate: c.bits else: 0),
+        bits: (if ov.bits > 0: ov.bits else: c.bits),
         depth: ov.depth + 1)
       let tnum = if msg.fields[c.target].number.isSome:
                    msg.fields[c.target].number.get else: -1
-      result.add d.decodeField(msg, msg.fields[c.target], tnum, none(BaseType),
-                               le, littleEndian, ctx, ov2, true)
+      for v in d.decodeField(msg, msg.fields[c.target], tnum, none(BaseType),
+                             le, littleEndian, ctx, ov2, true):
+        result.addMerging v
     return
   of fkDynamic:
     var target = ""
@@ -248,6 +266,7 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
       if target.len > 0: break
     if target.len > 0 and target in msg.fields:
       let ov2 = Override(scale: ov.scale, offset: ov.offset, acc: ov.acc,
+                         bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
                          depth: ov.depth + 1)
       if fromBits:
         return d.decodeField(msg, msg.fields[target], number, none(BaseType),
@@ -268,6 +287,7 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
     scale: (if ov.scale.isSome: ov.scale.get else: f.scale),
     offset: (if ov.offset.isSome: ov.offset.get else: f.offset),
     acc: (if ov.acc > 0: ov.acc elif f.accumulate: 8 * base.size else: 0),
+    bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
     check: not fromBits, dev: false)
   let v =
     if fromBits:
@@ -358,7 +378,7 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
       if fd.base.isNone: continue
       let sp = Spec(name: "", typeName: $fd.base.get, number: fd.number,
                     kind: tkBase, base: fd.base.get, scale: 1, offset: 0,
-                    check: true)
+                    bits: 8 * fd.size, check: true)
       let v = d.interpret(sp, slotData(i), endian, ctx)
       if v.isSome: groups[i] = @[v.get]
     elif d.plans[idx].slots[i].field.get.kind == fkPlain:
@@ -381,8 +401,20 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
   if tok.compressed and t.defs[idx].timestampField < 0 and tok.timestamp.isSome:
     result.fields.add FieldValue(kind: vkInt, name: "timestamp",
                                  number: timestampFieldNo, units: "s",
-                                 typeName: "date_time", ints: @[tok.timestamp.get])
+                                 typeName: "date_time", bits: 32,
+                                 ints: @[tok.timestamp.get])
   for g in groups: result.fields.add g
+  # one entry per name: keep the one decoded from the widest source (the most
+  # precise; eg `data` over the narrower `data16`), the first on a tie
+  var best: Table[string, int]
+  for i, f in result.fields:
+    if f.name.len == 0: continue
+    if f.name notin best or f.bits > result.fields[best[f.name]].bits:
+      best[f.name] = i
+  var kept: seq[FieldValue]
+  for i, f in result.fields:
+    if f.name.len == 0 or best[f.name] == i: kept.add f
+  result.fields = kept
 
   for dv in t.defs[idx].devFields:
     let key = (dv.devIndex, dv.number)
@@ -394,7 +426,8 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
     let df = d.devFields[key]
     let sp = Spec(name: df.name, units: df.units, typeName: $df.base,
                   number: dv.number, kind: tkBase, base: df.base,
-                  scale: df.scale, offset: df.offset, check: true, dev: true)
+                  scale: df.scale, offset: df.offset, bits: 8 * dv.size,
+                  check: true, dev: true)
     let v = d.interpret(sp, t.data.toOpenArray(at, at + dv.size - 1), endian, ctx)
     if v.isSome: result.fields.add v.get
 
