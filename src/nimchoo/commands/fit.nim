@@ -4,12 +4,13 @@ import std/[options, strutils, times]
 import ../fit/bytes
 import ../fit/time
 import ./common
-import ../csvout
-import ../decode
+import ../fit/csvout
+import ../fit/reader
+import ../fit/records
 import ../profile/default
 import ../errors
 import ../profile/model
-import ../tokens
+import ../warnings
 
 const usage* = """usage: nch fit [--csv] [--profile PATH] FILE
 

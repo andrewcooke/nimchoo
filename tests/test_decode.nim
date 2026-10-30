@@ -1,8 +1,8 @@
 import std/[options, os, sequtils, strutils, tables, unittest]
 import nimchoo/fit/bytes
-import nimchoo/decode
+import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
-import nimchoo/tokens
+import nimchoo/fit/tokens
 import ./fitbuilder
 
 const

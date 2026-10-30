@@ -1,0 +1,67 @@
+## What a file decodes to: named values (`FieldValue`), `Record`s (one data
+## message), and `Event`s (a definition or a record, in file order), with the
+## accessors that go with them.
+
+import std/[options, tables]
+import ../lookup
+import ../profile/model
+
+type
+  ValueKind* = enum vkInt, vkFloat, vkString
+
+  FieldValue* = object
+    name*: string       ## "" if the field is not in the profile
+    number*: int        ## field number (components: the target's; -1 if none)
+    units*: string
+    typeName*: string   ## profile type (mapping, date_time, bool...) or base type
+    dev*: bool          ## developer field
+    bits*: int          ## width in bits of the source it was decoded from
+    case kind*: ValueKind
+    of vkInt: ints*: seq[int64]
+    of vkFloat: floats*: seq[float]
+    of vkString: strings*: seq[string]
+
+  Record* = object
+    name*: string       ## "" if the message is not in the profile
+    number*: int        ## global message number
+    local*: int         ## local message type
+    defn*: int          ## index into Tokenizer.defs
+    timestamp*: Option[int64]  ## FIT seconds
+    fields*: seq[FieldValue]
+
+type
+  EventKind* = enum evDefinition, evRecord
+
+  DefField* = tuple[name: string, count: int]  ## name "" if unknown
+
+  Event* = object
+    ## A definition or a decoded data message, in file order.
+    offset*: int
+    case kind*: EventKind
+    of evDefinition:
+      local*: int
+      message*: string    ## "" if unknown
+      number*: int        ## global message number
+      fields*: seq[DefField]
+    of evRecord:
+      record*: Record
+
+func field*(r: Record, name: string): Option[FieldValue] =
+  ## The first field called `name`.
+  for f in r.fields:
+    if f.name == name: return some(f)
+
+func valueName*(p: Profile, f: FieldValue, i = 0): string {.raises: [].} =
+  ## Profile name of an enumerated value, else the value as text.
+  case f.kind
+  of vkInt:
+    if i >= f.ints.len: return ""
+    let v = f.ints[i]
+    if f.typeName in p.types and p.types.must(f.typeName).kind == tkMapping and
+        v in p.types.must(f.typeName).toName:
+      return p.types.must(f.typeName).toName.must(v)
+    $v
+  of vkFloat:
+    if i >= f.floats.len: "" else: $f.floats[i]
+  of vkString:
+    if i >= f.strings.len: "" else: f.strings[i]

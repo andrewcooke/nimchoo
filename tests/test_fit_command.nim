@@ -2,10 +2,10 @@ import std/[os, tables, unittest]
 import nimchoo/errors
 import nimchoo/fit/bytes
 import nimchoo/commands/fit
-import nimchoo/decode
+import nimchoo/fit/[reader, records]
 import nimchoo/profile/default
 import nimchoo/profile/load
-import nimchoo/tokens
+import nimchoo/fit/tokens
 import ./fitbuilder
 
 const

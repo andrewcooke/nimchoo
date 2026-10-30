@@ -3,7 +3,7 @@ import nimchoo/errors
 import nimchoo/fit/header
 import nimchoo/errors
 import nimchoo/profile/load
-import nimchoo/tokens
+import nimchoo/fit/tokens
 import nimchoo/xlsx
 import ./fitbuilder
 

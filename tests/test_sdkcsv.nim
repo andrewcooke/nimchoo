@@ -6,7 +6,7 @@ import std/[sets, strutils, tables, unittest]
 import nimchoo/fit/bytes
 import nimchoo/commands/fit
 import nimchoo/profile/load
-import nimchoo/tokens
+import nimchoo/fit/tokens
 import ./csvcompare
 
 let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")

@@ -4,7 +4,7 @@
 ## are written as `unknown`.
 
 import std/[sequtils, strutils]
-import ./decode
+import ./records
 
 func quoted(s: string): string =
   '"' & s.replace("\"", "\"\"") & '"'

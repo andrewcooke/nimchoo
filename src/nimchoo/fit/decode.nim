@@ -12,40 +12,18 @@
 ## invariant is a bug and an AssertionDefect, see lookup.nim.)
 
 import std/[options, tables]
-import ./errors
-import ./fit/basetype
-import ./fit/bytes
-import ./lookup
-import ./profile/model
+import ../lookup
+import ../profile/model
+import ../warnings
+import ./basetype
+import ./bytes
+import ./records
 import ./tokens
-import ./warnings
 
 const
   fieldDescriptionNum* = 206  ## global message number of field_description
 
 type
-  ValueKind* = enum vkInt, vkFloat, vkString
-
-  FieldValue* = object
-    name*: string       ## "" if the field is not in the profile
-    number*: int        ## field number (components: the target's; -1 if none)
-    units*: string
-    typeName*: string   ## profile type (mapping, date_time, bool...) or base type
-    dev*: bool          ## developer field
-    bits*: int          ## width in bits of the source it was decoded from
-    case kind*: ValueKind
-    of vkInt: ints*: seq[int64]
-    of vkFloat: floats*: seq[float]
-    of vkString: strings*: seq[string]
-
-  Record* = object
-    name*: string       ## "" if the message is not in the profile
-    number*: int        ## global message number
-    local*: int         ## local message type
-    defn*: int          ## index into Tokenizer.defs
-    timestamp*: Option[int64]  ## FIT seconds
-    fields*: seq[FieldValue]
-
   TypeInfo = tuple[kind: TypeKind, base: BaseType]
 
   Slot = object
@@ -68,11 +46,6 @@ type
     plans: seq[DefPlan]                   ## indexed like Tokenizer.defs
     accum: Table[(int, string), uint64]   ## (message number, field name) -> total
     devFields: Table[(int, int), DevField]
-
-  Reader* = object
-    tokenizer*: Tokenizer
-    decoder*: Decoder
-    started: bool
 
   # per-record context
   RecCtx = object
@@ -97,23 +70,6 @@ type
     acc: int
     bits: int
     check, dev: bool
-
-type
-  EventKind* = enum evDefinition, evRecord
-
-  DefField* = tuple[name: string, count: int]  ## name "" if unknown
-
-  Event* = object
-    ## A definition or a decoded data message, in file order.
-    offset*: int
-    case kind*: EventKind
-    of evDefinition:
-      local*: int
-      message*: string    ## "" if unknown
-      number*: int        ## global message number
-      fields*: seq[DefField]
-    of evRecord:
-      record*: Record
 
 const maxDepth = 8
 
@@ -427,17 +383,7 @@ proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
   if globalNum == fieldDescriptionNum:
     d.registerDev(result, tok.offset)
 
-# --- reading whole files
-
-proc initReader*(p: Profile, data: sink seq[byte]): Reader =
-  Reader(tokenizer: initTokenizer(data, p.timestamp16Fields),
-         decoder: initDecoder(p))
-
-func warnings*(r: Reader): seq[Warning] =
-  ## Tokenizer warnings followed by decoder warnings.
-  r.tokenizer.warnings & r.decoder.warnings
-
-proc definitionEvent(d: var Decoder, p: Profile, t: Tokenizer,
+proc definitionEvent*(d: var Decoder, p: Profile, t: Tokenizer,
                      tok: Token): Event {.raises: [].} =
   ## Event for a definition token.  Developer field names are those described
   ## so far, so this must be called in file order.
@@ -459,49 +405,8 @@ proc definitionEvent(d: var Decoder, p: Profile, t: Tokenizer,
     else:
       result.fields.add ("", dv.size)
 
-iterator events*(r: var Reader, p: Profile): Event {.raises: [FitError].} =
-  ## Every definition and data message in the file, in order.  Raises
-  ## FitError as the tokenizer does (events before the error have already been
-  ## yielded).
-  while true:
-    let tok = r.tokenizer.next()
-    if tok.isNone: break
-    case tok.get.kind
-    of tokHeader:
-      if r.started:  # chained file: accumulators and developer fields restart
-        r.decoder.accum.clear()
-        r.decoder.devFields.clear()
-      r.started = true
-    of tokDefinition:
-      yield r.decoder.definitionEvent(p, r.tokenizer, tok.get)
-    of tokData:
-      yield Event(kind: evRecord, offset: tok.get.offset,
-                  record: r.decoder.decode(p, r.tokenizer, tok.get))
-    else: discard
-
-iterator records*(r: var Reader, p: Profile): Record {.raises: [FitError].} =
-  ## Every data message in the file, in order (see `events`).
-  for ev in r.events(p):
-    if ev.kind == evRecord: yield ev.record
-
-# --- access
-
-func field*(r: Record, name: string): Option[FieldValue] =
-  ## The first field called `name`.
-  for f in r.fields:
-    if f.name == name: return some(f)
-
-func valueName*(p: Profile, f: FieldValue, i = 0): string {.raises: [].} =
-  ## Profile name of an enumerated value, else the value as text.
-  case f.kind
-  of vkInt:
-    if i >= f.ints.len: return ""
-    let v = f.ints[i]
-    if f.typeName in p.types and p.types.must(f.typeName).kind == tkMapping and
-        v in p.types.must(f.typeName).toName:
-      return p.types.must(f.typeName).toName.must(v)
-    $v
-  of vkFloat:
-    if i >= f.floats.len: "" else: $f.floats[i]
-  of vkString:
-    if i >= f.strings.len: "" else: f.strings[i]
+proc resetFile*(d: var Decoder) {.raises: [].} =
+  ## Forget what was learned from the file so far (accumulated totals,
+  ## developer fields), for the start of a chained file.
+  d.accum.clear()
+  d.devFields.clear()
