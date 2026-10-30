@@ -126,6 +126,41 @@ below `fit/records` imports from `profile/`.
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
+## Task 2: database (in discussion, nothing built yet)
+
+### Engine: leaning to SQLite + SpatiaLite
+
+* User preference: no Docker (dislikes it more than they like Postgres); data volumes are
+  small (personal activities), so Postgres's scale is not needed.  Postgres+PostGIS would
+  mean a container (rootless Podman + compose/Quadlet) and `libpq`; SQLite means one file.
+* choochoo's spatial use (py/ch2, geoalchemy2): routes stored as `Geography` lines with
+  M / ZM values (distance, azimuth, elevation, time); queries cast to geometry and
+  transform to a local UTM zone (`common/geo.py:utm_srid`) for sectors/climbs, route
+  clustering, "nearby" and map display.  ~38 distinct `ST_*` functions.
+* Probe of `mod_spatialite` 5.1.0 (GEOS 3.12, PROJ 9.5) on this machine
+  (`/usr/lib64/mod_spatialite.so`; loads from Python `sqlite3`):
+  * 27 functions exist under the same name (transform, length, distance, intersects,
+    intersection, buffer, covers, hausdorff, concavehull, offsetcurve, locatebetween,
+    x/y/z/m, start/end/pointn, ...).
+  * 9 under another name: SetSRID, MakePoint, MakePointM, MakeLine (aggregate), CastToXY
+    (force2d), CastToXYM (force3dm), ST_Line_Substring, ST_Line_Interpolate_Point,
+    ST_Line_Locate_Point, DissolvePoints (dumppoints), ST_MakePolygon.
+  * Missing: `ST_Dump` (do in Nim / SQL), `ST_ClusterDBSCAN` (cluster in Nim, or drop).
+  * No `geography` type: store lon/lat geometry (SRID 4326) and use UTM or the ellipsoidal
+    length (`GLength(g, 1)`).
+  * Checked OK: XYZM linestrings keep M/Z, ellipsoidal length, line interpolation and
+    point location, MakeLine aggregate.
+* **Blocked / to do next:** `Transform` fails ("no database context") until the `proj`
+  package (provides `/usr/share/proj/proj.db`) is installed: `sudo zypper install proj`.
+  Then re-check UTM length, line substring on projected lines (and that M survives it),
+  buffer+intersects, and that the R*Tree spatial index (`CreateSpatialIndex`) works.
+* Then: load `mod_spatialite` from a small Nim program (`db_connector` wraps libsqlite3,
+  already installed; needs `load_extension`) - the main remaining risk.  Keep database
+  access behind one module (as with xlsx) so the driver can change.
+* Open design questions: how positions are stored (one `LINESTRINGZM` per activity vs
+  per-point rows), which choochoo spatial features to keep (sectors, clustering, nearby),
+  schema, an `nch` import command.
+
 ## Task 1: translate the choochoo FIT parser to nim
 
 Source: `../choochoo/py/ch2/fit/` (`profile/*`, `format/{read,tokens,records}.py`).
