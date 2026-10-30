@@ -119,6 +119,14 @@ proc initDecoder*(p: Profile): Decoder =
 proc warn(d: var Decoder, offset: int, msg: string) =
   d.warnings.add (offset, msg)
 
+func must[K, V](t: Table[K, V], key: K): lent V =
+  ## `t[key]` for a key that has to be there.  A missing key is a bug, not bad
+  ## input, so it is an AssertionDefect (not a KeyError we would have to
+  ## handle or, worse, turn into a warning).
+  doAssert key in t, "internal error: missing key " & $key
+  {.cast(raises: []).}:  # just checked
+    t[key]
+
 func isBadInt(bt: BaseType, v: int64): bool =
   let sz = bt.size
   let mask = if sz >= 8: high(uint64) else: (1'u64 shl (8 * sz)) - 1
@@ -175,7 +183,7 @@ proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
         let key = (ctx.msgNum, sp.name)
         var total = low
         if key in d.accum:
-          let prev = d.accum[key]
+          let prev = d.accum.must(key)
           total = (prev and not mask) or low
           if low < (prev and mask) and sp.acc < 64: total += mask + 1
         d.accum[key] = total
@@ -219,7 +227,7 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
   if ov.depth > maxDepth:
     d.warn(ctx.offset, "field nesting too deep at " & f.name)
     return
-  let ti = d.types.getOrDefault(f.typeName)
+  let ti = d.types.must(f.typeName)
   let base = if defBase.isSome: defBase.get else: ti.base
   case f.kind
   of fkComposite:
@@ -248,9 +256,9 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
         acc: (if ov.acc > 0: ov.acc elif c.accumulate: c.bits else: 0),
         bits: (if ov.bits > 0: ov.bits else: c.bits),
         depth: ov.depth + 1)
-      let tnum = if msg.fields[c.target].number.isSome:
-                   msg.fields[c.target].number.get else: -1
-      for v in d.decodeField(msg, msg.fields[c.target], tnum, none(BaseType),
+      let tnum = if msg.fields.must(c.target).number.isSome:
+                   msg.fields.must(c.target).number.get else: -1
+      for v in d.decodeField(msg, msg.fields.must(c.target), tnum, none(BaseType),
                              le, littleEndian, ctx, ov2, true):
         result.addMerging v
     return
@@ -258,7 +266,7 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
     var target = ""
     for refName in f.refs:
       if refName in ctx.refs:
-        let rv = ctx.refs[refName]
+        let rv = ctx.refs.must(refName)
         for c in f.choices:
           if c.refField == refName and c.refValue == rv:
             target = c.target
@@ -269,14 +277,14 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
                          bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
                          depth: ov.depth + 1)
       if fromBits:
-        return d.decodeField(msg, msg.fields[target], number, none(BaseType),
+        return d.decodeField(msg, msg.fields.must(target), number, none(BaseType),
                              data, endian, ctx, ov2, true)
       # as choochoo: the element count comes from the definition's base type,
       # the element type from the subfield
-      let sbase = d.types.getOrDefault(msg.fields[target].typeName).base
+      let sbase = d.types.must(msg.fields.must(target).typeName).base
       let count = if defBase.isSome: data.len div defBase.get.size else: 1
       let take = min(data.len, count * sbase.size)
-      return d.decodeField(msg, msg.fields[target], number, some(sbase),
+      return d.decodeField(msg, msg.fields.must(target), number, some(sbase),
                            data.toOpenArray(0, take - 1), endian, ctx, ov2,
                            false)
     # no match: the field itself
@@ -303,13 +311,13 @@ proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
   result.ready = true
   let mname = p.byNumber.getOrDefault(def.globalNum, "")
   if mname.len > 0 and mname in p.messages:
-    result.msg = p.messages[mname]
+    result.msg = p.messages.must(mname)
   for fd in def.fields:
     var s = Slot(def: fd)
     if fd.number in result.msg.byNumber:
-      let fname = result.msg.byNumber[fd.number]
+      let fname = result.msg.byNumber.must(fd.number)
       if fname in result.msg.fields:
-        s.field = some(result.msg.fields[fname])
+        s.field = some(result.msg.fields.must(fname))
     result.slots.add s
 
 # --- developer fields
@@ -346,7 +354,11 @@ proc registerDev(d: var Decoder, r: Record, offset: int) =
 
 # --- records
 
-proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
+proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
+             tok: Token): Record {.raises: [].} =
+  ## Decode a data token (other tokens give an empty record).  Must be called
+  ## in file order.  Odd data adds to `d.warnings`; nothing is raised (a broken
+  ## internal invariant is a bug, and an AssertionDefect).
   if tok.kind != tokData: return
   let idx = tok.defn
   if d.plans.len <= idx: d.plans.setLen(idx + 1)
@@ -409,11 +421,11 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
   var best: Table[string, int]
   for i, f in result.fields:
     if f.name.len == 0: continue
-    if f.name notin best or f.bits > result.fields[best[f.name]].bits:
+    if f.name notin best or f.bits > result.fields[best.must(f.name)].bits:
       best[f.name] = i
   var kept: seq[FieldValue]
   for i, f in result.fields:
-    if f.name.len == 0 or best[f.name] == i: kept.add f
+    if f.name.len == 0 or best.must(f.name) == i: kept.add f
   result.fields = kept
 
   for dv in t.defs[idx].devFields:
@@ -423,7 +435,7 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
       d.warn(at, "no description for developer field " & $dv.number &
              " of developer " & $dv.devIndex)
       continue
-    let df = d.devFields[key]
+    let df = d.devFields.must(key)
     let sp = Spec(name: df.name, units: df.units, typeName: $df.base,
                   number: dv.number, kind: tkBase, base: df.base,
                   scale: df.scale, offset: df.offset, bits: 8 * dv.size,
@@ -433,15 +445,6 @@ proc decodeImpl(d: var Decoder, p: Profile, t: Tokenizer, tok: Token): Record =
 
   if globalNum == fieldDescriptionNum:
     d.registerDev(result, tok.offset)
-
-proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
-             tok: Token): Record {.raises: [].} =
-  ## Decode a data token (other tokens give an empty record).  Must be called
-  ## in file order.  Does not raise; problems are added to `d.warnings`.
-  try:
-    result = d.decodeImpl(p, t, tok)
-  except KeyError as e:  # all lookups are guarded, so this is a bug
-    d.warn(tok.offset, "internal error (missing key): " & e.msg)
 
 # --- reading whole files
 
@@ -453,8 +456,10 @@ func warnings*(r: Reader): seq[Warning] =
   ## Tokenizer warnings followed by decoder warnings.
   r.tokenizer.warnings & r.decoder.warnings
 
-proc definitionEventImpl(d: var Decoder, p: Profile, t: Tokenizer,
-                         tok: Token): Event =
+proc definitionEvent(d: var Decoder, p: Profile, t: Tokenizer,
+                     tok: Token): Event {.raises: [].} =
+  ## Event for a definition token.  Developer field names are those described
+  ## so far, so this must be called in file order.
   let idx = tok.defn
   if d.plans.len <= idx: d.plans.setLen(idx + 1)
   if not d.plans[idx].ready: d.plans[idx] = d.buildPlan(p, t.defs[idx])
@@ -468,19 +473,10 @@ proc definitionEventImpl(d: var Decoder, p: Profile, t: Tokenizer,
   for dv in t.defs[idx].devFields:
     let key = (dv.devIndex, dv.number)
     if key in d.devFields:
-      result.fields.add (d.devFields[key].name, dv.size div d.devFields[key].base.size)
+      let df = d.devFields.must(key)
+      result.fields.add (df.name, dv.size div df.base.size)
     else:
       result.fields.add ("", dv.size)
-
-proc definitionEvent(d: var Decoder, p: Profile, t: Tokenizer,
-                     tok: Token): Event {.raises: [].} =
-  ## Event for a definition token.  Developer field names are those described
-  ## so far, so this must be called in file order.
-  try:
-    result = d.definitionEventImpl(p, t, tok)
-  except KeyError as e:  # all lookups are guarded, so this is a bug
-    d.warn(tok.offset, "internal error (missing key): " & e.msg)
-    result = Event(kind: evDefinition, offset: tok.offset)
 
 iterator events*(r: var Reader, p: Profile): Event {.raises: [FitError].} =
   ## Every definition and data message in the file, in order.  Raises
@@ -520,11 +516,9 @@ func valueName*(p: Profile, f: FieldValue, i = 0): string {.raises: [].} =
   of vkInt:
     if i >= f.ints.len: return ""
     let v = f.ints[i]
-    try:
-      if f.typeName in p.types and p.types[f.typeName].kind == tkMapping and
-          v in p.types[f.typeName].toName:
-        return p.types[f.typeName].toName[v]
-    except KeyError: discard  # guarded above
+    if f.typeName in p.types and p.types.must(f.typeName).kind == tkMapping and
+        v in p.types.must(f.typeName).toName:
+      return p.types.must(f.typeName).toName.must(v)
     $v
   of vkFloat:
     if i >= f.floats.len: "" else: $f.floats[i]
