@@ -36,6 +36,63 @@ Rules that follow:
   I/O error) after one line on stderr and no trace, and 2 for a usage error.  Anything
   else that escapes is a bug and is allowed to crash with a trace.
 
+### Coding style
+
+What the code does today; new code should look like the code around it.
+
+**Language and dependencies**
+* Nim 2.2, standard library first.  One third-party dependency (`zippy`, for inflate);
+  no C libraries.  Compiler-checked is better than convention (`raises`, `case` over enums).
+
+**Layout**
+* 2-space indentation, no tabs, an informal 80-column limit (wrap long expressions; a
+  few lines run to 100), one blank line between top-level declarations.
+* Every module opens with a `##` comment saying what it is for, and `##` documents each
+  exported thing (and non-obvious private ones).  Comments say *why* (provenance,
+  a choochoo behaviour we kept or dropped, a spec quirk), not what the next line does.
+
+**Naming**
+* `camelCase` for procs, variables, fields and constants (`fitEpoch`, `exitOk`);
+  `PascalCase` for types; lower-case one-word module names (`basetype.nim`).
+* Enum members carry a short tag of their type: `wkDataSize` (`WarningKind`), `vkInt`
+  (`ValueKind`), `fkPlain` (`FieldKind`), `tkMapping` (`TypeKind`), `btUint8`
+  (`BaseType`), `evRecord` (`EventKind`), `tokData` (`TokenKind`).
+* Export with `*` only what other modules need.  `export` is used only to re-export a
+  module's own public types (`errors`, `profile/model`).
+
+**Imports** (one block at the top, after the module comment)
+* `std/` first, as one bracketed list (`import std/[options, strutils]`), then project
+  modules alphabetically: relative inside `src/` (`./`, `../`), `nimchoo/...` in tests.
+* `{.push raises: [].}` comes straight after the imports (see Error handling).
+
+**Functions and data**
+* `func` for pure functions (43 of the 108 top-level routines today); `proc` for anything with effects,
+  and where `std` forces it (`times.utc`).  Small and single-purpose; results are returned
+  rather than written to out-parameters (the exceptions are `var` collectors such as the
+  warnings list, and iterators).
+* Data is plain value objects; kinds are `case` (variant) objects.  Objects refer to each
+  other by name or index, never by `ref`.  No module-level mutable state, no globals.
+  `let` by default, `var` only where something is mutated.
+* Absence is an `Option`; lookups that must succeed use `must`/`mustMut`.  `cast` appears
+  only for bit-level reinterpretation (`bytes`, `basetype`) and inside `lookup.nim`.
+  Templates only where a proc cannot do it (three so far).
+
+**Tests**
+* `std/unittest`: one `suite` per area, `test` names are plain sentences, `check` and
+  `expect`.  One `tests/test_<module>.nim` per area, imported from `tests/all.nim`;
+  `nimble test` runs them from the project root (paths to the choochoo data are relative).
+* Inputs are hand-built where the case is small (`tests/fitbuilder.nim`,
+  `tests/xlsxbuilder.nim`) and real files where behaviour has to match the SDK
+  (`../choochoo/data/test`).  Error paths are tested too (`expect`, exit codes), and a bug fix comes with a test.
+* `nimble csvreport` compares our CSV with the SDK's for the files that have one.
+
+**Working practice**
+* Discuss before implementing (see `AGENTS.md`).  One logical step per commit, tests
+  passing in each; the message has an imperative summary line and a short paragraph on why,
+  and ends with the `Co-Authored-By` line.
+* Refactors must not change behaviour: capture the CLI output for all test files before
+  and diff it after.
+
 ### Code layout
 
 ```
