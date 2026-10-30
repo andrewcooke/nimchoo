@@ -7,21 +7,12 @@
 
 import std/[math, options, sequtils, sets, strutils, tables]
 import ./errors
+import ./fit/basetype
 import ./lookup
 import ./xlsxrows
 export errors
 
 type
-  BaseType* = enum
-    ## Order follows the FIT base type list used by choochoo.
-    btEnum = "enum", btSint8 = "sint8", btUint8 = "uint8",
-    btSint16 = "sint16", btUint16 = "uint16",
-    btSint32 = "sint32", btUint32 = "uint32",
-    btString = "string", btFloat32 = "float32", btFloat64 = "float64",
-    btUint8z = "uint8z", btUint16z = "uint16z", btUint32z = "uint32z",
-    btByte = "byte", btSint64 = "sint64", btUint64 = "uint64",
-    btUint64z = "uint64z"
-
   TypeKind* = enum
     tkBase,           ## a base type used directly (uint16, string, ...)
     tkBool,           ## uint8 interpreted as a boolean

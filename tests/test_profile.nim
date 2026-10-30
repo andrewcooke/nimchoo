@@ -1,4 +1,5 @@
 import std/[algorithm, sequtils, tables, unittest]
+import nimchoo/fit/basetype
 import nimchoo/profile
 
 const path = "../choochoo/data/sdk/Profile.xlsx"

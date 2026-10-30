@@ -7,8 +7,11 @@
 ## everything else is recorded in `Tokenizer.warnings`.
 
 import std/[options, sets]
-import ./binary
-import ./profile
+import ./errors
+import ./fit/basetype
+import ./fit/bytes
+import ./fit/header
+import ./fit/time
 import ./warnings
 export warnings
 
@@ -105,7 +108,7 @@ proc readFileHeader(t: var Tokenizer): Token {.raises: [FitError].} =
 
 proc readChecksum(t: var Tokenizer): Token =
   let pos = t.pos
-  let c = uint16(readUint(t.data.toOpenArray(pos, pos + 1), 2, littleEndian))
+  let c = uint16(getUint(t.data, pos, 2))
   t.pos = pos + 2
   let remaining = t.data.len - t.pos
   if remaining == 0:
@@ -123,7 +126,7 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
   let hasDev = (h0 and 0x20) != 0
   if pos + 6 > t.dataEnd: fail(pos, "truncated definition")
   let endian = if (t.data[pos + 2] and 1) == 1: bigEndian else: littleEndian
-  let globalNum = int(readUint(t.data.toOpenArray(pos + 3, pos + 4), 2, endian))
+  let globalNum = int(getUint(t.data, pos + 3, 2, endian))
   let n = int(t.data[pos + 5])
   var p = pos + 6 + 3 * n  # start of dev field count, or end if none
   if p > t.dataEnd: fail(pos, "truncated definition")
@@ -172,7 +175,7 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
     if f.size != 4:
       t.warnings.add wkTimestampSize, at, "timestamp field has size " & $f.size
       return
-    t.timestamp = some(int64(readUint(t.data.toOpenArray(at, at + 3), 4, endian)))
+    t.timestamp = some(int64(getUint(t.data, at, 4, endian)))
   else:
     if f.size != 2:
       t.warnings.add wkTimestamp16Size, at, "timestamp_16 field has size " & $f.size
@@ -180,7 +183,7 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
     if t.timestamp.isNone:
       t.warnings.add wkTimestamp16NoBase, at, "timestamp_16 with no preceding timestamp"
       return
-    let t16 = uint16(readUint(t.data.toOpenArray(at, at + 1), 2, endian))
+    let t16 = uint16(getUint(t.data, at, 2, endian))
     let r = expandTimestamp16(t16, t.timestamp.get)
     if r.backwards: t.warnings.add wkTimestamp16Backwards, at, "timestamp_16 moved back in time"
     t.timestamp = some(r.time)

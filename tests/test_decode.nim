@@ -1,5 +1,5 @@
 import std/[options, os, sequtils, strutils, tables, unittest]
-import nimchoo/binary
+import nimchoo/fit/bytes
 import nimchoo/decode
 import nimchoo/profile
 import nimchoo/tokens

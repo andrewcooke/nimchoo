@@ -1,5 +1,6 @@
-import std/[options, sequtils, strutils, times, unittest]
-import nimchoo/binary
+import std/[options, sequtils, times, unittest]
+import nimchoo/errors
+import nimchoo/fit/[basetype, bytes, crc, header, time]
 import nimchoo/profile
 import nimchoo/warnings
 

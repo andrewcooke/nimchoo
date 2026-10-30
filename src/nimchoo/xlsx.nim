@@ -10,6 +10,7 @@ import std/[parsexml, streams, strutils, tables]
 import zippy
 import ./errors
 import ./lookup
+import ./fit/bytes
 export errors
 
 type
@@ -26,12 +27,15 @@ type
 
 # --- zip
 
-func u16(s: string, o: int): int {.raises: [XlsxError].} =
-  if o < 0 or o + 2 > s.len: raiseXlsx("truncated zip file")
-  ord(s[o]) or (ord(s[o + 1]) shl 8)
+func le(s: string, o, size: int): int {.raises: [XlsxError].} =
+  ## The `size` bytes at `o` as a little-endian integer.
+  if not s.toOpenArrayByte(0, s.high).canRead(o, size):
+    raiseXlsx("truncated zip file")
+  int(getUint(s.toOpenArrayByte(0, s.high), o, size))
 
-func u32(s: string, o: int): int {.raises: [XlsxError].} =
-  u16(s, o) or (u16(s, o + 2) shl 16)
+func u16(s: string, o: int): int {.raises: [XlsxError].} = le(s, o, 2)
+
+func u32(s: string, o: int): int {.raises: [XlsxError].} = le(s, o, 4)
 
 func zipEntries(z: string): Table[string, ZipEntry] {.raises: [XlsxError].} =
   ## The central directory of a zip file.

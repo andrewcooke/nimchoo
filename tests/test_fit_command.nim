@@ -1,5 +1,6 @@
-import std/[options, os, strutils, tables, unittest]
-import nimchoo/binary
+import std/[os, tables, unittest]
+import nimchoo/errors
+import nimchoo/fit/bytes
 import nimchoo/commands/fit
 import nimchoo/decode
 import nimchoo/defaultprofile

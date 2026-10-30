@@ -12,7 +12,9 @@
 ## invariant is a bug and an AssertionDefect, see lookup.nim.)
 
 import std/[options, tables]
-import ./binary
+import ./errors
+import ./fit/basetype
+import ./fit/bytes
 import ./lookup
 import ./profile
 import ./tokens
@@ -124,19 +126,6 @@ func isBadInt(bt: BaseType, v: int64): bool =
   let mask = if sz >= 8: high(uint64) else: (1'u64 shl (8 * sz)) - 1
   (cast[uint64](v) and mask) == invalid(bt)
 
-func getBits(data: openArray[byte], endian: Endianness,
-             start, count: int): uint64 =
-  ## `count` (at most 64) bits of the integer that `data` represents, starting
-  ## `start` bits up from the least significant end.  Bits beyond the data
-  ## are zero.
-  for k in 0 ..< count:
-    let bit = start + k
-    let bi = bit div 8
-    if bi >= data.len: break
-    let at = if endian == littleEndian: bi else: data.len - 1 - bi
-    if ((data[at] shr (bit mod 8)) and 1) != 0:
-      result = result or (1'u64 shl k)
-
 func leBytes(v: uint64): array[8, byte] =
   for i in 0 ..< 8: result[i] = byte((v shr (8 * i)) and 0xff)
 
@@ -152,7 +141,7 @@ proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
     var fv = mk(vkInt)
     for x in data: fv.ints.add(if x != 0: 1'i64 else: 0'i64)
     return some(fv)
-  let raw = binary.decode(sp.base, data, endian, sp.check)
+  let raw = basetype.decode(sp.base, data, endian, sp.check)
   if raw.isNone: return none(FieldValue)
   let r = raw.get
   let identity = (sp.scale == 1 and sp.offset == 0) or sp.base == btEnum

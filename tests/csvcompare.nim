@@ -9,7 +9,7 @@
 ##    components; we only emit the components, so SDK-only composite names
 ##    are skipped.
 
-import std/[algorithm, options, os, parsecsv, sequtils, sets, streams, strutils, tables]
+import std/[algorithm, os, parsecsv, sequtils, sets, streams, strutils, tables]
 import nimchoo/profile
 
 type

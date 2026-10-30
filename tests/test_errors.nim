@@ -1,5 +1,6 @@
 import std/[sets, strutils, unittest]
-import nimchoo/binary
+import nimchoo/errors
+import nimchoo/fit/header
 import nimchoo/errors
 import nimchoo/profile
 import nimchoo/tokens

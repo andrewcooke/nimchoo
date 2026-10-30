@@ -1,7 +1,8 @@
 ## `nch fit`: read a FIT file and dump it as text or as SDK-format CSV.
 
 import std/[options, strutils, times]
-import ../binary
+import ../fit/bytes
+import ../fit/time
 import ./common
 import ../csvout
 import ../decode
