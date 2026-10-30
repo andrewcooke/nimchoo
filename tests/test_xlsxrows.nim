@@ -1,5 +1,6 @@
 import std/[strutils, tables, unittest]
 import nimchoo/xlsxrows
+import ./xlsxbuilder
 
 const profile = "../choochoo/data/sdk/Profile.xlsx"
 
@@ -24,22 +25,6 @@ suite "xlsxrows":
     check wb.rows("Messages") == sheetRows(profile, "Messages")
 
 # --- small hand-made xlsx files (stored, not deflated, zips)
-
-func le16(x: int): string = $char(x and 0xff) & $char((x shr 8) and 0xff)
-func le32(x: int): string = le16(x and 0xffff) & le16((x shr 16) and 0xffff)
-
-func storedZip(files: seq[(string, string)]): string =
-  var body, central = ""
-  for (name, data) in files:
-    let offset = body.len
-    body.add "PK\3\4" & le16(20) & le16(0) & le16(0) & le16(0) & le16(0) &
-      le32(0) & le32(data.len) & le32(data.len) & le16(name.len) & le16(0) &
-      name & data
-    central.add "PK\1\2" & le16(20) & le16(20) & le16(0) & le16(0) & le16(0) &
-      le16(0) & le32(0) & le32(data.len) & le32(data.len) & le16(name.len) &
-      le16(0) & le16(0) & le16(0) & le16(0) & le32(0) & le32(offset) & name
-  body & central & "PK\5\6" & le16(0) & le16(0) & le16(files.len) &
-    le16(files.len) & le32(central.len) & le32(body.len) & le16(0)
 
 const
   sheetBody = """<row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1"><v>42</v></c></row>

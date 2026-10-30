@@ -5,7 +5,7 @@
 ## Objects refer to each other by name (type names, field names) rather than
 ## by reference, so a Profile is an immutable-in-spirit value with no cycles.
 
-import std/[options, sequtils, sets, strutils, tables]
+import std/[math, options, sequtils, sets, strutils, tables]
 import ./errors
 import ./xlsxrows
 export errors
@@ -94,13 +94,32 @@ proc parseNum*(s: string): int64 =
   if t.startsWith("0x") or t.startsWith("0X"):
     int64(parseHexInt(t))
   elif '.' in t or 'E' in t or 'e' in t:
-    int64(parseFloat(t))
+    let f = parseFloat(t)
+    if classify(f) in {fcNan, fcInf, fcNegInf} or abs(f) > 9e18:
+      raise newException(ValueError, "not an integer: " & t)
+    int64(f)
   else:
     int64(parseInt(t))
 
 proc split(s: string): seq[string] =
   ## Comma-separated cell; "" gives no items.
   if s.len == 0: @[] else: s.split(',').mapIt(it.strip)
+
+proc intCell(sheet: string, row: int, what, s: string): int64 =
+  ## An integer cell (see `parseNum`).  Raises ProfileError, with the sheet and
+  ## (0-based) row, if it is not one.
+  try: parseNum(s)
+  except ValueError: fail(sheet, row, "bad " & what & " " & s)
+
+proc floatCell(sheet: string, row: int, what, s: string,
+               default: float): float =
+  ## A finite number in a cell, or `default` if the cell is empty.  Raises
+  ## ProfileError, with the sheet and (0-based) row, if it is not a number.
+  if s.len == 0: return default
+  try: result = parseFloat(s)
+  except ValueError: fail(sheet, row, "bad " & what & " " & s)
+  if classify(result) in {fcNan, fcInf, fcNegInf}:
+    fail(sheet, row, "bad " & what & " " & s)
 
 proc baseTypeOf(name: string): Option[BaseType] =
   for b in BaseType:
@@ -136,9 +155,7 @@ proc loadTypes*(rows: seq[Row]): Table[string, FitType] =
       result[name] = FitType(name: name, base: base.get, kind: tkMapping)
       cur = name
     elif cur.len > 0 and row.cell(2).len > 0 and row.cell(3).len > 0:
-      let value =
-        try: parseNum(row.cell(3))
-        except ValueError: fail("Types", i, "bad value " & row.cell(3))
+      let value = intCell("Types", i, "value", row.cell(3))
       result[cur].toValue[row.cell(2)] = value
       result[cur].toName[value] = row.cell(2)
     else:
@@ -146,16 +163,19 @@ proc loadTypes*(rows: seq[Row]): Table[string, FitType] =
 
 # --- messages
 
-proc optNum(s: string, default: float): float =
-  if s.len == 0: default else: parseFloat(s)
-
 proc isSubfieldRow(row: Row): bool =
   row.cell(0).len == 0 and row.cell(1).len == 0 and row.cell(2).len > 0
 
-proc component(target, bits, units, scale, offset, accum: string): Component =
-  Component(target: target, bits: int(parseNum(bits)), units: units,
-            scale: optNum(scale, 1), offset: optNum(offset, 0),
-            accumulate: accum.len > 0 and parseNum(accum) != 0)
+proc component(i: int, target, bits, units, scale, offset,
+               accum: string): Component =
+  let n = intCell("Messages", i, "component bits", bits)
+  if n < 1 or n > 64:
+    fail("Messages", i, "component bits out of range: " & bits)
+  Component(target: target, bits: int(n), units: units,
+            scale: floatCell("Messages", i, "component scale", scale, 1),
+            offset: floatCell("Messages", i, "component offset", offset, 0),
+            accumulate: accum.len > 0 and
+                        intCell("Messages", i, "component accumulate", accum) != 0)
 
 proc composite(row: Row, i: int, f: Field): Field =
   ## `f` is a plain field; add the components from the row.
@@ -172,43 +192,45 @@ proc composite(row: Row, i: int, f: Field): Field =
                  scale: 1, offset: 0, kind: fkComposite)
   for k, name in names:
     if bits.at(k).len == 0: fail("Messages", i, "component without bits")
-    result.components.add component(name, bits.at(k), units.at(k),
+    result.components.add component(i, name, bits.at(k), units.at(k),
                                     scale.at(k), offset.at(k), accum.at(k))
 
 proc plainField(row: Row, i: int): Field =
   let
     name = row.cell(2)
     isComposite = row.cell(5).len > 0  # scale etc are per-component lists
-    scale = try: optNum(if isComposite: "" else: row.cell(6), 1)
-            except ValueError: fail("Messages", i, "bad scale " & row.cell(6))
-    offset = try: optNum(if isComposite: "" else: row.cell(7), 0)
-             except ValueError: fail("Messages", i, "bad offset " & row.cell(7))
+    scale = floatCell("Messages", i, "scale",
+                      if isComposite: "" else: row.cell(6), 1)
+    offset = floatCell("Messages", i, "offset",
+                       if isComposite: "" else: row.cell(7), 0)
   result = Field(
     name: name,
-    number: if row.cell(1).len > 0: some(int(parseNum(row.cell(1))))
+    number: if row.cell(1).len > 0:
+              some(int(intCell("Messages", i, "field number", row.cell(1))))
             else: none(int),
     typeName: if name in overrides: name else: row.cell(3),
     units: if isComposite: "" else: row.cell(8),
     scale: if scale == 0: 1 else: scale,
     offset: offset,
     accumulate: not isComposite and row.cell(10).len > 0 and
-                parseNum(row.cell(10)) != 0,
+                intCell("Messages", i, "accumulate", row.cell(10)) != 0,
     kind: fkPlain)
 
 proc resolveRef(types: Table[string, FitType], msg: Message,
-                refField, value: string): int64 =
+                refField, value: string, row: int): int64 =
   ## Number for `value` of field `refField`, via its mapping if it has one.
+  ## `row` (0-based) is the sheet row the reference came from, for errors.
   if refField notin msg.fields:
-    raiseProfile(
-      msg.name & ": dynamic reference to unknown field " & refField)
+    fail("Messages", row,
+         msg.name & ": dynamic reference to unknown field " & refField)
   let t = types[msg.fields[refField].typeName]
   if t.kind == tkMapping:
     if value notin t.toValue:
-      raiseProfile(
-        msg.name & "." & refField & ": no value " & value & " in " & t.name)
+      fail("Messages", row,
+           msg.name & "." & refField & ": no value " & value & " in " & t.name)
     t.toValue[value]
   else:
-    parseNum(value)
+    intCell("Messages", row, "reference value", value)
 
 proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
     (Table[string, Message], Table[int, string]) =
@@ -219,16 +241,16 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
     byNumber: Table[int, string]
     cur = ""
     # raw ref values for dynamic fields, parallel to Field.choices
-    pending: Table[string, seq[string]]
+    pending: Table[string, seq[(string, int)]]  # (raw value, sheet row)
 
   proc finish() =
     if cur.len == 0: return
     for fname, raws in pending:
       if messages[cur].fields[fname].kind != fkDynamic: continue
-      for k, raw in raws:
+      for k, (raw, row) in raws:
         let c = messages[cur].fields[fname].choices[k]
         messages[cur].fields[fname].choices[k].refValue =
-          resolveRef(types, messages[cur], c.refField, raw)
+          resolveRef(types, messages[cur], c.refField, raw, row)
     pending.clear()
     cur = ""
 
@@ -262,7 +284,7 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
         var d = Field(name: f.name, number: f.number, typeName: f.typeName,
                       units: f.units, scale: f.scale, offset: f.offset,
                       accumulate: f.accumulate, kind: fkDynamic)
-        var raws: seq[string]
+        var raws: seq[(string, int)]
         var j = i + 1
         while j < rows.len and isSubfieldRow(rows[j]):
           let
@@ -273,7 +295,7 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
           for k, rname in names:
             if rname notin d.refs: d.refs.add rname
             d.choices.add Choice(refField: rname, target: rows[j].cell(2))
-            raws.add values[k]
+            raws.add (values[k], j)
           inc j
         pending[f.name] = raws
         f = d
