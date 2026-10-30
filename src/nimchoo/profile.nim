@@ -7,6 +7,7 @@
 
 import std/[math, options, sequtils, sets, strutils, tables]
 import ./errors
+import ./lookup
 import ./xlsxrows
 export errors
 
@@ -156,8 +157,8 @@ proc loadTypes*(rows: seq[Row]): Table[string, FitType] =
       cur = name
     elif cur.len > 0 and row.cell(2).len > 0 and row.cell(3).len > 0:
       let value = intCell("Types", i, "value", row.cell(3))
-      result[cur].toValue[row.cell(2)] = value
-      result[cur].toName[value] = row.cell(2)
+      result.mustMut(cur).toValue[row.cell(2)] = value
+      result.mustMut(cur).toName[value] = row.cell(2)
     else:
       cur = ""
 
@@ -223,12 +224,12 @@ proc resolveRef(types: Table[string, FitType], msg: Message,
   if refField notin msg.fields:
     fail("Messages", row,
          msg.name & ": dynamic reference to unknown field " & refField)
-  let t = types[msg.fields[refField].typeName]
+  let t = types.must(msg.fields.must(refField).typeName)
   if t.kind == tkMapping:
     if value notin t.toValue:
       fail("Messages", row,
            msg.name & "." & refField & ": no value " & value & " in " & t.name)
-    t.toValue[value]
+    t.toValue.must(value)
   else:
     intCell("Messages", row, "reference value", value)
 
@@ -246,17 +247,17 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
   proc finish() =
     if cur.len == 0: return
     for fname, raws in pending:
-      if messages[cur].fields[fname].kind != fkDynamic: continue
+      if messages.must(cur).fields.must(fname).kind != fkDynamic: continue
       for k, (raw, row) in raws:
-        let c = messages[cur].fields[fname].choices[k]
-        messages[cur].fields[fname].choices[k].refValue =
-          resolveRef(types, messages[cur], c.refField, raw, row)
+        let c = messages.must(cur).fields.must(fname).choices[k]
+        let value = resolveRef(types, messages.must(cur), c.refField, raw, row)
+        messages.mustMut(cur).fields.mustMut(fname).choices[k].refValue = value
     pending.clear()
     cur = ""
 
   if "mesg_num" notin types:
     raiseProfile("no mesg_num type")
-  let mesgNum = types["mesg_num"]
+  let mesgNum = types.must("mesg_num")
 
   for i, row in rows:
     if row.cell(0).len > 0:
@@ -265,7 +266,7 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
       if name.isHeading: continue
       if name notin mesgNum.toValue:
         fail("Messages", i, "message " & name & " not in mesg_num")
-      let number = int(mesgNum.toValue[name])
+      let number = int(mesgNum.toValue.must(name))
       messages[name] = Message(name: name, number: number)
       byNumber[number] = name
       cur = name
@@ -299,9 +300,9 @@ proc loadMessages*(rows: seq[Row], types: Table[string, FitType]):
           inc j
         pending[f.name] = raws
         f = d
-      messages[cur].fields[f.name] = f
+      messages.mustMut(cur).fields[f.name] = f
       if f.number.isSome:
-        messages[cur].byNumber[f.number.get] = f.name
+        messages.mustMut(cur).byNumber[f.number.get] = f.name
   finish()
   (messages, byNumber)
 

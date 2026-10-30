@@ -1,4 +1,4 @@
-import std/[options, strutils, tables, unittest]
+import std/[options, os, strutils, tables, unittest]
 import nimchoo/binary
 import nimchoo/commands/fit
 import nimchoo/decode
@@ -88,3 +88,38 @@ suite "definition events":
     check defs[1].message == "record"
     check defs[1].local == 1
     check defs[1].fields == @[("heart_rate", 1), ("power", 1), ("", 1)]
+
+suite "nch fit exit codes":
+  let dir = getTempDir() / "nch-test-fit"
+  createDir(dir)
+
+  test "help is not an error":
+    check fit.run(@["--help"]) == 0
+
+  test "a profile that is not an xlsx file":
+    let bad = dir / "not-a-profile.xlsx"
+    writeFile(bad, "this is not an xlsx file")
+    check fit.run(@["--profile", bad, activity]) == 1
+    check fit.run(@["--profile=" & bad, activity]) == 1
+    removeFile(bad)
+
+  test "a missing profile file":
+    check fit.run(@["--profile=" & dir / "missing.xlsx", activity]) == 1
+
+  test "a corrupt fit file":
+    let bad = dir / "bad.fit"
+    writeFile(bad, "this is not a fit file at all")
+    check fit.run(@[bad]) == 1
+    removeFile(bad)
+
+  test "a truncated fit file fails, after printing what could be read":
+    let data = fitFile(defn(0, 20, @[(3, 4, uint32T)]) & b(0, 1, 2))
+    let path = dir / "truncated.fit"
+    var s = newString(data.len)
+    for i, x in data: s[i] = char(x)
+    writeFile(path, s)
+    check fit.run(@[path]) == 1
+    removeFile(path)
+
+  test "a good file":
+    check fit.run(@["--csv", activity]) == 0

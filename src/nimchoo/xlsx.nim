@@ -9,6 +9,7 @@
 import std/[parsexml, streams, strutils, tables]
 import zippy
 import ./errors
+import ./lookup
 export errors
 
 type
@@ -25,14 +26,14 @@ type
 
 # --- zip
 
-func u16(s: string, o: int): int =
+func u16(s: string, o: int): int {.raises: [XlsxError].} =
   if o < 0 or o + 2 > s.len: raiseXlsx("truncated zip file")
   ord(s[o]) or (ord(s[o + 1]) shl 8)
 
-func u32(s: string, o: int): int =
+func u32(s: string, o: int): int {.raises: [XlsxError].} =
   u16(s, o) or (u16(s, o + 2) shl 16)
 
-func zipEntries(z: string): Table[string, ZipEntry] =
+func zipEntries(z: string): Table[string, ZipEntry] {.raises: [XlsxError].} =
   ## The central directory of a zip file.
   var eocd = -1
   var i = z.len - 22
@@ -57,7 +58,7 @@ func zipEntries(z: string): Table[string, ZipEntry] =
 
 const maxEntrySize = 256 * 1024 * 1024  ## larger declared sizes are refused
 
-func extract(z: string, e: ZipEntry): string =
+func extract(z: string, e: ZipEntry): string {.raises: [XlsxError].} =
   let p = e.offset
   if e.size > maxEntrySize: raiseXlsx("zip entry too large")
   if u32(z, p) != 0x04034b50:
@@ -80,36 +81,57 @@ func extract(z: string, e: ZipEntry): string =
   else:
     raiseXlsx("unsupported zip compression " & $e.compression)
 
-proc file(wb: Workbook, path: string): string =
+proc file(wb: Workbook, path: string): string {.raises: [XlsxError].} =
   if path notin wb.entries:
     raiseXlsx("no " & path & " in the xlsx file")
-  extract(wb.data, wb.entries[path])
+  extract(wb.data, wb.entries.must(path))
 
 # --- xml
 
-proc openXml(xml, path: string): XmlParser =
+proc openXml(xml, path: string): XmlParser {.raises: [XlsxError].} =
   ## `path` (the name in the zip) appears in error messages.
   const bom = "\xEF\xBB\xBF"
   let text = if xml.startsWith(bom): xml[bom.len .. ^1] else: xml
-  result.open(newStringStream(text), path, {reportWhitespace})
+  try:
+    result.open(newStringStream(text), path, {reportWhitespace})
+  except IOError, OSError:
+    raiseXlsx(path & ": " & getCurrentExceptionMsg())
+
+proc nextEvent(x: var XmlParser) {.raises: [XlsxError].} =
+  ## `x.next()`.  (parsexml can raise ValueError for a bad character reference.)
+  try:
+    x.next()
+  except ValueError, IOError, OSError:
+    raiseXlsx("malformed xml: " & getCurrentExceptionMsg())
+
+proc xmlProblem(x: XmlParser): string {.raises: [].} =
+  ## The parser's description of what is wrong, with file, line and column.
+  try: x.errorMsg
+  except ValueError: "malformed xml"
+
+proc closeXml(x: var XmlParser) {.raises: [].} =
+  ## Close the parser.  (It reads an in-memory string, so there is nothing
+  ## useful to do if closing it were to fail.)
+  try: x.close()
+  except IOError, OSError: discard
 
 func local(name: string): string =
   ## An element or attribute name without its namespace prefix.
   let i = name.rfind(':')
   if i < 0: name else: name[i + 1 .. ^1]
 
-proc parseSharedStrings(xml, path: string): seq[string] =
+proc parseSharedStrings(xml, path: string): seq[string] {.raises: [XlsxError].} =
   ## One string per <si>: the text of its <t> elements (rich text runs are
   ## joined; phonetic runs <rPh> are left out).
   var x = openXml(xml, path)
-  defer: x.close()
+  defer: x.closeXml()
   var inT, inPh = false
   var cur = ""
   while true:
-    x.next()
+    x.nextEvent()
     case x.kind
     of xmlEof: break
-    of xmlError: raiseXlsx(x.errorMsg)
+    of xmlError: raiseXlsx(xmlProblem(x))
     of xmlElementStart, xmlElementOpen:
       case local(x.elementName)
       of "si": cur = ""
@@ -126,16 +148,16 @@ proc parseSharedStrings(xml, path: string): seq[string] =
       if inT and not inPh: cur.add x.charData
     else: discard
 
-proc parseRelationships(xml, path: string): Table[string, string] =
+proc parseRelationships(xml, path: string): Table[string, string] {.raises: [XlsxError].} =
   ## id -> target
   var x = openXml(xml, path)
-  defer: x.close()
+  defer: x.closeXml()
   var id, target = ""
   while true:
-    x.next()
+    x.nextEvent()
     case x.kind
     of xmlEof: break
-    of xmlError: raiseXlsx(x.errorMsg)
+    of xmlError: raiseXlsx(xmlProblem(x))
     of xmlElementOpen:
       if local(x.elementName) == "Relationship": id = ""; target = ""
     of xmlAttribute:
@@ -149,17 +171,17 @@ proc parseRelationships(xml, path: string): Table[string, string] =
         id = ""; target = ""
     else: discard
 
-proc parseSheetNames(xml, path: string): seq[(string, string)] =
+proc parseSheetNames(xml, path: string): seq[(string, string)] {.raises: [XlsxError].} =
   ## (name, relationship id) of each sheet in workbook.xml
   var x = openXml(xml, path)
-  defer: x.close()
+  defer: x.closeXml()
   var name, rid = ""
   var inSheet = false
   while true:
-    x.next()
+    x.nextEvent()
     case x.kind
     of xmlEof: break
-    of xmlError: raiseXlsx(x.errorMsg)
+    of xmlError: raiseXlsx(xmlProblem(x))
     of xmlElementOpen:
       inSheet = local(x.elementName) == "sheet"
       name = ""; rid = ""
@@ -179,7 +201,7 @@ const
   maxRows = 1_048_576  ## as Excel
   maxCols = 16_384
 
-func cellPosition(r: string): (int, int) =
+func cellPosition(r: string): (int, int) {.raises: [XlsxError].} =
   ## (row, col), both 0-based, of a reference like "AB12"
   var col, row = 0
   var letters = 0
@@ -198,16 +220,16 @@ func cellPosition(r: string): (int, int) =
     raiseXlsx("bad cell reference " & r)
   (row - 1, col - 1)
 
-proc parseSheet(xml, path: string, shared: seq[string]): seq[Row] =
+proc parseSheet(xml, path: string, shared: seq[string]): seq[Row] {.raises: [XlsxError].} =
   var x = openXml(xml, path)
-  defer: x.close()
+  defer: x.closeXml()
   var cellRef, ctype, text = ""
   var inC, inV, inT = false
   while true:
-    x.next()
+    x.nextEvent()
     case x.kind
     of xmlEof: break
-    of xmlError: raiseXlsx(x.errorMsg)
+    of xmlError: raiseXlsx(xmlProblem(x))
     of xmlElementOpen, xmlElementStart:
       case local(x.elementName)
       of "c": inC = true; cellRef = ""; ctype = ""; text = ""
@@ -245,7 +267,7 @@ proc parseSheet(xml, path: string, shared: seq[string]): seq[Row] =
 
 # --- workbook
 
-proc openWorkbook*(data: string): Workbook =
+proc openWorkbook*(data: string): Workbook {.raises: [XlsxError].} =
   ## Raises XlsxError if `data` is not an xlsx file.
   result.data = data
   result.entries = zipEntries(data)
@@ -254,7 +276,7 @@ proc openWorkbook*(data: string): Workbook =
   for (name, rid) in parseSheetNames(result.file("xl/workbook.xml"),
                                      "xl/workbook.xml"):
     if rid in rels:
-      let target = rels[rid]
+      let target = rels.must(rid)
       result.sheets[name] =
         if target.startsWith("/"): target[1 .. ^1] else: "xl/" & target
   if "xl/sharedStrings.xml" in result.entries:
@@ -264,9 +286,9 @@ proc openWorkbook*(data: string): Workbook =
 func sheetNames*(wb: Workbook): seq[string] =
   for name in wb.sheets.keys: result.add name
 
-proc rows*(wb: Workbook, sheet: string): seq[Row] =
+proc rows*(wb: Workbook, sheet: string): seq[Row] {.raises: [XlsxError].} =
   ## All rows of `sheet`, indexed by 0-based row number (empty rows are empty
   ## tables).  Raises XlsxError if there is no such sheet.
   if sheet notin wb.sheets:
     raiseXlsx("no sheet called " & sheet)
-  parseSheet(wb.file(wb.sheets[sheet]), wb.sheets[sheet], wb.shared)
+  parseSheet(wb.file(wb.sheets.must(sheet)), wb.sheets.must(sheet), wb.shared)

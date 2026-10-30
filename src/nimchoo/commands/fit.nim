@@ -2,9 +2,11 @@
 
 import std/[options, strutils, times]
 import ../binary
+import ./common
 import ../csvout
 import ../decode
 import ../defaultprofile
+import ../errors
 import ../profile
 import ../tokens
 
@@ -61,7 +63,7 @@ proc renderInto*(p: Profile, data: seq[byte], csv: bool,
   finally:
     warnings.add r.warnings
 
-proc run*(args: seq[string]): int =
+proc run*(args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch fit ARGS`; returns the exit status.
   var
     csv = false
@@ -71,48 +73,47 @@ proc run*(args: seq[string]): int =
   while i < args.len:
     let a = args[i]
     if a in ["-h", "--help"]:
-      stdout.write usage
-      return 0
+      stdout.say usage
+      return exitOk
     elif a == "--csv":
       csv = true
     elif a == "--profile":
       inc i
       if i >= args.len:
-        stderr.write "nch fit: --profile needs a path\n" & usage
-        return 2
+        return usageError("nch fit", usage, "--profile needs a path")
       profilePath = args[i]
     elif a.startsWith("--profile="):
       profilePath = a["--profile=".len .. ^1]
     elif a.startsWith("-") and a != "-":
-      stderr.write "nch fit: unknown option " & a & "\n" & usage
-      return 2
+      return usageError("nch fit", usage, "unknown option " & a)
     else:
       files.add a
     inc i
   if files.len != 1:
-    stderr.write usage
-    return 2
-  var p: Profile
-  try:
-    p = loadProfileOrDefault(profilePath)
-  except CatchableError as e:
-    stderr.write "nch fit: cannot load profile: " & e.msg & "\n"
-    return 1
-  var data: seq[byte]
-  try:
-    data = readBytes(files[0])
-  except IOError as e:
-    stderr.write "nch fit: " & e.msg & "\n"
-    return 1
+    return usageError("nch fit", usage, "expected exactly one FILE")
   var
     lines: seq[string]
     warnings: seq[Warning]
-  result = 0
+    problem = ""
   try:
-    renderInto(p, data, csv, lines, warnings)
-  except FitError as e:
-    stderr.write "nch fit: " & e.msg & "\n"
-    result = 1
-  for l in lines: stdout.write l & "\n"
+    let p =
+      try: loadProfileOrDefault(profilePath)
+      except NchError as e:
+        return failure("nch fit", "cannot use the profile: " & e.msg)
+    try:
+      renderInto(p, readBytes(files[0]), csv, lines, warnings)
+    except FitError as e:
+      problem = e.msg  # report it after the output so far
+  except NchError as e:
+    return failure("nch fit", e.msg)
+  except IOError as e:
+    return failure("nch fit", e.msg)
+  except OSError as e:
+    return failure("nch fit", e.msg)
+  try:
+    for l in lines: stdout.write l & "\n"
+  except IOError as e:
+    return failure("nch fit", "cannot write the output: " & e.msg)
   for w in warnings:
-    stderr.write "warning: offset " & $w.offset & ": " & w.msg & "\n"
+    stderr.say "warning: offset " & $w.offset & ": " & w.msg & "\n"
+  if problem.len > 0: failure("nch fit", problem) else: exitOk

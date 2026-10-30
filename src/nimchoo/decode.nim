@@ -12,6 +12,7 @@
 
 import std/[options, tables]
 import ./binary
+import ./lookup
 import ./profile
 import ./tokens
 
@@ -118,14 +119,6 @@ proc initDecoder*(p: Profile): Decoder =
 
 proc warn(d: var Decoder, offset: int, msg: string) =
   d.warnings.add (offset, msg)
-
-func must[K, V](t: Table[K, V], key: K): lent V =
-  ## `t[key]` for a key that has to be there.  A missing key is a bug, not bad
-  ## input, so it is an AssertionDefect (not a KeyError we would have to
-  ## handle or, worse, turn into a warning).
-  doAssert key in t, "internal error: missing key " & $key
-  {.cast(raises: []).}:  # just checked
-    t[key]
 
 func isBadInt(bt: BaseType, v: int64): bool =
   let sz = bt.size
