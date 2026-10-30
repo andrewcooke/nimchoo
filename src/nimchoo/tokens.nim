@@ -9,6 +9,8 @@
 import std/[options, sets]
 import ./binary
 import ./profile
+import ./warnings
+export warnings
 
 const
   timestampFieldNo* = 253  ## global field number of `timestamp`
@@ -45,8 +47,6 @@ type
     of tokChecksum:
       checksum*: uint16
 
-  Warning* = tuple[offset: int, msg: string]
-
   Phase = enum phHeader, phRecords, phDone
 
   Tokenizer* = object
@@ -67,9 +67,6 @@ proc initTokenizer*(data: sink seq[byte],
 
 proc fail(offset: int, msg: string) {.noreturn, raises: [FitError].} =
   raiseFit(offset, msg)
-
-proc warn(t: var Tokenizer, offset: int, msg: string) =
-  t.warnings.add (offset, msg)
 
 func bytes*(t: Tokenizer, tok: Token): seq[byte] =
   ## Copy of the bytes covered by `tok`.
@@ -98,9 +95,9 @@ proc readFileHeader(t: var Tokenizer): Token {.raises: [FitError].} =
       fail(start, "file too short for header and checksum")
     t.dataEnd = t.data.len - 2
     t.fileEnd = t.data.len
-    t.warn(start, "header data size ignored; reading to end of file")
-  for p in problems(h, t.data.toOpenArray(start, t.fileEnd - 1)):
-    t.warn(start, p)
+    t.warnings.add wkDataSizeIgnored, start, "header data size ignored; reading to end of file"
+  for w in problems(h, t.data.toOpenArray(start, t.fileEnd - 1)):
+    t.warnings.add w.kind, start, w.msg
   t.pos = start + h.size
   t.phase = phRecords
   for i in 0 ..< 16: t.active[i] = -1  # definitions do not carry over
@@ -116,7 +113,7 @@ proc readChecksum(t: var Tokenizer): Token =
   elif remaining >= 12 and t.hasFitTag(t.pos):
     t.phase = phHeader  # chained file
   else:
-    t.warn(t.pos, $remaining & " trailing bytes ignored")
+    t.warnings.add wkTrailingBytes, t.pos, $remaining & " trailing bytes ignored"
     t.phase = phDone
   Token(kind: tokChecksum, offset: pos, len: 2, checksum: c)
 
@@ -145,7 +142,7 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
     let size = int(t.data[q + 1])
     let base = baseTypeOf(t.data[q + 2])
     if base.isNone:
-      t.warn(q, "unknown base type " & $t.data[q + 2] & " for field " & $number)
+      t.warnings.add wkUnknownBaseType, q, "unknown base type " & $t.data[q + 2] & " for field " & $number
     if d.timestampField < 0 and
         (number == timestampFieldNo or (globalNum, number) in t.ts16):
       d.timestampField = i
@@ -173,19 +170,19 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
   let at = pos + f.offset
   if f.number == timestampFieldNo:
     if f.size != 4:
-      t.warn(at, "timestamp field has size " & $f.size)
+      t.warnings.add wkTimestampSize, at, "timestamp field has size " & $f.size
       return
     t.timestamp = some(int64(readUint(t.data.toOpenArray(at, at + 3), 4, endian)))
   else:
     if f.size != 2:
-      t.warn(at, "timestamp_16 field has size " & $f.size)
+      t.warnings.add wkTimestamp16Size, at, "timestamp_16 field has size " & $f.size
       return
     if t.timestamp.isNone:
-      t.warn(at, "timestamp_16 with no preceding timestamp")
+      t.warnings.add wkTimestamp16NoBase, at, "timestamp_16 with no preceding timestamp"
       return
     let t16 = uint16(readUint(t.data.toOpenArray(at, at + 1), 2, endian))
     let r = expandTimestamp16(t16, t.timestamp.get)
-    if r.backwards: t.warn(at, "timestamp_16 moved back in time")
+    if r.backwards: t.warnings.add wkTimestamp16Backwards, at, "timestamp_16 moved back in time"
     t.timestamp = some(r.time)
 
 proc readData(t: var Tokenizer, local: int,
@@ -216,7 +213,7 @@ proc readRecord(t: var Tokenizer): Token {.raises: [FitError].} =
   elif (h0 and 0x40) != 0:
     result = t.readDefinition()
   else:
-    if (h0 and 0x10) != 0: t.warn(t.pos, "reserved bit set in record header")
+    if (h0 and 0x10) != 0: t.warnings.add wkReservedBit, t.pos, "reserved bit set in record header"
     result = t.readData(int(h0 and 0x0f), false)
   t.pos += result.len
 

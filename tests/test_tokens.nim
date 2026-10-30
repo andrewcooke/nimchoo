@@ -93,7 +93,7 @@ suite "tokenizer: hand-built files":
     check toks[4].timestamp == some(0x15c5c'i64 + 0x202)
     check toks[5].timestamp == some(0x15c5c'i64 + 0x202 - 0x404)
     check t.warnings.len == 1
-    check "back in time" in t.warnings[0].msg
+    check t.warnings[0].kind == wkTimestamp16Backwards
 
   test "chained files":
     let one = fitFile(defn(0, 20, @[(3, 1, uint8T)]) & b(0, 1))
@@ -114,7 +114,7 @@ suite "tokenizer: hand-built files":
     d[4 .. 7] = b(0, 0, 0, 0)
     let (t, toks) = tokenize(d)
     check toks.kinds == @[tokHeader, tokDefinition, tokData, tokChecksum]
-    check t.warnings.anyIt("data size ignored" in it.msg)
+    check t.warnings.anyIt(it.kind == wkDataSizeIgnored)
 
 suite "tokenizer: errors":
   func raisesWith(data: seq[byte], text: string): bool =

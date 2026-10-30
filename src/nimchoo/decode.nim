@@ -16,6 +16,7 @@ import ./binary
 import ./lookup
 import ./profile
 import ./tokens
+import ./warnings
 
 const
   fieldDescriptionNum* = 206  ## global message number of field_description
@@ -118,9 +119,6 @@ proc initDecoder*(p: Profile): Decoder =
   for name, t in p.types:
     result.types[name] = (t.kind, t.base)
 
-proc warn(d: var Decoder, offset: int, msg: string) =
-  d.warnings.add (offset, msg)
-
 func isBadInt(bt: BaseType, v: int64): bool =
   let sz = bt.size
   let mask = if sz >= 8: high(uint64) else: (1'u64 shl (8 * sz)) - 1
@@ -183,7 +181,7 @@ proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
         d.accum[key] = total
         vals = @[cast[int64](total)]
       else:
-        d.warn(ctx.offset, "cannot accumulate " & $vals.len & " values of " & sp.name)
+        d.warnings.add wkCannotAccumulate, ctx.offset, "cannot accumulate " & $vals.len & " values of " & sp.name
     if identity:
       var fv = mk(vkInt)
       fv.ints = vals
@@ -219,7 +217,7 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
   ## little-endian image of a component's bits (so only the leading bytes
   ## that fit the field's type are meaningful, and nothing is bad).
   if ov.depth > maxDepth:
-    d.warn(ctx.offset, "field nesting too deep at " & f.name)
+    d.warnings.add wkNestingTooDeep, ctx.offset, "field nesting too deep at " & f.name
     return
   let ti = d.types.must(f.typeName)
   let base = if defBase.isSome: defBase.get else: ti.base
@@ -227,8 +225,8 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
   of fkComposite:
     let n = if fromBits: min(base.size, 8) else: data.len
     if n < 1 or n > data.len:
-      d.warn(ctx.offset, "cannot expand composite field " & f.name &
-             " of " & $data.len & " bytes")
+      d.warnings.add wkCompositeSize, ctx.offset, "cannot expand composite field " & f.name &
+          " of " & $data.len & " bytes"
       return
     if not fromBits and isBad(base, data, endian): return
     var start = 0
@@ -237,7 +235,7 @@ proc decodeField(d: var Decoder, msg: Message, f: Field, number: int,
       # more of them than a field can hold, eg hr.event_timestamp_12)
       if c.bits > 64 or start + c.bits > 8 * n: break
       if c.target notin msg.fields:
-        d.warn(ctx.offset, "composite " & f.name & ": no field " & c.target)
+        d.warnings.add wkCompositeTarget, ctx.offset, "composite " & f.name & ": no field " & c.target
         start += c.bits
         continue
       let v = getBits(data.toOpenArray(0, n - 1), endian, start, c.bits)
@@ -332,11 +330,11 @@ proc registerDev(d: var Decoder, r: Record, offset: int) =
   let num = r.intOf("field_definition_number")
   let bid = r.intOf("fit_base_type_id")
   if idx.isNone or num.isNone or bid.isNone:
-    d.warn(offset, "incomplete field_description")
+    d.warnings.add wkFieldDescription, offset, "incomplete field_description"
     return
   let base = baseTypeOf(byte(bid.get and 0xff))
   if base.isNone:
-    d.warn(offset, "field_description: unknown base type " & $bid.get)
+    d.warnings.add wkFieldDescription, offset, "field_description: unknown base type " & $bid.get
     return
   var scale = 1.0
   let sc = r.intOf("scale")
@@ -426,8 +424,8 @@ proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
     let key = (dv.devIndex, dv.number)
     let at = tok.offset + dv.offset
     if key notin d.devFields:
-      d.warn(at, "no description for developer field " & $dv.number &
-             " of developer " & $dv.devIndex)
+      d.warnings.add wkUndescribedDevField, at, "no description for developer field " & $dv.number &
+          " of developer " & $dv.devIndex
       continue
     let df = d.devFields.must(key)
     let sp = Spec(name: df.name, units: df.units, typeName: $df.base,

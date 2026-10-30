@@ -9,6 +9,7 @@
 import std/[options, strutils, times, unicode]
 import ./errors
 import ./profile
+import ./warnings
 export errors
 
 type
@@ -191,25 +192,26 @@ proc readHeader*(data: openArray[byte]): FileHeader {.raises: [FitError].} =
     let c = uint16(u16le(data, 12))
     if c != 0: result.checksum = some(c)
 
-func problems*(h: FileHeader, data: openArray[byte]): seq[string] =
+func problems*(h: FileHeader, data: openArray[byte]): seq[Warning] =
   ## Inconsistencies in the header and the file checksums (empty if ok).
+  ## The warnings have offset 0.
   if h.size < 12:
-    result.add "Header size too small (" & $h.size & ")"
+    result.add wkHeaderSizeSmall, 0, "Header size too small (" & $h.size & ")"
   elif h.size notin [12, 14]:
-    result.add "Header size not standard (" & $h.size & "/12-14)"
+    result.add wkHeaderSizeOdd, 0, "Header size not standard (" & $h.size & "/12-14)"
   let expected = h.dataSize + h.size + 2
   if data.len != expected:
-    result.add "Data size incorrect (" & $data.len & "/" & $h.dataSize & "+" &
+    result.add wkDataSize, 0, "Data size incorrect (" & $data.len & "/" & $h.dataSize & "+" &
       $h.size & "+2=" & $expected & ")"
   if h.dataType != ".FIT":
-    result.add "Data type incorrect (" & escape(h.dataType) & ")"
+    result.add wkDataType, 0, "Data type incorrect (" & escape(h.dataType) & ")"
   if h.checksum.isSome and data.len >= 12:
     let c = crc16(data.toOpenArray(0, 11))
     if c != h.checksum.get:
-      result.add "Inconsistent header checksum (" & toHex(c, 4) & "/" &
+      result.add wkHeaderChecksum, 0, "Inconsistent header checksum (" & toHex(c, 4) & "/" &
         toHex(h.checksum.get, 4) & ")"
   if data.len >= 2:
     let stored = uint16(u16le(data, data.len - 2))
     let c = crc16(data.toOpenArray(0, data.len - 3))
     if c != stored:
-      result.add "Bad file checksum (" & toHex(c, 4) & "/" & toHex(stored, 4) & ")"
+      result.add wkFileChecksum, 0, "Bad file checksum (" & toHex(c, 4) & "/" & toHex(stored, 4) & ")"

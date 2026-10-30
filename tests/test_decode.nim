@@ -270,7 +270,8 @@ suite "decode: developer fields":
     let (r, recs) = decodeAll(body)
     check recs[1].names == @["heart_rate", "power"]
     check r.warnings.len == 1
-    check "no description for developer field 2" in r.warnings[0].msg
+    check r.warnings[0].kind == wkUndescribedDevField
+    check "developer field 2" in r.warnings[0].msg
 
 suite "decode: real files":
   test "Activity.fit: first record matches the SDK CSV":

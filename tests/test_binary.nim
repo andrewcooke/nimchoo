@@ -1,6 +1,7 @@
 import std/[options, sequtils, strutils, times, unittest]
 import nimchoo/binary
 import nimchoo/profile
+import nimchoo/warnings
 
 const
   sdkDir = "../choochoo/data/test/source/sdk/"
@@ -14,8 +15,8 @@ func ints(bt: BaseType, data: seq[byte], e = littleEndian): seq[int64] =
   doAssert r.isSome
   r.get.ints
 
-func hasProblem(ps: seq[string], prefix: string): bool =
-  ps.anyIt(it.startsWith(prefix))
+func hasKind(ps: seq[Warning], k: WarningKind): bool =
+  ps.anyIt(it.kind == k)
 
 suite "crc":
   test "whole valid file has zero residue":
@@ -165,24 +166,24 @@ suite "file header":
     d[h.size + 10] = d[h.size + 10] xor 0xff
     let ps = problems(h, d)
     check ps.len == 1
-    check ps.hasProblem("Bad file checksum")
+    check ps.hasKind(wkFileChecksum)
 
   test "corrupt data type":
     var d = readBytes(sdkDir & "Activity.fit")
     d[8] = byte('X')
     let ps = problems(readHeader(d), d)
-    check ps.hasProblem("Data type incorrect")
+    check ps.hasKind(wkDataType)
 
   test "truncated file":
     let d = readBytes(sdkDir & "Activity.fit")
     let cut = d[0 ..< d.len - 5]
     let ps = problems(readHeader(cut), cut)
-    check ps.hasProblem("Data size incorrect")
-    check ps.hasProblem("Bad file checksum")
+    check ps.hasKind(wkDataSize)
+    check ps.hasKind(wkFileChecksum)
 
   test "corrupt header checksum":
     var d = readBytes(personalDir & "2018-03-04-qdp.fit")
     let h = readHeader(d)
     if h.checksum.isSome:
       d[4] = d[4] xor 1  # data size changes, so header crc is now wrong
-      check problems(readHeader(d), d).hasProblem("Inconsistent header checksum")
+      check problems(readHeader(d), d).hasKind(wkHeaderChecksum)
