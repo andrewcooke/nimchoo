@@ -19,23 +19,55 @@ Four kinds of things go wrong, and each has one mechanism:
 3. **Ordinary absence is an `Option`**: a bad (invalid) field value, an unknown base type,
    a missing field.  No sentinel values.
 4. **Oddities we can recover from are warnings**, collected on the tokenizer/decoder
-   (`warnings`), never logged or printed by library code.  (To become typed, see
-   "Next".)
+   (`warnings`; the reader merges them in file order), never logged or printed by library
+   code.  Each is a `Warning` with a `WarningKind` (`src/nimchoo/warnings.nim`), so callers
+   and tests act on the kind, not the text.
 
 Rules that follow:
 * `try` only at boundaries: the CLI, and where a third-party or `std` call is wrapped into
   one of our errors (`xlsx.nim` wraps `parsexml` and `zippy`).  Never
   `except CatchableError`/`KeyError`/`Exception`, and never turn a caught bug into a warning.
-* Public procs declare `{.raises: [...].}` (I/O procs list `IOError`/`OSError`), so the
-  compiler checks what they can throw; pure `func`s are `{.raises: [].}`.
+* Every module starts with `{.push raises: [].}`, so a proc can raise nothing unless it
+  says so: procs that can raise declare exactly what (`{.raises: [FitError].}`; file
+  readers also `IOError`), and the compiler checks it.  `std` calls that can raise are
+  wrapped into our errors or declared.
 * **CLI contract** (`src/nimchoo/commands/common.nim`): a command's `run(args): int` is
   `{.raises: [].}`; it returns 0 for success, 1 when the work failed (unusable input,
   I/O error) after one line on stderr and no trace, and 2 for a usage error.  Anything
   else that escapes is a bug and is allowed to crash with a trace.
 
-Next (the "structure task"): typed warnings (a `WarningKind`, one shared sink), and
-`{.push raises: [].}` in every library module, together with a review of module layout
-and shared abstractions.
+### Code layout
+
+```
+src/nch.nim                  the one command; a thin dispatcher (commands/*)
+src/nimchoo/
+  errors.nim  lookup.nim  warnings.nim   NchError and subtypes; must/mustMut; typed warnings
+  xlsx.nim                    xlsx reader (zip + xml, from memory); Row, cell
+  fit/                        the FIT file format and its decoding
+    bytes.nim                 getUint/getInt/getBits/canRead, readBytes
+    basetype.nim              BaseType, bad-value markers, decode of base-type values
+    crc.nim  time.nim         the FIT CRC; FIT time, expandTimestamp16
+    header.nim                FileHeader, readHeader, problems
+    tokens.nim                the tokenizer (definitions, data, timestamps; no profile)
+    records.nim               FieldValue, Record, Event; field, valueName
+    decode.nim                the Decoder: plans, scaling, composite/dynamic, developer fields
+    reader.nim                Reader: tokenizer + decoder as events/records iterators
+    csvout.nim                SDK-format CSV lines
+  profile/
+    model.nim                 the profile as plain data (types, fields, messages)
+    load.nim                  loading it from the Types/Messages sheets
+    default.nim               the embedded Profile.xlsx
+  commands/  common.nim fit.nim   exit codes and stderr helpers; `nch fit`
+tests/                        test_<module>.nim per area; csvcompare/csvreport compare with SDK CSVs
+```
+
+Dependencies run one way: `errors/lookup/warnings` -> `fit/bytes` -> `fit/{basetype,crc,
+time}` -> `fit/header` -> `fit/tokens`; `profile/model` -> `profile/load` (+ `xlsx`);
+`fit/records` -> `fit/decode` -> `fit/reader` -> `fit/csvout` -> `commands`.  Nothing
+below `fit/records` imports from `profile/`.
+
+The Task 1 notes below use the module names of the time (`binary.nim` is now
+`fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
 ## Task 1: translate the choochoo FIT parser to nim
 
