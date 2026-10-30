@@ -78,3 +78,50 @@ suite "xlsx reader":
     let z = workbook("", "")
     expect XlsxError:
       discard openWorkbook(z[0 ..< z.len div 2])
+
+proc sheetError(xml: string): string =
+  ## The message of the XlsxError for a workbook with this sheet xml.
+  try:
+    discard openWorkbook(xlsxWithSheetXml(xml)).rows("One")
+  except XlsxError as e:
+    return e.msg
+  "no error"
+
+func cell(r: string): string =
+  "<worksheet><sheetData><row r=\"1\"><c r=\"" & r &
+    "\"><v>1</v></c></row></sheetData></worksheet>"
+
+suite "xlsx reader: bad input":
+  test "malformed xml is an error that names the file":
+    let msg = sheetError("<worksheet><![CDATA[ never closed")
+    check "s1.xml" in msg
+    check msg != "no error"
+    check sheetError("<worksheet><sheetData><row r=\"1\"><c r=A1><v>1</v></c>" &
+                     "</row></sheetData></worksheet>") != "no error"
+
+  test "malformed workbook xml":
+    let z = storedZip(@[("xl/workbook.xml", "<workbook><![CDATA[ never closed"),
+                        ("xl/_rels/workbook.xml.rels", "<Relationships/>")])
+    expect XlsxError:
+      discard openWorkbook(z)
+
+  test "cell references are bounded as in Excel":
+    check "out of range" in sheetError(cell("A99999999999"))
+    check "out of range" in sheetError(cell("XFE1"))       # column 16385
+    check "out of range" in sheetError(cell("A1048577"))   # row 1048577
+    check "bad cell reference" in sheetError(cell("12"))
+    check "bad cell reference" in sheetError(cell("a1"))
+    check sheetError(cell("XFD1")) == "no error"           # the last column
+
+  test "a shared string index that does not exist":
+    check "bad shared string" in sheetError(
+      "<worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>7</v></c>" &
+      "</row></sheetData></worksheet>")
+
+  test "a zip entry whose size is not as declared":
+    var z = xlsxWithSheetXml(cell("A1"))
+    let central = z.find("PK\1\2")
+    check central > 0
+    z[central + 24 ..< central + 28] = le32(999)  # the first entry's size
+    expect XlsxError:
+      discard openWorkbook(z)

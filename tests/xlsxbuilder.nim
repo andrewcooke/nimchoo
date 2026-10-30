@@ -52,3 +52,12 @@ func xlsxFile*(sheets: seq[(string, seq[seq[string]])]): string =
   rels.add "</Relationships>"
   storedZip(@[("xl/workbook.xml", wb), ("xl/_rels/workbook.xml.rels", rels)] &
             files)
+
+func xlsxWithSheetXml*(xml: string): string =
+  ## An xlsx file whose only sheet, "One", has this (possibly bad) xml.
+  storedZip(@[
+    ("xl/workbook.xml", "<workbook xmlns:r=\"r\"><sheets><sheet name=\"One\" " &
+      "sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>"),
+    ("xl/_rels/workbook.xml.rels", "<Relationships><Relationship Id=\"rId1\" " &
+      "Type=\"worksheet\" Target=\"worksheets/s1.xml\"/></Relationships>"),
+    ("xl/worksheets/s1.xml", xml)])
