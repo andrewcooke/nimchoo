@@ -220,6 +220,16 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   device-folder watching.  Old-clock files (1990 timestamps) could be accepted with a
   warning if you have such rides; for now they are refused.
 
+### Next (ideas, undecided)
+
+* Read the data back: a command to list activities (date, sport, distance, duration).
+* More channels as their own `(activity_id, t)` tables: heart rate, cadence, power, distance;
+  laps and events (pauses).
+* `route` (SpatiaLite linestring per activity + spatial index) for maps and "near here".
+* **Something pretty - maps or plots.**  Preference: do not plot locally; generate *input
+  files* for external plotting / mapping services (e.g. GPX / GeoJSON / CSV for a map
+  service) from the database.  Which services and formats are still to be chosen.
+
 ### Schema direction (agreed in discussion; built piecemeal, one `nch` command at a time)
 
 * Approach for now: read an activity from a FIT file into the database; everything else
