@@ -30,6 +30,9 @@ type
     wkCompositeTarget    ## a composite component names a missing field
     wkFieldDescription   ## a field_description record is unusable
     wkUndescribedDevField  ## developer field with no field_description
+    # importing activities
+    wkDuplicateTime      ## several records in one second (the last is kept)
+    wkInvalidTime        ## a timestamp that is not a calendar time (dropped)
 
   Warning* = object
     offset*: int        ## byte offset in the file

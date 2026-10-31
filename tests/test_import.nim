@@ -1,0 +1,159 @@
+import std/[os, strutils, unittest]
+import db_connector/db_sqlite
+import nimchoo/db/[importer, store]
+import nimchoo/errors
+import nimchoo/fit/[activity, bytes]
+import nimchoo/profile/load
+import nimchoo/warnings
+import ./fitbuilder
+
+const
+  profilePath = "../choochoo/data/sdk/Profile.xlsx"
+  ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
+  multisport = "../choochoo/data/test/source/python-fitparse/" &
+    "activity-large-fenxi2-multisport.fit"
+  base = 900_000_000
+
+let p = loadProfile(profilePath)
+let dir = getTempDir() / "nch-test-import"
+
+proc tempDb(name: string): string =
+  createDir(dir)
+  result = dir / name & ".db"
+  removeFile(result)
+
+proc count(s: Store, table: string): int =
+  parseInt(s.db.getValue(sql("select count(*) from " & table)))
+
+proc importPath(s: Store, path: string): (ImportResult, seq[Warning]) =
+  var ws: seq[Warning]
+  let r = s.importFile(p, extractFilename(path), readBytes(path), ws)
+  (r, ws)
+
+# a small hand-built activity: three coordinates, one session
+let tiny = fitFile(
+  defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) &
+  b(0) & le32(base) & le32(536870912) & le32(-1073741824) &
+  b(0) & le32(base + 1) & le32(536870912) & le32(-1073741824) &
+  b(0) & le32(base + 2) & le32(536870912) & le32(-1073741824) &
+  defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)]) &
+  b(1) & le32(base + 2) & le32(base) & b(2))
+
+suite "import: a real ride":
+  test "one activity and all its coordinates":
+    let s = openStore(tempDb("ride"))
+    defer: s.close()
+    let (r, ws) = s.importPath(ride)
+    check r.outcome == ioImported
+    check r.activities == 1
+    check r.coords == 2099
+    check ws.len == 0
+    check s.count("file") == 1
+    check s.count("activity") == 1
+    check s.count("coords") == 2099
+    check s.db.getValue(sql"select sport || '/' || sub_sport from activity") ==
+      "cycling/generic"
+    check s.db.getValue(sql"select start_t from activity") == "1535373814"
+    check s.db.getValue(sql"select utc_offset_s from activity") == "-10800"
+    check abs(parseFloat(s.db.getValue(sql"select distance_m from activity")) -
+              11978.11) < 1e-6
+    check s.db.getValue(sql"select count(*) from coords where alt is null") == "2099"
+
+  test "the coordinates are in degrees, at the right times":
+    let s = openStore(tempDb("ride-coords"))
+    defer: s.close()
+    discard s.importPath(ride)
+    let first = s.db.getRow(sql"select t, lat, lon from coords order by t limit 1")
+    check first[0] == "1535373814"
+    check abs(parseFloat(first[1]) - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
+    check abs(parseFloat(first[2]) - (-842376459.0 * 180.0 / 2147483648.0)) < 1e-9
+    check s.db.getValue(sql"select min(t) = (select start_t from activity) from coords") == "1"
+
+  test "importing the same file again does nothing":
+    let s = openStore(tempDb("twice"))
+    defer: s.close()
+    discard s.importPath(ride)
+    let (r, _) = s.importPath(ride)
+    check r.outcome == ioAlreadyImported
+    check r.activities == 0
+    check s.count("file") == 1
+    check s.count("activity") == 1
+    check s.count("coords") == 2099
+
+  test "the same content under another name is the same file":
+    let s = openStore(tempDb("renamed"))
+    defer: s.close()
+    discard s.importPath(ride)
+    var ws: seq[Warning]
+    let r = s.importFile(p, "copy.fit", readBytes(ride), ws)
+    check r.outcome == ioAlreadyImported
+
+  test "each user has their own copy":
+    let path = tempDb("users")
+    let a = openStore(path)
+    a.db.exec(sql"insert into user(name) values ('bob')")
+    discard a.importPath(ride)
+    a.close()
+    let b = openStore(path, "bob")
+    defer: b.close()
+    let (r, _) = b.importPath(ride)
+    check r.outcome == ioImported
+    check b.count("file") == 2
+    check b.count("activity") == 2
+    check b.db.getValue(sql"select count(distinct user_id) from activity") == "2"
+
+suite "import: several sessions":
+  test "a multisport file gives an activity per session":
+    let s = openStore(tempDb("multi"))
+    defer: s.close()
+    let (r, _) = s.importPath(multisport)
+    check r.activities == 7
+    check s.count("activity") == 7
+    check s.count("coords") == r.coords
+    check r.coords > 20000
+    check s.db.getValue(sql"select count(distinct session) from activity") == "7"
+    # the time ranges follow one another
+    check s.db.getValue(sql"""select count(*) from activity a join activity b
+      on b.start_t > a.start_t and b.start_t < a.end_t""") == "0"
+    # every coordinate lies in the activity it belongs to (or before the first)
+    check s.db.getValue(sql"""select count(*) from coords c join activity a
+      on a.id = c.activity_id where c.t > a.end_t + 1""") == "0"
+
+suite "import: files that cannot be imported":
+  test "a small hand-built file":
+    let s = openStore(tempDb("tiny"))
+    defer: s.close()
+    var ws: seq[Warning]
+    let r = s.importFile(p, "tiny.fit", tiny, ws)
+    check r.coords == 3
+    check s.db.getValue(sql"select lat || ' ' || lon from coords limit 1") == "45.0 -90.0"
+
+  test "a file with no activity writes nothing":
+    let s = openStore(tempDb("noact"))
+    defer: s.close()
+    let noSession = fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base))
+    var ws: seq[Warning]
+    expect ImportError:
+      discard s.importFile(p, "x.fit", noSession, ws)
+    check s.count("file") == 0
+    check s.count("activity") == 0
+
+  test "a file that is not a FIT file writes nothing":
+    let s = openStore(tempDb("junk"))
+    defer: s.close()
+    var ws: seq[Warning]
+    expect FitError:
+      discard s.importFile(p, "x.fit", b(1, 2, 3), ws)
+    check s.count("file") == 0
+
+  test "a failure part way leaves no rows behind":
+    let s = openStore(tempDb("rollback"))
+    defer: s.close()
+    s.db.exec(sql"drop table coords")        # the last insert will fail
+    var ws: seq[Warning]
+    expect StoreError:
+      discard s.importFile(p, "tiny.fit", tiny, ws)
+    check s.count("file") == 0
+    check s.count("activity") == 0
+    # and the connection is usable afterwards
+    s.db.exec(sql"create table coords(x)")

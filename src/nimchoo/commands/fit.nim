@@ -67,8 +67,9 @@ proc renderInto*(p: Profile, data: seq[byte], csv: bool,
   finally:
     warnings.add r.warnings
 
-proc run*(args: seq[string]): int {.raises: [].} =
-  ## Entry point for `nch fit ARGS`; returns the exit status.
+proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
+  ## Entry point for `nch fit ARGS`; returns the exit status.  (It does not use
+  ## the database, so ignores the global options.)
   var
     csv = false
     profilePath = ""

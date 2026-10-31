@@ -7,6 +7,12 @@
 
 {.push raises: [].}
 
+type
+  Globals* = object
+    ## Options given before the command name, for every command.
+    dbPath*: string   ## the database file; "" for the default
+    user*: string     ## whose data to work with; "" for the default user
+
 const
   exitOk* = 0
   exitFailure* = 1  ## the work failed (unusable input, I/O error)

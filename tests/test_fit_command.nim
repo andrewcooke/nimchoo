@@ -1,7 +1,7 @@
 import std/[os, tables, unittest]
 import nimchoo/errors
 import nimchoo/fit/bytes
-import nimchoo/commands/fit
+import nimchoo/commands/[common, fit]
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/default
 import nimchoo/profile/load
@@ -64,13 +64,13 @@ suite "nch fit rendering":
 
 suite "nch fit command line":
   test "bad usage":
-    check fit.run(@[]) == 2
-    check fit.run(@["--bogus", "x.fit"]) == 2
-    check fit.run(@["--profile"]) == 2
-    check fit.run(@["a.fit", "b.fit"]) == 2
+    check fit.run(Globals(), @[]) == 2
+    check fit.run(Globals(), @["--bogus", "x.fit"]) == 2
+    check fit.run(Globals(), @["--profile"]) == 2
+    check fit.run(Globals(), @["a.fit", "b.fit"]) == 2
 
   test "missing file":
-    check fit.run(@["/does/not/exist.fit"]) == 1
+    check fit.run(Globals(), @["/does/not/exist.fit"]) == 1
 
 suite "definition events":
   test "developer fields are named once described":
@@ -95,22 +95,22 @@ suite "nch fit exit codes":
   createDir(dir)
 
   test "help is not an error":
-    check fit.run(@["--help"]) == 0
+    check fit.run(Globals(), @["--help"]) == 0
 
   test "a profile that is not an xlsx file":
     let bad = dir / "not-a-profile.xlsx"
     writeFile(bad, "this is not an xlsx file")
-    check fit.run(@["--profile", bad, activity]) == 1
-    check fit.run(@["--profile=" & bad, activity]) == 1
+    check fit.run(Globals(), @["--profile", bad, activity]) == 1
+    check fit.run(Globals(), @["--profile=" & bad, activity]) == 1
     removeFile(bad)
 
   test "a missing profile file":
-    check fit.run(@["--profile=" & dir / "missing.xlsx", activity]) == 1
+    check fit.run(Globals(), @["--profile=" & dir / "missing.xlsx", activity]) == 1
 
   test "a corrupt fit file":
     let bad = dir / "bad.fit"
     writeFile(bad, "this is not a fit file at all")
-    check fit.run(@[bad]) == 1
+    check fit.run(Globals(), @[bad]) == 1
     removeFile(bad)
 
   test "a truncated fit file fails, after printing what could be read":
@@ -119,8 +119,8 @@ suite "nch fit exit codes":
     var s = newString(data.len)
     for i, x in data: s[i] = char(x)
     writeFile(path, s)
-    check fit.run(@[path]) == 1
+    check fit.run(Globals(), @[path]) == 1
     removeFile(path)
 
   test "a good file":
-    check fit.run(@["--csv", activity]) == 0
+    check fit.run(Globals(), @["--csv", activity]) == 0

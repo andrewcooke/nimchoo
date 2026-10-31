@@ -11,6 +11,8 @@ bin           = @["nch"]
 
 requires "nim >= 2.2.0"
 requires "zippy >= 0.10.4"
+requires "db_connector"
+requires "checksums"
 
 task test, "Run all tests":
   exec "nim c -r --hints:off tests/all.nim"

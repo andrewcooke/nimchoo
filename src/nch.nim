@@ -1,33 +1,61 @@
 ## nch: the nimchoo command line tool.  A thin dispatcher: each command lives
-## in its own module under nimchoo/commands/ and exposes `run(args): int` (see
-## commands/common.nim for the exit codes).  Options common to all commands
-## (database connections etc) are to be parsed here, before the command name.
+## in its own module under nimchoo/commands/ and exposes `run(globals, args):
+## int` (see commands/common.nim for the exit codes).  Options that every
+## command can use (which database, which user) come before the command name
+## and are parsed here.
 
-import std/os
+import std/[os, strutils]
 import nimchoo/commands/common
-import nimchoo/commands/fit
+import nimchoo/commands/[fit, importfit]
 
 {.push raises: [].}
 
-const usage = """usage: nch COMMAND [ARGS]
+const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
+
+  --db PATH      the database file (default: $NCH_DB, else nch/nch.db in the
+                 user's data directory)
+  --user NAME    whose data to work with (default: the default user)
 
 commands:
-  fit    read FIT files (see `nch fit --help`)
+  fit      read a FIT file and print it (see `nch fit --help`)
+  import   put the activities of FIT files in the database
+           (see `nch import --help`)
 """
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
-  if args.len == 0:
+  var g = Globals()
+  var i = 0
+  while i < args.len and args[i].startsWith("-"):
+    let a = args[i]
+    if a in ["-h", "--help"]:
+      stdout.say usage
+      return exitOk
+    elif a in ["--db", "--user"]:
+      inc i
+      if i >= args.len: return usageError("nch", usage, a & " needs a value")
+      if a == "--db": g.dbPath = args[i] else: g.user = args[i]
+    elif a.startsWith("--db="):
+      g.dbPath = a["--db=".len .. ^1]
+    elif a.startsWith("--user="):
+      g.user = a["--user=".len .. ^1]
+    else:
+      return usageError("nch", usage, "unknown option " & a)
+    inc i
+  if i >= args.len:
     stderr.say usage
     return exitUsage
-  case args[0]
-  of "-h", "--help", "help":
+  let rest = args[i + 1 .. ^1]
+  case args[i]
+  of "help":
     stdout.say usage
     exitOk
   of "fit":
-    fit.run(args[1 .. ^1])
+    fit.run(g, rest)
+  of "import":
+    importfit.run(g, rest)
   else:
-    usageError("nch", usage, "unknown command " & args[0])
+    usageError("nch", usage, "unknown command " & args[i])
 
 when isMainModule:
   quit main()

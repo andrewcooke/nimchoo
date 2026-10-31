@@ -22,6 +22,13 @@ type
   XlsxError* = object of NchError
     ## A file that is not a readable xlsx file.
 
+  StoreError* = object of NchError
+    ## The database cannot be used (cannot be opened or created, a query
+    ## failed, a constraint was violated).
+
+  ImportError* = object of NchError
+    ## A file that is readable but cannot be imported as an activity.
+
 proc raiseFit*(msg: string) {.noreturn, raises: [FitError].} =
   ## Raise a FitError that has no offset.
   raise (ref FitError)(msg: msg, offset: -1)
@@ -37,3 +44,9 @@ proc raiseProfile*(msg: string, sheet = "", row = 0) {.noreturn,
 
 proc raiseXlsx*(msg: string) {.noreturn, raises: [XlsxError].} =
   raise (ref XlsxError)(msg: msg)
+
+proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
+  raise (ref StoreError)(msg: msg)
+
+proc raiseImport*(msg: string) {.noreturn, raises: [ImportError].} =
+  raise (ref ImportError)(msg: msg)

@@ -110,11 +110,17 @@ src/nimchoo/
     decode.nim                the Decoder: plans, scaling, composite/dynamic, developer fields
     reader.nim                Reader: tokenizer + decoder as events/records iterators
     csvout.nim                SDK-format CSV lines
+    activity.nim              readActivities: sessions + coordinates from a file (no database)
   profile/
     model.nim                 the profile as plain data (types, fields, messages)
     load.nim                  loading it from the Types/Messages sheets
     default.nim               the embedded Profile.xlsx
-  commands/  common.nim fit.nim   exit codes and stderr helpers; `nch fit`
+  db/                         the SQLite database
+    migrations.nim            the schema, as a list of migrations
+    store.nim                 Store, openStore (create + migrate + find the user), guard
+    statement.nim             re-runnable prepared statements
+    importer.nim              importFile: hash, skip repeats, write one file in one transaction
+  commands/  common.nim fit.nim importfit.nim   exit codes, Globals; `nch fit`; `nch import`
 tests/                        test_<module>.nim per area; csvcompare/csvreport compare with SDK CSVs
 ```
 
@@ -126,7 +132,7 @@ below `fit/records` imports from `profile/`.
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
-## Task 2: database (engine checked; schema not designed, nothing built)
+## Task 2: database (step 1 built: `nch import`; more is added piecemeal)
 
 ### Engine: leaning to SQLite + SpatiaLite
 
@@ -166,9 +172,86 @@ The Task 1 notes below use the module names of the time (`binary.nim` is now
   * `ST_LocateBetween` returned only the vertex at M=60 for range 30..90, where PostGIS
     returns the interpolated line portion.  Do not rely on it for ranges.
   * No `geography`; SRID 4326 geometry only (use UTM or `GLength(g, 1)` for metres).
-* Open design questions: how positions are stored (one `LINESTRINGZM` per activity vs
-  per-point rows), which choochoo spatial features to keep (sectors, clustering, nearby),
-  schema, an `nch` import command.
+### Step 1 as built: `nch import`
+
+```
+nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a directory searched
+                                                       recursively for *.fit / *.FIT)
+```
+* **Database file:** `--db PATH`, else `$NCH_DB`, else `~/.local/share/nch/nch.db`
+  (`std/appdirs.getDataDir`); created on first use.  `--user NAME` selects an existing user
+  (default: `default`, created by migration 1); there is no `nch user` command yet.
+* **Bootstrap:** every database command starts with `openStore` (`db/store.nim`): create the
+  directory and file, `pragma foreign_keys = on`, apply the migrations the file has not had
+  (each in a transaction; `PRAGMA user_version` is the schema version; a database from a newer
+  nch is refused), find the user.  New tables = new entries in `db/migrations.nim`
+  (`allMigrations`); never edit a released one.  SpatiaLite is **not** loaded yet (nothing is
+  spatial); that comes with the `route` migration.
+* **Schema (migration 1):** `user(id, name)`; `file(id, user_id, name, sha256, imported_at;
+  unique user+sha256)`; `activity(id, user_id, file_id, session, start_t, end_t, utc_offset_s,
+  sport, sub_sport, elapsed_s, timer_s, distance_m, calories; unique file+session)`;
+  `coords(activity_id, t, lon, lat, alt; primary key (activity_id, t)) WITHOUT ROWID`.
+  Times are Unix seconds UTC, lon/lat degrees, alt metres.
+* **Import rules** (`fit/activity.nim`, pure): one activity per FIT session; a file with no
+  `session` message is refused (monitoring, settings, workout and weight files are not
+  activities); times below 0x10000000 FIT seconds (before 1998-07-03) are not calendar times
+  (FIT spec: seconds since the device was powered on, not UTC; shown as 1990 dates) - such
+  records are dropped with a warning and a session that starts then refuses the file; a record goes to the last session starting at or before
+  it; records sorted by time; several in one second keep the last (warning); no position, no
+  coordinate; `utc_offset_s` = `local_timestamp - timestamp` from the `activity` message.
+* **Per file, one transaction** (`db/importer.nim`); a failing file leaves nothing behind
+  and the others carry on; the same content imported again by the same user is skipped
+  ("already imported"; the hash is of the file's bytes).  A truncated or corrupt FIT file
+  fails as a whole: repairing badly broken files is out of scope (use an online FIT fixer).  Warnings are grouped per file: one line per kind, with "and N more".
+* Output: `imported  PATH  (1 activity, 2099 coordinates)` / `skipped   PATH  (already
+  imported)` / `failed    PATH: reason`, then `N files: a imported, b skipped, c failed`;
+  `-q` shows only failures and the summary; exit 1 if anything failed.
+* New dependencies: `db_connector` (official; wraps libsqlite3, DbError becomes `StoreError`
+  in `db/store.nim`) and `checksums` (sha2).  New error types: `StoreError`, `ImportError`.
+* **Results on the 79 test files** (`nch --db X import ../choochoo/data/test/source`, 2.4 s,
+  4.5 MB): 42 imported (74 activities, 106,599 coordinates), 3 skipped (copies in
+  `python-fitparse-fix/`), 34 failed: 24 have no session (monitoring / settings / workouts /
+  weight scales), 5 truncated or corrupt, 4 with device-clock times (1990; `antfs-dump.63` and
+  `compressed-speed-distance`, each in two directories) and 1 repaired file with a corrupt
+  second session.  Largest ride (24k records): 0.45 s.  First/last coordinates of a ride match
+  `nch fit`; `pragma integrity_check` ok.
+* Not yet: `nch user`, `route` (SpatiaLite) and anything that reads the data back, other
+  channels (heart rate, cadence, power, distance, ...), laps, events (pauses), `--dry-run`,
+  device-folder watching.  Old-clock files (1990 timestamps) could be accepted with a
+  warning if you have such rides; for now they are refused.
+
+### Schema direction (agreed in discussion; built piecemeal, one `nch` command at a time)
+
+* Approach for now: read an activity from a FIT file into the database; everything else
+  (laps, other channels, processing) is added with the command that needs it, each as a
+  new migration.
+* **Everything per-sample is its own table, keyed `(activity_id, t)`**, `WITHOUT ROWID`
+  (measured: 38.9 MB vs 57.5 MB per 1M rows with a separate index, ~32% smaller; a later
+  conversion either way is a table rebuild, 0.7 s per 1M rows).  The first is
+  `coords(activity_id, t, lon, lat, alt)`; later `heart_rate`, `cadence`, `power`,
+  `distance`, ... in the same shape.  Position is just another channel (indoor and gym
+  activities have none).  Always-NULL columns cost ~1 byte each in SQLite, so wide tables
+  would also have been fine; this is for consistency.
+* Tables for the first step: `user` (very lightweight - two people sharing a computer;
+  a default user is created at bootstrap, `--user` later), `file` (name, sha256 UNIQUE,
+  imported_at), `activity` (one row per FIT *session*: user_id, file_id, start_utc, sport,
+  sub_sport, timer/elapsed time, distance, ...; a file can hold several sessions), `coords`.
+* `route` (the whole path as one `LINESTRINGZM`, M = t, with a spatial index) is a **separate
+  ordinary table** (`activity_id` UNIQUE): SpatiaLite refuses geometry columns on
+  `WITHOUT ROWID` tables.  It is derived from `coords`, added by a later migration when a
+  command needs it (maps, "near here"), and built at import from then on.
+* Time as Unix seconds UTC (local offset kept on `activity`); coordinates as degrees,
+  SRID 4326.  Two records in the same second: keep the last, record a warning.
+* Import is one transaction per file and repeatable (same file hash = no-op); each FIT
+  record goes to the session whose time range contains it.
+* **Bootstrap:** one function (`openDb`) that every database command calls: create the file
+  if missing, load `mod_spatialite`, apply pending migrations (tracked with
+  `PRAGMA user_version`; SQL kept in code), ensure the default user exists.
+* Data: test rides vary a lot (`personal/2018-08-27-rec.fit` has only position, distance,
+  speed and heart rate; `python-fitparse/Edge810-Vector...` adds power, temperature and
+  cadence; some records drop fields).  Unknown / device-specific messages and fields are
+  not stored yet.
+* Names so far: `coords` (not `position`: it has time), `route`.
 
 ## Task 1: translate the choochoo FIT parser to nim
 
