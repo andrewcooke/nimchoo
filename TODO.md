@@ -126,7 +126,7 @@ below `fit/records` imports from `profile/`.
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
-## Task 2: database (in discussion, nothing built yet)
+## Task 2: database (engine checked; schema not designed, nothing built)
 
 ### Engine: leaning to SQLite + SpatiaLite
 
@@ -150,13 +150,22 @@ The Task 1 notes below use the module names of the time (`binary.nim` is now
     length (`GLength(g, 1)`).
   * Checked OK: XYZM linestrings keep M/Z, ellipsoidal length, line interpolation and
     point location, MakeLine aggregate.
-* **Blocked / to do next:** `Transform` fails ("no database context") until the `proj`
-  package (provides `/usr/share/proj/proj.db`) is installed: `sudo zypper install proj`.
-  Then re-check UTM length, line substring on projected lines (and that M survives it),
-  buffer+intersects, and that the R*Tree spatial index (`CreateSpatialIndex`) works.
-* Then: load `mod_spatialite` from a small Nim program (`db_connector` wraps libsqlite3,
-  already installed; needs `load_extension`) - the main remaining risk.  Keep database
-  access behind one module (as with xlsx) so the driver can change.
+* With `proj` installed (`/usr/share/proj/proj.db`) the remaining checks pass:
+  * UTM (EPSG:32719) length of a 0.01 deg test line is 929.96 m vs 930.08 m on the
+    ellipsoid (analytic answer 930.079): the 0.013% gap is the UTM scale factor.
+  * Buffer + intersects, `ST_OffsetCurve`, and `Transform` between 4326 and UTM work.
+  * R*Tree spatial index: `CreateSpatialIndex('act','route')` builds `idx_act_route*`
+    tables, and a `SpatialIndex` bbox search finds the right rows.
+  * **Loading from Nim works**: `db_connector` (official; `nimble install db_connector`)
+    has `enable_load_extension` / `load_extension` bindings over libsqlite3; a Nim
+    program loaded `/usr/lib64/mod_spatialite.so`, ran `InitSpatialMetaData`, and got
+    the same UTM length.  Note `DbConn` is a `PSqlite3`, so qualify `db_sqlite.close`.
+* **Gotchas versus PostGIS** (matter for choochoo's M-based routes):
+  * `ST_Line_Substring` interpolates Z but **does not interpolate M** (new points get
+    M = 0).  If a sub-route needs its M (time / distance), compute it in Nim.
+  * `ST_LocateBetween` returned only the vertex at M=60 for range 30..90, where PostGIS
+    returns the interpolated line portion.  Do not rely on it for ranges.
+  * No `geography`; SRID 4326 geometry only (use UTM or `GLength(g, 1)` for metres).
 * Open design questions: how positions are stored (one `LINESTRINGZM` per activity vs
   per-point rows), which choochoo spatial features to keep (sectors, clustering, nearby),
   schema, an `nch` import command.
