@@ -106,6 +106,11 @@ suite "select: the command":
     discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5000")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
+  test "a radius on its own is around the latest activity":
+    let db = world("radius")
+    discard select(db, "--users", "default", "bob", "--radius", "50")
+    check chosen(db) == @["paris"]
+
   test "near the latest activity":
     let db = world("latest")
     discard select(db, "--users", "default", "bob", "--near", "latest", "--radius", "50")
@@ -125,7 +130,7 @@ suite "select: the command":
     let db = world("bad")
     discard select(db, "--all")
     check select(db, "--users", "nobody") == exitFailure
-    check select(db, "--radius", "5") == exitUsage
+    check select(db, "--newest", "0") == exitUsage
     check select(db, "--from", "soon") == exitUsage
     check chosen(db) == @["lisbon1", "paris"]
 

@@ -428,7 +428,7 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   user), `--from` / `--to` (local time zone, so `TZ` counts; a `--to` date means the whole day,
   a `--to` minute the whole minute; compared with the activity's start), `--near LAT,LON` or
   `--near latest` (centre of the box around the latest activity of the users) with `--radius
-  KM` (default 100), "passes within": a bounding-box probe of the spatial index, then the exact
+  KM` (default 100; `--radius` alone means `--near latest`), "passes within": a bounding-box probe of the spatial index, then the exact
   distance.  `--newest N` / `--oldest N` (`--latest` = `--newest 1`) keep N of the activities
   that meet the other criteria, by start time.  Not handled: circles across the antimeridian
   (the box widens to all longitudes, so the result is still right, only slower).

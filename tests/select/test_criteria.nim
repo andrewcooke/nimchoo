@@ -52,10 +52,13 @@ suite "select: the command line":
     for bad in ["0", "-1", "x", "1.5"]:
       check cmdline("--newest", bad).problem.contains("number of activities")
     check cmdline("--oldest").problem.contains("needs a value")
+  test "--radius on its own means --near latest":
+    let c = cmdline("--radius", "5").criteria
+    check c.near == nkLatest and c.radiusKm == 5.0
+    check cmdline("--radius", "5").problem == ""
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
   test "problems":
-    check cmdline("--radius", "5").problem.contains("needs --near")
     check cmdline("--radius", "x", "--near", "1,2").problem.contains("radius")
     check cmdline("--radius", "0", "--near", "1,2").problem.contains("more than 0")
     check cmdline("--near", "nowhere").problem.contains("position")

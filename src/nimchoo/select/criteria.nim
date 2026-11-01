@@ -130,7 +130,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     else:
       fail("unexpected argument " & a)
     inc i
-  if radiusGiven and c.near == nkNone: fail("--radius needs --near")
+  if radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest
   if c.newest > 0 and c.oldest > 0: fail("--newest and --oldest cannot be used together")
   if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
     fail("--from is not before --to")

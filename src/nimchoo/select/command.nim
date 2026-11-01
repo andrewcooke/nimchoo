@@ -31,7 +31,8 @@ options the selection is shown.  Criteria are combined with "and".
                      with seconds; a --to date means the whole day)
   --near LAT,LON     activities whose route passes within the radius of the point
   --near latest      ... of the centre of the latest activity of the users
-  --radius KM        radius for --near in kilometres (default: 100)
+  --radius KM        radius for --near in kilometres (default: 100); on its own it
+                     means --near latest
   -h, --help         show this help
 """
 
