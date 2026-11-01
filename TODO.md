@@ -122,9 +122,18 @@ src/nimchoo/
   activity/                   MODULE: importing activities (`nch import`) and the tables it owns
     extract.nim               readActivities: sessions, segments, coordinates (no database)
     importer.nim              importFile: hash, skip repeats, write a file in one transaction
+    batch.nim                 importPaths: find files, skip the unchanged, import, emit events
+    seen.nim  failure.nim     the seen_file table (load/match/batch-write); kinds of failure
+    events.nim                ImportEvent, Summary, Sink, fanOut
+    sinks.nim  display.nim    plain lines (and the Report used by tests); the live display
+    logsink.nim               the log lines for events
     command.nim               `nch import`
     ddl.nim                   its fragments
-    sql/001-tables.sql  sql/002-segment.sql
+    sql/001-tables.sql  sql/002-segment.sql  sql/003-seen.sql
+  ui/                         INFRASTRUCTURE: terminal output, knows no module
+    style.nim                 styled spans, visible width, truncation, ANSI rendering
+    live.nim                  a throttled, in-place live region on stderr
+    logfile.nim               the log file: path, line format, rotation
   commands/  common.nim fit.nim   exit codes, Globals, openStore(g); `nch fit` (no tables)
 tests/                        test_<module>.nim per area; csvcompare/csvreport compare with SDK CSVs
 ```
@@ -144,13 +153,13 @@ not from the SQL files.
 Dependencies run one way: `errors/lookup/warnings` -> `fit/bytes` -> `fit/{basetype,crc,
 time}` -> `fit/header` -> `fit/tokens`; `profile/model` -> `profile/load` (+ `xlsx`);
 `fit/records` -> `fit/decode` -> `fit/reader` -> `fit/csvout`; `db` -> `activity` ->
-`commands`/`nch.nim`.  Nothing below `fit/records` imports from `profile/`, and `db`
-imports no module.
+`commands`/`nch.nim`; `ui` is used by `activity` and `commands`.  Nothing below
+`fit/records` imports from `profile/`, and `db` and `ui` import no module.
 
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
-## Task 2: database (steps 1-2 built: `nch import` with segments; more is added piecemeal)
+## Task 2: database (steps 1-3 built: `nch import` with segments, fast re-imports, display and log; more is added piecemeal)
 
 ### Engine: leaning to SQLite + SpatiaLite
 
@@ -297,6 +306,57 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   rate), the importer gets a list of steps that modules register in `modules.nim`, each
   writing its rows for an activity; designed with that second module.
 
+### Step 3 as built: fast re-imports, a live display, a log
+
+* **Fast path.** Table `seen_file(user_id, path, size, mtime, file_id, failure, message)`
+  (`activity/sql/003-seen.sql`), one row per path looked at: absolute, normalised, symlinks not
+  resolved.  A file whose path, size **and** mtime match is skipped without being read (path
+  alone would miss a file saved over under the same name, e.g. repaired by an online fixer).
+  A matching known failure is also skipped and reported as "known"; it does not make the run
+  exit 1 (only a failure *in this run* does).  `--slow` ignores the table: it reads and hashes
+  everything, retries the failures and refreshes the rows.  A moved or copied file is not in
+  the table, so it is hashed, found in `file`, counted as skipped and recorded, so the next
+  run is fast.  Rows are written in batches of 200; imports stay one transaction per file.
+  The embedded profile is loaded only when a file needs decoding.
+* **Accepted limits.** A file rewritten within the same second at the same size is missed
+  until `--slow`.  A database from before this step has no rows: the first run is slow once
+  and fills the table.  Rows for deleted files stay.
+* **Measured** (3,000 files, 381 MB): re-import with nothing new 2.6 s -> 0.02-0.03 s; one
+  new ride among them 0.08 s; `--slow` ~2.5 s (SHA-256 runs at ~175 MB/s).
+* **Events, not prints.** The importer (`importPaths`) emits `ImportEvent`s (start, file
+  start, file done, finish) and prints nothing; a sink is `proc(ev) {.raises: [].}` and
+  `fanOut` calls several.  `ImportError` carries a `kind`, so failures are counted by kind
+  (`no activity`, `bad time`, `bad format`, `unreadable`, `not found`, `database`) without
+  parsing messages.  The plain sink's text is a pure function (`plainLines`), and tests collect
+  it with `importReport`.
+* **Streams.** stdout carries results and the summary line; stderr carries the live region,
+  failures, warnings and notes.
+* **Live display** (`ui/`, usable by any command): the command renders its state to styled
+  lines (any number); `ui/live` redraws them in place and prints permanent lines (failures)
+  above.  Throttled in the driver, not the file reader: first frame after 150 ms, then at most
+  10 per second by a monotonic clock, one write per frame, so a run shorter than that draws
+  nothing.  Height capped at terminal height - 1, lines cut to the width by visible width,
+  cursor hidden while drawing and restored on exit and on Ctrl-C.  Only when stderr is a
+  terminal, `TERM` is not `dumb` and not `-q`; colours only if `NO_COLOR` is unset; otherwise
+  the plain lines.  Checked under a pseudo-terminal (frame counts, cursor handling, `NO_COLOR`,
+  `TERM=dumb`, a 40-column terminal).  **How it looks to a person has not been checked.**
+* **Log file.** `$NCH_LOG`, else `$XDG_STATE_HOME/nch/nch.log` (a relative value is ignored),
+  else `~/.local/state/nch/nch.log`; `NCH_LOG=` (empty) switches it off.  One line per event:
+  `2026-11-01T15:37:58Z INFO  import  text` (UTC; INFO / WARN / ERROR).  `nch` logs each
+  `fit`/`import` command's arguments and exit status.  `import` logs the start, each file
+  imported or already imported, each failure, **every** warning in full (the screen groups
+  them) and the totals; files skipped as unchanged or known failures are not logged one by
+  one (a re-import of thousands would fill it), only counted.  `-q` affects the screen only.
+  Rotation when opened: over 5 MB, `nch.log` -> `.1` -> `.2` -> `.3`, the oldest deleted.
+  Appended in block-buffered mode, flushed on WARN/ERROR and at the end.  A log that cannot be
+  opened is disabled with one warning, and the work carries on.  Two `nch` processes at once
+  append whole lines safely; a rotation race could lose a few.  No `std/logging`: its rolling
+  logger rotates by line count, never deletes old files, and `log` is declared to raise
+  anything, against `raises: []`.  `Globals.log` is nil (disabled) unless `nch` opened it, so
+  tests never touch the real log.
+* **Output conventions that follow:** library code computes and the command prints; progress
+  and logging go through events and sinks.
+
 ### Next (ideas, undecided)
 
 1. Read the data back: `nch activities` (date, sport, distance, timer and paused time,
@@ -311,6 +371,10 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
    GeoJSON, CSV) from the database.  The first exporter settles the output-directory/cache
    convention; the local web server comes after that.
 5. Later: training load, as a module with its own command and tables.
+6. **Selecting activities** (AGENTS.md, "activity selection"): preferred is a scratchpad in
+   the database holding the "current selection", set by a command with its own small
+   selection language that other commands do not share; maps, plots and exporters then work
+   on the current selection.  To be designed with `nch activities` and the first exporter.
 
 ### Schema direction (agreed in discussion; built piecemeal, one `nch` command at a time)
 
