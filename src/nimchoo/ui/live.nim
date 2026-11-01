@@ -11,6 +11,8 @@
 ## to the end of the screen (ESC [ J), hide / show cursor (ESC [ ? 25 l / h).
 
 import std/[monotimes, os]
+when defined(posix):
+  import std/posix
 from std/terminal import isatty, terminalWidth, terminalHeight
 import ./style
 
@@ -114,12 +116,19 @@ proc canColour*(): bool =
   ## Whether to use colours: a live display, and NO_COLOR (no-color.org) unset.
   canLive() and getEnv("NO_COLOR").len == 0
 
+func orDefault(n, default: int): int =
+  ## A terminal that does not report its size reports 0.
+  if n > 0: n else: default
+
 proc restoreCursor() {.noconv.} =
   ## Ctrl-C: give the terminal back, then stop.  (The handler cannot see any
   ## Live, so it shows the cursor whether or not it was hidden.)
   try: stderr.write showCursor & "\n"
   except IOError: discard
-  quit(130)
+  when defined(posix):
+    exitnow(130)      # (`quit` in a signal handler ends with status 127)
+  else:
+    quit(130)
 
 proc newTerminalLive*(): Live =
   ## A live region on stderr, using the real clock and terminal size.
@@ -132,5 +141,5 @@ proc newTerminalLive*(): Live =
       except IOError: discard,
     now = proc(): int64 {.closure, raises: [].} = getMonoTime().ticks div 1_000_000,
     size = proc(): tuple[w, h: int] {.closure, raises: [].} =
-      (terminalWidth(), terminalHeight()),
+      (orDefault(terminalWidth(), 80), orDefault(terminalHeight(), 24)),
     colour = canColour())

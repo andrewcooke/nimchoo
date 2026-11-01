@@ -1,9 +1,10 @@
-import std/[os, strutils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
-import nimchoo/db/command as destroyCommand
+import nimchoo/destroy/command as destroyCommand
 import nimchoo/db/store
 import nimchoo/modules
+import nimchoo/ui/[live, style]
 
 let dir = getTempDir() / "nch-test-destroy"
 
@@ -100,3 +101,29 @@ suite "destroy: one user":
     defer: again.close()
     check again.userName == defaultUser
     for t in tables: check again.count(t) == 0
+
+suite "destroy: what is said":
+  test "what is to go":
+    check describe(some 74, "") == "74 activities for all users"
+    check describe(some 1, "bob") == "1 activity and user bob"
+    check describe(none int, "") == "all data for all users"
+
+  test "the countdown line is red, with the number bold":
+    let l = countdownLine("74 activities for all users", 4)
+    check l.text == "deleting 74 activities for all users in 4 s ... (Ctrl-C to cancel)"
+    check l.allIt(it.look.fg == cRed)
+    check l[1].text == "4" and l[1].look.bold
+
+  test "it counts down once a second, then takes the line away":
+    var written: seq[string]
+    var waits: seq[int]
+    let l = newLive(write = proc(s: string) {.closure, raises: [].} = written.add(s),
+                    now = proc(): int64 {.closure, raises: [].} = 0,
+                    size = proc(): tuple[w, h: int] {.closure, raises: [].} = (100, 24),
+                    colour = false)
+    countdown(l, "x", 3, proc(ms: int) {.closure, raises: [].} = waits.add(ms))
+    check waits == @[1000, 1000, 1000]
+    check written.len == 4                 # three frames, then the removal
+    check written[0].contains("in 3 s") and written[1].contains("in 2 s") and
+          written[2].contains("in 1 s")
+    check written[3].endsWith("\e[?25h")   # the cursor is back

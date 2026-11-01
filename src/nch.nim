@@ -6,7 +6,7 @@
 
 import std/[options, os, strutils]
 import nimchoo/cli/common
-import nimchoo/db/command as destroyCommand
+import nimchoo/destroy/command as destroyCommand
 import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules

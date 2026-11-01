@@ -6,7 +6,8 @@ import ./test_xlsx, ./test_errors, ./test_structure
 import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
               test_command, test_sdkcsv]
 import ./profile/[test_load, test_load_errors]
-import ./db/[test_store, test_command]
+import ./db/test_store
+import ./destroy/test_command
 import ./importer/[test_extract, test_importer, test_command, test_batch, test_events,
                    test_display, test_logsink]
 import ./ui/[test_style, test_live, test_logfile]

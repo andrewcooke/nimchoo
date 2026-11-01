@@ -120,7 +120,6 @@ src/nimchoo/
     fragment.nim              Fragment, fragment() (embeds the .sql file next to the caller)
     store.nim                 Store, openStore (create, apply missing fragments, find the user)
     statement.nim             re-runnable prepared statements, execScript
-    command.nim               `nch destroy` (touches only the user table)
     001-user.sql              the user table (everything hangs off it, so it lives here)
   ui/                         INFRASTRUCTURE: terminal output, knows no module
     style.nim                 styled spans, visible width, truncation, ANSI rendering
@@ -137,6 +136,7 @@ src/nimchoo/
     command.nim               `nch import`
     ddl.nim                   its fragments
     001-schema.sql            file, activity, coords, segment, seen_file
+  destroy/command.nim         MODULE: `nch destroy`; newer than importer, so it counts its activities
 tests/                        mirrors src/nimchoo/: tests/<dir>/test_<file>.nim tests <dir>/<file>.nim
                               (a few cover neighbouring files); all.nim imports them all;
                               support/ is shared (fitbuilder, xlsxbuilder, csvcompare);
@@ -167,14 +167,21 @@ time}` -> `fit/header` -> `fit/tokens`; `profile/model` -> `profile/load` (+ `xl
 `importer`; `ui` is used by `importer` and `cli`; `nch.nim` on top.  Nothing below
 `fit/records` imports from `profile/`, and `db` and `ui` import no module.
 
-**`nch destroy [-f]`** (`db/command.nim`): without `--user`, deletes the database file (and any
-`-journal`/`-wal`/`-shm`), so every user goes; with `--user NAME`, deletes that user's row and
-everything under it, then `vacuum`s.  Without `-f` it changes nothing, says what it would do
-and exits 1.  Everything a module stores hangs off `user(id)` with **`on delete cascade`**, so
-a module needs no cleanup code; a new table must declare its foreign keys the same way.  The
-default user is recreated, empty, the next time the database is opened; any other user is gone
-(there is no command to create users yet).  Deleting a missing database is not an error.  The
-log file is left alone.
+**Modules are roughly incremental: a newer module may use the library files of older ones**
+(`destroy/` counts `importer`'s activities), never a `command.nim`.  A later module whose data
+should be mentioned by `destroy` adds a line to its counts (its rows are deleted either way).
+
+**`nch destroy [-f]`** (`destroy/command.nim`): without `--user`, deletes the database file (and
+any `-journal`/`-wal`/`-shm`), so every user goes; with `--user NAME`, deletes that user's row
+and everything under it, then `vacuum`s.  Without `-f` it changes nothing, says what it would
+delete (`74 activities for all users`, `74 activities and user bob`) and exits 1.  With `-f`,
+on a terminal, a red line counts down 5 seconds (`deleting ... in 5 s ... (Ctrl-C to cancel)`);
+not on a terminal (scripts, tests) it deletes at once.  Everything a module stores hangs off
+`user(id)` with **`on delete cascade`**, so a module needs no cleanup code; a new table must
+declare its foreign keys the same way.  The count is "all data" if the database cannot be opened
+(e.g. from an older layout), which is exactly when one wants to destroy it.  The default user is
+recreated, empty, the next time the database is opened; any other user is gone (there is no
+command to create users yet).  A missing database is not an error.  The log is left alone.
 
 **Renamed in the structure revision** (Task 2 notes below use the old names): `activity/` ->
 `importer/`, `commands/` -> `cli/` (only `common.nim` stays; `fit.nim` -> `fit/command.nim`),
