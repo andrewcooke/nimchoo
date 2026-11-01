@@ -118,15 +118,16 @@ src/nimchoo/
     default.nim               the embedded Profile.xlsx
   db/                         INFRASTRUCTURE: the SQLite database, knows no module
     fragment.nim              Fragment, fragment() (embeds the .sql file next to the caller)
-    store.nim                 Store, openStore (create, apply missing fragments, find the user)
+    store.nim                 Store, openStore (load SpatiaLite, apply missing fragments, find the user)
     statement.nim             re-runnable prepared statements, execScript
-    001-user.sql              the user table (everything hangs off it, so it lives here)
+    001-schema.sql            the user table (everything hangs off it) and SpatiaLite's metadata
   ui/                         INFRASTRUCTURE: terminal output, knows no module
     style.nim                 styled spans, visible width, truncation, ANSI rendering
     live.nim                  a throttled, in-place live region on stderr
     logfile.nim               the log file: path, line format, rotation
   importer/                   MODULE: `nch import`, and the activity tables it owns
     extract.nim               readActivities: sessions, segments, coordinates (no database)
+    route.nim                 the route as WKT: a part for each segment
     importer.nim              importFile: hash, skip repeats, write a file in one transaction
     batch.nim                 importPaths: find files, skip the unchanged, import, emit events
     seen.nim  failure.nim     the seen_file table (load/match/batch-write); kinds of failure
@@ -135,8 +136,12 @@ src/nimchoo/
     logsink.nim               the log lines for events
     command.nim               `nch import`
     ddl.nim                   its fragments
-    001-schema.sql            file, activity, coords, segment, seen_file
+    001-schema.sql            file, activity, coords, segment, route, seen_file
   destroy/command.nim         MODULE: `nch destroy`; newer than importer, so it counts its activities
+  select/                     MODULE: `nch select`, and the selection table
+    criteria.nim              the command line -> criteria (times, positions); criteria -> SQL (pure)
+    command.nim  ddl.nim      `nch select`; its fragments
+    001-schema.sql            selection
 tests/                        mirrors src/nimchoo/: tests/<dir>/test_<file>.nim tests <dir>/<file>.nim
                               (a few cover neighbouring files); all.nim imports them all;
                               support/ is shared (fitbuilder, xlsxbuilder, csvcompare);
@@ -313,7 +318,7 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   a straight line; moving time is the sum of the segments; and GPX's `<trkseg>` is exactly a
   segment, so the first exporter writes one per segment.
 * **Modules own their SQL** (see "Code layout" for the mechanism): the schema is the
-  `fragment`s of the database (`db/sql/001-user.sql`), then those listed in `modules.nim`
+  `fragment`s of the database (`db/001-schema.sql`), then those listed in `modules.nim`
   (`activity/sql/001-tables.sql`, `002-segment.sql`).  Replaces `PRAGMA user_version` and
   `db/migrations.nim`.  A database made by step 1 (user_version 1) is recognised, marked as
   having `db/001-user.sql` and `activity/001-tables.sql` (the `legacy` field of a fragment),
@@ -393,6 +398,41 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
 * **Output conventions that follow:** library code computes and the command prints; progress
   and logging go through events and sinks.
 
+### Routes, `select` and the schema revision (as built)
+
+* **SQL file naming:** a module's first file is `NNN-schema.sql` (`db/`, `importer/`,
+  `select/`); a change after release is `NNN-<what changed>.sql`.
+* **`activity` has no `user_id`:** the user is the file's (`file.user_id`).  `activity.session`
+  is the FIT *session* number: a FIT file has one "activity" message with one or more "session"
+  messages, each a stretch of one sport (a triathlon has three); our `activity` is a FIT
+  session, hence the clash of words.
+* **SpatiaLite is loaded by every connection** (`openStore`: `load_extension`, then
+  `pragma trusted_schema = 1`).  Without that pragma SQLite refuses to run the triggers
+  SpatiaLite attaches to geometry columns ("unsafe use of GeometryConstraints()"): since 3.31 a
+  database's triggers and views are untrusted by default, because a hostile file could use
+  them to run functions with side effects.  Safe here because the schema is ours; the
+  extension is switched off again straight after loading.  Costs ~20 ms per run (a no-op
+  re-import of 3,000 files is 0.05 s).  `db/001-schema.sql` calls `InitSpatialMetadata(0,
+  'WGS84')` (0: already in a transaction; only SRID 4326 loaded).
+* **`route`** (`importer/001-schema.sql`): one `MULTILINESTRING` (XY, SRID 4326) per activity,
+  a part per segment, spatial index `idx_route_geom`, written by the importer in the activity's
+  transaction from the same coordinates (so it cannot disagree with them; a lazy route was
+  rejected: every consumer would have to remember to build it, a read command would write, and
+  building it costs microseconds).  Parts of fewer than two points are left out; an activity
+  with no part has no row.  7 decimals (~1 cm).  No M values (SpatiaLite's sub-line functions
+  lose them).  An ordinary table, since SpatiaLite cannot put geometry on `WITHOUT ROWID`.
+  Distances: `ST_Distance(geom, MakePoint(lon, lat, 4326), 1)` is in metres (ellipsoid).
+* **`nch select`** (`select/`): replaces the current user's rows in `selection(user_id,
+  activity_id)` (which may point at other users' activities; `on delete cascade` both ways).
+  No arguments shows it (`--all` selects everything).  `--users A B C` (default: the current
+  user), `--from` / `--to` (local time zone, so `TZ` counts; a `--to` date means the whole day,
+  a `--to` minute the whole minute; compared with the activity's start), `--near LAT,LON` or
+  `--near latest` (centre of the box around the latest activity of the users) with `--radius
+  KM` (default 100), "passes within": a bounding-box probe of the spatial index, then the exact
+  distance.  `--newest N` / `--oldest N` (`--latest` = `--newest 1`) keep N of the activities
+  that meet the other criteria, by start time.  Not handled: circles across the antimeridian
+  (the box widens to all longitudes, so the result is still right, only slower).
+
 ### Next (ideas, undecided)
 
 1. Read the data back: `nch activities` (date, sport, distance, timer and paused time,
@@ -400,17 +440,15 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
 2. Channel modules, each with its own `sql/`: heart rate, cadence, power, distance as
    `(activity_id, t)` tables; then laps and events.  The importer's step list is designed with
    the first.
-3. `route` (SpatiaLite): a MULTILINESTRING per activity, one part per segment, with the
-   spatial index, for "near here".
+3. **Named places** (high priority): `nch place add home LAT LON`, then `select --near home`;
+   later perhaps looked up by name over HTTPS (OpenStreetMap's Nominatim: needs OpenSSL, a
+   polite user-agent and at most one request a second; cache the answer in the database).  An
+   offline alternative is an embedded GeoNames list of cities over 15,000 people.
 4. **Something pretty - maps or plots.**  Preference: do not plot locally; generate *input
    files* for external plotting / mapping services (GPX with a `<trkseg>` per segment,
    GeoJSON, CSV) from the database.  The first exporter settles the output-directory/cache
    convention; the local web server comes after that.
 5. Later: training load, as a module with its own command and tables.
-6. **Selecting activities** (AGENTS.md, "activity selection"): preferred is a scratchpad in
-   the database holding the "current selection", set by a command with its own small
-   selection language that other commands do not share; maps, plots and exporters then work
-   on the current selection.  To be designed with `nch activities` and the first exporter.
 
 ### Schema direction (agreed in discussion; built piecemeal, one `nch` command at a time)
 

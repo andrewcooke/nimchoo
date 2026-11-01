@@ -5,9 +5,10 @@
 ## first, always.)  A new module with tables adds its `ddl` here.
 
 import ./importer/ddl as importerDdl
+import ./select/ddl as selectDdl
 import ./db/fragment
 
 {.push raises: [].}
 
 const allFragments*: seq[Fragment] =
-  importerDdl.fragments
+  importerDdl.fragments & selectDdl.fragments
