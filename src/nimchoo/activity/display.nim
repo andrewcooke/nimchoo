@@ -25,8 +25,7 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
                       span(commas(index) & " / " & commas(sum.total))]
   if current.len > 0: first.add span("   " & current, dim = true)
   var second: Line
-  second.add span("imported " & commas(sum.imported),
-                  if sum.imported > 0: cGreen else: cNone)
+  second.add span("imported " & commas(sum.imported), cGreen)
   second.add span(dot, dim = true)
   second.add span("skipped " & commas(sum.skipped), dim = true)
   if sum.known > 0:

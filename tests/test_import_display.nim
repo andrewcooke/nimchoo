@@ -59,6 +59,9 @@ suite "import display: the lines":
     check doneLine(Summary(done: 1, imported: 1), "/x") ==
       "done: 1 file: 1 imported, 0 skipped, 0 failed"
 
+  test "imported is green even when it is 0":
+    check renderImport(Summary(total: 1, skipped: 1), 1, "")[1][0].look.fg == cGreen
+
   test "colours: imported green, failed red, warnings yellow":
     var s = Summary(total: 5, imported: 1, failed: 1, warnings: 2)
     s.failures[fkBadFormat] = 1
