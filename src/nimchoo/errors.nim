@@ -26,8 +26,13 @@ type
     ## The database cannot be used (cannot be opened or created, a query
     ## failed, a constraint was violated).
 
+  ImportFailure* = enum
+    ifNoActivity,   ## the file has no activity in it (no session message)
+    ifBadTime       ## its times are not calendar times
+
   ImportError* = object of NchError
     ## A file that is readable but cannot be imported as an activity.
+    kind*: ImportFailure
 
 proc raiseFit*(msg: string) {.noreturn, raises: [FitError].} =
   ## Raise a FitError that has no offset.
@@ -48,5 +53,6 @@ proc raiseXlsx*(msg: string) {.noreturn, raises: [XlsxError].} =
 proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
   raise (ref StoreError)(msg: msg)
 
-proc raiseImport*(msg: string) {.noreturn, raises: [ImportError].} =
-  raise (ref ImportError)(msg: msg)
+proc raiseImport*(kind: ImportFailure, msg: string) {.noreturn,
+    raises: [ImportError].} =
+  raise (ref ImportError)(msg: msg, kind: kind)

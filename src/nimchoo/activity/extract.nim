@@ -85,7 +85,7 @@ func sessionOf(p: Profile, r: Record, index: int): ActivityData
   result = ActivityData(session: index)
   let start = r.firstInt("start_time")
   if start.isNone or start.get < minCalendarFit:
-    raiseImport("session " & $index & " has no valid start time")
+    raiseImport(ifBadTime, "session " & $index & " has no valid start time")
   result.startT = fitToUnix(start.get)
   let finish = if r.timestamp.isSome: r.timestamp.get else: start.get
   result.endT = fitToUnix(max(finish, start.get))
@@ -216,7 +216,7 @@ proc readActivities*(p: Profile, data: sink seq[byte],
   finally:
     ws.add r.warnings
   if sessions.len == 0:
-    raiseImport("no activity in this file (it has no session message)")
+    raiseImport(ifNoActivity, "no activity in this file (it has no session message)")
   sessions.sort do (a, b: ActivityData) -> int:
     result = cmp(a.startT, b.startT)
     if result == 0: result = cmp(a.session, b.session)

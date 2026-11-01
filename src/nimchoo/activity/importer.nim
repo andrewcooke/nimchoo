@@ -18,6 +18,7 @@ type
 
   ImportResult* = object
     outcome*: ImportOutcome
+    fileId*: int64              ## the `file` row: the new one, or the one it duplicates
     activities*, segments*, coords*: int   ## rows written (0 if already imported)
 
 proc sha256Hex*(data: openArray[byte]): string =
@@ -57,20 +58,29 @@ proc insertCoord(st: Stmt, activityId: int64, c: Coord) {.raises: [StoreError].}
   st.bindReal(5, c.alt)
   st.run()
 
-proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
-                 ws: var seq[Warning]): ImportResult
+type
+  ProfileSource* = proc(): Profile {.closure, raises: [].}
+    ## Gives the profile; called only when a file has to be decoded.
+
+proc importFileWith*(s: Store, profile: ProfileSource, name: string,
+                     data: seq[byte], ws: var seq[Warning]): ImportResult
     {.raises: [FitError, ImportError, StoreError].} =
   ## Import the FIT file `data` (called `name` in the database) for the
   ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
-  ## whole file imports.
+  ## whole file imports.  A file already imported (same content) is recognised
+  ## by its hash before anything is decoded, so `profile` is not called.
   let digest = sha256Hex(data)
   guard:
     let known = s.db.getValue(
       sql"select id from file where user_id = ? and sha256 = ?",
       s.userId, digest)
     if known.len > 0:
-      return ImportResult(outcome: ioAlreadyImported)
-  let found = readActivities(p, data, ws)
+      try:
+        return ImportResult(outcome: ioAlreadyImported,
+                            fileId: parseBiggestInt(known))
+      except ValueError:
+        raiseStore("bad file id " & known)
+  let found = readActivities(profile(), data, ws)
   s.begin()
   var committed = false
   var actStmt, segStmt, coordStmt: Option[Stmt]
@@ -79,6 +89,7 @@ proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
                 s.userId, name, digest, getTime().toUnix)
     let fileId = lastInsertId(s.db)
+    result.fileId = fileId
     actStmt = some(prepareStmt(s.db, "insert into activity(user_id, file_id, session, " &
       "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
       "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
@@ -102,3 +113,9 @@ proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
     if segStmt.isSome: finalize(segStmt.get)
     if coordStmt.isSome: finalize(coordStmt.get)
     if not committed: s.rollback()
+
+proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
+                 ws: var seq[Warning]): ImportResult
+    {.raises: [FitError, ImportError, StoreError].} =
+  ## `importFileWith` for a profile already in hand.
+  importFileWith(s, proc(): Profile {.closure, raises: [].} = p, name, data, ws)

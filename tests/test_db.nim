@@ -39,7 +39,7 @@ suite "database: opening and bringing the schema up to date":
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
     check names == @["activity/001-tables.sql", "activity/002-segment.sql",
-                     "db/001-user.sql"]
+                     "activity/003-seen.sql", "db/001-user.sql"]
     s.close()
 
   test "opening again changes nothing":
@@ -50,7 +50,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 3
+    check b.count("fragment") == 4
     b.close()
 
   test "the directory is created":
@@ -148,6 +148,7 @@ suite "database: fragments":
     let c = db_sqlite.open(path, "", "", "")
     c.exec(sql"drop table fragment")
     c.exec(sql"drop table segment")
+    c.exec(sql"drop table seen_file")
     c.exec(sql"pragma user_version = 1")
     c.exec(sql"""insert into file(user_id, name, sha256, imported_at)
                  values (1, 'old.fit', 'x', 0)""")
@@ -160,7 +161,7 @@ suite "database: fragments":
     check s.count("coords") == 1
     check s.count("segment") == 0            # the new table exists
     check s.count("user") == 1
-    check s.count("fragment") == 3
+    check s.count("fragment") == 4
     s.close()
 
   test "every sql file on disk is in the list of fragments, and the other way round":

@@ -4,14 +4,12 @@ import nimchoo/activity/command as importCommand
 import nimchoo/commands/common
 import nimchoo/db/store
 import nimchoo/modules
-import nimchoo/profile/default
 import ./fitbuilder
 
 const ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
 const base = 900_000_000
 
 let dir = getTempDir() / "nch-test-import-cmd"
-let profile = loadDefaultProfile()
 
 proc bytesToFile(path: string, data: seq[byte]) =
   createDir(parentDir(path))
@@ -48,7 +46,7 @@ suite "nch import: finding files":
     writeFile(d / "sub" / "README", "nor this")
     let st = open(d / "x.db")
     defer: st.close()
-    let r = importPaths(st, profile, @[d], quiet = false)
+    let r = importPaths(st, @[d])
     check r.imported == 3
     check r.failed == 0
     # sorted, one line per file, then the summary
@@ -63,7 +61,7 @@ suite "nch import: finding files":
     bytesToFile(d / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
     defer: st.close()
-    let r = importPaths(st, profile, @[d / "a.fit", d, d / "a.fit"], quiet = false)
+    let r = importPaths(st, @[d / "a.fit", d, d / "a.fit"])
     check r.imported == 1
     check r.skipped == 0
     check r.lines[^1] == "1 file: 1 imported, 0 skipped, 0 failed"
@@ -73,7 +71,7 @@ suite "nch import: finding files":
     bytesToFile(d / "ride.bin", tiny(base + 1))
     let st = open(d / "x.db")
     defer: st.close()
-    check importPaths(st, profile, @[d / "ride.bin"], quiet = false).imported == 1
+    check importPaths(st, @[d / "ride.bin"]).imported == 1
 
   test "a path that is not there, and a directory with no FIT files":
     let d = fresh("missing")
@@ -81,7 +79,7 @@ suite "nch import: finding files":
     writeFile(d / "empty" / "x.txt", "text")
     let st = open(d / "x.db")
     defer: st.close()
-    let r = importPaths(st, profile, @[d / "nonesuch", d / "empty"], quiet = false)
+    let r = importPaths(st, @[d / "nonesuch", d / "empty"])
     check r.failed == 2
     check r.lines[0].contains("no such file or directory")
     check r.lines[1].contains("no .fit files found")
@@ -95,7 +93,7 @@ suite "nch import: a mixed run":
     bytesToFile(d / "3-good.fit", tiny(base + 2))
     let st = open(d / "x.db")
     defer: st.close()
-    let r = importPaths(st, profile, @[d], quiet = false)
+    let r = importPaths(st, @[d])
     check r.imported == 2
     check r.failed == 1
     check r.lines.anyIt(it.startsWith("failed    ") and it.contains("2-bad.fit"))
@@ -106,11 +104,15 @@ suite "nch import: a mixed run":
     bytesToFile(d / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
     defer: st.close()
-    discard importPaths(st, profile, @[d], quiet = false)
-    let r = importPaths(st, profile, @[d], quiet = false)
+    discard importPaths(st, @[d])
+    let r = importPaths(st, @[d])
     check r.imported == 0
     check r.skipped == 1
-    check r.lines[0].contains("already imported")
+    check r.lines[0].contains("unchanged")
+    # looking at every file finds it is a file already imported
+    let slow = importPaths(st, @[d], ImportOptions(slow: true))
+    check slow.skipped == 1
+    check slow.lines[0].contains("already imported")
 
   test "quiet shows only failures and the summary":
     let d = fresh("quiet")
@@ -118,7 +120,7 @@ suite "nch import: a mixed run":
     writeFile(d / "b.fit", "junk")
     let st = open(d / "x.db")
     defer: st.close()
-    let r = importPaths(st, profile, @[d], quiet = true)
+    let r = importPaths(st, @[d], ImportOptions(quiet: true))
     check r.lines.len == 2
     check r.lines[0].startsWith("failed")
     check r.lines[1] == "2 files: 1 imported, 0 skipped, 1 failed"
@@ -135,7 +137,7 @@ suite "nch import: a mixed run":
     bytesToFile(d / "dup.fit", body)
     let st = open(d / "x.db")
     defer: st.close()
-    let r = importPaths(st, profile, @[d], quiet = false)
+    let r = importPaths(st, @[d])
     check r.imported == 1
     check r.warnings.len == 1
     check r.warnings[0].contains("dup.fit")
@@ -164,6 +166,6 @@ suite "nch import: the command":
   test "the real ride goes in":
     let d = fresh("ride")
     let st = open(d / "x.db")
-    let r = importPaths(st, profile, @[ride], quiet = false)
+    let r = importPaths(st, @[ride])
     check r.lines[0].endsWith("(1 activity, 20 segments, 2099 coordinates)")
     st.close()

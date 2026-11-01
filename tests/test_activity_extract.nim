@@ -119,12 +119,18 @@ suite "activities: times":
 
 suite "activities: refusing files":
   test "no session":
-    expect ImportError:
+    try:
       discard activities(recordDefn & at(base))
+      check false
+    except ImportError as e:
+      check e.kind == ifNoActivity
 
   test "a session that starts at no calendar time":
-    expect ImportError:
+    try:
       discard activities(recordDefn & at(base) & sessionDefn & session(100, base))
+      check false
+    except ImportError as e:
+      check e.kind == ifBadTime
 
   test "a file that cannot be read":
     expect FitError:
