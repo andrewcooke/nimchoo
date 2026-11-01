@@ -58,29 +58,27 @@ proc sleepMs(ms: int) {.raises: [].} =
   try: sleep(ms)
   except OSError: discard
 
-proc countActivities(g: Globals): Option[int] =
-  ## How many activities there are (of the user, if given); none if the
-  ## database cannot be opened, e.g. one from an older layout.
-  var st: Store
+proc countActivities*(path, user: string): Option[int] =
+  ## How many activities there are (of `user`, if given), counted straight from
+  ## the file, so that it works whatever layout the database has (the one
+  ## thing it needs is a table called `activity`).  None if that fails.
+  var db: DbConn
   try:
-    st = openStore(g)
-  except StoreError:
+    db = open(path, "", "", "")
+  except DbError:
     return none(int)
-  defer: st.close()
+  defer:
+    try: db.close()
+    except DbError: discard
   try:
-    guard:
-      let n = if g.user.len == 0:
-                st.db.getValue(sql"select count(*) from activity")
-              else:
-                st.db.getValue(sql"select count(*) from activity where user_id = ?",
-                               st.userId)
-      result = some(parseInt(n))
-  except StoreError, ValueError:
+    let n = if user.len == 0:
+              db.getValue(sql"select count(*) from activity")
+            else:
+              db.getValue(sql"""select count(*) from activity where user_id =
+                                (select id from user where name = ?)""", user)
+    result = some(parseInt(n))
+  except DbError, ValueError:
     result = none(int)
-
-proc sizeOf(path: string): string =
-  try: $getFileSize(path) & " bytes"
-  except OSError: "unknown size"
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch destroy ARGS`; returns the exit status.
@@ -104,10 +102,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     except StoreError as e:
       return failure("nch destroy", e.msg)
     st.close()
-  let what = describe(countActivities(g), g.user)
+  let what = describe(countActivities(path, g.user), g.user)
   if not force:
     return failure("nch destroy", "would delete " & what & " from " & path &
-      " (" & sizeOf(path) & "); use -f to do it")
+      "; use -f to do it")
   if canLive():
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
   if g.user.len == 0:

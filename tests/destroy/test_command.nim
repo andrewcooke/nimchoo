@@ -3,6 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/destroy/command as destroyCommand
 import nimchoo/db/store
+import nimchoo/errors
 import nimchoo/modules
 import nimchoo/ui/[live, style]
 
@@ -127,3 +128,27 @@ suite "destroy: what is said":
     check written[0].contains("in 3 s") and written[1].contains("in 2 s") and
           written[2].contains("in 1 s")
     check written[3].endsWith("\e[?25h")   # the cursor is back
+
+suite "destroy: counting":
+  test "activities are counted straight from the file, whatever its layout":
+    let d = fresh("count")
+    let a = openStore(d / "x.db", allFragments)
+    fill(a, "mine")
+    a.close()
+    check countActivities(d / "x.db", "") == some 1
+    check countActivities(d / "x.db", defaultUser) == some 1
+    check countActivities(d / "x.db", "nobody") == some 0
+    # an older layout, which openStore refuses
+    let c = db_sqlite.open(d / "x.db", "", "", "")
+    c.exec(sql"update fragment set name = 'activity/001-tables.sql' where name like 'importer/%'")
+    c.close()
+    expect StoreError:
+      openStore(d / "x.db", allFragments).close()
+    check countActivities(d / "x.db", "") == some 1
+
+  test "a file without an activity table is not counted":
+    let d = fresh("nocount")
+    let c = db_sqlite.open(d / "x.db", "", "", "")
+    c.exec(sql"create table t(x)")
+    c.close()
+    check countActivities(d / "x.db", "").isNone
