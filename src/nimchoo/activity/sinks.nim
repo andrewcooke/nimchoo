@@ -37,9 +37,18 @@ func warningLines*(path: string, ws: seq[Warning]): seq[string] =
     result.add "warning: " & path & ": offset " & $w.offset & ": " & w.msg &
       (if more > 0: " (and " & $more & " more like it)" else: "")
 
+func failureBreakdown*(s: Summary): string =
+  ## "no activity 4, bad format 1": the failures by kind ("" if none).
+  var parts: seq[string]
+  for k in FailureKind:
+    if s.failures[k] > 0: parts.add k.label & " " & $s.failures[k]
+  parts.join(", ")
+
 func summaryLine*(s: Summary): string =
   result = plural(s.done, "file", "files") & ": " & $s.imported &
     " imported, " & $s.skipped & " skipped, " & $s.failed & " failed"
+  let kinds = failureBreakdown(s)
+  if kinds.len > 0: result.add " (" & kinds & ")"
   if s.known > 0:
     result.add ", " & plural(s.known, "known failure", "known failures") &
       " (use --slow to retry)"

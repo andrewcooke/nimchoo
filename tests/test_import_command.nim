@@ -84,7 +84,7 @@ suite "nch import: finding files":
     check r.failed == 2
     check r.lines[0].contains("no such file or directory")
     check r.lines[1].contains("no .fit files found")
-    check r.lines[^1] == "2 files: 0 imported, 0 skipped, 2 failed"
+    check r.lines[^1] == "2 files: 0 imported, 0 skipped, 2 failed (not found 2)"
 
 suite "nch import: a mixed run":
   test "a bad file does not stop the others, or undo them":
@@ -124,7 +124,7 @@ suite "nch import: a mixed run":
     let r = importReport(st, @[d], ImportOptions(quiet: true))
     check r.lines.len == 2
     check r.lines[0].startsWith("failed")
-    check r.lines[1] == "2 files: 1 imported, 0 skipped, 1 failed"
+    check r.lines[1] == "2 files: 1 imported, 0 skipped, 1 failed (bad format 1)"
 
   test "repeated warnings in a file are grouped":
     let d = fresh("warn")

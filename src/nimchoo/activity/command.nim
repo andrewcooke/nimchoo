@@ -6,8 +6,8 @@ import std/strutils
 import ../commands/common
 import ../db/store
 import ../errors
-import ./batch
-import ./sinks
+import ../ui/live
+import ./[batch, display, sinks]
 
 {.push raises: [].}
 
@@ -49,5 +49,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch import", e.msg)
   defer: st.close()
-  let summary = importPaths(st, targets, opts, plainSink(opts.quiet))
+  let sink =
+    if not opts.quiet and canLive():
+      liveSink(newTerminalLive(),
+               proc(s: string) {.closure, raises: [].} = stdout.say(s),
+               proc(s: string) {.closure, raises: [].} = stderr.say(s))
+    else:
+      plainSink(opts.quiet)
+  let summary = importPaths(st, targets, opts, sink)
   if summary.failed > 0: exitFailure else: exitOk

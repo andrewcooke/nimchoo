@@ -1,11 +1,11 @@
 ## `nch import` remembers the paths it has seen: a path whose size and
 ## modification time are unchanged is skipped without being read.
 
-import std/[os, sequtils, strutils, times, unittest]
+import std/[os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/activity/batch
 import nimchoo/activity/command as importCommand
-import nimchoo/activity/importer
+import nimchoo/activity/importer except importFile
 import nimchoo/commands/common
 import nimchoo/db/store
 import nimchoo/errors

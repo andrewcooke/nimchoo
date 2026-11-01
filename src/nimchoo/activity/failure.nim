@@ -24,6 +24,16 @@ func failureOf*(e: ref NchError): FailureKind =
   elif e of StoreError: fkStore
   else: fkBadFormat
 
+func label*(k: FailureKind): string =
+  ## The kind in words, for people.
+  case k
+  of fkNoActivity: "no activity"
+  of fkBadTime: "bad time"
+  of fkBadFormat: "bad format"
+  of fkUnreadable: "unreadable"
+  of fkNotFound: "not found"
+  of fkStore: "database"
+
 func kindOf*(label: string): FailureKind =
   ## The kind with this stored label (`$kind`); unknown labels count as bad format.
   for k in FailureKind:
