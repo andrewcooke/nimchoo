@@ -2,16 +2,25 @@
 ## schema up to date on first use), and the user whose data we work with.
 ## Every command that uses the database starts with `openStore`.
 ##
+## The schema is made of fragments (fragment.nim): the database's own, then
+## those of the modules, in the order given.  The database remembers which it
+## has had in the table `fragment`, so opening applies only the missing ones.
+##
 ## Errors from the database library (`DbError`) are turned into `StoreError`
 ## here, so nothing above this module sees them.
 
-import std/[os, strutils]
+import std/[os, sequtils, strutils, times]
 import db_connector/db_sqlite
 import ../errors
-import ./migrations
-export db_sqlite.DbConn, migrations.defaultUser
+import ./fragment
+import ./statement
+export db_sqlite.DbConn, fragment
 
 {.push raises: [].}
+
+const
+  defaultUser* = "default"
+  baseFragments = @[fragment("001-user.sql", 1)]
 
 type
   Store* = object
@@ -34,40 +43,73 @@ proc resolveDbPath*(option: string): string =
   if env.len > 0: return env
   string(getDataDir()) / "nch" / "nch.db"
 
-proc schemaVersion(db: DbConn): int {.raises: [StoreError].} =
+proc oldSchemaVersion(db: DbConn): int {.raises: [StoreError].} =
+  ## `PRAGMA user_version`: how the first release recorded its schema.
   guard:
     try:
       result = parseInt(db.getValue(sql"pragma user_version"))
     except ValueError:
       raiseStore("cannot read the schema version")
 
-proc migrate(db: DbConn) {.raises: [StoreError].} =
-  ## Apply the migrations the database has not had yet, each in a transaction.
-  let have = schemaVersion(db)
-  if have > allMigrations.len:
-    raiseStore("the database is from a newer version of nch (schema " & $have &
-               ", this program knows " & $allMigrations.len & ")")
-  for i in have ..< allMigrations.len:
-    guard:
-      db.exec(sql"begin")
-      try:
-        for statement in allMigrations[i]:
-          db.exec(sql(statement))
-        db.exec(sql("pragma user_version = " & $(i + 1)))
-        db.exec(sql"commit")
-      except DbError:
-        discard db.tryExec(sql"rollback")
-        raise
+proc recorded(db: DbConn): seq[string] {.raises: [StoreError].} =
+  ## The fragments the database says it has had.
+  guard:
+    for row in db.fastRows(sql"select name from fragment order by name"):
+      result.add row[0]
+
+proc record(db: DbConn, name: string) {.raises: [StoreError].} =
+  guard:
+    db.exec(sql"insert into fragment(name, applied_at) values (?, ?)",
+            name, getTime().toUnix)
+
+proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
+  ## Run a fragment and record it, as one transaction.
+  guard: db.exec(sql"begin")
+  var done = false
+  try:
+    execScript(db, f.sql)
+    record(db, f.name)
+    guard: db.exec(sql"commit")
+    done = true
+  except StoreError as e:
+    raiseStore("applying " & f.name & ": " & e.msg)
+  finally:
+    if not done:
+      try: discard db.tryExec(sql"rollback")
+      except DbError: discard
+
+proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
+    {.raises: [StoreError].} =
+  let all = baseFragments & fragments
+  guard:
+    db.exec(sql"""create table if not exists fragment (
+                    name text primary key,
+                    applied_at integer not null) without rowid""")
+  var have = recorded(db)
+  if have.len == 0:
+    # a database made by the first release recorded `PRAGMA user_version`
+    # instead: what it had is what the fragments marked with that version hold
+    let v = oldSchemaVersion(db)
+    for f in all:
+      if f.legacy > 0 and f.legacy <= v:
+        record(db, f.name)
+        have.add f.name
+  for name in have:
+    if all.allIt(it.name != name):
+      raiseStore("the database is from a newer version of nch (it has '" &
+                 name & "')")
+  for f in all:
+    if f.name notin have: apply(db, f)
 
 proc close*(s: Store) {.raises: [].} =
   try: db_sqlite.close(s.db)
   except DbError: discard  # nothing useful can be done
 
-proc openStore*(path: string, user = defaultUser): Store
-    {.raises: [StoreError].} =
-  ## Open the database at `path`, creating the file and applying migrations as
-  ## needed, and find `user`.  Raises StoreError if that cannot be done or the
-  ## user does not exist.
+proc openStore*(path: string, fragments: seq[Fragment],
+                user = defaultUser): Store {.raises: [StoreError].} =
+  ## Open the database at `path`, creating the file and applying the fragments
+  ## it lacks, and find `user` (the default user is created if missing).
+  ## Raises StoreError if that cannot be done or the user does not exist.
   if path != ":memory:":
     try:
       createDir(parentDir(path))
@@ -79,8 +121,10 @@ proc openStore*(path: string, user = defaultUser): Store
   try:
     guard:
       result.db.exec(sql"pragma foreign_keys = on")
-    migrate(result.db)
+    bringUpToDate(result.db, fragments)
     guard:
+      result.db.exec(sql"insert or ignore into user(name) values (?)",
+                     defaultUser)
       let id = result.db.getValue(sql"select id from user where name = ?", user)
       if id.len == 0:
         raiseStore("no such user: " & user)

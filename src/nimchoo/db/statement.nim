@@ -7,7 +7,7 @@ import std/options
 import db_connector/db_sqlite
 from db_connector/sqlite3 import PStmt, prepare_v2, bind_int64, bind_double,
     bind_null, bind_text, SQLITE_TRANSIENT, step, reset, clear_bindings,
-    finalize, errmsg, last_insert_rowid, SQLITE_OK, SQLITE_DONE
+    finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE
 import ../errors
 
 {.push raises: [].}
@@ -67,3 +67,12 @@ proc finalize*(s: Stmt) {.raises: [].} =
 proc lastInsertId*(db: DbConn): int64 {.raises: [].} =
   ## The id of the row most recently inserted on this connection.
   last_insert_rowid(db)
+
+proc execScript*(db: DbConn, script: string) {.raises: [StoreError].} =
+  ## Run a script of several statements.  (If one fails the ones before it
+  ## have been done: run it inside a transaction.)
+  var err: cstring
+  if exec(db, cstring(script), nil, nil, err) != SQLITE_OK:
+    let message = if err.isNil: $errmsg(db) else: $err
+    if not err.isNil: free(err)
+    raiseStore(message)

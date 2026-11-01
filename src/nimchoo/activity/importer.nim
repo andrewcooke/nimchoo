@@ -5,12 +5,11 @@
 import std/[options, strutils, times]
 import checksums/sha2
 import db_connector/db_sqlite
+import ../db/[statement, store]
 import ../errors
-import ../fit/activity
 import ../profile/model
 import ../warnings
-import ./statement
-import ./store
+import ./extract
 
 {.push raises: [].}
 
@@ -19,7 +18,7 @@ type
 
   ImportResult* = object
     outcome*: ImportOutcome
-    activities*, coords*: int   ## rows written (0 if already imported)
+    activities*, segments*, coords*: int   ## rows written (0 if already imported)
 
 proc sha256Hex*(data: openArray[byte]): string =
   var text = newString(data.len)
@@ -40,6 +39,14 @@ proc insertActivity(st: Stmt, userId, fileId: int64, a: ActivityData) {.raises: 
   st.bindReal(10, a.timerS)
   st.bindReal(11, a.distanceM)
   st.bindInt(12, a.calories)
+  st.run()
+
+proc insertSegment(st: Stmt, activityId: int64, n: int, g: Segment)
+    {.raises: [StoreError].} =
+  st.bindInt(1, activityId)
+  st.bindInt(2, int64(n))
+  st.bindInt(3, g.startT)
+  st.bindInt(4, g.endT)
   st.run()
 
 proc insertCoord(st: Stmt, activityId: int64, c: Coord) {.raises: [StoreError].} =
@@ -66,7 +73,7 @@ proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
   let found = readActivities(p, data, ws)
   s.begin()
   var committed = false
-  var actStmt, coordStmt: Option[Stmt]
+  var actStmt, segStmt, coordStmt: Option[Stmt]
   try:
     guard:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
@@ -75,18 +82,23 @@ proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
     actStmt = some(prepareStmt(s.db, "insert into activity(user_id, file_id, session, " &
       "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
       "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+    segStmt = some(prepareStmt(s.db,
+      "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"))
     coordStmt = some(prepareStmt(s.db, 
       "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)"))
     result.outcome = ioImported
     for a in found:
       insertActivity(actStmt.get, s.userId, fileId, a)
       let activityId = lastInsertId(s.db)
+      for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
       for c in a.coords: insertCoord(coordStmt.get, activityId, c)
       inc result.activities
+      result.segments += a.segments.len
       result.coords += a.coords.len
     s.commit()
     committed = true
   finally:
     if actStmt.isSome: finalize(actStmt.get)
+    if segStmt.isSome: finalize(segStmt.get)
     if coordStmt.isSome: finalize(coordStmt.get)
     if not committed: s.rollback()

@@ -1,8 +1,10 @@
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/[importer, store]
+import nimchoo/activity/[extract, importer]
+import nimchoo/db/store
 import nimchoo/errors
-import nimchoo/fit/[activity, bytes]
+import nimchoo/fit/bytes
+import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/warnings
 import ./fitbuilder
@@ -15,6 +17,10 @@ const
   base = 900_000_000
 
 let p = loadProfile(profilePath)
+
+proc openStore(path: string, user = defaultUser): Store =
+  ## The whole schema.
+  store.openStore(path, allFragments, user)
 let dir = getTempDir() / "nch-test-import"
 
 proc tempDb(name: string): string =
@@ -47,7 +53,9 @@ suite "import: a real ride":
     check r.outcome == ioImported
     check r.activities == 1
     check r.coords == 2099
+    check r.segments == 20
     check ws.len == 0
+    check s.count("segment") == 20
     check s.count("file") == 1
     check s.count("activity") == 1
     check s.count("coords") == 2099
@@ -157,3 +165,34 @@ suite "import: files that cannot be imported":
     check s.count("activity") == 0
     # and the connection is usable afterwards
     s.db.exec(sql"create table coords(x)")
+
+suite "import: segments":
+  test "the ride's segments are stored in order, covering every coordinate":
+    let s = openStore(tempDb("segments"))
+    defer: s.close()
+    discard s.importPath(ride)
+    check s.db.getValue(sql"select min(n) || '-' || max(n) from segment") == "0-19"
+    check s.db.getValue(sql"""select count(*) from segment a join segment b
+      on b.activity_id = a.activity_id and b.n = a.n + 1
+      where b.start_t <= a.end_t""") == "0"
+    check s.db.getValue(sql"""select count(*) from coords c where not exists (
+      select 1 from segment g where g.activity_id = c.activity_id
+        and c.t between g.start_t and g.end_t)""") == "0"
+    # the time between segments is the time paused
+    check s.db.getValue(sql"""select sum(b.start_t - a.end_t) from segment a
+      join segment b on b.activity_id = a.activity_id and b.n = a.n + 1""") == "412"
+
+  test "the coordinates of one segment are a range of the key":
+    let s = openStore(tempDb("segrange"))
+    defer: s.close()
+    discard s.importPath(ride)
+    check s.db.getValue(sql"""select sum(cnt) from (
+      select (select count(*) from coords c where c.activity_id = g.activity_id
+        and c.t between g.start_t and g.end_t) as cnt from segment g)""") == "2099"
+
+  test "a multisport file has segments for each activity":
+    let s = openStore(tempDb("segmulti"))
+    defer: s.close()
+    let (r, _) = s.importPath(multisport)
+    check r.segments == s.count("segment")
+    check s.db.getValue(sql"select count(distinct activity_id) from segment") == "7"

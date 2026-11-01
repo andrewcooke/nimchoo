@@ -5,6 +5,9 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
+import ../db/store
+import ../errors
+
 {.push raises: [].}
 
 type
@@ -12,6 +15,7 @@ type
     ## Options given before the command name, for every command.
     dbPath*: string   ## the database file; "" for the default
     user*: string     ## whose data to work with; "" for the default user
+    fragments*: seq[Fragment]  ## the schema: the fragments of all modules
 
 const
   exitOk* = 0
@@ -33,3 +37,8 @@ proc failure*(command, problem: string): int {.raises: [].} =
   ## Report that the work failed.
   stderr.say command & ": " & problem & "\n"
   exitFailure
+
+proc openStore*(g: Globals): Store {.raises: [StoreError].} =
+  ## The database the global options point at (see db/store.nim).
+  openStore(resolveDbPath(g.dbPath), g.fragments,
+            if g.user.len > 0: g.user else: defaultUser)

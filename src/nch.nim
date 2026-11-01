@@ -6,7 +6,9 @@
 
 import std/[os, strutils]
 import nimchoo/commands/common
-import nimchoo/commands/[fit, importfit]
+import nimchoo/activity/command as importCommand
+import nimchoo/commands/fit
+import nimchoo/modules
 
 {.push raises: [].}
 
@@ -24,7 +26,7 @@ commands:
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
-  var g = Globals()
+  var g = Globals(fragments: allFragments)
   var i = 0
   while i < args.len and args[i].startsWith("-"):
     let a = args[i]
@@ -53,7 +55,7 @@ proc main(): int {.raises: [].} =
   of "fit":
     fit.run(g, rest)
   of "import":
-    importfit.run(g, rest)
+    importCommand.run(g, rest)
   else:
     usageError("nch", usage, "unknown command " & args[i])
 

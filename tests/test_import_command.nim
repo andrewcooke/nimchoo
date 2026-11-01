@@ -1,7 +1,9 @@
 import std/[algorithm, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/commands/[common, importfit]
+import nimchoo/activity/command as importCommand
+import nimchoo/commands/common
 import nimchoo/db/store
+import nimchoo/modules
 import nimchoo/profile/default
 import ./fitbuilder
 
@@ -31,7 +33,10 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-proc open(path: string): Store = openStore(path)
+proc open(path: string): Store = openStore(path, allFragments)
+
+func globals(db: string, user = ""): Globals =
+  Globals(dbPath: db, user: user, fragments: allFragments)
 
 suite "nch import: finding files":
   test "directories are searched recursively, for .fit and .FIT only":
@@ -140,25 +145,25 @@ suite "nch import: the command":
   test "exit codes":
     let d = fresh("run")
     bytesToFile(d / "a.fit", tiny(base + 1))
-    let g = Globals(dbPath: d / "x.db")
-    check importfit.run(g, @["--help"]) == exitOk
-    check importfit.run(g, @[]) == exitUsage
-    check importfit.run(g, @["--nonesuch", d]) == exitUsage
-    check importfit.run(g, @["-q", d]) == exitOk
-    check importfit.run(g, @["-q", d]) == exitOk              # skipped is not a failure
-    check importfit.run(g, @["-q", d / "nonesuch"]) == exitFailure
+    let g = globals(d / "x.db")
+    check importCommand.run(g, @["--help"]) == exitOk
+    check importCommand.run(g, @[]) == exitUsage
+    check importCommand.run(g, @["--nonesuch", d]) == exitUsage
+    check importCommand.run(g, @["-q", d]) == exitOk
+    check importCommand.run(g, @["-q", d]) == exitOk              # skipped is not a failure
+    check importCommand.run(g, @["-q", d / "nonesuch"]) == exitFailure
     writeFile(d / "bad.fit", "junk")
-    check importfit.run(g, @["-q", d]) == exitFailure
+    check importCommand.run(g, @["-q", d]) == exitFailure
 
   test "an unknown user is a failure":
     let d = fresh("user")
     bytesToFile(d / "a.fit", tiny(base + 1))
-    check importfit.run(Globals(dbPath: d / "x.db", user: "nobody"), @["-q", d]) ==
+    check importCommand.run(globals(d / "x.db", "nobody"), @["-q", d]) ==
       exitFailure
 
   test "the real ride goes in":
     let d = fresh("ride")
     let st = open(d / "x.db")
     let r = importPaths(st, profile, @[ride], quiet = false)
-    check r.lines[0].endsWith("(1 activity, 2099 coordinates)")
+    check r.lines[0].endsWith("(1 activity, 20 segments, 2099 coordinates)")
     st.close()

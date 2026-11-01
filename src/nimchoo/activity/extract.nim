@@ -9,15 +9,18 @@
 ## * a record goes to the last session starting at or before it (records
 ##   before the first session go to the first), so none are lost;
 ## * records are put in time order, records in the same second keep the last;
-## * a record without a position makes no coordinate.
+## * a record without a position makes no coordinate;
+## * the stretches during which the timer ran (between a timer start and the
+##   next stop) are the activity's segments: disjoint intervals in time order.
+##   Every coordinate lies in one.
 
-import std/[algorithm, options]
+import std/[algorithm, options, sequtils, strutils]
 import ../errors
 import ../profile/model
 import ../warnings
-import ./reader
-import ./records
-import ./time
+import ../fit/reader
+import ../fit/records
+import ../fit/time
 
 {.push raises: [].}
 
@@ -31,6 +34,14 @@ type
     lon*, lat*: float     ## degrees
     alt*: Option[float]   ## metres
 
+  Segment* = object
+    ## A stretch during which the timer ran (a closed interval).
+    startT*, endT*: int64   ## Unix seconds, UTC
+
+  TimerEvent* = object
+    t*: int64
+    running*: bool          ## a start (true) or a stop (false)
+
   ActivityData* = object
     ## One session of a file.
     session*: int         ## position of the session message in the file
@@ -40,6 +51,7 @@ type
     elapsedS*, timerS*, distanceM*: Option[float]
     calories*: Option[int]
     coords*: seq[Coord]   ## in time order, one per second at most
+    segments*: seq[Segment]  ## disjoint, in time order, covering all coords
 
   RawCoord = object
     c: Coord
@@ -97,6 +109,57 @@ func coordOf(r: Record, t: int64, index, offset: int): Option[RawCoord] =
              lat: float(lat.get) * semicircleDegrees, alt: alt),
     index: index, offset: offset))
 
+func merged(segs: seq[Segment]): seq[Segment] =
+  ## Segments in time order; those that touch or overlap become one.
+  for g in segs:
+    if result.len > 0 and g.startT <= result[^1].endT:
+      result[^1].endT = max(result[^1].endT, g.endT)
+    else:
+      result.add g
+
+func segmentsOf*(startT, endT: int64, events: seq[TimerEvent]): seq[Segment] =
+  ## The segments of a session lasting from `startT` to `endT`, given its timer
+  ## events in time order.  A start while running and a stop while stopped
+  ## change nothing; a first event that is a stop means the timer was running
+  ## from the start of the session; a timer still running at the end stops
+  ## there; no events at all is one segment.
+  var running = events.len == 0 or not events[0].running
+  var since = startT
+  var found: seq[Segment]
+  for e in events:
+    if e.running and not running:
+      running = true
+      since = e.t
+    elif not e.running and running:
+      running = false
+      found.add Segment(startT: since, endT: e.t)
+  if running: found.add Segment(startT: since, endT: endT)
+  for g in found.mitems:
+    g.startT = max(g.startT, startT)
+    g.endT = min(g.endT, endT)
+  merged(found.filterIt(it.endT >= it.startT))
+
+proc cover(segs: var seq[Segment], coords: seq[Coord], ws: var seq[Warning]) =
+  ## Make every coordinate (in time order) lie in a segment: one outside all of
+  ## them extends the nearest, with a warning.
+  if segs.len == 0: return
+  var j = 0
+  for c in coords:
+    while j < segs.high and c.t > segs[j].endT: inc j
+    if c.t >= segs[j].startT and c.t <= segs[j].endT: continue
+    # c is before segs[j] (in a gap or before the first) or after the last
+    let toPrevious = if j > 0: c.t - segs[j - 1].endT else: high(int64)
+    let toThis = if c.t < segs[j].startT: segs[j].startT - c.t else: c.t - segs[j].endT
+    if j > 0 and toPrevious <= toThis:
+      segs[j - 1].endT = c.t
+    elif c.t < segs[j].startT:
+      segs[j].startT = c.t
+    else:
+      segs[j].endT = c.t
+    ws.add wkOutsideSegment, 0, "a coordinate at " & $c.t &
+      " is outside the timer segments; the nearest segment is extended"
+  segs = merged(segs)
+
 proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
   ## Time order; of several in one second the last (by appearance) is kept.
   raw.sort do (a, b: RawCoord) -> int:
@@ -114,12 +177,14 @@ proc readActivities*(p: Profile, data: sink seq[byte],
                      ws: var seq[Warning]): seq[ActivityData]
     {.raises: [FitError, ImportError].} =
   ## The activities in a FIT file, in order of start time (`session` is the
-  ## position of the session message in the file).  Warnings (the reader's and ours) are added to `ws`.  Raises FitError if
-  ## the file cannot be read, ImportError if it holds no usable activity.
+  ## position of the session message in the file).  Warnings (the reader's and
+  ## ours) are added to `ws`.  Raises FitError if the file cannot be read,
+  ## ImportError if it holds no usable activity.
   var
     r = initReader(p, data)
     sessions: seq[ActivityData]
     raw: seq[RawCoord]
+    timer: seq[TimerEvent]
     offsetS = none(int)
     count = 0
   try:
@@ -134,6 +199,13 @@ proc readActivities*(p: Profile, data: sink seq[byte],
         let rc = coordOf(rec, fitToUnix(rec.timestamp.get), count, ev.offset)
         inc count
         if rc.isSome: raw.add rc.get
+      of "event":
+        if nameOf(p, rec, "event") == "timer" and rec.timestamp.isSome and
+            rec.timestamp.get >= minCalendarFit:
+          let kind = nameOf(p, rec, "event_type")
+          if kind == "start" or kind.startsWith("stop"):
+            timer.add TimerEvent(t: fitToUnix(rec.timestamp.get),
+                                 running: kind == "start")
       of "session":
         sessions.add sessionOf(p, rec, sessions.len)
       of "activity":
@@ -153,5 +225,15 @@ proc readActivities*(p: Profile, data: sink seq[byte],
   for c in coords:
     while k + 1 < sessions.len and sessions[k + 1].startT <= c.t: inc k
     sessions[k].coords.add c
-  for s in sessions.mitems: s.utcOffsetS = offsetS
+  # timer events go to sessions the way coordinates do; then the segments
+  timer.sort do (a, b: TimerEvent) -> int: cmp(a.t, b.t)
+  var perSession = newSeq[seq[TimerEvent]](sessions.len)
+  k = 0
+  for e in timer:
+    while k + 1 < sessions.len and sessions[k + 1].startT <= e.t: inc k
+    perSession[k].add e
+  for i, s in sessions.mpairs:
+    s.utcOffsetS = offsetS
+    s.segments = segmentsOf(s.startT, s.endT, perSession[i])
+    cover(s.segments, s.coords, ws)
   sessions

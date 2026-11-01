@@ -33,6 +33,7 @@ type
     # importing activities
     wkDuplicateTime      ## several records in one second (the last is kept)
     wkInvalidTime        ## a timestamp that is not a calendar time (dropped)
+    wkOutsideSegment     ## a coordinate outside every timer segment
 
   Warning* = object
     offset*: int        ## byte offset in the file

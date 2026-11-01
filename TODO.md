@@ -96,11 +96,12 @@ What the code does today; new code should look like the code around it.
 ### Code layout
 
 ```
-src/nch.nim                  the one command; a thin dispatcher (commands/*)
+src/nch.nim                  the one command: global options, then a thin dispatcher
 src/nimchoo/
   errors.nim  lookup.nim  warnings.nim   NchError and subtypes; must/mustMut; typed warnings
+  modules.nim                 the modules that have database tables: allFragments (in order)
   xlsx.nim                    xlsx reader (zip + xml, from memory); Row, cell
-  fit/                        the FIT file format and its decoding
+  fit/                        LIBRARY: the FIT file format and its decoding
     bytes.nim                 getUint/getInt/getBits/canRead, readBytes
     basetype.nim              BaseType, bad-value markers, decode of base-type values
     crc.nim  time.nim         the FIT CRC; FIT time, expandTimestamp16
@@ -110,29 +111,46 @@ src/nimchoo/
     decode.nim                the Decoder: plans, scaling, composite/dynamic, developer fields
     reader.nim                Reader: tokenizer + decoder as events/records iterators
     csvout.nim                SDK-format CSV lines
-    activity.nim              readActivities: sessions + coordinates from a file (no database)
-  profile/
-    model.nim                 the profile as plain data (types, fields, messages)
-    load.nim                  loading it from the Types/Messages sheets
+  profile/                    LIBRARY: the FIT profile
+    model.nim  load.nim       the profile as plain data; loading it from Profile.xlsx
     default.nim               the embedded Profile.xlsx
-  db/                         the SQLite database
-    migrations.nim            the schema, as a list of migrations
-    store.nim                 Store, openStore (create + migrate + find the user), guard
-    statement.nim             re-runnable prepared statements
-    importer.nim              importFile: hash, skip repeats, write one file in one transaction
-  commands/  common.nim fit.nim importfit.nim   exit codes, Globals; `nch fit`; `nch import`
+  db/                         INFRASTRUCTURE: the SQLite database, knows no module
+    fragment.nim              Fragment, fragment() (embeds sql/<file> next to the caller)
+    store.nim                 Store, openStore (create, apply missing fragments, find the user)
+    statement.nim             re-runnable prepared statements, execScript
+    sql/001-user.sql          the user table (everything hangs off it, so it lives here)
+  activity/                   MODULE: importing activities (`nch import`) and the tables it owns
+    extract.nim               readActivities: sessions, segments, coordinates (no database)
+    importer.nim              importFile: hash, skip repeats, write a file in one transaction
+    command.nim               `nch import`
+    ddl.nim                   its fragments
+    sql/001-tables.sql  sql/002-segment.sql
+  commands/  common.nim fit.nim   exit codes, Globals, openStore(g); `nch fit` (no tables)
 tests/                        test_<module>.nim per area; csvcompare/csvreport compare with SDK CSVs
 ```
 
+**A module that adds tables is a directory** holding its command, its logic, a `ddl.nim` and
+its own `sql/` (AGENTS.md: "each module that extended data import had its own fragment of
+sql ... the database as a whole is made by applying these files in order").  To add one:
+write `sql/NNN-name.sql` (DDL only), list it in the module's `ddl.nim` with
+`fragment("NNN-name.sql")`, and add the module's `ddl` to `modules.nim` after the modules whose
+tables it refers to.  A test fails if a `sql/*.sql` file exists that is not listed.  The
+database records the fragments it has had (table `fragment`, by name `module/file`), so
+opening it applies only the missing ones, each in a transaction; a recorded fragment this
+build lacks means the database is from a newer nch and is refused.  Never edit a fragment
+that has been released: add a new one.  Data (e.g. the default user) is inserted from Nim,
+not from the SQL files.
+
 Dependencies run one way: `errors/lookup/warnings` -> `fit/bytes` -> `fit/{basetype,crc,
 time}` -> `fit/header` -> `fit/tokens`; `profile/model` -> `profile/load` (+ `xlsx`);
-`fit/records` -> `fit/decode` -> `fit/reader` -> `fit/csvout` -> `commands`.  Nothing
-below `fit/records` imports from `profile/`.
+`fit/records` -> `fit/decode` -> `fit/reader` -> `fit/csvout`; `db` -> `activity` ->
+`commands`/`nch.nim`.  Nothing below `fit/records` imports from `profile/`, and `db`
+imports no module.
 
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
-## Task 2: database (step 1 built: `nch import`; more is added piecemeal)
+## Task 2: database (steps 1-2 built: `nch import` with segments; more is added piecemeal)
 
 ### Engine: leaning to SQLite + SpatiaLite
 
@@ -173,6 +191,9 @@ The Task 1 notes below use the module names of the time (`binary.nim` is now
     returns the interpolated line portion.  Do not rely on it for ranges.
   * No `geography`; SRID 4326 geometry only (use UTM or `GLength(g, 1)` for metres).
 ### Step 1 as built: `nch import`
+
+(Written when step 1 was built.  Step 2, below, moved the code into the `activity/` module
+and replaced `db/migrations.nim` and `PRAGMA user_version` by SQL fragments in each module.)
 
 ```
 nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a directory searched
@@ -220,15 +241,76 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   device-folder watching.  Old-clock files (1990 timestamps) could be accepted with a
   warning if you have such rides; for now they are refused.
 
+### Step 2 as built: segments, and modules that own their SQL
+
+* **Segments.** A segment is a stretch during which the timer ran (a timer `start` to the
+  next stop).  Found in the real files: the 42-minute test ride has 20 start/stop pairs and
+  no records at all while paused; the time between segments (412 s) equals elapsed minus
+  timer time; most pauses are auto-pause (712 `auto` vs 102 `manual` triggers); files have
+  from 1 to ~100 segments; 13 of 43 have a repeated stop, one ends while running, one has
+  no timer events.  Table `segment(activity_id, n, start_t, end_t)`, `WITHOUT ROWID`,
+  closed intervals on the activity's time axis, disjoint, in time order.  **Samples do not
+  refer to segments**: `coords` (and every later channel table) stay keyed
+  `(activity_id, t)`, so a channel module never needs to know about segments and segments
+  can be recomputed without touching samples; "the coords of segment k" is a primary-key
+  range scan.  (Alternative not taken: a `segment_id` on `coords`.)
+* **Derivation** (`activity/extract.nim`, `segmentsOf`): per session, from its `event`
+  messages with `event = timer`: a start while stopped opens a segment, a stop (`stop`,
+  `stop_all`, ...) while running closes it; a start while running and a stop while stopped
+  are ignored (normal, no warning); a first event that is a stop means running since the
+  session began; still running at the end closes at the session end; no timer events is one
+  segment for the whole session; clipped to the session; segments that touch or overlap
+  (stop and start in the same second) are merged.  **Every coordinate lies in exactly one
+  segment** (tested on every importable test file): a coordinate outside all of them extends
+  the nearest and warns (`wkOutsideSegment`).  This happens with older devices that write a
+  record a second before the timer-start event (Edge 500: ~45 per file, harmless).
+* **Laps are a different partition,** set by the user or the device and ignoring pauses (the
+  920xt ride has 3 laps and 15 timer starts).  Not nested in segments; a later `lap` table of
+  intervals with the same shape.
+* **Why segments matter:** a route through all points joins the two sides of every pause with
+  a straight line; moving time is the sum of the segments; and GPX's `<trkseg>` is exactly a
+  segment, so the first exporter writes one per segment.
+* **Modules own their SQL** (see "Code layout" for the mechanism): the schema is the
+  `fragment`s of the database (`db/sql/001-user.sql`), then those listed in `modules.nim`
+  (`activity/sql/001-tables.sql`, `002-segment.sql`).  Replaces `PRAGMA user_version` and
+  `db/migrations.nim`.  A database made by step 1 (user_version 1) is recognised, marked as
+  having `db/001-user.sql` and `activity/001-tables.sql` (the `legacy` field of a fragment),
+  and gets the new `segment` table; **activities it already holds have no segment rows**
+  (their files count as already imported), so delete and re-import them if they matter.
+* Moved with `git mv`: `fit/activity.nim` -> `activity/extract.nim`, `db/importer.nim` ->
+  `activity/importer.nim`, `commands/importfit.nim` -> `activity/command.nim`.  `Globals`
+  now carries `fragments` (filled in `nch.nim` from `modules.allFragments`); commands call
+  `openStore(g)`.
+* Output: `imported  PATH  (1 activity, 20 segments, 2099 coordinates)`.
+* **Results on the 79 test files** (2 s): the same 42 imported / 3 skipped / 34 failed; 74
+  activities, 435 segments, 106,599 coordinates; no coordinate outside or in two segments, no
+  overlapping segments, every activity has segments, `integrity_check` ok.
+* **AGENTS.md display layers (recorded, not built):** (1) a command's output is data or files
+  in a suitable format for third parties (SVG, GPX, GeoJSON, ...), written to a standard
+  directory that also serves as a cache (file names derived from the command invocation, to
+  see when a cached result can be reused); (2) later a simple local web server that reads
+  the URL after `localhost` as an nch command and shows its result (possibly via a cached
+  intermediate html file).  What it asks of the code now is what `fit` and `import` already
+  do: computing the result is separate from printing it (`renderInto`, `importPaths`).  The
+  output directory convention is settled with the first exporter.
+* **Import extension point (not built):** when the first channel module arrives (heart
+  rate), the importer gets a list of steps that modules register in `modules.nim`, each
+  writing its rows for an activity; designed with that second module.
+
 ### Next (ideas, undecided)
 
-* Read the data back: a command to list activities (date, sport, distance, duration).
-* More channels as their own `(activity_id, t)` tables: heart rate, cadence, power, distance;
-  laps and events (pauses).
-* `route` (SpatiaLite linestring per activity + spatial index) for maps and "near here".
-* **Something pretty - maps or plots.**  Preference: do not plot locally; generate *input
-  files* for external plotting / mapping services (e.g. GPX / GeoJSON / CSV for a map
-  service) from the database.  Which services and formats are still to be chosen.
+1. Read the data back: `nch activities` (date, sport, distance, timer and paused time,
+   segments).
+2. Channel modules, each with its own `sql/`: heart rate, cadence, power, distance as
+   `(activity_id, t)` tables; then laps and events.  The importer's step list is designed with
+   the first.
+3. `route` (SpatiaLite): a MULTILINESTRING per activity, one part per segment, with the
+   spatial index, for "near here".
+4. **Something pretty - maps or plots.**  Preference: do not plot locally; generate *input
+   files* for external plotting / mapping services (GPX with a `<trkseg>` per segment,
+   GeoJSON, CSV) from the database.  The first exporter settles the output-directory/cache
+   convention; the local web server comes after that.
+5. Later: training load, as a module with its own command and tables.
 
 ### Schema direction (agreed in discussion; built piecemeal, one `nch` command at a time)
 

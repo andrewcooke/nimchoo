@@ -1,6 +1,7 @@
-import std/[options, sequtils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/errors
-import nimchoo/fit/[activity, bytes, reader, records]
+import nimchoo/activity/extract
+import nimchoo/fit/[bytes, reader, records]
 import nimchoo/profile/load
 import nimchoo/warnings
 import ./fitbuilder
@@ -180,3 +181,125 @@ suite "activities: real files":
         check s.coords[0].t >= s.startT or k == 0
         if k + 1 < a.len: check s.coords[^1].t < a[k + 1].startT
     check total + ws.filterIt(it.kind == wkDuplicateTime).len == n
+
+# --- segments
+
+func ev(t: int64, running: bool): TimerEvent = TimerEvent(t: t, running: running)
+func seg(a, b: int64): Segment = Segment(startT: a, endT: b)
+
+suite "segments: from timer events":
+  const (s0, s1) = (100'i64, 200'i64)   # the session
+
+  test "no timer events: the whole session":
+    check segmentsOf(s0, s1, @[]) == @[seg(100, 200)]
+
+  test "pairs of start and stop":
+    check segmentsOf(s0, s1, @[ev(100, true), ev(120, false), ev(150, true),
+                               ev(200, false)]) == @[seg(100, 120), seg(150, 200)]
+
+  test "a start while running is ignored":
+    check segmentsOf(s0, s1, @[ev(100, true), ev(110, true), ev(120, false)]) ==
+      @[seg(100, 120)]
+
+  test "a stop while stopped is ignored":
+    check segmentsOf(s0, s1, @[ev(100, true), ev(120, false), ev(130, false),
+                               ev(150, true), ev(200, false)]) ==
+      @[seg(100, 120), seg(150, 200)]
+
+  test "a first event that is a stop: running since the session began":
+    check segmentsOf(s0, s1, @[ev(120, false), ev(150, true)]) ==
+      @[seg(100, 120), seg(150, 200)]
+
+  test "still running at the end: it stops with the session":
+    check segmentsOf(s0, s1, @[ev(100, true), ev(120, false), ev(150, true)]) ==
+      @[seg(100, 120), seg(150, 200)]
+
+  test "a stop and a start in the same second are no pause":
+    check segmentsOf(s0, s1, @[ev(100, true), ev(120, false), ev(120, true),
+                               ev(140, false)]) == @[seg(100, 140)]
+
+  test "a pause of one second is a pause":
+    check segmentsOf(s0, s1, @[ev(100, true), ev(120, false), ev(121, true),
+                               ev(140, false)]) == @[seg(100, 120), seg(121, 140)]
+
+  test "events outside the session are clipped":
+    check segmentsOf(s0, s1, @[ev(50, true), ev(150, false), ev(160, true),
+                               ev(300, false)]) == @[seg(100, 150), seg(160, 200)]
+    check segmentsOf(s0, s1, @[ev(250, true), ev(260, false)]).len == 0  # after it
+
+let timerDefn = defn(4, 21, @[(253, 4, uint32T), (0, 1, enumT), (1, 1, enumT)])
+
+func timer(t: int, kind: int): seq[byte] =
+  ## A timer event at FIT time `t`; kind 0 is a start, 1 a stop, 4 a stop_all.
+  b(4) & le32(t) & b(0, kind)
+
+suite "segments: in files":
+  test "segments from the events of a file":
+    let body = recordDefn & at(base) & at(base + 1) & at(base + 5) & at(base + 6) &
+      timerDefn & timer(base, 0) & timer(base + 1, 4) & timer(base + 5, 0) &
+      timer(base + 6, 4) &
+      sessionDefn & session(base, base + 6)
+    let (a, ws) = activities(body)
+    check a[0].segments == @[seg(unixBase, unixBase + 1),
+                             seg(unixBase + 5, unixBase + 6)]
+    check ws.len == 0
+
+  test "no timer events: one segment for the session":
+    let (a, _) = activities(recordDefn & at(base) & at(base + 2) &
+                            sessionDefn & session(base, base + 2))
+    check a[0].segments == @[seg(unixBase, unixBase + 2)]
+
+  test "a coordinate outside every segment extends the nearest, with a warning":
+    # a record one second after the last stop and one in the middle of a pause
+    let body = recordDefn & at(base) & at(base + 3) & at(base + 9) &
+      timerDefn & timer(base, 0) & timer(base + 2, 4) & timer(base + 8, 0) &
+      timer(base + 8, 4) &
+      sessionDefn & session(base, base + 10)
+    let (a, ws) = activities(body)
+    check ws.kinds.count(wkOutsideSegment) == 2
+    for c in a[0].coords:
+      check a[0].segments.countIt(c.t >= it.startT and c.t <= it.endT) == 1
+
+  test "each session has the segments of its own events":
+    let body = recordDefn & at(base + 1) & at(base + 101) &
+      timerDefn & timer(base, 0) & timer(base + 50, 4) & timer(base + 100, 0) &
+      timer(base + 150, 4) &
+      sessionDefn & session(base, base + 50) & session(base + 100, base + 150)
+    let (a, _) = activities(body)
+    check a.len == 2
+    check a[0].segments == @[seg(unixBase, unixBase + 50)]
+    check a[1].segments == @[seg(unixBase + 100, unixBase + 150)]
+
+suite "segments: real files":
+  test "the ride: 20 segments, whose gaps are the time paused":
+    var ws: seq[Warning]
+    let a = readActivities(p, readBytes(ride), ws)
+    check a[0].segments.len == 20
+    var paused, moving = 0'i64
+    for k, g in a[0].segments:
+      moving += g.endT - g.startT
+      if k > 0: paused += g.startT - a[0].segments[k - 1].endT
+    # elapsed - timer = 2511.594 - 2099.609 = 412 s, to a second per boundary
+    check abs(float(paused) - (a[0].elapsedS.get - a[0].timerS.get)) <= 20.0
+    check abs(float(moving) - a[0].timerS.get) <= 20.0
+    check ws.kinds.count(wkOutsideSegment) == 0
+
+  test "every coordinate of every importable test file is in exactly one segment":
+    var files = 0
+    for dir in ["sdk", "personal", "other", "python-fitparse"]:
+      for path in walkFiles("../choochoo/data/test/source" / dir / "*"):
+        if path.splitFile.ext.toLowerAscii != ".fit": continue
+        var ws: seq[Warning]
+        let a =
+          try: readActivities(p, readBytes(path), ws)
+          except NchError: continue
+        inc files
+        for act in a:
+          for k, g in act.segments:
+            check g.startT <= g.endT
+            if k > 0: check g.startT > act.segments[k - 1].endT
+          for c in act.coords:
+            if act.segments.countIt(c.t >= it.startT and c.t <= it.endT) != 1:
+              checkpoint path & ": coordinate at " & $c.t
+              fail()
+    check files > 30

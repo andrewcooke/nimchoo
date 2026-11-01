@@ -1,14 +1,16 @@
 ## `nch import`: put the activities of FIT files into the database.
-## (Not called import.nim: `import` is a Nim keyword.)
+## (The command of the activity module; the module is not called `import`
+## because that is a Nim keyword.)
 
 import std/[algorithm, os, strutils, tables]
-import ../db/[importer, store]
+import ../commands/common
+import ../db/store
 import ../errors
 import ../fit/bytes
 import ../profile/default
 import ../profile/model
 import ../warnings
-import ./common
+import ./importer
 
 {.push raises: [].}
 
@@ -97,6 +99,7 @@ proc importPaths*(st: Store, profile: Profile, targets: seq[string],
         if not quiet:
           result.lines.add "imported  " & path & "  (" &
             plural(r.activities, "activity", "activities") & ", " &
+            plural(r.segments, "segment", "segments") & ", " &
             plural(r.coords, "coordinate", "coordinates") & ")"
       of ioAlreadyImported:
         inc result.skipped
@@ -129,10 +132,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       targets.add a
   if targets.len == 0:
     return usageError("nch import", usage, "expected at least one PATH")
-  let user = if g.user.len > 0: g.user else: defaultUser
   var st: Store
   try:
-    st = openStore(resolveDbPath(g.dbPath), user)
+    st = openStore(g)
   except StoreError as e:
     return failure("nch import", e.msg)
   defer: st.close()
