@@ -62,9 +62,10 @@ proc permanent(l: Live, f: var string) =
   for q in l.queued: f.add eraseLine & q.render(l.colour) & "\n"
   l.queued.setLen(0)
 
-proc show*(l: Live, lines: seq[Line]) =
-  ## Draw a frame now: queued permanent lines, then the region.  The region
-  ## is cut to the terminal's height and each of its lines to its width.
+proc frame(l: Live, lines: seq[Line]): string =
+  ## The text that draws `lines` as the region now: queued permanent lines
+  ## first.  The region is cut to the terminal's height and each of its lines
+  ## to its width.
   let (w, h) = l.size()
   let shownLines = lines[0 ..< min(lines.len, max(0, h - 1))]
   var f = ""
@@ -78,10 +79,22 @@ proc show*(l: Live, lines: seq[Line]) =
   f.add eraseBelow
   l.drawn = shownLines.len
   l.lastDraw = l.now()
-  l.write f
+  f
+
+proc show*(l: Live, lines: seq[Line]) =
+  ## Draw a frame now.
+  l.write l.frame(lines)
+
+proc keep*(l: Live, lines: seq[Line]) =
+  ## End the display with `lines` as its last frame, left on screen, and give
+  ## the cursor back.  Drawn even if no frame was due (or ever shown).
+  l.write l.frame(lines) & showCursor
+  l.drawn = 0
+  l.shown = false
 
 proc finish*(l: Live) =
-  ## Remove the region, print what is still queued, and give the cursor back.
+  ## End the display, removing the region: print what is still queued, and
+  ## give the cursor back.  (`keep` leaves the region instead.)
   var f = ""
   if l.drawn > 0: f.add up(l.drawn)
   l.permanent(f)

@@ -51,7 +51,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   defer: st.close()
   let screen =
     if not opts.quiet and canLive():
-      liveSink(newTerminalLive(),
+      liveSink(newTerminalLive(), if g.log.enabled: g.log.path else: "",
                proc(s: string) {.closure, raises: [].} = stdout.say(s),
                proc(s: string) {.closure, raises: [].} = stderr.say(s))
     else:

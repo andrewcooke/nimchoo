@@ -332,10 +332,13 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
 * **Streams.** stdout carries results and the summary line; stderr carries the live region,
   failures, warnings and notes.
 * **Live display** (`ui/`, usable by any command): the command renders its state to styled
-  lines (any number); `ui/live` redraws them in place and prints permanent lines (failures)
-  above.  Throttled in the driver, not the file reader: first frame after 150 ms, then at most
-  10 per second by a monotonic clock, one write per frame, so a run shorter than that draws
-  nothing.  Height capped at terminal height - 1, lines cut to the width by visible width,
+  lines (any number); `ui/live` redraws them in place (it can also print permanent lines
+  above, unused by import).  Throttled in the driver, not the file reader: first frame after
+  150 ms, then at most 10 per second by a monotonic clock, one write per frame.  **The last
+  frame is always drawn and left on screen** (so even a very short run shows the final,
+  coloured counts), followed by a `done: ...` line on stdout that points at the log when
+  files failed.  Nothing is printed per file on screen: failures are counted by kind and
+  described in the log.  Height capped at terminal height - 1, lines cut to the width by visible width,
   cursor hidden while drawing and restored on exit and on Ctrl-C.  Only when stderr is a
   terminal, `TERM` is not `dumb` and not `-q`; colours only if `NO_COLOR` is unset; otherwise
   the plain lines.  Checked under a pseudo-terminal (frame counts, cursor handling, `NO_COLOR`,

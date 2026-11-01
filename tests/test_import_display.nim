@@ -43,9 +43,21 @@ suite "import display: the lines":
     check ls[1].text == "imported 2 · skipped 1 · failed 0"
     check ls[1].allIt(it.look.fg notin {cRed, cYellow})
 
-  test "known failures count as skipped":
+  test "known failures are shown apart from skipped":
     check renderImport(Summary(total: 5, skipped: 1, known: 2), 3, "x").texts[1] ==
-      "imported 0 · skipped 3 · failed 0"
+      "imported 0 · skipped 1 · known failures 2 · failed 0"
+
+  test "at the end there is no current file":
+    check renderImport(Summary(total: 5, done: 5), 5, "").texts[0] == "importing 5 / 5"
+
+  test "the done line points at the log if files failed":
+    var s = Summary(done: 3, imported: 2, failed: 1)
+    s.failures[fkBadFormat] = 1
+    check doneLine(s, "/x/nch.log") ==
+      "done: 3 files: 2 imported, 0 skipped, 1 failed (bad format 1); details in /x/nch.log"
+    check doneLine(s, "") == "done: 3 files: 2 imported, 0 skipped, 1 failed (bad format 1)"
+    check doneLine(Summary(done: 1, imported: 1), "/x") ==
+      "done: 1 file: 1 imported, 0 skipped, 0 failed"
 
   test "colours: imported green, failed red, warnings yellow":
     var s = Summary(total: 5, imported: 1, failed: 1, warnings: 2)
@@ -54,9 +66,6 @@ suite "import display: the lines":
     check second[0].look.fg == cGreen
     check second.anyIt(it.look.fg == cRed and it.text.startsWith("failed"))
     check second.anyIt(it.look.fg == cYellow and it.text.startsWith("warnings"))
-
-  test "the failure line":
-    check failureLine("a/b.fit", "broken").text == "failed    a/b.fit: broken"
 
 suite "import display: a run":
   type Fake = ref object
@@ -74,12 +83,12 @@ suite "import display: a run":
     defer: st.close()
     let ticker: Sink = proc(ev: ImportEvent) {.closure, raises: [].} =
       f.now += advanceBy
-    let shown = liveSink(fakeLive(f),
+    let shown = liveSink(fakeLive(f), "/x/nch.log",
       proc(s: string) {.closure, raises: [].} = f.outs.add(s),
       proc(s: string) {.closure, raises: [].} = f.errs.add(s))
     importPaths(st, @[d], ImportOptions(), fanOut(@[ticker, shown]))
 
-  test "a short run draws no frame, but prints failures and the summary":
+  test "a short run draws only the last frame, which stays, and the done line":
     let d = fresh("short")
     bytesToFile(d / "a.fit", tiny(base + 1))
     writeFile(d / "bad.fit", "junk")
@@ -88,11 +97,15 @@ suite "import display: a run":
     check sum.imported == 1
     check sum.failed == 1
     let drawn = f.live.join
-    check not drawn.contains("\e[?25l")   # never hid the cursor
-    check drawn.contains("failed    " & d / "bad.fit")
-    check f.outs == @["2 files: 1 imported, 0 skipped, 1 failed (bad format 1)\n"]
+    check f.live.len == 1                 # one write: the last frame
+    check drawn.contains("importing 2 / 2\n")
+    check drawn.contains("imported 1 · skipped 0 · failed 1 (bad format 1)")
+    check drawn.endsWith("\e[?25h")       # the cursor is back
+    check not drawn.contains("bad.fit")   # no line per failure
+    check f.outs == @["done: 2 files: 1 imported, 0 skipped, 1 failed (bad format 1); " &
+                      "details in /x/nch.log\n"]
 
-  test "a longer run draws frames that follow it, and ends with the cursor back":
+  test "a longer run draws frames that follow it, and the last one stays":
     let d = fresh("long")
     for i in 1 .. 5: bytesToFile(d / ("r" & $i & ".fit"), tiny(base + i))
     writeFile(d / "r6-bad.fit", "junk")
@@ -102,7 +115,6 @@ suite "import display: a run":
     check drawn.startsWith("\e[?25l")
     check drawn.contains("importing ")
     check drawn.contains("imported 5")
-    check drawn.contains("failed 1 (bad format 1)")
-    check drawn.contains("failed    " & d / "r6-bad.fit")
-    check drawn.endsWith("\e[?25h")
+    check not drawn.contains("r6-bad.fit: ")      # failures are not printed
+    check drawn.endsWith("failed 1 (bad format 1)\n\e[J\e[?25h")
     check f.outs.len == 1

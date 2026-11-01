@@ -126,6 +126,23 @@ suite "live region: finishing":
     l.finish
     check f.written[1] == "\e[1A" & erase & "last failure\n" & below & show
 
+  test "keep leaves the last frame on screen, even if none was shown":
+    let f = newFake()
+    let l = f.live
+    l.keep lines("one", "two")
+    check f.written.len == 1
+    check f.written[0].contains("one") and f.written[0].endsWith(below & show)
+    check not f.written[0].contains("\e[2A")
+
+  test "keep replaces the frame drawn before, and the next output starts below it":
+    let f = newFake()
+    let l = f.live
+    l.show lines("a", "b")
+    l.keep lines("A", "B")
+    check f.written[1].startsWith("\e[2A")
+    l.show lines("c")                       # a new region: no cursor-up over the kept lines
+    check not f.written[2].contains("\e[2A")
+
   test "after finishing it can be used again":
     let f = newFake()
     let l = f.live

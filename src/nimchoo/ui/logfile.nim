@@ -19,6 +19,7 @@ type
   Log* = ref object
     f: File
     now: Clock
+    path*: string        ## where it is
     problem*: string     ## why the log is disabled ("" if it is not)
 
 const
@@ -72,7 +73,7 @@ proc openLog*(path: string, maxBytes = defaultMaxBytes, keep = defaultKeep,
   ## Open (creating it and its directory if need be) the log at `path`,
   ## rotating first.  If it cannot be opened the result is a disabled log
   ## whose `problem` says why.
-  result = Log(now: now)
+  result = Log(now: now, path: path)
   try:
     createDir parentDir(path)
     rotate path, maxBytes, keep
