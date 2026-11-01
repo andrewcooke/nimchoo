@@ -1,10 +1,10 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/errors
-import nimchoo/activity/extract
+import nimchoo/importer/extract
 import nimchoo/fit/[bytes, reader, records]
 import nimchoo/profile/load
 import nimchoo/warnings
-import ./fitbuilder
+import ../support/fitbuilder
 
 const
   profilePath = "../choochoo/data/sdk/Profile.xlsx"

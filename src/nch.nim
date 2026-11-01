@@ -1,13 +1,13 @@
 ## nch: the nimchoo command line tool.  A thin dispatcher: each command lives
-## in its own module under nimchoo/commands/ and exposes `run(globals, args):
-## int` (see commands/common.nim for the exit codes).  Options that every
+## in its own module under nimchoo/<module>/command.nim and exposes `run(globals, args):
+## int` (see cli/common.nim for the exit codes).  Options that every
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
 import std/[options, os, strutils]
-import nimchoo/commands/common
-import nimchoo/activity/command as importCommand
-import nimchoo/commands/fit
+import nimchoo/cli/common
+import nimchoo/importer/command as importCommand
+import nimchoo/fit/command as fitCommand
 import nimchoo/modules
 import nimchoo/ui/logfile
 
@@ -31,7 +31,7 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     stdout.say usage
     exitOk
   of "fit":
-    fit.run(g, rest)
+    fitCommand.run(g, rest)
   of "import":
     importCommand.run(g, rest)
   else:

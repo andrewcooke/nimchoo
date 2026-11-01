@@ -1,13 +1,13 @@
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/activity/[extract, importer]
+import nimchoo/importer/[extract, importer]
 import nimchoo/db/store
 import nimchoo/errors
 import nimchoo/fit/bytes
 import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/warnings
-import ./fitbuilder
+import ../support/fitbuilder
 
 const
   profilePath = "../choochoo/data/sdk/Profile.xlsx"

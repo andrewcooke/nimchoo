@@ -31,7 +31,7 @@ Rules that follow:
   says so: procs that can raise declare exactly what (`{.raises: [FitError].}`; file
   readers also `IOError`), and the compiler checks it.  `std` calls that can raise are
   wrapped into our errors or declared.
-* **CLI contract** (`src/nimchoo/commands/common.nim`): a command's `run(args): int` is
+* **CLI contract** (`src/nimchoo/cli/common.nim`): a command's `run(args): int` is
   `{.raises: [].}`; it returns 0 for success, 1 when the work failed (unusable input,
   I/O error) after one line on stderr and no trace, and 2 for a usage error.  Anything
   else that escapes is a bug and is allowed to crash with a trace.
@@ -101,7 +101,8 @@ src/nimchoo/
   errors.nim  lookup.nim  warnings.nim   NchError and subtypes; must/mustMut; typed warnings
   modules.nim                 the modules that have database tables: allFragments (in order)
   xlsx.nim                    xlsx reader (zip + xml, from memory); Row, cell
-  fit/                        LIBRARY: the FIT file format and its decoding
+  cli/common.nim              exit codes, Globals, say/usageError/failure, openStore(g)
+  fit/                        MODULE: the FIT format and `nch fit`
     bytes.nim                 getUint/getInt/getBits/canRead, readBytes
     basetype.nim              BaseType, bad-value markers, decode of base-type values
     crc.nim  time.nim         the FIT CRC; FIT time, expandTimestamp16
@@ -111,15 +112,20 @@ src/nimchoo/
     decode.nim                the Decoder: plans, scaling, composite/dynamic, developer fields
     reader.nim                Reader: tokenizer + decoder as events/records iterators
     csvout.nim                SDK-format CSV lines
+    command.nim               `nch fit` (no tables)
   profile/                    LIBRARY: the FIT profile
     model.nim  load.nim       the profile as plain data; loading it from Profile.xlsx
     default.nim               the embedded Profile.xlsx
   db/                         INFRASTRUCTURE: the SQLite database, knows no module
-    fragment.nim              Fragment, fragment() (embeds sql/<file> next to the caller)
+    fragment.nim              Fragment, fragment() (embeds the .sql file next to the caller)
     store.nim                 Store, openStore (create, apply missing fragments, find the user)
     statement.nim             re-runnable prepared statements, execScript
-    sql/001-user.sql          the user table (everything hangs off it, so it lives here)
-  activity/                   MODULE: importing activities (`nch import`) and the tables it owns
+    001-user.sql              the user table (everything hangs off it, so it lives here)
+  ui/                         INFRASTRUCTURE: terminal output, knows no module
+    style.nim                 styled spans, visible width, truncation, ANSI rendering
+    live.nim                  a throttled, in-place live region on stderr
+    logfile.nim               the log file: path, line format, rotation
+  importer/                   MODULE: `nch import`, and the activity tables it owns
     extract.nim               readActivities: sessions, segments, coordinates (no database)
     importer.nim              importFile: hash, skip repeats, write a file in one transaction
     batch.nim                 importPaths: find files, skip the unchanged, import, emit events
@@ -129,32 +135,42 @@ src/nimchoo/
     logsink.nim               the log lines for events
     command.nim               `nch import`
     ddl.nim                   its fragments
-    sql/001-tables.sql  sql/002-segment.sql  sql/003-seen.sql
-  ui/                         INFRASTRUCTURE: terminal output, knows no module
-    style.nim                 styled spans, visible width, truncation, ANSI rendering
-    live.nim                  a throttled, in-place live region on stderr
-    logfile.nim               the log file: path, line format, rotation
-  commands/  common.nim fit.nim   exit codes, Globals, openStore(g); `nch fit` (no tables)
-tests/                        test_<module>.nim per area; csvcompare/csvreport compare with SDK CSVs
+    001-schema.sql            file, activity, coords, segment, seen_file
+tests/                        mirrors src/nimchoo/: tests/<dir>/test_<file>.nim tests <dir>/<file>.nim
+                              (a few cover neighbouring files); all.nim imports them all;
+                              support/ is shared (fitbuilder, xlsxbuilder, csvcompare);
+                              csvreport.nim compares our CSV with the SDK's
 ```
 
-**A module that adds tables is a directory** holding its command, its logic, a `ddl.nim` and
-its own `sql/` (AGENTS.md: "each module that extended data import had its own fragment of
-sql ... the database as a whole is made by applying these files in order").  To add one:
-write `sql/NNN-name.sql` (DDL only), list it in the module's `ddl.nim` with
-`fragment("NNN-name.sql")`, and add the module's `ddl` to `modules.nim` after the modules whose
-tables it refers to.  A test fails if a `sql/*.sql` file exists that is not listed.  The
-database records the fragments it has had (table `fragment`, by name `module/file`), so
-opening it applies only the missing ones, each in a transaction; a recorded fragment this
-build lacks means the database is from a newer nch and is refused.  Never edit a fragment
-that has been released: add a new one.  Data (e.g. the default user) is inserted from Nim,
-not from the SQL files.
+**A module is a directory with everything for its command(s):** the command (`command.nim`, thin:
+arguments, choosing sinks, exit status), the logic, and, if it has tables, `ddl.nim` and its
+`.sql` file(s).  We do not separate commands from the library code they sit on: the module
+that first brings in a concept owns it (`importer/` owns activities, segments and
+coordinates) and later commands use its library files.  The one rule, kept by a test
+(`tests/test_structure.nim`): **only `nch.nim` imports a `command.nim`.**  A command's
+directory is named after it, or after a noun for it when the name is a Nim keyword (`nch
+import` -> `importer/`; neither `import_` nor backticks work for a module name).
+
+To add tables to a module: write `NNN-name.sql` in its directory (DDL only), list it in its
+`ddl.nim` with `fragment("NNN-name.sql")`, and add the module's `ddl` to `modules.nim` after the
+modules whose tables it refers to.  Aim for one file per module while nothing is released; once
+a database exists, never edit a fragment that has been applied: add a new one.  A test fails if
+a `.sql` file exists that is not listed.  The database records the fragments it has had (table
+`fragment`, by name `module/file`), so opening it applies only the missing ones, each in a
+transaction; a recorded fragment this build lacks means the database is from a newer nch (or an
+older layout) and is refused.  Data (e.g. the default user) is inserted from Nim, not from SQL.
 
 Dependencies run one way: `errors/lookup/warnings` -> `fit/bytes` -> `fit/{basetype,crc,
 time}` -> `fit/header` -> `fit/tokens`; `profile/model` -> `profile/load` (+ `xlsx`);
-`fit/records` -> `fit/decode` -> `fit/reader` -> `fit/csvout`; `db` -> `activity` ->
-`commands`/`nch.nim`; `ui` is used by `activity` and `commands`.  Nothing below
+`fit/records` -> `fit/decode` -> `fit/reader` -> `fit/csvout` -> `fit/command`; `db` ->
+`importer`; `ui` is used by `importer` and `cli`; `nch.nim` on top.  Nothing below
 `fit/records` imports from `profile/`, and `db` and `ui` import no module.
+
+**Renamed in the structure revision** (Task 2 notes below use the old names): `activity/` ->
+`importer/`, `commands/` -> `cli/` (only `common.nim` stays; `fit.nim` -> `fit/command.nim`),
+the three SQL fragments `001-tables`, `002-segment`, `003-seen` squashed into
+`importer/001-schema.sql` (and the first-release `user_version` upgrade removed: a database
+made by an earlier build must be deleted and re-imported), the tests moved to mirror `src/`.
 
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).

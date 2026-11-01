@@ -3,7 +3,7 @@ import nimchoo/errors
 import nimchoo/fit/[bytes, crc]
 import nimchoo/profile/load
 import nimchoo/fit/tokens
-import ./fitbuilder
+import ../support/fitbuilder
 
 const dataDirs = ["../choochoo/data/test/source/sdk",
                   "../choochoo/data/test/source/personal"]

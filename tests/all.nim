@@ -1,6 +1,13 @@
+## Every test.  The files mirror src/nimchoo/: tests/<dir>/test_<file>.nim tests
+## <dir>/<file>.nim (some cover a few neighbouring files); tests/support/ holds
+## what they share.
 {.push warning[UnusedImport]: off.}
-import ./test_xlsx, ./test_profile, ./test_bytes, ./test_basetype, ./test_fit_header, ./test_fit_time, ./test_tokens, ./test_decode
-import ./test_fit_command, ./test_sdkcsv, ./test_errors, ./test_profile_errors, ./test_activity_extract
-import ./test_db, ./test_import, ./test_import_command, ./test_import_fast
-import ./test_import_events, ./test_ui_style, ./test_ui_live, ./test_import_display, ./test_logfile, ./test_import_log
+import ./test_xlsx, ./test_errors, ./test_structure
+import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
+              test_command, test_sdkcsv]
+import ./profile/[test_load, test_load_errors]
+import ./db/test_store
+import ./importer/[test_extract, test_importer, test_command, test_batch, test_events,
+                   test_display, test_logsink]
+import ./ui/[test_style, test_live, test_logfile]
 {.pop.}

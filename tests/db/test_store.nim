@@ -18,8 +18,8 @@ proc open(path: string, user = defaultUser): Store =
 proc count(s: Store, table: string): int =
   parseInt(s.db.getValue(sql("select count(*) from " & table)))
 
-func frag(name, sqlText: string, legacy = 0): Fragment =
-  Fragment(name: name, sql: sqlText, legacy: legacy)
+func frag(name, sqlText: string): Fragment =
+  Fragment(name: name, sql: sqlText)
 
 suite "database: opening and bringing the schema up to date":
   test "a new database has the schema and the default user":
@@ -38,8 +38,7 @@ suite "database: opening and bringing the schema up to date":
     var names: seq[string]
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
-    check names == @["activity/001-tables.sql", "activity/002-segment.sql",
-                     "activity/003-seen.sql", "db/001-user.sql"]
+    check names == @["db/001-user.sql", "importer/001-schema.sql"]
     s.close()
 
   test "opening again changes nothing":
@@ -50,7 +49,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 4
+    check b.count("fragment") == 2
     b.close()
 
   test "the directory is created":
@@ -140,34 +139,10 @@ suite "database: fragments":
     except StoreError as e:
       check "m/001.sql" in e.msg
 
-  test "a database from the first release is recognised and upgraded":
-    # what the first release made: one migration, recorded in user_version
-    let path = tempDb("step1")
-    let old = open(path)
-    old.close()
-    let c = db_sqlite.open(path, "", "", "")
-    c.exec(sql"drop table fragment")
-    c.exec(sql"drop table segment")
-    c.exec(sql"drop table seen_file")
-    c.exec(sql"pragma user_version = 1")
-    c.exec(sql"""insert into file(user_id, name, sha256, imported_at)
-                 values (1, 'old.fit', 'x', 0)""")
-    c.exec(sql"""insert into activity(user_id, file_id, session, start_t, end_t)
-                 values (1, 1, 0, 0, 10)""")
-    c.exec(sql"""insert into coords(activity_id, t, lon, lat) values (1, 5, 1.0, 2.0)""")
-    c.close()
-    let s = open(path)
-    check s.count("activity") == 1
-    check s.count("coords") == 1
-    check s.count("segment") == 0            # the new table exists
-    check s.count("user") == 1
-    check s.count("fragment") == 4
-    s.close()
-
   test "every sql file on disk is in the list of fragments, and the other way round":
     var onDisk: HashSet[string]
-    for path in walkFiles("src/nimchoo/*/sql/*.sql"):
-      onDisk.incl path.parentDir.parentDir.lastPathPart & "/" & path.extractFilename
+    for path in walkFiles("src/nimchoo/*/*.sql"):
+      onDisk.incl path.parentDir.lastPathPart & "/" & path.extractFilename
     var listed = toHashSet(["db/001-user.sql"])   # the database's own
     for f in allFragments: listed.incl f.name
     check onDisk == listed

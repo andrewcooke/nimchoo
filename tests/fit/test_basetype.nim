@@ -1,6 +1,6 @@
 import std/[options, unittest]
 import nimchoo/fit/basetype
-import ./fitbuilder
+import ../support/fitbuilder
 
 func ints(bt: BaseType, data: seq[byte], e = littleEndian): seq[int64] =
   let r = decode(bt, data, e)

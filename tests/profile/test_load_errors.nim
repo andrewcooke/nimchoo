@@ -2,7 +2,7 @@
 
 import std/[strutils, tables, unittest]
 import nimchoo/profile/load
-import ./xlsxbuilder
+import ../support/xlsxbuilder
 
 const
   typesHeader = @["Type Name", "Base Type", "Value Name", "Value", "Comment"]

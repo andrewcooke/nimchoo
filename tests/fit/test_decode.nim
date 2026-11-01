@@ -3,7 +3,7 @@ import nimchoo/fit/bytes
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
 import nimchoo/fit/tokens
-import ./fitbuilder
+import ../support/fitbuilder
 
 const
   profilePath = "../choochoo/data/sdk/Profile.xlsx"

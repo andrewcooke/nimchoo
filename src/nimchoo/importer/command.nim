@@ -3,7 +3,7 @@
 ## because that is a Nim keyword.)
 
 import std/strutils
-import ../commands/common
+import ../cli/common
 import ../db/store
 import ../errors
 import ../ui/[live, logfile]

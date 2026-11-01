@@ -4,7 +4,7 @@
 ## terminal.  (The live display and the log are in later modules.)
 
 import std/[strutils, tables]
-import ../commands/common
+import ../cli/common
 import ../warnings
 import ./events
 import ./failure

@@ -1,12 +1,12 @@
 ## `nch fit`: read a FIT file and dump it as text or as SDK-format CSV.
 
 import std/[options, strutils, times]
-import ../fit/bytes
-import ../fit/time
-import ./common
-import ../fit/csvout
-import ../fit/reader
-import ../fit/records
+import ./bytes
+import ./time
+import ../cli/common
+import ./csvout
+import ./reader
+import ./records
 import ../profile/default
 import ../errors
 import ../profile/model

@@ -5,7 +5,7 @@ import nimchoo/errors
 import nimchoo/profile/load
 import nimchoo/fit/tokens
 import nimchoo/xlsx
-import ./fitbuilder
+import ./support/fitbuilder
 
 suite "errors":
   test "all our errors are NchError":

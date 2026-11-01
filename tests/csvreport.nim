@@ -4,10 +4,10 @@
 import std/[algorithm, sequtils, sets, strutils, tables]
 import nimchoo/errors
 import nimchoo/fit/[basetype, bytes, crc, header, time]
-import nimchoo/commands/fit
+import nimchoo/fit/command
 import nimchoo/profile/load
 import nimchoo/fit/tokens
-import ./csvcompare
+import ./support/csvcompare
 
 type Group = object
   count: int

@@ -20,7 +20,7 @@ export db_sqlite.DbConn, fragment
 
 const
   defaultUser* = "default"
-  baseFragments = @[fragment("001-user.sql", 1)]
+  baseFragments = @[fragment("001-user.sql")]
 
 type
   Store* = object
@@ -42,14 +42,6 @@ proc resolveDbPath*(option: string): string =
   let env = getEnv("NCH_DB")
   if env.len > 0: return env
   string(getDataDir()) / "nch" / "nch.db"
-
-proc oldSchemaVersion(db: DbConn): int {.raises: [StoreError].} =
-  ## `PRAGMA user_version`: how the first release recorded its schema.
-  guard:
-    try:
-      result = parseInt(db.getValue(sql"pragma user_version"))
-    except ValueError:
-      raiseStore("cannot read the schema version")
 
 proc recorded(db: DbConn): seq[string] {.raises: [StoreError].} =
   ## The fragments the database says it has had.
@@ -85,15 +77,7 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
     db.exec(sql"""create table if not exists fragment (
                     name text primary key,
                     applied_at integer not null) without rowid""")
-  var have = recorded(db)
-  if have.len == 0:
-    # a database made by the first release recorded `PRAGMA user_version`
-    # instead: what it had is what the fragments marked with that version hold
-    let v = oldSchemaVersion(db)
-    for f in all:
-      if f.legacy > 0 and f.legacy <= v:
-        record(db, f.name)
-        have.add f.name
+  let have = recorded(db)
   for name in have:
     if all.allIt(it.name != name):
       raiseStore("the database is from a newer version of nch (it has '" &

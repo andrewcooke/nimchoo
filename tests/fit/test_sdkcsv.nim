@@ -4,10 +4,10 @@
 
 import std/[sets, strutils, tables, unittest]
 import nimchoo/fit/bytes
-import nimchoo/commands/fit
+import nimchoo/fit/command
 import nimchoo/profile/load
 import nimchoo/fit/tokens
-import ./csvcompare
+import ../support/csvcompare
 
 let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")
 let composites = compositeNames(p)

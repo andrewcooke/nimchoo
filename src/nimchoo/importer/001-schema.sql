@@ -1,0 +1,60 @@
+-- The tables of the importer module: imported FIT files, the activities in
+-- them (one per FIT session), their coordinates and timer segments, and the
+-- paths already looked at.  Times are Unix seconds UTC, lon/lat degrees
+-- (SRID 4326), alt metres.
+
+create table file (
+  id integer primary key,
+  user_id integer not null references user(id),
+  name text not null,
+  sha256 text not null,
+  imported_at integer not null,
+  unique (user_id, sha256));
+
+create table activity (
+  id integer primary key,
+  user_id integer not null references user(id),
+  file_id integer not null references file(id),
+  session integer not null,
+  start_t integer not null,
+  end_t integer not null,
+  utc_offset_s integer,
+  sport text,
+  sub_sport text,
+  elapsed_s real,
+  timer_s real,
+  distance_m real,
+  calories integer,
+  unique (file_id, session));
+
+create table coords (
+  activity_id integer not null references activity(id),
+  t integer not null,
+  lon real not null,
+  lat real not null,
+  alt real,
+  primary key (activity_id, t)) without rowid;
+
+-- The stretches of an activity during which the timer ran (between a timer
+-- start and the next stop).  Intervals on the activity's time axis: samples do
+-- not refer to them.  Segments of an activity are disjoint and in time order.
+create table segment (
+  activity_id integer not null references activity(id),
+  n integer not null,
+  start_t integer not null,
+  end_t integer not null,
+  primary key (activity_id, n)) without rowid;
+
+-- Every path `nch import` has looked at, with the size and modification time it
+-- had then.  A path whose size and time have not changed is skipped without
+-- reading it.  file_id is set if the file was imported (or is a copy of one that
+-- was); failure and message are set instead if it could not be imported.
+create table seen_file (
+  user_id integer not null references user(id),
+  path text not null,
+  size integer not null,
+  mtime integer not null,
+  file_id integer references file(id),
+  failure text,
+  message text,
+  primary key (user_id, path)) without rowid;

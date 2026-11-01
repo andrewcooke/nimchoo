@@ -1,11 +1,11 @@
 import std/[algorithm, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/activity/batch
-import nimchoo/activity/command as importCommand
-import nimchoo/commands/common
+import nimchoo/importer/batch
+import nimchoo/importer/command as importCommand
+import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
-import ./fitbuilder
+import ../support/fitbuilder
 
 const ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
 const base = 900_000_000

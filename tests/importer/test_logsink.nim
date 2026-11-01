@@ -1,11 +1,11 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/activity/[batch, events, failure, logsink]
-import nimchoo/activity/command as importCommand
-import nimchoo/commands/common
+import nimchoo/importer/[batch, events, failure, logsink]
+import nimchoo/importer/command as importCommand
+import nimchoo/cli/common
 import nimchoo/modules
 import nimchoo/ui/logfile
 import nimchoo/warnings
-import ./fitbuilder
+import ../support/fitbuilder
 
 const base = 900_000_000
 

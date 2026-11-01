@@ -1,9 +1,9 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/activity/[batch, display, events, failure]
+import nimchoo/importer/[batch, display, events, failure]
 import nimchoo/db/store
 import nimchoo/modules
 import nimchoo/ui/[live, style]
-import ./fitbuilder
+import ../support/fitbuilder
 
 const base = 900_000_000
 

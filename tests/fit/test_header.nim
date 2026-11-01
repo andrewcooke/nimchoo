@@ -2,7 +2,7 @@ import std/[options, sequtils, unittest]
 import nimchoo/errors
 import nimchoo/fit/[bytes, crc, header]
 import nimchoo/warnings
-import ./fitbuilder
+import ../support/fitbuilder
 
 const
   sdkDir = "../choochoo/data/test/source/sdk/"
