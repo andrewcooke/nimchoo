@@ -67,6 +67,20 @@ suite "import: a real ride":
               11978.11) < 1e-6
     check s.db.getValue(sql"select count(*) from coords where alt is null") == "2099"
 
+  test "the route has a part for each segment, and is where the points are":
+    let s = openStore(tempDb("ride-route"))
+    defer: s.close()
+    discard s.importPath(ride)
+    check s.count("route") == 1
+    check s.db.getValue(sql"select NumGeometries(geom) from route") == "20"
+    check s.db.getValue(sql"select ST_NPoints(geom) from route") == "2099"
+    # every point is within the route's bounding box (to the rounding of 7 decimals), and the route is about as long as the ride
+    check s.db.getValue(sql"""select count(*) from coords c, route r where
+      c.lon < MbrMinX(r.geom) - 1e-6 or c.lon > MbrMaxX(r.geom) + 1e-6 or
+      c.lat < MbrMinY(r.geom) - 1e-6 or c.lat > MbrMaxY(r.geom) + 1e-6""") == "0"
+    let km = parseFloat(s.db.getValue(sql"select GeodesicLength(geom) from route")) / 1000
+    check km > 8 and km < 14                      # (the device says 11.98 km)
+
   test "the coordinates are in degrees, at the right times":
     let s = openStore(tempDb("ride-coords"))
     defer: s.close()
@@ -108,7 +122,7 @@ suite "import: a real ride":
     check r.outcome == ioImported
     check b.count("file") == 2
     check b.count("activity") == 2
-    check b.db.getValue(sql"select count(distinct user_id) from activity") == "2"
+    check b.db.getValue(sql"select count(distinct f.user_id) from activity a join file f on f.id = a.file_id") == "2"
 
 suite "import: several sessions":
   test "a multisport file gives an activity per session":

@@ -74,8 +74,10 @@ proc countActivities*(path, user: string): Option[int] =
     let n = if user.len == 0:
               db.getValue(sql"select count(*) from activity")
             else:
-              db.getValue(sql"""select count(*) from activity where user_id =
-                                (select id from user where name = ?)""", user)
+              db.getValue(sql"""select count(*) from activity a
+                                join file f on f.id = a.file_id
+                                where f.user_id = (select id from user where name = ?)""",
+                          user)
     result = some(parseInt(n))
   except DbError, ValueError:
     result = none(int)

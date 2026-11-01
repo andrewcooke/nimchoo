@@ -12,9 +12,11 @@ create table file (
   imported_at integer not null,
   unique (user_id, sha256));
 
+-- One per FIT session.  (A FIT file has one "activity" message and under it one or
+-- more "session" messages, each a stretch of one sport: a triathlon has three.)
+-- `session` is its index in the file.  The user is the file's.
 create table activity (
   id integer primary key,
-  user_id integer not null references user(id) on delete cascade,
   file_id integer not null references file(id) on delete cascade,
   session integer not null,
   start_t integer not null,
@@ -45,6 +47,16 @@ create table segment (
   start_t integer not null,
   end_t integer not null,
   primary key (activity_id, n)) without rowid;
+
+-- The route of an activity as one geometry, a part for each segment, so that
+-- "passes near here", GeoJSON and GPX are queries and not scans of coords.  Derived from
+-- coords and segment when the activity is imported, in the same transaction.  Parts of
+-- fewer than two points are left out, and an activity with no part has no row.  (SpatiaLite
+-- cannot put geometry on WITHOUT ROWID tables, so this is an ordinary table.)
+create table route (
+  activity_id integer primary key references activity(id) on delete cascade);
+select AddGeometryColumn('route', 'geom', 4326, 'MULTILINESTRING', 'XY');
+select CreateSpatialIndex('route', 'geom');
 
 -- Every path `nch import` has looked at, with the size and modification time it
 -- had then.  A path whose size and time have not changed is skipped without

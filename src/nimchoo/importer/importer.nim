@@ -9,7 +9,7 @@ import ../db/[statement, store]
 import ../errors
 import ../profile/model
 import ../warnings
-import ./extract
+import ./[extract, route]
 
 {.push raises: [].}
 
@@ -27,19 +27,18 @@ proc sha256Hex*(data: openArray[byte]): string =
   for c in secureHash(Sha_256, text):
     result.add toLowerAscii(toHex(ord(c), 2))
 
-proc insertActivity(st: Stmt, userId, fileId: int64, a: ActivityData) {.raises: [StoreError].} =
-  st.bindInt(1, userId)
-  st.bindInt(2, fileId)
-  st.bindInt(3, a.session)
-  st.bindInt(4, a.startT)
-  st.bindInt(5, a.endT)
-  st.bindInt(6, a.utcOffsetS)
-  st.bindOptText(7, a.sport)
-  st.bindOptText(8, a.subSport)
-  st.bindReal(9, a.elapsedS)
-  st.bindReal(10, a.timerS)
-  st.bindReal(11, a.distanceM)
-  st.bindInt(12, a.calories)
+proc insertActivity(st: Stmt, fileId: int64, a: ActivityData) {.raises: [StoreError].} =
+  st.bindInt(1, fileId)
+  st.bindInt(2, a.session)
+  st.bindInt(3, a.startT)
+  st.bindInt(4, a.endT)
+  st.bindInt(5, a.utcOffsetS)
+  st.bindOptText(6, a.sport)
+  st.bindOptText(7, a.subSport)
+  st.bindReal(8, a.elapsedS)
+  st.bindReal(9, a.timerS)
+  st.bindReal(10, a.distanceM)
+  st.bindInt(11, a.calories)
   st.run()
 
 proc insertSegment(st: Stmt, activityId: int64, n: int, g: Segment)
@@ -83,26 +82,33 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
   let found = readActivities(profile(), data, ws)
   s.begin()
   var committed = false
-  var actStmt, segStmt, coordStmt: Option[Stmt]
+  var actStmt, segStmt, coordStmt, routeStmt: Option[Stmt]
   try:
     guard:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
                 s.userId, name, digest, getTime().toUnix)
     let fileId = lastInsertId(s.db)
     result.fileId = fileId
-    actStmt = some(prepareStmt(s.db, "insert into activity(user_id, file_id, session, " &
+    actStmt = some(prepareStmt(s.db, "insert into activity(file_id, session, " &
       "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
-      "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
+      "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
     segStmt = some(prepareStmt(s.db,
       "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"))
     coordStmt = some(prepareStmt(s.db, 
       "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)"))
+    routeStmt = some(prepareStmt(s.db,
+      "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))"))
     result.outcome = ioImported
     for a in found:
-      insertActivity(actStmt.get, s.userId, fileId, a)
+      insertActivity(actStmt.get, fileId, a)
       let activityId = lastInsertId(s.db)
       for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
       for c in a.coords: insertCoord(coordStmt.get, activityId, c)
+      let wkt = routeWkt(a)
+      if wkt.isSome:
+        routeStmt.get.bindInt(1, activityId)
+        routeStmt.get.bindText(2, wkt.get)
+        routeStmt.get.run()
       inc result.activities
       result.segments += a.segments.len
       result.coords += a.coords.len
@@ -112,6 +118,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     if actStmt.isSome: finalize(actStmt.get)
     if segStmt.isSome: finalize(segStmt.get)
     if coordStmt.isSome: finalize(coordStmt.get)
+    if routeStmt.isSome: finalize(routeStmt.get)
     if not committed: s.rollback()
 
 proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],

@@ -38,7 +38,7 @@ suite "database: opening and bringing the schema up to date":
     var names: seq[string]
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
-    check names == @["db/001-user.sql", "importer/001-schema.sql"]
+    check names == @["db/001-schema.sql", "importer/001-schema.sql"]
     s.close()
 
   test "opening again changes nothing":
@@ -143,7 +143,7 @@ suite "database: fragments":
     var onDisk: HashSet[string]
     for path in walkFiles("src/nimchoo/*/*.sql"):
       onDisk.incl path.parentDir.lastPathPart & "/" & path.extractFilename
-    var listed = toHashSet(["db/001-user.sql"])   # the database's own
+    var listed = toHashSet(["db/001-schema.sql"])   # the database's own
     for f in allFragments: listed.incl f.name
     check onDisk == listed
 
@@ -153,8 +153,8 @@ suite "database: cascades":
     defer: s.close()
     s.db.exec(sql"""insert into file(user_id, name, sha256, imported_at)
                     values (1, 'f', 'x', 0)""")
-    s.db.exec(sql"""insert into activity(user_id, file_id, session, start_t, end_t)
-                    values (1, 1, 0, 0, 10)""")
+    s.db.exec(sql"""insert into activity(file_id, session, start_t, end_t)
+                    values (1, 0, 0, 10)""")
     s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 5, 1.0, 2.0)")
     s.db.exec(sql"insert into segment(activity_id, n, start_t, end_t) values (1, 1, 0, 10)")
     s.db.exec(sql"insert into seen_file(user_id, path, size, mtime, file_id) values (1, '/p', 1, 1, 1)")
@@ -180,8 +180,8 @@ suite "database: the schema":
   test "a duplicate key is a StoreError":
     let s = open(":memory:")
     s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, 'f', 'x', 0)", s.userId)
-    s.db.exec(sql"""insert into activity(user_id, file_id, session, start_t, end_t)
-                    values (?, 1, 0, 0, 0)""", s.userId)
+    s.db.exec(sql"""insert into activity(file_id, session, start_t, end_t)
+                    values (1, 0, 0, 0)""")
     let ins = prepareStmt(s.db,
       "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)")
     defer: finalize(ins)

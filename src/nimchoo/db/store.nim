@@ -11,6 +11,7 @@
 
 import std/[os, sequtils, strutils, times]
 import db_connector/db_sqlite
+import db_connector/sqlite3 as lowlevel
 import ../errors
 import ./fragment
 import ./statement
@@ -20,7 +21,7 @@ export db_sqlite.DbConn, fragment
 
 const
   defaultUser* = "default"
-  baseFragments = @[fragment("001-user.sql")]
+  baseFragments = @[fragment("001-schema.sql")]
 
 type
   Store* = object
@@ -42,6 +43,21 @@ proc resolveDbPath*(option: string): string =
   let env = getEnv("NCH_DB")
   if env.len > 0: return env
   string(getDataDir()) / "nch" / "nch.db"
+
+proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
+  ## Load the SpatiaLite extension (geometry types and functions).  It is needed
+  ## by every connection, because the triggers of its spatial indexes use it.
+  ## (trusted_schema: SQLite will not run those triggers otherwise.)
+  var err: cstring
+  if enable_load_extension(db, 1) != SQLITE_OK:
+    raiseStore("this SQLite cannot load extensions, and nch needs SpatiaLite")
+  let rc = load_extension(db, "mod_spatialite", nil, addr err)
+  discard enable_load_extension(db, 0)
+  if rc != SQLITE_OK:
+    raiseStore("cannot load SpatiaLite (is the package that provides " &
+               "mod_spatialite installed?): " & (if err.isNil: "unknown error" else: $err))
+  guard:
+    db.exec(sql"pragma trusted_schema = 1")
 
 proc recorded(db: DbConn): seq[string] {.raises: [StoreError].} =
   ## The fragments the database says it has had.
@@ -103,6 +119,7 @@ proc openStore*(path: string, fragments: seq[Fragment],
   guard:
     result.db = open(path, "", "", "")
   try:
+    loadSpatialite(result.db)
     guard:
       result.db.exec(sql"pragma foreign_keys = on")
     bringUpToDate(result.db, fragments)

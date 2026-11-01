@@ -8,7 +8,7 @@ import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, te
 import ./profile/[test_load, test_load_errors]
 import ./db/test_store
 import ./destroy/test_command
-import ./importer/[test_extract, test_importer, test_command, test_batch, test_events,
+import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_events,
                    test_display, test_logsink]
 import ./ui/[test_style, test_live, test_logfile]
 {.pop.}

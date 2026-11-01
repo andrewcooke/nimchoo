@@ -23,8 +23,8 @@ proc fill(s: Store, tag: string) =
   s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
             u, tag, tag)
   let f = s.db.getValue(sql"select id from file where user_id = ? and sha256 = ?", u, tag)
-  s.db.exec(sql"""insert into activity(user_id, file_id, session, start_t, end_t)
-                  values (?, ?, 0, 0, 10)""", u, f)
+  s.db.exec(sql"""insert into activity(file_id, session, start_t, end_t)
+                  values (?, 0, 0, 10)""", f)
   let a = s.db.getValue(sql"select max(id) from activity")
   s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (?, 5, 1.0, 2.0)", a)
   s.db.exec(sql"insert into segment(activity_id, n, start_t, end_t) values (?, 1, 0, 10)", a)
