@@ -147,6 +147,21 @@ suite "database: fragments":
     for f in allFragments: listed.incl f.name
     check onDisk == listed
 
+suite "database: cascades":
+  test "deleting a user deletes everything under them":
+    let s = open(":memory:")
+    defer: s.close()
+    s.db.exec(sql"""insert into file(user_id, name, sha256, imported_at)
+                    values (1, 'f', 'x', 0)""")
+    s.db.exec(sql"""insert into activity(user_id, file_id, session, start_t, end_t)
+                    values (1, 1, 0, 0, 10)""")
+    s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 5, 1.0, 2.0)")
+    s.db.exec(sql"insert into segment(activity_id, n, start_t, end_t) values (1, 1, 0, 10)")
+    s.db.exec(sql"insert into seen_file(user_id, path, size, mtime, file_id) values (1, '/p', 1, 1, 1)")
+    s.db.exec(sql"delete from user where id = 1")
+    for t in ["file", "activity", "coords", "segment", "seen_file"]:
+      check s.count(t) == 0
+
 suite "database: the schema":
   test "foreign keys are enforced":
     let s = open(":memory:")

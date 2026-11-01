@@ -1,11 +1,12 @@
 -- The tables of the importer module: imported FIT files, the activities in
 -- them (one per FIT session), their coordinates and timer segments, and the
 -- paths already looked at.  Times are Unix seconds UTC, lon/lat degrees
--- (SRID 4326), alt metres.
+-- (SRID 4326), alt metres.  Everything belongs to a user and goes with them
+-- (on delete cascade), which is how `nch --user NAME destroy` works.
 
 create table file (
   id integer primary key,
-  user_id integer not null references user(id),
+  user_id integer not null references user(id) on delete cascade,
   name text not null,
   sha256 text not null,
   imported_at integer not null,
@@ -13,8 +14,8 @@ create table file (
 
 create table activity (
   id integer primary key,
-  user_id integer not null references user(id),
-  file_id integer not null references file(id),
+  user_id integer not null references user(id) on delete cascade,
+  file_id integer not null references file(id) on delete cascade,
   session integer not null,
   start_t integer not null,
   end_t integer not null,
@@ -28,7 +29,7 @@ create table activity (
   unique (file_id, session));
 
 create table coords (
-  activity_id integer not null references activity(id),
+  activity_id integer not null references activity(id) on delete cascade,
   t integer not null,
   lon real not null,
   lat real not null,
@@ -39,7 +40,7 @@ create table coords (
 -- start and the next stop).  Intervals on the activity's time axis: samples do
 -- not refer to them.  Segments of an activity are disjoint and in time order.
 create table segment (
-  activity_id integer not null references activity(id),
+  activity_id integer not null references activity(id) on delete cascade,
   n integer not null,
   start_t integer not null,
   end_t integer not null,
@@ -50,11 +51,11 @@ create table segment (
 -- reading it.  file_id is set if the file was imported (or is a copy of one that
 -- was); failure and message are set instead if it could not be imported.
 create table seen_file (
-  user_id integer not null references user(id),
+  user_id integer not null references user(id) on delete cascade,
   path text not null,
   size integer not null,
   mtime integer not null,
-  file_id integer references file(id),
+  file_id integer references file(id) on delete cascade,
   failure text,
   message text,
   primary key (user_id, path)) without rowid;

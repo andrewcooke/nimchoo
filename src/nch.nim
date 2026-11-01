@@ -6,6 +6,7 @@
 
 import std/[options, os, strutils]
 import nimchoo/cli/common
+import nimchoo/db/command as destroyCommand
 import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
@@ -23,6 +24,8 @@ commands:
   fit      read a FIT file and print it (see `nch fit --help`)
   import   put the activities of FIT files in the database
            (see `nch import --help`)
+  destroy  delete the database, or one user and their data
+           (see `nch destroy --help`)
 """
 
 proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].} =
@@ -34,6 +37,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     fitCommand.run(g, rest)
   of "import":
     importCommand.run(g, rest)
+  of "destroy":
+    destroyCommand.run(g, rest)
   else:
     usageError("nch", usage, "unknown command " & command)
 
@@ -62,7 +67,7 @@ proc main(): int {.raises: [].} =
     return exitUsage
   let rest = args[i + 1 .. ^1]
   let command = args[i]
-  if command in ["fit", "import"]:
+  if command in ["fit", "import", "destroy"]:
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
