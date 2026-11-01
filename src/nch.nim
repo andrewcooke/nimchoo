@@ -4,11 +4,12 @@
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
-import std/[os, strutils]
+import std/[options, os, strutils]
 import nimchoo/commands/common
 import nimchoo/activity/command as importCommand
 import nimchoo/commands/fit
 import nimchoo/modules
+import nimchoo/ui/logfile
 
 {.push raises: [].}
 
@@ -23,6 +24,18 @@ commands:
   import   put the activities of FIT files in the database
            (see `nch import --help`)
 """
+
+proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].} =
+  case command
+  of "help":
+    stdout.say usage
+    exitOk
+  of "fit":
+    fit.run(g, rest)
+  of "import":
+    importCommand.run(g, rest)
+  else:
+    usageError("nch", usage, "unknown command " & command)
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
@@ -48,16 +61,17 @@ proc main(): int {.raises: [].} =
     stderr.say usage
     return exitUsage
   let rest = args[i + 1 .. ^1]
-  case args[i]
-  of "help":
-    stdout.say usage
-    exitOk
-  of "fit":
-    fit.run(g, rest)
-  of "import":
-    importCommand.run(g, rest)
-  else:
-    usageError("nch", usage, "unknown command " & args[i])
+  let command = args[i]
+  if command in ["fit", "import"]:
+    let path = envLogPath()
+    if path.isSome:
+      g.log = openLog(path.get)
+      if g.log.problem.len > 0:
+        stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
+  g.log.log(lvInfo, "nch", "run: " & args[i .. ^1].join(" "))
+  result = dispatch(g, command, rest)
+  g.log.log(lvInfo, "nch", "exit " & $result)
+  g.log.close()
 
 when isMainModule:
   quit main()

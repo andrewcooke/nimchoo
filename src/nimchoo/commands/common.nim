@@ -7,6 +7,7 @@
 
 import ../db/store
 import ../errors
+import ../ui/logfile
 
 {.push raises: [].}
 
@@ -16,6 +17,7 @@ type
     dbPath*: string   ## the database file; "" for the default
     user*: string     ## whose data to work with; "" for the default user
     fragments*: seq[Fragment]  ## the schema: the fragments of all modules
+    log*: Log         ## the log file; nil (disabled) unless `nch` opened it
 
 const
   exitOk* = 0
