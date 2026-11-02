@@ -344,6 +344,13 @@ is a `grep` over a log that accumulates.
 * **The hint becomes** `more: nch log import advisory duplicate --last`, naming only what
   happened.
 
+* **Later: light and dark backgrounds.**  Only the basic ANSI colours plus bold/dim are used, which
+  terminals remap through their theme, but `dim` can all but vanish on a light background and
+  yellow is poor on white.  `look(event)` would take a theme (`light` / `dark`), from
+  `NCH_THEME`, else guessed from `COLORFGBG` (set by some terminals), default dark; not by
+  querying the terminal's background colour (fragile).  Every look is in `ui/vocabulary.nim`,
+  and the live display and `nch log` both use it.
+
 ### Steps (each a commit; tests pass after each)
 
 1. [x] `ui/vocabulary.nim` (`LogEvent`: start run exit imported duplicate unchanged failed
@@ -352,8 +359,13 @@ is a `grep` over a log that accumulates.
    to 8 columns, event to 9), every caller (`nch.nim` run/exit now carry the command, destroy,
    the import log sink), the display counts taking their looks from the events.  Tests: words
    unique and parseable, the important looks, the counts' looks equal the events', line format.
-2. `log/`: parsing lines (old format tolerated), filters, `--last`, `-n`, coloured output,
-   unknown-name errors.  Tests on a temp log file.
+2. [x] `log/`: `lines.nim` (pure: take a line apart, filter by command and event, `--last` = from
+   the latest `run` line of the given commands, `-n`, styled spans) and `command.nim` (`nch log
+   [COMMAND...] [EVENT...] [--last] [-n N]`; names are told apart by what they are, an unknown
+   one lists the known; colour only on a terminal, not with `NO_COLOR`; `nch log` itself is not
+   logged, or `--last` would always find itself).  `commandNames` in `cli/common.nim` is the
+   one list of commands.  Lines from before the format change are shown but match no filter,
+   and `--last` says why it found no run.
 3. The hint, docs.
 
 ## Task 2: database (steps 1-3 built: `nch import` with segments, fast re-imports, display and log; more is added piecemeal)
