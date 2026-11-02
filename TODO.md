@@ -366,7 +366,8 @@ is a `grep` over a log that accumulates.
    logged, or `--last` would always find itself).  `commandNames` in `cli/common.nim` is the
    one list of commands.  Lines from before the format change are shown but match no filter,
    and `--last` says why it found no run.
-3. The hint, docs.
+3. [x] The hint is `more: nch log import <what happened> --last` (the grep recipe, the path
+   quoting and the `~` helper are gone); the import usage text points at `nch log --help`.
 
 ## Task 2: database (steps 1-3 built: `nch import` with segments, fast re-imports, display and log; more is added piecemeal)
 
@@ -560,9 +561,9 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   segments, trailing bytes...), counted one by one, not by file.  Counts that are zero are left
   out except imported and failed.  Every log line's text starts with one of `start imported
   duplicate failed advisory note done`, so `grep -w advisory` finds one kind.  After a run, if
-  anything failed, was a duplicate or was noted, stderr gets `more: grep -wE
-  'failed|duplicate|advisory' ~/.local/state/nch/nch.log` naming only what happened (and nothing
-  without a log).
+  anything failed or was a duplicate or an advisory, stderr gets `more: nch log import failed
+  duplicate advisory --last` naming only what happened (and nothing without a log); a test
+  checks the hint is a command line `nch log` accepts.  (See Task 4 for `nch log`.)
 * **Log file.** `$NCH_LOG`, else `$XDG_STATE_HOME/nch/nch.log` (a relative value is ignored),
   else `~/.local/state/nch/nch.log`; `NCH_LOG=` (empty) switches it off.  One line per event:
   `2026-11-02T23:27:00Z INFO  import    duplicate  PATH  same content as OTHER` (UTC; INFO /

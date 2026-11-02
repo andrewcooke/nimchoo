@@ -45,11 +45,11 @@ func doneLine*(sum: Summary): string =
   ## The line after the display: the summary.
   "done: " & summaryLine(sum)
 
-proc liveSink*(l: Live, logPath: string,
+proc liveSink*(l: Live, logged: bool,
                stdoutWrite, stderrWrite: proc(s: string) {.closure, raises: [].}): Sink =
   ## Show the run on `l`.  When it ends the last frame stays on screen, then
   ## `stdoutWrite` gets the done line, and `stderrWrite` any notes and the hint
-  ## about where to look for more (in the log at `logPath`; "" if there is none).
+  ## about how to look for more (`nch log ...`, if there is a log).
   var sum = Summary()
   var index = 0
   var current = ""
@@ -67,7 +67,7 @@ proc liveSink*(l: Live, logPath: string,
       l.keep(renderImport(sum, sum.done, ""))
       stdoutWrite doneLine(sum) & "\n"
       for note in ev.summary.notes: stderrWrite "note: " & note & "\n"
-      let hint = moreHint(sum, logPath)
+      let hint = moreHint(sum, logged)
       if hint.len > 0: stderrWrite hint & "\n"
       return
     if l.due(): l.show(renderImport(sum, index, current))

@@ -12,6 +12,7 @@ import std/[sequtils, strutils, tables]
 import ../cli/common
 import ../warnings
 import ./events
+import ../ui/vocabulary
 import ./failure
 
 {.push raises: [].}
@@ -63,32 +64,19 @@ func summaryLine*(s: Summary): string =
       " (use --slow to retry)"
   if s.advisories > 0: result.add ", " & plural(s.advisories, "advisory", "advisories")
 
-func shellWord(path: string): string =
-  ## `path` as one word for a shell: as it is if that is safe, else in quotes.
-  if path.len > 0 and path.allIt(it in {'a' .. 'z', 'A' .. 'Z', '0' .. '9', '/', '.', '_', '-', '~', '+', ','}):
-    path
-  else:
-    "'" & path.replace("'", "'\\''") & "'"
-
-func displayPath*(path, home: string): string =
-  ## `path` with the home directory written as ~, for telling people.
-  if home.len > 1 and path.startsWith(home & "/"): "~" & path[home.len .. ^1] else: path
-
-func moreHint*(s: Summary, logPath: string): string =
-  ## How to see more: a grep of the log for the words of what happened, such as
-  ## "more: grep -wE 'failed|duplicate' ~/.local/state/nch/nch.log".  "" if there is
-  ## nothing to look into or no log.
-  if logPath.len == 0: return ""
+func moreHint*(s: Summary, logged: bool): string =
+  ## How to see more: `nch log` with the words of what happened, such as
+  ## "more: nch log import failed duplicate --last" (the latest import only).  ""
+  ## if there is nothing to look into or no log.
+  if not logged: return ""
   var words: seq[string]
-  if s.failed > 0: words.add "failed"
-  if s.duplicates > 0: words.add "duplicate"
-  if s.advisories > 0: words.add "advisory"
+  if s.failed > 0: words.add $leFailed
+  if s.duplicates > 0: words.add $leDuplicate
+  if s.advisories > 0: words.add $leAdvisory
   if words.len == 0: return ""
-  let file = shellWord(logPath)
-  if words.len == 1: "more: grep -w " & words[0] & " " & file
-  else: "more: grep -wE '" & words.join("|") & "' " & file
+  "more: nch log import " & words.join(" ") & " --last"
 
-func plainLines*(ev: ImportEvent, quiet: bool, logPath = ""): Lines =
+func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   ## The lines to print for an event.  Failures, advisories and the summary are
   ## always printed; the line for each file that went well is not if `quiet`.
   case ev.kind
@@ -118,14 +106,14 @@ func plainLines*(ev: ImportEvent, quiet: bool, logPath = ""): Lines =
   of evFinish:
     for note in ev.summary.notes: result.stderr.add "note: " & note
     result.stdout.add summaryLine(ev.summary)
-    let hint = moreHint(ev.summary, logPath)
+    let hint = moreHint(ev.summary, logged)
     if hint.len > 0: result.stderr.add hint
 
-proc plainSink*(quiet: bool, logPath = ""): Sink =
-  ## Print the plain lines as the events come.  `logPath` ("" if there is no
-  ## log) is where the hint at the end says to look.
+proc plainSink*(quiet: bool, logged = false): Sink =
+  ## Print the plain lines as the events come.  `logged`: there is a log, so the
+  ## hint at the end can say how to look in it.
   result = proc(ev: ImportEvent) {.closure, raises: [].} =
-    let lines = plainLines(ev, quiet, logPath)
+    let lines = plainLines(ev, quiet, logged)
     for l in lines.stdout: stdout.say l & "\n"
     if lines.stdout.len > 0 and lines.stderr.len > 0:
       try: stdout.flushFile()          # (so the two streams stay in order in a pipe)

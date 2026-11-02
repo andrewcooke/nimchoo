@@ -1,6 +1,7 @@
 import std/[os, sequtils, strutils, unittest]
 import nimchoo/importer/[batch, display, events, failure, sinks]
 import nimchoo/db/store
+import nimchoo/log/command as logCommand
 import nimchoo/modules
 import nimchoo/ui/[live, style, vocabulary]
 import ../support/fitbuilder
@@ -57,16 +58,22 @@ suite "import display: the lines":
     check doneLine(s) == "done: 3 files, 2 imported, 1 failed (bad format 1)"
     check doneLine(Summary(done: 1, imported: 1)) == "done: 1 file, 1 imported, 0 failed"
 
-  test "the hint says what to grep for, only for what happened":
-    check moreHint(Summary(done: 1, imported: 1), "/x/nch.log") == ""
-    check moreHint(Summary(failed: 1), "/x/nch.log") == "more: grep -w failed /x/nch.log"
-    check moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), "~/nch.log") ==
-      "more: grep -wE 'failed|duplicate|advisory' ~/nch.log"
-    check moreHint(Summary(failed: 1), "") == ""             # no log, no hint
-    check moreHint(Summary(failed: 1), "/a b/it's.log") == "more: grep -w failed '/a b/it'\\''s.log'"
-    check displayPath("/home/a/.local/state/nch/nch.log", "/home/a") == "~/.local/state/nch/nch.log"
-    check displayPath("/etc/nch.log", "/home/a") == "/etc/nch.log"
-    check displayPath("/home/ab/x", "/home/a") == "/home/ab/x"
+  test "the hint says what to look at, only for what happened":
+    check moreHint(Summary(done: 1, imported: 1), true) == ""
+    check moreHint(Summary(failed: 1), true) == "more: nch log import failed --last"
+    check moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true) ==
+      "more: nch log import failed duplicate advisory --last"
+    check moreHint(Summary(duplicates: 1), true) == "more: nch log import duplicate --last"
+    check moreHint(Summary(failed: 1), false) == ""             # no log, no hint
+
+  test "what the hint says is a command line that `nch log` accepts":
+    let hint = moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true)
+    check hint.startsWith("more: nch log ")
+    let p = logCommand.parseArgs(hint["more: nch log ".len .. ^1].splitWhitespace)
+    check p.problem == ""
+    check p.filter.commands == @["import"]
+    check p.filter.events == {leFailed, leDuplicate, leAdvisory}
+    check p.filter.last
 
   test "imported is green even when it is 0":
     check renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0].look.fg == cGreen
@@ -110,7 +117,7 @@ suite "import display: a run":
     defer: st.close()
     let ticker: Sink = proc(ev: ImportEvent) {.closure, raises: [].} =
       f.now += advanceBy
-    let shown = liveSink(fakeLive(f), "/x/nch.log",
+    let shown = liveSink(fakeLive(f), true,
       proc(s: string) {.closure, raises: [].} = f.outs.add(s),
       proc(s: string) {.closure, raises: [].} = f.errs.add(s))
     importPaths(st, @[d], ImportOptions(), fanOut(@[ticker, shown]))
@@ -130,7 +137,7 @@ suite "import display: a run":
     check drawn.endsWith("\e[?25h")       # the cursor is back
     check not drawn.contains("bad.fit")   # no line per failure
     check f.outs == @["done: 2 files, 1 imported, 1 failed (bad format 1)\n"]
-    check f.errs == @["more: grep -w failed /x/nch.log\n"]
+    check f.errs == @["more: nch log import failed --last\n"]
 
   test "a longer run draws frames that follow it, and the last one stays":
     let d = fresh("long")
