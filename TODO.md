@@ -233,6 +233,13 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
   (and `.html`).  Values are limited to `[A-Za-z0-9._,-]`; anything else is refused, not
   escaped.  Cache directory: `$NCH_CACHE`, else `$XDG_CACHE_HOME/nch`, else `~/.cache/nch`.
   Same options, same files: nothing is recomputed.
+* **Bookmarks, not shareable links:** a `localhost` link means nothing to anyone else, so what
+  is shared is the files (the `.geojson`; perhaps later a `--standalone` HTML with the data
+  inlined, which would need a basemap that works without a Referer).  A bookmark of
+  `/heatmap?sel=...` is pinned and works while the server runs (the cookie survives restarts
+  because the token is kept).  `/heatmap` with no `sel` means "my current selection": the
+  server redirects it to the pinned form, so a reload never changes the data but the bookmark
+  always shows the current selection.
 * **A URL means one thing: the selection is pinned.**  `sel` = the first 12 hex digits of the
   SHA-256 of the sorted activity ids of the current selection (and the user).  Plain `nch
   heatmap` uses the current selection (and puts its `sel` in the file name).  With `--sel H`:
@@ -254,13 +261,20 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
   dependency): `GET /<command>?...` runs the worker and returns its first file as
   `text/html`; `GET /files/<name>` returns a file from the cache directory (a plain name, no
   separators, only `.html .geojson .js .css`; `application/geo+json` for GeoJSON); anything
-  else is 404.  Listens on a free port, prints the URL, opens it with `xdg-open` (`--no-open`
-  to skip; the URL is always printed).  Logs requests to the nch log.
+  else is 404.  Listens on **port 62466** (the keypad digits of "mchoo"; above Linux's
+  ephemeral range 32768-60999, in no services list); `--port N` to change it; if it is busy,
+  say so and stop (no silent fallback: bookmarks rely on the port).  Prints the URL, opens it
+  with `xdg-open` (`--no-open` to skip; the URL is always printed).  Logs requests to the nch
+  log.
 * **Security** (the server runs commands named in URLs, and any web page open in the browser
   can send requests to `localhost`; binding to 127.0.0.1 only keeps other machines out):
   - bind `127.0.0.1` only;
-  - a random token (128 bits from `/dev/urandom`) in the URL that `--web` opens and on every
-    request; requests without it are 403;
+  - a random token (128 bits from `/dev/urandom`), **kept in `<cache dir>/server-token` (mode
+    0600), created on first use** (`--new-token` replaces it).  The URL that `--web` opens
+    carries it once; the server then sets a cookie (`HttpOnly`, `SameSite=Strict`, so a request
+    started by another site does not carry it) and redirects to the URL without the token.
+    Every other request needs the cookie (or the token); without either it is 403 with a page
+    that says to open the URL `nch heatmap --web` prints;
   - the `Host` header must be `127.0.0.1:PORT` or `localhost:PORT` (against DNS rebinding);
   - an **allowlist** of commands the server will run (`heatmap` only: read-only and safe to
     repeat; never `import`, `select`, `destroy`) and, for each, of option names and value
@@ -287,11 +301,8 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 
 ### Open questions
 
-* Token: new at each `--web` (bookmarks do not survive a restart) or kept in the cache
-  directory (mode 0600) so they do?  Starting with a new token each time.
-* Port: free port chosen each time (printed), or a fixed default with a fallback?
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
-  one page to another (needs the token to travel in the links).
+  one page to another (the cookie means links need no token); `--standalone` export.
 
 ## Task 2: database (steps 1-3 built: `nch import` with segments, fast re-imports, display and log; more is added piecemeal)
 
