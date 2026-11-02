@@ -288,10 +288,14 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
    (`selectionKey`: 12 hex digits of the SHA-256 of the selected activities' file hashes and
    sessions, so it is the same in any database and does not depend on ids).  Tests: names,
    refusals, the key is stable, order-independent, and follows the selection.
-2. `heatmap/` with style `lines`: query, simplification, GeoJSON text (pure part tested on
-   its own), `nch heatmap [--sel H] [--style lines] [--tolerance M]`.  Tests: valid JSON,
-   one feature per activity, fewer points after simplifying, a second run does no work (file
-   untouched), `--sel` mismatch is an error, empty selection is an error.
+2. [x] `heatmap/` with style `lines`: `params.nim` (command line; the defaults are written
+   out because the options name the file), `lines.nim` (GeoJSON text, pure), `command.nim`
+   (`nch heatmap [--sel KEY] [--style lines] [--tolerance M]`; prints the file's path; writes
+   to a new name and renames, so nobody sees half a file).  Features carry `id`, `start`
+   (UTC ISO), `sport`, `distance_m`.  Activities without a route are left out with a note on
+   stderr.  Checked on the test rides: 6 routes, 154 KB unsimplified, 46 KB at 5 m, 25 KB at
+   50 m.  An existing file is returned without any work, whatever else has changed; `--sel`
+   for a selection that is gone and not current is an error.
 3. `--worker` and the page: the HTML generator (pure), the output convention.
 4. `serve/`: request checks as pure functions (token, Host, path, allowlist) with tests, then
    the server; an integration test starts `nch heatmap --web --no-open` as a subprocess,

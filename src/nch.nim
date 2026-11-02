@@ -8,6 +8,7 @@ import std/[options, os, strutils]
 import nimchoo/cli/common
 import nimchoo/destroy/command as destroyCommand
 import nimchoo/select/command as selectCommand
+import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
@@ -27,6 +28,8 @@ commands:
            (see `nch import --help`)
   select   choose the activities that other commands use
            (see `nch select --help`)
+  heatmap  write the routes of the selected activities as GeoJSON
+           (see `nch heatmap --help`)
   destroy  delete the database, or one user and their data
            (see `nch destroy --help`)
 """
@@ -42,6 +45,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     importCommand.run(g, rest)
   of "select":
     selectCommand.run(g, rest)
+  of "heatmap":
+    heatmapCommand.run(g, rest)
   of "destroy":
     destroyCommand.run(g, rest)
   else:
@@ -72,7 +77,7 @@ proc main(): int {.raises: [].} =
     return exitUsage
   let rest = args[i + 1 .. ^1]
   let command = args[i]
-  if command in ["fit", "import", "select", "destroy"]:
+  if command in ["fit", "import", "select", "heatmap", "destroy"]:
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
