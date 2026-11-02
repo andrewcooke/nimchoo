@@ -310,6 +310,49 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
   one page to another (the cookie means links need no token); `--standalone` export.
 
+## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)
+
+Problem: the log has a free-text line with a "topic" and no convention (only `import` puts a
+keyword first), colours on screen are chosen in the display code, and the hint after an import
+is a `grep` over a log that accumulates.
+
+### Design
+
+* **A line is `time LEVEL command event text`.**  `command` is what the user ran (`import`,
+  `destroy`, later `heatmap`, `serve`); `nch` is only for the dispatcher's own trouble (e.g.
+  the log could not be opened).  The run and exit lines carry the command they belong to
+  (`import  run  /home/andrew/fit/bike`, `import  exit  1`), so `nch log import` shows a whole
+  run.  (The old name for `command` was "topic"; for `event`, "keyword".)
+* **`event` is a value of an enum** in `ui/vocabulary.nim` (infrastructure, knows no command):
+  `start run exit imported duplicate unchanged failed advisory note done deleted ...`, each with
+  its text form and its one **look** (colour, bold, dim): imported green, duplicate and
+  unchanged grey (dim), failed red (bold), advisory yellow, note/start/done/run/exit plain or
+  dim.  The look is chosen by an exhaustive `case`, so an event without a colour does not
+  compile, and the log call takes the enum, so an unknown event cannot be logged.  A new event
+  is one new enum value in that file.
+* **The screen uses the same table:** the counts line (`advisories 85`, `duplicates 1`,
+  `failed 2`, `imported 1,112`) takes its colours from the event of the same name.  Plain
+  (piped) output stays uncoloured.
+* **Level** (INFO / WARN / ERROR) stays, separate from the event; nothing user-facing mentions it.
+* **`nch log [COMMAND...] [EVENT...] [--last] [-n N]`** (`log/`, newer than the others): COMMANDs
+  and EVENTs are told apart because the two sets never overlap; AND between the kinds, OR
+  within one; an unknown name is an error that lists the known ones.  `--last`: only the latest
+  run of the given command(s), from its `run` line to the end.  `-n N`: only the last N
+  matching lines.  Output is the log lines with the event word coloured (no colour when piped
+  or `NO_COLOR`); lines from older versions of the log are shown plain.  The file itself stays
+  plain text: an escape next to the word would stop `grep -w` matching.
+* **The hint becomes** `more: nch log import advisory duplicate --last`, naming only what
+  happened.
+
+### Steps (each a commit; tests pass after each)
+
+1. `ui/vocabulary.nim` (events, looks), the log API `log(level, command, event, text)`, the new
+   line format, every caller (`nch.nim` run/exit, destroy, the import log sink), the display
+   counts using the looks.  Tests: every event has a look, line format, callers' lines.
+2. `log/`: parsing lines (old format tolerated), filters, `--last`, `-n`, coloured output,
+   unknown-name errors.  Tests on a temp log file.
+3. The hint, docs.
+
 ## Task 2: database (steps 1-3 built: `nch import` with segments, fast re-imports, display and log; more is added piecemeal)
 
 ### Engine: leaning to SQLite + SpatiaLite
