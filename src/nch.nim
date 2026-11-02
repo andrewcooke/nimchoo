@@ -83,9 +83,9 @@ proc main(): int {.raises: [].} =
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
         stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
-  g.log.log(lvInfo, "nch", "run: " & args[i .. ^1].join(" "))
+  g.log.log(lvInfo, command, leRun, rest.join(" "))
   result = dispatch(g, command, rest)
-  g.log.log(lvInfo, "nch", "exit " & $result)
+  g.log.log(lvInfo, command, leExit, $result)
   g.log.close()
 
 when isMainModule:

@@ -2,7 +2,7 @@ import std/[os, sequtils, strutils, unittest]
 import nimchoo/importer/[batch, display, events, failure, sinks]
 import nimchoo/db/store
 import nimchoo/modules
-import nimchoo/ui/[live, style]
+import nimchoo/ui/[live, style, vocabulary]
 import ../support/fitbuilder
 
 const base = 900_000_000
@@ -70,6 +70,21 @@ suite "import display: the lines":
 
   test "imported is green even when it is 0":
     check renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0].look.fg == cGreen
+
+  test "the counts have the looks of the events of the same name":
+    var s = Summary(total: 9, imported: 1, duplicates: 2, unchanged: 3, known: 4, failed: 5, advisories: 6)
+    s.failures[fkBadFormat] = 5
+    let second = renderImport(s, 5, "x")[1]
+    proc lookOf(prefix: string): Look =
+      for sp in second:
+        if sp.text.startsWith(prefix): return sp.look
+      raiseAssert "no span starting " & prefix
+    check lookOf("imported") == look(leImported)
+    check lookOf("duplicates") == look(leDuplicate)
+    check lookOf("unchanged") == look(leUnchanged)
+    check lookOf("known failures") == look(leUnchanged)
+    check lookOf("failed") == look(leFailed)
+    check lookOf("advisories") == look(leAdvisory)
 
   test "colours: imported green, failed red, advisories yellow":
     var s = Summary(total: 5, imported: 1, failed: 1, advisories: 2)

@@ -12,5 +12,5 @@ import ./importer/[test_extract, test_route, test_importer, test_command, test_b
                    test_display, test_logsink]
 import ./select/[test_criteria, test_command, test_selection]
 import ./heatmap/[test_params, test_lines, test_command]
-import ./ui/[test_style, test_live, test_logfile]
+import ./ui/[test_style, test_live, test_logfile, test_vocabulary]
 {.pop.}

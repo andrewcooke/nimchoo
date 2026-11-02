@@ -346,9 +346,12 @@ is a `grep` over a log that accumulates.
 
 ### Steps (each a commit; tests pass after each)
 
-1. `ui/vocabulary.nim` (events, looks), the log API `log(level, command, event, text)`, the new
-   line format, every caller (`nch.nim` run/exit, destroy, the import log sink), the display
-   counts using the looks.  Tests: every event has a look, line format, callers' lines.
+1. [x] `ui/vocabulary.nim` (`LogEvent`: start run exit imported duplicate unchanged failed
+   advisory note done deleted; `look` is an exhaustive `case`; `parseEvent`; `span(text,
+   event)`), the log API `log(level, command, event, text)`, the new line format (command padded
+   to 8 columns, event to 9), every caller (`nch.nim` run/exit now carry the command, destroy,
+   the import log sink), the display counts taking their looks from the events.  Tests: words
+   unique and parseable, the important looks, the counts' looks equal the events', line format.
 2. `log/`: parsing lines (old format tolerated), filters, `--last`, `-n`, coloured output,
    unknown-name errors.  Tests on a temp log file.
 3. The hint, docs.
@@ -550,7 +553,7 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   without a log).
 * **Log file.** `$NCH_LOG`, else `$XDG_STATE_HOME/nch/nch.log` (a relative value is ignored),
   else `~/.local/state/nch/nch.log`; `NCH_LOG=` (empty) switches it off.  One line per event:
-  `2026-11-01T15:37:58Z INFO  import  duplicate  PATH  same content as OTHER` (UTC; INFO /
+  `2026-11-02T23:27:00Z INFO  import    duplicate  PATH  same content as OTHER` (UTC; INFO /
   WARN / ERROR; the levels are not mentioned anywhere a user is told what to do).  `nch` logs
   each `fit`/`import` command's arguments and exit status.  `import` logs the start, each file
   imported, each duplicate (with the path it duplicates), each failure, **every** advisory in

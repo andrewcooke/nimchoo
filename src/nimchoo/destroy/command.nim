@@ -129,6 +129,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         st.db.exec(sql"vacuum")
     except StoreError as e:
       return failure("nch destroy", e.msg)
-  g.log.log(lvInfo, "destroy", "deleted " & what & " from " & path)
+  g.log.log(lvInfo, "destroy", leDeleted, what & " from " & path)
   stdout.say "deleted " & what & "\n"
   exitOk

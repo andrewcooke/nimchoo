@@ -9,7 +9,7 @@
 ## terminal; the sink only keeps the counts and asks the Live when to draw.
 
 import std/[os, strutils]
-import ../ui/[live, style]
+import ../ui/[live, style, vocabulary]
 import ./[events, sinks]
 
 {.push raises: [].}
@@ -29,16 +29,16 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   template part(sp: Span) =
     if second.len > 0: second.add span(dot, dim = true)
     second.add sp
-  part span("imported " & commas(sum.imported), cGreen)
-  if sum.duplicates > 0: part span("duplicates " & commas(sum.duplicates), dim = true)
-  if sum.unchanged > 0: part span("unchanged " & commas(sum.unchanged), dim = true)
-  if sum.known > 0: part span("known failures " & commas(sum.known), dim = true)
+  # the looks are those of the events of the same name (ui/vocabulary.nim)
+  part span("imported " & commas(sum.imported), leImported)
+  if sum.duplicates > 0: part span("duplicates " & commas(sum.duplicates), leDuplicate)
+  if sum.unchanged > 0: part span("unchanged " & commas(sum.unchanged), leUnchanged)
+  if sum.known > 0: part span("known failures " & commas(sum.known), leUnchanged)
   if sum.failed > 0:
-    part span("failed " & commas(sum.failed) & " (" & failureBreakdown(sum) & ")",
-              cRed, bold = true)
+    part span("failed " & commas(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed)
   else:
-    part span("failed 0", dim = true)
-  if sum.advisories > 0: part span("advisories " & commas(sum.advisories), cYellow)
+    part span("failed 0", leUnchanged)             # (nothing to see: dim)
+  if sum.advisories > 0: part span("advisories " & commas(sum.advisories), leAdvisory)
   @[first, second]
 
 func doneLine*(sum: Summary): string =

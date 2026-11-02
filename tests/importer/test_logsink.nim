@@ -37,22 +37,24 @@ func done(o: Outcome): ImportEvent =
 suite "import log: entries":
   test "start and finish":
     check logEntries(ImportEvent(kind: evStart, total: 3)) ==
-      @[Entry(level: lvInfo, text: "start      3 files")]
+      @[Entry(level: lvInfo, event: leStart, text: "3 files")]
     let fin = logEntries(ImportEvent(kind: evFinish,
       summary: Summary(done: 3, unchanged: 3, notes: @["odd"])))
     check fin.mapIt(it.level) == @[lvWarn, lvInfo]
-    check fin[0].text == "note       odd"
-    check fin[1].text == "done       3 files, 0 imported, 3 unchanged, 0 failed"
+    check fin.mapIt(it.event) == @[leNote, leDone]
+    check fin[0].text == "odd"
+    check fin[1].text == "3 files, 0 imported, 3 unchanged, 0 failed"
   test "what changed or went wrong is logged":
     check logEntries(done(oImported)) ==
-      @[Entry(level: lvInfo, text: "imported   p.fit  1 activity, 2 segments, 3 coordinates")]
+      @[Entry(level: lvInfo, event: leImported,
+            text: "p.fit  1 activity, 2 segments, 3 coordinates")]
     check logEntries(done(oDuplicate)) ==
-      @[Entry(level: lvInfo, text: "duplicate  p.fit  already imported")]
+      @[Entry(level: lvInfo, event: leDuplicate, text: "p.fit  already imported")]
     var same = done(oDuplicate)
     same.sameAs = "q/p.fit"
-    check logEntries(same)[0].text == "duplicate  p.fit  same content as q/p.fit"
+    check logEntries(same)[0].text == "p.fit  same content as q/p.fit"
     check logEntries(done(oFailed)) ==
-      @[Entry(level: lvError, text: "failed     p.fit  (no activity) why")]
+      @[Entry(level: lvError, event: leFailed, text: "p.fit  (no activity) why")]
   test "unchanged files and known failures are not":
     check logEntries(done(oUnchanged)).len == 0
     check logEntries(done(oKnownFailure)).len == 0
@@ -63,8 +65,9 @@ suite "import log: entries":
                     Warning(offset: 9, kind: wkDuplicateTime, msg: "second")]
     let es = logEntries(ev)
     check es.mapIt(it.level) == @[lvInfo, lvWarn, lvWarn]
-    check es[1].text == "advisory   p.fit  offset 5: first"
-    check es[2].text == "advisory   p.fit  offset 9: second"
+    check es.mapIt(it.event) == @[leImported, leAdvisory, leAdvisory]
+    check es[1].text == "p.fit  offset 5: first"
+    check es[2].text == "p.fit  offset 9: second"
 
 suite "import log: the command":
   test "the log gets the run, even with -q":
@@ -78,7 +81,7 @@ suite "import log: the command":
     let text = readFile(path)
     check "start      2 files" in text
     check "imported   " in text and "a.fit  1 activity" in text
-    check "ERROR import  failed" in text and "bad.fit  (bad format)" in text
+    check "ERROR import    failed" in text and "bad.fit  (bad format)" in text
     check "done       2 files, 1 imported, 1 failed" in text
 
   test "a second run logs no file lines, only the totals":

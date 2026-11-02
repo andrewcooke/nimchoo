@@ -27,11 +27,14 @@ suite "log: where it goes":
 
 suite "log: lines":
   test "time, level, topic, text":
-    check logLine(fixed(), lvInfo, "import", "hello") ==
-      "2026-10-26T07:33:20Z INFO  import  hello"
-    check logLine(fixed(), lvError, "x", "bad") == "2026-10-26T07:33:20Z ERROR x  bad"
+    check logLine(fixed(), lvInfo, "import", leDuplicate, "hello") ==
+      "2026-10-26T07:33:20Z INFO  import    duplicate  hello"
+    check logLine(fixed(), lvError, "x", leFailed, "bad") ==
+      "2026-10-26T07:33:20Z ERROR x         failed     bad"
+    check logLine(fixed(), lvInfo, "a-longer-command", leDone, "t") ==
+      "2026-10-26T07:33:20Z INFO  a-longer-command  done       t"
   test "one line whatever the text":
-    check '\n' notin logLine(fixed(), lvWarn, "t", "a\nb\r\nc")
+    check '\n' notin logLine(fixed(), lvWarn, "t", leNote, "a\nb\r\nc")
 
 suite "log: files":
   test "lines are appended, across opens":
@@ -39,10 +42,10 @@ suite "log: files":
     let path = d / "sub" / "nch.log"          # directory is created
     let a = openLog(path, now = fixed)
     check a.problem == ""
-    a.log(lvInfo, "t", "one")
+    a.log(lvInfo, "t", leNote, "one")
     a.close()
     let b = openLog(path, now = fixed)
-    b.log(lvInfo, "t", "two")
+    b.log(lvInfo, "t", leNote, "two")
     b.close()
     check lines(path).len == 2
     check lines(path)[1].endsWith("two")
@@ -51,19 +54,19 @@ suite "log: files":
     let d = fresh("flush")
     let l = openLog(d / "nch.log", now = fixed)
     defer: l.close()
-    l.log(lvWarn, "t", "careful")
+    l.log(lvWarn, "t", leNote, "careful")
     check lines(d / "nch.log").len == 1
-    l.log(lvError, "t", "bad")
+    l.log(lvError, "t", leNote, "bad")
     check lines(d / "nch.log").len == 2
 
   test "a nil or closed log ignores everything":
     var none: Log
-    none.log(lvInfo, "t", "x")
+    none.log(lvInfo, "t", leNote, "x")
     none.close()
     check not none.enabled
     let l = openLog(fresh("closed") / "nch.log")
     l.close()
-    l.log(lvInfo, "t", "x")
+    l.log(lvInfo, "t", leNote, "x")
     check not l.enabled
 
   test "a log that cannot be opened is disabled, with the reason":
@@ -72,7 +75,7 @@ suite "log: files":
     let l = openLog(d / "file" / "nch.log")      # parent is a file
     check not l.enabled
     check l.problem.startsWith("cannot open")
-    l.log(lvInfo, "t", "x")                       # and nothing happens
+    l.log(lvInfo, "t", leNote, "x")                       # and nothing happens
     l.close()
 
 suite "log: rotation":
@@ -101,7 +104,7 @@ suite "log: rotation":
     let path = d / "nch.log"
     writeFile(path, "x".repeat(300))
     let l = openLog(path, maxBytes = 100, now = fixed)
-    l.log(lvInfo, "t", "fresh")
+    l.log(lvInfo, "t", leNote, "fresh")
     l.close()
     check lines(path).len == 1
     check readFile(path & ".1").len == 300
