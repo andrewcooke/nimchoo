@@ -283,9 +283,11 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 
 ### Steps (each a commit; tests pass after each)
 
-1. `cache.nim` (cache directory, file names from options, the character rule) and a selection
-   hash in `select/` (library part).  Tests: names, refusals, the hash is stable and changes
-   with the selection.
+1. [x] `cache.nim` (cache directory, file names from options, the character rule,
+   `isCacheFileName` for what the server may serve) and `select/selection.nim`
+   (`selectionKey`: 12 hex digits of the SHA-256 of the selected activities' file hashes and
+   sessions, so it is the same in any database and does not depend on ids).  Tests: names,
+   refusals, the key is stable, order-independent, and follows the selection.
 2. `heatmap/` with style `lines`: query, simplification, GeoJSON text (pure part tested on
    its own), `nch heatmap [--sel H] [--style lines] [--tolerance M]`.  Tests: valid JSON,
    one feature per activity, fewer points after simplifying, a second run does no work (file

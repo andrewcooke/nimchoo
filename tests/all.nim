@@ -2,7 +2,7 @@
 ## <dir>/<file>.nim (some cover a few neighbouring files); tests/support/ holds
 ## what they share.
 {.push warning[UnusedImport]: off.}
-import ./test_xlsx, ./test_errors, ./test_structure
+import ./test_xlsx, ./test_errors, ./test_structure, ./test_cache
 import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
               test_command, test_sdkcsv]
 import ./profile/[test_load, test_load_errors]
@@ -10,6 +10,6 @@ import ./db/test_store
 import ./destroy/test_command
 import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_events,
                    test_display, test_logsink]
-import ./select/[test_criteria, test_command]
+import ./select/[test_criteria, test_command, test_selection]
 import ./ui/[test_style, test_live, test_logfile]
 {.pop.}
