@@ -344,6 +344,10 @@ is a `grep` over a log that accumulates.
 * **The hint becomes** `more: nch log import advisory duplicate --last`, naming only what
   happened.
 
+* **Later: log level filtering in `nch log`** (e.g. `--level warn`: that level and above).  The
+  level is already in every line (INFO / WARN / ERROR) and separate from the event, so this is a
+  filter on the parsed line; note that failed lines are ERROR and advisories WARN, so it
+  overlaps with the event filter and may matter mostly for new events.
 * **Later: light and dark backgrounds.**  Only the basic ANSI colours plus bold/dim are used, which
   terminals remap through their theme, but `dim` can all but vanish on a light background and
   yellow is poor on white.  `look(event)` would take a theme (`light` / `dark`), from
