@@ -2,7 +2,7 @@
 ## (The command of the activity module; the module is not called `import`
 ## because that is a Nim keyword.)
 
-import std/strutils
+import std/[os, strutils]
 import ../cli/common
 import ../db/store
 import ../errors
@@ -24,6 +24,10 @@ that cannot be imported is reported and the others carry on.
                 time (finds files that were moved or copied; retries failures)
   -h, --help    show this help
 """
+
+proc home(): string {.raises: [].} =
+  try: getHomeDir().strip(leading = false, chars = {'/'})
+  except OSError: ""
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch import ARGS`; returns the exit status.
@@ -49,13 +53,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch import", e.msg)
   defer: st.close()
+  let logPath = if g.log.enabled: displayPath(g.log.path, home()) else: ""
   let screen =
     if not opts.quiet and canLive():
-      liveSink(newTerminalLive(), if g.log.enabled: g.log.path else: "",
+      liveSink(newTerminalLive(), logPath,
                proc(s: string) {.closure, raises: [].} = stdout.say(s),
                proc(s: string) {.closure, raises: [].} = stderr.say(s))
     else:
-      plainSink(opts.quiet)
+      plainSink(opts.quiet, logPath)
   let sink = if g.log.enabled: fanOut(@[screen, logSink(g.log)]) else: screen
   let summary = importPaths(st, targets, opts, sink)
   if summary.failed > 0: exitFailure else: exitOk

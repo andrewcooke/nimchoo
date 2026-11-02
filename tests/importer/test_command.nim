@@ -55,7 +55,7 @@ suite "nch import: finding files":
     check imported.len == 3
     let names = imported.mapIt(it.split("  ")[1])
     check names == names.sorted
-    check r.lines[^1] == "3 files: 3 imported, 0 skipped, 0 failed"
+    check r.lines[^1] == "3 files: 3 imported, 0 failed"
 
   test "a file given twice, or by its directory too, is imported once":
     let d = fresh("dups")
@@ -64,8 +64,8 @@ suite "nch import: finding files":
     defer: st.close()
     let r = importReport(st, @[d / "a.fit", d, d / "a.fit"])
     check r.imported == 1
-    check r.skipped == 0
-    check r.lines[^1] == "1 file: 1 imported, 0 skipped, 0 failed"
+    check r.duplicates + r.unchanged == 0
+    check r.lines[^1] == "1 file: 1 imported, 0 failed"
 
   test "an explicit file is tried whatever it is called":
     let d = fresh("ext")
@@ -84,7 +84,7 @@ suite "nch import: finding files":
     check r.failed == 2
     check r.lines[0].contains("no such file or directory")
     check r.lines[1].contains("no .fit files found")
-    check r.lines[^1] == "2 files: 0 imported, 0 skipped, 2 failed (not found 2)"
+    check r.lines[^1] == "2 files: 0 imported, 2 failed (not found 2)"
 
 suite "nch import: a mixed run":
   test "a bad file does not stop the others, or undo them":
@@ -108,12 +108,12 @@ suite "nch import: a mixed run":
     discard importReport(st, @[d])
     let r = importReport(st, @[d])
     check r.imported == 0
-    check r.skipped == 1
+    check r.unchanged == 1
     check r.lines[0].contains("unchanged")
     # looking at every file finds it is a file already imported
     let slow = importReport(st, @[d], ImportOptions(slow: true))
-    check slow.skipped == 1
-    check slow.lines[0].contains("already imported")
+    check slow.duplicates == 1
+    check slow.lines[0].contains("duplicate")
 
   test "quiet shows only failures and the summary":
     let d = fresh("quiet")
@@ -124,9 +124,9 @@ suite "nch import: a mixed run":
     let r = importReport(st, @[d], ImportOptions(quiet: true))
     check r.lines.len == 2
     check r.lines[0].startsWith("failed")
-    check r.lines[1] == "2 files: 1 imported, 0 skipped, 1 failed (bad format 1)"
+    check r.lines[1] == "2 files: 1 imported, 1 failed (bad format 1)"
 
-  test "repeated warnings in a file are grouped":
+  test "repeated advisories in a file are grouped":
     let d = fresh("warn")
     # three records in the same second: two duplicate warnings
     let body = fitFile(
@@ -140,9 +140,9 @@ suite "nch import: a mixed run":
     defer: st.close()
     let r = importReport(st, @[d])
     check r.imported == 1
-    check r.warnings.len == 1
-    check r.warnings[0].contains("dup.fit")
-    check r.warnings[0].contains("and 1 more like it")
+    check r.stderr.len == 1
+    check r.stderr[0].contains("dup.fit")
+    check r.stderr[0].contains("and 1 more like it")
 
 suite "nch import: the command":
   test "exit codes":

@@ -63,7 +63,7 @@ suite "import events: a run":
     check sum.done == 2
     check sum.imported == 2
 
-  test "unchanged, already imported, and known failure":
+  test "unchanged, duplicate, and known failure":
     let d = fresh("outcomes")
     bytesToFile(d / "a.fit", tiny(base + 1))
     writeFile(d / "bad.fit", "junk")
@@ -73,11 +73,11 @@ suite "import events: a run":
     let (again, s1) = run(st, @[d])
     check again.dones.mapIt(it.outcome) == @[oUnchanged, oKnownFailure]
     check again.dones[1].failure == fkBadFormat
-    check s1.skipped == 1
+    check s1.unchanged == 1
     check s1.known == 1
     check s1.failed == 0
     let (slow, s2) = run(st, @[d], ImportOptions(slow: true))
-    check slow.dones.mapIt(it.outcome) == @[oAlreadyImported, oFailed]
+    check slow.dones.mapIt(it.outcome) == @[oDuplicate, oFailed]
     check s2.failures[fkBadFormat] == 1
 
   test "a path that is not there is a failure with no start event":
@@ -121,8 +121,8 @@ suite "import events: failures by kind":
     if evs.dones[0].outcome == oFailed:      # (a superuser can read anything)
       check evs.dones[0].failure == fkUnreadable
 
-suite "import events: warnings":
-  test "warnings travel with the file, and are counted":
+suite "import events: advisories":
+  test "advisories travel with the file, and are counted":
     let d = fresh("warnings")
     bytesToFile(d / "dup.fit", fitFile(
       defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) &
@@ -132,8 +132,8 @@ suite "import events: warnings":
     let st = openStore(d / "x.db", allFragments)
     defer: st.close()
     let (evs, sum) = run(st, @[d])
-    check evs.dones[0].warnings.mapIt(it.kind) == @[wkDuplicateTime]
-    check sum.warnings == 1
+    check evs.dones[0].advisories.mapIt(it.kind) == @[wkDuplicateTime]
+    check sum.advisories == 1
 
 suite "import events: sinks":
   test "fanOut gives every sink every event, in order":
@@ -152,9 +152,12 @@ suite "import events: sinks":
                   failure: fkBadFormat, message: msg)
     check plainLines(done(oImported), false).stdout ==
       @["imported  p.fit  (1 activity, 2 segments, 3 coordinates)"]
-    check plainLines(done(oAlreadyImported), false).stdout ==
-      @["skipped   p.fit  (already imported)"]
-    check plainLines(done(oUnchanged), false).stdout == @["skipped   p.fit  (unchanged)"]
+    check plainLines(done(oDuplicate), false).stdout ==
+      @["duplicate p.fit  (already imported)"]
+    var same = done(oDuplicate)
+    same.sameAs = "q/p.fit"
+    check plainLines(same, false).stdout == @["duplicate p.fit  (same content as q/p.fit)"]
+    check plainLines(done(oUnchanged), false).stdout == @["unchanged p.fit"]
     check plainLines(done(oKnownFailure, "why"), false).stdout ==
       @["known     p.fit  (failed before: why)"]
     check plainLines(done(oFailed, "why"), false).stdout == @["failed    p.fit: why"]
@@ -162,18 +165,18 @@ suite "import events: sinks":
   test "quiet keeps only failures and the summary":
     func done(o: Outcome): ImportEvent =
       ImportEvent(kind: evFileDone, index: 1, path: "p.fit", outcome: o)
-    for o in [oImported, oAlreadyImported, oUnchanged, oKnownFailure]:
+    for o in [oImported, oDuplicate, oUnchanged, oKnownFailure]:
       check plainLines(done(o), true).stdout.len == 0
     check plainLines(done(oFailed), true).stdout.len == 1
     check plainLines(ImportEvent(kind: evFinish, summary: Summary(done: 3, imported: 1,
-      skipped: 1, failed: 1)), true).stdout == @["3 files: 1 imported, 1 skipped, 1 failed"]
+      duplicates: 1, failed: 1)), true).stdout == @["3 files: 1 imported, 1 duplicate, 1 failed"]
 
   test "the summary mentions known failures":
-    check summaryLine(Summary(done: 5, skipped: 3, known: 2)) ==
-      "5 files: 0 imported, 3 skipped, 0 failed, 2 known failures (use --slow to retry)"
+    check summaryLine(Summary(done: 5, unchanged: 3, known: 2)) ==
+      "5 files: 0 imported, 3 unchanged, 0 failed, 2 known failures (use --slow to retry)"
     check summaryLine(Summary(done: 1, known: 1)).contains("1 known failure (")
 
   test "notes about the run go to stderr at the end":
     let lines = plainLines(ImportEvent(kind: evFinish,
       summary: Summary(notes: @["something odd"])), false)
-    check lines.stderr == @["warning: something odd"]
+    check lines.stderr == @["note: something odd"]

@@ -46,6 +46,18 @@ proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
 proc add*(b: var SeenBuffer, path: string, row: Seen) =
   b.rows.add (path, row)
 
+proc pathOfFile*(s: Store, fileId: int64): string =
+  ## Where the file with this id was imported from, as last recorded (its name
+  ## if no path was); "" if unknown.  Never fails: it is only for telling people.
+  try:
+    guard:
+      result = s.db.getValue(sql"select path from seen_file where user_id = ? and file_id = ? order by path limit 1",
+                             s.userId, fileId)
+      if result.len == 0:
+        result = s.db.getValue(sql"select name from file where id = ?", fileId)
+  except StoreError:
+    result = ""
+
 func full*(b: SeenBuffer): bool = b.rows.len >= batchSize
 
 proc flush*(s: Store, b: var SeenBuffer) {.raises: [StoreError].} =

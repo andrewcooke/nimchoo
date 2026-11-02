@@ -96,7 +96,7 @@ suite "import: a real ride":
     defer: s.close()
     discard s.importPath(ride)
     let (r, _) = s.importPath(ride)
-    check r.outcome == ioAlreadyImported
+    check r.outcome == ioDuplicate
     check r.activities == 0
     check s.count("file") == 1
     check s.count("activity") == 1
@@ -108,7 +108,7 @@ suite "import: a real ride":
     discard s.importPath(ride)
     var ws: seq[Warning]
     let r = s.importFile(p, "copy.fit", readBytes(ride), ws)
-    check r.outcome == ioAlreadyImported
+    check r.outcome == ioDuplicate
 
   test "each user has their own copy":
     let path = tempDb("users")

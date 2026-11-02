@@ -68,7 +68,7 @@ suite "import: skipping what has not changed":
     bytesToFile(path, changed)
     setLastModificationTime(path, mtime)
     let r = importReport(st, @[d])
-    check r.skipped == 1
+    check r.unchanged == 1
     check r.imported == 0
     check r.lines[0].contains("unchanged")
     # --slow does read it, and finds a different file
@@ -83,8 +83,8 @@ suite "import: skipping what has not changed":
     discard importReport(st, @[d])
     setLastModificationTime(path, getLastModificationTime(path) + initDuration(seconds = 5))
     let r = importReport(st, @[d])
-    check r.skipped == 1
-    check r.lines[0].contains("already imported")      # same content: found by its hash
+    check r.duplicates == 1
+    check r.lines[0].contains("duplicate")             # same content: found by its hash
     check importReport(st, @[d]).lines[0].contains("unchanged")   # and now remembered
 
   test "a changed size means the file is looked at again":
@@ -107,8 +107,8 @@ suite "import: skipping what has not changed":
     createDir(d / "two")
     copyFile(d / "one" / "a.fit", d / "two" / "b.fit")   # same content, new path
     let r = importReport(st, @[d / "two"])
-    check r.skipped == 1
-    check r.lines[0].contains("already imported")
+    check r.duplicates == 1
+    check r.lines[0].contains("same content as " & (d / "one" / "a.fit"))
     check st.count("activity") == 1
     check importReport(st, @[d / "two"]).lines[0].contains("unchanged")
 
@@ -119,7 +119,7 @@ suite "import: skipping what has not changed":
     defer: st.close()
     discard importReport(st, @[d])
     st.db.exec(sql"delete from seen_file")
-    check importReport(st, @[d]).lines[0].contains("already imported")
+    check importReport(st, @[d]).lines[0].contains("duplicate")
     check st.count("seen_file") == 1
     check importReport(st, @[d]).lines[0].contains("unchanged")
 
@@ -132,7 +132,7 @@ suite "import: skipping what has not changed":
     check importReport(st, @[d], ImportOptions(quiet: true)).imported == 450
     check st.count("seen_file") == 450
     let r = importReport(st, @[d], ImportOptions(quiet: true))
-    check r.skipped == 450
+    check r.unchanged == 450
     check r.imported == 0
 
   test "files that are gone leave their rows alone":
@@ -144,7 +144,7 @@ suite "import: skipping what has not changed":
     discard importReport(st, @[d])
     removeFile(d / "a.fit")
     let r = importReport(st, @[d])
-    check r.skipped == 1
+    check r.unchanged == 1
     check st.count("seen_file") == 2
 
 suite "import: remembered failures":

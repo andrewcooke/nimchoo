@@ -487,20 +487,33 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   above, unused by import).  Throttled in the driver, not the file reader: first frame after
   150 ms, then at most 10 per second by a monotonic clock, one write per frame.  **The last
   frame is always drawn and left on screen** (so even a very short run shows the final,
-  coloured counts), followed by a `done: ...` line on stdout that points at the log when
-  files failed.  Nothing is printed per file on screen: failures are counted by kind and
-  described in the log.  Height capped at terminal height - 1, lines cut to the width by visible width,
+  coloured counts), followed by a `done: ...` line on stdout and, on stderr, a `more: grep
+  ...` hint (see "Words").  Nothing is printed per file on screen: failures are counted by
+  kind and described in the log.  Height capped at terminal height - 1, lines cut to the width by visible width,
   cursor hidden while drawing and restored on exit and on Ctrl-C.  Only when stderr is a
   terminal, `TERM` is not `dumb` and not `-q`; colours only if `NO_COLOR` is unset; otherwise
   the plain lines.  Checked under a pseudo-terminal (frame counts, cursor handling, `NO_COLOR`,
   `TERM=dumb`, a 40-column terminal).  **How it looks to a person has not been checked.**
+* **Words** (same on screen, in the log and in hints; "warning" is not used for files): a file
+  is `imported`; a `duplicate` (the same content was imported before: found by SHA-256, and the
+  log and plain output say which file); `unchanged` (path, size and time as last time: not read);
+  a `known failure` (failed before, unchanged); `failed`; and an **advisory** is something
+  noticed in a file that was imported anyway (duplicate seconds, a coordinate outside the
+  segments, trailing bytes...), counted one by one, not by file.  Counts that are zero are left
+  out except imported and failed.  Every log line's text starts with one of `start imported
+  duplicate failed advisory note done`, so `grep -w advisory` finds one kind.  After a run, if
+  anything failed, was a duplicate or was noted, stderr gets `more: grep -wE
+  'failed|duplicate|advisory' ~/.local/state/nch/nch.log` naming only what happened (and nothing
+  without a log).
 * **Log file.** `$NCH_LOG`, else `$XDG_STATE_HOME/nch/nch.log` (a relative value is ignored),
   else `~/.local/state/nch/nch.log`; `NCH_LOG=` (empty) switches it off.  One line per event:
-  `2026-11-01T15:37:58Z INFO  import  text` (UTC; INFO / WARN / ERROR).  `nch` logs each
-  `fit`/`import` command's arguments and exit status.  `import` logs the start, each file
-  imported or already imported, each failure, **every** warning in full (the screen groups
-  them) and the totals; files skipped as unchanged or known failures are not logged one by
-  one (a re-import of thousands would fill it), only counted.  `-q` affects the screen only.
+  `2026-11-01T15:37:58Z INFO  import  duplicate  PATH  same content as OTHER` (UTC; INFO /
+  WARN / ERROR; the levels are not mentioned anywhere a user is told what to do).  `nch` logs
+  each `fit`/`import` command's arguments and exit status.  `import` logs the start, each file
+  imported, each duplicate (with the path it duplicates), each failure, **every** advisory in
+  full (the screen groups them) and the totals; unchanged files and known failures are not
+  logged one by one (a re-import of thousands would fill it), only counted in the `done` line.
+  `-q` affects the screen only.
   Rotation when opened: over 5 MB, `nch.log` -> `.1` -> `.2` -> `.3`, the oldest deleted.
   Appended in block-buffered mode, flushed on WARN/ERROR and at the end.  A log that cannot be
   opened is disabled with one warning, and the work carries on.  Two `nch` processes at once

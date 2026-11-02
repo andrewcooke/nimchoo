@@ -106,6 +106,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
       result.notes.add "cannot read what was seen before, checking every " &
         "file: " & e.msg
   var pending: SeenBuffer
+  var importedFrom: Table[int64, string]   ## file id -> path, for files imported in this run
   var cached: Option[Profile]
   let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
     if cached.isNone:
@@ -145,8 +146,11 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
         ev.outcome = oImported
         ev.counts = Counts(activities: r.activities, segments: r.segments,
                            coords: r.coords)
-      of ioAlreadyImported:
-        ev.outcome = oAlreadyImported
+        importedFrom[r.fileId] = c.path
+      of ioDuplicate:
+        ev.outcome = oDuplicate
+        ev.sameAs = importedFrom.getOrDefault(r.fileId)
+        if ev.sameAs.len == 0: ev.sameAs = pathOfFile(st, r.fileId)
     except NchError as e:
       ev.outcome = oFailed
       ev.failure = failureOf(e)
@@ -158,7 +162,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     if ev.outcome == oFailed:
       row.failure = $ev.failure
       row.message = ev.message
-    ev.warnings = ws
+    ev.advisories = ws
     pending.add c.key, row
     if pending.full: flushSeen()
     finished ev

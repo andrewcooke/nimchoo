@@ -11,7 +11,7 @@ import ./failure
 type
   Outcome* = enum
     oImported,          ## its activities are now in the database
-    oAlreadyImported,   ## the same content was imported before (found by hash)
+    oDuplicate,         ## the same content was imported before (found by hash)
     oUnchanged,         ## the path, size and time are as last time: not read
     oKnownFailure,      ## failed last time and has not changed: not read
     oFailed             ## failed now
@@ -23,8 +23,8 @@ type
     ## Totals so far, or at the end.
     total*: int                 ## files to look at
     done*: int                  ## files looked at
-    imported*, skipped*, failed*, known*: int
-    warnings*: int
+    imported*, duplicates*, unchanged*, failed*, known*: int
+    advisories*: int            ## things noticed in files (see warnings.nim), not files
     failures*: array[FailureKind, int]   ## `failed`, by kind
     notes*: seq[string]         ## things to say about the run itself
 
@@ -44,7 +44,8 @@ type
       counts*: Counts           ## for oImported
       failure*: FailureKind     ## for oFailed and oKnownFailure
       message*: string          ## the reason, for those
-      warnings*: seq[Warning]
+      sameAs*: string           ## for oDuplicate: where that content was imported from
+      advisories*: seq[Warning] ## oddities found in the file (not errors)
     of evFinish:
       summary*: Summary
 
@@ -59,10 +60,11 @@ func tally*(s: var Summary, ev: ImportEvent) =
   ## Count one finished file.
   if ev.kind != evFileDone: return
   inc s.done
-  s.warnings += ev.warnings.len
+  s.advisories += ev.advisories.len
   case ev.outcome
   of oImported: inc s.imported
-  of oAlreadyImported, oUnchanged: inc s.skipped
+  of oDuplicate: inc s.duplicates
+  of oUnchanged: inc s.unchanged
   of oKnownFailure: inc s.known
   of oFailed:
     inc s.failed

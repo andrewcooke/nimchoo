@@ -14,7 +14,7 @@ import ./[extract, route]
 {.push raises: [].}
 
 type
-  ImportOutcome* = enum ioImported, ioAlreadyImported
+  ImportOutcome* = enum ioImported, ioDuplicate
 
   ImportResult* = object
     outcome*: ImportOutcome
@@ -75,7 +75,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
       s.userId, digest)
     if known.len > 0:
       try:
-        return ImportResult(outcome: ioAlreadyImported,
+        return ImportResult(outcome: ioDuplicate,
                             fileId: parseBiggestInt(known))
       except ValueError:
         raiseStore("bad file id " & known)

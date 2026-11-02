@@ -37,29 +37,34 @@ func done(o: Outcome): ImportEvent =
 suite "import log: entries":
   test "start and finish":
     check logEntries(ImportEvent(kind: evStart, total: 3)) ==
-      @[Entry(level: lvInfo, text: "start: 3 files")]
+      @[Entry(level: lvInfo, text: "start      3 files")]
     let fin = logEntries(ImportEvent(kind: evFinish,
-      summary: Summary(done: 3, skipped: 3, notes: @["odd"])))
+      summary: Summary(done: 3, unchanged: 3, notes: @["odd"])))
     check fin.mapIt(it.level) == @[lvWarn, lvInfo]
-    check fin[1].text == "done: 3 files: 0 imported, 3 skipped, 0 failed"
+    check fin[0].text == "note       odd"
+    check fin[1].text == "done       3 files: 0 imported, 3 unchanged, 0 failed"
   test "what changed or went wrong is logged":
     check logEntries(done(oImported)) ==
-      @[Entry(level: lvInfo, text: "p.fit  imported 1 activity, 2 segments, 3 coordinates")]
-    check logEntries(done(oAlreadyImported)).len == 1
+      @[Entry(level: lvInfo, text: "imported   p.fit  1 activity, 2 segments, 3 coordinates")]
+    check logEntries(done(oDuplicate)) ==
+      @[Entry(level: lvInfo, text: "duplicate  p.fit  already imported")]
+    var same = done(oDuplicate)
+    same.sameAs = "q/p.fit"
+    check logEntries(same)[0].text == "duplicate  p.fit  same content as q/p.fit"
     check logEntries(done(oFailed)) ==
-      @[Entry(level: lvError, text: "p.fit  failed (no activity): why")]
+      @[Entry(level: lvError, text: "failed     p.fit  (no activity) why")]
   test "unchanged files and known failures are not":
     check logEntries(done(oUnchanged)).len == 0
     check logEntries(done(oKnownFailure)).len == 0
     check logEntries(ImportEvent(kind: evFileStart, startIndex: 1, startPath: "p")).len == 0
-  test "every warning is logged in full":
+  test "every advisory is logged in full":
     var ev = done(oImported)
-    ev.warnings = @[Warning(offset: 5, kind: wkDuplicateTime, msg: "first"),
+    ev.advisories = @[Warning(offset: 5, kind: wkDuplicateTime, msg: "first"),
                     Warning(offset: 9, kind: wkDuplicateTime, msg: "second")]
     let es = logEntries(ev)
     check es.mapIt(it.level) == @[lvInfo, lvWarn, lvWarn]
-    check es[1].text == "p.fit  offset 5: first"
-    check es[2].text == "p.fit  offset 9: second"
+    check es[1].text == "advisory   p.fit  offset 5: first"
+    check es[2].text == "advisory   p.fit  offset 9: second"
 
 suite "import log: the command":
   test "the log gets the run, even with -q":
@@ -71,10 +76,10 @@ suite "import log: the command":
     check importCommand.run(g, @["-q", d / "src"]) == exitFailure
     g.log.close()
     let text = readFile(path)
-    check "start: 2 files" in text
-    check "a.fit  imported 1 activity" in text
-    check "ERROR import" in text and "bad.fit  failed (bad format)" in text
-    check "done: 2 files: 1 imported, 0 skipped, 1 failed" in text
+    check "start      2 files" in text
+    check "imported   " in text and "a.fit  1 activity" in text
+    check "ERROR import  failed" in text and "bad.fit  (bad format)" in text
+    check "done       2 files: 1 imported, 1 failed" in text
 
   test "a second run logs no file lines, only the totals":
     let d = fresh("again")
@@ -87,7 +92,7 @@ suite "import log: the command":
     g.log.close()
     let ls = readFile(path).splitLines.filterIt(it.len > 0)
     check ls.len == 2
-    check ls[1].endsWith("done: 1 file: 0 imported, 1 skipped, 0 failed")
+    check ls[1].endsWith("done       1 file: 0 imported, 1 unchanged, 0 failed")
 
   test "no log, no file":
     let d = fresh("nolog")
