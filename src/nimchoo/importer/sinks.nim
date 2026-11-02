@@ -50,9 +50,9 @@ func failureBreakdown*(s: Summary): string =
   parts.join(", ")
 
 func summaryLine*(s: Summary): string =
-  ## "1113 files: 1112 imported, 1 duplicate, 0 failed, 85 advisories": what is
+  ## "1113 files, 1112 imported, 1 duplicate, 0 failed, 85 advisories": what is
   ## zero is left out, except imported and failed.
-  result = plural(s.done, "file", "files") & ": " & $s.imported & " imported"
+  result = plural(s.done, "file", "files") & ", " & $s.imported & " imported"
   if s.duplicates > 0: result.add ", " & plural(s.duplicates, "duplicate", "duplicates")
   if s.unchanged > 0: result.add ", " & $s.unchanged & " unchanged"
   result.add ", " & $s.failed & " failed"

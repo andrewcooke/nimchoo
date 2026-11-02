@@ -42,7 +42,7 @@ suite "import log: entries":
       summary: Summary(done: 3, unchanged: 3, notes: @["odd"])))
     check fin.mapIt(it.level) == @[lvWarn, lvInfo]
     check fin[0].text == "note       odd"
-    check fin[1].text == "done       3 files: 0 imported, 3 unchanged, 0 failed"
+    check fin[1].text == "done       3 files, 0 imported, 3 unchanged, 0 failed"
   test "what changed or went wrong is logged":
     check logEntries(done(oImported)) ==
       @[Entry(level: lvInfo, text: "imported   p.fit  1 activity, 2 segments, 3 coordinates")]
@@ -79,7 +79,7 @@ suite "import log: the command":
     check "start      2 files" in text
     check "imported   " in text and "a.fit  1 activity" in text
     check "ERROR import  failed" in text and "bad.fit  (bad format)" in text
-    check "done       2 files: 1 imported, 1 failed" in text
+    check "done       2 files, 1 imported, 1 failed" in text
 
   test "a second run logs no file lines, only the totals":
     let d = fresh("again")
@@ -92,7 +92,7 @@ suite "import log: the command":
     g.log.close()
     let ls = readFile(path).splitLines.filterIt(it.len > 0)
     check ls.len == 2
-    check ls[1].endsWith("done       1 file: 0 imported, 1 unchanged, 0 failed")
+    check ls[1].endsWith("done       1 file, 0 imported, 1 unchanged, 0 failed")
 
   test "no log, no file":
     let d = fresh("nolog")

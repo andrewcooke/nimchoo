@@ -169,11 +169,11 @@ suite "import events: sinks":
       check plainLines(done(o), true).stdout.len == 0
     check plainLines(done(oFailed), true).stdout.len == 1
     check plainLines(ImportEvent(kind: evFinish, summary: Summary(done: 3, imported: 1,
-      duplicates: 1, failed: 1)), true).stdout == @["3 files: 1 imported, 1 duplicate, 1 failed"]
+      duplicates: 1, failed: 1)), true).stdout == @["3 files, 1 imported, 1 duplicate, 1 failed"]
 
   test "the summary mentions known failures":
     check summaryLine(Summary(done: 5, unchanged: 3, known: 2)) ==
-      "5 files: 0 imported, 3 unchanged, 0 failed, 2 known failures (use --slow to retry)"
+      "5 files, 0 imported, 3 unchanged, 0 failed, 2 known failures (use --slow to retry)"
     check summaryLine(Summary(done: 1, known: 1)).contains("1 known failure (")
 
   test "notes about the run go to stderr at the end":

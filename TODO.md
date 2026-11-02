@@ -566,6 +566,12 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
 2. Channel modules, each with its own `sql/`: heart rate, cadence, power, distance as
    `(activity_id, t)` tables; then laps and events.  The importer's step list is designed with
    the first.
+2b. **`nch log`** (idea): show the log with the keywords coloured as on screen (imported green,
+   duplicate grey, advisory yellow, failed red; no colour when piped or `NO_COLOR`), filtered by
+   keyword (`nch log advisory duplicate`), `--last` for the latest run only, `-n N`.  The file
+   stays plain text (an escape next to the word would stop `grep -w` matching).  The hint at the
+   end of an import could then be `more: nch log advisory duplicate`.  Not started: `grep`'s
+   own red highlight was the only red seen so far.
 3. **Named places** (high priority): `nch place add home LAT LON`, then `select --near home`;
    later perhaps looked up by name over HTTPS (OpenStreetMap's Nominatim: needs OpenSSL, a
    polite user-agent and at most one request a second; cache the answer in the database).  An
