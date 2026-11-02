@@ -310,6 +310,58 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
   one page to another (the cookie means links need no token); `--standalone` export.
 
+## Task 5: `nch list` replaces `nch select` (planned)
+
+Why: `select` and a listing would take the same options, and you want to see what you pick.
+One command: the criteria say *which* activities, `--save` says "and keep them", `--show` shows
+what was kept.  What is printed is what is saved.
+
+### Design
+
+* **`nch list [CRITERIA] [--save]`**, **`nch list --show`**.  Criteria (as `select` has now):
+  `--users A B C`, `--from`, `--to`, `--near LAT,LON|latest`, `--radius KM` (alone = `--near
+  latest`), `--newest N`, `--oldest N`, `--latest`; new: `--sport A B` and `--sub-sport A B`
+  (several values mean "any of them"; an unknown name is an error that lists the sports in the
+  database).  No criteria: all of the current user's activities (so `select --all` goes).
+  `--show`: the stored selection; an error with any criterion.  `--save`: replaces the
+  selection with what is listed (also an empty list: then it says so).  `-n` is not needed:
+  `--newest/--oldest N` limit both the list and what is saved.  `nch select` is removed.
+* **Module `selection/`** (renamed from `select/`; the table is already `selection`): `list`
+  is its command, in `command.nim`.  A module is named for the concept it owns (as `importer/`
+  owns activities), its commands are what it offers; amend the layout rule in "Code layout".
+  `selection/001-schema.sql` is the same table, so the fragment is now named
+  `selection/001-schema.sql` (a database with the old name is refused: `nch destroy -f` and
+  re-import, no data of value is at stake yet).  `heatmap` uses `selection/selection.nim` (the key).
+* **One SQL builder:** the "which activities" `where` text is built once from the criteria;
+  `list` selects rows with it, `--save` inserts the same rows (`insert ... select`).
+* **Sport and sub-sport** are columns of `activity` (from the FIT session): `sport` is
+  cycling, running, swimming, walking, `fitness_equipment`, `transition` (the gaps in a
+  triathlon), `generic`; `sub_sport` is a refinement (`road`, `trail`, `open_water`,
+  `virtual_activity` ...) and is often `generic` or missing (about half of the author's rides),
+  so `--sub-sport road` misses some road rides: the help says so.  **A multisport file is
+  several activities** (a triathlon is swim, transition, bike, transition, run; one test file
+  has 19 sessions of a swim-run), so `--sport cycling` is the bike leg alone.  Nothing is
+  excluded by default; `transition` rows are shown as they are.
+* **The table** (pure function in `selection/table.nim`, tested without a database): one row
+  per activity, oldest first: `id`, `date` and `time` (your time zone, as `--from`/`--to` are
+  read), `sport` (`/sub_sport` added only if neither empty nor `generic`), `distance` (km, one
+  decimal), `time` (timer time, h:mm); a `user` column only if more than one user is listed;
+  `--file` adds the file name (to see which rows belong to one multisport file).  Last line:
+  the count, the total distance and time, and a count by sport when there is more than one
+  (`13 running, 2 swimming`).  After `--save`: `saved 42 activities as the selection`.  No
+  colour for now.
+* **Log:** `list` is logged like other commands (`run`, `exit`); `--save` adds a new event
+  `saved` (`42 activities`), in `ui/vocabulary.nim` with its look (green).
+
+### Steps (each a commit; tests pass after each)
+
+1. Rename `select/` to `selection/` (tests mirror it), turn `select` into `list` with `--save`
+   and `--show` and without `--all`/`-n`; the output is still the old one-line summary; fix
+   everything that mentions `select` (heatmap's messages, `commandNames`, usage, docs).
+2. `--sport`, `--sub-sport`, with the error that lists what exists.
+3. The table, `--file`, the summary by sport, the `saved` log event.
+4. Docs; try it on the test data (mixed sports) and on a real library.
+
 ## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)
 
 Problem: the log has a free-text line with a "topic" and no convention (only `import` puts a
