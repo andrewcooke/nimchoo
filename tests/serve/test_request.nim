@@ -64,6 +64,19 @@ suite "serve request: what is asked for":
     check route(target("/heatmap")).get.args.len == 0
     check route(target("/heatmap?token=T&sel=ab")).get.args == @["--sel", "ab"]  # (the token is not an option)
     check route(target("/heatmap?tolerance=2.5")).get.args == @["--tolerance", "2.5"]
+  test "ff: options, and flags that are given as 1":
+    let r = route(target("/ff?model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5")).get
+    check r.command == "ff" and r.pin == ""
+    check r.args == @["--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly", "--utc",
+                      "--fitness-scale", "2", "--fatigue-scale", "5"]
+    check route(target("/ff")).get.args.len == 0
+    check route(target("/heatmap")).get.pin == "sel"
+  test "ff: no other option or value":
+    for bad in ["/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1", "/ff?stdout=1", "/ff?web=1",
+                "/ff?worker=1", "/ff?port=1", "/ff?to=yesterday", "/ff?to=2018-8-1", "/ff?from=2018-08-0x",
+                "/ff?model=a%20b", "/ff?model=", "/ff?fitness-scale=x", "/ff?fatigue-scale=-1", "/ff?fitness-scale=1e3",
+                "/ff?sel=ab12", "/ff/x", "/FF"]:
+      check route(target(bad)).isNone
   test "no other command, option or value":
     for bad in ["/", "/import?x=1", "/destroy", "/list?save=1", "/log", "/heatmap/", "/heatmap/x",
                 "/Heatmap", "/heatmap?worker=1", "/heatmap?save", "/heatmap?sel=a&sel=b",

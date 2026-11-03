@@ -13,7 +13,8 @@ import ../cli/common
 import ../db/store
 import ../errors
 import ../selection/selection
-import ./[lines, page, params, web]
+import ../serve/launch
+import ./[lines, page, params]
 
 {.push raises: [].}
 
@@ -153,7 +154,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     var query: seq[string]
     if parsed.isSome:
       for (k, v) in parsed.get[1]: query.add k & "=" & v
-    return serveWeb(g, p, dir.get, query.join("&"))
+    return serveWeb(g, "heatmap", WebOptions(port: p.port, noOpen: p.noOpen, newToken: p.newToken),
+                    dir.get, query.join("&"))
   if p.worker: stdout.say made.page & "\n" & made.geojson & "\n"
   else: stdout.say made.geojson & "\n"
   exitOk

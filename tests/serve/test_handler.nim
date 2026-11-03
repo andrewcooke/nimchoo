@@ -125,6 +125,20 @@ suite "serve handler: pages":
       check handle(s.cfg, port, get(bad)).code == 404
     check s.fake.calls.len == 0
 
+suite "serve handler: a command with nothing to pin":
+  test "ff: the worker's page is sent as it is, and its CSV is served as text/csv":
+    let s = setup("ff")
+    let ffStem = "ff--key-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc"
+    writeFile(s.cache / (ffStem & ".html"), "<html>the chart</html>")
+    writeFile(s.cache / (ffStem & ".csv"), "time,fitness,fatigue\n")
+    s.fake.result = WorkerResult(stdout: s.cache / (ffStem & ".html") & "\n" & s.cache / (ffStem & ".csv") & "\n")
+    let r = handle(s.cfg, port, get("/ff?to=2018-09-05&hourly=1"))
+    check r.code == 200 and r.body == "<html>the chart</html>"
+    check s.fake.calls == @[@["--db", "/x/y.db", "ff", "--worker", "--to", "2018-09-05", "--hourly"]]
+    let c = handle(s.cfg, port, get("/files/" & ffStem & ".csv"))
+    check c.code == 200 and c.header("Content-Type") == "text/csv; charset=utf-8"
+    check c.body == "time,fitness,fatigue\n"
+
 suite "serve handler: files":
   test "a file of the cache, with its type":
     let s = setup("files")

@@ -26,13 +26,25 @@ type
     of false:
       command*: string
       args*: seq[string]                    ## for `nch COMMAND --worker ARGS`
+      pin*: string                          ## the option that fixes what the page shows ("": none)
+
+  CommandRule* = object
+    name*: string
+    options*: seq[string]                   ## `?name=value` becomes `--name value`
+    flags*: seq[string]                     ## `?name=1` becomes `--name`
+    pin*: string                            ## if a request lacks this option, the address is
+                                            ## sent on with the options the worker used
 
 const
   maxTarget = 2000
   cookieName* = "nch"
   tokenParam* = "token"
+  defaultPort* = 62466    ## the digits of "mchoo" on a phone keypad
   # the commands the server may run: read-only, safe to repeat; with their options
-  commandRules* = [("heatmap", ["sel", "style", "tolerance"])]
+  commandRules* = [
+    CommandRule(name: "heatmap", options: @["sel", "style", "tolerance"], pin: "sel"),
+    CommandRule(name: "ff", options: @["model", "from", "to", "fitness-scale", "fatigue-scale"],
+                flags: @["hourly", "utc"])]
 
 func parseTarget*(raw: string): Option[Target] =
   ## "/heatmap?sel=ab12&style=lines" -> path "/heatmap" and the query, percent-decoded.
@@ -87,15 +99,22 @@ func sameToken*(a, b: string): bool =
   for i in 0 ..< a.len: diff = diff or (ord(a[i]) xor ord(b[i]))
   diff == 0
 
+func isPlainNumber(value: string): bool =
+  ## digits and at most one dot, not starting or ending with it
+  value.len in 1 .. 8 and value.allIt(it in {'0' .. '9', '.'}) and value.count('.') <= 1 and
+    value[0] != '.' and value[^1] != '.'
+
+func isDay(value: string): bool =
+  value.len == 10 and value[4] == '-' and value[7] == '-' and
+    value.allIt(it in {'0' .. '9', '-'})
+
 func validValue(command, option, value: string): bool =
   ## What an option of a command may be set to.
   if not isOptionValue(value): return false
   case option
   of "style": value == "lines"
-  of "tolerance":
-    # a number of metres: digits and at most one dot
-    value.len <= 8 and value.allIt(it in {'0' .. '9', '.'}) and value.count('.') <= 1 and
-      value[0] != '.' and value[^1] != '.'
+  of "tolerance", "fitness-scale", "fatigue-scale": isPlainNumber(value)   # (metres, or a multiplier)
+  of "from", "to": isDay(value)
   else: true
 
 func route*(t: Target): Option[Route] =
@@ -107,15 +126,21 @@ func route*(t: Target): Option[Route] =
       return some(Route(isFile: true, fileName: segments[2]))
     return none(Route)
   if segments.len != 2 or segments[0] != "": return none(Route)
-  for (name, options) in commandRules:
-    if segments[1] != name: continue
+  for rule in commandRules:
+    if segments[1] != rule.name: continue
     var args: seq[string]
     var seen: seq[string]
     for (k, v) in t.query:
       if k == tokenParam: continue
-      if k notin options or k in seen or not validValue(name, k, v): return none(Route)
+      if k in seen: return none(Route)
       seen.add k
-      args.add "--" & k
-      args.add v
-    return some(Route(isFile: false, command: name, args: args))
+      if k in rule.flags:
+        if v != "1": return none(Route)
+        args.add "--" & k
+      elif k in rule.options and validValue(rule.name, k, v):
+        args.add "--" & k
+        args.add v
+      else:
+        return none(Route)
+    return some(Route(isFile: false, command: rule.name, args: args, pin: rule.pin))
   none(Route)

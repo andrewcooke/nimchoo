@@ -519,7 +519,24 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   if not given), so a default run makes a new file each day; the zone is the UTC offset at the end of
   the last day (`tz-east-10800`).  Old files are not deleted (a cache clean-up command is wanted for
   these and the heat map's).  `csv` is now an allowed cache extension.
-* Not done: a form column (fitness minus fatigue); the display layers.
+* **`nch ff --web` / `--worker`** (as for the heat map): `--worker` makes the CSV and a page and prints the
+  page's path, then the CSV's; `--web [--port N] [--no-open] [--new-token]` serves them on 127.0.0.1 and
+  opens `/ff?...` (the address carries the options that were given, so a reload follows the data).  The
+  page (`ff/page.nim`, pure) loads **d3 7.9.0 and Observable Plot 0.6.17 from unpkg under their integrity
+  hashes** (the CSP already allowed unpkg), fetches the CSV from `/files/` and draws fitness and fatigue as
+  two lines with a pointer tip; days are drawn in UTC (their labels are already local dates), hours in the
+  browser's zone.  **Whether Plot is fast enough for hourly data over years is not known**: try
+  `nch ff --hourly --web`; uPlot is the fallback.  `--hourly` is chosen when the command is run (there is
+  no switch in the page).
+* **The server code was generalised for this:** `serve/launch.nim` (`serveWeb(g, command, options, cacheDir,
+  query)`, moved out of `heatmap/web.nim`), and `serve/request.nim` has a `CommandRule` per command
+  (options that take a value, flags that are `name=1`, and the option that is "pinned" in the address:
+  `sel` for the heat map, none for ff).  `defaultPort` moved to `serve/request.nim`.  csv files are served
+  as `text/csv`.
+* **A compiler trap met on the way:** `var p = ""` followed by `p = cacheFile(...).get` (`.get` of a temporary
+  Option, assigned on to a var) left a dangling string in this Nim: the path became garbage (once it was
+  another string's contents).  Keep the Option in a `let` and take `.get` from that.
+* Not done: a form column (fitness minus fatigue); a switch between days and hours in the page.
 * Not compared with the Python's output directly (no pandas here); the recurrence is the same as its
   `ewm` form (see `data/lib.py`), and the impulses it uses agree with the Python's grid to 0.1%.
 

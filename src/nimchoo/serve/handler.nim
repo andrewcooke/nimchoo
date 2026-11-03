@@ -59,6 +59,7 @@ func reply(code: int, body: string, contentType = textType): Reply =
 func contentTypeOf(fileName: string): string =
   if fileName.endsWith(".geojson"): "application/geo+json"
   elif fileName.endsWith(".html"): htmlType
+  elif fileName.endsWith(".csv"): "text/csv; charset=utf-8"
   else: "application/octet-stream"
 
 func htmlEscape(s: string): string =
@@ -92,7 +93,8 @@ proc page(cfg: ServerConfig, route: Route, t: Target): Reply =
   let name = extractFilename(lines[0])
   if parentDir(lines[0]) != cfg.cacheDir or not name.endsWith(".html"):
     return reply(500, "nch " & route.command & " named a page that is not in the cache")
-  if t.query.queryValue("sel").isNone:       # "the current selection": pin it in the address
+  if route.pin.len > 0 and t.query.queryValue(route.pin).isNone:
+    # "the current one" (of a selection, say): pin it in the address
     let stem = parseStem(name[0 ..< name.len - ".html".len])
     if stem.isSome:
       var q: seq[string]
@@ -116,7 +118,8 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Reply =
       ("Set-Cookie", cookieName & "=" & cfg.token & "; HttpOnly; SameSite=Strict; Path=/"),
       ("Location", t.withoutParam(tokenParam))])
   if not sameToken(cookieValue(req.cookie, cookieName), cfg.token):
-    return reply(403, "forbidden: open the address that `nch heatmap --web` printed\n")
+    return reply(403, "forbidden: open the address that `nch " & cfg.logCommand &
+                   " --web` printed\n")
   let route = route(t)
   if route.isNone: return reply(404, "not found")
   if route.get.isFile:

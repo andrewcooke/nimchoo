@@ -13,12 +13,13 @@ import ../cache
 import ../db/store
 import ../errors
 import ../model/[calc, impulses, models]
-import ./[curve, params]
+import ../serve/launch
+import ./[curve, page, params]
 
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
-                                      [--hourly] [--utc] [--stdout]
+                                      [--hourly] [--utc] [--stdout | --worker | --web]
                                       [--fitness-scale S] [--fatigue-scale S]
 
 Make a CSV file of the user's fitness and fatigue in the cache directory, and print its path.
@@ -38,6 +39,13 @@ a new file; old ones are not deleted.)
                     from UTC: 2018-08-27T14:00:00-03:00)
   --utc             days and times in UTC, not this computer's timezone
   --stdout          print the CSV instead of making a file
+  --worker          for programs: also make the web page, and print its path, then the
+                    path of the CSV file, and nothing else
+  --web             show the chart in the browser: make the files, serve them on 127.0.0.1
+                    (this computer only) and open the address; Ctrl-C stops it
+  --port N          the port for --web (default 62466; 0: any free one)
+  --no-open         with --web: print the address but do not open the browser
+  --new-token       with --web: make a new secret (old bookmarks stop working)
   --fitness-scale S multiply the fitness by S (default 1)
   --fatigue-scale S multiply the fatigue by S (default 1; the original program used 5, to
                     make the two curves look alike)
@@ -124,17 +132,32 @@ proc makeCsv(st: Store, m: Model, p: Params, now: int64, tz: Timezone): string
     if not committed: st.rollback()
   csv(hourlyImpulses(st.db, st.userId, m.id), m, p, now, tz)
 
-proc cacheName(p: Params, name, key: string, tz: Timezone): Option[string] =
-  ## The path of the file for the options and the data, if one can be made.
+proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
+  ## The name (without extension) of the files for the options and the data, if one can be made.
   var options = @[("key", key), ("model", name), ("res", if p.hourly: "hour" else: "day"),
                   ("to", localDate(p.toDay.get, utc())),
                   ("tz", zoneName(tz, p, p.toDay.get, p.utc)),
                   ("fitscale", scaleText(p.fitnessScale)), ("fatscale", scaleText(p.fatigueScale))]
   if p.fromDay.isSome: options.add ("from", localDate(p.fromDay.get, utc()))
-  let stem = fileStem("ff", options)
-  let dir = cacheDir()
-  if stem.isNone or dir.isNone: return none(string)
-  cacheFile(dir.get, stem.get, "csv")
+  fileStem("ff", options)
+
+func queryNumber(x: float): string =
+  ## A multiplier for an address: 5.0 -> "5", 1.25 -> "1.25".
+  let s = formatFloat(x, ffDecimal, 4)
+  s.strip(leading = false, chars = {'0'}).strip(leading = false, chars = {'.'})
+
+proc webQuery*(p: Params): string =
+  ## What the address of the chart says: the options given (before the defaults are filled in,
+  ## so that a page asked for tomorrow is tomorrow's).  See serve/request.nim for the names.
+  var q: seq[string]
+  if p.model.len > 0: q.add "model=" & p.model
+  if p.fromDay.isSome: q.add "from=" & localDate(p.fromDay.get, utc())
+  if p.toDay.isSome: q.add "to=" & localDate(p.toDay.get, utc())
+  if p.hourly: q.add "hourly=1"
+  if p.utc: q.add "utc=1"
+  if p.fitnessScale != 1: q.add "fitness-scale=" & queryNumber(p.fitnessScale)
+  if p.fatigueScale != 1: q.add "fatigue-scale=" & queryNumber(p.fatigueScale)
+  q.join("&")
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch ff ARGS`; returns the exit status.
@@ -144,6 +167,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   if p.problem.len > 0:
     return usageError("nch ff", usage, p.problem)
+  let query = webQuery(p)
   var st: Store
   try:
     st = openStore(g)
@@ -167,17 +191,31 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.stdout:
       stdout.say makeCsv(st, m.get, p, now, tz)
       return exitOk
-    let file = cacheName(p, name, key, tz)
-    if file.isNone:
+    let dir = cacheDir()
+    let stem = cacheStem(p, name, key, tz)
+    if dir.isNone or stem.isNone:
       return failure("nch ff", "no cache directory is known (set NCH_CACHE), or the options " &
                      "cannot be made into a file name; use --stdout")
-    if not fileExists(file.get):                          # (made before from the same data: nothing to do)
-      let text = makeCsv(st, m.get, p, now, tz)
-      try:
-        write(file.get, text)
-      except IOError, OSError:
-        return failure("nch ff", "cannot write " & file.get & ": " & getCurrentExceptionMsg())
-    stdout.say file.get & "\n"
+    # (the paths are kept in `let`s: `.get` on a temporary Option that is assigned on to a `var` has
+    # left a dangling string here, with this compiler)
+    let csvFile = cacheFile(dir.get, stem.get, "csv")
+    let pageFile = cacheFile(dir.get, stem.get, "html")
+    let csvPath = csvFile.get
+    try:
+      if not fileExists(csvPath):                 # (made before from the same data: nothing to do)
+        write(csvPath, makeCsv(st, m.get, p, now, tz))
+      if p.worker or p.web:
+        # the page is rewritten each time (it is tiny, and may have changed since)
+        let html = pageHtml(extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly)
+        if html.isNone: return failure("nch ff", "cannot make a page for " & csvPath)
+        write(pageFile.get, html.get)
+    except IOError, OSError:
+      return failure("nch ff", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg())
+    if p.web:
+      return serveWeb(g, "ff", WebOptions(port: p.port, noOpen: p.noOpen, newToken: p.newToken),
+                      dir.get, query)
+    if p.worker: stdout.say pageFile.get & "\n" & csvPath & "\n"
+    else: stdout.say csvPath & "\n"
     exitOk
   except StoreError as e:
     failure("nch ff", e.msg)

@@ -4,11 +4,11 @@
 
 import std/[math, strutils]
 import ../cache
+import ../serve/request
 
 {.push raises: [].}
 
 const
-  defaultPort* = 62466    ## the digits of "mchoo" on a phone keypad
   defaultStyle* = "lines"
   defaultToleranceM* = 5.0
   maxToleranceM* = 1000.0
