@@ -25,18 +25,22 @@ type
     name*: string    ## "module/file", unique
     sql*: string     ## DDL only (data is inserted from Nim)
     seed*: SeedProc  ## nil if there is no data to put in
+    seedVersion*: string  ## which data the seed puts in (a hash), part of the checksum
 
 proc checksum*(f: Fragment): string =
-  ## The SHA-256 of the fragment's SQL, in hex: recorded with the fragment when it is
-  ## applied, so that a database made from different SQL (a fragment edited since) is
-  ## noticed when it is opened.
-  for c in secureHash(Sha_256, f.sql):
+  ## The SHA-256 of the fragment's SQL (and of the version of the data its seed puts in), in
+  ## hex: recorded with the fragment when it is applied, so that a database made from
+  ## different SQL or different data is noticed when it is opened.
+  let text = if f.seedVersion.len > 0: f.sql & "\n-- seed data: " & f.seedVersion else: f.sql
+  for c in secureHash(Sha_256, text):
     result.add toLowerAscii(toHex(ord(c), 2))
 
-func withSeed*(f: Fragment, seed: SeedProc): Fragment =
-  ## The same fragment, with data to put in after its tables are made.
+func withSeed*(f: Fragment, seed: SeedProc, version = ""): Fragment =
+  ## The same fragment, with data to put in after its tables are made.  `version` names
+  ## the data (a hash is best): if it changes, databases made with the old data are noticed.
   result = f
   result.seed = seed
+  result.seedVersion = version
 
 template fragment*(file: static string): Fragment =
   ## The fragment in `<file>` next to the calling source file.

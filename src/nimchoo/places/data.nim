@@ -20,9 +20,12 @@ type PlaceRow* = object
 when defined(nchSmallPlaces):
   const carried = staticRead("cities-test.tsv")
   const isGzipped = false
+  const dataVersion* = "test-list"
 else:
   const carried = staticRead("cities.tsv.gz")
   const isGzipped = true
+  const dataVersion* = staticRead("cities.version").strip
+    ## the SHA-256 of cities.tsv.gz, written by tools/makecities.nim
 
 func parsePlace*(line: string): Option[PlaceRow] =
   ## One line `name TAB country TAB lat TAB lon TAB population`; none if it is not one.

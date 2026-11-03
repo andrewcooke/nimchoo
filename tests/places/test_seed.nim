@@ -2,6 +2,7 @@ import std/[math, options, os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
+import checksums/sha2
 import nimchoo/places/[data, seed]
 
 proc near(s: Store, lon, lat: float): Nearest =
@@ -79,9 +80,20 @@ suite "places: the box is wide enough":
     check nearestPlace(s.db, 0.0, 0.0).isNone
 
 suite "places: the real list":
-  test "about seventy thousand places, among them the ones you would expect":
+  test "sections of a populated place (suburbs, districts) are not in it, the cities are":
     let real = parsePlaces(unpack(readFile("src/nimchoo/places/cities.tsv.gz"), true))
-    check real.len > 65_000 and real.len < 80_000
+    var names: seq[string]
+    for r in real: names.add r.name & "," & r.country
+    check "Santiago,CL" in names and "London,GB" in names and "Sydney,AU" in names
+    check "Ñuñoa,CL" notin names and "Whitechapel,GB" notin names
+  test "the version file is the hash of the list (the tool writes both)":
+    var expected = ""
+    for c in secureHash(Sha_256, readFile("src/nimchoo/places/cities.tsv.gz")):
+      expected.add toLowerAscii(toHex(ord(c), 2))
+    check readFile("src/nimchoo/places/cities.version").strip == expected
+  test "about sixty-five thousand places, among them the ones you would expect":
+    let real = parsePlaces(unpack(readFile("src/nimchoo/places/cities.tsv.gz"), true))
+    check real.len > 60_000 and real.len < 68_000
     var found: seq[string]
     for r in real:
       if (r.name, r.country) in [("Santiago", "CL"), ("Lisbon", "PT"), ("Tokyo", "JP"),
@@ -96,7 +108,9 @@ suite "places: the real list":
       population integer not null default 0, source text not null)""")
     s.db.exec(sql"select AddGeometryColumn('place', 'geom', 4326, 'POINT', 'XY')")
     loadPlaces(s.db, real)
+    # Providencia, where most of the author's rides start: GeoNames has it only as an
+    # administrative area, and Nunoa only as a section of a populated place, which the list
+    # leaves out; so the nearest is the city
     let n = nearestPlace(s.db, -70.61, -33.43).get
-    check n.name == "Santiago" or n.name.startsWith("Las Condes") or n.name.startsWith("Providencia") or
-          n.name.startsWith("Ñuñoa") or n.distanceM < 8_000
-    check n.country == "CL"
+    check n.name == "Santiago" and n.country == "CL"
+    check n.distanceM < 8_000

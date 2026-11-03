@@ -89,6 +89,28 @@ suite "database: opening and bringing the schema up to date":
       check "older version of nch" in e.msg
       check "nch destroy -f" in e.msg
 
+  test "the data a seed puts in is part of the checksum, when it is given a version":
+    let plain = frag("m/001.sql", "create table t(x integer);")
+    let v1 = plain.withSeed(putSeven, "list-1")
+    let v2 = plain.withSeed(putSeven, "list-2")
+    check v1.checksum != plain.checksum and v1.checksum != v2.checksum
+    check plain.withSeed(putSeven).checksum == plain.checksum       # (no version: the SQL alone)
+    let path = tempDb("seedversion")
+    openStore(path, @[v1]).close()
+    openStore(path, @[v1]).close()                                  # the same data: fine
+    try:
+      openStore(path, @[v2]).close()                                # other data: refused
+      check false
+    except StoreError as e:
+      check "different version of nch" in e.msg and "nch destroy -f" in e.msg
+
+  test "the places fragment carries the version of its list":
+    var places: Fragment
+    for f in allFragments:
+      if f.name == "places/001-schema.sql": places = f
+    check places.seedVersion.len > 0
+    check places.checksum != frag("places/001-schema.sql", places.sql).checksum
+
   test "a changed fragment that has a seed is noticed too":
     let path = tempDb("changedseeded")
     seedRuns = 0

@@ -475,6 +475,18 @@ should mean "starts near" (how rides are named), and named places want a home in
    was needed: while unreleased, a fragment is edited in place, so its *name* does not change.  A
    seed's data is not part of the checksum; a changed list of places needs a new fragment.)
    `nch destroy` (whole database) needs no schema, so it still works on such a database.
+3c. [x] **District entries are left out of the list** (decided after the author's rides in Providencia
+   were labelled Nunoa): `tools/makecities.nim` drops GeoNames feature code PPLX ("section of a
+   populated place": suburbs and districts), 5,309 of 69,999, leaving 64,690 places (1.13 MB).
+   On the author's 1,108 starts: nearest place = Santiago for 1,086 (was Nunoa for 1,084).  The
+   biggest-place-within-15-km rule was tried and not needed.  Providencia, Las Condes, Vitacura,
+   La Reina and Macul are in GeoNames only as administrative areas (ADM3, no population), so no
+   list of populated places has them; the answer for those is the user's own named places
+   (`nch place add`, item D: not needed yet).  The tool also writes `cities.version` (the SHA-256
+   of the list), which is part of the places fragment's checksum (`withSeed(seed, version)`), so
+   a database made with another list is refused like any out-of-date one.  The `test` task
+   builds `nch-test` (short list, like the tests) for the subprocess tests, so `./nch` is never
+   replaced by a test build.
 4. Docs.
 
 ## Task 5: `nch list` replaces `nch select` (step 1 built)

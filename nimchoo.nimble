@@ -15,11 +15,13 @@ requires "db_connector"
 requires "checksums"
 
 task test, "Run all tests (optimised, with run-time checks on: about 5x faster than a debug build)":
-  exec "nim c -d:release --checks:on --hints:off -o:nch src/nch.nim"      # (some tests run ./nch)
+  # (some tests run a program: built like the tests, with the short list of places, and kept apart
+  # from ./nch so that a test build never replaces the one you use)
+  exec "nim c -d:release --checks:on -d:nchSmallPlaces --hints:off -o:nch-test src/nch.nim"
   exec "nim c -r -d:release --checks:on -d:nchSmallPlaces --hints:off tests/all.nim"   # (a short list of places: fast databases)
 
 task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
-  exec "nim c --hints:off -o:nch src/nch.nim"
+  exec "nim c -d:nchSmallPlaces --hints:off -o:nch-test src/nch.nim"
   exec "nim c -r -d:nchSmallPlaces --hints:off tests/all.nim"
 
 task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)":
