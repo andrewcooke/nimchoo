@@ -47,7 +47,8 @@ last one).  Criteria are combined with "and".
   --latest           the same as --newest 1
   --save             make what is listed the selection
   --show             show the selection (no criteria allowed)
-  -v, --verbose      show more of each activity
+  -v, --verbose      show more of each activity: where it started (the nearest town or
+                     city, from the GeoNames list) and the path of its file
   -h, --help         show this help
 
 "latest" is the newest activity among those that meet the criteria that do not use
@@ -122,11 +123,17 @@ func rowColumns(verbose: bool): string =
     "coalesce(a.timer_s, -1) as active, f.name as file, " &
     "(select name from user where id = f.user_id) as user, " &
     (if verbose:
-       "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path"
-     else: "f.name as path")
+       "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, " &
+       # where it started: the nearest place, and how far the start is from it
+       "coalesce((select p.name || ', ' || p.country from place p where p.id = a.place_id), '') as pname, " &
+       "coalesce((select ST_Distance(a.start, p.geom, 1) from place p where p.id = a.place_id), -1) as pdist"
+     else: "f.name as path, '' as pname, -1 as pdist")
+
+const rowFields = "start_t, sport, sub, dist, active, file, user, path, pname, pdist"
+  ## the columns of a row, in the order `readRows` reads them
 
 proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
-  ## The rows a query gives (start_t, sport, sub, dist, active, file, user, path), as listed.
+  ## The rows a query gives (the columns `rowFields`), as listed.
   guard:
     for r in st.db.fastRows(sql(query)):
       try:
@@ -135,7 +142,8 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
         result.add ListRow(startT: parseBiggestInt(r[0]), sport: r[1], subSport: r[2],
                            distanceM: if dist >= 0: some(dist) else: none(float),
                            activeS: if active >= 0: some(active) else: none(float),
-                           file: r[5], user: r[6], path: r[7])
+                           file: r[5], user: r[6], path: r[7],
+                           place: placeText(r[8], parseFloat(r[9])))
       except ValueError:
         raiseStore("bad number from the database")
 
@@ -160,7 +168,7 @@ proc latestAmong(st: Store, match: string): Option[tuple[id: int64, row: ListRow
     {.raises: [StoreError].} =
   ## The newest activity of those a query finds (one giving `id` and the row columns).
   let ordered = " from (" & match & ") order by start_t desc, id desc limit 1"
-  let rows = readRows(st, "select start_t, sport, sub, dist, active, file, user, path" & ordered)
+  let rows = readRows(st, "select " & rowFields & ordered)
   if rows.len == 0: return none(tuple[id: int64, row: ListRow])
   guard:
     try:
@@ -264,8 +272,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines
       committed = true
     finally:
       if not committed: st.rollback()
-  let rows = readRows(st, "select start_t, sport, sub, dist, active, file, user, path from (" &
-    match & ") order by start_t, id")
+  let rows = readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
   result.lines.add listing(rows, zone, c.verbose, some(total))

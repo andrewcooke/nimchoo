@@ -12,4 +12,4 @@ import ./db/fragment
 {.push raises: [].}
 
 const allFragments*: seq[Fragment] =
-  importerDdl.fragments & placesDdl.fragments & selectionDdl.fragments
+  placesDdl.fragments & importerDdl.fragments & selectionDdl.fragments

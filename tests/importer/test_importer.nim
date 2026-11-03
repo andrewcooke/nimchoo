@@ -1,10 +1,11 @@
-import std/[os, strutils, unittest]
+import std/[options, os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/importer/[extract, importer]
 import nimchoo/db/store
 import nimchoo/errors
 import nimchoo/fit/bytes
 import nimchoo/modules
+import nimchoo/places/seed
 import nimchoo/profile/load
 import nimchoo/warnings
 import ../support/fitbuilder
@@ -163,29 +164,24 @@ suite "import: files that cannot be imported":
       ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
       ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""") == "2"
 
-  test "no positions, no start":
-    let s = openStore(tempDb("nostart"))
+  test "the nearest place to the start is kept with the activity":
+    let s = openStore(tempDb("placed"))
     defer: s.close()
-    let noGps = fitFile(defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)]) &
-      b(1) & le32(base + 2) & le32(base) & b(2))
+    discard s.importPath(ride)                          # a ride in Santiago
+    check s.db.getValue(sql"select p.name || ', ' || p.country from activity a join place p on p.id = a.place_id") ==
+      "Santiago, CL"
     var ws: seq[Warning]
-    let r = s.importFile(p, "nogps.fit", noGps, ws)
-    check r.activities == 1 and r.coords == 0
-    check s.db.getValue(sql"select count(*) from activity where start is null") == "1"
-    check s.db.getValue(sql"select count(*) from idx_activity_start") == "0"
-
-  test "the start of an activity is its first position, as a point":
-    let s = openStore(tempDb("start"))
-    defer: s.close()
-    var ws: seq[Warning]
-    discard s.importFile(p, "tiny.fit", tiny, ws)
-    check s.db.getValue(sql"select ST_Y(start) || ' ' || ST_X(start) from activity") == "45.0 -90.0"
-    check s.db.getValue(sql"select count(*) from idx_activity_start") == "1"      # (and it is indexed)
-    # a real ride: the same as the first row of its coordinates
-    discard s.importPath(ride)
-    check s.db.getValue(sql"""select count(*) from activity a where a.start is not null and
-      ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
-      ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""") == "2"
+    discard s.importFile(p, "tiny.fit", tiny, ws)       # (45 N, 90 W: nowhere near anything in the short list)
+    check s.db.getValue(sql"select count(place_id) from activity") == "2"
+    # it is the nearest one: the same as asking for it
+    let lon = s.db.getValue(sql"select ST_X(start) from activity where id = 2")
+    let lat = s.db.getValue(sql"select ST_Y(start) from activity where id = 2")
+    check nearestPlace(s.db, parseFloat(lon), parseFloat(lat)).get.id ==
+      parseBiggestInt(s.db.getValue(sql"select place_id from activity where id = 2"))
+    # a place that goes leaves the activities without one
+    s.db.exec(sql"delete from place where name = 'Santiago'")
+    check s.db.getValue(sql"select count(place_id) from activity where id = 1") == "0"
+    check s.db.getValue(sql"select count(*) from sqlite_master where name = 'activity_place'") == "1"
 
   test "no positions, no start":
     let s = openStore(tempDb("nostart"))
@@ -197,6 +193,7 @@ suite "import: files that cannot be imported":
     check r.activities == 1 and r.coords == 0
     check s.db.getValue(sql"select count(*) from activity where start is null") == "1"
     check s.db.getValue(sql"select count(*) from idx_activity_start") == "0"
+    check s.db.getValue(sql"select count(place_id) from activity") == "0"       # (and no place)
 
   test "a file with no activity writes nothing":
     let s = openStore(tempDb("noact"))

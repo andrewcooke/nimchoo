@@ -28,6 +28,9 @@ suite "places: the nearest":
     let n = s.near(-70.65, -33.45)            # Santiago
     check n.name == "Santiago" and n.country == "CL"
     check n.distanceM < 2_000
+  test "it says which place, by its id":
+    let n = s.near(-70.65, -33.45)
+    check s.db.getValue(sql"select name from place where id = ?", n.id) == "Santiago"
   test "accented names come out as they are":
     check s.near(-71.62, -33.05).name == "Valparaíso"
     check s.near(8.55, 47.37).name == "Zürich"

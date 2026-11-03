@@ -9,6 +9,7 @@ import ../db/[statement, store]
 import ../errors
 import ../profile/model
 import ../warnings
+import ../places/seed
 import ./[extract, route]
 
 {.push raises: [].}
@@ -99,7 +100,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     routeStmt = some(prepareStmt(s.db,
       "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))"))
     startStmt = some(prepareStmt(s.db,
-      "update activity set start = MakePoint(?, ?, 4326) where id = ?"))
+      "update activity set start = MakePoint(?, ?, 4326), place_id = ? where id = ?"))
     result.outcome = ioImported
     for a in found:
       insertActivity(actStmt.get, fileId, a)
@@ -109,7 +110,9 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
       if a.coords.len > 0:                  # where it started: the first position
         startStmt.get.bindReal(1, a.coords[0].lon)
         startStmt.get.bindReal(2, a.coords[0].lat)
-        startStmt.get.bindInt(3, activityId)
+        let near = nearestPlace(s.db, a.coords[0].lon, a.coords[0].lat)
+        if near.isSome: startStmt.get.bindInt(3, near.get.id) else: startStmt.get.bindNull(3)
+        startStmt.get.bindInt(4, activityId)
         startStmt.get.run()
       let wkt = routeWkt(a)
       if wkt.isSome:

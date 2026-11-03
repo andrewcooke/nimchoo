@@ -449,7 +449,24 @@ should mean "starts near" (how rides are named), and named places want a home in
    activity started as the centre (`startOf`), and the line says `(the start of the latest
    activity)`.  The route and its index remain, for the map; "passes through" could come back as
    `--through`.
-3. The `place` column in `list -v`; padding by characters.
+3. [x] **The nearest place is stored with the activity**: `activity.place_id` (references `place`,
+   `on delete set null`, indexed), set at import with the start (`importer.nim` asks
+   `places/seed.nim`'s `nearestPlace`), so `list -v` needs no lookup: a `place` column before
+   `file` from a join, `Santiago, CL`, or `Coyhaique, CL (180km)` if more than 10 km away
+   (`placeText`), `-` if unknown.  The places fragment now comes before the importer's in
+   `modules.nim` (the newer module may use the older).  Table columns are padded by characters
+   (`padLeft` / `padRight`; "Valparaiso" is 10 wide, not 11).  Import of the whole test tree
+   (79 files, 74 activities) still takes about 2 s.  Needs a re-import.
+   **Seen on real data (the test files), not decided:** the nearest place is often a district
+   of the city (`Nunoa` for rides in Santiago, `Whitechapel` for London, `Wersten` for
+   Duesseldorf), because GeoNames lists those as separate populated places.  Options: prefer
+   the most populous place within some radius (say 15 km) over the nearest; or the 15,000+
+   list (it still has Nunoa); or leave it (it is the nearest place).
+   **Seen by the author, to fix:** an old database fails with "no such column", not "this
+   database is out of date": the fragment *names* are unchanged when an unreleased fragment is
+   edited in place, so the database cannot tell.  Plan: record a checksum of each fragment's SQL
+   in the `fragment` table and refuse a database whose recorded checksum differs (or that has
+   none) with "made by another version of nch: `nch destroy -f` and import again".
 4. Docs.
 
 ## Task 5: `nch list` replaces `nch select` (step 1 built)

@@ -377,21 +377,6 @@ suite "list: the command":
     discard save(db, "--near", "-17.0,179.9", "--radius", "1")       # not near enough
     check chosen(db).len == 0
 
-  test "near across the date line":
-    let db = world("dateline")
-    let st = openStore(db, allFragments)
-    addActivity(st, st.userId, "fiji", aug27 + 100, "MULTILINESTRING((179.95 -17.0, 179.96 -17.0))", "cycling", "road", 179.95, -17.0)
-    addActivity(st, st.userId, "samoa", aug27 + 200, "MULTILINESTRING((-172.0 -13.8, -171.9 -13.8))", "cycling", "road", -172.0, -13.8)
-    st.close()
-    discard save(db, "--near", "-17.0,-179.9", "--radius", "50")     # from the west side of the line
-    check chosen(db) == @["fiji"]
-    discard save(db, "--near", "-17.0,179.99", "--radius", "50")     # and from the east side
-    check chosen(db) == @["fiji"]
-    discard save(db, "--near", "-13.8,-172.0", "--radius", "5")
-    check chosen(db) == @["samoa"]
-    discard save(db, "--near", "-17.0,179.9", "--radius", "1")       # not near enough
-    check chosen(db).len == 0
-
   test "a radius on its own is around the latest activity":
     let db = world("radius")
     discard save(db, "--users", "default", "bob", "--radius", "50")
@@ -487,6 +472,22 @@ suite "list: what is shown":
     let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "10")
     check r.lines.texts[0] == "near 38.7300,-9.1300, within 10km"
     check r.lines.texts[^1].startsWith("2 of 3 activities")
+
+  test "-v says where it started: the stored place, and how far if it is not close":
+    let db = world("verbose-place")
+    let st = openStore(db, allFragments)
+    st.db.exec(sql"""update activity set place_id = (select id from place where name = 'Lisbon')
+      where file_id in (select id from file where name in ('lisbon1', 'paris'))""")
+    st.close()
+    let rows = shown(db, "-v").lines.texts
+    check rows[0].contains("place")
+    check rows[1].contains("Lisbon, PT") and not rows[1].contains("Lisbon, PT (")     # lisbon1: 2 km away
+    check rows[2].contains("Lisbon, PT (") and rows[2].contains("km)")                 # paris: a long way
+    check not shown(db).lines.texts[0].contains("place")                               # (only with -v)
+
+  test "an activity with no place shows a dash":
+    let db = world("verbose-noplace")
+    check shown(db, "-v").lines.texts[1].contains("  -  ")
 
   test "saving is logged":
     let db = world("shownlog")

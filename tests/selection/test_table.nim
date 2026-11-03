@@ -1,4 +1,4 @@
-import std/[options, sequtils, strutils, times, unittest]
+import std/[options, sequtils, strutils, times, unicode, unittest]
 import nimchoo/selection/table
 import nimchoo/ui/style
 
@@ -9,11 +9,11 @@ const
   mar4 = 1520154720'i64             # 2018-03-04 09:12 UTC
 
 func row(t: int64, sport = "cycling", sub = "", distance = -1.0, active = -1.0,
-         file = "f.fit", user = "default", path = "/x/f.fit"): ListRow =
+         file = "f.fit", user = "default", path = "/x/f.fit", place = ""): ListRow =
   ListRow(startT: t, sport: sport, subSport: sub,
           distanceM: if distance >= 0: some(distance) else: none(float),
           activeS: if active >= 0: some(active) else: none(float), file: file, user: user,
-          path: path)
+          path: path, place: place)
 
 func texts(ls: seq[Line]): seq[string] =
   for l in ls: result.add l.text
@@ -57,12 +57,38 @@ suite "list table: the table":
     check withUser[0] == "date        start  user   sport     km  active"
     check withUser[1] == "2018-03-04  09:12  alice  cycling  1.0   1m00s"
     let verbose = table(rows, zone, false, true).texts
-    check verbose[0] == "date        start  sport     km  active  file"
-    check verbose[1].endsWith("1m00s  /x/a.fit")
-    check verbose[2].endsWith("2m00s  /y/bb.fit")
+    check verbose[0] == "date        start  sport     km  active  place  file"
+    check verbose[1].endsWith("1m00s  -      /x/a.fit")             # (no place known: a dash)
+    check verbose[2].endsWith("2m00s  -      /y/bb.fit")
     check table(rows, zone, true, true).texts[0].startsWith("date        start  user   sport")
+  test "verbose: where it started, aligned by characters, not bytes":
+    let rows = @[row(mar4, "cycling", "", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit", "Valparaíso, CL"),
+                 row(aug27, "cycling", "", 2000.0, 120.0, "b.fit", "alice", "/y/b.fit", "Zürich, CH (45km)"),
+                 row(aug27, "cycling", "", 2000.0, 120.0, "c.fit", "alice", "/z/c.fit", "Ñuñoa, CL")]
+    let t = table(rows, zone, false, true).texts
+    check t[0] == "date        start  sport     km  active  place" & " ".repeat(14) & "file"
+    check t[1].endsWith("1m00s  Valparaíso, CL" & " ".repeat(5) & "/x/a.fit")     # (14 characters, 17 wide)
+    check t[2].endsWith("2m00s  Zürich, CH (45km)  /y/b.fit")
+    check t[3].endsWith("2m00s  Ñuñoa, CL" & " ".repeat(10) & "/z/c.fit")
+    var starts: seq[int]
+    for line in t: starts.add line.toRunes.find('/'.Rune) - 0   # (header has no slash)
+    check starts[1] == starts[2] and starts[2] == starts[3]
+    # the file column starts at the same character in every line
   test "no rows, no lines":
     check table(@[], zone, true, true).len == 0
+
+suite "list table: places and padding":
+  test "the place as text: its name, and how far if it is not close":
+    check placeText("Santiago, CL", 3_000.0) == "Santiago, CL"
+    check placeText("Santiago, CL", 10_000.0) == "Santiago, CL"
+    check placeText("Coyhaique, CL", 180_400.0) == "Coyhaique, CL (180km)"
+    check placeText("Coyhaique, CL", 10_001.0) == "Coyhaique, CL (10km)"
+    check placeText("", 5.0) == ""
+  test "padding counts characters":
+    check padRight("Zürich", 8) == "Zürich  "
+    check padLeft("Zürich", 8) == "  Zürich"
+    check padRight("abc", 2) == "abc" and padLeft("abc", 2) == "abc"
+    check padRight("日本", 4) == "日本  "
 
 suite "list table: the last line":
   test "how many, and of how many":

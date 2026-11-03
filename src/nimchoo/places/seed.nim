@@ -10,6 +10,7 @@ import ./data
 {.push raises: [].}
 
 type Nearest* = object
+  id*: int64
   name*, country*: string
   distanceM*: float
 
@@ -45,14 +46,15 @@ proc nearestInBox(db: DbConn, lon, lat, minX, minY, maxX, maxY: float): Option[N
     {.raises: [StoreError].} =
   ## The nearest place to a point among those in a box (degrees).
   guard:
-    let r = db.getRow(sql("select name, country, ST_Distance(geom, MakePoint(" & degrees(lon) &
+    let r = db.getRow(sql("select name, country, id, ST_Distance(geom, MakePoint(" & degrees(lon) &
       ", " & degrees(lat) & ", 4326), 1) as d from place where rowid in (select rowid from " &
       "SpatialIndex where f_table_name = 'place' and f_geometry_column = 'geom' and " &
       "search_frame = BuildMbr(" & degrees(minX) & ", " & degrees(minY) & ", " & degrees(maxX) &
       ", " & degrees(maxY) & ")) order by d limit 1"))
     if r[0].len == 0: return none(Nearest)
     try:
-      result = some(Nearest(name: r[0], country: r[1], distanceM: parseFloat(r[2])))
+      result = some(Nearest(name: r[0], country: r[1], id: parseBiggestInt(r[2]),
+                            distanceM: parseFloat(r[3])))
     except ValueError:
       raiseStore("bad number from the database")
 

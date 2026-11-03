@@ -10,7 +10,7 @@
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
 
-import std/[algorithm, math, options, strutils, tables, times]
+import std/[algorithm, math, options, strutils, tables, times, unicode]
 import ../ui/[interval, style]
 
 {.push raises: [].}
@@ -22,12 +22,26 @@ type
     distanceM*, activeS*: Option[float]
     file*, user*: string          ## the file's name; who it belongs to
     path*: string                 ## where the file was imported from (its name if not known)
+    place*: string                ## where it started, as `placeText` ("" if not known)
 
 func dateOf(d: DateTime): string =
   d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
 
 func clockOf(d: DateTime): string =
   d.hour.intToStr(2) & ":" & d.minute.intToStr(2)
+
+func placeText*(name: string, distanceM: float): string =
+  ## "Santiago, CL" (the name as the places list has it, with the country); if the nearest
+  ## place is more than 10 km away, how far: "Coyhaique, CL (180km)".  "" without a name.
+  if name.len == 0: return ""
+  if distanceM > 10_000: name & " (" & $int(round(distanceM / 1000.0)) & "km)" else: name
+
+func padRight*(s: string, width: int): string =
+  ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).
+  s & ' '.repeat(max(0, width - s.runeLen))
+
+func padLeft*(s: string, width: int): string =
+  ' '.repeat(max(0, width - s.runeLen)) & s
 
 func sportLabel*(r: ListRow): string =
   ## "cycling/road"; the sub-sport only if it says something (not empty, not
@@ -73,7 +87,8 @@ proc activityText*(r: ListRow, zone: Timezone): string =
 proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active
   ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `file`
-  ## column at the end with the path the file was imported from.  No lines at all if
+  ## columns at the end: `place` (where it started) and `file` (the path the file was
+  ## imported from).  No lines at all if
   ## there are no rows.
   ##
   ## Looks: a transition row is dim all through; "-" (not recorded) is dim; a distance
@@ -86,17 +101,19 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
     header.insert("user", 2)
     for i, r in rows: cells[i].insert(r.user, 2)
   if verbose:
+    header.add "place"
+    for i, r in rows: cells[i].add (if r.place.len > 0: r.place else: "-")
     header.add "file"
     for i, r in rows: cells[i].add r.path
   let first = if showUser: 4 else: 3                  # the first number column
   var widths = newSeq[int](header.len)
   for c in 0 ..< header.len:
-    widths[c] = header[c].len
-    for row in cells: widths[c] = max(widths[c], row[c].len)
+    widths[c] = header[c].runeLen
+    for row in cells: widths[c] = max(widths[c], row[c].runeLen)
   proc padded(text: string, c: int): string =
-    if c == first or c == first + 1: text.align(widths[c])
+    if c == first or c == first + 1: text.padLeft(widths[c])
     elif c == header.len - 1: text
-    else: text.alignLeft(widths[c])
+    else: text.padRight(widths[c])
   proc line(row: seq[string], r: Option[ListRow]): Line =
     for c in 0 ..< row.len:
       if c > 0: result.add span("  ")
