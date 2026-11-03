@@ -438,58 +438,64 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
 4. **Python's representation:** a database row per 10 seconds for the zone and for the impulse, and a
    row per hour for each response: millions of rows, with derived values stored as if they were data.
 
-### The nch representation (proposed)
+### The nch representation (decided with the author, 2026-11-03)
 
 * **Heart rate** is a channel of its own, stored once: `heartrate(activity_id, t, bpm)`, `WITHOUT
-  ROWID`, from the `record` messages (a `heartrate/` module, importing alongside the positions: the
-  "extra data import" of AGENTS.md).  Nothing per 10 s is stored.
-* **Impulse is stored per hour per activity** (a handful of rows an activity), computed at import and
-  recomputed for the activities from the date an FTHR change takes effect.  Zone and the 10-second
-  grid exist only inside the calculation.
-* **Fitness and fatigue are not stored:** they are a pure function of the hourly impulses and three
-  numbers per curve, so a command computes them when asked (87,000 hours is ten years: trivial).
-* **What needs a user:** FTHR history, and the model parameters (gamma, zero, one, max_secs, the two
-  taus, scales), which can be constants in the code to start with.  Per activity group (sport) comes
-  later (the thresholds for running and cycling differ).
+  ROWID`, from the `record` messages (a `heartrate/` module, imported alongside the positions).
+  Nothing per 10 s is stored.  An activity with no heart rate has no impulse.
+* **The variables of the calculation are a named set, a row of a table**:
+  `impulse_model(id, name unique, gamma, zero, one, max_secs, ...)`: `name` is for display; the
+  zone edges (the 68, 83, 94, 105, 121 % of FTHR) are also columns, five integers, so that a model
+  can use another zone system (open: confirm).  A `default` model (gamma 2, zero 1, one 6, max_secs
+  60, the British Cycling zones) is put in when the table is made (a seed, as for the places); more
+  are added by a command, so that variants can be compared.
+* **Impulse is stored per hour per activity per model**: `impulse(activity_id, model_id, hour_t,
+  value)`, primary key `(activity_id, model_id, hour_t)`, `model_id` references `impulse_model`.  A
+  handful of rows an activity.  Zone and the 10-second grid exist only inside the calculation.
+* **FTHR is the user's, not the model's, but every impulse depends on it.**  One value per user, so
+  changing it makes all that user's impulses out of date.  The FTHR used is recorded with each
+  calculated (activity, model), so a change is noticed by comparing and only what differs is
+  recalculated (open: confirm).  A user with no FTHR gets no impulses (and is told so).
+* **Fitness and fatigue are not stored:** a pure function of the hourly impulses of one model and a
+  few numbers per curve (tau, start, scale; a named set of their own when we get there), computed
+  when asked (87,000 hours is ten years: trivial), with `--model NAME` choosing the impulses.
 
 ### Step 1: `nch user` (per-user information)
 
-What the algorithm needs per user is the **FTHR** (with the date it applies from), not a max heart
-rate: nothing in the current Python code uses max or resting HR (`trimp()` and `edwards()` in
-`heart_rate.py` are "kept for documentation").  Max and resting HR are cheap to hold now, for
-Banister TRIMP or Edwards later.
+What the algorithm needs per user is the **FTHR** (agreed: not max heart rate; nothing in the
+current Python code uses max or resting HR).  **One value per user, no history; one name** (the
+existing `user.name`, the key for `--user`; no separate display name).
 
-* **Tables** (a new `user/` module, which owns the user's profile; `user` itself stays in `db/`):
-  `user_hr(user_id, from_t, fthr, max_hr, rest_hr)`, primary key `(user_id, from_t)`, the last row
-  whose `from_t` is not after an activity applying to it; `max_hr` and `rest_hr` may be empty;
-  `on delete cascade` from the user.  `user.name` (already there, the key for `--user`) is kept.
-  A display name (`full_name`) is a column of `user` if wanted.
+* **A `user/` module** (newer than `importer`, which it reads for counts) owning
+  `user_profile(user_id primary key references user(id) on delete cascade, fthr integer)`, a row made
+  when a value is first set; `user` itself stays in `db/`.
 * **Command line** (options are enough):
 
-      nch user                                  the users, each with its latest FTHR, max HR, rest HR
-      nch user NAME --create                    make a user (never implicit: a typo must not make one)
-      nch [--user NAME] user --fthr 154 [--from 2018-01-01]
-      nch [--user NAME] user --max-hr 188 --rest-hr 48
+      nch user                              the users: name, FTHR (blank if not set), activities
+      nch user NAME --create [--fthr N]     make a user (never implicit: a typo must not make one)
+      nch [--user NAME] user --fthr 154     set FTHR (of the current user)
+      nch [--user NAME] user --clear-fthr
       nch [--user NAME] user --rename NEW
-      nch [--user NAME] user --history          all the FTHR values, with dates
 
-  `--from` (default: the beginning of time, i.e. valid for everything before the next value) is a
-  date in the user's time zone, as in `list`.  A change to the FTHR marks the impulses from that date
-  as out of date (they are recomputed once the heart-rate channel exists; until then nothing depends on
-  it).  Values are checked (FTHR 80-230 bpm, max above FTHR above rest).
-* **Open questions:** FTHR rather than max HR (above); history from the start, or one value now?  a
-  value per sport?  a display name besides `name`?  defaults for a user who has not set FTHR (the
-  author's 154, or "no impulse until it is set", which I prefer)?
+  Names: 1-32 characters, letters, digits, `_`, `.`, `-` (not first): they appear in `--user` and
+  in comma-separated lists (`--users a,b`).  The `default` user cannot be renamed (it is made again
+  whenever a database is opened).  FTHR is a whole number of bpm, 80 to 230.  `nch destroy --user`
+  already removes a user.  Changes are logged (event `saved`).
+
+### Open
+
+* Zone edges as columns of the model; the FTHR-used record for staleness (above).
+* Per sport (activity group) FTHR and models: later, if wanted.
 
 ### Later steps (each a commit)
 
 2. Heart rate as a channel: the `heartrate/` module, imported with the activity (a re-import).
-3. Impulse per hour: the zone and impulse functions (pure, tested against numbers worked by hand
-   and against the Python code on a test file), `impulse(activity_id, hour_t, value)`, recomputed
-   when the FTHR history changes.
-4. Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses),
-   and a command that prints or exports them (a GeoJSON-like file for plotting by an external
-   service, as with the heat map; no plotting here).
+3. The model and the impulse: `impulse_model` (seeded with `default`), the zone and impulse functions
+   (pure; tested on numbers worked by hand and against the Python code on a test file),
+   `impulse(activity_id, model_id, hour_t, value)`, recalculated when the FTHR a row was made with is
+   no longer the user's; `nch impulse model add/list`.
+4. Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses) and
+   a command that prints or exports them for an external plotting service, as with the heat map.
 
 ## Task 6: places, and the start of an activity as a point (in progress)
 
