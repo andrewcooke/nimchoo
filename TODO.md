@@ -444,11 +444,11 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   ROWID`, from the `record` messages (a `heartrate/` module, imported alongside the positions).
   Nothing per 10 s is stored.  An activity with no heart rate has no impulse.
 * **The variables of the whole calculation are one named set, a row of one table**:
-  `ff_model(id, name unique, gamma, zero, one, max_secs, zone1..zone5, fitness_days, fitness_start,
-  fitness_scale, fatigue_days, fatigue_start, fatigue_scale)`: the impulse variables (gamma, zero,
-  one, max_secs, and the zone edges, five percentages of FTHR, defaulting to the British Cycling
-  68, 83, 94, 105, 121) and the two curves that are made from the impulses (the decay period in
-  days, the starting value and the scale of each: 42 / 1 / 1 for fitness and 7 / 1 / 5 for fatigue).
+  `ff_model(id, name unique, gamma, zero, one, max_secs, zone1..zone5, fitness_days, fatigue_days)`:
+  the impulse variables (gamma, zero, one, max_secs, and the zone edges, five percentages of FTHR,
+  defaulting to the British Cycling 68, 83, 94, 105, 121) and the decay period in days of the two
+  curves that are made from the impulses (42 for fitness, 7 for fatigue).  (The Python's `start` and
+  `scale` are not in the model: see the decisions below.)
   `name` is for display.  A `default` row with these values is put in when the table is made (a
   seed, as for the places); more are added by a command, so that variants can be compared.  A model
   is never edited once it exists (a new one is added), because the impulses made with it would no
@@ -523,6 +523,19 @@ re-import.
 * Check against the Python on a test file by comparing daily totals; the tolerance starts at **1%**
   and may widen to **10%** if the difference is explained by where the Python's grid points fall
   (these models are not precise, and when an impulse "kicks in" can matter more than that).
+
+* **The curves have no `start` and no `scale`** (decided 2026-11-03).  The Python's `start` replaces
+  the first hour's value (1 for both) and fades as `exp(-t/tau)`: it is an initial condition of no
+  lasting effect, so the curves start from 0.  Its `scale` (1 for fitness, 5 for fatigue) is a
+  multiplier of the finished curve only, to make the two comparable in size: it belongs to the
+  display (an option of the command that shows them).  So the comparison with the Python has to
+  ignore the first weeks (fatigue) or months (fitness), or run the Python from 0.
+* **No coverage correction** (the Python scales an activity's impulse by `100 / coverage` where some
+  records lack heart rate).  It amounts to filling missing values with averages, like a longer
+  `max_secs`; where there is no heart rate there is no impulse.
+* **The decay** is `y[h] = y[h-1] * exp(-1 hour / tau) + x[h]` over the hourly impulses `x`, as in the
+  Python (a lump counts as at the end of its hour; placing it at the midpoint changes a value by
+  `exp(0.5 h / tau)`, 0.03% for the 7 day curve, so it is only a comment in the code).
 
 ### Open
 
