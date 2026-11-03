@@ -186,9 +186,12 @@ To add tables to a module: write `NNN-name.sql` in its directory (DDL only), lis
 modules whose tables it refers to.  Aim for one file per module while nothing is released; once
 a database exists, never edit a fragment that has been applied: add a new one.  A test fails if
 a `.sql` file exists that is not listed.  The database records the fragments it has had (table
-`fragment`, by name `module/file`), so opening it applies only the missing ones, each in a
-transaction; a recorded fragment this build lacks means the database is from a newer nch (or an
-older layout) and is refused.  Data (e.g. the default user) is inserted from Nim, not from SQL.
+`fragment`, by name `module/file`, with the SHA-256 of its SQL), so opening it applies only the
+missing ones, each in a transaction; a recorded fragment this build lacks means the database is
+from a newer nch, and one whose checksum differs (a fragment edited since: allowed while nothing
+is released) means it was made by another version: both are refused with "run `nch destroy -f`
+and import again".  A fragment may carry a *seed*, code that fills its tables with data the
+program carries (the places), run once in the same transaction.  Data (e.g. the default user) is inserted from Nim, not from SQL.
 
 Dependencies run one way: `errors/lookup/warnings` -> `fit/bytes` -> `fit/{basetype,crc,
 time}` -> `fit/header` -> `fit/tokens`; `profile/model` -> `profile/load` (+ `xlsx`);
@@ -462,11 +465,16 @@ should mean "starts near" (how rides are named), and named places want a home in
    Duesseldorf), because GeoNames lists those as separate populated places.  Options: prefer
    the most populous place within some radius (say 15 km) over the nearest; or the 15,000+
    list (it still has Nunoa); or leave it (it is the nearest place).
-   **Seen by the author, to fix:** an old database fails with "no such column", not "this
-   database is out of date": the fragment *names* are unchanged when an unreleased fragment is
-   edited in place, so the database cannot tell.  Plan: record a checksum of each fragment's SQL
-   in the `fragment` table and refuse a database whose recorded checksum differs (or that has
-   none) with "made by another version of nch: `nch destroy -f` and import again".
+   The nearest place being a district was seen on real data and accepted ("district is fine").
+   **Seen by the author, fixed in 3b:** an old database used to fail with "no such column".
+3b. [x] **A database that is out of date is recognised.**  The `fragment` table records the SHA-256 of
+   each fragment's SQL (`Fragment.checksum`); opening a database whose recorded checksum differs
+   from this build's, or whose `fragment` table has no checksums at all (made before this),
+   fails with "the database was made by a different (an older) version of nch ...; it cannot be
+   updated: run `nch destroy -f` and import again" instead of SQLite's "no such column".  (Why it
+   was needed: while unreleased, a fragment is edited in place, so its *name* does not change.  A
+   seed's data is not part of the checksum; a changed list of places needs a new fragment.)
+   `nch destroy` (whole database) needs no schema, so it still works on such a database.
 4. Docs.
 
 ## Task 5: `nch list` replaces `nch select` (step 1 built)
