@@ -506,6 +506,24 @@ makes a user and does so in one go); `nch user` has a `default` column ("yes"). 
 `""` for "the default".  The schema changed, so an existing database needs `nch destroy -f` and a
 re-import.
 
+**Decisions on the impulse calculation (2026-11-03, discussed, not yet built):**
+
+* The unit of time for bucketing is **one hour, a named constant in the code**: not a model column and
+  not changeable by the user.  Changing it later means recalculating every impulse.  A bucket's lump
+  is placed at its **midpoint** when the decay is applied (the error otherwise is up to about
+  bucket/tau of that hour's impulse: under 0.6% for the 7 day fatigue constant).
+* **No 10 s grid.**  The Python resamples the zone onto 10 s with pandas only for a regular index;
+  its real job (irregular recording intervals must not weight the result) is done by weighting each
+  reading by the time it covers.  We integrate directly: for each pair of consecutive readings no more
+  than `max_secs` apart the zone is a straight line in time, and the impulse function is integrated
+  exactly over the interval and added to the hour's bucket.  The **unit stays "per 10 seconds"**
+  (the integral over seconds, divided by 10) because the fitness and fatigue scales were tuned to it.
+* **A gap longer than `max_secs` gives nothing** (the Python's `limit` fills the first 60 s of every
+  long gap; we deliberately do not).
+* Check against the Python on a test file by comparing daily totals; the tolerance starts at **1%**
+  and may widen to **10%** if the difference is explained by where the Python's grid points fall
+  (these models are not precise, and when an impulse "kicks in" can matter more than that).
+
 ### Open
 
 * Per sport (activity group) FTHR and models: later, if wanted.
