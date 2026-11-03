@@ -29,6 +29,10 @@ create table activity (
   distance_m real,
   calories integer,
   unique (file_id, session));
+-- Where the activity started (its first position), for "starts near here" and for naming the
+-- place.  NULL if the file has no positions.  Written when the activity is imported.
+select AddGeometryColumn('activity', 'start', 4326, 'POINT', 'XY');
+select CreateSpatialIndex('activity', 'start');
 
 create table coords (
   activity_id integer not null references activity(id) on delete cascade,

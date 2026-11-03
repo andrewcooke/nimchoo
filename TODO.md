@@ -442,7 +442,13 @@ should mean "starts near" (how rides are named), and named places want a home in
    database takes 0.55 s and is 11 MB.  Tests found a real bug on the way: the search box did
    not wrap round the date line, so a point just east of it was matched to Honolulu, not
    Auckland.
-2. The start point on `activity`; `--near`, `latest`, `previous` use it.
+2. [x] `activity.start`, a `POINT` with a spatial index (`importer/001-schema.sql`), set at import
+   from the first position (NULL without positions).  `--near LAT,LON --radius KM` is now
+   "starts within": the index finds the starts in a box (two boxes if the circle crosses the date
+   line: `boxes`), then the distance on the ground decides; `latest` / `previous` use where that
+   activity started as the centre (`startOf`), and the line says `(the start of the latest
+   activity)`.  The route and its index remain, for the map; "passes through" could come back as
+   `--through`.
 3. The `place` column in `list -v`; padding by characters.
 4. Docs.
 

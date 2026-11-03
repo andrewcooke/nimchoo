@@ -210,6 +210,20 @@ func box*(lat, lon, radiusKm: float): Box =
   Box(minX: max(-180.0, lon - dLon), maxX: min(180.0, lon + dLon),
       minY: max(-90.0, lat - dLat), maxY: min(90.0, lat + dLat))
 
+func boxes*(lat, lon, radiusKm: float): seq[Box] =
+  ## `box`, and where the circle goes past the date line (longitude 180 / -180) the part on the
+  ## other side as a second box.
+  let b = box(lat, lon, radiusKm)
+  result.add b
+  let c = cos(degToRad(lat))
+  let dLat = radiusKm / 110.5
+  if c < 0.01 or abs(lat) + dLat >= 90: return           # (all longitudes already)
+  let dLon = radiusKm / (110.5 * c)
+  if lon - dLon < -180.0:
+    result.add Box(minX: lon - dLon + 360.0, maxX: 180.0, minY: b.minY, maxY: b.maxY)
+  if lon + dLon > 180.0:
+    result.add Box(minX: -180.0, maxX: lon + dLon - 360.0, minY: b.minY, maxY: b.maxY)
+
 func deg(x: float): string = formatFloat(x, ffDecimal, 7)
 
 func refersTo*(c: Criteria, r: Reference): bool =
@@ -274,13 +288,15 @@ func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
   if c.toT.isSome: result.add " and a.start_t < " & $c.toT.get
   if centre.isSome:
     let (lat, lon) = centre.get
-    let b = box(lat, lon, c.radiusKm)
-    result.add " and a.id in (select r.activity_id from route r where r.ROWID in " &
-      "(select ROWID from SpatialIndex where f_table_name = 'route' and " &
-      "f_geometry_column = 'geom' and search_frame = BuildMbr(" &
-      deg(b.minX) & ", " & deg(b.minY) & ", " & deg(b.maxX) & ", " & deg(b.maxY) &
-      ")) and ST_Distance(r.geom, MakePoint(" & deg(lon) & ", " & deg(lat) &
-      ", 4326), 1) <= " & deg(c.radiusKm * 1000) & ")"
+    # activities that START within the radius: the spatial index finds those in a box, and
+    # the distance on the ground decides (an activity without a start is never near)
+    var probes: seq[string]
+    for b in boxes(lat, lon, c.radiusKm):
+      probes.add "a.id in (select ROWID from SpatialIndex where f_table_name = 'activity' and " &
+        "f_geometry_column = 'start' and search_frame = BuildMbr(" &
+        deg(b.minX) & ", " & deg(b.minY) & ", " & deg(b.maxX) & ", " & deg(b.maxY) & "))"
+    result.add " and (" & probes.join(" or ") & ") and ST_Distance(a.start, MakePoint(" &
+      deg(lon) & ", " & deg(lat) & ", 4326), 1) <= " & deg(c.radiusKm * 1000)
   if c.newest > 0: result.add " order by a.start_t desc limit " & $c.newest
   if c.oldest > 0: result.add " order by a.start_t asc limit " & $c.oldest
 

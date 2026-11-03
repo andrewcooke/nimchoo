@@ -150,6 +150,54 @@ suite "import: files that cannot be imported":
     check r.coords == 3
     check s.db.getValue(sql"select lat || ' ' || lon from coords limit 1") == "45.0 -90.0"
 
+  test "the start of an activity is its first position, as a point":
+    let s = openStore(tempDb("start"))
+    defer: s.close()
+    var ws: seq[Warning]
+    discard s.importFile(p, "tiny.fit", tiny, ws)
+    check s.db.getValue(sql"select ST_Y(start) || ' ' || ST_X(start) from activity") == "45.0 -90.0"
+    check s.db.getValue(sql"select count(*) from idx_activity_start") == "1"      # (and it is indexed)
+    # a real ride: the same as the first row of its coordinates
+    discard s.importPath(ride)
+    check s.db.getValue(sql"""select count(*) from activity a where a.start is not null and
+      ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
+      ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""") == "2"
+
+  test "no positions, no start":
+    let s = openStore(tempDb("nostart"))
+    defer: s.close()
+    let noGps = fitFile(defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)]) &
+      b(1) & le32(base + 2) & le32(base) & b(2))
+    var ws: seq[Warning]
+    let r = s.importFile(p, "nogps.fit", noGps, ws)
+    check r.activities == 1 and r.coords == 0
+    check s.db.getValue(sql"select count(*) from activity where start is null") == "1"
+    check s.db.getValue(sql"select count(*) from idx_activity_start") == "0"
+
+  test "the start of an activity is its first position, as a point":
+    let s = openStore(tempDb("start"))
+    defer: s.close()
+    var ws: seq[Warning]
+    discard s.importFile(p, "tiny.fit", tiny, ws)
+    check s.db.getValue(sql"select ST_Y(start) || ' ' || ST_X(start) from activity") == "45.0 -90.0"
+    check s.db.getValue(sql"select count(*) from idx_activity_start") == "1"      # (and it is indexed)
+    # a real ride: the same as the first row of its coordinates
+    discard s.importPath(ride)
+    check s.db.getValue(sql"""select count(*) from activity a where a.start is not null and
+      ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
+      ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""") == "2"
+
+  test "no positions, no start":
+    let s = openStore(tempDb("nostart"))
+    defer: s.close()
+    let noGps = fitFile(defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)]) &
+      b(1) & le32(base + 2) & le32(base) & b(2))
+    var ws: seq[Warning]
+    let r = s.importFile(p, "nogps.fit", noGps, ws)
+    check r.activities == 1 and r.coords == 0
+    check s.db.getValue(sql"select count(*) from activity where start is null") == "1"
+    check s.db.getValue(sql"select count(*) from idx_activity_start") == "0"
+
   test "a file with no activity writes nothing":
     let s = openStore(tempDb("noact"))
     defer: s.close()

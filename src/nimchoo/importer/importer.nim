@@ -82,7 +82,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
   let found = readActivities(profile(), data, ws)
   s.begin()
   var committed = false
-  var actStmt, segStmt, coordStmt, routeStmt: Option[Stmt]
+  var actStmt, segStmt, coordStmt, routeStmt, startStmt: Option[Stmt]
   try:
     guard:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
@@ -98,12 +98,19 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
       "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)"))
     routeStmt = some(prepareStmt(s.db,
       "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))"))
+    startStmt = some(prepareStmt(s.db,
+      "update activity set start = MakePoint(?, ?, 4326) where id = ?"))
     result.outcome = ioImported
     for a in found:
       insertActivity(actStmt.get, fileId, a)
       let activityId = lastInsertId(s.db)
       for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
       for c in a.coords: insertCoord(coordStmt.get, activityId, c)
+      if a.coords.len > 0:                  # where it started: the first position
+        startStmt.get.bindReal(1, a.coords[0].lon)
+        startStmt.get.bindReal(2, a.coords[0].lat)
+        startStmt.get.bindInt(3, activityId)
+        startStmt.get.run()
       let wkt = routeWkt(a)
       if wkt.isSome:
         routeStmt.get.bindInt(1, activityId)
@@ -119,6 +126,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     if segStmt.isSome: finalize(segStmt.get)
     if coordStmt.isSome: finalize(coordStmt.get)
     if routeStmt.isSome: finalize(routeStmt.get)
+    if startStmt.isSome: finalize(startStmt.get)
     if not committed: s.rollback()
 
 proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],

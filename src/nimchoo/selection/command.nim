@@ -38,8 +38,8 @@ last one).  Criteria are combined with "and".
   --to TIME          activities that start before the end of TIME
                      (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
                      with seconds; a --to date means the whole day)
-  --near LAT,LON     activities whose route passes within the radius of the point
-  --near latest      ... of the centre of the latest activity (or "previous")
+  --near LAT,LON     activities that start within the radius of the point
+  --near latest      ... of where the latest activity started (or "previous")
   --radius KM        radius for --near in kilometres (default: 100); on its own it
                      means --near latest
   -n, --newest N     only the N newest of the activities that meet the other criteria
@@ -81,13 +81,12 @@ proc number(st: Store, query: string): int {.raises: [StoreError].} =
     try: result = parseInt(st.db.getValue(sql(query)))
     except ValueError: raiseStore("bad number from the database")
 
-proc centreOf(st: Store, activityId: int64): Option[(float, float)] {.raises: [StoreError].} =
-  ## The middle of the box around the route of an activity; none if it has no positions.
+proc startOf(st: Store, activityId: int64): Option[(float, float)] {.raises: [StoreError].} =
+  ## Where an activity started (latitude, longitude); none if it has no positions.
   guard:
-    let c = st.db.getRow(sql"""select (min(lon) + max(lon)) / 2, (min(lat) + max(lat)) / 2
-      from coords where activity_id = ?""", activityId)
+    let c = st.db.getRow(sql"select ST_Y(start), ST_X(start) from activity where id = ?", activityId)
     try:
-      if c[0].len > 0: result = some((parseFloat(c[1]), parseFloat(c[0])))
+      if c[0].len > 0: result = some((parseFloat(c[0]), parseFloat(c[1])))
     except ValueError:
       discard
 
@@ -205,9 +204,9 @@ proc resolve(st: Store, c: var Criteria, which: Reference, id: int64, row: ListR
     c.activeS = around(row.activeS.get, c.activeRel.get.tol)
     c.activeRel = none(Relative)
   if c.near == (if which == refLatest: nkLatest else: nkPrevious):
-    centre = centreOf(st, id)
-    if centre.isNone: raiseStore("the " & nameOf & " activity has no positions (--near " & nameOf & ")")
-    source = "the " & nameOf & " activity"
+    centre = startOf(st, id)
+    if centre.isNone: raiseStore("the " & nameOf & " activity has no start position (--near " & nameOf & ")")
+    source = "the start of the " & nameOf & " activity"
     c.near = nkNone
 
 proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines: seq[Line], saved: int]
@@ -251,7 +250,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines
   if centre.isSome:
     result.lines.add plain("near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
       formatFloat(centre.get[1], ffDecimal, 4) &
-      (if centreFrom.len > 0: " (the centre of " & centreFrom & ")" else: "") &
+      (if centreFrom.len > 0: " (" & centreFrom & ")" else: "") &
       ", within " & radiusText(c.radiusKm) & "km")
   let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose))
   if c.save:

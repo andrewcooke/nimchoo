@@ -168,6 +168,40 @@ suite "list: the box and the sql":
     let b = box(0.0, 10.0, 111.0)
     check b.minY < -0.9 and b.maxY > 0.9
     check b.minX < 9.0 and b.maxX > 11.0
+  test "boxes: one, unless the circle goes over the date line":
+    check boxes(38.7, -9.1, 50.0).len == 1
+    let east = boxes(-17.0, 179.9, 50.0)               # Fiji: the circle crosses +180
+    check east.len == 2
+    check east[0].maxX == 180.0 and east[1].minX == -180.0 and east[1].maxX < -179.0
+    let west = boxes(-17.0, -179.9, 50.0)              # ... and from the other side
+    check west.len == 2
+    check west[0].minX == -180.0 and west[1].maxX == 180.0 and west[1].minX > 179.0
+    check boxes(89.5, 10.0, 100.0).len == 1            # (over a pole: all longitudes in one)
+    check boxes(0.0, 179.0, 1.0).len == 1              # (a small circle that does not cross)
+  test "near means starts near: the index of the start points, and the distance from the start":
+    let m = matchSql(@[1'i64], Criteria(radiusKm: 5.0), some((38.7, -9.1)))
+    check m.contains("f_table_name = 'activity'") and m.contains("f_geometry_column = 'start'")
+    check m.contains("ST_Distance(a.start, MakePoint(-9.1000000, 38.7000000, 4326), 1) <= 5000.0000000")
+    check not m.contains("route")
+    let across = matchSql(@[1'i64], Criteria(radiusKm: 50.0), some((-17.0, 179.9)))
+    check across.count("SpatialIndex") == 2 and across.contains(" or ")
+  test "boxes: one, unless the circle goes over the date line":
+    check boxes(38.7, -9.1, 50.0).len == 1
+    let east = boxes(-17.0, 179.9, 50.0)               # Fiji: the circle crosses +180
+    check east.len == 2
+    check east[0].maxX == 180.0 and east[1].minX == -180.0 and east[1].maxX < -179.0
+    let west = boxes(-17.0, -179.9, 50.0)              # ... and from the other side
+    check west.len == 2
+    check west[0].minX == -180.0 and west[1].maxX == 180.0 and west[1].minX > 179.0
+    check boxes(89.5, 10.0, 100.0).len == 1            # (over a pole: all longitudes in one)
+    check boxes(0.0, 179.0, 1.0).len == 1              # (a small circle that does not cross)
+  test "near means starts near: the index of the start points, and the distance from the start":
+    let m = matchSql(@[1'i64], Criteria(radiusKm: 5.0), some((38.7, -9.1)))
+    check m.contains("f_table_name = 'activity'") and m.contains("f_geometry_column = 'start'")
+    check m.contains("ST_Distance(a.start, MakePoint(-9.1000000, 38.7000000, 4326), 1) <= 5000.0000000")
+    check not m.contains("route")
+    let across = matchSql(@[1'i64], Criteria(radiusKm: 50.0), some((-17.0, 179.9)))
+    check across.count("SpatialIndex") == 2 and across.contains(" or ")
   test "longitude widens away from the equator":
     check box(60.0, 0.0, 100.0).maxX > 1.5 * box(0.0, 0.0, 100.0).maxX
   test "over a pole: all longitudes":

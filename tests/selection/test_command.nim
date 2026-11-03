@@ -15,7 +15,7 @@ const
   aug27 = 1535371200      # 2018-08-27T12:00Z
 
 proc addActivity(s: Store, userId: int64, tag: string, startT: int, wkt: string,
-                 sport = "", subSport = "") =
+                 sport = "", subSport = "", lon = 0.0, lat = 0.0) =
   s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
             userId, tag, tag)
   let f = s.db.getValue(sql"select max(id) from file")
@@ -24,6 +24,7 @@ proc addActivity(s: Store, userId: int64, tag: string, startT: int, wkt: string,
                   values (?, 0, ?, ?, nullif(?, ''), nullif(?, ''), 12345.0, 3661.0)""",
             f, startT, startT + 100, sport, subSport)
   let a = s.db.getValue(sql"select max(id) from activity")
+  s.db.exec(sql("update activity set start = MakePoint(" & $lon & ", " & $lat & ", 4326) where id = " & a))
   s.db.exec(sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, wkt)
 
 proc world(name: string): string =
@@ -37,13 +38,11 @@ proc world(name: string): string =
   s.db.exec(sql"insert into user(name) values ('bob')")
   let bob = parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'"))
   addActivity(s, s.userId, "lisbon1", july1, "MULTILINESTRING((-9.14 38.72, -9.10 38.75))",
-              "cycling", "road")
+              "cycling", "road", -9.14, 38.72)
   addActivity(s, s.userId, "paris", aug27, "MULTILINESTRING((2.35 48.85, 2.40 48.90))",
-              "running", "trail")
-  s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (2, 1, 2.35, 48.85)")
-  s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (2, 2, 2.40, 48.90)")
+              "running", "trail", 2.35, 48.85)
   addActivity(s, bob, "lisbon2", aug15, "MULTILINESTRING((-9.20 38.70, -9.15 38.74))",
-              "cycling")
+              "cycling", "", -9.20, 38.70)
 
 func texts(ls: seq[Line]): seq[string] =
   for l in ls: result.add l.text
@@ -244,10 +243,6 @@ suite "list: the command":
 
   test "--near latest respects the other criteria":
     let db = numbered("latest3")
-    let st = openStore(db, allFragments)
-    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 1, -9.14, 38.72)")
-    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 2, -9.10, 38.75)")
-    st.close()
     discard save(db, "--sport", "cycling", "--near", "latest", "--radius", "5")
     check chosen(db) == @["lisbon1"]                  # (the latest cycling ride, not the latest ride)
     discard save(db, "--radius", "5")                 # alone: --near latest, of everything: paris
@@ -284,17 +279,18 @@ suite "list: the command":
 
   test "--near previous":
     let db = numbered("previous4")
-    let st = openStore(db, allFragments)
-    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 1, -9.14, 38.72)")
-    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 2, -9.10, 38.75)")
-    st.close()
-    discard save(db, "--sport", "cycling")                      # the one ride: lisbon1, with positions
+    discard save(db, "--sport", "cycling")                      # the one ride: lisbon1
     discard save(db, "--users", "default", "bob", "--near", "previous", "--radius", "5")
+    check chosen(db) == @["lisbon1"]                            # (bob's started 6.9 km away)
+    discard save(db, "--sport", "cycling")
+    discard save(db, "--users", "default", "bob", "--near", "previous", "--radius", "10")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--sport", "running")                      # paris: no positions in the fixture except two
+    discard save(db, "--sport", "running")                      # paris
     check chosen(db) == @["paris"]
-    discard save(db, "--users", "bob")                          # lisbon2 has no positions
-    check save(db, "--near", "previous") == exitFailure
+    let st = openStore(db, allFragments)
+    st.db.exec(sql"update activity set start = null where file_id = (select id from file where name = 'lisbon2')")
+    st.close()
+    discard save(db, "--users", "bob")                          # lisbon2 has no start    check save(db, "--near", "previous") == exitFailure
     check chosen(db) == @["lisbon2"]
 
   test "previous with latest: previous first, then latest among what is left":
@@ -357,12 +353,44 @@ suite "list: the command":
     let db = world("near")
     discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "10")
     check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
+    check chosen(db) == @["lisbon1"]          # (it started 1.4 km away; the other 6.9 km)
     discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "0.3")
-    check chosen(db) == @["lisbon1"]          # (206 m away; the other is further)
+    check chosen(db).len == 0                 # (nothing started within 300 m)
     discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5000")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
+
+  test "near across the date line":
+    let db = world("dateline")
+    let st = openStore(db, allFragments)
+    addActivity(st, st.userId, "fiji", aug27 + 100, "MULTILINESTRING((179.95 -17.0, 179.96 -17.0))", "cycling", "road", 179.95, -17.0)
+    addActivity(st, st.userId, "samoa", aug27 + 200, "MULTILINESTRING((-172.0 -13.8, -171.9 -13.8))", "cycling", "road", -172.0, -13.8)
+    st.close()
+    discard save(db, "--near", "-17.0,-179.9", "--radius", "50")     # from the west side of the line
+    check chosen(db) == @["fiji"]
+    discard save(db, "--near", "-17.0,179.99", "--radius", "50")     # and from the east side
+    check chosen(db) == @["fiji"]
+    discard save(db, "--near", "-13.8,-172.0", "--radius", "5")
+    check chosen(db) == @["samoa"]
+    discard save(db, "--near", "-17.0,179.9", "--radius", "1")       # not near enough
+    check chosen(db).len == 0
+
+  test "near across the date line":
+    let db = world("dateline")
+    let st = openStore(db, allFragments)
+    addActivity(st, st.userId, "fiji", aug27 + 100, "MULTILINESTRING((179.95 -17.0, 179.96 -17.0))", "cycling", "road", 179.95, -17.0)
+    addActivity(st, st.userId, "samoa", aug27 + 200, "MULTILINESTRING((-172.0 -13.8, -171.9 -13.8))", "cycling", "road", -172.0, -13.8)
+    st.close()
+    discard save(db, "--near", "-17.0,-179.9", "--radius", "50")     # from the west side of the line
+    check chosen(db) == @["fiji"]
+    discard save(db, "--near", "-17.0,179.99", "--radius", "50")     # and from the east side
+    check chosen(db) == @["fiji"]
+    discard save(db, "--near", "-13.8,-172.0", "--radius", "5")
+    check chosen(db) == @["samoa"]
+    discard save(db, "--near", "-17.0,179.9", "--radius", "1")       # not near enough
+    check chosen(db).len == 0
 
   test "a radius on its own is around the latest activity":
     let db = world("radius")
@@ -373,8 +401,11 @@ suite "list: the command":
     let db = world("latest")
     discard save(db, "--users", "default", "bob", "--near", "latest", "--radius", "50")
     check chosen(db) == @["paris"]            # (the latest is in Paris)
-    check save(db, "--users", "bob", "--near", "latest") == exitFailure   # (no coordinates
-    check chosen(db) == @["paris"]                                          # to find a centre;
+    let st = openStore(db, allFragments)
+    st.db.exec(sql"update activity set start = null where file_id = (select id from file where name = 'lisbon2')")
+    st.close()
+    check save(db, "--users", "bob", "--near", "latest") == exitFailure   # (bob's has no start
+    check chosen(db) == @["paris"]                                          # to measure from;
                                                                             # nothing changed)
 
   test "criteria are combined":
@@ -453,8 +484,8 @@ suite "list: what is shown":
 
   test "--near says where":
     let db = world("shownnear")
-    let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
-    check r.lines.texts[0] == "near 38.7300,-9.1300, within 5km"
+    let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "10")
+    check r.lines.texts[0] == "near 38.7300,-9.1300, within 10km"
     check r.lines.texts[^1].startsWith("2 of 3 activities")
 
   test "saving is logged":
