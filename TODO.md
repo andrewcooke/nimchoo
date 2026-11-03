@@ -407,7 +407,17 @@ what was kept.  What is printed is what is saved.
    through, `-` (not recorded) dim, a distance under 50 m or an active time under 30 s
    (a stray recording: `0.0 km`) yellow, the `saved N activities as the selection` line green;
    not done, by choice: colours per sport, a dim header.
-4. Docs; try it on the test data (mixed sports) and on a real library.
+4. [x] `--distance RANGE` and `--active RANGE` (`selection/ranges.nim`, pure): `a-b`, `a-`,
+   `-b`, both ends inclusive, either end may be left out (not both), exactly one hyphen (so
+   `1-2-3` and a bare `5` are errors with an example); a backwards range says so.  A distance
+   is km (`5`, `2.5`, `5km`) or metres (`500m`), digits and a dot only (not `1e3`); an active
+   time is written as it is printed (`45s`, `22m`, `1h30m`, `2d`; units d h m s, largest first,
+   each once, a unit on every number: `90` is an error).  Not recorded (NULL) is never in a
+   range.  Applied before `--newest/--oldest`.  A value that starts with `-` is read as a
+   value by every single-valued option (`--distance -5` is "up to 5 km"; tested).  Named
+   `--active` after the column; dates stay `--from`/`--to` because ISO dates have hyphens.
+   Idea, not built: `--longest N` (by rank, like `--newest`).
+5. Docs; try it on the test data (mixed sports) and on a real library.
 
 ## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)
 

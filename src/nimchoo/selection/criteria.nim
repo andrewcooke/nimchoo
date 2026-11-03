@@ -3,6 +3,8 @@
 ## zone is a parameter), so all of it is tested directly.
 
 import std/[math, options, strutils, times]
+import ./ranges
+export ranges
 
 {.push raises: [].}
 
@@ -16,6 +18,7 @@ type
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
+    distanceM*, activeS*: NumRange   ## --distance, --active (metres, seconds; open: any)
     sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
     fromT*: Option[int64]     ## start of the activity at or after (Unix seconds)
     toT*: Option[int64]       ## start of the activity before (exclusive)
@@ -111,6 +114,20 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       of "--users": c.users.add names
       of "--sport": c.sports.add names
       else: c.subSports.add names
+    of "--distance":
+      let v = value("--distance")
+      let r = parseRange(v, parseDistance)
+      if r.isNone:
+        if isBackwards(v, parseDistance): fail("the distance range '" & v & "' is backwards (smaller end first)")
+        fail("cannot read the distance range '" & v & "' (use 40-, 10-50 or -5, in km; 500m- for metres)")
+      c.distanceM = r.get
+    of "--active":
+      let v = value("--active")
+      let r = parseRange(v, parseInterval)
+      if r.isNone:
+        if isBackwards(v, parseInterval): fail("the active time range '" & v & "' is backwards (shorter end first)")
+        fail("cannot read the active time range '" & v & "' (use 1h-, 30m-2h or -45m: units d h m s)")
+      c.activeS = r.get
     of "--from":
       let v = value("--from")
       let t = parseWhen(v, zone, isEnd = false)
@@ -175,6 +192,12 @@ func inValues*(column: string, values: seq[string]): string =
   if orNull: parts.add column & " is null"
   " and (" & parts.join(" or ") & ")"
 
+func rangeSql*(column: string, r: NumRange): string =
+  ## " and a.distance_m >= 40000.000 and a.distance_m <= 50000.000": the ends that are
+  ## given, both inclusive.  (Not recorded, NULL, is never in a range.)
+  if r.lo.isSome: result.add " and " & column & " >= " & formatFloat(r.lo.get, ffDecimal, 3)
+  if r.hi.isSome: result.add " and " & column & " <= " & formatFloat(r.hi.get, ffDecimal, 3)
+
 func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
                columns = "a.id"): string =
   ## A query for the activities of `userIds` that meet the criteria, giving
@@ -188,6 +211,8 @@ func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
     "where f.user_id in (" & ids.join(", ") & ")"
   result.add inValues("a.sport", c.sports)
   result.add inValues("a.sub_sport", c.subSports)
+  result.add rangeSql("a.distance_m", c.distanceM)
+  result.add rangeSql("a.timer_s", c.activeS)
   if c.fromT.isSome: result.add " and a.start_t >= " & $c.fromT.get
   if c.toT.isSome: result.add " and a.start_t < " & $c.toT.get
   if centre.isSome:

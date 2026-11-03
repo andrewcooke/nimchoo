@@ -75,6 +75,20 @@ suite "list: the command line":
     check cmdline("-n", "0").problem.contains("number of activities")
     check cmdline("-n").problem.contains("needs a value")
     check cmdline("-n", "2", "--oldest", "2").problem.contains("together")
+  test "--distance and --active are ranges; a value that starts with a dash is a value":
+    let c = cmdline("--distance", "-5", "--active", "1h30m-4h").criteria
+    check c.distanceM == NumRange(hi: some 5000.0)
+    check c.activeS == NumRange(lo: some 5400.0, hi: some 14400.0)
+    check cmdline("--distance", "10-50").criteria.distanceM == NumRange(lo: some 10000.0, hi: some 50000.0)
+    check cmdline("--distance", "500m-").criteria.distanceM == NumRange(lo: some 500.0)
+    check cmdline("--show", "--distance", "5-").problem.contains("no criteria")
+  test "--distance and --active problems":
+    check cmdline("--distance", "5").problem.contains("cannot read the distance range '5'")
+    check cmdline("--distance", "1-2-3").problem.contains("cannot read")
+    check cmdline("--distance", "50-10").problem.contains("backwards")
+    check cmdline("--active", "90-").problem.contains("cannot read the active time range")
+    check cmdline("--active", "2h-1h").problem.contains("backwards")
+    check cmdline("--distance").problem.contains("needs a value")
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
   test "--show takes no criteria, and cannot be saved":
@@ -128,6 +142,16 @@ suite "list: the box and the sql":
     let m = matchSql(@[1'i64], Criteria(sports: @["cycling"], subSports: @["none"]), none((float, float)))
     check m.contains("a.sport in ('cycling')") and m.contains("a.sub_sport is null")
     check not matchSql(@[1'i64], Criteria(), none((float, float))).contains("sport")
+  test "ranges become inclusive comparisons, only for the ends given":
+    check rangeSql("a.distance_m", NumRange()) == ""
+    check rangeSql("a.distance_m", NumRange(lo: some 40000.0)) == " and a.distance_m >= 40000.000"
+    check rangeSql("a.timer_s", NumRange(hi: some 3600.0)) == " and a.timer_s <= 3600.000"
+    check rangeSql("a.timer_s", NumRange(lo: some 60.0, hi: some 120.5)) ==
+      " and a.timer_s >= 60.000 and a.timer_s <= 120.500"
+    let m = matchSql(@[1'i64], Criteria(distanceM: NumRange(lo: some 1000.0),
+                     activeS: NumRange(hi: some 60.0)), none((float, float)))
+    check m.contains("a.distance_m >= 1000.000") and m.contains("a.timer_s <= 60.000")
+    check not matchSql(@[1'i64], Criteria(), none((float, float))).contains("distance_m")
   test "saving wraps the same query":
     let m = matchSql(@[3'i64], Criteria(newest: 1), none((float, float)), "a.id as id")
     check saveSql(7, m) == "insert into selection(user_id, activity_id) select 7, id from (" & m & ")"

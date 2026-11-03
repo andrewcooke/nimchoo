@@ -160,6 +160,61 @@ suite "list: the command":
     check chosen(db) == @["lisbon1"]                 # (nothing changed)
     check list(db, "--sport", "cycling", "swimming") == exitFailure
 
+  proc setNumbers(db, tag: string, distanceM, timerS: string) =
+    ## Give the activity of the file `tag` its distance and timer time (NULL: "null").
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    st.db.exec(sql("update activity set distance_m = " & distanceM & ", timer_s = " & timerS &
+      " where file_id = (select id from file where name = '" & tag & "')"))
+
+  test "by distance, inclusive, and not recorded is never in":
+    let db = world("distance")
+    setNumbers(db, "lisbon1", "10000", "3600")
+    setNumbers(db, "paris", "30000", "7200")
+    setNumbers(db, "lisbon2", "null", "null")
+    discard save(db, "--users", "default", "bob", "--distance", "20-")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--distance", "-10")
+    check chosen(db) == @["lisbon1"]                  # (10 km counts; the unrecorded does not)
+    discard save(db, "--users", "default", "bob", "--distance", "10-30")
+    check chosen(db) == @["lisbon1", "paris"]
+    discard save(db, "--users", "default", "bob", "--distance", "10001m-29999m")
+    check chosen(db).len == 0
+    discard save(db, "--users", "default", "bob", "--distance", "0-")
+    check chosen(db) == @["lisbon1", "paris"]         # (bob's has no distance at all)
+
+  test "by active time":
+    let db = world("active")
+    setNumbers(db, "lisbon1", "10000", "3600")
+    setNumbers(db, "paris", "30000", "7200")
+    setNumbers(db, "lisbon2", "50000", "10800")
+    discard save(db, "--users", "default", "bob", "--active", "2h-")
+    check chosen(db) == @["lisbon2", "paris"]
+    discard save(db, "--users", "default", "bob", "--active", "-1h")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--users", "default", "bob", "--active", "1h01m-2h59m")
+    check chosen(db) == @["paris"]
+
+  test "ranges come before --newest, and combine with the other criteria":
+    let db = world("rangeand")
+    setNumbers(db, "lisbon1", "10000", "3600")
+    setNumbers(db, "paris", "30000", "7200")
+    setNumbers(db, "lisbon2", "50000", "10800")
+    discard save(db, "--users", "default", "bob", "--distance", "40-", "-n", "1")
+    check chosen(db) == @["lisbon2"]
+    discard save(db, "--users", "default", "bob", "--distance", "5-", "--sport", "cycling", "--active", "-1h30m")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--users", "default", "bob", "--distance", "5-", "-n", "2")
+    check chosen(db) == @["lisbon2", "paris"]
+
+  test "bad ranges are a usage error and change nothing":
+    let db = world("badrange")
+    discard save(db)
+    check list(db, "--distance", "5") == exitUsage
+    check list(db, "--active", "90-") == exitUsage
+    check save(db, "--distance", "50-10") == exitUsage
+    check chosen(db) == @["lisbon1", "paris"]
+
   test "dates":
     let db = world("dates")
     discard save(db, "--users", "default", "bob", "--from", "2018-08-01")
