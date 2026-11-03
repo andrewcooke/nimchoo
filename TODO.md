@@ -487,12 +487,14 @@ should mean "starts near" (how rides are named), and named places want a home in
    a database made with another list is refused like any out-of-date one.  The `test` task
    builds `nch-test` (short list, like the tests) for the subprocess tests, so `./nch` is never
    replaced by a test build.
-3d. [x] **The place column says something for every ride** (`startText`): the place name (with the
-   distance if over 10 km); if no place is known but the activity has a start, its coordinates
-   (`-33.4362,-70.6090`: lat,lon, four decimals = about 10 m, as Google Maps takes them); if it has
-   no start, a dim `no GPS`.  Seen on the author's data: four rides (e.g. `2018-12-16-lyn.fit`:
-   195 records, a session and a lap, 856 m in 3 min) have no position field anywhere in the file,
-   so no coordinates can be shown for them; a place is not guessed from neighbouring rides.
+3d. [x] **`list -v` says where each ride started in three columns, `position`, `place`, `file`**:
+   `position` is the start as `-33.4362,-70.6090` (lat,lon, four decimals = about 10 m, as Google
+   Maps takes it; blank if the file has no positions); `place` is the nearest place from the list
+   (a name always exists when there is a start), with the distance if over 10 km
+   (`Coyhaique, CL (180km)`), or a dim `no GPS` if there is no start.  Seen on the author's data:
+   four rides (e.g. `2018-12-16-lyn.fit`: 195 records, a session and a lap, 856 m in 3 min) have no
+   position field anywhere in the file, so nothing can be shown for them and a place is not
+   guessed from neighbouring rides.
 4. Docs.
 
 ## Task 5: `nch list` replaces `nch select` (step 1 built)

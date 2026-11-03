@@ -485,14 +485,15 @@ suite "list: what is shown":
     check rows[2].contains("Lisbon, PT (") and rows[2].contains("km)")                 # paris: a long way
     check not shown(db).lines.texts[0].contains("place")                               # (only with -v)
 
-  test "no place known: its coordinates; no start: no GPS":
+  test "a start with no place stored: its position, and a blank place; no start: no GPS and no position":
     let db = world("verbose-noplace")
     let st = openStore(db, allFragments)
     st.db.exec(sql"update activity set start = null where file_id in (select id from file where name = 'paris')")
     st.close()
     let rows = shown(db, "-v").lines.texts
-    check rows[1].contains("38.7200,-9.1400")           # lisbon1: a start, but no place stored: where
-    check rows[2].contains("no GPS")                     # paris: no start at all
+    check rows[0].contains("position") and rows[0].contains("place")
+    check rows[1].contains("38.7200,-9.1400") and not rows[1].contains("no GPS")   # lisbon1: where, though no place is stored
+    check rows[2].contains("no GPS") and not rows[2].contains(",")                 # paris: no start at all
 
   test "saving is logged":
     let db = world("shownlog")
