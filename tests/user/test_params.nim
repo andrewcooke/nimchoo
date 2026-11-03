@@ -33,6 +33,10 @@ suite "user: the command line":
     let p = parseArgs(@["bob", "--fthr", "150"])
     check p.problem.contains("unexpected argument bob") and p.problem.contains("--create bob") and
       p.problem.contains("--user bob")
+  test "--default, alone or with --create":
+    check parseArgs(@["--default"]).makeDefault and not parseArgs(@["--default"]).list
+    let p = parseArgs(@["--create", "bob", "--default"])
+    check p.makeDefault and p.create and p.problem == ""
   test "problems":
     check parseArgs(@["--create"]).problem.contains("--create needs a value")
     check parseArgs(@["--create", "bad name"]).problem.contains("not a name for a user")

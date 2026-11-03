@@ -2,6 +2,10 @@
 ## schema up to date on first use), and the user whose data we work with.
 ## Every command that uses the database starts with `openStore`.
 ##
+## One user is the default (`user.is_default`): the one used when none is asked for.
+## A database with no users gets one, called `default`; if the default user has gone
+## but others remain, the oldest of them becomes the default.
+##
 ## The schema is made of fragments (fragment.nim): the database's own, then
 ## those of the modules, in the order given.  The database remembers which it
 ## has had in the table `fragment`, so opening applies only the missing ones.
@@ -20,7 +24,7 @@ export db_sqlite.DbConn, fragment
 {.push raises: [].}
 
 const
-  defaultUser* = "default"
+  defaultUser* = "default"   ## the name of the user made in an empty database
   baseFragments = @[fragment("001-schema.sql")]
 
 type
@@ -118,9 +122,9 @@ proc close*(s: Store) {.raises: [].} =
   except DbError: discard  # nothing useful can be done
 
 proc openStore*(path: string, fragments: seq[Fragment],
-                user = defaultUser): Store {.raises: [StoreError].} =
+                user = ""): Store {.raises: [StoreError].} =
   ## Open the database at `path`, creating the file and applying the fragments
-  ## it lacks, and find `user` (the default user is created if missing).
+  ## it lacks, and find `user` ("": the default user, made if there are no users).
   ## Raises StoreError if that cannot be done or the user does not exist.
   if path != ":memory:":
     try:
@@ -136,16 +140,21 @@ proc openStore*(path: string, fragments: seq[Fragment],
       result.db.exec(sql"pragma foreign_keys = on")
     bringUpToDate(result.db, fragments)
     guard:
-      result.db.exec(sql"insert or ignore into user(name) values (?)",
-                     defaultUser)
-      let id = result.db.getValue(sql"select id from user where name = ?", user)
+      if result.db.getValue(sql"select count(*) from user") == "0":
+        result.db.exec(sql"insert into user(name, is_default) values (?, 1)", defaultUser)
+      elif result.db.getValue(sql"select count(*) from user where is_default = 1") == "0":
+        result.db.exec(sql"update user set is_default = 1 where id = (select min(id) from user)")
+      let id = if user.len == 0:
+                 result.db.getValue(sql"select id from user where is_default = 1")
+               else:
+                 result.db.getValue(sql"select id from user where name = ?", user)
       if id.len == 0:
         raiseStore("no such user: " & user)
       try:
         result.userId = parseBiggestInt(id)
       except ValueError:
         raiseStore("bad user id " & id)
-      result.userName = user
+      result.userName = result.db.getValue(sql"select name from user where id = ?", id)
   except StoreError:
     close(result)
     raise

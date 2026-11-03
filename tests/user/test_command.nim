@@ -34,14 +34,14 @@ suite "nch user":
   test "a new database has the default user, with no FTHR and no activities":
     let db = fresh("fresh")
     check user(db) == exitOk
-    check lines(db) == @["user     fthr  activities", "default     -           0"]
+    check lines(db) == @["user     fthr  activities  default", "default     -           0  yes"]
 
   test "make a user, with an FTHR, and see them":
     let db = fresh("create")
     check user(db, "--create", "bob", "--fthr", "150") == exitOk
     check user(db, "--create", "carol") == exitOk
-    check lines(db) == @["user     fthr  activities", "bob       150           0",
-                         "carol       -           0", "default     -           0"]
+    check lines(db) == @["user     fthr  activities  default", "bob       150           0",
+                         "carol       -           0", "default     -           0  yes"]
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'bob')") == "150"
     check q(db, "select count(*) from user_profile") == "1"           # (carol has no profile row yet)
 
@@ -82,14 +82,44 @@ suite "nch user":
     check userAs(db, "robert", "--fthr", "155") == exitOk          # and it is found by the new name
     check userAs(db, "bob", "--rename", "x") == exitFailure         # the old name is gone
 
-  test "rename: not to a name that is taken, and not the default user":
+  test "rename: not to a name that is taken":
     let db = fresh("renamebad")
     check user(db, "--create", "bob") == exitOk
     check userAs(db, "bob", "--rename", "default") == exitFailure
     check userAs(db, "bob", "--rename", "bob") == exitFailure        # (to itself: taken)
-    check user(db, "--rename", "robert") == exitFailure                  # the default user
     check q(db, "select count(*) from user where name = 'default'") == "1"
     check q(db, "select count(*) from user") == "2"
+
+  test "the first user is the default; the default can be renamed and stays the default":
+    let db = fresh("defaultrename")
+    check q(db, "select name from user where is_default = 1") == "default"
+    check user(db, "--rename", "me") == exitOk
+    check q(db, "select name from user where is_default = 1") == "me"
+    check q(db, "select count(*) from user") == "1"             # (no new empty 'default' appears)
+    check user(db, "--fthr", "150") == exitOk                    # with no --user: it is the one used
+    check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'me')") == "150"
+
+  test "--default moves the default to another user, and only one is ever the default":
+    let db = fresh("setdefault")
+    check user(db, "--create", "bob") == exitOk
+    check q(db, "select name from user where is_default = 1") == "default"
+    check userAs(db, "bob", "--default") == exitOk
+    check q(db, "select name from user where is_default = 1") == "bob"
+    check q(db, "select count(*) from user where is_default = 1") == "1"
+    check user(db, "--fthr", "160") == exitOk                    # now acts on bob
+    check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'bob')") == "160"
+    check lines(db)[^1] == "default     -           0"             # (the flag column is blank)
+    check user(db, "--create", "carol", "--default") == exitOk       # made and made the default in one go
+    check q(db, "select name from user where is_default = 1") == "carol"
+    check userAs(db, "nobody", "--default") == exitFailure
+
+  test "when the default user is destroyed, another becomes the default":
+    let db = fresh("defaultgone")
+    check user(db, "--create", "bob") == exitOk
+    let s = openStore(db, allFragments)
+    s.db.exec(sql"delete from user where name = 'default'")
+    s.close()
+    check q(db, "select name from user where is_default = 1") == "bob"
 
   test "several changes in one go":
     let db = fresh("several")
@@ -106,7 +136,7 @@ suite "nch user":
                 $i, $i)
       s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 0, 1)", i)
     s.close()
-    check lines(db) == @["user     fthr  activities", "bob         -       1,200", "default     -           0"]
+    check lines(db) == @["user     fthr  activities  default", "bob         -       1,200", "default     -           0  yes"]
 
   test "the profile goes with the user":
     let db = fresh("cascade")

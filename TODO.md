@@ -498,6 +498,14 @@ existing `user.name`, the key for `--user`; no separate display name).
   opened.  The FTHR change that must clear impulses is not there yet because there are no
   impulses: it goes in with step 3.
 
+**Default user, changed after step 1:** `user.is_default` (a partial unique index: at most one is 1)
+marks the user commands work on without `--user`.  An empty database gets one called `default`,
+flagged; if the flagged user is deleted and others remain, the oldest becomes the default.  So the
+default can be renamed.  `nch [--user NAME] user --default` moves the flag (`--create NAME --default`
+makes a user and does so in one go); `nch user` has a `default` column ("yes").  `openStore` takes
+`""` for "the default".  The schema changed, so an existing database needs `nch destroy -f` and a
+re-import.
+
 ### Open
 
 * Per sport (activity group) FTHR and models: later, if wanted.

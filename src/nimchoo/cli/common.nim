@@ -46,4 +46,4 @@ proc failure*(command, problem: string): int {.raises: [].} =
 proc openStore*(g: Globals): Store {.raises: [StoreError].} =
   ## The database the global options point at (see db/store.nim).
   openStore(resolveDbPath(g.dbPath), g.fragments,
-            if g.user.len > 0: g.user else: defaultUser)
+            g.user)

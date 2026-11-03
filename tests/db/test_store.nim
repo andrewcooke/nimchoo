@@ -32,12 +32,13 @@ func frag(name, sqlText: string): Fragment =
   Fragment(name: name, sql: sqlText)
 
 suite "database: opening and bringing the schema up to date":
-  test "a new database has the schema and the default user":
+  test "a new database has the schema and the default user, flagged as such":
     let path = tempDb("new")
     let s = open(path)
     check fileExists(path)
     check s.userName == defaultUser
     check s.userId > 0
+    check s.db.getValue(sql"select name from user where is_default = 1") == defaultUser
     for table in ["user", "file", "activity", "coords", "segment", "fragment"]:
       check s.db.getValue(sql"select count(*) from sqlite_master where name = ?",
                           table) == "1"

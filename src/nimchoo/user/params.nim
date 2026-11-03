@@ -15,6 +15,7 @@ type Params* = object
   name*: string              ## the user to make
   fthr*: Option[int]         ## set the threshold heart rate (of the current user, or of the new one)
   clearFthr*: bool
+  makeDefault*: bool         ## make the user (new, or current) the default one
   rename*: string            ## the new name of the current user ("": no)
   help*: bool
   problem*: string
@@ -37,7 +38,7 @@ func parseFthr*(s: string): Option[int] =
   none(int)
 
 func parseArgs*(args: seq[string]): Params =
-  ## `nch user` (list), `--create NAME [--fthr N]`, `--fthr N`, `--clear-fthr`, `--rename NEW`.
+  ## `nch user` (list), `--create NAME [--fthr N] [--default]`, `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`.
   var i = 0
   template fail(msg: string) =
     result.problem = msg
@@ -54,6 +55,7 @@ func parseArgs*(args: seq[string]): Params =
       result.create = true
       result.name = value(a)
     of "--clear-fthr": result.clearFthr = true
+    of "--default": result.makeDefault = true
     of "--fthr":
       let v = value(a)
       result.fthr = parseFthr(v)
@@ -77,8 +79,8 @@ func parseArgs*(args: seq[string]): Params =
       fail("'" & result.name & "' is not a name for a user (1 to " & $maxNameLength &
            " letters, digits, _ . -, not starting with -)")
     if result.rename.len > 0 or result.clearFthr:
-      fail("--create can be combined only with --fthr")
+      fail("--create can be combined only with --fthr and --default")
   if result.fthr.isSome and result.clearFthr:
     fail("--fthr and --clear-fthr cannot be used together")
   result.list = not result.create and result.fthr.isNone and not result.clearFthr and
-                result.rename.len == 0
+                result.rename.len == 0 and not result.makeDefault

@@ -20,8 +20,9 @@ const
   usage* = """usage: nch [--db PATH] [--user NAME] destroy -f
 
 Without --user: delete the database file, and with it the data of every user.
-With --user NAME: delete that user and all their data (the default user is
-created again, empty, the next time the database is opened).
+With --user NAME: delete that user and all their data (if that was the default
+user, another becomes the default, or if there is none a new empty one is made,
+the next time the database is opened).
 
 Nothing is deleted without -f.  On a terminal there are then 5 seconds in
 which to press Ctrl-C.

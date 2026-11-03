@@ -15,18 +15,20 @@ import ./params
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] user
-       nch user --create NAME [--fthr BPM]
-       nch [--db PATH] [--user NAME] user [--fthr BPM | --clear-fthr] [--rename NEW]
+       nch user --create NAME [--fthr BPM] [--default]
+       nch [--db PATH] [--user NAME] user [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
 
 Without options, show the users.  Otherwise, make a user, or change the user given by
---user (the default user if there is none).
+--user (the default user if there is none).  One user is always the default: the first, until
+another is made so.
 
   --create NAME   make the user NAME (users are never made by accident: it must be asked for)
   --fthr BPM      the user's functional threshold heart rate: the highest rate they can
                   sustain for about an hour (80 to 230).  Heart-rate zones, and so training
                   impulse, are worked out from it.
   --clear-fthr    forget it
-  --rename NEW    change the user's name (not the default user's)
+  --rename NEW    change the user's name
+  --default       make the user the default: the one used when there is no --user
   -h, --help      show this help
 
 Names have 1 to 32 letters, digits and _ . - (not starting with -).
@@ -48,23 +50,39 @@ proc setFthr(st: Store, id: int64, fthr: int) {.raises: [StoreError].} =
     st.db.exec(sql"""insert into user_profile(user_id, fthr) values (?, ?)
       on conflict(user_id) do update set fthr = excluded.fthr""", id, fthr)
 
+proc setDefault(st: Store, id: int64) {.raises: [StoreError].} =
+  ## Make `id` the default user (the old one stops being; both or neither).
+  st.begin()
+  try:
+    guard:
+      st.db.exec(sql"update user set is_default = 0 where is_default = 1")
+      st.db.exec(sql"update user set is_default = 1 where id = ?", id)
+    st.commit()
+  except StoreError:
+    st.rollback()
+    raise
+
 func commas(n: string): string =
   try: insertSep($parseInt(n), ',') except ValueError: n
 
 proc userLines*(st: Store): seq[string] {.raises: [StoreError].} =
-  ## The users, one to a line: name, FTHR ("-" if not set), and how many activities they have.
-  var rows: seq[array[3, string]]
+  ## The users, one to a line: name, FTHR ("-" if not set), how many activities they have, and
+  ## "yes" for the default user.
+  var rows: seq[array[4, string]]
   guard:
     for r in st.db.fastRows(sql"""select u.name, coalesce(p.fthr, ''), (select count(*) from activity a
-        join file f on f.id = a.file_id where f.user_id = u.id)
+        join file f on f.id = a.file_id where f.user_id = u.id), u.is_default
         from user u left join user_profile p on p.user_id = u.id order by u.name"""):
-      rows.add [r[0], (if r[1].len > 0: r[1] else: "-"), commas(r[2])]
+      rows.add [r[0], (if r[1].len > 0: r[1] else: "-"), commas(r[2]),
+                (if r[3] == "1": "yes" else: "")]
   var w = [4, 4, 10]
   for r in rows:
     for c in 0 .. 2: w[c] = max(w[c], r[c].len)
-  result.add "user".alignLeft(w[0]) & "  " & "fthr".align(w[1]) & "  " & "activities".align(w[2])
+  result.add ("user".alignLeft(w[0]) & "  " & "fthr".align(w[1]) & "  " & "activities".align(w[2]) &
+              "  default").strip(leading = false)
   for r in rows:
-    result.add r[0].alignLeft(w[0]) & "  " & r[1].align(w[1]) & "  " & r[2].align(w[2])
+    result.add (r[0].alignLeft(w[0]) & "  " & r[1].align(w[1]) & "  " & r[2].align(w[2]) &
+                "  " & r[3]).strip(leading = false)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch user ARGS`; returns the exit status.
@@ -89,6 +107,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         return failure("nch user", "there is a user called '" & p.name & "' already")
       guard: st.db.exec(sql"insert into user(name) values (?)", p.name)
       var said = "made the user " & p.name
+      if p.makeDefault:
+        setDefault(st, userId(st, p.name))
+        said.add ", the default"
       if p.fthr.isSome:
         setFthr(st, userId(st, p.name), p.fthr.get)
         said.add ", with an FTHR of " & $p.fthr.get
@@ -106,10 +127,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said = st.userName & ": FTHR forgotten"
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
+    if p.makeDefault:
+      setDefault(st, id)
+      let said = st.userName & " is now the default user"
+      g.log.log(lvInfo, "user", leSaved, said)
+      stdout.say said & "\n"
     if p.rename.len > 0:
-      if st.userName == defaultUser:
-        return failure("nch user", "the default user cannot be renamed (it is made again whenever " &
-                       "a database is opened)")
       if exists(st, p.rename):
         return failure("nch user", "there is a user called '" & p.rename & "' already")
       guard: st.db.exec(sql"update user set name = ? where id = ?", p.rename, id)
