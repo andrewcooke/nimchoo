@@ -305,6 +305,28 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
     characters;
   - the worker is started with an argument list, never through a shell.
 
+### Refinements (sketched with the user, 2026-11-03)
+
+* **Checked on the author's machine:** `xdg-open` and Firefox are installed; unpkg is reachable;
+  Nim's `asynchttpserver` is in the standard library (no new dependency).  Leaflet 1.9.4
+  integrity hashes, computed from the downloaded files: `leaflet.js`
+  `sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=`, `leaflet.css`
+  `sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=`.
+* **Pieces:** `heatmap/page.nim` (pure: the page text; the data file name is a validated cache
+  file name, so it is safe in HTML and JS), `--worker` (writes the geojson if missing and the
+  page always, prints the page path then the data path), `serve/request.nim` (pure: request
+  checks), `serve/token.nim`, `serve/server.nim`, then `--web`, `--no-open`, `--port`,
+  `--new-token` in `heatmap`.
+* **Redirect for a URL with no `sel`:** the server reads the key from the file name the worker
+  returns, so `cache.nim` gets the inverse of `fileStem` (`parseStem`).
+* **Hardening:** a Content-Security-Policy (scripts from the server and unpkg, images from the
+  server and the OSM tile server, `connect-src 'self'`), `X-Content-Type-Options: nosniff`;
+  request lines go to the nch log.
+* **Integration test:** start `nch heatmap --web --no-open --port 0` (the OS picks a free port,
+  printed) on a fixture database and use plain HTTP: 200 with the token and a cookie set, 403
+  without, 403 for a wrong Host, 404 for other commands and for `..`, the GeoJSON content type,
+  a clean stop.  It needs a built `./nch`, so the `test` task builds it first.
+
 ### Steps (each a commit; tests pass after each)
 
 1. [x] `cache.nim` (cache directory, file names from options, the character rule,
