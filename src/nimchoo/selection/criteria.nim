@@ -1,4 +1,4 @@
-## What `nch select` is asked for: the command line parsed into criteria, and the
+## What `nch list` is asked for: the command line parsed into criteria, and the
 ## criteria turned into SQL.  Pure: no database, no clock, no terminal (the time
 ## zone is a parameter), so all of it is tested directly.
 
@@ -10,8 +10,8 @@ type
   NearKind* = enum nkNone, nkPoint, nkLatest
 
   Criteria* = object
-    show*: bool               ## no arguments: show the selection, change nothing
-    all*: bool                ## every activity of the users
+    show*: bool               ## --show: the stored selection, no criteria
+    save*: bool               ## --save: keep what is listed as the selection
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
@@ -63,11 +63,13 @@ func parseLatLon*(s: string): Option[(float, float)] =
     none((float, float))
 
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
-  ## The command line of `nch select`.  Options with values: `--users A B C` (names up to
+  ## The command line of `nch list`.  Options with values: `--users A B C` (names up to
   ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
-  ## `--newest N`, `--oldest N`, flags `--all`, `--latest` (= `--newest 1`).
+  ## `--newest N`, `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
+  ## `--show` (which takes no criteria).
   var c = Criteria(radiusKm: defaultRadiusKm)
   var radiusGiven = false
+  var criteriaGiven = false
   var i = 0
   template fail(msg: string) =
     result.problem = msg
@@ -76,12 +78,13 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     inc i
     if i >= args.len: fail(name & " needs a value")
     args[i]
-  c.show = args.len == 0
   while i < args.len:
     let a = args[i]
+    if a notin ["-h", "--help", "--save", "--show"]: criteriaGiven = true
     case a
     of "-h", "--help": result.help = true
-    of "--all": c.all = true
+    of "--save": c.save = true
+    of "--show": c.show = true
     of "--latest": c.newest = 1
     of "--newest", "--oldest":
       let v = value(a)
@@ -102,12 +105,12 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       if c.users.len == 0: fail("--users needs at least one name")
     of "--from":
       let v = value("--from")
-      let t = parseWhen(v, local(), isEnd = false)
+      let t = parseWhen(v, zone, isEnd = false)
       if t.isNone: fail("cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)")
       c.fromT = t
     of "--to":
       let v = value("--to")
-      let t = parseWhen(v, local(), isEnd = true)
+      let t = parseWhen(v, zone, isEnd = true)
       if t.isNone: fail("cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)")
       c.toT = t
     of "--near":
@@ -130,6 +133,9 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     else:
       fail("unexpected argument " & a)
     inc i
+  if c.show:
+    if c.save: fail("--show shows the stored selection: it cannot be combined with --save")
+    if criteriaGiven: fail("--show takes no criteria (it shows the stored selection)")
   if radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest
   if c.newest > 0 and c.oldest > 0: fail("--newest and --oldest cannot be used together")
   if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
@@ -148,16 +154,17 @@ func box*(lat, lon, radiusKm: float): Box =
 
 func deg(x: float): string = formatFloat(x, ffDecimal, 7)
 
-func insertSql*(owner: int64, userIds: seq[int64], c: Criteria,
-                centre: Option[(float, float)]): string =
-  ## The statement that fills the selection of `owner` with the activities of
-  ## `userIds` that meet the criteria.  `centre` is the point `--near` means.  (Only
-  ## numbers are put into the text; names have been turned into ids.)
+func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
+               columns = "a.id"): string =
+  ## A query for the activities of `userIds` that meet the criteria, giving
+  ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
+  ## criteria become SQL, used to list them, to count them and to save them.
+  ## `centre` is the point `--near` means.  (Only numbers are put into the text;
+  ## names have been turned into ids.)
   var ids: seq[string]
   for id in userIds: ids.add $id
-  result = "insert into selection(user_id, activity_id) select " & $owner &
-    ", a.id from activity a join file f on f.id = a.file_id where f.user_id in (" &
-    ids.join(", ") & ")"
+  result = "select " & columns & " from activity a join file f on f.id = a.file_id " &
+    "where f.user_id in (" & ids.join(", ") & ")"
   if c.fromT.isSome: result.add " and a.start_t >= " & $c.fromT.get
   if c.toT.isSome: result.add " and a.start_t < " & $c.toT.get
   if centre.isSome:
@@ -171,3 +178,8 @@ func insertSql*(owner: int64, userIds: seq[int64], c: Criteria,
       ", 4326), 1) <= " & deg(c.radiusKm * 1000) & ")"
   if c.newest > 0: result.add " order by a.start_t desc limit " & $c.newest
   if c.oldest > 0: result.add " order by a.start_t asc limit " & $c.oldest
+
+func saveSql*(owner: int64, match: string): string =
+  ## The statement that makes the activities of the query `match` (which gives
+  ## a column `id` first) the selection of `owner`.
+  "insert into selection(user_id, activity_id) select " & $owner & ", id from (" & match & ")"

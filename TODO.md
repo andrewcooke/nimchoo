@@ -138,9 +138,10 @@ src/nimchoo/
     ddl.nim                   its fragments
     001-schema.sql            file, activity, coords, segment, route, seen_file
   destroy/command.nim         MODULE: `nch destroy`; newer than importer, so it counts its activities
-  select/                     MODULE: `nch select`, and the selection table
+  selection/                  MODULE: `nch list`, and the selection table
     criteria.nim              the command line -> criteria (times, positions); criteria -> SQL (pure)
-    command.nim  ddl.nim      `nch select`; its fragments
+    command.nim  ddl.nim      `nch list`; its fragments
+    selection.nim             selectionKey: a short hash of the selection's content
     001-schema.sql            selection
 tests/                        mirrors src/nimchoo/: tests/<dir>/test_<file>.nim tests <dir>/<file>.nim
                               (a few cover neighbouring files); all.nim imports them all;
@@ -153,9 +154,12 @@ arguments, choosing sinks, exit status), the logic, and, if it has tables, `ddl.
 `.sql` file(s).  We do not separate commands from the library code they sit on: the module
 that first brings in a concept owns it (`importer/` owns activities, segments and
 coordinates) and later commands use its library files.  The one rule, kept by a test
-(`tests/test_structure.nim`): **only `nch.nim` imports a `command.nim`.**  A command's
-directory is named after it, or after a noun for it when the name is a Nim keyword (`nch
-import` -> `importer/`; neither `import_` nor backticks work for a module name).
+(`tests/test_structure.nim`): **only `nch.nim` imports a `command.nim`.**  A module's
+directory is named for the concept it owns, and its commands are what it offers: `importer/`
+(`nch import`; `import` is a Nim keyword, and neither `import_` nor backticks work for a
+module name), `selection/` (`nch list`, which makes and shows the selection), `fit/`
+(`nch fit`).  Where a command only works on its own, the directory is just its name
+(`heatmap/`, `destroy/`, `log/`).
 
 To add tables to a module: write `NNN-name.sql` in its directory (DDL only), list it in its
 `ddl.nim` with `fragment("NNN-name.sql")`, and add the module's `ddl` to `modules.nim` after the
@@ -199,7 +203,7 @@ The Task 1 notes below use the module names of the time (`binary.nim` is now
 
 ## Task 3: `nch heatmap` (GeoJSON) and a local web viewer (planned)
 
-Goal (AGENTS.md, "two layers"): something graphical that uses `select`.  Layer 1 writes files
+Goal (AGENTS.md, "two layers"): something graphical that uses the selection (`nch list --save`).  Layer 1 writes files
 in a format third parties understand (GeoJSON); layer 2 is a minimal local web server that
 reads the URL after `localhost` as an `nch` command and shows the result.  Plotting stays
 outside nch: Leaflet in the browser draws, nch only makes data and pages.
@@ -245,7 +249,7 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
   heatmap` uses the current selection (and puts its `sel` in the file name).  With `--sel H`:
   if the files for H exist they are returned; else if the current selection hashes to H they
   are made; else an error: "the selection has changed since this page was opened; run `nch
-  heatmap --web` again".  So an old browser tab never shows different data after `nch select`.
+  heatmap --web` again".  So an old browser tab never shows different data after `nch list --save`.
 * **Styles.**  First `lines`: a `FeatureCollection`, one feature per selected activity, its
   route as `AsGeoJSON(simplified geom, 5)` (about 1 m), properties `id`, `start` (ISO, UTC),
   `sport`, `distance_m`.  Simplified with SpatiaLite (`SimplifyPreserveTopology`; `--tolerance
@@ -277,14 +281,14 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
     that says to open the URL `nch heatmap --web` prints;
   - the `Host` header must be `127.0.0.1:PORT` or `localhost:PORT` (against DNS rebinding);
   - an **allowlist** of commands the server will run (`heatmap` only: read-only and safe to
-    repeat; never `import`, `select`, `destroy`) and, for each, of option names and value
+    repeat; never `import`, `list --save`, `destroy`) and, for each, of option names and value
     characters;
   - the worker is started with an argument list, never through a shell.
 
 ### Steps (each a commit; tests pass after each)
 
 1. [x] `cache.nim` (cache directory, file names from options, the character rule,
-   `isCacheFileName` for what the server may serve) and `select/selection.nim`
+   `isCacheFileName` for what the server may serve) and `selection/selection.nim`
    (`selectionKey`: 12 hex digits of the SHA-256 of the selected activities' file hashes and
    sessions, so it is the same in any database and does not depend on ids).  Tests: names,
    refusals, the key is stable, order-independent, and follows the selection.
@@ -310,7 +314,7 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
   one page to another (the cookie means links need no token); `--standalone` export.
 
-## Task 5: `nch list` replaces `nch select` (planned)
+## Task 5: `nch list` replaces `nch select` (step 1 built)
 
 Why: `select` and a listing would take the same options, and you want to see what you pick.
 One command: the criteria say *which* activities, `--save` says "and keep them", `--show` shows
@@ -328,7 +332,7 @@ what was kept.  What is printed is what is saved.
   `--newest/--oldest N` limit both the list and what is saved.  `nch select` is removed.
 * **Module `selection/`** (renamed from `select/`; the table is already `selection`): `list`
   is its command, in `command.nim`.  A module is named for the concept it owns (as `importer/`
-  owns activities), its commands are what it offers; amend the layout rule in "Code layout".
+  owns activities), its commands are what it offers (the layout rule in "Code layout" now says so).
   `selection/001-schema.sql` is the same table, so the fragment is now named
   `selection/001-schema.sql` (a database with the old name is refused: `nch destroy -f` and
   re-import, no data of value is at stake yet).  `heatmap` uses `selection/selection.nim` (the key).
@@ -355,9 +359,15 @@ what was kept.  What is printed is what is saved.
 
 ### Steps (each a commit; tests pass after each)
 
-1. Rename `select/` to `selection/` (tests mirror it), turn `select` into `list` with `--save`
-   and `--show` and without `--all`/`-n`; the output is still the old one-line summary; fix
-   everything that mentions `select` (heatmap's messages, `commandNames`, usage, docs).
+1. [x] `select/` is `selection/` (tests mirror it), `select` is `list` with `--save` and `--show`
+   (`--show` takes no criteria and not `--save`), without `--all`.  One SQL builder:
+   `matchSql(userIds, criteria, centre, columns)` is the query for the matching activities, used
+   to count them and by `saveSql` (`insert ... select id from (<that query>)`).  The output is
+   still a one-line summary (`matched 3 of 74 activities, ...` / `saved 3 of 74 activities as
+   the selection, ...`); heatmap's messages, `commandNames`, usage and tests are changed.  Found
+   on the way: `parseArgs` ignored its `zone` parameter (always the local zone): fixed.
+   `nch log select` is no longer accepted (`select` is not a command), though old log lines
+   still say `select`.
 2. `--sport`, `--sub-sport`, with the error that lists what exists.
 3. The table, `--file`, the summary by sport, the `saved` log event.
 4. Docs; try it on the test data (mixed sports) and on a real library.
@@ -639,10 +649,10 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
 * **Output conventions that follow:** library code computes and the command prints; progress
   and logging go through events and sinks.
 
-### Routes, `select` and the schema revision (as built)
+### Routes, `select` and the schema revision (as built; `select` is now `nch list`, see Task 5)
 
 * **SQL file naming:** a module's first file is `NNN-schema.sql` (`db/`, `importer/`,
-  `select/`); a change after release is `NNN-<what changed>.sql`.
+  `selection/`); a change after release is `NNN-<what changed>.sql`.
 * **`activity` has no `user_id`:** the user is the file's (`file.user_id`).  `activity.session`
   is the FIT *session* number: a FIT file has one "activity" message with one or more "session"
   messages, each a stretch of one sport (a triathlon has three); our `activity` is a FIT

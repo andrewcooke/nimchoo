@@ -1,6 +1,8 @@
-## `nch select`: choose the activities that later commands work on.  The choice is
-## kept in the database (table `selection`), for the current user, and replaced
-## whenever `select` runs with criteria.  With no arguments it shows it.
+## `nch list`: the activities that meet some criteria, and (with `--save`) the
+## choice of those as "the selection", which other commands (heatmap ...) work on.
+## The selection is kept in the database (table `selection`), for the current user,
+## and replaced whenever `--save` is given; `--show` shows it.  What is listed is
+## what is saved.
 ##
 ## This module is newer than `importer` and reads its tables (activity, file,
 ## coords, route) directly.
@@ -14,17 +16,14 @@ import ./criteria
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] [--user NAME] select [OPTIONS]
+const usage* = """usage: nch [--db PATH] [--user NAME] list [CRITERIA] [--save]
+       nch [--db PATH] [--user NAME] list --show
 
-Choose the activities that other commands use, keeping the choice (the
-"selection") in the database.  Each run with options replaces it; with no
-options the selection is shown.  Criteria are combined with "and".
+List the activities that meet the criteria (all of them if there are none), and
+with --save keep them as the "selection" that other commands use (replacing the
+last one).  Criteria are combined with "and".
 
-  --all              every activity of the users (no other criterion)
-  --newest N         only the N newest of the activities that meet the other criteria
-  --oldest N         only the N oldest of them
-  --latest           the same as --newest 1
-  --users A B C      whose activities to choose from (default: the current user)
+  --users A B C      whose activities (default: the current user)
   --from TIME        activities that start at or after TIME
   --to TIME          activities that start before the end of TIME
                      (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
@@ -33,6 +32,11 @@ options the selection is shown.  Criteria are combined with "and".
   --near latest      ... of the centre of the latest activity of the users
   --radius KM        radius for --near in kilometres (default: 100); on its own it
                      means --near latest
+  --newest N         only the N newest of the activities that meet the other criteria
+  --oldest N         only the N oldest of them
+  --latest           the same as --newest 1
+  --save             make what is listed the selection
+  --show             show the selection (no criteria allowed)
   -h, --help         show this help
 """
 
@@ -90,8 +94,20 @@ proc show(st: Store): string {.raises: [StoreError].} =
   if n == 0: "selection: empty"
   else: "selection: " & $n & (if n == 1: " activity" else: " activities") & range(st)
 
+proc matchStats(st: Store, match: string): tuple[n: int, first, last: int64]
+    {.raises: [StoreError].} =
+  ## How many activities a query (giving `start_t`) finds, and when the first and
+  ## the last started.
+  guard:
+    let r = st.db.getRow(sql("select count(*), coalesce(min(start_t), 0), " &
+      "coalesce(max(start_t), 0) from (" & match & ")"))
+    try:
+      result = (parseInt(r[0]), parseBiggestInt(r[1]), parseBiggestInt(r[2]))
+    except ValueError:
+      raiseStore("bad number from the database")
+
 proc choose(st: Store, c: Criteria): string {.raises: [StoreError].} =
-  ## Replace the selection; returns what to tell the user.
+  ## List (and, if asked, save); returns what to tell the user.
   var userIds: seq[int64]
   if c.users.len == 0:
     userIds.add st.userId
@@ -118,39 +134,44 @@ proc choose(st: Store, c: Criteria): string {.raises: [StoreError].} =
       formatFloat(l.centre.get[1], ffDecimal, 4) & " (the centre of the latest activity, " &
       l.day & ")"
   if said.len > 0: said.add ", within " & km(c.radiusKm) & " km\n"
-  st.begin()
-  var committed = false
-  try:
-    guard:
-      st.db.exec(sql"delete from selection where user_id = ?", st.userId)
-      st.db.exec(sql(insertSql(st.userId, userIds, c, centre)))
-    st.commit()
-    committed = true
-  finally:
-    if not committed: st.rollback()
+  let match = matchSql(userIds, c, centre, "a.id as id, a.start_t as start_t")
+  if c.save:
+    st.begin()
+    var committed = false
+    try:
+      guard:
+        st.db.exec(sql"delete from selection where user_id = ?", st.userId)
+        st.db.exec(sql(saveSql(st.userId, match)))
+      st.commit()
+      committed = true
+    finally:
+      if not committed: st.rollback()
+  let found = matchStats(st, match)
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
-  let n = number(st, "select count(*) from selection where user_id = " & $st.userId)
-  said & "selected " & $n & " of " & $total & (if total == 1: " activity" else: " activities") &
-    (if n > 0: range(st) else: "")
+  let span = if found.n > 0: ", " & localDate(found.first) & " to " & localDate(found.last)
+             else: ""
+  said & (if c.save: "saved " else: "matched ") & $found.n & " of " & $total &
+    (if total == 1: " activity" else: " activities") &
+    (if c.save: " as the selection" else: "") & span
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
-  ## Entry point for `nch select ARGS`; returns the exit status.
+  ## Entry point for `nch list ARGS`; returns the exit status.
   let parsed = parseArgs(args, local())
   if parsed.help:
     stdout.say usage
     return exitOk
   if parsed.problem.len > 0:
-    return usageError("nch select", usage, parsed.problem)
+    return usageError("nch list", usage, parsed.problem)
   var st: Store
   try:
     st = openStore(g)
   except StoreError as e:
-    return failure("nch select", e.msg)
+    return failure("nch list", e.msg)
   defer: st.close()
   try:
     let text = if parsed.criteria.show: show(st) else: choose(st, parsed.criteria)
     stdout.say text & "\n"
     exitOk
   except StoreError as e:
-    failure("nch select", e.msg)
+    failure("nch list", e.msg)

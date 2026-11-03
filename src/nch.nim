@@ -7,7 +7,7 @@
 import std/[options, os, strutils]
 import nimchoo/cli/common
 import nimchoo/destroy/command as destroyCommand
-import nimchoo/select/command as selectCommand
+import nimchoo/selection/command as listCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
 import nimchoo/importer/command as importCommand
@@ -27,8 +27,8 @@ commands:
   fit      read a FIT file and print it (see `nch fit --help`)
   import   put the activities of FIT files in the database
            (see `nch import --help`)
-  select   choose the activities that other commands use
-           (see `nch select --help`)
+  list     list activities, and choose the ones other commands use
+           (see `nch list --help`)
   heatmap  write the routes of the selected activities as GeoJSON
            (see `nch heatmap --help`)
   log      show the log, filtered, with the events coloured
@@ -46,8 +46,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     fitCommand.run(g, rest)
   of "import":
     importCommand.run(g, rest)
-  of "select":
-    selectCommand.run(g, rest)
+  of "list":
+    listCommand.run(g, rest)
   of "heatmap":
     heatmapCommand.run(g, rest)
   of "log":

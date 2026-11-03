@@ -22,7 +22,7 @@ type
   Filter* = object
     commands*: seq[string]           ## only these commands (none: any)
     events*: set[LogEvent]           ## only these events (empty: any)
-    last*: bool                      ## only the latest run (see `select`)
+    last*: bool                      ## only the latest run (see `select` below)
     count*: int                      ## only the last N lines (0: all)
 
   Selected* = object

@@ -20,9 +20,9 @@ const
 
 suite "nch log: the command line":
   test "commands and events are told apart":
-    let p = parseArgs(@["import", "failed", "select", "advisory", "--last", "-n", "5"])
+    let p = parseArgs(@["import", "failed", "list", "advisory", "--last", "-n", "5"])
     check p.problem == ""
-    check p.filter.commands == @["import", "select"]
+    check p.filter.commands == @["import", "list"]
     check p.filter.events == {leFailed, leAdvisory}
     check p.filter.last and p.filter.count == 5
   test "no arguments: no filter":

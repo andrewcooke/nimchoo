@@ -4,7 +4,7 @@ import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/modules
-import nimchoo/select/selection
+import nimchoo/selection/selection
 
 let dir = getTempDir() / "nch-test-heatmap"
 

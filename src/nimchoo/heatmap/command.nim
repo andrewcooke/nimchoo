@@ -1,9 +1,9 @@
 ## `nch heatmap`: the routes of the selected activities as a GeoJSON file in
 ## the cache directory (cache.nim).  The file is named after the options, with
-## the selection pinned by its key (select/selection.nim), so the same request
+## the selection pinned by its key (selection/selection.nim), so the same request
 ## finds the same file and nothing is made twice.
 ##
-## This module is newer than `importer` and `select`: it reads their tables
+## This module is newer than `importer` and `selection`: it reads their tables
 ## (selection, activity, route) and uses the selection key.
 
 import std/[options, os, strutils]
@@ -12,14 +12,14 @@ import ../cache
 import ../cli/common
 import ../db/store
 import ../errors
-import ../select/selection
+import ../selection/selection
 import ./[lines, params]
 
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] heatmap [OPTIONS]
 
-Write the routes of the selected activities (see `nch select`) as a GeoJSON
+Write the routes of the selected activities (see `nch list --save`) as a GeoJSON
 file in the cache directory, and print its path.  Several rides over the same
 roads show as a heatmap in any program that draws GeoJSON with transparency.
 Asking again for the same thing finds the file already there.
@@ -108,7 +108,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         "the current selection")
     let chosen = selectedCount(st)
     if chosen == 0:
-      return failure("nch heatmap", "the selection is empty (see `nch select`)")
+      return failure("nch heatmap", "the selection is empty (see `nch list --save`)")
     let routes = routesOf(st, p.toleranceM)
     if routes.len == 0:
       return failure("nch heatmap", "none of the " & $chosen &

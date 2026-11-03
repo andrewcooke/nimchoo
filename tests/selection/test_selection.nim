@@ -2,7 +2,7 @@ import std/[os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
-import nimchoo/select/selection
+import nimchoo/selection/selection
 
 let dir = getTempDir() / "nch-test-selection"
 

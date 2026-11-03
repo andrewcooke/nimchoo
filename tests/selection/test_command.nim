@@ -3,7 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
-import nimchoo/select/command as selectCommand
+import nimchoo/selection/command as listCommand
 
 let dir = getTempDir() / "nch-test-select"
 
@@ -36,8 +36,12 @@ proc world(name: string): string =
   s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (2, 2, 2.40, 48.90)")
   addActivity(s, bob, "lisbon2", aug15, "MULTILINESTRING((-9.20 38.70, -9.15 38.74))")
 
-proc select(db: string, args: varargs[string]): int =
-  selectCommand.run(Globals(dbPath: db, fragments: allFragments), @args)
+proc list(db: string, args: varargs[string]): int =
+  listCommand.run(Globals(dbPath: db, fragments: allFragments), @args)
+
+proc save(db: string, args: varargs[string]): int =
+  ## list, and keep the result as the selection
+  list(db, @args & "--save")
 
 proc chosen(db: string): seq[string] =
   ## The tags of the selected activities of the default user.
@@ -48,95 +52,119 @@ proc chosen(db: string): seq[string] =
     result.add row[0]
   result.sort
 
-suite "select: the command":
-  test "no arguments shows and changes nothing":
+suite "list: the command":
+  test "--show shows and changes nothing":
     let db = world("show")
-    check select(db) == exitOk
+    check list(db, "--show") == exitOk
     check chosen(db).len == 0
-    discard select(db, "--all")
-    check select(db) == exitOk
+    discard save(db)
+    check list(db, "--show") == exitOk
     check chosen(db) == @["lisbon1", "paris"]
+
+  test "without --save nothing is stored":
+    let db = world("nosave")
+    check list(db) == exitOk                        # (everything of the user's, listed)
+    check list(db, "--newest", "1") == exitOk
+    check chosen(db).len == 0
+    discard save(db, "--newest", "1")
+    check chosen(db) == @["paris"]
+    check list(db, "--oldest", "1") == exitOk       # listing again does not change it
+    check chosen(db) == @["paris"]
+
+  test "--show takes no criteria, and not --save":
+    let db = world("showonly")
+    discard save(db)
+    check list(db, "--show", "--newest", "1") == exitUsage
+    check list(db, "--show", "--from", "2018-01-01") == exitUsage
+    check list(db, "--show", "--save") == exitUsage
+    check chosen(db) == @["lisbon1", "paris"]
+
+  test "saving a list with nothing in it empties the selection":
+    let db = world("saveempty")
+    discard save(db)
+    check save(db, "--from", "2030-01-01") == exitOk
+    check chosen(db).len == 0
 
   test "only the current user's activities, unless --users":
     let db = world("users")
-    check select(db, "--all") == exitOk
+    check save(db) == exitOk
     check chosen(db) == @["lisbon1", "paris"]
-    check select(db, "--users", "default", "bob", "--all") == exitOk
+    check save(db, "--users", "default", "bob") == exitOk
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
-    check select(db, "--users", "bob") == exitOk
+    check save(db, "--users", "bob") == exitOk
     check chosen(db) == @["lisbon2"]
 
   test "each run replaces the selection":
     let db = world("replace")
-    discard select(db, "--all")
+    discard save(db)
     check chosen(db).len == 2
-    discard select(db, "--latest")
+    discard save(db, "--latest")
     check chosen(db) == @["paris"]
-    discard select(db, "--to", "2018-07-31")
+    discard save(db, "--to", "2018-07-31")
     check chosen(db) == @["lisbon1"]
 
   test "the newest or oldest few, of those that meet the other criteria":
     let db = world("few")
-    discard select(db, "--users", "default", "bob", "--newest", "2")
+    discard save(db, "--users", "default", "bob", "--newest", "2")
     check chosen(db) == @["lisbon2", "paris"]       # (of all three, by start time)
-    discard select(db, "--users", "default", "bob", "--oldest", "1")
+    discard save(db, "--users", "default", "bob", "--oldest", "1")
     check chosen(db) == @["lisbon1"]
-    discard select(db, "--users", "default", "bob", "--from", "2018-08-01", "--oldest", "1")
+    discard save(db, "--users", "default", "bob", "--from", "2018-08-01", "--oldest", "1")
     check chosen(db) == @["lisbon2"]                # (of bob's and paris: only after 1 Aug)
-    discard select(db, "--users", "default", "bob", "--from", "2018-08-01", "--newest", "5")
+    discard save(db, "--users", "default", "bob", "--from", "2018-08-01", "--newest", "5")
     check chosen(db) == @["lisbon2", "paris"]
 
   test "dates":
     let db = world("dates")
-    discard select(db, "--users", "default", "bob", "--from", "2018-08-01")
+    discard save(db, "--users", "default", "bob", "--from", "2018-08-01")
     check chosen(db) == @["lisbon2", "paris"]
-    discard select(db, "--users", "default", "bob", "--from", "2018-08-01", "--to", "2018-08-20")
+    discard save(db, "--users", "default", "bob", "--from", "2018-08-01", "--to", "2018-08-20")
     check chosen(db) == @["lisbon2"]
-    discard select(db, "--from", "2030-01-01")
+    discard save(db, "--from", "2030-01-01")
     check chosen(db).len == 0
 
   test "near a point, 100 km unless told":
     let db = world("near")
-    discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "0.3")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "0.3")
     check chosen(db) == @["lisbon1"]          # (206 m away; the other is further)
-    discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5000")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5000")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
   test "a radius on its own is around the latest activity":
     let db = world("radius")
-    discard select(db, "--users", "default", "bob", "--radius", "50")
+    discard save(db, "--users", "default", "bob", "--radius", "50")
     check chosen(db) == @["paris"]
 
   test "near the latest activity":
     let db = world("latest")
-    discard select(db, "--users", "default", "bob", "--near", "latest", "--radius", "50")
+    discard save(db, "--users", "default", "bob", "--near", "latest", "--radius", "50")
     check chosen(db) == @["paris"]            # (the latest is in Paris)
-    check select(db, "--users", "bob", "--near", "latest") == exitFailure   # (no coordinates
+    check save(db, "--users", "bob", "--near", "latest") == exitFailure   # (no coordinates
     check chosen(db) == @["paris"]                                          # to find a centre;
                                                                             # nothing changed)
 
   test "criteria are combined":
     let db = world("and")
-    discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--latest")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--latest")
     check chosen(db) == @["lisbon2"]          # (the newest of those near Lisbon, not of all)
-    discard select(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--to", "2018-08-01")
+    discard save(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--to", "2018-08-01")
     check chosen(db) == @["lisbon1"]
 
   test "a bad request changes nothing":
     let db = world("bad")
-    discard select(db, "--all")
-    check select(db, "--users", "nobody") == exitFailure
-    check select(db, "--newest", "0") == exitUsage
-    check select(db, "--from", "soon") == exitUsage
+    discard save(db)
+    check save(db, "--users", "nobody") == exitFailure
+    check save(db, "--newest", "0") == exitUsage
+    check save(db, "--from", "soon") == exitUsage
     check chosen(db) == @["lisbon1", "paris"]
 
   test "deleting an activity's owner takes it out of everyone's selection":
     let db = world("cascade")
-    discard select(db, "--users", "default", "bob", "--all")
+    discard save(db, "--users", "default", "bob")
     check chosen(db).len == 3
     let s = openStore(db, allFragments)
     s.db.exec(sql"delete from user where name = 'bob'")
