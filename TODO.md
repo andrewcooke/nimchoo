@@ -397,7 +397,7 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
    after `--new-token`, the empty selection, a taken port, Ctrl-C = 130.  `nimble test` builds
    `./nch` first (as an optimised build); without it those tests are skipped.  Not tried by the
    author's own eyes yet: the page in a browser.
-6. Docs here; then try it on real data in a browser (the look needs your eyes).
+6. [x] Docs here; tried by the author on real data in Firefox (2026-11-03): "very good".
 
 ### Open questions
 
