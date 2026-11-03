@@ -29,14 +29,106 @@ const template1 = """<!DOCTYPE html>
 <title>@TITLE@</title>
 <style>
   body { margin: 16px; font: 14px system-ui, sans-serif; color: #222; }
-  h1 { font-size: 15px; font-weight: 600; margin: 0 0 8px; }
-  #note { color: #666; }
+  h1 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+  #info { color: #666; margin: 0 0 8px; }
+  .key { display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 12px; border-radius: 2px; }
+  #chart svg { touch-action: none; user-select: none; cursor: crosshair; }
 </style>
 </head>
 <body>
 <h1>@TITLE@</h1>
-<div id="chart"><span id="note">loading ...</span></div>
+<div id="info"><span id="note">loading ...</span></div>
+<div id="chart"></div>
 <script src="@D3@" integrity="@D3HASH@" crossorigin=""></script>
+<script src="@PLOT@" integrity="@PLOTHASH@" crossorigin=""></script>
+<script>
+  const hourly = @HOURLY@;
+  const colours = { fitness: '#2f9e44', fatigue: '#e03131' };   // green and red, as in the terminal
+  const chart = document.getElementById('chart');
+  const info = document.getElementById('info');
+  let long = [];          // every point: { time, series, value }
+  let zoom = null;        // [from, to] (Dates) after a drag, else null: everything
+
+  function describe() {
+    const key = (name) => '<span class="key" style="background:' + colours[name] + '"></span>' + name;
+    info.innerHTML = key('fitness') + key('fatigue') + '<span style="margin-left:16px">' +
+      (zoom ? 'double-click to zoom out' : 'drag to zoom') + '</span>';
+  }
+
+  function draw() {
+    const data = zoom ? long.filter((d) => d.time >= zoom[0] && d.time <= zoom[1]) : long;
+    const plot = Plot.plot({
+      width: Math.max(300, window.innerWidth - 32),
+      height: Math.max(240, window.innerHeight - 90),
+      x: { type: hourly ? 'time' : 'utc', label: null, domain: zoom || undefined },
+      y: { grid: true, label: null },
+      color: { domain: ['fitness', 'fatigue'], range: [colours.fitness, colours.fatigue] },
+      marks: [
+        Plot.lineY(data, { x: 'time', y: 'value', stroke: 'series', strokeWidth: 1.5 }),
+        Plot.tip(data, Plot.pointerX({ x: 'time', y: 'value', stroke: 'series' }))
+      ]
+    });
+    chart.replaceChildren(plot);
+    describe();
+    brush(plot);
+  }
+
+  // Drag across the chart to zoom to that span; double-click to go back.  (Plot draws, it does
+  // not zoom: the chart is drawn again with the dragged span as its time axis.)
+  function brush(plot) {
+    const scale = plot.scale('x');
+    const [d0, d1] = scale.domain.map((d) => +d);
+    const [r0, r1] = scale.range;
+    const timeAt = (px) => new Date(d0 + (px - r0) / (r1 - r0) * (d1 - d0));
+    const px = (e) => e.clientX - plot.getBoundingClientRect().left;
+    let from = null, box = null;
+    plot.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      from = Math.min(Math.max(px(e), r0), r1);
+      box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      box.setAttribute('y', 0);
+      box.setAttribute('height', plot.getBoundingClientRect().height);
+      box.setAttribute('fill', 'rgba(0, 0, 0, 0.08)');
+      box.setAttribute('x', from);
+      box.setAttribute('width', 0);
+      plot.appendChild(box);
+      plot.setPointerCapture(e.pointerId);
+    });
+    plot.addEventListener('pointermove', (e) => {
+      if (from === null) return;
+      const to = Math.min(Math.max(px(e), r0), r1);
+      box.setAttribute('x', Math.min(from, to));
+      box.setAttribute('width', Math.abs(to - from));
+    });
+    plot.addEventListener('pointerup', (e) => {
+      if (from === null) return;
+      const to = Math.min(Math.max(px(e), r0), r1);
+      const start = from;
+      from = null;
+      box.remove();
+      if (Math.abs(to - start) < 6) return;                 // a click, not a drag
+      zoom = [timeAt(Math.min(start, to)), timeAt(Math.max(start, to))];
+      draw();
+    });
+    plot.addEventListener('dblclick', () => { zoom = null; draw(); });
+  }
+
+  fetch('/files/@DATA@')
+    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then((text) => {
+      // (csvParseRows, not csvParse: with a row function that one evals code, which the
+      // page's content-security policy forbids)
+      const rows = d3.csvParseRows(text).slice(1).map((d) => ({
+        time: hourly ? new Date(d[0]) : new Date(d[0] + 'T00:00:00Z'),
+        fitness: +d[1], fatigue: +d[2] }));
+      long = rows.flatMap((r) => [
+        { time: r.time, series: 'fitness', value: r.fitness },
+        { time: r.time, series: 'fatigue', value: r.fatigue }]);
+      draw();
+      window.addEventListener('resize', draw);
+    })
+    .catch((e) => { info.textContent = 'could not load the data: ' + e; });
+</script>
 <script src="@PLOT@" integrity="@PLOTHASH@" crossorigin=""></script>
 <script>
   const hourly = @HOURLY@;

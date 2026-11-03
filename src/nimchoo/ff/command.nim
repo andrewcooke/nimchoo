@@ -14,7 +14,8 @@ import ../db/store
 import ../errors
 import ../model/[calc, impulses, models]
 import ../serve/[launch, pages, webopts]
-import ./[curve, page, params]
+import ../ui/[live, style]
+import ./[curve, page, params, stats]
 
 {.push raises: [].}
 
@@ -22,7 +23,9 @@ const usage* = """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from
                                       [--hourly] [--utc] [--stdout | --worker | --web]
                                       [--fitness-scale S] [--fatigue-scale S]
 
-Make a CSV file of the user's fitness and fatigue in the cache directory, and print its path.
+Make a CSV file of the user's fitness and fatigue in the cache directory, and print its path,
+then the latest values of the two curves, each with the share of the earlier days on which it
+was higher ("higher on 1%" means the value is nearly the highest it has been).
 One row a day, the value at the end of the day (in this computer's timezone; --utc for UTC).
 They are made from the impulses of the user's activities (see `nch user --fthr` and
 `nch model`) with the decay times of the model.  They start from 0 at the first activity with
@@ -101,9 +104,8 @@ proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): 
   result = "time,fitness,fatigue\n"
   for l in rows(impulses, m, p, now, tz): result.add l & "\n"
 
-proc makeCsv(st: Store, m: Model, p: Params, now: int64, tz: Timezone): string
-    {.raises: [StoreError].} =
-  ## The CSV, after working out the impulses that are lacking (in one transaction).
+proc ensureImpulses(st: Store, m: Model) {.raises: [StoreError].} =
+  ## Work out the impulses that are lacking (in one transaction).
   st.begin()
   var committed = false
   try:
@@ -112,7 +114,37 @@ proc makeCsv(st: Store, m: Model, p: Params, now: int64, tz: Timezone): string
     committed = true
   finally:
     if not committed: st.rollback()
+
+proc makeCsv(st: Store, m: Model, p: Params, now: int64, tz: Timezone): string
+    {.raises: [StoreError].} =
+  ## The CSV, after working out the impulses that are lacking.
+  ensureImpulses(st, m)
   csv(hourlyImpulses(st.db, st.userId, m.id), m, p, now, tz)
+
+proc latestStats(st: Store, m: Model, p: Params, now: int64, tz: Timezone): seq[Line]
+    {.raises: [StoreError].} =
+  ## The lines about the latest values (see stats.nim): for today, as of the last whole hour; for
+  ## an earlier last day (`--to`), at the end of it.  `p.toDay` is set.
+  ensureImpulses(st, m)
+  let impulses = hourlyImpulses(st.db, st.userId, m.id)
+  let today = civilOf(now, tz)
+  let nowHour = floorDiv(now, bucketSeconds) * bucketSeconds
+  var asOf: int64
+  var day: int64
+  var label: string
+  if p.toDay.get >= today:
+    asOf = nowHour - bucketSeconds
+    day = today
+    label = "as of " & fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm") & " on " &
+            localDate(today, utc())
+  else:
+    day = p.toDay.get
+    asOf = floorDiv(dayStart(day + secondsPerDay, tz), bucketSeconds) * bucketSeconds - bucketSeconds
+    label = "at the end of " & localDate(day, utc())
+  let fitness = response(impulses, m.fitnessDays, asOf)
+  let fatigue = response(impulses, m.fatigueDays, asOf)
+  statLines(label, standingAt(fitness, asOf, dayStart(day, tz), tz),
+            standingAt(fatigue, asOf, dayStart(day, tz), tz), p.fitnessScale, p.fatigueScale)
 
 proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
   ## The name (without extension) of the files for the options and the data, if one can be made.
@@ -202,8 +234,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return serveWeb(g, "ff", WebOptions(port: p.web.port, noOpen: p.web.noOpen,
                                           newToken: p.web.newToken),
                       dir.get, "key=" & key & (if query.len > 0: "&" & query else: ""))
-    if p.web.worker: stdout.say pageFile.get & "\n" & csvPath & "\n"
-    else: stdout.say csvPath & "\n"
+    if p.web.worker:
+      stdout.say pageFile.get & "\n" & csvPath & "\n"
+      return exitOk
+    stdout.say csvPath & "\n"
+    if key == current:                     # (the latest values are of the current data)
+      let colour = canColourStdout()
+      for l in latestStats(st, m.get, p, now, tz): stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError as e:
     failure("nch ff", e.msg)

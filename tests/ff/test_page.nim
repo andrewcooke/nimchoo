@@ -21,6 +21,11 @@ suite "ff: the page":
     let h = pageHtml(csv, "t", false).get
     check "csvParse(" notin h and "csvParseRows(" in h
     check "eval(" notin h and "new Function" notin h and "Function(" notin h.replace("csvParse(", "")
+  test "you can drag to zoom and double-click to go back; fitness is green and fatigue red":
+    let h = pageHtml(csv, "t", false).get
+    for needle in ["pointerdown", "pointermove", "pointerup", "dblclick", "drag to zoom", "#2f9e44", "#e03131"]:
+      check needle in h
+    check h.find("fitness: '#2f9e44'") > 0 and h.find("fatigue: '#e03131'") > 0
   test "the title is text, not markup":
     let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false).get
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")

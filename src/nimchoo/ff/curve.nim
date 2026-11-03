@@ -8,7 +8,7 @@
 ## An hour's impulse counts as at the end of that hour, as in the original.
 ## (The hours are those of the clock in UTC; days are the timezone's.)
 
-import std/[math, times]
+import std/[math, options, times]
 import ../model/calc
 
 {.push raises: [].}
@@ -49,3 +49,28 @@ proc dayEnds*(series: openArray[Hourly], tz: Timezone): seq[Hourly] =
     if k + 1 == series.len or
        localDate(x.hourT + bucketSeconds - 1, tz) != localDate(series[k + 1].hourT + bucketSeconds - 1, tz):
       result.add x
+
+type Standing* = object
+  ## A value of a curve, and how it compares with the days before.
+  value*: float
+  earlier*: int        ## days before (with a value) to compare with
+  higher*: int         ## how many of those had a higher value
+
+proc standingAt*(series: openArray[Hourly], asOf, dayStart: int64, tz: Timezone): Option[Standing] =
+  ## The value in `series` of the hour starting at `asOf`, and how many of the earlier days
+  ## (the day ends of the hours that finish by `dayStart`, when the day of `asOf` began) were
+  ## higher.  None if the series has no such hour.
+  var found = false
+  var value = 0.0
+  var before: seq[Hourly]
+  for x in series:
+    if x.hourT == asOf:
+      found = true
+      value = x.value
+    if x.hourT + bucketSeconds <= dayStart: before.add x
+  if not found: return none(Standing)
+  var s = Standing(value: value)
+  for d in dayEnds(before, tz):
+    inc s.earlier
+    if d.value > value: inc s.higher
+  some(s)

@@ -149,11 +149,17 @@ suite "nch ff":
     t.close()
     # the same request again finds the file, and does not work the impulses out again
     writeFile(files[0], "marker")
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--worker"]) == exitOk      # (a program: nothing more is done)
     check readFile(files[0]) == "marker"
     let u = store.openStore(path, allFragments)
     check u.db.getValue(sql"select count(*) from impulse") == "0"
     u.close()
+    # at a terminal the latest values are worked out as well, which needs the impulses
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    check readFile(files[0]) == "marker"                                              # (the file is still not made again)
+    let u2 = store.openStore(path, allFragments)
+    check u2.db.getValue(sql"select count(*) from impulse") == "2"
+    u2.close()
     # other options, other files
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--hourly"]) == exitOk
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--fatigue-scale", "5"]) == exitOk

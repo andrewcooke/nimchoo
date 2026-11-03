@@ -544,6 +544,18 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   (`--worker --web --port --no-open --new-token`: parsing, their combinations and their help text, used
   by both commands), `serve/pages.nim` (`fill`, `htmlEscape`, `writeAtomic`), `serve/launch.nim`.
   Existing heat map cache files (`heatmap--sel-...`) are simply made again under the new names.
+* **Latest values (2026-11-03):** at a terminal (not with `--stdout`, `--worker` or `--web`, and only for the
+  current data) `nch ff` prints the path, then the latest value of each curve and the share of the earlier
+  days (the day-end values from the first day with an impulse) on which it was higher:
+  `fitness  71.49  (higher on 4% of the 200 earlier days)`; fitness green, fatigue red (`ff/stats.nim` and
+  `curve.standingAt`, pure).  "Latest" is the last whole hour for today (`as of 15:00 on DAY`), or the end
+  of the last day if `--to` is earlier.  The value is scaled by the scale options; the share is not.  This
+  needs the impulses, so a plain run calculates them if lacking even when the file is already there (the
+  file is not made again).
+* **The chart:** fitness green (`#2f9e44`) and fatigue red (`#e03131`), as in the terminal; **drag to zoom** (the
+  chart is drawn again with the dragged span as its time axis, from the points inside it), **double-click to
+  zoom out**.  Plot has no zoom of its own; this is a small brush written in the page (`ff/page.nim`).  The
+  zoom is not kept in the address.  Not done: panning, wheel zoom.
 * **A compiler trap met on the way:** `var p = ""` followed by `p = cacheFile(...).get` (`.get` of a temporary
   Option, assigned on to a var) left a dangling string in this Nim: the path became garbage (once it was
   another string's contents).  Keep the Option in a `let` and take `.get` from that.
