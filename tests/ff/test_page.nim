@@ -16,6 +16,11 @@ suite "ff: the page":
     check pageHtml(csv, "x", true).get.contains("const hourly = true;")
     for placeholder in ["@TITLE@", "@D3@", "@D3HASH@", "@PLOT@", "@PLOTHASH@", "@HOURLY@", "@DATA@"]:
       check placeholder notin h                                          # (every placeholder was replaced)
+  test "the page does nothing the content-security policy forbids":
+    # no eval or Function(): d3.csvParse (with a row function) uses Function(), so csvParseRows is used
+    let h = pageHtml(csv, "t", false).get
+    check "csvParse(" notin h and "csvParseRows(" in h
+    check "eval(" notin h and "new Function" notin h and "Function(" notin h.replace("csvParse(", "")
   test "the title is text, not markup":
     let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false).get
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")

@@ -59,9 +59,11 @@ const template1 = """<!DOCTYPE html>
   fetch('/files/@DATA@')
     .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then((text) => {
-      const rows = d3.csvParse(text, (d) => ({
-        time: hourly ? new Date(d.time) : new Date(d.time + 'T00:00:00Z'),
-        fitness: +d.fitness, fatigue: +d.fatigue }));
+      // (csvParseRows, not csvParse: with a row function that one evals code, which the
+      // page's content-security policy forbids)
+      const rows = d3.csvParseRows(text).slice(1).map((d) => ({
+        time: hourly ? new Date(d[0]) : new Date(d[0] + 'T00:00:00Z'),
+        fitness: +d[1], fatigue: +d[2] }));
       long = rows.flatMap((r) => [
         { time: r.time, series: 'fitness', value: r.fitness },
         { time: r.time, series: 'fatigue', value: r.fatigue }]);
