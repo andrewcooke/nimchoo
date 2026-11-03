@@ -47,9 +47,9 @@ last one).  Criteria are combined with "and".
   --latest           the same as --newest 1
   --save             make what is listed the selection
   --show             show the selection (no criteria allowed)
-  -v, --verbose      show more of each activity: where it started (its coordinates, then
-                     the nearest town or city from the GeoNames list, with the distance
-                     if far; "no GPS" if the file has no positions) and the path of its file
+  -v, --verbose      show more of each activity: where it started (its coordinates, or
+                     "no GPS" if the file has no positions; then the nearest town or city
+                     from the GeoNames list, with the distance if far) and the path of its file
   -h, --help         show this help
 
 "latest" is the newest activity among those that meet the criteria that do not use
@@ -145,7 +145,7 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
                            distanceM: if dist >= 0: some(dist) else: none(float),
                            activeS: if active >= 0: some(active) else: none(float),
                            file: r[5], user: r[6], path: r[7],
-                           place: startText(r[8], parseFloat(r[9]), r[10], r[11]),
+                           place: placeText(r[8], parseFloat(r[9])),
                            position: positionText(r[10], r[11]))
       except ValueError:
         raiseStore("bad number from the database")

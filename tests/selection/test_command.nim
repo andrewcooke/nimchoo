@@ -494,6 +494,9 @@ suite "list: what is shown":
     check rows[0].contains("position") and rows[0].contains("place")
     check rows[1].contains("38.7200,-9.1400") and not rows[1].contains("no GPS")   # lisbon1: where, though no place is stored
     check rows[2].contains("no GPS") and not rows[2].contains(",")                 # paris: no start at all
+    # "no GPS" is in the position column, and the place after it is blank
+    check rows[2].find("no GPS") == rows[0].find("position")                       # (under its heading)
+    check rows[2].find("no GPS") < rows[2].find("paris")                           # (and before the file)
 
   test "saving is logged":
     let db = world("shownlog")

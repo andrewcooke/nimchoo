@@ -85,17 +85,12 @@ suite "list table: places and padding":
     check placeText("Coyhaique, CL", 180_400.0) == "Coyhaique, CL (180km)"
     check placeText("Coyhaique, CL", 10_001.0) == "Coyhaique, CL (10km)"
     check placeText("", 5.0) == ""
-  test "the start as coordinates: lat,lon, four decimals; nothing if there is no start":
+  test "the start as coordinates: lat,lon, four decimals; no GPS if there is no start":
     check positionText("-33.436213", "-70.608963") == "-33.4362,-70.6090"
     check positionText("38.7", "-9.1") == "38.7000,-9.1000"
     check positionText("0", "0") == "0.0000,0.0000"
-    check positionText("", "") == "" and positionText("-33.4", "") == "" and positionText("x", "y") == ""
-  test "where it started in words: the place, or no GPS":
-    check startText("Santiago, CL", 3_000.0, "-33.4", "-70.6") == "Santiago, CL"
-    check startText("Coyhaique, CL", 180_400.0, "-45.5", "-72.0") == "Coyhaique, CL (180km)"
-    check startText("", -1.0, "", "") == "no GPS"
-    check startText("", -1.0, "x", "y") == "no GPS"                                        # (no usable start)
-    check startText("", -1.0, "-33.4", "-70.6") == ""                  # a start, but no places at all
+    check positionText("", "") == "no GPS" and positionText("-33.4", "") == "no GPS"
+    check positionText("x", "y") == "no GPS"                                 # (not numbers)
   test "padding counts characters":
     check padRight("Zürich", 8) == "Zürich  "
     check padLeft("Zürich", 8) == "  Zürich"
@@ -119,7 +114,7 @@ suite "list table: the last line":
 
 suite "list table: looks":
   test "no GPS is dim; a position and a place name are not":
-    let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, place = "no GPS"),
+    let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, position = "no GPS"),
                  row(aug27, "cycling", "", 1000.0, 60.0, place = "Santiago, CL", position = "-33.4362,-70.6090")]
     let t = table(rows, zone, false, true)
     proc lookOfText(i: int, text: string): Look =

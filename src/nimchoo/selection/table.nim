@@ -22,8 +22,8 @@ type
     distanceM*, activeS*: Option[float]
     file*, user*: string          ## the file's name; who it belongs to
     path*: string                 ## where the file was imported from (its name if not known)
-    place*: string                ## where it started, as `startText` (the nearest place, or no GPS)
-    position*: string             ## its start as `positionText` ("" if it has no positions)
+    place*: string                ## the nearest place, as `placeText` ("" if it has no start)
+    position*: string             ## its start as `positionText` (no GPS if it has none)
 
 func dateOf(d: DateTime): string =
   d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
@@ -41,19 +41,12 @@ func placeText*(name: string, distanceM: float): string =
 
 func positionText*(lat, lon: string): string =
   ## The start as "-33.4362,-70.6090": latitude, longitude, four decimals (about 10 metres), as
-  ## Google Maps takes them.  "" if there is no start (`lat` or `lon` empty, or not numbers).
-  if lat.len == 0 or lon.len == 0: return ""
+  ## Google Maps takes them; "no GPS" if there is no start (`lat` or `lon` empty, or not numbers).
+  if lat.len == 0 or lon.len == 0: return noGps
   try:
     formatFloat(parseFloat(lat), ffDecimal, 4) & "," & formatFloat(parseFloat(lon), ffDecimal, 4)
   except ValueError:
-    ""
-
-func startText*(placeName: string, distanceM: float, lat, lon: string): string =
-  ## What to say of where an activity started, in words: the place (`placeText`: there is always
-  ## one if there is a start, the nearest, with its distance if far); "no GPS" if it has no
-  ## start; "" if it has a start but there are no places at all.
-  if placeName.len > 0: return placeText(placeName, distanceM)
-  if positionText(lat, lon).len == 0: noGps else: ""
+    noGps
 
 func padRight*(s: string, width: int): string =
   ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).
@@ -106,8 +99,8 @@ proc activityText*(r: ListRow, zone: Timezone): string =
 proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active
   ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `file`
-  ## columns at the end: `position` (the start as latitude,longitude: blank if there is none),
-  ## `place` (the nearest town or city, or "no GPS") and `file` (the path the file was
+  ## columns at the end: `position` (the start as latitude,longitude; "no GPS" if there is none),
+  ## `place` (the nearest town or city; blank without a start) and `file` (the path the file was
   ## imported from).  No lines at all if
   ## there are no rows.
   ##

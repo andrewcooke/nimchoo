@@ -489,9 +489,9 @@ should mean "starts near" (how rides are named), and named places want a home in
    replaced by a test build.
 3d. [x] **`list -v` says where each ride started in three columns, `position`, `place`, `file`**:
    `position` is the start as `-33.4362,-70.6090` (lat,lon, four decimals = about 10 m, as Google
-   Maps takes it; blank if the file has no positions); `place` is the nearest place from the list
-   (a name always exists when there is a start), with the distance if over 10 km
-   (`Coyhaique, CL (180km)`), or a dim `no GPS` if there is no start.  Seen on the author's data:
+   Maps takes it), or a dim `no GPS` if the file has no positions; `place` is the nearest place
+   from the list (a name always exists when there is a start), with the distance if over 10 km
+   (`Coyhaique, CL (180km)`), blank if there is no start.  Seen on the author's data:
    four rides (e.g. `2018-12-16-lyn.fit`: 195 records, a session and a lap, 856 m in 3 min) have no
    position field anywhere in the file, so nothing can be shown for them and a place is not
    guessed from neighbouring rides.
