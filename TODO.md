@@ -378,7 +378,14 @@ what was kept.  What is printed is what is saved.
    Applied before `--newest/--oldest` (the newest *cycling* activity).  A sub-sport is checked
    against all of the users' sub-sports, not those of the sport given, so `--sport cycling
    --sub-sport open_water` is accepted and finds nothing.  The values are quoted in the SQL.
-3. The table, `--file`, the summary by sport, the `saved` log event.
+3. [x] The table (`selection/table.nim`, pure; the time zone is a parameter): header, a row for
+   each activity oldest first (`date`, `start`, `sport`, `distance`, `active`; `user` after
+   `start` only if several users are listed; `--file`, a display option that `--show` accepts,
+   adds `file` last), then `42 of 310 activities, 2,013.4 km, 98:12 h (13 running, 2 swimming)`
+   (the `of 310` is what the users have, left out for `--show`; the count by sport only when
+   there is more than one, most first).  `--save` adds `saved 42 activities as the selection`
+   and logs the new event `saved`.  `--show` of an empty selection says `selection: empty`.
+   No colour yet.
 4. Docs; try it on the test data (mixed sports) and on a real library.
 
 ## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)

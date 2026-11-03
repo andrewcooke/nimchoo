@@ -65,6 +65,10 @@ suite "list: the command line":
     check cmdline("--sport").problem.contains("at least one name")
     check cmdline("--sub-sport", "--save").problem.contains("at least one name")
     check cmdline("--users", "Bob").criteria.users == @["Bob"]       # (names of users keep their case)
+  test "--file is a display option, not a criterion":
+    check cmdline("--file").criteria.files
+    check cmdline("--show", "--file").problem == ""
+    check cmdline("--show", "--file").criteria.show
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
   test "--show takes no criteria, and cannot be saved":

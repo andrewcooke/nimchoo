@@ -16,6 +16,7 @@ suite "vocabulary: the events":
 suite "vocabulary: the looks":
   test "the ones that matter":
     check look(leImported) == Look(fg: cGreen)
+    check look(leSaved) == look(leImported)
     check look(leFailed) == Look(fg: cRed, bold: true)
     check look(leAdvisory) == Look(fg: cYellow)
     check look(leDuplicate).dim and look(leDuplicate).fg == cNone

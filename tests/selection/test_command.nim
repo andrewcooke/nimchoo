@@ -1,9 +1,11 @@
-import std/[algorithm, os, strutils, unittest]
+import std/[algorithm, os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
 import nimchoo/selection/command as listCommand
+import nimchoo/selection/criteria
+import nimchoo/ui/logfile
 
 let dir = getTempDir() / "nch-test-select"
 
@@ -17,8 +19,9 @@ proc addActivity(s: Store, userId: int64, tag: string, startT: int, wkt: string,
   s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
             userId, tag, tag)
   let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(sql"""insert into activity(file_id, session, start_t, end_t, sport, sub_sport)
-                  values (?, 0, ?, ?, nullif(?, ''), nullif(?, ''))""",
+  s.db.exec(sql"""insert into activity(file_id, session, start_t, end_t, sport, sub_sport,
+                                       distance_m, timer_s)
+                  values (?, 0, ?, ?, nullif(?, ''), nullif(?, ''), 12345.0, 3661.0)""",
             f, startT, startT + 100, sport, subSport)
   let a = s.db.getValue(sql"select max(id) from activity")
   s.db.exec(sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, wkt)
@@ -213,3 +216,65 @@ suite "list: the command":
     s.db.exec(sql"delete from user where name = 'bob'")
     s.close()
     check chosen(db) == @["lisbon1", "paris"]
+
+suite "list: what is shown":
+  proc shown(db: string, args: varargs[string]): tuple[lines: seq[string], saved: int] =
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let p = parseArgs(@args, utc())
+    doAssert p.problem == "", p.problem
+    listActivities(st, p.criteria, utc())
+
+  test "a table of the activities, oldest first, with a last line":
+    let db = world("shown")
+    let r = shown(db)
+    check r.saved == -1
+    check r.lines[0] == "date        start  sport          distance  active"
+    check r.lines[1] == "2018-07-01  12:00  cycling/road    12.3 km    1:01"
+    check r.lines[2] == "2018-08-27  12:00  running/trail   12.3 km    1:01"
+    check r.lines[^1] == "2 of 2 activities, 24.7 km, 2:02 h (1 cycling, 1 running)"
+
+  test "several users: a user column":
+    let db = world("shownusers")
+    let r = shown(db, "--users", "default", "bob")
+    check r.lines[0].startsWith("date        start  user")
+    check r.lines[^1].startsWith("3 of 3 activities")
+    check r.lines.len == 5                           # header, three rows, the last line
+
+  test "--file adds the file":
+    let db = world("shownfile")
+    let r = shown(db, "--file", "--newest", "1")
+    check r.lines[0].endsWith("file")
+    check r.lines[1].endsWith("paris")
+
+  test "saving says so, and --show shows what was saved":
+    let db = world("shownsave")
+    let r = shown(db, "--newest", "1", "--save")
+    check r.saved == 1
+    check r.lines[^1] == "saved 1 activity as the selection"
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let again = showSelection(st, Criteria(), utc())
+    check again[1].startsWith("2018-08-27  12:00  running/trail")
+    check again[^1].startsWith("1 activity,")        # (no "of": nothing was chosen from)
+
+  test "an empty selection, and a list with nothing in it":
+    let db = world("shownempty")
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    check showSelection(st, Criteria(), utc()) == @["selection: empty"]
+    check shown(db, "--from", "2030-01-01").lines == @["0 of 2 activities"]
+
+  test "--near says where":
+    let db = world("shownnear")
+    let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
+    check r.lines[0] == "near 38.7300,-9.1300, within 5 km"
+    check r.lines[^1].startsWith("2 of 3 activities")
+
+  test "saving is logged":
+    let db = world("shownlog")
+    let path = dir / "shownlog" / "nch.log"
+    let g = Globals(dbPath: db, fragments: allFragments, log: openLog(path))
+    check listCommand.run(g, @["--newest", "1", "--save"]) == exitOk
+    g.log.close()
+    check readFile(path).contains("list      saved      1 activity")

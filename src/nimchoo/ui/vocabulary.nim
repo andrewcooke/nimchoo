@@ -24,12 +24,13 @@ type
     leNote = "note"              ## something about the run itself
     leDone = "done"              ## a command ends its work (the totals)
     leDeleted = "deleted"        ## data was removed
+    leSaved = "saved"            ## something was kept (the selection)
 
 func look*(e: LogEvent): Look =
   ## How an event is shown: imported green, failed red and bold, advisory yellow,
   ## duplicate and unchanged dim (grey), the bookkeeping words dim.
   case e
-  of leImported: Look(fg: cGreen)
+  of leImported, leSaved: Look(fg: cGreen)
   of leFailed: Look(fg: cRed, bold: true)
   of leAdvisory: Look(fg: cYellow)
   of leDuplicate, leUnchanged: Look(dim: true)

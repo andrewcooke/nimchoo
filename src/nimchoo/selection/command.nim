@@ -12,7 +12,8 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
-import ./criteria
+import ../ui/logfile
+import ./[criteria, table]
 
 {.push raises: [].}
 
@@ -49,7 +50,7 @@ proc localDate(t: int64): string =
   let d = fromUnix(t).local
   d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
 
-func km(x: float): string =
+func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"
   let t = $x
   if t.endsWith(".0"): t[0 ..< t.len - 2] else: t
@@ -66,18 +67,6 @@ proc number(st: Store, query: string): int {.raises: [StoreError].} =
     try: result = parseInt(st.db.getValue(sql(query)))
     except ValueError: raiseStore("bad number from the database")
 
-proc range(st: Store): string {.raises: [StoreError].} =
-  ## ", 2018-03-01 to 2018-09-30" for the selection of the store's user.
-  guard:
-    let r = st.db.getRow(sql"""select min(a.start_t), max(a.start_t)
-      from selection s join activity a on a.id = s.activity_id where s.user_id = ?""",
-      st.userId)
-    try:
-      result = ", " & localDate(parseBiggestInt(r[0])) & " to " &
-               localDate(parseBiggestInt(r[1]))
-    except ValueError:
-      discard
-
 proc latestCentre(st: Store, ids: string): tuple[centre: Option[(float, float)], day: string]
     {.raises: [StoreError].} =
   ## The middle of the box around the route of the latest activity of these users.
@@ -92,11 +81,6 @@ proc latestCentre(st: Store, ids: string): tuple[centre: Option[(float, float)],
         result = (some((parseFloat(c[1]), parseFloat(c[0]))), localDate(parseBiggestInt(a[1])))
     except ValueError:
       discard
-
-proc show(st: Store): string {.raises: [StoreError].} =
-  let n = number(st, "select count(*) from selection where user_id = " & $st.userId)
-  if n == 0: "selection: empty"
-  else: "selection: " & $n & (if n == 1: " activity" else: " activities") & range(st)
 
 proc present(st: Store, column, idList: string): seq[(string, int)]
     {.raises: [StoreError].} =
@@ -122,20 +106,48 @@ proc checkNames(st: Store, what, column, idList: string, wanted: seq[string])
       raiseStore("no activity of those users has the " & what & " '" & w & "' (they have: " &
         (if shown.len > 0: shown.join(", ") else: "no activities") & ")")
 
-proc matchStats(st: Store, match: string): tuple[n: int, first, last: int64]
-    {.raises: [StoreError].} =
-  ## How many activities a query (giving `start_t`) finds, and when the first and
-  ## the last started.
-  guard:
-    let r = st.db.getRow(sql("select count(*), coalesce(min(start_t), 0), " &
-      "coalesce(max(start_t), 0) from (" & match & ")"))
-    try:
-      result = (parseInt(r[0]), parseBiggestInt(r[1]), parseBiggestInt(r[2]))
-    except ValueError:
-      raiseStore("bad number from the database")
+const
+  rowColumns = "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
+    "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
+    "coalesce(a.timer_s, -1) as active, f.name as file, " &
+    "(select name from user where id = f.user_id) as user"
+    ## what a row of the listing is made of (see table.nim); not recorded: -1 and ''
 
-proc choose(st: Store, c: Criteria): string {.raises: [StoreError].} =
-  ## List (and, if asked, save); returns what to tell the user.
+proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
+  ## The rows a query gives (start_t, sport, sub, dist, active, file, user), as listed.
+  guard:
+    for r in st.db.fastRows(sql(query)):
+      try:
+        let dist = parseFloat(r[3])
+        let active = parseFloat(r[4])
+        result.add ListRow(startT: parseBiggestInt(r[0]), sport: r[1], subSport: r[2],
+                           distanceM: if dist >= 0: some(dist) else: none(float),
+                           activeS: if active >= 0: some(active) else: none(float),
+                           file: r[5], user: r[6])
+      except ValueError:
+        raiseStore("bad number from the database")
+
+func moreThanOneUser(rows: seq[ListRow]): bool =
+  rows.anyIt(it.user != rows[0].user)
+
+proc listing(rows: seq[ListRow], zone: Timezone, showFile: bool, choices: Option[int]): seq[string] =
+  ## The table and its last line.
+  result = table(rows, zone, showFile, rows.len > 0 and moreThanOneUser(rows))
+  result.add footer(rows, choices)
+
+proc showSelection*(st: Store, c: Criteria, zone: Timezone): seq[string]
+    {.raises: [StoreError].} =
+  ## The stored selection of the store's user, as a listing.
+  let rows = readRows(st, "select " & rowColumns & " from selection s join activity a on " &
+    "a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId &
+    " order by a.start_t, a.id")
+  if rows.len == 0: return @["selection: empty"]
+  listing(rows, zone, c.files, none(int))
+
+proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[string], saved: int]
+    {.raises: [StoreError].} =
+  ## List the activities that meet the criteria (and keep them as the selection if
+  ## asked); `saved` is how many were kept, -1 if not asked.
   var userIds: seq[int64]
   if c.users.len == 0:
     userIds.add st.userId
@@ -149,22 +161,21 @@ proc choose(st: Store, c: Criteria): string {.raises: [StoreError].} =
   checkNames(st, "sport", "sport", idList, c.sports)
   checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
   var centre = none((float, float))
-  var said = ""
   case c.near
   of nkNone: discard
   of nkPoint:
     centre = some((c.lat, c.lon))
-    said = "near " & formatFloat(c.lat, ffDecimal, 4) & "," & formatFloat(c.lon, ffDecimal, 4)
+    result.lines.add "near " & formatFloat(c.lat, ffDecimal, 4) & "," &
+      formatFloat(c.lon, ffDecimal, 4) & ", within " & radiusText(c.radiusKm) & " km"
   of nkLatest:
     let l = latestCentre(st, idList)
     if l.centre.isNone:
       raiseStore("--near latest: the users have no activity with a position")
     centre = l.centre
-    said = "near " & formatFloat(l.centre.get[0], ffDecimal, 4) & "," &
+    result.lines.add "near " & formatFloat(l.centre.get[0], ffDecimal, 4) & "," &
       formatFloat(l.centre.get[1], ffDecimal, 4) & " (the centre of the latest activity, " &
-      l.day & ")"
-  if said.len > 0: said.add ", within " & km(c.radiusKm) & " km\n"
-  let match = matchSql(userIds, c, centre, "a.id as id, a.start_t as start_t")
+      l.day & "), within " & radiusText(c.radiusKm) & " km"
+  let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns)
   if c.save:
     st.begin()
     var committed = false
@@ -176,18 +187,20 @@ proc choose(st: Store, c: Criteria): string {.raises: [StoreError].} =
       committed = true
     finally:
       if not committed: st.rollback()
-  let found = matchStats(st, match)
+  let rows = readRows(st, "select start_t, sport, sub, dist, active, file, user from (" &
+    match & ") order by start_t, id")
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
-  let span = if found.n > 0: ", " & localDate(found.first) & " to " & localDate(found.last)
-             else: ""
-  said & (if c.save: "saved " else: "matched ") & $found.n & " of " & $total &
-    (if total == 1: " activity" else: " activities") &
-    (if c.save: " as the selection" else: "") & span
+  result.lines.add listing(rows, zone, c.files, some(total))
+  result.saved = if c.save: rows.len else: -1
+  if c.save:
+    result.lines.add "saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
+      " as the selection"
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch list ARGS`; returns the exit status.
-  let parsed = parseArgs(args, local())
+  let zone = local()
+  let parsed = parseArgs(args, zone)
   if parsed.help:
     stdout.say usage
     return exitOk
@@ -200,8 +213,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch list", e.msg)
   defer: st.close()
   try:
-    let text = if parsed.criteria.show: show(st) else: choose(st, parsed.criteria)
-    stdout.say text & "\n"
+    var lines: seq[string]
+    if parsed.criteria.show:
+      lines = showSelection(st, parsed.criteria, zone)
+    else:
+      let r = listActivities(st, parsed.criteria, zone)
+      lines = r.lines
+      if r.saved >= 0:
+        g.log.log(lvInfo, "list", leSaved, $r.saved & (if r.saved == 1: " activity" else: " activities"))
+    for l in lines: stdout.say l & "\n"
     exitOk
   except StoreError as e:
     failure("nch list", e.msg)
