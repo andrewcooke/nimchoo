@@ -37,24 +37,23 @@ suite "ff stats: standing among the earlier days":
     let st = standingAt(s, int64(2 * 24 + 5) * 3600, int64(2 * 24) * 3600, u).get
     check st.earlier == 2 and st.higher == 0
 
-suite "ff stats: the lines":
+suite "ff stats: the line":
   test "wording of the share":
-    check share(Standing(value: 1, earlier: 120, higher: 0)) == "none of the 120 earlier days"
-    check share(Standing(value: 1, earlier: 3, higher: 3)) == "all of the 3 earlier days"
-    check share(Standing(value: 1, earlier: 1, higher: 0)) == "none of the 1 earlier day"
-    check share(Standing(value: 1, earlier: 200, higher: 8)) == "4% of the 200 earlier days"
-    check share(Standing(value: 1, earlier: 1000, higher: 2)) == "<1% of the 1000 earlier days"
-    check share(Standing(value: 1, earlier: 1000, higher: 999)) == ">99% of the 1000 earlier days"
-  test "the lines: when, then fitness in green and fatigue in red":
-    let ls = statLines("as of 14:00 on 2026-11-03", some(Standing(value: 71.4894, earlier: 200, higher: 8)),
-                       some(Standing(value: 3.0, earlier: 200, higher: 100)), 1, 5)
-    check ls.len == 3
-    check ls[0].text == "as of 14:00 on 2026-11-03:"
-    check ls[1].text == "  fitness    71.49   (higher on 4% of the 200 earlier days)"
-    check ls[2].text == "  fatigue    15.00   (higher on 50% of the 200 earlier days)"      # (scaled by 5; the share is not)
-    check ls[1][0].look.fg == cGreen and ls[2][0].look.fg == cRed
-    check ls[1].render(false) == ls[1].text and ls[1].render(true) != ls[1].text
-  test "no earlier days, and no value yet":
-    let ls = statLines("x", some(Standing(value: 1, earlier: 0, higher: 0)), none(Standing), 1, 1)
-    check ls[1].text.endsWith("(no earlier days to compare with)")
-    check ls[2].text.endsWith("nothing yet")
+    check top(Standing(value: 1, earlier: 120, higher: 0)) == "top 0%"
+    check top(Standing(value: 1, earlier: 3, higher: 3)) == "top 100%"
+    check top(Standing(value: 1, earlier: 200, higher: 8)) == "top 4%"
+    check top(Standing(value: 1, earlier: 1000, higher: 2)) == "top <1%"
+    check top(Standing(value: 1, earlier: 1000, higher: 999)) == "top >99%"
+    check top(Standing(value: 1, earlier: 0, higher: 0)) == "top 0%"
+  test "one line, with the numbers coloured: fitness green, fatigue red":
+    let l = statLine("2026-11-03 15:00", some(Standing(value: 71.4894, earlier: 200, higher: 8)),
+                     some(Standing(value: 3.0, earlier: 200, higher: 100)), 1, 5)
+    check l.text == "2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 15.0 (top 50%)"     # (scaled by 5; the share is not)
+    var coloured: seq[(string, Color)]
+    for sp in l:
+      if sp.look.fg != cNone: coloured.add (sp.text, sp.look.fg)
+    check coloured == @[("71.5 (top 4%)", cGreen), ("15.0 (top 50%)", cRed)]
+    check l.render(false) == l.text and l.render(true) != l.text
+  test "no earlier days: the value only; no value yet: a dash":
+    let l = statLine("x", some(Standing(value: 1, earlier: 0, higher: 0)), none(Standing), 1, 1)
+    check l.text == "x  fitness: 1.0,  fatigue: -"

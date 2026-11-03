@@ -546,10 +546,11 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   Existing heat map cache files (`heatmap--sel-...`) are simply made again under the new names.
 * **Latest values (2026-11-03):** at a terminal (not with `--stdout`, `--worker` or `--web`, and only for the
   current data) `nch ff` prints the path, then the latest value of each curve and the share of the earlier
-  days (the day-end values from the first day with an impulse) on which it was higher:
-  `fitness  71.49  (higher on 4% of the 200 earlier days)`; fitness green, fatigue red (`ff/stats.nim` and
-  `curve.standingAt`, pure).  "Latest" is the last whole hour for today (`as of 15:00 on DAY`), or the end
-  of the last day if `--to` is earlier.  The value is scaled by the scale options; the share is not.  This
+  days (the day-end values from the first day with an impulse) on which it was higher, in one line:
+  `2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%)`, the number and the "top" part
+  coloured (fitness green, fatigue red; `ff/stats.nim` and `curve.standingAt`, pure); "top 4%" means 4%
+  of earlier days were higher.  "Latest" is the last whole hour for today (labelled with the date and
+  time), or the end of the last day if `--to` is earlier (labelled with the date).  The value is scaled by the scale options; the share is not.  This
   needs the impulses, so a plain run calculates them if lacking even when the file is already there (the
   file is not made again).
 * **The chart:** fitness green (`#2f9e44`) and fatigue red (`#e03131`), as in the terminal; **drag to zoom** (the
