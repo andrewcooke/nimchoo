@@ -347,10 +347,11 @@ what was kept.  What is printed is what is saved.
   has 19 sessions of a swim-run), so `--sport cycling` is the bike leg alone.  Nothing is
   excluded by default; `transition` rows are shown as they are.
 * **The table** (pure function in `selection/table.nim`, tested without a database): one row
-  per activity, oldest first: `id`, `date` and `time` (your time zone, as `--from`/`--to` are
+  per activity, oldest first: `date` and `time` (your time zone, as `--from`/`--to` are
   read), `sport` (`/sub_sport` added only if neither empty nor `generic`), `distance` (km, one
   decimal), `time` (timer time, h:mm); a `user` column only if more than one user is listed;
-  `--file` adds the file name (to see which rows belong to one multisport file).  Last line:
+  `--file` adds the file name (to see which rows belong to one multisport file).  No `id`
+  column: nothing takes an activity id yet (add it with the first command that does).  Last line:
   the count, the total distance and time, and a count by sport when there is more than one
   (`13 running, 2 swimming`).  After `--save`: `saved 42 activities as the selection`.  No
   colour for now.
