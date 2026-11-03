@@ -5,7 +5,7 @@
 import std/[options, strutils, times]
 import checksums/sha2
 import db_connector/db_sqlite
-import ../db/[statement, store]
+import ../db/[channel, statement, store]
 import ../errors
 import ../profile/model
 import ../warnings
@@ -21,6 +21,7 @@ type
     outcome*: ImportOutcome
     fileId*: int64              ## the `file` row: the new one, or the one it duplicates
     activities*, segments*, coords*: int   ## rows written (0 if already imported)
+    extras*: seq[ExtraCount]    ## what the import steps wrote, in the order of the steps
 
 proc sha256Hex*(data: openArray[byte]): string =
   var text = newString(data.len)
@@ -63,7 +64,8 @@ type
     ## Gives the profile; called only when a file has to be decoded.
 
 proc importFileWith*(s: Store, profile: ProfileSource, name: string,
-                     data: seq[byte], ws: var seq[Warning]): ImportResult
+                     data: seq[byte], ws: var seq[Warning],
+                     steps: seq[ImportStep] = @[]): ImportResult
     {.raises: [FitError, ImportError, StoreError].} =
   ## Import the FIT file `data` (called `name` in the database) for the
   ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
@@ -80,7 +82,11 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
                             fileId: parseBiggestInt(known))
       except ValueError:
         raiseStore("bad file id " & known)
-  let found = readActivities(profile(), data, ws)
+  var wanted: seq[string]
+  for step in steps:
+    for ch in step.channels:
+      if ch notin wanted: wanted.add ch
+  let found = readActivities(profile(), data, ws, wanted)
   s.begin()
   var committed = false
   var actStmt, segStmt, coordStmt, routeStmt, startStmt: Option[Stmt]
@@ -102,6 +108,8 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     startStmt = some(prepareStmt(s.db,
       "update activity set start = MakePoint(?, ?, 4326), place_id = ? where id = ?"))
     result.outcome = ioImported
+    for step in steps:
+      result.extras.add ExtraCount(one: step.label, many: step.labels)
     for a in found:
       insertActivity(actStmt.get, fileId, a)
       let activityId = lastInsertId(s.db)
@@ -119,6 +127,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
         routeStmt.get.bindInt(1, activityId)
         routeStmt.get.bindText(2, wkt.get)
         routeStmt.get.run()
+      for i, step in steps: result.extras[i].n += step.write(s.db, activityId, a.samples)
       inc result.activities
       result.segments += a.segments.len
       result.coords += a.coords.len
@@ -133,7 +142,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     if not committed: s.rollback()
 
 proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
-                 ws: var seq[Warning]): ImportResult
+                 ws: var seq[Warning], steps: seq[ImportStep] = @[]): ImportResult
     {.raises: [FitError, ImportError, StoreError].} =
   ## `importFileWith` for a profile already in hand.
-  importFileWith(s, proc(): Profile {.closure, raises: [].} = p, name, data, ws)
+  importFileWith(s, proc(): Profile {.closure, raises: [].} = p, name, data, ws, steps)

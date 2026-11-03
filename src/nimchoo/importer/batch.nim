@@ -3,7 +3,7 @@
 ## happens is announced as an event (events.nim); nothing is printed here.
 
 import std/[algorithm, options, os, strutils, tables, times]
-import ../db/store
+import ../db/[channel, store]
 import ../errors
 import ../fit/bytes
 import ../profile/default
@@ -21,6 +21,7 @@ type
   ImportOptions* = object
     quiet*, slow*: bool
     profile*: ProfileSource   ## nil: the embedded profile
+    steps*: seq[ImportStep]   ## what modules add to an import (heart rate, ...)
 
   Candidate = object
     path: string      ## as found, for display
@@ -139,13 +140,13 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     var ev = ImportEvent(kind: evFileDone, index: index, path: c.path)
     try:
       let r = st.importFileWith(profile, extractFilename(c.path),
-                                readBytes(c.path), ws)
+                                readBytes(c.path), ws, opts.steps)
       row.fileId = r.fileId
       case r.outcome
       of ioImported:
         ev.outcome = oImported
         ev.counts = Counts(activities: r.activities, segments: r.segments,
-                           coords: r.coords)
+                           coords: r.coords, extras: r.extras)
         importedFrom[r.fileId] = c.path
       of ioDuplicate:
         ev.outcome = oDuplicate

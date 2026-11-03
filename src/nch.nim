@@ -64,7 +64,7 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
-  var g = Globals(fragments: allFragments)
+  var g = Globals(fragments: allFragments, importSteps: allImportSteps)
   var i = 0
   while i < args.len and args[i].startsWith("-"):
     let a = args[i]

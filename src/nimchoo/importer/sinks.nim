@@ -27,6 +27,11 @@ type
     lines*, stderr*: seq[string]
     imported*, duplicates*, unchanged*, failed*, known*, advisories*: int
 
+func extrasText*(c: Counts): string =
+  ## ", 2,099 heart-rate readings" for what import steps wrote (nothing if they wrote none).
+  for x in c.extras:
+    if x.n > 0: result.add ", " & $x.n & " " & (if x.n == 1: x.one else: x.many)
+
 func plural*(n: int, one, many: string): string =
   $n & " " & (if n == 1: one else: many)
 
@@ -88,7 +93,8 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
         result.stdout.add "imported  " & ev.path & "  (" &
           plural(ev.counts.activities, "activity", "activities") & ", " &
           plural(ev.counts.segments, "segment", "segments") & ", " &
-          plural(ev.counts.coords, "coordinate", "coordinates") & ")"
+          plural(ev.counts.coords, "coordinate", "coordinates") &
+          extrasText(ev.counts) & ")"
     of oDuplicate:
       if not quiet:
         result.stdout.add "duplicate " & ev.path & "  (" &

@@ -28,7 +28,7 @@ written to the log; see `nch log --help`.
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch import ARGS`; returns the exit status.
-  var opts = ImportOptions()
+  var opts = ImportOptions(steps: g.importSteps)
   var targets: seq[string]
   for a in args:
     if a in ["-h", "--help"]:

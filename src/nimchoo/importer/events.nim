@@ -3,6 +3,7 @@
 ## lines, draw a live display, write a log.  A sink gets every event of every
 ## file, so it must be cheap and must not raise.
 
+import ../db/channel
 import ../warnings
 import ./failure
 
@@ -18,6 +19,7 @@ type
 
   Counts* = object
     activities*, segments*, coords*: int
+    extras*: seq[ExtraCount]    ## what modules' import steps wrote
 
   Summary* = object
     ## Totals so far, or at the end.

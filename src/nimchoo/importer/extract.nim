@@ -14,7 +14,8 @@
 ##   next stop) are the activity's segments: disjoint intervals in time order.
 ##   Every coordinate lies in one.
 
-import std/[algorithm, options, sequtils, strutils]
+import std/[algorithm, options, sequtils, strutils, tables]
+import ../db/channel
 import ../errors
 import ../profile/model
 import ../warnings
@@ -51,12 +52,18 @@ type
     elapsedS*, timerS*, distanceM*: Option[float]
     calories*: Option[int]
     coords*: seq[Coord]   ## in time order, one per second at most
+    samples*: Samples     ## the other fields asked for (see `readActivities`), by name
     segments*: seq[Segment]  ## disjoint, in time order, covering all coords
 
   RawCoord = object
     c: Coord
     index: int            ## order of appearance, to keep the last of a second
     offset: int           ## file offset, for warnings
+
+  RawSample = object
+    channel: string
+    s: Sample
+    index: int
 
 func firstNum(r: Record, name: string): Option[float] =
   ## First value of a numeric field.
@@ -173,17 +180,30 @@ proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
     else:
       result.add rc.c
 
-proc readActivities*(p: Profile, data: sink seq[byte],
-                     ws: var seq[Warning]): seq[ActivityData]
+proc uniqueSamples(raw: var seq[RawSample]): Table[string, seq[Sample]] =
+  ## By channel, in time order; of several in one second the last (by appearance) is kept.
+  ## (The duplicate seconds are already warned about for the coordinates.)
+  raw.sort do (a, b: RawSample) -> int:
+    result = cmp(a.s.t, b.s.t)
+    if result == 0: result = cmp(a.index, b.index)
+  for x in raw:
+    let list = addr result.mgetOrPut(x.channel, @[])
+    if list[].len > 0 and list[][^1].t == x.s.t: list[][^1] = x.s else: list[].add x.s
+
+proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
+                     channels: seq[string] = @[]): seq[ActivityData]
     {.raises: [FitError, ImportError].} =
   ## The activities in a FIT file, in order of start time (`session` is the
   ## position of the session message in the file).  Warnings (the reader's and
   ## ours) are added to `ws`.  Raises FitError if the file cannot be read,
-  ## ImportError if it holds no usable activity.
+  ## ImportError if it holds no usable activity.  `channels` are `record` fields
+  ## wanted besides the position: their values go to each activity's `samples`
+  ## (a record that lacks one, or has an invalid value, gives none).
   var
     r = initReader(p, data)
     sessions: seq[ActivityData]
     raw: seq[RawCoord]
+    rawSamples: seq[RawSample]
     timer: seq[TimerEvent]
     offsetS = none(int)
     count = 0
@@ -197,8 +217,13 @@ proc readActivities*(p: Profile, data: sink seq[byte],
           ws.add wkInvalidTime, ev.offset, "record without a calendar time"
           continue
         let rc = coordOf(rec, fitToUnix(rec.timestamp.get), count, ev.offset)
-        inc count
         if rc.isSome: raw.add rc.get
+        for name in channels:
+          let v = rec.firstNum(name)
+          if v.isSome:
+            rawSamples.add RawSample(channel: name, s: Sample(t: fitToUnix(rec.timestamp.get), v: v.get),
+                                     index: count)
+        inc count
       of "event":
         if nameOf(p, rec, "event") == "timer" and rec.timestamp.isSome and
             rec.timestamp.get >= minCalendarFit:
@@ -225,6 +250,12 @@ proc readActivities*(p: Profile, data: sink seq[byte],
   for c in coords:
     while k + 1 < sessions.len and sessions[k + 1].startT <= c.t: inc k
     sessions[k].coords.add c
+  # the other fields go to sessions the same way
+  for name, list in uniqueSamples(rawSamples):
+    k = 0
+    for x in list:
+      while k + 1 < sessions.len and sessions[k + 1].startT <= x.t: inc k
+      sessions[k].samples.mgetOrPut(name, @[]).add x
   # timer events go to sessions the way coordinates do; then the segments
   timer.sort do (a, b: TimerEvent) -> int: cmp(a.t, b.t)
   var perSession = newSeq[seq[TimerEvent]](sessions.len)

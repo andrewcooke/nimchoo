@@ -5,7 +5,7 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
-import ../db/store
+import ../db/[channel, store]
 import ../errors
 import ../ui/logfile
 
@@ -17,6 +17,7 @@ type
     dbPath*: string   ## the database file; "" for the default
     user*: string     ## whose data to work with; "" for the default user
     fragments*: seq[Fragment]  ## the schema: the fragments of all modules
+    importSteps*: seq[ImportStep]  ## what modules add to an import
     log*: Log         ## the log file; nil (disabled) unless `nch` opened it
 
 const

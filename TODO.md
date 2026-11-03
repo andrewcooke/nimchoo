@@ -504,7 +504,16 @@ existing `user.name`, the key for `--user`; no separate display name).
 
 ### Later steps (each a commit)
 
-2. Heart rate as a channel: the `heartrate/` module, imported with the activity (a re-import).
+2. Heart rate as a channel -- built.  `heartrate/` (`001-schema.sql`, `ddl.nim`, `step.nim`) owns
+   `heartrate(activity_id, t, bpm)` (WITHOUT ROWID, cascades from `activity`), one reading per second
+   at most, zero or invalid readings dropped.  The importer knows nothing of it: a module registers an
+   `ImportStep` (`db/channel.nim`: the record fields it wants, and a function that writes its rows for
+   an activity inside the import's transaction).  `extract.readActivities` collects the wanted fields in
+   the same pass (sorted, last of a second kept, assigned to sessions as coordinates are), the importer
+   calls each step per activity and counts the rows (`ImportResult.extras`, shown as "2,099 heart-rate
+   readings" in the import line and the log).  Steps are listed in `modules.allImportSteps` and reach
+   `import` through `Globals.importSteps`.  The schema changed, so an existing database needs
+   `nch destroy -f` and a re-import.
 3. The model and the impulse: `ff_model` (seeded with `default`), the zone and impulse functions
    (pure; tested on numbers worked by hand and against the Python code on a test file),
    `impulse(activity_id, model_id, hour_t, value)`, calculated for activities that have heart rate

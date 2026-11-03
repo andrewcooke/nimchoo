@@ -35,7 +35,8 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
       result.add entry(lvInfo, leImported, ev.path & "  " &
         plural(ev.counts.activities, "activity", "activities") & ", " &
         plural(ev.counts.segments, "segment", "segments") & ", " &
-        plural(ev.counts.coords, "coordinate", "coordinates"))
+        plural(ev.counts.coords, "coordinate", "coordinates") &
+        extrasText(ev.counts))
     of oDuplicate:
       result.add entry(lvInfo, leDuplicate, ev.path & "  " &
         (if ev.sameAs.len > 0: "same content as " & ev.sameAs else: "already imported"))
