@@ -12,6 +12,7 @@ import ./importer/[test_extract, test_route, test_importer, test_command, test_b
                    test_display, test_logsink]
 import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection]
 import ./heatmap/[test_params, test_lines, test_page, test_command]
+import ./serve/[test_request, test_token, test_handler]
 import ./ui/[test_style, test_live, test_logfile, test_vocabulary, test_interval]
 import ./log/[test_lines, test_command]
 {.pop.}

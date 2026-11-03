@@ -46,6 +46,20 @@ func fileStem*(command: string, options: openArray[(string, string)]): Option[st
     name.add "--" & k & "-" & v
   if name.len > maxNameLength: none(string) else: some(name)
 
+func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
+  ## The inverse of `fileStem`: "heatmap--sel-ab12--style-lines" is the command
+  ## "heatmap" and the options [("sel", "ab12"), ("style", "lines")].  None if it is not
+  ## a name `fileStem` would make.
+  let parts = stem.split("--")
+  if not isCommandName(parts[0]): return none((string, seq[(string, string)]))
+  var options: seq[(string, string)]
+  for p in parts[1 .. ^1]:
+    let dash = p.find('-')
+    if dash < 1 or not isOptionName(p[0 ..< dash]) or not isOptionValue(p[dash + 1 .. ^1]):
+      return none((string, seq[(string, string)]))
+    options.add (p[0 ..< dash], p[dash + 1 .. ^1])
+  some((parts[0], options))
+
 func cacheFile*(dir, stem, extension: string): Option[string] =
   ## The path of a file in the cache directory; none for an extension not allowed.
   if extension in extensions: some(dir / (stem & "." & extension)) else: none(string)

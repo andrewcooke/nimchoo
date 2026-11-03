@@ -25,6 +25,8 @@ type
     leDone = "done"              ## a command ends its work (the totals)
     leDeleted = "deleted"        ## data was removed
     leSaved = "saved"            ## something was kept (the selection)
+    leServed = "served"          ## the web server answered a request
+    leDenied = "denied"          ## ... or refused one
 
 func look*(e: LogEvent): Look =
   ## How an event is shown: imported green, failed red and bold, advisory yellow,
@@ -35,7 +37,8 @@ func look*(e: LogEvent): Look =
   of leAdvisory: Look(fg: cYellow)
   of leDuplicate, leUnchanged: Look(dim: true)
   of leDeleted: Look(fg: cRed)
-  of leStart, leRun, leExit, leDone, leNote: Look(dim: true)
+  of leDenied: Look(fg: cRed)
+  of leStart, leRun, leExit, leDone, leNote, leServed: Look(dim: true)
 
 func parseEvent*(s: string): Option[LogEvent] =
   ## The event whose word is `s`.

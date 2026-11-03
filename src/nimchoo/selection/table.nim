@@ -94,7 +94,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
     widths[c] = header[c].len
     for row in cells: widths[c] = max(widths[c], row[c].len)
   proc padded(text: string, c: int): string =
-    if c in {first, first + 1}: text.align(widths[c])
+    if c == first or c == first + 1: text.align(widths[c])
     elif c == header.len - 1: text
     else: text.alignLeft(widths[c])
   proc line(row: seq[string], r: Option[ListRow]): Line =

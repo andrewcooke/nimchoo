@@ -21,6 +21,9 @@ suite "vocabulary: the looks":
     check look(leAdvisory) == Look(fg: cYellow)
     check look(leDuplicate).dim and look(leDuplicate).fg == cNone
     check look(leUnchanged) == look(leDuplicate)
+  test "the server's words: served is dim, denied is red":
+    check look(leServed) == Look(dim: true)
+    check look(leDenied) == Look(fg: cRed)
   test "bookkeeping words are dim":
     for e in [leStart, leRun, leExit, leDone, leNote]:
       check look(e) == Look(dim: true)

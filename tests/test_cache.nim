@@ -39,6 +39,16 @@ suite "cache: names":
   test "a name that is too long is refused":
     check fileStem("heatmap", [("sel", "x".repeat(300))]).isNone
 
+suite "cache: names back to options":
+  test "the inverse of fileStem":
+    let stem = fileStem("heatmap", [("style", "lines"), ("sel", "ab12cd"), ("tolerance", "5")]).get
+    check parseStem(stem) == some(("heatmap", @[("sel", "ab12cd"), ("style", "lines"), ("tolerance", "5")]))
+    check parseStem("heatmap") == some(("heatmap", newSeq[(string, string)]()))
+  test "not a stem":
+    for bad in ["", "Heatmap", "heatmap--sel", "heatmap--sel-", "heatmap--Sel-a", "heatmap--sel-a b",
+                "heatmap----x-y", "a b"]:
+      check parseStem(bad).isNone
+
 suite "cache: files":
   test "the path, with an extension that is allowed":
     check cacheFile("/c/nch", "heatmap--sel-a", "geojson") == some "/c/nch/heatmap--sel-a.geojson"

@@ -8,7 +8,7 @@
 ## as when last looked at), `known failure`, `failed`, and `advisory` (something
 ## noticed in a file that was imported anyway).
 
-import std/[sequtils, strutils, tables]
+import std/[strutils, tables]
 import ../cli/common
 import ../warnings
 import ./events
