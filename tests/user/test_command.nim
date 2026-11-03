@@ -38,8 +38,8 @@ suite "nch user":
 
   test "make a user, with an FTHR, and see them":
     let db = fresh("create")
-    check user(db, "bob", "--create", "--fthr", "150") == exitOk
-    check user(db, "carol", "--create") == exitOk
+    check user(db, "--create", "bob", "--fthr", "150") == exitOk
+    check user(db, "--create", "carol") == exitOk
     check lines(db) == @["user     fthr  activities", "bob       150           0",
                          "carol       -           0", "default     -           0"]
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'bob')") == "150"
@@ -47,15 +47,15 @@ suite "nch user":
 
   test "a user is never made twice, or by accident":
     let db = fresh("twice")
-    check user(db, "bob", "--create") == exitOk
-    check user(db, "bob", "--create") == exitFailure
+    check user(db, "--create", "bob") == exitOk
+    check user(db, "--create", "bob") == exitFailure
     check user(db, "bob", "--fthr", "150") == exitUsage                 # a name without --create
     check userAs(db, "nobody", "--fthr", "150") == exitFailure     # no such user: nothing made
     check q(db, "select count(*) from user") == "2"
 
   test "set, change and forget the FTHR of the current user":
     let db = fresh("fthr")
-    check user(db, "bob", "--create") == exitOk
+    check user(db, "--create", "bob") == exitOk
     check userAs(db, "bob", "--fthr", "154") == exitOk
     check q(db, "select fthr from user_profile") == "154"
     check userAs(db, "bob", "--fthr", "160") == exitOk
@@ -75,7 +75,7 @@ suite "nch user":
 
   test "rename":
     let db = fresh("rename")
-    check user(db, "bob", "--create", "--fthr", "150") == exitOk
+    check user(db, "--create", "bob", "--fthr", "150") == exitOk
     check userAs(db, "bob", "--rename", "robert") == exitOk
     check q(db, "select count(*) from user where name = 'bob'") == "0"
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'robert')") == "150"
@@ -84,7 +84,7 @@ suite "nch user":
 
   test "rename: not to a name that is taken, and not the default user":
     let db = fresh("renamebad")
-    check user(db, "bob", "--create") == exitOk
+    check user(db, "--create", "bob") == exitOk
     check userAs(db, "bob", "--rename", "default") == exitFailure
     check userAs(db, "bob", "--rename", "bob") == exitFailure        # (to itself: taken)
     check user(db, "--rename", "robert") == exitFailure                  # the default user
@@ -93,13 +93,13 @@ suite "nch user":
 
   test "several changes in one go":
     let db = fresh("several")
-    check user(db, "bob", "--create") == exitOk
+    check user(db, "--create", "bob") == exitOk
     check userAs(db, "bob", "--fthr", "152", "--rename", "robert") == exitOk
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'robert')") == "152"
 
   test "the activities of each user are counted":
     let db = fresh("counts")
-    check user(db, "bob", "--create") == exitOk
+    check user(db, "--create", "bob") == exitOk
     let s = openStore(db, allFragments)
     for i in 1 .. 1200:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values ((select id from user where name = 'bob'), ?, ?, 0)",
@@ -110,7 +110,7 @@ suite "nch user":
 
   test "the profile goes with the user":
     let db = fresh("cascade")
-    check user(db, "bob", "--create", "--fthr", "150") == exitOk
+    check user(db, "--create", "bob", "--fthr", "150") == exitOk
     let s = openStore(db, allFragments)
     s.db.exec(sql"delete from user where name = 'bob'")
     s.close()
@@ -120,7 +120,7 @@ suite "nch user":
     let db = fresh("log")
     let path = dir / "log" / "nch.log"
     let g = Globals(dbPath: db, fragments: allFragments, log: openLog(path))
-    check userCommand.run(g, @["bob", "--create", "--fthr", "150"]) == exitOk
+    check userCommand.run(g, @["--create", "bob", "--fthr", "150"]) == exitOk
     check userCommand.run(g, @[]) == exitOk
     check userCommand.run(g, @["--fthr", "151"]) == exitOk
     g.log.close()
@@ -131,7 +131,7 @@ suite "nch user":
 
   test "other commands see a made user":
     let db = fresh("others")
-    check user(db, "bob", "--create") == exitOk
+    check user(db, "--create", "bob") == exitOk
     let s = openStore(db, allFragments, "bob")
     defer: s.close()
     check s.userName == "bob"

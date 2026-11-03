@@ -478,7 +478,7 @@ existing `user.name`, the key for `--user`; no separate display name).
 * **Command line** (options are enough):
 
       nch user                              the users: name, FTHR (blank if not set), activities
-      nch user NAME --create [--fthr N]     make a user (never implicit: a typo must not make one)
+      nch user --create NAME [--fthr N]     make a user (never implicit: a typo must not make one)
       nch [--user NAME] user --fthr 154     set FTHR (of the current user)
       nch [--user NAME] user --clear-fthr
       nch [--user NAME] user --rename NEW
@@ -490,9 +490,9 @@ existing `user.name`, the key for `--user`; no separate display name).
 
   **As built** (`user/`: `001-schema.sql`, `ddl.nim`, `params.nim` pure, `command.nim`): exactly the
   above.  `nch user` lists `user fthr activities` (activities counted per user, with commas;
-  FTHR `-` if not set); `NAME --create [--fthr N]` makes a user; `--fthr N`, `--clear-fthr`,
+  FTHR `-` if not set); `--create NAME [--fthr N]` makes a user; `--fthr N`, `--clear-fthr`,
   `--rename NEW` act on the user given by `--user` (the default user if none) and may be
-  combined; a bare `NAME` without `--create` is refused and the message says to use `--user NAME`.
+  combined; a bare `NAME` is refused and the message says to use `--create NAME` or `--user NAME`.
   A user is refused if the name is taken; `default` cannot be renamed; `nch --user nobody user ...`
   says there is no such user and makes nothing.  Names and FTHR are checked before the database is
   opened.  The FTHR change that must clear impulses is not there yet because there are no

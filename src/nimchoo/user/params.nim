@@ -37,7 +37,7 @@ func parseFthr*(s: string): Option[int] =
   none(int)
 
 func parseArgs*(args: seq[string]): Params =
-  ## `nch user` (list), `NAME --create [--fthr N]`, `--fthr N`, `--clear-fthr`, `--rename NEW`.
+  ## `nch user` (list), `--create NAME [--fthr N]`, `--fthr N`, `--clear-fthr`, `--rename NEW`.
   var i = 0
   template fail(msg: string) =
     result.problem = msg
@@ -50,7 +50,9 @@ func parseArgs*(args: seq[string]): Params =
     let a = args[i]
     case a
     of "-h", "--help": result.help = true
-    of "--create": result.create = true
+    of "--create":
+      result.create = true
+      result.name = value(a)
     of "--clear-fthr": result.clearFthr = true
     of "--fthr":
       let v = value(a)
@@ -66,15 +68,11 @@ func parseArgs*(args: seq[string]): Params =
       result.rename = v
     else:
       if a.startsWith("-"): fail("unexpected option " & a)
-      if result.name.len > 0: fail("unexpected argument " & a)
-      result.name = a
+      fail("unexpected argument " & a & " (to make a user: --create " & a &
+           "; to change an existing user: `nch --user " & a & " user ...`)")
     inc i
   if result.help: return
-  if result.name.len > 0 and not result.create:
-    fail("'" & result.name & "' needs --create to make a user (to change an existing user, " &
-         "use `nch --user " & result.name & " user ...`)")
   if result.create:
-    if result.name.len == 0: fail("--create needs the name of the user to make")
     if not validUserName(result.name):
       fail("'" & result.name & "' is not a name for a user (1 to " & $maxNameLength &
            " letters, digits, _ . -, not starting with -)")
