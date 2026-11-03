@@ -7,9 +7,10 @@
 import ./importer/ddl as importerDdl
 import ./places/ddl as placesDdl
 import ./selection/ddl as selectionDdl
+import ./user/ddl as userDdl
 import ./db/fragment
 
 {.push raises: [].}
 
 const allFragments*: seq[Fragment] =
-  placesDdl.fragments & importerDdl.fragments & selectionDdl.fragments
+  placesDdl.fragments & importerDdl.fragments & selectionDdl.fragments & userDdl.fragments

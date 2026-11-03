@@ -10,6 +10,7 @@ import nimchoo/destroy/command as destroyCommand
 import nimchoo/selection/command as listCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
+import nimchoo/user/command as userCommand
 import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
@@ -33,6 +34,8 @@ commands:
            (see `nch heatmap --help`)
   log      show the log, filtered, with the events coloured
            (see `nch log --help`)
+  user     the users: make, rename, set the threshold heart rate
+           (see `nch user --help`)
   destroy  delete the database, or one user and their data
            (see `nch destroy --help`)
 """
@@ -52,6 +55,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     heatmapCommand.run(g, rest)
   of "log":
     logCommand.run(g, rest)
+  of "user":
+    userCommand.run(g, rest)
   of "destroy":
     destroyCommand.run(g, rest)
   else:

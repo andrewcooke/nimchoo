@@ -466,7 +466,7 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   curve variables in the same model row, computed when asked (87,000 hours is ten years: trivial),
   with `--model NAME` choosing the model.
 
-### Step 1: `nch user` (per-user information)
+### Step 1: `nch user` (per-user information) -- built
 
 What the algorithm needs per user is the **FTHR** (agreed: not max heart rate; nothing in the
 current Python code uses max or resting HR).  **One value per user, no history; one name** (the
@@ -487,6 +487,16 @@ existing `user.name`, the key for `--user`; no separate display name).
   in comma-separated lists (`--users a,b`).  The `default` user cannot be renamed (it is made again
   whenever a database is opened).  FTHR is a whole number of bpm, 80 to 230.  `nch destroy --user`
   already removes a user.  Changes are logged (event `saved`).
+
+  **As built** (`user/`: `001-schema.sql`, `ddl.nim`, `params.nim` pure, `command.nim`): exactly the
+  above.  `nch user` lists `user fthr activities` (activities counted per user, with commas;
+  FTHR `-` if not set); `NAME --create [--fthr N]` makes a user; `--fthr N`, `--clear-fthr`,
+  `--rename NEW` act on the user given by `--user` (the default user if none) and may be
+  combined; a bare `NAME` without `--create` is refused and the message says to use `--user NAME`.
+  A user is refused if the name is taken; `default` cannot be renamed; `nch --user nobody user ...`
+  says there is no such user and makes nothing.  Names and FTHR are checked before the database is
+  opened.  The FTHR change that must clear impulses is not there yet because there are no
+  impulses: it goes in with step 3.
 
 ### Open
 

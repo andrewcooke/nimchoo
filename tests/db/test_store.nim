@@ -49,7 +49,7 @@ suite "database: opening and bringing the schema up to date":
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
     check names == @["db/001-schema.sql", "importer/001-schema.sql", "places/001-schema.sql",
-                     "selection/001-schema.sql"]
+                     "selection/001-schema.sql", "user/001-schema.sql"]
     s.close()
 
   test "each fragment is recorded with the checksum of its SQL":
@@ -127,7 +127,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 4
+    check b.count("fragment") == 5
     b.close()
 
   test "the directory is created":
