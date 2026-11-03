@@ -13,7 +13,7 @@ import ../cache
 import ../db/store
 import ../errors
 import ../model/[calc, impulses, models]
-import ../serve/launch
+import ../serve/[launch, pages, webopts]
 import ./[curve, page, params]
 
 {.push raises: [].}
@@ -32,6 +32,7 @@ The file is named after the options and after the data it is made from, so if it
 there nothing is done: it cannot be out of date.  (A new --to, an import or a new FTHR means
 a new file; old ones are not deleted.)
 
+  --key KEY         show the data with this key (as in the file name); default: the current data
   --model NAME      the model to use (default: `default`)
   --from DAY        the first day to show, like 2018-08-27 (default: the first with an impulse)
   --to DAY          the last day to show (default: today)
@@ -39,14 +40,7 @@ a new file; old ones are not deleted.)
                     from UTC: 2018-08-27T14:00:00-03:00)
   --utc             days and times in UTC, not this computer's timezone
   --stdout          print the CSV instead of making a file
-  --worker          for programs: also make the web page, and print its path, then the
-                    path of the CSV file, and nothing else
-  --web             show the chart in the browser: make the files, serve them on 127.0.0.1
-                    (this computer only) and open the address; Ctrl-C stops it
-  --port N          the port for --web (default 62466; 0: any free one)
-  --no-open         with --web: print the address but do not open the browser
-  --new-token       with --web: make a new secret (old bookmarks stop working)
-  --fitness-scale S multiply the fitness by S (default 1)
+""" & webUsage("the chart", "CSV", 20) & """  --fitness-scale S multiply the fitness by S (default 1)
   --fatigue-scale S multiply the fatigue by S (default 1; the original program used 5, to
                     make the two curves look alike)
   -h, --help        show this help
@@ -102,18 +96,6 @@ proc zoneName(tz: Timezone, p: Params, toCivil: int64, isUtc: bool): string =
   "east" & $(-fromUnix(dayStart(toCivil, tz)).inZone(tz).utcOffset)
 
 func scaleText(x: float): string = $x
-
-proc write(path, text: string) {.raises: [IOError, OSError].} =
-  ## Write the file so that nobody sees half of it: to a new name, then rename.
-  createDir parentDir(path)
-  let tmp = path & ".part"
-  writeFile(tmp, text)
-  try:
-    moveFile(tmp, path)
-  except OSError as e:
-    raise e
-  except Exception:              # (moveFile is declared to raise anything)
-    raise newException(OSError, "cannot rename " & tmp)
 
 proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): string =
   result = "time,fitness,fatigue\n"
@@ -181,14 +163,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if fthrOf(st.db, st.userId).isNone:
       return failure("nch ff", st.userName & " has no FTHR, which the impulses are worked out from " &
                      "(see `nch user --fthr`)")
-    let key = inputKey(st.db, st.userId, m.get)
-    if key.len == 0:
+    let current = inputKey(st.db, st.userId, m.get)
+    if current.len == 0:
       return failure("nch ff", "there are no impulses for " & st.userName &
                      " (they need activities with heart rate: import some)")
+    let key = if p.key.len > 0: p.key else: current
     let now = getTime().toUnix
     let tz = if p.utc: utc() else: local()
     if p.toDay.isNone: p.toDay = some(civilOf(now, tz))     # (so that the name says which day)
+    let changed = "the data have changed since that was made (the key was " & key & ", it is now " &
+                  current & "); leave out --key to use the current data"
     if p.stdout:
+      if key != current: return failure("nch ff", changed)
       stdout.say makeCsv(st, m.get, p, now, tz)
       return exitOk
     let dir = cacheDir()
@@ -203,18 +189,20 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let csvPath = csvFile.get
     try:
       if not fileExists(csvPath):                 # (made before from the same data: nothing to do)
-        write(csvPath, makeCsv(st, m.get, p, now, tz))
-      if p.worker or p.web:
+        if key != current: return failure("nch ff", changed)
+        writeAtomic(csvPath, makeCsv(st, m.get, p, now, tz))
+      if p.web.worker or p.web.enabled:
         # the page is rewritten each time (it is tiny, and may have changed since)
         let html = pageHtml(extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly)
         if html.isNone: return failure("nch ff", "cannot make a page for " & csvPath)
-        write(pageFile.get, html.get)
+        writeAtomic(pageFile.get, html.get)
     except IOError, OSError:
       return failure("nch ff", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg())
-    if p.web:
-      return serveWeb(g, "ff", WebOptions(port: p.port, noOpen: p.noOpen, newToken: p.newToken),
-                      dir.get, query)
-    if p.worker: stdout.say pageFile.get & "\n" & csvPath & "\n"
+    if p.web.enabled:
+      return serveWeb(g, "ff", WebOptions(port: p.web.port, noOpen: p.web.noOpen,
+                                          newToken: p.web.newToken),
+                      dir.get, "key=" & key & (if query.len > 0: "&" & query else: ""))
+    if p.web.worker: stdout.say pageFile.get & "\n" & csvPath & "\n"
     else: stdout.say csvPath & "\n"
     exitOk
   except StoreError as e:

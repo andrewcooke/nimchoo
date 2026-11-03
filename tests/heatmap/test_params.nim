@@ -4,20 +4,20 @@ import nimchoo/heatmap/params
 suite "heatmap: the command line":
   test "defaults are explicit":
     let p = parseArgs(@[])
-    check p.problem == "" and p.sel == "" and p.style == "lines" and p.toleranceM == 5.0
+    check p.problem == "" and p.key == "" and p.style == "lines" and p.toleranceM == 5.0
   test "the options":
-    let p = parseArgs(@["--sel", "ab12cd", "--style", "lines", "--tolerance", "2.5"])
-    check p.sel == "ab12cd" and p.toleranceM == 2.5
+    let p = parseArgs(@["--key", "ab12cd", "--style", "lines", "--tolerance", "2.5"])
+    check p.key == "ab12cd" and p.toleranceM == 2.5
   test "--worker":
-    check parseArgs(@["--worker"]).worker
-    check not parseArgs(@[]).worker
-    check parseArgs(@["--worker", "--sel", "ab12", "--tolerance", "10"]).problem == ""
+    check parseArgs(@["--worker"]).web.worker
+    check not parseArgs(@[]).web.worker
+    check parseArgs(@["--worker", "--key", "ab12", "--tolerance", "10"]).problem == ""
   test "--web and its options":
     let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
-    check p.problem == "" and p.web and p.noOpen and p.newToken and p.port == 0
-    check parseArgs(@["--web"]).port == 62466
-    check parseArgs(@["--web", "--port", "8080"]).port == 8080
-    check not parseArgs(@[]).web
+    check p.problem == "" and p.web.enabled and p.web.noOpen and p.web.newToken and p.web.port == 0
+    check parseArgs(@["--web"]).web.port == 62466
+    check parseArgs(@["--web", "--port", "8080"]).web.port == 8080
+    check not parseArgs(@[]).web.enabled
   test "--web problems":
     check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")
     for opt in [@["--no-open"], @["--new-token"], @["--port", "8080"]]:
@@ -28,8 +28,8 @@ suite "heatmap: the command line":
   test "zero tolerance means no simplification":
     check parseArgs(@["--tolerance", "0"]).toleranceM == 0.0
   test "problems":
-    check parseArgs(@["--sel"]).problem.contains("needs a value")
-    check parseArgs(@["--sel", "a b"]).problem.contains("not a selection key")
+    check parseArgs(@["--key"]).problem.contains("needs a value")
+    check parseArgs(@["--key", "a b"]).problem.contains("not a selection key")
     check parseArgs(@["--style", "cells"]).problem.contains("only style")
     for bad in ["x", "-1", "1001", "", "nan"]:
       check parseArgs(@["--tolerance", bad]).problem.contains("metres")

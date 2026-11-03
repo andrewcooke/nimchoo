@@ -533,6 +533,17 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   (options that take a value, flags that are `name=1`, and the option that is "pinned" in the address:
   `sel` for the heat map, none for ff).  `defaultPort` moved to `serve/request.nim`.  csv files are served
   as `text/csv`.
+* **One idea, one name (consistency pass, 2026-11-03):** the heat map's `sel` and ff's `key` were the same
+  thing (a hash of everything the file was made from, in its name), so now both are **`key`**, in file
+  names, in the option (`nch heatmap --key K`, `nch ff --key K`: "the file with this key; if it is not
+  there and the key is not the current one, the data have changed: say so"), and in the server's rule
+  for both (the request lacking `key` is redirected to the same address with the worker's key, plus the
+  options it had; the defaults are no longer written into the address).  Older notes in this file that
+  say `--sel` / `sel-` mean this.  The printed address is `http://localhost:PORT/...` (the server still
+  binds 127.0.0.1 only, and accepts either name in the Host header).  Shared code: `serve/webopts.nim`
+  (`--worker --web --port --no-open --new-token`: parsing, their combinations and their help text, used
+  by both commands), `serve/pages.nim` (`fill`, `htmlEscape`, `writeAtomic`), `serve/launch.nim`.
+  Existing heat map cache files (`heatmap--sel-...`) are simply made again under the new names.
 * **A compiler trap met on the way:** `var p = ""` followed by `p = cacheFile(...).get` (`.get` of a temporary
   Option, assigned on to a var) left a dangling string in this Nim: the path became garbage (once it was
   another string's contents).  Keep the Option in a `let` and take `.get` from that.

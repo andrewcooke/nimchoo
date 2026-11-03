@@ -4,14 +4,14 @@
 ##
 ## A request must (1) be a GET, (2) have our own address in its Host header, (3) carry the
 ## token, in the cookie, or once in the URL (then the cookie is set and the browser is sent
-## on to the same address without it).  Then it is a page (`/heatmap?sel=...`: the worker
+## on to the same address without it).  Then it is a page (`/heatmap?key=...`: the worker
 ## makes the files and the first it names is sent) or a file of the cache directory
 ## (`/files/NAME`).  Anything else is "not found".
 
 import std/[options, os, sequtils, strutils]
 import ../cache
 import ../ui/logfile
-import ./request
+import ./[pages, request]
 
 {.push raises: [].}
 
@@ -62,15 +62,6 @@ func contentTypeOf(fileName: string): string =
   elif fileName.endsWith(".csv"): "text/csv; charset=utf-8"
   else: "application/octet-stream"
 
-func htmlEscape(s: string): string =
-  for c in s:
-    case c
-    of '<': result.add "&lt;"
-    of '>': result.add "&gt;"
-    of '&': result.add "&amp;"
-    of '"': result.add "&quot;"
-    else: result.add c
-
 proc readCacheFile(cfg: ServerConfig, name: string): Option[string] =
   ## A file of the cache directory, by a name that has been checked.
   if not isCacheFileName(name): return none(string)
@@ -94,11 +85,14 @@ proc page(cfg: ServerConfig, route: Route, t: Target): Reply =
   if parentDir(lines[0]) != cfg.cacheDir or not name.endsWith(".html"):
     return reply(500, "nch " & route.command & " named a page that is not in the cache")
   if route.pin.len > 0 and t.query.queryValue(route.pin).isNone:
-    # "the current one" (of a selection, say): pin it in the address
+    # the data were "the current ones": pin their key in the address, so that a reload shows
+    # the same data (the other options of the request stay as they were)
     let stem = parseStem(name[0 ..< name.len - ".html".len])
-    if stem.isSome:
-      var q: seq[string]
-      for (k, v) in stem.get[1]: q.add k & "=" & v
+    let key = if stem.isSome: stem.get[1].queryValue(route.pin) else: none(string)
+    if key.isSome:
+      var q = @[route.pin & "=" & key.get]
+      for (k, v) in t.query:
+        if k != tokenParam: q.add k & "=" & v
       return Reply(code: 302, headers: @[("Location", "/" & route.command & "?" & q.join("&"))])
   let body = readCacheFile(cfg, name)
   if body.isNone: return reply(404, "not found")

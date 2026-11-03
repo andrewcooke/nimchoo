@@ -7,6 +7,7 @@
 
 import std/[options, strutils]
 import ../cache
+import ../serve/pages
 
 {.push raises: [].}
 
@@ -63,35 +64,10 @@ const template1 = """<!DOCTYPE html>
 </html>
 """
 
-func replaceAll(s, key, value: string): string =
-  ## `s` with each occurrence of `key` replaced by `value` (no regex, no surprises).
-  var i = 0
-  while i < s.len:
-    if i + key.len <= s.len and s[i ..< i + key.len] == key:
-      result.add value
-      i += key.len
-    else:
-      result.add s[i]
-      inc i
-
 func pageHtml*(dataName, title: string): Option[string] =
   ## The page for the GeoJSON file `dataName` (a name of the cache directory, which is
   ## what makes it safe to put in the page).  None if the name is not one.
   if not isCacheFileName(dataName) or not dataName.endsWith(".geojson"):
     return none(string)
-  var t = ""
-  for c in title:           # the title is text, not markup
-    case c
-    of '<': t.add "&lt;"
-    of '>': t.add "&gt;"
-    of '&': t.add "&amp;"
-    of '"': t.add "&quot;"
-    else: t.add c
-  var page = template1
-  page = page.replaceAll("@TITLE@", t)
-  page = page.replaceAll("@CDN@", cdn)
-  page = page.replaceAll("@CSSHASH@", leafletCssHash)
-  page = page.replaceAll("@JSHASH@", leafletJsHash)
-  page = page.replaceAll("@TILES@", tiles)
-  page = page.replaceAll("@DATA@", dataName)
-  some(page)
+  some(template1.fill({"TITLE": htmlEscape(title), "CDN": cdn, "CSSHASH": leafletCssHash,
+                       "JSHASH": leafletJsHash, "TILES": tiles, "DATA": dataName}))

@@ -13,7 +13,7 @@ import ../cli/common
 import ../db/store
 import ../errors
 import ../selection/selection
-import ../serve/launch
+import ../serve/[launch, pages, webopts]
 import ./[lines, page, params]
 
 {.push raises: [].}
@@ -25,21 +25,12 @@ file in the cache directory, and print its path.  Several rides over the same
 roads show as a heatmap in any program that draws GeoJSON with transparency.
 Asking again for the same thing finds the file already there.
 
-  --sel KEY        draw the selection with this key (as in the file name);
+  --key KEY        draw the selection with this key (as in the file name);
                    default: the current selection
   --style lines    how to draw (the only style so far)
   --tolerance M    simplify routes so they stray at most M metres (default 5;
                    0: do not simplify)
-  --worker         for programs: also make the web page, and print its path, then the
-                   path of the GeoJSON file, and nothing else
-  --web            show the heat map in the browser: make the files, serve them on
-                   127.0.0.1 (this computer only) and open the address; Ctrl-C stops it
-  --port N         the port for --web (default 62466, the keypad digits of "mchoo"; 0:
-                   any free one)
-  --no-open        with --web: print the address but do not open the browser
-  --new-token      with --web: make a new secret (old bookmarks stop working; the secret
-                   is kept in the cache directory, readable only by you)
-  -h, --help       show this help
+""" & webUsage("the heat map", "GeoJSON") & """  -h, --help       show this help
 """
 
 const metresPerDegree = 111320.0
@@ -72,18 +63,6 @@ proc selectedCount(st: Store): int {.raises: [StoreError].} =
       sql"select count(*) from selection where user_id = ?", st.userId))
     except ValueError: raiseStore("bad number from the database")
 
-proc write(path, text: string) {.raises: [IOError, OSError].} =
-  ## Write the file so that nobody sees half of it: to a new name, then rename.
-  createDir parentDir(path)
-  let tmp = path & ".part"
-  writeFile(tmp, text)
-  try:
-    moveFile(tmp, path)
-  except OSError as e:
-    raise e
-  except Exception:              # (moveFile is declared to raise anything)
-    raise newException(OSError, "cannot rename " & tmp)
-
 type Prepared = object
   status: int             ## 0 if the files are there; else the exit status (already reported)
   stem, wanted: string
@@ -99,8 +78,8 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
   defer: st.close()
   try:
     let current = selectionKey(st)
-    let wanted = if p.sel.len > 0: p.sel else: current
-    let stem = fileStem("heatmap", [("sel", wanted), ("style", p.style),
+    let wanted = if p.key.len > 0: p.key else: current
+    let stem = fileStem("heatmap", [("key", wanted), ("style", p.style),
                                     ("tolerance", metres(p.toleranceM))])
     if stem.isNone:
       return Prepared(status: usageError("nch heatmap", usage, "cannot name a file for these options"))
@@ -108,7 +87,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     if not fileExists(path):                   # (made before: nothing to do)
       if wanted != current:
         return Prepared(status: failure("nch heatmap", "the selection has changed since that was made " &
-          "(it was " & wanted & ", it is now " & current & "); leave out --sel to draw " &
+          "(it was " & wanted & ", it is now " & current & "); leave out --key to draw " &
           "the current selection"))
       let chosen = selectedCount(st)
       if chosen == 0:
@@ -120,7 +99,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       if routes.len < chosen:
         stderr.say "note: " & $(chosen - routes.len) & " of the " & $chosen &
           " selected activities have no route\n"
-      write(path, featureCollection(routes))
+      writeAtomic(path, featureCollection(routes))
     result = Prepared(stem: stem.get, wanted: wanted, geojson: path)
     if withPage:
       # the page is rewritten each time (it is tiny, and may have changed since)
@@ -128,7 +107,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       let html = pageHtml(extractFilename(path), "Heat map " & wanted)
       if html.isNone:
         return Prepared(status: failure("nch heatmap", "cannot make a page for " & path))
-      write(pagePath, html.get)
+      writeAtomic(pagePath, html.get)
       result.page = pagePath
   except StoreError as e:
     result = Prepared(status: failure("nch heatmap", e.msg))
@@ -146,16 +125,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let dir = cacheDir()
   if dir.isNone:
     return failure("nch heatmap", "no place for the cache: set NCH_CACHE or HOME")
-  let made = prepare(g, p, dir.get, p.worker or p.web)
+  let made = prepare(g, p, dir.get, p.web.worker or p.web.enabled)
   if made.status != 0: return made.status
-  if p.web:
+  if p.web.enabled:
     # the address pins what was made: the selection, the style and the tolerance
     let parsed = parseStem(made.stem)
     var query: seq[string]
     if parsed.isSome:
       for (k, v) in parsed.get[1]: query.add k & "=" & v
-    return serveWeb(g, "heatmap", WebOptions(port: p.port, noOpen: p.noOpen, newToken: p.newToken),
+    return serveWeb(g, "heatmap", WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
                     dir.get, query.join("&"))
-  if p.worker: stdout.say made.page & "\n" & made.geojson & "\n"
+  if p.web.worker: stdout.say made.page & "\n" & made.geojson & "\n"
   else: stdout.say made.geojson & "\n"
   exitOk

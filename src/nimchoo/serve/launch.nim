@@ -1,4 +1,4 @@
-## `nch COMMAND --web`: serve a command's pages on localhost and open the browser at one.
+## `nch COMMAND --web`: serve a command's pages on localhost (127.0.0.1) and open the browser at one.
 ## The files have already been made (so a problem is reported in the terminal, not in an
 ## empty browser tab); from here on the server runs `nch COMMAND --worker` for each page
 ## request, which finds them again (see handler.nim).  Shared by the commands that have pages.
@@ -33,7 +33,7 @@ proc openBrowser(url: string): bool =
 
 proc serveWeb*(g: Globals, command: string, o: WebOptions, cacheDir, query: string): int =
   ## Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
-  ## pins the page in the address, e.g. "sel=ab12cd&style=lines&tolerance=5".
+  ## pins the page in the address, e.g. "key=ab12cd&style=lines&tolerance=5".
   let name = "nch " & command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0: return failure(name, t.problem)
@@ -41,7 +41,7 @@ proc serveWeb*(g: Globals, command: string, o: WebOptions, cacheDir, query: stri
                          baseArgs: workerOptions(g), log: g.log, logCommand: command)
   exitOnInterrupt()
   let problem = serveForever(cfg, o.port, proc(port: int) {.closure, raises: [].} =
-    let url = "http://127.0.0.1:" & $port & "/" & command & "?" & query & "&token=" & t.token
+    let url = "http://localhost:" & $port & "/" & command & "?" & query & "&token=" & t.token
     stdout.say url & "\n(Ctrl-C to stop)\n"
     try: stdout.flushFile()       # (a program reading our output waits for this line)
     except IOError: discard

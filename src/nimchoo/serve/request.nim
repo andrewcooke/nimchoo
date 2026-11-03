@@ -32,8 +32,9 @@ type
     name*: string
     options*: seq[string]                   ## `?name=value` becomes `--name value`
     flags*: seq[string]                     ## `?name=1` becomes `--name`
-    pin*: string                            ## if a request lacks this option, the address is
-                                            ## sent on with the options the worker used
+    pin*: string                            ## the key of the data: if a request lacks it, the address is
+                                            ## sent on with the key the worker used (so that a reload
+                                            ## shows the same data)
 
 const
   maxTarget = 2000
@@ -42,12 +43,12 @@ const
   defaultPort* = 62466    ## the digits of "mchoo" on a phone keypad
   # the commands the server may run: read-only, safe to repeat; with their options
   commandRules* = [
-    CommandRule(name: "heatmap", options: @["sel", "style", "tolerance"], pin: "sel"),
-    CommandRule(name: "ff", options: @["model", "from", "to", "fitness-scale", "fatigue-scale"],
-                flags: @["hourly", "utc"])]
+    CommandRule(name: "heatmap", options: @["key", "style", "tolerance"], pin: "key"),
+    CommandRule(name: "ff", options: @["key", "model", "from", "to", "fitness-scale", "fatigue-scale"],
+                flags: @["hourly", "utc"], pin: "key")]
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/heatmap?sel=ab12&style=lines" -> path "/heatmap" and the query, percent-decoded.
+  ## "/heatmap?key=ab12&style=lines" -> path "/heatmap" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, no spaces or control
   ## characters, not too long).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):

@@ -36,6 +36,11 @@ proc environment(cache: string): StringTableRef =
 
 proc built(): bool = fileExists(exe)
 
+proc keyOf(url: string): string =
+  ## The key in an address ("/ff?key=KEY&...").
+  let start = url.find("key=") + 4
+  url[start ..< url.find('&', start)]
+
 proc worker(db, cache: string, extra: seq[string]): tuple[output: string, code: int] =
   let p = startProcess(exe, args = @["--db", db, "ff", "--worker", "--utc", "--to", "2018-09-05"] & extra,
                        env = environment(cache), options = {poStdErrToStdOut})
@@ -81,7 +86,7 @@ suite "nch ff --web: a real server":
         url = line
         break
     check url.len > 0
-    check url.contains("/ff?to=2018-09-05&utc=1&token=")
+    check url.contains("/ff?key=") and url.contains("&to=2018-09-05&utc=1&token=")
     let base = url[0 ..< url.find("/ff")]
     let token = url[url.find("token=") + 6 .. ^1]
     let c = newHttpClient(maxRedirects = 0, timeout = 20_000)
@@ -98,7 +103,9 @@ suite "nch ff --web: a real server":
     check $data.headers["Content-Type"] == "text/csv; charset=utf-8"
     check data.body.startsWith("time,fitness,fatigue\n2018-08-27,")
     # the hourly chart is another file
-    let hourly = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
+    let unpinned = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
+    check unpinned.code == Http302 and $unpinned.headers["Location"] == "/ff?key=" & keyOf(url) & "&to=2018-09-05&utc=1&hourly=1"
+    let hourly = withCookie.request(base & $unpinned.headers["Location"])
     check hourly.code == Http200 and hourly.body.contains("const hourly = true;")
     check withCookie.request(base & "/ff?to=2018-09-05&bogus=1").code == Http404
     check newHttpClient(maxRedirects = 0).request(base & "/ff").code == Http403

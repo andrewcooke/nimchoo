@@ -36,9 +36,12 @@ suite "ff: the page":
 suite "ff: --worker, --web and the address":
   test "options":
     let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
-    check p.problem == "" and p.web and p.noOpen and p.newToken and p.port == 0
-    check parseArgs(@["--worker"]).worker
-    check parseArgs(@[]).port == defaultPort
+    check p.problem == "" and p.web.enabled and p.web.noOpen and p.web.newToken and p.web.port == 0
+    check parseArgs(@["--worker"]).web.worker
+    check parseArgs(@["--key", "ab12cd"]).key == "ab12cd"
+    check parseArgs(@["--key", "a b"]).problem.contains("not a key")
+    check parseArgs(@["--key"]).problem.contains("needs a value")
+    check parseArgs(@[]).web.port == defaultPort
   test "problems":
     check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")
     check parseArgs(@["--web", "--stdout"]).problem.contains("--stdout")

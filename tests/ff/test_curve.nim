@@ -178,3 +178,33 @@ suite "nch ff":
     check ffCommand.run(g, @["--model", "nope"]) == exitFailure
     check ffCommand.run(g, @["--to", "x"]) == exitUsage
     delEnv("NCH_CACHE")
+
+suite "nch ff: the key":
+  test "--key asks for a file by the key of its data; an old key can not be made again":
+    let path = getTempDir() / "nch-test-ff-key.db"
+    let cache = getTempDir() / "nch-test-ff-key-cache"
+    removeFile(path)
+    removeDir(cache)
+    putEnv("NCH_CACHE", cache)
+    let g = Globals(dbPath: path, fragments: allFragments, importSteps: allImportSteps)
+    let s = store.openStore(path, allFragments)
+    var ws: seq[Warning]
+    discard s.importFile(loadProfile("../choochoo/data/sdk/Profile.xlsx"), "r.fit",
+                         readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"), ws, allImportSteps)
+    s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
+    s.close()
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    var name = ""
+    for f in walkFiles(cache / "*.csv"): name = extractFilename(f)
+    let key = name.split("--key-")[1].split("--")[0]
+    check key.len == 12
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key]) == exitOk          # the current data
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", "ffffffffffff"]) == exitFailure   # not made, not current
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", "ffffffffffff", "--stdout"]) == exitFailure
+    # a file that was made stays available under its key after the data change
+    let t = store.openStore(path, allFragments)
+    t.db.exec(sql"update user_profile set fthr = 160")
+    t.close()
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key, "--hourly"]) == exitFailure   # (that one was never made)
+    delEnv("NCH_CACHE")
