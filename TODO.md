@@ -509,8 +509,17 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   an hour early: under half an hour of decay).
   `--to` defaults to today, so the curves fade out after the last activity.  The scales default to 1
   (the original used 1 and 5).  It works out the impulses that are lacking first (see above); an error if the user has no FTHR, or no activity with heart rate, saying what to do.
-* Not done: writing the file into the cache directory (the display layers), or a form column
-  (fitness minus fatigue): both are easy to add when the plotting is decided.
+* **Output goes to the cache** (changed 2026-11-03): `nch ff` writes a CSV in the cache directory and
+  prints its path; `--stdout` prints the CSV instead and makes no file.  The name is
+  `ff--fatscale-1.0--fitscale-1.0--key-KEY--model-default--res-day--to-2018-09-05--tz-utc.csv` (plus
+  `--from-DAY`).  **KEY** (`impulses.inputKey`) is 12 hex digits of a hash of everything the curves
+  depend on: the FTHR, the model's values, and the file hash and session of each activity with heart
+  rate (not database ids), like the heat map's selection key.  So a file that exists is current:
+  `nch ff` then does nothing, not even the impulse calculation.  `--to` is always written out (today
+  if not given), so a default run makes a new file each day; the zone is the UTC offset at the end of
+  the last day (`tz-east-10800`).  Old files are not deleted (a cache clean-up command is wanted for
+  these and the heat map's).  `csv` is now an allowed cache extension.
+* Not done: a form column (fitness minus fatigue); the display layers.
 * Not compared with the Python's output directly (no pandas here); the recurrence is the same as its
   `ewm` form (see `data/lib.py`), and the impulses it uses agree with the Python's grid to 0.1%.
 

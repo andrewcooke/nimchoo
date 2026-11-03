@@ -13,17 +13,18 @@ import ./calc
 const columns = "id, name, gamma, zero, one, max_secs, zone1, zone2, zone3, zone4, zone5, " &
                 "fitness_days, fatigue_days"
 
-func describe(m: Model): string =
+func describe*(m: Model): string =
   ## Every value, as text: what `seedVersion` is made from.
   result = m.name & " " & $m.gamma & " " & $m.zero & " " & $m.one & " " & $m.maxSecs
   for z in m.zones: result.add " " & $z
   result.add " " & $m.fitnessDays & " " & $m.fatigueDays
 
-func hash(text: string): string =
+func hexHash*(text: string): string =
+  ## The SHA-256 of a text, in hex.
   for c in secureHash(Sha_256, text):
     result.add toLowerAscii(toHex(ord(c), 2))
 
-const seedVersion* = hash(describe(defaultModel()))
+const seedVersion* = hexHash(describe(defaultModel()))
   ## Names the values of the default model, so that a database made with others is noticed.
 
 proc insertModel*(db: DbConn, m: Model) {.raises: [StoreError].} =

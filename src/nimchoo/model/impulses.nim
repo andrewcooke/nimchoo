@@ -5,11 +5,11 @@
 ## what is lacking.  (A change of the threshold heart rate deletes the user's impulses: see the
 ## trigger in 001-schema.sql.)
 
-import std/[options, strutils]
+import std/[algorithm, options, strutils]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
-import ./calc
+import ./[calc, models]
 
 {.push raises: [].}
 
@@ -70,3 +70,19 @@ proc calculateMissing*(db: DbConn, userId: int64, m: Model): Calculated {.raises
     let n = calculateActivity(db, id, fthr.get, m)
     result.hours += n
     if n > 0: inc result.activities
+
+proc inputKey*(db: DbConn, userId: int64, m: Model): string {.raises: [StoreError].} =
+  ## A name for everything the user's impulses for a model are made from: the FTHR, the model's
+  ## values, and each activity with heart rate (by its file's hash and its place in the file, not
+  ## by database ids).  The first 12 hex digits of a hash; "" if there is no such activity or no
+  ## FTHR.  If the key has not changed, nothing the impulses depend on has.
+  let fthr = fthrOf(db, userId)
+  if fthr.isNone: return
+  var entries: seq[string]
+  guard:
+    for r in db.fastRows(sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
+        where f.user_id = ? and exists (select 1 from heartrate h where h.activity_id = a.id)""", userId):
+      entries.add r[0] & ":" & r[1]
+  if entries.len == 0: return
+  entries.sort
+  hexHash("fthr " & $fthr.get & "\n" & describe(m) & "\n" & entries.join("\n"))[0 ..< 12]

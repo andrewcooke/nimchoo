@@ -14,7 +14,7 @@ import std/[algorithm, options, os, sequtils, strutils]
 {.push raises: [].}
 
 const
-  extensions* = ["html", "geojson"]          ## what may be written, and served
+  extensions* = ["html", "geojson", "csv"]          ## what may be written, and served
   maxNameLength = 200
 
 func isNameChar(c: char): bool = c in {'a' .. 'z', '0' .. '9'}

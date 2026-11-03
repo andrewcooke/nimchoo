@@ -61,6 +61,8 @@ suite "ff: the command line":
                         "--fitness-scale", "2", "--fatigue-scale", "5"])
     check q.problem == "" and q.model == "flat" and q.hourly and q.fitnessScale == 2 and q.fatigueScale == 5
     check q.fromDay == some(1533081600'i64) and q.toDay == some(1535673600'i64)
+  test "--stdout":
+    check parseArgs(@["--stdout"]).stdout and not parseArgs(@[]).stdout
   test "problems":
     check parseArgs(@["--from", "yesterday"]).problem.contains("is a day")
     check parseArgs(@["--to", "2018-13-01"]).problem.contains("is a day")
@@ -116,9 +118,12 @@ suite "ff: the rows":
       formatFloat(10 * exp(-17.0 / (7 * 24)), ffDecimal, 4)]
 
 suite "nch ff":
-  test "the curves of an imported ride; no impulses is an error; an unknown model is an error":
+  test "a file in the cache, made once from the same data; --stdout prints; errors are reported":
     let path = getTempDir() / "nch-test-ff.db"
+    let cache = getTempDir() / "nch-test-ff-cache"
     removeFile(path)
+    removeDir(cache)
+    putEnv("NCH_CACHE", cache)
     let g = Globals(dbPath: path, fragments: allFragments, importSteps: allImportSteps)
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure       # nothing yet
     let s = store.openStore(path, allFragments)
@@ -128,9 +133,48 @@ suite "nch ff":
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure       # (no FTHR: refused, with a reason)
     s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
     s.close()
-    check ffCommand.run(g, @["--to", "2018-09-05"]) == exitOk
+    check not dirExists(cache)
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    var files: seq[string]
+    for f in walkFiles(cache / "*.csv"): files.add f
+    check files.len == 1
+    let name = extractFilename(files[0])
+    check name.startsWith("ff--") and name.endsWith(".csv") and "--model-default--" in name and
+      "--to-2018-09-05--" in name and "--tz-utc" in name
+    let first = readFile(files[0])
+    check first.startsWith("time,fitness,fatigue\n2018-08-27,")
     let t = store.openStore(path, allFragments)
     check t.db.getValue(sql"select count(*) from impulse") == "2"       # (worked out by the command)
+    t.db.exec(sql"delete from impulse")
     t.close()
+    # the same request again finds the file, and does not work the impulses out again
+    writeFile(files[0], "marker")
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    check readFile(files[0]) == "marker"
+    let u = store.openStore(path, allFragments)
+    check u.db.getValue(sql"select count(*) from impulse") == "0"
+    u.close()
+    # other options, other files
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--hourly"]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--fatigue-scale", "5"]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--from", "2018-08-28"]) == exitOk
+    var n = 0
+    for f in walkFiles(cache / "*.csv"): inc n
+    check n == 4
+    # a different FTHR is different data: a new file
+    let v = store.openStore(path, allFragments)
+    v.db.exec(sql"update user_profile set fthr = 160")
+    v.close()
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    n = 0
+    for f in walkFiles(cache / "*.csv"): inc n
+    check n == 5
+    check readFile(files[0]) == "marker"
+    # --stdout makes no file
+    check ffCommand.run(g, @["--to", "2018-09-06", "--utc", "--stdout"]) == exitOk
+    n = 0
+    for f in walkFiles(cache / "*.csv"): inc n
+    check n == 5
     check ffCommand.run(g, @["--model", "nope"]) == exitFailure
     check ffCommand.run(g, @["--to", "x"]) == exitUsage
+    delEnv("NCH_CACHE")

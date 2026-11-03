@@ -8,6 +8,7 @@ type Params* = object
   model*: string                 ## "": the default model
   fromDay*, toDay*: Option[int64]   ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
   hourly*: bool
+  stdout*: bool                  ## print the CSV, not write a file
   utc*: bool                     ## days and times in UTC, not the computer's timezone
   fitnessScale*, fatigueScale*: float
   help*: bool
@@ -51,6 +52,7 @@ proc parseArgs*(args: seq[string]): Params =
       if a == "--from": result.fromDay = d else: result.toDay = d
     of "--hourly": result.hourly = true
     of "--utc": result.utc = true
+    of "--stdout": result.stdout = true
     of "--fitness-scale": scale(a, result.fitnessScale)
     of "--fatigue-scale": scale(a, result.fatigueScale)
     else:
