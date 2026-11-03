@@ -207,6 +207,65 @@ suite "list: the command":
     discard save(db, "--users", "default", "bob", "--distance", "5-", "-n", "2")
     check chosen(db) == @["lisbon2", "paris"]
 
+  proc numbered(name: string): string =
+    ## the world, with lisbon1 10 km / 1 h, paris 30 km / 2 h, lisbon2 50 km / 3 h
+    result = world(name)
+    setNumbers(result, "lisbon1", "10000", "3600")
+    setNumbers(result, "paris", "30000", "7200")
+    setNumbers(result, "lisbon2", "50000", "10800")
+
+  test "latest is the newest of those that meet the other criteria":
+    let db = numbered("latest1")
+    # overall the newest is paris (running); among the cycling ones it is lisbon2 (bob's)
+    discard save(db, "--users", "default", "bob", "--sport", "latest")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--sub-sport", "latest")
+    check chosen(db) == @["lisbon2"]                  # (no sub-sport recorded: "none")
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--distance", "latest~20%")
+    check chosen(db) == @["lisbon2"]                  # 40-60 km
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--distance", "latest~90%")
+    check chosen(db) == @["lisbon1", "lisbon2"]       # 5-95 km
+    discard save(db, "--users", "default", "bob", "--distance", "latest~5")
+    check chosen(db) == @["paris"]                    # the latest is paris: 25-35 km
+    discard save(db, "--users", "default", "bob", "--active", "latest~1h30m")
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]       # 30m-3h30m
+
+  test "rides like the latest: sport, distance and time together":
+    let db = numbered("latest2")
+    discard save(db, "--users", "default", "bob", "--sport", "latest", "--distance", "latest~10%",
+                 "--active", "latest~10%")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--from", "2018-08-01", "--to", "2018-08-20",
+                 "--sport", "latest", "--distance", "latest~10%")
+    check chosen(db) == @["lisbon2"]                  # the latest in that month is bob's
+
+  test "--near latest respects the other criteria":
+    let db = numbered("latest3")
+    let st = openStore(db, allFragments)
+    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 1, -9.14, 38.72)")
+    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 2, -9.10, 38.75)")
+    st.close()
+    discard save(db, "--sport", "cycling", "--near", "latest", "--radius", "5")
+    check chosen(db) == @["lisbon1"]                  # (the latest cycling ride, not the latest ride)
+    discard save(db, "--radius", "5")                 # alone: --near latest, of everything: paris
+    check chosen(db) == @["paris"]
+
+  test "newest is not part of finding latest":
+    let db = numbered("latest4")
+    discard save(db, "--users", "default", "bob", "-n", "1", "--distance", "latest~10%")
+    check chosen(db) == @["paris"]                    # latest is paris, whatever -n picks
+
+  test "when latest cannot be found, it says so and changes nothing":
+    let db = numbered("latest5")
+    discard save(db)
+    check save(db, "--sport", "cycling", "--from", "2030-01-01", "--distance", "latest~5") == exitFailure
+    check chosen(db) == @["lisbon1", "paris"]
+    setNumbers(db, "paris", "null", "null")
+    check save(db, "--distance", "latest~5") == exitFailure     # paris is the latest and has no distance
+    check save(db, "--active", "latest~5m") == exitFailure
+    check chosen(db) == @["lisbon1", "paris"]
+    check save(db, "--sport", "swimming", "--sport", "latest") == exitFailure   # nobody has it
+
   test "bad ranges are a usage error and change nothing":
     let db = world("badrange")
     discard save(db)

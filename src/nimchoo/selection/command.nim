@@ -26,18 +26,19 @@ last one).  Criteria are combined with "and".
 
   --users A B C      whose activities (default: the current user)
   --sport A B        only these sports (cycling, running, swimming ...); "none"
-                     means not recorded
+                     means not recorded; "latest" the sport of the latest activity
   --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
                      files say "generic" or nothing, so this misses some rides
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
-                     500m- for metres
-  --active RANGE     active time: 1h-, 30m-2h, -45m (units d h m s, as printed)
+                     500m- for metres; 42~2 (between 40 and 44), latest~10%
+  --active RANGE     active time: 1h-, 30m-2h, -45m (units d h m s, as printed);
+                     2h~15m, latest~10%
   --from TIME        activities that start at or after TIME
   --to TIME          activities that start before the end of TIME
                      (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
                      with seconds; a --to date means the whole day)
   --near LAT,LON     activities whose route passes within the radius of the point
-  --near latest      ... of the centre of the latest activity of the users
+  --near latest      ... of the centre of the latest activity
   --radius KM        radius for --near in kilometres (default: 100); on its own it
                      means --near latest
   -n, --newest N     only the N newest of the activities that meet the other criteria
@@ -47,6 +48,10 @@ last one).  Criteria are combined with "and".
   --show             show the selection (no criteria allowed)
   -v, --verbose      show more of each activity
   -h, --help         show this help
+
+"latest" is the newest activity among those that meet the criteria that do not use
+"latest": so  --sport cycling --distance latest~10%  is cycling rides within 10% of
+the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 """
 
 proc localDate(t: int64): string =
@@ -71,18 +76,13 @@ proc number(st: Store, query: string): int {.raises: [StoreError].} =
     try: result = parseInt(st.db.getValue(sql(query)))
     except ValueError: raiseStore("bad number from the database")
 
-proc latestCentre(st: Store, ids: string): tuple[centre: Option[(float, float)], day: string]
-    {.raises: [StoreError].} =
-  ## The middle of the box around the route of the latest activity of these users.
+proc centreOf(st: Store, activityId: int64): Option[(float, float)] {.raises: [StoreError].} =
+  ## The middle of the box around the route of an activity; none if it has no positions.
   guard:
-    let a = st.db.getRow(sql("""select a.id, a.start_t from activity a join file f
-      on f.id = a.file_id where f.user_id in (""" & ids & ") order by a.start_t desc limit 1"))
-    if a[0].len == 0: return
     let c = st.db.getRow(sql"""select (min(lon) + max(lon)) / 2, (min(lat) + max(lat)) / 2
-      from coords where activity_id = ?""", a[0])
+      from coords where activity_id = ?""", activityId)
     try:
-      if c[0].len > 0:
-        result = (some((parseFloat(c[1]), parseFloat(c[0]))), localDate(parseBiggestInt(a[1])))
+      if c[0].len > 0: result = some((parseFloat(c[1]), parseFloat(c[0])))
     except ValueError:
       discard
 
@@ -152,10 +152,26 @@ proc showSelection*(st: Store, c: Criteria, zone: Timezone): seq[Line]
   if rows.len == 0: return @[plain("selection: empty")]
   listing(rows, zone, c.verbose, none(int))
 
-proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[Line], saved: int]
+proc latestAmong(st: Store, match: string): Option[tuple[id: int64, row: ListRow]]
+    {.raises: [StoreError].} =
+  ## The newest activity of those a query finds (one giving `id` and the row columns).
+  let ordered = " from (" & match & ") order by start_t desc, id desc limit 1"
+  let rows = readRows(st, "select start_t, sport, sub, dist, active, file, user, path" & ordered)
+  if rows.len == 0: return none(tuple[id: int64, row: ListRow])
+  guard:
+    try:
+      result = some((id: parseBiggestInt(st.db.getValue(sql("select id" & ordered))), row: rows[0]))
+    except ValueError:
+      raiseStore("bad number from the database")
+
+proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines: seq[Line], saved: int]
     {.raises: [StoreError].} =
   ## List the activities that meet the criteria (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
+  ##
+  ## `latest` (in --near, --distance, --active, --sport, --sub-sport) is the newest
+  ## activity among those that meet the criteria that do not mention `latest`.
+  var c = criteria
   var userIds: seq[int64]
   if c.users.len == 0:
     userIds.add st.userId
@@ -169,20 +185,33 @@ proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[L
   checkNames(st, "sport", "sport", idList, c.sports)
   checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
   var centre = none((float, float))
+  if usesLatest(c):
+    let base = withoutLatest(c)
+    let found = latestAmong(st, matchSql(userIds, base, none((float, float)),
+                                         "a.id as id, " & rowColumns(false)))
+    if found.isNone:
+      raiseStore("`latest` is the newest activity that meets the other criteria, and none does")
+    let (refId, ref0) = (found.get.id, found.get.row)
+    result.lines.add plain("latest: " & table(@[ref0], zone, false, false)[1].text.splitWhitespace.join(" "))
+    if c.sportLatest: c.sports.add (if ref0.sport.len > 0: ref0.sport else: "none")
+    if c.subSportLatest: c.subSports.add (if ref0.subSport.len > 0: ref0.subSport else: "none")
+    if c.distanceLatest.isSome:
+      if ref0.distanceM.isNone: raiseStore("the latest activity has no recorded distance")
+      c.distanceM = around(ref0.distanceM.get, c.distanceLatest.get)
+    if c.activeLatest.isSome:
+      if ref0.activeS.isNone: raiseStore("the latest activity has no recorded active time")
+      c.activeS = around(ref0.activeS.get, c.activeLatest.get)
+    if c.near == nkLatest:
+      centre = centreOf(st, refId)
+      if centre.isNone: raiseStore("the latest activity has no positions (--near latest)")
   case c.near
-  of nkNone: discard
-  of nkPoint:
-    centre = some((c.lat, c.lon))
-    result.lines.add plain("near " & formatFloat(c.lat, ffDecimal, 4) & "," &
-      formatFloat(c.lon, ffDecimal, 4) & ", within " & radiusText(c.radiusKm) & " km")
-  of nkLatest:
-    let l = latestCentre(st, idList)
-    if l.centre.isNone:
-      raiseStore("--near latest: the users have no activity with a position")
-    centre = l.centre
-    result.lines.add plain("near " & formatFloat(l.centre.get[0], ffDecimal, 4) & "," &
-      formatFloat(l.centre.get[1], ffDecimal, 4) & " (the centre of the latest activity, " &
-      l.day & "), within " & radiusText(c.radiusKm) & " km")
+  of nkNone, nkLatest: discard
+  of nkPoint: centre = some((c.lat, c.lon))
+  if centre.isSome:
+    result.lines.add plain("near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
+      formatFloat(centre.get[1], ffDecimal, 4) &
+      (if c.near == nkLatest: " (the centre of the latest activity)" else: "") &
+      ", within " & radiusText(c.radiusKm) & " km")
   let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose))
   if c.save:
     st.begin()

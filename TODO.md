@@ -417,6 +417,22 @@ what was kept.  What is printed is what is saved.
    value by every single-valued option (`--distance -5` is "up to 5 km"; tested).  Named
    `--active` after the column; dates stay `--from`/`--to` because ISO dates have hyphens.
    Idea, not built: `--longest N` (by rank, like `--newest`).
+4b. [x] **`centre~tolerance` and `latest`.**  `--distance 42~2` is 40-44 km, `--active 2h~15m`
+   is 1h45m-2h15m, the tolerance is an amount or a percentage of the centre (`~10%`); `~`
+   never appears in the hyphen ranges, so there is no clash and no `+5` / `-5` ambiguity.  The
+   centre may be the word **`latest`**, also for `--sport latest`, `--sub-sport latest` and
+   `--near latest` (and `--radius` alone).  **Rule: `latest` is the newest activity among
+   those that meet the criteria that do not mention `latest`** (users, dates, plain ranges,
+   named sports; not `--newest/--oldest`, which pick afterwards), so the order of options does
+   not matter and all uses of `latest` share one reference.  `--sport cycling --distance
+   latest~10%` is cycling rides near the length of your latest cycling ride; `--sport latest
+   --distance latest~10% --active latest~15%` is rides like your latest.  This changed `--near
+   latest`, which used to take the latest of all the users' activities.  A line `latest: ...`
+   says which activity it found.  Errors, with nothing changed: no activity meets the other
+   criteria; the latest has no distance / active time / positions recorded.  Not built: a
+   reference other than the latest (an id, a date, ...); the single resolution step
+   (`listActivities` in `selection/command.nim`) is where it would go, with another word in
+   place of `latest`.
 5. Docs; try it on the test data (mixed sports) and on a real library.
 
 ## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)

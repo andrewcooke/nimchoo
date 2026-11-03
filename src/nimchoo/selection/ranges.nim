@@ -1,17 +1,28 @@
-## Ranges typed on the command line: `40-` (40 or more), `10-50`, `-5` (up to 5), for
-## distances and for active times.  Pure.
+## Ranges typed on the command line: `40-` (40 or more), `10-50`, `-5` (up to 5), and
+## "around" ranges `42~2` (40 to 44), `2h~15m`, `latest~10%`, for distances and for active
+## times.  Pure.
 ##
 ## A distance is in kilometres (`5`, `2.5`, `5km`) or metres (`500m`).  A time is
 ## written as the program prints it (see ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`,
 ## units d h m s, largest first, each at most once, with a unit on every number.
 ## Both ends of a range are inclusive, and either may be left out (not both).
 
-import std/[options, sequtils, strutils]
+import std/[math, options, sequtils, strutils]
 
 {.push raises: [].}
 
 type
   EndParser* = proc(s: string): Option[float] {.nimcall, noSideEffect, raises: [].}
+
+  Tol* = object
+    ## How far from a centre: an amount (metres, seconds) or a percentage of the centre.
+    amount*: float
+    percent*: bool
+
+  Around* = object
+    ## `centre~tolerance`; no centre means `latest` (found when the command runs).
+    centre*: Option[float]
+    tol*: Tol
 
   NumRange* = object
     ## Metres or seconds.
@@ -84,3 +95,40 @@ func parseRange*(s: string, parseEnd: EndParser): Option[NumRange] =
   if r.isOpen: return none(NumRange)
   if r.lo.isSome and r.hi.isSome and r.lo.get > r.hi.get: return none(NumRange)
   some(r)
+
+func parseTol*(s: string, parseEnd: EndParser): Option[Tol] =
+  ## "2" / "15m" (an amount, read by `parseEnd`) or "10%" (digits and a dot, then %).
+  if s.endsWith("%"):
+    let digits = s[0 ..< s.len - 1]
+    if digits.len == 0 or digits.anyIt(it notin {'0' .. '9', '.'}) or digits.count('.') > 1 or
+       digits[0] == '.':
+      return none(Tol)
+    try:
+      return some(Tol(amount: parseFloat(digits), percent: true))
+    except ValueError:
+      return none(Tol)
+  let v = parseEnd(s)
+  if v.isSome: some(Tol(amount: v.get)) else: none(Tol)
+
+func parseAround*(s: string, parseEnd: EndParser): Option[Around] =
+  ## "42~2", "2h~15m", "latest~10%": exactly one "~", a centre (a value, or the word
+  ## `latest`) and a tolerance.
+  let parts = s.split('~')
+  if parts.len != 2: return none(Around)
+  var a: Around
+  if parts[0].toLowerAscii == "latest":
+    a.centre = none(float)
+  else:
+    let c = parseEnd(parts[0])
+    if c.isNone: return none(Around)
+    a.centre = c
+  let t = parseTol(parts[1], parseEnd)
+  if t.isNone: return none(Around)
+  a.tol = t.get
+  some(a)
+
+func around*(centre: float, t: Tol): NumRange =
+  ## The range `centre` plus and minus the tolerance (a percentage is of the centre);
+  ## it does not go below zero.
+  let d = if t.percent: centre * t.amount / 100.0 else: t.amount
+  NumRange(lo: some(max(0.0, centre - d)), hi: some(centre + d))

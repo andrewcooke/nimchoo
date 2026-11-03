@@ -82,6 +82,35 @@ suite "list: the command line":
     check cmdline("--distance", "10-50").criteria.distanceM == NumRange(lo: some 10000.0, hi: some 50000.0)
     check cmdline("--distance", "500m-").criteria.distanceM == NumRange(lo: some 500.0)
     check cmdline("--show", "--distance", "5-").problem.contains("no criteria")
+  test "--distance and --active around a value, or around latest":
+    let c = cmdline("--distance", "42~2", "--active", "2h~15m").criteria
+    check c.distanceM == NumRange(lo: some 40000.0, hi: some 44000.0)
+    check c.activeS == NumRange(lo: some 6300.0, hi: some 8100.0)
+    check not c.usesLatest
+    let l = cmdline("--distance", "latest~10%", "--active", "latest~15m").criteria
+    check l.distanceLatest == some(Tol(amount: 10.0, percent: true))
+    check l.activeLatest == some(Tol(amount: 900.0))
+    check l.distanceM.isOpen and l.activeS.isOpen        # (not known until latest is found)
+    check l.usesLatest
+  test "latest as a sport and a sub-sport":
+    let c = cmdline("--sport", "latest", "--sub-sport", "Latest", "road").criteria
+    check c.sportLatest and c.subSportLatest
+    check c.sports.len == 0 and c.subSports == @["road"]
+    check cmdline("--sport", "latest", "cycling").criteria.sports == @["cycling"]
+  test "--near latest uses latest too, and the others that do not do not":
+    check cmdline("--near", "latest").criteria.usesLatest
+    check cmdline("--radius", "5").criteria.usesLatest
+    check not cmdline("--near", "1,2").criteria.usesLatest
+    check not cmdline("--sport", "cycling", "--distance", "5-", "-n", "1").criteria.usesLatest
+  test "without latest: what latest is found among":
+    let c = cmdline("--sport", "latest", "cycling", "--distance", "latest~5", "--active", "latest~5%",
+                    "--near", "latest", "--sub-sport", "latest", "-n", "3", "--from", "2018-01-01",
+                    "--distance", "latest~2").criteria
+    let base = c.withoutLatest
+    check not base.usesLatest
+    check base.sports == @["cycling"]                 # (what was named stays)
+    check base.fromT == c.fromT                        # (and the other criteria)
+    check base.newest == 0 and base.oldest == 0       # (newest is applied afterwards)
   test "--distance and --active problems":
     check cmdline("--distance", "5").problem.contains("cannot read the distance range '5'")
     check cmdline("--distance", "1-2-3").problem.contains("cannot read")
@@ -89,6 +118,10 @@ suite "list: the command line":
     check cmdline("--active", "90-").problem.contains("cannot read the active time range")
     check cmdline("--active", "2h-1h").problem.contains("backwards")
     check cmdline("--distance").problem.contains("needs a value")
+    check cmdline("--distance", "latest~").problem.contains("cannot read the distance")
+    check cmdline("--distance", "~5").problem.contains("cannot read the distance")
+    check cmdline("--active", "latest~x").problem.contains("cannot read the active time")
+    check cmdline("--active", "2h~15").problem.contains("cannot read the active time")
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
   test "--show takes no criteria, and cannot be saved":

@@ -19,6 +19,8 @@ type
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
     distanceM*, activeS*: NumRange   ## --distance, --active (metres, seconds; open: any)
+    distanceLatest*, activeLatest*: Option[Tol]   ## --distance latest~T, --active latest~T
+    sportLatest*, subSportLatest*: bool   ## --sport latest, --sub-sport latest
     sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
     fromT*: Option[int64]     ## start of the activity at or after (Unix seconds)
     toT*: Option[int64]       ## start of the activity before (exclusive)
@@ -112,22 +114,38 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       if names.len == 0: fail(a & " needs at least one name")
       case a
       of "--users": c.users.add names
-      of "--sport": c.sports.add names
-      else: c.subSports.add names
+      of "--sport":
+        for n in names:
+          if n == "latest": c.sportLatest = true else: c.sports.add n
+      else:
+        for n in names:
+          if n == "latest": c.subSportLatest = true else: c.subSports.add n
     of "--distance":
       let v = value("--distance")
-      let r = parseRange(v, parseDistance)
-      if r.isNone:
-        if isBackwards(v, parseDistance): fail("the distance range '" & v & "' is backwards (smaller end first)")
-        fail("cannot read the distance range '" & v & "' (use 40-, 10-50 or -5, in km; 500m- for metres)")
-      c.distanceM = r.get
+      if '~' in v:
+        let ar = parseAround(v, parseDistance)
+        if ar.isNone: fail("cannot read the distance '" & v & "' (use 42~2, 500m~50m or latest~10%)")
+        if ar.get.centre.isSome: c.distanceM = around(ar.get.centre.get, ar.get.tol)
+        else: c.distanceLatest = some(ar.get.tol)
+      else:
+        let r = parseRange(v, parseDistance)
+        if r.isNone:
+          if isBackwards(v, parseDistance): fail("the distance range '" & v & "' is backwards (smaller end first)")
+          fail("cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 42~2 or latest~10%; km, or 500m for metres)")
+        c.distanceM = r.get
     of "--active":
       let v = value("--active")
-      let r = parseRange(v, parseInterval)
-      if r.isNone:
-        if isBackwards(v, parseInterval): fail("the active time range '" & v & "' is backwards (shorter end first)")
-        fail("cannot read the active time range '" & v & "' (use 1h-, 30m-2h or -45m: units d h m s)")
-      c.activeS = r.get
+      if '~' in v:
+        let ar = parseAround(v, parseInterval)
+        if ar.isNone: fail("cannot read the active time '" & v & "' (use 2h~15m or latest~10%)")
+        if ar.get.centre.isSome: c.activeS = around(ar.get.centre.get, ar.get.tol)
+        else: c.activeLatest = some(ar.get.tol)
+      else:
+        let r = parseRange(v, parseInterval)
+        if r.isNone:
+          if isBackwards(v, parseInterval): fail("the active time range '" & v & "' is backwards (shorter end first)")
+          fail("cannot read the active time range '" & v & "' (use 1h-, 30m-2h, -45m, 2h~15m or latest~10%; units d h m s)")
+        c.activeS = r.get
     of "--from":
       let v = value("--from")
       let t = parseWhen(v, zone, isEnd = false)
@@ -178,6 +196,23 @@ func box*(lat, lon, radiusKm: float): Box =
       minY: max(-90.0, lat - dLat), maxY: min(90.0, lat + dLat))
 
 func deg(x: float): string = formatFloat(x, ffDecimal, 7)
+
+func usesLatest*(c: Criteria): bool =
+  ## Whether any criterion refers to the word `latest`.
+  c.near == nkLatest or c.distanceLatest.isSome or c.activeLatest.isSome or
+    c.sportLatest or c.subSportLatest
+
+func withoutLatest*(c: Criteria): Criteria =
+  ## The criteria that do not mention `latest`, and not `--newest/--oldest` either:
+  ## the activities that meet these are those among which "latest" is found.
+  result = c
+  result.near = nkNone
+  result.distanceLatest = none(Tol)
+  result.activeLatest = none(Tol)
+  result.sportLatest = false
+  result.subSportLatest = false
+  result.newest = 0
+  result.oldest = 0
 
 func inValues*(column: string, values: seq[string]): string =
   ## " and a.sport in ('cycling', 'running')": the values, quoted; "none" stands for

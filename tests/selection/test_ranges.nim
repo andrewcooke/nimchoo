@@ -53,3 +53,32 @@ suite "ranges: a-b, a-, -b":
   test "open is open":
     check NumRange().isOpen
     check not NumRange(lo: some 1.0).isOpen
+
+suite "ranges: around":
+  test "tolerances: an amount, or a percentage":
+    check parseTol("2", parseDistance) == some(Tol(amount: 2000.0))
+    check parseTol("500m", parseDistance) == some(Tol(amount: 500.0))
+    check parseTol("15m", parseInterval) == some(Tol(amount: 900.0))
+    check parseTol("10%", parseDistance) == some(Tol(amount: 10.0, percent: true))
+    check parseTol("2.5%", parseInterval) == some(Tol(amount: 2.5, percent: true))
+    check parseTol("0%", parseDistance) == some(Tol(amount: 0.0, percent: true))
+    for bad in ["", "%", "x%", "-5%", "1e2%", ".5%", "5%%", "1.2.3%", "x"]:
+      check parseTol(bad, parseDistance).isNone
+    check parseTol("90", parseInterval).isNone               # (a time needs its unit)
+  test "centre ~ tolerance, the centre a value or latest":
+    check parseAround("42~2", parseDistance) ==
+      some(Around(centre: some 42000.0, tol: Tol(amount: 2000.0)))
+    check parseAround("2h~15m", parseInterval) ==
+      some(Around(centre: some 7200.0, tol: Tol(amount: 900.0)))
+    check parseAround("latest~10%", parseDistance) ==
+      some(Around(centre: none float, tol: Tol(amount: 10.0, percent: true)))
+    check parseAround("LATEST~5", parseDistance).get.centre.isNone
+    check parseAround("500m~50m", parseDistance).get.centre == some 500.0
+  test "not around":
+    for bad in ["", "42", "~", "42~", "~2", "42~2~3", "x~2", "latest~", "latest", "42-2"]:
+      check parseAround(bad, parseDistance).isNone
+  test "the range around a centre: an amount or a percentage of it, not below zero":
+    check around(42000.0, Tol(amount: 2000.0)) == NumRange(lo: some 40000.0, hi: some 44000.0)
+    check around(40000.0, Tol(amount: 10.0, percent: true)) == NumRange(lo: some 36000.0, hi: some 44000.0)
+    check around(1000.0, Tol(amount: 5000.0)).lo == some 0.0
+    check around(7200.0, Tol(amount: 0.0)) == NumRange(lo: some 7200.0, hi: some 7200.0)
