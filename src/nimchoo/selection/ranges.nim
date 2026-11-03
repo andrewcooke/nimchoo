@@ -13,6 +13,11 @@ import std/[math, options, sequtils, strutils]
 {.push raises: [].}
 
 type
+  Reference* = enum
+    ## An activity a criterion is measured against, found when the command runs: the
+    ## newest of those that meet the other criteria, or the one that was selected before.
+    refNone, refLatest, refPrevious
+
   EndParser* = proc(s: string): Option[float] {.nimcall, noSideEffect, raises: [].}
 
   Tol* = object
@@ -21,8 +26,10 @@ type
     percent*: bool
 
   Around* = object
-    ## `centre~tolerance`; no centre means `latest` (found when the command runs).
+    ## `centre~tolerance`; the centre is a value, or (`refers` is not refNone) an activity
+    ## found when the command runs.
     centre*: Option[float]
+    refers*: Reference
     tol*: Tol
 
   NumRange* = object
@@ -106,13 +113,21 @@ func parseTol*(s: string, parseEnd: EndParser): Option[Tol] =
   let v = parseEnd(s)
   if v.isSome: some(Tol(amount: v.get)) else: none(Tol)
 
+func parseReference*(s: string): Reference =
+  ## "latest" and "previous" (any case); refNone for anything else.
+  case s.toLowerAscii
+  of "latest": refLatest
+  of "previous": refPrevious
+  else: refNone
+
 func parseAround*(s: string, parseEnd: EndParser): Option[Around] =
-  ## "42~2", "2h~15m", "latest~10%": exactly one "~", a centre (a value, or the word
-  ## `latest`) and a tolerance.
+  ## "42~2", "2h~15m", "latest~10%", "previous~5": exactly one "~", a centre (a value, or
+  ## the word `latest` or `previous`) and a tolerance.
   let parts = s.split('~')
   if parts.len != 2: return none(Around)
   var a: Around
-  if parts[0].toLowerAscii == "latest":
+  a.refers = parseReference(parts[0])
+  if a.refers != refNone:
     a.centre = none(float)
   else:
     let c = parseEnd(parts[0])

@@ -89,15 +89,37 @@ suite "list: the command line":
     check c.activeS == NumRange(lo: some 6300.0, hi: some 8100.0)
     check not c.usesLatest
     let l = cmdline("--distance", "latest~10%", "--active", "latest~15m").criteria
-    check l.distanceLatest == some(Tol(amount: 10.0, percent: true))
-    check l.activeLatest == some(Tol(amount: 900.0))
+    check l.distanceRel == some(Relative(refers: refLatest, tol: Tol(amount: 10.0, percent: true)))
+    check l.activeRel == some(Relative(refers: refLatest, tol: Tol(amount: 900.0)))
     check l.distanceM.isOpen and l.activeS.isOpen        # (not known until latest is found)
     check l.usesLatest
   test "latest as a sport and a sub-sport":
     let c = cmdline("--sport", "latest", "--sub-sport", "Latest", "road").criteria
-    check c.sportLatest and c.subSportLatest
+    check c.sportRef == refLatest and c.subSportRef == refLatest
     check c.sports.len == 0 and c.subSports == @["road"]
     check cmdline("--sport", "latest", "cycling").criteria.sports == @["cycling"]
+  test "previous: in the same places, and kept apart from latest":
+    let c = cmdline("--sport", "previous", "--sub-sport", "previous", "--distance", "previous~10%",
+                    "--active", "Previous~15m", "--near", "previous").criteria
+    check c.sportRef == refPrevious and c.subSportRef == refPrevious
+    check c.distanceRel == some(Relative(refers: refPrevious, tol: Tol(amount: 10.0, percent: true)))
+    check c.activeRel == some(Relative(refers: refPrevious, tol: Tol(amount: 900.0)))
+    check c.near == nkPrevious
+    check c.usesPrevious and not c.usesLatest
+    let mixed = cmdline("--sport", "previous", "--distance", "latest~5").criteria
+    check mixed.usesPrevious and mixed.usesLatest
+    check cmdline("--sport", "latest", "previous").problem.contains("cannot be used together")
+    check cmdline("--sub-sport", "previous", "latest").problem.contains("cannot be used together")
+    check cmdline("--sport", "previous", "previous").problem == ""
+    check cmdline("--near", "previous").criteria.near == nkPrevious
+    check cmdline("--near", "nowhere").problem.contains("latest or previous")
+    check cmdline("--radius", "5").criteria.near == nkLatest      # (alone: still latest)
+  test "latest is found among the criteria that do not mention it, previous ones included":
+    let c = cmdline("--sport", "previous", "--distance", "latest~5", "--near", "previous").criteria
+    let base = c.withoutLatest
+    check not base.usesLatest
+    check base.usesPrevious                              # (resolved before, in the command)
+    check base.near == nkPrevious and base.sportRef == refPrevious
   test "--near latest uses latest too, and the others that do not do not":
     check cmdline("--near", "latest").criteria.usesLatest
     check cmdline("--radius", "5").criteria.usesLatest

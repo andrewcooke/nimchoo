@@ -71,13 +71,22 @@ suite "ranges: around":
     check parseAround("2h~15m", parseInterval) ==
       some(Around(centre: some 7200.0, tol: Tol(amount: 900.0)))
     check parseAround("latest~10%", parseDistance) ==
-      some(Around(centre: none float, tol: Tol(amount: 10.0, percent: true)))
+      some(Around(centre: none float, refers: refLatest, tol: Tol(amount: 10.0, percent: true)))
     check parseAround("LATEST~5", parseDistance).get.centre.isNone
+    check parseAround("previous~5", parseDistance).get.refers == refPrevious
+    check parseAround("Previous~10%", parseInterval).get.tol.percent   # (a percentage needs no unit)
+    check parseAround("Previous~10", parseInterval).isNone             # (an amount of time does)
+    check parseAround("42~2", parseDistance).get.refers == refNone
     check parseAround("0.5~0.05", parseDistance).get.centre == some 500.0
     check parseAround("500m~50m", parseDistance).isNone
   test "not around":
     for bad in ["", "42", "~", "42~", "~2", "42~2~3", "x~2", "latest~", "latest", "42-2"]:
       check parseAround(bad, parseDistance).isNone
+  test "the words for a reference":
+    check parseReference("latest") == refLatest
+    check parseReference("PREVIOUS") == refPrevious
+    for other in ["", "last", "prev", "latest ", "none"]:
+      check parseReference(other) == refNone
   test "the range around a centre: an amount or a percentage of it, not below zero":
     check around(42000.0, Tol(amount: 2000.0)) == NumRange(lo: some 40000.0, hi: some 44000.0)
     check around(40000.0, Tol(amount: 10.0, percent: true)) == NumRange(lo: some 36000.0, hi: some 44000.0)

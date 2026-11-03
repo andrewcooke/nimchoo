@@ -64,7 +64,7 @@ func zeroActive(r: ListRow): bool =
   ## ... and an active time under 30 s.
   not r.isTransition and r.activeS.isSome and r.activeS.get < 30.0
 
-proc latestText*(r: ListRow, zone: Timezone): string =
+proc activityText*(r: ListRow, zone: Timezone): string =
   ## One activity in a sentence: "2019-05-21 14:04 running 0.0km 2s".
   let c = rowCells(r, zone)
   c[0] & " " & c[1] & " " & c[2] & " " &

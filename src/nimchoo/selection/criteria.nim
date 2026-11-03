@@ -9,7 +9,7 @@ export ranges
 {.push raises: [].}
 
 type
-  NearKind* = enum nkNone, nkPoint, nkLatest
+  NearKind* = enum nkNone, nkPoint, nkLatest, nkPrevious
 
   Criteria* = object
     show*: bool               ## --show: the stored selection, no criteria
@@ -19,14 +19,19 @@ type
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
     distanceM*, activeS*: NumRange   ## --distance, --active (metres, seconds; open: any)
-    distanceLatest*, activeLatest*: Option[Tol]   ## --distance latest~T, --active latest~T
-    sportLatest*, subSportLatest*: bool   ## --sport latest, --sub-sport latest
+    distanceRel*, activeRel*: Option[Relative]    ## --distance latest~T / previous~T, --active ...
+    sportRef*, subSportRef*: Reference            ## --sport latest / previous, --sub-sport ...
     sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
     fromT*: Option[int64]     ## start of the activity at or after (Unix seconds)
     toT*: Option[int64]       ## start of the activity before (exclusive)
     near*: NearKind
     lat*, lon*: float         ## for nkPoint
     radiusKm*: float
+
+  Relative* = object
+    ## `latest~10%`: around an activity that is found when the command runs.
+    refers*: Reference
+    tol*: Tol
 
   Parsed* = object
     criteria*: Criteria
@@ -116,35 +121,43 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       of "--users": c.users.add names
       of "--sport":
         for n in names:
-          if n == "latest": c.sportLatest = true else: c.sports.add n
+          if parseReference(n) != refNone:
+            if c.sportRef != refNone and c.sportRef != parseReference(n):
+              fail("--sport: latest and previous cannot be used together")
+            c.sportRef = parseReference(n)
+          else: c.sports.add n
       else:
         for n in names:
-          if n == "latest": c.subSportLatest = true else: c.subSports.add n
+          if parseReference(n) != refNone:
+            if c.subSportRef != refNone and c.subSportRef != parseReference(n):
+              fail("--sub-sport: latest and previous cannot be used together")
+            c.subSportRef = parseReference(n)
+          else: c.subSports.add n
     of "--distance":
       let v = value("--distance")
       if '~' in v:
         let ar = parseAround(v, parseDistance)
-        if ar.isNone: fail("cannot read the distance '" & v & "' (use 42~2, 0.5~0.1 or latest~10%; kilometres)")
+        if ar.isNone: fail("cannot read the distance '" & v & "' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)")
         if ar.get.centre.isSome: c.distanceM = around(ar.get.centre.get, ar.get.tol)
-        else: c.distanceLatest = some(ar.get.tol)
+        else: c.distanceRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
       else:
         let r = parseRange(v, parseDistance)
         if r.isNone:
           if isBackwards(v, parseDistance): fail("the distance range '" & v & "' is backwards (smaller end first)")
-          fail("cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 0.5-, 42~2 or latest~10%; kilometres)")
+          fail("cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)")
         c.distanceM = r.get
     of "--active":
       let v = value("--active")
       if '~' in v:
         let ar = parseAround(v, parseInterval)
-        if ar.isNone: fail("cannot read the active time '" & v & "' (use 2h~15m or latest~10%)")
+        if ar.isNone: fail("cannot read the active time '" & v & "' (use 2h~15m, latest~10% or previous~10%)")
         if ar.get.centre.isSome: c.activeS = around(ar.get.centre.get, ar.get.tol)
-        else: c.activeLatest = some(ar.get.tol)
+        else: c.activeRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
       else:
         let r = parseRange(v, parseInterval)
         if r.isNone:
           if isBackwards(v, parseInterval): fail("the active time range '" & v & "' is backwards (shorter end first)")
-          fail("cannot read the active time range '" & v & "' (use 1h-, 30m-2h, -45m, 2h~15m or latest~10%; units d h m s)")
+          fail("cannot read the active time range '" & v & "' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)")
         c.activeS = r.get
     of "--from":
       let v = value("--from")
@@ -158,11 +171,13 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       c.toT = t
     of "--near":
       let v = value("--near")
-      if v == "latest":
+      if parseReference(v) == refLatest:
         c.near = nkLatest
+      elif parseReference(v) == refPrevious:
+        c.near = nkPrevious
       else:
         let p = parseLatLon(v)
-        if p.isNone: fail("cannot read the position '" & v & "' (use 38.72,-9.14 or latest)")
+        if p.isNone: fail("cannot read the position '" & v & "' (use 38.72,-9.14, latest or previous)")
         c.near = nkPoint
         (c.lat, c.lon) = p.get
     of "--radius":
@@ -197,20 +212,27 @@ func box*(lat, lon, radiusKm: float): Box =
 
 func deg(x: float): string = formatFloat(x, ffDecimal, 7)
 
-func usesLatest*(c: Criteria): bool =
-  ## Whether any criterion refers to the word `latest`.
-  c.near == nkLatest or c.distanceLatest.isSome or c.activeLatest.isSome or
-    c.sportLatest or c.subSportLatest
+func refersTo*(c: Criteria, r: Reference): bool =
+  ## Whether any criterion is measured against the activity `r` stands for.
+  let near = if r == refLatest: nkLatest else: nkPrevious
+  c.near == near or (c.distanceRel.isSome and c.distanceRel.get.refers == r) or
+    (c.activeRel.isSome and c.activeRel.get.refers == r) or c.sportRef == r or c.subSportRef == r
+
+func usesLatest*(c: Criteria): bool = c.refersTo(refLatest)
+func usesPrevious*(c: Criteria): bool = c.refersTo(refPrevious)
 
 func withoutLatest*(c: Criteria): Criteria =
-  ## The criteria that do not mention `latest`, and not `--newest/--oldest` either:
-  ## the activities that meet these are those among which "latest" is found.
+  ## The criteria that do not mention `latest` (those that mention `previous` have been
+  ## resolved by then), and not `--newest/--oldest` either: the activities that meet these
+  ## are those among which "latest" is found.
   result = c
-  result.near = nkNone
-  result.distanceLatest = none(Tol)
-  result.activeLatest = none(Tol)
-  result.sportLatest = false
-  result.subSportLatest = false
+  if result.near == nkLatest: result.near = nkNone
+  if result.distanceRel.isSome and result.distanceRel.get.refers == refLatest:
+    result.distanceRel = none(Relative)
+  if result.activeRel.isSome and result.activeRel.get.refers == refLatest:
+    result.activeRel = none(Relative)
+  if result.sportRef == refLatest: result.sportRef = refNone
+  if result.subSportRef == refLatest: result.subSportRef = refNone
   result.newest = 0
   result.oldest = 0
 

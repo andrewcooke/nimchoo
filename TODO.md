@@ -436,9 +436,20 @@ what was kept.  What is printed is what is saved.
    latest`, which used to take the latest of all the users' activities.  A line `latest: ...`
    says which activity it found.  Errors, with nothing changed: no activity meets the other
    criteria; the latest has no distance / active time / positions recorded.  Not built: a
-   reference other than the latest (an id, a date, ...); the single resolution step
-   (`listActivities` in `selection/command.nim`) is where it would go, with another word in
-   place of `latest`.
+   reference other than the latest (an id, a date, ...) beyond `previous` (see 4c).
+4c. [x] **`previous`**: the other reference.  `previous` is the one activity in the selection
+   stored before this command (so you pick any ride with `nch list ... --save`, then
+   `--sport previous --distance previous~10% --active previous~15%`, `--near previous`).  An
+   error unless exactly one activity is selected ("it has N"), nothing changed.  It is read
+   before `--save` replaces the selection, so one command can find rides like it and keep them;
+   running that command again then fails, as the selection has many.  It is explicit, not
+   filtered by the other criteria; `previous` is resolved first, then `latest` is found among
+   the criteria that do not mention `latest`, previous ones included, so they mix
+   (`--sport previous --distance latest~20%`).  `latest` and `previous` cannot both be given to
+   `--sport` or `--sub-sport`.  A line `previous: ...` says which one.  Internally a
+   criterion carries a `Reference` (`refLatest` / `refPrevious`) instead of a flag each; the
+   single resolution step is `resolve` in `selection/command.nim`.  (The name could be read as
+   "the ride before the latest"; the help says what it means.)
 5. Docs; try it on the test data (mixed sports) and on a real library.
 
 ## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)

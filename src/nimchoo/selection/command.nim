@@ -26,19 +26,20 @@ last one).  Criteria are combined with "and".
 
   --users A B C      whose activities (default: the current user)
   --sport A B        only these sports (cycling, running, swimming ...); "none"
-                     means not recorded; "latest" the sport of the latest activity
+                     means not recorded; "latest" or "previous": that activity's sport
   --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
                      files say "generic" or nothing, so this misses some rides
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
-                     0.5- for half a km; 42~2 (between 40 and 44), latest~10%
+                     0.5- for half a km; 42~2 (between 40 and 44), latest~10%,
+                     previous~10%
   --active RANGE     active time: 1h-, 30m-2h, -45m (units d h m s, as printed);
-                     2h~15m, latest~10%
+                     2h~15m, latest~10%, previous~10%
   --from TIME        activities that start at or after TIME
   --to TIME          activities that start before the end of TIME
                      (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
                      with seconds; a --to date means the whole day)
   --near LAT,LON     activities whose route passes within the radius of the point
-  --near latest      ... of the centre of the latest activity
+  --near latest      ... of the centre of the latest activity (or "previous")
   --radius KM        radius for --near in kilometres (default: 100); on its own it
                      means --near latest
   -n, --newest N     only the N newest of the activities that meet the other criteria
@@ -52,6 +53,10 @@ last one).  Criteria are combined with "and".
 "latest" is the newest activity among those that meet the criteria that do not use
 "latest": so  --sport cycling --distance latest~10%  is cycling rides within 10% of
 the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
+
+"previous" is the one activity that was selected before (see --show): list it with
+--save, then  --sport previous --distance previous~10%  finds rides like it.  It is an
+error unless exactly one activity is selected.
 """
 
 proc localDate(t: int64): string =
@@ -164,13 +169,56 @@ proc latestAmong(st: Store, match: string): Option[tuple[id: int64, row: ListRow
     except ValueError:
       raiseStore("bad number from the database")
 
+proc previousSelected(st: Store): tuple[id: int64, row: ListRow] {.raises: [StoreError].} =
+  ## The one activity of the stored selection (what `previous` means).  An error unless
+  ## there is exactly one.
+  let n = number(st, "select count(*) from selection where user_id = " & $st.userId)
+  if n != 1:
+    raiseStore("`previous` needs a selection of exactly one activity, and it has " & $n &
+               " (see `nch list --show`)")
+  let rows = readRows(st, "select " & rowColumns(false) & " from selection s join activity a " &
+    "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId)
+  guard:
+    try:
+      result = (id: parseBiggestInt(st.db.getValue(
+        sql"select activity_id from selection where user_id = ?", st.userId)), row: rows[0])
+    except ValueError:
+      raiseStore("bad number from the database")
+
+proc resolve(st: Store, c: var Criteria, which: Reference, id: int64, row: ListRow,
+             centre: var Option[(float, float)], source: var string)
+    {.raises: [StoreError].} =
+  ## Replace the criteria measured against `which` by what they mean for this activity.
+  let nameOf = if which == refLatest: "latest" else: "previous"
+  if c.sportRef == which:
+    c.sports.add (if row.sport.len > 0: row.sport else: "none")
+    c.sportRef = refNone
+  if c.subSportRef == which:
+    c.subSports.add (if row.subSport.len > 0: row.subSport else: "none")
+    c.subSportRef = refNone
+  if c.distanceRel.isSome and c.distanceRel.get.refers == which:
+    if row.distanceM.isNone: raiseStore("the " & nameOf & " activity has no recorded distance")
+    c.distanceM = around(row.distanceM.get, c.distanceRel.get.tol)
+    c.distanceRel = none(Relative)
+  if c.activeRel.isSome and c.activeRel.get.refers == which:
+    if row.activeS.isNone: raiseStore("the " & nameOf & " activity has no recorded active time")
+    c.activeS = around(row.activeS.get, c.activeRel.get.tol)
+    c.activeRel = none(Relative)
+  if c.near == (if which == refLatest: nkLatest else: nkPrevious):
+    centre = centreOf(st, id)
+    if centre.isNone: raiseStore("the " & nameOf & " activity has no positions (--near " & nameOf & ")")
+    source = "the " & nameOf & " activity"
+    c.near = nkNone
+
 proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines: seq[Line], saved: int]
     {.raises: [StoreError].} =
   ## List the activities that meet the criteria (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
   ##
-  ## `latest` (in --near, --distance, --active, --sport, --sub-sport) is the newest
-  ## activity among those that meet the criteria that do not mention `latest`.
+  ## `previous` (in --near, --distance, --active, --sport, --sub-sport) is the one activity
+  ## that was selected before; `latest` is the newest activity among those that meet the
+  ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
+  ## uses it is one of those among which `latest` is found.
   var c = criteria
   var userIds: seq[int64]
   if c.users.len == 0:
@@ -185,32 +233,25 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines
   checkNames(st, "sport", "sport", idList, c.sports)
   checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
   var centre = none((float, float))
+  var centreFrom = ""
+  if usesPrevious(c):
+    let prev = previousSelected(st)
+    result.lines.add plain("previous: " & activityText(prev.row, zone))
+    resolve(st, c, refPrevious, prev.id, prev.row, centre, centreFrom)
   if usesLatest(c):
     let base = withoutLatest(c)
     let found = latestAmong(st, matchSql(userIds, base, none((float, float)),
                                          "a.id as id, " & rowColumns(false)))
     if found.isNone:
       raiseStore("`latest` is the newest activity that meets the other criteria, and none does")
-    let (refId, ref0) = (found.get.id, found.get.row)
-    result.lines.add plain("latest: " & latestText(ref0, zone))
-    if c.sportLatest: c.sports.add (if ref0.sport.len > 0: ref0.sport else: "none")
-    if c.subSportLatest: c.subSports.add (if ref0.subSport.len > 0: ref0.subSport else: "none")
-    if c.distanceLatest.isSome:
-      if ref0.distanceM.isNone: raiseStore("the latest activity has no recorded distance")
-      c.distanceM = around(ref0.distanceM.get, c.distanceLatest.get)
-    if c.activeLatest.isSome:
-      if ref0.activeS.isNone: raiseStore("the latest activity has no recorded active time")
-      c.activeS = around(ref0.activeS.get, c.activeLatest.get)
-    if c.near == nkLatest:
-      centre = centreOf(st, refId)
-      if centre.isNone: raiseStore("the latest activity has no positions (--near latest)")
-  case c.near
-  of nkNone, nkLatest: discard
-  of nkPoint: centre = some((c.lat, c.lon))
+    result.lines.add plain("latest: " & activityText(found.get.row, zone))
+    resolve(st, c, refLatest, found.get.id, found.get.row, centre, centreFrom)
+  if c.near == nkPoint:
+    centre = some((c.lat, c.lon))
   if centre.isSome:
     result.lines.add plain("near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
       formatFloat(centre.get[1], ffDecimal, 4) &
-      (if c.near == nkLatest: " (the centre of the latest activity)" else: "") &
+      (if centreFrom.len > 0: " (the centre of " & centreFrom & ")" else: "") &
       ", within " & radiusText(c.radiusKm) & "km")
   let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose))
   if c.save:

@@ -45,6 +45,9 @@ proc world(name: string): string =
   addActivity(s, bob, "lisbon2", aug15, "MULTILINESTRING((-9.20 38.70, -9.15 38.74))",
               "cycling")
 
+func texts(ls: seq[Line]): seq[string] =
+  for l in ls: result.add l.text
+
 proc list(db: string, args: varargs[string]): int =
   listCommand.run(Globals(dbPath: db, fragments: allFragments), @args)
 
@@ -250,6 +253,73 @@ suite "list: the command":
     discard save(db, "--radius", "5")                 # alone: --near latest, of everything: paris
     check chosen(db) == @["paris"]
 
+  test "previous is the one activity that was selected before":
+    let db = numbered("previous1")
+    discard save(db, "--users", "bob")                          # the one ride: lisbon2 (bob's)
+    check chosen(db) == @["lisbon2"]
+    discard save(db, "--users", "default", "bob", "--sport", "previous")
+    check chosen(db) == @["lisbon1", "lisbon2"]                 # its sport: cycling
+    discard save(db, "--users", "bob")
+    discard save(db, "--users", "default", "bob", "--distance", "previous~20%")
+    check chosen(db) == @["lisbon2"]                            # 40-60 km: itself
+    discard save(db, "--users", "bob")
+    discard save(db, "--users", "default", "bob", "--distance", "previous~90%", "--active", "previous~1h")
+    check chosen(db) == @["lisbon2", "paris"]                   # 5-95 km, and 3h +- 1h = 2h-4h, inclusive: paris at 2h is in, lisbon1 at 1h is out
+
+  test "previous is read before the selection is replaced":
+    let db = numbered("previous2")
+    discard save(db, "--users", "bob")
+    check save(db, "--users", "default", "bob", "--sport", "previous", "--distance", "previous~90%") == exitOk
+    check chosen(db) == @["lisbon1", "lisbon2"]                 # now two are selected
+    check save(db, "--sport", "previous") == exitFailure        # so it cannot be run again
+    check chosen(db) == @["lisbon1", "lisbon2"]                 # and nothing changed
+
+  test "previous needs exactly one selected":
+    let db = numbered("previous3")
+    check list(db, "--sport", "previous") == exitFailure        # none
+    discard save(db)
+    check list(db, "--distance", "previous~10%") == exitFailure # two
+    check list(db, "--near", "previous") == exitFailure
+    check chosen(db) == @["lisbon1", "paris"]
+
+  test "--near previous":
+    let db = numbered("previous4")
+    let st = openStore(db, allFragments)
+    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 1, -9.14, 38.72)")
+    st.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 2, -9.10, 38.75)")
+    st.close()
+    discard save(db, "--sport", "cycling")                      # the one ride: lisbon1, with positions
+    discard save(db, "--users", "default", "bob", "--near", "previous", "--radius", "5")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--sport", "running")                      # paris: no positions in the fixture except two
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "bob")                          # lisbon2 has no positions
+    check save(db, "--near", "previous") == exitFailure
+    check chosen(db) == @["lisbon2"]
+
+  test "previous with latest: previous first, then latest among what is left":
+    let db = numbered("previous5")
+    discard save(db, "--sport", "cycling")                      # the one ride: lisbon1 (cycling)
+    # cycling rides of both users: the newest is lisbon2 (50 km); within 20% of that: 40-60
+    discard save(db, "--users", "default", "bob", "--sport", "previous", "--distance", "latest~20%")
+    check chosen(db) == @["lisbon2"]
+
+  test "a reference that is another user's, or has no recorded numbers":
+    let db = numbered("previous6")
+    setNumbers(db, "lisbon2", "null", "null")
+    discard save(db, "--users", "bob")
+    check save(db, "--users", "default", "bob", "--distance", "previous~10%") == exitFailure
+    check save(db, "--users", "default", "bob", "--active", "previous~10m") == exitFailure
+    check save(db, "--users", "default", "bob", "--sport", "previous") == exitOk    # its sport is known
+    check chosen(db) == @["lisbon1", "lisbon2"]
+
+  test "the line says which one it used":
+    let db = numbered("previous7")
+    discard save(db, "--newest", "1")
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let r = listActivities(st, parseArgs(@["--sport", "previous"], utc()).criteria, utc())
+    check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00 running")
   test "newest is not part of finding latest":
     let db = numbered("latest4")
     discard save(db, "--users", "default", "bob", "-n", "1", "--distance", "latest~10%")
@@ -339,8 +409,6 @@ suite "list: what is shown":
     doAssert p.problem == "", p.problem
     listActivities(st, p.criteria, utc())
 
-  func texts(ls: seq[Line]): seq[string] =
-    for l in ls: result.add l.text
 
   test "a table of the activities, oldest first, with a last line":
     let db = world("shown")
