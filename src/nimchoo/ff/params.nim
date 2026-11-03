@@ -6,8 +6,9 @@ import std/[options, strutils, times]
 
 type Params* = object
   model*: string                 ## "": the default model
-  fromDay*, toDay*: Option[int64]   ## Unix seconds at the start of the (UTC) day
+  fromDay*, toDay*: Option[int64]   ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
   hourly*: bool
+  utc*: bool                     ## days and times in UTC, not the computer's timezone
   fitnessScale*, fatigueScale*: float
   help*: bool
   problem*: string
@@ -49,6 +50,7 @@ proc parseArgs*(args: seq[string]): Params =
       if d.isNone: fail(a & " is a day, like 2018-08-27 (not '" & v & "')")
       if a == "--from": result.fromDay = d else: result.toDay = d
     of "--hourly": result.hourly = true
+    of "--utc": result.utc = true
     of "--fitness-scale": scale(a, result.fitnessScale)
     of "--fatigue-scale": scale(a, result.fatigueScale)
     else:

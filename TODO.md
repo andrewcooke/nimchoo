@@ -496,11 +496,15 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
 `ff/` (`curve.nim` pure, `params.nim` pure, `command.nim`).
 
 * **`curve.response`:** `y[h] = y[h-1] * exp(-1 hour / tau) + x[h]` from the first hour with an impulse to
-  the end of the last day asked for; starts from 0; `dayEnds` picks the last hour of each UTC day.
+  the end of the last day asked for; starts from 0; `dayEnds` picks the last hour of each day of a timezone.
   Tested against the sum of what each impulse has left.
 * **`nch ff [--model NAME] [--from DAY] [--to DAY] [--hourly] [--fitness-scale S] [--fatigue-scale S]`**
   prints CSV (`time,fitness,fatigue`) of the current user to standard output, for plotting elsewhere:
-  a row a day (the value at the end of the UTC day), or an hour (labelled by the end of the hour).
+  a row a day (the value at the end of the day), or an hour (labelled by the end of the hour, with its
+  offset: `2018-08-27T14:00:00-03:00`).  **Days are those of the computer's timezone** (`--utc` for UTC);
+  `--from`/`--to` are days of that zone.  The impulses stay in UTC hours; a day's value is that of the
+  last whole hour ending before its midnight (in a half-hour zone such as India's, the hour ending half
+  an hour early: under half an hour of decay).
   `--to` defaults to today, so the curves fade out after the last activity.  The scales default to 1
   (the original used 1 and 5).  An error if the user has no impulses, saying how to get them.
 * Not done: writing the file into the cache directory (the display layers), or a form column

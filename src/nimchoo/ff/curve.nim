@@ -6,8 +6,9 @@
 ## the impulse of hour `h` and the curve starts from 0.  (The original has a starting value and a
 ## scale; see TODO.md, task 7, for why they are gone.  The scale is an option of the command.)
 ## An hour's impulse counts as at the end of that hour, as in the original.
+## (The hours are those of the clock in UTC; days are the timezone's.)
 
-import std/math
+import std/[math, times]
 import ../model/calc
 
 {.push raises: [].}
@@ -36,8 +37,15 @@ func response*(impulses: openArray[Hourly], tauDays: float, lastHour: int64): se
     result.add (h, y)
     h += bucketSeconds
 
-func dayEnds*(series: openArray[Hourly]): seq[Hourly] =
-  ## The values at the end of each (UTC) day: the last hour of the day.  The key is the start
-  ## of that hour.
-  for x in series:
-    if x.hourT mod secondsPerDay == secondsPerDay - bucketSeconds: result.add x
+proc localDate*(t: int64, tz: Timezone): string =
+  ## The date at an instant, in a timezone, like `2018-08-27`.
+  fromUnix(t).inZone(tz).format("yyyy-MM-dd")
+
+proc dayEnds*(series: openArray[Hourly], tz: Timezone): seq[Hourly] =
+  ## The values at the end of each day of the timezone: for each date, the last hour that ends
+  ## before midnight is over (in a timezone with a half-hour offset that is the hour ending half
+  ## an hour before it).  The key is the start of that hour.
+  for k, x in series:
+    if k + 1 == series.len or
+       localDate(x.hourT + bucketSeconds - 1, tz) != localDate(series[k + 1].hourT + bucketSeconds - 1, tz):
+      result.add x

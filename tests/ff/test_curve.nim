@@ -1,4 +1,4 @@
-import std/[math, options, os, strutils, unittest]
+import std/[math, options, os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
@@ -12,6 +12,14 @@ import nimchoo/ff/command as ffCommand
 import nimchoo/model/calc
 
 proc near(a, b: float, eps = 1e-9): bool = abs(a - b) <= eps
+
+template fixedZone(zoneName: string, east: int): Timezone =
+  ## A timezone with a fixed offset east of UTC, in seconds.
+  newTimezone(zoneName,
+    proc (t: Time): ZonedTime {.tags: [], raises: [].} =
+      ZonedTime(utcOffset: -east, isDst: false, time: t),
+    proc (adj: Time): ZonedTime {.tags: [], raises: [].} =
+      ZonedTime(utcOffset: -east, isDst: false, time: adj - initDuration(seconds = east)))
 
 suite "ff: the decay":
   test "one impulse fades by the hour, as exp(-hours / tau)":
@@ -41,7 +49,7 @@ suite "ff: the decay":
     check near(decayPerHour(7), exp(-1.0 / 168))
   test "the day's end is its last hour":
     let r = response(@[(0'i64, 1.0)], 7, 86400 * 3 - 3600)
-    let d = dayEnds(r)
+    let d = dayEnds(r, utc())
     check d.len == 3 and d[0].hourT == 86400 - 3600 and d[2].hourT == 86400 * 3 - 3600
     check near(d[0].value, exp(-23.0 / 168))
 
@@ -65,25 +73,47 @@ suite "ff: the command line":
 
 suite "ff: the rows":
   let m = defaultModel()
-  let imp = @[(86400'i64 * 10, 10.0)]           # day 10, hour 0
+  let imp = @[(86400'i64 * 10, 10.0)]           # day 10, hour 0 (UTC)
+  let u = utc()
+  let santiago = fixedZone("-03", -3 * 3600)            # (a fixed offset: -03:00)
+  let india = fixedZone("+0530", 5 * 3600 + 1800)         # +05:30
   test "one a day, the value at the end of the day, scaled":
     let p = Params(toDay: some(86400'i64 * 12), fitnessScale: 1, fatigueScale: 5)
-    let r = ffCommand.rows(imp, m, p, 0)
+    let r = rows(imp, m, p, 0, u)
     check r.len == 3
-    check r[0].startsWith("1970-01-11,")
     check r[0] == "1970-01-11," & formatFloat(10 * exp(-23.0 / (42 * 24)), ffDecimal, 4) & "," &
       formatFloat(50 * exp(-23.0 / (7 * 24)), ffDecimal, 4)
     check r[2].startsWith("1970-01-13,")
   test "--from drops the early days; --to defaults to today":
     let p = Params(fromDay: some(86400'i64 * 11), fitnessScale: 1, fatigueScale: 1)
-    let r = ffCommand.rows(imp, m, p, 86400'i64 * 12 + 5000)
+    let r = rows(imp, m, p, 86400'i64 * 12 + 5000, u)
     check r.len == 2 and r[0].startsWith("1970-01-12,")
   test "hourly rows are labelled by the end of the hour":
     let p = Params(toDay: some(86400'i64 * 10), hourly: true, fitnessScale: 1, fatigueScale: 1)
-    let r = ffCommand.rows(imp, m, p, 0)
+    let r = rows(imp, m, p, 0, u)
     check r.len == 24
     check r[0].startsWith("1970-01-11T01:00:00Z,10.0000,10.0000")
     check r[23].startsWith("1970-01-12T00:00:00Z,")
+  test "in another timezone the days end at its midnight":
+    # the impulse is at 21:00 on the 10th in Santiago (midnight UTC on the 11th); the 10th ends three hours later
+    let p = Params(toDay: some(86400'i64 * 9), fitnessScale: 1, fatigueScale: 1)
+    let r = rows(imp, m, p, 0, santiago)
+    check r == @["1970-01-10," & formatFloat(10 * exp(-2.0 / (42 * 24)), ffDecimal, 4) & "," &
+                 formatFloat(10 * exp(-2.0 / (7 * 24)), ffDecimal, 4)]             # (three hours in: two decays)
+    let none = rows(imp, m, Params(toDay: some(86400'i64 * 8), hourly: true, fitnessScale: 1, fatigueScale: 1), 0, santiago)
+    check none.len == 0                                               # (nothing has happened by the end of the 9th)
+    let h = rows(imp, m, Params(toDay: some(86400'i64 * 9), hourly: true, fitnessScale: 1, fatigueScale: 1), 0, santiago)
+    check h.len == 3 and h[0].startsWith("1970-01-10T22:00:00-03:00,") and h[2].startsWith("1970-01-11T00:00:00-03:00,")
+  test "today is today where you are":
+    let p = Params(fitnessScale: 1, fatigueScale: 1)
+    # 02:00 UTC on the 13th is still the 12th in Santiago
+    check rows(imp, m, p, 86400'i64 * 12 + 7200, u)[^1].startsWith("1970-01-13,")
+    check rows(imp, m, p, 86400'i64 * 12 + 7200, santiago)[^1].startsWith("1970-01-12,")
+  test "a half-hour timezone uses the last whole hour before its midnight":
+    # the 11th ends at 18:30 UTC on the 11th; the last whole hour ends at 18:00, 17 hours after the impulse's hour starts
+    let p = Params(toDay: some(86400'i64 * 10), fitnessScale: 1, fatigueScale: 1)
+    check rows(imp, m, p, 0, india) == @["1970-01-11," & formatFloat(10 * exp(-17.0 / (42 * 24)), ffDecimal, 4) & "," &
+      formatFloat(10 * exp(-17.0 / (7 * 24)), ffDecimal, 4)]
 
 suite "nch ff":
   test "the curves of an imported ride; no impulses is an error; an unknown model is an error":

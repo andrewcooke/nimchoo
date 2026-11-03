@@ -1,10 +1,10 @@
 ## `nch ff`: the fitness and fatigue curves of the current user (see curve.nim), as CSV on
 ## standard output for plotting elsewhere: one row per day (the value at the end of the day,
-## UTC), or per hour.
+## in the computer's timezone), or per hour.
 ##
 ## This module is newer than `model`: it reads the impulses.
 
-import std/[options, strutils, times]
+import std/[math, options, strutils, times]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
@@ -15,17 +15,19 @@ import ./[curve, params]
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
-                                      [--hourly] [--fitness-scale S] [--fatigue-scale S]
+                                      [--hourly] [--utc] [--fitness-scale S] [--fatigue-scale S]
 
 Print the fitness and fatigue of the user as CSV: one row a day, the value at the end of the
-day (UTC).  They are made from the impulses of the user's activities (see `nch user --fthr`
+day (in this computer's timezone; --utc for UTC).  They are made from the impulses of the user's activities (see `nch user --fthr`
 and `nch model`) with the decay times of the model.  They start from 0 at the first activity
 with an impulse and run to --to (default: today), so they fade away after the last.
 
   --model NAME      the model to use (default: `default`)
   --from DAY        the first day to show, like 2018-08-27 (default: the first with an impulse)
   --to DAY          the last day to show (default: today)
-  --hourly          one row an hour instead, labelled by the end of the hour
+  --hourly          one row an hour instead, labelled by the end of the hour (with its offset
+                    from UTC: 2018-08-27T14:00:00-03:00)
+  --utc             days and times in UTC, not this computer's timezone
   --fitness-scale S multiply the fitness by S (default 1)
   --fatigue-scale S multiply the fatigue by S (default 1; the original program used 5, to
                     make the two curves look alike)
@@ -41,26 +43,38 @@ proc hourlyImpulses(db: DbConn, userId, modelId: int64): seq[Hourly] {.raises: [
       try: result.add (parseBiggestInt(r[0]), parseFloat(r[1]))
       except ValueError: raiseStore("bad impulse row")
 
-proc csvTime(t: int64, hourly: bool): string =
-  ## The label of a row: the day, or the end of the hour.
-  const dayFmt = initTimeFormat("yyyy-MM-dd")
-  const hourFmt = initTimeFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-  if hourly: fromUnix(t + bucketSeconds).utc.format(hourFmt)
-  else: fromUnix(t).utc.format(dayFmt)
+proc civilOf(t: int64, tz: Timezone): int64 =
+  ## The date at an instant in a timezone, as Unix seconds at its start in UTC (the form of
+  ## `Params.fromDay`).
+  let d = fromUnix(t).inZone(tz)
+  dateTime(d.year, d.month, d.monthday, 0, 0, 0, 0, utc()).toTime.toUnix
 
-proc rows*(impulses: seq[Hourly], m: Model, p: Params, today: int64): seq[string] =
-  ## The CSV lines (without the header) for the impulses.
-  let toDay = if p.toDay.isSome: p.toDay.get else: today
-  let last = (toDay div secondsPerDay) * secondsPerDay + secondsPerDay - bucketSeconds
+proc dayStart(civil: int64, tz: Timezone): int64 =
+  ## The instant a calendar date starts in a timezone.
+  let d = fromUnix(civil).utc
+  dateTime(d.year, d.month, d.monthday, 0, 0, 0, 0, tz).toTime.toUnix
+
+proc rows*(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): seq[string] =
+  ## The CSV lines (without the header) for the impulses.  Days are those of the timezone; a
+  ## daily row is labelled with the date, an hourly one with the time at the end of the hour.
+  let toCivil = if p.toDay.isSome: p.toDay.get else: civilOf(now, tz)
+  let midnight = dayStart(toCivil + secondsPerDay, tz)          # the end of the last day
+  let last = floorDiv(midnight, bucketSeconds) * bucketSeconds - bucketSeconds
   var fitness = response(impulses, m.fitnessDays, last)
   var fatigue = response(impulses, m.fatigueDays, last)
   if not p.hourly:
-    fitness = dayEnds(fitness)
-    fatigue = dayEnds(fatigue)
+    fitness = dayEnds(fitness, tz)
+    fatigue = dayEnds(fatigue, tz)
+  let firstDay = if p.fromDay.isSome: localDate(p.fromDay.get, utc()) else: ""
+  let firstInstant = if p.fromDay.isSome: dayStart(p.fromDay.get, tz) else: low(int64)
   for k in 0 ..< fitness.len:
-    let t = fitness[k].hourT
-    if p.fromDay.isSome and t < p.fromDay.get: continue
-    result.add csvTime(t, p.hourly) & "," & formatFloat(fitness[k].value * p.fitnessScale, ffDecimal, 4) &
+    let finish = fitness[k].hourT + bucketSeconds
+    let label = if p.hourly: fromUnix(finish).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
+                else: localDate(finish - 1, tz)
+    if p.hourly:
+      if finish <= firstInstant: continue
+    elif label < firstDay: continue
+    result.add label & "," & formatFloat(fitness[k].value * p.fitnessScale, ffDecimal, 4) &
       "," & formatFloat(fatigue[k].value * p.fatigueScale, ffDecimal, 4)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -86,7 +100,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return failure("nch ff", "there are no impulses for " & st.userName & " (they need an FTHR, " &
                      "see `nch user --fthr`, and activities with heart rate)")
     stdout.say "time,fitness,fatigue\n"
-    for l in rows(impulses, m.get, p, getTime().toUnix): stdout.say l & "\n"
+    for l in rows(impulses, m.get, p, getTime().toUnix, if p.utc: utc() else: local()): stdout.say l & "\n"
     exitOk
   except StoreError as e:
     failure("nch ff", e.msg)
