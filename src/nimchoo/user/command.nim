@@ -2,13 +2,15 @@
 ## functional threshold heart rate).  A user's name is the key for `--user`; `nch user`
 ## makes users (never implicitly, so a typo cannot), renames them and sets their FTHR.
 ##
-## This module is newer than `importer`: it counts each user's activities.
+## This module is newer than `importer` and `model`: it counts each user's activities, and
+## works out their impulses when the threshold heart rate is set.
 
 import std/[options, strutils]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
+import ../model/impulses
 import ../ui/logfile
 import ./params
 
@@ -62,6 +64,35 @@ proc setDefault(st: Store, id: int64) {.raises: [StoreError].} =
     st.rollback()
     raise
 
+proc hasImpulses(st: Store, id: int64): bool {.raises: [StoreError].} =
+  guard:
+    result = st.db.getValue(sql"""select count(*) from impulse i join activity a on a.id = i.activity_id
+      join file f on f.id = a.file_id where f.user_id = ?""", id) != "0"
+
+func impulseNote(done: Calculated, replaced: bool): string =
+  ## What to add to what is said when a threshold heart rate has been set.
+  let acts = $done.activities & (if done.activities == 1: " activity" else: " activities")
+  if done.hours > 0:
+    (if replaced: " (the old impulses are deleted); impulses worked out for " else: "; impulses worked out for ") & acts
+  elif replaced: " (the old impulses are deleted)"
+  else: ""
+
+proc applyFthr(st: Store, id: int64, fthr: int): string {.raises: [StoreError].} =
+  ## Set the FTHR and work out the user's impulses.  A change deletes the old impulses (a
+  ## trigger in the database does that).  Returns what to add to what is said.
+  let old = fthrOf(st.db, id)
+  let changed = old.isSome and old.get != fthr
+  st.begin()
+  var committed = false
+  try:
+    setFthr(st, id, fthr)
+    let done = calculateMissing(st.db, id)
+    st.commit()
+    committed = true
+    result = impulseNote(done, changed)
+  finally:
+    if not committed: st.rollback()
+
 func commas(n: string): string =
   try: insertSep($parseInt(n), ',') except ValueError: n
 
@@ -111,20 +142,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         setDefault(st, userId(st, p.name))
         said.add ", the default"
       if p.fthr.isSome:
-        setFthr(st, userId(st, p.name), p.fthr.get)
         said.add ", with an FTHR of " & $p.fthr.get
+        said.add applyFthr(st, userId(st, p.name), p.fthr.get)
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
       return exitOk
     let id = st.userId
     if p.fthr.isSome:
-      setFthr(st, id, p.fthr.get)
-      let said = st.userName & ": FTHR is " & $p.fthr.get
+      let said = st.userName & ": FTHR is " & $p.fthr.get & applyFthr(st, id, p.fthr.get)
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.clearFthr:
+      let had = hasImpulses(st, id)
       guard: st.db.exec(sql"update user_profile set fthr = null where user_id = ?", id)
-      let said = st.userName & ": FTHR forgotten"
+      let said = st.userName & ": FTHR forgotten" &
+                 (if had: " (and the impulses worked out with it are deleted)" else: "")
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:

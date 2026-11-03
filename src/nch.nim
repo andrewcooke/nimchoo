@@ -11,6 +11,7 @@ import nimchoo/selection/command as listCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
 import nimchoo/user/command as userCommand
+import nimchoo/model/command as modelCommand
 import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
@@ -25,19 +26,16 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --user NAME    whose data to work with (default: the default user)
 
 commands:
-  fit      read a FIT file and print it (see `nch fit --help`)
+  fit      read a FIT file and print it
   import   put the activities of FIT files in the database
-           (see `nch import --help`)
   list     list activities, and choose the ones other commands use
-           (see `nch list --help`)
   heatmap  write the routes of the selected activities as GeoJSON
-           (see `nch heatmap --help`)
   log      show the log, filtered, with the events coloured
-           (see `nch log --help`)
   user     the users: make, rename, set the threshold heart rate
-           (see `nch user --help`)
+  model    the models: sets of variables for the training impulse
   destroy  delete the database, or one user and their data
-           (see `nch destroy --help`)
+
+For more about a command: `nch COMMAND --help`.
 """
 
 proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].} =
@@ -57,6 +55,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     logCommand.run(g, rest)
   of "user":
     userCommand.run(g, rest)
+  of "model":
+    modelCommand.run(g, rest)
   of "destroy":
     destroyCommand.run(g, rest)
   else:

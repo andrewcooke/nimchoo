@@ -466,6 +466,31 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   curve variables in the same model row, computed when asked (87,000 hours is ten years: trivial),
   with `--model NAME` choosing the model.
 
+### Step 3: the model and the impulse -- built
+
+`model/` (`001-schema.sql`, `ddl.nim`, `calc.nim` pure, `models.nim`, `impulses.nim`, `step.nim`,
+`params.nim` pure, `command.nim`).
+
+* **Tables:** `ff_model` (as decided: gamma, zero, one, max_secs, zone1..zone5, fitness_days,
+  fatigue_days; checks that the values make sense; models belong to no user; `default` is a seed
+  whose values are part of the fragment's checksum) and `impulse(activity_id, model_id, hour_t,
+  value)` (WITHOUT ROWID, cascading from both).  A trigger on `user_profile.fthr` deletes the user's
+  impulses when the FTHR changes, so the rule holds whatever changes it.
+* **`calc.nim`:** `zoneOf`, `level`, `powIntegral` (the exact integral of `max(u,0)^g` along a
+  straight line, with the clipping), `hourlyImpulse` (readings to hourly values, split at hour
+  boundaries, nothing across a gap over `max_secs`, hours covered with no impulse stored as 0).
+  `bucketSeconds` (3600) is a constant.  On the 2018-08-27 ride it gives 72.44 against 72.53 for a
+  replica of the Python's 10-second grid (0.1%).
+* **When impulses are made:** at import (the `impulseStep` import step, after the heart-rate step; only
+  if the user has an FTHR), by `nch user --fthr` (for what is lacking, after the trigger has cleared
+  the old ones, in one transaction), and by `nch model --add` (for every user with an FTHR).
+  `calculateMissing` finds the activities with heart rate and no impulses for a model.
+* **`nch model`** lists the models; `nch model --add NAME [--gamma --zero --one --max-secs --zones
+  A,B,C,D,E --fitness-days --fatigue-days]` adds one (variables not given are the default's).
+  There is no delete yet.  `nch user --fthr` says if impulses were worked out or deleted.
+* **Help:** `nch help` no longer repeats "(see `nch X --help`)" for each command: one line at the end.
+* The schema changed: `nch destroy -f` and a re-import (the same one as for steps 1-2).
+
 ### Step 1: `nch user` (per-user information) -- built
 
 What the algorithm needs per user is the **FTHR** (agreed: not max heart rate; nothing in the
@@ -553,7 +578,7 @@ re-import.
    readings" in the import line and the log).  Steps are listed in `modules.allImportSteps` and reach
    `import` through `Globals.importSteps`.  The schema changed, so an existing database needs
    `nch destroy -f` and a re-import.
-3. The model and the impulse: `ff_model` (seeded with `default`), the zone and impulse functions
+3. (built, see above) The model and the impulse: `ff_model` (seeded with `default`), the zone and impulse functions
    (pure; tested on numbers worked by hand and against the Python code on a test file),
    `impulse(activity_id, model_id, hour_t, value)`, calculated for activities that have heart rate
    and whose user has an FTHR, and cleared when that FTHR changes; `nch model add/list`.
