@@ -445,17 +445,18 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   Nothing per 10 s is stored.  An activity with no heart rate has no impulse.
 * **The variables of the calculation are a named set, a row of a table**:
   `impulse_model(id, name unique, gamma, zero, one, max_secs, ...)`: `name` is for display; the
-  zone edges (the 68, 83, 94, 105, 121 % of FTHR) are also columns, five integers, so that a model
-  can use another zone system (open: confirm).  A `default` model (gamma 2, zero 1, one 6, max_secs
+  zone edges (the 68, 83, 94, 105, 121 % of FTHR, the defaults) are also columns, five integers, so
+  that a model can use another zone system.  A `default` model (gamma 2, zero 1, one 6, max_secs
   60, the British Cycling zones) is put in when the table is made (a seed, as for the places); more
   are added by a command, so that variants can be compared.
 * **Impulse is stored per hour per activity per model**: `impulse(activity_id, model_id, hour_t,
   value)`, primary key `(activity_id, model_id, hour_t)`, `model_id` references `impulse_model`.  A
   handful of rows an activity.  Zone and the 10-second grid exist only inside the calculation.
-* **FTHR is the user's, not the model's, but every impulse depends on it.**  One value per user, so
-  changing it makes all that user's impulses out of date.  The FTHR used is recorded with each
-  calculated (activity, model), so a change is noticed by comparing and only what differs is
-  recalculated (open: confirm).  A user with no FTHR gets no impulses (and is told so).
+* **FTHR is the user's, not the model's, but every impulse depends on it.**  It is one value per user,
+  and changing it is a very rare event that means starting again: `nch user --fthr` on a user who
+  already has impulses deletes all of that user's impulses (every model), says so, and they are
+  calculated again from scratch.  So nothing records which FTHR an impulse used.  A user with no
+  FTHR gets no impulses (and is told so).
 * **Fitness and fatigue are not stored:** a pure function of the hourly impulses of one model and a
   few numbers per curve (tau, start, scale; a named set of their own when we get there), computed
   when asked (87,000 hours is ten years: trivial), with `--model NAME` choosing the impulses.
@@ -484,7 +485,6 @@ existing `user.name`, the key for `--user`; no separate display name).
 
 ### Open
 
-* Zone edges as columns of the model; the FTHR-used record for staleness (above).
 * Per sport (activity group) FTHR and models: later, if wanted.
 
 ### Later steps (each a commit)
@@ -492,8 +492,8 @@ existing `user.name`, the key for `--user`; no separate display name).
 2. Heart rate as a channel: the `heartrate/` module, imported with the activity (a re-import).
 3. The model and the impulse: `impulse_model` (seeded with `default`), the zone and impulse functions
    (pure; tested on numbers worked by hand and against the Python code on a test file),
-   `impulse(activity_id, model_id, hour_t, value)`, recalculated when the FTHR a row was made with is
-   no longer the user's; `nch impulse model add/list`.
+   `impulse(activity_id, model_id, hour_t, value)`, calculated for activities that have heart rate
+   and whose user has an FTHR, and cleared when that FTHR changes; `nch impulse model add/list`.
 4. Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses) and
    a command that prints or exports them for an external plotting service, as with the heat map.
 
