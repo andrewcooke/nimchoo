@@ -485,9 +485,14 @@ suite "list: what is shown":
     check rows[2].contains("Lisbon, PT (") and rows[2].contains("km)")                 # paris: a long way
     check not shown(db).lines.texts[0].contains("place")                               # (only with -v)
 
-  test "an activity with no place shows a dash":
+  test "no place known: its coordinates; no start: no GPS":
     let db = world("verbose-noplace")
-    check shown(db, "-v").lines.texts[1].contains("  -  ")
+    let st = openStore(db, allFragments)
+    st.db.exec(sql"update activity set start = null where file_id in (select id from file where name = 'paris')")
+    st.close()
+    let rows = shown(db, "-v").lines.texts
+    check rows[1].contains("38.7200,-9.1400")           # lisbon1: a start, but no place stored: where
+    check rows[2].contains("no GPS")                     # paris: no start at all
 
   test "saving is logged":
     let db = world("shownlog")

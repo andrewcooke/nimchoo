@@ -48,7 +48,8 @@ last one).  Criteria are combined with "and".
   --save             make what is listed the selection
   --show             show the selection (no criteria allowed)
   -v, --verbose      show more of each activity: where it started (the nearest town or
-                     city, from the GeoNames list) and the path of its file
+                     city from the GeoNames list; its coordinates if no place is known;
+                     "no GPS" if the file has no positions) and the path of its file
   -h, --help         show this help
 
 "latest" is the newest activity among those that meet the criteria that do not use
@@ -126,10 +127,11 @@ func rowColumns(verbose: bool): string =
        "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, " &
        # where it started: the nearest place, and how far the start is from it
        "coalesce((select p.name || ', ' || p.country from place p where p.id = a.place_id), '') as pname, " &
-       "coalesce((select ST_Distance(a.start, p.geom, 1) from place p where p.id = a.place_id), -1) as pdist"
-     else: "f.name as path, '' as pname, -1 as pdist")
+       "coalesce((select ST_Distance(a.start, p.geom, 1) from place p where p.id = a.place_id), -1) as pdist, " &
+       "coalesce(ST_Y(a.start), '') as slat, coalesce(ST_X(a.start), '') as slon"
+     else: "f.name as path, '' as pname, -1 as pdist, '' as slat, '' as slon")
 
-const rowFields = "start_t, sport, sub, dist, active, file, user, path, pname, pdist"
+const rowFields = "start_t, sport, sub, dist, active, file, user, path, pname, pdist, slat, slon"
   ## the columns of a row, in the order `readRows` reads them
 
 proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
@@ -143,7 +145,7 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
                            distanceM: if dist >= 0: some(dist) else: none(float),
                            activeS: if active >= 0: some(active) else: none(float),
                            file: r[5], user: r[6], path: r[7],
-                           place: placeText(r[8], parseFloat(r[9])))
+                           place: startText(r[8], parseFloat(r[9]), r[10], r[11]))
       except ValueError:
         raiseStore("bad number from the database")
 

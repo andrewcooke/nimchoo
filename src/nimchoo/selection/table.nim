@@ -30,11 +30,24 @@ func dateOf(d: DateTime): string =
 func clockOf(d: DateTime): string =
   d.hour.intToStr(2) & ":" & d.minute.intToStr(2)
 
+const noGps* = "no GPS"                ## said of an activity with no positions
+
 func placeText*(name: string, distanceM: float): string =
   ## "Santiago, CL" (the name as the places list has it, with the country); if the nearest
   ## place is more than 10 km away, how far: "Coyhaique, CL (180km)".  "" without a name.
   if name.len == 0: return ""
   if distanceM > 10_000: name & " (" & $int(round(distanceM / 1000.0)) & "km)" else: name
+
+func startText*(placeName: string, distanceM: float, lat, lon: string): string =
+  ## What to say of where an activity started: the place (`placeText`); if no place is known,
+  ## its coordinates ("-33.4362,-70.6090": four decimals, about 10 metres, as Google Maps takes
+  ## them); if it has no start at all, "no GPS".  `lat` and `lon` are "" if there is no start.
+  if placeName.len > 0: return placeText(placeName, distanceM)
+  if lat.len == 0 or lon.len == 0: return noGps
+  try:
+    formatFloat(parseFloat(lat), ffDecimal, 4) & "," & formatFloat(parseFloat(lon), ffDecimal, 4)
+  except ValueError:
+    noGps
 
 func padRight*(s: string, width: int): string =
   ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).
@@ -120,7 +133,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
       var look = Look()
       if r.isSome:
         if r.get.isTransition: look.dim = true
-        elif row[c] == "-": look.dim = true
+        elif row[c] == "-" or row[c] == noGps: look.dim = true
         elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
           look.fg = cYellow
       result.add Span(text: padded(row[c], c), look: look)

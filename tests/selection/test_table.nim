@@ -84,6 +84,15 @@ suite "list table: places and padding":
     check placeText("Coyhaique, CL", 180_400.0) == "Coyhaique, CL (180km)"
     check placeText("Coyhaique, CL", 10_001.0) == "Coyhaique, CL (10km)"
     check placeText("", 5.0) == ""
+  test "where it started: the place, else the coordinates, else no GPS":
+    check startText("Santiago, CL", 3_000.0, "-33.4", "-70.6") == "Santiago, CL"            # the place wins
+    check startText("Coyhaique, CL", 180_400.0, "-45.5", "-72.0") == "Coyhaique, CL (180km)"
+    check startText("", -1.0, "-33.436213", "-70.608963") == "-33.4362,-70.6090"             # four decimals
+    check startText("", -1.0, "38.7", "-9.1") == "38.7000,-9.1000"
+    check startText("", -1.0, "0", "0") == "0.0000,0.0000"
+    check startText("", -1.0, "", "") == "no GPS"
+    check startText("", -1.0, "-33.4", "") == "no GPS"
+    check startText("", -1.0, "x", "y") == "no GPS"                                        # (not numbers)
   test "padding counts characters":
     check padRight("Zürich", 8) == "Zürich  "
     check padLeft("Zürich", 8) == "  Zürich"
@@ -106,6 +115,19 @@ suite "list table: the last line":
     check footer(@[row(0, ""), row(1, "cycling")]).endsWith("(1 cycling, 1 unknown)")
 
 suite "list table: looks":
+  test "no GPS and a dash are dim; coordinates and names are not":
+    let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, place = "no GPS"),
+                 row(aug27, "cycling", "", 1000.0, 60.0, place = "-33.4362,-70.6090"),
+                 row(aug27, "cycling", "", 1000.0, 60.0, place = "Santiago, CL"),
+                 row(aug27, "cycling", "", 1000.0, 60.0, place = "")]
+    let t = table(rows, zone, false, true)
+    proc placeLook(i: int): Look =
+      for sp in t[i]:
+        if sp.text.contains("no GPS") or sp.text.contains("-33.4362") or sp.text.contains("Santiago") or sp.text.strip == "-":
+          return sp.look
+      raiseAssert "no place cell"
+    check placeLook(1).dim and placeLook(4).dim          # "no GPS", and a dash for nothing at all
+    check not placeLook(2).dim and not placeLook(3).dim
   proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): Look =
     for sp in lines[rowIndex]:
       if sp.text.strip.startsWith(prefix): return sp.look
