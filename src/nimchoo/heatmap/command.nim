@@ -13,7 +13,7 @@ import ../cli/common
 import ../db/store
 import ../errors
 import ../selection/selection
-import ./[lines, params]
+import ./[lines, page, params]
 
 {.push raises: [].}
 
@@ -29,6 +29,8 @@ Asking again for the same thing finds the file already there.
   --style lines    how to draw (the only style so far)
   --tolerance M    simplify routes so they stray at most M metres (default 5;
                    0: do not simplify)
+  --worker         for programs: also make the web page, and print its path, then the
+                   path of the GeoJSON file, and nothing else
   -h, --help       show this help
 """
 
@@ -99,25 +101,32 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if stem.isNone:
       return usageError("nch heatmap", usage, "cannot name a file for these options")
     let path = cacheFile(dir.get, stem.get, "geojson").get
-    if fileExists(path):                       # made before: nothing to do
+    if not fileExists(path):                   # (made before: nothing to do)
+      if wanted != current:
+        return failure("nch heatmap", "the selection has changed since that was made " &
+          "(it was " & wanted & ", it is now " & current & "); leave out --sel to draw " &
+          "the current selection")
+      let chosen = selectedCount(st)
+      if chosen == 0:
+        return failure("nch heatmap", "the selection is empty (see `nch list --save`)")
+      let routes = routesOf(st, p.toleranceM)
+      if routes.len == 0:
+        return failure("nch heatmap", "none of the " & $chosen &
+          " selected activities has a route (no positions in the files)")
+      if routes.len < chosen:
+        stderr.say "note: " & $(chosen - routes.len) & " of the " & $chosen &
+          " selected activities have no route\n"
+      write(path, featureCollection(routes))
+    if p.worker:
+      # the page is rewritten each time (it is tiny, and may have changed since)
+      let pagePath = cacheFile(dir.get, stem.get, "html").get
+      let html = pageHtml(extractFilename(path), "Heat map " & wanted)
+      if html.isNone:
+        return failure("nch heatmap", "cannot make a page for " & path)
+      write(pagePath, html.get)
+      stdout.say pagePath & "\n" & path & "\n"
+    else:
       stdout.say path & "\n"
-      return exitOk
-    if wanted != current:
-      return failure("nch heatmap", "the selection has changed since that was made " &
-        "(it was " & wanted & ", it is now " & current & "); leave out --sel to draw " &
-        "the current selection")
-    let chosen = selectedCount(st)
-    if chosen == 0:
-      return failure("nch heatmap", "the selection is empty (see `nch list --save`)")
-    let routes = routesOf(st, p.toleranceM)
-    if routes.len == 0:
-      return failure("nch heatmap", "none of the " & $chosen &
-        " selected activities has a route (no positions in the files)")
-    if routes.len < chosen:
-      stderr.say "note: " & $(chosen - routes.len) & " of the " & $chosen &
-        " selected activities have no route\n"
-    write(path, featureCollection(routes))
-    stdout.say path & "\n"
     exitOk
   except StoreError as e:
     failure("nch heatmap", e.msg)

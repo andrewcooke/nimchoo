@@ -16,6 +16,7 @@ type Params* = object
   sel*: string          ## the selection to draw ("": the current one)
   style*: string        ## how to draw it
   toleranceM*: float    ## how far a simplified route may stray (metres; 0: not simplified)
+  worker*: bool         ## for programs: make the files, print the page's path, then the data's
   help*: bool
   problem*: string      ## "" if the command line was fine
 
@@ -24,7 +25,7 @@ func metres*(x: float): string =
   if x == floor(x): $int(x) else: $x
 
 func parseArgs*(args: seq[string]): Params =
-  ## `--sel KEY`, `--style lines`, `--tolerance METRES`, `-h`.
+  ## `--sel KEY`, `--style lines`, `--tolerance METRES`, `--worker`, `-h`.
   result = Params(style: defaultStyle, toleranceM: defaultToleranceM)
   var i = 0
   template fail(msg: string) =
@@ -38,6 +39,7 @@ func parseArgs*(args: seq[string]): Params =
     let a = args[i]
     case a
     of "-h", "--help": result.help = true
+    of "--worker": result.worker = true
     of "--sel":
       let v = value(a)
       if not isOptionValue(v): fail("'" & v & "' is not a selection key")

@@ -8,6 +8,10 @@ suite "heatmap: the command line":
   test "the options":
     let p = parseArgs(@["--sel", "ab12cd", "--style", "lines", "--tolerance", "2.5"])
     check p.sel == "ab12cd" and p.toleranceM == 2.5
+  test "--worker":
+    check parseArgs(@["--worker"]).worker
+    check not parseArgs(@[]).worker
+    check parseArgs(@["--worker", "--sel", "ab12", "--tolerance", "10"]).problem == ""
   test "zero tolerance means no simplification":
     check parseArgs(@["--tolerance", "0"]).toleranceM == 0.0
   test "problems":

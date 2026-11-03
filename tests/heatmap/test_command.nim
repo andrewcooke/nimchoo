@@ -97,6 +97,34 @@ suite "heatmap: the command":
     check heatmap(w.db) == exitOk                         # the current one, made now
     check files(w.cache).len == 2
 
+  test "--worker makes the page too; the data is not remade, the page is":
+    let w = world("worker")
+    check heatmap(w.db, "--worker") == exitOk
+    let k = key(w.db)
+    let stem = "heatmap--sel-" & k & "--style-lines--tolerance-5"
+    check files(w.cache) == @[stem & ".geojson", stem & ".html"]
+    let page = readFile(w.cache / (stem & ".html"))
+    check page.contains("fetch('/files/" & stem & ".geojson')")
+    check page.contains("Heat map " & k)
+    setLastModificationTime(w.cache / (stem & ".geojson"), fromUnix(1_000_000_000))
+    writeFile(w.cache / (stem & ".html"), "old page")
+    check heatmap(w.db, "--worker") == exitOk
+    check getLastModificationTime(w.cache / (stem & ".geojson")).toUnix == 1_000_000_000
+    check readFile(w.cache / (stem & ".html")).startsWith("<!DOCTYPE html>")   # (rewritten)
+
+  test "without --worker there is no page":
+    let w = world("noworker")
+    check heatmap(w.db) == exitOk
+    check files(w.cache).len == 1 and files(w.cache)[0].endsWith(".geojson")
+
+  test "--worker with nothing to draw is an error and writes nothing":
+    let w = world("workerempty")
+    let s = openStore(w.db, allFragments)
+    s.db.exec(sql"delete from selection")
+    s.close()
+    check heatmap(w.db, "--worker") == exitFailure
+    check files(w.cache).len == 0
+
   test "an empty selection, or none with a route, is an error and writes nothing":
     let w = world("empty")
     let s = openStore(w.db, allFragments)

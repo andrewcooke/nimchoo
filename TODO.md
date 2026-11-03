@@ -342,7 +342,13 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
    stderr.  Checked on the test rides: 6 routes, 154 KB unsimplified, 46 KB at 5 m, 25 KB at
    50 m.  An existing file is returned without any work, whatever else has changed; `--sel`
    for a selection that is gone and not current is an error.
-3. `--worker` and the page: the HTML generator (pure), the output convention.
+3. [x] `heatmap/page.nim` (pure: Leaflet 1.9.4 from unpkg with the integrity hashes, OSM tiles
+   with attribution, `fetch('/files/<name>')`, lines weight 2 / opacity 0.25 on a canvas, a
+   click popup with start, sport and distance, a caption with the number of routes, `fitBounds`;
+   the data name must be a cache `.geojson` name, the title is escaped) and `--worker` (makes
+   the geojson if missing and the page always, prints the page path then the data path and
+   nothing else on stdout; a note about routes left out is on stderr).  The page cannot be
+   looked at from disk (it fetches from the server): that is step 4.
 4. `serve/`: request checks as pure functions (token, Host, path, allowlist) with tests, then
    the server; an integration test starts `nch heatmap --web --no-open` as a subprocess,
    reads the URL, and fetches with `std/httpclient` (plain http): 200 with the token, 403
