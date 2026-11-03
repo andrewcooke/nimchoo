@@ -404,6 +404,48 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
   one page to another (the cookie means links need no token); `--standalone` export.
 
+## Task 6: places, and the start of an activity as a point (in progress)
+
+Why: `list -v` should say where an activity started ("a ride in another continent"), `--near`
+should mean "starts near" (how rides are named), and named places want a home in the database.
+
+### Design (agreed 2026-11-03)
+
+* **A `place` table** (`places/` module): name, country (ISO two-letter), population, `source`
+  (`geonames` | `user`, for places the user names later), a `POINT` geometry (SRID 4326) with a
+  spatial index.  Global: no user, so `destroy --user` leaves it.
+* **Loaded when the database is made**, from a list the program carries: GeoNames cities5000
+  (towns and cities of 5,000 people or more: 69,999 places; 1.2 MB gzipped in the program; about
+  0.5 s to load, about 10 MB in each database).  Done by a **seed** on the fragment
+  (`Fragment.seed`, run right after the fragment's SQL in the same transaction, once), because
+  data is inserted from Nim, not from SQL files; the seed makes the spatial index *after* the
+  rows (5x faster).  The 15,000+ list (34,197 places) would be half the size, 1,000+ (171,770)
+  2.5x: `tools/makecities.nim` makes the list from any of them.
+* **Tests** are built with `-d:nchSmallPlaces`, which carries a 34-place list
+  (`cities-test.tsv`) instead, so a test database costs nothing; one test checks the real list.
+* **Nearest place:** a bounding-box search on the spatial index, widened (1, 5, 20, 90, 360
+  degrees) until something is found, then once more in a box that certainly holds everything as
+  near (degrees of longitude are short away from the equator), and wrapped across the date line.
+* **The start of an activity** becomes a `POINT` on `activity` (with its own spatial index),
+  written at import; `--near` means "starts within the radius"; `latest` / `previous` use that
+  start as the centre.  (Needs `nch destroy -f` and a new import.)
+* **`list -v`** gets a `place` column before `file`: `Santiago, CL`; more than 10 km away
+  `Coyhaique, CL (180km)`; `-` if the activity has no positions.  Columns are padded by
+  characters, not bytes (accented names).
+* Credit: `NOTICE` (GeoNames is CC BY 4.0).
+
+### Steps (each a commit; tests pass after each)
+
+1. [x] The seed hook (`Fragment.seed`, `withSeed`), the `places/` module (`001-schema.sql`,
+   `data.nim` reading the carried list, `seed.nim` loading it and `nearestPlace`), `cities.tsv.gz`
+   made by `tools/makecities.nim`, `NOTICE`, `-d:nchSmallPlaces` in the test builds.  A new
+   database takes 0.55 s and is 11 MB.  Tests found a real bug on the way: the search box did
+   not wrap round the date line, so a point just east of it was matched to Honolulu, not
+   Auckland.
+2. The start point on `activity`; `--near`, `latest`, `previous` use it.
+3. The `place` column in `list -v`; padding by characters.
+4. Docs.
+
 ## Task 5: `nch list` replaces `nch select` (step 1 built)
 
 Why: `select` and a listing would take the same options, and you want to see what you pick.

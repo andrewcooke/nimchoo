@@ -18,6 +18,16 @@ proc open(path: string, user = defaultUser): Store =
 proc count(s: Store, table: string): int =
   parseInt(s.db.getValue(sql("select count(*) from " & table)))
 
+var seedRuns = 0
+
+proc putSeven(db: DbConn) {.raises: [StoreError].} =
+  inc seedRuns
+  guard: db.exec(sql"insert into t(x) values (7)")
+
+proc failingSeed(db: DbConn) {.raises: [StoreError].} =
+  guard: db.exec(sql"insert into t(x) values (1)")
+  raiseStore("the seed failed")
+
 func frag(name, sqlText: string): Fragment =
   Fragment(name: name, sql: sqlText)
 
@@ -38,7 +48,8 @@ suite "database: opening and bringing the schema up to date":
     var names: seq[string]
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
-    check names == @["db/001-schema.sql", "importer/001-schema.sql", "selection/001-schema.sql"]
+    check names == @["db/001-schema.sql", "importer/001-schema.sql", "places/001-schema.sql",
+                     "selection/001-schema.sql"]
     s.close()
 
   test "opening again changes nothing":
@@ -49,7 +60,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 3
+    check b.count("fragment") == 4
     b.close()
 
   test "the directory is created":
@@ -96,6 +107,26 @@ suite "database: opening and bringing the schema up to date":
       discard open(path)
 
 suite "database: fragments":
+  test "a seed runs right after its fragment's SQL, once":
+    seedRuns = 0
+    let path = tempDb("seed")
+    let seeded = frag("m/001.sql", "create table t(x integer);").withSeed(putSeven)
+    openStore(path, @[seeded]).close()
+    check seedRuns == 1
+    let s = openStore(path, @[seeded])                         # again: not run again
+    defer: s.close()
+    check seedRuns == 1
+    check s.count("t") == 1
+    check s.db.getValue(sql"select x from t") == "7"
+
+  test "a seed that fails undoes its fragment":
+    let path = tempDb("seedfail")
+    expect StoreError:
+      openStore(path, @[frag("m/001.sql", "create table t(x integer);").withSeed(failingSeed)]).close()
+    let s = openStore(path, @[frag("m/001.sql", "create table t(x integer);")])   # the fragment was not recorded
+    defer: s.close()
+    check s.count("t") == 0
+
   test "applied in the order given, each only once":
     let path = tempDb("order")
     let one = frag("m/001.sql", "create table t(x integer);")

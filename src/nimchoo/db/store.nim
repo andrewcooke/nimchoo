@@ -76,6 +76,7 @@ proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   var done = false
   try:
     execScript(db, f.sql)
+    if not f.seed.isNil: f.seed(db)
     record(db, f.name)
     guard: db.exec(sql"commit")
     done = true

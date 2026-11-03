@@ -10,13 +10,25 @@
 ## modules in order (see store.nim); the list is put together in modules.nim.
 
 import std/os
+import db_connector/db_sqlite
+import ../errors
 
 {.push raises: [].}
 
 type
+  SeedProc* = proc(db: DbConn) {.nimcall, raises: [StoreError].}
+    ## Code that fills the tables of a fragment with data the program carries (the list of
+    ## places).  Run once, right after the fragment's SQL and in the same transaction.
+
   Fragment* = object
     name*: string    ## "module/file", unique
     sql*: string     ## DDL only (data is inserted from Nim)
+    seed*: SeedProc  ## nil if there is no data to put in
+
+func withSeed*(f: Fragment, seed: SeedProc): Fragment =
+  ## The same fragment, with data to put in after its tables are made.
+  result = f
+  result.seed = seed
 
 template fragment*(file: static string): Fragment =
   ## The fragment in `<file>` next to the calling source file.
