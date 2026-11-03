@@ -95,6 +95,10 @@ What the code does today; new code should look like the code around it.
 
 ### Output conventions
 
+* **Units:** a table column carries its unit in its header (`km`, not `5.5 km` on every row);
+  where a number stands in a sentence the unit is attached with no space, as in intervals
+  (`842.2km`, `4h41m`, `within 20km`).  Input never takes a unit for distance (decimal km), and
+  `m` always means minutes.
 * **Intervals of time** (`ui/interval.nim`, one rule for every listing, now and in future):
   units `d h m s`, no leading unit that is zero, the first unit unpadded and later ones two
   digits: `45s`, `22m05s`, `4h41m`, `2d03h07m`.  Seconds are shown under an hour; from an hour
@@ -410,8 +414,9 @@ what was kept.  What is printed is what is saved.
 4. [x] `--distance RANGE` and `--active RANGE` (`selection/ranges.nim`, pure): `a-b`, `a-`,
    `-b`, both ends inclusive, either end may be left out (not both), exactly one hyphen (so
    `1-2-3` and a bare `5` are errors with an example); a backwards range says so.  A distance
-   is always km, a decimal number (`5`, `2.5`, `0.5`, `5km`), digits and a dot only (not `1e3`); `m` is
-   never a distance, it is minutes (so `500m` is an error: write `0.5`); an active
+   is always km, a decimal number with no unit (`5`, `2.5`, `0.5`), digits and a dot only (not
+   `1e3`); `m` is never a distance, it is minutes (so `500m` and `5km` are errors: write `0.5`);
+   an active
    time is written as it is printed (`45s`, `22m`, `1h30m`, `2d`; units d h m s, largest first,
    each once, a unit on every number: `90` is an error).  Not recorded (NULL) is never in a
    range.  Applied before `--newest/--oldest`.  A value that starts with `-` is read as a

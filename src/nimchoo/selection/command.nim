@@ -192,7 +192,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines
     if found.isNone:
       raiseStore("`latest` is the newest activity that meets the other criteria, and none does")
     let (refId, ref0) = (found.get.id, found.get.row)
-    result.lines.add plain("latest: " & table(@[ref0], zone, false, false)[1].text.splitWhitespace.join(" "))
+    result.lines.add plain("latest: " & latestText(ref0, zone))
     if c.sportLatest: c.sports.add (if ref0.sport.len > 0: ref0.sport else: "none")
     if c.subSportLatest: c.subSports.add (if ref0.subSport.len > 0: ref0.subSport else: "none")
     if c.distanceLatest.isSome:
@@ -211,7 +211,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines
     result.lines.add plain("near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
       formatFloat(centre.get[1], ffDecimal, 4) &
       (if c.near == nkLatest: " (the centre of the latest activity)" else: "") &
-      ", within " & radiusText(c.radiusKm) & " km")
+      ", within " & radiusText(c.radiusKm) & "km")
   let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose))
   if c.save:
     st.begin()

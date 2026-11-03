@@ -2,10 +2,10 @@
 ## totals.  Pure (the time zone is a parameter, the rows are styled lines), so tests
 ## need no database or terminal.
 ##
-##     date        start  sport          distance    active
-##     2018-03-04  09:12  cycling/road   102.7 km     4h41m
-##     2018-07-26  17:40  cycling          5.5 km    22m05s
-##     2 activities, 108.2 km, 5h03m
+##     date        start  sport             km    active
+##     2018-03-04  09:12  cycling/road   102.7     4h41m
+##     2018-07-26  17:40  cycling          5.5    22m05s
+##     2 activities, 108.2km, 5h03m
 ##
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
@@ -35,29 +35,40 @@ func sportLabel*(r: ListRow): string =
   let sport = if r.sport.len > 0: r.sport else: "-"
   if r.subSport.len > 0 and r.subSport != "generic": sport & "/" & r.subSport else: sport
 
-func km*(metres: float): string =
-  ## "102.7 km", with commas from 1,000 km.
+func kmNumber*(metres: float): string =
+  ## "102.7": kilometres to a tenth, with commas from 1,000.  (The unit is in the header.)
   let tenths = int(round(metres / 100.0))
-  insertSep($(tenths div 10), ',') & "." & $(tenths mod 10) & " km"
+  insertSep($(tenths div 10), ',') & "." & $(tenths mod 10)
+
+func km*(metres: float): string =
+  ## "102.7km": for a sentence, where a bare number would not say what it is.  (No space,
+  ## as in 4h41m.)
+  kmNumber(metres) & "km"
 
 const transition = "transition"      ## the sport of the gaps between the legs of a triathlon
 
 proc rowCells(r: ListRow, zone: Timezone): seq[string] =
   let d = fromUnix(r.startT).inZone(zone)
   @[dateOf(d), clockOf(d), sportLabel(r),
-    if r.distanceM.isSome: km(r.distanceM.get) else: "-",
+    if r.distanceM.isSome: kmNumber(r.distanceM.get) else: "-",
     if r.activeS.isSome: interval(r.activeS.get) else: "-"]
 
 func isTransition(r: ListRow): bool = r.sport == transition
 
 func zeroDistance(r: ListRow): bool =
-  ## A distance that shows as "0.0 km" (under 50 m; not "not recorded"): often a stray
+  ## A distance that shows as "0.0" (under 50 m; not "not recorded"): often a stray
   ## recording, so the number is marked.  Not for transitions, which are like that.
   not r.isTransition and r.distanceM.isSome and r.distanceM.get < 50.0
 
 func zeroActive(r: ListRow): bool =
   ## ... and an active time under 30 s.
   not r.isTransition and r.activeS.isSome and r.activeS.get < 30.0
+
+proc latestText*(r: ListRow, zone: Timezone): string =
+  ## One activity in a sentence: "2019-05-21 14:04 running 0.0km 2s".
+  let c = rowCells(r, zone)
+  c[0] & " " & c[1] & " " & c[2] & " " &
+    (if r.distanceM.isSome: km(r.distanceM.get) else: "-") & " " & c[4]
 
 proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active
@@ -68,7 +79,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
   ## Looks: a transition row is dim all through; "-" (not recorded) is dim; a distance
   ## or an active time that shows as zero is yellow.
   if rows.len == 0: return
-  var header = @["date", "start", "sport", "distance", "active"]
+  var header = @["date", "start", "sport", "km", "active"]
   var cells: seq[seq[string]]
   for r in rows: cells.add rowCells(r, zone)
   if showUser:
@@ -102,7 +113,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
 func plural(n: int, one, many: string): string = $n & " " & (if n == 1: one else: many)
 
 func footer*(rows: seq[ListRow], choices = none(int)): string =
-  ## "42 of 310 activities, 2,013.4 km, 98:12 h (13 running, 2 swimming)": how many
+  ## "42 of 310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many
   ## (of how many there are to choose from, if known), the total distance and active
   ## time (of those that have them), and how many of each sport if there are several.
   var metres, seconds = 0.0

@@ -171,7 +171,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
         c.radiusKm = parseFloat(v)
       except ValueError:
         fail("cannot read the radius '" & v & "' (kilometres)")
-      if c.radiusKm <= 0: fail("the radius must be more than 0 km")
+      if c.radiusKm <= 0: fail("the radius must be more than 0km")
       radiusGiven = true
     else:
       fail("unexpected argument " & a)

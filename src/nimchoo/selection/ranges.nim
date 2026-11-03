@@ -2,8 +2,8 @@
 ## "around" ranges `42~2` (40 to 44), `2h~15m`, `latest~10%`, for distances and for active
 ## times.  Pure.
 ##
-## A distance is in kilometres, as a decimal number (`5`, `2.5`, `0.5`, `5km`; never `m`,
-## which means minutes).  A time is
+## A distance is in kilometres, as a decimal number (`5`, `2.5`, `0.5`; no unit, and never
+## `m`, which means minutes).  A time is
 ## written as the program prints it (see ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`,
 ## units d h m s, largest first, each at most once, with a unit on every number.
 ## Both ends of a range are inclusive, and either may be left out (not both).
@@ -32,11 +32,10 @@ type
 func isOpen*(r: NumRange): bool = r.lo.isNone and r.hi.isNone
 
 func parseDistance*(s: string): Option[float] =
-  ## "5", "2.5", "0.5", "5km" -> kilometres (a decimal number, no exponent).  Result in
-  ## metres.  There is no `m` suffix: `m` always means minutes, so a distance below a
-  ## kilometre is written 0.5.
-  var text = s.strip.toLowerAscii
-  if text.endsWith("km"): text = text[0 ..< text.len - 2]
+  ## "5", "2.5", "0.5" -> kilometres (a decimal number, no exponent, no unit).  Result in
+  ## metres.  There is no `m` suffix (`m` always means minutes) and no `km`: a distance
+  ## below a kilometre is written 0.5.
+  let text = s.strip.toLowerAscii
   if text.len == 0 or text[0] notin {'0' .. '9'}: return none(float)
   if text.anyIt(it notin {'0' .. '9', '.'}) or text.count('.') > 1: return none(float)   # (not 1e3)
   try:

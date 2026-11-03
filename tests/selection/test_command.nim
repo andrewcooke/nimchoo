@@ -346,10 +346,10 @@ suite "list: what is shown":
     let db = world("shown")
     let r = shown(db)
     check r.saved == -1
-    check r.lines.texts[0] == "date        start  sport          distance  active"
-    check r.lines.texts[1] == "2018-07-01  12:00  cycling/road    12.3 km   1h01m"
-    check r.lines.texts[2] == "2018-08-27  12:00  running/trail   12.3 km   1h01m"
-    check r.lines.texts[^1] == "2 of 2 activities, 24.7 km, 2h02m (1 cycling, 1 running)"
+    check r.lines.texts[0] == "date        start  sport            km  active"
+    check r.lines.texts[1] == "2018-07-01  12:00  cycling/road   12.3   1h01m"
+    check r.lines.texts[2] == "2018-08-27  12:00  running/trail  12.3   1h01m"
+    check r.lines.texts[^1] == "2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
   test "several users: a user column":
     let db = world("shownusers")
@@ -386,7 +386,7 @@ suite "list: what is shown":
   test "--near says where":
     let db = world("shownnear")
     let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
-    check r.lines.texts[0] == "near 38.7300,-9.1300, within 5 km"
+    check r.lines.texts[0] == "near 38.7300,-9.1300, within 5km"
     check r.lines.texts[^1].startsWith("2 of 3 activities")
 
   test "saving is logged":
