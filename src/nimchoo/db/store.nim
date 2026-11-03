@@ -59,16 +59,18 @@ proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
   guard:
     db.exec(sql"pragma trusted_schema = 1")
 
-proc recorded(db: DbConn): seq[string] {.raises: [StoreError].} =
-  ## The fragments the database says it has had.
-  guard:
-    for row in db.fastRows(sql"select name from fragment order by name"):
-      result.add row[0]
+const outOfDate = "; it cannot be updated: run `nch destroy -f` and import again"
 
-proc record(db: DbConn, name: string) {.raises: [StoreError].} =
+proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
+  ## The fragments the database says it has had, each with the checksum of its SQL.
   guard:
-    db.exec(sql"insert into fragment(name, applied_at) values (?, ?)",
-            name, getTime().toUnix)
+    for row in db.fastRows(sql"select name, sha256 from fragment order by name"):
+      result.add (row[0], row[1])
+
+proc record(db: DbConn, f: Fragment) {.raises: [StoreError].} =
+  guard:
+    db.exec(sql"insert into fragment(name, applied_at, sha256) values (?, ?, ?)",
+            f.name, getTime().toUnix, f.checksum)
 
 proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   ## Run a fragment and record it, as one transaction.
@@ -77,7 +79,7 @@ proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   try:
     execScript(db, f.sql)
     if not f.seed.isNil: f.seed(db)
-    record(db, f.name)
+    record(db, f)
     guard: db.exec(sql"commit")
     done = true
   except StoreError as e:
@@ -93,14 +95,23 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
   guard:
     db.exec(sql"""create table if not exists fragment (
                     name text primary key,
-                    applied_at integer not null) without rowid""")
+                    applied_at integer not null,
+                    sha256 text not null) without rowid""")
+    # a database made before checksums were recorded has no such column
+    var columns: seq[string]
+    for row in db.fastRows(sql"pragma table_info(fragment)"): columns.add row[1]
+    if "sha256" notin columns:
+      raiseStore("the database was made by an older version of nch" & outOfDate)
   let have = recorded(db)
-  for name in have:
-    if all.allIt(it.name != name):
-      raiseStore("the database is from a newer version of nch (it has '" &
-                 name & "')")
+  for (name, sum) in have:
+    let known = all.filterIt(it.name == name)
+    if known.len == 0:
+      raiseStore("the database is from a newer version of nch (it has '" & name & "')")
+    if known[0].checksum != sum:
+      raiseStore("the database was made by a different version of nch (its '" & name &
+                 "' is not the one this version has)" & outOfDate)
   for f in all:
-    if f.name notin have: apply(db, f)
+    if have.allIt(it[0] != f.name): apply(db, f)
 
 proc close*(s: Store) {.raises: [].} =
   try: db_sqlite.close(s.db)

@@ -52,6 +52,51 @@ suite "database: opening and bringing the schema up to date":
                      "selection/001-schema.sql"]
     s.close()
 
+  test "each fragment is recorded with the checksum of its SQL":
+    let path = tempDb("checksums")
+    let one = frag("m/001.sql", "create table t(x integer);")
+    openStore(path, @[one]).close()
+    let s = openStore(path, @[one])
+    defer: s.close()
+    check s.db.getValue(sql"select sha256 from fragment where name = 'm/001.sql'") == one.checksum
+    check one.checksum.len == 64
+    check one.checksum != frag("m/001.sql", "create table t(x integer); ").checksum   # (any change)
+    check one.checksum == frag("other/name.sql", "create table t(x integer);").checksum  # (only the SQL counts)
+
+  test "a database made from different SQL is refused, and told to start again":
+    let path = tempDb("changed")
+    openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
+    try:
+      openStore(path, @[frag("m/001.sql", "create table t(x integer, y integer);")]).close()
+      check false
+    except StoreError as e:
+      check "different version of nch" in e.msg
+      check "m/001.sql" in e.msg
+      check "nch destroy -f" in e.msg
+    # and the unchanged one is fine
+    openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
+
+  test "a database made before checksums were recorded is refused the same way":
+    let path = tempDb("nochecksums")
+    let old = db_sqlite.open(path, "", "", "")
+    old.exec(sql"create table fragment (name text primary key, applied_at integer not null) without rowid")
+    old.exec(sql"insert into fragment(name, applied_at) values ('db/001-schema.sql', 0)")
+    old.close()
+    try:
+      openStore(path, allFragments).close()
+      check false
+    except StoreError as e:
+      check "older version of nch" in e.msg
+      check "nch destroy -f" in e.msg
+
+  test "a changed fragment that has a seed is noticed too":
+    let path = tempDb("changedseeded")
+    seedRuns = 0
+    openStore(path, @[frag("m/001.sql", "create table t(x integer);").withSeed(putSeven)]).close()
+    expect StoreError:
+      openStore(path, @[frag("m/001.sql", "create table t(x integer, z integer);").withSeed(putSeven)]).close()
+    check seedRuns == 1                                       # (not seeded again)
+
   test "opening again changes nothing":
     let path = tempDb("again")
     let a = open(path)
@@ -95,7 +140,7 @@ suite "database: opening and bringing the schema up to date":
   test "a database with a fragment this build does not have is refused":
     let path = tempDb("newer")
     let a = open(path)
-    a.db.exec(sql"insert into fragment(name, applied_at) values ('future/001-x.sql', 0)")
+    a.db.exec(sql"insert into fragment(name, applied_at, sha256) values ('future/001-x.sql', 0, 'x')")
     a.close()
     expect StoreError:
       discard open(path)
