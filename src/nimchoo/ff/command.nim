@@ -2,14 +2,14 @@
 ## standard output for plotting elsewhere: one row per day (the value at the end of the day,
 ## in the computer's timezone), or per hour.
 ##
-## This module is newer than `model`: it reads the impulses.
+## This module is newer than `model`: it works out the impulses that are lacking, and reads them.
 
 import std/[math, options, strutils, times]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
-import ../model/[calc, models]
+import ../model/[calc, impulses, models]
 import ./[curve, params]
 
 {.push raises: [].}
@@ -95,10 +95,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let name = if p.model.len > 0: p.model else: "default"
     let m = findModel(st.db, name)
     if m.isNone: return failure("nch ff", "no such model: " & name & " (see `nch model`)")
+    if fthrOf(st.db, st.userId).isNone:
+      return failure("nch ff", st.userName & " has no FTHR, which the impulses are worked out from " &
+                     "(see `nch user --fthr`)")
+    st.begin()                                  # (the impulses that are lacking are worked out now)
+    var committed = false
+    try:
+      discard calculateMissing(st.db, st.userId, m.get)
+      st.commit()
+      committed = true
+    finally:
+      if not committed: st.rollback()
     let impulses = hourlyImpulses(st.db, st.userId, m.get.id)
     if impulses.len == 0:
-      return failure("nch ff", "there are no impulses for " & st.userName & " (they need an FTHR, " &
-                     "see `nch user --fthr`, and activities with heart rate)")
+      return failure("nch ff", "there are no impulses for " & st.userName &
+                     " (they need activities with heart rate: import some)")
     stdout.say "time,fitness,fatigue\n"
     for l in rows(impulses, m.get, p, getTime().toUnix, if p.utc: utc() else: local()): stdout.say l & "\n"
     exitOk

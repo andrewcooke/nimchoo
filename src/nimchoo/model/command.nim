@@ -1,16 +1,13 @@
 ## `nch model`: the models, the named sets of variables of the training-impulse calculation
 ## (see calc.nim), and the making of new ones.  Models belong to no user.  The impulses of a
-## model are worked out for every activity with heart rate whose user has a threshold heart
-## rate, when the model is added.
+## model are worked out when they are wanted (see `nch ff`), not when the model is added.
 ##
-## This module is newer than `heartrate` and `user`: it reads their tables.
-
 import std/[options, strutils]
 import ../cli/common
 import ../db/store
 import ../errors
 import ../ui/logfile
-import ./[calc, impulses, models, params]
+import ./[calc, models, params]
 
 {.push raises: [].}
 
@@ -83,20 +80,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     if findModel(st.db, p.model.name).isSome:
       return failure("nch model", "there is a model called '" & p.model.name & "' already")
-    var done: Calculated
-    st.begin()
-    var committed = false
-    try:
-      insertModel(st.db, p.model)
-      done = calculateAllMissing(st.db)
-      st.commit()
-      committed = true
-    finally:
-      if not committed: st.rollback()
-    var said = "made the model " & p.model.name
-    if done.hours > 0:
-      said.add ", with impulses for " & $done.activities &
-        (if done.activities == 1: " activity" else: " activities")
+    insertModel(st.db, p.model)
+    let said = "made the model " & p.model.name
     g.log.log(lvInfo, "model", leSaved, said)
     stdout.say said & "\n"
     exitOk

@@ -122,11 +122,15 @@ suite "nch ff":
     let g = Globals(dbPath: path, fragments: allFragments, importSteps: allImportSteps)
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure       # nothing yet
     let s = store.openStore(path, allFragments)
-    s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
     var ws: seq[Warning]
     discard s.importFile(loadProfile("../choochoo/data/sdk/Profile.xlsx"), "r.fit",
                          readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"), ws, allImportSteps)
+    check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure       # (no FTHR: refused, with a reason)
+    s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
     s.close()
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitOk
+    let t = store.openStore(path, allFragments)
+    check t.db.getValue(sql"select count(*) from impulse") == "2"       # (worked out by the command)
+    t.close()
     check ffCommand.run(g, @["--model", "nope"]) == exitFailure
     check ffCommand.run(g, @["--to", "x"]) == exitUsage

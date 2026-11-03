@@ -481,13 +481,15 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   boundaries, nothing across a gap over `max_secs`, hours covered with no impulse stored as 0).
   `bucketSeconds` (3600) is a constant.  On the 2018-08-27 ride it gives 72.44 against 72.53 for a
   replica of the Python's 10-second grid (0.1%).
-* **When impulses are made:** at import (the `impulseStep` import step, after the heart-rate step; only
-  if the user has an FTHR), by `nch user --fthr` (for what is lacking, after the trigger has cleared
-  the old ones, in one transaction), and by `nch model --add` (for every user with an FTHR).
-  `calculateMissing` finds the activities with heart rate and no impulses for a model.
+* **When impulses are made (changed 2026-11-03 after import proved slower; first built eagerly):**
+  only when wanted, by `nch ff`, and only for the model it uses.  Import stores the heart rate and
+  nothing else; `nch user --fthr` and `nch model --add` work nothing out.  `calculateMissing(db, user,
+  model)` finds the activities with heart rate and no impulses for that model and fills them in (in one
+  transaction), so the first `nch ff` after an import is the slow one.  A changed (or cleared) FTHR
+  deletes all of that user's impulses by the trigger, and `nch user` says so.
 * **`nch model`** lists the models; `nch model --add NAME [--gamma --zero --one --max-secs --zones
   A,B,C,D,E --fitness-days --fatigue-days]` adds one (variables not given are the default's).
-  There is no delete yet.  `nch user --fthr` says if impulses were worked out or deleted.
+  There is no delete yet.  `nch user --fthr` says if impulses were deleted.
 * **Help:** `nch help` no longer repeats "(see `nch X --help`)" for each command: one line at the end.
 * The schema changed: `nch destroy -f` and a re-import (the same one as for steps 1-2).
 
@@ -506,7 +508,7 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
   last whole hour ending before its midnight (in a half-hour zone such as India's, the hour ending half
   an hour early: under half an hour of decay).
   `--to` defaults to today, so the curves fade out after the last activity.  The scales default to 1
-  (the original used 1 and 5).  An error if the user has no impulses, saying how to get them.
+  (the original used 1 and 5).  It works out the impulses that are lacking first (see above); an error if the user has no FTHR, or no activity with heart rate, saying what to do.
 * Not done: writing the file into the cache directory (the display layers), or a form column
   (fitness minus fatigue): both are easy to add when the plotting is decided.
 * Not compared with the Python's output directly (no pandas here); the recurrence is the same as its

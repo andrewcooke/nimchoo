@@ -49,7 +49,7 @@ suite "heartrate: import":
     var ws: seq[Warning]
     let r = s.imp(hand, ws)
     check r.activities == 1
-    check r.extras.len == 2 and r.extras[0].n == 2
+    check r.extras.len == 1 and r.extras[0].n == 2
     check s.db.getValue(sql"select group_concat((t - 1531065600) || ':' || bpm) from (select * from heartrate order by t)") ==
       "0:100,3:130"
 

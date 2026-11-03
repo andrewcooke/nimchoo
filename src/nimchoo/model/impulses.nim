@@ -1,24 +1,20 @@
 ## Working out and storing the impulses of activities (calc.nim does the arithmetic).
 ##
 ## An activity has impulses for a model if it has heart rate and its user has a threshold
-## heart rate.  The impulses are worked out when the activity is imported, when a user
-## gets a threshold heart rate, and when a model is added: `calculateMissing` finds what is
-## lacking.  (A change of the threshold heart rate deletes the user's impulses: see the
+## heart rate.  They are worked out only when wanted (by `nch ff`): `calculateMissing` finds
+## what is lacking.  (A change of the threshold heart rate deletes the user's impulses: see the
 ## trigger in 001-schema.sql.)
 
 import std/[options, strutils]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
-import ./[calc, models]
+import ./calc
 
 {.push raises: [].}
 
 type Calculated* = object
   activities*, hours*: int      ## activities worked out, impulse rows written
-
-func plus*(a, b: Calculated): Calculated =
-  Calculated(activities: a.activities + b.activities, hours: a.hours + b.hours)
 
 proc readings(db: DbConn, activityId: int64): seq[(int64, int)] {.raises: [StoreError].} =
   guard:
@@ -64,26 +60,13 @@ proc missing(db: DbConn, userId: int64, modelId: int64): seq[int64] {.raises: [S
       try: result.add parseBiggestInt(r[0])
       except ValueError: raiseStore("bad activity id")
 
-proc calculateMissing*(db: DbConn, userId: int64): Calculated {.raises: [StoreError].} =
-  ## Work out the impulses the user's activities lack, for every model.  Nothing if the user
-  ## has no threshold heart rate.  (An activity whose heart rate yields no hour at all is tried
-  ## again each time; that costs little.)
+proc calculateMissing*(db: DbConn, userId: int64, m: Model): Calculated {.raises: [StoreError].} =
+  ## Work out the impulses the user's activities lack for a model.  Nothing if the user has no
+  ## threshold heart rate.  (An activity whose heart rate yields no hour at all is tried again
+  ## each time; that costs little.)  Called when impulses are wanted, by the commands that show them.
   let fthr = fthrOf(db, userId)
   if fthr.isNone: return
-  let ms = loadModels(db)
-  var done: seq[int64]
-  for m in ms:
-    for id in missing(db, userId, m.id):
-      let n = calculateActivity(db, id, fthr.get, m)
-      result.hours += n
-      if n > 0 and id notin done: done.add id
-  result.activities = done.len
-
-proc calculateAllMissing*(db: DbConn): Calculated {.raises: [StoreError].} =
-  ## `calculateMissing` for every user (after a model is added).
-  var users: seq[int64]
-  guard:
-    for r in db.fastRows(sql"select id from user order by id"):
-      try: users.add parseBiggestInt(r[0])
-      except ValueError: raiseStore("bad user id")
-  for u in users: result = plus(result, calculateMissing(db, u))
+  for id in missing(db, userId, m.id):
+    let n = calculateActivity(db, id, fthr.get, m)
+    result.hours += n
+    if n > 0: inc result.activities
