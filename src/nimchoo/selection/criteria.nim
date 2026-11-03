@@ -12,7 +12,7 @@ type
   Criteria* = object
     show*: bool               ## --show: the stored selection, no criteria
     save*: bool               ## --save: keep what is listed as the selection
-    files*: bool              ## --file: show the file of each activity (a display option)
+    verbose*: bool            ## -v: show more of each activity (a display option)
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
@@ -67,8 +67,8 @@ func parseLatLon*(s: string): Option[(float, float)] =
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## The command line of `nch list`.  Options with values: `--users A B C`, `--sport A B`, `--sub-sport A B` (names up to
   ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
-  ## `--newest N`, `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
-  ## `--show` (which takes no criteria), and `--file` (what to display).
+  ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
+  ## `--show` (which takes no criteria), and `-v`/`--verbose` (what to display).
   var c = Criteria(radiusKm: defaultRadiusKm)
   var radiusGiven = false
   var criteriaGiven = false
@@ -82,14 +82,14 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     args[i]
   while i < args.len:
     let a = args[i]
-    if a notin ["-h", "--help", "--save", "--show", "--file"]: criteriaGiven = true
+    if a notin ["-h", "--help", "--save", "--show", "-v", "--verbose"]: criteriaGiven = true
     case a
     of "-h", "--help": result.help = true
     of "--save": c.save = true
-    of "--file": c.files = true
+    of "-v", "--verbose": c.verbose = true
     of "--show": c.show = true
     of "--latest": c.newest = 1
-    of "--newest", "--oldest":
+    of "--newest", "-n", "--oldest":
       let v = value(a)
       var n = 0
       try:
@@ -97,7 +97,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       except ValueError:
         discard
       if n < 1: fail(a & " needs a number of activities, 1 or more (not '" & v & "')")
-      if a == "--newest": c.newest = n else: c.oldest = n
+      if a == "--oldest": c.oldest = n else: c.newest = n
     of "--users", "--sport", "--sub-sport":
       var names: seq[string]
       inc i

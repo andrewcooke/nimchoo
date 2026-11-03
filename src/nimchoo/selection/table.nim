@@ -1,15 +1,17 @@
 ## The listing `nch list` prints: a row for each activity and a last line with the
-## totals.  Pure (the time zone is a parameter), so tests need no database.
+## totals.  Pure (the time zone is a parameter, the rows are styled lines), so tests
+## need no database or terminal.
 ##
-##     date        start  sport          distance   active
-##     2018-03-04  09:12  cycling/road   102.7 km   4:41
-##     2018-07-26  17:40  cycling          5.5 km   0:22
-##     2 activities, 108.2 km, 5:03 h
+##     date        start  sport          distance    active
+##     2018-03-04  09:12  cycling/road   102.7 km     4h41m
+##     2018-07-26  17:40  cycling          5.5 km    22m05s
+##     2 activities, 108.2 km, 5h03m
 ##
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
 
 import std/[algorithm, math, options, strutils, tables, times]
+import ../ui/[interval, style]
 
 {.push raises: [].}
 
@@ -18,7 +20,8 @@ type
     startT*: int64                ## Unix seconds, UTC
     sport*, subSport*: string     ## "" if not recorded
     distanceM*, activeS*: Option[float]
-    file*, user*: string
+    file*, user*: string          ## the file's name; who it belongs to
+    path*: string                 ## where the file was imported from (its name if not known)
 
 func dateOf(d: DateTime): string =
   d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
@@ -37,21 +40,33 @@ func km*(metres: float): string =
   let tenths = int(round(metres / 100.0))
   insertSep($(tenths div 10), ',') & "." & $(tenths mod 10) & " km"
 
-func hours*(seconds: float): string =
-  ## "4:41": hours and minutes, rounded to the minute; "98:12" is more than a day.
-  let minutes = int(round(seconds / 60.0))
-  $(minutes div 60) & ":" & intToStr(minutes mod 60, 2)
+const transition = "transition"      ## the sport of the gaps between the legs of a triathlon
 
 proc rowCells(r: ListRow, zone: Timezone): seq[string] =
   let d = fromUnix(r.startT).inZone(zone)
   @[dateOf(d), clockOf(d), sportLabel(r),
     if r.distanceM.isSome: km(r.distanceM.get) else: "-",
-    if r.activeS.isSome: hours(r.activeS.get) else: "-"]
+    if r.activeS.isSome: interval(r.activeS.get) else: "-"]
 
-proc table*(rows: seq[ListRow], zone: Timezone, showFile, showUser: bool): seq[string] =
+func isTransition(r: ListRow): bool = r.sport == transition
+
+func zeroDistance(r: ListRow): bool =
+  ## A distance that shows as "0.0 km" (under 50 m; not "not recorded"): often a stray
+  ## recording, so the number is marked.  Not for transitions, which are like that.
+  not r.isTransition and r.distanceM.isSome and r.distanceM.get < 50.0
+
+func zeroActive(r: ListRow): bool =
+  ## ... and an active time under 30 s.
+  not r.isTransition and r.activeS.isSome and r.activeS.get < 30.0
+
+proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active
-  ## right-aligned).  A `user` column if `showUser`, a `file` column at the end if
-  ## `showFile`.  No lines at all if there are no rows.
+  ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `file`
+  ## column at the end with the path the file was imported from.  No lines at all if
+  ## there are no rows.
+  ##
+  ## Looks: a transition row is dim all through; "-" (not recorded) is dim; a distance
+  ## or an active time that shows as zero is yellow.
   if rows.len == 0: return
   var header = @["date", "start", "sport", "distance", "active"]
   var cells: seq[seq[string]]
@@ -59,24 +74,30 @@ proc table*(rows: seq[ListRow], zone: Timezone, showFile, showUser: bool): seq[s
   if showUser:
     header.insert("user", 2)
     for i, r in rows: cells[i].insert(r.user, 2)
-  if showFile:
+  if verbose:
     header.add "file"
-    for i, r in rows: cells[i].add r.file
-  let right = if showUser: {4, 5} else: {3, 4}      # the columns of numbers
+    for i, r in rows: cells[i].add r.path
+  let first = if showUser: 4 else: 3                  # the first number column
   var widths = newSeq[int](header.len)
   for c in 0 ..< header.len:
     widths[c] = header[c].len
     for row in cells: widths[c] = max(widths[c], row[c].len)
-  proc line(row: seq[string]): string =
-    var parts: seq[string]
+  proc padded(text: string, c: int): string =
+    if c in {first, first + 1}: text.align(widths[c])
+    elif c == header.len - 1: text
+    else: text.alignLeft(widths[c])
+  proc line(row: seq[string], r: Option[ListRow]): Line =
     for c in 0 ..< row.len:
-      let last = c == row.len - 1
-      parts.add (if c in right: row[c].align(widths[c])
-                 elif last: row[c]
-                 else: row[c].alignLeft(widths[c]))
-    parts.join("  ")
-  result.add line(header)
-  for row in cells: result.add line(row)
+      if c > 0: result.add span("  ")
+      var look = Look()
+      if r.isSome:
+        if r.get.isTransition: look.dim = true
+        elif row[c] == "-": look.dim = true
+        elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
+          look.fg = cYellow
+      result.add Span(text: padded(row[c], c), look: look)
+  result.add line(header, none(ListRow))
+  for i, row in cells: result.add line(row, some(rows[i]))
 
 func plural(n: int, one, many: string): string = $n & " " & (if n == 1: one else: many)
 
@@ -93,7 +114,7 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
   result = $rows.len & (if choices.isSome: " of " & $choices.get else: "") &
     (if rows.len == 1 and choices.isNone: " activity" else: " activities")
   if rows.len == 0: return
-  result.add ", " & km(metres) & ", " & hours(seconds) & " h"
+  result.add ", " & km(metres) & ", " & interval(seconds)
   if bySport.len > 1:
     var parts: seq[(string, int)]
     for k, v in bySport: parts.add (k, v)

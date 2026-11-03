@@ -112,6 +112,11 @@ proc canLive*(): bool =
   ## Whether a live display makes sense: stderr is a terminal that is not "dumb".
   isatty(stderr) and getEnv("TERM") != "dumb"
 
+proc canColourStdout*(): bool =
+  ## Whether to colour what goes to stdout: it is a terminal that is not "dumb",
+  ## and NO_COLOR (no-color.org) is not set.
+  isatty(stdout) and getEnv("TERM") != "dumb" and getEnv("NO_COLOR").len == 0
+
 proc canColour*(): bool =
   ## Whether to use colours: a live display, and NO_COLOR (no-color.org) unset.
   canLive() and getEnv("NO_COLOR").len == 0

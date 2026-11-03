@@ -12,7 +12,7 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
-import ../ui/logfile
+import ../ui/[live, logfile, style, vocabulary]
 import ./[criteria, table]
 
 {.push raises: [].}
@@ -37,11 +37,12 @@ last one).  Criteria are combined with "and".
   --near latest      ... of the centre of the latest activity of the users
   --radius KM        radius for --near in kilometres (default: 100); on its own it
                      means --near latest
-  --newest N         only the N newest of the activities that meet the other criteria
+  -n, --newest N     only the N newest of the activities that meet the other criteria
   --oldest N         only the N oldest of them
   --latest           the same as --newest 1
   --save             make what is listed the selection
   --show             show the selection (no criteria allowed)
+  -v, --verbose      show more of each activity
   -h, --help         show this help
 """
 
@@ -106,15 +107,19 @@ proc checkNames(st: Store, what, column, idList: string, wanted: seq[string])
       raiseStore("no activity of those users has the " & what & " '" & w & "' (they have: " &
         (if shown.len > 0: shown.join(", ") else: "no activities") & ")")
 
-const
-  rowColumns = "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
+func rowColumns(verbose: bool): string =
+  ## What a row of the listing is made of (see table.nim); not recorded: -1 and ''.
+  ## The path of the file (for `verbose`) is where it was last seen, else its name.
+  "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
     "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
     "coalesce(a.timer_s, -1) as active, f.name as file, " &
-    "(select name from user where id = f.user_id) as user"
-    ## what a row of the listing is made of (see table.nim); not recorded: -1 and ''
+    "(select name from user where id = f.user_id) as user, " &
+    (if verbose:
+       "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path"
+     else: "f.name as path")
 
 proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
-  ## The rows a query gives (start_t, sport, sub, dist, active, file, user), as listed.
+  ## The rows a query gives (start_t, sport, sub, dist, active, file, user, path), as listed.
   guard:
     for r in st.db.fastRows(sql(query)):
       try:
@@ -123,28 +128,28 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
         result.add ListRow(startT: parseBiggestInt(r[0]), sport: r[1], subSport: r[2],
                            distanceM: if dist >= 0: some(dist) else: none(float),
                            activeS: if active >= 0: some(active) else: none(float),
-                           file: r[5], user: r[6])
+                           file: r[5], user: r[6], path: r[7])
       except ValueError:
         raiseStore("bad number from the database")
 
 func moreThanOneUser(rows: seq[ListRow]): bool =
   rows.anyIt(it.user != rows[0].user)
 
-proc listing(rows: seq[ListRow], zone: Timezone, showFile: bool, choices: Option[int]): seq[string] =
+proc listing(rows: seq[ListRow], zone: Timezone, verbose: bool, choices: Option[int]): seq[Line] =
   ## The table and its last line.
-  result = table(rows, zone, showFile, rows.len > 0 and moreThanOneUser(rows))
-  result.add footer(rows, choices)
+  result = table(rows, zone, rows.len > 0 and moreThanOneUser(rows), verbose)
+  result.add plain(footer(rows, choices))
 
-proc showSelection*(st: Store, c: Criteria, zone: Timezone): seq[string]
+proc showSelection*(st: Store, c: Criteria, zone: Timezone): seq[Line]
     {.raises: [StoreError].} =
   ## The stored selection of the store's user, as a listing.
-  let rows = readRows(st, "select " & rowColumns & " from selection s join activity a on " &
+  let rows = readRows(st, "select " & rowColumns(c.verbose) & " from selection s join activity a on " &
     "a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId &
     " order by a.start_t, a.id")
-  if rows.len == 0: return @["selection: empty"]
-  listing(rows, zone, c.files, none(int))
+  if rows.len == 0: return @[plain("selection: empty")]
+  listing(rows, zone, c.verbose, none(int))
 
-proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[string], saved: int]
+proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[Line], saved: int]
     {.raises: [StoreError].} =
   ## List the activities that meet the criteria (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
@@ -165,17 +170,17 @@ proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[s
   of nkNone: discard
   of nkPoint:
     centre = some((c.lat, c.lon))
-    result.lines.add "near " & formatFloat(c.lat, ffDecimal, 4) & "," &
-      formatFloat(c.lon, ffDecimal, 4) & ", within " & radiusText(c.radiusKm) & " km"
+    result.lines.add plain("near " & formatFloat(c.lat, ffDecimal, 4) & "," &
+      formatFloat(c.lon, ffDecimal, 4) & ", within " & radiusText(c.radiusKm) & " km")
   of nkLatest:
     let l = latestCentre(st, idList)
     if l.centre.isNone:
       raiseStore("--near latest: the users have no activity with a position")
     centre = l.centre
-    result.lines.add "near " & formatFloat(l.centre.get[0], ffDecimal, 4) & "," &
+    result.lines.add plain("near " & formatFloat(l.centre.get[0], ffDecimal, 4) & "," &
       formatFloat(l.centre.get[1], ffDecimal, 4) & " (the centre of the latest activity, " &
-      l.day & "), within " & radiusText(c.radiusKm) & " km"
-  let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns)
+      l.day & "), within " & radiusText(c.radiusKm) & " km")
+  let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose))
   if c.save:
     st.begin()
     var committed = false
@@ -187,15 +192,15 @@ proc listActivities*(st: Store, c: Criteria, zone: Timezone): tuple[lines: seq[s
       committed = true
     finally:
       if not committed: st.rollback()
-  let rows = readRows(st, "select start_t, sport, sub, dist, active, file, user from (" &
+  let rows = readRows(st, "select start_t, sport, sub, dist, active, file, user, path from (" &
     match & ") order by start_t, id")
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
-  result.lines.add listing(rows, zone, c.files, some(total))
+  result.lines.add listing(rows, zone, c.verbose, some(total))
   result.saved = if c.save: rows.len else: -1
   if c.save:
-    result.lines.add "saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
-      " as the selection"
+    result.lines.add @[span("saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
+      " as the selection", leSaved)]
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch list ARGS`; returns the exit status.
@@ -213,7 +218,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch list", e.msg)
   defer: st.close()
   try:
-    var lines: seq[string]
+    var lines: seq[Line]
     if parsed.criteria.show:
       lines = showSelection(st, parsed.criteria, zone)
     else:
@@ -221,7 +226,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       lines = r.lines
       if r.saved >= 0:
         g.log.log(lvInfo, "list", leSaved, $r.saved & (if r.saved == 1: " activity" else: " activities"))
-    for l in lines: stdout.say l & "\n"
+    let colour = canColourStdout()
+    for l in lines: stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError as e:
     failure("nch list", e.msg)

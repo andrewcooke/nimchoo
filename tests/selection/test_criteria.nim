@@ -65,10 +65,16 @@ suite "list: the command line":
     check cmdline("--sport").problem.contains("at least one name")
     check cmdline("--sub-sport", "--save").problem.contains("at least one name")
     check cmdline("--users", "Bob").criteria.users == @["Bob"]       # (names of users keep their case)
-  test "--file is a display option, not a criterion":
-    check cmdline("--file").criteria.files
-    check cmdline("--show", "--file").problem == ""
-    check cmdline("--show", "--file").criteria.show
+  test "-v is a display option, not a criterion; --file is gone":
+    check cmdline("-v").criteria.verbose and cmdline("--verbose").criteria.verbose
+    check cmdline("--show", "-v").problem == ""
+    check cmdline("--show", "--verbose").criteria.show
+    check cmdline("--file").problem.contains("unexpected")
+  test "-n is --newest":
+    check cmdline("-n", "3").criteria.newest == 3
+    check cmdline("-n", "0").problem.contains("number of activities")
+    check cmdline("-n").problem.contains("needs a value")
+    check cmdline("-n", "2", "--oldest", "2").problem.contains("together")
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
   test "--show takes no criteria, and cannot be saved":

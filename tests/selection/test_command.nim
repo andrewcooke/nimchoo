@@ -5,7 +5,7 @@ import nimchoo/db/store
 import nimchoo/modules
 import nimchoo/selection/command as listCommand
 import nimchoo/selection/criteria
-import nimchoo/ui/logfile
+import nimchoo/ui/[logfile, style, vocabulary]
 
 let dir = getTempDir() / "nch-test-select"
 
@@ -218,58 +218,62 @@ suite "list: the command":
     check chosen(db) == @["lisbon1", "paris"]
 
 suite "list: what is shown":
-  proc shown(db: string, args: varargs[string]): tuple[lines: seq[string], saved: int] =
+  proc shown(db: string, args: varargs[string]): tuple[lines: seq[Line], saved: int] =
     let st = openStore(db, allFragments)
     defer: st.close()
     let p = parseArgs(@args, utc())
     doAssert p.problem == "", p.problem
     listActivities(st, p.criteria, utc())
 
+  func texts(ls: seq[Line]): seq[string] =
+    for l in ls: result.add l.text
+
   test "a table of the activities, oldest first, with a last line":
     let db = world("shown")
     let r = shown(db)
     check r.saved == -1
-    check r.lines[0] == "date        start  sport          distance  active"
-    check r.lines[1] == "2018-07-01  12:00  cycling/road    12.3 km    1:01"
-    check r.lines[2] == "2018-08-27  12:00  running/trail   12.3 km    1:01"
-    check r.lines[^1] == "2 of 2 activities, 24.7 km, 2:02 h (1 cycling, 1 running)"
+    check r.lines.texts[0] == "date        start  sport          distance  active"
+    check r.lines.texts[1] == "2018-07-01  12:00  cycling/road    12.3 km   1h01m"
+    check r.lines.texts[2] == "2018-08-27  12:00  running/trail   12.3 km   1h01m"
+    check r.lines.texts[^1] == "2 of 2 activities, 24.7 km, 2h02m (1 cycling, 1 running)"
 
   test "several users: a user column":
     let db = world("shownusers")
     let r = shown(db, "--users", "default", "bob")
-    check r.lines[0].startsWith("date        start  user")
-    check r.lines[^1].startsWith("3 of 3 activities")
+    check r.lines.texts[0].startsWith("date        start  user")
+    check r.lines.texts[^1].startsWith("3 of 3 activities")
     check r.lines.len == 5                           # header, three rows, the last line
 
-  test "--file adds the file":
+  test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")
-    let r = shown(db, "--file", "--newest", "1")
-    check r.lines[0].endsWith("file")
-    check r.lines[1].endsWith("paris")
+    let r = shown(db, "-v", "-n", "1")
+    check r.lines.texts[0].endsWith("file")
+    check r.lines.texts[1].endsWith("paris")
 
   test "saving says so, and --show shows what was saved":
     let db = world("shownsave")
     let r = shown(db, "--newest", "1", "--save")
     check r.saved == 1
-    check r.lines[^1] == "saved 1 activity as the selection"
+    check r.lines.texts[^1] == "saved 1 activity as the selection"
+    check r.lines[^1][0].look == look(leSaved)           # green, like the log event
     let st = openStore(db, allFragments)
     defer: st.close()
     let again = showSelection(st, Criteria(), utc())
-    check again[1].startsWith("2018-08-27  12:00  running/trail")
-    check again[^1].startsWith("1 activity,")        # (no "of": nothing was chosen from)
+    check again.texts[1].startsWith("2018-08-27  12:00  running/trail")
+    check again.texts[^1].startsWith("1 activity,")        # (no "of": nothing was chosen from)
 
   test "an empty selection, and a list with nothing in it":
     let db = world("shownempty")
     let st = openStore(db, allFragments)
     defer: st.close()
-    check showSelection(st, Criteria(), utc()) == @["selection: empty"]
-    check shown(db, "--from", "2030-01-01").lines == @["0 of 2 activities"]
+    check showSelection(st, Criteria(), utc()).texts == @["selection: empty"]
+    check shown(db, "--from", "2030-01-01").lines.texts == @["0 of 2 activities"]
 
   test "--near says where":
     let db = world("shownnear")
     let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "5")
-    check r.lines[0] == "near 38.7300,-9.1300, within 5 km"
-    check r.lines[^1].startsWith("2 of 3 activities")
+    check r.lines.texts[0] == "near 38.7300,-9.1300, within 5 km"
+    check r.lines.texts[^1].startsWith("2 of 3 activities")
 
   test "saving is logged":
     let db = world("shownlog")

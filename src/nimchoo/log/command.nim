@@ -4,16 +4,15 @@
 ## knows them only by name (the log's command column).
 
 import std/[options, os, sequtils, strutils]
-from std/terminal import isatty
 import ../cli/common
-import ../ui/[logfile, style, vocabulary]
+import ../ui/[live, logfile, style, vocabulary]
 import ./lines
 
 {.push raises: [].}
 
 const usage* = """usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]
 
-Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, select,
+Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, list,
 destroy ...) shows the lines of those commands, an EVENT (failed, advisory,
 duplicate ...) shows those events; both together show the events of those
 commands.  Several of one kind mean "any of them".  With no names, everything.
@@ -89,10 +88,6 @@ proc show*(path: string, f: Filter, colour: bool): tuple[lines: seq[string], pro
     return
   for l in s.lines: result.lines.add render(styled(l), colour)
 
-proc stdoutColour(): bool =
-  ## Colour only on a terminal that is not "dumb", and if NO_COLOR is not set.
-  isatty(stdout) and getEnv("TERM") != "dumb" and getEnv("NO_COLOR").len == 0
-
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch log ARGS`; returns the exit status.
   let p = parseArgs(args)
@@ -104,7 +99,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let path = envLogPath()
   if path.isNone:
     return failure("nch log", "logging is switched off (NCH_LOG is empty, or there is no home directory)")
-  let r = show(path.get, p.filter, stdoutColour())
+  let r = show(path.get, p.filter, canColourStdout())
   if r.problem.len > 0:
     return failure("nch log", r.problem)
   for l in r.lines: stdout.say l & "\n"

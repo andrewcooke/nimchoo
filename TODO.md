@@ -93,6 +93,22 @@ What the code does today; new code should look like the code around it.
 * Refactors must not change behaviour: capture the CLI output for all test files before
   and diff it after.
 
+### Output conventions
+
+* **Intervals of time** (`ui/interval.nim`, one rule for every listing, now and in future):
+  units `d h m s`, no leading unit that is zero, the first unit unpadded and later ones two
+  digits: `45s`, `22m05s`, `4h41m`, `2d03h07m`.  Seconds are shown under an hour; from an hour
+  the interval is rounded to the minute; from a day it is days, hours and minutes.  Rounding
+  carries (`59.6 s` is `1m00s`).  Anything that prints a duration uses `interval`.
+* **Words and looks** for what happened are in `ui/vocabulary.nim` (see Task 4); colour is
+  used only where it means something, and never the status colours (green imported/saved, red
+  failed/deleted, yellow advisory) for anything else.
+* **Tests are fast enough to run often:** `nimble test` builds optimised with the run-time
+  checks still on (`-d:release --checks:on`: about 6 s to run, against about 29 s for a debug
+  build; the first build takes ~35 s, later ones a few seconds); `nimble testdebug` is the
+  slow debug build, for tracking down a failure.  The slowest tests are those that decode
+  many real FIT files.
+
 ### Code layout
 
 ```
@@ -385,7 +401,12 @@ what was kept.  What is printed is what is saved.
    (the `of 310` is what the users have, left out for `--show`; the count by sport only when
    there is more than one, most first).  `--save` adds `saved 42 activities as the selection`
    and logs the new event `saved`.  `--show` of an empty selection says `selection: empty`.
-   No colour yet.
+   Then, as asked: `-n N` is `--newest N`; `-v`/`--verbose` (replacing `--file`, which was
+   never in the help) adds the path the file was imported from (where it was last seen, else
+   its name); `active` is shown by the interval rule above; looks: transition rows dim all
+   through, `-` (not recorded) dim, a distance under 50 m or an active time under 30 s
+   (a stray recording: `0.0 km`) yellow, the `saved N activities as the selection` line green;
+   not done, by choice: colours per sport, a dim header.
 4. Docs; try it on the test data (mixed sports) and on a real library.
 
 ## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)

@@ -14,7 +14,10 @@ requires "zippy >= 0.10.4"
 requires "db_connector"
 requires "checksums"
 
-task test, "Run all tests":
+task test, "Run all tests (optimised, with run-time checks on: about 5x faster than a debug build)":
+  exec "nim c -r -d:release --checks:on --hints:off tests/all.nim"
+
+task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
   exec "nim c -r --hints:off tests/all.nim"
 
 task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)":
