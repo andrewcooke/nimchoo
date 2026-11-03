@@ -12,6 +12,7 @@ import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
 import nimchoo/user/command as userCommand
 import nimchoo/model/command as modelCommand
+import nimchoo/ff/command as ffCommand
 import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
@@ -33,6 +34,7 @@ commands:
   log      show the log, filtered, with the events coloured
   user     the users: make, rename, set the threshold heart rate
   model    the models: sets of variables for the training impulse
+  ff       the fitness and fatigue curves, as CSV for plotting
   destroy  delete the database, or one user and their data
 
 For more about a command: `nch COMMAND --help`.
@@ -57,6 +59,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     userCommand.run(g, rest)
   of "model":
     modelCommand.run(g, rest)
+  of "ff":
+    ffCommand.run(g, rest)
   of "destroy":
     destroyCommand.run(g, rest)
   else:

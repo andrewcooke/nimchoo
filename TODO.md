@@ -491,6 +491,23 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
 * **Help:** `nch help` no longer repeats "(see `nch X --help`)" for each command: one line at the end.
 * The schema changed: `nch destroy -f` and a re-import (the same one as for steps 1-2).
 
+### Step 4: fitness and fatigue -- built
+
+`ff/` (`curve.nim` pure, `params.nim` pure, `command.nim`).
+
+* **`curve.response`:** `y[h] = y[h-1] * exp(-1 hour / tau) + x[h]` from the first hour with an impulse to
+  the end of the last day asked for; starts from 0; `dayEnds` picks the last hour of each UTC day.
+  Tested against the sum of what each impulse has left.
+* **`nch ff [--model NAME] [--from DAY] [--to DAY] [--hourly] [--fitness-scale S] [--fatigue-scale S]`**
+  prints CSV (`time,fitness,fatigue`) of the current user to standard output, for plotting elsewhere:
+  a row a day (the value at the end of the UTC day), or an hour (labelled by the end of the hour).
+  `--to` defaults to today, so the curves fade out after the last activity.  The scales default to 1
+  (the original used 1 and 5).  An error if the user has no impulses, saying how to get them.
+* Not done: writing the file into the cache directory (the display layers), or a form column
+  (fitness minus fatigue): both are easy to add when the plotting is decided.
+* Not compared with the Python's output directly (no pandas here); the recurrence is the same as its
+  `ewm` form (see `data/lib.py`), and the impulses it uses agree with the Python's grid to 0.1%.
+
 ### Step 1: `nch user` (per-user information) -- built
 
 What the algorithm needs per user is the **FTHR** (agreed: not max heart rate; nothing in the
@@ -582,7 +599,7 @@ re-import.
    (pure; tested on numbers worked by hand and against the Python code on a test file),
    `impulse(activity_id, model_id, hour_t, value)`, calculated for activities that have heart rate
    and whose user has an FTHR, and cleared when that FTHR changes; `nch model add/list`.
-4. Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses) and
+4. (built, see above) Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses) and
    a command that prints or exports them for an external plotting service, as with the heat map.
 
 ## Task 6: places, and the start of an activity as a point (in progress)

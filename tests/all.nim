@@ -9,6 +9,7 @@ import ./profile/[test_load, test_load_errors]
 import ./db/test_store
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]
+import ./ff/test_curve
 import ./destroy/test_command
 import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_events,
                    test_display, test_logsink]
