@@ -30,7 +30,7 @@ last one).  Criteria are combined with "and".
   --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
                      files say "generic" or nothing, so this misses some rides
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
-                     500m- for metres; 42~2 (between 40 and 44), latest~10%
+                     0.5- for half a km; 42~2 (between 40 and 44), latest~10%
   --active RANGE     active time: 1h-, 30m-2h, -45m (units d h m s, as printed);
                      2h~15m, latest~10%
   --from TIME        activities that start at or after TIME

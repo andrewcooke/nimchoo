@@ -2,15 +2,16 @@ import std/[options, unittest]
 import nimchoo/selection/ranges
 
 suite "ranges: distances":
-  test "kilometres by default, metres with m":
+  test "always kilometres, a decimal number, with km if you like":
     check parseDistance("5") == some(5000.0)
     check parseDistance("2.5") == some(2500.0)
+    check parseDistance("0.5") == some(500.0)
     check parseDistance("5km") == some(5000.0)
     check parseDistance("5KM") == some(5000.0)
-    check parseDistance("500m") == some(500.0)
     check parseDistance("0") == some(0.0)
   test "not a distance":
-    for bad in ["", "km", "m", "abc", "-5", "5x", "5 miles", "1e3", ".5", "5.5.5", "5kmm"]:
+    for bad in ["", "km", "m", "abc", "-5", "5x", "5 miles", "1e3", ".5", "5.5.5", "5kmm",
+                "500m", "5m", "1h"]:               # (m is minutes: not a distance)
       check parseDistance(bad).isNone
 
 suite "ranges: intervals":
@@ -38,7 +39,7 @@ suite "ranges: a-b, a-, -b":
     check parseRange("1h-", parseInterval) == some(NumRange(lo: some 3600.0))
     check parseRange("-45m", parseInterval) == some(NumRange(hi: some 2700.0))
     check parseRange("1h30m-4h", parseInterval) == some(NumRange(lo: some 5400.0, hi: some 14400.0))
-    check parseRange("500m-2km", parseDistance) == some(NumRange(lo: some 500.0, hi: some 2000.0))
+    check parseRange("0.5-2km", parseDistance) == some(NumRange(lo: some 500.0, hi: some 2000.0))
   test "no range":
     for bad in ["", "-", "5", "1-2-3", "--5", "5--", "a-b", "10-x", "x-10"]:
       check parseRange(bad, parseDistance).isNone
@@ -57,7 +58,8 @@ suite "ranges: a-b, a-, -b":
 suite "ranges: around":
   test "tolerances: an amount, or a percentage":
     check parseTol("2", parseDistance) == some(Tol(amount: 2000.0))
-    check parseTol("500m", parseDistance) == some(Tol(amount: 500.0))
+    check parseTol("0.5", parseDistance) == some(Tol(amount: 500.0))
+    check parseTol("500m", parseDistance).isNone
     check parseTol("15m", parseInterval) == some(Tol(amount: 900.0))
     check parseTol("10%", parseDistance) == some(Tol(amount: 10.0, percent: true))
     check parseTol("2.5%", parseInterval) == some(Tol(amount: 2.5, percent: true))
@@ -73,7 +75,8 @@ suite "ranges: around":
     check parseAround("latest~10%", parseDistance) ==
       some(Around(centre: none float, tol: Tol(amount: 10.0, percent: true)))
     check parseAround("LATEST~5", parseDistance).get.centre.isNone
-    check parseAround("500m~50m", parseDistance).get.centre == some 500.0
+    check parseAround("0.5~0.05", parseDistance).get.centre == some 500.0
+    check parseAround("500m~50m", parseDistance).isNone
   test "not around":
     for bad in ["", "42", "~", "42~", "~2", "42~2~3", "x~2", "latest~", "latest", "42-2"]:
       check parseAround(bad, parseDistance).isNone

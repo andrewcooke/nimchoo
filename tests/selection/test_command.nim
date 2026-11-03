@@ -178,7 +178,7 @@ suite "list: the command":
     check chosen(db) == @["lisbon1"]                  # (10 km counts; the unrecorded does not)
     discard save(db, "--users", "default", "bob", "--distance", "10-30")
     check chosen(db) == @["lisbon1", "paris"]
-    discard save(db, "--users", "default", "bob", "--distance", "10001m-29999m")
+    discard save(db, "--users", "default", "bob", "--distance", "10.001-29.999")
     check chosen(db).len == 0
     discard save(db, "--users", "default", "bob", "--distance", "0-")
     check chosen(db) == @["lisbon1", "paris"]         # (bob's has no distance at all)

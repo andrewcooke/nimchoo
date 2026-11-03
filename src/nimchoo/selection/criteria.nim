@@ -124,14 +124,14 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       let v = value("--distance")
       if '~' in v:
         let ar = parseAround(v, parseDistance)
-        if ar.isNone: fail("cannot read the distance '" & v & "' (use 42~2, 500m~50m or latest~10%)")
+        if ar.isNone: fail("cannot read the distance '" & v & "' (use 42~2, 0.5~0.1 or latest~10%; kilometres)")
         if ar.get.centre.isSome: c.distanceM = around(ar.get.centre.get, ar.get.tol)
         else: c.distanceLatest = some(ar.get.tol)
       else:
         let r = parseRange(v, parseDistance)
         if r.isNone:
           if isBackwards(v, parseDistance): fail("the distance range '" & v & "' is backwards (smaller end first)")
-          fail("cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 42~2 or latest~10%; km, or 500m for metres)")
+          fail("cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 0.5-, 42~2 or latest~10%; kilometres)")
         c.distanceM = r.get
     of "--active":
       let v = value("--active")

@@ -410,7 +410,8 @@ what was kept.  What is printed is what is saved.
 4. [x] `--distance RANGE` and `--active RANGE` (`selection/ranges.nim`, pure): `a-b`, `a-`,
    `-b`, both ends inclusive, either end may be left out (not both), exactly one hyphen (so
    `1-2-3` and a bare `5` are errors with an example); a backwards range says so.  A distance
-   is km (`5`, `2.5`, `5km`) or metres (`500m`), digits and a dot only (not `1e3`); an active
+   is always km, a decimal number (`5`, `2.5`, `0.5`, `5km`), digits and a dot only (not `1e3`); `m` is
+   never a distance, it is minutes (so `500m` is an error: write `0.5`); an active
    time is written as it is printed (`45s`, `22m`, `1h30m`, `2d`; units d h m s, largest first,
    each once, a unit on every number: `90` is an error).  Not recorded (NULL) is never in a
    range.  Applied before `--newest/--oldest`.  A value that starts with `-` is read as a

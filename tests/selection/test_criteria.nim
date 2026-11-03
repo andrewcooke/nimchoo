@@ -80,7 +80,8 @@ suite "list: the command line":
     check c.distanceM == NumRange(hi: some 5000.0)
     check c.activeS == NumRange(lo: some 5400.0, hi: some 14400.0)
     check cmdline("--distance", "10-50").criteria.distanceM == NumRange(lo: some 10000.0, hi: some 50000.0)
-    check cmdline("--distance", "500m-").criteria.distanceM == NumRange(lo: some 500.0)
+    check cmdline("--distance", "0.5-").criteria.distanceM == NumRange(lo: some 500.0)
+    check cmdline("--distance", "500m-").problem.contains("cannot read the distance range")   # (m is minutes)
     check cmdline("--show", "--distance", "5-").problem.contains("no criteria")
   test "--distance and --active around a value, or around latest":
     let c = cmdline("--distance", "42~2", "--active", "2h~15m").criteria
