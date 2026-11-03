@@ -7,7 +7,7 @@
 ## This module is newer than `importer` and reads its tables (activity, file,
 ## coords, route) directly.
 
-import std/[options, strutils, times]
+import std/[options, sequtils, strutils, times]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
@@ -24,6 +24,10 @@ with --save keep them as the "selection" that other commands use (replacing the
 last one).  Criteria are combined with "and".
 
   --users A B C      whose activities (default: the current user)
+  --sport A B        only these sports (cycling, running, swimming ...); "none"
+                     means not recorded
+  --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
+                     files say "generic" or nothing, so this misses some rides
   --from TIME        activities that start at or after TIME
   --to TIME          activities that start before the end of TIME
                      (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
@@ -94,6 +98,30 @@ proc show(st: Store): string {.raises: [StoreError].} =
   if n == 0: "selection: empty"
   else: "selection: " & $n & (if n == 1: " activity" else: " activities") & range(st)
 
+proc present(st: Store, column, idList: string): seq[(string, int)]
+    {.raises: [StoreError].} =
+  ## The values of a column (sport or sub_sport) among the activities of these
+  ## users, with how many each has, most first; "none" for not recorded.
+  guard:
+    for row in st.db.fastRows(sql("select coalesce(a." & column & ", 'none'), count(*) " &
+        "from activity a join file f on f.id = a.file_id where f.user_id in (" & idList &
+        ") group by 1 order by 2 desc, 1")):
+      try: result.add (row[0], parseInt(row[1]))
+      except ValueError: raiseStore("bad number from the database")
+
+proc checkNames(st: Store, what, column, idList: string, wanted: seq[string])
+    {.raises: [StoreError].} =
+  ## Refuse a sport (or sub-sport) the users' activities do not have, and say which
+  ## they do have.
+  if wanted.len == 0: return
+  let have = present(st, column, idList)
+  for w in wanted:
+    if have.allIt(it[0] != w):
+      var shown: seq[string]
+      for (name, n) in have: shown.add name & " " & $n
+      raiseStore("no activity of those users has the " & what & " '" & w & "' (they have: " &
+        (if shown.len > 0: shown.join(", ") else: "no activities") & ")")
+
 proc matchStats(st: Store, match: string): tuple[n: int, first, last: int64]
     {.raises: [StoreError].} =
   ## How many activities a query (giving `start_t`) finds, and when the first and
@@ -118,6 +146,8 @@ proc choose(st: Store, c: Criteria): string {.raises: [StoreError].} =
   var ids: seq[string]
   for id in userIds: ids.add $id
   let idList = ids.join(", ")
+  checkNames(st, "sport", "sport", idList, c.sports)
+  checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
   var centre = none((float, float))
   var said = ""
   case c.near

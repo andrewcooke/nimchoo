@@ -58,6 +58,13 @@ suite "list: the command line":
     let c = cmdline("--radius", "5").criteria
     check c.near == nkLatest and c.radiusKm == 5.0
     check cmdline("--radius", "5").problem == ""
+  test "sports and sub-sports, lower-cased, several, repeated":
+    let c = cmdline("--sport", "Cycling", "running,Swimming", "--sub-sport", "ROAD", "--sport", "walking").criteria
+    check c.sports == @["cycling", "running", "swimming", "walking"]
+    check c.subSports == @["road"]
+    check cmdline("--sport").problem.contains("at least one name")
+    check cmdline("--sub-sport", "--save").problem.contains("at least one name")
+    check cmdline("--users", "Bob").criteria.users == @["Bob"]       # (names of users keep their case)
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
   test "--show takes no criteria, and cannot be saved":
@@ -100,6 +107,17 @@ suite "list: the box and the sql":
     check full.endsWith("order by a.start_t desc limit 2")
     check matchSql(@[1'i64], Criteria(oldest: 4), none((float, float))).endsWith(
       "order by a.start_t asc limit 4")
+  test "sports are quoted, none means NULL, nothing without values":
+    check inValues("a.sport", @[]) == ""
+    check inValues("a.sport", @["cycling", "running"]) == " and (a.sport in ('cycling', 'running'))"
+    check inValues("a.sub_sport", @["none"]) == " and (a.sub_sport is null)"
+    check inValues("a.sub_sport", @["road", "none"]) ==
+      " and (a.sub_sport in ('road') or a.sub_sport is null)"
+    check inValues("a.sport", @["x'; drop table user; --"]) ==
+      " and (a.sport in ('x''; drop table user; --'))"
+    let m = matchSql(@[1'i64], Criteria(sports: @["cycling"], subSports: @["none"]), none((float, float)))
+    check m.contains("a.sport in ('cycling')") and m.contains("a.sub_sport is null")
+    check not matchSql(@[1'i64], Criteria(), none((float, float))).contains("sport")
   test "saving wraps the same query":
     let m = matchSql(@[3'i64], Criteria(newest: 1), none((float, float)), "a.id as id")
     check saveSql(7, m) == "insert into selection(user_id, activity_id) select 7, id from (" & m & ")"

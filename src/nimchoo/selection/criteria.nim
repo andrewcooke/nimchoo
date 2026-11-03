@@ -15,6 +15,7 @@ type
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
+    sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
     fromT*: Option[int64]     ## start of the activity at or after (Unix seconds)
     toT*: Option[int64]       ## start of the activity before (exclusive)
     near*: NearKind
@@ -63,7 +64,7 @@ func parseLatLon*(s: string): Option[(float, float)] =
     none((float, float))
 
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
-  ## The command line of `nch list`.  Options with values: `--users A B C` (names up to
+  ## The command line of `nch list`.  Options with values: `--users A B C`, `--sport A B`, `--sub-sport A B` (names up to
   ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N`, `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
   ## `--show` (which takes no criteria).
@@ -95,14 +96,19 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
         discard
       if n < 1: fail(a & " needs a number of activities, 1 or more (not '" & v & "')")
       if a == "--newest": c.newest = n else: c.oldest = n
-    of "--users":
+    of "--users", "--sport", "--sub-sport":
+      var names: seq[string]
       inc i
       while i < args.len and not args[i].startsWith("-"):
         for name in args[i].split(','):
-          if name.len > 0: c.users.add name
+          if name.len > 0: names.add (if a == "--users": name else: name.toLowerAscii)
         inc i
       dec i
-      if c.users.len == 0: fail("--users needs at least one name")
+      if names.len == 0: fail(a & " needs at least one name")
+      case a
+      of "--users": c.users.add names
+      of "--sport": c.sports.add names
+      else: c.subSports.add names
     of "--from":
       let v = value("--from")
       let t = parseWhen(v, zone, isEnd = false)
@@ -154,6 +160,19 @@ func box*(lat, lon, radiusKm: float): Box =
 
 func deg(x: float): string = formatFloat(x, ffDecimal, 7)
 
+func inValues*(column: string, values: seq[string]): string =
+  ## " and a.sport in ('cycling', 'running')": the values, quoted; "none" stands for
+  ## NULL (not recorded).  Nothing if there are no values.
+  if values.len == 0: return ""
+  var quoted, parts: seq[string]
+  var orNull = false
+  for v in values:
+    if v == "none": orNull = true
+    else: quoted.add "'" & v.replace("'", "''") & "'"
+  if quoted.len > 0: parts.add column & " in (" & quoted.join(", ") & ")"
+  if orNull: parts.add column & " is null"
+  " and (" & parts.join(" or ") & ")"
+
 func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
                columns = "a.id"): string =
   ## A query for the activities of `userIds` that meet the criteria, giving
@@ -165,6 +184,8 @@ func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
   for id in userIds: ids.add $id
   result = "select " & columns & " from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & ids.join(", ") & ")"
+  result.add inValues("a.sport", c.sports)
+  result.add inValues("a.sub_sport", c.subSports)
   if c.fromT.isSome: result.add " and a.start_t >= " & $c.fromT.get
   if c.toT.isSome: result.add " and a.start_t < " & $c.toT.get
   if centre.isSome:

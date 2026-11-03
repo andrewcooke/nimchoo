@@ -12,29 +12,35 @@ const
   aug15 = 1534334400      # 2018-08-15T12:00Z
   aug27 = 1535371200      # 2018-08-27T12:00Z
 
-proc addActivity(s: Store, userId: int64, tag: string, startT: int, wkt: string) =
+proc addActivity(s: Store, userId: int64, tag: string, startT: int, wkt: string,
+                 sport = "", subSport = "") =
   s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
             userId, tag, tag)
   let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
-            f, startT, startT + 100)
+  s.db.exec(sql"""insert into activity(file_id, session, start_t, end_t, sport, sub_sport)
+                  values (?, 0, ?, ?, nullif(?, ''), nullif(?, ''))""",
+            f, startT, startT + 100, sport, subSport)
   let a = s.db.getValue(sql"select max(id) from activity")
   s.db.exec(sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, wkt)
 
 proc world(name: string): string =
   ## A database with users default and bob; the activities (by tag):
-  ## lisbon1 (default, July), paris (default, 27 Aug, the latest), lisbon2 (bob, 15 Aug).
+  ## lisbon1 (default, July, cycling/road), paris (default, 27 Aug, the latest,
+  ## running/trail), lisbon2 (bob, 15 Aug, cycling with no sub-sport).
   removeDir(dir / name)
   result = dir / name / "x.db"
   let s = openStore(result, allFragments)
   defer: s.close()
   s.db.exec(sql"insert into user(name) values ('bob')")
   let bob = parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'"))
-  addActivity(s, s.userId, "lisbon1", july1, "MULTILINESTRING((-9.14 38.72, -9.10 38.75))")
-  addActivity(s, s.userId, "paris", aug27, "MULTILINESTRING((2.35 48.85, 2.40 48.90))")
+  addActivity(s, s.userId, "lisbon1", july1, "MULTILINESTRING((-9.14 38.72, -9.10 38.75))",
+              "cycling", "road")
+  addActivity(s, s.userId, "paris", aug27, "MULTILINESTRING((2.35 48.85, 2.40 48.90))",
+              "running", "trail")
   s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (2, 1, 2.35, 48.85)")
   s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (2, 2, 2.40, 48.90)")
-  addActivity(s, bob, "lisbon2", aug15, "MULTILINESTRING((-9.20 38.70, -9.15 38.74))")
+  addActivity(s, bob, "lisbon2", aug15, "MULTILINESTRING((-9.20 38.70, -9.15 38.74))",
+              "cycling")
 
 proc list(db: string, args: varargs[string]): int =
   listCommand.run(Globals(dbPath: db, fragments: allFragments), @args)
@@ -113,6 +119,43 @@ suite "list: the command":
     check chosen(db) == @["lisbon2"]                # (of bob's and paris: only after 1 Aug)
     discard save(db, "--users", "default", "bob", "--from", "2018-08-01", "--newest", "5")
     check chosen(db) == @["lisbon2", "paris"]
+
+  test "by sport; several mean any of them; case does not matter":
+    let db = world("sport")
+    discard save(db, "--users", "default", "bob", "--sport", "cycling")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--users", "default", "bob", "--sport", "running")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--sport", "Running,CYCLING")
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]
+    discard save(db, "--sport", "cycling")                    # (the current user only)
+    check chosen(db) == @["lisbon1"]
+
+  test "by sub-sport; none means not recorded":
+    let db = world("subsport")
+    discard save(db, "--users", "default", "bob", "--sub-sport", "road")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--users", "default", "bob", "--sub-sport", "none")
+    check chosen(db) == @["lisbon2"]
+    discard save(db, "--users", "default", "bob", "--sub-sport", "none", "trail")
+    check chosen(db) == @["lisbon2", "paris"]
+
+  test "sport combined with the other criteria, and before --newest":
+    let db = world("sportand")
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--newest", "1")
+    check chosen(db) == @["lisbon2"]                  # (the newest cycling, not the newest)
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--sub-sport", "road")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--near", "38.73,-9.13", "--to", "2018-08-01")
+    check chosen(db) == @["lisbon1"]
+
+  test "a sport nobody has is refused, naming those there are":
+    let db = world("nosport")
+    discard save(db, "--sport", "cycling")
+    check save(db, "--sport", "swimming") == exitFailure
+    check save(db, "--sub-sport", "trail", "--users", "bob") == exitFailure
+    check chosen(db) == @["lisbon1"]                 # (nothing changed)
+    check list(db, "--sport", "cycling", "swimming") == exitFailure
 
   test "dates":
     let db = world("dates")

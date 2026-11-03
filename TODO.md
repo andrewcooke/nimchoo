@@ -368,7 +368,13 @@ what was kept.  What is printed is what is saved.
    on the way: `parseArgs` ignored its `zone` parameter (always the local zone): fixed.
    `nch log select` is no longer accepted (`select` is not a command), though old log lines
    still say `select`.
-2. `--sport`, `--sub-sport`, with the error that lists what exists.
+2. [x] `--sport A B` and `--sub-sport A B` (several values and repeats mean "any of them"; lower
+   cased, so `Cycling` works; `none` means not recorded, i.e. NULL).  Checked against the
+   activities of the users being searched: an unknown name is an error that lists what they have
+   with counts (`they have: running 32, cycling 21, swimming 13, ...`), exit 1, nothing changed.
+   Applied before `--newest/--oldest` (the newest *cycling* activity).  A sub-sport is checked
+   against all of the users' sub-sports, not those of the sport given, so `--sport cycling
+   --sub-sport open_water` is accepted and finds nothing.  The values are quoted in the SQL.
 3. The table, `--file`, the summary by sport, the `saved` log event.
 4. Docs; try it on the test data (mixed sports) and on a real library.
 
