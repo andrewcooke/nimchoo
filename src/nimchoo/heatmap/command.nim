@@ -13,7 +13,7 @@ import ../cli/common
 import ../db/store
 import ../errors
 import ../selection/selection
-import ./[lines, page, params]
+import ./[lines, page, params, web]
 
 {.push raises: [].}
 
@@ -31,6 +31,13 @@ Asking again for the same thing finds the file already there.
                    0: do not simplify)
   --worker         for programs: also make the web page, and print its path, then the
                    path of the GeoJSON file, and nothing else
+  --web            show the heat map in the browser: make the files, serve them on
+                   127.0.0.1 (this computer only) and open the address; Ctrl-C stops it
+  --port N         the port for --web (default 62466, the keypad digits of "mchoo"; 0:
+                   any free one)
+  --no-open        with --web: print the address but do not open the browser
+  --new-token      with --web: make a new secret (old bookmarks stop working; the secret
+                   is kept in the cache directory, readable only by you)
   -h, --help       show this help
 """
 
@@ -76,6 +83,57 @@ proc write(path, text: string) {.raises: [IOError, OSError].} =
   except Exception:              # (moveFile is declared to raise anything)
     raise newException(OSError, "cannot rename " & tmp)
 
+type Prepared = object
+  status: int             ## 0 if the files are there; else the exit status (already reported)
+  stem, wanted: string
+  geojson, page: string   ## paths (page: only if asked for)
+
+proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
+  ## Make the GeoJSON file (if it is not there) and, if asked, the page.  Reports problems.
+  var st: Store
+  try:
+    st = openStore(g)
+  except StoreError as e:
+    return Prepared(status: failure("nch heatmap", e.msg))
+  defer: st.close()
+  try:
+    let current = selectionKey(st)
+    let wanted = if p.sel.len > 0: p.sel else: current
+    let stem = fileStem("heatmap", [("sel", wanted), ("style", p.style),
+                                    ("tolerance", metres(p.toleranceM))])
+    if stem.isNone:
+      return Prepared(status: usageError("nch heatmap", usage, "cannot name a file for these options"))
+    let path = cacheFile(dir, stem.get, "geojson").get
+    if not fileExists(path):                   # (made before: nothing to do)
+      if wanted != current:
+        return Prepared(status: failure("nch heatmap", "the selection has changed since that was made " &
+          "(it was " & wanted & ", it is now " & current & "); leave out --sel to draw " &
+          "the current selection"))
+      let chosen = selectedCount(st)
+      if chosen == 0:
+        return Prepared(status: failure("nch heatmap", "the selection is empty (see `nch list --save`)"))
+      let routes = routesOf(st, p.toleranceM)
+      if routes.len == 0:
+        return Prepared(status: failure("nch heatmap", "none of the " & $chosen &
+          " selected activities has a route (no positions in the files)"))
+      if routes.len < chosen:
+        stderr.say "note: " & $(chosen - routes.len) & " of the " & $chosen &
+          " selected activities have no route\n"
+      write(path, featureCollection(routes))
+    result = Prepared(stem: stem.get, wanted: wanted, geojson: path)
+    if withPage:
+      # the page is rewritten each time (it is tiny, and may have changed since)
+      let pagePath = cacheFile(dir, stem.get, "html").get
+      let html = pageHtml(extractFilename(path), "Heat map " & wanted)
+      if html.isNone:
+        return Prepared(status: failure("nch heatmap", "cannot make a page for " & path))
+      write(pagePath, html.get)
+      result.page = pagePath
+  except StoreError as e:
+    result = Prepared(status: failure("nch heatmap", e.msg))
+  except IOError, OSError:
+    result = Prepared(status: failure("nch heatmap", "cannot write to " & dir & ": " & getCurrentExceptionMsg()))
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch heatmap ARGS`; returns the exit status.
   let p = parseArgs(args)
@@ -87,48 +145,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let dir = cacheDir()
   if dir.isNone:
     return failure("nch heatmap", "no place for the cache: set NCH_CACHE or HOME")
-  var st: Store
-  try:
-    st = openStore(g)
-  except StoreError as e:
-    return failure("nch heatmap", e.msg)
-  defer: st.close()
-  try:
-    let current = selectionKey(st)
-    let wanted = if p.sel.len > 0: p.sel else: current
-    let stem = fileStem("heatmap", [("sel", wanted), ("style", p.style),
-                                    ("tolerance", metres(p.toleranceM))])
-    if stem.isNone:
-      return usageError("nch heatmap", usage, "cannot name a file for these options")
-    let path = cacheFile(dir.get, stem.get, "geojson").get
-    if not fileExists(path):                   # (made before: nothing to do)
-      if wanted != current:
-        return failure("nch heatmap", "the selection has changed since that was made " &
-          "(it was " & wanted & ", it is now " & current & "); leave out --sel to draw " &
-          "the current selection")
-      let chosen = selectedCount(st)
-      if chosen == 0:
-        return failure("nch heatmap", "the selection is empty (see `nch list --save`)")
-      let routes = routesOf(st, p.toleranceM)
-      if routes.len == 0:
-        return failure("nch heatmap", "none of the " & $chosen &
-          " selected activities has a route (no positions in the files)")
-      if routes.len < chosen:
-        stderr.say "note: " & $(chosen - routes.len) & " of the " & $chosen &
-          " selected activities have no route\n"
-      write(path, featureCollection(routes))
-    if p.worker:
-      # the page is rewritten each time (it is tiny, and may have changed since)
-      let pagePath = cacheFile(dir.get, stem.get, "html").get
-      let html = pageHtml(extractFilename(path), "Heat map " & wanted)
-      if html.isNone:
-        return failure("nch heatmap", "cannot make a page for " & path)
-      write(pagePath, html.get)
-      stdout.say pagePath & "\n" & path & "\n"
-    else:
-      stdout.say path & "\n"
-    exitOk
-  except StoreError as e:
-    failure("nch heatmap", e.msg)
-  except IOError, OSError:
-    failure("nch heatmap", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg())
+  let made = prepare(g, p, dir.get, p.worker or p.web)
+  if made.status != 0: return made.status
+  if p.web:
+    # the address pins what was made: the selection, the style and the tolerance
+    let parsed = parseStem(made.stem)
+    var query: seq[string]
+    if parsed.isSome:
+      for (k, v) in parsed.get[1]: query.add k & "=" & v
+    return serveWeb(g, p, dir.get, query.join("&"))
+  if p.worker: stdout.say made.page & "\n" & made.geojson & "\n"
+  else: stdout.say made.geojson & "\n"
+  exitOk

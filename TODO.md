@@ -379,8 +379,24 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
    - Checked with the real server and `curl`: 403 without a token or with a wrong Host; 302 and
      the cookie with the token; the pinned redirect; the page (200); the GeoJSON with its type
      (20 features); 404 for `..`, `%2e%2e`, `/destroy`, `?db=` and the token file.
-5. `--web` in `heatmap`: worker first, then serve, Ctrl-C stops (cursor and exit status as in
-   `ui/live`).
+5. [x] `nch heatmap --web [--port N] [--no-open] [--new-token]` (`heatmap/web.nim`; `prepare` in
+   `command.nim` is now shared by plain, `--worker` and `--web`): makes the files first (so an
+   empty selection, no routes or a stale `--sel` is reported in the terminal and nothing starts),
+   loads the token, starts the server on 127.0.0.1 (default port 62466; `--port 0` for any free
+   one), prints the address, which pins what was made and carries the token once
+   (`http://127.0.0.1:62466/heatmap?sel=KEY&style=lines&tolerance=5&token=...`) and
+   `(Ctrl-C to stop)`, and opens it with `xdg-open` in the background (`--no-open` to print only;
+   if it cannot open, a note says so).  The address line is flushed (stdout to a pipe is
+   block-buffered, and a program reading it would wait for ever).  Ctrl-C ends the process with
+   status 130 (`ui/interrupt.nim`; the dispatcher's `exit` log line is not written then).  A port
+   that is taken stops it with `cannot listen on 127.0.0.1:PORT ... (is another ... running?)`.
+   `--no-open`, `--new-token` and `--port` need `--web`; `--web` and `--worker` exclude each
+   other.  Tests (`tests/heatmap/test_web.nim`) start the real `./nch` on a fixture database on a
+   free port and speak HTTP: the cookie flow and pinned page and data, 403 for no/wrong token or
+   Host, 404 for everything else, the token file (mode 0600, kept, renewed), an old cookie dying
+   after `--new-token`, the empty selection, a taken port, Ctrl-C = 130.  `nimble test` builds
+   `./nch` first (as an optimised build); without it those tests are skipped.  Not tried by the
+   author's own eyes yet: the page in a browser.
 6. Docs here; then try it on real data in a browser (the look needs your eyes).
 
 ### Open questions

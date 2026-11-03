@@ -12,6 +12,19 @@ suite "heatmap: the command line":
     check parseArgs(@["--worker"]).worker
     check not parseArgs(@[]).worker
     check parseArgs(@["--worker", "--sel", "ab12", "--tolerance", "10"]).problem == ""
+  test "--web and its options":
+    let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
+    check p.problem == "" and p.web and p.noOpen and p.newToken and p.port == 0
+    check parseArgs(@["--web"]).port == 62466
+    check parseArgs(@["--web", "--port", "8080"]).port == 8080
+    check not parseArgs(@[]).web
+  test "--web problems":
+    check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")
+    for opt in [@["--no-open"], @["--new-token"], @["--port", "8080"]]:
+      check parseArgs(opt).problem.contains("go with --web")
+    for bad in ["x", "-1", "65536", "1.5", ""]:
+      check parseArgs(@["--web", "--port", bad]).problem.contains("port number")
+    check parseArgs(@["--web", "--port"]).problem.contains("needs a value")
   test "zero tolerance means no simplification":
     check parseArgs(@["--tolerance", "0"]).toleranceM == 0.0
   test "problems":
