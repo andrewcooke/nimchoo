@@ -443,23 +443,28 @@ much smaller database representation.  Read from `../choochoo/py/ch2` (`data/imp
 * **Heart rate** is a channel of its own, stored once: `heartrate(activity_id, t, bpm)`, `WITHOUT
   ROWID`, from the `record` messages (a `heartrate/` module, imported alongside the positions).
   Nothing per 10 s is stored.  An activity with no heart rate has no impulse.
-* **The variables of the calculation are a named set, a row of a table**:
-  `impulse_model(id, name unique, gamma, zero, one, max_secs, ...)`: `name` is for display; the
-  zone edges (the 68, 83, 94, 105, 121 % of FTHR, the defaults) are also columns, five integers, so
-  that a model can use another zone system.  A `default` model (gamma 2, zero 1, one 6, max_secs
-  60, the British Cycling zones) is put in when the table is made (a seed, as for the places); more
-  are added by a command, so that variants can be compared.
+* **The variables of the whole calculation are one named set, a row of one table**:
+  `ff_model(id, name unique, gamma, zero, one, max_secs, zone1..zone5, fitness_days, fitness_start,
+  fitness_scale, fatigue_days, fatigue_start, fatigue_scale)`: the impulse variables (gamma, zero,
+  one, max_secs, and the zone edges, five percentages of FTHR, defaulting to the British Cycling
+  68, 83, 94, 105, 121) and the two curves that are made from the impulses (the decay period in
+  days, the starting value and the scale of each: 42 / 1 / 1 for fitness and 7 / 1 / 5 for fatigue).
+  `name` is for display.  A `default` row with these values is put in when the table is made (a
+  seed, as for the places); more are added by a command, so that variants can be compared.  A model
+  is never edited once it exists (a new one is added), because the impulses made with it would no
+  longer match it; deleting one deletes its impulses.  (A model that differs only in the decay
+  periods repeats the impulse rows: a handful an activity, so cheap.)
 * **Impulse is stored per hour per activity per model**: `impulse(activity_id, model_id, hour_t,
-  value)`, primary key `(activity_id, model_id, hour_t)`, `model_id` references `impulse_model`.  A
+  value)`, primary key `(activity_id, model_id, hour_t)`, `model_id` references `ff_model`.  A
   handful of rows an activity.  Zone and the 10-second grid exist only inside the calculation.
 * **FTHR is the user's, not the model's, but every impulse depends on it.**  It is one value per user,
   and changing it is a very rare event that means starting again: `nch user --fthr` on a user who
   already has impulses deletes all of that user's impulses (every model), says so, and they are
   calculated again from scratch.  So nothing records which FTHR an impulse used.  A user with no
   FTHR gets no impulses (and is told so).
-* **Fitness and fatigue are not stored:** a pure function of the hourly impulses of one model and a
-  few numbers per curve (tau, start, scale; a named set of their own when we get there), computed
-  when asked (87,000 hours is ten years: trivial), with `--model NAME` choosing the impulses.
+* **Fitness and fatigue are not stored:** a pure function of the hourly impulses of one model and the
+  curve variables in the same model row, computed when asked (87,000 hours is ten years: trivial),
+  with `--model NAME` choosing the model.
 
 ### Step 1: `nch user` (per-user information)
 
@@ -490,10 +495,10 @@ existing `user.name`, the key for `--user`; no separate display name).
 ### Later steps (each a commit)
 
 2. Heart rate as a channel: the `heartrate/` module, imported with the activity (a re-import).
-3. The model and the impulse: `impulse_model` (seeded with `default`), the zone and impulse functions
+3. The model and the impulse: `ff_model` (seeded with `default`), the zone and impulse functions
    (pure; tested on numbers worked by hand and against the Python code on a test file),
    `impulse(activity_id, model_id, hour_t, value)`, calculated for activities that have heart rate
-   and whose user has an FTHR, and cleared when that FTHR changes; `nch impulse model add/list`.
+   and whose user has an FTHR, and cleared when that FTHR changes; `nch model add/list`.
 4. Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses) and
    a command that prints or exports them for an external plotting service, as with the heat map.
 
