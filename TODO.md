@@ -407,6 +407,90 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
   one page to another (the cookie means links need no token); `--standalone` export.
 
+## Task 7: training impulse, fitness and fatigue (planned: findings and the first step, `nch user`)
+
+Goal: the choochoo "FF model" (fitness and fatigue from heart rate), reusing its algorithm with a
+much smaller database representation.  Read from `../choochoo/py/ch2` (`data/impulse.py`,
+`data/heart_rate.py`, `data/response.py`, `data/lib.py`, `pipeline/calculate/{impulse,response}.py`,
+`config/{impulse,profile}.py`).
+
+### The algorithm, as the Python code does it
+
+1. **Heart-rate zone, from FTHR (not max HR).**  FTHR is the *functional threshold* heart rate, the
+   highest rate sustainable for about an hour.  The zone edges are percentages of it, the British
+   Cycling values `BC_ZONES = (68, 83, 94, 105, 121)` (upper limits of zones 1..5).  The zone is a
+   continuous number: at or below 68% of FTHR it is 1; in each band from 68% to 121% it runs linearly
+   across a unit (68-83% is 2.0 to 3.0, 83-94% is 3.0 to 4.0, 94-105% is 4.0 to 5.0, 105-121% is 5.0
+   to 6.0); above 121% it is 6.  FTHR is a **history** (a value from a date on) and per activity group
+   (the author's default is 154 bpm).
+2. **Impulse, per 10 seconds.**  Heart rate is interpolated (linearly in time) onto a 10-second grid;
+   a gap longer than `max_secs` (60) gives no impulse.  `impulse = ((zone - zero) / (one - zero)) ^ gamma`,
+   clipped at 0, with the defaults `gamma = 2`, `zero = 1`, `one = 6`: zone 1 is 0, zone 6 is 1 per
+   10 s, zone 3.5 is 0.25.  (The code's `clip(..., inplace=True)` on a column probably does nothing;
+   with `zero = 1` the value is never negative, so it does not matter.)  If HR is missing for part of
+   an activity that has positions, the impulse is scaled up by `100 / coverage`.
+3. **Response (fitness and fatigue).**  The impulses are summed into hourly bins, a zero is put
+   in front, and an exponential decay is applied: `y[t] = y[t-1] * exp(-1/tau) + x[t]` with `tau` in
+   hours, the first value replaced by `start * alpha` (`alpha = 1 - exp(-1/tau)`), the result
+   multiplied by `scale`.  Fitness: 42 days, start 1, scale 1; fatigue: 7 days, start 1, scale 5.
+   It is calculated every hour up to now (zeros after the last activity), so it is a smooth curve.
+   Per activity it also keeps the change in each (and the time "earned" or needed to recover).
+4. **Python's representation:** a database row per 10 seconds for the zone and for the impulse, and a
+   row per hour for each response: millions of rows, with derived values stored as if they were data.
+
+### The nch representation (proposed)
+
+* **Heart rate** is a channel of its own, stored once: `heartrate(activity_id, t, bpm)`, `WITHOUT
+  ROWID`, from the `record` messages (a `heartrate/` module, importing alongside the positions: the
+  "extra data import" of AGENTS.md).  Nothing per 10 s is stored.
+* **Impulse is stored per hour per activity** (a handful of rows an activity), computed at import and
+  recomputed for the activities from the date an FTHR change takes effect.  Zone and the 10-second
+  grid exist only inside the calculation.
+* **Fitness and fatigue are not stored:** they are a pure function of the hourly impulses and three
+  numbers per curve, so a command computes them when asked (87,000 hours is ten years: trivial).
+* **What needs a user:** FTHR history, and the model parameters (gamma, zero, one, max_secs, the two
+  taus, scales), which can be constants in the code to start with.  Per activity group (sport) comes
+  later (the thresholds for running and cycling differ).
+
+### Step 1: `nch user` (per-user information)
+
+What the algorithm needs per user is the **FTHR** (with the date it applies from), not a max heart
+rate: nothing in the current Python code uses max or resting HR (`trimp()` and `edwards()` in
+`heart_rate.py` are "kept for documentation").  Max and resting HR are cheap to hold now, for
+Banister TRIMP or Edwards later.
+
+* **Tables** (a new `user/` module, which owns the user's profile; `user` itself stays in `db/`):
+  `user_hr(user_id, from_t, fthr, max_hr, rest_hr)`, primary key `(user_id, from_t)`, the last row
+  whose `from_t` is not after an activity applying to it; `max_hr` and `rest_hr` may be empty;
+  `on delete cascade` from the user.  `user.name` (already there, the key for `--user`) is kept.
+  A display name (`full_name`) is a column of `user` if wanted.
+* **Command line** (options are enough):
+
+      nch user                                  the users, each with its latest FTHR, max HR, rest HR
+      nch user NAME --create                    make a user (never implicit: a typo must not make one)
+      nch [--user NAME] user --fthr 154 [--from 2018-01-01]
+      nch [--user NAME] user --max-hr 188 --rest-hr 48
+      nch [--user NAME] user --rename NEW
+      nch [--user NAME] user --history          all the FTHR values, with dates
+
+  `--from` (default: the beginning of time, i.e. valid for everything before the next value) is a
+  date in the user's time zone, as in `list`.  A change to the FTHR marks the impulses from that date
+  as out of date (they are recomputed once the heart-rate channel exists; until then nothing depends on
+  it).  Values are checked (FTHR 80-230 bpm, max above FTHR above rest).
+* **Open questions:** FTHR rather than max HR (above); history from the start, or one value now?  a
+  value per sport?  a display name besides `name`?  defaults for a user who has not set FTHR (the
+  author's 154, or "no impulse until it is set", which I prefer)?
+
+### Later steps (each a commit)
+
+2. Heart rate as a channel: the `heartrate/` module, imported with the activity (a re-import).
+3. Impulse per hour: the zone and impulse functions (pure, tested against numbers worked by hand
+   and against the Python code on a test file), `impulse(activity_id, hour_t, value)`, recomputed
+   when the FTHR history changes.
+4. Fitness and fatigue: the decay (pure; checked against the Python output for the same impulses),
+   and a command that prints or exports them (a GeoJSON-like file for plotting by an external
+   service, as with the heat map; no plotting here).
+
 ## Task 6: places, and the start of an activity as a point (in progress)
 
 Why: `list -v` should say where an activity started ("a ride in another continent"), `--near`
