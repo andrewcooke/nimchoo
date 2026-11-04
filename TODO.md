@@ -224,6 +224,80 @@ made by an earlier build must be deleted and re-imported), the tests moved to mi
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
+## Task 8: one palette, the selection in the list, a calendar view, the cache split and templates (planned)
+
+Asked for on 2026-11-04 as a batch of independent ideas; questions answered the same day.  Each step is
+done only when the author confirms it.
+
+### Decisions
+
+**A. One palette.**  The TUI uses five colours: **white** (the default text colour), **grey**, **red**,
+**green**, **yellow** (an ANSI yellow, which some terminals draw as orange).  They are named in one
+module (`ui/palette.nim`) and everything else says "green", never a terminal code, so a palette can be
+replaced in one place.  (Different backgrounds are not wanted, but the abstraction should allow them.)
+* The same palette gives the hex values the web pages use (fitness green and fatigue red in the chart are
+  the TUI's green and red).
+* Grey stays the terminal's "dim" attribute for now (an explicit grey may be tried later).  Bold stays a
+  modifier.  The unused blue, magenta and cyan go.  The palette is code only, not a file.
+
+**B. The selection in the list.**  A row of the list display that is also in the selection is **yellow**
+(the whole row); with `--show` or `--save` every row is.  Otherwise rows are white.  Yellow already marks
+a zero distance or active time (a warning): that dual use stays, deliberately (yellow is the colour that
+stands out from both white and grey).  Transition (dim) rows stay dim.
+
+**C. A calendar view** of the list (`nch list ... --calendar`; the criteria and `--save` work as now).
+* One row per month: the month's 3-letter name, then the days `01`..`31`, each in a 3-character cell, set
+  in the column of its weekday, so days line up vertically.  **Weeks start on Monday.**  A header of 3-letter
+  weekday names is repeated across the top (a month can need 37 cells, so the header repeats 5 and a
+  third times; about 111 columns with the month name and the year).  The **year is at the right end of
+  every row**.
+* Colours: **white** = a day with a matched activity (matched by the criteria); **yellow** = matched **and**
+  in the selection (if any activity of the day is selected, the day is selected); **grey** = a day with no
+  matched activity.  Several activities on a day are just a day with data.
+* Days are the **user's local timezone** (everything displayed is local; UTC is only internal).
+* Only months with data are shown; **`--verbose`** shows every month from the first to the last.
+* Too narrow a terminal: print a warning (in yellow) and truncate each line.
+* Without colour (a pipe, `NO_COLOR`): the cells carry marks so nothing is lost: a day with data `07 `, a
+  selected day `07*`, a day with none `-- ` (cells stay 3 wide).
+
+**D. The cache is split, bundled files are unpacked, pages come from templates.**
+* `<cache>/user/` holds what commands generate (GeoJSON, CSV, pages); `<cache>/system/` holds what is
+  unpacked from the executable.  `server-token` stays at the top, and so does the **manifest** (below).
+  Files already in the cache root are ignored (a clean-up command comes later).  The server serves only
+  `user/`.
+* **Bundled files unpacked into `system/`:** `Profile.xlsx` (the FIT SDK profile), the cities list, the
+  `NOTICE` text, the page **templates**, and a small file of the **library versions** (Leaflet, d3, Plot,
+  tile URL, with their integrity hashes), so a library is upgraded by editing one file.  Not the SQL
+  schema (it must match the code; its checksum is checked).  Leaflet, d3 and Plot themselves still come
+  from the CDN.
+* **Replaced files are noticed and used:** the manifest records the hash of each file as it was unpacked.
+  A file that still matches is untouched, so a newer bundled version replaces it silently; a file that
+  differs was changed by the author (say, a newer SDK profile) and is **used as it is and never
+  overwritten**.  A missing file is unpacked again, so `system/` can be deleted safely.
+* **Templates:** the pages (heat map, chart) become template files in the source, packed in the binary,
+  unpacked to `system/templates/`, and filled in at run time from the cache.  The engine is our own, a
+  mustache-compatible subset (`{{name}}` escaped, `{{{name}}}` or `{{&name}}` raw, `{{#flag}}..{{/flag}}`
+  and `{{^flag}}..{{/flag}}`), about 80 lines; a library with more (conditionals, loops) may be wanted in
+  the long term.  The values are the user's preferences, the data file's name, and the library versions.
+* **Places are informational, so a changed cities list reloads them without destroying anything:** the
+  hash of the list loaded is kept in the database; when the list in use (embedded, or a replaced file)
+  has another hash, the places are replaced and every activity's nearest place is worked out again.
+  This takes the cities data out of the places fragment's checksum.
+
+### Plan
+
+* **Step A: the palette** (small).  `ui/palette.nim` with the five colours and their terminal and web
+  forms; everything uses it (`vocabulary`, `style`, `table`, `destroy`, `ff/stats`, the chart page); tests.
+* **Step B: the selection in the list** (small).  `ListRow` knows if it is selected; the row is yellow.
+* **Step C: the calendar view.**  A pure layout module (`selection/calendar.nim`: days, months, cells,
+  marks, truncation), then `--calendar` and `--verbose`; tests with fixed dates and zones.
+* **Step D: the cache split, system files and templates** (the largest), in sub-steps, each a commit:
+  D1 `user/` and `system/` directories (`cache.nim`, the server, the commands);
+  D2 the manifest and unpacking of `Profile.xlsx`, the cities list and `NOTICE`, with replaced files used;
+  D3 the template engine (pure, tested);
+  D4 the heat map and chart pages as templates, with the library versions file;
+  D5 reload the places when the list changes, and repoint the activities.
+
 ## Task 3: `nch heatmap` (GeoJSON) and a local web viewer (planned)
 
 Goal (AGENTS.md, "two layers"): something graphical that uses the selection (`nch list --save`).  Layer 1 writes files
