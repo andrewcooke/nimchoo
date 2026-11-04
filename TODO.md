@@ -2049,3 +2049,30 @@ GeoNames has almost no roads, so road names ("Camino a Farellones") would need O
 populated place (what we have now) is 3 to 15 km from a climb's start: it says where, not what.
 Idea: fetch the country files on demand into the cache (like the terrain tiles), keep the best name on
 `sector.name` (a pass or saddle near the top, else a peak or mountain within ~1.5 km, else "near <town>").
+
+### Where we are (saved 2026-11-04) and what comes next
+
+Built and committed: steps 1 to 5 of task 12 (profile, detector, matching, tables, the lazy work pass, `nch empty
+--sectors`).  Not yet: `nch climbs` (step 6), the elevation profile chart (7), the terrain model (8), names.
+
+Next, in this order:
+
+1. **`nch climbs`** (to design with the author; proposed): `nch climbs` lists the climbs of the selected activities (or
+   all of the user's: to settle), a block for each activity: sector id, start km, length, gain, gradient,
+   category, the time, the rank of this effort among the efforts on that sector ("3rd of 12") and the best time;
+   `nch climbs --sectors` lists the catalogue: id, length, gain, gradient, category, number of efforts, best time and
+   whose.  Both call `ensureClimbs` first.  Distances are metres in the database and kilometres on the screen.
+2. **Names for sectors** from GeoNames country files, fetched when wanted into `<cache>/data/` (left alone by
+   `empty --cache`) with Nim's own HTTPS client (`-d:ssl`; OpenSSL 3.5 is installed here, and a test fetched
+   `CL.zip` from geonames.org).  The countries are those of the few nearest places in the embedded list (a border
+   can be near).  A nullable `sector.name`: a pass or saddle near the top, else a peak or mountain within about
+   1.5 km of the route, else "near <town>".  Without a network the names fall back to "near <town>", once told.
+   `-d:ssl` has to be added to the builds.  Later: the same files could name the starts of activities (6,967
+   populated places in Chile against the 247 we carry), which needs per-country sources in the `place` table and a
+   refresh of the stored place ids.
+3. **Terrain model** (Copernicus GLO-30 from the AWS bucket) to correct a barometer's drift; only if the
+   device altitude proves poor.
+4. **Elevation profile chart** and the sectors on the heat map.
+
+Also to remember: the full library's first pass takes 56 s (reading coordinates is the largest part, then
+detection); a second pass is instant.
