@@ -1971,8 +1971,22 @@ a sector is added, the earlier rides near it are matched against it as well.
 
 * The work is **lazy and kept**: a command that needs climbs first brings the tables up to date (activities not yet
   worked out, in time order, each against the catalogue so far; a new sector is matched against the earlier rides
-  near it), then answers from the tables.  Nothing is worked out at import.  `--rebuild` starts again when the
-  parameters change.  (`ff` does the same with impulses.)
+  near it), then answers from the tables.  Nothing is worked out at import.  (`ff` does the same with impulses.)
+* **The parameters are constants**, those of the Python code: phi 0.7, minimum gain 80 m, minimum gradient 3 %,
+  maximum gradient 40 %, maximum reversal 10 % of the gain, categories by gain (80 m: 4, 160: 3, 320: 2, 640: 1,
+  800: HC), hull and gates 25 m, a match within 5 % of the sector's length, a repeat if under half of each
+  climb lies outside the other's hull.  No options.  An algorithm version is stored with the record of what was
+  worked out, so a change of the algorithm shows up.
+* **A sector** is a stretch of road or track that can be ridden again (a climb, for now; later a stretch the
+  author picks).  It is a **copy**: its own polyline (lon, lat, elevation; a spatial geometry with an index) and
+  summary numbers (length, gain, gradient, category), and a plain note of the ride it was first found on
+  (not a link), so it survives deleting or re-importing that ride.  Hull and gates are worked out when matching.
+* **Sectors are shared** by all users of the database (people may compare and compete); **efforts are personal**
+  (they belong to a ride, and go with it).  The catalogue is built from every user's rides in one global order of
+  start time, so it does not depend on whose rides were worked out first.
+* `nch empty --user NAME` leaves the sectors alone.  **`nch empty --sectors -f`** clears the catalogue, with
+  every user's efforts and the record of what was worked out (so the next `nch climbs` starts again: this is the
+  rebuild); it says how many sectors and efforts of how many users it deletes, and has the countdown.
 
 ### Still to settle
 
