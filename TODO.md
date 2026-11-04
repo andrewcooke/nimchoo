@@ -224,6 +224,41 @@ made by an earlier build must be deleted and re-imported), the tests moved to mi
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
+## Task 9: profile a large import and make it faster (planned; added 2026-11-04)
+
+Asked for by the author, who suspects the database more than the Nim code.  **Measure first**, then change
+the biggest cost, one thing at a time, keeping the numbers in this file.
+
+### What is known (from reading the code, not yet measured)
+
+* **One transaction per file already** (`importFileWith` begins and commits per file: not per row).  So
+  "a single commit after writing a whole file" is how it works.  The cost is what each commit does.
+* **No pragmas are set** except `foreign_keys` and `trusted_schema`: the journal is SQLite's default
+  (rollback journal, `synchronous = FULL`), so **every commit waits for the disk twice or more**, for each
+  of thousands of files.  **WAL with `synchronous = NORMAL`** commits without waiting for the disk each time
+  (it is still safe against corruption; a power cut can lose the last commits, which a re-import repeats).
+  WAL adds transient `-wal`/`-shm` files next to the database (`nch destroy` already removes them).
+* **Which build is being used?**  A debug build is about 5 times slower than `-d:release` (see the note on
+  the test task).  The `nch` that `nimble build` makes is a debug build unless asked: check this first.
+* Other suspects: SHA-256 of every file in pure Nim (`checksums`); decoding; the nearest-place search
+  (a SpatiaLite query, with a widening box, per activity); the spatial indexes (`route`, `activity.start`)
+  updated on each insert; the heart-rate rows (about as many as the coordinates); `seen_file` batches.
+
+### Plan
+
+* **Step 1: a way to measure.**  Phase timers in the importer (read and hash, decode, each table's inserts,
+  nearest place, commit), switched on by an environment variable and written to the log or stderr; a
+  repeatable benchmark (a directory of real files into a fresh database, several runs) as a nimble task.
+  Record the first numbers here.
+* **Step 2: the cheap, large things**, each measured alone: release build (and `-d:danger`), WAL plus
+  `synchronous = NORMAL`, `cache_size`, `temp_store = memory`.
+* **Step 3: transactions.**  Several files per commit, using a savepoint per file so a bad file still
+  rolls back alone; commit every N files or every few seconds (and at the end and on Ctrl-C).
+* **Step 4: whatever the numbers then show** (hashing, the nearest-place query, bulk inserts and the order
+  of index creation, decoding on several threads).
+* Questions for the author before step 2: is losing the last few commits after a power cut acceptable (WAL
+  with NORMAL), and is the extra `-wal` file next to the database acceptable (you prefer a single file)?
+
 ## Task 8: one palette, the selection in the list, a calendar view, the cache split and templates (planned)
 
 Asked for on 2026-11-04 as a batch of independent ideas; questions answered the same day.  Each step is
