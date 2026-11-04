@@ -1964,8 +1964,6 @@ a sector is added, the earlier rides near it are matched against it as well.
 7. **Show them**: an elevation profile with the climbs marked, and the sectors on the heat map, as input for
    external viewers (no local plotting).
 8. **Better elevation** (only if the barometer data prove poor): see the note on Copernicus GLO-30 above.
-9. **Later, the same machinery for other sectors**: a stretch chosen by the author between two points of a
-   ride (kind `user`), with the same efforts and ranking.
 
 ### Settled (author, 2026-11-04)
 
@@ -1991,3 +1989,30 @@ a sector is added, the earlier rides near it are matched against it as well.
 ### Still to settle
 
 * The names (`sector`, `effort`) and whether `climbs` is the module (the rest is general).
+
+### Steps 1 to 3 are built (2026-11-04): `climbs/{geo,profile,detect,match}.nim`, pure, 32 tests
+
+* `geo.nim`: the flat projection (metres round a reference point), haversine, point-to-line distances, segment
+  crossings, points along a line.
+* `profile.nim`: distance from the positions (haversine), samples every **10 m** (fixed), altitude only where
+  recorded (NaN otherwise; a gap between two altitudes is bridged, as pandas did), then a median of 5 and a
+  mean of 5 (instead of the spline; a climb is 80 m or more so this is plenty).  A climb never crosses a stretch
+  with no altitude (`findClimbs(profile)` works on each stretch).
+* `detect.nim`: choochoo's detector as it is: score `gain / distance^0.7`, greedy recursion, coarse search every
+  10th sample above 1000 samples then fine, reversals (10 %), gradient limits, categories.  Ends are brought in by
+  a sample, as there.  3 ms for a 143 km ride.
+* `match.nim`: gates 25 m, the shortest crossing pair within 5 % of the length, times interpolated; **laps are
+  separate efforts** (choochoo kept one per ride); a hull with flat ends for the repeat rule (more than half of
+  each inside the other's hull).
+* Not compared with the Python output: numpy, pandas and scipy are not installed here (ask before installing);
+  checked on made-up profiles with known answers and on real rides instead (a 4.8 % climb of 1.9 km, +93 m, and
+  a 3.9 % one of 3.2 km, +124 m, in two of the author's rides).
+
+### Finding: timer segments are short in real rides
+
+The 167 activities of the sample have **50 timer segments on average** (up to 327; a typical ride has a dozen or
+more, the longest 20 to 60 minutes), because the device pauses the timer whenever the rider stops.  A rule that
+a climb lies inside one segment would cut climbs at every stop.  To settle with the author: detect on the whole
+activity (the profile is by distance and ignores pauses) and record for each effort its elapsed time, its
+moving time (the time inside the timer's stretches) and the seconds paused, so that comparisons can use the
+moving time or leave out efforts with a stop.
