@@ -158,7 +158,7 @@ func moreThanOneUser(rows: seq[ListRow]): bool =
 proc listing(rows: seq[ListRow], zone: Timezone, verbose: bool, choices: Option[int]): seq[Line] =
   ## The table and its last line.
   result = table(rows, zone, rows.len > 0 and moreThanOneUser(rows), verbose)
-  result.add plain(footer(rows, choices))
+  result.add footerLine(rows, choices)
 
 proc showSelection*(st: Store, c: Criteria, zone: Timezone): seq[Line]
     {.raises: [StoreError].} =
