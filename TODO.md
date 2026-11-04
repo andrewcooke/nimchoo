@@ -1933,8 +1933,14 @@ sector step needs.  No SRTM tiles are on this computer.
 5. **Store them** (only if wanted): a `climb` table written by an import step after the activity (so
    `list --climbs` and queries across rides are cheap), and the global catalogue of repeated climbs
    (SpatiaLite overlap tests as in `__prune_climb`) with a row per ride that covers a climb.
-6. **Better elevation** (only if the barometer data prove poor): an SRTM reader (`.hgt` tiles that the
-   author downloads; bilinear lookup is 30 lines) to correct a barometer's drift or replace GPS-only altitude.
+6. **Better elevation** (only if the barometer data prove poor): a terrain model to correct a barometer's
+   drift (the median shift choochoo used) or to replace GPS-only altitude.  Use **Copernicus DEM GLO-30**, not
+   SRTM: more accurate in published comparisons, newer, and the AWS bucket `copernicus-dem-30m` (eu-central-1)
+   is public with no account, so tiles can be fetched on demand (1 degree each, Cloud Optimized GeoTIFF,
+   float32, deflate with the floating-point predictor: `zippy` can inflate it; a small TIFF reader is needed;
+   HTTPS needs OpenSSL).  Tiles go in the cache (space to be managed by `empty --cache`-like clean-up).
+   FABDEM (GLO-30 with trees and buildings removed) is better under canopy but has a non-commercial licence
+   and no simple public bucket; NASADEM (reprocessed SRTM) needs an Earthdata login.
 
 ### Questions for the author
 
