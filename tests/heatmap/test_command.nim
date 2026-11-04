@@ -1,3 +1,4 @@
+import ../support/env
 import std/[json, os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
@@ -150,3 +151,4 @@ suite "heatmap: the command":
     writeFile(dir / "blocked" / "file", "")
     putEnv("NCH_CACHE", dir / "blocked" / "file" / "cache")
     check heatmap(w.db) == exitFailure
+    useTestCache()

@@ -1,3 +1,4 @@
+import ../support/env
 import std/[math, options, os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
@@ -183,7 +184,7 @@ suite "nch ff":
     check n == 5
     check ffCommand.run(g, @["--model", "nope"]) == exitFailure
     check ffCommand.run(g, @["--to", "x"]) == exitUsage
-    delEnv("NCH_CACHE")
+    useTestCache()
 
 suite "nch ff: the key":
   test "--key asks for a file by the key of its data; an old key can not be made again":
@@ -213,4 +214,4 @@ suite "nch ff: the key":
     t.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key]) == exitOk
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key, "--hourly"]) == exitFailure   # (that one was never made)
-    delEnv("NCH_CACHE")
+    useTestCache()

@@ -42,7 +42,12 @@ type
     source*: Source
     path*: string      ## the file in `system/` ("" if there is none)
 
-const manifestName* = "manifest"
+const
+  manifestName* = "manifest"
+  noticeBundle* = Bundle(name: "NOTICE", data: staticRead("../../../NOTICE"))
+    ## The licence notice (the data and libraries the program carries and their licences): kept as a
+    ## file in `system/` so that it can be read, and unpacked whenever anything else is.  Nothing
+    ## reads it back.
 
 func decide*(fileHash, recorded: Option[string], bundled: string): Action =
   ## What to do about a bundled file, given the hash of the file in `system/` (none if it is not
@@ -83,7 +88,7 @@ proc record(top, name, hash: string) =
   except IOError, OSError, Exception:
     discard
 
-proc resolve*(top: string, b: Bundle): Resolved =
+proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
   ## The data to use for a bundled file, unpacking it into `top`'s `system/` if need be.  `top` is
   ## the cache directory; "" means there is none (use the program's copy).
   result = Resolved(data: b.data, source: soBundled)
@@ -108,6 +113,7 @@ proc resolve*(top: string, b: Bundle): Resolved =
     if recorded != some(bundled): record(top, b.name, bundled)
     return Resolved(data: b.data, source: soUnpacked, path: path)
   of acUnpack, acRefresh:
+    if b.name != noticeBundle.name: discard resolve(top, noticeBundle)       # (the notice goes with them)
     try:
       createDir systemDir(top)
       let tmp = path & ".part"
@@ -117,6 +123,10 @@ proc resolve*(top: string, b: Bundle): Resolved =
       return                                 # cannot write: the program's copy will do
     record(top, b.name, bundled)
     result = Resolved(data: b.data, source: soUnpacked, path: path)
+
+proc unpackNotice*(top: string) =
+  ## Put NOTICE in `top`'s `system/` part, if it is not already there.
+  discard resolve(top, noticeBundle)
 
 proc resolve*(b: Bundle): Resolved =
   ## ... in the cache directory the environment points to (see cache.nim).

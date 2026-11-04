@@ -2,7 +2,7 @@
 ## escaping text for a page, and writing a file so that nobody sees half of it.
 
 import std/os
-import ../bundle/notice
+import ../bundle/unpack
 import ../cache
 import ../templating
 export templating.htmlEscape

@@ -366,8 +366,11 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   `defaultProfile()` gives a note when the author's is in use, or falls back to the built-in with a note when
   it cannot be read; `nch import` says the note at the end, `nch fit` on stderr), the places list
   (`places/data.nim`: `placesList()`, gzipped or plain, an error naming the file if it cannot be read;
-  used when a database is made), and `NOTICE` (`bundle/notice.nim`, unpacked by `makeCacheDirs`).  A changed
-  places list is not noticed by a database that exists (D5).  `hashing.nim` replaced five copies of the hex
+  used when a database is made), and `NOTICE` (`unpack.noticeBundle`: unpacked whenever anything else is, and by
+  `makeCacheDirs`).  A changed
+  places list is not noticed by a database that exists (D5).  **Tests must not touch the author's cache:** `tests/support/env.nim` points `NCH_CACHE` at a temporary
+  directory, and a test that changes it calls `useTestCache()` afterwards (never `delEnv`): a first run without that
+  left `cities-test.tsv` in the real `system/` (removed by hand).  `hashing.nim` replaced five copies of the hex
   SHA-256.  `tests/support/env.nim` gives the tests a cache directory of their own;
   D3 the template engine (pure, tested) -- built: `templating.nim`, a Mustache subset: `{{name}}` (HTML-escaped),
   `{{{name}}}` / `{{&name}}` (raw), `{{#name}}..{{/name}}` (shown for true, a non-empty text, or once per item

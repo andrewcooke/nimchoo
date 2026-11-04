@@ -1,5 +1,6 @@
 import std/[options, os, strutils, tables, unittest]
 import nimchoo/bundle/unpack
+import ../support/env
 import nimchoo/cache
 import nimchoo/hashing
 
@@ -43,6 +44,16 @@ suite "bundle: the manifest":
     check parseManifest("").len == 0
 
 suite "bundle: resolving a file":
+  test "the licence notice is unpacked with anything else":
+    let top = fresh("withnotice")
+    discard resolve(top, bundle("v1"))
+    check readFile(systemDir(top) / "NOTICE") == noticeBundle.data
+    check parseManifest(readFile(top / manifestName)).hasKey("NOTICE")
+    removeFile(systemDir(top) / "NOTICE")
+    discard resolve(top, bundle("v1"))                       # (nothing to unpack: the notice is not brought back)
+    check not fileExists(systemDir(top) / "NOTICE")
+    discard resolve(top, bundle("v2"))                       # (something is unpacked: it is)
+    check fileExists(systemDir(top) / "NOTICE")
   test "the first time it is unpacked and recorded":
     let top = fresh("first")
     let r = resolve(top, bundle("v1"))
@@ -95,7 +106,7 @@ suite "bundle: resolving a file":
     writeFile(systemDir(top) / "cities.tsv.gz", "my cities")
     check resolve(top, bundle("p2", "Profile.xlsx")).data == "p2"
     check resolve(top, bundle("c2", "cities.tsv.gz")).data == "my cities"
-    check parseManifest(readFile(top / manifestName)).len == 2
+    check parseManifest(readFile(top / manifestName)).len == 3        # (and the notice)
   test "no cache directory, or one that cannot be used: the program's copy":
     check resolve("", bundle("v1")) == Resolved(data: "v1", source: soBundled, path: "")
     let top = fresh("unusable")
@@ -104,7 +115,6 @@ suite "bundle: resolving a file":
     check r.data == "v1" and r.source == soBundled
 
 # the real files, through the cache directory of the environment (tests/support/env.nim sets one)
-import nimchoo/bundle/notice
 import nimchoo/places/[data, seed]
 import nimchoo/profile/[default, load]
 import nimchoo/warnings
@@ -117,7 +127,7 @@ suite "bundle: the profile, the list of places and the notice":
     let top = fresh("real")
     putEnv("NCH_CACHE", top)
   teardown:
-    putEnv("NCH_CACHE", getTempDir() / "nch-test-cache")
+    useTestCache()
   test "the default profile is unpacked, and is the built-in one":
     let d = defaultProfile()
     check d.note == ""
@@ -165,3 +175,4 @@ suite "bundle: the profile, the list of places and the notice":
     unpackNotice(top)
     check readFile(systemDir(top) / "NOTICE") == readFile("NOTICE")
     check parseManifest(readFile(top / manifestName)).hasKey("NOTICE")
+    check noticeBundle.data == readFile("NOTICE")
