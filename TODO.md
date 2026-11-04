@@ -1913,39 +1913,62 @@ distance; no per-point distance, no smoothing, no terrain model.  In the 300-fil
 (90 %) and 83 % of the points have an altitude, ranging 37 to 2444 m.  SpatiaLite has the spatial functions the
 sector step needs.  No SRTM tiles are on this computer.
 
-### Steps (each a commit; the pure parts first, with tests on made-up profiles whose climbs are known)
+### Decisions so far (author, 2026-11-04)
 
-1. **Distance and a clean profile** (`climbs/profile.nim`, pure): cumulative distance along the route from
-   the coordinates (haversine; no schema change, works for any GPS ride), resample to even steps of
-   distance, remove spikes and smooth the altitude (a median then a moving average, or a small cubic
-   smoothing spline: there is no scipy), gradient.  Tested with synthetic ramps and noise.
-2. **The detector** (`climbs/detect.nim`, pure): the score, the greedy recursion, the coarse-then-fine
-   search, reversals, the gradient limits, categories.  Parameters as an object with the defaults above.
-   Tested on made-up profiles (one hill, two hills with a dip, a hill with a big dip splits, a plateau,
-   a short steep ramp is ignored) and compared with the Python output on the same files (the
-   `../choochoo` test rides) to settle phi and the smoothing.
-3. **`nch climbs`** (command; reads the selection like `heatmap` and `ff`): a table of the climbs of the
-   selected activities (date, start km, length, gain, gradient, category), computed on demand and cached by a
-   key like `ff`'s, so no new tables.  Options for the parameters (`--phi`, `--min-gain`, `--min-gradient`)
-   and `--csv`/`--web` as the other commands.
-4. **Show them**: the climbs on the heat map or a profile chart (elevation against distance with the climbs
-   marked), as input for an external viewer rather than local plotting.
-5. **Store them** (only if wanted): a `climb` table written by an import step after the activity (so
-   `list --climbs` and queries across rides are cheap), and the global catalogue of repeated climbs
-   (SpatiaLite overlap tests as in `__prune_climb`) with a row per ride that covers a climb.
-6. **Better elevation** (only if the barometer data prove poor): a terrain model to correct a barometer's
-   drift (the median shift choochoo used) or to replace GPS-only altitude.  Use **Copernicus DEM GLO-30**, not
-   SRTM: more accurate in published comparisons, newer, and the AWS bucket `copernicus-dem-30m` (eu-central-1)
-   is public with no account, so tiles can be fetched on demand (1 degree each, Cloud Optimized GeoTIFF,
-   float32, deflate with the floating-point predictor: `zippy` can inflate it; a small TIFF reader is needed;
-   HTTPS needs OpenSSL).  Tiles go in the cache (space to be managed by `empty --cache`-like clean-up).
-   FABDEM (GLO-30 with trees and buildings removed) is better under canopy but has a non-commercial licence
-   and no simple public bucket; NASADEM (reprocessed SRTM) needs an Earthdata login.
+* Start with the device's altitude (the early data from a low-spec watch may lack it: those activities simply
+  have no climbs); a terrain model comes later (Copernicus GLO-30, see step 8).
+* Climbs **persist** and form a **catalogue** used to compare times across rides; this is the start of
+  "segment time management", so the catalogue is general (a climb is one kind of sector).
+* Detection does **not** cross a timer pause: a climb lies inside one `segment` (timer stretch), because the
+  time over it must be continuous.
 
-### Questions for the author
+### How choochoo matches a ride to a stored climb (data/sector.py), which we copy
 
-* Is device altitude good enough to start (steps 1 to 3), with SRTM left for later?  (Most Garmin Edge
-  devices are barometric, and 90 % of the sample has altitude.)
-* Computed on demand (step 3) before any new table, or stored at import from the start?
-* Is a catalogue of repeated climbs (step 5) wanted, or only the climbs of each ride?
-* Does a ride with several sessions or timer pauses need the climbs per segment, or per activity?
+A sector has a route, a **hull** (the route buffered by 25 m with flat ends) and **gates**: a start line and a
+finish line, 25 m each side, across the route at its ends.  A ride matches if it passes through the hull; its
+start and finish times are where it crosses the gates (the position along the ride is found, and the time
+interpolated); of the possible pairs of crossings the shortest is taken, and it counts only if the ground
+distance between them is within 5 % of the sector's length (so a shortcut or a detour does not match, nor a
+ride the other way).  A new climb found on a ride is dropped if an older sector already covers it: less than
+half of its length lies outside the older one's hull and the other way round (`DISTINCT_CLIMB = 0.5`).  When
+a sector is added, the earlier rides near it are matched against it as well.
+
+### Steps (each a commit; the pure parts first, with tests on made-up profiles and routes)
+
+1. **A clean profile** (`climbs/profile.nim`, pure): for one timer segment, the cumulative distance along
+   the coordinates (haversine; no per-point distance is stored), resampled to even steps of distance, the
+   altitude despiked and smoothed (there is no scipy: a median, then a moving average or a small cubic
+   smoothing spline), the gradient.  Tested with synthetic ramps and noise.
+2. **The detector** (`climbs/detect.nim`, pure): the score `gain / distance^phi`, the greedy recursion with
+   the coarse-then-fine search, reversals, the gradient limits, categories; the parameters as an object with
+   choochoo's defaults.  Tested on made-up profiles (one hill, two hills with a dip, a big dip splits a climb,
+   a plateau, a short steep ramp ignored) and against the Python output on the `../choochoo` test rides, to
+   settle phi (0.6 or 0.7) and the smoothing.
+3. **Geometry and matching** (`climbs/match.nim`, pure): a local flat projection in metres, the hull test, the
+   gates, crossing a gate between two consecutive points, the shortest start/finish pair within 5 % of the
+   length, the time interpolated; and the overlap rule for new climbs.  Tested with straight and looping
+   routes, a ride the wrong way, GPS offsets inside 25 m, laps over the same climb (each is an effort).
+4. **Tables** (`climbs/001-schema.sql`, `ddl.nim`, registered in `modules`): `sector` (id, kind, route as
+   geometry with a spatial index, length, gain, gradient, category, the activity it was found on, an optional
+   name), `effort` (sector, activity, segment, start and finish time, elapsed seconds, start and finish
+   distance and elevation; primary key by sector, activity and start), and a record of which activities were
+   worked out with which parameters.  The name `segment` is taken by the timer stretches, so the catalogue's
+   word is **sector**, as in choochoo.
+5. **Working them out** (`climbs/work.nim`): like the impulses, done when asked for (`calculateMissing`
+   pattern: activities not yet worked out, in time order, each against the catalogue so far, so the result
+   does not depend on the order of import or the number of threads); new sectors are matched against the
+   earlier rides near them.  `nch climbs --rebuild` throws the catalogue away and starts again (needed when
+   the parameters change).
+6. **`nch climbs`**: the climbs of the selected activities with their efforts and ranking ("3rd of 12 on
+   this climb, best 8:41"); `--sectors` for the catalogue; `--csv`, and `--web` like the other commands.
+7. **Show them**: an elevation profile with the climbs marked, and the sectors on the heat map, as input for
+   external viewers (no local plotting).
+8. **Better elevation** (only if the barometer data prove poor): see the note on Copernicus GLO-30 above.
+9. **Later, the same machinery for other sectors**: a stretch chosen by the author between two points of a
+   ride (kind `user`), with the same efforts and ranking.
+
+### Still to settle
+
+* The names (`sector`, `effort`) and whether `climbs` is the module (the rest is general).
+* Whether the work is done when `nch climbs` is asked for (like `ff`), or at import.  Asked-for is simpler,
+  independent of the threads, and fast enough if the detection is.
