@@ -1967,8 +1967,13 @@ a sector is added, the earlier rides near it are matched against it as well.
 9. **Later, the same machinery for other sectors**: a stretch chosen by the author between two points of a
    ride (kind `user`), with the same efforts and ranking.
 
+### Settled (author, 2026-11-04)
+
+* The work is **lazy and kept**: a command that needs climbs first brings the tables up to date (activities not yet
+  worked out, in time order, each against the catalogue so far; a new sector is matched against the earlier rides
+  near it), then answers from the tables.  Nothing is worked out at import.  `--rebuild` starts again when the
+  parameters change.  (`ff` does the same with impulses.)
+
 ### Still to settle
 
 * The names (`sector`, `effort`) and whether `climbs` is the module (the rest is general).
-* Whether the work is done when `nch climbs` is asked for (like `ff`), or at import.  Asked-for is simpler,
-  independent of the threads, and fast enough if the detection is.
