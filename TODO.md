@@ -341,6 +341,13 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   route 2,200 -> 51 ms (insert 1,869 -> 31, the building 333 -> 20); **total 5,870 -> 3,898 ms** (8,886
   at the start; about 65 s for the 3,909 files).  Now: decode 51%, commit 14%, coordinates 13%, heart rate
   11%.
+* **WAL checkpoint interval (2026-11-04).**  Commit time on the sample, by `wal_autocheckpoint` (pages): 1,000
+  (default) 597 ms, 10,000 364, 100,000 216, never 211; a bigger page cache changed nothing.  Set to **20,000**
+  (an 80 MB log at most).  **What the decoder still costs (gprof):** 48 million allocations for the 300 files
+  (207 million before), about 7 for each of the 7 million field values: `basetype.decode` returns an `Option`
+  holding a `seq`, `interpret` copies it into `vals` and again into the value.  Next: decode in place into the
+  value (1-2 allocations a field), and find why 700,000 of the 766,000 records take the duplicate-name path
+  (`mayDup`).
 * **Step 1: a way to measure.**
 
   Phase timers in the importer (read and hash, decode, each table's inserts,
