@@ -3,7 +3,7 @@
 
 import std/[algorithm, sequtils, sets, strutils, tables]
 import nimchoo/errors
-import nimchoo/fit/[basetype, bytes, crc, header, time]
+import nimchoo/fit/bytes
 import nimchoo/fit/command
 import nimchoo/profile/load
 import nimchoo/fit/tokens

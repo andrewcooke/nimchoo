@@ -1,8 +1,8 @@
-import std/[os, strutils, tables, unittest]
+import std/[os, tables, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/[channel, store]
 import nimchoo/heartrate/step
-import nimchoo/importer/[extract, importer]
+import nimchoo/importer/importer
 import nimchoo/fit/bytes
 import nimchoo/modules
 import nimchoo/profile/load

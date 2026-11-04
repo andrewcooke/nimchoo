@@ -1,3 +1,4 @@
+{.push warning[UnreachableCode]: off.}      # (`expect` around procedures that never return)
 import std/[sets, strutils, unittest]
 import nimchoo/errors
 import nimchoo/fit/header

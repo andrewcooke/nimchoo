@@ -115,9 +115,8 @@ suite "bundle: resolving a file":
     check r.data == "v1" and r.source == soBundled
 
 # the real files, through the cache directory of the environment (tests/support/env.nim sets one)
-import nimchoo/places/[data, seed]
+import nimchoo/places/data
 import nimchoo/profile/[default, load]
-import nimchoo/warnings
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules

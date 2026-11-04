@@ -3,9 +3,8 @@
 
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
-import ../support/env
+from ../support/env import useTestCache
 import nimchoo/importer/batch
-import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
 import ../support/fitbuilder
@@ -14,6 +13,8 @@ const
   base = 900_000_000
   ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
   multisport = "../choochoo/data/test/source/python-fitparse/activity-large-fenxi2-multisport.fit"
+
+useTestCache()                    # (these tests make databases: they use the cache directory made for tests)
 
 let dir = getTempDir() / "nch-test-pool"
 

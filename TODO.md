@@ -2,6 +2,11 @@
 
 ## Conventions
 
+* **No compiler warnings** (checked 2026-11-04 with Nim 2.4.0, building everything from scratch with `-f`: the
+  program, the debug build, the tools, the tests and `csvreport`).  Keep it so: a new warning is fixed when it
+  appears (an unused import is removed; an import for its side effect is made explicit, as `useTestCache()`).
+  `nimble csvreport` no longer hides warnings.
+
 ### Error handling
 
 Four kinds of things go wrong, and each has one mechanism:

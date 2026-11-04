@@ -1,12 +1,11 @@
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import ../support/env
-import nimchoo/bundle/unpack
 import nimchoo/cache
 import nimchoo/db/store
 import nimchoo/errors
 import nimchoo/modules
-import nimchoo/places/[data, seed]
+import nimchoo/places/data
 
 let dir = getTempDir() / "nch-test-places-reload"
 

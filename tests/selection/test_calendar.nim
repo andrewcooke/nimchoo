@@ -1,4 +1,4 @@
-import std/[options, sequtils, strutils, times, unittest]
+import std/[sequtils, strutils, times, unittest]
 import nimchoo/selection/[calendar, table]
 import nimchoo/ui/style
 import ../support/zones

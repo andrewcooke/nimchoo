@@ -1,4 +1,4 @@
-import std/[strutils, unittest]
+import std/unittest
 import nimchoo/ui/[palette, style]
 
 suite "palette: five colours, named in one place":

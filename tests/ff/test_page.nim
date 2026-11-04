@@ -2,7 +2,6 @@ import std/[options, os, strutils, tables, unittest]
 import ../support/env
 import nimchoo/bundle/unpack
 import nimchoo/serve/libraries
-import nimchoo/templating
 import nimchoo/ff/[command, page, params]
 import nimchoo/serve/request
 import nimchoo/cache

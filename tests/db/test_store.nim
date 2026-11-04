@@ -1,4 +1,4 @@
-import std/[options, os, sequtils, sets, strutils, unittest]
+import std/[options, os, sets, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/[fragment, statement, store]
 import nimchoo/errors

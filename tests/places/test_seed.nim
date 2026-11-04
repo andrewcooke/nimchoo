@@ -1,4 +1,4 @@
-import std/[math, options, os, strutils, unittest]
+import std/[math, options, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules

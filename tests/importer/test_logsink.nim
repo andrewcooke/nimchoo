@@ -1,5 +1,5 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/importer/[batch, events, failure, logsink]
+import nimchoo/importer/[events, failure, logsink]
 import nimchoo/importer/command as importCommand
 import nimchoo/cli/common
 import nimchoo/modules

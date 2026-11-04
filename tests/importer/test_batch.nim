@@ -5,7 +5,6 @@ import std/[os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/importer/batch
 import nimchoo/importer/command as importCommand
-import nimchoo/importer/importer except importFile
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/errors

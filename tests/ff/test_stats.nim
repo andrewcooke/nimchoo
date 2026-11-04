@@ -1,4 +1,4 @@
-import std/[math, options, strutils, times, unittest]
+import std/[math, options, times, unittest]
 import nimchoo/ff/[curve, stats]
 import nimchoo/model/calc
 import nimchoo/ui/style
