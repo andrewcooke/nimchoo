@@ -224,6 +224,14 @@ made by an earlier build must be deleted and re-imported), the tests moved to mi
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
+## Task 11: a version (asked for 2026-11-04; the exact wish to be confirmed)
+
+The program has a version only in `nimchoo.nimble` (0.1.0).  Probably wanted: `nch --version` (and in `nch help`),
+the number from the nimble file plus the git commit it was built from (`git describe`, taken when building:
+`nimble prod` / `nimble build`), also written in the log's `run` line and in the cache manifest, so a log or a
+cache can be tied to the build that made it.  Rules for when the number changes (a schema change = a new
+minor version?) to be agreed.
+
 ## Task 10: more idiomatic Nim (a review, 2026-11-04; each item is done only when the author agrees)
 
 Asked for: "making this more idiomatic Nim is excellent, especially if it helps; consider where else, even if
@@ -379,6 +387,19 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   a bad file in the middle, the same file twice, an interrupt, and a file that changes during the run;
   (3) per-thread timers, measure on 1, 2 and 4 cores; (4) if the writer is then the limit: the nearest-place
   query out of it, and batched row inserts.
+  **Step 2 done (2026-11-04):** `importer/work.nim` (`prepareFile`: read, hash, decode, a failure is data),
+  `importer/pool.nim` (the workers, two channels, results taken back in file order), `batch.nim` uses them,
+  `nch import -j N` (default: processors, at most 8; 1 = no threads), per-thread timers (`takePhases`).
+  `tests/importer/test_pool.nim`: the same database (ids included) and events for 1, 2, 3, 4, 8 and 16 threads
+  with many files, real files, duplicates, bad and unreadable files.  Sample (300 files) on this 4-core VM:
+  3.85 s with 1 thread, 2.5 s with 2, 2.6 s with 4 (the writer is then the limit).
+  **Lessons:** (1) Nim's built-in `Channel` frees its buffer on `close` but keeps the pointer, so opening it again
+  frees it twice (a nine-line program shows it under `-d:useMalloc -fsanitize=address`; silent in a normal
+  build): the pool opens the channels once and never closes them.  Run threaded code under the sanitizer
+  (`nim c -d:useMalloc --debugger:native --passC:-fsanitize=address --passL:-fsanitize=address`).
+  (2) A refactor made a duplicate file (same content as one imported earlier in the run) get decoded and report
+  its warnings: the sequential path asks the database before decoding, and duplicates report no warnings.
+  (3) Tests run with a time limit; `NCH_TEST_TIMES=1 ./tests/all` lists the slowest tests.
   **Step 1 done:** `importer.nim` has `decodeFile` (no database; raises as before; warnings in `ws`; builds the
   route bytes), `knownFile` (the hash check) and `writeDecoded` (one transaction), and `importFileWith` is
   their composition (so nothing else changed).  Timing unchanged (about 3.0 s on the sample).

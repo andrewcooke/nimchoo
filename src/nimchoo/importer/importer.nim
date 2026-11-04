@@ -2,7 +2,7 @@
 ## coordinates, in one transaction.  Importing the same file again (same
 ## content, same user) does nothing.
 
-import std/[options, strutils, times]
+import std/[options, sets, strutils, times]
 import ../hashing
 import db_connector/db_sqlite
 import ../db/[channel, statement, store]
@@ -94,6 +94,13 @@ proc knownFile*(s: Store, digest: string): Option[int64] {.raises: [StoreError].
         return some(parseBiggestInt(known))
       except ValueError:
         raiseStore("bad file id " & known)
+
+proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
+  ## The hashes of the contents of all the user's files: a worker that sees one of them need not
+  ## decode the file (the writer still checks, with `knownFile`, when it comes to write).
+  guard:
+    for r in s.db.fastRows(sql"select sha256 from file where user_id = ?", s.userId):
+      result.incl r[0]
 
 proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
                    steps: seq[ImportStep]): ImportResult {.raises: [StoreError].} =

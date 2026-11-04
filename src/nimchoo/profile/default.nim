@@ -15,10 +15,11 @@ proc loadDefaultProfile*(): Profile {.raises: [ProfileError, XlsxError].} =
   ## built-in one, unpacked, or the author's).  An error if the author's cannot be read.
   loadProfileFromBytes(resolve(profileBundle).data)
 
-proc defaultProfile*(): tuple[profile: Profile, note: string] =
+proc defaultProfile*(): tuple[profile: Profile, note: string, bytes: string] =
   ## `loadDefaultProfile`, but if the author's profile cannot be used the built-in one is, with a
   ## note saying so.  The note also says when the author's is the one in use ("" otherwise).
   let r = resolve(profileBundle)
+  result.bytes = r.data              # (the spreadsheet in use: another thread can load its own copy)
   try:
     result.profile = loadProfileFromBytes(r.data)
     if r.source == soCustom:
@@ -26,6 +27,7 @@ proc defaultProfile*(): tuple[profile: Profile, note: string] =
   except NchError as e:
     if r.source != soCustom:
       raiseAssert "the built-in profile does not load: " & e.msg      # a bug
+    result.bytes = embedded
     try:
       result.profile = loadProfileFromBytes(embedded)
     except NchError as e2:

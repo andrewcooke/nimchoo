@@ -2,10 +2,9 @@
 ## changed, import the rest, one transaction per file.  Everything that
 ## happens is announced as an event (events.nim); nothing is printed here.
 
-import std/[algorithm, monotimes, options, os, strutils, tables, times]
+import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
 import ../db/[channel, store]
 import ../errors
-import ../fit/bytes
 import ../profile/default
 import ../profile/model
 import ../profiling
@@ -13,6 +12,8 @@ import ../warnings
 import ./events
 import ./failure
 import ./importer
+import ./pool
+import ./work
 import ./seen
 import ./sinks
 
@@ -21,6 +22,7 @@ import ./sinks
 type
   ImportOptions* = object
     quiet*, slow*: bool
+    jobs*: int                ## threads that prepare the files (decode them); 1 or less: none, in this thread
     profile*: ProfileSource   ## nil: the embedded profile
     steps*: seq[ImportStep]   ## what modules add to an import (heart rate, ...)
 
@@ -107,18 +109,6 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
         "file: " & e.msg
   var pending: SeenBuffer
   var importedFrom: Table[int64, string]   ## file id -> path, for files imported in this run
-  var cached: Option[Profile]
-  var profileNote = ""                 # said at the end if the author's profile is in use (or unusable)
-  let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
-    if cached.isNone:
-      if opts.profile.isNil:
-        let d = defaultProfile()
-        profileNote = d.note
-        cached = some(d.profile)
-      else:
-        cached = some(opts.profile())
-    cached.get
-
   template flushSeen() =
     try:
       st.flush(pending)
@@ -126,7 +116,53 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
       pending = SeenBuffer()
       result.notes.add "cannot record the files seen: " & e.msg
 
-  for c in found.files:
+  # the files that need work; the others are announced as they come
+  var work: seq[int]                       # their places among the files
+  for k, c in found.files:
+    if not (c.key in table and table.getOrDefault(c.key).matches(c.size, c.mtime)): work.add k
+
+  var cached: Option[Profile]
+  var profileBytes = ""
+  var profileNote = ""                     # said at the end if the author's profile is in use (or unusable)
+  let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
+    if cached.isNone:
+      if opts.profile.isNil:
+        let d = defaultProfile()
+        profileNote = d.note
+        profileBytes = d.bytes
+        cached = some(d.profile)
+      else:
+        cached = some(opts.profile())
+    cached.get
+  let channels = channelsOf(opts.steps)
+  # here, the database says whether a content is in it already (so also what was written earlier in
+  # this run); the workers have a list made when they start
+  let askDatabase: KnownCheck = proc(digest: string): bool {.closure, raises: [].} =
+    try: knownFile(st, digest).isSome
+    except StoreError: false
+  var pool: Pool
+  var pooled = false
+  if work.len > 1 and opts.jobs > 1 and opts.profile.isNil:
+    var known: HashSet[string]
+    try:
+      known = knownDigests(st)
+    except StoreError as e:
+      result.notes.add "cannot read which files are in the database, checking each one: " & e.msg
+    discard profile()                        # (the workers load their own copy of this spreadsheet)
+    pool = startPool(min(opts.jobs, work.len),
+                     Config(profileBytes: profileBytes, channels: channels, known: known))
+    pooled = pool.started > 0
+  let window = 2 * pool.started + 2          # how many files at most are with the workers
+  var submitted = 0                          # how many of `work` the workers have been given
+  var consumed = 0                           # how many have been taken back
+  var early: Table[int, Prepared]            # results that came before their turn
+  template feed() =
+    while pooled and submitted < work.len and submitted - consumed < window:
+      pool.submit Job(index: work[submitted], path: found.files[work[submitted]].path)
+      inc submitted
+  feed()
+
+  for k, c in found.files:
     inc index
     emit ImportEvent(kind: evFileStart, startIndex: index, startPath: c.path)
     let before = table.getOrDefault(c.key)
@@ -140,42 +176,60 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
         finished ImportEvent(kind: evFileDone, index: index, path: c.path,
                              outcome: oUnchanged)
       continue
-    var ws: seq[Warning]
+    # the file's turn: its result, from a worker or made here
+    var prep: Prepared
+    if pooled:
+      while k notin early:
+        let r = pool.receive()
+        early[r.index] = r
+      discard early.pop(k, prep)
+      inc consumed
+      feed()
+    else:
+      prep = prepareFile(profile, channels, askDatabase, Job(index: k, path: c.path))
     var row = Seen(size: c.size, mtime: c.mtime)
     var ev = ImportEvent(kind: evFileDone, index: index, path: c.path)
-    try:
-      var bytes: seq[byte]
-      timed "read file":
-        bytes = readBytes(c.path)
-      let t0 = getMonoTime()
-      let r = st.importFileWith(profile, extractFilename(c.path), bytes, ws, opts.steps)
-      fileDone(bytes.len, (getMonoTime() - t0).inNanoseconds, r.outcome == ioImported)
-      row.fileId = r.fileId
-      case r.outcome
-      of ioImported:
-        ev.outcome = oImported
-        ev.counts = Counts(activities: r.activities, segments: r.segments,
-                           coords: r.coords, extras: r.extras)
-        importedFrom[r.fileId] = c.path
-      of ioDuplicate:
-        ev.outcome = oDuplicate
-        ev.sameAs = importedFrom.getOrDefault(r.fileId)
-        if ev.sameAs.len == 0: ev.sameAs = pathOfFile(st, r.fileId)
-    except NchError as e:
+    let t0 = getMonoTime()
+    case prep.outcome
+    of poFailed:
       ev.outcome = oFailed
-      ev.failure = failureOf(e)
-      ev.message = e.msg
-    except IOError as e:
-      ev.outcome = oFailed
-      ev.failure = fkUnreadable
-      ev.message = e.msg
+      ev.failure = prep.failure
+      ev.message = prep.message
+    of poKnown, poDecoded:
+      try:
+        # (the database has the last word: it also knows what was written earlier in this run)
+        let have = knownFile(st, prep.digest)
+        if have.isSome:
+          row.fileId = have.get
+          ev.outcome = oDuplicate
+          ev.sameAs = importedFrom.getOrDefault(have.get)
+          if ev.sameAs.len == 0: ev.sameAs = pathOfFile(st, have.get)
+        elif prep.outcome == poKnown:
+          ev.outcome = oFailed
+          ev.failure = fkStore
+          ev.message = "the file's contents were in the database when the import began and are not now"
+        else:
+          let r = st.writeDecoded(extractFilename(c.path), prep.digest, prep.decoded, opts.steps)
+          row.fileId = r.fileId
+          ev.outcome = oImported
+          ev.counts = Counts(activities: r.activities, segments: r.segments,
+                             coords: r.coords, extras: r.extras)
+          importedFrom[r.fileId] = c.path
+      except StoreError as e:
+        ev.outcome = oFailed
+        ev.failure = fkStore
+        ev.message = e.msg
+    if ev.outcome != oFailed:
+      fileDone(prep.bytes, prep.nanos + (getMonoTime() - t0).inNanoseconds, ev.outcome == oImported)
     if ev.outcome == oFailed:
       row.failure = $ev.failure
       row.message = ev.message
-    ev.advisories = ws
+    if ev.outcome != oDuplicate:             # (a file whose content is in already has nothing to say)
+      ev.advisories = prep.warnings
     pending.add c.key, row
     if pending.full: flushSeen()
     finished ev
+  if pooled: pool.finish()
   timed "flush seen":
     flushSeen()
   if enabled:

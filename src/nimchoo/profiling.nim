@@ -12,19 +12,37 @@ type Phase = object
 
 type FileTime = tuple[bytes: int, nanos: int64, imported: bool]
 
-var phases: OrderedTable[string, Phase]
+var phases {.threadvar.}: OrderedTable[string, Phase]     # (each thread has its own: see `takePhases`)
 var files: seq[FileTime]
+var merged = false             ## whether tables of other threads were added (then the times add up to more than the clock)
 var started: MonoTime
 
 let enabled* = existsEnv("NCH_PROFILE")
   ## whether the timers are on
 
-proc add(name: string, nanos: int64) {.gcsafe.} =
-  {.cast(gcsafe).}:
-    var p = phases.getOrDefault(name)
-    p.nanos += nanos
-    inc p.calls
-    phases[name] = p
+proc add(name: string, nanos: int64) =
+  var p = phases.getOrDefault(name)
+  p.nanos += nanos
+  inc p.calls
+  phases[name] = p
+
+type PhaseTotal* = tuple[name: string, nanos: int64, calls: int]
+
+proc takePhases*(): seq[PhaseTotal] =
+  ## The totals of this thread, which are then forgotten here (a worker sends them to the thread
+  ## that reports, before it ends).
+  if not enabled: return
+  for k, v in phases: result.add (k, v.nanos, v.calls)
+  phases.clear()
+
+proc mergePhases*(totals: seq[PhaseTotal]) =
+  ## Add the totals of another thread to this thread's.
+  if totals.len > 0: merged = true
+  for t in totals:
+    var p = phases.getOrDefault(t.name)
+    p.nanos += t.nanos
+    p.calls += t.calls
+    phases[t.name] = p
 
 template timed*(name: string, body: untyped) =
   ## Run `body`, and if profiling is on add the time it took to the phase `name`.
@@ -41,7 +59,7 @@ proc fileDone*(bytes: int, nanos: int64, imported: bool) =
   ## One file looked at: its size, how long it took altogether, whether it gave activities.
   if enabled:
     {.cast(gcsafe).}:
-      files.add (bytes, nanos, imported)
+      files.add (bytes, nanos, imported)         # (only the thread that reports calls this)
 
 proc startClock*() =
   if enabled: started = getMonoTime()
@@ -51,8 +69,7 @@ proc report*(): string =
   if not enabled: return
   let total = max(1'i64, (getMonoTime() - started).inNanoseconds)
   var rows: seq[(string, Phase)]
-  {.cast(gcsafe).}:
-    for k, v in phases: rows.add (k, v)
+  for k, v in phases: rows.add (k, v)
   rows.sort do (a, b: (string, Phase)) -> int: cmp(b[1].nanos, a[1].nanos)
   result = "phase                      ms      %   calls   us/call\n"
   for (k, v) in rows:
@@ -60,6 +77,7 @@ proc report*(): string =
       align($(v.nanos * 100 div total), 7) & align($v.calls, 8) &
       align($(v.nanos div 1000 div max(1, v.calls)), 10) & "\n"
   result.add "total".alignLeft(22) & align($(total div 1_000_000), 8) & "\n"
+  if merged: result.add "(the times of the threads are added up: they can come to more than the total)\n"
   # by the size of the file
   const limits = [(10_000, "under 10 KB"), (50_000, "10 - 50 KB"), (200_000, "50 - 200 KB"),
                   (high(int), "over 200 KB")]

@@ -1,4 +1,4 @@
-import std/[options, os, strutils, tables, unittest]
+import std/[options, os, strutils, tables, times, unittest]
 import nimchoo/bundle/unpack
 import ../support/env
 import nimchoo/cache
@@ -63,10 +63,10 @@ suite "bundle: resolving a file":
   test "again: the same, nothing rewritten":
     let top = fresh("again")
     discard resolve(top, bundle("v1"))
-    let before = getLastModificationTime(systemDir(top) / "Profile.xlsx")
-    sleep(1100)
+    let old = fromUnix(1_000_000_000)                       # (a time long ago, set by hand: no waiting)
+    setLastModificationTime(systemDir(top) / "Profile.xlsx", old)
     check resolve(top, bundle("v1")).source == soUnpacked
-    check getLastModificationTime(systemDir(top) / "Profile.xlsx") == before
+    check getLastModificationTime(systemDir(top) / "Profile.xlsx") == old     # (not written again)
   test "a file that was deleted is unpacked again":
     let top = fresh("deleted")
     discard resolve(top, bundle("v1"))
