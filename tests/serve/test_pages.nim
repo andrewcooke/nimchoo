@@ -1,4 +1,5 @@
 import std/[os, strutils, unittest]
+import nimchoo/cli/args
 import nimchoo/serve/[pages, request, webopts]
 
 let dir = getTempDir() / "nch-test-pages"
@@ -16,27 +17,20 @@ suite "serve pages: the shared helpers":
     check readFile(path) == "two"
     check not fileExists(path & ".part")
 
+type Holder = object
+  web: WebArgs
+
 suite "serve web options: shared by the commands":
+  let spec = Spec[Holder](opts: webOptions(Holder, web))
   test "each option is taken, with its value":
-    var w = initWebArgs()
-    var i = 0
-    var problem = ""
-    let args = @["--web", "--no-open", "--port", "0", "--new-token", "--worker", "--other"]
-    var taken: seq[string]
-    while i < args.len:
-      if takeWebOption(args, i, w, problem): taken.add args[i]
-      inc i
-    check taken == @["--web", "--no-open", "0", "--new-token", "--worker"]
-    check w.enabled and w.noOpen and w.newToken and w.worker and w.port == 0 and problem == ""
-    var j = 6
-    check not takeWebOption(args, j, w, problem)                       # (not ours: left alone)
+    var h = Holder(web: initWebArgs())
+    check parseOptions(@["--web", "--no-open", "--port", "0", "--new-token", "--worker"], spec, h) == ""
+    check h.web.enabled and h.web.noOpen and h.web.newToken and h.web.worker and h.web.port == 0
+    check parseOptions(@["--other"], spec, h) == "unexpected option --other"    # (not ours)
   test "bad ports":
     for bad in [@["--port"], @["--port", "x"], @["--port", "-1"], @["--port", "65536"]]:
-      var w = initWebArgs()
-      var i = 0
-      var problem = ""
-      check takeWebOption(bad, i, w, problem)
-      check problem.len > 0
+      var h = Holder(web: initWebArgs())
+      check parseOptions(bad, spec, h).len > 0
   test "combinations":
     check webProblem(initWebArgs()) == ""
     var w = initWebArgs()

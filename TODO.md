@@ -279,7 +279,11 @@ helps; the first is done as part of Task 9.
    listing, the heatmap, the criteria and the heart-rate readings.  Left as plain `int64` on purpose: the
    `ff` curves (arithmetic on a grid of hours, and calendar days held as UTC midnight, a third kind of seconds),
    place ids, sizes and distances.
-5. **One argument parser.**  Five commands each hand-roll the same loop (`template value(name)`, `fail`, the
+5. **(done 2026-11-04)** **One argument parser.**  `cli/args.nim`: a command lists its options (`flag`, `text`,
+   `number`, `whole`, `custom`, `listOption`) and `parseOptions` walks the arguments (`--name=value` works for every
+   option; `parseLeading` stops at the command name for the options before it).  Every command uses it: ff, heatmap,
+   model, user, list, log, import, fit, destroy and `nch` itself; the web options are one shared list.  Messages are as
+   before except: `unexpected option/argument` everywhere, `-n` of `log` without a value says `needs a value`.  Old text:  Five commands each hand-roll the same loop (`template value(name)`, `fail`, the
    web options now shared).  A small declarative parser (options, flags, values with checks, the messages) in
    `cli/` would remove the repetition and make help and errors uniform; `std/parseopt` tokenises but does not
    do this.

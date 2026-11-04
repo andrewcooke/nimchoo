@@ -3,7 +3,7 @@
 import std/[options, strutils, times]
 import ./bytes
 import ./time
-import ../cli/common
+import ../cli/[args, common]
 import ./csvout
 import ./reader
 import ./records
@@ -67,33 +67,27 @@ proc renderInto*(p: Profile, data: seq[byte], csv: bool,
   finally:
     warnings.add r.warnings
 
+type FitArgs = object
+  csv, help: bool
+  profilePath: string
+  files: seq[string]
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch fit ARGS`; returns the exit status.  (It does not use
   ## the database, so ignores the global options.)
-  var
-    csv = false
-    profilePath = ""
-    files: seq[string]
-    i = 0
-  while i < args.len:
-    let a = args[i]
-    if a in ["-h", "--help"]:
-      stdout.say usage
-      return exitOk
-    elif a == "--csv":
-      csv = true
-    elif a == "--profile":
-      inc i
-      if i >= args.len:
-        return usageError("nch fit", usage, "--profile needs a path")
-      profilePath = args[i]
-    elif a.startsWith("--profile="):
-      profilePath = a["--profile=".len .. ^1]
-    elif a.startsWith("-") and a != "-":
-      return usageError("nch fit", usage, "unknown option " & a)
-    else:
-      files.add a
-    inc i
+  var given = FitArgs()
+  let spec = Spec[FitArgs](
+    opts: @[flag(FitArgs, ["-h", "--help"], help), flag(FitArgs, ["--csv"], csv),
+            text(FitArgs, ["--profile"], profilePath)],
+    positional: proc(p: var FitArgs, arg: string): string {.nimcall, raises: [].} =
+      p.files.add arg
+      "")
+  let why = parseOptions(args, spec, given)
+  if why.len > 0: return usageError("nch fit", usage, why)
+  if given.help:
+    stdout.say usage
+    return exitOk
+  let (csv, profilePath, files) = (given.csv, given.profilePath, given.files)
   if files.len != 1:
     return usageError("nch fit", usage, "expected exactly one FILE")
   var

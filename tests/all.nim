@@ -16,6 +16,7 @@ import ./importer/[test_extract, test_route, test_importer, test_command, test_b
                    test_display, test_logsink]
 import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
+import ./cli/test_args
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
 import ./places/[test_data, test_seed, test_reload]
 import ./user/[test_params, test_command]

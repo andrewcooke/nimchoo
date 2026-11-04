@@ -9,7 +9,7 @@
 
 import std/[options, os, strutils]
 import db_connector/db_sqlite
-import ../cli/common
+import ../cli/[args, common]
 import ../db/store
 import ../errors
 import ../ui/[live, logfile, style]
@@ -83,17 +83,20 @@ proc countActivities*(path, user: string): Option[int] =
   except DbError, ValueError:
     result = none(int)
 
+type DestroyArgs = object
+  force, help: bool
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch destroy ARGS`; returns the exit status.
-  var force = false
-  for a in args:
-    if a in ["-h", "--help"]:
-      stdout.say usage
-      return exitOk
-    elif a in ["-f", "--force"]:
-      force = true
-    else:
-      return usageError("nch destroy", usage, "unexpected argument " & a)
+  var given = DestroyArgs()
+  let spec = Spec[DestroyArgs](opts: @[
+    flag(DestroyArgs, ["-h", "--help"], help), flag(DestroyArgs, ["-f", "--force"], force)])
+  let why = parseOptions(args, spec, given)
+  if why.len > 0: return usageError("nch destroy", usage, why)
+  if given.help:
+    stdout.say usage
+    return exitOk
+  let force = given.force
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
     stdout.say "no database at " & path & ": nothing to destroy\n"

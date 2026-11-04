@@ -2,6 +2,7 @@
 
 import std/[options, strutils, times]
 import ../cache
+import ../cli/args
 import ../serve/webopts
 
 {.push raises: [].}
@@ -26,53 +27,48 @@ proc parseDay*(s: string): Option[int64] =
   except TimeParseError, ValueError:
     discard
 
+proc dayOption(names: openArray[string], toDay: bool): Opt[Params] =
+  ## --from and --to: a day, kept in `fromDay` or `toDay`.
+  if toDay:
+    custom(Params, names, true):
+      let d = parseDay(value)
+      if d.isNone: return name & " is a day, like 2018-08-27 (not '" & value & "')"
+      p.toDay = d
+      ""
+  else:
+    custom(Params, names, true):
+      let d = parseDay(value)
+      if d.isNone: return name & " is a day, like 2018-08-27 (not '" & value & "')"
+      p.fromDay = d
+      ""
+
 proc parseArgs*(args: seq[string]): Params =
   result.web = initWebArgs()
   result.fitnessScale = 1
   result.fatigueScale = 1
-  var i = 0
+  const positive = 5.0e-324          # (the smallest number above 0)
+  const scaleText = "a number above 0"
+  let keyOption = custom(Params, ["--key"], true):
+    if not isOptionValue(value): return "'" & value & "' is not a key of the data"
+    p.key = value
+    ""
+  let spec = Spec[Params](opts: @[
+    flag(Params, ["-h", "--help"], help),
+    text(Params, ["--model"], model),
+    dayOption(["--from"], false),
+    dayOption(["--to"], true),
+    flag(Params, ["--hourly"], hourly),
+    flag(Params, ["--utc"], utc),
+    flag(Params, ["--stdout"], stdout),
+    keyOption,
+    number(Params, ["--fitness-scale"], fitnessScale, positive, 1.0e12, scaleText),
+    number(Params, ["--fatigue-scale"], fatigueScale, positive, 1.0e12, scaleText)] &
+    webOptions(Params, web))
   template fail(msg: string) =
     result.problem = msg
     return
-  template value(name: string): string =
-    inc i
-    if i >= args.len: fail(name & " needs a value")
-    args[i]
-  template scale(name: string, target: untyped) =
-    let v = value(name)
-    var x = 0.0
-    try: x = parseFloat(v)
-    except ValueError: fail(name & " is a number above 0 (not '" & v & "')")
-    if not (x > 0 and x < 1.0e12): fail(name & " is a number above 0 (not '" & v & "')")
-    target = x
-  while i < args.len:
-    let a = args[i]
-    var issue = ""
-    if takeWebOption(args, i, result.web, issue):
-      if issue.len > 0: fail(issue)
-      inc i
-      continue
-    case a
-    of "-h", "--help": result.help = true
-    of "--model": result.model = value(a)
-    of "--from", "--to":
-      let v = value(a)
-      let d = parseDay(v)
-      if d.isNone: fail(a & " is a day, like 2018-08-27 (not '" & v & "')")
-      if a == "--from": result.fromDay = d else: result.toDay = d
-    of "--hourly": result.hourly = true
-    of "--utc": result.utc = true
-    of "--stdout": result.stdout = true
-    of "--key":
-      let v = value(a)
-      if not isOptionValue(v): fail("'" & v & "' is not a key of the data")
-      result.key = v
-    of "--fitness-scale": scale(a, result.fitnessScale)
-    of "--fatigue-scale": scale(a, result.fatigueScale)
-    else:
-      if a.startsWith("-"): fail("unexpected option " & a)
-      fail("unexpected argument " & a)
-    inc i
+  let why = parseOptions(args, spec, result)
+  if why.len > 0: fail(why)
   if result.fromDay.isSome and result.toDay.isSome and result.fromDay.get > result.toDay.get:
     fail("--from is after --to")
   if (result.web.enabled or result.web.worker) and result.stdout:

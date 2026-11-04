@@ -2,6 +2,7 @@
 ## parsed and described in one place, so that the commands cannot differ.  Pure.
 
 import std/strutils
+import ../cli/args
 import ./request
 
 {.push raises: [].}
@@ -16,29 +17,21 @@ type WebArgs* = object
 func initWebArgs*(): WebArgs =
   WebArgs(port: defaultPort)
 
-proc takeWebOption*(args: seq[string], i: var int, w: var WebArgs, problem: var string): bool =
-  ## If `args[i]` is one of the web options, take it (and its value, moving `i` to it) and
-  ## return true; `problem` says what is wrong with it, if anything.
-  case args[i]
-  of "--worker": w.worker = true
-  of "--web": w.enabled = true
-  of "--no-open": w.noOpen = true
-  of "--new-token": w.newToken = true
-  of "--port":
-    inc i
-    if i >= args.len:
-      problem = "--port needs a value"
-      return true
-    var n = -1
-    try:
-      n = parseInt(args[i])
-    except ValueError:
-      discard
-    if n < 0 or n > 65535:
-      problem = "--port is a port number, 0 to 65535 (not '" & args[i] & "')"
-    w.port = n
-  else: return false
-  true
+proc takePort*(name, value: string, port: var int): string =
+  ## The value of `--port`: a port number ("" if it is one, else what is wrong).
+  var n = 0
+  if not parseIntIn(value, 0, 65535, n):
+    return valueIs(name, "a port number, 0 to 65535", value)
+  port = n
+  ""
+
+template webOptions*(P: typedesc, field: untyped): seq[Opt[P]] =
+  ## The web options as options of a command whose `P` holds them in `field` (a `WebArgs`).
+  @[custom(P, ["--worker"], false, (p.field.worker = true; "")),
+    custom(P, ["--web"], false, (p.field.enabled = true; "")),
+    custom(P, ["--no-open"], false, (p.field.noOpen = true; "")),
+    custom(P, ["--new-token"], false, (p.field.newToken = true; "")),
+    custom(P, ["--port"], true, takePort(name, value, p.field.port))]
 
 func webProblem*(w: WebArgs): string =
   ## What is wrong with the combination of web options ("" if nothing).

@@ -4,6 +4,7 @@
 
 import std/[math, options, strutils, times]
 import ../fit/time
+import ../cli/args
 import ../ids
 import ./ranges
 export ranges
@@ -77,128 +78,157 @@ func parseLatLon*(s: string): Option[(float, float)] =
   except ValueError:
     none((float, float))
 
+type ListState = object
+  ## What the options of `nch list` fill in as they are read.
+  c: Criteria
+  help: bool
+  zone: Timezone
+  radiusGiven: bool     ## --radius was given
+  criteriaGiven: bool   ## some option other than those that say what to display
+
+proc takeCount(p: var ListState, name, value: string, oldest: bool): string =
+  ## --newest N, -n N, --oldest N.
+  var n = 0
+  if not parseIntIn(value, 1, high(int), n):
+    return name & " needs a number of activities, 1 or more (not '" & value & "')"
+  p.criteriaGiven = true
+  if oldest: p.c.oldest = n else: p.c.newest = n
+  ""
+
+func splitNames(values: seq[string], lower: bool): seq[string] =
+  ## Names, separated by spaces or commas.
+  for v in values:
+    for name in v.split(','):
+      if name.len > 0: result.add (if lower: name.toLowerAscii else: name)
+
+proc takeUsers(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  p.criteriaGiven = true
+  let names = splitNames(values, false)
+  if names.len == 0: return name & " needs at least one name"
+  p.c.users.add names
+  ""
+
+proc takeSports(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  p.criteriaGiven = true
+  let names = splitNames(values, true)
+  if names.len == 0: return name & " needs at least one name"
+  for n in names:
+    if parseReference(n) != refNone:
+      if p.c.sportRef != refNone and p.c.sportRef != parseReference(n):
+        return "--sport: latest and previous cannot be used together"
+      p.c.sportRef = parseReference(n)
+    else: p.c.sports.add n
+  ""
+
+proc takeSubSports(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  p.criteriaGiven = true
+  let names = splitNames(values, true)
+  if names.len == 0: return name & " needs at least one name"
+  for n in names:
+    if parseReference(n) != refNone:
+      if p.c.subSportRef != refNone and p.c.subSportRef != parseReference(n):
+        return "--sub-sport: latest and previous cannot be used together"
+      p.c.subSportRef = parseReference(n)
+    else: p.c.subSports.add n
+  ""
+
+proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
+  p.criteriaGiven = true
+  if '~' in v:
+    let ar = parseAround(v, parseDistance)
+    if ar.isNone: return "cannot read the distance '" & v & "' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)"
+    if ar.get.centre.isSome: p.c.distanceM = around(ar.get.centre.get, ar.get.tol)
+    else: p.c.distanceRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
+  else:
+    let r = parseRange(v, parseDistance)
+    if r.isNone:
+      if isBackwards(v, parseDistance): return "the distance range '" & v & "' is backwards (smaller end first)"
+      return "cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)"
+    p.c.distanceM = r.get
+  ""
+
+proc takeActive(p: var ListState, name, v: string): string {.nimcall.} =
+  p.criteriaGiven = true
+  if '~' in v:
+    let ar = parseAround(v, parseInterval)
+    if ar.isNone: return "cannot read the active time '" & v & "' (use 2h~15m, latest~10% or previous~10%)"
+    if ar.get.centre.isSome: p.c.activeS = around(ar.get.centre.get, ar.get.tol)
+    else: p.c.activeRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
+  else:
+    let r = parseRange(v, parseInterval)
+    if r.isNone:
+      if isBackwards(v, parseInterval): return "the active time range '" & v & "' is backwards (shorter end first)"
+      return "cannot read the active time range '" & v & "' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
+    p.c.activeS = r.get
+  ""
+
+proc takeWhen(p: var ListState, v: string, isEnd: bool): string =
+  ## --from T (the start of what is named) and --to T (the end).
+  p.criteriaGiven = true
+  let t = parseWhen(v, p.zone, isEnd)
+  if t.isNone: return "cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)"
+  if isEnd: p.c.toT = t else: p.c.fromT = t
+  ""
+
+proc takeNear(p: var ListState, v: string): string =
+  p.criteriaGiven = true
+  if parseReference(v) == refLatest:
+    p.c.near = nkLatest
+  elif parseReference(v) == refPrevious:
+    p.c.near = nkPrevious
+  else:
+    let pos = parseLatLon(v)
+    if pos.isNone: return "cannot read the position '" & v & "' (use 38.72,-9.14, latest or previous)"
+    p.c.near = nkPoint
+    (p.c.lat, p.c.lon) = pos.get
+  ""
+
+proc takeRadius(p: var ListState, v: string): string =
+  p.criteriaGiven = true
+  try:
+    p.c.radiusKm = parseFloat(v)
+  except ValueError:
+    return "cannot read the radius '" & v & "' (kilometres)"
+  if p.c.radiusKm <= 0: return "the radius must be more than 0km"
+  p.radiusGiven = true
+  ""
+
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## The command line of `nch list`.  Options with values: `--users A B C`, `--sport A B`, `--sub-sport A B` (names up to
   ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
   ## `--show` (which takes no criteria), and `-v`/`--verbose` and `--calendar` (what to display).
-  var c = Criteria(radiusKm: defaultRadiusKm)
-  var radiusGiven = false
-  var criteriaGiven = false
-  var i = 0
+  var st = ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone)
+  let newestOption = custom(ListState, ["--newest", "-n"], true, takeCount(p, name, value, false))
+  let oldestOption = custom(ListState, ["--oldest"], true, takeCount(p, name, value, true))
+  let latestOption = custom(ListState, ["--latest"], false, (p.criteriaGiven = true; p.c.newest = 1; ""))
+  let spec = Spec[ListState](opts: @[
+    flag(ListState, ["-h", "--help"], help),
+    custom(ListState, ["--save"], false, (p.c.save = true; "")),
+    custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")),
+    custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")),
+    custom(ListState, ["--show"], false, (p.c.show = true; "")),
+    latestOption, newestOption, oldestOption,
+    listOption[ListState](["--users"], takeUsers),
+    listOption[ListState](["--sport"], takeSports),
+    listOption[ListState](["--sub-sport"], takeSubSports),
+    custom(ListState, ["--distance"], true, takeDistance(p, name, value)),
+    custom(ListState, ["--active"], true, takeActive(p, name, value)),
+    custom(ListState, ["--from"], true, takeWhen(p, value, false)),
+    custom(ListState, ["--to"], true, takeWhen(p, value, true)),
+    custom(ListState, ["--near"], true, takeNear(p, value)),
+    custom(ListState, ["--radius"], true, takeRadius(p, value))])
   template fail(msg: string) =
     result.problem = msg
     return
-  template value(name: string): string =
-    inc i
-    if i >= args.len: fail(name & " needs a value")
-    args[i]
-  while i < args.len:
-    let a = args[i]
-    if a notin ["-h", "--help", "--save", "--show", "-v", "--verbose", "--calendar"]: criteriaGiven = true
-    case a
-    of "-h", "--help": result.help = true
-    of "--save": c.save = true
-    of "-v", "--verbose": c.verbose = true
-    of "--calendar": c.calendar = true
-    of "--show": c.show = true
-    of "--latest": c.newest = 1
-    of "--newest", "-n", "--oldest":
-      let v = value(a)
-      var n = 0
-      try:
-        n = parseInt(v)
-      except ValueError:
-        discard
-      if n < 1: fail(a & " needs a number of activities, 1 or more (not '" & v & "')")
-      if a == "--oldest": c.oldest = n else: c.newest = n
-    of "--users", "--sport", "--sub-sport":
-      var names: seq[string]
-      inc i
-      while i < args.len and not args[i].startsWith("-"):
-        for name in args[i].split(','):
-          if name.len > 0: names.add (if a == "--users": name else: name.toLowerAscii)
-        inc i
-      dec i
-      if names.len == 0: fail(a & " needs at least one name")
-      case a
-      of "--users": c.users.add names
-      of "--sport":
-        for n in names:
-          if parseReference(n) != refNone:
-            if c.sportRef != refNone and c.sportRef != parseReference(n):
-              fail("--sport: latest and previous cannot be used together")
-            c.sportRef = parseReference(n)
-          else: c.sports.add n
-      else:
-        for n in names:
-          if parseReference(n) != refNone:
-            if c.subSportRef != refNone and c.subSportRef != parseReference(n):
-              fail("--sub-sport: latest and previous cannot be used together")
-            c.subSportRef = parseReference(n)
-          else: c.subSports.add n
-    of "--distance":
-      let v = value("--distance")
-      if '~' in v:
-        let ar = parseAround(v, parseDistance)
-        if ar.isNone: fail("cannot read the distance '" & v & "' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)")
-        if ar.get.centre.isSome: c.distanceM = around(ar.get.centre.get, ar.get.tol)
-        else: c.distanceRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
-      else:
-        let r = parseRange(v, parseDistance)
-        if r.isNone:
-          if isBackwards(v, parseDistance): fail("the distance range '" & v & "' is backwards (smaller end first)")
-          fail("cannot read the distance range '" & v & "' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)")
-        c.distanceM = r.get
-    of "--active":
-      let v = value("--active")
-      if '~' in v:
-        let ar = parseAround(v, parseInterval)
-        if ar.isNone: fail("cannot read the active time '" & v & "' (use 2h~15m, latest~10% or previous~10%)")
-        if ar.get.centre.isSome: c.activeS = around(ar.get.centre.get, ar.get.tol)
-        else: c.activeRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
-      else:
-        let r = parseRange(v, parseInterval)
-        if r.isNone:
-          if isBackwards(v, parseInterval): fail("the active time range '" & v & "' is backwards (shorter end first)")
-          fail("cannot read the active time range '" & v & "' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)")
-        c.activeS = r.get
-    of "--from":
-      let v = value("--from")
-      let t = parseWhen(v, zone, isEnd = false)
-      if t.isNone: fail("cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)")
-      c.fromT = t
-    of "--to":
-      let v = value("--to")
-      let t = parseWhen(v, zone, isEnd = true)
-      if t.isNone: fail("cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)")
-      c.toT = t
-    of "--near":
-      let v = value("--near")
-      if parseReference(v) == refLatest:
-        c.near = nkLatest
-      elif parseReference(v) == refPrevious:
-        c.near = nkPrevious
-      else:
-        let p = parseLatLon(v)
-        if p.isNone: fail("cannot read the position '" & v & "' (use 38.72,-9.14, latest or previous)")
-        c.near = nkPoint
-        (c.lat, c.lon) = p.get
-    of "--radius":
-      let v = value("--radius")
-      try:
-        c.radiusKm = parseFloat(v)
-      except ValueError:
-        fail("cannot read the radius '" & v & "' (kilometres)")
-      if c.radiusKm <= 0: fail("the radius must be more than 0km")
-      radiusGiven = true
-    else:
-      fail("unexpected argument " & a)
-    inc i
+  let why = parseOptions(args, spec, st)
+  if why.len > 0: fail(why)
+  result.help = st.help
+  var c = st.c
   if c.show:
     if c.save: fail("--show shows the stored selection: it cannot be combined with --save")
-    if criteriaGiven: fail("--show takes no criteria (it shows the stored selection)")
-  if radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest
+    if st.criteriaGiven: fail("--show takes no criteria (it shows the stored selection)")
+  if st.radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest
   if c.newest > 0 and c.oldest > 0: fail("--newest and --oldest cannot be used together")
   if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
     fail("--from is not before --to")

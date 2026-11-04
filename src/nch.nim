@@ -5,7 +5,7 @@
 ## and are parsed here.
 
 import std/[options, os, strutils]
-import nimchoo/cli/common
+import nimchoo/cli/[args, common]
 import nimchoo/destroy/command as destroyCommand
 import nimchoo/selection/command as listCommand
 import nimchoo/heatmap/command as heatmapCommand
@@ -68,29 +68,29 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
   else:
     usageError("nch", usage, "unknown command " & command)
 
+type Head = object
+  ## The options before the command name.
+  g: Globals
+  help, version: bool
+
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
-  var g = Globals(fragments: allFragments, importSteps: allImportSteps)
+  var head = Head(g: Globals(fragments: allFragments, importSteps: allImportSteps))
+  let spec = Spec[Head](opts: @[
+    flag(Head, ["-h", "--help"], help),
+    flag(Head, ["--version"], version),
+    custom(Head, ["--db"], true, (p.g.dbPath = value; "")),
+    custom(Head, ["--user"], true, (p.g.user = value; ""))])
   var i = 0
-  while i < args.len and args[i].startsWith("-"):
-    let a = args[i]
-    if a in ["-h", "--help"]:
-      stdout.say usage
-      return exitOk
-    elif a == "--version":
-      stdout.say versionString & "\n"
-      return exitOk
-    elif a in ["--db", "--user"]:
-      inc i
-      if i >= args.len: return usageError("nch", usage, a & " needs a value")
-      if a == "--db": g.dbPath = args[i] else: g.user = args[i]
-    elif a.startsWith("--db="):
-      g.dbPath = a["--db=".len .. ^1]
-    elif a.startsWith("--user="):
-      g.user = a["--user=".len .. ^1]
-    else:
-      return usageError("nch", usage, "unknown option " & a)
-    inc i
+  let why = parseLeading(args, spec, head, i)
+  if why.len > 0: return usageError("nch", usage, why)
+  if head.help:
+    stdout.say usage
+    return exitOk
+  if head.version:
+    stdout.say versionString & "\n"
+    return exitOk
+  var g = head.g
   if i >= args.len:
     stderr.say usage
     return exitUsage

@@ -1,5 +1,6 @@
 ## The command line of `nch user`, parsed.  Pure.
 
+import ../cli/args
 import std/[options, strutils]
 
 {.push raises: [].}
@@ -37,42 +38,40 @@ func parseFthr*(s: string): Option[int] =
     discard
   none(int)
 
-func parseArgs*(args: seq[string]): Params =
+proc parseArgs*(args: seq[string]): Params =
   ## `nch user` (list), `--create NAME [--fthr N] [--default]`, `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`.
-  var i = 0
+  let createOption = custom(Params, ["--create"], true):
+    p.create = true
+    p.name = value
+    ""
+  let fthrOption = custom(Params, ["--fthr"], true):
+    p.fthr = parseFthr(value)
+    if p.fthr.isNone:
+      return "--fthr is a whole number of beats per minute, " & $minFthr & " to " & $maxFthr &
+             " (not '" & value & "')"
+    ""
+  let renameOption = custom(Params, ["--rename"], true):
+    if not validUserName(value):
+      return "'" & value & "' is not a name for a user (1 to " & $maxNameLength &
+             " letters, digits, _ . -, not starting with -)"
+    p.rename = value
+    ""
+  let spec = Spec[Params](
+    opts: @[
+      flag(Params, ["-h", "--help"], help),
+      createOption,
+      flag(Params, ["--clear-fthr"], clearFthr),
+      flag(Params, ["--default"], makeDefault),
+      fthrOption,
+      renameOption],
+    hint: proc(arg: string): string {.nimcall, raises: [].} =
+      " (to make a user: --create " & arg & "; to change an existing user: `nch --user " & arg &
+      " user ...`)")
   template fail(msg: string) =
     result.problem = msg
     return
-  template value(name: string): string =
-    inc i
-    if i >= args.len: fail(name & " needs a value")
-    args[i]
-  while i < args.len:
-    let a = args[i]
-    case a
-    of "-h", "--help": result.help = true
-    of "--create":
-      result.create = true
-      result.name = value(a)
-    of "--clear-fthr": result.clearFthr = true
-    of "--default": result.makeDefault = true
-    of "--fthr":
-      let v = value(a)
-      result.fthr = parseFthr(v)
-      if result.fthr.isNone:
-        fail("--fthr is a whole number of beats per minute, " & $minFthr & " to " & $maxFthr &
-             " (not '" & v & "')")
-    of "--rename":
-      let v = value(a)
-      if not validUserName(v):
-        fail("'" & v & "' is not a name for a user (1 to " & $maxNameLength &
-             " letters, digits, _ . -, not starting with -)")
-      result.rename = v
-    else:
-      if a.startsWith("-"): fail("unexpected option " & a)
-      fail("unexpected argument " & a & " (to make a user: --create " & a &
-           "; to change an existing user: `nch --user " & a & " user ...`)")
-    inc i
+  let why = parseOptions(args, spec, result)
+  if why.len > 0: fail(why)
   if result.help: return
   if result.create:
     if not validUserName(result.name):

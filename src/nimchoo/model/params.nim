@@ -1,6 +1,7 @@
 ## The command line of `nch model`, parsed.  Pure.
 
 import std/strutils
+import ../cli/args
 import ./calc
 
 {.push raises: [].}
@@ -11,6 +12,7 @@ type Params* = object
   list*: bool
   add*: bool
   model*: Model              ## for `add`: the defaults, with what was given
+  varsGiven: bool            ## some variable was given
   help*: bool
   problem*: string
 
@@ -21,67 +23,62 @@ func validModelName*(s: string): bool =
     if c notin {'a' .. 'z', 'A' .. 'Z', '0' .. '9', '_', '.', '-'}: return false
   true
 
-func number(text: string, ok: var bool): float =
-  try: result = parseFloat(text)
-  except ValueError: ok = false
+template variable(nameList: openArray[string], field: untyped): Opt[Params] =
+  ## A variable of the model: a number.
+  custom(Params, nameList, true):
+    var x = 0.0
+    if not parseFloatIn(value, -1.0e12, 1.0e12, x): return valueIs(name, "a number", value)
+    p.model.field = x
+    p.varsGiven = true
+    ""
 
-func parseArgs*(args: seq[string]): Params =
+const zonesWhat = "--zones is five percentages of the threshold heart rate, like 68,83,94,105,121"
+
+proc parseArgs*(args: seq[string]): Params =
   ## `nch model` (list), `--add NAME` with any of the variables.
   result.model = defaultModel()
-  var i = 0
-  var given = false              ## some variable was given
+  let addOption = custom(Params, ["--add"], true):
+    p.add = true
+    if not validModelName(value):
+      return "'" & value & "' is not a name for a model (1 to " & $maxNameLength &
+             " letters, digits, _ . -, not starting with -)"
+    p.model.name = value
+    ""
+  let maxSecsOption = custom(Params, ["--max-secs"], true):
+    var n = 0
+    try: n = parseInt(value)
+    except ValueError: return valueIs(name, "a whole number of seconds", value)
+    p.model.maxSecs = n
+    p.varsGiven = true
+    ""
+  let zonesOption = custom(Params, ["--zones"], true):
+    let parts = value.split(',')
+    if parts.len != 5: return zonesWhat
+    for k, part in parts:
+      var x = 0.0
+      if not parseFloatIn(part, -1.0e12, 1.0e12, x): return zonesWhat
+      p.model.zones[k] = x
+    p.varsGiven = true
+    ""
+  let spec = Spec[Params](
+    opts: @[
+      flag(Params, ["-h", "--help"], help),
+      addOption,
+      variable(["--gamma"], gamma),
+      variable(["--zero"], zero),
+      variable(["--one"], one),
+      maxSecsOption,
+      zonesOption,
+      variable(["--fitness-days"], fitnessDays),
+      variable(["--fatigue-days"], fatigueDays)],
+    hint: proc(arg: string): string {.nimcall, raises: [].} = " (to add a model: --add " & arg & ")")
   template fail(msg: string) =
     result.problem = msg
     return
-  template value(name: string): string =
-    inc i
-    if i >= args.len: fail(name & " needs a value")
-    args[i]
-  template num(name: string, target: untyped,) =
-    let v = value(name)
-    var ok = true
-    let x = number(v, ok)
-    if not ok or x != x or abs(x) > 1.0e12: fail(name & " is a number (not '" & v & "')")
-    target = x
-    given = true
-  while i < args.len:
-    let a = args[i]
-    case a
-    of "-h", "--help": result.help = true
-    of "--add":
-      result.add = true
-      let v = value(a)
-      if not validModelName(v):
-        fail("'" & v & "' is not a name for a model (1 to " & $maxNameLength &
-             " letters, digits, _ . -, not starting with -)")
-      result.model.name = v
-    of "--gamma": num(a, result.model.gamma)
-    of "--zero": num(a, result.model.zero)
-    of "--one": num(a, result.model.one)
-    of "--max-secs":
-      let v = value(a)
-      try: result.model.maxSecs = parseInt(v)
-      except ValueError: fail("--max-secs is a whole number of seconds (not '" & v & "')")
-      given = true
-    of "--zones":
-      let v = value(a)
-      let parts = v.split(',')
-      if parts.len != 5: fail("--zones is five percentages of the threshold heart rate, like 68,83,94,105,121")
-      for k, p in parts:
-        var ok = true
-        let x = number(p, ok)
-        if not ok or x != x or abs(x) > 1.0e12:
-          fail("--zones is five percentages of the threshold heart rate, like 68,83,94,105,121")
-        result.model.zones[k] = x
-      given = true
-    of "--fitness-days": num(a, result.model.fitnessDays)
-    of "--fatigue-days": num(a, result.model.fatigueDays)
-    else:
-      if a.startsWith("-"): fail("unexpected option " & a)
-      fail("unexpected argument " & a & " (to add a model: --add " & a & ")")
-    inc i
+  let why = parseOptions(args, spec, result)
+  if why.len > 0: fail(why)
   if result.help: return
-  if given and not result.add: fail("the variables can be given only with --add NAME")
+  if result.varsGiven and not result.add: fail("the variables can be given only with --add NAME")
   if result.add:
     let why = problem(result.model)
     if why.len > 0: fail(why)

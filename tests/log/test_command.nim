@@ -31,7 +31,7 @@ suite "nch log: the command line":
     check parseArgs(@["bogus"]).problem.contains("neither a command nor an event")
     check parseArgs(@["bogus"]).problem.contains("advisory")        # the known names are listed
     check parseArgs(@["bogus"]).problem.contains("heatmap")
-    check parseArgs(@["-n"]).problem.contains("number of lines")
+    check parseArgs(@["-n"]).problem.contains("needs a value")
     check parseArgs(@["-n", "0"]).problem.contains("number of lines")
     check parseArgs(@["-n", "x"]).problem.contains("number of lines")
     check parseArgs(@["--bogus"]).problem.contains("unexpected option")

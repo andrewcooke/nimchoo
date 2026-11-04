@@ -4,7 +4,7 @@
 ## knows them only by name (the log's command column).
 
 import std/[options, os, sequtils, strutils]
-import ../cli/common
+import ../cli/[args, common]
 import ../ui/[live, logfile, style, vocabulary]
 import ./lines
 
@@ -38,37 +38,25 @@ proc names(): string =
   for e in LogEvent: es.add $e
   "commands: " & cs.join(" ") & "; events: " & es.join(" ")
 
+proc takeLogName(p: var Parsed, arg: string): string {.nimcall, raises: [].} =
+  ## A word that names an event or a command to show.
+  let e = parseEvent(arg)
+  if e.isSome: p.filter.events.incl e.get
+  elif arg in commandNames: p.filter.commands.add arg
+  else: return "'" & arg & "' is neither a command nor an event (" & names() & ")"
+  ""
+
 proc parseArgs*(args: seq[string]): Parsed =
-  var i = 0
-  while i < args.len:
-    let a = args[i]
-    case a
-    of "-h", "--help": result.help = true
-    of "--last": result.filter.last = true
-    of "-n":
-      inc i
-      var n = 0
-      try:
-        if i < args.len: n = parseInt(args[i])
-      except ValueError:
-        discard
-      if n < 1:
-        result.problem = "-n needs a number of lines, 1 or more"
-        return
-      result.filter.count = n
-    else:
-      if a.startsWith("-"):
-        result.problem = "unexpected option " & a
-        return
-      let e = parseEvent(a)
-      if e.isSome:
-        result.filter.events.incl e.get
-      elif a in commandNames:
-        result.filter.commands.add a
-      else:
-        result.problem = "'" & a & "' is neither a command nor an event (" & names() & ")"
-        return
-    inc i
+  let lastOption = custom(Parsed, ["--last"], false, (p.filter.last = true; ""))
+  let countOption = custom(Parsed, ["-n"], true):
+    var n = 0
+    if not parseIntIn(value, 1, high(int), n): return "-n needs a number of lines, 1 or more"
+    p.filter.count = n
+    ""
+  let spec = Spec[Parsed](
+    opts: @[flag(Parsed, ["-h", "--help"], help), lastOption, countOption],
+    positional: takeLogName)
+  result.problem = parseOptions(args, spec, result)
 
 proc show*(path: string, f: Filter, colour: bool): tuple[lines: seq[string], problem: string] =
   ## The lines to print for the log at `path`, or what is wrong.

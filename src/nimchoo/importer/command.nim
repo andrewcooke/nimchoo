@@ -3,7 +3,7 @@
 ## because that is a Nim keyword.)
 
 import std/[cpuinfo, strutils]
-import ../cli/common
+import ../cli/[args, common]
 import ../db/store
 import ../errors
 import ../ui/[live, logfile]
@@ -31,35 +31,35 @@ written to the log; see `nch log --help`.
 
 const maxDefaultJobs = 8
 
+type ImportArgs = object
+  opts: ImportOptions
+  targets: seq[string]
+  help: bool
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch import ARGS`; returns the exit status.
-  var opts = ImportOptions(steps: g.importSteps)
-  var targets: seq[string]
-  opts.jobs = min(max(1, countProcessors()), maxDefaultJobs)
-  var i = 0
-  while i < args.len:
-    let a = args[i]
-    inc i
-    if a in ["-h", "--help"]:
-      stdout.say usage
-      return exitOk
-    elif a in ["-q", "--quiet"]:
-      opts.quiet = true
-    elif a == "--slow":
-      opts.slow = true
-    elif a in ["-j", "--jobs"]:
-      if i >= args.len: return usageError("nch import", usage, a & " needs a number")
-      try:
-        opts.jobs = parseInt(args[i])
-      except ValueError:
-        opts.jobs = 0
-      if opts.jobs < 1 or opts.jobs > 256:
-        return usageError("nch import", usage, a & " is a number of threads, 1 to 256 (not '" & args[i] & "')")
-      inc i
-    elif a.startsWith("-") and a != "-":
-      return usageError("nch import", usage, "unknown option " & a)
-    else:
-      targets.add a
+  var given = ImportArgs(opts: ImportOptions(steps: g.importSteps))
+  given.opts.jobs = min(max(1, countProcessors()), maxDefaultJobs)
+  let jobsOption = custom(ImportArgs, ["-j", "--jobs"], true):
+    var n = 0
+    if not parseIntIn(value, 1, 256, n): return valueIs(name, "a number of threads, 1 to 256", value)
+    p.opts.jobs = n
+    ""
+  let spec = Spec[ImportArgs](
+    opts: @[flag(ImportArgs, ["-h", "--help"], help),
+            custom(ImportArgs, ["-q", "--quiet"], false, (p.opts.quiet = true; "")),
+            custom(ImportArgs, ["--slow"], false, (p.opts.slow = true; "")),
+            jobsOption],
+    positional: proc(p: var ImportArgs, arg: string): string {.nimcall, raises: [].} =
+      p.targets.add arg
+      "")
+  let why = parseOptions(args, spec, given)
+  if why.len > 0: return usageError("nch import", usage, why)
+  if given.help:
+    stdout.say usage
+    return exitOk
+  var opts = given.opts
+  let targets = given.targets
   if targets.len == 0:
     return usageError("nch import", usage, "expected at least one PATH")
   var st: Store
