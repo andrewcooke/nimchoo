@@ -30,7 +30,7 @@ func hex*(c: Color): string =
   ## The colour on a web page with a white background.
   case c
   of white: "#222222"
-  of grey: "#868e96"
+  of grey: "#585858"
   of red: "#e03131"
   of green: "#2f9e44"
   of yellow: "#f08c00"

@@ -463,11 +463,11 @@ suite "list: what is shown":
     check r.lines[0].text.startsWith("    Mo Tu We")
     check r.lines.texts.filterIt(it.startsWith("Jul ")).len == 1 and r.lines.texts.filterIt(it.startsWith("Aug ")).len == 1
     check r.lines.texts[^1].startsWith("done: 2 of 2 activities, 1 match selected, ")      # (July and August: none left out)
-    check r.lines[^1].anyIt(it.look.colour == red and it.text == ", 1 match selected")    # ... in the colour of the selected days
+    check r.lines[^1].anyIt(it.look.colour == yellow and it.text == ", 1 match selected")    # ... in the colour of the selected days
     let jul = r.lines.filterIt(it.text.startsWith("Jul "))[0]
-    check jul.anyIt(it.look.colour == red and it.text == "01 ")              # 1 July 2018: cycling, selected
+    check jul.anyIt(it.look.colour == yellow and it.text == "01 ")              # 1 July 2018: cycling, selected
     let aug = r.lines.filterIt(it.text.startsWith("Aug "))[0]
-    check aug.anyIt(it.look.colour == green and it.text == "27 ")            # running, listed but not selected
+    check aug.anyIt(it.look.colour == white and it.text == "27 ")            # running, listed but not selected
     # -v: every month between the first and the last
     let v = listActivities(st, parseArgs(@["--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true))
     check v.lines.texts.filterIt(it[0 .. 2] in ["Jul", "Aug"]).len == 2

@@ -345,9 +345,9 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   row**, 37 cells a row; the same last line (`done: ...`) follows.  `Screen` (colour, width) is passed down
   from `run` (`isatty` and `terminalWidth`); a width of 0 means no limit (a pipe).  Tested with fixed dates
   and fixed-offset zones (`tests/support/zones.nim`).
-  **Changed after trying it (2026-11-04):** the days are **green** (listed) and **red** (also selected), grey if
-  none, to make them stand out (`calendar.dataColour`, `selectedColour`); the footer's ", N match selected"
-  takes the colour the selected ones have in that display (red in the calendar, yellow in the table); a
+  **Changed after trying it (2026-11-04):** green and red were tried for the days and given up: they are **white**
+  (listed) and **yellow** (also selected), grey if none (`calendar.dataColour`, `selectedColour`); the footer's
+  ", N match selected" takes the colour the selected ones have in that display; a
   **last line warns** when months were left out: `warning: 37 months with no activity not shown; use
   --verbose to show them` (yellow; `skippedMonths`).  The names of the months either side of a gap are yellow (a `*` after them without colour).
   **Grey is now a fixed dark grey, 256-colour 240 (`ESC[38;5;240m`)**, not the terminal's "dim", in the
