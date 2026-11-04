@@ -333,7 +333,16 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   Cost by size is now about 275-325 ms/MB (was 430-480).  Checked: the 824 tests, the SDK CSV comparison
   (26 of 26 identical), and the CSV and warnings of 60 of the author's own files from `nch fit` (old and
   new builds: 0 differ).  Next in the table: putting the route in (31%).
+* **Route as bytes (2026-11-04): done.**  Measured in SQL first: SpatiaLite takes 1,890 ms to parse the text
+  of 166 routes (668,000 points) and 20 ms to read the same as WKB; the spatial index costs little.  The
+  importer now builds the route as OGC **well-known binary** (`route.routeWkb`: byte order, type, counts,
+  doubles; not SpatiaLite's own blob format) and the database reads it with `GeomFromWKB`
+  (`statement.bindBlob`).  Points keep full precision (the text rounded to 7 decimals).  Same sample:
+  route 2,200 -> 51 ms (insert 1,869 -> 31, the building 333 -> 20); **total 5,870 -> 3,898 ms** (8,886
+  at the start; about 65 s for the 3,909 files).  Now: decode 51%, commit 14%, coordinates 13%, heart rate
+  11%.
 * **Step 1: a way to measure.**
+
   Phase timers in the importer (read and hash, decode, each table's inserts,
   nearest place, commit), switched on by an environment variable and written to the log or stderr; a
   repeatable benchmark (a directory of real files into a fresh database, several runs) as a nimble task.

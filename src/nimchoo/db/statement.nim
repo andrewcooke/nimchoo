@@ -6,7 +6,7 @@
 import std/options
 import db_connector/db_sqlite
 from db_connector/sqlite3 import PStmt, prepare_v2, bind_int64, bind_double,
-    bind_null, bind_text, SQLITE_TRANSIENT, step, reset, clear_bindings,
+    bind_null, bind_text, bind_blob, SQLITE_TRANSIENT, step, reset, clear_bindings,
     finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE
 import ../errors
 
@@ -35,6 +35,11 @@ proc bindReal*(s: Stmt, i: int, v: float) {.raises: [StoreError].} =
 proc bindText*(s: Stmt, i: int, v: string) {.raises: [StoreError].} =
   if bind_text(s.raw, int32(i), cstring(v), int32(v.len),
                SQLITE_TRANSIENT) != SQLITE_OK:
+    fail(s.db, "cannot bind")
+
+proc bindBlob*(s: Stmt, i: int, v: string) {.raises: [StoreError].} =
+  ## Bytes (the contents of a string, which may hold any byte) as a BLOB.
+  if bind_blob(s.raw, int32(i), cstring(v), int32(v.len), SQLITE_TRANSIENT) != SQLITE_OK:
     fail(s.db, "cannot bind")
 
 proc bindNull*(s: Stmt, i: int) {.raises: [StoreError].} =

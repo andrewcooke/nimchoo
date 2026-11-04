@@ -105,7 +105,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     coordStmt = some(prepareStmt(s.db, 
       "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)"))
     routeStmt = some(prepareStmt(s.db,
-      "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))"))
+      "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"))
     startStmt = some(prepareStmt(s.db,
       "update activity set start = MakePoint(?, ?, 4326), place_id = ? where id = ?"))
     result.outcome = ioImported
@@ -130,13 +130,13 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
           if near.isSome: startStmt.get.bindInt(3, near.get.id) else: startStmt.get.bindNull(3)
           startStmt.get.bindInt(4, activityId)
           startStmt.get.run()
-      var wkt: Option[string]
-      timed "route: text":
-        wkt = routeWkt(a)
+      var wkb: Option[string]
+      timed "route: bytes":
+        wkb = routeWkb(a)
       timed "route: insert":
-        if wkt.isSome:
+        if wkb.isSome:
           routeStmt.get.bindInt(1, activityId)
-          routeStmt.get.bindText(2, wkt.get)
+          routeStmt.get.bindBlob(2, wkb.get)
           routeStmt.get.run()
       for i, step in steps:
         timed "step: " & step.label:

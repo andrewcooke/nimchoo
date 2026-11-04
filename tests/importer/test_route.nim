@@ -1,35 +1,73 @@
 import std/[options, os, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/store
+import nimchoo/db/[statement, store]
 import nimchoo/importer/[extract, route]
 import nimchoo/modules
 
 func coord(t: int64, lon, lat: float): Coord =
   Coord(t: t, lon: lon, lat: lat)
 
-suite "route: the geometry text":
+# a reader of the bytes, to check them (the standard form: see route.nim)
+proc u32(s: string, pos: int): int =
+  for i in 0 ..< 4: result = result or (ord(s[pos + i]) shl (8 * i))
+
+proc f64(s: string, pos: int): float =
+  var v = 0'u64
+  for i in 0 ..< 8: v = v or (uint64(ord(s[pos + i])) shl (8 * i))
+  cast[float](v)
+
+proc lines(wkb: string): seq[seq[(float, float)]] =
+  ## The parts of a MULTILINESTRING in little-endian WKB, as lists of (lon, lat).
+  doAssert wkb[0] == '\x01' and u32(wkb, 1) == 5
+  var pos = 9
+  for _ in 0 ..< u32(wkb, 5):
+    doAssert wkb[pos] == '\x01' and u32(wkb, pos + 1) == 2
+    let n = u32(wkb, pos + 5)
+    pos += 9
+    var pts: seq[(float, float)]
+    for _ in 0 ..< n:
+      pts.add (f64(wkb, pos), f64(wkb, pos + 8))
+      pos += 16
+    result.add pts
+  doAssert pos == wkb.len
+
+suite "route: the geometry bytes":
   test "a part for each segment, in order":
     let a = ActivityData(
       coords: @[coord(1, 1.5, 2.5), coord(2, 1.6, 2.6), coord(10, 3.0, 4.0), coord(11, 3.1, 4.1)],
       segments: @[Segment(startT: 1, endT: 2), Segment(startT: 10, endT: 11)])
-    check routeWkt(a) == some("MULTILINESTRING((1.5000000 2.5000000, 1.6000000 2.6000000), " &
-                              "(3.0000000 4.0000000, 3.1000000 4.1000000))")
+    check routeWkb(a).get.lines == @[@[(1.5, 2.5), (1.6, 2.6)], @[(3.0, 4.0), (3.1, 4.1)]]
+
+  test "the bytes are the standard ones: byte order, type, counts, then longitude and latitude as doubles":
+    let a = ActivityData(coords: @[coord(1, 1.0, 2.0), coord(2, 3.0, 4.0)],
+                         segments: @[Segment(startT: 1, endT: 2)])
+    let w = routeWkb(a).get
+    check w.len == 9 + 9 + 2 * 16
+    check w[0 .. 8] == "\x01\x05\x00\x00\x00\x01\x00\x00\x00"      # little endian, multilinestring, 1 line
+    check w[9 .. 17] == "\x01\x02\x00\x00\x00\x02\x00\x00\x00"     # little endian, linestring, 2 points
+    check w[18 .. 25] == "\x00\x00\x00\x00\x00\x00\xf0\x3f"        # 1.0 as an IEEE double, least significant byte first
+    check w[34 .. 41] == "\x00\x00\x00\x00\x00\x00\x08\x40"        # 3.0
 
   test "a segment with fewer than two points leaves no part":
     let a = ActivityData(
       coords: @[coord(1, 1.0, 2.0), coord(5, 3.0, 4.0), coord(6, 3.5, 4.5)],
       segments: @[Segment(startT: 1, endT: 1), Segment(startT: 5, endT: 6)])
-    check routeWkt(a) == some("MULTILINESTRING((3.0000000 4.0000000, 3.5000000 4.5000000))")
+    check routeWkb(a).get.lines == @[@[(3.0, 4.0), (3.5, 4.5)]]
 
   test "no part at all, no route":
-    check routeWkt(ActivityData()).isNone
-    check routeWkt(ActivityData(coords: @[coord(1, 1.0, 2.0)],
+    check routeWkb(ActivityData()).isNone
+    check routeWkb(ActivityData(coords: @[coord(1, 1.0, 2.0)],
                                 segments: @[Segment(startT: 1, endT: 1)])).isNone
 
-  test "negative coordinates":
-    let a = ActivityData(coords: @[coord(1, -9.14, 38.72), coord(2, -9.1, 38.75)],
+  test "negative coordinates, and every digit of them":
+    let a = ActivityData(coords: @[coord(1, -9.14159265358979, 38.72), coord(2, -9.1, 38.75)],
                          segments: @[Segment(startT: 1, endT: 2)])
-    check routeWkt(a).get.contains("(-9.1400000 38.7200000, -9.1000000 38.7500000)")
+    check routeWkb(a).get.lines == @[@[(-9.14159265358979, 38.72), (-9.1, 38.75)]]
+
+  test "coordinates before the first segment are left out":
+    let a = ActivityData(coords: @[coord(1, 9.0, 9.0), coord(5, 3.0, 4.0), coord(6, 3.5, 4.5)],
+                         segments: @[Segment(startT: 5, endT: 6)])
+    check routeWkb(a).get.lines == @[@[(3.0, 4.0), (3.5, 4.5)]]
 
 suite "route: in the database":
   let dir = getTempDir() / "nch-test-route"
@@ -48,6 +86,28 @@ suite "route: in the database":
     let metres = parseFloat(s.db.getValue(sql"""select ST_Distance(geom,
       MakePoint(-9.13, 38.73, 4326), 1) from route"""))
     check metres > 150 and metres < 250          # (206 m)
+
+  test "the bytes go in through SpatiaLite and come out as the same route":
+    let s = store("wkb")
+    defer: s.close()
+    let a = ActivityData(
+      coords: @[coord(1, -9.14, 38.72), coord(2, -9.10, 38.75), coord(3, -9.00, 38.80), coord(10, 2.35, 48.85), coord(11, 2.40, 48.90)],
+      segments: @[Segment(startT: 1, endT: 3), Segment(startT: 10, endT: 11)])
+    s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)")
+    s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 20)")
+    let st = prepareStmt(s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))")
+    st.bindInt(1, 1)
+    st.bindBlob(2, routeWkb(a).get)
+    st.run()
+    finalize(st)
+    check s.db.getValue(sql"select NumGeometries(geom) from route") == "2"
+    check s.db.getValue(sql"select ST_NPoints(geom) from route") == "5"
+    check s.db.getValue(sql"select SRID(geom) from route") == "4326"
+    check s.db.getValue(sql"select GeometryType(geom) from route") == "MULTILINESTRING"
+    check s.db.getValue(sql"select ST_X(ST_PointN(ST_GeometryN(geom, 2), 2)) || ',' || ST_Y(ST_PointN(ST_GeometryN(geom, 2), 2)) from route") == "2.4,48.9"
+    check s.db.getValue(sql"select count(*) from idx_route_geom") == "1"       # (and it is indexed)
+    let km = parseFloat(s.db.getValue(sql"select GeodesicLength(geom) from route")) / 1000
+    check km > 18 and km < 26             # about 15 km near Lisbon and 7 km in Paris
 
   test "deleting the user takes the route and its index entry too":
     let s = store("cascade")
