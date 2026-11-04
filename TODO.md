@@ -298,7 +298,7 @@ helps; the first is done as part of Task 9.
    (`walkDirRec` results, `rows`); `func` where nothing has a side effect (the compiler checks); `case` on
    enums with no `else` so a new value is a compile error (done for events, not everywhere).
 
-## Task 9: profile a large import and make it faster (planned; added 2026-11-04)
+## Task 9: profile a large import and make it faster (done; added 2026-11-04)
 
 Asked for by the author, who suspects the database more than the Nim code.  **Measure first**, then change
 the biggest cost, one thing at a time, keeping the numbers in this file.
@@ -473,7 +473,7 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   728 KB): read only, imported into scratch databases and a scratch cache under `/tmp`, never into the
   author's database or cache, and never copied into the project.
 
-## Task 8: one palette, the selection in the list, a calendar view, the cache split and templates (planned)
+## Task 8: one palette, the selection in the list, a calendar view, the cache split and templates (done)
 
 Asked for on 2026-11-04 as a batch of independent ideas; questions answered the same day.  Each step is
 done only when the author confirms it.
@@ -616,7 +616,7 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   in 34 ms and migrated its record with no reload.  Opening a database now resolves the places list (about
   10 ms: it reads and hashes the file), and unpacks the cache's `system/` files the first time.
 
-## Task 3: `nch heatmap` (GeoJSON) and a local web viewer (planned)
+## Task 3: `nch heatmap` (GeoJSON) and a local web viewer (done)
 
 Goal (AGENTS.md, "two layers"): something graphical that uses the selection (`nch list --save`).  Layer 1 writes files
 in a format third parties understand (GeoJSON); layer 2 is a minimal local web server that
@@ -799,7 +799,7 @@ is what `file://` pages send (checked with curl: 403 placeholder without, real t
 * Later: `cells` style; named places (`select --near home`); a generic `nch serve`; links from
   one page to another (the cookie means links need no token); `--standalone` export.
 
-## Task 7: training impulse, fitness and fatigue (planned: findings and the first step, `nch user`)
+## Task 7: training impulse, fitness and fatigue (done; the findings and plan are kept below)
 
 Goal: the choochoo "FF model" (fitness and fatigue from heart rate), reusing its algorithm with a
 much smaller database representation.  Read from `../choochoo/py/ch2` (`data/impulse.py`,
@@ -1258,7 +1258,7 @@ what was kept.  What is printed is what is saved.
    "the ride before the latest"; the help says what it means.)
 5. Docs; try it on the test data (mixed sports) and on a real library.
 
-## Task 4: one vocabulary for the log and the screen, and `nch log` (planned)
+## Task 4: one vocabulary for the log and the screen, and `nch log` (done)
 
 Problem: the log has a free-text line with a "topic" and no convention (only `import` puts a
 keyword first), colours on screen are chosen in the display code, and the hint after an import
