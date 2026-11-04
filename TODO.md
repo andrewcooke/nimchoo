@@ -330,7 +330,11 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   are `white`, `red`...).  `span(text, colour = white, bold = false)`.  `style.nim` re-exports the palette
   and draws lines from it; `ff/page.nim` takes the fitness and fatigue colours from `hex(green)` and
   `hex(red)`.  The heat map's route colour (`#c2185b`) is not a TUI colour and was left.
-* **Step B: the selection in the list** (small).  `ListRow` knows if it is selected; the row is yellow.
+* **Step B: the selection in the list** -- built.  `ListRow.selected` (from `rowColumns`: the activity is in the
+  current user's selection); a selected row is yellow all through (unrecorded `-` cells too), a transition
+  row stays grey, the header stays white.  After `--save` every row is selected, so every row is yellow.
+* **The `nch` the author runs is a release build** (`nimble prod`: `nim c -d:release -o:nch src/nch.nim`);
+  build that one for use.  `nimble build` and plain `nim c` make a debug build, which is about 5 times slower.
 * **Step C: the calendar view.**  A pure layout module (`selection/calendar.nim`: days, months, cells,
   marks, truncation), then `--calendar` and `--verbose`; tests with fixed dates and zones.
 * **Step D: the cache split, system files and templates** (the largest), in sub-steps, each a commit:

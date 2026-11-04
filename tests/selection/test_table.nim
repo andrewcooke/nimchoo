@@ -9,11 +9,12 @@ const
   mar4 = 1520154720'i64             # 2018-03-04 09:12 UTC
 
 func row(t: int64, sport = "cycling", sub = "", distance = -1.0, active = -1.0,
-         file = "f.fit", user = "default", path = "/x/f.fit", place = "", position = ""): ListRow =
+         file = "f.fit", user = "default", path = "/x/f.fit", place = "", position = "",
+         selected = false): ListRow =
   ListRow(startT: t, sport: sport, subSport: sub,
           distanceM: if distance >= 0: some(distance) else: none(float),
           activeS: if active >= 0: some(active) else: none(float), file: file, user: user,
-          path: path, place: place, position: position)
+          path: path, place: place, position: position, selected: selected)
 
 func texts(ls: seq[Line]): seq[string] =
   for l in ls: result.add l.text
@@ -113,6 +114,18 @@ suite "list table: the last line":
     check footer(@[row(0, ""), row(1, "cycling")]).endsWith("(1 cycling, 1 unknown)")
 
 suite "list table: looks":
+  test "a row in the selection is yellow all through; the others are not":
+    let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, selected = true),
+                 row(aug27, "running", "", 2000.0, 90.0),
+                 row(aug27, "transition", "", -1.0, -1.0, selected = true)]
+    let t = table(rows, zone, false, false)
+    for sp in t[1]: check sp.look.colour == yellow or sp.text.strip == ""
+    for sp in t[2]: check sp.look.colour != yellow or sp.text.strip == ""
+    for sp in t[3]: check sp.look.colour == grey or sp.text.strip == ""          # (a transition stays dim)
+    for sp in t[0]: check sp.look.colour == white                                  # (the header is plain)
+  test "a selected row with a missing value is yellow too, not grey":
+    let t = table(@[row(aug27, "cycling", "", -1.0, -1.0, selected = true)], zone, false, false)
+    for sp in t[1]: check sp.look.colour == yellow or sp.text.strip == ""
   test "no GPS is dim; a position and a place name are not":
     let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, position = "no GPS"),
                  row(aug27, "cycling", "", 1000.0, 60.0, place = "Santiago, CL", position = "-33.4362,-70.6090")]

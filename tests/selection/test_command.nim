@@ -1,4 +1,4 @@
-import std/[algorithm, os, strutils, times, unittest]
+import std/[algorithm, os, sequtils, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
@@ -434,6 +434,23 @@ suite "list: what is shown":
     check r.lines.texts[1] == "2018-07-01  12:00  cycling/road   12.3   1h01m"
     check r.lines.texts[2] == "2018-08-27  12:00  running/trail  12.3   1h01m"
     check r.lines.texts[^1] == "2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
+
+  test "rows in the selection are yellow; with --save or --show all are":
+    let db = world("yellow")
+    proc yellowRows(lines: seq[Line]): seq[bool] =
+      for l in lines:
+        if l.text.startsWith("20"):                   # the rows (they start with a date)
+          result.add l.anyIt(it.look.colour == yellow)
+    check shown(db).lines.yellowRows == @[false, false]    # nothing selected yet
+    discard save(db, "--sport", "cycling")                 # the selection: the cycling one
+    check shown(db).lines.yellowRows == @[true, false]
+    check shown(db, "--sport", "running").lines.yellowRows == @[false]
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let p = parseArgs(@["--show"], utc())
+    check showSelection(st, p.criteria, utc()).yellowRows == @[true]        # --show: all are
+    check shown(db, "--save").lines.yellowRows == @[true, true]            # --save: what is listed is the selection
+    check shown(db, "--sport", "running").lines.yellowRows == @[true]
 
   test "several users: a user column":
     let db = world("shownusers")

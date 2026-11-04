@@ -20,6 +20,9 @@ task test, "Run all tests (optimised, with run-time checks on: about 5x faster t
   exec "nim c -d:release --checks:on -d:nchSmallPlaces --hints:off -o:nch-test src/nch.nim"
   exec "nim c -r -d:release --checks:on -d:nchSmallPlaces --hints:off tests/all.nim"   # (a short list of places: fast databases)
 
+task prod, "Build ./nch for use: optimised (-d:release); this is the build the author runs":
+  exec "nim c -d:release --hints:off -o:nch src/nch.nim"
+
 task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
   exec "nim c -d:nchSmallPlaces --hints:off -o:nch-test src/nch.nim"
   exec "nim c -r -d:nchSmallPlaces --hints:off tests/all.nim"

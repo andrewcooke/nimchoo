@@ -24,6 +24,7 @@ type
     path*: string                 ## where the file was imported from (its name if not known)
     place*: string                ## the nearest place, as `placeText` ("" if it has no start)
     position*: string             ## its start as `positionText` (no GPS if it has none)
+    selected*: bool               ## it is in the selection (of the current user)
 
 func dateOf(d: DateTime): string =
   d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
@@ -104,7 +105,8 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
   ## imported from).  No lines at all if
   ## there are no rows.
   ##
-  ## Looks: a transition row is dim all through; "-" (not recorded) is dim; a distance
+  ## Looks: a row in the selection is yellow all through (the same yellow as a warning); a
+  ## transition row is dim all through; "-" (not recorded) is dim; a distance
   ## or an active time that shows as zero is yellow.
   if rows.len == 0: return
   var header = @["date", "start", "sport", "km", "active"]
@@ -135,6 +137,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
       var look = Look()
       if r.isSome:
         if r.get.isTransition: look.colour = grey
+        elif r.get.selected: look.colour = yellow         # the whole row: it is in the selection
         elif row[c] == "-" or row[c] == noGps: look.colour = grey
         elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
           look.colour = yellow
