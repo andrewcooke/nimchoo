@@ -104,13 +104,13 @@ func valueIs*(name, what, value: string): string =
   ## "--fthr is a whole number of beats per minute, 80 to 230 (not 'x')"
   name & " is " & what & " (not '" & value & "')"
 
-proc parseFloatIn*(v: string, lo, hi: float, x: var float): bool =
+func parseFloatIn*(v: string, lo, hi: float, x: var float): bool =
   ## A number from `lo` up to `hi` (both included), not NaN or infinite.
   try: x = parseFloat(v)
   except ValueError: return false
   x == x and x >= lo and x <= hi and classify(x) notin {fcInf, fcNegInf}
 
-proc parseIntIn*(v: string, lo, hi: int, n: var int): bool =
+func parseIntIn*(v: string, lo, hi: int, n: var int): bool =
   try: n = parseInt(v)
   except ValueError: return false
   n >= lo and n <= hi

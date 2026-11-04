@@ -44,7 +44,7 @@ iterator events*(r: var Reader, p: Profile): Event {.raises: [FitError].} =
     of tokData:
       yield Event(kind: evRecord, offset: tok.get.offset,
                   record: r.decoder.decode(p, r.tokenizer, tok.get))
-    else: discard
+    of tokChecksum: discard      # (nothing to say about it; a new kind of token must be dealt with here)
 
 iterator records*(r: var Reader, p: Profile): Record {.raises: [FitError].} =
   ## Every data message in the file, in order (see `events`).

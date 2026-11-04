@@ -27,7 +27,7 @@ proc parseDay*(s: string): Option[int64] =
   except TimeParseError, ValueError:
     discard
 
-proc dayOption(names: openArray[string], toDay: bool): Opt[Params] =
+func dayOption(names: openArray[string], toDay: bool): Opt[Params] =
   ## --from and --to: a day, kept in `fromDay` or `toDay`.
   if toDay:
     custom(Params, names, true):

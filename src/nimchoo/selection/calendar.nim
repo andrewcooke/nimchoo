@@ -44,7 +44,7 @@ func calendarWidth*(s: Screen): int =
 
 func two(n: int): string = intToStr(n, 2)
 
-proc dayCell(day: int, state: int, s: Screen): Span =
+func dayCell(day: int, state: int, s: Screen): Span =
   ## `state`: 0 no activity, 1 some, 2 some in the selection.
   if s.colour:
     case state

@@ -86,7 +86,7 @@ type ListState = object
   radiusGiven: bool     ## --radius was given
   criteriaGiven: bool   ## some option other than those that say what to display
 
-proc takeCount(p: var ListState, name, value: string, oldest: bool): string =
+func takeCount(p: var ListState, name, value: string, oldest: bool): string =
   ## --newest N, -n N, --oldest N.
   var n = 0
   if not parseIntIn(value, 1, high(int), n):
@@ -170,7 +170,7 @@ proc takeWhen(p: var ListState, v: string, isEnd: bool): string =
   if isEnd: p.c.toT = t else: p.c.fromT = t
   ""
 
-proc takeNear(p: var ListState, v: string): string =
+func takeNear(p: var ListState, v: string): string =
   p.criteriaGiven = true
   if parseReference(v) == refLatest:
     p.c.near = nkLatest
@@ -183,7 +183,7 @@ proc takeNear(p: var ListState, v: string): string =
     (p.c.lat, p.c.lon) = pos.get
   ""
 
-proc takeRadius(p: var ListState, v: string): string =
+func takeRadius(p: var ListState, v: string): string =
   p.criteriaGiven = true
   try:
     p.c.radiusKm = parseFloat(v)

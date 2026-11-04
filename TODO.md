@@ -287,14 +287,14 @@ helps; the first is done as part of Task 9.
    web options now shared).  A small declarative parser (options, flags, values with checks, the messages) in
    `cli/` would remove the repetition and make help and errors uniform; `std/parseopt` tokenises but does not
    do this.
-6. **SQL with bound parameters.**  `matchSql` and friends build SQL by concatenation and quote values by
+6. **(reviewed 2026-11-04, not done)** **SQL with bound parameters.**  Every value put into SQL text is a number we format (typed ids, times, limits, coordinates) except the sport names, which `inValues` quotes (and has tests).  `db_sqlite` binds every parameter as text, which SpatiaLite functions (`MakePoint`, `BuildMbr`) reject where they want a number, so the places that matter cannot be bound; real binding would need `Stmt` to read rows, a big change for little gain.  Old text:  `matchSql` and friends build SQL by concatenation and quote values by
    hand (7 builders); ids are numbers so it is safe today, but parameters are the idiom (and let SQLite
    cache the statements).
-7. **`must` (29 uses)** works around `Table[]` raising `KeyError`.  `getOrDefault` / `withValue` / `hasKey`
+7. **(reviewed 2026-11-04, no change)** **`must` (29 uses)**  All are keys that have to be there (a missing one is a bug); the places that check `in` and then `must` are in the decoder's hot paths, where `lent`/`{.cursor.}` were chosen on purpose.  Old text: works around `Table[]` raising `KeyError`.  `getOrDefault` / `withValue` / `hasKey`
    are the idiom where a default makes sense; keep `must` where a missing key is a bug.
 8. **Global state in `profiling.nim`** is cast to gcsafe; fine for one thread, but threads (Task 9, step 4)
    want thread-local accumulators merged at the end.
-9. **Smaller:** `iterator`s instead of building a `seq` and returning it where the caller only loops
+9. **(done 2026-11-04)** **Smaller:**  the decoder already uses iterators; the one enum `case` that ended in `else: discard` over a real enum (`reader.nim`) is exhaustive now; 8 procs in the pure modules were `func`s the compiler accepts (`ff/curve`, `heatmap/lines`, `selection/ranges`...).  Old text: `iterator`s instead of building a `seq` and returning it where the caller only loops
    (`walkDirRec` results, `rows`); `func` where nothing has a side effect (the compiler checks); `case` on
    enums with no `else` so a new value is a compile error (done for events, not everywhere).
 
