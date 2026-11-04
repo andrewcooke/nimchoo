@@ -209,6 +209,7 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
     timer: seq[TimerEvent]
     offsetS = none(int)
     count = 0
+    notActivity = false          ## the file says it is not an activity (its `file_id` type)
   try:
     timed "decode: file":
      for ev in r.events(p):
@@ -234,6 +235,9 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
           if kind == "start" or kind.startsWith("stop"):
             timer.add TimerEvent(t: fitToUnix(rec.timestamp.get),
                                  running: kind == "start")
+      of "file_id":
+        let kind = nameOf(p, rec, "type")      # (a type the profile lacks is its number)
+        if kind.len > 0 and kind != "activity": notActivity = true
       of "session":
         sessions.add sessionOf(p, rec, sessions.len)
       of "activity":
@@ -244,6 +248,8 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
   finally:
     ws.add r.warnings
   if sessions.len == 0:
+    if notActivity:
+      raiseImport(ifMonitor, "a monitor file (all-day wear data or the like): no activity is expected")
     raiseImport(ifNoActivity, "no activity in this file (it has no session message)")
   sessions.sort do (a, b: ActivityData) -> int:
     result = cmp(a.startT, b.startT)

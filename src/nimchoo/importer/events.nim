@@ -15,6 +15,7 @@ type
     oDuplicate,         ## the same content was imported before (found by hash)
     oUnchanged,         ## the path, size and time are as last time: not read
     oKnownFailure,      ## failed last time and has not changed: not read
+    oMonitor,        ## a monitor file (all-day wear data and the like: no activity expected): not a failure
     oFailed             ## failed now
 
   Counts* = object
@@ -25,7 +26,7 @@ type
     ## Totals so far, or at the end.
     total*: int                 ## files to look at
     done*: int                  ## files looked at
-    imported*, duplicates*, unchanged*, failed*, known*: int
+    imported*, duplicates*, unchanged*, failed*, known*, monitor*: int
     advisories*: int            ## things noticed in files (see warnings.nim), not files
     failures*: array[FailureKind, int]   ## `failed`, by kind
     notes*: seq[string]         ## things to say about the run itself
@@ -68,6 +69,7 @@ func tally*(s: var Summary, ev: ImportEvent) =
   of oDuplicate: inc s.duplicates
   of oUnchanged: inc s.unchanged
   of oKnownFailure: inc s.known
+  of oMonitor: inc s.monitor
   of oFailed:
     inc s.failed
     inc s.failures[ev.failure]

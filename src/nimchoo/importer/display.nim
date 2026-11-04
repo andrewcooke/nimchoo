@@ -33,6 +33,7 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   part span("imported " & commas(sum.imported), leImported)
   if sum.duplicates > 0: part span("duplicates " & commas(sum.duplicates), leDuplicate)
   if sum.unchanged > 0: part span("unchanged " & commas(sum.unchanged), leUnchanged)
+  if sum.monitor > 0: part span("monitor " & commas(sum.monitor), leUnchanged)
   if sum.known > 0: part span("known failures " & commas(sum.known), leUnchanged)
   if sum.failed > 0:
     part span("failed " & commas(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed)

@@ -40,7 +40,7 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
     of oDuplicate:
       result.add entry(lvInfo, leDuplicate, ev.path & "  " &
         (if ev.sameAs.len > 0: "same content as " & ev.sameAs else: "already imported"))
-    of oUnchanged, oKnownFailure: discard
+    of oUnchanged, oKnownFailure, oMonitor: discard
     of oFailed:
       result.add entry(lvError, leFailed, ev.path & "  (" & ev.failure.label & ") " &
         ev.message)

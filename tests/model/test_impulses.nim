@@ -232,4 +232,4 @@ suite "nch user: the FTHR and the impulses":
     check v.q("select count(*) from heartrate") == "2099"             # (the heart rate stays)
   test "making a user with an FTHR":
     let db = fresh("usernew")
-    check userCommand.run(globals(db), @["--create", "bob", "--fthr", "150"]) == exitOk
+    check userCommand.run(globals(db), @["--add", "bob", "--fthr", "150"]) == exitOk

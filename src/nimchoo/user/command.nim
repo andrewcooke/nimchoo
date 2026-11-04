@@ -16,14 +16,14 @@ import ./params
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] user
-       nch user --create NAME [--fthr BPM] [--default]
+       nch user --add NAME [--fthr BPM] [--default]
        nch [--db PATH] [--user NAME] user [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
 
 Without options, show the users.  Otherwise, make a user, or change the user given by
 --user (the default user if there is none).  One user is always the default: the first, until
 another is made so.
 
-  --create NAME   make the user NAME (users are never made by accident: it must be asked for)
+  --add NAME      make the user NAME (users are never made by accident: it must be asked for)
   --fthr BPM      the user's functional threshold heart rate: the highest rate they can
                   sustain for about an hour (80 to 230).  Heart-rate zones, and so training
                   impulse, are worked out from it.

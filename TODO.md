@@ -968,7 +968,7 @@ existing `user.name`, the key for `--user`; no separate display name).
 * **Command line** (options are enough):
 
       nch user                              the users: name, FTHR (blank if not set), activities
-      nch user --create NAME [--fthr N]     make a user (never implicit: a typo must not make one)
+      nch user --add NAME [--fthr N]     make a user (never implicit: a typo must not make one)
       nch [--user NAME] user --fthr 154     set FTHR (of the current user)
       nch [--user NAME] user --clear-fthr
       nch [--user NAME] user --rename NEW
@@ -980,9 +980,9 @@ existing `user.name`, the key for `--user`; no separate display name).
 
   **As built** (`user/`: `001-schema.sql`, `ddl.nim`, `params.nim` pure, `command.nim`): exactly the
   above.  `nch user` lists `user fthr activities` (activities counted per user, with commas;
-  FTHR `-` if not set); `--create NAME [--fthr N]` makes a user; `--fthr N`, `--clear-fthr`,
+  FTHR `-` if not set); `--add NAME [--fthr N]` makes a user; `--fthr N`, `--clear-fthr`,
   `--rename NEW` act on the user given by `--user` (the default user if none) and may be
-  combined; a bare `NAME` is refused and the message says to use `--create NAME` or `--user NAME`.
+  combined; a bare `NAME` is refused and the message says to use `--add NAME` or `--user NAME`.
   A user is refused if the name is taken; `default` cannot be renamed; `nch --user nobody user ...`
   says there is no such user and makes nothing.  Names and FTHR are checked before the database is
   opened.  The FTHR change that must clear impulses is not there yet because there are no
@@ -991,7 +991,7 @@ existing `user.name`, the key for `--user`; no separate display name).
 **Default user, changed after step 1:** `user.is_default` (a partial unique index: at most one is 1)
 marks the user commands work on without `--user`.  An empty database gets one called `default`,
 flagged; if the flagged user is deleted and others remain, the oldest becomes the default.  So the
-default can be renamed.  `nch [--user NAME] user --default` moves the flag (`--create NAME --default`
+default can be renamed.  `nch [--user NAME] user --default` moves the flag (`--add NAME --default`
 makes a user and does so in one go); `nch user` has a `default` column ("yes").  `openStore` takes
 `""` for "the default".  The schema changed, so an existing database needs `nch destroy -f` and a
 re-import.
@@ -1838,3 +1838,12 @@ Fix: a second connection on its own thread (`db/checkpointer.nim`) does passive 
 log passes 8 MB (the writer's autocheckpoint is off during an import); the window is bounded by
 bytes (48 MB, 256 files) not file count.  Result: longest commit 352 -> 65 ms, longest order wait
 44 ms; total time unchanged (22.6 s: the writer is the limit).
+
+## Monitor files in `nch import` (2026-11-04)
+
+A file that has no session and whose `file_id` type is not `activity` (monitoring_a/b, and types the profile
+lacks, like Garmin's 44) is a **monitor** file: counted on its own (`11709 monitor`, grey in the live display),
+not a failure, nothing printed per file, not logged one by one (the `done` line has the count), remembered in
+`seen_file` as kind `monitor` so a re-run skips it, and the exit status ignores it.  Files that do not say what
+they are (no `file_id`, or type `activity`) and have no session are still `no activity` failures.  Rows from
+before are labelled `no activity` until a `--slow` run reads them again.  `nch user --create` is now `--add`.

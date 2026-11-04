@@ -8,6 +8,7 @@ import ../errors
 type
   FailureKind* = enum
     fkNoActivity = "no_activity"   ## no activity in the file (not a ride)
+    fkMonitor = "monitor"        ## a file of another type than activity (monitoring...): no activity expected
     fkBadTime = "bad_time"         ## times that are not calendar times
     fkBadFormat = "bad_format"     ## not a readable FIT file
     fkUnreadable = "unreadable"    ## the file could not be read
@@ -20,6 +21,7 @@ func failureOf*(e: ref NchError): FailureKind =
     case ((ref ImportError)(e)).kind
     of ifNoActivity: fkNoActivity
     of ifBadTime: fkBadTime
+    of ifMonitor: fkMonitor
   elif e of FitError: fkBadFormat
   elif e of StoreError: fkStore
   else: fkBadFormat
@@ -28,6 +30,7 @@ func label*(k: FailureKind): string =
   ## The kind in words, for people.
   case k
   of fkNoActivity: "no activity"
+  of fkMonitor: "monitor"
   of fkBadTime: "bad time"
   of fkBadFormat: "bad format"
   of fkUnreadable: "unreadable"

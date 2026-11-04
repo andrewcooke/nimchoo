@@ -32,7 +32,8 @@ type
 
   ImportFailure* = enum
     ifNoActivity,   ## the file has no activity in it (no session message)
-    ifBadTime       ## its times are not calendar times
+    ifBadTime,      ## its times are not calendar times
+    ifMonitor       ## a file that says it is not an activity (monitoring and other all-day data): none is expected
 
   ImportError* = object of NchError
     ## A file that is readable but cannot be imported as an activity.

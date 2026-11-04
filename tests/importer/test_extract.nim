@@ -125,6 +125,24 @@ suite "activities: refusing files":
     except ImportError as e:
       check e.kind == ifNoActivity
 
+  test "no session in a file that says it is not an activity: a monitor file":
+    let fileIdDefn = defn(4, 0, @[(0, 1, enumT)])
+    func fileId(kind: int): seq[byte] = b(4, kind)
+    for kind in [32, 15, 44]:          # monitoring_b, monitoring_a, a type the profile does not have
+      try:
+        discard activities(fileIdDefn & fileId(kind) & recordDefn & at(base))
+        check false
+      except ImportError as e:
+        check e.kind == ifMonitor
+    try:                               # an activity file with no session is still a failure
+      discard activities(fileIdDefn & fileId(4) & recordDefn & at(base))
+      check false
+    except ImportError as e:
+      check e.kind == ifNoActivity
+    # a session wins: a file with a session is read whatever it says it is
+    check activities(fileIdDefn & fileId(32) & recordDefn & at(base) & at(base + 1) &
+                     sessionDefn & session(base, base + 1))[0].len == 1
+
   test "a session that starts at no calendar time":
     try:
       discard activities(recordDefn & at(base) & sessionDefn & session(100, base))

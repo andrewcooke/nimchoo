@@ -39,8 +39,8 @@ func parseFthr*(s: string): Option[int] =
   none(int)
 
 proc parseArgs*(args: seq[string]): Params =
-  ## `nch user` (list), `--create NAME [--fthr N] [--default]`, `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`.
-  let createOption = custom(Params, ["--create"], true):
+  ## `nch user` (list), `--add NAME [--fthr N] [--default]`, `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`.
+  let createOption = custom(Params, ["--add"], true):
     p.create = true
     p.name = value
     ""
@@ -65,7 +65,7 @@ proc parseArgs*(args: seq[string]): Params =
       fthrOption,
       renameOption],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to make a user: --create " & arg & "; to change an existing user: `nch --user " & arg &
+      " (to make a user: --add " & arg & "; to change an existing user: `nch --user " & arg &
       " user ...`)")
   template fail(msg: string) =
     result.problem = msg
@@ -78,7 +78,7 @@ proc parseArgs*(args: seq[string]): Params =
       fail("'" & result.name & "' is not a name for a user (1 to " & $maxNameLength &
            " letters, digits, _ . -, not starting with -)")
     if result.rename.len > 0 or result.clearFthr:
-      fail("--create can be combined only with --fthr and --default")
+      fail("--add can be combined only with --fthr and --default")
   if result.fthr.isSome and result.clearFthr:
     fail("--fthr and --clear-fthr cannot be used together")
   result.list = not result.create and result.fthr.isNone and not result.clearFthr and

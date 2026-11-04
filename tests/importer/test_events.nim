@@ -109,6 +109,22 @@ suite "import events: failures by kind":
     check sum.failures[fkBadFormat] == 1
     check sum.failures[fkBadTime] == 1
 
+  test "monitor files are counted apart, are not failures, and are not read again":
+    let d = fresh("monitor")
+    bytesToFile(d / "1-monitor.fit", fitFile(defn(4, 0, @[(0, 1, enumT)]) & b(4, 32) &
+                defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base)))
+    bytesToFile(d / "2-nosession.fit", fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base)))
+    let st = openStore(d / "x.db", allFragments)
+    defer: st.close()
+    let (evs, sum) = run(st, @[d])
+    check evs.dones.mapIt(it.outcome) == @[oMonitor, oFailed]
+    check sum.monitor == 1 and sum.failed == 1 and sum.failures[fkMonitor] == 0
+    check summaryLine(sum).contains(", 1 monitor, 1 failed")
+    check plainLines(evs.dones[0], quiet = false).stdout.len == 0        # (nothing printed for it)
+    let (again, sum2) = run(st, @[d])
+    check again.dones.mapIt(it.outcome) == @[oMonitor, oKnownFailure]    # (remembered: not read)
+    check sum2.monitor == 1 and sum2.known == 1 and sum2.failed == 0
+
   test "a file that cannot be read":
     let d = fresh("unreadable")
     let path = d / "a.fit"

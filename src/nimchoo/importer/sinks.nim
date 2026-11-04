@@ -52,7 +52,7 @@ func failureBreakdown*(s: Summary): string =
   ## "no activity 4, bad format 1": the failures by kind ("" if none).
   var parts: seq[string]
   for k in FailureKind:
-    if s.failures[k] > 0: parts.add k.label & " " & $s.failures[k]
+    if k != fkMonitor and s.failures[k] > 0: parts.add k.label & " " & $s.failures[k]
   parts.join(", ")
 
 func summaryLine*(s: Summary): string =
@@ -61,6 +61,7 @@ func summaryLine*(s: Summary): string =
   result = plural(s.done, "file", "files") & ", " & $s.imported & " imported"
   if s.duplicates > 0: result.add ", " & plural(s.duplicates, "duplicate", "duplicates")
   if s.unchanged > 0: result.add ", " & $s.unchanged & " unchanged"
+  if s.monitor > 0: result.add ", " & $s.monitor & " monitor"
   result.add ", " & $s.failed & " failed"
   let kinds = failureBreakdown(s)
   if kinds.len > 0: result.add " (" & kinds & ")"
@@ -106,6 +107,7 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
       if not quiet:
         result.stdout.add "known     " & ev.path & "  (failed before: " &
           ev.message & ")"
+    of oMonitor: discard      # (expected, and there may be thousands: only counted)
     of oFailed:
       result.stdout.add "failed    " & ev.path & ": " & ev.message
     result.stderr.add advisoryLines(ev.path, ev.advisories)

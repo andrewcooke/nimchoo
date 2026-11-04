@@ -185,7 +185,10 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     emit ImportEvent(kind: evFileStart, startIndex: index, startPath: c.path)
     let before = table.getOrDefault(c.key)
     if c.key in table and before.matches(c.size, c.mtime):
-      if before.failed:
+      if before.failed and kindOf(before.failure) == fkMonitor:
+        finished ImportEvent(kind: evFileDone, index: index, path: c.path,
+                             outcome: oMonitor, failure: fkMonitor)
+      elif before.failed:
         finished ImportEvent(kind: evFileDone, index: index, path: c.path,
                              outcome: oKnownFailure,
                              failure: kindOf(before.failure),
@@ -214,7 +217,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     let t0 = getMonoTime()
     case prep.outcome
     of poFailed:
-      ev.outcome = oFailed
+      ev.outcome = if prep.failure == fkMonitor: oMonitor else: oFailed
       ev.failure = prep.failure
       ev.message = prep.message
     of poKnown, poDecoded:
@@ -243,7 +246,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
         ev.message = e.msg
     if ev.outcome != oFailed:
       fileDone(prep.bytes, prep.nanos + (getMonoTime() - t0).inNanoseconds, ev.outcome == oImported)
-    if ev.outcome == oFailed:
+    if ev.outcome in {oFailed, oMonitor}:
       row.failure = $ev.failure
       row.message = ev.message
     if ev.outcome != oDuplicate:             # (a file whose content is in already has nothing to say)

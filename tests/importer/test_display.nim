@@ -44,6 +44,11 @@ suite "import display: the lines":
     check ls[1].text == "imported 2 · unchanged 1 · failed 0"
     check ls[1].allIt(it.look.colour notin {red, yellow})
 
+  test "monitor files are counted in grey, apart from the failures":
+    let ls = renderImport(Summary(total: 5, imported: 1, monitor: 4), 5, "x")
+    check ls[1].text == "imported 1 · monitor 4 · failed 0"
+    check ls[1].anyIt(it.text == "monitor 4" and it.look.colour == grey)
+
   test "duplicates, unchanged and known failures are shown apart; zeros are left out":
     check renderImport(Summary(total: 5, duplicates: 1, unchanged: 2, known: 3), 3, "x").texts[1] ==
       "imported 0 · duplicates 1 · unchanged 2 · known failures 3 · failed 0"
