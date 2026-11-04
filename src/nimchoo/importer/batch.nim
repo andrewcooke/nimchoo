@@ -8,6 +8,7 @@ import ../errors
 import ../fit/bytes
 import ../profile/default
 import ../profile/model
+import ../profiling
 import ../warnings
 import ./events
 import ./failure
@@ -80,7 +81,10 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
   ## per file; a file that fails is reported and the others carry on.  Files
   ## unchanged since they were last looked at are skipped unread unless
   ## `opts.slow`.  Every step is announced to `emit`; the totals are returned.
-  let found = collect(targets)
+  startClock()
+  var found: Found
+  timed "find files":
+    found = collect(targets)
   result.total = found.problems.len + found.files.len
   emit ImportEvent(kind: evStart, total: result.total)
   var index = 0
@@ -140,8 +144,10 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     var row = Seen(size: c.size, mtime: c.mtime)
     var ev = ImportEvent(kind: evFileDone, index: index, path: c.path)
     try:
-      let r = st.importFileWith(profile, extractFilename(c.path),
-                                readBytes(c.path), ws, opts.steps)
+      var bytes: seq[byte]
+      timed "read file":
+        bytes = readBytes(c.path)
+      let r = st.importFileWith(profile, extractFilename(c.path), bytes, ws, opts.steps)
       row.fileId = r.fileId
       case r.outcome
       of ioImported:
@@ -168,7 +174,11 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     pending.add c.key, row
     if pending.full: flushSeen()
     finished ev
-  flushSeen()
+  timed "flush seen":
+    flushSeen()
+  if enabled:
+    try: stderr.write report()
+    except IOError: discard
   if profileNote.len > 0: result.notes.add profileNote
   emit ImportEvent(kind: evFinish, summary: result)
 

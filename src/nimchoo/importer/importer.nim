@@ -8,6 +8,7 @@ import db_connector/db_sqlite
 import ../db/[channel, statement, store]
 import ../errors
 import ../profile/model
+import ../profiling
 import ../warnings
 import ../places/seed
 import ./[extract, route]
@@ -65,11 +66,15 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
   ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
   ## whole file imports.  A file already imported (same content) is recognised
   ## by its hash before anything is decoded, so `profile` is not called.
-  let digest = sha256Hex(data)
+  var digest = ""
+  timed "hash":
+    digest = sha256Hex(data)
   guard:
-    let known = s.db.getValue(
-      sql"select id from file where user_id = ? and sha256 = ?",
-      s.userId, digest)
+    var known = ""
+    timed "known?":
+      known = s.db.getValue(
+        sql"select id from file where user_id = ? and sha256 = ?",
+        s.userId, digest)
     if known.len > 0:
       try:
         return ImportResult(outcome: ioDuplicate,
@@ -80,7 +85,9 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
   for step in steps:
     for ch in step.channels:
       if ch notin wanted: wanted.add ch
-  let found = readActivities(profile(), data, ws, wanted)
+  var found: seq[ActivityData]
+  timed "decode":
+    found = readActivities(profile(), data, ws, wanted)
   s.begin()
   var committed = false
   var actStmt, segStmt, coordStmt, routeStmt, startStmt: Option[Stmt]
@@ -105,27 +112,40 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     for step in steps:
       result.extras.add ExtraCount(one: step.label, many: step.labels)
     for a in found:
-      insertActivity(actStmt.get, fileId, a)
-      let activityId = lastInsertId(s.db)
-      for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
-      for c in a.coords: insertCoord(coordStmt.get, activityId, c)
+      var activityId = 0'i64
+      timed "insert activity":
+        insertActivity(actStmt.get, fileId, a)
+        activityId = lastInsertId(s.db)
+      timed "insert segments":
+        for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
+      timed "insert coords":
+        for c in a.coords: insertCoord(coordStmt.get, activityId, c)
       if a.coords.len > 0:                  # where it started: the first position
         startStmt.get.bindReal(1, a.coords[0].lon)
         startStmt.get.bindReal(2, a.coords[0].lat)
-        let near = nearestPlace(s.db, a.coords[0].lon, a.coords[0].lat)
-        if near.isSome: startStmt.get.bindInt(3, near.get.id) else: startStmt.get.bindNull(3)
-        startStmt.get.bindInt(4, activityId)
-        startStmt.get.run()
-      let wkt = routeWkt(a)
-      if wkt.isSome:
-        routeStmt.get.bindInt(1, activityId)
-        routeStmt.get.bindText(2, wkt.get)
-        routeStmt.get.run()
-      for i, step in steps: result.extras[i].n += step.write(s.db, activityId, a.samples)
+        var near: Option[Nearest]
+        timed "nearest place":
+          near = nearestPlace(s.db, a.coords[0].lon, a.coords[0].lat)
+        timed "update start":
+          if near.isSome: startStmt.get.bindInt(3, near.get.id) else: startStmt.get.bindNull(3)
+          startStmt.get.bindInt(4, activityId)
+          startStmt.get.run()
+      var wkt: Option[string]
+      timed "route: text":
+        wkt = routeWkt(a)
+      timed "route: insert":
+        if wkt.isSome:
+          routeStmt.get.bindInt(1, activityId)
+          routeStmt.get.bindText(2, wkt.get)
+          routeStmt.get.run()
+      for i, step in steps:
+        timed "step: " & step.label:
+          result.extras[i].n += step.write(s.db, activityId, a.samples)
       inc result.activities
       result.segments += a.segments.len
       result.coords += a.coords.len
-    s.commit()
+    timed "commit":
+      s.commit()
     committed = true
   finally:
     if actStmt.isSome: finalize(actStmt.get)

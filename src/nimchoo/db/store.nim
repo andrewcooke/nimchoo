@@ -166,6 +166,11 @@ proc openStore*(path: string, fragments: seq[Fragment],
     loadSpatialite(result.db)
     guard:
       result.db.exec(sql"pragma foreign_keys = on")
+      # write-ahead log: a commit does not wait for the disk (the log is synced when it is checkpointed),
+      # and readers (the web server's workers) do not wait for a writer.  A power cut can lose the last
+      # commits, never corrupt the database; a re-import repeats what was lost.
+      result.db.exec(sql"pragma journal_mode = wal")
+      result.db.exec(sql"pragma synchronous = normal")
     bringUpToDate(result.db, fragments)
     guard:
       if result.db.getValue(sql"select count(*) from user") == "0":

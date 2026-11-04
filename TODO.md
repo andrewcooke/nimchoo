@@ -246,6 +246,26 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
 
 ### Plan
 
+* **Measurements (2026-11-04).**  Sample: every 13th of the author's `.fit` files in `~/fit`: 300 files, 19 MB
+  (129 of them are monitor files with no activity; 167 import).  Release build; `NCH_PROFILE=1 nch import ...`
+  prints the table (the timers are `profiling.nim`, `timed "phase": ...`).  /tmp is tmpfs here, where fsync
+  is free, so the database must be on the real disk (btrfs) to see commits.
+
+      phase (ms)          journal (default)   WAL + synchronous=normal
+      decode                    5033                  4777
+      commit                    2988                   595
+      route: insert              ~2300                1943     (GeomFromText + the R-tree index)
+      insert coords               541                   521
+      step: heart-rate            488                   445
+      route: text                 ~350                  348
+      hash                        124                   117
+      nearest place                91                    87
+      total                     11799                 ~9000
+
+  **WAL is done** (`store.openStore`): commits fell from 25% to 6% of the time.  What is left is the
+  decoder (53%: gprof says about 30% of the whole run is the allocator: 207 million allocations for 19 MB,
+  because every decoded value copies its name, units and type name as strings and records are copied),
+  and putting the route in (21%).
 * **Step 1: a way to measure.**  Phase timers in the importer (read and hash, decode, each table's inserts,
   nearest place, commit), switched on by an environment variable and written to the log or stderr; a
   repeatable benchmark (a directory of real files into a fresh database, several runs) as a nimble task.
@@ -256,8 +276,17 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   rolls back alone; commit every N files or every few seconds (and at the end and on Ctrl-C).
 * **Step 4: whatever the numbers then show** (hashing, the nearest-place query, bulk inserts and the order
   of index creation, decoding on several threads).
-* Questions for the author before step 2: is losing the last few commits after a power cut acceptable (WAL
-  with NORMAL), and is the extra `-wal` file next to the database acceptable (you prefer a single file)?
+* **Decisions (2026-11-04):** WAL with `synchronous = NORMAL` is fine (it is hidden from the user anyway; the
+  author has found it helps before).  Several files per commit may be tried but is expected not to help much
+  (one file is already a big chunk): only if it measurably helps, and not if it is messy.  **Data types may be
+  changed; changing tables is discouraged and needs discussion** (the modular, incremental approach is worth
+  keeping) -- but changes that **normalise or remove duplication are welcome** (candidates: the `route`
+  geometry repeats the points of `coords`; `coords.alt` is always empty).  **Threads are fine** (WAL makes
+  SQLite and threads safer).  **For later, in space management of the cache: include database clean-up**
+  (`VACUUM`, a WAL checkpoint, and the like) beside the clean-up of old files in `user/`.
+* **Data for profiling:** the author's own FIT files in `~/fit` (3,909 files, 320 MB; median 15 KB, largest
+  728 KB): read only, imported into scratch databases and a scratch cache under `/tmp`, never into the
+  author's database or cache, and never copied into the project.
 
 ## Task 8: one palette, the selection in the list, a calendar view, the cache split and templates (planned)
 
