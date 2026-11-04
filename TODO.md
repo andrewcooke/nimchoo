@@ -257,8 +257,10 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
 * Days are the **user's local timezone** (everything displayed is local; UTC is only internal).
 * Only months with data are shown; **`--verbose`** shows every month from the first to the last.
 * Too narrow a terminal: print a warning (in yellow) and truncate each line.
-* Without colour (a pipe, `NO_COLOR`): the cells carry marks so nothing is lost: a day with data `07 `, a
-  selected day `07*`, a day with none `-- ` (cells stay 3 wide).
+* Without colour (a pipe, `NO_COLOR`): the cells are **5 wide** and carry marks so nothing is lost: a day with
+  data `"  12 "`, a selected day `" [34]"`, a day with none `"  -- "` (each with its leading space).  With
+  colour they are 3 wide (the 2 digits and a space).  So the width differs: about 111 columns with colour,
+  about 185 without.
 
 **D. The cache is split, bundled files are unpacked, pages come from templates.**
 * `<cache>/user/` holds what commands generate (GeoJSON, CSV, pages); `<cache>/system/` holds what is
@@ -279,7 +281,8 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   mustache-compatible subset (`{{name}}` escaped, `{{{name}}}` or `{{&name}}` raw, `{{#flag}}..{{/flag}}`
   and `{{^flag}}..{{/flag}}`), about 80 lines; a library with more (conditionals, loops) may be wanted in
   the long term.  The values are the user's preferences, the data file's name, and the library versions.
-* **Places are informational, so a changed cities list reloads them without destroying anything:** the
+* **Places are informational, so a changed cities list reloads them without destroying anything** (the author's
+  reasoning: they are not needed for integrity, and others agree): the
   hash of the list loaded is kept in the database; when the list in use (embedded, or a replaced file)
   has another hash, the places are replaced and every activity's nearest place is worked out again.
   This takes the cities data out of the places fragment's checksum.
