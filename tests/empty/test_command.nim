@@ -42,6 +42,8 @@ suite "empty: what to empty is named":
     check emptyCommand.run(globals(d / "x.db"), @["-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--all", "--user", "bob", "-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--all", "--cache", "-f"]) == exitUsage
+    check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--user", "bob", "-f"]) == exitUsage
+    check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--all", "-f"]) == exitUsage
     check fileExists(d / "x.db")
 
   test "--user before the command is refused, with a hint":
@@ -103,3 +105,28 @@ suite "empty --cache: the files commands made":
     check fileExists(d / "cache" / "server-token")
     check not fileExists(d / "none.db")            # (the database is not touched, or made)
     check emptyCommand.run(globals(d / "none.db"), @["--cache"]) == exitOk      # nothing left: fine
+
+suite "empty --sectors: the catalogue of climbs":
+  test "the sectors, the efforts on them (of every user) and the record go; the rides stay":
+    let d = fresh("sectors")
+    let a = openStore(d / "x.db", allFragments)
+    fill(a, "mine")
+    a.db.exec(sql"insert into sector(length_m, gain_m, gradient) values (1000, 50, 5)")
+    let act = a.db.getValue(sql"select id from activity")
+    a.db.exec(sql"insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, ?, 1, 61, 60, 0)", act)
+    a.db.exec(sql"insert into climbs_done(activity_id, version) values (?, 1)", act)
+    a.close()
+    check emptyCommand.run(globals(d / "x.db"), @["--sectors"]) == exitFailure          # no -f
+    let before = openStore(d / "x.db", allFragments)
+    check before.count("sector") == 1 and before.count("effort") == 1
+    before.close()
+    check emptyCommand.run(globals(d / "x.db"), @["--sectors", "-f"]) == exitOk
+    let after = openStore(d / "x.db", allFragments)
+    defer: after.close()
+    check after.count("sector") == 0 and after.count("effort") == 0 and after.count("climbs_done") == 0
+    check after.count("activity") == 1 and after.count("file") == 1
+
+  test "--user before the command is refused here too":
+    let d = fresh("sectorsuser")
+    openStore(d / "x.db", allFragments).close()
+    check emptyCommand.run(globals(d / "x.db", "bob"), @["--sectors", "-f"]) == exitUsage

@@ -2024,3 +2024,28 @@ dropped.
 `climbs_done` (activity_id, version).  Distances are metres in the database and kilometres on the screen.  No
 altitude at the gates and no finish distance (dropped by the author).  Efforts go with their activity or their
 sector; sectors refer to no ride.  Tested: the route and its index, the cascades, laps, the duplicate pass.
+
+### Step 5 is built (2026-11-04): `climbs/work.nim`, `nch empty --sectors`
+
+`ensureClimbs(store)` brings the tables up to date as planned (activities not in `climbs_done`, in start order, all
+users; efforts on the sectors near the ride; new sectors from its climbs unless they repeat one; a new sector
+matched against its own ride and the earlier rides near it; one transaction per activity; a method version).
+`clearClimbs` and `nch empty --sectors -f` start again.  Real data: the 300-file sample (167 activities) takes
+2.4 s (43 sectors, 220 efforts); the whole library (1,986 activities) takes 56 s once (161 sectors, 3,635 efforts:
+117 of category 4, 30 of 3, 12 of 2, 1 HC), and a second pass 0 ms.  Reading coordinates was half the time, so the
+rides read recently are kept (up to 3 million points); the profile shows `climbs: ...` phases.  Not yet:
+`nch climbs` (step 6).
+
+### Naming climbs (asked 2026-11-04): GeoNames, measured on Chile
+
+What we carry: `cities5000`, about 70,000 populated places of 5,000 people or more (247 in Chile).  The full
+GeoNames dump (`allCountries.zip`, 422 MB to download) has a feature class and code for each entry; one
+country's file is small (Chile: `CL.zip` 1.4 MB, 46,467 features: 15,955 terrain, 12,426 water, 8,483 spots, 6,967
+populated, only 34 roads).  Terrain in Chile: 5,354 mountains, 1,763 hills, 800 ranges, 569 passes, 229 peaks.
+Against the 43 climbs of the sample (all in Chile): only 309 features (0.7 %) lie within 2 km of them, so filtering
+by place helps a great deal; every climb has a terrain feature within 3 km, but only 8 within 1 km; the nearest
+is mostly a "Cerro ..." hill or mountain (Cerro San Cristobal, Cerro Calan), not the name of the climb, and
+GeoNames has almost no roads, so road names ("Camino a Farellones") would need OpenStreetMap.  The nearest
+populated place (what we have now) is 3 to 15 km from a climb's start: it says where, not what.
+Idea: fetch the country files on demand into the cache (like the terrain tiles), keep the best name on
+`sector.name` (a pass or saddle near the top, else a peak or mountain within ~1.5 km, else "near <town>").

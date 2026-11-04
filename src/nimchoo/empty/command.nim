@@ -7,6 +7,7 @@
 import std/[options, os]
 import ../cache
 import ../cli/[args, common]
+import ../climbs/work as climbsWork
 import ../db/store
 import ../errors
 import ../ui/[live, logfile]
@@ -17,6 +18,7 @@ import ./cachefiles
 
 const usage* = """usage: nch [--db PATH] empty --user NAME -f
        nch [--db PATH] empty --all -f
+       nch [--db PATH] empty --sectors -f
        nch empty --cache
 
 Say what to empty:
@@ -24,6 +26,8 @@ Say what to empty:
   --user NAME   delete all the data of the user NAME: their files, activities, selection and
                 what was worked out from them.  The user, and their threshold heart rate,
                 stay.  (To delete the user as well: `nch user --remove NAME -f`.)
+  --sectors     delete the catalogue of climbs, and with it the efforts of every user on them;
+                the next `nch climbs` works them out again from the rides
   --all         delete the database file, and with it the data of every user and the users
   --cache       delete the files in the cache that commands made (maps, CSVs, pages); they
                 are made again when asked for.  Needs no -f.
@@ -37,7 +41,7 @@ which to press Ctrl-C.
 
 type EmptyArgs = object
   user: string
-  all, cache, force, help: bool
+  all, sectors, cache, force, help: bool
 
 proc emptyCache(g: Globals): int =
   let dir = cacheDir()
@@ -54,7 +58,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   var given = EmptyArgs()
   let spec = Spec[EmptyArgs](opts: @[
     flag(EmptyArgs, ["-h", "--help"], help), flag(EmptyArgs, ["-f", "--force"], force),
-    flag(EmptyArgs, ["--all"], all), flag(EmptyArgs, ["--cache"], cache),
+    flag(EmptyArgs, ["--all"], all), flag(EmptyArgs, ["--sectors"], sectors),
+    flag(EmptyArgs, ["--cache"], cache),
     text(EmptyArgs, ["--user"], user)])
   let why = parseOptions(args, spec, given)
   if why.len > 0: return usageError("nch empty", usage, why)
@@ -64,14 +69,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if g.user.len > 0:
     return usageError("nch empty", usage,
       "--user goes after the command here: nch empty --user " & g.user & " (what to empty is named there)")
-  let targets = [given.user.len > 0, given.all, given.cache]
+  let targets = [given.user.len > 0, given.all, given.sectors, given.cache]
   var named = 0
   for t in targets:
     if t: inc named
   if named == 0:
-    return usageError("nch empty", usage, "say what to empty: --user NAME, --all or --cache")
+    return usageError("nch empty", usage, "say what to empty: --user NAME, --all, --sectors or --cache")
   if named > 1:
-    return usageError("nch empty", usage, "--user, --all and --cache cannot be used together")
+    return usageError("nch empty", usage, "--user, --all, --sectors and --cache cannot be used together")
   if given.cache: return emptyCache(g)
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
@@ -82,6 +87,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   var what: string
   if given.all:
     what = describe(countActivities(path, ""), "")
+  elif given.sectors:
+    try:
+      st = openStore(g)
+      what = describe(countClimbs(st))
+    except StoreError as e:
+      return failure("nch empty", e.msg)
   else:
     try:
       st = openStore(g)
@@ -99,6 +110,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         removeFile path & suffix
     except OSError as e:
       return failure("nch empty", "cannot delete " & path & ": " & e.msg)
+  elif given.sectors:
+    try:
+      clearClimbs(st)
+    except StoreError as e:
+      return failure("nch empty", e.msg)
   else:
     try:
       emptyUser(st, id)
