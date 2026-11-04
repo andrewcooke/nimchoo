@@ -7,13 +7,13 @@
 ## This module is newer than `importer` and reads its tables (activity, file,
 ## coords, route) directly.
 
-import std/[options, sequtils, strutils, times]
+import std/[options, sequtils, strutils, terminal, times]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
 import ../ui/[live, logfile, style, vocabulary]
-import ./[criteria, table]
+import ./[calendar, criteria, table]
 
 {.push raises: [].}
 
@@ -50,6 +50,10 @@ last one).  Criteria are combined with "and".
   -v, --verbose      show more of each activity: where it started (its coordinates, or
                      "no GPS" if the file has no positions; then the nearest town or city
                      from the GeoNames list, with the distance if far) and the path of its file
+  --calendar         show the activities on a calendar instead of a table: a row for each month
+                     that has one (with -v, every month from the first to the last), the days
+                     in columns by weekday (weeks start on Monday).  White: an activity that was
+                     listed; yellow: one that is also in the selection; grey: none
   -h, --help         show this help
 
 "latest" is the newest activity among those that meet the criteria that do not use
@@ -155,19 +159,21 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
 func moreThanOneUser(rows: seq[ListRow]): bool =
   rows.anyIt(it.user != rows[0].user)
 
-proc listing(rows: seq[ListRow], zone: Timezone, verbose: bool, choices: Option[int]): seq[Line] =
-  ## The table and its last line.
-  result = table(rows, zone, rows.len > 0 and moreThanOneUser(rows), verbose)
+proc listing(rows: seq[ListRow], zone: Timezone, c: Criteria, screen: Screen,
+             choices: Option[int]): seq[Line] =
+  ## The table (or the calendar) and its last line.
+  result = if c.calendar: calendarLines(rows, zone, c.verbose, screen)
+           else: table(rows, zone, rows.len > 0 and moreThanOneUser(rows), c.verbose)
   result.add footerLine(rows, choices)
 
-proc showSelection*(st: Store, c: Criteria, zone: Timezone): seq[Line]
+proc showSelection*(st: Store, c: Criteria, zone: Timezone, screen = Screen(colour: true)): seq[Line]
     {.raises: [StoreError].} =
   ## The stored selection of the store's user, as a listing.
   let rows = readRows(st, "select " & rowColumns(c.verbose, st.userId) & " from selection s join activity a on " &
     "a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId &
     " order by a.start_t, a.id")
   if rows.len == 0: return @[plain("selection: empty")]
-  listing(rows, zone, c.verbose, none(int))
+  listing(rows, zone, c, screen, none(int))
 
 proc latestAmong(st: Store, match: string): Option[tuple[id: int64, row: ListRow]]
     {.raises: [StoreError].} =
@@ -222,7 +228,8 @@ proc resolve(st: Store, c: var Criteria, which: Reference, id: int64, row: ListR
     source = "the start of the " & nameOf & " activity"
     c.near = nkNone
 
-proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines: seq[Line], saved: int]
+proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
+                     screen = Screen(colour: true)): tuple[lines: seq[Line], saved: int]
     {.raises: [StoreError].} =
   ## List the activities that meet the criteria (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
@@ -280,7 +287,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone): tuple[lines
   let rows = readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
-  result.lines.add listing(rows, zone, c.verbose, some(total))
+  result.lines.add listing(rows, zone, c, screen, some(total))
   result.saved = if c.save: rows.len else: -1
   if c.save:
     result.lines.add @[span("saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
@@ -303,14 +310,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   defer: st.close()
   try:
     var lines: seq[Line]
+    let colour = canColourStdout()
+    let screen = Screen(colour: colour, width: if isatty(stdout): terminalWidth() else: 0)
     if parsed.criteria.show:
-      lines = showSelection(st, parsed.criteria, zone)
+      lines = showSelection(st, parsed.criteria, zone, screen)
     else:
-      let r = listActivities(st, parsed.criteria, zone)
+      let r = listActivities(st, parsed.criteria, zone, screen)
       lines = r.lines
       if r.saved >= 0:
         g.log.log(lvInfo, "list", leSaved, $r.saved & (if r.saved == 1: " activity" else: " activities"))
-    let colour = canColourStdout()
     for l in lines: stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError as e:

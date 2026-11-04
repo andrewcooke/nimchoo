@@ -3,6 +3,15 @@ import nimchoo/selection/criteria
 
 let utcZone = utc()
 
+suite "list criteria: --calendar":
+  test "--calendar is a display option: it is not a criterion, and it goes with --show":
+    let p = parseArgs(@["--calendar"], utc())
+    check p.problem == "" and p.criteria.calendar
+    let q = parseArgs(@["--show", "--calendar", "-v"], utc())
+    check q.problem == "" and q.criteria.show and q.criteria.calendar and q.criteria.verbose
+    check parseArgs(@["--sport", "cycling", "--calendar"], utc()).criteria.calendar
+    check not parseArgs(@[], utc()).criteria.calendar
+
 suite "list: times":
   test "a date is a day in the given zone; as an end it is the day after":
     check parseWhen("2018-08-27", utcZone, false) == some(1535328000'i64)

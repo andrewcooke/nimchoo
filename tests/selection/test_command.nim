@@ -3,6 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
+import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand
 import nimchoo/selection/criteria
 import nimchoo/ui/[logfile, style, vocabulary]
@@ -451,6 +452,26 @@ suite "list: what is shown":
     check showSelection(st, p.criteria, utc()).yellowRows == @[true]        # --show: all are
     check shown(db, "--save").lines.yellowRows == @[true, true]            # --save: what is listed is the selection
     check shown(db, "--sport", "running").lines.yellowRows == @[true]
+
+  test "--calendar: a calendar in place of the table, with the same last line":
+    let db = world("calendar")
+    discard save(db, "--sport", "cycling")
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let p = parseArgs(@["--calendar"], utc())
+    let r = listActivities(st, p.criteria, utc(), Screen(colour: true))
+    check r.lines[0].text.startsWith("    Mo Tu We")
+    check r.lines.texts.filterIt(it.startsWith("Jul ")).len == 1 and r.lines.texts.filterIt(it.startsWith("Aug ")).len == 1
+    check r.lines.texts[^1].startsWith("done: 2 of 2 activities, 1 match selected, ")
+    let jul = r.lines.filterIt(it.text.startsWith("Jul "))[0]
+    check jul.anyIt(it.look.colour == yellow and it.text == "01 ")           # 1 July 2018: cycling, selected
+    let aug = r.lines.filterIt(it.text.startsWith("Aug "))[0]
+    check aug.anyIt(it.look.colour == white and it.text == "27 ")            # running, listed but not selected
+    # -v: every month between the first and the last
+    let v = listActivities(st, parseArgs(@["--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true))
+    check v.lines.texts.filterIt(it[0 .. 2] in ["Jul", "Aug"]).len == 2
+    let shownCal = showSelection(st, parseArgs(@["--show", "--calendar"], utc()).criteria, utc(), Screen(colour: true))
+    check shownCal.texts.filterIt(it.startsWith("Jul ")).len == 1 and shownCal.texts.filterIt(it.startsWith("Aug ")).len == 0
 
   test "several users: a user column":
     let db = world("shownusers")

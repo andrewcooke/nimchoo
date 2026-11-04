@@ -338,8 +338,13 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   starts `done: ` (as the end of an import does): `nch list`'s last line and `nch destroy`'s `done: deleted ...`.
 * **The `nch` the author runs is a release build** (`nimble prod`: `nim c -d:release -o:nch src/nch.nim`);
   build that one for use.  `nimble build` and plain `nim c` make a debug build, which is about 5 times slower.
-* **Step C: the calendar view.**  A pure layout module (`selection/calendar.nim`: days, months, cells,
-  marks, truncation), then `--calendar` and `--verbose`; tests with fixed dates and zones.
+* **Step C: the calendar view** -- built.  `selection/calendar.nim` (pure: rows, zone, screen in; styled lines out),
+  `nch list --calendar` (a display option that goes with `--save`, `--show` and any criteria; `-v` shows
+  every month from the first to the last).  As asked, with these details: the weekday header is **two
+  letters** (`Mo Tu ...`; a three-letter name does not fit a 3-character cell), the **year is on every
+  row**, 37 cells a row; the same last line (`done: ...`) follows.  `Screen` (colour, width) is passed down
+  from `run` (`isatty` and `terminalWidth`); a width of 0 means no limit (a pipe).  Tested with fixed dates
+  and fixed-offset zones (`tests/support/zones.nim`).
 * **Step D: the cache split, system files and templates** (the largest), in sub-steps, each a commit:
   D1 `user/` and `system/` directories (`cache.nim`, the server, the commands);
   D2 the manifest and unpacking of `Profile.xlsx`, the cities list and `NOTICE`, with replaced files used;

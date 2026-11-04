@@ -15,6 +15,7 @@ type
     show*: bool               ## --show: the stored selection, no criteria
     save*: bool               ## --save: keep what is listed as the selection
     verbose*: bool            ## -v: show more of each activity (a display option)
+    calendar*: bool           ## --calendar: show the activities on a calendar (a display option)
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
                               ## criteria, by start time; 0: no limit
     users*: seq[string]       ## empty: the current user
@@ -78,7 +79,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## The command line of `nch list`.  Options with values: `--users A B C`, `--sport A B`, `--sub-sport A B` (names up to
   ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
-  ## `--show` (which takes no criteria), and `-v`/`--verbose` (what to display).
+  ## `--show` (which takes no criteria), and `-v`/`--verbose` and `--calendar` (what to display).
   var c = Criteria(radiusKm: defaultRadiusKm)
   var radiusGiven = false
   var criteriaGiven = false
@@ -92,11 +93,12 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     args[i]
   while i < args.len:
     let a = args[i]
-    if a notin ["-h", "--help", "--save", "--show", "-v", "--verbose"]: criteriaGiven = true
+    if a notin ["-h", "--help", "--save", "--show", "-v", "--verbose", "--calendar"]: criteriaGiven = true
     case a
     of "-h", "--help": result.help = true
     of "--save": c.save = true
     of "-v", "--verbose": c.verbose = true
+    of "--calendar": c.calendar = true
     of "--show": c.show = true
     of "--latest": c.newest = 1
     of "--newest", "-n", "--oldest":

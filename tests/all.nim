@@ -13,7 +13,7 @@ import ./ff/[test_curve, test_page, test_web, test_stats]
 import ./destroy/test_command
 import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_events,
                    test_display, test_logsink]
-import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection]
+import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./serve/[test_request, test_token, test_handler, test_pages]
 import ./places/[test_data, test_seed]
