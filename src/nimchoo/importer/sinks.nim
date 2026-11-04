@@ -111,7 +111,7 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
     result.stderr.add advisoryLines(ev.path, ev.advisories)
   of evFinish:
     for note in ev.summary.notes: result.stderr.add "note: " & note
-    result.stdout.add summaryLine(ev.summary)
+    result.stdout.add "done: " & summaryLine(ev.summary)
     let hint = moreHint(ev.summary, logged)
     if hint.len > 0: result.stderr.add hint
 
