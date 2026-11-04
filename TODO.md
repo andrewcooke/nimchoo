@@ -1570,28 +1570,30 @@ nch [--db PATH] [--user NAME] import [-q] PATH...     (PATH: a file, or a direct
   that meet the other criteria, by start time.  Not handled: circles across the antimeridian
   (the box widens to all longitudes, so the result is still right, only slower).
 
-### Next (ideas, undecided)
+### Ideas, and what became of them (checked 2026-11-04)
 
-1. Read the data back: `nch activities` (date, sport, distance, timer and paused time,
-   segments).
-2. Channel modules, each with its own `sql/`: heart rate, cadence, power, distance as
-   `(activity_id, t)` tables; then laps and events.  The importer's step list is designed with
-   the first.
-2b. **`nch log`** (idea): show the log with the keywords coloured as on screen (imported green,
-   duplicate grey, advisory yellow, failed red; no colour when piped or `NO_COLOR`), filtered by
-   keyword (`nch log advisory duplicate`), `--last` for the latest run only, `-n N`.  The file
-   stays plain text (an escape next to the word would stop `grep -w` matching).  The hint at the
-   end of an import could then be `more: nch log advisory duplicate`.  Not started: `grep`'s
-   own red highlight was the only red seen so far.
-3. **Named places** (high priority): `nch place add home LAT LON`, then `select --near home`;
-   later perhaps looked up by name over HTTPS (OpenStreetMap's Nominatim: needs OpenSSL, a
-   polite user-agent and at most one request a second; cache the answer in the database).  An
-   offline alternative is an embedded GeoNames list of cities over 15,000 people.
-4. **Something pretty - maps or plots.**  Preference: do not plot locally; generate *input
-   files* for external plotting / mapping services (GPX with a `<trkseg>` per segment,
-   GeoJSON, CSV) from the database.  The first exporter settles the output-directory/cache
-   convention; the local web server comes after that.
-5. Later: training load, as a module with its own command and tables.
+Built:
+
+* Read the data back: `nch list` (the table, `-v`, `--calendar`, the selection); no separate `nch activities`.
+* Channel modules: heart rate (`heartrate/`, through the importer's step list).
+* `nch log`: the log, coloured like the screen, filtered by word, `--last`, `-n`.
+* Maps: `nch heatmap` (GeoJSON and a Leaflet page), with the web viewer.
+* Training load: `nch model`, `nch user --edit NAME --fthr`, `nch ff` (fitness and fatigue).
+
+Still open, roughly in the order they would help:
+
+1. **Named places** (high priority): `nch place add home LAT LON`, then `list --near home`; later perhaps
+   looked up by name over HTTPS (OpenStreetMap's Nominatim: needs OpenSSL, a polite user-agent and at
+   most one request a second; cache the answer in the database).
+2. **`nch model`**: `--edit NAME` and `--remove NAME`, in the pattern of `nch user` (the target after
+   the command, never a guess).
+3. **More channels**: cadence, power, distance as `(activity_id, t)` tables, then laps and events, each a
+   module with its own `sql/` and an `ImportStep`.
+4. **More exporters**: GPX (a `<trkseg>` per segment) and the like, for external mapping and plotting
+   services (preference: do not plot locally; generate input files).
+5. **`nch ff`**: a fitness-minus-fatigue column; FTHR and models per sport.
+6. **`nch log`**: a filter by level (INFO / WARN / ERROR).
+7. **Look**: a light and a dark theme.
 
 ### Schema direction (agreed in discussion; built piecemeal, one `nch` command at a time)
 
