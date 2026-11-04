@@ -254,10 +254,13 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
     sessions[k].coords.add c
   # the other fields go to sessions the same way
   for name, list in uniqueSamples(rawSamples):
-    k = 0
-    for x in list:
-      while k + 1 < sessions.len and sessions[k + 1].startT <= x.t: inc k
-      sessions[k].samples.mgetOrPut(name, @[]).add x
+    var first = 0                      # the samples of a session are those before the next one starts
+    for k in 0 ..< sessions.len:
+      let limit = if k + 1 < sessions.len: sessions[k + 1].startT else: high(int64)
+      var after = first
+      while after < list.len and list[after].t < limit: inc after
+      if after > first: sessions[k].samples[name] = list[first ..< after]
+      first = after
   # timer events go to sessions the way coordinates do; then the segments
   timer.sort do (a, b: TimerEvent) -> int: cmp(a.t, b.t)
   var perSession = newSeq[seq[TimerEvent]](sessions.len)

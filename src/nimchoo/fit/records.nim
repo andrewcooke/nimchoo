@@ -61,9 +61,9 @@ type
 func newMeta*(name, units, typeName: string, kind: TypeKind, base: BaseType): Meta =
   Meta(name: name, units: units, typeName: typeName, kind: kind, base: base)
 
-func name*(f: FieldValue): string = f.meta.name
-func units*(f: FieldValue): string = f.meta.units
-func typeName*(f: FieldValue): string = f.meta.typeName
+func name*(f: FieldValue): lent string = f.meta.name
+func units*(f: FieldValue): lent string = f.meta.units
+func typeName*(f: FieldValue): lent string = f.meta.typeName
 
 func field*(r: Record, name: string): Option[FieldValue] =
   ## The first field called `name`.

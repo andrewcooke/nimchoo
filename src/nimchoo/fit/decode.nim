@@ -30,14 +30,18 @@ type
 
   Slot = object
     def: FieldDef
-    field: Option[Field]
-    meta: Meta            ## what its values have in common (made once, with the plan)
+    known: bool           ## the profile has a field with this number in this message
+    fieldName: string
+    kind: FieldKind       ## plain, composite or dynamic (plain if not known)
+    scale, offset: float
+    accumulate: bool
+    meta: Meta            ## what its values have in common (made once, shared)
 
   DefPlan = object
     ready: bool
-    msg: Message          ## empty if the message is unknown
+    msgName: string       ## "" if the message is unknown
+    msgNum: int
     slots: seq[Slot]
-    metas: Table[string, Meta]   ## by name, for each field of the message (for composites and dynamic fields)
     hasDynamic: bool      ## a field of the definition is dynamic: values refer to other values of the record
     mayDup: bool          ## two values may have one name (composites, dynamic fields, a repeated field number)
 
@@ -51,6 +55,7 @@ type
     warnings*: seq[Warning]
     types: Table[string, TypeInfo]
     plans: seq[DefPlan]                   ## indexed like Tokenizer.defs
+    metas: Table[(int, string), Meta]     ## (message number, field name) -> its shared description
     accum: Table[(int, string), uint64]   ## (message number, field name) -> total
     devFields: Table[(int, int), DevField]
 
@@ -97,55 +102,72 @@ func leBytes(v: uint64): array[8, byte] =
 proc interpret(d: var Decoder, sp: Spec, data: openArray[byte],
                endian: Endianness, ctx: RecCtx, into: var seq[FieldValue]) =
   ## Decode `data` as described by `sp`: bad check, accumulation and scaling.  The value, if
-  ## there is one, is added to `into`.
+  ## there is one, is added to `into`.  (The numbers are read straight into the value: this runs
+  ## for every field of every message, millions of times in a library.)
   template mk(k: ValueKind): FieldValue =
     FieldValue(kind: k, meta: sp.meta, number: sp.number, dev: sp.dev, bits: sp.bits)
   if sp.kind == tkBool:
     var fv = mk(vkInt)
     for x in data: fv.ints.add(if x != 0: 1'i64 else: 0'i64)
-    into.add fv
+    into.add move(fv)
     return
-  let raw = basetype.decode(sp.base, data, endian, sp.check)
-  if raw.isNone: return
-  let r = raw.get
-  let identity = (sp.scale == 1 and sp.offset == 0) or sp.base == btEnum
-  case r.kind
-  of rkString:
+  if sp.base == btString:
     var fv = mk(vkString)
-    fv.strings = r.strings
-    into.add fv
-  of rkFloat:
+    fv.strings = decodeString(data)
+    into.add move(fv)
+    return
+  if sp.check and isBad(sp.base, data, endian): return
+  let n = data.len div sp.base.size
+  let identity = (sp.scale == 1 and sp.offset == 0) or sp.base == btEnum
+  if sp.base in {btFloat32, btFloat64}:
     var fv = mk(vkFloat)
-    for x in r.floats:
-      fv.floats.add(if identity: x else: x / sp.scale - sp.offset)
-    into.add fv
-  of rkInt:
-    var vals = r.ints
-    if sp.acc > 0:
-      if vals.len == 1:
-        let mask = if sp.acc >= 64: high(uint64) else: (1'u64 shl sp.acc) - 1
-        let low = cast[uint64](vals[0]) and mask
-        let key = (ctx.msgNum, sp.meta.name)
-        var total = low
-        if key in d.accum:
-          let prev = d.accum.must(key)
-          total = (prev and not mask) or low
-          if low < (prev and mask) and sp.acc < 64: total += mask + 1
-        d.accum[key] = total
-        vals = @[cast[int64](total)]
-      else:
-        d.warnings.add wkCannotAccumulate, ctx.offset, "cannot accumulate " & $vals.len & " values of " & sp.meta.name
+    fv.floats = newSeq[float](n)
+    for i in 0 ..< n:
+      let x = readFloat(sp.base, data, i, endian)
+      fv.floats[i] = if identity: x else: x / sp.scale - sp.offset
+    into.add move(fv)
+    return
+  if sp.acc > 0:
+    # an accumulated field: its running total is kept (rare)
+    var vals = newSeq[int64](n)
+    for i in 0 ..< n: vals[i] = readInt(sp.base, data, i, endian)
+    if vals.len == 1:
+      let mask = if sp.acc >= 64: high(uint64) else: (1'u64 shl sp.acc) - 1
+      let low = cast[uint64](vals[0]) and mask
+      let key = (ctx.msgNum, sp.meta.name)
+      var total = low
+      if key in d.accum:
+        let prev = d.accum.must(key)
+        total = (prev and not mask) or low
+        if low < (prev and mask) and sp.acc < 64: total += mask + 1
+      d.accum[key] = total
+      vals = @[cast[int64](total)]
+    else:
+      d.warnings.add wkCannotAccumulate, ctx.offset, "cannot accumulate " & $vals.len & " values of " & sp.meta.name
     if identity:
       var fv = mk(vkInt)
-      fv.ints = vals
-      into.add fv
+      fv.ints = move(vals)
+      into.add move(fv)
     else:
       var fv = mk(vkFloat)
       for v in vals:
-        # isolated bad values in arrays stay unscaled (as the SDK CSV does)
         if vals.len > 1 and isBadInt(sp.base, v): fv.floats.add float(v)
         else: fv.floats.add float(v) / sp.scale - sp.offset
-      into.add fv
+      into.add move(fv)
+    return
+  if identity:
+    var fv = mk(vkInt)
+    fv.ints = newSeq[int64](n)
+    for i in 0 ..< n: fv.ints[i] = readInt(sp.base, data, i, endian)
+    into.add move(fv)
+  else:
+    var fv = mk(vkFloat)
+    fv.floats = newSeq[float](n)
+    for i in 0 ..< n:
+      let v = readInt(sp.base, data, i, endian)
+      # isolated bad values in arrays stay unscaled (as the SDK CSV does)
+      fv.floats[i] = if n > 1 and isBadInt(sp.base, v): float(v) else: float(v) / sp.scale - sp.offset
+    into.add move(fv)
 
 # --- one profile field
 
@@ -162,13 +184,40 @@ proc addMerging(fs: var seq[FieldValue], v: FieldValue) =
         return
   fs.add v
 
-proc decodeField(d: var Decoder, plan: DefPlan, f: Field, meta: Meta, number: int,
+proc metaFor(d: var Decoder, msgNum: int, f: Field): Meta =
+  ## The shared description of a profile field (made the first time it is asked for).
+  let key = (msgNum, f.name)
+  if key notin d.metas:
+    let ti = d.types.getOrDefault(f.typeName, (tkBase, btByte))    # (a type the profile lacks is a bug, found when used)
+    d.metas[key] = newMeta(f.name, f.units, f.typeName, ti.kind, ti.base)
+  d.metas.must(key)
+
+proc emitPlain(d: var Decoder, meta: Meta, scale, offset: float, accumulate: bool, number: int,
+               defBase: Option[BaseType], data: openArray[byte], endian: Endianness, ctx: RecCtx,
+               ov: Override, fromBits: bool, into: var seq[FieldValue]) =
+  ## Decode `data` as a plain field with the given scale and offset (an enclosing component's
+  ## win), adding the value to `into`.
+  let base = if defBase.isSome: defBase.get else: meta.base
+  let sp = Spec(
+    meta: meta, number: number, kind: meta.kind, base: base,
+    scale: (if ov.scale.isSome: ov.scale.get else: scale),
+    offset: (if ov.offset.isSome: ov.offset.get else: offset),
+    acc: (if ov.acc > 0: ov.acc elif accumulate: 8 * base.size else: 0),
+    bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
+    check: not fromBits, dev: false)
+  if fromBits:
+    d.interpret(sp, data.toOpenArray(0, min(base.size, data.len) - 1), littleEndian, ctx, into)
+  else:
+    d.interpret(sp, data, endian, ctx, into)
+
+proc decodeField(d: var Decoder, p: Profile, plan: DefPlan, f: Field, meta: Meta, number: int,
                  defBase: Option[BaseType], data: openArray[byte],
                  endian: Endianness, ctx: RecCtx, ov: Override,
                  fromBits: bool, into: var seq[FieldValue]) =
   ## Decode `data` as profile field `f` (`meta` is its shared description), adding the values
   ## to `into`.  `fromBits` means `data` is the little-endian image of a component's bits (so
   ## only the leading bytes that fit the field's type are meaningful, and nothing is bad).
+  ## (Composite and dynamic fields look up their targets in the profile's message, here.)
   if ov.depth > maxDepth:
     d.warnings.add wkNestingTooDeep, ctx.offset, "field nesting too deep at " & f.name
     return
@@ -187,7 +236,7 @@ proc decodeField(d: var Decoder, plan: DefPlan, f: Field, meta: Meta, number: in
       # components that do not fit in the data are ignored (the profile has
       # more of them than a field can hold, eg hr.event_timestamp_12)
       if c.bits > 64 or start + c.bits > 8 * n: break
-      if c.target notin plan.msg.fields:
+      if c.target notin p.messages.must(plan.msgName).fields:
         d.warnings.add wkCompositeTarget, ctx.offset, "composite " & f.name & ": no field " & c.target
         start += c.bits
         continue
@@ -201,10 +250,10 @@ proc decodeField(d: var Decoder, plan: DefPlan, f: Field, meta: Meta, number: in
         acc: (if ov.acc > 0: ov.acc elif c.accumulate: c.bits else: 0),
         bits: (if ov.bits > 0: ov.bits else: c.bits),
         depth: ov.depth + 1)
-      let tnum = if plan.msg.fields.must(c.target).number.isSome:
-                   plan.msg.fields.must(c.target).number.get else: -1
+      let target {.cursor.} = p.messages.must(plan.msgName).fields.must(c.target)     # (looked at, not copied)
+      let tnum = if target.number.isSome: target.number.get else: -1
       var made: seq[FieldValue]
-      d.decodeField(plan, plan.msg.fields.must(c.target), plan.metas.must(c.target), tnum,
+      d.decodeField(p, plan, target, d.metaFor(plan.msgNum, target), tnum,
                     none(BaseType), le, littleEndian, ctx, ov2, true, made)
       for v in made: group.addMerging v
     for v in group.mitems: into.add move(v)
@@ -219,69 +268,71 @@ proc decodeField(d: var Decoder, plan: DefPlan, f: Field, meta: Meta, number: in
             target = c.target
             break
       if target.len > 0: break
-    if target.len > 0 and target in plan.msg.fields:
+    if target.len > 0 and target in p.messages.must(plan.msgName).fields:
+      let tf {.cursor.} = p.messages.must(plan.msgName).fields.must(target)
+      let tmeta = d.metaFor(plan.msgNum, tf)
       let ov2 = Override(scale: ov.scale, offset: ov.offset, acc: ov.acc,
                          bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
                          depth: ov.depth + 1)
       if fromBits:
-        d.decodeField(plan, plan.msg.fields.must(target), plan.metas.must(target), number,
-                      none(BaseType), data, endian, ctx, ov2, true, into)
+        d.decodeField(p, plan, tf, tmeta, number, none(BaseType), data, endian, ctx, ov2, true, into)
         return
       # as choochoo: the element count comes from the definition's base type,
       # the element type from the subfield
-      let sbase = plan.metas.must(target).base
+      let sbase = tmeta.base
       let count = if defBase.isSome: data.len div defBase.get.size else: 1
       let take = min(data.len, count * sbase.size)
-      d.decodeField(plan, plan.msg.fields.must(target), plan.metas.must(target), number,
-                    some(sbase), data.toOpenArray(0, take - 1), endian, ctx, ov2, false, into)
+      d.decodeField(p, plan, tf, tmeta, number, some(sbase), data.toOpenArray(0, take - 1),
+                    endian, ctx, ov2, false, into)
       return
     # no match: the field itself
   of fkPlain: discard
-  let sp = Spec(
-    meta: meta, number: number, kind: meta.kind, base: base,
-    scale: (if ov.scale.isSome: ov.scale.get else: f.scale),
-    offset: (if ov.offset.isSome: ov.offset.get else: f.offset),
-    acc: (if ov.acc > 0: ov.acc elif f.accumulate: 8 * base.size else: 0),
-    bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
-    check: not fromBits, dev: false)
-  if fromBits:
-    d.interpret(sp, data.toOpenArray(0, min(base.size, data.len) - 1), littleEndian, ctx, into)
-  else:
-    d.interpret(sp, data, endian, ctx, into)
+  d.emitPlain(meta, f.scale, f.offset, f.accumulate, number, defBase, data, endian, ctx, ov, fromBits, into)
 
 # --- plans
 
 proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
   result.ready = true
+  result.msgNum = def.globalNum
   let mname = p.byNumber.getOrDefault(def.globalNum, "")
-  if mname.len > 0 and mname in p.messages:
-    result.msg = p.messages.must(mname)
-  for name, f in result.msg.fields:
-    let ti = d.types.getOrDefault(f.typeName, (tkBase, btByte))     # (a type the profile lacks is a bug, found when used)
-    result.metas[name] = newMeta(f.name, f.units, f.typeName, ti.kind, ti.base)
   var numbers: seq[int]
-  for fd in def.fields:
-    var s = Slot(def: fd)
-    if fd.number in result.msg.byNumber:
-      let fname = result.msg.byNumber.must(fd.number)
-      if fname in result.msg.fields:
-        s.field = some(result.msg.fields.must(fname))
-        s.meta = result.metas.must(fname)
-        case s.field.get.kind
-        of fkDynamic:
-          result.hasDynamic = true
-          result.mayDup = true
-        of fkComposite:
-          result.mayDup = true
-          for c in s.field.get.components:       # a component's target can be a dynamic field
-            if c.target in result.msg.fields and result.msg.fields.must(c.target).kind == fkDynamic:
-              result.hasDynamic = true
-        of fkPlain: discard
-    if s.field.isNone and fd.base.isSome:
-      s.meta = newMeta("", "", $fd.base.get, tkBase, fd.base.get)
-    if fd.number in numbers: result.mayDup = true
-    numbers.add fd.number
-    result.slots.add s
+  p.messages.withValue(mname, msg):               # (the message is looked at where it is, not copied)
+    result.msgName = mname
+    for fd in def.fields:
+      var s = Slot(def: fd)
+      if fd.number in msg.byNumber:
+        let fname = msg.byNumber.must(fd.number)
+        if fname in msg.fields:
+          let f = msg.fields.must(fname)
+          s.known = true
+          s.fieldName = fname
+          s.kind = f.kind
+          s.scale = f.scale
+          s.offset = f.offset
+          s.accumulate = f.accumulate
+          s.meta = d.metaFor(def.globalNum, f)
+          case f.kind
+          of fkDynamic:
+            result.hasDynamic = true
+            result.mayDup = true
+          of fkComposite:
+            result.mayDup = true
+            for c in f.components:       # a component's target can be a dynamic field
+              if c.target in msg.fields and msg.fields.must(c.target).kind == fkDynamic:
+                result.hasDynamic = true
+          of fkPlain: discard
+      if not s.known and fd.base.isSome:
+        s.meta = newMeta("", "", $fd.base.get, tkBase, fd.base.get)
+      if fd.number in numbers: result.mayDup = true
+      numbers.add fd.number
+      result.slots.add s
+  do:
+    for fd in def.fields:                         # an unknown message: all fields unknown
+      var s = Slot(def: fd)
+      if fd.base.isSome: s.meta = newMeta("", "", $fd.base.get, tkBase, fd.base.get)
+      if fd.number in numbers: result.mayDup = true
+      numbers.add fd.number
+      result.slots.add s
 
 # --- developer fields
 
@@ -323,6 +374,15 @@ proc registerDev(d: var Decoder, r: Record, offset: int) =
 func dropDuplicateNames(fs: var seq[FieldValue]) =
   ## Of values with one name keep the one decoded from the widest source (the most precise; eg
   ## `data` over the narrower `data16`), the first on a tie.  Values with no name are all kept.
+  var anyDuplicate = false             # (usually none: then nothing is allocated)
+  block scan:
+    for i in 0 ..< fs.len:
+      if fs[i].meta.name.len == 0: continue
+      for j in i + 1 ..< fs.len:
+        if fs[j].meta == fs[i].meta or fs[j].meta.name == fs[i].meta.name:
+          anyDuplicate = true
+          break scan
+  if not anyDuplicate: return
   var keep = newSeq[bool](fs.len)
   for i in 0 ..< fs.len:
     keep[i] = true
@@ -351,7 +411,7 @@ proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
   if not d.plans[idx].ready: d.plans[idx] = d.buildPlan(p, t.defs[idx])
   let globalNum = t.defs[idx].globalNum
   let endian = t.defs[idx].endian
-  result = Record(name: d.plans[idx].msg.name, number: globalNum,
+  result = Record(name: d.plans[idx].msgName, number: globalNum,
                   local: t.defs[idx].local, defn: idx,
                   timestamp: tok.timestamp)
   var ctx = RecCtx(msgNum: globalNum, offset: tok.offset, ts: tok.timestamp)
@@ -376,12 +436,17 @@ proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
     # the usual case: the values come out in the order of the definition
     for i in 0 ..< n:
       let fd = d.plans[idx].slots[i].def
-      if d.plans[idx].slots[i].field.isNone:
+      if not d.plans[idx].slots[i].known:
         if fd.base.isNone: continue
         d.interpret(unknown(d.plans[idx].slots[i]), slotData(i), endian, ctx, result.fields)
+      elif d.plans[idx].slots[i].kind == fkPlain:
+        d.emitPlain(d.plans[idx].slots[i].meta, d.plans[idx].slots[i].scale, d.plans[idx].slots[i].offset,
+                    d.plans[idx].slots[i].accumulate, fd.number, fd.base, slotData(i), endian, ctx,
+                    Override(), false, result.fields)
       else:
-        d.decodeField(d.plans[idx], d.plans[idx].slots[i].field.get, d.plans[idx].slots[i].meta,
-                      fd.number, fd.base, slotData(i), endian, ctx, Override(), false, result.fields)
+        d.decodeField(p, d.plans[idx], p.messages.must(d.plans[idx].msgName).fields.must(d.plans[idx].slots[i].fieldName),
+                      d.plans[idx].slots[i].meta, fd.number, fd.base, slotData(i), endian, ctx,
+                      Override(), false, result.fields)
   else:
     # a dynamic field depends on the values of others (which may come after it): the plain and
     # unknown fields first, then composites, then dynamic ones; the values keep the definition's order
@@ -392,20 +457,21 @@ proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
           ctx.refs[v.meta.name] = v.ints[0]
     for i in 0 ..< n:
       let fd = d.plans[idx].slots[i].def
-      if d.plans[idx].slots[i].field.isNone:
+      if not d.plans[idx].slots[i].known:
         if fd.base.isNone: continue
         d.interpret(unknown(d.plans[idx].slots[i]), slotData(i), endian, ctx, groups[i])
-      elif d.plans[idx].slots[i].field.get.kind == fkPlain:
-        d.decodeField(d.plans[idx], d.plans[idx].slots[i].field.get, d.plans[idx].slots[i].meta,
-                      fd.number, fd.base, slotData(i), endian, ctx, Override(), false, groups[i])
+      elif d.plans[idx].slots[i].kind == fkPlain:
+        d.emitPlain(d.plans[idx].slots[i].meta, d.plans[idx].slots[i].scale, d.plans[idx].slots[i].offset,
+                    d.plans[idx].slots[i].accumulate, fd.number, fd.base, slotData(i), endian, ctx,
+                    Override(), false, groups[i])
         noteRefs(groups[i])
     for pass in [fkComposite, fkDynamic]:
       for i in 0 ..< n:
-        if d.plans[idx].slots[i].field.isSome and
-            d.plans[idx].slots[i].field.get.kind == pass:
+        if d.plans[idx].slots[i].known and d.plans[idx].slots[i].kind == pass:
           let fd = d.plans[idx].slots[i].def
-          d.decodeField(d.plans[idx], d.plans[idx].slots[i].field.get, d.plans[idx].slots[i].meta,
-                        fd.number, fd.base, slotData(i), endian, ctx, Override(), false, groups[i])
+          d.decodeField(p, d.plans[idx], p.messages.must(d.plans[idx].msgName).fields.must(d.plans[idx].slots[i].fieldName),
+                        d.plans[idx].slots[i].meta, fd.number, fd.base, slotData(i), endian, ctx,
+                        Override(), false, groups[i])
           noteRefs(groups[i])
     for g in groups.mitems:
       for v in g.mitems: result.fields.add move(v)
@@ -436,9 +502,9 @@ proc definitionEvent*(d: var Decoder, p: Profile, t: Tokenizer,
   if not d.plans[idx].ready: d.plans[idx] = d.buildPlan(p, t.defs[idx])
   result = Event(kind: evDefinition, offset: tok.offset,
                  local: t.defs[idx].local, number: t.defs[idx].globalNum,
-                 message: d.plans[idx].msg.name)
+                 message: d.plans[idx].msgName)
   for s in d.plans[idx].slots:
-    let name = if s.field.isSome: s.field.get.name else: ""
+    let name = if s.known: s.meta.name else: ""
     let sz = if s.def.base.isSome: s.def.base.get.size else: 1
     result.fields.add (name, s.def.size div sz)
   for dv in t.defs[idx].devFields:

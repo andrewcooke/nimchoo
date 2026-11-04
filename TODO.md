@@ -348,6 +348,20 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   holding a `seq`, `interpret` copies it into `vals` and again into the value.  Next: decode in place into the
   value (1-2 allocations a field), and find why 700,000 of the 766,000 records take the duplicate-name path
   (`mayDup`).
+* **Decoder, second pass (2026-11-04).**  Read the numbers straight into the value (`basetype.readInt/readFloat`,
+  no `Option`/copy chain); the field-name accessors return `lent` (they copied the name on every comparison:
+  12.7 million copies a run); the plan no longer copies the profile's message and fields for every definition
+  (`Slot` holds the few scalars the plain path needs, `withValue`/`{.cursor.}` look at fields in place, and the
+  shared descriptions are cached per decoder); `extract` gives each session its samples as one slice (it hashed
+  "heart_rate" for every sample); the duplicate-name check allocates nothing when there is no duplicate.
+  Decode 1,908 -> 1,510 ms, total 3,380 -> ~3,000 ms; string copies per run 42 -> ~15 million, allocations
+  48 -> ~30 million.  Checked as before (827 tests, the SDK comparison, and now 100 of the author's files
+  through `nch fit`: 0 differ).  The decoder is now at the point of small returns; what is left is mostly the
+  cost of a function call and a few lookups for each of 7 million fields.
+  **Threads (the target machine has 16 cores)**: decoding is 50% of the run and independent per file; the
+  writer (coordinates 17%, heart rate 14%, commit 7%, hash, nearest place) is then the limit, so the next
+  steps are a pool of decoders + one writer, with the hashing, the route bytes and the nearest-place query
+  (WAL allows readers) moved out of the writer, and then batching the row inserts.
 * **Step 1: a way to measure.**
 
   Phase timers in the importer (read and hash, decode, each table's inserts,

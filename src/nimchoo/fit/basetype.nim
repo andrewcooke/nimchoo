@@ -74,7 +74,7 @@ func splitStrings(s: string): seq[string] {.raises: [].} =
   while s.len > 0 and s[^1] == '\0': s.setLen(s.len - 1)
   s.split('\0')
 
-func decodeString(data: openArray[byte]): seq[string] {.raises: [].} =
+func decodeString*(data: openArray[byte]): seq[string] {.raises: [].} =
   var s = newString(data.len)
   for i, b in data: s[i] = char(b)
   if validateUtf8(s) == -1:
@@ -83,6 +83,18 @@ func decodeString(data: openArray[byte]): seq[string] {.raises: [].} =
     # close to what the Garmin CSV generates (as in choochoo)
     for i, b in data: s[i] = char(b mod 0x7f)
     splitStrings(s)
+
+func readInt*(bt: BaseType, data: openArray[byte], i: int, endian: Endianness): int64 {.raises: [].} =
+  ## Element `i` of `data` as an integer (a uint64 above int64.high is bit-cast).
+  let sz = bt.size
+  if bt.isSigned: getInt(data, i * sz, sz, endian)
+  else: cast[int64](getUint(data, i * sz, sz, endian))
+
+func readFloat*(bt: BaseType, data: openArray[byte], i: int, endian: Endianness): float {.raises: [].} =
+  ## Element `i` of `data` as a float (for the float base types).
+  let sz = bt.size
+  let u = getUint(data, i * sz, sz, endian)
+  if sz == 4: float(cast[float32](uint32(u))) else: cast[float64](u)
 
 func decode*(bt: BaseType, data: openArray[byte], endian: Endianness,
              checkBad = true): Option[RawValues] {.raises: [].} =
