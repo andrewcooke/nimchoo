@@ -89,3 +89,12 @@ suite "cli args: --name=value, leading options, options with many values":
     check parseOptions(@["--names", "-v"], many, p) == "--names needs at least one name"
     check parseOptions(@["--names=x"], many, p) == ""
     check p.extra == @["a", "b", "c", "x"]
+
+suite "cli args: the options every command has":
+  test "--user and --db after the command say where they go":
+    var p = P()
+    check parseOptions(@["-v", "--user", "bob"], spec, p) ==
+      "unexpected option --user (it goes before the command: nch --user NAME COMMAND ...)"
+    check parseOptions(@["--db=x.db"], spec, p) ==
+      "unexpected option --db=x.db (it goes before the command: nch --db PATH COMMAND ...)"
+    check parseOptions(@["--users"], spec, p) == "unexpected option --users"     # (another option: no hint)

@@ -76,6 +76,9 @@ proc walk[P](args: seq[string], spec: Spec[P], p: var P, leading: bool, next: va
       let why = o.apply(p, name, v)
       if why.len > 0: return why
     elif a.len > 1 and a.startsWith("-"):
+      # the options every command has are given before its name: say so, as that is the likely mistake
+      if name == "--user": return "unexpected option " & a & " (it goes before the command: nch --user NAME COMMAND ...)"
+      if name == "--db": return "unexpected option " & a & " (it goes before the command: nch --db PATH COMMAND ...)"
       return "unexpected option " & a
     elif spec.positional != nil:
       let why = spec.positional(p, a)
