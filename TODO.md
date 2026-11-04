@@ -263,7 +263,7 @@ helps; the first is done as part of Task 9.
    connection object that closes when the last copy goes (`close` stays for an early, idempotent close, used by `destroy`).
    `MultiInsert.release` and the `Option[Stmt]`s are gone.  A statement must not outlive its connection: make it in a
    narrower scope than the store.  (AddressSanitizer: no leak or error from this; a small leak of 73 bytes per
-   `openStore` from `bundle/unpack.nim` `resolve` was there before: to look at.)  Old text:  25 places call `finalize`/`close` by hand, and the importer keeps
+   `openStore` from `bundle/unpack.nim` `resolve` was there before: fixed, see below.)  Old text:  25 places call `finalize`/`close` by hand, and the importer keeps
    five `Option[Stmt]` with a `try/finally` to finalize them.  Giving `Stmt` (and `Store`) a `=destroy` hook,
    and no copying, makes cleanup automatic and removes the `Option`s and the `finally` blocks.
 3. **(dropped 2026-11-04: complex for no real gain)** **Names as symbols, not strings, in the hot and the branching code.**  Messages and fields are compared by
@@ -1867,3 +1867,11 @@ commands take their target after the command and never guess: `nch user --add NA
 the user stays), `empty --all -f` (the database file), `empty --cache` (the generated files in `user/` of the
 cache; needs no `-f`: they are made again).  `--user` before either command is an error that says where it
 goes.  `model` should follow the same pattern when it gets `--remove` and `--edit`.
+
+## The leak in `bundle/unpack.nim` (fixed 2026-11-04)
+
+`resolve` made its result from the program's copy at the top and then `return`ed a different value on
+most paths; the hash string (64 characters, 73 bytes with Nim's header) of the first value was never freed,
+once for each time a database was opened (found by AddressSanitizer: 59 leaks in the store tests, 0 now).
+`resolve` now keeps the program's copy in a separate variable and only ever returns a value.  Lesson: in
+`{.gcsafe.}` procs with many early returns, do not fill in `result` first and then return something else.

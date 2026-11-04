@@ -193,8 +193,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let m = findModel(st.db, name)
     if m.isNone: return failure("nch ff", "no such model: " & name & " (see `nch model`)")
     if fthrOf(st.db, st.userId).isNone:
-      return failure("nch ff", st.userName & " has no FTHR, which the impulses are worked out from " &
-                     "(see `nch user --edit NAME --fthr`)")
+      return failure("nch ff", st.userName & " has no FTHR, which the impulse calculations require " &
+                     "(set it with `nch user --edit " & st.userName & " --fthr BPM`)")
     let current = inputKey(st.db, st.userId, m.get)
     if current.len == 0:
       return failure("nch ff", "there are no impulses for " & st.userName &

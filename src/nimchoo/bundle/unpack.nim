@@ -93,8 +93,8 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
   ## The data to use for a bundled file, unpacking it into `top`'s `system/` if need be.  `top` is
   ## the cache directory; "" means there is none (use the program's copy).
   let bundled = sha256Hex(b.data)
-  result = Resolved(data: b.data, source: soBundled, hash: bundled)
-  if top.len == 0: return
+  let program = Resolved(data: b.data, source: soBundled, hash: bundled)   # (the program's copy)
+  if top.len == 0: return program
   let path = systemDir(top) / b.name
   var current: Option[string]
   var onDisk = ""
@@ -103,7 +103,7 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
       onDisk = readFile(path)
       current = some(sha256Hex(onDisk))
   except IOError, OSError:
-    return                                   # unreadable: the program's copy will do
+    return program                           # unreadable: the program's copy will do
   var recorded = none(string)
   for k, v in readManifest(top):
     if k == b.name: recorded = some(v)
@@ -121,9 +121,9 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
       writeFile(tmp, b.data)
       moveFile(tmp, path)
     except IOError, OSError, Exception:
-      return                                 # cannot write: the program's copy will do
+      return program                         # cannot write: the program's copy will do
     record(top, b.name, bundled)
-    result = Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)
+    return Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)
 
 proc unpackNotice*(top: string) =
   ## Put NOTICE in `top`'s `system/` part, if it is not already there.
