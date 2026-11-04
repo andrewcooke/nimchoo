@@ -212,7 +212,7 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
     timed "decode: file":
      for ev in r.events(p):
       if ev.kind != evRecord: continue
-      let rec = ev.record
+      template rec: untyped = ev.record      # (not `let`: that would copy the whole record)
       case rec.name
       of "record":
         if rec.timestamp.isNone or rec.timestamp.get < minCalendarFit:

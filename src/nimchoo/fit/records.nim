@@ -5,17 +5,27 @@
 import std/[options, tables]
 import ../lookup
 import ../profile/model
+import ./basetype
 
 {.push raises: [].}
 
 type
   ValueKind* = enum vkInt, vkFloat, vkString
 
-  FieldValue* = object
+  FieldMeta* {.acyclic.} = object
+    ## What every value of one profile field has in common.  Made once for each field of a message
+    ## and pointed at by its values, not copied into each (a file has hundreds of thousands).
     name*: string       ## "" if the field is not in the profile
-    number*: int        ## field number (components: the target's; -1 if none)
     units*: string
     typeName*: string   ## profile type (mapping, date_time, bool...) or base type
+    kind*: TypeKind     ## of that type
+    base*: BaseType     ## its binary form
+
+  Meta* = ref FieldMeta   ## shared, and never changed once made
+
+  FieldValue* = object
+    meta*: Meta
+    number*: int        ## field number (components: the target's; -1 if none)
     dev*: bool          ## developer field
     bits*: int          ## width in bits of the source it was decoded from
     case kind*: ValueKind
@@ -47,6 +57,13 @@ type
       fields*: seq[DefField]
     of evRecord:
       record*: Record
+
+func newMeta*(name, units, typeName: string, kind: TypeKind, base: BaseType): Meta =
+  Meta(name: name, units: units, typeName: typeName, kind: kind, base: base)
+
+func name*(f: FieldValue): string = f.meta.name
+func units*(f: FieldValue): string = f.meta.units
+func typeName*(f: FieldValue): string = f.meta.typeName
 
 func field*(r: Record, name: string): Option[FieldValue] =
   ## The first field called `name`.

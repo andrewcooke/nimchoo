@@ -230,7 +230,7 @@ Asked for: "making this more idiomatic Nim is excellent, especially if it helps;
 it is not performance related."  Found by reading the code (counts are from grep).  Ordered by how much each
 helps; the first is done as part of Task 9.
 
-1. **Shared, immutable descriptions instead of copied strings** (decoder).  Every decoded `FieldValue` copies
+1. **(done) Shared, immutable descriptions instead of copied strings** (decoder).  Every decoded `FieldValue` copies
    its name, units and type name; a `Spec` / field description made once per message definition and pointed at
    (`ref`, `{.acyclic.}`) is the Nim way, and removes most of the 207 million allocations.  Records are
    borrowed (`lent`, templates) not copied (`let rec = ev.record` copies a whole record per message).
@@ -315,7 +315,26 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
 
   So cost goes with size, about 430-480 ms per MB (2 MB/s) once a file is over 10 KB, and a small file costs
   about 7 ms whatever its size.  The full 3,909 files (320 MB) would take about 150 s now.
-* **Step 1: a way to measure.**  Phase timers in the importer (read and hash, decode, each table's inserts,
+* **Decoder allocations (2026-11-04): done.**  A value now points at one shared `FieldMeta` (name, units, type
+  name, kind, base: `{.acyclic.}` ref, made once per field of a message when a definition is first seen) instead
+  of carrying copies; `interpret` and `decodeField` add to a `seq` they are given (no `Option`, no `seq` per
+  value); the per-record tables (references for dynamic fields, the names for removing duplicates) are made
+  only when the definition needs them (`hasDynamic`, `mayDup`); `extract` borrows the record (`template`) and
+  does not copy it.  Same sample, WAL, real disk:
+
+      phase (ms)            before   after
+      decode                  4779    1873      (the event loop 4280 -> 1453)
+      route: insert           1923    1869
+      commit                   583     585
+      insert coords            520     507
+      step: heart-rate         438     427
+      total                   8886    5870
+
+  Cost by size is now about 275-325 ms/MB (was 430-480).  Checked: the 824 tests, the SDK CSV comparison
+  (26 of 26 identical), and the CSV and warnings of 60 of the author's own files from `nch fit` (old and
+  new builds: 0 differ).  Next in the table: putting the route in (31%).
+* **Step 1: a way to measure.**
+  Phase timers in the importer (read and hash, decode, each table's inserts,
   nearest place, commit), switched on by an environment variable and written to the log or stderr; a
   repeatable benchmark (a directory of real files into a fresh database, several runs) as a nimble task.
   Record the first numbers here.
