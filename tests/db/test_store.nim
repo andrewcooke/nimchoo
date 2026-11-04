@@ -44,6 +44,32 @@ suite "database: opening and bringing the schema up to date":
                           table) == "1"
     s.close()
 
+  test "a store is closed when it goes out of scope; closing by hand as well is fine":
+    let path = tempDb("scope")
+    block opened:
+      let s = open(path)
+      s.db.exec(sql"create table scratch(x integer)")
+      check fileExists(path & "-wal")        # (the write-ahead log exists while it is open)
+    check not fileExists(path & "-wal")      # (the last connection to close copies it back and removes it)
+    let t = open(path)
+    t.close()
+    t.close()                                # (twice: nothing happens the second time)
+    let u = open(path)
+    check u.db.getValue(sql"select count(*) from scratch") == "0"
+
+  test "a statement is finalized when its last copy goes, so the database can close":
+    let path = tempDb("stmt")
+    let s = open(path)
+    block statements:
+      let st = prepareStmt(s.db, "insert into user(name) values (?)")
+      let copy = st                          # (a handle: the statement is one)
+      copy.bindText(1, "carol")
+      copy.run()
+      st.bindText(1, "dave")
+      st.run()
+    s.close()                                # (would complain of unfinalized statements)
+    check open(path, "carol").userName == "carol"
+
   test "the fragments applied are recorded":
     let s = open(tempDb("recorded"))
     var names: seq[string]
@@ -343,7 +369,6 @@ suite "database: the schema":
                     values (1, 0, 0, 0)""")
     let ins = prepareStmt(s.db,
       "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)")
-    defer: finalize(ins)
     ins.bindInt(1, 1); ins.bindInt(2, 100); ins.bindReal(3, 1.5)
     ins.bindReal(4, 2.5); ins.bindNull(5)
     ins.run()
@@ -358,7 +383,6 @@ suite "database: prepared statements":
     let s = open(":memory:")
     s.db.exec(sql"create table t(a integer, b real, c text, d integer)")
     let ins = prepareStmt(s.db, "insert into t values (?, ?, ?, ?)")
-    defer: finalize(ins)
     for i in 1 .. 3:
       ins.bindInt(1, int64(i))
       ins.bindReal(2, some(float(i) / 2))

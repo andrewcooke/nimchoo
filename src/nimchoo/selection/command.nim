@@ -313,7 +313,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     st = openStore(g)
   except StoreError as e:
     return failure("nch list", e.msg)
-  defer: st.close()
   try:
     var lines: seq[Line]
     let colour = canColourStdout()

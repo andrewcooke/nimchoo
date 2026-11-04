@@ -112,7 +112,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     st = openStore(g)
   except StoreError as e:
     return failure("nch user", e.msg)
-  defer: st.close()
   try:
     if p.list:
       for l in userLines(st): stdout.say l & "\n"

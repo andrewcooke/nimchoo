@@ -77,7 +77,6 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     st = openStore(g)
   except StoreError as e:
     return Prepared(status: failure("nch heatmap", e.msg))
-  defer: st.close()
   try:
     let current = selectionKey(st)
     let wanted = if p.key.len > 0: p.key else: current

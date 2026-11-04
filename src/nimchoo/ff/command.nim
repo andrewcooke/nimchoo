@@ -188,7 +188,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     st = openStore(g)
   except StoreError as e:
     return failure("nch ff", e.msg)
-  defer: st.close()
   try:
     let name = if p.model.len > 0: p.model else: "default"
     let m = findModel(st.db, name)

@@ -67,7 +67,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     st = openStore(g)
   except StoreError as e:
     return failure("nch import", e.msg)
-  defer: st.close()
   let logged = g.log.enabled
   let screen =
     if not opts.quiet and canLive():

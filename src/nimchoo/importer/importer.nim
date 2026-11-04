@@ -118,50 +118,49 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
   ## steps (heart rate, ...) write their rows for each activity.
   s.begin()
   var committed = false
-  var actStmt, segStmt, routeStmt, startStmt: Option[Stmt]
-  var coordInsert = initMultiInsert(s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5)
   try:
+    var coordInsert = initMultiInsert(s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5)
     guard:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
                 s.userId, name, digest, getTime().toUnix)
     let fileId = FileId(lastInsertId(s.db))
     result.fileId = fileId
-    actStmt = some(prepareStmt(s.db, "insert into activity(file_id, session, " &
+    let actStmt = prepareStmt(s.db, "insert into activity(file_id, session, " &
       "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
-      "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
-    segStmt = some(prepareStmt(s.db,
-      "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"))
-    routeStmt = some(prepareStmt(s.db,
-      "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"))
-    startStmt = some(prepareStmt(s.db,
-      "update activity set start = MakePoint(?, ?, 4326), place_id = ? where id = ?"))
+      "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    let segStmt = prepareStmt(s.db,
+      "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)")
+    let routeStmt = prepareStmt(s.db,
+      "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))")
+    let startStmt = prepareStmt(s.db,
+      "update activity set start = MakePoint(?, ?, 4326), place_id = ? where id = ?")
     result.outcome = ioImported
     for step in steps:
       result.extras.add ExtraCount(one: step.label, many: step.labels)
     for i, a in d.activities:
       var activityId = ActivityId(0)
       timed "insert activity":
-        insertActivity(actStmt.get, fileId, a)
+        insertActivity(actStmt, fileId, a)
         activityId = ActivityId(lastInsertId(s.db))
       timed "insert segments":
-        for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
+        for n, g in a.segments: insertSegment(segStmt, activityId, n, g)
       timed "insert coords":
         insertCoords(coordInsert, activityId, a.coords)
       if a.coords.len > 0:                  # where it started: the first position
-        startStmt.get.bindReal(1, a.coords[0].lon)
-        startStmt.get.bindReal(2, a.coords[0].lat)
+        startStmt.bindReal(1, a.coords[0].lon)
+        startStmt.bindReal(2, a.coords[0].lat)
         var near: Option[Nearest]
         timed "nearest place":
           near = nearestPlace(s.db, a.coords[0].lon, a.coords[0].lat)
         timed "update start":
-          if near.isSome: startStmt.get.bindInt(3, near.get.id) else: startStmt.get.bindNull(3)
-          startStmt.get.bindInt(4, activityId)
-          startStmt.get.run()
+          if near.isSome: startStmt.bindInt(3, near.get.id) else: startStmt.bindNull(3)
+          startStmt.bindInt(4, activityId)
+          startStmt.run()
       timed "route: insert":
         if d.routes[i].isSome:
-          routeStmt.get.bindInt(1, activityId)
-          routeStmt.get.bindBlob(2, d.routes[i].get)
-          routeStmt.get.run()
+          routeStmt.bindInt(1, activityId)
+          routeStmt.bindBlob(2, d.routes[i].get)
+          routeStmt.run()
       for i, step in steps:
         timed "step: " & step.label:
           result.extras[i].n += step.write(s.db, activityId, a.samples)
@@ -172,11 +171,6 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
       s.commit()
     committed = true
   finally:
-    if actStmt.isSome: finalize(actStmt.get)
-    if segStmt.isSome: finalize(segStmt.get)
-    coordInsert.release()
-    if routeStmt.isSome: finalize(routeStmt.get)
-    if startStmt.isSome: finalize(startStmt.get)
     if not committed: s.rollback()
 
 

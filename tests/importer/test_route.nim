@@ -100,7 +100,6 @@ suite "route: in the database":
     st.bindInt(1, 1)
     st.bindBlob(2, routeWkb(a).get)
     st.run()
-    finalize(st)
     check s.db.getValue(sql"select NumGeometries(geom) from route") == "2"
     check s.db.getValue(sql"select ST_NPoints(geom) from route") == "5"
     check s.db.getValue(sql"select SRID(geom) from route") == "4326"

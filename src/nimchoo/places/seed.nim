@@ -18,9 +18,9 @@ proc loadPlaces*(db: DbConn, rows: seq[PlaceRow], source = "geonames")
     {.raises: [StoreError].} =
   ## Insert places, and make the spatial index (after the rows: that is much faster).
   ## Called inside the transaction that makes the table.
-  let st = prepareStmt(db, "insert into place(name, country, population, source, geom) " &
-    "values (?, ?, ?, ?, MakePoint(?, ?, 4326))")
-  try:
+  block inserting:                  # (the statement is gone before the index is made)
+    let st = prepareStmt(db, "insert into place(name, country, population, source, geom) " &
+      "values (?, ?, ?, ?, MakePoint(?, ?, 4326))")
     for r in rows:
       st.bindText(1, r.name)
       st.bindText(2, r.country)
@@ -29,8 +29,6 @@ proc loadPlaces*(db: DbConn, rows: seq[PlaceRow], source = "geonames")
       st.bindReal(5, r.lon)
       st.bindReal(6, r.lat)
       st.run()
-  finally:
-    finalize(st)
   guard:
     db.exec(sql"select CreateSpatialIndex('place', 'geom')")
 

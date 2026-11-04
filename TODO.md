@@ -259,7 +259,11 @@ helps; the first is done as part of Task 9.
    its name, units and type name; a `Spec` / field description made once per message definition and pointed at
    (`ref`, `{.acyclic.}`) is the Nim way, and removes most of the 207 million allocations.  Records are
    borrowed (`lent`, templates) not copied (`let rec = ev.record` copies a whole record per message).
-2. **Cleanup by destructor, not by hand.**  25 places call `finalize`/`close` by hand, and the importer keeps
+2. **(done 2026-11-04)** **Cleanup by destructor, not by hand.**  `Stmt` is a ref-counted handle that finalizes itself; `Store` shares a
+   connection object that closes when the last copy goes (`close` stays for an early, idempotent close, used by `destroy`).
+   `MultiInsert.release` and the `Option[Stmt]`s are gone.  A statement must not outlive its connection: make it in a
+   narrower scope than the store.  (AddressSanitizer: no leak or error from this; a small leak of 73 bytes per
+   `openStore` from `bundle/unpack.nim` `resolve` was there before: to look at.)  Old text:  25 places call `finalize`/`close` by hand, and the importer keeps
    five `Option[Stmt]` with a `try/finally` to finalize them.  Giving `Stmt` (and `Store`) a `=destroy` hook,
    and no copying, makes cleanup automatic and removes the `Option`s and the `finally` blocks.
 3. **(dropped 2026-11-04: complex for no real gain)** **Names as symbols, not strings, in the hot and the branching code.**  Messages and fields are compared by

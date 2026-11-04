@@ -39,7 +39,4 @@ proc statement*(m: var MultiInsert, rows: int): Stmt {.raises: [StoreError].} =
     m.stmts[rows] = prepareStmt(m.db, sql)
   m.stmts.must(rows)
 
-proc release*(m: var MultiInsert) =
-  ## Finalize the statements.
-  for _, st in m.stmts: finalize(st)
-  m.stmts.clear()
+

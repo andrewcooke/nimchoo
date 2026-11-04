@@ -30,8 +30,28 @@ const
   baseFragments = @[fragment("001-schema.sql")]
 
 type
+  ConnObj = object
+    db: DbConn
+
+  Conn = ref ConnObj
+    ## Owns the connection: it is closed when the last `Store` that points here goes, or earlier
+    ## by `close`.  (A `Store` may be copied; the copies share one connection.)
+
+proc closeConn(c: Conn) {.raises: [].} =
+  if c != nil and c.db != nil:
+    try: db_sqlite.close(c.db)
+    except DbError: discard    # nothing useful can be done
+    c.db = nil
+
+proc `=destroy`(c: ConnObj) {.raises: [].} =
+  if c.db != nil:
+    try: db_sqlite.close(c.db)
+    except DbError: discard
+
+type
   Store* = object
     db*: DbConn
+    conn: Conn
     path*: string      ## the database file (":memory:" for one in memory)
     userId*: UserId
     userName*: string
@@ -149,8 +169,9 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
         except DbError: discard
 
 proc close*(s: Store) {.raises: [].} =
-  try: db_sqlite.close(s.db)
-  except DbError: discard  # nothing useful can be done
+  ## Close the database now (it is also closed when the last copy of the store goes, so this is
+  ## only needed to let go of the file at a particular moment).  Closing twice is fine.
+  closeConn(s.conn)
 
 proc openStore*(path: string, fragments: seq[Fragment],
                 user = ""): Store {.raises: [StoreError].} =
@@ -165,6 +186,7 @@ proc openStore*(path: string, fragments: seq[Fragment],
                  getCurrentExceptionMsg())
   guard:
     result.db = open(path, "", "", "")
+    result.conn = Conn(db: result.db)
     result.path = path
   try:
     loadSpatialite(result.db)

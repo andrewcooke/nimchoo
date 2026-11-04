@@ -14,18 +14,27 @@ import ../ids
 {.push raises: [].}
 
 type
-  Stmt* = object
+  StmtObj = object
     raw: PStmt
     db: DbConn
+
+  Stmt* = ref StmtObj
+    ## A prepared statement.  A handle that may be copied freely: the statement is finalized when
+    ## the last copy goes (so it must go before the database connection is closed: a statement
+    ## made in a procedure does, being gone when the procedure ends).
+
+proc `=destroy`(s: StmtObj) {.raises: [].} =
+  if s.raw != nil: discard finalize(s.raw)
 
 proc fail(db: DbConn, what: string) {.noreturn, raises: [StoreError].} =
   raiseStore(what & ": " & $errmsg(db))
 
 proc prepareStmt*(db: DbConn, sql: string): Stmt {.raises: [StoreError].} =
   ## Compile one statement; `?` marks the values to bind (numbered from 1).
-  result.db = db
-  if prepare_v2(db, cstring(sql), cint(sql.len), result.raw, nil) != SQLITE_OK:
+  var raw: PStmt
+  if prepare_v2(db, cstring(sql), cint(sql.len), raw, nil) != SQLITE_OK:
     fail(db, "cannot prepare '" & sql & "'")
+  Stmt(raw: raw, db: db)
 
 proc bindInt*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
   if bind_int64(s.raw, int32(i), v) != SQLITE_OK: fail(s.db, "cannot bind")
@@ -69,9 +78,6 @@ proc run*(s: Stmt) {.raises: [StoreError].} =
   discard reset(s.raw)
   discard clear_bindings(s.raw)
   if bad: raiseStore(message)
-
-proc finalize*(s: Stmt) {.raises: [].} =
-  discard finalize(s.raw)
 
 proc lastInsertId*(db: DbConn): int64 {.raises: [].} =
   ## The id of the row most recently inserted on this connection.

@@ -81,6 +81,5 @@ proc flush*(s: Store, b: var SeenBuffer) {.raises: [StoreError].} =
     s.commit()
     done = true
   finally:
-    finalize(st)
     if not done: s.rollback()
   b.rows.setLen(0)

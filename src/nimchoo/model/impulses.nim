@@ -40,15 +40,12 @@ proc calculateActivity*(db: DbConn, activityId: ActivityId, fthr: int, m: Model)
     db.exec(sql"delete from impulse where activity_id = ? and model_id = ?", activityId, m.id)
   if rows.len == 0: return 0
   let st = prepareStmt(db, "insert into impulse(activity_id, model_id, hour_t, value) values (?, ?, ?, ?)")
-  try:
-    for (hour, v) in rows:
-      st.bindInt(1, activityId)
-      st.bindInt(2, m.id)
-      st.bindInt(3, hour)
-      st.bindReal(4, v)
-      st.run()
-  finally:
-    finalize(st)
+  for (hour, v) in rows:
+    st.bindInt(1, activityId)
+    st.bindInt(2, m.id)
+    st.bindInt(3, hour)
+    st.bindReal(4, v)
+    st.run()
   rows.len
 
 proc missing(db: DbConn, userId: UserId, modelId: ModelId): seq[ActivityId] {.raises: [StoreError].} =
