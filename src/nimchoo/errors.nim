@@ -26,6 +26,10 @@ type
     ## The database cannot be used (cannot be opened or created, a query
     ## failed, a constraint was violated).
 
+  TemplateError* = object of NchError
+    ## A page template that cannot be used (a tag not closed, a name the values do not have).
+    line*: int  ## 1-based line of the template, 0 if not known
+
   ImportFailure* = enum
     ifNoActivity,   ## the file has no activity in it (no session message)
     ifBadTime       ## its times are not calendar times
@@ -56,3 +60,7 @@ proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
 proc raiseImport*(kind: ImportFailure, msg: string) {.noreturn,
     raises: [ImportError].} =
   raise (ref ImportError)(msg: msg, kind: kind)
+
+proc raiseTemplate*(msg: string, line = 0) {.noreturn, raises: [TemplateError].} =
+  ## Raise a TemplateError.
+  raise (ref TemplateError)(msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line)

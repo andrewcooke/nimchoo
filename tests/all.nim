@@ -3,7 +3,7 @@
 ## what they share.
 {.push warning[UnusedImport]: off.}
 import ./support/env
-import ./test_xlsx, ./test_errors, ./test_structure, ./test_cache
+import ./test_xlsx, ./test_errors, ./test_structure, ./test_cache, ./test_templating
 import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
               test_command, test_sdkcsv]
 import ./profile/[test_load, test_load_errors]

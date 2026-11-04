@@ -4,6 +4,8 @@
 import std/os
 import ../bundle/notice
 import ../cache
+import ../templating
+export templating.htmlEscape
 
 {.push raises: [].}
 
@@ -12,16 +14,6 @@ proc makeCacheDirs*(dir: string) {.raises: [IOError, OSError].} =
   createDir userDir(dir)
   createDir systemDir(dir)
   unpackNotice(dir)
-
-func htmlEscape*(s: string): string =
-  ## `s` as text in a page: markup in it is shown, not obeyed.
-  for c in s:
-    case c
-    of '<': result.add "&lt;"
-    of '>': result.add "&gt;"
-    of '&': result.add "&amp;"
-    of '"': result.add "&quot;"
-    else: result.add c
 
 func replaceAll*(s, key, value: string): string =
   ## `s` with each occurrence of `key` replaced by `value` (no regex, no surprises).

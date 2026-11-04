@@ -369,7 +369,13 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   used when a database is made), and `NOTICE` (`bundle/notice.nim`, unpacked by `makeCacheDirs`).  A changed
   places list is not noticed by a database that exists (D5).  `hashing.nim` replaced five copies of the hex
   SHA-256.  `tests/support/env.nim` gives the tests a cache directory of their own;
-  D3 the template engine (pure, tested);
+  D3 the template engine (pure, tested) -- built: `templating.nim`, a Mustache subset: `{{name}}` (HTML-escaped),
+  `{{{name}}}` / `{{&name}}` (raw), `{{#name}}..{{/name}}` (shown for true, a non-empty text, or once per item
+  of a list, whose items have values of their own and see the values around them), `{{^name}}..{{/name}}`,
+  `{{! comment }}`; a section tag or comment on a line of its own takes the line with it.  Values are
+  `text()`, `flag()`, `list()` in a `context()`.  A name nothing has, a tag not closed, sections that do not
+  match: `TemplateError` with the line (a kind of `NchError`).  Parsed once (`parse`), filled in with
+  `render`.  `htmlEscape` now lives here (`serve/pages` re-exports it);
   D4 the heat map and chart pages as templates, with the library versions file;
   D5 reload the places when the list changes, and repoint the activities.
 
