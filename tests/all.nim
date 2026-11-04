@@ -7,7 +7,7 @@ import ./test_xlsx, ./test_errors, ./test_structure, ./test_cache, ./test_templa
 import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
               test_command, test_sdkcsv]
 import ./profile/[test_load, test_load_errors]
-import ./db/test_store
+import ./db/[test_store, test_multirow]
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]
 import ./ff/[test_curve, test_page, test_web, test_stats]

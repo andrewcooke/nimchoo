@@ -403,6 +403,12 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   a bad file in the middle, the same file twice, an interrupt, and a file that changes during the run;
   (3) per-thread timers, measure on 1, 2 and 4 cores; (4) if the writer is then the limit: the nearest-place
   query out of it, and batched row inserts.
+  **Step 4, first part (2026-11-04): many rows to a statement.**  `db/multirow.nim` (`MultiInsert`: statements of 128
+  rows, made once for each size) is used for the coordinates and the heart-rate rows.  Coordinates 507 -> 296 ms,
+  heart rate 432 -> 220 ms on the sample; wall time, 1 thread 3.84 -> 3.34 s, 2 threads 2.4 -> 1.96 s.  The size
+  was tried: 32 and 128 rows are alike, 512 and 1000 are slower (more to prepare and bind at once).  Tests:
+  `tests/db/test_multirow.nim` (0, 1, 127, 128, 129, 255, 256, 257 and 1000 rows, NULLs, an error), and the
+  threads-equal-sequential tests cover the rest.
   **Step 2 done (2026-11-04):** `importer/work.nim` (`prepareFile`: read, hash, decode, a failure is data),
   `importer/pool.nim` (the workers, two channels, results taken back in file order), `batch.nim` uses them,
   `nch import -j N` (default: processors, at most 8; 1 = no threads), per-thread timers (`takePhases`).

@@ -4,7 +4,7 @@
 
 import std/[math, tables]
 import db_connector/db_sqlite
-import ../db/[channel, statement]
+import ../db/[channel, multirow, statement]
 import ../errors
 
 {.push raises: [].}
@@ -22,15 +22,20 @@ proc write(db: DbConn, activityId: int64, samples: Samples): int
     {.nimcall, raises: [StoreError].} =
   let rows = readings(samples)
   if rows.len == 0: return 0
-  let st = prepareStmt(db, "insert into heartrate(activity_id, t, bpm) values (?, ?, ?)")
+  var insert = initMultiInsert(db, "insert into heartrate(activity_id, t, bpm) values ", 3)
   try:
-    for (t, bpm) in rows:
-      st.bindInt(1, activityId)
-      st.bindInt(2, t)
-      st.bindInt(3, int64(bpm))
+    var i = 0
+    while i < rows.len:                       # many rows to a statement
+      let n = min(rowsPerStatement, rows.len - i)
+      let st = insert.statement(n)
+      for r in 0 ..< n:
+        st.bindInt(3 * r + 1, activityId)
+        st.bindInt(3 * r + 2, rows[i + r][0])
+        st.bindInt(3 * r + 3, int64(rows[i + r][1]))
       st.run()
+      i += n
   finally:
-    finalize(st)
+    insert.release()
   rows.len
 
 let heartrateStep* = ImportStep(label: "heart-rate reading", labels: "heart-rate readings",

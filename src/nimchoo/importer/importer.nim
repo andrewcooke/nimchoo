@@ -5,7 +5,7 @@
 import std/[options, sets, strutils, times]
 import ../hashing
 import db_connector/db_sqlite
-import ../db/[channel, statement, store]
+import ../db/[channel, multirow, statement, store]
 import ../errors
 import ../profile/model
 import ../profiling
@@ -46,13 +46,22 @@ proc insertSegment(st: Stmt, activityId: int64, n: int, g: Segment)
   st.bindInt(4, g.endT)
   st.run()
 
-proc insertCoord(st: Stmt, activityId: int64, c: Coord) {.raises: [StoreError].} =
-  st.bindInt(1, activityId)
-  st.bindInt(2, c.t)
-  st.bindReal(3, c.lon)
-  st.bindReal(4, c.lat)
-  st.bindReal(5, c.alt)
-  st.run()
+proc insertCoords(m: var MultiInsert, activityId: int64, coords: seq[Coord]) {.raises: [StoreError].} =
+  ## All the coordinates of an activity, many rows to a statement.
+  var i = 0
+  while i < coords.len:
+    let n = min(rowsPerStatement, coords.len - i)
+    let st = m.statement(n)
+    for r in 0 ..< n:
+      let c = coords[i + r]
+      let b = 5 * r
+      st.bindInt(b + 1, activityId)
+      st.bindInt(b + 2, c.t)
+      st.bindReal(b + 3, c.lon)
+      st.bindReal(b + 4, c.lat)
+      st.bindReal(b + 5, c.alt)
+    st.run()
+    i += n
 
 type
   ProfileSource* = proc(): Profile {.closure, raises: [].}
@@ -109,7 +118,8 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
   ## steps (heart rate, ...) write their rows for each activity.
   s.begin()
   var committed = false
-  var actStmt, segStmt, coordStmt, routeStmt, startStmt: Option[Stmt]
+  var actStmt, segStmt, routeStmt, startStmt: Option[Stmt]
+  var coordInsert = initMultiInsert(s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5)
   try:
     guard:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
@@ -121,8 +131,6 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
       "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
     segStmt = some(prepareStmt(s.db,
       "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"))
-    coordStmt = some(prepareStmt(s.db, 
-      "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)"))
     routeStmt = some(prepareStmt(s.db,
       "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"))
     startStmt = some(prepareStmt(s.db,
@@ -138,7 +146,7 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
       timed "insert segments":
         for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
       timed "insert coords":
-        for c in a.coords: insertCoord(coordStmt.get, activityId, c)
+        insertCoords(coordInsert, activityId, a.coords)
       if a.coords.len > 0:                  # where it started: the first position
         startStmt.get.bindReal(1, a.coords[0].lon)
         startStmt.get.bindReal(2, a.coords[0].lat)
@@ -166,7 +174,7 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
   finally:
     if actStmt.isSome: finalize(actStmt.get)
     if segStmt.isSome: finalize(segStmt.get)
-    if coordStmt.isSome: finalize(coordStmt.get)
+    coordInsert.release()
     if routeStmt.isSome: finalize(routeStmt.get)
     if startStmt.isSome: finalize(startStmt.get)
     if not committed: s.rollback()
