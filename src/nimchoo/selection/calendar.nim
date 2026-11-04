@@ -5,9 +5,12 @@
 ##     Jan                01 02 03 04 05 06 07 08 09 10 11 12 ...                      2018
 ##     Feb       01 02 03 04 05 06 07 08 ...                                           2018
 ##
-## A day is white if an activity that was listed falls on it, yellow if one of them is also in the
+## A day is green if an activity that was listed falls on it, red if one of them is also in the
 ## selection, grey if none was listed.  Days are the days of the time zone given (the user's, for
 ## display).  Pure: the rows, the zone and the screen are parameters.
+##
+## Only the months with an activity are shown (all the months from the first to the last with
+## `allMonths`); `skippedMonths` says how many the first leaves out.
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
 ## with data `"  12 "`, a selected day `" [34]"`, a day with none `"  -- "`.
@@ -23,6 +26,8 @@ type Screen* = object
   width*: int          ## columns; 0: no limit
 
 const
+  dataColour* = green        ## a day with a listed activity
+  selectedColour* = red      ## ... and one of them is in the selection
   monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   weekdayNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
   cells* = 37        ## a month starting on a Sunday has 31 days in 37 cells (Monday-first weeks)
@@ -42,13 +47,27 @@ proc dayCell(day: int, state: int, s: Screen): Span =
   if s.colour:
     case state
     of 0: span(two(day) & " ", grey)
-    of 1: span(two(day) & " ")
-    else: span(two(day) & " ", yellow)
+    of 1: span(two(day) & " ", dataColour)
+    else: span(two(day) & " ", selectedColour)
   else:
     case state
     of 0: span("  -- ")
     of 1: span("  " & two(day) & " ")
     else: span(" [" & two(day) & "]")
+
+proc monthsOf(rows: seq[ListRow], zone: Timezone): seq[int] =
+  ## The months (year * 12 + month - 1) with a listed activity, in order.
+  for r in rows:
+    let d = fromUnix(r.startT).inZone(zone)
+    let m = d.year * 12 + ord(d.month) - 1
+    if m notin result: result.add m
+  result.sort
+
+proc skippedMonths*(rows: seq[ListRow], zone: Timezone): int =
+  ## How many months between the first and the last have no activity (so a calendar of only
+  ## the months with data leaves them out).
+  let months = monthsOf(rows, zone)
+  if months.len > 0: result = months[^1] - months[0] + 1 - months.len
 
 proc calendarLines*(rows: seq[ListRow], zone: Timezone, allMonths: bool, screen: Screen): seq[Line] =
   ## The calendar of the rows: a header of weekday names, then a row for each month that has an
@@ -56,14 +75,11 @@ proc calendarLines*(rows: seq[ListRow], zone: Timezone, allMonths: bool, screen:
   ## are wider than the screen, a warning comes first and each line is cut to the screen.
   if rows.len == 0: return
   var state: Table[int, int]                     # year*10000 + month*100 + day -> 1 or 2
-  var months: seq[int]                           # year*12 + (month - 1)
   for r in rows:
     let d = fromUnix(r.startT).inZone(zone)
     let key = d.year * 10000 + ord(d.month) * 100 + d.monthday
     state[key] = max(state.getOrDefault(key), if r.selected: 2 else: 1)
-    let m = d.year * 12 + ord(d.month) - 1
-    if m notin months: months.add m
-  months.sort
+  var months = monthsOf(rows, zone)               # year*12 + (month - 1)
   if allMonths:
     months = toSeq(months[0] .. months[^1])
   let cw = cellWidth(screen)

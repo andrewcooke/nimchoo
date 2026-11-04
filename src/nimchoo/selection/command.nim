@@ -164,7 +164,15 @@ proc listing(rows: seq[ListRow], zone: Timezone, c: Criteria, screen: Screen,
   ## The table (or the calendar) and its last line.
   result = if c.calendar: calendarLines(rows, zone, c.verbose, screen)
            else: table(rows, zone, rows.len > 0 and moreThanOneUser(rows), c.verbose)
-  result.add footerLine(rows, choices)
+  result.add footerLine(rows, choices, if c.calendar: selectedColour else: yellow)
+
+proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] =
+  ## The last line of a calendar of the months with data, if it left some out.
+  if not c.calendar or c.verbose: return
+  let n = skippedMonths(rows, zone)
+  if n > 0:
+    result.add @[span("warning: " & $n & (if n == 1: " month" else: " months") &
+      " with no activity not shown; use --verbose to show them", yellow)]
 
 proc showSelection*(st: Store, c: Criteria, zone: Timezone, screen = Screen(colour: true)): seq[Line]
     {.raises: [StoreError].} =
@@ -173,7 +181,8 @@ proc showSelection*(st: Store, c: Criteria, zone: Timezone, screen = Screen(colo
     "a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId &
     " order by a.start_t, a.id")
   if rows.len == 0: return @[plain("selection: empty")]
-  listing(rows, zone, c, screen, none(int))
+  result = listing(rows, zone, c, screen, none(int))
+  result.add skippedWarning(rows, zone, c)
 
 proc latestAmong(st: Store, match: string): Option[tuple[id: int64, row: ListRow]]
     {.raises: [StoreError].} =
@@ -292,6 +301,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   if c.save:
     result.lines.add @[span("saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
       " as the selection", leSaved)]
+  result.lines.add skippedWarning(rows, zone, c)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch list ARGS`; returns the exit status.

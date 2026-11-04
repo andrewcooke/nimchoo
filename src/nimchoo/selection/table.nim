@@ -171,15 +171,15 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     for (k, v) in parts: text.add $v & " " & k
     result.add " (" & text.join(", ") & ")"
 
-func footerLine*(rows: seq[ListRow], choices = none(int)): Line =
+func footerLine*(rows: seq[ListRow], choices = none(int), selectedColour = yellow): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
-  ## the activities are in the selection, ", 35 match selected" follows the count, in yellow, the
-  ## colour of the selected rows:
+  ## the activities are in the selection, ", 35 match selected" follows the count, in the colour
+  ## the selected ones have in the display (yellow rows in the table, red days in the calendar):
   ## "done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m".
   let text = footer(rows, choices)
   let selected = rows.countIt(it.selected)
   if selected == 0: return plain("done: " & text)
   let split = text.find(", ")                       # the count comes first; the rest follows a comma
   let head = if split < 0: text else: text[0 ..< split]
-  result = @[span("done: " & head), span(", " & $selected & " match selected", yellow)]
+  result = @[span("done: " & head), span(", " & $selected & " match selected", selectedColour)]
   if split >= 0: result.add span(text[split .. ^1])

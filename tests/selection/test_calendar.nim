@@ -53,18 +53,18 @@ suite "calendar: the layout":
     let all = calendarLines(rs, utc(), true, colourScreen)
     check all.len == 1 + 4
     check all.mapIt(it.text[0 .. 2]) == @["   ", "Mar", "Apr", "May", "Jun"]
-    check all[2].filterIt(it.look.colour == grey).len == 30 and all[2].allIt(it.look.colour != yellow)   # April: 30 days, none listed
+    check all[2].filterIt(it.look.colour == grey).len == 30 and all[2].allIt(it.look.colour notin {red, green})   # April: 30 days, none listed
   test "nothing listed: nothing":
     check calendarLines(@[], utc(), true, colourScreen).len == 0
 
 suite "calendar: colours and marks":
   let rs = @[row(at(2018, mAug, 27)), row(at(2018, mAug, 28), selected = true),
              row(at(2018, mAug, 29)), row(at(2018, mAug, 29), selected = true)]
-  test "white: listed; yellow: listed and selected; grey: none":
+  test "green: listed; red: listed and selected; grey: none":
     let aug = calendarLines(rs, utc(), false, colourScreen).monthRow("Aug")
-    check aug.cellOf(2 + 26).look.colour == white          # the 27th
-    check aug.cellOf(2 + 27).look.colour == yellow         # the 28th: selected
-    check aug.cellOf(2 + 28).look.colour == yellow         # the 29th: two activities, one selected
+    check aug.cellOf(2 + 26).look.colour == green          # the 27th
+    check aug.cellOf(2 + 27).look.colour == red            # the 28th: selected
+    check aug.cellOf(2 + 28).look.colour == red            # the 29th: two activities, one selected
     check aug.cellOf(2 + 25).look.colour == grey           # the 26th: nothing
     check aug.cellOf(2).look.colour == grey                # the 1st
   test "without colour the cells are 5 wide and marked":
@@ -80,14 +80,25 @@ suite "calendar: colours and marks":
       let ls = calendarLines(rs, utc(), true, screen)
       for l in ls[1 .. ^1]: check l.width == calendarWidth(screen)
 
+suite "calendar: months left out":
+  test "how many months between the first and the last have nothing":
+    proc rowsIn(ms: seq[(int, Month)]): seq[ListRow] =
+      for (y, m) in ms: result.add row(at(y, m, 5))
+    check skippedMonths(rowsIn(@[(2018, mMar), (2018, mJul)]), utc()) == 3          # April, May, June
+    check skippedMonths(rowsIn(@[(2017, mDec), (2018, mFeb)]), utc()) == 1          # January
+    check skippedMonths(rowsIn(@[(2018, mMar), (2018, mApr), (2018, mMay)]), utc()) == 0
+    check skippedMonths(rowsIn(@[(2018, mMar)]), utc()) == 0
+    check skippedMonths(@[], utc()) == 0
+    check skippedMonths(rowsIn(@[(2018, mMar), (2018, mMar), (2018, mJul)]), utc()) == 3     # (a month once, however many days)
+
 suite "calendar: time zones":
   test "a day is the day where the user is, not in UTC":
     # 20:00 UTC on the 27th is 06:00 on the 28th at +10, and 17:00 on the 27th at -03
     let t = at(2018, mAug, 27, 20)
     let east = calendarLines(@[row(t)], fixedZone("+10", 10 * 3600), false, colourScreen).monthRow("Aug")
-    check east.cellOf(2 + 27).look.colour == white and east.cellOf(2 + 26).look.colour == grey
+    check east.cellOf(2 + 27).look.colour == green and east.cellOf(2 + 26).look.colour == grey
     let west = calendarLines(@[row(t)], fixedZone("-03", -3 * 3600), false, colourScreen).monthRow("Aug")
-    check west.cellOf(2 + 26).look.colour == white and west.cellOf(2 + 27).look.colour == grey
+    check west.cellOf(2 + 26).look.colour == green and west.cellOf(2 + 27).look.colour == grey
   test "near the end of a month, the month changes with the zone":
     let t = at(2018, mAug, 31, 20)                 # 06:00 on 1 September at +10
     let ls = calendarLines(@[row(t)], fixedZone("+10", 10 * 3600), false, colourScreen)
