@@ -15,38 +15,31 @@ import ./[params, wipe]
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] [--user NAME] user
+const usage* = """usage: nch user
        nch user --add NAME [--fthr BPM] [--default]
-       nch [--db PATH] [--user NAME] user [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
-       nch [--db PATH] [--user NAME] user --remove -f
+       nch user --edit NAME [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
+       nch user --remove NAME -f
 
-Without options, show the users.  Otherwise, make a user, or change the user given by
---user (the default user if there is none).  One user is always the default: the first, until
-another is made so.
+Without options, show the users.  One user is always the default: the first, until
+another is made so.  (The users are named after the command, not by --user before it.)
 
   --add NAME      make the user NAME (users are never made by accident: it must be asked for)
-  --fthr BPM      the user's functional threshold heart rate: the highest rate they can
-                  sustain for about an hour (80 to 230).  Heart-rate zones, and so training
-                  impulse, are worked out from it.
-  --clear-fthr    forget it
-  --rename NEW    change the user's name
-  --default       make the user the default: the one used when there is no --user
-  --remove        delete the user and everything they have (files, activities, ...); if
+  --edit NAME     change the user NAME, with one or more of:
+    --fthr BPM      the user's functional threshold heart rate: the highest rate they can
+                    sustain for about an hour (80 to 230).  Heart-rate zones, and so training
+                    impulse, are worked out from it.
+    --clear-fthr    forget it
+    --rename NEW    change the user's name
+    --default       make the user the default: the one used when there is no --user
+  --remove NAME   delete the user and everything they have (files, activities, ...); if
                   they were the default another user becomes it.  Needs -f; on a terminal
                   there are then 5 seconds in which to press Ctrl-C.  (To keep the user
-                  and delete only their data: `nch empty`.)
+                  and delete only their data: `nch empty --user NAME`.)
   -f, --force     really do it
   -h, --help      show this help
 
 Names have 1 to 32 letters, digits and _ . - (not starting with -).
 """
-
-proc userId(st: Store, name: string): UserId {.raises: [StoreError].} =
-  guard:
-    let v = st.db.getValue(sql"select id from user where name = ?", name)
-    if v.len == 0: raiseStore("no such user: " & name)
-    try: result = UserId(parseBiggestInt(v))
-    except ValueError: raiseStore("bad user id " & v)
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   guard:
@@ -113,6 +106,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   if p.problem.len > 0:
     return usageError("nch user", usage, p.problem)
+  if g.user.len > 0:
+    return usageError("nch user", usage,
+      "--user goes after the command here: nch user --edit " & g.user & " ... (the users are named there)")
   var st: Store
   try:
     st = openStore(g)
@@ -123,12 +119,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       for l in userLines(st): stdout.say l & "\n"
       return exitOk
     if p.remove:
-      let what = describe(countActivities(st.path, st.userName), st.userName)
+      let id = findUser(st, p.name)
+      let what = describe(countActivities(st.path, p.name), p.name)
       if not p.force:
         return failure("nch user", "would delete " & what & " from " & st.path & "; use -f to do it")
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
-      removeUser(st)
+      removeUser(st, id)
       g.log.log(lvInfo, "user", leDeleted, what & " from " & st.path)
       stdout.say "done: deleted " & what & "\n"
       return exitOk
@@ -136,42 +133,44 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if exists(st, p.name):
         return failure("nch user", "there is a user called '" & p.name & "' already")
       guard: st.db.exec(sql"insert into user(name) values (?)", p.name)
+      let id = findUser(st, p.name)
       var said = "made the user " & p.name
       if p.makeDefault:
-        setDefault(st, userId(st, p.name))
+        setDefault(st, id)
         said.add ", the default"
       if p.fthr.isSome:
         said.add ", with an FTHR of " & $p.fthr.get
-        setFthr(st, userId(st, p.name), p.fthr.get)
+        setFthr(st, id, p.fthr.get)
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
       return exitOk
-    let id = st.userId
+    # --edit
+    let id = findUser(st, p.name)
     if p.fthr.isSome:
       let had = hasImpulses(st, id)
       let old = currentFthr(st, id)
       setFthr(st, id, p.fthr.get)
-      let said = st.userName & ": FTHR is " & $p.fthr.get &
+      let said = p.name & ": FTHR is " & $p.fthr.get &
                  (if had and old.isSome and old.get != p.fthr.get: deletedNote else: "")
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.clearFthr:
       let had = hasImpulses(st, id)
       guard: st.db.exec(sql"update user_profile set fthr = null where user_id = ?", id)
-      let said = st.userName & ": FTHR forgotten" &
+      let said = p.name & ": FTHR forgotten" &
                  (if had: " (and the impulses worked out with it are deleted)" else: "")
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:
       setDefault(st, id)
-      let said = st.userName & " is now the default user"
+      let said = p.name & " is now the default user"
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.rename.len > 0:
       if exists(st, p.rename):
         return failure("nch user", "there is a user called '" & p.rename & "' already")
       guard: st.db.exec(sql"update user set name = ? where id = ?", p.rename, id)
-      let said = st.userName & " is now called " & p.rename
+      let said = p.name & " is now called " & p.rename
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     exitOk

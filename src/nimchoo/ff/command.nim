@@ -28,7 +28,7 @@ then the latest values of the two curves, each with the share of the earlier day
 was higher ("top 1%" means the value is nearly the highest it has been):
 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%)
 One row a day, the value at the end of the day (in this computer's timezone; --utc for UTC).
-They are made from the impulses of the user's activities (see `nch user --fthr` and
+They are made from the impulses of the user's activities (see `nch user --edit NAME --fthr` and
 `nch model`) with the decay times of the model.  They start from 0 at the first activity with
 an impulse and run to --to (default: today), so they fade away after the last.
 
@@ -194,7 +194,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if m.isNone: return failure("nch ff", "no such model: " & name & " (see `nch model`)")
     if fthrOf(st.db, st.userId).isNone:
       return failure("nch ff", st.userName & " has no FTHR, which the impulses are worked out from " &
-                     "(see `nch user --fthr`)")
+                     "(see `nch user --edit NAME --fthr`)")
     let current = inputKey(st.db, st.userId, m.get)
     if current.len == 0:
       return failure("nch ff", "there are no impulses for " & st.userName &

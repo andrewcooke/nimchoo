@@ -88,7 +88,7 @@ suite "wipe: what belongs to a user":
     addUser(d / "x.db", "bob")
     let bob = openStore(d / "x.db", allFragments, "bob")
     fill(bob, "bobs")
-    emptyUser(bob)
+    emptyUser(bob, findUser(bob, "bob"))
     for t in tables: check bob.count(t) == 1
     check bob.db.getValue(sql"select count(*) from user where name = 'bob'") == "1"
     check bob.db.getValue(sql"select count(*) from file where sha256 = 'bobs'") == "0"
@@ -101,7 +101,7 @@ suite "wipe: what belongs to a user":
     addUser(d / "x.db", "bob")
     let bob = openStore(d / "x.db", allFragments, "bob")
     fill(bob, "bobs")
-    removeUser(bob)
+    removeUser(bob, findUser(bob, "bob"))
     check bob.db.getValue(sql"select count(*) from user where name = 'bob'") == "0"
     for t in tables: check bob.count(t) == 0
     bob.close()

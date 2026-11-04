@@ -11,7 +11,7 @@ import ./db/[test_store, test_multirow]
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]
 import ./ff/[test_curve, test_page, test_web, test_stats]
-import ./empty/test_command
+import ./empty/[test_command, test_cachefiles]
 import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_pool, test_events,
                    test_display, test_logsink]
 import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]

@@ -77,24 +77,32 @@ proc countActivities*(path, user: string): Option[int] =
   except DbError, ValueError:
     result = none(int)
 
-proc emptyUser*(st: Store) {.raises: [StoreError].} =
-  ## Delete everything the store's user has (the user, and their threshold heart rate, stay).
+proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
+  ## The id of the user called `name`; an error if there is none.
+  guard:
+    let v = st.db.getValue(sql"select id from user where name = ?", name)
+    if v.len == 0: raiseStore("no such user: " & name)
+    try: result = UserId(parseBiggestInt(v))
+    except ValueError: raiseStore("bad user id " & v)
+
+proc emptyUser*(st: Store, id: UserId) {.raises: [StoreError].} =
+  ## Delete everything the user has (the user, and their threshold heart rate, stay).
   st.begin()
   var done = false
   try:
     guard:
       for table in userTables:
-        st.db.exec(sql("delete from " & table & " where user_id = ?"), st.userId)
+        st.db.exec(sql("delete from " & table & " where user_id = ?"), id)
     st.commit()
     done = true
   finally:
     if not done: st.rollback()
   guard: st.db.exec(sql"vacuum")
 
-proc removeUser*(st: Store) {.raises: [StoreError].} =
-  ## Delete the store's user and everything they have.  (If it was the default user another
+proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
+  ## Delete the user and everything they have.  (If it was the default user another
   ## becomes the default, or if there is none a new empty one is made, the next time the
   ## database is opened.)
   guard:
-    st.db.exec(sql"delete from user where id = ?", st.userId)
+    st.db.exec(sql"delete from user where id = ?", id)
     st.db.exec(sql"vacuum")

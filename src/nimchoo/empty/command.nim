@@ -1,63 +1,94 @@
-## `nch empty`: delete all the data of a user (the user stays), or with `--all` delete the
-## database.  Does nothing without --force; on a terminal it then counts down, in red, so there
-## is time to press Ctrl-C.  (The deleting is in user/wipe.nim; `nch user --remove` shares it.)
+## `nch empty`: delete a user's data (the user stays), the whole database, or the files in the
+## cache.  What to empty is named after the command: there is no default, since a command that
+## deletes should not guess.  Does nothing without --force (except the cache, which is made
+## again as needed); on a terminal it then counts down, in red, so there is time to press
+## Ctrl-C.  (The deleting is in user/wipe.nim; `nch user --remove` shares it.)
 
-import std/os
+import std/[options, os]
+import ../cache
 import ../cli/[args, common]
 import ../db/store
 import ../errors
 import ../ui/[live, logfile]
 import ../user/wipe
+import ./cachefiles
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] [--user NAME] empty -f
+const usage* = """usage: nch [--db PATH] empty --user NAME -f
        nch [--db PATH] empty --all -f
+       nch empty --cache
 
-Delete all the data of the user (the default user, or the one given by --user): their files,
-activities, selection and what was worked out from them.  The user, and their threshold heart
-rate, stay.  (To delete the user as well: `nch --user NAME user --remove -f`.)
+Say what to empty:
 
-With --all: delete the database file, and with it the data of every user and the users.
+  --user NAME   delete all the data of the user NAME: their files, activities, selection and
+                what was worked out from them.  The user, and their threshold heart rate,
+                stay.  (To delete the user as well: `nch user --remove NAME -f`.)
+  --all         delete the database file, and with it the data of every user and the users
+  --cache       delete the files in the cache that commands made (maps, CSVs, pages); they
+                are made again when asked for.  Needs no -f.
 
-Nothing is deleted without -f.  On a terminal there are then 5 seconds in
+Nothing else is deleted without -f.  On a terminal there are then 5 seconds in
 which to press Ctrl-C.
 
   -f, --force   really do it
-  --all         the whole database, not one user's data
   -h, --help    show this help
 """
 
 type EmptyArgs = object
-  force, all, help: bool
+  user: string
+  all, cache, force, help: bool
+
+proc emptyCache(g: Globals): int =
+  let dir = cacheDir()
+  if dir.isNone:
+    return failure("nch empty", "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)")
+  let what = describe(cacheFiles(dir.get))
+  discard removeCacheFiles(dir.get)
+  g.log.log(lvInfo, "empty", leDeleted, what & " from " & dir.get)
+  stdout.say "done: deleted " & what & "\n"
+  exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch empty ARGS`; returns the exit status.
   var given = EmptyArgs()
   let spec = Spec[EmptyArgs](opts: @[
     flag(EmptyArgs, ["-h", "--help"], help), flag(EmptyArgs, ["-f", "--force"], force),
-    flag(EmptyArgs, ["--all"], all)])
+    flag(EmptyArgs, ["--all"], all), flag(EmptyArgs, ["--cache"], cache),
+    text(EmptyArgs, ["--user"], user)])
   let why = parseOptions(args, spec, given)
   if why.len > 0: return usageError("nch empty", usage, why)
   if given.help:
     stdout.say usage
     return exitOk
-  if given.all and g.user.len > 0:
-    return usageError("nch empty", usage, "--all (the whole database) cannot be used with --user")
+  if g.user.len > 0:
+    return usageError("nch empty", usage,
+      "--user goes after the command here: nch empty --user " & g.user & " (what to empty is named there)")
+  let targets = [given.user.len > 0, given.all, given.cache]
+  var named = 0
+  for t in targets:
+    if t: inc named
+  if named == 0:
+    return usageError("nch empty", usage, "say what to empty: --user NAME, --all or --cache")
+  if named > 1:
+    return usageError("nch empty", usage, "--user, --all and --cache cannot be used together")
+  if given.cache: return emptyCache(g)
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
     stdout.say "no database at " & path & ": nothing to empty\n"
     return exitOk
   var st: Store
+  var id: UserId
   var what: string
   if given.all:
     what = describe(countActivities(path, ""), "")
   else:
     try:
-      st = openStore(g)               # (fails early for a user that does not exist)
+      st = openStore(g)
+      id = findUser(st, given.user)         # (fails early for a user that does not exist)
     except StoreError as e:
       return failure("nch empty", e.msg)
-    what = describeEmpty(countActivities(path, st.userName), st.userName)
+    what = describeEmpty(countActivities(path, given.user), given.user)
   if not given.force:
     return failure("nch empty", "would delete " & what & " from " & path & "; use -f to do it")
   if canLive():
@@ -70,7 +101,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return failure("nch empty", "cannot delete " & path & ": " & e.msg)
   else:
     try:
-      emptyUser(st)
+      emptyUser(st, id)
     except StoreError as e:
       return failure("nch empty", e.msg)
   g.log.log(lvInfo, "empty", leDeleted, what & " from " & path)

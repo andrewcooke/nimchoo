@@ -37,7 +37,7 @@ commands:
   user     the users: make, rename, set the threshold heart rate
   model    the models: sets of variables for the training impulse
   ff       the fitness and fatigue curves, as CSV for plotting
-  empty    delete the data of a user, or the whole database
+  empty    delete a user's data, the whole database, or the cache files
 
 For more about a command: `nch COMMAND --help`.
 """

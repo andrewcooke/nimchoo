@@ -15,11 +15,15 @@ proc fresh(name: string): string =
   dir / name / "x.db"
 
 proc userAs(db, who: string, args: varargs[string]): int =
-  ## nch --user WHO user ARGS
+  ## nch --user WHO user ARGS (which the user command refuses: the user is named after it)
   userCommand.run(Globals(dbPath: db, user: who, fragments: allFragments), @args)
 
 proc user(db: string, args: varargs[string]): int =
   userAs(db, "", @args)
+
+proc edit(db, name: string, args: varargs[string]): int =
+  ## nch user --edit NAME ARGS
+  user(db, @["--edit", name] & @args)
 
 proc q(db, sqlText: string): string =
   let s = openStore(db, allFragments)
@@ -50,69 +54,74 @@ suite "nch user":
     let db = fresh("twice")
     check user(db, "--add", "bob") == exitOk
     check user(db, "--add", "bob") == exitFailure
-    check user(db, "bob", "--fthr", "150") == exitUsage                 # a name without --add
-    check userAs(db, "nobody", "--fthr", "150") == exitFailure     # no such user: nothing made
+    check user(db, "bob", "--fthr", "150") == exitUsage                 # a name without --add or --edit
+    check edit(db, "nobody", "--fthr", "150") == exitFailure       # no such user: nothing made
     check q(db, "select count(*) from user") == "2"
 
-  test "set, change and forget the FTHR of the current user":
+  test "the users are named after the command, not by --user before it":
+    let db = fresh("globaluser")
+    check userAs(db, "bob", "--add", "carol") == exitUsage
+    check userAs(db, "bob", "--edit", "bob", "--fthr", "150") == exitUsage
+    check userAs(db, "bob") == exitUsage
+    check q(db, "select count(*) from user") == "1"
+
+  test "set, change and forget the FTHR of a user":
     let db = fresh("fthr")
     check user(db, "--add", "bob") == exitOk
-    check userAs(db, "bob", "--fthr", "154") == exitOk
+    check edit(db, "bob", "--fthr", "154") == exitOk
     check q(db, "select fthr from user_profile") == "154"
-    check userAs(db, "bob", "--fthr", "160") == exitOk
+    check edit(db, "bob", "--fthr", "160") == exitOk
     check q(db, "select fthr from user_profile") == "160"
     check q(db, "select count(*) from user_profile") == "1"            # (changed in place)
-    check userAs(db, "bob", "--clear-fthr") == exitOk
+    check edit(db, "bob", "--clear-fthr") == exitOk
     check q(db, "select count(*) from user_profile where fthr is not null") == "0"
-    check userAs(db, "bob", "--clear-fthr") == exitOk              # (nothing to forget: fine)
-    check user(db, "--fthr", "154") == exitOk                           # the default user
+    check edit(db, "bob", "--clear-fthr") == exitOk              # (nothing to forget: fine)
+    check edit(db, "default", "--fthr", "154") == exitOk
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'default')") == "154"
 
   test "bad values change nothing":
     let db = fresh("bad")
-    check user(db, "--fthr", "79") == exitUsage
-    check user(db, "--fthr", "x") == exitUsage
+    check edit(db, "default", "--fthr", "79") == exitUsage
+    check edit(db, "default", "--fthr", "x") == exitUsage
     check q(db, "select count(*) from user_profile") == "0"
 
   test "rename":
     let db = fresh("rename")
     check user(db, "--add", "bob", "--fthr", "150") == exitOk
-    check userAs(db, "bob", "--rename", "robert") == exitOk
+    check edit(db, "bob", "--rename", "robert") == exitOk
     check q(db, "select count(*) from user where name = 'bob'") == "0"
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'robert')") == "150"
-    check userAs(db, "robert", "--fthr", "155") == exitOk          # and it is found by the new name
-    check userAs(db, "bob", "--rename", "x") == exitFailure         # the old name is gone
+    check edit(db, "robert", "--fthr", "155") == exitOk          # and it is found by the new name
+    check edit(db, "bob", "--rename", "x") == exitFailure         # the old name is gone
 
   test "rename: not to a name that is taken":
     let db = fresh("renamebad")
     check user(db, "--add", "bob") == exitOk
-    check userAs(db, "bob", "--rename", "default") == exitFailure
-    check userAs(db, "bob", "--rename", "bob") == exitFailure        # (to itself: taken)
+    check edit(db, "bob", "--rename", "default") == exitFailure
+    check edit(db, "bob", "--rename", "bob") == exitFailure        # (to itself: taken)
     check q(db, "select count(*) from user where name = 'default'") == "1"
     check q(db, "select count(*) from user") == "2"
 
   test "the first user is the default; the default can be renamed and stays the default":
     let db = fresh("defaultrename")
     check q(db, "select name from user where is_default = 1") == "default"
-    check user(db, "--rename", "me") == exitOk
+    check edit(db, "default", "--rename", "me") == exitOk
     check q(db, "select name from user where is_default = 1") == "me"
     check q(db, "select count(*) from user") == "1"             # (no new empty 'default' appears)
-    check user(db, "--fthr", "150") == exitOk                    # with no --user: it is the one used
+    check edit(db, "me", "--fthr", "150") == exitOk
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'me')") == "150"
 
   test "--default moves the default to another user, and only one is ever the default":
     let db = fresh("setdefault")
     check user(db, "--add", "bob") == exitOk
     check q(db, "select name from user where is_default = 1") == "default"
-    check userAs(db, "bob", "--default") == exitOk
+    check edit(db, "bob", "--default") == exitOk
     check q(db, "select name from user where is_default = 1") == "bob"
     check q(db, "select count(*) from user where is_default = 1") == "1"
-    check user(db, "--fthr", "160") == exitOk                    # now acts on bob
-    check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'bob')") == "160"
     check lines(db)[^1] == "default     -           0"             # (the flag column is blank)
     check user(db, "--add", "carol", "--default") == exitOk       # made and made the default in one go
     check q(db, "select name from user where is_default = 1") == "carol"
-    check userAs(db, "nobody", "--default") == exitFailure
+    check edit(db, "nobody", "--default") == exitFailure
 
   test "when the default user is destroyed, another becomes the default":
     let db = fresh("defaultgone")
@@ -125,7 +134,7 @@ suite "nch user":
   test "several changes in one go":
     let db = fresh("several")
     check user(db, "--add", "bob") == exitOk
-    check userAs(db, "bob", "--fthr", "152", "--rename", "robert") == exitOk
+    check edit(db, "bob", "--fthr", "152", "--rename", "robert") == exitOk
     check q(db, "select fthr from user_profile where user_id = (select id from user where name = 'robert')") == "152"
 
   test "the activities of each user are counted":
@@ -153,7 +162,7 @@ suite "nch user":
     let g = Globals(dbPath: db, fragments: allFragments, log: openLog(path))
     check userCommand.run(g, @["--add", "bob", "--fthr", "150"]) == exitOk
     check userCommand.run(g, @[]) == exitOk
-    check userCommand.run(g, @["--fthr", "151"]) == exitOk
+    check userCommand.run(g, @["--edit", "default", "--fthr", "151"]) == exitOk
     g.log.close()
     let text = readFile(path)
     check text.contains("user      saved      made the user bob, with an FTHR of 150")
@@ -174,9 +183,9 @@ suite "nch user --remove":
     let bob = openStore(db, allFragments, "bob")
     fill(bob, "bobs")
     bob.close()
-    check userAs(db, "bob", "--remove") == exitFailure
+    check user(db, "--remove", "bob") == exitFailure
     check q(db, "select count(*) from user where name = 'bob'") == "1"
-    check userAs(db, "bob", "--remove", "-f") == exitOk
+    check user(db, "--remove", "bob", "-f") == exitOk
     check q(db, "select count(*) from user where name = 'bob'") == "0"
     check q(db, "select count(*) from file") == "0"
     check q(db, "select count(*) from activity") == "0"
@@ -185,12 +194,11 @@ suite "nch user --remove":
   test "removing the default user makes another the default":
     let db = fresh("removedefault")
     check user(db, "--add", "bob") == exitOk
-    check userAs(db, "default", "--remove", "-f") == exitOk
+    check user(db, "--remove", "default", "-f") == exitOk
     check q(db, "select name from user where is_default = 1") == "bob"
 
   test "an unknown user is an error, and nothing is deleted":
     let db = fresh("removeunknown")
     check user(db) == exitOk
-    check userAs(db, "nobody", "--remove", "-f") == exitFailure
+    check user(db, "--remove", "nobody", "-f") == exitFailure
     check q(db, "select count(*) from user") == "1"
-

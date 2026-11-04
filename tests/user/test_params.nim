@@ -22,47 +22,55 @@ suite "user: the command line":
     check p.create and p.name == "bob" and p.fthr.isNone and not p.list
     let q = parseArgs(@["--add", "bob", "--fthr", "150"])
     check q.create and q.name == "bob" and q.fthr == some(150) and q.problem == ""
-  test "set, clear, rename":
-    check parseArgs(@["--fthr", "154"]).fthr == some(154)
-    check parseArgs(@["--fthr", "154"]).problem == ""
-    check parseArgs(@["--clear-fthr"]).clearFthr
-    check parseArgs(@["--rename", "robert"]).rename == "robert"
-    let p = parseArgs(@["--fthr", "150", "--rename", "x"])          # several at once are fine
-    check p.fthr == some(150) and p.rename == "x" and p.problem == "" and not p.list
-  test "a bare name is not taken to mean the current user, and the message says what to do":
+  test "edit: set, clear, rename, make the default":
+    let p = parseArgs(@["--edit", "bob", "--fthr", "154"])
+    check p.edit and p.name == "bob" and p.fthr == some(154) and p.problem == "" and not p.list
+    check parseArgs(@["--edit", "bob", "--clear-fthr"]).clearFthr
+    check parseArgs(@["--edit", "bob", "--rename", "robert"]).rename == "robert"
+    check parseArgs(@["--edit", "bob", "--default"]).makeDefault
+    let q = parseArgs(@["--edit", "bob", "--fthr", "150", "--rename", "x"])     # several at once are fine
+    check q.fthr == some(150) and q.rename == "x" and q.problem == ""
+  test "a bare name is not taken for a user, and the message says what to do":
     let p = parseArgs(@["bob", "--fthr", "150"])
     check p.problem.contains("unexpected argument bob") and p.problem.contains("--add bob") and
-      p.problem.contains("--user bob")
-  test "--default, alone or with --add":
-    check parseArgs(@["--default"]).makeDefault and not parseArgs(@["--default"]).list
+      p.problem.contains("--edit bob")
+  test "the changes go with --add or --edit":
+    check parseArgs(@["--fthr", "154"]).problem.contains("go with --add NAME or --edit NAME")
+    check parseArgs(@["--default"]).problem.contains("go with --add NAME or --edit NAME")
+    check parseArgs(@["--rename", "x"]).problem.contains("go with --add NAME or --edit NAME")
+    check parseArgs(@["--edit", "bob"]).problem.contains("needs something to change")
+  test "--default, alone with --edit or with --add":
     let p = parseArgs(@["--add", "bob", "--default"])
     check p.makeDefault and p.create and p.problem == ""
+  test "only one of --add, --edit and --remove":
+    check parseArgs(@["--add", "a", "--edit", "b", "--fthr", "150"]).problem.contains("cannot be used together")
   test "problems":
     check parseArgs(@["--add"]).problem.contains("--add needs a value")
+    check parseArgs(@["--edit"]).problem.contains("--edit needs a value")
     check parseArgs(@["--add", "bad name"]).problem.contains("not a name for a user")
     check parseArgs(@["--add", "-x"]).problem.contains("not a name for a user")
     check parseArgs(@["--add", "a", "b"]).problem.contains("unexpected argument b")
     check parseArgs(@["--add", "bob", "--rename", "x"]).problem.contains("only with --fthr")
     check parseArgs(@["--add", "bob", "--clear-fthr"]).problem.contains("only with --fthr")
-    check parseArgs(@["--fthr", "150", "--clear-fthr"]).problem.contains("cannot be used together")
-    check parseArgs(@["--fthr"]).problem.contains("needs a value")
-    check parseArgs(@["--fthr", "79"]).problem.contains("80 to 230")
-    check parseArgs(@["--fthr", "abc"]).problem.contains("'abc'")
-    check parseArgs(@["--rename"]).problem.contains("needs a value")
-    check parseArgs(@["--rename", "-x"]).problem.contains("not a name")
-    check parseArgs(@["--rename", "a b"]).problem.contains("not a name")
+    check parseArgs(@["--edit", "bob", "--fthr", "150", "--clear-fthr"]).problem.contains("cannot be used together")
+    check parseArgs(@["--edit", "bob", "--fthr"]).problem.contains("needs a value")
+    check parseArgs(@["--edit", "bob", "--fthr", "79"]).problem.contains("80 to 230")
+    check parseArgs(@["--edit", "bob", "--fthr", "abc"]).problem.contains("'abc'")
+    check parseArgs(@["--edit", "bob", "--rename"]).problem.contains("needs a value")
+    check parseArgs(@["--edit", "bob", "--rename", "-x"]).problem.contains("not a name")
+    check parseArgs(@["--edit", "bob", "--rename", "a b"]).problem.contains("not a name")
   test "help":
     check parseArgs(@["-h"]).help and parseArgs(@["--help"]).help
     check parseArgs(@["--add", "bob", "-h"]).problem == ""                  # (help wins over the rest)
 
 suite "user params: --remove":
-  test "--remove, with -f":
-    let p = parseArgs(@["--remove", "-f"])
-    check p.problem == "" and p.remove and p.force and not p.list
-    check parseArgs(@["--remove"]).force == false
+  test "--remove NAME, with -f":
+    let p = parseArgs(@["--remove", "bob", "-f"])
+    check p.problem == "" and p.remove and p.name == "bob" and p.force and not p.list
+    check parseArgs(@["--remove", "bob"]).force == false
+    check parseArgs(@["--remove"]).problem.contains("needs a value")
   test "--remove stands alone, and -f goes with it":
-    check parseArgs(@["--remove", "--fthr", "150", "-f"]).problem.contains("cannot be combined")
-    check parseArgs(@["--add", "bob", "--remove"]).problem.contains("cannot be combined")
-    check parseArgs(@["--remove", "--rename", "x"]).problem.contains("cannot be combined")
+    check parseArgs(@["--remove", "bob", "--fthr", "150", "-f"]).problem.contains("cannot be combined")
+    check parseArgs(@["--remove", "bob", "--rename", "x"]).problem.contains("cannot be combined")
     check parseArgs(@["-f"]).problem.contains("goes with --remove")
-
+    check parseArgs(@["--add", "bob", "-f"]).problem.contains("goes with --remove")

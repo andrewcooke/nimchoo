@@ -214,18 +214,18 @@ suite "nch user: the FTHR and the impulses":
     let s = open(db)
     discard s.importRide()
     s.close()
-    check userCommand.run(globals(db), @["--fthr", "154"]) == exitOk
+    check userCommand.run(globals(db), @["--edit", "default", "--fthr", "154"]) == exitOk
     let t = open(db)
     check t.q("select count(*) from impulse") == "0"
     discard calculateMissing(t.db, t.userId, t.defaultM)
     check t.q("select count(*) from impulse") == "2"
     t.close()
-    check userCommand.run(globals(db), @["--fthr", "160"]) == exitOk
+    check userCommand.run(globals(db), @["--edit", "default", "--fthr", "160"]) == exitOk
     let u = open(db)
     check u.q("select count(*) from impulse") == "0"
     discard calculateMissing(u.db, u.userId, u.defaultM)
     u.close()
-    check userCommand.run(globals(db), @["--clear-fthr"]) == exitOk
+    check userCommand.run(globals(db), @["--edit", "default", "--clear-fthr"]) == exitOk
     let v = open(db)
     defer: v.close()
     check v.q("select count(*) from impulse") == "0"

@@ -1858,3 +1858,12 @@ before are labelled `no activity` until a `--slow` run reads them again.  `nch u
 The code is `user/wipe.nim`; `userTables` lists the tables that `empty` clears, and a test fails if a new table
 with a `user_id` is left out of it.  Two schema comments (`importer/001-schema.sql`, `places/001-schema.sql`)
 still say `destroy`: they are not edited because a fragment's checksum covers its comments.
+
+## Management commands name their target (2026-11-04)
+
+`nch --user NAME` is for the commands that work on a user's data (list, import, ff, heatmap).  The management
+commands take their target after the command and never guess: `nch user --add NAME`, `--edit NAME` (with
+`--fthr`, `--clear-fthr`, `--rename`, `--default`), `--remove NAME -f`; `nch empty --user NAME -f` (the data,
+the user stays), `empty --all -f` (the database file), `empty --cache` (the generated files in `user/` of the
+cache; needs no `-f`: they are made again).  `--user` before either command is an error that says where it
+goes.  `model` should follow the same pattern when it gets `--remove` and `--edit`.
