@@ -54,3 +54,15 @@ suite "user: the command line":
   test "help":
     check parseArgs(@["-h"]).help and parseArgs(@["--help"]).help
     check parseArgs(@["--add", "bob", "-h"]).problem == ""                  # (help wins over the rest)
+
+suite "user params: --remove":
+  test "--remove, with -f":
+    let p = parseArgs(@["--remove", "-f"])
+    check p.problem == "" and p.remove and p.force and not p.list
+    check parseArgs(@["--remove"]).force == false
+  test "--remove stands alone, and -f goes with it":
+    check parseArgs(@["--remove", "--fthr", "150", "-f"]).problem.contains("cannot be combined")
+    check parseArgs(@["--add", "bob", "--remove"]).problem.contains("cannot be combined")
+    check parseArgs(@["--remove", "--rename", "x"]).problem.contains("cannot be combined")
+    check parseArgs(@["-f"]).problem.contains("goes with --remove")
+

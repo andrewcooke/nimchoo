@@ -1,0 +1,100 @@
+## Deleting what belongs to a user: all of it but the user (`nch empty`), or the user too
+## (`nch user --remove`), with the words and the countdown both use.  Nothing is deleted without
+## `--force`, and on a terminal there are then a few seconds in which to press Ctrl-C.
+##
+## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough
+## to remove the user.  Emptying one is deleting the rows that name the user in the tables below
+## (a file takes its activities, coordinates, segments, heart rate and impulses with it).  A
+## later module that stores per-user data adds its table to `userTables`; a test checks that
+## none is forgotten.  This module counts activities, and `describe` says so; a later module
+## that stores data it wants mentioned adds a line there (it is deleted either way).
+
+import std/[options, os, strutils]
+import db_connector/db_sqlite
+import ../db/store
+import ../errors
+import ../ui/[live, style]
+
+{.push raises: [].}
+
+const
+  userTables* = ["file", "seen_file", "selection"]
+    ## the tables with a `user_id` that `empty` clears (`user_profile` stays: it is the user's)
+  waitSeconds* = 5
+
+func activities(n: int): string =
+  $n & (if n == 1: " activity" else: " activities")
+
+func describe*(count: Option[int], user: string): string =
+  ## What is to go when a user, or everything, is removed: "74 activities for all users",
+  ## "74 activities and user bob"; "all data" if the count is not known.
+  let items = if count.isSome: activities(count.get) else: "all data"
+  if user.len == 0: items & " for all users" else: items & " and user " & user
+
+func describeEmpty*(count: Option[int], user: string): string =
+  ## What is to go when a user is emptied: "74 activities of user bob" (the user stays).
+  (if count.isSome: activities(count.get) else: "all data") & " of user " & user
+
+func countdownLine*(what: string, seconds: int): Line =
+  ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", in red.
+  @[span("deleting " & what & " in ", red),
+    span($seconds, red, bold = true),
+    span(" s ... (Ctrl-C to cancel)", red)]
+
+proc countdown*(l: Live, what: string, seconds: int,
+                wait: proc(ms: int) {.closure, raises: [].}) =
+  ## Show the line once a second, from `seconds` down to 1, then take it away.
+  for s in countdown(seconds, 1):
+    l.show @[countdownLine(what, s)]
+    wait 1000
+  l.finish()
+
+proc sleepMs*(ms: int) {.raises: [].} =
+  try: sleep(ms)
+  except OSError: discard
+
+proc countActivities*(path, user: string): Option[int] =
+  ## How many activities there are (of `user`, if given), counted straight from
+  ## the file, so that it works whatever layout the database has (the one
+  ## thing it needs is a table called `activity`).  None if that fails.
+  var db: DbConn
+  try:
+    db = open(path, "", "", "")
+  except DbError:
+    return none(int)
+  defer:
+    try: db.close()
+    except DbError: discard
+  try:
+    let n = if user.len == 0:
+              db.getValue(sql"select count(*) from activity")
+            else:
+              db.getValue(sql"""select count(*) from activity a
+                                join file f on f.id = a.file_id
+                                where f.user_id = (select id from user where name = ?)""",
+                          user)
+    result = some(parseInt(n))
+  except DbError, ValueError:
+    result = none(int)
+
+proc emptyUser*(st: Store) {.raises: [StoreError].} =
+  ## Delete everything the store's user has (the user, and their threshold heart rate, stay).
+  st.begin()
+  var done = false
+  try:
+    guard:
+      for table in userTables:
+        st.db.exec(sql("delete from " & table & " where user_id = ?"), st.userId)
+    st.commit()
+    done = true
+  finally:
+    if not done: st.rollback()
+  guard: st.db.exec(sql"vacuum")
+
+proc removeUser*(st: Store) {.raises: [StoreError].} =
+  ## Delete the store's user and everything they have.  (If it was the default user another
+  ## becomes the default, or if there is none a new empty one is made, the next time the
+  ## database is opened.)
+  guard:
+    st.db.exec(sql"delete from user where id = ?", st.userId)
+    st.db.exec(sql"vacuum")

@@ -6,7 +6,7 @@
 
 import std/[options, os, strutils]
 import nimchoo/cli/[args, common]
-import nimchoo/destroy/command as destroyCommand
+import nimchoo/empty/command as emptyCommand
 import nimchoo/selection/command as listCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
@@ -37,7 +37,7 @@ commands:
   user     the users: make, rename, set the threshold heart rate
   model    the models: sets of variables for the training impulse
   ff       the fitness and fatigue curves, as CSV for plotting
-  destroy  delete the database, or one user and their data
+  empty    delete the data of a user, or the whole database
 
 For more about a command: `nch COMMAND --help`.
 """
@@ -63,8 +63,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     modelCommand.run(g, rest)
   of "ff":
     ffCommand.run(g, rest)
-  of "destroy":
-    destroyCommand.run(g, rest)
+  of "empty":
+    emptyCommand.run(g, rest)
   else:
     usageError("nch", usage, "unknown command " & command)
 

@@ -18,6 +18,8 @@ type Params* = object
   clearFthr*: bool
   makeDefault*: bool         ## make the user (new, or current) the default one
   rename*: string            ## the new name of the current user ("": no)
+  remove*: bool              ## delete the current user and everything they have
+  force*: bool               ## ... really
   help*: bool
   problem*: string
 
@@ -39,7 +41,8 @@ func parseFthr*(s: string): Option[int] =
   none(int)
 
 proc parseArgs*(args: seq[string]): Params =
-  ## `nch user` (list), `--add NAME [--fthr N] [--default]`, `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`.
+  ## `nch user` (list), `--add NAME [--fthr N] [--default]`, `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`,
+  ## `--remove -f`.
   let createOption = custom(Params, ["--add"], true):
     p.create = true
     p.name = value
@@ -63,7 +66,9 @@ proc parseArgs*(args: seq[string]): Params =
       flag(Params, ["--clear-fthr"], clearFthr),
       flag(Params, ["--default"], makeDefault),
       fthrOption,
-      renameOption],
+      renameOption,
+      flag(Params, ["--remove"], remove),
+      flag(Params, ["-f", "--force"], force)],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
       " (to make a user: --add " & arg & "; to change an existing user: `nch --user " & arg &
       " user ...`)")
@@ -81,5 +86,9 @@ proc parseArgs*(args: seq[string]): Params =
       fail("--add can be combined only with --fthr and --default")
   if result.fthr.isSome and result.clearFthr:
     fail("--fthr and --clear-fthr cannot be used together")
+  if result.force and not result.remove: fail("-f goes with --remove")
+  if result.remove and (result.create or result.fthr.isSome or result.clearFthr or
+                        result.makeDefault or result.rename.len > 0):
+    fail("--remove cannot be combined with the other options (only -f)")
   result.list = not result.create and result.fthr.isNone and not result.clearFthr and
-                result.rename.len == 0 and not result.makeDefault
+                result.rename.len == 0 and not result.makeDefault and not result.remove

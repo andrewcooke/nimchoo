@@ -5,6 +5,7 @@ import nimchoo/db/store
 import nimchoo/modules
 import nimchoo/ui/logfile
 import nimchoo/user/command as userCommand
+import ../support/userdata
 
 let dir = getTempDir() / "nch-test-user"
 
@@ -165,3 +166,31 @@ suite "nch user":
     let s = openStore(db, allFragments, "bob")
     defer: s.close()
     check s.userName == "bob"
+
+suite "nch user --remove":
+  test "without -f nothing is deleted; with -f the user and everything of theirs go":
+    let db = fresh("remove")
+    check user(db, "--add", "bob") == exitOk
+    let bob = openStore(db, allFragments, "bob")
+    fill(bob, "bobs")
+    bob.close()
+    check userAs(db, "bob", "--remove") == exitFailure
+    check q(db, "select count(*) from user where name = 'bob'") == "1"
+    check userAs(db, "bob", "--remove", "-f") == exitOk
+    check q(db, "select count(*) from user where name = 'bob'") == "0"
+    check q(db, "select count(*) from file") == "0"
+    check q(db, "select count(*) from activity") == "0"
+    check q(db, "select count(*) from user where name = 'default'") == "1"     # (the others stay)
+
+  test "removing the default user makes another the default":
+    let db = fresh("removedefault")
+    check user(db, "--add", "bob") == exitOk
+    check userAs(db, "default", "--remove", "-f") == exitOk
+    check q(db, "select name from user where is_default = 1") == "bob"
+
+  test "an unknown user is an error, and nothing is deleted":
+    let db = fresh("removeunknown")
+    check user(db) == exitOk
+    check userAs(db, "nobody", "--remove", "-f") == exitFailure
+    check q(db, "select count(*) from user") == "1"
+

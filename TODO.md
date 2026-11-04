@@ -1847,3 +1847,14 @@ not a failure, nothing printed per file, not logged one by one (the `done` line 
 `seen_file` as kind `monitor` so a re-run skips it, and the exit status ignores it.  Files that do not say what
 they are (no `file_id`, or type `activity`) and have no session are still `no activity` failures.  Rows from
 before are labelled `no activity` until a `--slow` run reads them again.  `nch user --create` is now `--add`.
+
+## `nch empty` and `nch user --remove` (2026-11-04)
+
+`nch destroy` is gone.  `nch [--user NAME] empty -f` deletes all the data of a user (the default user without
+`--user`): their files, activities, selection and everything under them; the user and their FTHR stay.
+`nch empty --all -f` deletes the database file (every user), and cannot be combined with `--user`.
+`nch --user NAME user --remove -f` deletes the user and everything they have (acts on the current user, like
+`--rename`); if it was the default another user becomes it.  Both need `-f` and count down 5 s on a terminal.
+The code is `user/wipe.nim`; `userTables` lists the tables that `empty` clears, and a test fails if a new table
+with a `user_id` is left out of it.  Two schema comments (`importer/001-schema.sql`, `places/001-schema.sql`)
+still say `destroy`: they are not edited because a fragment's checksum covers its comments.

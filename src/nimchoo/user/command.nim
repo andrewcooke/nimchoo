@@ -10,14 +10,15 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
-import ../ui/logfile
-import ./params
+import ../ui/[live, logfile]
+import ./[params, wipe]
 
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] user
        nch user --add NAME [--fthr BPM] [--default]
        nch [--db PATH] [--user NAME] user [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
+       nch [--db PATH] [--user NAME] user --remove -f
 
 Without options, show the users.  Otherwise, make a user, or change the user given by
 --user (the default user if there is none).  One user is always the default: the first, until
@@ -30,6 +31,11 @@ another is made so.
   --clear-fthr    forget it
   --rename NEW    change the user's name
   --default       make the user the default: the one used when there is no --user
+  --remove        delete the user and everything they have (files, activities, ...); if
+                  they were the default another user becomes it.  Needs -f; on a terminal
+                  there are then 5 seconds in which to press Ctrl-C.  (To keep the user
+                  and delete only their data: `nch empty`.)
+  -f, --force     really do it
   -h, --help      show this help
 
 Names have 1 to 32 letters, digits and _ . - (not starting with -).
@@ -115,6 +121,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     if p.list:
       for l in userLines(st): stdout.say l & "\n"
+      return exitOk
+    if p.remove:
+      let what = describe(countActivities(st.path, st.userName), st.userName)
+      if not p.force:
+        return failure("nch user", "would delete " & what & " from " & st.path & "; use -f to do it")
+      if canLive():
+        countdown(newTerminalLive(), what, waitSeconds, sleepMs)
+      removeUser(st)
+      g.log.log(lvInfo, "user", leDeleted, what & " from " & st.path)
+      stdout.say "done: deleted " & what & "\n"
       return exitOk
     if p.create:
       if exists(st, p.name):

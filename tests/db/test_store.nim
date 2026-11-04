@@ -99,7 +99,7 @@ suite "database: opening and bringing the schema up to date":
     except StoreError as e:
       check "different version of nch" in e.msg
       check "m/001.sql" in e.msg
-      check "nch destroy -f" in e.msg
+      check "nch empty --all -f" in e.msg
     # and the unchanged one is fine
     openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
 
@@ -114,7 +114,7 @@ suite "database: opening and bringing the schema up to date":
       check false
     except StoreError as e:
       check "older version of nch" in e.msg
-      check "nch destroy -f" in e.msg
+      check "nch empty --all -f" in e.msg
 
   test "the data a seed puts in is part of the checksum, when it is given a version":
     let plain = frag("m/001.sql", "create table t(x integer);")
@@ -129,7 +129,7 @@ suite "database: opening and bringing the schema up to date":
       openStore(path, @[v2]).close()                                # other data: refused
       check false
     except StoreError as e:
-      check "different version of nch" in e.msg and "nch destroy -f" in e.msg
+      check "different version of nch" in e.msg and "nch empty --all -f" in e.msg
 
   test "the places fragment has the list as replaceable data, not in its checksum":
     var places: Fragment

@@ -13,7 +13,7 @@ import ./lines
 const usage* = """usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]
 
 Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, list,
-destroy ...) shows the lines of those commands, an EVENT (failed, advisory,
+empty ...) shows the lines of those commands, an EVENT (failed, advisory,
 duplicate ...) shows those events; both together show the events of those
 commands.  Several of one kind mean "any of them".  With no names, everything.
 

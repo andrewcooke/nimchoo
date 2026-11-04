@@ -11,7 +11,7 @@ import ./db/[test_store, test_multirow]
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]
 import ./ff/[test_curve, test_page, test_web, test_stats]
-import ./destroy/test_command
+import ./empty/test_command
 import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_pool, test_events,
                    test_display, test_logsink]
 import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
@@ -19,7 +19,7 @@ import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./cli/test_args
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
 import ./places/[test_data, test_seed, test_reload]
-import ./user/[test_params, test_command]
+import ./user/[test_params, test_command, test_wipe]
 import ./bundle/test_unpack
 import ./ui/[test_style, test_live, test_logfile, test_vocabulary, test_interval, test_palette]
 import ./log/[test_lines, test_command]
