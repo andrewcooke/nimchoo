@@ -63,7 +63,7 @@ type
   RecCtx = object
     msgNum: int
     offset: int                  ## file offset of the data message
-    ts: Option[int64]
+    ts: Option[FitTime]
     refs: Table[string, int64]   ## first value of fields decoded so far, by name (only for dynamic fields)
 
   # set by an enclosing component
@@ -430,7 +430,7 @@ proc decode*(d: var Decoder, p: Profile, t: Tokenizer,
   # a compressed timestamp header with no timestamp field in the definition
   if tok.compressed and t.defs[idx].timestampField < 0 and tok.timestamp.isSome:
     result.fields.add FieldValue(kind: vkInt, meta: timestampMeta, number: timestampFieldNo,
-                                 bits: 32, ints: @[tok.timestamp.get])
+                                 bits: 32, ints: @[int64(tok.timestamp.get)])
 
   if not d.plans[idx].hasDynamic:
     # the usual case: the values come out in the order of the definition

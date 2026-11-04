@@ -6,12 +6,13 @@ import std/[math, tables]
 import db_connector/db_sqlite
 import ../db/[channel, multirow, statement]
 import ../errors
+import ../fit/time
 
 {.push raises: [].}
 
 const field* = "heart_rate"
 
-func readings*(samples: Samples): seq[(int64, int)] =
+func readings*(samples: Samples): seq[(UnixTime, int)] =
   ## (time, bpm) in time order.  Zero (and below) means "no reading": the strap
   ## has lost contact.
   for x in samples.getOrDefault(field):
@@ -30,7 +31,7 @@ proc write(db: DbConn, activityId: int64, samples: Samples): int
       let st = insert.statement(n)
       for r in 0 ..< n:
         st.bindInt(3 * r + 1, activityId)
-        st.bindInt(3 * r + 2, rows[i + r][0])
+        st.bindInt(3 * r + 2, int64(rows[i + r][0]))
         st.bindInt(3 * r + 3, int64(rows[i + r][1]))
       st.run()
       i += n

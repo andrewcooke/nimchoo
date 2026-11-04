@@ -31,8 +31,8 @@ proc textValue(p: Profile, r: Record, f: FieldValue): string =
     for i, v in f.ints:
       if i > 0: result.add '|'
       case f.typeName
-      of "date_time": result.add fitToTime(v).utc.format(isoFormat) & "Z"
-      of "local_date_time": result.add fitToTime(v).utc.format(isoFormat)
+      of "date_time": result.add fitToTime(FitTime(v)).utc.format(isoFormat) & "Z"
+      of "local_date_time": result.add fitToTime(FitTime(v)).utc.format(isoFormat)
       of "timestamp_16":
         if r.timestamp.isSome:  # the record's expanded time, not the raw bits
           result.add fitToTime(r.timestamp.get).utc.format(isoFormat) & "Z"

@@ -3,7 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/db/[channel, store]
 import nimchoo/heartrate/step
 import nimchoo/importer/importer
-import nimchoo/fit/bytes
+import nimchoo/fit/[bytes, time]
 import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/warnings
@@ -38,8 +38,8 @@ let hand = fitFile(
 suite "heartrate: the readings of an activity":
   test "rounded, in order; zero and below are no reading":
     var ss: Samples
-    ss["heart_rate"] = @[Sample(t: 1, v: 60), Sample(t: 2, v: 0), Sample(t: 3, v: 61.6)]
-    check readings(ss) == @[(1'i64, 60), (3'i64, 62)]
+    ss["heart_rate"] = @[Sample(t: UnixTime(1), v: 60), Sample(t: UnixTime(2), v: 0), Sample(t: UnixTime(3), v: 61.6)]
+    check readings(ss) == @[(UnixTime(1), 60), (UnixTime(3), 62)]
     check readings(Samples()).len == 0
 
 suite "heartrate: import":

@@ -1,6 +1,6 @@
 import std/[options, os, sequtils, sets, strutils, unittest]
 import nimchoo/errors
-import nimchoo/fit/[bytes, crc]
+import nimchoo/fit/[bytes, crc, time]
 import nimchoo/profile/load
 import nimchoo/fit/tokens
 import ../support/fitbuilder
@@ -42,11 +42,11 @@ suite "tokenizer: hand-built files":
     check d.fields[1].offset == 5
     check d.timestampField == 0
     check toks[2].len == 6
-    check toks[2].timestamp == some(1000'i64)
+    check toks[2].timestamp == some(FitTime(1000))
     check not toks[2].compressed
     # 1000 = 0x3e8, low 5 bits = 8; offset 10 >= 8, so no rollover
     check toks[4].compressed
-    check toks[4].timestamp == some(1002'i64)
+    check toks[4].timestamp == some(FitTime(1002))
     check toks[5].checksum == uint16(crc16(t.data[0 ..< t.data.len - 2]))
 
   test "compressed timestamp rollover":
@@ -54,7 +54,7 @@ suite "tokenizer: hand-built files":
     let body = defn(0, 20, @[(253, 4, uint32T)]) & @[byte(0)] & le32(0x3f) &
       defn(1, 21, @[(5, 1, uint8T)]) & @[byte(0x80 or (1 shl 5) or 2)] & b(0)
     let (_, toks) = tokenize(fitFile(body))
-    check toks[^2].timestamp == some(0x22'i64 + 0x20)
+    check toks[^2].timestamp == some(FitTime(0x22 + 0x20))
 
   test "big-endian definition":
     let body = defn(0, 20, @[(253, 4, uint32T)], big = true) &
@@ -62,7 +62,7 @@ suite "tokenizer: hand-built files":
     let (t, toks) = tokenize(fitFile(body))
     check t.defs[0].endian == bigEndian
     check t.defs[0].globalNum == 20
-    check toks[2].timestamp == some(0x01020304'i64)
+    check toks[2].timestamp == some(FitTime(0x01020304))
 
   test "developer fields add to the data size":
     let body = defn(0, 20, @[(3, 1, uint8T)], dev = @[(0, 2, 0), (1, 4, 0)]) &
@@ -91,8 +91,8 @@ suite "tokenizer: hand-built files":
       @[byte(1)] & le16(0x5e5e) &         # increment
       @[byte(1)] & le16(0x5a5a)           # small decrement: warns
     let (t, toks) = tokenize(fitFile(body), ts16)
-    check toks[4].timestamp == some(0x15c5c'i64 + 0x202)
-    check toks[5].timestamp == some(0x15c5c'i64 + 0x202 - 0x404)
+    check toks[4].timestamp == some(FitTime(0x15c5c + 0x202))
+    check toks[5].timestamp == some(FitTime(0x15c5c + 0x202 - 0x404))
     check t.warnings.len == 1
     check t.warnings[0].kind == wkTimestamp16Backwards
 

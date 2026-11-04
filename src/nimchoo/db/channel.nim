@@ -7,13 +7,14 @@
 import std/tables
 import db_connector/db_sqlite
 import ../errors
+import ../fit/time
 
 {.push raises: [].}
 
 type
   Sample* = object
     ## One reading of one field.
-    t*: int64             ## Unix seconds, UTC
+    t*: UnixTime
     v*: float
 
   Samples* = Table[string, seq[Sample]]

@@ -1,5 +1,5 @@
 import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
-import nimchoo/fit/bytes
+import nimchoo/fit/[bytes, time]
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
 import nimchoo/fit/tokens
@@ -45,7 +45,7 @@ suite "decode: plain fields":
     let rec = recs[0]
     check rec.name == "record"
     check rec.number == 20
-    check rec.timestamp == some(1000'i64)
+    check rec.timestamp == some(FitTime(1000))
     check rec.fv("timestamp").ints == @[1000'i64]
     check rec.fv("timestamp").typeName == "date_time"
     check rec.fv("timestamp").units == "s"
@@ -213,7 +213,7 @@ suite "decode: timestamps":
     let (_, recs) = decodeAll(body)
     check recs[1].names == @["timestamp", "heart_rate"]
     check recs[1].fv("timestamp").ints == @[1004'i64]
-    check recs[1].timestamp == some(1004'i64)
+    check recs[1].timestamp == some(FitTime(1004))
 
   test "timestamp_16 stays raw; the record gets the expanded time":
     let msg = p.messages["monitoring"]
@@ -225,7 +225,7 @@ suite "decode: timestamps":
     check r.warnings.len == 0
     check recs[1].fv("timestamp_16").ints == @[0x5e5e'i64]
     check recs[1].fv("timestamp_16").typeName == "timestamp_16"
-    check recs[1].timestamp == some(0x15c5c'i64 + 0x202)
+    check recs[1].timestamp == some(FitTime(0x15c5c + 0x202))
 
 suite "decode: unknown parts":
   test "unknown field number":

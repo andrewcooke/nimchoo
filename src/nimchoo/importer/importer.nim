@@ -27,8 +27,8 @@ type
 proc insertActivity(st: Stmt, fileId: int64, a: ActivityData) {.raises: [StoreError].} =
   st.bindInt(1, fileId)
   st.bindInt(2, a.session)
-  st.bindInt(3, a.startT)
-  st.bindInt(4, a.endT)
+  st.bindInt(3, int64(a.startT))
+  st.bindInt(4, int64(a.endT))
   st.bindInt(5, a.utcOffsetS)
   st.bindOptText(6, a.sport)
   st.bindOptText(7, a.subSport)
@@ -42,8 +42,8 @@ proc insertSegment(st: Stmt, activityId: int64, n: int, g: Segment)
     {.raises: [StoreError].} =
   st.bindInt(1, activityId)
   st.bindInt(2, int64(n))
-  st.bindInt(3, g.startT)
-  st.bindInt(4, g.endT)
+  st.bindInt(3, int64(g.startT))
+  st.bindInt(4, int64(g.endT))
   st.run()
 
 proc insertCoords(m: var MultiInsert, activityId: int64, coords: seq[Coord]) {.raises: [StoreError].} =
@@ -56,7 +56,7 @@ proc insertCoords(m: var MultiInsert, activityId: int64, coords: seq[Coord]) {.r
       let c = coords[i + r]
       let b = 5 * r
       st.bindInt(b + 1, activityId)
-      st.bindInt(b + 2, c.t)
+      st.bindInt(b + 2, int64(c.t))
       st.bindReal(b + 3, c.lon)
       st.bindReal(b + 4, c.lat)
       st.bindReal(b + 5, c.alt)

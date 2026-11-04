@@ -6,6 +6,8 @@ import std/[options, tables]
 import ../lookup
 import ../profile/model
 import ./basetype
+import ./time
+export time.FitTime
 
 {.push raises: [].}
 
@@ -38,7 +40,7 @@ type
     number*: int        ## global message number
     local*: int         ## local message type
     defn*: int          ## index into Tokenizer.defs
-    timestamp*: Option[int64]  ## FIT seconds
+    timestamp*: Option[FitTime]
     fields*: seq[FieldValue]
 
 type

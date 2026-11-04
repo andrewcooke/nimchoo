@@ -27,27 +27,27 @@ import ../fit/time
 {.push raises: [].}
 
 const
-  minCalendarFit* = 0x10000000'i64  ## 1998-07-03; earlier times are not UTC
+  minCalendarFit* = FitTime(0x10000000)  ## 1998-07-03; earlier times are not UTC
   semicircleDegrees = 180.0 / 2147483648.0  ## degrees per FIT semicircle
 
 type
   Coord* = object
-    t*: int64             ## Unix seconds, UTC
+    t*: UnixTime
     lon*, lat*: float     ## degrees
     alt*: Option[float]   ## metres
 
   Segment* = object
     ## A stretch during which the timer ran (a closed interval).
-    startT*, endT*: int64   ## Unix seconds, UTC
+    startT*, endT*: UnixTime
 
   TimerEvent* = object
-    t*: int64
+    t*: UnixTime
     running*: bool          ## a start (true) or a stop (false)
 
   ActivityData* = object
     ## One session of a file.
     session*: int         ## position of the session message in the file
-    startT*, endT*: int64   ## Unix seconds, UTC
+    startT*, endT*: UnixTime
     utcOffsetS*: Option[int]  ## local time minus UTC
     sport*, subSport*: string  ## "" if unknown
     elapsedS*, timerS*, distanceM*: Option[float]
@@ -92,11 +92,12 @@ func sessionOf(p: Profile, r: Record, index: int): ActivityData
   ## The summary part of an activity from a session record.
   result = ActivityData(session: index)
   let start = r.firstInt("start_time")
-  if start.isNone or start.get < minCalendarFit:
+  if start.isNone or FitTime(start.get) < minCalendarFit:
     raiseImport(ifBadTime, "session " & $index & " has no valid start time")
-  result.startT = fitToUnix(start.get)
-  let finish = if r.timestamp.isSome: r.timestamp.get else: start.get
-  result.endT = fitToUnix(max(finish, start.get))
+  let startFit = FitTime(start.get)
+  result.startT = fitToUnix(startFit)
+  let finish = if r.timestamp.isSome: r.timestamp.get else: startFit
+  result.endT = fitToUnix(max(finish, startFit))
   result.sport = nameOf(p, r, "sport")
   result.subSport = nameOf(p, r, "sub_sport")
   result.elapsedS = r.firstNum("total_elapsed_time")
@@ -105,7 +106,7 @@ func sessionOf(p: Profile, r: Record, index: int): ActivityData
   let cal = r.firstNum("total_calories")
   if cal.isSome: result.calories = some(int(cal.get))
 
-func coordOf(r: Record, t: int64, index, offset: int): Option[RawCoord] =
+func coordOf(r: Record, t: UnixTime, index, offset: int): Option[RawCoord] =
   ## The coordinate of a record, if it has a position.
   let lat = r.firstInt("position_lat")
   let lon = r.firstInt("position_long")
@@ -125,7 +126,7 @@ func merged(segs: seq[Segment]): seq[Segment] =
     else:
       result.add g
 
-func segmentsOf*(startT, endT: int64, events: seq[TimerEvent]): seq[Segment] =
+func segmentsOf*(startT, endT: UnixTime, events: seq[TimerEvent]): seq[Segment] =
   ## The segments of a session lasting from `startT` to `endT`, given its timer
   ## events in time order.  A start while running and a stop while stopped
   ## change nothing; a first event that is a stop means the timer was running
@@ -238,7 +239,7 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
       of "activity":
         let local = rec.firstInt("local_timestamp")
         if offsetS.isNone and local.isSome and rec.timestamp.isSome:
-          offsetS = some(int(local.get - rec.timestamp.get))
+          offsetS = some(int(local.get - int64(rec.timestamp.get)))
       else: discard
   finally:
     ws.add r.warnings
@@ -256,7 +257,7 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
   for name, list in uniqueSamples(rawSamples):
     var first = 0                      # the samples of a session are those before the next one starts
     for k in 0 ..< sessions.len:
-      let limit = if k + 1 < sessions.len: sessions[k + 1].startT else: high(int64)
+      let limit = if k + 1 < sessions.len: sessions[k + 1].startT else: UnixTime(high(int64))
       var after = first
       while after < list.len and list[after].t < limit: inc after
       if after > first: sessions[k].samples[name] = list[first ..< after]

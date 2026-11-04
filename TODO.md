@@ -262,13 +262,17 @@ helps; the first is done as part of Task 9.
 2. **Cleanup by destructor, not by hand.**  25 places call `finalize`/`close` by hand, and the importer keeps
    five `Option[Stmt]` with a `try/finally` to finalize them.  Giving `Stmt` (and `Store`) a `=destroy` hook,
    and no copying, makes cleanup automatic and removes the `Option`s and the `finally` blocks.
-3. **Names as symbols, not strings, in the hot and the branching code.**  Messages and fields are compared by
+3. **(dropped 2026-11-04: complex for no real gain)** **Names as symbols, not strings, in the hot and the branching code.**  Messages and fields are compared by
    name (`case rec.name of "record"`) and found in tables keyed by string (`hash` is 4.7% of the decode time);
    the profile could hand out small integer ids (or enums for the few we use) once, and the code compare
    those.  The same for command names (`nch.nim` dispatches on strings, `commandRules`) -> an enum.
-4. **Distinct types for numbers that must not be mixed**: FIT seconds and Unix seconds (an off-by-631,065,600
+4. **(time done 2026-11-04; ids not yet)** **Distinct types for numbers that must not be mixed**: FIT seconds and Unix seconds (an off-by-631,065,600
    bug waiting), metres and kilometres, activity/file/user ids (139 uses of `int64`).  `type UnixTime =
-   distinct int64` and the like cost nothing at run time.
+   distinct int64` and the like cost nothing at run time.  Done: `FitTime` and `UnixTime` (`fit/time.nim`):
+   the tokenizer, `Record.timestamp`, the extracted activities, segments, coordinates and samples use them;
+   only `fitToUnix` converts, and the database is bound with an explicit `int64(...)`.  Differences are plain
+   `int64` seconds.  Left: ids (activity, file, user), distance units, and Unix times in the read-side
+   modules (selection, ff, heatmap), which still use `int64`.
 5. **One argument parser.**  Five commands each hand-roll the same loop (`template value(name)`, `fail`, the
    web options now shared).  A small declarative parser (options, flags, values with checks, the messages) in
    `cli/` would remove the repetition and make help and errors uniform; `std/parseopt` tokenises but does not

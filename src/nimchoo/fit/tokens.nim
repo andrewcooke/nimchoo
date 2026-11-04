@@ -47,7 +47,7 @@ type
       header*: FileHeader
     of tokDefinition, tokData:
       defn*: int                 ## index into Tokenizer.defs
-      timestamp*: Option[int64]  ## (data) current FIT time after this message
+      timestamp*: Option[FitTime]  ## (data) current FIT time after this message
       compressed*: bool          ## (data) compressed timestamp header
     of tokChecksum:
       checksum*: uint16
@@ -62,7 +62,7 @@ type
     phase: Phase
     pos, dataEnd, fileEnd: int
     active: array[16, int]      ## local type -> index into defs, or -1
-    timestamp: Option[int64]
+    timestamp: Option[FitTime]
 
 proc initTokenizer*(data: sink seq[byte],
                     ts16: HashSet[(int, int)]): Tokenizer =
@@ -177,7 +177,7 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
     if f.size != 4:
       t.warnings.add wkTimestampSize, at, "timestamp field has size " & $f.size
       return
-    t.timestamp = some(int64(getUint(t.data, at, 4, endian)))
+    t.timestamp = some(FitTime(getUint(t.data, at, 4, endian)))
   else:
     if f.size != 2:
       t.warnings.add wkTimestamp16Size, at, "timestamp_16 field has size " & $f.size
@@ -203,10 +203,10 @@ proc readData(t: var Tokenizer, local: int,
   if compressed:
     if t.timestamp.isNone:
       fail(pos, "compressed timestamp with no preceding timestamp")
-    let ts = t.timestamp.get
+    let ts = int64(t.timestamp.get)
     let delta = int64(t.data[pos] and 0x1f)
     let rollover = delta < (ts and 0x1f)
-    t.timestamp = some((ts and not 0x1f'i64) + delta + (if rollover: 0x20 else: 0))
+    t.timestamp = some(FitTime((ts and not 0x1f'i64) + delta + (if rollover: 0x20 else: 0)))
   t.updateTimestamp(idx, pos)
   Token(kind: tokData, offset: pos, len: size, defn: idx,
         timestamp: t.timestamp, compressed: compressed)

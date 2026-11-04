@@ -1,7 +1,7 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/errors
 import nimchoo/importer/extract
-import nimchoo/fit/[bytes, reader, records]
+import nimchoo/fit/[bytes, reader, records, time]
 import nimchoo/profile/load
 import nimchoo/warnings
 import ../support/fitbuilder
@@ -12,7 +12,7 @@ const
   multisport = "../choochoo/data/test/source/python-fitparse/" &
     "activity-large-fenxi2-multisport.fit"
   base = 900_000_000    ## a FIT time (2018)
-  unixBase = int64(base) + 631_065_600'i64
+  unixBase = UnixTime(int64(base) + 631_065_600'i64)
   north45 = 536_870_912       ## 45 degrees in semicircles (2^29)
   west90 = -1_073_741_824     ## -90 degrees (-2^30)
 
@@ -161,7 +161,7 @@ suite "activities: real files":
     check a.len == 1
     check ws.len == 0
     check a[0].sport == "cycling"
-    check a[0].startT == 1535373814        # 2018-08-27T12:43:34Z
+    check a[0].startT == UnixTime(1535373814)        # 2018-08-27T12:43:34Z
     check a[0].utcOffsetS == some(-10_800)
     check a[0].coords.len == 2099
     check abs(a[0].coords[0].lat - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
@@ -190,11 +190,12 @@ suite "activities: real files":
 
 # --- segments
 
-func ev(t: int64, running: bool): TimerEvent = TimerEvent(t: t, running: running)
-func seg(a, b: int64): Segment = Segment(startT: a, endT: b)
+func ev(t: int64, running: bool): TimerEvent = TimerEvent(t: UnixTime(t), running: running)
+func seg(a, b: int64): Segment = Segment(startT: UnixTime(a), endT: UnixTime(b))
+func seg(a, b: UnixTime): Segment = Segment(startT: a, endT: b)
 
 suite "segments: from timer events":
-  const (s0, s1) = (100'i64, 200'i64)   # the session
+  const (s0, s1) = (UnixTime(100), UnixTime(200))   # the session
 
   test "no timer events: the whole session":
     check segmentsOf(s0, s1, @[]) == @[seg(100, 200)]
