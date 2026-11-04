@@ -17,6 +17,7 @@ import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
 import nimchoo/ui/logfile
+import nimchoo/version
 
 {.push raises: [].}
 
@@ -25,6 +26,7 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --db PATH      the database file (default: $NCH_DB, else nch/nch.db in the
                  user's data directory)
   --user NAME    whose data to work with (default: the default user)
+  --version      print the version and the git commit it was built from
 
 commands:
   fit      read a FIT file and print it
@@ -75,6 +77,9 @@ proc main(): int {.raises: [].} =
     if a in ["-h", "--help"]:
       stdout.say usage
       return exitOk
+    elif a == "--version":
+      stdout.say versionString & "\n"
+      return exitOk
     elif a in ["--db", "--user"]:
       inc i
       if i >= args.len: return usageError("nch", usage, a & " needs a value")
@@ -97,7 +102,7 @@ proc main(): int {.raises: [].} =
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
         stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
-  g.log.log(lvInfo, command, leRun, rest.join(" "))
+  g.log.log(lvInfo, command, leRun, "[" & nchCommit & "] " & rest.join(" "))
   result = dispatch(g, command, rest)
   g.log.log(lvInfo, command, leExit, $result)
   g.log.close()

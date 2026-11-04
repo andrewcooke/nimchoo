@@ -240,13 +240,14 @@ sanitizer).  The dependencies (zippy 0.10.20, db_connector 0.1.0, checksums 0.2.
 upgrade: `choosenim 2.4.0`, then `nimble setup` (to remake `nimble.paths`), `nimble prod`, `nimble test`.  The
 code still works on 2.2 (`nimchoo.nimble` says `nim >= 2.2.0`) and "open the channels once" is right on both.
 
-## Task 11: a version (asked for 2026-11-04; the exact wish to be confirmed)
+## Task 11: a version (done 2026-11-04)
 
-The program has a version only in `nimchoo.nimble` (0.1.0).  Probably wanted: `nch --version` (and in `nch help`),
-the number from the nimble file plus the git commit it was built from (`git describe`, taken when building:
-`nimble prod` / `nimble build`), also written in the log's `run` line and in the cache manifest, so a log or a
-cache can be tied to the build that made it.  Rules for when the number changes (a schema change = a new
-minor version?) to be agreed.
+`nch --version` prints `nch 0.1.0 (a1b2c3d)`: the number from `nimchoo.nimble` and the short git commit the
+program was built from (`-dirty` if tracked files had uncommitted changes; `unknown` outside a git checkout),
+both found at compile time (`version.nim`).  Nim does not recompile a module because the repository moved on,
+so `nimble prod` uses `--forceBuild`.  The log's `run` line starts with `[commit]`.  Not done: the cache manifest
+does not record the build; rules for when the number changes (a schema change = a new minor version?) are still
+to be agreed.
 
 ## Task 10: more idiomatic Nim (a review, 2026-11-04; each item is done only when the author agrees)
 
