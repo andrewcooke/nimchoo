@@ -393,6 +393,13 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   `tests/importer/test_pool.nim`: the same database (ids included) and events for 1, 2, 3, 4, 8 and 16 threads
   with many files, real files, duplicates, bad and unreadable files.  Sample (300 files) on this 4-core VM:
   3.85 s with 1 thread, 2.5 s with 2, 2.6 s with 4 (the writer is then the limit).
+  **The cost of keeping file order (measured, 300 files):** the writer waits for the next file in order, while others
+  are ready, about 10% of the clocked time with a window of `2n+2` files and about 4% with 64 (0.1 s of wall time
+  at best); it is never starved (no wait with nothing ready), so the **writer is the limit** and writing in the
+  order of arrival would not help.  Kept the order; window now `4n+8`.  Timers `wait: order` and `wait: workers
+  busy` stay in the `NCH_PROFILE` table.  Checkpoint interval re-checked in wall time (1 thread): 1,000 pages
+  4.4 s, 20,000 pages 3.9 s, 100,000 pages 3.9 s.  Outside the profile's clock a run spends 0.22 s closing the
+  database (the last checkpoint); a benchmark that makes a fresh database also spends 0.54 s on the places.
   **Lessons:** (1) Nim's built-in `Channel` frees its buffer on `close` but keeps the pointer, so opening it again
   frees it twice (a nine-line program shows it under `-d:useMalloc -fsanitize=address`; silent in a normal
   build): the pool opens the channels once and never closes them.  **Already fixed upstream** (nim-lang/Nim

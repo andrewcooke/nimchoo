@@ -152,7 +152,10 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     pool = startPool(min(opts.jobs, work.len),
                      Config(profileBytes: profileBytes, channels: channels, known: known))
     pooled = pool.started > 0
-  let window = 2 * pool.started + 2          # how many files at most are with the workers
+  # How many files at most are with the workers (or finished and waiting for their turn).  A wider
+  # window means less waiting for a slow file at the front (measured: 4% of the time instead of 10%),
+  # at the cost of memory for the decoded files.
+  let window = 4 * pool.started + 8
   var submitted = 0                          # how many of `work` the workers have been given
   var consumed = 0                           # how many have been taken back
   var early: Table[int, Prepared]            # results that came before their turn
@@ -179,9 +182,12 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     # the file's turn: its result, from a worker or made here
     var prep: Prepared
     if pooled:
-      while k notin early:
-        let r = pool.receive()
-        early[r.index] = r
+      if k notin early:
+        # waiting: is it the order (other results are here) or are the workers still busy (none is)?
+        timed (if early.len > 0: "wait: order" else: "wait: workers busy"):
+          while k notin early:
+            let r = pool.receive()
+            early[r.index] = r
       discard early.pop(k, prep)
       inc consumed
       feed()
