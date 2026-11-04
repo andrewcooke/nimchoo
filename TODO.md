@@ -224,6 +224,41 @@ made by an earlier build must be deleted and re-imported), the tests moved to mi
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
+## Task 10: more idiomatic Nim (a review, 2026-11-04; each item is done only when the author agrees)
+
+Asked for: "making this more idiomatic Nim is excellent, especially if it helps; consider where else, even if
+it is not performance related."  Found by reading the code (counts are from grep).  Ordered by how much each
+helps; the first is done as part of Task 9.
+
+1. **Shared, immutable descriptions instead of copied strings** (decoder).  Every decoded `FieldValue` copies
+   its name, units and type name; a `Spec` / field description made once per message definition and pointed at
+   (`ref`, `{.acyclic.}`) is the Nim way, and removes most of the 207 million allocations.  Records are
+   borrowed (`lent`, templates) not copied (`let rec = ev.record` copies a whole record per message).
+2. **Cleanup by destructor, not by hand.**  25 places call `finalize`/`close` by hand, and the importer keeps
+   five `Option[Stmt]` with a `try/finally` to finalize them.  Giving `Stmt` (and `Store`) a `=destroy` hook,
+   and no copying, makes cleanup automatic and removes the `Option`s and the `finally` blocks.
+3. **Names as symbols, not strings, in the hot and the branching code.**  Messages and fields are compared by
+   name (`case rec.name of "record"`) and found in tables keyed by string (`hash` is 4.7% of the decode time);
+   the profile could hand out small integer ids (or enums for the few we use) once, and the code compare
+   those.  The same for command names (`nch.nim` dispatches on strings, `commandRules`) -> an enum.
+4. **Distinct types for numbers that must not be mixed**: FIT seconds and Unix seconds (an off-by-631,065,600
+   bug waiting), metres and kilometres, activity/file/user ids (139 uses of `int64`).  `type UnixTime =
+   distinct int64` and the like cost nothing at run time.
+5. **One argument parser.**  Five commands each hand-roll the same loop (`template value(name)`, `fail`, the
+   web options now shared).  A small declarative parser (options, flags, values with checks, the messages) in
+   `cli/` would remove the repetition and make help and errors uniform; `std/parseopt` tokenises but does not
+   do this.
+6. **SQL with bound parameters.**  `matchSql` and friends build SQL by concatenation and quote values by
+   hand (7 builders); ids are numbers so it is safe today, but parameters are the idiom (and let SQLite
+   cache the statements).
+7. **`must` (29 uses)** works around `Table[]` raising `KeyError`.  `getOrDefault` / `withValue` / `hasKey`
+   are the idiom where a default makes sense; keep `must` where a missing key is a bug.
+8. **Global state in `profiling.nim`** is cast to gcsafe; fine for one thread, but threads (Task 9, step 4)
+   want thread-local accumulators merged at the end.
+9. **Smaller:** `iterator`s instead of building a `seq` and returning it where the caller only loops
+   (`walkDirRec` results, `rows`); `func` where nothing has a side effect (the compiler checks); `case` on
+   enums with no `else` so a new value is a compile error (done for events, not everywhere).
+
 ## Task 9: profile a large import and make it faster (planned; added 2026-11-04)
 
 Asked for by the author, who suspects the database more than the Nim code.  **Measure first**, then change
