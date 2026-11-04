@@ -266,6 +266,20 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   decoder (53%: gprof says about 30% of the whole run is the allocator: 207 million allocations for 19 MB,
   because every decoded value copies its name, units and type name as strings and records are copied),
   and putting the route in (21%).
+* **More detail (same sample, WAL, real disk; two runs gave 8.9 and 9.0 s).**  Per call: decoding a file takes
+  16 ms on average (the event loop 14.5 ms and putting the activities together 1.7 ms), the route insert
+  11.5 ms, a commit 3.5 ms, the coordinates 3.1 ms, the heart-rate rows 2.6 ms, hashing 0.4 ms.  By size of
+  file (the 171 that reached the database; the 129 monitor files fail after decoding and are in the phase
+  table only):
+
+      files by size       files   imported        MB      ms   ms/file    ms/MB
+      under 10 KB            11         11       0.1      86         7     1277
+      10 - 50 KB             71         68       1.7     819        11      470
+      50 - 200 KB            54         53       4.8    2078        38      432
+      over 200 KB            35         35      11.6    5589       159      481
+
+  So cost goes with size, about 430-480 ms per MB (2 MB/s) once a file is over 10 KB, and a small file costs
+  about 7 ms whatever its size.  The full 3,909 files (320 MB) would take about 150 s now.
 * **Step 1: a way to measure.**  Phase timers in the importer (read and hash, decode, each table's inserts,
   nearest place, commit), switched on by an environment variable and written to the log or stderr; a
   repeatable benchmark (a directory of real files into a fresh database, several runs) as a nimble task.

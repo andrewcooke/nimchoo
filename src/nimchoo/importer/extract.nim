@@ -18,6 +18,7 @@ import std/[algorithm, options, sequtils, strutils, tables]
 import ../db/channel
 import ../errors
 import ../profile/model
+import ../profiling
 import ../warnings
 import ../fit/reader
 import ../fit/records
@@ -208,7 +209,8 @@ proc readActivities*(p: Profile, data: sink seq[byte], ws: var seq[Warning],
     offsetS = none(int)
     count = 0
   try:
-    for ev in r.events(p):
+    timed "decode: file":
+     for ev in r.events(p):
       if ev.kind != evRecord: continue
       let rec = ev.record
       case rec.name

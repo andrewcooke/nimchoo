@@ -2,7 +2,7 @@
 ## changed, import the rest, one transaction per file.  Everything that
 ## happens is announced as an event (events.nim); nothing is printed here.
 
-import std/[algorithm, options, os, strutils, tables, times]
+import std/[algorithm, monotimes, options, os, strutils, tables, times]
 import ../db/[channel, store]
 import ../errors
 import ../fit/bytes
@@ -147,7 +147,9 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
       var bytes: seq[byte]
       timed "read file":
         bytes = readBytes(c.path)
+      let t0 = getMonoTime()
       let r = st.importFileWith(profile, extractFilename(c.path), bytes, ws, opts.steps)
+      fileDone(bytes.len, (getMonoTime() - t0).inNanoseconds, r.outcome == ioImported)
       row.fileId = r.fileId
       case r.outcome
       of ioImported:

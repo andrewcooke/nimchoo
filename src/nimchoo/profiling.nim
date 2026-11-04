@@ -10,7 +10,10 @@ type Phase = object
   nanos: int64
   calls: int
 
+type FileTime = tuple[bytes: int, nanos: int64, imported: bool]
+
 var phases: OrderedTable[string, Phase]
+var files: seq[FileTime]
 var started: MonoTime
 
 let enabled* = existsEnv("NCH_PROFILE")
@@ -34,6 +37,12 @@ template timed*(name: string, body: untyped) =
   else:
     body
 
+proc fileDone*(bytes: int, nanos: int64, imported: bool) =
+  ## One file looked at: its size, how long it took altogether, whether it gave activities.
+  if enabled:
+    {.cast(gcsafe).}:
+      files.add (bytes, nanos, imported)
+
 proc startClock*() =
   if enabled: started = getMonoTime()
 
@@ -45,8 +54,31 @@ proc report*(): string =
   {.cast(gcsafe).}:
     for k, v in phases: rows.add (k, v)
   rows.sort do (a, b: (string, Phase)) -> int: cmp(b[1].nanos, a[1].nanos)
-  result = "phase                      ms      %   calls\n"
+  result = "phase                      ms      %   calls   us/call\n"
   for (k, v) in rows:
     result.add k.alignLeft(22) & align($(v.nanos div 1_000_000), 8) &
-      align($(v.nanos * 100 div total), 7) & align($v.calls, 8) & "\n"
+      align($(v.nanos * 100 div total), 7) & align($v.calls, 8) &
+      align($(v.nanos div 1000 div max(1, v.calls)), 10) & "\n"
   result.add "total".alignLeft(22) & align($(total div 1_000_000), 8) & "\n"
+  # by the size of the file
+  const limits = [(10_000, "under 10 KB"), (50_000, "10 - 50 KB"), (200_000, "50 - 200 KB"),
+                  (high(int), "over 200 KB")]
+  result.add "\nfiles by size       files   imported        MB      ms   ms/file    ms/MB\n"
+  var lower = 0
+  for (upper, label) in limits:
+    var n, imported = 0
+    var bytes = 0
+    var nanos = 0'i64
+    {.cast(gcsafe).}:
+      for f in files:
+        if f.bytes >= lower and f.bytes < upper:
+          inc n
+          if f.imported: inc imported
+          bytes += f.bytes
+          nanos += f.nanos
+    lower = upper
+    if n == 0: continue
+    let ms = nanos div 1_000_000
+    let mb = bytes.float / 1e6
+    result.add label.alignLeft(18) & align($n, 8) & align($imported, 11) & align(mb.formatFloat(ffDecimal, 1), 10) &
+      align($ms, 8) & align($(ms div n), 10) & align((if mb > 0: $int(ms.float / mb) else: "-"), 9) & "\n"
