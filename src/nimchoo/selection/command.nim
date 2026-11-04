@@ -39,6 +39,8 @@ last one).  Criteria are combined with "and".
   --to TIME          activities that start before the end of TIME
                      (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
                      with seconds; a --to date means the whole day)
+  --gps              only activities that have positions (a GPS track)
+  --no-gps           only activities that have none (indoor rides, treadmill runs ...)
   --near LAT,LON     activities that start within the radius of the point
   --near latest      ... of where the latest activity started (or "previous")
   --radius KM        radius for --near in kilometres (default: 100); on its own it

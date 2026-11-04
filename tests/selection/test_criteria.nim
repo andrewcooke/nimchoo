@@ -201,6 +201,20 @@ suite "list: the box and the sql":
   test "over a pole: all longitudes":
     let b = box(89.5, 10.0, 100.0)
     check b.minX == -180.0 and b.maxX == 180.0 and b.maxY == 90.0
+  test "--gps and --no-gps":
+    check parseArgs(@["--gps"], utcZone).criteria.gps == gfWith
+    check parseArgs(@["--no-gps"], utcZone).criteria.gps == gfWithout
+    check parseArgs(@[], utcZone).criteria.gps == gfAny
+    check parseArgs(@["--gps", "--gps"], utcZone).problem == ""
+    check parseArgs(@["--gps", "--no-gps"], utcZone).problem.contains("cannot be used together")
+    check parseArgs(@["--no-gps", "--gps"], utcZone).problem.contains("cannot be used together")
+    check parseArgs(@["--show", "--gps"], utcZone).problem.contains("takes no criteria")
+    let with = matchSql(@[UserId(1)], Criteria(gps: gfWith), none((float, float)))
+    check with.contains(" and exists (select 1 from coords k where k.activity_id = a.id)")
+    let without = matchSql(@[UserId(1)], Criteria(gps: gfWithout), none((float, float)))
+    check without.contains(" and not exists (select 1 from coords k where k.activity_id = a.id)")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("coords")
+
   test "the sql has what was asked for, and nothing else":
     let plain = matchSql(@[UserId(1), UserId(2)], Criteria(), none((float, float)))
     check plain == "select a.id from activity a join file f on f.id = a.file_id where f.user_id in (1, 2)"

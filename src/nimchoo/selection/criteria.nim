@@ -14,6 +14,9 @@ export ranges
 type
   NearKind* = enum nkNone, nkPoint, nkLatest, nkPrevious
 
+  GpsFilter* = enum gfAny, gfWith, gfWithout
+    ## --gps: only activities with at least one position; --no-gps: only those without any
+
   Criteria* = object
     show*: bool               ## --show: the stored selection, no criteria
     save*: bool               ## --save: keep what is listed as the selection
@@ -28,6 +31,7 @@ type
     sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
     fromT*: Option[UnixTime]  ## start of the activity at or after
     toT*: Option[UnixTime]    ## start of the activity before (exclusive)
+    gps*: GpsFilter
     near*: NearKind
     lat*, lon*: float         ## for nkPoint
     radiusKm*: float
@@ -170,6 +174,13 @@ proc takeWhen(p: var ListState, v: string, isEnd: bool): string =
   if isEnd: p.c.toT = t else: p.c.fromT = t
   ""
 
+func takeGps(p: var ListState, wanted: GpsFilter): string =
+  ## --gps and --no-gps, which contradict each other.
+  p.criteriaGiven = true
+  if p.c.gps notin {gfAny, wanted}: return "--gps and --no-gps cannot be used together"
+  p.c.gps = wanted
+  ""
+
 func takeNear(p: var ListState, v: string): string =
   p.criteriaGiven = true
   if parseReference(v) == refLatest:
@@ -216,6 +227,8 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     custom(ListState, ["--active"], true, takeActive(p, name, value)),
     custom(ListState, ["--from"], true, takeWhen(p, value, false)),
     custom(ListState, ["--to"], true, takeWhen(p, value, true)),
+    custom(ListState, ["--gps"], false, takeGps(p, gfWith)),
+    custom(ListState, ["--no-gps"], false, takeGps(p, gfWithout)),
     custom(ListState, ["--near"], true, takeNear(p, value)),
     custom(ListState, ["--radius"], true, takeRadius(p, value))])
   template fail(msg: string) =
@@ -318,6 +331,10 @@ func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)]
   result.add inValues("a.sub_sport", c.subSports)
   result.add rangeSql("a.distance_m", c.distanceM)
   result.add rangeSql("a.timer_s", c.activeS)
+  case c.gps
+  of gfWith: result.add " and exists (select 1 from coords k where k.activity_id = a.id)"
+  of gfWithout: result.add " and not exists (select 1 from coords k where k.activity_id = a.id)"
+  of gfAny: discard
   if c.fromT.isSome: result.add " and a.start_t >= " & $c.fromT.get
   if c.toT.isSome: result.add " and a.start_t < " & $c.toT.get
   if centre.isSome:

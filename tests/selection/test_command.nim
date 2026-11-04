@@ -84,6 +84,23 @@ suite "list: the command":
     check list(db, "--oldest", "1") == exitOk       # listing again does not change it
     check chosen(db) == @["paris"]
 
+  test "--gps and --no-gps: with and without positions":
+    let db = world("gps")
+    let s = openStore(db, allFragments)
+    s.db.exec(sql"""insert into coords(activity_id, t, lon, lat)
+                    select a.id, a.start_t, 1.0, 2.0 from activity a join file f on f.id = a.file_id
+                    where f.name = 'lisbon1'""")
+    s.close()
+    discard save(db, "--gps")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--no-gps")
+    check chosen(db) == @["paris"]
+    discard save(db, "--no-gps", "--sport", "cycling")       # (with the other criteria)
+    check chosen(db).len == 0
+    check list(db, "--gps", "--no-gps") == exitUsage
+    check list(db, "--no-gps", "--gps") == exitUsage
+    check list(db, "--show", "--gps") == exitUsage             # (a criterion)
+
   test "--show takes no criteria, and not --save":
     let db = world("showonly")
     discard save(db)
