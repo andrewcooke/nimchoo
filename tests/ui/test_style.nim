@@ -42,7 +42,7 @@ suite "ui style: rendering":
   test "with colour, styled spans get codes and a reset":
     check render(@[span("go", green)], true) == "\e[32mgo\e[0m"
     check render(@[span("no", red, bold = true)], true) == "\e[31m\e[1mno\e[0m"
-    check render(@[span("sh", grey)], true) == "\e[2msh\e[0m"
+    check render(@[span("sh", grey)], true) == "\e[38;5;240msh\e[0m"
 
   test "unstyled spans get no codes":
     check render(@[span("a"), span("b", yellow), span("c")], true) ==

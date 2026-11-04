@@ -2,8 +2,9 @@
 ## never a terminal code or a hex value, so a palette (even one for another background) is a change
 ## to this file alone.
 ##
-## The terminal forms are escape codes (white is the terminal's own text colour, grey is its
-## "dim"); the web forms are hex values for pages with a white background.
+## The terminal forms are escape codes (white is the terminal's own text colour, grey is a fixed
+## dark grey from the 256-colour range, so it looks the same in any theme); the web forms are hex
+## values for pages with a white background.
 
 {.push raises: [].}
 
@@ -18,7 +19,7 @@ func terminalCode*(c: Color): string =
   ## The escape code that starts the colour in a terminal ("" for white: nothing to start).
   case c
   of white: ""
-  of grey: "\e[2m"
+  of grey: "\e[38;5;240m"      # (238 is darker, 242 lighter; "\e[90m" is the theme's bright black)
   of red: "\e[31m"
   of green: "\e[32m"
   of yellow: "\e[33m"

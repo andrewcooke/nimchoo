@@ -172,7 +172,7 @@ proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] 
   let n = skippedMonths(rows, zone)
   if n > 0:
     result.add @[span("warning: " & $n & (if n == 1: " month" else: " months") &
-      " with no activity not shown; use --verbose to show them", yellow)]
+      " with no activity not shown, at the yellow month names; use --verbose to show them", yellow)]
 
 proc showSelection*(st: Store, c: Criteria, zone: Timezone, screen = Screen(colour: true)): seq[Line]
     {.raises: [StoreError].} =

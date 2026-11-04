@@ -91,6 +91,32 @@ suite "calendar: months left out":
     check skippedMonths(@[], utc()) == 0
     check skippedMonths(rowsIn(@[(2018, mMar), (2018, mMar), (2018, mJul)]), utc()) == 3     # (a month once, however many days)
 
+suite "calendar: the months either side of a gap":
+  proc rowsIn(ms: seq[(int, Month)]): seq[ListRow] =
+    for (y, m) in ms: result.add row(at(y, m, 5))
+  proc labelColours(ls: seq[Line]): seq[Color] =
+    for l in ls[1 .. ^1]: result.add l[0].look.colour
+  test "their names are yellow; the others are not":
+    # Jan Feb | Apr | Jun Jul Aug | Dec: gaps after Feb, around Apr, after Aug
+    let rs = rowsIn(@[(2018, mJan), (2018, mFeb), (2018, mApr), (2018, mJun), (2018, mJul), (2018, mAug), (2018, mDec)])
+    let ls = calendarLines(rs, utc(), false, colourScreen)
+    check ls[1..^1].mapIt(it.text[0 .. 2]) == @["Jan", "Feb", "Apr", "Jun", "Jul", "Aug", "Dec"]
+    check labelColours(ls) == @[white, yellow, yellow, yellow, white, yellow, yellow]
+  test "no gap, no yellow; with every month asked for, none either":
+    let rs = rowsIn(@[(2018, mMar), (2018, mApr), (2018, mMay)])
+    check labelColours(calendarLines(rs, utc(), false, colourScreen)).allIt(it == white)
+    let gappy = rowsIn(@[(2018, mMar), (2018, mJun)])
+    check labelColours(calendarLines(gappy, utc(), true, colourScreen)).allIt(it == white)
+    check labelColours(calendarLines(gappy, utc(), false, colourScreen)) == @[yellow, yellow]
+  test "a gap between years counts (December to February)":
+    let ls = calendarLines(rowsIn(@[(2017, mDec), (2018, mFeb)]), utc(), false, colourScreen)
+    check labelColours(ls) == @[yellow, yellow]
+  test "without colour a star follows the name, and the width does not change":
+    let ls = calendarLines(rowsIn(@[(2018, mMar), (2018, mJun)]), utc(), false, plainScreen)
+    check ls[1].text.startsWith("Mar*") and ls[2].text.startsWith("Jun*")
+    check ls[1].width == calendarWidth(plainScreen) and ls[2].width == calendarWidth(plainScreen)
+    check calendarLines(rowsIn(@[(2018, mMar), (2018, mApr)]), utc(), false, plainScreen)[1].text.startsWith("Mar ")
+
 suite "calendar: time zones":
   test "a day is the day where the user is, not in UTC":
     # 20:00 UTC on the 27th is 06:00 on the 28th at +10, and 17:00 on the 27th at -03

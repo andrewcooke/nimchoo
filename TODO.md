@@ -349,7 +349,9 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   none, to make them stand out (`calendar.dataColour`, `selectedColour`); the footer's ", N match selected"
   takes the colour the selected ones have in that display (red in the calendar, yellow in the table); a
   **last line warns** when months were left out: `warning: 37 months with no activity not shown; use
-  --verbose to show them` (yellow; `skippedMonths`).
+  --verbose to show them` (yellow; `skippedMonths`).  The names of the months either side of a gap are yellow (a `*` after them without colour).
+  **Grey is now a fixed dark grey, 256-colour 240 (`ESC[38;5;240m`)**, not the terminal's "dim", in the
+  palette (`terminalCode(grey)`; 238 is darker, 242 lighter, `ESC[90m` is the theme's bright black).
 * **Step D: the cache split, system files and templates** (the largest), in sub-steps, each a commit:
   D1 `user/` and `system/` directories (`cache.nim`, the server, the commands);
   D2 the manifest and unpacking of `Profile.xlsx`, the cities list and `NOTICE`, with replaced files used;

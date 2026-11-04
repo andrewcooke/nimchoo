@@ -480,7 +480,7 @@ suite "list: what is shown":
     defer: st.close()
     st.db.exec(sql"update activity set start_t = 1520640000 where id = (select min(id) from activity)")   # 2018-03-10
     let lines = listActivities(st, parseArgs(@["--calendar"], utc()).criteria, utc(), Screen(colour: true)).lines
-    check lines.texts[^1] == "warning: 4 months with no activity not shown; use --verbose to show them"
+    check lines.texts[^1] == "warning: 4 months with no activity not shown, at the yellow month names; use --verbose to show them"
     check lines[^1][0].look.colour == yellow
     let all = listActivities(st, parseArgs(@["--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true)).lines
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4     # (March to August: only August and March have any)

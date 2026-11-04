@@ -10,7 +10,8 @@
 ## display).  Pure: the rows, the zone and the screen are parameters.
 ##
 ## Only the months with an activity are shown (all the months from the first to the last with
-## `allMonths`); `skippedMonths` says how many the first leaves out.
+## `allMonths`); `skippedMonths` says how many the first leaves out, and the names of the months
+## either side of a gap are yellow (with a `*` after them when there is no colour).
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
 ## with data `"  12 "`, a selected day `" [34]"`, a day with none `"  -- "`.
@@ -93,7 +94,13 @@ proc calendarLines*(rows: seq[ListRow], zone: Timezone, allMonths: bool, screen:
     let month = Month(m mod 12 + 1)
     let offset = ord(getDayOfWeek(1, month, year))          # Monday is 0
     let days = getDaysInMonth(month, year)
-    var line: Line = @[span(monthNames[m mod 12] & " ")]
+    # the months either side of a gap are marked: yellow names (a "*" without colour)
+    let gap = months.find(m) > 0 and m - months[months.find(m) - 1] > 1 or
+              months.find(m) < months.high and months[months.find(m) + 1] - m > 1
+    var line: Line =
+      if not gap: @[span(monthNames[m mod 12] & " ")]
+      elif screen.colour: @[span(monthNames[m mod 12], yellow), span(" ")]
+      else: @[span(monthNames[m mod 12] & "*")]
     for k in 0 ..< cells:
       let day = k - offset + 1
       if day < 1 or day > days:

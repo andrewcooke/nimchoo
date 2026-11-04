@@ -7,7 +7,7 @@ suite "palette: five colours, named in one place":
     check @[white, grey, red, green, yellow] == @[Color(0), Color(1), Color(2), Color(3), Color(4)]
   test "each has a terminal code (white none) and a web colour":
     check terminalCode(white) == ""
-    check terminalCode(grey) == "\e[2m"
+    check terminalCode(grey) == "\e[38;5;240m"
     check terminalCode(red) == "\e[31m" and terminalCode(green) == "\e[32m" and terminalCode(yellow) == "\e[33m"
     for c in Color:
       check hex(c).len == 7 and hex(c)[0] == '#'
