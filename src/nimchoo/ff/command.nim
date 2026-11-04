@@ -217,10 +217,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
                      "cannot be made into a file name; use --stdout")
     # (the paths are kept in `let`s: `.get` on a temporary Option that is assigned on to a `var` has
     # left a dangling string here, with this compiler)
-    let csvFile = cacheFile(dir.get, stem.get, "csv")
-    let pageFile = cacheFile(dir.get, stem.get, "html")
+    let files = userDir(dir.get)
+    let csvFile = cacheFile(files, stem.get, "csv")
+    let pageFile = cacheFile(files, stem.get, "html")
     let csvPath = csvFile.get
     try:
+      makeCacheDirs(dir.get)
       if not fileExists(csvPath):                 # (made before from the same data: nothing to do)
         if key != current: return failure("nch ff", changed)
         writeAtomic(csvPath, makeCsv(st, m.get, p, now, tz))

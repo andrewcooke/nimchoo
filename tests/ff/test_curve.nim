@@ -136,7 +136,7 @@ suite "nch ff":
     check not dirExists(cache)
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     var files: seq[string]
-    for f in walkFiles(cache / "*.csv"): files.add f
+    for f in walkFiles(cache / "user" / "*.csv"): files.add f
     check files.len == 1
     let name = extractFilename(files[0])
     check name.startsWith("ff--") and name.endsWith(".csv") and "--model-default--" in name and
@@ -165,7 +165,7 @@ suite "nch ff":
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--fatigue-scale", "5"]) == exitOk
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--from", "2018-08-28"]) == exitOk
     var n = 0
-    for f in walkFiles(cache / "*.csv"): inc n
+    for f in walkFiles(cache / "user" / "*.csv"): inc n
     check n == 4
     # a different FTHR is different data: a new file
     let v = store.openStore(path, allFragments)
@@ -173,13 +173,13 @@ suite "nch ff":
     v.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     n = 0
-    for f in walkFiles(cache / "*.csv"): inc n
+    for f in walkFiles(cache / "user" / "*.csv"): inc n
     check n == 5
     check readFile(files[0]) == "marker"
     # --stdout makes no file
     check ffCommand.run(g, @["--to", "2018-09-06", "--utc", "--stdout"]) == exitOk
     n = 0
-    for f in walkFiles(cache / "*.csv"): inc n
+    for f in walkFiles(cache / "user" / "*.csv"): inc n
     check n == 5
     check ffCommand.run(g, @["--model", "nope"]) == exitFailure
     check ffCommand.run(g, @["--to", "x"]) == exitUsage
@@ -201,7 +201,7 @@ suite "nch ff: the key":
     s.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     var name = ""
-    for f in walkFiles(cache / "*.csv"): name = extractFilename(f)
+    for f in walkFiles(cache / "user" / "*.csv"): name = extractFilename(f)
     let key = name.split("--key-")[1].split("--")[0]
     check key.len == 12
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key]) == exitOk          # the current data

@@ -125,7 +125,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let dir = cacheDir()
   if dir.isNone:
     return failure("nch heatmap", "no place for the cache: set NCH_CACHE or HOME")
-  let made = prepare(g, p, dir.get, p.web.worker or p.web.enabled)
+  try:
+    makeCacheDirs(dir.get)
+  except IOError, OSError:
+    return failure("nch heatmap", "cannot make " & dir.get & ": " & getCurrentExceptionMsg())
+  let made = prepare(g, p, userDir(dir.get), p.web.worker or p.web.enabled)
   if made.status != 0: return made.status
   if p.web.enabled:
     # the address pins what was made: the selection, the style and the tolerance

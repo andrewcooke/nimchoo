@@ -102,6 +102,9 @@ suite "nch heatmap --web: a real server":
     let again = withCookie.request(w.base & "/heatmap")
     check again.code == Http302
     check pinned.startsWith($again.headers["Location"])          # (the key; the defaults are not repeated)
+    check dirExists(f.cache / "user") and dirExists(f.cache / "system")
+    check fileExists(f.cache / "server-token")                            # (the token is at the top, not in what is served)
+    check withCookie.request(w.base & "/files/server-token").code == Http404
     check w.stop() == 130
 
   test "without the token or with the wrong Host: forbidden":

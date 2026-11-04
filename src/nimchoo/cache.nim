@@ -7,7 +7,9 @@
 ## (the command, then each option as `--name-value`, in the order of the option
 ## names).  What may appear in a name is limited, and anything else is refused
 ## rather than escaped, so a name is always a plain file name that can be put in
-## a URL.  Pure functions: no files are touched here.
+## a URL.  The cache directory has two parts, `user/` (made by commands) and `system/` (unpacked
+## from the program), and keeps the server's token at its top.  Pure functions: no files are
+## touched here.
 
 import std/[algorithm, options, os, sequtils, strutils]
 
@@ -59,6 +61,17 @@ func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
       return none((string, seq[(string, string)]))
     options.add (p[0 ..< dash], p[dash + 1 .. ^1])
   some((parts[0], options))
+
+func userDir*(dir: string): string =
+  ## Where commands put what they make (maps, charts, pages): a part of the cache directory `dir`.
+  ## The server serves nothing else.
+  dir / "user"
+
+func systemDir*(dir: string): string =
+  ## Where what is unpacked from the program goes (the profile, the cities list, the page
+  ## templates): the other part of the cache directory.  Nothing here is made by a command, and all
+  ## of it can be deleted: it is unpacked again.
+  dir / "system"
 
 func cacheFile*(dir, stem, extension: string): Option[string] =
   ## The path of a file in the cache directory; none for an extension not allowed.

@@ -4,6 +4,7 @@
 ## request, which finds them again (see handler.nim).  Shared by the commands that have pages.
 
 import std/[os, osproc]
+import ../cache
 import ../cli/common
 import ../db/store
 import ../ui/[interrupt, logfile, vocabulary]
@@ -32,12 +33,13 @@ proc openBrowser(url: string): bool =
     false
 
 proc serveWeb*(g: Globals, command: string, o: WebOptions, cacheDir, query: string): int =
-  ## Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
+  ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its
+  ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
   ## pins the page in the address, e.g. "key=ab12cd&style=lines&tolerance=5".
   let name = "nch " & command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0: return failure(name, t.problem)
-  let cfg = ServerConfig(token: t.token, cacheDir: cacheDir, run: runWorker(getAppFilename()),
+  let cfg = ServerConfig(token: t.token, cacheDir: userDir(cacheDir), run: runWorker(getAppFilename()),
                          baseArgs: workerOptions(g), log: g.log, logCommand: command)
   exitOnInterrupt()
   let problem = serveForever(cfg, o.port, proc(port: int) {.closure, raises: [].} =

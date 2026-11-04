@@ -18,8 +18,8 @@ proc wkt(points: int, lon0, lat0: float): string =
 proc world(name: string): tuple[db, cache: string] =
   ## Two activities with routes (60 points each) and one without; all selected.
   removeDir(dir / name)
-  result = (dir / name / "x.db", dir / name / "cache")
-  putEnv("NCH_CACHE", result.cache)
+  result = (dir / name / "x.db", dir / name / "cache" / "user")       # (where the files go)
+  putEnv("NCH_CACHE", dir / name / "cache")
   let s = openStore(result.db, allFragments)
   defer: s.close()
   for (tag, t, route) in [("a", 1000, wkt(60, -9.14, 38.72)), ("b", 2000, wkt(60, 2.35, 48.85)),

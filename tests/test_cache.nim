@@ -72,3 +72,10 @@ suite "cache: files":
     let stem = fileStem("heatmap", [("key", "ab12cd"), ("style", "lines")]).get
     for ext in ["html", "geojson"]:
       check isCacheFileName(stem & "." & ext)
+
+suite "cache: the user and system parts":
+  test "two parts of the cache directory":
+    check userDir("/c/nch") == "/c/nch/user"
+    check systemDir("/c/nch") == "/c/nch/system"
+  test "files made by commands are named in the user part":
+    check cacheFile(userDir("/c/nch"), "heatmap--key-a", "geojson") == some "/c/nch/user/heatmap--key-a.geojson"

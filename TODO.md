@@ -353,7 +353,10 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   **Grey is now a fixed dark grey, 256-colour 240 (`ESC[38;5;240m`)**, not the terminal's "dim", in the
   palette (`terminalCode(grey)`; 238 is darker, 242 lighter, `ESC[90m` is the theme's bright black).
 * **Step D: the cache split, system files and templates** (the largest), in sub-steps, each a commit:
-  D1 `user/` and `system/` directories (`cache.nim`, the server, the commands);
+  D1 `user/` and `system/` directories (`cache.nim`, the server, the commands) -- built: `userDir`/`systemDir`
+  (pure, in `cache.nim`), `makeCacheDirs` (in `serve/pages.nim`) makes both; `heatmap` and `ff` write into
+  `user/`; the server serves only `user/` (`ServerConfig.cacheDir` is that directory) and keeps `server-token`
+  at the top; nothing is written to `system/` yet (D2).  Old files in the cache root are ignored;
   D2 the manifest and unpacking of `Profile.xlsx`, the cities list and `NOTICE`, with replaced files used;
   D3 the template engine (pure, tested);
   D4 the heat map and chart pages as templates, with the library versions file;
