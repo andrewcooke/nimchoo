@@ -115,7 +115,7 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
   of acUnpack, acRefresh:
     if b.name != noticeBundle.name: discard resolve(top, noticeBundle)       # (the notice goes with them)
     try:
-      createDir systemDir(top)
+      createDir parentDir(path)
       let tmp = path & ".part"
       writeFile(tmp, b.data)
       moveFile(tmp, path)

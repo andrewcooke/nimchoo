@@ -113,6 +113,10 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     result = Prepared(status: failure("nch heatmap", e.msg))
   except IOError, OSError:
     result = Prepared(status: failure("nch heatmap", "cannot write to " & dir & ": " & getCurrentExceptionMsg()))
+  except TemplateError as e:
+    result = Prepared(status: failure("nch heatmap", "cannot make the page: " & e.msg &
+      " (the template is system/templates/heatmap.html and the libraries are system/libraries.txt, " &
+      "in the cache directory; delete one to have the built-in one again)"))
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch heatmap ARGS`; returns the exit status.

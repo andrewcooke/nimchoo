@@ -233,6 +233,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         writeAtomic(pageFile.get, html.get)
     except IOError, OSError:
       return failure("nch ff", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg())
+    except TemplateError as e:
+      return failure("nch ff", "cannot make the page: " & e.msg & " (the template is " &
+        "system/templates/ff.html and the libraries are system/libraries.txt, in the cache directory; " &
+        "delete one to have the built-in one again)")
     if p.web.enabled:
       return serveWeb(g, "ff", WebOptions(port: p.web.port, noOpen: p.web.noOpen,
                                           newToken: p.web.newToken),

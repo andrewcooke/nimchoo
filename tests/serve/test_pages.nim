@@ -7,10 +7,6 @@ suite "serve pages: the shared helpers":
   test "text is escaped for a page":
     check htmlEscape("<b>\"a\" & b</b>") == "&lt;b&gt;&quot;a&quot; &amp; b&lt;/b&gt;"
     check htmlEscape("plain") == "plain"
-  test "a template is filled in, once and for all":
-    check fill("@A@ and @B@ and @A@", {"A": "x", "B": "@C@"}) == "x and @C@ and x"
-    check replaceAll("aXbXc", "X", "--") == "a--b--c"
-    check fill("no placeholders", {"A": "x"}) == "no placeholders"
   test "a file is written whole, with its directory made, and no part file is left":
     removeDir(dir)
     let path = dir / "a" / "b.txt"

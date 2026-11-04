@@ -379,7 +379,17 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   `text()`, `flag()`, `list()` in a `context()`.  A name nothing has, a tag not closed, sections that do not
   match: `TemplateError` with the line (a kind of `NchError`).  Parsed once (`parse`), filled in with
   `render`.  `htmlEscape` now lives here (`serve/pages` re-exports it);
-  D4 the heat map and chart pages as templates, with the library versions file;
+  D4 the heat map and chart pages as templates, with the library versions file -- built: `heatmap/page.html` and
+  `ff/page.html` (Mustache, see D3) are built in and kept as `system/templates/heatmap.html` and `ff.html`;
+  `serve/libraries.txt` (`name = value` lines: the CDN addresses and integrity hashes of Leaflet, d3 and
+  Plot, and the tile address) is kept as `system/libraries.txt`, and every name in it is a value in every
+  template (`{{leaflet-js}}`).  `pageHtml` resolves both through the bundle (the author's files win);
+  `renderPage` is the pure form.  Other values: `title`, `data`, and for the chart `hourly`, `green`, `red`
+  (the palette's).  A mistake in an edited template is reported by the command with the line, and says
+  which files to delete to go back.  The server's content-security policy is still fixed (unpkg.com for
+  scripts and styles, tile.openstreetmap.org for tiles), so a library from another host needs it changed in
+  `serve/handler.nim`.  (This also removed a stale second copy of the chart's script, left in the page by the
+  zoom edit; it did nothing.)  `serve/pages.nim` no longer has `fill`/`replaceAll`;
   D5 reload the places when the list changes, and repoint the activities.
 
 ## Task 3: `nch heatmap` (GeoJSON) and a local web viewer (planned)

@@ -1,4 +1,8 @@
-import std/[options, strutils, unittest]
+import std/[options, os, strutils, tables, unittest]
+import ../support/env
+import nimchoo/bundle/unpack
+import nimchoo/serve/libraries
+import nimchoo/templating
 import nimchoo/ff/[command, page, params]
 import nimchoo/serve/request
 import nimchoo/cache
@@ -6,17 +10,18 @@ import nimchoo/ui/palette
 
 const csv = "ff--key-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
 
+let libs = parseLibraries(librariesBundle.data).toTable
+
 suite "ff: the page":
   test "it draws the file, with the libraries from the CDN under their integrity hashes":
     let h = pageHtml(csv, "Fitness and fatigue, model default", false).get
     check h.contains("fetch('/files/" & csv & "')")
-    check h.contains("https://unpkg.com/d3@" & d3Version & "/dist/d3.min.js")
-    check h.contains("integrity=\"" & d3Hash & "\"") and h.contains("integrity=\"" & plotHash & "\"")
-    check h.contains("plot@" & plotVersion)
+    check h.contains("https://unpkg.com/d3@7.9.0/dist/d3.min.js")
+    check h.contains("integrity=\"" & libs["d3-js-hash"] & "\"") and h.contains("integrity=\"" & libs["plot-js-hash"] & "\"")
+    check h.contains("plot@0.6.17")
     check h.contains("const hourly = false;")
     check pageHtml(csv, "x", true).get.contains("const hourly = true;")
-    for placeholder in ["@TITLE@", "@D3@", "@D3HASH@", "@PLOT@", "@PLOTHASH@", "@HOURLY@", "@DATA@"]:
-      check placeholder notin h                                          # (every placeholder was replaced)
+    check "{{" notin h and "}}}" notin h                                 # (every tag was filled in)
   test "the page does nothing the content-security policy forbids":
     # no eval or Function(): d3.csvParse (with a row function) uses Function(), so csvParseRows is used
     let h = pageHtml(csv, "t", false).get
@@ -38,6 +43,22 @@ suite "ff: the page":
     for line in h.splitLines:
       if line.contains("src=\""):
         check line.contains("https://unpkg.com/")
+
+suite "ff: the template is a file":
+  teardown: useTestCache()
+  test "the author's template and libraries are used":
+    let top = getTempDir() / "nch-test-ff-page"
+    removeDir top
+    putEnv("NCH_CACHE", top)
+    discard pageHtml(csv, "t", false)
+    check readFile(systemDir(top) / "templates" / "ff.html") == pageTemplate
+    writeFile(systemDir(top) / "templates" / "ff.html",
+              "{{title}} {{{hourly}}} {{{green}}} {{{red}}} {{plot-js}} {{#hourly}}by the hour{{/hourly}}{{^hourly}}by the day{{/hourly}}\n")
+    check pageHtml(csv, "T", true).get == "T true " & hex(green) & " " & hex(red) & " " & libs["plot-js"] & " by the hour\n"
+    check pageHtml(csv, "T", false).get.endsWith("by the day\n")
+  test "the pure form":
+    check renderPage("{{data}}", @[], csv, "t", false) == some(csv)
+    check renderPage("{{data}}", @[], "x.geojson", "t", false).isNone
 
 suite "ff: --worker, --web and the address":
   test "options":
