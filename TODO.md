@@ -2008,11 +2008,19 @@ a sector is added, the earlier rides near it are matched against it as well.
   checked on made-up profiles with known answers and on real rides instead (a 4.8 % climb of 1.9 km, +93 m, and
   a 3.9 % one of 3.2 km, +124 m, in two of the author's rides).
 
-### Finding: timer segments are short in real rides
+### Settled: timer segments (author, 2026-11-04)
 
 The 167 activities of the sample have **50 timer segments on average** (up to 327; a typical ride has a dozen or
-more, the longest 20 to 60 minutes), because the device pauses the timer whenever the rider stops.  A rule that
-a climb lies inside one segment would cut climbs at every stop.  To settle with the author: detect on the whole
-activity (the profile is by distance and ignores pauses) and record for each effort its elapsed time, its
-moving time (the time inside the timer's stretches) and the seconds paused, so that comparisons can use the
-moving time or leave out efforts with a stop.
+more, the longest 20 to 60 minutes), because the device pauses the timer whenever the rider stops.  So climbs are
+**detected on the whole route** (the profile is by distance and ignores pauses), and an effort is **ranked by its
+total time**, gate to gate, stops included.  (Moving time and the seconds paused are not stored; they could be
+added to `effort` later from the activity's segments.)  The earlier "a climb lies inside a timer segment" rule is
+dropped.
+
+### Step 4 is built (2026-11-04): `climbs/001-schema.sql`, `climbs/ddl.nim`, registered after `importer`
+
+`sector` (id, kind, length_m, gain_m, gradient, category, found_at, route: XYZ linestring with a spatial index),
+`effort` (sector_id, activity_id, start_t, finish_t, elapsed_s, start_m; primary key sector, activity, start_t),
+`climbs_done` (activity_id, version).  Distances are metres in the database and kilometres on the screen.  No
+altitude at the gates and no finish distance (dropped by the author).  Efforts go with their activity or their
+sector; sectors refer to no ride.  Tested: the route and its index, the cascades, laps, the duplicate pass.

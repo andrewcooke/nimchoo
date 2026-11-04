@@ -4,6 +4,7 @@
 ## everything refers to, belongs to the database code itself and is applied
 ## first, always.)  A new module with tables adds its `ddl` here.
 
+import ./climbs/ddl as climbsDdl
 import ./heartrate/ddl as heartrateDdl
 import ./heartrate/step as heartrateStep
 import ./importer/ddl as importerDdl
@@ -16,7 +17,7 @@ import ./db/[channel, fragment]
 {.push raises: [].}
 
 const allFragments*: seq[Fragment] =
-  placesDdl.fragments & importerDdl.fragments & heartrateDdl.fragments & selectionDdl.fragments &
-  userDdl.fragments & modelDdl.fragments
+  placesDdl.fragments & importerDdl.fragments & heartrateDdl.fragments & climbsDdl.fragments &
+  selectionDdl.fragments & userDdl.fragments & modelDdl.fragments
 
 let allImportSteps*: seq[ImportStep] = @[heartrateStep.heartrateStep]
