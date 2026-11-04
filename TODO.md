@@ -1815,3 +1815,11 @@ embedded profile without a temp file.
   fields.  Composite if `components` set (comma-separated parallel lists, each
   component delegates to a named field in the same message).  Dynamic if followed
   by rows with field_name but no field_no (subfields selected by ref_name/ref_value).
+
+### Import "chunking" (numbers update, pause, update...)
+Cause (full `~/fit`, `-j 4`): the writer stopped for SQLite's own WAL checkpoint every 80 MB (longest
+commit 352 ms), and the window of `4n+8` files was too small for many tiny files behind a big one.
+Fix: a second connection on its own thread (`db/checkpointer.nim`) does passive checkpoints once the
+log passes 8 MB (the writer's autocheckpoint is off during an import); the window is bounded by
+bytes (48 MB, 256 files) not file count.  Result: longest commit 352 -> 65 ms, longest order wait
+44 ms; total time unchanged (22.6 s: the writer is the limit).

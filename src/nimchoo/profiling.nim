@@ -8,6 +8,7 @@ import std/[algorithm, monotimes, os, strutils, tables, times]
 
 type Phase = object
   nanos: int64
+  longest: int64          ## the slowest single call
   calls: int
 
 type FileTime = tuple[bytes: int, nanos: int64, imported: bool]
@@ -23,16 +24,17 @@ let enabled* = existsEnv("NCH_PROFILE")
 proc add(name: string, nanos: int64) =
   var p = phases.getOrDefault(name)
   p.nanos += nanos
+  p.longest = max(p.longest, nanos)
   inc p.calls
   phases[name] = p
 
-type PhaseTotal* = tuple[name: string, nanos: int64, calls: int]
+type PhaseTotal* = tuple[name: string, nanos: int64, calls: int, longest: int64]
 
 proc takePhases*(): seq[PhaseTotal] =
   ## The totals of this thread, which are then forgotten here (a worker sends them to the thread
   ## that reports, before it ends).
   if not enabled: return
-  for k, v in phases: result.add (k, v.nanos, v.calls)
+  for k, v in phases: result.add (k, v.nanos, v.calls, v.longest)
   phases.clear()
 
 proc mergePhases*(totals: seq[PhaseTotal]) =
@@ -42,6 +44,7 @@ proc mergePhases*(totals: seq[PhaseTotal]) =
     var p = phases.getOrDefault(t.name)
     p.nanos += t.nanos
     p.calls += t.calls
+    p.longest = max(p.longest, t.longest)
     phases[t.name] = p
 
 template timed*(name: string, body: untyped) =
@@ -71,11 +74,11 @@ proc report*(): string =
   var rows: seq[(string, Phase)]
   for k, v in phases: rows.add (k, v)
   rows.sort do (a, b: (string, Phase)) -> int: cmp(b[1].nanos, a[1].nanos)
-  result = "phase                      ms      %   calls   us/call\n"
+  result = "phase                      ms      %   calls   us/call   longest ms\n"
   for (k, v) in rows:
     result.add k.alignLeft(22) & align($(v.nanos div 1_000_000), 8) &
       align($(v.nanos * 100 div total), 7) & align($v.calls, 8) &
-      align($(v.nanos div 1000 div max(1, v.calls)), 10) & "\n"
+      align($(v.nanos div 1000 div max(1, v.calls)), 10) & align($(v.longest div 1_000_000), 13) & "\n"
   result.add "total".alignLeft(22) & align($(total div 1_000_000), 8) & "\n"
   if merged: result.add "(the times of the threads are added up: they can come to more than the total)\n"
   # by the size of the file

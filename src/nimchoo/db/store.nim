@@ -30,6 +30,7 @@ const
 type
   Store* = object
     db*: DbConn
+    path*: string      ## the database file (":memory:" for one in memory)
     userId*: int64
     userName*: string
 
@@ -162,6 +163,7 @@ proc openStore*(path: string, fragments: seq[Fragment],
                  getCurrentExceptionMsg())
   guard:
     result.db = open(path, "", "", "")
+    result.path = path
   try:
     loadSpatialite(result.db)
     guard:
@@ -194,6 +196,11 @@ proc openStore*(path: string, fragments: seq[Fragment],
   except StoreError:
     close(result)
     raise
+
+proc setAutoCheckpoint*(s: Store, pages: int) {.raises: [StoreError].} =
+  ## Copy the log back into the database whenever it holds this many pages (0: never, leaving it to
+  ## someone else, see checkpointer.nim; the last connection to close does it anyway).
+  guard: s.db.exec(sql("pragma wal_autocheckpoint = " & $pages))
 
 proc begin*(s: Store) {.raises: [StoreError].} =
   guard: s.db.exec(sql"begin")

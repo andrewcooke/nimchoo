@@ -3,7 +3,7 @@
 ## happens is announced as an event (events.nim); nothing is printed here.
 
 import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
-import ../db/[channel, store]
+import ../db/[channel, checkpointer, store]
 import ../errors
 import ../profile/default
 import ../profile/model
@@ -152,17 +152,31 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     pool = startPool(min(opts.jobs, work.len),
                      Config(profileBytes: profileBytes, channels: channels, known: known))
     pooled = pool.started > 0
-  # How many files at most are with the workers (or finished and waiting for their turn).  A wider
-  # window means less waiting for a slow file at the front (measured: 4% of the time instead of 10%),
-  # at the cost of memory for the decoded files.
-  let window = 4 * pool.started + 8
+  # How much is with the workers (or finished and waiting for its turn): at most `maxFiles` files
+  # and `maxBytes` of FIT files (the decoded files take two or three times that in memory).  A wide
+  # window means less waiting for a slow file at the front; counting bytes lets any number of tiny
+  # files (monitoring data is mostly that) queue up behind a big one.
+  const
+    maxFiles = 256
+    maxBytes = 48 * 1024 * 1024
   var submitted = 0                          # how many of `work` the workers have been given
   var consumed = 0                           # how many have been taken back
+  var inFlight = 0'i64                       # bytes of the files with the workers
   var early: Table[int, Prepared]            # results that came before their turn
   template feed() =
-    while pooled and submitted < work.len and submitted - consumed < window:
+    while pooled and submitted < work.len and submitted - consumed < maxFiles and
+        (submitted == consumed or inFlight + found.files[work[submitted]].size <= maxBytes):
       pool.submit Job(index: work[submitted], path: found.files[work[submitted]].path)
+      inFlight += found.files[work[submitted]].size
       inc submitted
+  # the log is copied back into the database by a thread of its own, not by the writer, which would stop
+  # for it (the pause is a third of a second or more, several times in a long import)
+  var checkpoints: Checkpointer
+  if work.len > 0:
+    checkpoints = startCheckpointer(st.path)
+    if checkpoints.running:
+      try: st.setAutoCheckpoint(0)
+      except StoreError: discard
   feed()
 
   for k, c in found.files:
@@ -190,6 +204,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
             early[r.index] = r
       discard early.pop(k, prep)
       inc consumed
+      inFlight -= c.size
       feed()
     else:
       prep = prepareFile(profile, channels, askDatabase, Job(index: k, path: c.path))
@@ -236,6 +251,10 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     if pending.full: flushSeen()
     finished ev
   if pooled: pool.finish()
+  if checkpoints.running:
+    checkpoints.stop()
+    try: st.setAutoCheckpoint(20000)
+    except StoreError: discard
   timed "flush seen":
     flushSeen()
   if enabled:
