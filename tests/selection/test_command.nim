@@ -433,7 +433,7 @@ suite "list: what is shown":
     check r.lines.texts[0] == "date        start  sport            km  active"
     check r.lines.texts[1] == "2018-07-01  12:00  cycling/road   12.3   1h01m"
     check r.lines.texts[2] == "2018-08-27  12:00  running/trail  12.3   1h01m"
-    check r.lines.texts[^1] == "2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
+    check r.lines.texts[^1] == "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
   test "rows in the selection are yellow; with --save or --show all are":
     let db = world("yellow")
@@ -456,7 +456,7 @@ suite "list: what is shown":
     let db = world("shownusers")
     let r = shown(db, "--users", "default", "bob")
     check r.lines.texts[0].startsWith("date        start  user")
-    check r.lines.texts[^1].startsWith("3 of 3 activities")
+    check r.lines.texts[^1].startsWith("done: 3 of 3 activities")
     check r.lines.len == 5                           # header, three rows, the last line
 
   test "-v adds the path of the file, -n is --newest":
@@ -475,20 +475,20 @@ suite "list: what is shown":
     defer: st.close()
     let again = showSelection(st, Criteria(), utc())
     check again.texts[1].startsWith("2018-08-27  12:00  running/trail")
-    check again.texts[^1].startsWith("1 activity (1 match selected),")   # (no "of": nothing was chosen from)
+    check again.texts[^1].startsWith("done: 1 activity, 1 match selected,")   # (no "of": nothing was chosen from)
 
   test "an empty selection, and a list with nothing in it":
     let db = world("shownempty")
     let st = openStore(db, allFragments)
     defer: st.close()
     check showSelection(st, Criteria(), utc()).texts == @["selection: empty"]
-    check shown(db, "--from", "2030-01-01").lines.texts == @["0 of 2 activities"]
+    check shown(db, "--from", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
 
   test "--near says where":
     let db = world("shownnear")
     let r = shown(db, "--users", "default", "bob", "--near", "38.73,-9.13", "--radius", "10")
     check r.lines.texts[0] == "near 38.7300,-9.1300, within 10km"
-    check r.lines.texts[^1].startsWith("2 of 3 activities")
+    check r.lines.texts[^1].startsWith("done: 2 of 3 activities")
 
   test "-v says where it started: the stored place, and how far if it is not close":
     let db = world("verbose-place")

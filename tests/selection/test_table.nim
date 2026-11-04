@@ -22,19 +22,19 @@ func texts(ls: seq[Line]): seq[string] =
 suite "list table: the last line":
   test "nothing selected: the plain line":
     let rows = @[row(0, "cycling", "", 1500.0, 600.0), row(1, "cycling", "", 500.0, 60.0)]
-    check footerLine(rows, some 5).text == footer(rows, some 5)
+    check footerLine(rows, some 5).text == "done: " & footer(rows, some 5)
     check footerLine(rows, some 5).allIt(it.look.colour == white)
   test "some selected: the count in yellow, after the number of activities":
     let rows = @[row(0, "cycling", "", 1500.0, 600.0, selected = true), row(1, "cycling", "", 500.0, 60.0),
                  row(2, "cycling", "", 500.0, 60.0, selected = true)]
     let l = footerLine(rows, some 5)
-    check l.text == "3 of 5 activities (2 match selected), 2.5km, 12m00s"
-    check l.filterIt(it.look.colour == yellow).mapIt(it.text) == @[" (2 match selected)"]
-    check footerLine(rows).text.startsWith("3 activities (2 match selected), ")
+    check l.text == "done: 3 of 5 activities, 2 match selected, 2.5km, 12m00s"
+    check l.filterIt(it.look.colour == yellow).mapIt(it.text) == @[", 2 match selected"]
+    check footerLine(rows).text.startsWith("done: 3 activities, 2 match selected, ")
   test "all selected, and a count with no totals":
     let rows = @[row(0, selected = true)]
-    check footerLine(rows, some 1).text.startsWith("1 of 1 activities (1 match selected)")
-    check footerLine(@[], some 3).text == "0 of 3 activities"
+    check footerLine(rows, some 1).text.startsWith("done: 1 of 1 activities, 1 match selected")
+    check footerLine(@[], some 3).text == "done: 0 of 3 activities"
 
 suite "list table: pieces":
   test "the sport, with the sub-sport only if it says something":

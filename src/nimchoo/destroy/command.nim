@@ -131,5 +131,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     except StoreError as e:
       return failure("nch destroy", e.msg)
   g.log.log(lvInfo, "destroy", leDeleted, what & " from " & path)
-  stdout.say "deleted " & what & "\n"
+  stdout.say "done: deleted " & what & "\n"
   exitOk

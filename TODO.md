@@ -333,8 +333,9 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
 * **Step B: the selection in the list** -- built.  `ListRow.selected` (from `rowColumns`: the activity is in the
   current user's selection); a selected row is yellow all through (unrecorded `-` cells too), a transition
   row stays grey, the header stays white.  After `--save` every row is selected, so every row is yellow.
-  The last line says why: `1112 of 1112 activities (35 match selected), 57,529.0km, 114d08h22m`, the bracket in
-  yellow, when any row is selected (`footerLine`).
+  The last line says why: `done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m`, the
+  ", 35 match selected" in yellow, when any row is selected (`footerLine`).  The final report line of a command
+  starts `done: ` (as the end of an import does): `nch list`'s last line and `nch destroy`'s `done: deleted ...`.
 * **The `nch` the author runs is a release build** (`nimble prod`: `nim c -d:release -o:nch src/nch.nim`);
   build that one for use.  `nimble build` and plain `nim c` make a debug build, which is about 5 times slower.
 * **Step C: the calendar view.**  A pure layout module (`selection/calendar.nim`: days, months, cells,
