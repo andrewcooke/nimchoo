@@ -2076,3 +2076,14 @@ Next, in this order:
 
 Also to remember: the full library's first pass takes 56 s (reading coordinates is the largest part, then
 detection); a second pass is instant.
+
+### Step 6 is built (2026-11-04): `nch climbs`
+
+`nch climbs` shows, for each selected activity (see `nch list --save`; an empty selection is an error that says
+so), the climbs it went up: sector id, where (km along the ride), length, gain, gradient, category, the time
+(gate to gate, stops included), the rank among everyone's efforts on that sector ("3 of 12") and the best time.
+`nch climbs --sectors` lists the catalogue, the biggest first: length, gain, gradient, category, efforts, the best
+time and whose it is, and the user's own best.  Both first call `ensureClimbs` (a progress line on a terminal;
+the work is logged as `done`).  `climbs/report.nim` has the queries and the (pure) formatting; the output is
+plain text, to be tweaked once it has been used (the author's words).  Shown on the 4 newest rides of the sample:
+`#42  at 30.5 km  7.6 km  +505 m  6.7 %  cat 2  56:46  5 of 6  best 48:41`.

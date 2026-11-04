@@ -1,0 +1,63 @@
+import std/[strutils, unittest]
+import db_connector/db_sqlite
+import nimchoo/cli/common
+import nimchoo/climbs/command as climbsCommand
+import nimchoo/db/store
+import nimchoo/ids
+import nimchoo/modules
+import ../support/[climbdata, userdata]
+
+proc climbs(path: string, args: varargs[string], user = ""): int =
+  climbsCommand.run(globals(path, user), @args)
+
+suite "nch climbs":
+  test "help, and a bad option":
+    check climbsCommand.run(Globals(), @["--help"]) == exitOk
+    check climbsCommand.run(Globals(), @["--bogus"]) == exitUsage
+    check climbsCommand.run(Globals(), @["extra"]) == exitUsage
+
+  test "an empty selection is said, not guessed":
+    let s = fresh("command-empty")
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    let path = s.path
+    s.close()
+    check climbs(path) == exitFailure
+    # ... but the catalogue is there to list, and the climbs were worked out on the way
+    check climbs(path, "--sectors") == exitOk
+    let again = openStore(path, allFragments)
+    defer: again.close()
+    check again.count("sector") == 1 and again.count("climbs_done") == 1
+
+  test "the climbs of the selected activities":
+    let s = fresh("command-selected")
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    s.db.exec(sql"insert into selection(user_id, activity_id) select ?, id from activity", s.userId)
+    let path = s.path
+    s.close()
+    check climbs(path) == exitOk
+    check climbs(path, "--sectors") == exitOk
+
+  test "a selection with no climbs in it is not an error":
+    let s = fresh("command-none")
+    addRide(s, "default", "flat", 1_000_000, 5.0, @[0.0, 5.0, 10.0])
+    s.db.exec(sql"insert into selection(user_id, activity_id) select ?, id from activity", s.userId)
+    let path = s.path
+    s.close()
+    check climbs(path) == exitOk
+
+  test "no climbs found yet is not an error either":
+    let s = fresh("command-nothing")
+    let path = s.path
+    s.close()
+    check climbs(path, "--sectors") == exitOk
+
+  test "it works for the user named before the command":
+    let s = fresh("command-user")
+    addUser(s.path, "bob")
+    addRide(s, "bob", "two", 2_000_000, 4.0, eastbound(4.0))
+    let bob = UserId(parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'")))
+    s.db.exec(sql"insert into selection(user_id, activity_id) select ?, id from activity", bob)
+    let path = s.path
+    s.close()
+    check climbs(path, user = "bob") == exitOk
+    check climbs(path) == exitFailure                    # the default user selected nothing

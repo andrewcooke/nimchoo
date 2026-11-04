@@ -1,0 +1,86 @@
+## `nch climbs`: the climbs of the selected activities, with the time of each and where it ranks;
+## or with `--sectors` every climb found.  The first time (and after an import) it works out the
+## climbs of the activities that have not been looked at, and keeps them (see work.nim).
+
+import std/[monotimes, times]
+import ../cli/[args, common]
+import ../db/store
+import ../errors
+import ../ui/[live, logfile, style]
+import ./[report, work]
+
+{.push raises: [].}
+
+const usage* = """usage: nch [--db PATH] [--user NAME] climbs
+       nch [--db PATH] climbs --sectors
+
+Show the climbs of the selected activities (see `nch list --save`): for each activity the climbs
+it went up (where, how long, how much, how steep, and the category by the height gained), the
+time it took, and where that ranks among the efforts of everyone on the same climb.  Times are
+from the bottom to the top, stops included.
+
+The climbs are found in the rides, once: the first time it works out those of every activity
+that has not been looked at (about a minute for two thousand rides), and keeps them; after an
+import it only looks at the new ones.  A climb found again in another ride is the same climb.
+
+  --sectors     list every climb found instead, the biggest first: its length, height gained,
+                gradient and category, how many times it has been ridden, the best time and
+                whose it is, and your own best
+  -h, --help    show this help
+"""
+
+type ClimbsArgs = object
+  sectors, help: bool
+
+proc progressLine(live: Live): proc(done, total: int) {.closure, raises: [].} =
+  ## A line on the terminal while the climbs are worked out (at most ten times a second).
+  var last = getMonoTime()
+  result = proc(done, total: int) {.closure, raises: [].} =
+    let now = getMonoTime()
+    if done == total or (now - last).inMilliseconds >= 100:
+      last = now
+      live.show(@[plain("working out the climbs: " & $done & " / " & $total & " activities")])
+
+proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
+  ## Entry point for `nch climbs ARGS`; returns the exit status.
+  var given = ClimbsArgs()
+  let spec = Spec[ClimbsArgs](opts: @[
+    flag(ClimbsArgs, ["-h", "--help"], help), flag(ClimbsArgs, ["--sectors"], sectors)])
+  let why = parseOptions(args, spec, given)
+  if why.len > 0: return usageError("nch climbs", usage, why)
+  if given.help:
+    stdout.say usage
+    return exitOk
+  var st: Store
+  try:
+    st = openStore(g)
+  except StoreError as e:
+    return failure("nch climbs", e.msg)
+  try:
+    var worked: Worked
+    if canLive():
+      let live = newTerminalLive()
+      worked = ensureClimbs(st, progressLine(live))
+      live.finish()
+    else:
+      worked = ensureClimbs(st)
+    if worked.activities > 0:
+      g.log.log(lvInfo, "climbs", leDone, "worked out " & $worked.activities & " activities: " &
+                $worked.sectors & " new climbs, " & $worked.efforts & " efforts")
+    if given.sectors:
+      let rows = allSectors(st)
+      if rows.len == 0:
+        stdout.say "no climbs found yet\n"
+      else:
+        for l in sectorLines(rows): stdout.say l & "\n"
+      return exitOk
+    if selectedActivities(st) == 0:
+      return failure("nch climbs", "the selection is empty (see `nch list --save`)")
+    let rows = selectedEfforts(st)
+    if rows.len == 0:
+      stdout.say "no climbs in the " & $selectedActivities(st) & " selected activities\n"
+    else:
+      for l in effortLines(rows, local()): stdout.say l & "\n"
+    exitOk
+  except StoreError as e:
+    failure("nch climbs", e.msg)
