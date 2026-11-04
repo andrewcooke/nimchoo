@@ -2,6 +2,7 @@ import std/[options, strutils, unittest]
 import nimchoo/ff/[command, page, params]
 import nimchoo/serve/request
 import nimchoo/cache
+import nimchoo/ui/palette
 
 const csv = "ff--key-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
 
@@ -23,9 +24,9 @@ suite "ff: the page":
     check "eval(" notin h and "new Function" notin h and "Function(" notin h.replace("csvParse(", "")
   test "you can drag to zoom and double-click to go back; fitness is green and fatigue red":
     let h = pageHtml(csv, "t", false).get
-    for needle in ["pointerdown", "pointermove", "pointerup", "dblclick", "drag to zoom", "#2f9e44", "#e03131"]:
+    for needle in ["pointerdown", "pointermove", "pointerup", "dblclick", "drag to zoom", hex(green), hex(red)]:
       check needle in h
-    check h.find("fitness: '#2f9e44'") > 0 and h.find("fatigue: '#e03131'") > 0
+    check h.find("fitness: '" & hex(green) & "'") > 0 and h.find("fatigue: '" & hex(red) & "'") > 0   # (the palette's)
   test "the title is text, not markup":
     let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false).get
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")

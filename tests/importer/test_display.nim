@@ -42,7 +42,7 @@ suite "import display: the lines":
   test "no failures and no advisories: nothing alarming":
     let ls = renderImport(Summary(total: 10, imported: 2, unchanged: 1), 4, "x.fit")
     check ls[1].text == "imported 2 · unchanged 1 · failed 0"
-    check ls[1].allIt(it.look.fg notin {cRed, cYellow})
+    check ls[1].allIt(it.look.colour notin {red, yellow})
 
   test "duplicates, unchanged and known failures are shown apart; zeros are left out":
     check renderImport(Summary(total: 5, duplicates: 1, unchanged: 2, known: 3), 3, "x").texts[1] ==
@@ -76,7 +76,7 @@ suite "import display: the lines":
     check p.filter.last
 
   test "imported is green even when it is 0":
-    check renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0].look.fg == cGreen
+    check renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0].look.colour == green
 
   test "the counts have the looks of the events of the same name":
     var s = Summary(total: 9, imported: 1, duplicates: 2, unchanged: 3, known: 4, failed: 5, advisories: 6)
@@ -97,9 +97,9 @@ suite "import display: the lines":
     var s = Summary(total: 5, imported: 1, failed: 1, advisories: 2)
     s.failures[fkBadFormat] = 1
     let second = renderImport(s, 2, "x")[1]
-    check second[0].look.fg == cGreen
-    check second.anyIt(it.look.fg == cRed and it.text.startsWith("failed"))
-    check second.anyIt(it.look.fg == cYellow and it.text.startsWith("advisories"))
+    check second[0].look.colour == green
+    check second.anyIt(it.look.colour == red and it.text.startsWith("failed"))
+    check second.anyIt(it.look.colour == yellow and it.text.startsWith("advisories"))
 
 suite "import display: a run":
   type Fake = ref object

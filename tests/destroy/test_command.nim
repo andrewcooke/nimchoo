@@ -112,7 +112,7 @@ suite "destroy: what is said":
   test "the countdown line is red, with the number bold":
     let l = countdownLine("74 activities for all users", 4)
     check l.text == "deleting 74 activities for all users in 4 s ... (Ctrl-C to cancel)"
-    check l.allIt(it.look.fg == cRed)
+    check l.allIt(it.look.colour == red)
     check l[1].text == "4" and l[1].look.bold
 
   test "it counts down once a second, then takes the line away":

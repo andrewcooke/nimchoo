@@ -98,8 +98,8 @@ suite "live region: what is drawn":
 
   test "colour is used only when asked for":
     let f = newFake()
-    f.live(colour = false).show @[@[span("x", cRed)]]
-    f.live(colour = true).show @[@[span("x", cRed)]]
+    f.live(colour = false).show @[@[span("x", red)]]
+    f.live(colour = true).show @[@[span("x", red)]]
     check not f.written[0].contains("\e[31m")
     check f.written[1].contains("\e[31mx\e[0m")
 

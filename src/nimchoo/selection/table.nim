@@ -134,10 +134,10 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
       if c > 0: result.add span("  ")
       var look = Look()
       if r.isSome:
-        if r.get.isTransition: look.dim = true
-        elif row[c] == "-" or row[c] == noGps: look.dim = true
+        if r.get.isTransition: look.colour = grey
+        elif row[c] == "-" or row[c] == noGps: look.colour = grey
         elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
-          look.fg = cYellow
+          look.colour = yellow
       result.add Span(text: padded(row[c], c), look: look)
   result.add line(header, none(ListRow))
   for i, row in cells: result.add line(row, some(rows[i]))

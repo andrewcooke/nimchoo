@@ -121,8 +121,8 @@ suite "list table: looks":
       for sp in t[i]:
         if sp.text.contains(text): return sp.look
       raiseAssert "no cell with " & text
-    check lookOfText(1, "no GPS").dim
-    check not lookOfText(2, "Santiago").dim and not lookOfText(2, "-33.4362").dim
+    check lookOfText(1, "no GPS").colour == grey
+    check lookOfText(2, "Santiago").colour != grey and lookOfText(2, "-33.4362").colour != grey
   proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): Look =
     for sp in lines[rowIndex]:
       if sp.text.strip.startsWith(prefix): return sp.look
@@ -133,25 +133,25 @@ suite "list table: looks":
     for sp in lines[1]: check sp.look == Look()
   test "a transition is dim all through, even with zeros":
     let lines = table(@[row(aug27, "transition", "", 0.0, 0.0)], zone, false, false)
-    for sp in lines[1]: check sp.look == Look(dim: true) or sp.text.strip == ""
-    check lookOf(lines, 1, "0.0").fg == cNone
+    for sp in lines[1]: check sp.look == Look(colour: grey) or sp.text.strip == ""
+    check lookOf(lines, 1, "0.0").colour == grey
   test "not recorded is dim":
     let lines = table(@[row(aug27, "cycling", "", -1.0, -1.0)], zone, false, false)
-    check lookOf(lines, 1, "-").dim
-    check lines[1].countIt(it.look.dim and it.text.strip == "-") == 2
+    check lookOf(lines, 1, "-").colour == grey
+    check lines[1].countIt(it.look.colour == grey and it.text.strip == "-") == 2
   test "a distance or active time that shows as zero is yellow; others are not":
     let zeros = table(@[row(aug27, "running", "", 0.0, 0.0)], zone, false, false)
-    check lookOf(zeros, 1, "0.0").fg == cYellow
-    check lookOf(zeros, 1, "0s").fg == cYellow
+    check lookOf(zeros, 1, "0.0").colour == yellow
+    check lookOf(zeros, 1, "0s").colour == yellow
     let small = table(@[row(aug27, "running", "", 2.49, 2.1)], zone, false, false)     # shows as 0.0, 2s
     check small.texts[1].contains("0.0") and small.texts[1].endsWith("2s")
-    check lookOf(small, 1, "0.0").fg == cYellow
-    check lookOf(small, 1, "2s").fg == cYellow
+    check lookOf(small, 1, "0.0").colour == yellow
+    check lookOf(small, 1, "2s").colour == yellow
     let notYet = table(@[row(aug27, "running", "", 60.0, 40.0)], zone, false, false)   # 0.1, 40s
-    check lookOf(notYet, 1, "0.1").fg == cNone
-    check lookOf(notYet, 1, "40s").fg == cNone
+    check lookOf(notYet, 1, "0.1").colour == white
+    check lookOf(notYet, 1, "40s").colour == white
     let onlyActive = table(@[row(aug27, "running", "", 5000.0, 0.0)], zone, false, false)
-    check lookOf(onlyActive, 1, "5.0").fg == cNone
-    check lookOf(onlyActive, 1, "0s").fg == cYellow
+    check lookOf(onlyActive, 1, "5.0").colour == white
+    check lookOf(onlyActive, 1, "0s").colour == yellow
   test "the header has no look":
     for sp in table(@[row(aug27)], zone, false, false)[0]: check sp.look == Look()

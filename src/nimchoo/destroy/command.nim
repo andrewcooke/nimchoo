@@ -43,9 +43,9 @@ func describe*(count: Option[int], user: string): string =
 
 func countdownLine*(what: string, seconds: int): Line =
   ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", in red.
-  @[span("deleting " & what & " in ", cRed),
-    span($seconds, cRed, bold = true),
-    span(" s ... (Ctrl-C to cancel)", cRed)]
+  @[span("deleting " & what & " in ", red),
+    span($seconds, red, bold = true),
+    span(" s ... (Ctrl-C to cancel)", red)]
 
 proc countdown*(l: Live, what: string, seconds: int,
                 wait: proc(ms: int) {.closure, raises: [].}) =

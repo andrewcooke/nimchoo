@@ -51,8 +51,8 @@ suite "ff stats: the line":
     check l.text == "2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 15.0 (top 50%)"     # (scaled by 5; the share is not)
     var coloured: seq[(string, Color)]
     for sp in l:
-      if sp.look.fg != cNone: coloured.add (sp.text, sp.look.fg)
-    check coloured == @[("71.5 (top 4%)", cGreen), ("15.0 (top 50%)", cRed)]
+      if sp.look.colour != white: coloured.add (sp.text, sp.look.colour)
+    check coloured == @[("71.5 (top 4%)", green), ("15.0 (top 50%)", red)]
     check l.render(false) == l.text and l.render(true) != l.text
   test "no earlier days: the value only; no value yet: a dash":
     let l = statLine("x", some(Standing(value: 1, earlier: 0, higher: 0)), none(Standing), 1, 1)

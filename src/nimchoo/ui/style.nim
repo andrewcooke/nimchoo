@@ -1,21 +1,18 @@
 ## Styled text for terminal displays: a line is a list of spans, each a piece
-## of text with a look (colour, bold, dim).  Keeping lines as spans, not as
+## of text with a look (a colour of the palette, and bold).  Keeping lines as spans, not as
 ## strings full of escape codes, means they can be measured and cut to a width
 ## without splitting an escape sequence, and rendered with or without colour.
 
 import std/unicode
-from std/terminal import ForegroundColor, ansiForegroundColorCode, ansiStyleCode,
-    styleBright, styleDim, ansiResetCode
+import ./palette
+export palette
 
 {.push raises: [].}
 
 type
-  Color* = enum
-    cNone, cRed, cGreen, cYellow, cBlue, cMagenta, cCyan, cWhite
-
   Look* = object
-    fg*: Color
-    bold*, dim*: bool
+    colour*: Color            ## white (the default) is ordinary text
+    bold*: bool
 
   Span* = object
     text*: string
@@ -26,8 +23,8 @@ type
 const
   ellipsis = "…"
 
-func span*(text: string, fg = cNone, bold = false, dim = false): Span =
-  Span(text: text, look: Look(fg: fg, bold: bold, dim: dim))
+func span*(text: string, colour = white, bold = false): Span =
+  Span(text: text, look: Look(colour: colour, bold: bold))
 
 func plain*(text: string): Line = @[span(text)]
 
@@ -59,24 +56,12 @@ func truncated*(line: Line, maxWidth: int): Line =
   else:
     result.add span(ellipsis)
 
-func fgOf(c: Color): ForegroundColor =
-  case c
-  of cRed: fgRed
-  of cGreen: fgGreen
-  of cYellow: fgYellow
-  of cBlue: fgBlue
-  of cMagenta: fgMagenta
-  of cCyan: fgCyan
-  of cWhite: fgWhite
-  of cNone: fgDefault
-
 func render*(line: Line, colour: bool): string =
   ## The line as text for a terminal: with escape codes if `colour`.
   for s in line:
-    let styled = colour and (s.look.fg != cNone or s.look.bold or s.look.dim)
+    let styled = colour and (s.look.colour != white or s.look.bold)
     if styled:
-      if s.look.fg != cNone: result.add ansiForegroundColorCode(fgOf(s.look.fg))
-      if s.look.bold: result.add ansiStyleCode(styleBright)
-      if s.look.dim: result.add ansiStyleCode(styleDim)
+      result.add terminalCode(s.look.colour)
+      if s.look.bold: result.add "\e[1m"
     result.add s.text
-    if styled: result.add ansiResetCode
+    if styled: result.add resetCode

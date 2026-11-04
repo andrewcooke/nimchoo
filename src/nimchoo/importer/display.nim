@@ -24,10 +24,10 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   ## imported and failed.
   var first: Line = @[span("importing ", bold = true),
                       span(commas(index) & " / " & commas(sum.total))]
-  if current.len > 0: first.add span("   " & current, dim = true)
+  if current.len > 0: first.add span("   " & current, grey)
   var second: Line
   template part(sp: Span) =
-    if second.len > 0: second.add span(dot, dim = true)
+    if second.len > 0: second.add span(dot, grey)
     second.add sp
   # the looks are those of the events of the same name (ui/vocabulary.nim)
   part span("imported " & commas(sum.imported), leImported)

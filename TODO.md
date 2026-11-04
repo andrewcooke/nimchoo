@@ -289,8 +289,12 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
 
 ### Plan
 
-* **Step A: the palette** (small).  `ui/palette.nim` with the five colours and their terminal and web
-  forms; everything uses it (`vocabulary`, `style`, `table`, `destroy`, `ff/stats`, the chart page); tests.
+* **Step A: the palette** -- built.  `ui/palette.nim` has `Color` = `white, grey, red, green, yellow`, with
+  `terminalCode` (white none, grey `ESC[2m`, then `31`, `32`, `33`), `resetCode` and `hex` (for pages).  A
+  `Look` is now `(colour, bold)`; there is no separate `dim` (grey is it) and no `cNone`/`cRed`... (they
+  are `white`, `red`...).  `span(text, colour = white, bold = false)`.  `style.nim` re-exports the palette
+  and draws lines from it; `ff/page.nim` takes the fitness and fatigue colours from `hex(green)` and
+  `hex(red)`.  The heat map's route colour (`#c2185b`) is not a TUI colour and was left.
 * **Step B: the selection in the list** (small).  `ListRow` knows if it is selected; the row is yellow.
 * **Step C: the calendar view.**  A pure layout module (`selection/calendar.nim`: days, months, cells,
   marks, truncation), then `--calendar` and `--verbose`; tests with fixed dates and zones.

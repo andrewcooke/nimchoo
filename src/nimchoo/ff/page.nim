@@ -10,6 +10,7 @@
 import std/[options, strutils]
 import ../cache
 import ../serve/pages
+import ../ui/palette
 
 {.push raises: [].}
 
@@ -43,7 +44,7 @@ const template1 = """<!DOCTYPE html>
 <script src="@PLOT@" integrity="@PLOTHASH@" crossorigin=""></script>
 <script>
   const hourly = @HOURLY@;
-  const colours = { fitness: '#2f9e44', fatigue: '#e03131' };   // green and red, as in the terminal
+  const colours = { fitness: '@GREEN@', fatigue: '@RED@' };   // green and red, as in the terminal
   const chart = document.getElementById('chart');
   const info = document.getElementById('info');
   let long = [];          // every point: { time, series, value }
@@ -175,4 +176,4 @@ func pageHtml*(dataName, title: string, hourly: bool): Option[string] =
   if not isCacheFileName(dataName) or not dataName.endsWith(".csv"):
     return none(string)
   some(template1.fill({"TITLE": htmlEscape(title), "D3": d3Url, "D3HASH": d3Hash, "PLOT": plotUrl,
-                       "PLOTHASH": plotHash, "HOURLY": if hourly: "true" else: "false", "DATA": dataName}))
+                       "PLOTHASH": plotHash, "GREEN": hex(green), "RED": hex(red), "HOURLY": if hourly: "true" else: "false", "DATA": dataName}))

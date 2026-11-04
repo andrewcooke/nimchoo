@@ -15,18 +15,18 @@ suite "vocabulary: the events":
 
 suite "vocabulary: the looks":
   test "the ones that matter":
-    check look(leImported) == Look(fg: cGreen)
+    check look(leImported) == Look(colour: green)
     check look(leSaved) == look(leImported)
-    check look(leFailed) == Look(fg: cRed, bold: true)
-    check look(leAdvisory) == Look(fg: cYellow)
-    check look(leDuplicate).dim and look(leDuplicate).fg == cNone
+    check look(leFailed) == Look(colour: red, bold: true)
+    check look(leAdvisory) == Look(colour: yellow)
+    check look(leDuplicate) == Look(colour: grey)
     check look(leUnchanged) == look(leDuplicate)
   test "the server's words: served is dim, denied is red":
-    check look(leServed) == Look(dim: true)
-    check look(leDenied) == Look(fg: cRed)
+    check look(leServed) == Look(colour: grey)
+    check look(leDenied) == Look(colour: red)
   test "bookkeeping words are dim":
     for e in [leStart, leRun, leExit, leDone, leNote]:
-      check look(e) == Look(dim: true)
+      check look(e) == Look(colour: grey)
   test "a span takes the look of its event":
     check span("x", leFailed).look == look(leFailed)
     check span("x", leFailed).text == "x"

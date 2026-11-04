@@ -32,6 +32,6 @@ func statLine*(label: string, fitness, fatigue: Option[Standing], fitnessScale, 
   ## coloured: fitness green, fatigue red).  The values are multiplied by the scales, as in the
   ## file; the share does not depend on them.
   result = plain(label & "  ")
-  result.add curve("fitness", cGreen, fitness, fitnessScale)
+  result.add curve("fitness", green, fitness, fitnessScale)
   result.add plain(",  ")
-  result.add curve("fatigue", cRed, fatigue, fatigueScale)
+  result.add curve("fatigue", red, fatigue, fatigueScale)

@@ -32,13 +32,13 @@ func look*(e: LogEvent): Look =
   ## How an event is shown: imported green, failed red and bold, advisory yellow,
   ## duplicate and unchanged dim (grey), the bookkeeping words dim.
   case e
-  of leImported, leSaved: Look(fg: cGreen)
-  of leFailed: Look(fg: cRed, bold: true)
-  of leAdvisory: Look(fg: cYellow)
-  of leDuplicate, leUnchanged: Look(dim: true)
-  of leDeleted: Look(fg: cRed)
-  of leDenied: Look(fg: cRed)
-  of leStart, leRun, leExit, leDone, leNote, leServed: Look(dim: true)
+  of leImported, leSaved: Look(colour: green)
+  of leFailed: Look(colour: red, bold: true)
+  of leAdvisory: Look(colour: yellow)
+  of leDuplicate, leUnchanged: Look(colour: grey)
+  of leDeleted: Look(colour: red)
+  of leDenied: Look(colour: red)
+  of leStart, leRun, leExit, leDone, leNote, leServed: Look(colour: grey)
 
 func parseEvent*(s: string): Option[LogEvent] =
   ## The event whose word is `s`.

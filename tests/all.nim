@@ -18,6 +18,6 @@ import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./serve/[test_request, test_token, test_handler, test_pages]
 import ./places/[test_data, test_seed]
 import ./user/[test_params, test_command]
-import ./ui/[test_style, test_live, test_logfile, test_vocabulary, test_interval]
+import ./ui/[test_style, test_live, test_logfile, test_vocabulary, test_interval, test_palette]
 import ./log/[test_lines, test_command]
 {.pop.}
