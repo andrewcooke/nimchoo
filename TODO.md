@@ -395,7 +395,9 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   3.85 s with 1 thread, 2.5 s with 2, 2.6 s with 4 (the writer is then the limit).
   **Lessons:** (1) Nim's built-in `Channel` frees its buffer on `close` but keeps the pointer, so opening it again
   frees it twice (a nine-line program shows it under `-d:useMalloc -fsanitize=address`; silent in a normal
-  build): the pool opens the channels once and never closes them.  Run threaded code under the sanitizer
+  build): the pool opens the channels once and never closes them.  **Already fixed upstream** (nim-lang/Nim
+  #26230, 2026-09-15; in Nim 2.4.0 of 2026-10-27, not in 2.2.14): no report needed; we run 2.2.12, and
+  "open once, never close" is right on both.  Run threaded code under the sanitizer
   (`nim c -d:useMalloc --debugger:native --passC:-fsanitize=address --passL:-fsanitize=address`).
   (2) A refactor made a duplicate file (same content as one imported earlier in the run) get decoded and report
   its warnings: the sequential path asks the database before decoding, and duplicates report no warnings.
