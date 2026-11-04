@@ -17,6 +17,8 @@ import std/[os, sequtils, strutils, times]
 import db_connector/db_sqlite
 import db_connector/sqlite3 as lowlevel
 import ../errors
+import ../ids
+export ids
 import ./fragment
 import ./statement
 export db_sqlite.DbConn, fragment
@@ -31,7 +33,7 @@ type
   Store* = object
     db*: DbConn
     path*: string      ## the database file (":memory:" for one in memory)
-    userId*: int64
+    userId*: UserId
     userName*: string
 
 template guard*(body: untyped) =
@@ -189,7 +191,7 @@ proc openStore*(path: string, fragments: seq[Fragment],
       if id.len == 0:
         raiseStore("no such user: " & user)
       try:
-        result.userId = parseBiggestInt(id)
+        result.userId = UserId(parseBiggestInt(id))
       except ValueError:
         raiseStore("bad user id " & id)
       result.userName = result.db.getValue(sql"select name from user where id = ?", id)

@@ -31,6 +31,8 @@ func cmp*(a, b: UnixTime): int = cmp(int64(a), int64(b))
 func max*(a, b: UnixTime): UnixTime = (if a < b: b else: a)
 func min*(a, b: UnixTime): UnixTime = (if a < b: a else: b)
 
+func toTime*(t: UnixTime): Time {.raises: [].} = fromUnix(int64(t))
+
 func fitToUnix*(t: FitTime): UnixTime {.raises: [].} = UnixTime(int64(t) + fitEpoch)
 
 func fitToTime*(t: FitTime): Time {.raises: [].} = fromUnix(int64(t) + fitEpoch)

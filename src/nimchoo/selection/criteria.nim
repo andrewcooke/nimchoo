@@ -3,6 +3,8 @@
 ## zone is a parameter), so all of it is tested directly.
 
 import std/[math, options, strutils, times]
+import ../fit/time
+import ../ids
 import ./ranges
 export ranges
 
@@ -23,8 +25,8 @@ type
     distanceRel*, activeRel*: Option[Relative]    ## --distance latest~T / previous~T, --active ...
     sportRef*, subSportRef*: Reference            ## --sport latest / previous, --sub-sport ...
     sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
-    fromT*: Option[int64]     ## start of the activity at or after (Unix seconds)
-    toT*: Option[int64]       ## start of the activity before (exclusive)
+    fromT*: Option[UnixTime]  ## start of the activity at or after
+    toT*: Option[UnixTime]    ## start of the activity before (exclusive)
     near*: NearKind
     lat*, lon*: float         ## for nkPoint
     radiusKm*: float
@@ -49,19 +51,19 @@ const
     ("yyyy-MM-dd'T'HH:mm", 60), ("yyyy-MM-dd HH:mm", 60),
     ("yyyy-MM-dd", 0)]          # (granularity in seconds; 0: a calendar day)
 
-proc parseWhen*(s: string, zone: Timezone, isEnd: bool): Option[int64] =
+proc parseWhen*(s: string, zone: Timezone, isEnd: bool): Option[UnixTime] =
   ## A time typed by the user, in `zone`, as Unix seconds.  For an end (`--to`, isEnd) it is
   ## the first moment after what was named: after the day, the minute, the second.
   for (format, granule) in timeFormats:
     try:
       let dt = parse(s, format, zone)
-      if not isEnd: return some(dt.toTime.toUnix)
+      if not isEnd: return some(UnixTime(dt.toTime.toUnix))
       let after = if granule == 0: dt + initTimeInterval(days = 1)
                   else: dt + initDuration(seconds = granule)
-      return some(after.toTime.toUnix)
+      return some(UnixTime(after.toTime.toUnix))
     except TimeParseError, TimeFormatParseError, ValueError, OverflowDefect:
       discard
-  none(int64)
+  none(UnixTime)
 
 func parseLatLon*(s: string): Option[(float, float)] =
   ## "38.72,-9.14": latitude, longitude, in range.
@@ -271,7 +273,7 @@ func rangeSql*(column: string, r: NumRange): string =
   if r.lo.isSome: result.add " and " & column & " >= " & formatFloat(r.lo.get, ffDecimal, 3)
   if r.hi.isSome: result.add " and " & column & " <= " & formatFloat(r.hi.get, ffDecimal, 3)
 
-func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
+func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)],
                columns = "a.id"): string =
   ## A query for the activities of `userIds` that meet the criteria, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
@@ -302,7 +304,7 @@ func matchSql*(userIds: seq[int64], c: Criteria, centre: Option[(float, float)],
   if c.newest > 0: result.add " order by a.start_t desc limit " & $c.newest
   if c.oldest > 0: result.add " order by a.start_t asc limit " & $c.oldest
 
-func saveSql*(owner: int64, match: string): string =
+func saveSql*(owner: UserId, match: string): string =
   ## The statement that makes the activities of the query `match` (which gives
   ## a column `id` first) the selection of `owner`.
   "insert into selection(user_id, activity_id) select " & $owner & ", id from (" & match & ")"

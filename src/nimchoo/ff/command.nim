@@ -50,7 +50,7 @@ a new file; old ones are not deleted.)
   -h, --help        show this help
 """
 
-proc hourlyImpulses(db: DbConn, userId, modelId: int64): seq[Hourly] {.raises: [StoreError].} =
+proc hourlyImpulses(db: DbConn, userId: UserId, modelId: ModelId): seq[Hourly] {.raises: [StoreError].} =
   ## The user's impulse in each hour, over all their activities.
   guard:
     for r in db.fastRows(sql"""select i.hour_t, sum(i.value) from impulse i

@@ -17,6 +17,7 @@
 ## with data `"  12 "`, a selected day `" [34]"`, a day with none `"  -- "`.
 
 import std/[algorithm, sequtils, strutils, tables, times]
+import ../fit/time
 import ../ui/style
 import ./table
 
@@ -59,7 +60,7 @@ proc dayCell(day: int, state: int, s: Screen): Span =
 proc monthsOf(rows: seq[ListRow], zone: Timezone): seq[int] =
   ## The months (year * 12 + month - 1) with a listed activity, in order.
   for r in rows:
-    let d = fromUnix(r.startT).inZone(zone)
+    let d = r.startT.toTime.inZone(zone)
     let m = d.year * 12 + ord(d.month) - 1
     if m notin result: result.add m
   result.sort
@@ -77,7 +78,7 @@ proc calendarLines*(rows: seq[ListRow], zone: Timezone, allMonths: bool, screen:
   if rows.len == 0: return
   var state: Table[int, int]                     # year*10000 + month*100 + day -> 1 or 2
   for r in rows:
-    let d = fromUnix(r.startT).inZone(zone)
+    let d = r.startT.toTime.inZone(zone)
     let key = d.year * 10000 + ord(d.month) * 100 + d.monthday
     state[key] = max(state.getOrDefault(key), if r.selected: 2 else: 1)
   var months = monthsOf(rows, zone)               # year*12 + (month - 1)

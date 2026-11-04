@@ -1,4 +1,5 @@
 import std/[math, unittest]
+import nimchoo/fit/time
 import nimchoo/model/calc
 
 proc near(a, b: float, eps = 1e-9): bool = abs(a - b) <= eps
@@ -45,41 +46,41 @@ suite "model: the integral of a power along a straight line":
 
 suite "model: the impulse of the readings":
   test "an effort at the top zone is 1 per 10 seconds":
-    check hourlyImpulse(@[(0'i64, 121), (60'i64, 121)], 100, m) == @[(0'i64, 6.0)]
+    check hourlyImpulse(@[(UnixTime(0), 121), (UnixTime(60), 121)], 100, m) == @[(0'i64, 6.0)]
   test "zone 3.5 is 0.25 per 10 seconds":
-    check near(hourlyImpulse(@[(0'i64, 177), (60'i64, 177)], 200, m)[0].value, 1.5, 1e-9)   # (3.5-1)/5 = 0.5 squared, 6 periods
+    check near(hourlyImpulse(@[(UnixTime(0), 177), (UnixTime(60), 177)], 200, m)[0].value, 1.5, 1e-9)   # (3.5-1)/5 = 0.5 squared, 6 periods
   test "a ramp from zone 1 to zone 6 over a minute":
-    let r = hourlyImpulse(@[(0'i64, 68), (60'i64, 121)], 100, m)
+    let r = hourlyImpulse(@[(UnixTime(0), 68), (UnixTime(60), 121)], 100, m)
     check near(r[0].value, 2.0)                                                           # 60 s of u^2 from 0 to 1: 20 s-equivalents, /10
   test "below the first edge there is no impulse, but the hour is recorded":
-    check hourlyImpulse(@[(0'i64, 60), (30'i64, 60)], 100, m) == @[(0'i64, 0.0)]
+    check hourlyImpulse(@[(UnixTime(0), 60), (UnixTime(30), 60)], 100, m) == @[(0'i64, 0.0)]
   test "a gap longer than max_secs counts for nothing; one of exactly max_secs counts":
-    check hourlyImpulse(@[(0'i64, 121), (61'i64, 121)], 100, m).len == 0
-    check hourlyImpulse(@[(0'i64, 121), (60'i64, 121)], 100, m).len == 1
+    check hourlyImpulse(@[(UnixTime(0), 121), (UnixTime(61), 121)], 100, m).len == 0
+    check hourlyImpulse(@[(UnixTime(0), 121), (UnixTime(60), 121)], 100, m).len == 1
     # the readings either side of a long gap still count with their neighbours
-    let r = hourlyImpulse(@[(0'i64, 121), (10'i64, 121), (100'i64, 121), (110'i64, 121)], 100, m)
+    let r = hourlyImpulse(@[(UnixTime(0), 121), (UnixTime(10), 121), (UnixTime(100), 121), (UnixTime(110), 121)], 100, m)
     check near(r[0].value, 2.0)
   test "irregular recording has no effect on the total":
-    let even = hourlyImpulse(@[(0'i64, 110), (10'i64, 110), (20'i64, 110), (30'i64, 110)], 100, m)
-    let sparse = hourlyImpulse(@[(0'i64, 110), (30'i64, 110)], 100, m)
+    let even = hourlyImpulse(@[(UnixTime(0), 110), (UnixTime(10), 110), (UnixTime(20), 110), (UnixTime(30), 110)], 100, m)
+    let sparse = hourlyImpulse(@[(UnixTime(0), 110), (UnixTime(30), 110)], 100, m)
     check near(even[0].value, sparse[0].value)
   test "an interval across the hour is divided between the hours":
-    let r = hourlyImpulse(@[(3590'i64, 121), (3610'i64, 121)], 100, m)
+    let r = hourlyImpulse(@[(UnixTime(3590), 121), (UnixTime(3610), 121)], 100, m)
     check r == @[(0'i64, 1.0), (3600'i64, 1.0)]
-    let s = hourlyImpulse(@[(3590'i64, 68), (3610'i64, 121)], 100, m)       # a ramp: the second half is worth more
+    let s = hourlyImpulse(@[(UnixTime(3590), 68), (UnixTime(3610), 121)], 100, m)       # a ramp: the second half is worth more
     check s.len == 2 and s[1].value > s[0].value
-    check near(s[0].value + s[1].value, hourlyImpulse(@[(3500'i64, 68), (3500'i64 + 20, 121)], 100, m)[0].value)
+    check near(s[0].value + s[1].value, hourlyImpulse(@[(UnixTime(3500), 68), (UnixTime(3500 + 20), 121)], 100, m)[0].value)
   test "hours are by the clock, not by the activity":
-    check hourlyImpulse(@[(7200'i64 + 5, 121), (7200'i64 + 15, 121)], 100, m)[0].hourT == 7200
+    check hourlyImpulse(@[(UnixTime(7200 + 5), 121), (UnixTime(7200 + 15), 121)], 100, m)[0].hourT == 7200
   test "a different model changes the numbers":
     var f = m
     f.gamma = 1
-    check near(hourlyImpulse(@[(0'i64, 177), (60'i64, 177)], 200, f)[0].value, 3.0)    # 0.5 per 10 s, 6 periods
+    check near(hourlyImpulse(@[(UnixTime(0), 177), (UnixTime(60), 177)], 200, f)[0].value, 3.0)    # 0.5 per 10 s, 6 periods
     f.maxSecs = 10
-    check hourlyImpulse(@[(0'i64, 177), (60'i64, 177)], 200, f).len == 0
+    check hourlyImpulse(@[(UnixTime(0), 177), (UnixTime(60), 177)], 200, f).len == 0
   test "readings out of order or repeated are skipped, not counted backwards":
-    check hourlyImpulse(@[(10'i64, 121), (10'i64, 121)], 100, m).len == 0
-    check hourlyImpulse(@[], 100, m).len == 0 and hourlyImpulse(@[(1'i64, 121)], 100, m).len == 0
+    check hourlyImpulse(@[(UnixTime(10), 121), (UnixTime(10), 121)], 100, m).len == 0
+    check hourlyImpulse(@[], 100, m).len == 0 and hourlyImpulse(@[(UnixTime(1), 121)], 100, m).len == 0
 
 suite "model: variables":
   test "the defaults are the original's and are acceptable":

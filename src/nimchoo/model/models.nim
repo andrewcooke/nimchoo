@@ -36,7 +36,7 @@ proc seedDefaultModel*(db: DbConn) {.raises: [StoreError].} =
 
 proc modelOf(r: Row): Model {.raises: [StoreError].} =
   try:
-    result = Model(id: parseBiggestInt(r[0]), name: r[1], gamma: parseFloat(r[2]),
+    result = Model(id: ModelId(parseBiggestInt(r[0])), name: r[1], gamma: parseFloat(r[2]),
                    zero: parseFloat(r[3]), one: parseFloat(r[4]), maxSecs: parseInt(r[5]),
                    fitnessDays: parseFloat(r[11]), fatigueDays: parseFloat(r[12]))
     for i in 0 .. 4: result.zones[i] = parseFloat(r[6 + i])

@@ -1,4 +1,5 @@
 import std/[sequtils, strutils, times, unittest]
+import nimchoo/fit/time
 import nimchoo/selection/[calendar, table]
 import nimchoo/ui/style
 import ../support/zones
@@ -7,7 +8,7 @@ proc at(y: int, m: Month, d: int, h = 12, min = 0): int64 =
   dateTime(y, m, d, h, min, 0, 0, utc()).toTime.toUnix
 
 proc row(t: int64, selected = false): ListRow =
-  ListRow(startT: t, sport: "cycling", file: "f.fit", user: "default", path: "/x/f.fit", selected: selected)
+  ListRow(startT: UnixTime(t), sport: "cycling", file: "f.fit", user: "default", path: "/x/f.fit", selected: selected)
 
 let colourScreen = Screen(colour: true)
 let plainScreen = Screen(colour: false)

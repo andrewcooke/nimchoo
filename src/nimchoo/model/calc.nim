@@ -10,6 +10,8 @@
 ## sake of pandas; this integrates exactly, so an irregular recording interval has no effect.
 
 import std/math
+import ../fit/time
+import ../ids
 
 {.push raises: [].}
 
@@ -23,14 +25,14 @@ const
 
 type
   Model* = object
-    id*: int64
+    id*: ModelId
     name*: string
     gamma*, zero*, one*: float
     maxSecs*: int
     zones*: array[5, float]       ## upper limits of zones 1 to 5, percent of the threshold heart rate
     fitnessDays*, fatigueDays*: float
 
-  Hourly* = tuple[hourT: int64, value: float]
+  Hourly* = tuple[hourT: int64, value: float]   ## the start of the hour, Unix seconds (plain: the curves are arithmetic on a grid of hours)
 
 func defaultModel*(): Model =
   ## The values the original uses (the zone edges are British Cycling's).
@@ -77,13 +79,14 @@ func powIntegral*(u0, u1, dt, g: float): float =
   if abs(b - a) <= 1e-9 * max(a, b): return length * pow((a + b) / 2, g)
   length * (pow(b, g + 1) - pow(a, g + 1)) / ((g + 1) * (b - a))
 
-func hourlyImpulse*(readings: openArray[(int64, int)], fthr: int, m: Model): seq[Hourly] =
+func hourlyImpulse*(readings: openArray[(UnixTime, int)], fthr: int, m: Model): seq[Hourly] =
   ## The impulse in each hour that the readings (in time order) cover, in order.  An hour with
   ## readings but nothing above the zero level has value 0, so a row for it records that the
   ## activity was worked out.
   for k in 1 ..< readings.len:
-    let (t0, h0) = readings[k - 1]
-    let (t1, h1) = readings[k]
+    let (u0t, h0) = readings[k - 1]
+    let (u1t, h1) = readings[k]
+    let (t0, t1) = (int64(u0t), int64(u1t))     # (plain seconds for the arithmetic)
     if t1 <= t0 or t1 - t0 > m.maxSecs: continue
     let u0 = level(zoneOf(float(h0), float(fthr), m.zones), m)
     let u1 = level(zoneOf(float(h1), float(fthr), m.zones), m)

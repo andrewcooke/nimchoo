@@ -5,6 +5,7 @@
 import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
 import ../db/[channel, checkpointer, store]
 import ../errors
+import ../ids
 import ../profile/default
 import ../profile/model
 import ../profiling
@@ -108,7 +109,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
       result.notes.add "cannot read what was seen before, checking every " &
         "file: " & e.msg
   var pending: SeenBuffer
-  var importedFrom: Table[int64, string]   ## file id -> path, for files imported in this run
+  var importedFrom: Table[ids.FileId, string]   ## file id -> path, for files imported in this run
   template flushSeen() =
     try:
       st.flush(pending)

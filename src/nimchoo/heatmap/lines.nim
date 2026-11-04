@@ -3,20 +3,22 @@
 ## database, the rest is put round it here.
 
 import std/[json, options, strutils, times]
+import ../fit/time
+import ../ids
 
 {.push raises: [].}
 
 type Route* = object
-  id*: int64
-  startT*: int64                ## Unix seconds, UTC
+  id*: ActivityId
+  startT*: UnixTime
   sport*: string                ## "" if unknown
   distanceM*: Option[float]
   geometry*: string             ## GeoJSON text of the route (a LineString or MultiLineString)
 
-proc isoUtc*(t: int64): string =
+proc isoUtc*(t: UnixTime): string =
   ## "2018-08-27T12:00:00Z"
   const fmt = initTimeFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-  fromUnix(t).utc.format(fmt)
+  t.toTime.utc.format(fmt)
 
 proc feature*(r: Route): string =
   ## One feature, on one line.  Properties: id, start (UTC, ISO 8601), sport,

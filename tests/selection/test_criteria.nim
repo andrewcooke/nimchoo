@@ -1,4 +1,6 @@
 import std/[options, strutils, times, unittest]
+import nimchoo/fit/time
+import nimchoo/ids
 import nimchoo/selection/criteria
 
 let utcZone = utc()
@@ -14,17 +16,17 @@ suite "list criteria: --calendar":
 
 suite "list: times":
   test "a date is a day in the given zone; as an end it is the day after":
-    check parseWhen("2018-08-27", utcZone, false) == some(1535328000'i64)
-    check parseWhen("2018-08-27", utcZone, true) == some(1535414400'i64)
+    check parseWhen("2018-08-27", utcZone, false) == some(UnixTime(1535328000))
+    check parseWhen("2018-08-27", utcZone, true) == some(UnixTime(1535414400))
   test "minutes and seconds, with T or a space":
-    check parseWhen("2018-08-27T10:30", utcZone, false) == some(1535365800'i64)
-    check parseWhen("2018-08-27 10:30", utcZone, false) == some(1535365800'i64)
-    check parseWhen("2018-08-27T10:30", utcZone, true) == some(1535365860'i64)     # the minute
-    check parseWhen("2018-08-27T10:30:15", utcZone, true) == some(1535365816'i64)  # the second
+    check parseWhen("2018-08-27T10:30", utcZone, false) == some(UnixTime(1535365800))
+    check parseWhen("2018-08-27 10:30", utcZone, false) == some(UnixTime(1535365800))
+    check parseWhen("2018-08-27T10:30", utcZone, true) == some(UnixTime(1535365860))     # the minute
+    check parseWhen("2018-08-27T10:30:15", utcZone, true) == some(UnixTime(1535365816))  # the second
   test "the zone matters":
     let plus2 = newTimezone("+2", proc(t: Time): ZonedTime = ZonedTime(time: t, utcOffset: -7200, isDst: false),
                             proc(t: Time): ZonedTime = ZonedTime(time: t - initDuration(seconds = 7200), utcOffset: -7200, isDst: false))
-    check parseWhen("2018-08-27", plus2, false) == some(1535328000'i64 - 7200)
+    check parseWhen("2018-08-27", plus2, false) == some(UnixTime(1535328000 - 7200))
   test "rubbish":
     for bad in ["", "yesterday", "2018-13-45", "27/08/2018", "2018-08"]:
       check parseWhen(bad, utcZone, false).isNone
@@ -188,11 +190,11 @@ suite "list: the box and the sql":
     check boxes(89.5, 10.0, 100.0).len == 1            # (over a pole: all longitudes in one)
     check boxes(0.0, 179.0, 1.0).len == 1              # (a small circle that does not cross)
   test "near means starts near: the index of the start points, and the distance from the start":
-    let m = matchSql(@[1'i64], Criteria(radiusKm: 5.0), some((38.7, -9.1)))
+    let m = matchSql(@[UserId(1)], Criteria(radiusKm: 5.0), some((38.7, -9.1)))
     check m.contains("f_table_name = 'activity'") and m.contains("f_geometry_column = 'start'")
     check m.contains("ST_Distance(a.start, MakePoint(-9.1000000, 38.7000000, 4326), 1) <= 5000.0000000")
     check not m.contains("route")
-    let across = matchSql(@[1'i64], Criteria(radiusKm: 50.0), some((-17.0, 179.9)))
+    let across = matchSql(@[UserId(1)], Criteria(radiusKm: 50.0), some((-17.0, 179.9)))
     check across.count("SpatialIndex") == 2 and across.contains(" or ")
   test "longitude widens away from the equator":
     check box(60.0, 0.0, 100.0).maxX > 1.5 * box(0.0, 0.0, 100.0).maxX
@@ -200,18 +202,18 @@ suite "list: the box and the sql":
     let b = box(89.5, 10.0, 100.0)
     check b.minX == -180.0 and b.maxX == 180.0 and b.maxY == 90.0
   test "the sql has what was asked for, and nothing else":
-    let plain = matchSql(@[1'i64, 2], Criteria(), none((float, float)))
+    let plain = matchSql(@[UserId(1), UserId(2)], Criteria(), none((float, float)))
     check plain == "select a.id from activity a join file f on f.id = a.file_id where f.user_id in (1, 2)"
     check not plain.contains("start_t") and not plain.contains("route") and
           not plain.contains("limit")
-    let full = matchSql(@[1'i64], Criteria(fromT: some(5'i64), toT: some(9'i64),
+    let full = matchSql(@[UserId(1)], Criteria(fromT: some(UnixTime(5)), toT: some(UnixTime(9)),
                         newest: 2, radiusKm: 5.0), some((38.7, -9.1)), "a.id, a.start_t")
     check full.startsWith("select a.id, a.start_t from activity a")
     check full.contains("a.start_t >= 5") and full.contains("a.start_t < 9")
     check full.contains("SpatialIndex") and full.contains("MakePoint(-9.1000000, 38.7000000, 4326)")
     check full.contains("<= 5000.0000000")
     check full.endsWith("order by a.start_t desc limit 2")
-    check matchSql(@[1'i64], Criteria(oldest: 4), none((float, float))).endsWith(
+    check matchSql(@[UserId(1)], Criteria(oldest: 4), none((float, float))).endsWith(
       "order by a.start_t asc limit 4")
   test "sports are quoted, none means NULL, nothing without values":
     check inValues("a.sport", @[]) == ""
@@ -221,19 +223,19 @@ suite "list: the box and the sql":
       " and (a.sub_sport in ('road') or a.sub_sport is null)"
     check inValues("a.sport", @["x'; drop table user; --"]) ==
       " and (a.sport in ('x''; drop table user; --'))"
-    let m = matchSql(@[1'i64], Criteria(sports: @["cycling"], subSports: @["none"]), none((float, float)))
+    let m = matchSql(@[UserId(1)], Criteria(sports: @["cycling"], subSports: @["none"]), none((float, float)))
     check m.contains("a.sport in ('cycling')") and m.contains("a.sub_sport is null")
-    check not matchSql(@[1'i64], Criteria(), none((float, float))).contains("sport")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("sport")
   test "ranges become inclusive comparisons, only for the ends given":
     check rangeSql("a.distance_m", NumRange()) == ""
     check rangeSql("a.distance_m", NumRange(lo: some 40000.0)) == " and a.distance_m >= 40000.000"
     check rangeSql("a.timer_s", NumRange(hi: some 3600.0)) == " and a.timer_s <= 3600.000"
     check rangeSql("a.timer_s", NumRange(lo: some 60.0, hi: some 120.5)) ==
       " and a.timer_s >= 60.000 and a.timer_s <= 120.500"
-    let m = matchSql(@[1'i64], Criteria(distanceM: NumRange(lo: some 1000.0),
+    let m = matchSql(@[UserId(1)], Criteria(distanceM: NumRange(lo: some 1000.0),
                      activeS: NumRange(hi: some 60.0)), none((float, float)))
     check m.contains("a.distance_m >= 1000.000") and m.contains("a.timer_s <= 60.000")
-    check not matchSql(@[1'i64], Criteria(), none((float, float))).contains("distance_m")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("distance_m")
   test "saving wraps the same query":
-    let m = matchSql(@[3'i64], Criteria(newest: 1), none((float, float)), "a.id as id")
-    check saveSql(7, m) == "insert into selection(user_id, activity_id) select 7, id from (" & m & ")"
+    let m = matchSql(@[UserId(3)], Criteria(newest: 1), none((float, float)), "a.id as id")
+    check saveSql(UserId(7), m) == "insert into selection(user_id, activity_id) select 7, id from (" & m & ")"

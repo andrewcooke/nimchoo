@@ -37,7 +37,7 @@ suite "database: opening and bringing the schema up to date":
     let s = open(path)
     check fileExists(path)
     check s.userName == defaultUser
-    check s.userId > 0
+    check int64(s.userId) > 0
     check s.db.getValue(sql"select name from user where is_default = 1") == defaultUser
     for table in ["user", "file", "activity", "coords", "segment", "fragment"]:
       check s.db.getValue(sql"select count(*) from sqlite_master where name = ?",
@@ -210,7 +210,7 @@ suite "database: opening and bringing the schema up to date":
     a.close()
     let b = open(path, "bob")
     check b.userName == "bob"
-    check b.userId > 1
+    check int64(b.userId) > 1
     b.close()
 
   test "an unknown user is an error, and leaves the database usable":

@@ -9,6 +9,7 @@ from db_connector/sqlite3 import PStmt, prepare_v2, bind_int64, bind_double,
     bind_null, bind_text, bind_blob, SQLITE_TRANSIENT, step, reset, clear_bindings,
     finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE
 import ../errors
+import ../ids
 
 {.push raises: [].}
 
@@ -28,6 +29,9 @@ proc prepareStmt*(db: DbConn, sql: string): Stmt {.raises: [StoreError].} =
 
 proc bindInt*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
   if bind_int64(s.raw, int32(i), v) != SQLITE_OK: fail(s.db, "cannot bind")
+
+proc bindInt*(s: Stmt, i: int, v: AnyId) {.raises: [StoreError].} =
+  s.bindInt(i, int64(v))
 
 proc bindReal*(s: Stmt, i: int, v: float) {.raises: [StoreError].} =
   if bind_double(s.raw, int32(i), v) != SQLITE_OK: fail(s.db, "cannot bind")

@@ -20,11 +20,11 @@ type
 
   ImportResult* = object
     outcome*: ImportOutcome
-    fileId*: int64              ## the `file` row: the new one, or the one it duplicates
+    fileId*: FileId              ## the `file` row: the new one, or the one it duplicates
     activities*, segments*, coords*: int   ## rows written (0 if already imported)
     extras*: seq[ExtraCount]    ## what the import steps wrote, in the order of the steps
 
-proc insertActivity(st: Stmt, fileId: int64, a: ActivityData) {.raises: [StoreError].} =
+proc insertActivity(st: Stmt, fileId: FileId, a: ActivityData) {.raises: [StoreError].} =
   st.bindInt(1, fileId)
   st.bindInt(2, a.session)
   st.bindInt(3, int64(a.startT))
@@ -38,7 +38,7 @@ proc insertActivity(st: Stmt, fileId: int64, a: ActivityData) {.raises: [StoreEr
   st.bindInt(11, a.calories)
   st.run()
 
-proc insertSegment(st: Stmt, activityId: int64, n: int, g: Segment)
+proc insertSegment(st: Stmt, activityId: ActivityId, n: int, g: Segment)
     {.raises: [StoreError].} =
   st.bindInt(1, activityId)
   st.bindInt(2, int64(n))
@@ -46,7 +46,7 @@ proc insertSegment(st: Stmt, activityId: int64, n: int, g: Segment)
   st.bindInt(4, int64(g.endT))
   st.run()
 
-proc insertCoords(m: var MultiInsert, activityId: int64, coords: seq[Coord]) {.raises: [StoreError].} =
+proc insertCoords(m: var MultiInsert, activityId: ActivityId, coords: seq[Coord]) {.raises: [StoreError].} =
   ## All the coordinates of an activity, many rows to a statement.
   var i = 0
   while i < coords.len:
@@ -90,7 +90,7 @@ proc decodeFile*(profile: Profile, data: seq[byte], channels: seq[string],
   timed "route: bytes":
     for a in result.activities: result.routes.add routeWkb(a)
 
-proc knownFile*(s: Store, digest: string): Option[int64] {.raises: [StoreError].} =
+proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError].} =
   ## The `file` row of the user's that has this content (hash), if there is one.
   guard:
     var known = ""
@@ -100,7 +100,7 @@ proc knownFile*(s: Store, digest: string): Option[int64] {.raises: [StoreError].
         s.userId, digest)
     if known.len > 0:
       try:
-        return some(parseBiggestInt(known))
+        return some(FileId(parseBiggestInt(known)))
       except ValueError:
         raiseStore("bad file id " & known)
 
@@ -124,7 +124,7 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
     guard:
       s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
                 s.userId, name, digest, getTime().toUnix)
-    let fileId = lastInsertId(s.db)
+    let fileId = FileId(lastInsertId(s.db))
     result.fileId = fileId
     actStmt = some(prepareStmt(s.db, "insert into activity(file_id, session, " &
       "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
@@ -139,10 +139,10 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
     for step in steps:
       result.extras.add ExtraCount(one: step.label, many: step.labels)
     for i, a in d.activities:
-      var activityId = 0'i64
+      var activityId = ActivityId(0)
       timed "insert activity":
         insertActivity(actStmt.get, fileId, a)
-        activityId = lastInsertId(s.db)
+        activityId = ActivityId(lastInsertId(s.db))
       timed "insert segments":
         for n, g in a.segments: insertSegment(segStmt.get, activityId, n, g)
       timed "insert coords":

@@ -12,6 +12,8 @@ import ../cache
 import ../cli/common
 import ../db/store
 import ../errors
+import ../fit/time
+import ../ids
 import ../selection/selection
 import ../serve/[launch, pages, webopts]
 import ./[lines, page, params]
@@ -49,7 +51,7 @@ proc routesOf(st: Store, toleranceM: float): seq[Route] {.raises: [StoreError].}
         "join activity a on a.id = s.activity_id join route r on r.activity_id = a.id " &
         "where s.user_id = ? order by a.start_t, a.id"), st.userId):
       try:
-        result.add Route(id: parseBiggestInt(row[0]), startT: parseBiggestInt(row[1]),
+        result.add Route(id: ActivityId(parseBiggestInt(row[0])), startT: UnixTime(parseBiggestInt(row[1])),
                          sport: row[2],
                          distanceM: if row[3].len > 0: some(parseFloat(row[3]))
                                     else: none(float),

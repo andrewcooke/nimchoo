@@ -1,4 +1,5 @@
 import std/[options, sequtils, strutils, times, unicode, unittest]
+import nimchoo/fit/time
 import nimchoo/selection/table
 import nimchoo/ui/style
 
@@ -11,7 +12,7 @@ const
 func row(t: int64, sport = "cycling", sub = "", distance = -1.0, active = -1.0,
          file = "f.fit", user = "default", path = "/x/f.fit", place = "", position = "",
          selected = false): ListRow =
-  ListRow(startT: t, sport: sport, subSport: sub,
+  ListRow(startT: UnixTime(t), sport: sport, subSport: sub,
           distanceM: if distance >= 0: some(distance) else: none(float),
           activeS: if active >= 0: some(active) else: none(float), file: file, user: user,
           path: path, place: place, position: position, selected: selected)

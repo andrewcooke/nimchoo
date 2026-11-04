@@ -7,6 +7,7 @@ import db_connector/db_sqlite
 import ../db/[channel, multirow, statement]
 import ../errors
 import ../fit/time
+import ../ids
 
 {.push raises: [].}
 
@@ -19,7 +20,7 @@ func readings*(samples: Samples): seq[(UnixTime, int)] =
     let bpm = int(round(x.v))
     if bpm >= 1: result.add (x.t, bpm)
 
-proc write(db: DbConn, activityId: int64, samples: Samples): int
+proc write(db: DbConn, activityId: ActivityId, samples: Samples): int
     {.nimcall, raises: [StoreError].} =
   let rows = readings(samples)
   if rows.len == 0: return 0

@@ -9,6 +9,7 @@ import std/[algorithm, options, strutils]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
+import ../fit/time
 import ../hashing
 import ./[calc, models]
 
@@ -17,20 +18,20 @@ import ./[calc, models]
 type Calculated* = object
   activities*, hours*: int      ## activities worked out, impulse rows written
 
-proc readings(db: DbConn, activityId: int64): seq[(int64, int)] {.raises: [StoreError].} =
+proc readings(db: DbConn, activityId: ActivityId): seq[(UnixTime, int)] {.raises: [StoreError].} =
   guard:
     for r in db.fastRows(sql"select t, bpm from heartrate where activity_id = ? order by t", activityId):
-      try: result.add (parseBiggestInt(r[0]), parseInt(r[1]))
+      try: result.add (UnixTime(parseBiggestInt(r[0])), parseInt(r[1]))
       except ValueError: raiseStore("bad heart rate row")
 
-proc fthrOf*(db: DbConn, userId: int64): Option[int] {.raises: [StoreError].} =
+proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   guard:
     let v = db.getValue(sql"select fthr from user_profile where user_id = ?", userId)
     if v.len > 0:
       try: return some(parseInt(v))
       except ValueError: discard
 
-proc calculateActivity*(db: DbConn, activityId: int64, fthr: int, m: Model): int
+proc calculateActivity*(db: DbConn, activityId: ActivityId, fthr: int, m: Model): int
     {.raises: [StoreError].} =
   ## Work out and store one activity's impulses for a model (replacing any); returns the
   ## number of hours.
@@ -50,7 +51,7 @@ proc calculateActivity*(db: DbConn, activityId: int64, fthr: int, m: Model): int
     finalize(st)
   rows.len
 
-proc missing(db: DbConn, userId: int64, modelId: int64): seq[int64] {.raises: [StoreError].} =
+proc missing(db: DbConn, userId: UserId, modelId: ModelId): seq[ActivityId] {.raises: [StoreError].} =
   ## The user's activities that have heart rate but no impulses for the model.
   guard:
     for r in db.fastRows(sql"""select a.id from activity a join file f on f.id = a.file_id
@@ -58,10 +59,10 @@ proc missing(db: DbConn, userId: int64, modelId: int64): seq[int64] {.raises: [S
           and exists (select 1 from heartrate h where h.activity_id = a.id)
           and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = ?)
         order by a.id""", userId, modelId):
-      try: result.add parseBiggestInt(r[0])
+      try: result.add ActivityId(parseBiggestInt(r[0]))
       except ValueError: raiseStore("bad activity id")
 
-proc calculateMissing*(db: DbConn, userId: int64, m: Model): Calculated {.raises: [StoreError].} =
+proc calculateMissing*(db: DbConn, userId: UserId, m: Model): Calculated {.raises: [StoreError].} =
   ## Work out the impulses the user's activities lack for a model.  Nothing if the user has no
   ## threshold heart rate.  (An activity whose heart rate yields no hour at all is tried again
   ## each time; that costs little.)  Called when impulses are wanted, by the commands that show them.
@@ -72,7 +73,7 @@ proc calculateMissing*(db: DbConn, userId: int64, m: Model): Calculated {.raises
     result.hours += n
     if n > 0: inc result.activities
 
-proc inputKey*(db: DbConn, userId: int64, m: Model): string {.raises: [StoreError].} =
+proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreError].} =
   ## A name for everything the user's impulses for a model are made from: the FTHR, the model's
   ## values, and each activity with heart rate (by its file's hash and its place in the file, not
   ## by database ids).  The first 12 hex digits of a hash; "" if there is no such activity or no

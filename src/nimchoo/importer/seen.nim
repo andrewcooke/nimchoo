@@ -15,7 +15,7 @@ const batchSize* = 200
 type
   Seen* = object
     size*, mtime*: int64          ## bytes; Unix seconds
-    fileId*: int64                ## the file it was imported as (0 if it failed)
+    fileId*: FileId               ## the file it was imported as (0 if it failed)
     failure*, message*: string    ## the kind (see failure.nim) and text, if it failed
 
   SeenTable* = Table[string, Seen]   ## by path
@@ -38,7 +38,7 @@ proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
       try:
         result[row[0]] = Seen(size: parseBiggestInt(row[1]),
                               mtime: parseBiggestInt(row[2]),
-                              fileId: parseBiggestInt(row[3]),
+                              fileId: FileId(parseBiggestInt(row[3])),
                               failure: row[4], message: row[5])
       except ValueError:
         raiseStore("a bad row in seen_file for " & row[0])
@@ -46,7 +46,7 @@ proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
 proc add*(b: var SeenBuffer, path: string, row: Seen) =
   b.rows.add (path, row)
 
-proc pathOfFile*(s: Store, fileId: int64): string =
+proc pathOfFile*(s: Store, fileId: FileId): string =
   ## Where the file with this id was imported from, as last recorded (its name
   ## if no path was); "" if unknown.  Never fails: it is only for telling people.
   try:
@@ -74,7 +74,7 @@ proc flush*(s: Store, b: var SeenBuffer) {.raises: [StoreError].} =
       st.bindText(2, path)
       st.bindInt(3, row.size)
       st.bindInt(4, row.mtime)
-      if row.fileId > 0: st.bindInt(5, row.fileId) else: st.bindNull(5)
+      if int64(row.fileId) > 0: st.bindInt(5, row.fileId) else: st.bindNull(5)
       st.bindOptText(6, row.failure)
       st.bindOptText(7, row.message)
       st.run()

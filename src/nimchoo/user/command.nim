@@ -35,23 +35,23 @@ another is made so.
 Names have 1 to 32 letters, digits and _ . - (not starting with -).
 """
 
-proc userId(st: Store, name: string): int64 {.raises: [StoreError].} =
+proc userId(st: Store, name: string): UserId {.raises: [StoreError].} =
   guard:
     let v = st.db.getValue(sql"select id from user where name = ?", name)
     if v.len == 0: raiseStore("no such user: " & name)
-    try: result = parseBiggestInt(v)
+    try: result = UserId(parseBiggestInt(v))
     except ValueError: raiseStore("bad user id " & v)
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   guard:
     result = st.db.getValue(sql"select count(*) from user where name = ?", name) != "0"
 
-proc setFthr(st: Store, id: int64, fthr: int) {.raises: [StoreError].} =
+proc setFthr(st: Store, id: UserId, fthr: int) {.raises: [StoreError].} =
   guard:
     st.db.exec(sql"""insert into user_profile(user_id, fthr) values (?, ?)
       on conflict(user_id) do update set fthr = excluded.fthr""", id, fthr)
 
-proc setDefault(st: Store, id: int64) {.raises: [StoreError].} =
+proc setDefault(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Make `id` the default user (the old one stops being; both or neither).
   st.begin()
   try:
@@ -65,14 +65,14 @@ proc setDefault(st: Store, id: int64) {.raises: [StoreError].} =
 
 const deletedNote = " (the impulses worked out with the old one are deleted)"
 
-proc currentFthr(st: Store, id: int64): Option[int] {.raises: [StoreError].} =
+proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
   guard:
     let v = st.db.getValue(sql"select fthr from user_profile where user_id = ?", id)
     if v.len > 0:
       try: return some(parseInt(v))
       except ValueError: discard
 
-proc hasImpulses(st: Store, id: int64): bool {.raises: [StoreError].} =
+proc hasImpulses(st: Store, id: UserId): bool {.raises: [StoreError].} =
   guard:
     result = st.db.getValue(sql"""select count(*) from impulse i join activity a on a.id = i.activity_id
       join file f on f.id = a.file_id where f.user_id = ?""", id) != "0"

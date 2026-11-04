@@ -2,6 +2,7 @@ import std/[algorithm, os, sequtils, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
+import nimchoo/ids
 import nimchoo/modules
 import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand
@@ -15,7 +16,7 @@ const
   aug15 = 1534334400      # 2018-08-15T12:00Z
   aug27 = 1535371200      # 2018-08-27T12:00Z
 
-proc addActivity(s: Store, userId: int64, tag: string, startT: int, wkt: string,
+proc addActivity(s: Store, userId: UserId, tag: string, startT: int, wkt: string,
                  sport = "", subSport = "", lon = 0.0, lat = 0.0) =
   s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
             userId, tag, tag)
@@ -37,7 +38,7 @@ proc world(name: string): string =
   let s = openStore(result, allFragments)
   defer: s.close()
   s.db.exec(sql"insert into user(name) values ('bob')")
-  let bob = parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'"))
+  let bob = UserId(parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'")))
   addActivity(s, s.userId, "lisbon1", july1, "MULTILINESTRING((-9.14 38.72, -9.10 38.75))",
               "cycling", "road", -9.14, 38.72)
   addActivity(s, s.userId, "paris", aug27, "MULTILINESTRING((2.35 48.85, 2.40 48.90))",

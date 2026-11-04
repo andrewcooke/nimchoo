@@ -11,13 +11,14 @@
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
 
 import std/[algorithm, math, options, sequtils, strutils, tables, times, unicode]
+import ../fit/time
 import ../ui/[interval, style]
 
 {.push raises: [].}
 
 type
   ListRow* = object
-    startT*: int64                ## Unix seconds, UTC
+    startT*: UnixTime
     sport*, subSport*: string     ## "" if not recorded
     distanceM*, activeS*: Option[float]
     file*, user*: string          ## the file's name; who it belongs to
@@ -75,7 +76,7 @@ func km*(metres: float): string =
 const transition = "transition"      ## the sport of the gaps between the legs of a triathlon
 
 proc rowCells(r: ListRow, zone: Timezone): seq[string] =
-  let d = fromUnix(r.startT).inZone(zone)
+  let d = r.startT.toTime.inZone(zone)
   @[dateOf(d), clockOf(d), sportLabel(r),
     if r.distanceM.isSome: kmNumber(r.distanceM.get) else: "-",
     if r.activeS.isSome: interval(r.activeS.get) else: "-"]

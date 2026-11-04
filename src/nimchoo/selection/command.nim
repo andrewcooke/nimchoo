@@ -12,6 +12,7 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
 import ../errors
+import ../fit/time
 import ../ui/[live, logfile, style, vocabulary]
 import ./[calendar, criteria, table]
 
@@ -65,21 +66,16 @@ the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 error unless exactly one activity is selected.
 """
 
-proc localDate(t: int64): string =
-  ## The date in the user's time zone.
-  let d = fromUnix(t).local
-  d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
-
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"
   let t = $x
   if t.endsWith(".0"): t[0 ..< t.len - 2] else: t
 
-proc userIdOf(st: Store, name: string): int64 {.raises: [StoreError].} =
+proc userIdOf(st: Store, name: string): UserId {.raises: [StoreError].} =
   guard:
     let v = st.db.getValue(sql"select id from user where name = ?", name)
     if v.len == 0: raiseStore("no such user: " & name)
-    try: result = parseBiggestInt(v)
+    try: result = UserId(parseBiggestInt(v))
     except ValueError: raiseStore("bad user id " & v)
 
 proc number(st: Store, query: string): int {.raises: [StoreError].} =
@@ -87,7 +83,7 @@ proc number(st: Store, query: string): int {.raises: [StoreError].} =
     try: result = parseInt(st.db.getValue(sql(query)))
     except ValueError: raiseStore("bad number from the database")
 
-proc startOf(st: Store, activityId: int64): Option[(float, float)] {.raises: [StoreError].} =
+proc startOf(st: Store, activityId: ActivityId): Option[(float, float)] {.raises: [StoreError].} =
   ## Where an activity started (latitude, longitude); none if it has no positions.
   guard:
     let c = st.db.getRow(sql"select ST_Y(start), ST_X(start) from activity where id = ?", activityId)
@@ -120,7 +116,7 @@ proc checkNames(st: Store, what, column, idList: string, wanted: seq[string])
       raiseStore("no activity of those users has the " & what & " '" & w & "' (they have: " &
         (if shown.len > 0: shown.join(", ") else: "no activities") & ")")
 
-func rowColumns(verbose: bool, userId: int64): string =
+func rowColumns(verbose: bool, userId: UserId): string =
   ## What a row of the listing is made of (see table.nim); not recorded: -1 and ''.
   ## The path of the file (for `verbose`) is where it was last seen, else its name.
   "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
@@ -147,7 +143,7 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
       try:
         let dist = parseFloat(r[3])
         let active = parseFloat(r[4])
-        result.add ListRow(startT: parseBiggestInt(r[0]), sport: r[1], subSport: r[2],
+        result.add ListRow(startT: UnixTime(parseBiggestInt(r[0])), sport: r[1], subSport: r[2],
                            distanceM: if dist >= 0: some(dist) else: none(float),
                            activeS: if active >= 0: some(active) else: none(float),
                            file: r[5], user: r[6], selected: r[7] == "1", path: r[8],
@@ -184,19 +180,19 @@ proc showSelection*(st: Store, c: Criteria, zone: Timezone, screen = Screen(colo
   result = listing(rows, zone, c, screen, none(int))
   result.add skippedWarning(rows, zone, c)
 
-proc latestAmong(st: Store, match: string): Option[tuple[id: int64, row: ListRow]]
+proc latestAmong(st: Store, match: string): Option[tuple[id: ActivityId, row: ListRow]]
     {.raises: [StoreError].} =
   ## The newest activity of those a query finds (one giving `id` and the row columns).
   let ordered = " from (" & match & ") order by start_t desc, id desc limit 1"
   let rows = readRows(st, "select " & rowFields & ordered)
-  if rows.len == 0: return none(tuple[id: int64, row: ListRow])
+  if rows.len == 0: return none(tuple[id: ActivityId, row: ListRow])
   guard:
     try:
-      result = some((id: parseBiggestInt(st.db.getValue(sql("select id" & ordered))), row: rows[0]))
+      result = some((id: ActivityId(parseBiggestInt(st.db.getValue(sql("select id" & ordered)))), row: rows[0]))
     except ValueError:
       raiseStore("bad number from the database")
 
-proc previousSelected(st: Store): tuple[id: int64, row: ListRow] {.raises: [StoreError].} =
+proc previousSelected(st: Store): tuple[id: ActivityId, row: ListRow] {.raises: [StoreError].} =
   ## The one activity of the stored selection (what `previous` means).  An error unless
   ## there is exactly one.
   let n = number(st, "select count(*) from selection where user_id = " & $st.userId)
@@ -207,12 +203,12 @@ proc previousSelected(st: Store): tuple[id: int64, row: ListRow] {.raises: [Stor
     "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId)
   guard:
     try:
-      result = (id: parseBiggestInt(st.db.getValue(
-        sql"select activity_id from selection where user_id = ?", st.userId)), row: rows[0])
+      result = (id: ActivityId(parseBiggestInt(st.db.getValue(
+        sql"select activity_id from selection where user_id = ?", st.userId))), row: rows[0])
     except ValueError:
       raiseStore("bad number from the database")
 
-proc resolve(st: Store, c: var Criteria, which: Reference, id: int64, row: ListRow,
+proc resolve(st: Store, c: var Criteria, which: Reference, id: ActivityId, row: ListRow,
              centre: var Option[(float, float)], source: var string)
     {.raises: [StoreError].} =
   ## Replace the criteria measured against `which` by what they mean for this activity.
@@ -248,7 +244,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
   var c = criteria
-  var userIds: seq[int64]
+  var userIds: seq[UserId]
   if c.users.len == 0:
     userIds.add st.userId
   else:
