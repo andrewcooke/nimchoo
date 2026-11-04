@@ -224,6 +224,17 @@ made by an earlier build must be deleted and re-imported), the tests moved to mi
 The Task 1 notes below use the module names of the time (`binary.nim` is now
 `fit/{bytes,basetype,crc,time,header}`, `profile.nim` is `profile/{model,load}`, and so on).
 
+## Nim 2.4.0 (checked 2026-11-04; the author asked whether to upgrade from 2.2.12)
+
+Tried without touching the installed Nim: the official `nim-2.4.0-linux_x64.tar.xz` (its published SHA-256 matched)
+unpacked in a scratch folder, and a scratch git worktree of the commit built and tested with it.  **Everything
+passes:** it builds with no errors and no new warnings; all 841 tests pass (the run takes 12.5 s, as with 2.2.12);
+the SDK CSV comparison is 26 of 26 identical; the import of the 300-file sample takes the same time (3.8 s with
+1 thread, 2.3 s with 2); and the channel close/reopen bug is gone (the nine-line program is clean under the
+sanitizer).  The dependencies (zippy 0.10.20, db_connector 0.1.0, checksums 0.2.2) compile unchanged.  To
+upgrade: `choosenim 2.4.0`, then `nimble setup` (to remake `nimble.paths`), `nimble prod`, `nimble test`.  The
+code still works on 2.2 (`nimchoo.nimble` says `nim >= 2.2.0`) and "open the channels once" is right on both.
+
 ## Task 11: a version (asked for 2026-11-04; the exact wish to be confirmed)
 
 The program has a version only in `nimchoo.nimble` (0.1.0).  Probably wanted: `nch --version` (and in `nch help`),
