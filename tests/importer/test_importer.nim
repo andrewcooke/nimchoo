@@ -1,7 +1,9 @@
 import std/[options, os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/importer/[extract, importer]
-import nimchoo/db/store
+import std/tables
+import nimchoo/db/[channel, store]
+import nimchoo/hashing
 import nimchoo/errors
 import nimchoo/fit/bytes
 import nimchoo/modules
@@ -255,3 +257,71 @@ suite "import: segments":
     let (r, _) = s.importPath(multisport)
     check r.segments == s.count("segment")
     check s.db.getValue(sql"select count(distinct activity_id) from segment") == "7"
+
+suite "import: decoding apart from writing":
+  test "decodeFile needs no database: activities, their routes as bytes, and the warnings":
+    var ws: seq[Warning]
+    let d = decodeFile(p, tiny, @[], ws)
+    check d.activities.len == 1 and d.routes.len == 1
+    check d.activities[0].coords.len == 3
+    check d.routes[0].isSome and d.routes[0].get.len == 9 + 9 + 3 * 16        # one line of three points
+    check ws.len == 0
+
+  test "a real ride: the route has a point for each coordinate":
+    var ws: seq[Warning]
+    let d = decodeFile(p, readBytes(ride), @["heart_rate"], ws)
+    check d.activities[0].coords.len == 2099 and d.activities[0].samples["heart_rate"].len == 2099
+    check d.routes[0].get.len == 9 + 20 * 9 + 2099 * 16                       # 20 segments
+
+  test "a file that cannot be used raises, and the warnings so far are kept":
+    var ws: seq[Warning]
+    expect FitError:
+      discard decodeFile(p, b(1, 2, 3), @[], ws)
+    let noSession = fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base))
+    expect ImportError:
+      discard decodeFile(p, noSession, @[], ws)
+
+  test "channelsOf lists the fields the steps want, once each":
+    let a = ImportStep(channels: @["heart_rate", "cadence"])
+    let c = ImportStep(channels: @["heart_rate", "power"])
+    check channelsOf(@[a, c]) == @["heart_rate", "cadence", "power"]
+    check channelsOf(@[]).len == 0
+
+  test "knownFile finds a file by its content, only for the user it was imported for":
+    let path = tempDb("known")
+    let a = openStore(path)
+    a.db.exec(sql"insert into user(name) values ('bob')")
+    var ws: seq[Warning]
+    let digest = sha256Hex(tiny)
+    check knownFile(a, digest).isNone
+    let r = a.importFile(p, "tiny.fit", tiny, ws)
+    check knownFile(a, digest) == some(r.fileId)
+    a.close()
+    let b2 = openStore(path, "bob")
+    defer: b2.close()
+    check knownFile(b2, digest).isNone
+
+  test "writeDecoded writes what importFile does, and only that":
+    let one = openStore(tempDb("write1"))
+    let two = openStore(tempDb("write2"))
+    defer:
+      one.close()
+      two.close()
+    var ws: seq[Warning]
+    let viaFile = one.importFile(p, "r.fit", readBytes(ride), ws)
+    var ws2: seq[Warning]
+    let d = decodeFile(p, readBytes(ride), @[], ws2)
+    let viaParts = two.writeDecoded("r.fit", sha256Hex(readBytes(ride)), d, @[])
+    check viaParts.outcome == ioImported and viaParts.coords == viaFile.coords and
+      viaParts.segments == viaFile.segments and viaParts.activities == viaFile.activities
+    for table in ["file", "activity", "coords", "segment", "route"]:
+      check one.count(table) == two.count(table)
+    check one.db.getValue(sql"select sum(lon) || ',' || sum(lat) from coords") ==
+      two.db.getValue(sql"select sum(lon) || ',' || sum(lat) from coords")
+    # and nothing is written if the writing fails part way
+    let three = openStore(tempDb("write3"))
+    defer: three.close()
+    three.db.exec(sql"drop table coords")
+    expect StoreError:
+      discard three.writeDecoded("r.fit", "x", d, @[])
+    check three.count("file") == 0

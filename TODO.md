@@ -362,6 +362,26 @@ the biggest cost, one thing at a time, keeping the numbers in this file.
   writer (coordinates 17%, heart rate 14%, commit 7%, hash, nearest place) is then the limit, so the next
   steps are a pool of decoders + one writer, with the hashing, the route bytes and the nearest-place query
   (WAL allows readers) moved out of the writer, and then batching the row inserts.
+* **Threads: the design (proposed 2026-11-04, agreed in outline).**  Target machine: 16 cores (this VM has 4).
+  Only one thread (the main one, the writer) ever touches the database.  Workers take numbered jobs and do
+  everything that needs no database: read, hash, decode, assemble the activities, build the route bytes; each
+  loads its own copy of the profile (no objects shared) and sends back one result (the activities, or the
+  failure with its kind and message, and the warnings).  The writer takes results in file order (a reorder
+  buffer, with a bounded number of files in flight) and does what `importFileWith` does now: the "known?" check,
+  one transaction, the inserts, the events -- so output and log are unchanged and `--jobs 1` and `--jobs 8`
+  give the same database and events (a test).  `nch import --jobs N` / `-j N` (default: the number of cores,
+  capped at 8 at first; `--jobs 1` runs the same code without threads).  Workers get the file hashes already in
+  the database, loaded once, and skip decoding a known one.  Ctrl-C: the writer finishes its file, workers stop
+  at their next, the seen-files record is saved.  `NCH_PROFILE` keeps a table per thread and merges them.
+  Dependency: `threading`'s `Chan`, or the built-in `Channel` (deprecated) if a spike shows it works under ORC.
+  Steps: (1) split the importer into a pure `decodeFile` and a `writeDecoded`, still single-threaded
+  (no change in behaviour); (2) the worker pool with the ordered hand-back and `--jobs`, with the equality tests,
+  a bad file in the middle, the same file twice, an interrupt, and a file that changes during the run;
+  (3) per-thread timers, measure on 1, 2 and 4 cores; (4) if the writer is then the limit: the nearest-place
+  query out of it, and batched row inserts.
+  **Step 1 done:** `importer.nim` has `decodeFile` (no database; raises as before; warnings in `ws`; builds the
+  route bytes), `knownFile` (the hash check) and `writeDecoded` (one transaction), and `importFileWith` is
+  their composition (so nothing else changed).  Timing unchanged (about 3.0 s on the sample).
 * **Step 1: a way to measure.**
 
   Phase timers in the importer (read and hash, decode, each table's inserts,

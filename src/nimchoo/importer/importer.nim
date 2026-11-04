@@ -58,17 +58,31 @@ type
   ProfileSource* = proc(): Profile {.closure, raises: [].}
     ## Gives the profile; called only when a file has to be decoded.
 
-proc importFileWith*(s: Store, profile: ProfileSource, name: string,
-                     data: seq[byte], ws: var seq[Warning],
-                     steps: seq[ImportStep] = @[]): ImportResult
-    {.raises: [FitError, ImportError, StoreError].} =
-  ## Import the FIT file `data` (called `name` in the database) for the
-  ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
-  ## whole file imports.  A file already imported (same content) is recognised
-  ## by its hash before anything is decoded, so `profile` is not called.
-  var digest = ""
-  timed "hash":
-    digest = sha256Hex(data)
+type
+  Decoded* = object
+    ## What the contents of a FIT file come to, worked out with no database: the activities, the
+    ## route of each as bytes (see route.nim), in the same order.  Everything here is plain data, so
+    ## it can be made on any thread and handed to the one that writes the database.
+    activities*: seq[ActivityData]
+    routes*: seq[Option[string]]
+
+func channelsOf*(steps: seq[ImportStep]): seq[string] =
+  ## The record fields the import steps want besides the position (see db/channel.nim), once each.
+  for step in steps:
+    for ch in step.channels:
+      if ch notin result: result.add ch
+
+proc decodeFile*(profile: Profile, data: seq[byte], channels: seq[string],
+                 ws: var seq[Warning]): Decoded {.raises: [FitError, ImportError].} =
+  ## Decode a FIT file into its activities.  Warnings are added to `ws` (also if it then raises
+  ## FitError, the file being unreadable, or ImportError, it having no activity).
+  timed "decode":
+    result.activities = readActivities(profile, data, ws, channels)
+  timed "route: bytes":
+    for a in result.activities: result.routes.add routeWkb(a)
+
+proc knownFile*(s: Store, digest: string): Option[int64] {.raises: [StoreError].} =
+  ## The `file` row of the user's that has this content (hash), if there is one.
   guard:
     var known = ""
     timed "known?":
@@ -77,17 +91,15 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
         s.userId, digest)
     if known.len > 0:
       try:
-        return ImportResult(outcome: ioDuplicate,
-                            fileId: parseBiggestInt(known))
+        return some(parseBiggestInt(known))
       except ValueError:
         raiseStore("bad file id " & known)
-  var wanted: seq[string]
-  for step in steps:
-    for ch in step.channels:
-      if ch notin wanted: wanted.add ch
-  var found: seq[ActivityData]
-  timed "decode":
-    found = readActivities(profile(), data, ws, wanted)
+
+proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
+                   steps: seq[ImportStep]): ImportResult {.raises: [StoreError].} =
+  ## Write a decoded file (called `name` in the database, with this content hash) for the
+  ## store's user, in one transaction: nothing is written unless all of it is.  The import
+  ## steps (heart rate, ...) write their rows for each activity.
   s.begin()
   var committed = false
   var actStmt, segStmt, coordStmt, routeStmt, startStmt: Option[Stmt]
@@ -111,7 +123,7 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     result.outcome = ioImported
     for step in steps:
       result.extras.add ExtraCount(one: step.label, many: step.labels)
-    for a in found:
+    for i, a in d.activities:
       var activityId = 0'i64
       timed "insert activity":
         insertActivity(actStmt.get, fileId, a)
@@ -130,13 +142,10 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
           if near.isSome: startStmt.get.bindInt(3, near.get.id) else: startStmt.get.bindNull(3)
           startStmt.get.bindInt(4, activityId)
           startStmt.get.run()
-      var wkb: Option[string]
-      timed "route: bytes":
-        wkb = routeWkb(a)
       timed "route: insert":
-        if wkb.isSome:
+        if d.routes[i].isSome:
           routeStmt.get.bindInt(1, activityId)
-          routeStmt.get.bindBlob(2, wkb.get)
+          routeStmt.get.bindBlob(2, d.routes[i].get)
           routeStmt.get.run()
       for i, step in steps:
         timed "step: " & step.label:
@@ -154,6 +163,24 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
     if routeStmt.isSome: finalize(routeStmt.get)
     if startStmt.isSome: finalize(startStmt.get)
     if not committed: s.rollback()
+
+
+proc importFileWith*(s: Store, profile: ProfileSource, name: string,
+                     data: seq[byte], ws: var seq[Warning],
+                     steps: seq[ImportStep] = @[]): ImportResult
+    {.raises: [FitError, ImportError, StoreError].} =
+  ## Import the FIT file `data` (called `name` in the database) for the
+  ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
+  ## whole file imports.  A file already imported (same content) is recognised
+  ## by its hash before anything is decoded, so `profile` is not called.
+  var digest = ""
+  timed "hash":
+    digest = sha256Hex(data)
+  let known = knownFile(s, digest)
+  if known.isSome:
+    return ImportResult(outcome: ioDuplicate, fileId: known.get)
+  let d = decodeFile(profile(), data, channelsOf(steps), ws)
+  writeDecoded(s, name, digest, d, steps)
 
 proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
                  ws: var seq[Warning], steps: seq[ImportStep] = @[]): ImportResult
