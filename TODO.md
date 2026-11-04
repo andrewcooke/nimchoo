@@ -1877,3 +1877,69 @@ most paths; the hash string (64 characters, 73 bytes with Nim's header) of the f
 once for each time a database was opened (found by AddressSanitizer: 59 leaks in the store tests, 0 now).
 `resolve` now keeps the program's copy in a separate variable and only ever returns a value.  Lesson: in
 `{.gcsafe.}` procs with many early returns, do not fill in `result` first and then return something else.
+
+## Task 12: altitude and climb detection (planned 2026-11-04, from reading choochoo)
+
+### What choochoo does (py/ch2/data/climb.py, data/elevation.py, pipeline/calculate/{elevation,climb}.py, srtm/)
+
+* **Elevation per point.**  Three sources: the device's barometric altitude; an SRTM1 terrain model (30 m
+  tiles `N45W123.hgt`, bilinear interpolation, tiles downloaded by hand from NASA/USGS: a login is needed
+  and automating it failed); the raw GPS altitude.  With SRTM the elevation is the terrain smoothed along
+  the route by a smoothing spline (scipy `UnivariateSpline`, `s = n * 3`), and the gradient is its
+  derivative (median of 5).  With a barometer (special-cased for the Edge 130) the altitude is used and
+  shifted by the difference of the medians from SRTM; if the SD of the difference is over 10 m the SRTM
+  data replace it.  GPS-only altitude is the last resort.
+* **Climb detection** (`find_climbs`), on distance and elevation:
+  1. resample to even steps of distance (the median step);
+  2. score of a candidate (start, end) = `gain / (distance_m ** phi)` (phi 0.7 in the code, 0.6 in the
+     docs: 0 is pure gain, 1 is pure gradient); a candidate needs gain >= `min_elevation` (80 m) and
+     gradient >= `min_gradient` (3 %);
+  3. greedy: take the best candidate in the data (O(n^2); for long rides first search every 10th point,
+     then refine around the hit), then recurse on the part before and the part after;
+  4. a found climb is checked for a **reversal**: if the biggest descent inside it exceeds `max_reversal`
+     (10 %) of the gain it is split either side of the descent and each part searched again; climbs
+     steeper than `max_gradient` (40 %) are dropped as errors;
+  5. a climb is its end time, gain, distance, duration, gradient, and a category from the gain
+     (80 m: 4, 160: 3, 320: 2, 640: 1, 800: HC).
+* **Sectors** (later addition): climbs are made global.  A climb found on one ride is a `SectorClimb` with
+  its route; a climb on a later ride that mostly overlaps an earlier one (under half of its length is
+  outside the other's hull, both ways) is dropped as the same climb, so "my climbs" are a catalogue and
+  each ride gets a journal row per climb it covers (time, power...).  This needs PostGIS functions.
+
+### What nimchoo has
+
+`coords.alt` (metres, `enhanced_altitude` else `altitude`, nullable), `lon`, `lat`, `t`; the activity's total
+distance; no per-point distance, no smoothing, no terrain model.  In the 300-file sample 150 of 167 activities
+(90 %) and 83 % of the points have an altitude, ranging 37 to 2444 m.  SpatiaLite has the spatial functions the
+sector step needs.  No SRTM tiles are on this computer.
+
+### Steps (each a commit; the pure parts first, with tests on made-up profiles whose climbs are known)
+
+1. **Distance and a clean profile** (`climbs/profile.nim`, pure): cumulative distance along the route from
+   the coordinates (haversine; no schema change, works for any GPS ride), resample to even steps of
+   distance, remove spikes and smooth the altitude (a median then a moving average, or a small cubic
+   smoothing spline: there is no scipy), gradient.  Tested with synthetic ramps and noise.
+2. **The detector** (`climbs/detect.nim`, pure): the score, the greedy recursion, the coarse-then-fine
+   search, reversals, the gradient limits, categories.  Parameters as an object with the defaults above.
+   Tested on made-up profiles (one hill, two hills with a dip, a hill with a big dip splits, a plateau,
+   a short steep ramp is ignored) and compared with the Python output on the same files (the
+   `../choochoo` test rides) to settle phi and the smoothing.
+3. **`nch climbs`** (command; reads the selection like `heatmap` and `ff`): a table of the climbs of the
+   selected activities (date, start km, length, gain, gradient, category), computed on demand and cached by a
+   key like `ff`'s, so no new tables.  Options for the parameters (`--phi`, `--min-gain`, `--min-gradient`)
+   and `--csv`/`--web` as the other commands.
+4. **Show them**: the climbs on the heat map or a profile chart (elevation against distance with the climbs
+   marked), as input for an external viewer rather than local plotting.
+5. **Store them** (only if wanted): a `climb` table written by an import step after the activity (so
+   `list --climbs` and queries across rides are cheap), and the global catalogue of repeated climbs
+   (SpatiaLite overlap tests as in `__prune_climb`) with a row per ride that covers a climb.
+6. **Better elevation** (only if the barometer data prove poor): an SRTM reader (`.hgt` tiles that the
+   author downloads; bilinear lookup is 30 lines) to correct a barometer's drift or replace GPS-only altitude.
+
+### Questions for the author
+
+* Is device altitude good enough to start (steps 1 to 3), with SRTM left for later?  (Most Garmin Edge
+  devices are barometric, and 90 % of the sample has altitude.)
+* Computed on demand (step 3) before any new table, or stored at import from the start?
+* Is a catalogue of repeated climbs (step 5) wanted, or only the climbs of each ride?
+* Does a ride with several sessions or timer pauses need the climbs per segment, or per activity?
