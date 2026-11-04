@@ -7,7 +7,7 @@ import ../cli/common
 import ./csvout
 import ./reader
 import ./records
-import ../profile/default
+import ../profile/[default, load]
 import ../errors
 import ../profile/model
 import ../warnings
@@ -102,7 +102,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     problem = ""
   try:
     let p =
-      try: loadProfileOrDefault(profilePath)
+      try:
+        if profilePath.len > 0:
+          loadProfile(profilePath)
+        else:
+          let d = defaultProfile()
+          if d.note.len > 0: stderr.say "note: " & d.note & "\n"
+          d.profile
       except NchError as e:
         return failure("nch fit", "cannot use the profile: " & e.msg)
     try:

@@ -23,8 +23,7 @@ func counts(p: Profile): (int, int, int) =
 suite "default profile":
   test "the built-in profile is the same as the file":
     check counts(loadDefaultProfile()) == counts(p)
-    check counts(loadProfileOrDefault("")) == counts(p)
-    check counts(loadProfileOrDefault(profilePath)) == counts(p)
+    check counts(defaultProfile().profile) == counts(p)
 
 suite "nch fit rendering":
   test "csv lines look like the SDK's":

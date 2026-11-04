@@ -2,14 +2,16 @@
 ## escaping text for a page, and writing a file so that nobody sees half of it.
 
 import std/os
+import ../bundle/notice
 import ../cache
 
 {.push raises: [].}
 
 proc makeCacheDirs*(dir: string) {.raises: [IOError, OSError].} =
-  ## The cache directory and its two parts, if they are not there.
+  ## The cache directory and its two parts, if they are not there (and the licence notice in `system/`).
   createDir userDir(dir)
   createDir systemDir(dir)
+  unpackNotice(dir)
 
 func htmlEscape*(s: string): string =
   ## `s` as text in a page: markup in it is shown, not obeyed.

@@ -9,6 +9,7 @@
 
 import std/[options, strutils]
 import zippy
+import ../bundle/unpack
 
 {.push raises: [].}
 
@@ -19,11 +20,11 @@ type PlaceRow* = object
 
 when defined(nchSmallPlaces):
   const carried = staticRead("cities-test.tsv")
-  const isGzipped = false
+  const listName = "cities-test.tsv"
   const dataVersion* = "test-list"
 else:
   const carried = staticRead("cities.tsv.gz")
-  const isGzipped = true
+  const listName = "cities.tsv.gz"
   const dataVersion* = staticRead("cities.version").strip
     ## the SHA-256 of cities.tsv.gz, written by tools/makecities.nim
 
@@ -51,6 +52,19 @@ proc unpack*(data: string, gzipped: bool): string =
   try: uncompress(data, dfGzip)
   except ZippyError: ""
 
+const placesBundle* = Bundle(name: listName, data: carried)
+
+func listText*(data: string): string =
+  ## The text of a list that is gzipped (as the one the program carries) or plain (as the author
+  ## may have written one): told apart by the gzip signature.  Empty if it cannot be read.
+  if data.len > 2 and data[0] == '\x1f' and data[1] == '\x8b': unpack(data, true) else: data
+
+proc placesList*(): tuple[rows: seq[PlaceRow], path: string] =
+  ## The list to use: the one in the cache's `system/` part (the program's, unpacked, or the
+  ## author's); `path` is the author's file, or "" for the program's own.
+  let r = resolve(placesBundle)
+  (parsePlaces(listText(r.data)), if r.source == soCustom: r.path else: "")
+
 proc carriedPlaces*(): seq[PlaceRow] =
-  ## The list this program carries.
-  parsePlaces(unpack(carried, isGzipped))
+  ## The list to use (see `placesList`).
+  placesList().rows

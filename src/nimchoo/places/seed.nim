@@ -36,9 +36,12 @@ proc loadPlaces*(db: DbConn, rows: seq[PlaceRow], source = "geonames")
 
 proc seedPlaces*(db: DbConn) {.raises: [StoreError].} =
   ## The seed of the places fragment: the list the program carries.
-  let rows = carriedPlaces()
-  if rows.len == 0: raiseStore("the list of places the program carries cannot be read")
-  loadPlaces(db, rows)
+  let list = placesList()
+  if list.rows.len == 0:
+    raiseStore(if list.path.len > 0: "the list of places " & list.path & " cannot be read (it is " &
+                 "tab-separated lines: name, country, latitude, longitude, population; gzipped or not)"
+               else: "the list of places the program carries cannot be read")
+  loadPlaces(db, list.rows)
 
 func degrees(x: float): string = formatFloat(x, ffDecimal, 6)
 

@@ -9,8 +9,8 @@
 ## directory.  The database as a whole is made by applying the fragments of all
 ## modules in order (see store.nim); the list is put together in modules.nim.
 
-import std/[os, strutils]
-import checksums/sha2
+import std/os
+import ../hashing
 import db_connector/db_sqlite
 import ../errors
 
@@ -31,9 +31,7 @@ proc checksum*(f: Fragment): string =
   ## The SHA-256 of the fragment's SQL (and of the version of the data its seed puts in), in
   ## hex: recorded with the fragment when it is applied, so that a database made from
   ## different SQL or different data is noticed when it is opened.
-  let text = if f.seedVersion.len > 0: f.sql & "\n-- seed data: " & f.seedVersion else: f.sql
-  for c in secureHash(Sha_256, text):
-    result.add toLowerAscii(toHex(ord(c), 2))
+  sha256Hex(if f.seedVersion.len > 0: f.sql & "\n-- seed data: " & f.seedVersion else: f.sql)
 
 func withSeed*(f: Fragment, seed: SeedProc, version = ""): Fragment =
   ## The same fragment, with data to put in after its tables are made.  `version` names

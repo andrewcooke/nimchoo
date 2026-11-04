@@ -5,8 +5,8 @@
 ## each one's file, and its session), not of database ids: the same activities
 ## give the same key in any database, and a changed selection gives a new one.
 
-import std/[algorithm, strutils]
-import checksums/sha2
+import std/algorithm
+import ../hashing
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
@@ -20,10 +20,7 @@ func keyOf*(entries: seq[string]): string =
   ## any order): the first 12 hex digits of the SHA-256 of the sorted entries.
   var text = ""
   for e in entries.sorted: text.add e & "\n"
-  var hex = ""
-  for c in secureHash(Sha_256, text):
-    hex.add toLowerAscii(toHex(ord(c), 2))
-  hex[0 ..< keyLength]
+  sha256Hex(text)[0 ..< keyLength]
 
 proc selectionKey*(st: Store): string {.raises: [StoreError].} =
   ## The key of the current selection of the store's user.

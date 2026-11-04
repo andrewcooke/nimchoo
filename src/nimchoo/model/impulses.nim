@@ -9,6 +9,7 @@ import std/[algorithm, options, strutils]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
+import ../hashing
 import ./[calc, models]
 
 {.push raises: [].}
@@ -85,4 +86,4 @@ proc inputKey*(db: DbConn, userId: int64, m: Model): string {.raises: [StoreErro
       entries.add r[0] & ":" & r[1]
   if entries.len == 0: return
   entries.sort
-  hexHash("fthr " & $fthr.get & "\n" & describe(m) & "\n" & entries.join("\n"))[0 ..< 12]
+  sha256Hex("fthr " & $fthr.get & "\n" & describe(m) & "\n" & entries.join("\n"))[0 ..< 12]

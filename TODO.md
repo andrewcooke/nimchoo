@@ -357,7 +357,18 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   (pure, in `cache.nim`), `makeCacheDirs` (in `serve/pages.nim`) makes both; `heatmap` and `ff` write into
   `user/`; the server serves only `user/` (`ServerConfig.cacheDir` is that directory) and keeps `server-token`
   at the top; nothing is written to `system/` yet (D2).  Old files in the cache root are ignored;
-  D2 the manifest and unpacking of `Profile.xlsx`, the cities list and `NOTICE`, with replaced files used;
+  D2 the manifest and unpacking of `Profile.xlsx`, the cities list and `NOTICE`, with replaced files used --
+  built: `bundle/unpack.nim` (`Bundle{name, data}`; `decide` and the manifest are pure; `resolve(top, bundle)`
+  or `resolve(bundle)` for the environment's cache; the manifest is `<cache>/manifest`, lines `hash  name`).
+  A missing file is unpacked; one as unpacked is replaced by a newer built-in; one that differs (or has
+  nothing recorded and is not the built-in) is the author's: used as it is, never overwritten; an unusable
+  cache falls back to the built-in copy.  Used by: the default profile (`profile/default.nim`:
+  `defaultProfile()` gives a note when the author's is in use, or falls back to the built-in with a note when
+  it cannot be read; `nch import` says the note at the end, `nch fit` on stderr), the places list
+  (`places/data.nim`: `placesList()`, gzipped or plain, an error naming the file if it cannot be read;
+  used when a database is made), and `NOTICE` (`bundle/notice.nim`, unpacked by `makeCacheDirs`).  A changed
+  places list is not noticed by a database that exists (D5).  `hashing.nim` replaced five copies of the hex
+  SHA-256.  `tests/support/env.nim` gives the tests a cache directory of their own;
   D3 the template engine (pure, tested);
   D4 the heat map and chart pages as templates, with the library versions file;
   D5 reload the places when the list changes, and repoint the activities.

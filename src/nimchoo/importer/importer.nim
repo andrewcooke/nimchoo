@@ -3,7 +3,7 @@
 ## content, same user) does nothing.
 
 import std/[options, strutils, times]
-import checksums/sha2
+import ../hashing
 import db_connector/db_sqlite
 import ../db/[channel, statement, store]
 import ../errors
@@ -22,12 +22,6 @@ type
     fileId*: int64              ## the `file` row: the new one, or the one it duplicates
     activities*, segments*, coords*: int   ## rows written (0 if already imported)
     extras*: seq[ExtraCount]    ## what the import steps wrote, in the order of the steps
-
-proc sha256Hex*(data: openArray[byte]): string =
-  var text = newString(data.len)
-  for i, b in data: text[i] = char(b)
-  for c in secureHash(Sha_256, text):
-    result.add toLowerAscii(toHex(ord(c), 2))
 
 proc insertActivity(st: Stmt, fileId: int64, a: ActivityData) {.raises: [StoreError].} =
   st.bindInt(1, fileId)

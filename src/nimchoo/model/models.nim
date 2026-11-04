@@ -2,7 +2,7 @@
 ## adding more.
 
 import std/[options, strutils]
-import checksums/sha2
+import ../hashing
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
@@ -19,12 +19,7 @@ func describe*(m: Model): string =
   for z in m.zones: result.add " " & $z
   result.add " " & $m.fitnessDays & " " & $m.fatigueDays
 
-func hexHash*(text: string): string =
-  ## The SHA-256 of a text, in hex.
-  for c in secureHash(Sha_256, text):
-    result.add toLowerAscii(toHex(ord(c), 2))
-
-const seedVersion* = hexHash(describe(defaultModel()))
+const seedVersion* = sha256Hex(describe(defaultModel()))
   ## Names the values of the default model, so that a database made with others is noticed.
 
 proc insertModel*(db: DbConn, m: Model) {.raises: [StoreError].} =

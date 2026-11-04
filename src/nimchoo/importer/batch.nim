@@ -38,11 +38,6 @@ type
 proc isFit(path: string): bool =
   path.splitFile.ext.toLowerAscii == ".fit"
 
-proc embeddedProfile(): Profile {.raises: [].} =
-  try: loadDefaultProfile()
-  except NchError as e:
-    raiseAssert "the embedded profile does not load: " & e.msg   # a bug
-
 proc candidate(path: string): Candidate {.raises: [OSError].} =
   ## The file at `path`, statted.
   let info = getFileInfo(path)
@@ -109,9 +104,15 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
   var pending: SeenBuffer
   var importedFrom: Table[int64, string]   ## file id -> path, for files imported in this run
   var cached: Option[Profile]
+  var profileNote = ""                 # said at the end if the author's profile is in use (or unusable)
   let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
     if cached.isNone:
-      cached = some(if opts.profile.isNil: embeddedProfile() else: opts.profile())
+      if opts.profile.isNil:
+        let d = defaultProfile()
+        profileNote = d.note
+        cached = some(d.profile)
+      else:
+        cached = some(opts.profile())
     cached.get
 
   template flushSeen() =
@@ -168,6 +169,7 @@ proc importPaths*(st: Store, targets: seq[string], opts: ImportOptions,
     if pending.full: flushSeen()
     finished ev
   flushSeen()
+  if profileNote.len > 0: result.notes.add profileNote
   emit ImportEvent(kind: evFinish, summary: result)
 
 proc importReport*(st: Store, targets: seq[string],

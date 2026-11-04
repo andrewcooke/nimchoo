@@ -133,7 +133,7 @@ suite "nch ff":
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure       # (no FTHR: refused, with a reason)
     s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
     s.close()
-    check not dirExists(cache)
+    check not dirExists(cache / "user")                     # (nothing made yet; the database has unpacked its list of places)
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     var files: seq[string]
     for f in walkFiles(cache / "user" / "*.csv"): files.add f
