@@ -65,6 +65,11 @@ proc placesList*(): tuple[rows: seq[PlaceRow], path: string] =
   let r = resolve(placesBundle)
   (parsePlaces(listText(r.data)), if r.source == soCustom: r.path else: "")
 
+proc placesVersion*(): string =
+  ## Which list is in use: the SHA-256 of its file (the same as `dataVersion` for the program's own).
+  ## A database remembers which list it was made from, and replaces its places when this changes.
+  resolve(placesBundle).hash
+
 proc carriedPlaces*(): seq[PlaceRow] =
   ## The list to use (see `placesList`).
   placesList().rows

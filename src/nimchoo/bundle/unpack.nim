@@ -41,6 +41,7 @@ type
     data*: string
     source*: Source
     path*: string      ## the file in `system/` ("" if there is none)
+    hash*: string      ## the SHA-256 of `data` (already worked out, so a caller need not)
 
 const
   manifestName* = "manifest"
@@ -91,10 +92,10 @@ proc record(top, name, hash: string) =
 proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
   ## The data to use for a bundled file, unpacking it into `top`'s `system/` if need be.  `top` is
   ## the cache directory; "" means there is none (use the program's copy).
-  result = Resolved(data: b.data, source: soBundled)
+  let bundled = sha256Hex(b.data)
+  result = Resolved(data: b.data, source: soBundled, hash: bundled)
   if top.len == 0: return
   let path = systemDir(top) / b.name
-  let bundled = sha256Hex(b.data)
   var current: Option[string]
   var onDisk = ""
   try:
@@ -108,10 +109,10 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
     if k == b.name: recorded = some(v)
   case decide(current, recorded, bundled)
   of acCustom:
-    return Resolved(data: onDisk, source: soCustom, path: path)
+    return Resolved(data: onDisk, source: soCustom, path: path, hash: current.get)
   of acCurrent:
     if recorded != some(bundled): record(top, b.name, bundled)
-    return Resolved(data: b.data, source: soUnpacked, path: path)
+    return Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)
   of acUnpack, acRefresh:
     if b.name != noticeBundle.name: discard resolve(top, noticeBundle)       # (the notice goes with them)
     try:
@@ -122,7 +123,7 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
     except IOError, OSError, Exception:
       return                                 # cannot write: the program's copy will do
     record(top, b.name, bundled)
-    result = Resolved(data: b.data, source: soUnpacked, path: path)
+    result = Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)
 
 proc unpackNotice*(top: string) =
   ## Put NOTICE in `top`'s `system/` part, if it is not already there.

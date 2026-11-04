@@ -73,7 +73,7 @@ suite "nch ff --worker":
     s.close()
     let (output, code) = worker(f.db, f.cache, @[])
     check code == 1 and output.contains("no FTHR")
-    check not dirExists(f.cache) or toSeq(walkFiles(f.cache / "*")).len == 0
+    check not dirExists(f.cache / "user") or toSeq(walkFiles(f.cache / "user" / "*")).len == 0     # (nothing made; the cache has only what was unpacked)
 
 suite "nch ff --web: a real server":
   test "the address, the cookie, the page and the data":

@@ -390,7 +390,17 @@ stands out from both white and grey).  Transition (dim) rows stay dim.
   scripts and styles, tile.openstreetmap.org for tiles), so a library from another host needs it changed in
   `serve/handler.nim`.  (This also removed a stale second copy of the chart's script, left in the page by the
   zoom edit; it did nothing.)  `serve/pages.nim` no longer has `fill`/`replaceAll`;
-  D5 reload the places when the list changes, and repoint the activities.
+  D5 reload the places when the list changes, and repoint the activities -- built.  A fragment can now have
+  **replaceable data** (`Fragment.version`, `reseed`, `withReseed`): the data are not in its checksum; the
+  database records which version it has (`fragment.seed_version`, a column added to old databases) and when
+  the version wanted (a proc, worked out at each open) differs, `reseed` runs in a transaction, or the open
+  fails naming the cause and the database is as it was.  For the places, the version is the SHA-256 of the
+  list in use (`placesVersion`, from `resolve(...).hash`), and `reloadPlaces` drops and remakes the places and
+  their spatial index and points every activity with a start at its nearest place again (nothing else is
+  touched).  **Databases made before this are accepted** (`withLegacy`: the checksum that included the
+  list, taken to have the program's own list): tried on a copy of the author's 475 MB database, it opened
+  in 34 ms and migrated its record with no reload.  Opening a database now resolves the places list (about
+  10 ms: it reads and hashes the file), and unpacks the cache's `system/` files the first time.
 
 ## Task 3: `nch heatmap` (GeoJSON) and a local web viewer (planned)
 

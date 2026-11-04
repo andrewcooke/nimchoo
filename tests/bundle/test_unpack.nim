@@ -108,7 +108,7 @@ suite "bundle: resolving a file":
     check resolve(top, bundle("c2", "cities.tsv.gz")).data == "my cities"
     check parseManifest(readFile(top / manifestName)).len == 3        # (and the notice)
   test "no cache directory, or one that cannot be used: the program's copy":
-    check resolve("", bundle("v1")) == Resolved(data: "v1", source: soBundled, path: "")
+    check resolve("", bundle("v1")) == Resolved(data: "v1", source: soBundled, path: "", hash: sha256Hex("v1"))
     let top = fresh("unusable")
     writeFile(top / "system", "a file where the directory should be")
     let r = resolve(top, bundle("v1"))

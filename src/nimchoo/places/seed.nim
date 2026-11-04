@@ -88,3 +88,27 @@ proc nearestPlace*(db: DbConn, lon, lat: float): Option[Nearest] {.raises: [Stor
     if safe <= half: return found
     return nearestIn(db, lon, lat, min(safe, 360.0))
   none(Nearest)
+
+proc reloadPlaces*(db: DbConn) {.raises: [StoreError].} =
+  ## Replace the places with the list now in use (see `placesList`), and point each activity at the
+  ## nearest place of the new list.  Called inside a transaction when the database was made from
+  ## another list; nothing else in the database is touched.
+  let list = placesList()
+  if list.rows.len == 0:
+    raiseStore(if list.path.len > 0: "the list of places " & list.path & " cannot be read (it is " &
+                 "tab-separated lines: name, country, latitude, longitude, population; gzipped or not)"
+               else: "the list of places the program carries cannot be read")
+  guard:
+    db.exec(sql"select DisableSpatialIndex('place', 'geom')")
+    db.exec(sql"drop table if exists idx_place_geom")
+    db.exec(sql"delete from place")                      # (the activities' places become null)
+  loadPlaces(db, list.rows)
+  var starts: seq[(string, float, float)]               # (activity id, lon, lat)
+  guard:
+    for r in db.fastRows(sql"select id, ST_X(start), ST_Y(start) from activity where start is not null"):
+      try: starts.add (r[0], parseFloat(r[1]), parseFloat(r[2]))
+      except ValueError: raiseStore("bad start in the database")
+  for (id, lon, lat) in starts:
+    let near = nearestPlace(db, lon, lat)
+    if near.isSome:
+      guard: db.exec(sql"update activity set place_id = ? where id = ?", near.get.id, id)
