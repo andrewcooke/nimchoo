@@ -2242,3 +2242,15 @@ Roughly a third of the size of the names work.
   rings and touching parts); `Contains` then threw topology errors and gave wrong answers (Santiago in Argentina, Lisbon in
   Spain), and `MakeValid` failed too.  A source of valid outlines (Natural Earth) would let SQL do it all.
 * Checked on the real outlines: Santiago CL, Mendoza AR, Lisbon PT, Bristol GB, the Los Libertadores pass CL, Tokyo JP, Willemstad CW.
+
+### Task 13, step 3 is built (2026-11-04): `names/features.nim`
+
+`ensureNames(names, iso)`: makes sure the country's names are in `feature` (fetching `<ISO>.zip` through `download/` and the
+outlines first if need be), once: it reads the GeoNames file, keeps class T of the codes MT MTS PK PKS PASS SDL HLL HLLS RDGE SPUR VAL
+CNYN and all class P (villages and neighbourhoods too), inserts them in one transaction with a point geometry and its index, and
+records the country in `name_source`.  A cached file that cannot be read is said, deleted and fetched again next time.  `parseFeature`
+reads a line without making a string for each of the 19 columns.  The zip reader takes a size limit (the United States file unzips
+to about 300 MB; the limit here is 1 GB; the whole text is held in memory, so very big countries are heavy: streaming is a later job).
+Real Chile file: 16,223 features in about 1 s after the outlines (MT 5,354; PPLX 4,018; PPL 2,786; HLL 1,763; MTS 800; PASS 569; SPUR 291; PK 229);
+a box round the Los Libertadores pass finds Portezuelo Navarro, Paso de la Iglesia and others.  Next: step 4, the candidates near a
+route and the pure `pickName`.

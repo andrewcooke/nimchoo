@@ -11,7 +11,7 @@ over-ambitious kinda-strava.  unlike choochoo, nimchoo:
 
 * is written in a single, fast language (no more python or pandas)
 
-* should be easy to install (like, we might even have exacutables)
+* should be easy to install (like, we might even have executables)
 
 * is unlikely to care about power meters
 
