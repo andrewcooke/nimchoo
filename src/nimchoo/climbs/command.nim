@@ -85,7 +85,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         for l in sectorLines(rows): stdout.say l & "\n"
       return exitOk
     if selectedActivities(st) == 0:
-      return failure("nch climbs", "the selection is empty (see `nch list --save`)")
+      stdout.say "nothing is selected: `nch list ... --save` chooses activities, `nch climbs --sectors` lists every climb\n"
+      return exitOk
     let rows = selectedEfforts(st)
     if rows.len == 0:
       stdout.say "no climbs in the " & $selectedActivities(st) & " selected activities\n"

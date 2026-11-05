@@ -16,13 +16,13 @@ suite "nch climbs":
     check climbsCommand.run(Globals(), @["--bogus"]) == exitUsage
     check climbsCommand.run(Globals(), @["extra"]) == exitUsage
 
-  test "an empty selection is said, not guessed":
+  test "an empty selection is said, with what to do, and is not an error":
     let s = fresh("command-empty")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     let path = s.path
     s.close()
-    check climbs(path) == exitFailure
-    # ... but the catalogue is there to list, and the climbs were worked out on the way
+    check climbs(path) == exitOk
+    # ... and the catalogue is there to list, and the climbs were worked out on the way
     check climbs(path, "--sectors") == exitOk
     let again = openStore(path, allFragments)
     defer: again.close()
@@ -60,4 +60,4 @@ suite "nch climbs":
     let path = s.path
     s.close()
     check climbs(path, user = "bob") == exitOk
-    check climbs(path) == exitFailure                    # the default user selected nothing
+    check climbs(path) == exitOk                         # the default user selected nothing: a note

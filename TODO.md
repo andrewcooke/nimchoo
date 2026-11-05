@@ -2306,3 +2306,16 @@ route and the pure `pickName`.
 * To go back to before the climbs: `empty --sectors -f` (the climbs, their efforts and names, and the record of what was looked at);
   as well, `empty --names -f` (the tables of countries and place names, read again from the files in 2 s) and `empty --data -f` (the downloaded
   files) for a start with nothing fetched.  (A single `empty --climbs` that does all three is possible: to ask the author.)
+
+### Resetting (2026-11-05): `empty --names` takes the files too; no `--data`, no `--climbs`
+
+* `nch empty --names -f` deletes the place names and countries: the three tables **and** the GeoNames files downloaded for them
+  (`<cache>/data/geonames/`: each source has a directory of its own, so a later source gets its own target, not a catch-all).  The names
+  already given to climbs stay (copies).  `empty --data` is gone (it sounded like deleting the database).
+* To go back to before the climbs: `empty --sectors -f` (the climbs, efforts, names, record) and `empty --names -f` (the tables and files);
+  the next `nch climbs` works everything out and downloads again.  No `empty --climbs` (the author: sectors will become more general).
+* `nch climbs` with an empty selection says so (what to do: `nch list ... --save`, or `nch climbs --sectors`) and exits normally.
+* To compare with the import's display (the author felt they differ): import's first line is white (`importing` bold, the counts plain,
+  the current file grey), the second line has coloured parts (imported green, the others grey/red/yellow) joined by grey dots, and a plain
+  `done: ...` summary line follows the left-on-screen frame; climbs' first line is green throughout, its second line is green, and there
+  is no `done:` line.  To be settled after the author has looked at both.

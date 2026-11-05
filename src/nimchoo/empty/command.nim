@@ -8,7 +8,7 @@ import std/[options, os]
 import ../cache
 import ../cli/[args, common]
 import ../climbs/work as climbsWork
-import ../download/fetch
+import ../download/[fetch, sources]
 import ../names/features as namesFeatures
 import ../db/store
 import ../errors
@@ -22,7 +22,6 @@ const usage* = """usage: nch [--db PATH] empty --user NAME -f
        nch [--db PATH] empty --all -f
        nch [--db PATH] empty --sectors -f
        nch [--db PATH] empty --names -f
-       nch empty --data -f
        nch empty --cache
 
 Say what to empty:
@@ -32,9 +31,8 @@ Say what to empty:
                 stay.  (To delete the user as well: `nch user --remove NAME -f`.)
   --sectors     delete the catalogue of climbs, and with it the efforts of every user on them;
                 the next `nch climbs` works them out again from the rides
-  --names       empty the tables of place names and countries (the downloaded files stay and are
-                read in again when wanted; the names given to climbs stay)
-  --data        delete the files downloaded for the names (they are fetched again when wanted)
+  --names       delete the place names and countries: their tables, and the GeoNames files downloaded
+                for them (both are fetched again when wanted; the names already given to climbs stay)
   --all         delete the database file, and with it the data of every user and the users
   --cache       delete the files in the cache that commands made (maps, CSVs, pages); they
                 are made again when asked for.  Needs no -f.
@@ -48,7 +46,7 @@ which to press Ctrl-C.
 
 type EmptyArgs = object
   user: string
-  all, sectors, names, data, cache, force, help: bool
+  all, sectors, names, cache, force, help: bool
 
 proc emptyCache(g: Globals): int =
   let dir = cacheDir()
@@ -60,29 +58,13 @@ proc emptyCache(g: Globals): int =
   stdout.say "done: deleted " & what & "\n"
   exitOk
 
-proc emptyData(g: Globals, force: bool): int =
-  let dir = cacheDir()
-  if dir.isNone:
-    return failure("nch empty", "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)")
-  let use = dataUsage(dataDir(dir.get))
-  let what = $use.files & (if use.files == 1: " downloaded file" else: " downloaded files") & " (" &
-             humanBytes(use.bytes) & ")"
-  if not force:
-    return failure("nch empty", "would delete " & what & " from " & dataDir(dir.get) & "; use -f to do it")
-  if canLive():
-    countdown(newTerminalLive(), what, waitSeconds, sleepMs)
-  discard clearData(dataDir(dir.get))
-  g.log.log(lvInfo, "empty", leDeleted, what & " from " & dataDir(dir.get))
-  stdout.say "done: deleted " & what & "\n"
-  exitOk
-
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch empty ARGS`; returns the exit status.
   var given = EmptyArgs()
   let spec = Spec[EmptyArgs](opts: @[
     flag(EmptyArgs, ["-h", "--help"], help), flag(EmptyArgs, ["-f", "--force"], force),
     flag(EmptyArgs, ["--all"], all), flag(EmptyArgs, ["--sectors"], sectors),
-    flag(EmptyArgs, ["--names"], names), flag(EmptyArgs, ["--data"], data),
+    flag(EmptyArgs, ["--names"], names),
     flag(EmptyArgs, ["--cache"], cache),
     text(EmptyArgs, ["--user"], user)])
   let why = parseOptions(args, spec, given)
@@ -93,16 +75,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if g.user.len > 0:
     return usageError("nch empty", usage,
       "--user goes after the command here: nch empty --user " & g.user & " (what to empty is named there)")
-  let targets = [given.user.len > 0, given.all, given.sectors, given.names, given.data, given.cache]
+  let targets = [given.user.len > 0, given.all, given.sectors, given.names, given.cache]
   var named = 0
   for t in targets:
     if t: inc named
   if named == 0:
-    return usageError("nch empty", usage, "say what to empty: --user NAME, --all, --sectors, --names, --data or --cache")
+    return usageError("nch empty", usage, "say what to empty: --user NAME, --all, --sectors, --names or --cache")
   if named > 1:
-    return usageError("nch empty", usage, "--user, --all, --sectors, --names, --data and --cache cannot be used together")
+    return usageError("nch empty", usage, "--user, --all, --sectors, --names and --cache cannot be used together")
   if given.cache: return emptyCache(g)
-  if given.data: return emptyData(g, given.force)
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
     stdout.say "no database at " & path & ": nothing to empty\n"
@@ -110,6 +91,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   var st: Store
   var id: UserId
   var what: string
+  var namesDir = ""            # the downloaded files of the names (--names)
   if given.all:
     what = describe(countActivities(path, ""), "")
   elif given.sectors:
@@ -124,6 +106,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       what = namesFeatures.describe(countNames(st))
     except StoreError as e:
       return failure("nch empty", e.msg)
+    let cache = cacheDir()
+    if cache.isSome:
+      namesDir = sourceDir(dataDir(cache.get), geonamesCountry)
+      let use = dataUsage(namesDir)
+      what.add " and " & $use.files & (if use.files == 1: " downloaded file" else: " downloaded files") &
+               " (" & humanBytes(use.bytes) & ")"
   else:
     try:
       st = openStore(g)
@@ -151,6 +139,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       clearNames(st)
     except StoreError as e:
       return failure("nch empty", e.msg)
+    if namesDir.len > 0: discard clearData(namesDir)
   else:
     try:
       emptyUser(st, id)

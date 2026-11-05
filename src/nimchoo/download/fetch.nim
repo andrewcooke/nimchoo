@@ -111,6 +111,10 @@ proc realEnv*(): Env =
 
 # --- fetching
 
+func sourceDir*(dataDir: string, src: Source): string =
+  ## Where the files of a source are kept: a directory of its own in the data directory.
+  dataDir / src.name
+
 proc fail(sink: Sink, src: Source, url, why: string): Option[string] =
   sink(DownloadEvent(kind: deFailed, source: src.name, url: url, message: why))
   none(string)
@@ -131,7 +135,7 @@ proc checkContent(src: Source, arg, body: string): string =
 proc fetchSource*(env: Env, sink: Sink, dataDir: string, src: Source, arg = ""): Option[string] =
   ## The path of the source's file in the cache: already there, or fetched now.  None if it could
   ## not be had (a failed event says why).
-  let dir = dataDir / src.name
+  let dir = sourceDir(dataDir, src)
   let path = dir / fileFor(src, arg)
   try:
     if fileExists(path) and getFileSize(path) > 0: return some(path)
