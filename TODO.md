@@ -2478,7 +2478,11 @@ characters (not bytes, so accents are fine); the old trailing name column is gon
 is global, not just the selected rides); a name over 30 characters is cut with "..." but keeps its " (n/m)".  `--sectors` is still biggest gain first.
 On a copy of the real database: "Farellones", "Cuesta de Chacabuco", "Morro La Cabra (1/3)", "near El Arrayán (1/4)", "unnamed (1/8)", ...
 **Noticed**: `nch --offline climbs` skips naming altogether, although the names can be made from the tables already loaded (`nameRoute` already says
-"later" when data is missing); worth letting `--offline` name from what is loaded.  Next: step 5, the `sector` command.
+"later" when data is missing); worth letting `--offline` name from what is loaded.  **Fixed (2026-11-05)**: `--offline` is now `Env.offline`, honoured in `download/fetchSource`: a file already in the cache is used, anything else is
+refused silently (no request, no event), so the names are still made from what is loaded and `nch climbs` says "N climbs could not be named now (offline ...)".
+Every download goes through `fetchSource`, so anything added later (the height correction) obeys `--offline` for free.  The pages of `--web` still load
+Leaflet, d3 and the map tiles from the internet in the BROWSER; that is not `nch` using the network and `--offline` does not change it (open question).
+Next: step 5, the `sector` command.
 
 **Convention to consider (the author, 2026-11-05)**: a `cache.nim` in each module that keeps something to be emptied, so that what a module stores and how to
 reset it is in one standard place and `empty` asks the modules instead of knowing them.  It covers modules that download (names now; the height correction

@@ -27,7 +27,7 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --db PATH      the database file (default: $NCH_DB, else nch/nch.db in the
                  user's data directory)
   --user NAME    whose data to work with (default: the default user)
-  --offline      do not use the network (nothing is downloaded; climbs are named another time)
+  --offline      do not use the network (nothing is downloaded; climbs are named from what is already there)
   --version      print the version and the git commit it was built from
 
 commands:

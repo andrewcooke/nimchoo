@@ -67,6 +67,19 @@ suite "download: fetching":
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL") == got
     check net.heads.len == 1 and net.gets.len == 1 and net.events.len == 2
 
+  test "offline: a file already there is used; otherwise nothing is asked and nothing is said":
+    let net = newNet()
+    net.bodies[chile] = makeZip([("CL.txt", "1\tSantiago\n")])
+    let dir = fresh("offline")
+    var env = envOf(net)
+    env.offline = true
+    check fetchSource(env, sinkOf(net), dir, geonamesCountry, "CL").isNone
+    check net.heads.len == 0 and net.gets.len == 0 and net.events.len == 0
+    env.offline = false
+    let got = fetchSource(env, sinkOf(net), dir, geonamesCountry, "CL")
+    check got.isSome
+    env.offline = true
+    check fetchSource(env, sinkOf(net), dir, geonamesCountry, "CL") == got
   test "a file that is not a zip, a zip without the entry, an empty file: refused, nothing kept":
     let dir = fresh("bad")
     for body in ["this is not a zip", makeZip([("AR.txt", "x")]), ""]:

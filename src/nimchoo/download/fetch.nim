@@ -37,6 +37,7 @@ type
   Env* = object
     fetcher*: Fetcher
     freeBytes*: proc(dir: string): Option[int64] {.closure, raises: [].}   ## room on the disk holding `dir`
+    offline*: bool            ## do not use the network: only what is already in the cache can be had
 
   EventKind* = enum deStarting, deDownloaded, deFailed
 
@@ -141,6 +142,7 @@ proc fetchSource*(env: Env, sink: Sink, dataDir: string, src: Source, arg = ""):
     if fileExists(path) and getFileSize(path) > 0: return some(path)
   except OSError:
     discard
+  if env.offline: return none(string)          # (not an error: said once by whoever asked)
   let url = urlFor(src, arg)
   sink(DownloadEvent(kind: deStarting, source: src.name, url: url, message: whyFor(src, arg)))
   # the size, and the room

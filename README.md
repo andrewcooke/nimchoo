@@ -1,6 +1,23 @@
 
 # nimchoo
 
+* a small, fast, local, cli toolkit for fits files from sports watches
+  and bike computers.
+
+* stores data fro fits files in a local database (no data shared;
+  nothing in the cloud).
+
+* analysis and display of results, performance, records, etc.
+
+* automatic detection of climbs and segments in activities.
+
+* heart rate based fitness / fatigue models, with user-adjustable
+  parameters.
+
+* open source, hackable, extensible.
+
+## background
+
 nimchoo is a rewrite of my choochoo project, which was an
 over-ambitious kinda-strava.  unlike choochoo, nimchoo:
 

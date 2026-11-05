@@ -69,15 +69,19 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
                 $worked.sectors & " new climbs, " & $worked.efforts & " efforts")
     # names for the climbs that have none yet: from the places near them, fetched the first time
     let cache = cacheDir()
-    if cache.isSome and not g.offline:
-      let names = newNames(st, dataDir(cache.get), realEnv(),
+    if cache.isSome:
+      var env = realEnv()
+      env.offline = g.offline          # (names are still made from what is already loaded and downloaded)
+      let names = newNames(st, dataDir(cache.get), env,
         fanOut(@[logSink(g.log, "climbs"),
                  screenSink(proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")]))
       let named = ensureSectorNames(st, names)
       if named.named + named.nothing > 0:
         g.log.log(lvInfo, "climbs", leDone, "named " & $named.named & " climbs (" & $named.nothing & " with no name near)")
       if named.pending > 0:
-        stderr.say "note: " & $named.pending & " climbs could not be named now (the names could not be had); they will be tried again\n"
+        stderr.say "note: " & $named.pending & " climbs could not be named now (" &
+          (if g.offline: "offline, and the names are not downloaded yet" else: "the names could not be had") &
+          "); they will be tried again\n"
     if given.sectors:
       let rows = allSectors(st)
       if rows.len == 0:
