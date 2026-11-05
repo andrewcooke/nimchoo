@@ -21,9 +21,13 @@ task test, "Run all tests (optimised, with run-time checks on: about 5x faster t
   exec "nim c -r -d:release -d:ssl --checks:on --hints:off tests/all.nim"
 
 task prod, "Build ./nch for use: optimised (-d:release); this is the build the author runs":
-  # (--forceBuild: the git commit is looked up when the program is compiled, and Nim would not
-  # compile it again just because there was a new commit)
-  exec "nim c -d:release -d:ssl --forceBuild --hints:off -o:nch src/nch.nim"
+  # The git commit is handed to the compiler as a define, so that only src/nimchoo/version.nim changes between
+  # builds and the rest comes from Nim's cache (no --forceBuild: about 4 to 6 s for a typical edit, not 18).
+  let (hash, hashCode) = gorgeEx("git rev-parse --short HEAD")
+  let (changes, changesCode) = gorgeEx("git status --porcelain --untracked-files=no")
+  let commit = if hashCode == 0: " -d:nchCommit=" & hash.strip else: ""
+  let dirty = if changesCode == 0 and changes.strip.len > 0: " -d:nchDirty" else: ""
+  exec "nim c -d:release -d:ssl" & commit & dirty & " --hints:off -o:nch src/nch.nim"
 
 task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
   exec "nim c -d:ssl --hints:off -o:nch-test src/nch.nim"

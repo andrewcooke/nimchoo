@@ -1,9 +1,12 @@
 ## What `nch --version` says: the number in nimchoo.nimble and the git commit the
 ## program was built from, found when it is compiled.
 ##
-## The commit is only looked up when this module is compiled, and Nim does not
-## compile a module again because the repository moved on, so a build that
-## should say the right thing has to be forced (`nimble prod` does that).
+## The commit is found when this module is compiled, and Nim does not compile a
+## module again because the repository moved on.  So `nimble prod` looks the commit up
+## itself and hands it over as `-d:nchCommit=HASH` (and `-d:nchDirty` if there are
+## uncommitted changes): then only this module changes between builds, and the rest
+## comes from Nim's cache (about 4 to 6 seconds for a typical edit, not 18).  A build
+## without those defines (the tests, `nim c` by hand) looks the commit up here, as before.
 
 import std/[os, strutils]
 
@@ -29,6 +32,8 @@ func versionLine*(version, commit: string): string =
   "nch " & version & " (" & commit & ")"
 
 const
+  givenCommit {.strdefine: "nchCommit".} = ""        ## from the build task: the short commit hash
+  givenDirty {.booldefine: "nchDirty".} = false      ## ... and whether there were uncommitted changes
   sourceDir = currentSourcePath().parentDir
   repoDir = sourceDir.parentDir.parentDir
   nimbleText = staticRead(repoDir / "nimchoo.nimble")
@@ -38,7 +43,9 @@ const
 
 const
   nchVersion* = versionFromNimble(nimbleText)
-  nchCommit* = commitText(if hashed.exitCode == 0: hashed.output.strip else: "",
-                          changes.exitCode == 0 and changes.output.strip.len > 0)
+  nchCommit* =
+    if givenCommit.len > 0: commitText(givenCommit, givenDirty)
+    else: commitText(if hashed.exitCode == 0: hashed.output.strip else: "",
+                     changes.exitCode == 0 and changes.output.strip.len > 0)
 
 const versionString* = versionLine(nchVersion, nchCommit)
