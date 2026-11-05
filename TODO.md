@@ -2186,3 +2186,25 @@ as the offline fallback (and keeps `nch import` self-contained) until the names 
 * Import every populated place and terrain feature of a country (about 20,000 rows for Chile, perhaps 600,000 for the
   United States), or only those near a climb?  Recommended: whole country, once.
 * The rules above, and what to show when there is only "near <town>".
+
+## Task 14: a calendar of fitness (idea, 2026-11-04; not planned in detail)
+
+`nch list --calendar` (the day grid, a row per month) with the **background colour** showing fitness (or fatigue, or
+form = fitness - fatigue) and the day numbers kept as they are (white listed, yellow selected, grey none).  The
+author's detail: a day is three characters wide, and the background **varies across the three**, so each character
+shows an 8-hour third of the day (the value at the end of 00:00-08:00, 08:00-16:00, 16:00-24:00 local; the hourly
+curves of `nch ff` already have them).  Parts:
+1. colour support in `ui/palette` + `ui/style`: background colours and RGB (truecolor where `COLORTERM` says
+   `truecolor`/`24bit`, else the 256-colour cube, else 16 colours), `NO_COLOR` and pipes as now.  Common
+   terminals: truecolor on GNOME (VTE), KDE (Konsole), kitty, Alacritty, WezTerm, iTerm2, Windows Terminal and the
+   Windows 10+ console; Terminal.app only from macOS Tahoe (26); tmux needs a setting; the Linux text console
+   is 16 colours.  Brightness is not a separate setting: 8 bits per channel (a grey is R = G = B, 256 levels), 24
+   greys in the 256-colour mode, one bright bit in the 16-colour mode.
+2. a pure scale value -> colour (one hue, light to dark, for fitness and fatigue; diverging for form), with a text
+   colour that stays readable (light or dark by the brightness of the background); relative to the user's own
+   maximum, or absolute (to settle).
+3. the series per day-third from `ff` (needs the threshold heart rate, as `nch ff` does; days before the first
+   heart-rate activity have no background; every day after it has one, since the curves decay), a one-line legend
+   (a colour bar and the range), options `--fitness`, `--fatigue`, `--form`; the calendar shows every month in the
+   range (as `-v` does) when a background is asked for.
+Roughly a third of the size of the names work.
