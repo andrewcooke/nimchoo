@@ -23,18 +23,19 @@ suite "climbs report: the words":
     check km(50) == "0.1"
 
 suite "climbs report: the display while they are worked out":
-  test "two lines with the counts, green while working and white when left on the screen":
-    let working = climbingLines(120, 1986, Worked(activities: 120, sectors: 12, efforts: 40), finished = false)
-    check working.len == 2
-    check working[0].text == "climbing 120 / 1,986 activities"
-    check working[1].text == "climbs 12 · efforts 40"
-    for line in working:
-      for sp in line: check sp.look.colour == green
-    check working[0][0].look.bold                                   # ("climbing" in bold)
-    let done = climbingLines(1986, 1986, Worked(activities: 1986, sectors: 161, efforts: 3635), finished = true)
-    check done[0].text == "climbing 1,986 / 1,986 activities" and done[1].text == "climbs 161 · efforts 3,635"
-    for line in done:
-      for sp in line: check sp.look.colour == white
+  test "two lines like the import's: plain, then the counts in green joined by grey dots":
+    let lines = climbingLines(120, 1986, Worked(activities: 120, sectors: 12, efforts: 40))
+    check lines.len == 2
+    check lines[0].text == "climbing 120 / 1,986 activities"
+    check lines[0][0].look.bold and lines[0][0].look.colour == white and lines[0][1].look.colour == white
+    check lines[1].text == "climbs 12 · efforts 40"
+    check lines[1][0].look.colour == green and lines[1][2].look.colour == green
+    check lines[1][1].text == " · " and lines[1][1].look.colour == grey
+  test "the line after the display, as the import has one":
+    check doneLine(Worked(activities: 1650, sectors: 138, efforts: 2661)) ==
+      "done: worked out 1,650 activities: 138 new climbs, 2,661 efforts"
+    check doneLine(Worked(activities: 1, sectors: 1, efforts: 1)) ==
+      "done: worked out 1 activity: 1 new climb, 1 effort"
 
 suite "climbs report: the lines":
   test "an activity, then the climbs it went up, lined up":

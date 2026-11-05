@@ -53,17 +53,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     var worked: Worked
     if canLive():
-      # two lines that follow the work, in green, and stay on the screen at the end, in white (as the import's do)
+      # two lines that follow the work and stay on the screen at the end (as the import's do)
       let live = newTerminalLive()
       var shown = false
       worked = ensureClimbs(st, proc(done, total: int, soFar: Worked) {.closure, raises: [].} =
         shown = true
-        if done == total or live.due(): live.show(climbingLines(done, total, soFar, false)))
-      if shown: live.keep(climbingLines(worked.activities, worked.activities, worked, true))
+        if done == total or live.due(): live.show(climbingLines(done, total, soFar)))
+      if shown: live.keep(climbingLines(worked.activities, worked.activities, worked))
       else: live.finish()
     else:
       worked = ensureClimbs(st)
     if worked.activities > 0:
+      stderr.say doneLine(worked) & "\n"
       g.log.log(lvInfo, "climbs", leDone, "worked out " & $worked.activities & " activities: " &
                 $worked.sectors & " new climbs, " & $worked.efforts & " efforts")
     # names for the climbs that have none yet: from the places near them, fetched the first time

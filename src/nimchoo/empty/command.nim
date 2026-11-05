@@ -23,8 +23,9 @@ const usage* = """usage: nch [--db PATH] empty --user NAME -f
        nch [--db PATH] empty --sectors -f
        nch [--db PATH] empty --names -f
        nch empty --cache
+       nch [--db PATH] empty --user NAME --sectors --names -f      (any of them together)
 
-Say what to empty:
+Say what to empty; several can be given at once, and are asked about, counted down and done together:
 
   --user NAME   delete all the data of the user NAME: their files, activities, selection and
                 what was worked out from them.  The user, and their threshold heart rate,
@@ -38,7 +39,7 @@ Say what to empty:
                 are made again when asked for.  Needs no -f.
 
 Nothing else is deleted without -f.  On a terminal there are then 5 seconds in
-which to press Ctrl-C.
+which to press Ctrl-C.  (--all stands alone, or with --names and --cache; it includes the rest.)
 
   -f, --force   really do it
   -h, --help    show this help
@@ -48,7 +49,19 @@ type EmptyArgs = object
   user: string
   all, sectors, names, cache, force, help: bool
 
+type Part = object
+  ## One thing to empty: how to say it, and how to do it (it returns what went wrong, "" if nothing).
+  what: string
+  act: proc(): string {.closure, raises: [].}
+
+func listed(parts: seq[Part]): string =
+  ## The parts in one sentence, apart by semicolons ("167 activities of user bob; 43 sectors and 220 efforts").
+  for i, p in parts:
+    if i > 0: result.add "; "
+    result.add p.what
+
 proc emptyCache(g: Globals): int =
+  ## The cache alone: it needs no -f, since the files are made again as needed.
   let dir = cacheDir()
   if dir.isNone:
     return failure("nch empty", "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)")
@@ -75,76 +88,86 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if g.user.len > 0:
     return usageError("nch empty", usage,
       "--user goes after the command here: nch empty --user " & g.user & " (what to empty is named there)")
-  let targets = [given.user.len > 0, given.all, given.sectors, given.names, given.cache]
-  var named = 0
-  for t in targets:
-    if t: inc named
-  if named == 0:
+  let wantUser = given.user.len > 0
+  if not (wantUser or given.all or given.sectors or given.names or given.cache):
     return usageError("nch empty", usage, "say what to empty: --user NAME, --all, --sectors, --names or --cache")
-  if named > 1:
-    return usageError("nch empty", usage, "--user, --all, --sectors, --names and --cache cannot be used together")
-  if given.cache: return emptyCache(g)
+  if given.all and (wantUser or given.sectors):
+    return usageError("nch empty", usage,
+      "--all deletes the whole database, which has the users' data and the climbs in it: give --all alone " &
+      "(with --names or --cache for the downloaded and the generated files)")
+  if given.cache and not (wantUser or given.all or given.sectors or given.names): return emptyCache(g)
+  # what there is to empty, in the order it is done (the database file last)
+  let cache = cacheDir()
   let path = resolveDbPath(g.dbPath)
-  if not fileExists(path):
-    stdout.say "no database at " & path & ": nothing to empty\n"
-    return exitOk
+  let haveDb = fileExists(path)
+  if not haveDb and (wantUser or given.sectors or given.all):
+    stdout.say "no database at " & path & ": nothing to empty there\n"
   var st: Store
-  var id: UserId
-  var what: string
-  var namesDir = ""            # the downloaded files of the names (--names)
-  if given.all:
-    what = describe(countActivities(path, ""), "")
-  elif given.sectors:
+  var parts: seq[Part]
+  let tablesWanted = haveDb and not given.all and (wantUser or given.sectors or given.names)
+  if tablesWanted:
     try:
       st = openStore(g)
-      what = describe(countClimbs(st))
     except StoreError as e:
       return failure("nch empty", e.msg)
-  elif given.names:
+  if wantUser and haveDb:
+    var id: UserId
     try:
-      st = openStore(g)
-      what = namesFeatures.describe(countNames(st))
+      id = findUser(st, given.user)           # (fails early for a user that does not exist)
     except StoreError as e:
       return failure("nch empty", e.msg)
-    let cache = cacheDir()
+    parts.add Part(what: describeEmpty(countActivities(path, given.user), given.user),
+      act: proc(): string {.closure, raises: [].} =
+        try: emptyUser(st, id)
+        except StoreError as e: return e.msg)
+  if given.sectors and haveDb:
+    var what = ""
+    try: what = describe(countClimbs(st))
+    except StoreError as e: return failure("nch empty", e.msg)
+    parts.add Part(what: what,
+      act: proc(): string {.closure, raises: [].} =
+        try: clearClimbs(st)
+        except StoreError as e: return e.msg)
+  if given.names:
+    var what = ""
+    var namesDir = ""
+    if tablesWanted:
+      try: what = namesFeatures.describe(countNames(st))
+      except StoreError as e: return failure("nch empty", e.msg)
     if cache.isSome:
       namesDir = sourceDir(dataDir(cache.get), geonamesCountry)
       let use = dataUsage(namesDir)
-      what.add " and " & $use.files & (if use.files == 1: " downloaded file" else: " downloaded files") &
-               " (" & humanBytes(use.bytes) & ")"
-  else:
-    try:
-      st = openStore(g)
-      id = findUser(st, given.user)         # (fails early for a user that does not exist)
-    except StoreError as e:
-      return failure("nch empty", e.msg)
-    what = describeEmpty(countActivities(path, given.user), given.user)
+      let files = $use.files & (if use.files == 1: " downloaded file" else: " downloaded files") &
+                  " (" & humanBytes(use.bytes) & ")"
+      what = (if what.len > 0: what & ", " & files else: files)
+    if what.len > 0:
+      parts.add Part(what: what,
+        act: proc(): string {.closure, raises: [].} =
+          if tablesWanted:
+            try: clearNames(st)
+            except StoreError as e: return e.msg
+          if namesDir.len > 0: discard clearData(namesDir))
+  if given.cache and cache.isSome:
+    parts.add Part(what: describe(cacheFiles(cache.get)),
+      act: proc(): string {.closure, raises: [].} =
+        discard removeCacheFiles(cache.get))
+  if given.all and haveDb:
+    parts.add Part(what: describe(countActivities(path, ""), ""),
+      act: proc(): string {.closure, raises: [].} =
+        try:
+          for suffix in ["", "-journal", "-wal", "-shm"]:
+            removeFile path & suffix
+        except OSError as e:
+          return "cannot delete " & path & ": " & e.msg)
+  if parts.len == 0: return exitOk
+  let what = listed(parts)
   if not given.force:
-    return failure("nch empty", "would delete " & what & " from " & path & "; use -f to do it")
+    return failure("nch empty", "would delete " & what & "; use -f to do it")
   if canLive():
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
-  if given.all:
-    try:
-      for suffix in ["", "-journal", "-wal", "-shm"]:
-        removeFile path & suffix
-    except OSError as e:
-      return failure("nch empty", "cannot delete " & path & ": " & e.msg)
-  elif given.sectors:
-    try:
-      clearClimbs(st)
-    except StoreError as e:
-      return failure("nch empty", e.msg)
-  elif given.names:
-    try:
-      clearNames(st)
-    except StoreError as e:
-      return failure("nch empty", e.msg)
-    if namesDir.len > 0: discard clearData(namesDir)
-  else:
-    try:
-      emptyUser(st, id)
-    except StoreError as e:
-      return failure("nch empty", e.msg)
-  g.log.log(lvInfo, "empty", leDeleted, what & " from " & path)
+  for p in parts:
+    let problem = p.act()
+    if problem.len > 0: return failure("nch empty", problem)
+  g.log.log(lvInfo, "empty", leDeleted, what & (if haveDb: " from " & path else: ""))
   stdout.say "done: deleted " & what & "\n"
   exitOk

@@ -2319,3 +2319,13 @@ route and the pure `pickName`.
   the current file grey), the second line has coloured parts (imported green, the others grey/red/yellow) joined by grey dots, and a plain
   `done: ...` summary line follows the left-on-screen frame; climbs' first line is green throughout, its second line is green, and there
   is no `done:` line.  To be settled after the author has looked at both.
+
+### `empty` with several targets, and the climbs display like the import's (2026-11-05)
+
+* `nch empty --user NAME --sectors --names -f` (any of `--user`, `--sectors`, `--names`, `--cache`) is one run: **one** "would delete A; B; C; use
+  -f to do it" message (the parts apart by semicolons), **one** countdown, one `done:` line and one log line; an unknown user fails before
+  anything is done.  `--all` includes the user data and the climbs, so it stands alone, or with `--names` and `--cache` (the downloaded and the
+  generated files, which are outside the database).  `--cache` alone still needs no `-f`.  With no database the files can still be emptied.
+* `nch climbs` shows what the import shows: a plain first line (`climbing` in bold), a second line of counts in green joined by grey dots
+  (`climbs 12 · efforts 40`), the same frame left on the screen, and a `done: worked out 1,650 activities: 138 new climbs, 2,661 efforts` line
+  after it (on stderr, so that `nch climbs --sectors | ...` stays clean).

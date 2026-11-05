@@ -35,16 +35,13 @@ suite "empty --all: the whole database":
     check not fileExists(d / "x.db")
 
 suite "empty: what to empty is named":
-  test "there is no default: a target is needed, and only one":
+  test "there is no default: a target is needed; --all holds the rest, so it stands alone (with --names and --cache)":
     let d = fresh("target")
     openStore(d / "x.db", allFragments).close()
     check emptyCommand.run(globals(d / "x.db"), @[]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--all", "--user", "bob", "-f"]) == exitUsage
-    check emptyCommand.run(globals(d / "x.db"), @["--all", "--cache", "-f"]) == exitUsage
-    check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--user", "bob", "-f"]) == exitUsage
-    check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--all", "-f"]) == exitUsage
-    check emptyCommand.run(globals(d / "x.db"), @["--names", "--cache", "-f"]) == exitUsage
+    check emptyCommand.run(globals(d / "x.db"), @["--all", "--sectors", "-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--data", "-f"]) == exitUsage                # (there is no --data)
     check fileExists(d / "x.db")
 
@@ -161,3 +158,67 @@ suite "empty --names: the place names and countries, tables and downloaded files
     check fileExists(d / "cache" / "data" / "elsewhere" / "tile.bin")
     check fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
     check emptyCommand.run(globals(d / "x.db"), @["--names", "-f"]) == exitOk          # nothing left: fine
+
+suite "empty: several things at once":
+  test "one message, one countdown, one done; and without -f none of them is done":
+    let d = fresh("several")
+    putEnv("NCH_CACHE", d / "cache")
+    defer: delEnv("NCH_CACHE")
+    createDir(d / "cache" / "data" / "geonames")
+    createDir(d / "cache" / "user")
+    writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
+    writeFile(d / "cache" / "user" / "heatmap--key-ab.geojson", "{}")
+    let a = openStore(d / "x.db", allFragments)
+    fill(a, "mine")
+    a.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'Cerro', 1)")
+    a.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
+    a.close()
+    let everything = @["--user", defaultUser, "--sectors", "--names", "--cache"]
+    check emptyCommand.run(globals(d / "x.db"), everything) == exitFailure         # no -f: none of it
+    let before = openStore(d / "x.db", allFragments)
+    check before.count("activity") == 1 and before.count("sector") == 1 and before.count("country") == 1
+    before.close()
+    check fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
+    check fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
+    check emptyCommand.run(globals(d / "x.db"), everything & "-f") == exitOk
+    let after = openStore(d / "x.db", allFragments)
+    defer: after.close()
+    check after.count("file") == 0 and after.count("activity") == 0         # the user's data
+    check after.count("sector") == 0 and after.count("country") == 0           # the climbs, the names
+    check after.count("user") == 1                                              # (the user stays)
+    check not dirExists(d / "cache" / "data" / "geonames")
+    check not fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
+
+  test "an unknown user is found out before anything is done":
+    let d = fresh("severalbad")
+    let a = openStore(d / "x.db", allFragments)
+    a.db.exec(sql"insert into sector(length_m, gain_m, gradient) values (1000, 50, 5)")
+    a.close()
+    check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--user", "nobody", "-f"]) == exitFailure
+    let after = openStore(d / "x.db", allFragments)
+    defer: after.close()
+    check after.count("sector") == 1
+
+  test "--all goes with --names and --cache (the downloaded and the generated files)":
+    let d = fresh("allfiles")
+    putEnv("NCH_CACHE", d / "cache")
+    defer: delEnv("NCH_CACHE")
+    createDir(d / "cache" / "data" / "geonames")
+    createDir(d / "cache" / "user")
+    writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
+    writeFile(d / "cache" / "user" / "a.geojson", "{}")
+    openStore(d / "x.db", allFragments).close()
+    check emptyCommand.run(globals(d / "x.db"), @["--all", "--names", "--cache", "-f"]) == exitOk
+    check not fileExists(d / "x.db")
+    check not dirExists(d / "cache" / "data" / "geonames")
+    check not fileExists(d / "cache" / "user" / "a.geojson")
+
+  test "with no database the files can still be emptied":
+    let d = fresh("nodb")
+    putEnv("NCH_CACHE", d / "cache")
+    defer: delEnv("NCH_CACHE")
+    createDir(d / "cache" / "data" / "geonames")
+    writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
+    check emptyCommand.run(globals(d / "none.db"), @["--sectors", "--names", "-f"]) == exitOk
+    check not dirExists(d / "cache" / "data" / "geonames")
+    check not fileExists(d / "none.db")

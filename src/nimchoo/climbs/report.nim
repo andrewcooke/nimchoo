@@ -155,12 +155,18 @@ func sectorLines*(rows: seq[SectorRow]): seq[string] =
 
 func commas(n: int): string = insertSep($n, ',')
 
-func climbingLines*(done, total: int, worked: Worked, finished: bool): seq[Line] =
-  ## The two lines shown while the activities are looked at (and left on screen at the end, in white):
+func climbingLines*(done, total: int, worked: Worked): seq[Line] =
+  ## The two lines that follow the work, as the import's do: the first plain ("climbing" in bold), the second
+  ## the counts in green, joined by grey dots.  The last frame is left on the screen.
   ##
   ##     climbing 120 / 1,986 activities
   ##     climbs 12 · efforts 40
-  let colour = if finished: white else: green
-  @[@[span("climbing ", colour, bold = true), span(commas(done) & " / " & commas(total) & " activities", colour)],
-    @[span("climbs " & commas(worked.sectors) & " · efforts " & commas(worked.efforts), colour)]]
+  @[@[span("climbing ", bold = true), span(commas(done) & " / " & commas(total) & " activities")],
+    @[span("climbs " & commas(worked.sectors), green), span(" · ", grey),
+      span("efforts " & commas(worked.efforts), green)]]
 
+func doneLine*(worked: Worked): string =
+  ## The line after the display, as the import's: "done: worked out 1,986 activities: 161 new climbs, 3,635 efforts".
+  "done: worked out " & commas(worked.activities) & (if worked.activities == 1: " activity: " else: " activities: ") &
+    commas(worked.sectors) & (if worked.sectors == 1: " new climb, " else: " new climbs, ") &
+    commas(worked.efforts) & (if worked.efforts == 1: " effort" else: " efforts")
