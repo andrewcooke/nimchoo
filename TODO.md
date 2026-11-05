@@ -2415,6 +2415,15 @@ Questions: (1) kind priority inside the 1 km of the end (terrain, then places) o
 the 1.5 km tier?  (3) (n/m): the longest is 1?  shown only when m > 1?  ties by id?  (4) manual names: duplicates allowed (the suffix tells
 them apart) and `nch sector --edit NAME --rename NEW` with NAME as shown, "(n/m)" included?  (5) drop the difficulty column and phi coupling?
 
+### The kind of feature in the naming (recommendation, 2026-11-05; the author asked; not built)
+
+Keep the author's tiers (tier 1: within 1 km of the end; tier 2: within 1.5 km of the middle, "near ..." from 1 km; tier 3: a populated place within
+5 km of the middle as "near <place>"), but inside each tier take the **kinds in order**: pass or saddle, peak or mountain, hill / ridge / spur,
+village or town, neighbourhood (GeoNames `PPLX`), the closest within a kind.  Tried on the 138 real climbs: chosen kind 4 / 9 / 30 / 42 / 45, **8 unnamed**
+(against 44 for "the closest of anything" without tier 3); 42 names differ (Cerro San Cristobal instead of Lo Contador or Monserrat; Las Perdices
+instead of Lo Canas).  Softer alternative if strict order proves too strong (a far hill beating a near village such as Farellones): scale the distances
+by kind (pass x0.5, peak x0.75, hill x1, village x1.5, neighbourhood x2.5) and take the smallest.  Start strict, look at the names, change if needed.
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
