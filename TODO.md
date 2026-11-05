@@ -2469,6 +2469,15 @@ valley / canyon with the hills; `Pick` carries the tier and the kind).  `nameRou
 database (138 climbs, through the real code path, offline): 52 named in tier 1, 42 in tier 2, 36 in tier 3, **8 unnamed**; by kind: 4 pass, 9 peak, 30 hill, 42 town,
 45 neighbourhood.  The next `nch climbs` names the author's 138 again with these rules.  Next: step 3, the display-name function ("name (n/m)").
 
+**Step 3 is built (2026-11-05)**: `climbs/display.nim`, pure: `displayNames(openArray[Shown]) -> seq[string]` (`Shown` = id, name, gainM), one text per climb
+in the order given.  The group is the name without regard to case (each climb keeps its own spelling); n is the rank by gain (biggest 1, ties by id); the
+suffix only when m > 1; no name (or blanks) is "unnamed".  Tests in `tests/climbs/test_display.nim` (8).  Next: step 4, showing the names.
+
+**Convention to consider (the author, 2026-11-05)**: a `cache.nim` in each module that keeps something to be emptied, so that what a module stores and how to
+reset it is in one standard place and `empty` asks the modules instead of knowing them.  It covers modules that download (names now; the height correction
+later) and those that only empty (each `empty` target: sectors, names, ...).  Likely shape: what it keeps (tables, folders under the cache), a `usage`, a
+`clear`, and for downloaders the list of sources (the fetching stays in `download/`).  Not built; do it when the second kind appears, or as a refactor of `empty`.
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the

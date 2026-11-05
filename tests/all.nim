@@ -17,7 +17,7 @@ import ./importer/[test_extract, test_route, test_importer, test_command, test_b
 import ./selection/[test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./cli/test_args
-import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_command, test_naming]
+import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_command, test_naming, test_display]
 import ./download/test_fetch
 import ./names/[test_outlines, test_countries, test_features, test_pick, test_naming]
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
