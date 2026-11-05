@@ -26,9 +26,8 @@ but it does keep:
 * the ability to display complex data via web technologies
 
 those decisions (particularly command line and no power) make it
-pretty boutique.  that's ok.  and, on the other hand, it will be
-easier to use.  i am also trying hard to make it extensible.  so if
-someone else does come along, they can contribute more easily.
+pretty boutique.  that's ok.  i am also trying hard to make it extensible. 
+so if someone else does come along, they can contribute more easily.
 
 finally, one significant difference - nimchoo is firmly developed with
 ai (claude code).  this simplifies hugely the amount of work that goes
