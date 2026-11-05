@@ -2711,3 +2711,10 @@ comparison of rides up a climb: plot the efforts against distance along the clim
 (the climb first, then `at 1.7km` and how it went), `climbs --sectors`, `nch sector`, `--duplicates`, the landmark lists (`0.7km`).  The columns of the climb tables are now name, cat, length, gain, gradient.
 `nch list` shows the place and the name in every listing (it read them only with -v).  Not changed: messages that are not a description (the countdown "in 5 s", the help texts).
 
+**WHERE WE STOPPED (2026-11-05, the author is changing editor)**: exploring the data as a user would.  Done in this stretch: `list --climb`, the standard descriptions (`importer/describe.nim`,
+`climbs/describe.nim`, `ui/units.nim`), `nch delete`, retiring climbs, `--duplicates`, `--invert`, `--name/--start/--path`.  **Pending, not built**: `--efforts NAME` (the rides on one climb, best first, with `--by date`),
+`heatmap --climbs`, an elevation profile of a climb, the lead/lag cross-section comparison, the near-miss report, `exclude`, retire-all.
+**An open confusion to settle first**: the user sees both "climbs" and "sectors" (`nch climbs`, `nch sector`, `climbs --sectors`).  Proposal (1), liked in principle: for the user climbs are climbs; "sector" stays the table
+name inside (where other kinds, e.g. segments from overlapping rides, will be added later with their own command); fold `nch sector`'s modes into `nch climbs` (`--all` for `--sectors`, `--edit NAME --rename/--auto/--retire/--unretire`,
+`--retired`, `--duplicates`, `--efforts NAME`) and drop `nch sector`.  But the author thinks the confusion is DEEPER ("we need to look at fundamentals and maybe change very basic ideas"): to be discussed before any rename.
+
