@@ -166,7 +166,7 @@ func climbingLines*(done, total: int, worked: Worked): seq[Line] =
       span("efforts " & commas(worked.efforts), green)]]
 
 func doneLine*(worked: Worked): string =
-  ## The line after the display, as the import's: "done: worked out 1,986 activities: 161 new climbs, 3,635 efforts".
-  "done: worked out " & commas(worked.activities) & (if worked.activities == 1: " activity: " else: " activities: ") &
+  ## The line after the display, as the import's: "done: 1,986 activities: 161 new climbs, 3,635 efforts".
+  "done: " & commas(worked.activities) & (if worked.activities == 1: " activity: " else: " activities: ") &
     commas(worked.sectors) & (if worked.sectors == 1: " new climb, " else: " new climbs, ") &
     commas(worked.efforts) & (if worked.efforts == 1: " effort" else: " efforts")

@@ -33,9 +33,9 @@ suite "climbs report: the display while they are worked out":
     check lines[1][1].text == " · " and lines[1][1].look.colour == grey
   test "the line after the display, as the import has one":
     check doneLine(Worked(activities: 1650, sectors: 138, efforts: 2661)) ==
-      "done: worked out 1,650 activities: 138 new climbs, 2,661 efforts"
+      "done: 1,650 activities: 138 new climbs, 2,661 efforts"
     check doneLine(Worked(activities: 1, sectors: 1, efforts: 1)) ==
-      "done: worked out 1 activity: 1 new climb, 1 effort"
+      "done: 1 activity: 1 new climb, 1 effort"
 
 suite "climbs report: the lines":
   test "an activity, then the climbs it went up, lined up":

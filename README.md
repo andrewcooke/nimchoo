@@ -36,6 +36,10 @@ into extracting snippets from choochoo and rewriting them as nim.  i'm
 on the fence about ai in general, but as a software engineering tool
 it blows my mind.
 
+if i had to choose one thing that makes nimchoo stand out it's the cli
+user interface.  you would not believe the time i have spent obsessing
+over command parameters.
+
 ## eye candy
 
 i'll try get some screenshots here soon.

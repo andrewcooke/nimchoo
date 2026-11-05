@@ -2327,5 +2327,5 @@ route and the pure `pickName`.
   anything is done.  `--all` includes the user data and the climbs, so it stands alone, or with `--names` and `--cache` (the downloaded and the
   generated files, which are outside the database).  `--cache` alone still needs no `-f`.  With no database the files can still be emptied.
 * `nch climbs` shows what the import shows: a plain first line (`climbing` in bold), a second line of counts in green joined by grey dots
-  (`climbs 12 · efforts 40`), the same frame left on the screen, and a `done: worked out 1,650 activities: 138 new climbs, 2,661 efforts` line
+  (`climbs 12 · efforts 40`), the same frame left on the screen, and a `done: 1,650 activities: 138 new climbs, 2,661 efforts` line
   after it (on stderr, so that `nch climbs --sectors | ...` stays clean).
