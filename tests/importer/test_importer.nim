@@ -165,14 +165,12 @@ suite "import: files that cannot be imported":
       ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
       ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""") == "2"
 
-  test "nothing is looked up for the start at import: place_id stays empty (the names come later, see importer/naming.nim)":
+  test "the start is the first position; the start place and the name are not made at import (they are null until named)":
     let s = openStore(tempDb("placed"))
     defer: s.close()
     discard s.importPath(ride)
     check s.db.getValue(sql"select count(*) from activity where start is not null") == "1"
-    check s.db.getValue(sql"select count(place_id) from activity") == "0"
-    check s.db.getValue(sql"select count(*) from place") == "0"
-    check s.db.getValue(sql"select count(*) from activity where start_place is null and name is null") == "1"    # (not named yet)
+    check s.db.getValue(sql"select count(*) from activity where start_place is null and name is null") == "1"
 
   test "no positions, no start":
     let s = openStore(tempDb("nostart"))

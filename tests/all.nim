@@ -23,7 +23,6 @@ import ./landmark/[test_params as landmarkParams, test_landmarks, test_command a
 import ./download/test_fetch
 import ./names/[test_outlines, test_countries, test_features, test_climbpick, test_climb, test_lookup, test_shape, test_activity]
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
-import ./places/test_empty
 import ./user/[test_params, test_command, test_wipe]
 import ./bundle/test_unpack
 import ./ui/[test_style, test_live, test_logfile, test_vocabulary, test_interval, test_palette]

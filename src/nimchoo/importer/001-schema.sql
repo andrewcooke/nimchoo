@@ -28,12 +28,13 @@ create table activity (
   timer_s real,
   distance_m real,
   calories integer,
-  place_id integer references place(id) on delete set null,
+  -- Where it started and what it is called, text made from its route (see names/activity.nim).
+  -- null: not named yet (the next `nch import` does it); "": looked at, nothing to say (or made with --offline).
+  start_place text,
+  name text,
   unique (file_id, session));
-create index activity_place on activity(place_id);
 -- Where the activity started (its first position), for "starts near here".  NULL if the file
--- has no positions.  Written when the activity is imported, with `place_id`: the nearest place
--- (see the places module) to the start, for saying where it was.
+-- has no positions.  Written when the activity is imported.
 select AddGeometryColumn('activity', 'start', 4326, 'POINT', 'XY');
 select CreateSpatialIndex('activity', 'start');
 

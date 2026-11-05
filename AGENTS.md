@@ -97,3 +97,73 @@ commands).
 NOTE: this conflicts with the caching in display because it adds
 implicit state.  we might work around this by including a hash of the
 select in names as necessary.
+
+## the database: fragments (migrations)
+
+the structure of the database is described by sql files, "fragments", not
+made by hand.  when `nch` opens a database it makes sure the file matches
+what the program expects, by running any fragments the database has not
+had yet.
+
+* each module with tables keeps its sql in its own directory, as
+  `NNN-name.sql` (eg `climbs/001-schema.sql`).  the module's `ddl.nim`
+  lists them in order (`fragment("001-schema.sql")`); `src/nimchoo/modules.nim`
+  joins the lists of all modules into `allFragments`.  the order of modules
+  there matters: a module whose tables refer to another's comes after it.
+  the sql is read at compile time, so it is inside the `nch` binary.
+  `db/001-schema.sql` (the `user` table and spatialite's metadata) is
+  applied first, always.  the numbers only order the files within a module.
+* the database has a table `fragment` (name, applied_at, sha256 of the
+  sql, seed_version).  on opening, for each fragment in the program: not
+  recorded -> run its sql and record it, in one transaction; recorded with
+  the same checksum -> nothing.  so a new database gets every fragment, an
+  up to date one nothing, an old one only what was added since.
+* two refusals: a recorded fragment whose checksum differs from the
+  program's ("made by a different version of nch"), and a recorded
+  fragment the program does not have ("from a newer version").  the
+  messages say to `nch empty --all -f` (start again).
+* so: **never edit a fragment that any database has had, and never delete
+  one.**  to change a table, add a new numbered file (`alter table`,
+  `update`, ...).  watch for sqlite limits: it cannot drop a column that
+  has a foreign key, or one that an index uses, without rebuilding the
+  table.  fragments are plain ddl; data is inserted from nim (a fragment
+  may have a seed, `withSeed`, used by no module now).
+* tests build their databases from scratch, so they do not care how many
+  fragments there are; `tests/db/test_store.nim` lists the fragment names
+  and counts them, and must be updated whenever a fragment is added or removed.
+
+### squashing (decided 2026-11-05)
+
+while only the author has a database we may, at a milestone, **squash**:
+merge each module's fragments into its `001-schema.sql` (the final
+schema), delete the later files and any retired module, and rebuild the
+database (`nch empty --all -f`, then import again).  the cache survives
+(downloads, settings), so nothing is fetched again.  rules:
+
+* **once anyone else has a database, never squash again**: append only.
+* before deleting the old fragments, compare the schema they make with the
+  squashed one (every table, column, index and foreign key, from a fresh
+  database each way), and keep a copy of the old database file until the
+  author is happy with the new one.
+* what a rebuild loses that cannot be made again from the fit files: the
+  users and their fthr, models, the saved selection, the landmarks, and names
+  given by hand (`nch sector --edit`).  the author chose to start from zero
+  at the first squash; a save-and-restore of those few tables is a possible
+  one-off script if it is ever wanted.
+* the first squash (2026-11-05) removed: the `places` module (the embedded
+  list of towns, `place` table, `activity.place_id`), `name_source`,
+  `sector.kind`, `sector.name_checked`, and the one-off "forget the names"
+  steps.
+
+### other decisions to remember (details in TODO.md)
+
+* names (climbs, activities, starts) come from GeoNames files downloaded on
+  demand, read by one-degree cells into `feature`/`coverage`; every feature is
+  kept and the rules choose.  a name is decided in the run that needs it, or the
+  command stops with the reason (`DownloadError`); `--offline` answers
+  "nothing" everywhere (names stay "" for good).  do not build lazy
+  back-filling for a bad connection: need the internet and say so.
+* tests must never use the network or the real cache: every `Globals` in a
+  test says `offline: true`.
+* landmarks (`nch landmark`) are the author's own names for places, shared
+  by all users, and come before every other name.

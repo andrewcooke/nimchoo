@@ -2638,3 +2638,11 @@ GeoNames cells only.  The `place` table and `activity.place_id` STAY in the sche
 `place_id` has a foreign key and SQLite cannot drop such a column without rebuilding `activity`; both can go with the next rebuild of that table.  NOTICE now says GeoNames data
 are downloaded.  Sea positions have no country.
 
+**First squash of the schema (2026-11-05)**: every module's fragments are now one `001-schema.sql` with the final schema (see "squashing" in AGENTS.md for the rule: only while
+the author alone has a database).  Gone: the `places` module (list, `place` table, `activity.place_id` and its index), `names/002` to `004` (`name_source` never exists),
+`climbs/002` to `005` (`kind` and `name_checked` never exist), `importer/002`.  `activity` has `start_place` and `name`; `sector` has `name` and `manual`
+(`manual in (0, 1)` now checked).  Checked first: a database built from the old fragments and one from the squashed files have the same tables, columns, indexes and foreign keys
+except `place`, `activity.place_id`, its foreign key and `activity_place` (52 of 54 tables identical, the 2 differ only in those).  The author starts from zero:
+`nch empty --all -f` (a copy of the old database file kept first), then `nch user --edit default --fthr N`, the models, and `nch import`.  An old database is refused with
+"run `nch empty --all -f` and import again".  The test migrations of the old fragments are gone (nothing to migrate); the fragment names and count are in `tests/db/test_store.nim`.
+

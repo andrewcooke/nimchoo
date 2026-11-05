@@ -45,44 +45,6 @@ suite "climbs: the tables":
     s.db.exec(sql"update sector set name = 'Mi cerro', manual = 1")
     check s.db.getValue(sql"select manual from sector") == "1"
 
-  test "a database made before the rules changed has its automatic names forgotten, to be made again":
-    let top = getTempDir() / "nch-test-climbs-migration"
-    removeDir(top)
-    var before: seq[Fragment]
-    for f in allFragments:
-      if f.name notin ["climbs/003-names.sql", "climbs/004-no-kind.sql", "climbs/005-names-now.sql"]: before.add f
-    let old = openStore(top / "x.db", before)
-    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'near La Florida', 1)")
-    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (2000, 90, 4, 'Cerro Calan', 1)")
-    old.close()
-    let now = openStore(top / "x.db", allFragments)
-    defer: now.close()
-    check now.count("sector") == 2                                   # (the climbs themselves stay)
-    check now.db.getValue(sql"select count(*) from sector where name is null and manual = 0") == "2"
-    # and it is done once: names given afterwards are kept the next time the database is opened
-    now.db.exec(sql"update sector set name = 'Cerro Calan' where id = 2")
-    now.close()
-    let again = openStore(top / "x.db", allFragments)
-    defer: again.close()
-    check again.db.getValue(sql"select name from sector where id = 2") == "Cerro Calan"
-
-  test "a database that had names looked at keeps them: nothing near becomes \"\", not yet named stays null":
-    let top = getTempDir() / "nch-test-climbs-migration5"
-    removeDir(top)
-    var before: seq[Fragment]
-    for f in allFragments:
-      if f.name != "climbs/005-names-now.sql": before.add f
-    let old = openStore(top / "x.db", before)
-    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, null, 1)")
-    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, null, 0)")
-    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'Cerro', 1)")
-    old.close()
-    let now = openStore(top / "x.db", allFragments)
-    defer: now.close()
-    check now.db.getValue(sql"select coalesce(name, '-') from sector where id = 1") == ""
-    check now.db.getValue(sql"select coalesce(name, '-') from sector where id = 2") == "-"
-    check now.db.getValue(sql"select name from sector where id = 3") == "Cerro"
-
   test "efforts go with their ride or with their sector, and the sector stays when the ride goes":
     let s = fresh("cascade")
     defer: s.close()

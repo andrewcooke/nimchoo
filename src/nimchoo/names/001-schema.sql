@@ -1,8 +1,8 @@
--- Names of places, for naming climbs and (later) where activities start.
+-- Names of places, for naming climbs and activities.
 --
 -- The countries come from the outlines GeoNames publishes (fetched the first time they are wanted:
 -- see names/countries.nim).  A country's names are read from its GeoNames file (fetched when a name is
--- wanted there) into `feature`, and `name_source` records which countries are in.
+-- wanted there), a cell at a time, into `feature`.
 create table country (
   iso text primary key,
   name text not null,
@@ -10,14 +10,19 @@ create table country (
 select AddGeometryColumn('country', 'geom', 4326, 'MULTIPOLYGON', 'XY');
 select CreateSpatialIndex('country', 'geom');
 
--- Which countries' files have been read into `feature`, when, and how many features that gave.
-create table name_source (
-  country text primary key references country(iso) on delete cascade,
-  loaded_at integer not null,              -- Unix seconds
-  features integer not null) without rowid;
+-- Which cells (a degree of longitude by a degree of latitude, named by the south-west corner) of which country have
+-- been read from the country's file into `feature`, when, and how many features that gave.  A cell is read when a name
+-- is wanted in it (see names/features.nim).
+create table coverage (
+  country text not null references country(iso) on delete cascade,
+  cell_lon integer not null,                -- whole degrees, south-west corner
+  cell_lat integer not null,
+  loaded_at integer not null,               -- Unix seconds
+  features integer not null,                -- how many the cell gave
+  primary key (country, cell_lon, cell_lat)) without rowid;
 
--- The terrain features (class T: mountains, hills, peaks, passes...) and populated places (class P) of the
--- countries loaded.  id is the GeoNames id; class and code are GeoNames' (PASS, PK, MT, HLL, PPL...).
+-- The features of the cells read, of every class and kind (peaks, passes, towns, farms, streams ...): what counts as a
+-- name is decided by the rules that use them.  id is the GeoNames id; class and code are GeoNames' (PASS, PK, MT, PPL ...).
 create table feature (
   id integer primary key,
   country text not null references country(iso) on delete cascade,

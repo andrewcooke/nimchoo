@@ -6,8 +6,4 @@ import ../db/fragment
 
 const fragments* = @[
   fragment("001-schema.sql"),   # sector, effort, climbs_done
-  fragment("002-name.sql"),     # sector.name
-  fragment("003-names.sql"),    # sector.manual; the automatic names are made again
-  fragment("004-no-kind.sql"),  # sector.kind is dropped (never used)
-  fragment("005-names-now.sql"),# sector.name_checked is dropped: null is "not named yet", "" is "nothing near"
 ]
