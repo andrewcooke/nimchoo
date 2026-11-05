@@ -334,7 +334,7 @@ suite "list: the command":
     let st = openStore(db, allFragments)
     defer: st.close()
     let r = listActivities(st, parseArgs(@["--sport", "previous"], utc()).criteria, utc())
-    check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00 running")
+    check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00  running")
   test "newest is not part of finding latest":
     let db = numbered("latest4")
     discard save(db, "--users", "default", "bob", "-n", "1", "--distance", "latest~10%")
@@ -449,9 +449,9 @@ suite "list: what is shown":
     let db = world("shown")
     let r = shown(db)
     check r.saved == -1
-    check r.lines.texts[0] == "date        start  sport            km  active"
-    check r.lines.texts[1] == "2018-07-01  12:00  cycling/road   12.3   1h01m"
-    check r.lines.texts[2] == "2018-08-27  12:00  running/trail  12.3   1h01m"
+    check r.lines.texts[0] == "start             sport    distance  active  place / name"
+    check r.lines.texts[1] == "2018-07-01 12:00  cycling    12.3km   1h01m"
+    check r.lines.texts[2] == "2018-08-27 12:00  running    12.3km   1h01m"
     check r.lines.texts[^1] == "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
   test "rows in the selection are yellow; with --save or --show all are":
@@ -512,7 +512,7 @@ suite "list: what is shown":
   test "several users: a user column":
     let db = world("shownusers")
     let r = shown(db, "--users", "default", "bob")
-    check r.lines.texts[0].startsWith("date        start  user")
+    check r.lines.texts[0].startsWith("start             user")
     check r.lines.texts[^1].startsWith("done: 3 of 3 activities")
     check r.lines.len == 5                           # header, three rows, the last line
 
@@ -531,7 +531,7 @@ suite "list: what is shown":
     let st = openStore(db, allFragments)
     defer: st.close()
     let again = showSelection(st, Criteria(), utc())
-    check again.texts[1].startsWith("2018-08-27  12:00  running/trail")
+    check again.texts[1].startsWith("2018-08-27 12:00  running")
     check again.texts[^1].startsWith("done: 1 activity, 1 match selected,")   # (no "of": nothing was chosen from)
 
   test "an empty selection, and a list with nothing in it":
@@ -557,20 +557,21 @@ suite "list: what is shown":
     check rows[0].contains("place") and rows[0].contains("name")
     check rows[1].contains("Lisbon") and rows[1].contains("Sintra and back")
     check not rows[2].contains("Lisbon") and not rows[2].contains("Sintra")            # paris: nothing stored
-    check not shown(db).lines.texts[0].contains("name")                                # (only with -v)
+    check not shown(db).lines.texts[0].contains("path")                                # (the path only with -v)
+    check shown(db).lines.texts[1].endsWith("Lisbon / Sintra and back")                # (the place and name in every listing)
 
-  test "a start with no place stored: its position, and a blank start; no start: no GPS and no position":
+  test "-v says no GPS where the place and name would be, for an activity with no start; the sub-sport follows the sport":
     let db = world("verbose-noplace")
     let st = openStore(db, allFragments)
     st.db.exec(sql"update activity set start = null where file_id in (select id from file where name = 'paris')")
     st.close()
     let rows = shown(db, "-v").lines.texts
-    check rows[0].contains("position") and rows[0].contains("place")
-    check rows[1].contains("38.7200,-9.1400") and not rows[1].contains("no GPS")   # lisbon1: where, though no place is stored
-    check rows[2].contains("no GPS") and not rows[2].contains(",")                 # paris: no start at all
-    # "no GPS" is in the position column, and the place after it is blank
-    check rows[2].find("no GPS") == rows[0].find("position")                       # (under its heading)
-    check rows[2].find("no GPS") < rows[2].find("paris")                           # (and before the file)
+    check rows[0].contains("place / name") and rows[0].endsWith("path")
+    check rows[1].contains("cycling/road") and not rows[1].contains("no GPS")       # lisbon1: a start, though no place is stored
+    check rows[2].contains("running/trail") and rows[2].contains("no GPS")          # paris: no start at all
+    check rows[2].find("no GPS") < rows[2].find("paris")                            # (and before the path)
+    check not shown(db).lines.texts[1].contains("no GPS")                           # (not without -v)
+    check shown(db).lines.texts[1].contains("cycling") and not shown(db).lines.texts[1].contains("cycling/road")
 
   test "saving is logged":
     let db = world("shownlog")
@@ -650,7 +651,7 @@ suite "list: --name and --start":
     defer: st.close()
     let p = parseArgs(@["-v", "--users", "default", "bob"], utc())
     let rows = listActivities(st, p.criteria, utc()).lines.texts
-    check rows[0].contains("place") and rows[0].contains("name")
+    check rows[0].contains("place / name") and rows[0].endsWith("path")
     check rows[1].contains("Lisboa") and rows[1].contains("São Pedro and back")     # lisbon1
     check rows[2].contains("Almada") and rows[2].contains("São Pedro and back")     # lisbon2 (bob's)
     check not rows[3].contains("Lisboa") and not rows[3].contains("Almada")          # paris

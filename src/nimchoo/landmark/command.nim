@@ -5,6 +5,7 @@
 import std/[options, strutils]
 import ../cli/common
 import ../climbs/report
+import ../describe
 import ../db/store
 import ../errors
 import ../names/[lookup, open]
@@ -44,13 +45,13 @@ func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
   var cells = @[@["", "name", "kind", "position", (if withDistance: "from" else: "")]]
   for i, s in rows:
     cells.add @[$(i + 1), s.name, s.cls & " " & s.code, positionText(s.lon, s.lat),
-                (if withDistance: formatFloat(s.distanceM / 1000.0, ffDecimal, 1) & " km" else: "")]
+                (if withDistance: km(s.distanceM) else: "")]
   columns(cells, {0})
 
 proc landmarkLines(rows: seq[Landmark]): seq[string] =
   var cells = @[@["landmark", "position", "radius"]]
   for l in rows:
-    cells.add @[l.name, positionText(l.lon, l.lat), formatFloat(l.radiusM / 1000.0, ffDecimal, 1) & " km"]
+    cells.add @[l.name, positionText(l.lon, l.lat), km(l.radiusM)]
   columns(cells, {2})
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =

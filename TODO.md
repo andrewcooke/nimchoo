@@ -2706,3 +2706,8 @@ the one 98 km ride of 2017-03-03.
 (named, or those the selected rides rode) over the rides, in another colour, which also shows where rides turn round compared with a climb's finish; (3) an elevation profile of a climb; (4) **a cross-section
 comparison of rides up a climb: plot the efforts against distance along the climb and show how each leads or lags the others (time gap by distance)**.  Also the near-miss report (how far along a climb each ride got).
 
+**One standard description of an activity and of a climb (the author, 2026-11-05)**: `describe.nim` (see AGENTS.md).  Applied to: the `nch list` table (columns `start`, `sport`, `distance`, `active`,
+`place / name`, `path`; the position coordinates are no longer shown, "no GPS" is said in the place/name column with -v), the `previous:` / `latest:` lines, the heading and the climbs of `nch climbs`
+(the climb first, then `at 1.7km` and how it went), `climbs --sectors`, `nch sector`, `--duplicates`, the landmark lists (`0.7km`).  The columns of the climb tables are now name, cat, length, gain, gradient.
+`nch list` shows the place and the name in every listing (it read them only with -v).  Not changed: messages that are not a description (the countdown "in 5 s", the help texts).
+

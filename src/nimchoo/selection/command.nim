@@ -143,12 +143,13 @@ func rowColumns(verbose: bool, userId: UserId): string =
     "(select name from user where id = f.user_id) as user, " &
     # whether the user has it in their selection
     "a.id in (select activity_id from selection where user_id = " & $userId & ") as chosen, " &
-    (if verbose:
-       "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, " &
-       # where it started and what it is called (text made when it was imported: see names/activity.nim)
-       "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " &
-       "coalesce(ST_Y(a.start), '') as slat, coalesce(ST_X(a.start), '') as slon"
-     else: "f.name as path, '' as pname, '' as aname, '' as slat, '' as slon")
+    (if verbose: "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, "
+     else: "f.name as path, ") &
+    # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
+    "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " &
+    # whether it has a start (said "no GPS" if not): -v only
+    (if verbose: "coalesce(ST_Y(a.start), '') as slat, coalesce(ST_X(a.start), '') as slon"
+     else: "'' as slat, '' as slon")
 
 const rowFields = "start_t, sport, sub, dist, active, file, user, chosen, path, pname, aname, slat, slon"
   ## the columns of a row, in the order `readRows` reads them

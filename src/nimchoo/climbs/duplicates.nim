@@ -9,6 +9,7 @@ import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
+import ../describe
 import ./[display, match, report]
 
 {.push raises: [].}
@@ -17,7 +18,8 @@ type
   Member* = object
     id*: int64
     name*: string                  ## as shown ("name (n/m)")
-    lengthM*, gainM*: float
+    category*: string
+    lengthM*, gainM*, gradient*: float
     efforts*: int
     retired*: bool
     hideable*: bool                ## it overlaps (directly) a climb that has more efforts, so it may be a duplicate of it
@@ -46,11 +48,13 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   var paths: seq[Path]
   guard:
     for r in st.db.fastRows(sql"""select s.id, s.length_m, s.gain_m, AsText(s.route), s.retired,
-        (select count(*) from effort e where e.sector_id = s.id) from sector s order by s.id"""):
+        (select count(*) from effort e where e.sector_id = s.id), coalesce(s.category, ''), s.gradient
+        from sector s order by s.id"""):
       try:
         let id = parseBiggestInt(r[0])
         members.add Member(id: id, name: names.getOrDefault(id, unnamed), lengthM: parseFloat(r[1]),
-                           gainM: parseFloat(r[2]), efforts: parseInt(r[5]), retired: r[4] == "1")
+                           gainM: parseFloat(r[2]), efforts: parseInt(r[5]), retired: r[4] == "1",
+                           category: r[6], gradient: parseFloat(r[7]))
         paths.add pathOf(r[3])
       except ValueError:
         raiseStore("a bad number in the climbs")
@@ -96,9 +100,10 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
     result.add ""
     var cells: seq[seq[string]]
     for m in g.members:
-      cells.add @[cut(m.name), km(m.lengthM) & " km", "+" & $int(m.gainM + 0.5) & " m",
-                  $m.efforts & (if m.efforts == 1: " effort" else: " efforts"), (if m.retired: "retired" else: "")]
-    for l in columns(cells, {1, 2, 3}): result.add "  " & l
+      cells.add climbCells(ClimbInfo(name: cut(m.name), category: m.category, lengthM: m.lengthM, gainM: m.gainM,
+                                     gradient: m.gradient)) &
+                @[$m.efforts & (if m.efforts == 1: " effort" else: " efforts"), (if m.retired: "retired" else: "")]
+    for l in columns(cells, {2, 3, 4, 5}): result.add "  " & l
     for m in g.members:
       if m.hideable and not m.retired:
         result.add "    hide: nch sector --edit \"" & m.name & "\" --retire   (overlaps a climb with more efforts)"

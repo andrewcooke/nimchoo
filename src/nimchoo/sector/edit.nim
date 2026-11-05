@@ -5,6 +5,7 @@
 import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
 import ../climbs/[display, report]
+import ../describe
 import ../db/store
 import ../errors
 import ./params
@@ -53,10 +54,9 @@ proc setRetired*(st: Store, id: int64, retired: bool) {.raises: [StoreError].} =
     st.db.exec(sql"update sector set retired = ? where id = ?", (if retired: 1 else: 0), id)
 
 func catalogueLines*(rows: seq[SectorRow]): seq[string] =
-  ## The climbs, one to a line, biggest gain first; "manual" marks the names given by a person.
-  var cells = @[@["climb", "length", "gain", "gradient", "cat", "efforts", ""]]
+  ## The climbs, one to a line, biggest gain first, each the standard way; "manual" marks the names given by a person.
+  var cells = @[@["climb", "cat", "length", "gain", "gradient", "efforts", ""]]
   for s in rows:
-    cells.add @[cut(s.name), km(s.lengthM) & " km", "+" & $int(s.gainM + 0.5) & " m",
-                formatFloat(s.gradient, ffDecimal, 1) & " %", s.category, $s.efforts,
-                (if s.manual: "manual" else: "")]
-  columns(cells, {1, 2, 3, 5})
+    cells.add climbCells(ClimbInfo(name: cut(s.name), category: s.category, lengthM: s.lengthM, gainM: s.gainM,
+                                   gradient: s.gradient)) & @[$s.efforts, (if s.manual: "manual" else: "")]
+  columns(cells, {2, 3, 4, 5})

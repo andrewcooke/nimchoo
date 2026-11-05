@@ -1,10 +1,10 @@
 ## The listing `nch list` prints: a row for each activity and a last line with the
 ## totals.  Pure (the time zone is a parameter, the rows are styled lines), so tests
-## need no database or terminal.
+## need no database or terminal.  An activity is said the standard way (describe.nim).
 ##
-##     date        start  sport             km    active
-##     2018-03-04  09:12  cycling/road   102.7     4h41m
-##     2018-07-26  17:40  cycling          5.5    22m05s
+##     start             sport    distance  active  place / name
+##     2018-03-04 09:12  cycling   102.7km   4h41m  Providencia / Lo Barnechea and back
+##     2018-07-26 17:40  cycling     5.5km  22m05s  Providencia
 ##     2 activities, 108.2km, 5h03m
 ##
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
@@ -12,7 +12,9 @@
 
 import std/[algorithm, math, options, sequtils, strutils, tables, times, unicode]
 import ../fit/time
+import ../describe
 import ../ui/[interval, style]
+export describe
 
 {.push raises: [].}
 
@@ -27,14 +29,6 @@ type
     name*: string                 ## what it is called ("" if nothing)
     position*: string             ## its start as `positionText` (no GPS if it has none)
     selected*: bool               ## it is in the selection (of the current user)
-
-func dateOf(d: DateTime): string =
-  d.year.intToStr(4) & "-" & ord(d.month).intToStr(2) & "-" & d.monthday.intToStr(2)
-
-func clockOf(d: DateTime): string =
-  d.hour.intToStr(2) & ":" & d.minute.intToStr(2)
-
-const noGps* = "no GPS"                ## said of an activity with no positions
 
 func positionText*(lat, lon: string): string =
   ## The start as "-33.4362,-70.6090": latitude, longitude, four decimals (about 10 metres), as
@@ -52,29 +46,12 @@ func padRight*(s: string, width: int): string =
 func padLeft*(s: string, width: int): string =
   ' '.repeat(max(0, width - s.runeLen)) & s
 
-func sportLabel*(r: ListRow): string =
-  ## "cycling/road"; the sub-sport only if it says something (not empty, not
-  ## "generic"); "-" if no sport is recorded.
-  let sport = if r.sport.len > 0: r.sport else: "-"
-  if r.subSport.len > 0 and r.subSport != "generic": sport & "/" & r.subSport else: sport
-
-func kmNumber*(metres: float): string =
-  ## "102.7": kilometres to a tenth, with commas from 1,000.  (The unit is in the header.)
-  let tenths = int(round(metres / 100.0))
-  insertSep($(tenths div 10), ',') & "." & $(tenths mod 10)
-
-func km*(metres: float): string =
-  ## "102.7km": for a sentence, where a bare number would not say what it is.  (No space,
-  ## as in 4h41m.)
-  kmNumber(metres) & "km"
-
 const transition = "transition"      ## the sport of the gaps between the legs of a triathlon
 
-proc rowCells(r: ListRow, zone: Timezone): seq[string] =
-  let d = r.startT.toTime.inZone(zone)
-  @[dateOf(d), clockOf(d), sportLabel(r),
-    if r.distanceM.isSome: kmNumber(r.distanceM.get) else: "-",
-    if r.activeS.isSome: interval(r.activeS.get) else: "-"]
+func info*(r: ListRow, verbose = false): ActivityInfo =
+  ## The row as the standard description takes it.  ("no GPS" is said only if verbose: otherwise the positions are not read.)
+  ActivityInfo(startT: r.startT, sport: r.sport, subSport: r.subSport, distanceM: r.distanceM, activeS: r.activeS,
+               place: r.place, name: r.name, path: r.path, noPositions: verbose and r.position == noGps)
 
 func isTransition(r: ListRow): bool = r.sport == transition
 
@@ -88,39 +65,27 @@ func zeroActive(r: ListRow): bool =
   not r.isTransition and r.activeS.isSome and r.activeS.get < 30.0
 
 proc activityText*(r: ListRow, zone: Timezone): string =
-  ## One activity in a sentence: "2019-05-21 14:04 running 0.0km 2s".
-  let c = rowCells(r, zone)
-  c[0] & " " & c[1] & " " & c[2] & " " &
-    (if r.distanceM.isSome: km(r.distanceM.get) else: "-") & " " & c[4]
+  ## One activity in a sentence, the standard way: "2019-05-21 14:04  running  0.0km 2s".
+  activityLine(info(r), zone)
 
 proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
-  ## The header and a line for each row, columns aligned (distance and active
-  ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `path`
-  ## columns at the end: `position` (the start as latitude,longitude; "no GPS" if there is none),
-  ## `place` (the place it started, blank if not known), `name` (what it is called) and `path` (the path the file was
-  ## imported from).  No lines at all if
-  ## there are no rows.
+  ## The header and a line for each row, columns aligned (distance and active right-aligned): the start, the sport, the
+  ## distance, the active time and "place / name" of each activity (describe.nim), with a `user` column after `start` if
+  ## `showUser`, and if `verbose` the sub-sport after the sport and the path of the file last.  No lines at all if there
+  ## are no rows.
   ##
   ## Looks: a row in the selection is yellow all through (the same yellow as a warning); a
   ## transition row is dim all through; "-" (not recorded) is dim; a distance
   ## or an active time that shows as zero is yellow.
   if rows.len == 0: return
-  var header = @["date", "start", "sport", "km", "active"]
+  var header = @["start", "sport", "distance", "active", "place / name"]
+  if verbose: header.add "path"
   var cells: seq[seq[string]]
-  for r in rows: cells.add rowCells(r, zone)
+  for r in rows: cells.add activityCells(info(r, verbose), zone, verbose)
   if showUser:
-    header.insert("user", 2)
-    for i, r in rows: cells[i].insert(r.user, 2)
-  if verbose:
-    header.add "position"
-    for i, r in rows: cells[i].add r.position
-    header.add "place"
-    for i, r in rows: cells[i].add r.place
-    header.add "name"
-    for i, r in rows: cells[i].add r.name
-    header.add "path"
-    for i, r in rows: cells[i].add r.path
-  let first = if showUser: 4 else: 3                  # the first number column
+    header.insert("user", 1)
+    for i, r in rows: cells[i].insert(r.user, 1)
+  let first = if showUser: 3 else: 2                  # the distance column; the active time follows
   var widths = newSeq[int](header.len)
   for c in 0 ..< header.len:
     widths[c] = header[c].runeLen
@@ -131,12 +96,13 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
     else: text.padRight(widths[c])
   proc line(row: seq[string], r: Option[ListRow]): Line =
     for c in 0 ..< row.len:
+      if c == row.len - 1 and row[c].len == 0 and c > 0: break      # (nothing to say last: no trailing blanks)
       if c > 0: result.add span("  ")
       var look = Look()
       if r.isSome:
         if r.get.isTransition: look.colour = grey
         elif r.get.selected: look.colour = yellow         # the whole row: it is in the selection
-        elif row[c] == "-" or row[c] == noGps: look.colour = grey
+        elif row[c] == notRecorded or row[c] == noGps: look.colour = grey
         elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
           look.colour = yellow
       result.add Span(text: padded(row[c], c), look: look)

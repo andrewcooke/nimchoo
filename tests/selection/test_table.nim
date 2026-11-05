@@ -11,11 +11,11 @@ const
 
 func row(t: int64, sport = "cycling", sub = "", distance = -1.0, active = -1.0,
          file = "f.fit", user = "default", path = "/x/f.fit", place = "", position = "",
-         selected = false): ListRow =
+         selected = false, name = ""): ListRow =
   ListRow(startT: UnixTime(t), sport: sport, subSport: sub,
           distanceM: if distance >= 0: some(distance) else: none(float),
           activeS: if active >= 0: some(active) else: none(float), file: file, user: user,
-          path: path, place: place, position: position, selected: selected)
+          path: path, place: place, name: name, position: position, selected: selected)
 
 func texts(ls: seq[Line]): seq[string] =
   for l in ls: result.add l.text
@@ -38,12 +38,13 @@ suite "list table: the last line":
     check footerLine(@[], some 3).text == "done: 0 of 3 activities"
 
 suite "list table: pieces":
-  test "the sport, with the sub-sport only if it says something":
-    check sportLabel(row(0, "cycling", "road")) == "cycling/road"
-    check sportLabel(row(0, "cycling", "generic")) == "cycling"
-    check sportLabel(row(0, "cycling", "")) == "cycling"
-    check sportLabel(row(0, "", "")) == "-"
-    check sportLabel(row(0, "", "road")) == "-/road"
+  test "the sport; verbose, with the sub-sport only if it says something":
+    check sportText("cycling", "road", false) == "cycling"
+    check sportText("cycling", "road", true) == "cycling/road"
+    check sportText("cycling", "generic", true) == "cycling"
+    check sportText("cycling", "", true) == "cycling"
+    check sportText("", "", false) == "-"
+    check sportText("", "road", true) == "-/road"
   test "distances in km, one decimal, commas from 1,000; with the unit for a sentence":
     check kmNumber(0.0) == "0.0"
     check kmNumber(102650.0) == "102.7"
@@ -55,47 +56,58 @@ suite "list table: pieces":
     check km(1234567.0) == "1,234.6km"
 
 suite "list table: the table":
-  test "aligned, oldest first as given, the date and start in the zone":
+  test "aligned, oldest first as given, the start in the zone; the distance and the active time to the right":
     let lines = table(@[row(mar4, "cycling", "road", 102650.0, 16860.0),
                         row(aug27, "cycling", "", 5549.0, 1320.0)], zone, false, false).texts
     check lines == @[
-      "date        start  sport            km  active",
-      "2018-03-04  09:12  cycling/road  102.7   4h41m",
-      "2018-08-27  12:00  cycling         5.5  22m00s"]
+      "start             sport    distance  active  place / name",
+      "2018-03-04 09:12  cycling   102.7km   4h41m",
+      "2018-08-27 12:00  cycling     5.5km  22m00s"]
+  test "the place and the name, joined; whichever there is":
+    let lines = table(@[row(mar4, "cycling", "road", 36700.0, 6060.0, place = "Providencia", name = "Lo Barnechea and back"),
+                        row(aug27, "cycling", "", 5549.0, 1320.0, place = "Providencia"),
+                        row(aug27, "cycling", "", 5549.0, 1320.0, name = "around Recoleta")], zone, false, false).texts
+    check lines[1].endsWith("36.7km   1h41m  Providencia / Lo Barnechea and back")
+    check lines[2].endsWith("5.5km  22m00s  Providencia")
+    check lines[3].endsWith("5.5km  22m00s  around Recoleta")
   test "not recorded is a dash":
     let lines = table(@[row(aug27, "", "")], zone, false, false).texts
-    check lines[1] == "2018-08-27  12:00  -       -       -"
+    check lines[1] == "2018-08-27 12:00  -             -       -"
   test "the zone moves the date and the time":
     let plus2 = newTimezone("+2", proc(t: Time): ZonedTime = ZonedTime(time: t, utcOffset: -7200, isDst: false),
                             proc(t: Time): ZonedTime = ZonedTime(time: t - initDuration(seconds = 7200), utcOffset: -7200, isDst: false))
-    check table(@[row(aug27)], plus2, false, false).texts[1].startsWith("2018-08-27  14:00")
-  test "a user column, after the start, only if asked; verbose adds the path, last":
-    let rows = @[row(mar4, "cycling", "", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit"),
+    check table(@[row(aug27)], plus2, false, false).texts[1].startsWith("2018-08-27 14:00")
+  test "a user column, after the start, only if asked; verbose adds the sub-sport and the path, last":
+    let rows = @[row(mar4, "cycling", "road", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit"),
                  row(aug27, "running", "", 2000.0, 120.0, "bb.fit", "bob", "/y/bb.fit")]
     let withUser = table(rows, zone, true, false).texts
-    check withUser[0] == "date        start  user   sport     km  active"
-    check withUser[1] == "2018-03-04  09:12  alice  cycling  1.0   1m00s"
+    check withUser[0] == "start             user   sport    distance  active  place / name"
+    check withUser[1] == "2018-03-04 09:12  alice  cycling     1.0km   1m00s"
     let verbose = table(rows, zone, false, true).texts
-    check verbose[0] == "date        start  sport     km  active  position  place  name  path"
-    check verbose[1].endsWith("1m00s" & " ".repeat(25) & "/x/a.fit")     # (no position, place or name: blank)
-    check verbose[2].endsWith("2m00s" & " ".repeat(25) & "/y/bb.fit")
-    check table(rows, zone, true, true).texts[0].startsWith("date        start  user   sport")
-  test "verbose: where it started, aligned by characters, not bytes":
-    let rows = @[row(mar4, "cycling", "", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit", "Valparaíso, CL", "-33.0360,-71.6296"),
-                 row(aug27, "cycling", "", 2000.0, 120.0, "b.fit", "alice", "/y/b.fit", "Zürich, CH (45km)", "47.3667,8.5500"),
-                 row(aug27, "cycling", "", 2000.0, 120.0, "c.fit", "alice", "/z/c.fit", "Ñuñoa, CL", "-33.4473,-70.5828")]
+    check verbose[0] == "start             sport         distance  active  place / name  path"
+    check verbose[1] == "2018-03-04 09:12  cycling/road     1.0km   1m00s                /x/a.fit"
+    check verbose[2] == "2018-08-27 12:00  running          2.0km   2m00s                /y/bb.fit"
+    check table(rows, zone, true, true).texts[0].startsWith("start             user   sport")
+  test "verbose: where it started and what it is called, aligned by characters, not bytes; no GPS said where they would be":
+    let rows = @[row(mar4, "cycling", "", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit", "Valparaíso", "-33.0360,-71.6296", name = "Quillota and back"),
+                 row(aug27, "cycling", "", 2000.0, 120.0, "b.fit", "alice", "/y/b.fit", "Zürich", "47.3667,8.5500"),
+                 row(aug27, "swimming", "", 2000.0, 120.0, "c.fit", "alice", "/z/c.fit", "", "no GPS")]
     let t = table(rows, zone, false, true).texts
-    check t[0] == "date        start  sport     km  active  position" & " ".repeat(9) & "  place" &
-      " ".repeat(12) & "  name  path"
-    check t[1].endsWith("1m00s  -33.0360,-71.6296  Valparaíso, CL" & " ".repeat(11) & "/x/a.fit")   # (14 characters, 17 wide)
-    check t[2].endsWith("2m00s  47.3667,8.5500" & " ".repeat(3) & "  Zürich, CH (45km)" & " ".repeat(8) & "/y/b.fit")
-    check t[3].endsWith("2m00s  -33.4473,-70.5828  Ñuñoa, CL" & " ".repeat(16) & "/z/c.fit")
-    var starts: seq[int]
-    for line in t: starts.add line.toRunes.find('/'.Rune) - 0   # (header has no slash)
-    check starts[1] == starts[2] and starts[2] == starts[3]
-    # the file column starts at the same character in every line
+    check t[1].endsWith("1m00s  Valparaíso / Quillota and back  /x/a.fit")
+    check t[2].endsWith("2m00s  Zürich" & " ".repeat(24) & "  /y/b.fit")             # (padded to the width of the longest)
+    check t[3].endsWith("2m00s  no GPS" & " ".repeat(24) & "  /z/c.fit")
+    # the path column starts at the same character in every line (they all end in a path of the same length)
+    check t[1].runeLen == t[2].runeLen and t[2].runeLen == t[3].runeLen
+  test "no GPS is said only if verbose (the positions are not read otherwise)":
+    let r = row(mar4, "cycling", "", 1000.0, 60.0, position = "no GPS")
+    check table(@[r], zone, false, false).texts[1].endsWith("1.0km   1m00s")
+    check table(@[r], zone, false, true).texts[1].contains("no GPS")
   test "no rows, no lines":
     check table(@[], zone, true, true).len == 0
+  test "an activity said in a sentence, the standard way":
+    check activityText(row(mar4, "cycling", "road", 36700.0, 6060.0, place = "Providencia", name = "Lo Barnechea and back"), zone) ==
+      "2018-03-04 09:12  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back"
+    check activityText(row(aug27, "running", "", 0.0, 2.0), zone) == "2018-08-27 12:00  running  0.0km 2s"
 
 suite "list table: positions and padding":
   test "the start as coordinates: lat,lon, four decimals; no GPS if there is no start":
@@ -147,7 +159,7 @@ suite "list table: looks":
         if sp.text.contains(text): return sp.look
       raiseAssert "no cell with " & text
     check lookOfText(1, "no GPS").colour == grey
-    check lookOfText(2, "Santiago").colour != grey and lookOfText(2, "-33.4362").colour != grey
+    check lookOfText(2, "Santiago").colour != grey
   proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): Look =
     for sp in lines[rowIndex]:
       if sp.text.strip.startsWith(prefix): return sp.look

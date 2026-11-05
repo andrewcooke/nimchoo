@@ -167,3 +167,20 @@ database (`nch empty --all -f`, then import again).  the cache survives
   test says `offline: true`.
 * landmarks (`nch landmark`) are the author's own names for places, shared
   by all users, and come before every other name.
+
+## describing things: one standard way (decided 2026-11-05)
+
+an activity and a climb are said the same way wherever they appear (the list, `nch climbs`, the sector
+commands, messages), like `__str__` in python.  the one place that does it is `src/nimchoo/describe.nim`
+(`activityLine` / `activityCells`, `climbLine` / `climbCells`, and the number formats).  a new command that
+shows an activity or a climb uses it, and does not make its own format.
+
+* an activity:  `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back`
+  (start, sport, distance, active time, then the place it started and what it is called, joined by " / ").
+  verbose adds the sub-sport (`cycling/road`) and, last, the path of the file.
+* a climb:  `Cerro San Luis (4/5)  4 0.5km +89m 17.8%`  (name, category, length, gain, gradient).  in
+  `nch climbs` the attempt follows:  `at 14.8km  9:41  24 of 34  best 8:25`.
+* **no space between a number and its unit** (`36.7km`, `+89m`, `17.8%`, `1h41m`).
+* in a table the parts are cells lined up in columns (padded, numbers to the right), headed `start`, `sport`,
+  `distance`, `active`, `place / name` (and `path`); the one-line form is for headings and sentences.
+* not recorded is `-` (dim); an activity with no positions says `no GPS` where the place and name would be (-v only).

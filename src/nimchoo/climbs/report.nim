@@ -6,6 +6,8 @@ import std/[options, strutils, tables, times, unicode]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
+import ../describe
+import ../fit/time
 import ../ids
 import ../ui/style
 import ./[display, work]
@@ -19,6 +21,8 @@ type
     startT*: int64                 ## when the activity began (Unix seconds)
     sport*: string
     distanceM*: Option[float]      ## of the whole activity
+    activeS*: Option[float]        ## the time its timer ran
+    place*, activityName*: string  ## where it started and what it is called ("" if nothing)
     sector*: int64
     atM*: float                    ## metres along the activity where the climb began
     lengthM*, gainM*, gradient*: float
@@ -69,7 +73,8 @@ proc selectedEfforts*(st: Store): seq[EffortRow] {.raises: [StoreError].} =
                s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), e.elapsed_s,
                (select count(*) from effort x where x.sector_id = e.sector_id and x.elapsed_s < e.elapsed_s) + 1,
                (select count(*) from effort x where x.sector_id = e.sector_id),
-               (select min(x.elapsed_s) from effort x where x.sector_id = e.sector_id)
+               (select min(x.elapsed_s) from effort x where x.sector_id = e.sector_id),
+               a.timer_s, coalesce(a.start_place, ''), coalesce(a.name, '')
           from effort e
           join sector s on s.id = e.sector_id
           join activity a on a.id = e.activity_id
@@ -81,7 +86,8 @@ proc selectedEfforts*(st: Store): seq[EffortRow] {.raises: [StoreError].} =
                              sector: parseBiggestInt(r[4]), atM: num(r[5]), lengthM: num(r[6]),
                              gainM: num(r[7]), gradient: num(r[8]), category: r[9],
                              name: names.getOrDefault(parseBiggestInt(r[4]), unnamed),
-                             elapsed: num(r[10]), rank: parseInt(r[11]), total: parseInt(r[12]), best: num(r[13]))
+                             elapsed: num(r[10]), rank: parseInt(r[11]), total: parseInt(r[12]), best: num(r[13]),
+                             activeS: (if r[14].len > 0: some(num(r[14])) else: none(float)), place: r[15], activityName: r[16])
       except ValueError:
         raiseStore("a bad number in the climbs")
 
@@ -128,10 +134,6 @@ func duration*(seconds: float): string =
   if h > 0: $h & ":" & align($m, 2, '0') & ":" & align($s, 2, '0')
   else: $m & ":" & align($s, 2, '0')
 
-func km*(metres: float): string =
-  ## Metres as kilometres to a tenth: "14.5".
-  formatFloat(metres / 1000.0, ffDecimal, 1)
-
 func columns*(rows: seq[seq[string]], right: set[0 .. 31]): seq[string] =
   ## The rows with their cells lined up (two spaces between), those in `right` to the right.
   var widths: seq[int]
@@ -162,35 +164,35 @@ func cut*(name: string, width = nameWidth): string =
   if room < 4 or base.runeLen <= room: name.runeSubStr(0, width - 3) & "..."
   else: base.runeSubStr(0, room - 3) & "..." & suffix
 
+func climbOf(name: string, category: string, lengthM, gainM, gradient: float): ClimbInfo =
+  ClimbInfo(name: cut(name), category: category, lengthM: lengthM, gainM: gainM, gradient: gradient)
+
 func effortCells(e: EffortRow): seq[string] =
-  @[cut(e.name), "at " & km(e.atM) & " km", km(e.lengthM) & " km", "+" & $int(e.gainM + 0.5) & " m",
-    formatFloat(e.gradient, ffDecimal, 1) & " %", (if e.category.len > 0: "cat " & e.category else: ""),
-    duration(e.elapsed), $e.rank & " of " & $e.total, "best " & duration(e.best)]
+  ## The climb the standard way (name, category, length, gain, gradient), then where on the ride it began and how it went.
+  climbCells(climbOf(e.name, e.category, e.lengthM, e.gainM, e.gradient)) &
+    @["at " & km(e.atM), duration(e.elapsed), $e.rank & " of " & $e.total, "best " & duration(e.best)]
 
 proc effortLines*(rows: seq[EffortRow], zone: Timezone): seq[string] =
-  ## For each activity (as it was picked) a line, then a line for each climb it went up.
+  ## For each activity (as it was picked, described the standard way) a line, then a line for each climb it went up.
   var cells: seq[seq[string]]
   for e in rows: cells.add effortCells(e)
-  let aligned = columns(cells, {1, 2, 3, 4, 6, 7, 8})
+  let aligned = columns(cells, {2, 3, 4, 5, 6, 7, 8})
   var last = -1'i64
   for i, e in rows:
     if e.activity != last:
       last = e.activity
-      var head = fromUnix(e.startT).inZone(zone).format("yyyy-MM-dd HH:mm")
-      if e.sport.len > 0: head.add "  " & e.sport
-      if e.distanceM.isSome: head.add "  " & km(e.distanceM.get) & " km"
-      result.add head
+      result.add activityLine(ActivityInfo(startT: UnixTime(e.startT), sport: e.sport, distanceM: e.distanceM,
+                                           activeS: e.activeS, place: e.place, name: e.activityName), zone)
     result.add "  " & aligned[i]
 
 func sectorLines*(rows: seq[SectorRow]): seq[string] =
-  ## A table of the sectors with a line of headings.
-  var cells = @[@["climb", "length", "gain", "gradient", "cat", "efforts", "best", "by", "yours"]]
+  ## A table of the sectors with a line of headings: each climb the standard way, then how often it was ridden.
+  var cells = @[@["climb", "cat", "length", "gain", "gradient", "efforts", "best", "by", "yours"]]
   for s in rows:
-    cells.add @[cut(s.name), km(s.lengthM) & " km", "+" & $int(s.gainM + 0.5) & " m",
-                formatFloat(s.gradient, ffDecimal, 1) & " %", s.category, $s.efforts,
-                (if s.best.isSome: duration(s.best.get) else: ""), s.by,
-                (if s.yours.isSome: duration(s.yours.get) else: "")]
-  columns(cells, {1, 2, 3, 5, 6, 8})
+    cells.add climbCells(climbOf(s.name, s.category, s.lengthM, s.gainM, s.gradient)) &
+      @[$s.efforts, (if s.best.isSome: duration(s.best.get) else: ""), s.by,
+        (if s.yours.isSome: duration(s.yours.get) else: "")]
+  columns(cells, {2, 3, 4, 5, 6, 8})
 
 # --- the display while the climbs are worked out
 
