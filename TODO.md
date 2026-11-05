@@ -2330,7 +2330,13 @@ route and the pure `pickName`.
   (`climbs 12 · efforts 40`), the same frame left on the screen, and a `done: 1,650 activities: 138 new climbs, 2,661 efforts` line
   after it (on stderr, so that `nch climbs --sectors | ...` stays clean).
 
-## Task 15: climbs are known by name, numbered by difficulty (plan, 2026-11-05; nothing built yet)
+## Task 15: climbs are known by name (DONE 2026-11-05; the first plan below was replaced by "REVISED PLAN" further down)
+
+**In short, as built**: a climb's name comes from GeoNames by tiers (within 1 km of the end; within 1.5 km of the middle, "near ..." from 1 km; a populated place
+within 5 km of the middle) with the kinds in strict order (pass, peak, hill, town, neighbourhood); climbs sharing a name are shown "name (n/m)" by gain, worked
+out when shown; names may be given by hand (`nch sector --edit NAME --rename NEW`, `--auto` to hand back) and are then never changed; `empty --sectors` says how
+many hand-given names it would lose; `--offline` names from what is already loaded.  Steps 1 to 6 are described below; no further work is planned.  Everything
+under "Agreed" and the other sections of the first plan that mentions difficulty, phi, stored numbers or unique names is history.
 
 ### Agreed
 
@@ -2509,7 +2515,8 @@ later) and those that only empty (each `empty` target: sectors, names, ...).  Li
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
   score, the greedy search, reversals) -> `match.nim` (gates, a ride over a stored climb, "the same climb again") -> `work.nim` (the lazy
   pass: activities not yet looked at, in start order; efforts; new sectors; the version check) -> `naming.nim` (names for sectors) ->
-  `report.nim` (the queries and the lines, pure formatting) -> `command.nim` (`nch climbs`); `001-schema.sql`, `002-name.sql`, `ddl.nim`.
+  `display.nim` ("name (n/m)", pure) -> `report.nim` (the queries and the lines, pure formatting) -> `command.nim` (`nch climbs`); `001` to `004` `.sql`, `ddl.nim`.
+* **Sector** (`sector/`): `params.nim` (the command line; which names are allowed), `edit.nim` (find a climb by the name shown, rename, hand back, the list), `command.nim` (`nch sector`).
 * **Names** (`names/`): `outlines.nim` (GeoNames files, point-in-polygon), `countries.nim` (country of a position; the `Names` handle),
   `features.nim` (a country's file into the table), `pick.nim` (the rules, pure), `naming.nim` (`nameRoute`: country, names, candidates, pick).
 * **Downloads** (`download/`): `sources.nim` (the list), `fetch.nim` (room, checks, atomic write, events), `sinks.nim` (log and screen).
