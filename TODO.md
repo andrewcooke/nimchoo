@@ -2286,3 +2286,23 @@ route and the pure `pickName`.
   #3 "Cerro San Cristobal".
 * Not done: a way to name again (`name_checked = 0`), the starts of activities named from the same features (task 13, step 6), streaming for
   the very big country files, the licence and README work.
+
+### The display of `nch climbs` and the explanation of downloads (2026-11-04)
+
+* While the climbs are worked out, two lines follow the work, in green (the word "climbing" in bold): `climbing 120 / 1,986 activities` and
+  `climbs 12 · efforts 40`; the last frame is left on the screen, in white.  Only on a terminal; nothing if there is no work to do.
+* Every download is preceded by a line that says why it is wanted (`Source.why`, a `starting` event): "need country shapes, to infer country from
+  position", "need the list of countries, for their names and codes", "need names of places and mountains in CL, to name climbs"; then the
+  `downloaded` line.  In the log the "need" line is a `note`.
+
+### The cache directory (what is where)
+
+* `user/`: made by commands (maps, CSV, pages); disposable; the web server serves only this; `empty --cache` clears it.
+* `system/`: unpacked from the program (the profile, the cities list, the page templates, `libraries.txt`, `NOTICE`); the author may edit them
+  (an edited file is never overwritten); unpacked again if deleted; no `empty` target touches it.
+* `data/`: downloaded from the network (GeoNames); neither made by a command nor carried by the program; losing it costs a download;
+  `empty --data` clears it.  `empty --cache` leaves it on purpose.
+* Top level: `server-token` and `manifest`.
+* To go back to before the climbs: `empty --sectors -f` (the climbs, their efforts and names, and the record of what was looked at);
+  as well, `empty --names -f` (the tables of countries and place names, read again from the files in 2 s) and `empty --data -f` (the downloaded
+  files) for a start with nothing fetched.  (A single `empty --climbs` that does all three is possible: to ask the author.)

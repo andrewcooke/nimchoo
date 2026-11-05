@@ -15,6 +15,8 @@ proc logSink*(l: Log, command: string): Sink =
   ## Write the events to the log as `command`: `downloaded` (info) and `failed` (error).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
     case ev.kind
+    of deStarting:
+      l.log(lvInfo, command, leNote, "need " & ev.message & "  " & ev.url)
     of deDownloaded:
       l.log(lvInfo, command, leDownloaded, ev.url & "  " & humanBytes(ev.bytes) & "  " & ev.path)
     of deFailed:

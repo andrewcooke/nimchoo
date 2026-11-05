@@ -11,24 +11,28 @@ type Source* = object
   zipEntry*: string        ## the entry the zip must hold ("" if the file is not a zip)
   maxBytes*: int64         ## a bigger file is refused (before it is fetched, if the server says)
   attribution*: string     ## the licence and who to credit (also in NOTICE)
+  why*: string             ## what it is needed for, said before it is fetched (`{arg}` as in the others)
 
 const
   geonamesCredit* = "GeoNames (https://www.geonames.org), licensed under CC BY 4.0"
 
   geonamesCountry* = Source(
     name: "geonames", url: "https://download.geonames.org/export/dump/{arg}.zip", file: "{arg}.zip",
-    zipEntry: "{arg}.txt", maxBytes: 200 * 1024 * 1024, attribution: geonamesCredit)
+    zipEntry: "{arg}.txt", maxBytes: 200 * 1024 * 1024, attribution: geonamesCredit,
+    why: "names of places and mountains in {arg}, to name climbs")
     ## One country's places and features, by its ISO code ("CL"); the United States is the largest, 71 MB.
 
   geonamesOutlines* = Source(
     name: "geonames", url: "https://download.geonames.org/export/dump/shapes_simplified_low.json.zip",
     file: "shapes_simplified_low.json.zip", zipEntry: "shapes_simplified_low.json",
-    maxBytes: 20 * 1024 * 1024, attribution: geonamesCredit)
+    maxBytes: 20 * 1024 * 1024, attribution: geonamesCredit,
+    why: "country shapes, to infer country from position")
     ## The simplified outlines of the countries (1.3 MB), keyed by GeoNames id.
 
   geonamesCountryInfo* = Source(
     name: "geonames", url: "https://download.geonames.org/export/dump/countryInfo.txt",
-    file: "countryInfo.txt", zipEntry: "", maxBytes: 5 * 1024 * 1024, attribution: geonamesCredit)
+    file: "countryInfo.txt", zipEntry: "", maxBytes: 5 * 1024 * 1024, attribution: geonamesCredit,
+    why: "the list of countries, for their names and codes")
     ## The countries: ISO code, name, GeoNames id (32 KB).
 
   allSources* = [geonamesCountry, geonamesOutlines, geonamesCountryInfo]
@@ -46,3 +50,4 @@ func fill(pattern, arg: string): string =
 func urlFor*(s: Source, arg = ""): string = fill(s.url, arg)
 func fileFor*(s: Source, arg = ""): string = fill(s.file, arg)
 func entryFor*(s: Source, arg = ""): string = fill(s.zipEntry, arg)
+func whyFor*(s: Source, arg = ""): string = fill(s.why, arg)

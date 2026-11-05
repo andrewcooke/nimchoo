@@ -116,5 +116,10 @@ suite "climbs: working them out":
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     addRide(s, "default", "two", 2_000_000, 5.0, eastbound(5.0))
     var seen: seq[(int, int)]
-    discard ensureClimbs(s, proc(done, total: int) {.closure, raises: [].} = seen.add (done, total))
+    var counts: seq[Worked]
+    discard ensureClimbs(s, proc(done, total: int, soFar: Worked) {.closure, raises: [].} =
+      seen.add (done, total)
+      counts.add soFar)
     check seen == @[(1, 2), (2, 2)]
+    check counts[0].activities == 1 and counts[0].sectors == 1       # the counts so far
+    check counts[1].activities == 2 and counts[1].efforts == 2

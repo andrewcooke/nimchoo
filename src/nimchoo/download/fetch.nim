@@ -38,7 +38,7 @@ type
     fetcher*: Fetcher
     freeBytes*: proc(dir: string): Option[int64] {.closure, raises: [].}   ## room on the disk holding `dir`
 
-  EventKind* = enum deDownloaded, deFailed
+  EventKind* = enum deStarting, deDownloaded, deFailed
 
   DownloadEvent* = object
     kind*: EventKind
@@ -46,7 +46,7 @@ type
     url*: string
     path*: string             ## where it is now (deDownloaded)
     bytes*: int64             ## how big (deDownloaded)
-    message*: string          ## why not (deFailed)
+    message*: string          ## why it is wanted (deStarting), or why not (deFailed)
 
   Sink* = proc(ev: DownloadEvent) {.closure, raises: [].}
 
@@ -63,6 +63,7 @@ func humanBytes*(n: int64): string =
 func describe*(ev: DownloadEvent): string =
   ## One line for people.
   case ev.kind
+  of deStarting: "need " & ev.message
   of deDownloaded: "downloaded " & ev.url & " (" & humanBytes(ev.bytes) & ")"
   of deFailed: "cannot download " & ev.url & ": " & ev.message
 
@@ -137,6 +138,7 @@ proc fetchSource*(env: Env, sink: Sink, dataDir: string, src: Source, arg = ""):
   except OSError:
     discard
   let url = urlFor(src, arg)
+  sink(DownloadEvent(kind: deStarting, source: src.name, url: url, message: whyFor(src, arg)))
   # the size, and the room
   let announced = env.fetcher.head(url)
   if announced.isSome and announced.get > src.maxBytes:

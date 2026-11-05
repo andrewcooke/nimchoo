@@ -60,7 +60,7 @@ suite "names: which country":
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     check st.db.getValue(sql"select count(*) from country") == "0"
     check countryAt(names, -70.65, -33.45) == some("CL")             # Santiago
-    check net.gets.len == 2 and events.len == 2                       # the outlines, and the list
+    check net.gets.len == 2 and events.len == 4                       # the outlines, and the list: each said, then done
     check st.db.getValue(sql"select count(*) from country") == "4"
     check st.db.getValue(sql"select name from country where iso = 'AR'") == "Argentina"
     check st.db.getValue(sql"select count(*) from country where geom is null") == "1"       # Curacao: no outline
@@ -87,7 +87,7 @@ suite "names: which country":
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     check countryAt(names, -70.65, -33.45) == some("CL")
     check st.db.getValue(sql"select count(*) from country") == "0"
-    check events.len >= 1 and events[0].kind == deFailed and "cannot reach" in events[0].message
+    check events.len >= 2 and events[0].kind == deStarting and events[1].kind == deFailed and "cannot reach" in events[1].message
     # ... and when the network is back, the next call fills the table
     net.broken = false
     check countryAt(names, -68.83, -32.89) == some("AR")

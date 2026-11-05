@@ -2,14 +2,14 @@
 ## or with `--sectors` every climb found.  The first time (and after an import) it works out the
 ## climbs of the activities that have not been looked at, and keeps them (see work.nim).
 
-import std/[monotimes, options, times]
+import std/[options, times]
 import ../cache
 import ../cli/[args, common]
 import ../db/store
 import ../download/[fetch, sinks]
 import ../errors
 import ../names/countries
-import ../ui/[live, logfile, style]
+import ../ui/[live, logfile]
 import ./[naming, report, work]
 
 {.push raises: [].}
@@ -35,15 +35,6 @@ import it only looks at the new ones.  A climb found again in another ride is th
 type ClimbsArgs = object
   sectors, help: bool
 
-proc progressLine(live: Live): proc(done, total: int) {.closure, raises: [].} =
-  ## A line on the terminal while the climbs are worked out (at most ten times a second).
-  var last = getMonoTime()
-  result = proc(done, total: int) {.closure, raises: [].} =
-    let now = getMonoTime()
-    if done == total or (now - last).inMilliseconds >= 100:
-      last = now
-      live.show(@[plain("working out the climbs: " & $done & " / " & $total & " activities")])
-
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch climbs ARGS`; returns the exit status.
   var given = ClimbsArgs()
@@ -62,9 +53,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     var worked: Worked
     if canLive():
+      # two lines that follow the work, in green, and stay on the screen at the end, in white (as the import's do)
       let live = newTerminalLive()
-      worked = ensureClimbs(st, progressLine(live))
-      live.finish()
+      var shown = false
+      worked = ensureClimbs(st, proc(done, total: int, soFar: Worked) {.closure, raises: [].} =
+        shown = true
+        if done == total or live.due(): live.show(climbingLines(done, total, soFar, false)))
+      if shown: live.keep(climbingLines(worked.activities, worked.activities, worked, true))
+      else: live.finish()
     else:
       worked = ensureClimbs(st)
     if worked.activities > 0:

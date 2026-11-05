@@ -23,6 +23,11 @@ proc envOf(net: Net): Env =
     FetchResult(ok: true, status: 200, body: net.bodies.getOrDefault(url))
   result.freeBytes = proc(dir: string): Option[int64] {.closure, raises: [].} = net.free
 
+proc failed(net: Net): seq[DownloadEvent] =
+  ## The failed events (every fetch starts with a "starting" event that says why it is wanted).
+  for e in net.events:
+    if e.kind == deFailed: result.add e
+
 proc sinkOf(net: Net): Sink =
   result = proc(ev: DownloadEvent) {.closure, raises: [].} = net.events.add ev
 
@@ -53,12 +58,14 @@ suite "download: fetching":
     check got == some(dir / "geonames" / "CL.zip")
     check readFile(got.get) == net.bodies.getOrDefault(chile)
     check not fileExists(got.get & ".part")
-    check net.events.len == 1 and net.events[0].kind == deDownloaded
-    check net.events[0].url == chile and net.events[0].bytes == int64(net.bodies.getOrDefault(chile).len)
+    check net.events.len == 2 and net.events[0].kind == deStarting and net.events[1].kind == deDownloaded
+    check net.events[0].message == "names of places and mountains in CL, to name climbs"
+    check describe(net.events[0]) == "need names of places and mountains in CL, to name climbs"
+    check net.events[1].url == chile and net.events[1].bytes == int64(net.bodies.getOrDefault(chile).len)
     check net.heads == @[chile] and net.gets == @[chile]
     # again: no request, no event
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL") == got
-    check net.heads.len == 1 and net.gets.len == 1 and net.events.len == 1
+    check net.heads.len == 1 and net.gets.len == 1 and net.events.len == 2
 
   test "a file that is not a zip, a zip without the entry, an empty file: refused, nothing kept":
     let dir = fresh("bad")
@@ -66,12 +73,12 @@ suite "download: fetching":
       let net = newNet()
       net.bodies[chile] = body
       check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL").isNone
-      check net.events.len == 1 and net.events[0].kind == deFailed
+      check net.failed.len == 1
       check not fileExists(dir / "geonames" / "CL.zip") and not fileExists(dir / "geonames" / "CL.zip.part")
     let net = newNet()
     net.bodies[chile] = makeZip([("CL.txt", "")])
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL").isNone
-    check "empty" in net.events[0].message
+    check "empty" in net.failed[0].message
 
   test "a plain file needs only to have something in it":
     let net = newNet()
@@ -86,18 +93,18 @@ suite "download: fetching":
     net.failures[chile] = "cannot reach download.geonames.org"
     let dir = fresh("net")
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL").isNone
-    check net.events[0].kind == deFailed and "cannot reach" in net.events[0].message
-    check describe(net.events[0]) == "cannot download " & chile & ": cannot reach download.geonames.org"
+    check net.failed.len == 1 and "cannot reach" in net.failed[0].message
+    check describe(net.failed[0]) == "cannot download " & chile & ": cannot reach download.geonames.org"
     # a country that does not exist
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "XX").isNone
-    check "404" in net.events[1].message
+    check "404" in net.failed[1].message
 
   test "a file bigger than the source allows is not fetched":
     let net = newNet()
     net.bodies[chile] = makeZip([("CL.txt", "x")])
     net.sizes[chile] = 300'i64 * 1024 * 1024
     check fetchSource(envOf(net), sinkOf(net), fresh("big"), geonamesCountry, "CL").isNone
-    check net.gets.len == 0 and "more than" in net.events[0].message
+    check net.gets.len == 0 and "more than" in net.failed[0].message
     # ... and one that turns out bigger than the server said
     let net2 = newNet()
     let small = Source(name: "t", url: "http://x/{arg}", file: "{arg}", maxBytes: 10)
@@ -110,8 +117,8 @@ suite "download: fetching":
     net.sizes[chile] = 1_400_000
     net.free = some(400'i64 * 1024 * 1024)                  # less than the 500 MB kept in reserve
     check fetchSource(envOf(net), sinkOf(net), fresh("room"), geonamesCountry, "CL").isNone
-    check net.gets.len == 0 and "not enough room" in net.events[0].message
-    check "free" in net.events[0].message
+    check net.gets.len == 0 and "not enough room" in net.failed[0].message
+    check "free" in net.failed[0].message
     net.free = some(2'i64 * 1024 * 1024 * 1024)
     check fetchSource(envOf(net), sinkOf(net), fresh("room"), geonamesCountry, "CL").isSome
     # the size three times over counts: 150 MB wants 450 MB and the reserve
@@ -150,10 +157,12 @@ suite "download: the same events in the log and on the screen":
     var said: seq[string]
     let sink = fanOut(@[logSink(l, "climbs"),
                         screenSink(proc(line: string) {.closure, raises: [].} = said.add line)])
+    sink(DownloadEvent(kind: deStarting, source: "geonames", url: chile, message: "names of places in CL"))
     sink(DownloadEvent(kind: deDownloaded, source: "geonames", url: chile, path: "/c/CL.zip", bytes: 1_421_434))
     sink(DownloadEvent(kind: deFailed, source: "geonames", url: chile, message: "cannot reach"))
     l.close()
     let text = readFile(path)
+    check "INFO  climbs    note       need names of places in CL" in text
     check "INFO  climbs    downloaded" in text and chile in text and "1.4 MB" in text
     check "ERROR climbs    failed" in text and "cannot reach" in text
-    check said == @["downloaded " & chile & " (1.4 MB)", "cannot download " & chile & ": cannot reach"]
+    check said == @["need names of places in CL", "downloaded " & chile & " (1.4 MB)", "cannot download " & chile & ": cannot reach"]

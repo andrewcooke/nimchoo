@@ -2,6 +2,7 @@ import std/[options, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/climbs/[report, work]
 import nimchoo/db/store
+import nimchoo/ui/style
 import ../support/[climbdata, userdata]
 
 func row(activity, sector: int64, rank, total: int, elapsed, best: float, startT = 1535371200'i64): EffortRow =
@@ -20,6 +21,20 @@ suite "climbs report: the words":
     check km(14520) == "14.5"
     check km(1949) == "1.9"
     check km(50) == "0.1"
+
+suite "climbs report: the display while they are worked out":
+  test "two lines with the counts, green while working and white when left on the screen":
+    let working = climbingLines(120, 1986, Worked(activities: 120, sectors: 12, efforts: 40), finished = false)
+    check working.len == 2
+    check working[0].text == "climbing 120 / 1,986 activities"
+    check working[1].text == "climbs 12 · efforts 40"
+    for line in working:
+      for sp in line: check sp.look.colour == green
+    check working[0][0].look.bold                                   # ("climbing" in bold)
+    let done = climbingLines(1986, 1986, Worked(activities: 1986, sectors: 161, efforts: 3635), finished = true)
+    check done[0].text == "climbing 1,986 / 1,986 activities" and done[1].text == "climbs 161 · efforts 3,635"
+    for line in done:
+      for sp in line: check sp.look.colour == white
 
 suite "climbs report: the lines":
   test "an activity, then the climbs it went up, lined up":

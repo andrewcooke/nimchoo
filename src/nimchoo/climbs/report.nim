@@ -7,6 +7,8 @@ import db_connector/db_sqlite
 import ../db/store
 import ../errors
 import ../ids
+import ../ui/style
+import ./work
 
 {.push raises: [].}
 
@@ -148,3 +150,17 @@ func sectorLines*(rows: seq[SectorRow]): seq[string] =
                 (if s.best.isSome: duration(s.best.get) else: ""), s.by,
                 (if s.yours.isSome: duration(s.yours.get) else: ""), s.name]
   columns(cells, {1, 2, 3, 5, 6, 8})
+
+# --- the display while the climbs are worked out
+
+func commas(n: int): string = insertSep($n, ',')
+
+func climbingLines*(done, total: int, worked: Worked, finished: bool): seq[Line] =
+  ## The two lines shown while the activities are looked at (and left on screen at the end, in white):
+  ##
+  ##     climbing 120 / 1,986 activities
+  ##     climbs 12 · efforts 40
+  let colour = if finished: white else: green
+  @[@[span("climbing ", colour, bold = true), span(commas(done) & " / " & commas(total) & " activities", colour)],
+    @[span("climbs " & commas(worked.sectors) & " · efforts " & commas(worked.efforts), colour)]]
+

@@ -209,7 +209,7 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
   guard:
     st.db.exec(sql"insert into climbs_done(activity_id, version) values (?, ?)", id, algorithmVersion)
 
-proc ensureClimbs*(st: Store, progress: proc(done, total: int) {.closure, raises: [].} = nil): Worked
+proc ensureClimbs*(st: Store, progress: proc(done, total: int, soFar: Worked) {.closure, raises: [].} = nil): Worked
     {.raises: [StoreError].} =
   ## Look at the activities that have not been looked at, and bring the sectors and efforts up to
   ## date.  An error if some were looked at by another version of the method.
@@ -235,7 +235,7 @@ proc ensureClimbs*(st: Store, progress: proc(done, total: int) {.closure, raises
     finally:
       if not done: st.rollback()
     inc result.activities
-    if progress != nil: progress(k + 1, todo.len)
+    if progress != nil: progress(k + 1, todo.len, result)
 
 type Counts* = object
   sectors*, efforts*: int
