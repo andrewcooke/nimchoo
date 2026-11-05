@@ -2254,3 +2254,18 @@ to about 300 MB; the limit here is 1 GB; the whole text is held in memory, so ve
 Real Chile file: 16,223 features in about 1 s after the outlines (MT 5,354; PPLX 4,018; PPL 2,786; HLL 1,763; MTS 800; PASS 569; SPUR 291; PK 229);
 a box round the Los Libertadores pass finds Portezuelo Navarro, Paso de la Iglesia and others.  Next: step 4, the candidates near a
 route and the pure `pickName`.
+
+### Task 13, step 4 is built (2026-11-04): `names/pick.nim`, `names/naming.nim`; `geo.nim` moved up from `climbs/`
+
+* `pickName` (pure): a pass or saddle within 400 m of the top; else a peak or mountain within 1 km of the top; else a hill, ridge or spur
+  within 1.5 km of the route; else the nearest populated place within 5 km as "near <place>".  **A feature more than 1 km away is shown as
+  "near <name>"** (the author's suggestion).  The nearest wins within a kind.
+* `nameRoute(names, lons, lats)` -> named / nothing / later: the country of the top (outlines), its names loaded (fetched the first time),
+  the features near the route (spatial index, distances in a flat projection), `pickName`.  "Later" means the network stopped it: nothing is
+  decided, ask again.  The library never prints.
+* On the 43 climbs of the author's sample (Chile): 20 named for a hill, 20 "near <place>", 3 nothing, none for a pass or peak (they are
+  city-edge climbs).  Good where the distance is small (Cerro San Cristobal at 155 m, Cerro Calan 242 m; the HC climb is "near Farellones",
+  240 m); weak at 1 to 1.5 km, now shown as "near".
+* To settle: the author asked to "test both ends of the segment" (meaning to be confirmed: the country at both ends for climbs over a
+  border? names from the bottom of the climb as well as the top? or both ends in the tests?).  Not yet done: step 5, `sector.name`,
+  the name in `nch climbs`, `empty --names` and `--data`.

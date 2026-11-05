@@ -9,7 +9,7 @@
 
 import std/[algorithm, math, options]
 import ../importer/extract
-import ./geo
+import ../geo
 
 {.push raises: [].}
 
