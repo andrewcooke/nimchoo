@@ -1,4 +1,4 @@
-## How a climb is said, wherever one is shown (`nch climbs`, `nch sector` ...): like `__str__`.  The climbs module owns
+## How a climb is said, wherever one is shown (`nch climbs` ...): like `__str__`.  The climbs module owns
 ## climbs, so it says them; a command that shows one uses this and makes no format of its own.
 ##
 ##     Cerro San Luis (4/5)  4 0.5km +89m 17.8%

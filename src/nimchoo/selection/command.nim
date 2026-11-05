@@ -39,7 +39,7 @@ last one).  Criteria are combined with "and".
                      Barnechea"): --start providencia
   --path TEXT        the same for the path of the file the activity was imported from (or any
                      other path the same file was seen at): --path bowman, --path 2026-10
-  --climb TEXT       activities that have an effort on a climb whose name (as `nch sector` shows
+  --climb TEXT       activities that have an effort on a climb whose name (as `nch climbs --all` shows
                      it) contains TEXT: --climb farellones (all of them), --climb "farellones (2/3)"
                      (one); retired climbs too.  It is an error if no climb has the text
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
@@ -295,7 +295,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
           found = true
           if id notin c.climbIds: c.climbIds.add id
       if not found:
-        raiseStore("no climb has '" & t & "' in its name (`nch sector` lists them)")
+        raiseStore("no climb has '" & t & "' in its name (`nch climbs --all` lists them)")
   checkNames(st, "sport", "sport", idList, c.sports)
   checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
   var centre = none((float, float))

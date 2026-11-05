@@ -1,13 +1,15 @@
 import std/[strutils, unittest]
-import nimchoo/sector/params
+import nimchoo/climbs/params
 
-suite "sector: the command line":
-  test "no arguments lists":
+suite "climbs: the command line":
+  test "no arguments: the climbs of the selected activities; --all: every climb":
     let p = parseArgs(@[])
-    check p.list and p.problem.len == 0
+    check p.problem.len == 0 and not p.all and not p.edit and not p.listOnly
+    let a = parseArgs(@["--all"])
+    check a.problem.len == 0 and a.all and not a.listOnly
   test "rename and auto":
     let r = parseArgs(@["--edit", "Morro La Cabra (1/3)", "--rename", "  La Cabra  "])
-    check r.problem.len == 0 and r.edit and not r.list and r.name == "Morro La Cabra (1/3)" and r.rename == "La Cabra"
+    check r.problem.len == 0 and r.edit and r.name == "Morro La Cabra (1/3)" and r.rename == "La Cabra"
     let a = parseArgs(@["--edit", "X", "--auto"])
     check a.problem.len == 0 and a.edit and a.auto
   test "mistakes":
@@ -29,17 +31,19 @@ suite "sector: the command line":
     check looksNumbered("A (1/2)") and looksNumbered("A B (10/12)")
     check not looksNumbered("A (1)") and not looksNumbered("A(1/2)") and not looksNumbered("(1/2)") and not looksNumbered("A (/2)")
 
-suite "sector: retiring":
+suite "climbs: retiring":
   test "retire and unretire go with --edit; --retired and --duplicates are lists":
     check parseArgs(@["--edit", "X (2/3)", "--retire"]).retire
     check parseArgs(@["--edit", "X (2/3)", "--unretire"]).unretire
-    check parseArgs(@["--retired"]).retired and not parseArgs(@["--retired"]).list
-    check parseArgs(@["--duplicates"]).duplicates and not parseArgs(@["--duplicates"]).list
+    check parseArgs(@["--retired"]).retired and parseArgs(@["--retired"]).listOnly
+    check parseArgs(@["--duplicates"]).duplicates and parseArgs(@["--duplicates"]).listOnly
     check parseArgs(@["--retire"]).problem.contains("go with --edit")
     check parseArgs(@["--unretire"]).problem.contains("go with --edit")
     check parseArgs(@["--edit", "X", "--retire", "--unretire"]).problem.contains("cannot be used together")
     check parseArgs(@["--edit", "X", "--retire", "--rename", "Y"]).problem.contains("cannot be used together")
     check parseArgs(@["--edit", "X"]).problem.contains("--retire")
     check parseArgs(@["--retired", "--duplicates"]).problem.contains("cannot be used together")
+    check parseArgs(@["--all", "--retired"]).problem.contains("cannot be used together")
     check parseArgs(@["--edit", "X", "--retire", "--retired"]).problem.contains("do not go with --edit")
+    check parseArgs(@["--edit", "X", "--retire", "--all"]).problem.contains("do not go with --edit")
 

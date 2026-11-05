@@ -18,7 +18,7 @@ suite "climbs: duplicates":
     let lines = duplicateLines(groups)
     check lines[0].startsWith("climbs that largely overlap")
     check lines.anyIt(it.contains("3 efforts")) and lines.anyIt(it.contains("1 effort"))
-    check lines.anyIt(it.strip.startsWith("hide: nch sector --edit \"unnamed (1/2)\" --retire"))      # the longer, biggest gain, is (1/2)
+    check lines.anyIt(it.strip.startsWith("hide: nch climbs --edit \"unnamed (1/2)\" --retire"))      # the longer, biggest gain, is (1/2)
     check groups[0].members[1].hideable and not groups[0].members[0].hideable
     check not lines.anyIt(it.contains("unnamed (2/2)\" --retire"))                      # (the most ridden is not offered)
   test "climbs far apart, or one climb, are not duplicates":

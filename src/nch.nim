@@ -13,7 +13,6 @@ import nimchoo/selection/command as listCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
 import nimchoo/landmark/command as landmarkCommand
-import nimchoo/sector/command as sectorCommand
 import nimchoo/user/command as userCommand
 import nimchoo/model/command as modelCommand
 import nimchoo/ff/command as ffCommand
@@ -43,7 +42,6 @@ commands:
   model    the models: sets of variables for the training impulse
   ff       the fitness and fatigue curves, as CSV for plotting
   climbs   the climbs of the selected activities, with times and ranks
-  sector   the climbs everyone shares: list them, give one a name
   landmark places of your own, named: they come before every other name
   delete   delete the selected activities
   empty    delete a user's data, the whole database, or the cache files
@@ -78,8 +76,6 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     emptyCommand.run(g, rest)
   of "climbs":
     climbsCommand.run(g, rest)
-  of "sector":
-    sectorCommand.run(g, rest)
   of "landmark":
     landmarkCommand.run(g, rest)
   else:

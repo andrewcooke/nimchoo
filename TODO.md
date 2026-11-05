@@ -2720,7 +2720,7 @@ name inside (where other kinds, e.g. segments from overlapping rides, will be ad
 
 **THE SHAPE OF THE COMMANDS (the author's theory, agreed 2026-11-05; the guide is in AGENTS.md)**.  Plural commands for the types in the database, a common grammar, the selection as the default for activities, `--all`
 for everything, singular for what is outside, `cache` and `db` in place of `empty`.  **Steps** (each a commit, tests and help updated, nothing kept for compatibility):
-1. `climbs` takes over `sector` (`--all` for `--sectors`; `--edit NAME` with `--rename/--auto/--retire/--unretire`; `--retired`; `--duplicates`); `nch sector` goes.  [in progress]
+1. `climbs` takes over `sector` (`--all` for `--sectors`; `--edit NAME` with `--rename/--auto/--retire/--unretire`; `--retired`; `--duplicates`); `nch sector` goes.  **DONE 2026-11-05** (`sector/` is gone, its code is `climbs/params.nim`, `climbs/edit.nim`; `--all` lists with a `manual` mark; `--user` is allowed on `climbs`).
 2. `list` becomes `activities` (`--select` for `--save`; no arguments = the selection, `--all` = all; `--show` goes), `delete` becomes `activities --delete`, `import` becomes `activities --import`; `--users` goes.
 3. `user`, `model`, `landmark` become `users`, `models`, `landmarks`; `--remove` becomes `--delete`.
 4. `cache` and `db` replace `empty`: `cache` alone lists the kinds and sizes (downloads, system, geojson, csv, html ...), `cache --delete KIND`; `db` alone says where and how big, `db --delete`;

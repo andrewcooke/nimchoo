@@ -187,12 +187,13 @@ proc effortLines*(rows: seq[EffortRow], zone: Timezone): seq[string] =
     result.add "  " & aligned[i]
 
 func sectorLines*(rows: seq[SectorRow]): seq[string] =
-  ## A table of the sectors with a line of headings: each climb the standard way, then how often it was ridden.
-  var cells = @[@["climb", "cat", "length", "gain", "gradient", "efforts", "best", "by", "yours"]]
+  ## A table of the climbs with a line of headings: each the standard way, then how often it was ridden, the best time and whose
+  ## it is, the user's own, and "manual" against a name given by a person.
+  var cells = @[@["climb", "cat", "length", "gain", "gradient", "efforts", "best", "by", "yours", ""]]
   for s in rows:
     cells.add climbCells(climbOf(s.name, s.category, s.lengthM, s.gainM, s.gradient)) &
       @[$s.efforts, (if s.best.isSome: duration(s.best.get) else: ""), s.by,
-        (if s.yours.isSome: duration(s.yours.get) else: "")]
+        (if s.yours.isSome: duration(s.yours.get) else: ""), (if s.manual: "manual" else: "")]
   columns(cells, {2, 3, 4, 5, 6, 8})
 
 # --- the display while the climbs are worked out

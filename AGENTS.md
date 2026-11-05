@@ -147,7 +147,7 @@ database (`nch empty --all -f`, then import again).  the cache survives
   author is happy with the new one.
 * what a rebuild loses that cannot be made again from the fit files: the
   users and their fthr, models, the saved selection, the landmarks, and names
-  given by hand (`nch sector --edit`).  the author chose to start from zero
+  given by hand (`nch climbs --edit`).  the author chose to start from zero
   at the first squash; a save-and-restore of those few tables is a possible
   one-off script if it is ever wanted.
 * the first squash (2026-11-05) removed: the `places` module (the embedded

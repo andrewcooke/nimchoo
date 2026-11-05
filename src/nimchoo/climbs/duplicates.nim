@@ -3,7 +3,7 @@
 ## finish makes a climb of its own (see work.nim), so these happen.  The report puts them in groups, the most ridden
 ## first, and offers to hide a climb only if it overlaps a more ridden one directly (a group can be a chain of climbs, from
 ## rides that turn round in different places, which are not all copies of the most ridden).  Retiring is by hand
-## (`nch sector --edit NAME --retire`).
+## (`nch climbs --edit NAME --retire`).
 
 import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
@@ -105,4 +105,4 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
     for l in columns(cells, {2, 3, 4, 5}): result.add "  " & l
     for m in g.members:
       if m.hideable and not m.retired:
-        result.add "    hide: nch sector --edit \"" & m.name & "\" --retire   (overlaps a climb with more efforts)"
+        result.add "    hide: nch climbs --edit \"" & m.name & "\" --retire   (overlaps a climb with more efforts)"

@@ -31,7 +31,7 @@ Say what to empty; several can be given at once, and are asked about, counted do
                 stay.  (To delete the user as well: `nch user --remove NAME -f`.)
   --sectors     delete the catalogue of climbs, and with it the efforts of every user on them;
                 the next `nch climbs` works them out again from the rides.  Names given by hand
-                (`nch sector --edit`) are lost; the message says how many
+                (`nch climbs --edit`) are lost; the message says how many
   --all         delete the database file, and with it the data of every user and the users
   --downloads   delete the downloaded files in the data cache (the GeoNames country files, ...), to free the
                 space.  They are fetched again when a new place needs them; nothing in the database

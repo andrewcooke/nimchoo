@@ -23,7 +23,7 @@ suite "nch climbs":
     s.close()
     check climbs(path) == exitOk
     # ... and the catalogue is there to list, and the climbs were worked out on the way
-    check climbs(path, "--sectors") == exitOk
+    check climbs(path, "--all") == exitOk
     let again = openStore(path, allFragments)
     defer: again.close()
     check again.count("sector") == 1 and again.count("climbs_done") == 1
@@ -35,7 +35,7 @@ suite "nch climbs":
     let path = s.path
     s.close()
     check climbs(path) == exitOk
-    check climbs(path, "--sectors") == exitOk
+    check climbs(path, "--all") == exitOk
 
   test "a selection with no climbs in it is not an error":
     let s = fresh("command-none")
@@ -49,7 +49,7 @@ suite "nch climbs":
     let s = fresh("command-nothing")
     let path = s.path
     s.close()
-    check climbs(path, "--sectors") == exitOk
+    check climbs(path, "--all") == exitOk
 
   test "it works for the user named before the command":
     let s = fresh("command-user")
