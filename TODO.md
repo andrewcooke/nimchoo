@@ -2537,3 +2537,17 @@ later) and those that only empty (each `empty` target: sectors, names, ...).  Li
 Three patterns to tell apart: A out and back (same route both ways; "<destination> and back"); B a loop (back at the start after a long way; "via <the most
 significant feature along it that is also fairly far from the start>"); C one place to another ("<start> to <end>" or "to <end>").
 
+**Decided (the author, 2026-11-05)**: an activity has a START (a place, standing alone: for finding rides from somewhere; today `activity.place_id`) and a NAME
+(which need not repeat the start): A "<destination> and back", B "loop via <feature>", C "to <destination>"; no name when nothing fits.
+**Order**: (1) `names/shape.nim`, a pure classifier (done), surveyed on the real rides; (2) the place service: `placeAt(names, lon, lat)` (GeoNames when the
+country's names are loaded, the embedded list otherwise) and the import's start lookup moved behind it, `places/` becoming internal to `names/`;
+(3) the naming rules and a lazy pass that fills the name (not at import: the names need downloads); the embedded city stays as the start until then.
+
+**Step 1 is built (2026-11-05)**: `names/shape.nim`: `shapeOf(lons, lats)` -> local (never 1.5 km from the start), out and back, loop, one way; the route taken
+every 50 m; the turning point is the furthest from the start; closed if the end is within 0.25 of that distance of the start; of the way back, the share within
+50 m of the way out is `retraced`, out and back from 0.7.  Survey of the author's 1,650 activities with positions (1,123 cycling, 357 swimming, 170 training;
+4.7 s): 546 local, 645 loop, 383 out and back, 76 one way.  Closed or not is clean (of 1,103 rides that go 1.5 km out, 961 end within a tenth of the way out,
+about 60 are one way, few between).  Out and back or loop is NOT clean: `retraced` of the closed rides by tenths is 305, 62, 62, 52, 60, 65, 39, 67, 81, 186, 49
+(a peak below 0.1 for loops, one above 0.9 for out and back, and about 440 in between: loops that share a road out, or out and backs with a detour).
+Open: where to cut, or whether a middle class ("out and back with a loop") helps; to be looked at with the author on real rides.
+
