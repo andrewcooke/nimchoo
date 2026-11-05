@@ -239,11 +239,15 @@ proc ensureClimbs*(st: Store, progress: proc(done, total: int, soFar: Worked) {.
 
 type Counts* = object
   sectors*, efforts*: int
+  manual*: int                   ## of the sectors, those with a name given by hand
 
 func describe*(c: Counts): string =
-  ## "43 sectors and 220 efforts (of every user)".
-  $c.sectors & (if c.sectors == 1: " sector" else: " sectors") & " and " & $c.efforts &
+  ## "43 sectors and 220 efforts (of every user)", and what would be lost that cannot be made again:
+  ## "43 sectors and 220 efforts (of every user); 2 names given by hand are lost".
+  result = $c.sectors & (if c.sectors == 1: " sector" else: " sectors") & " and " & $c.efforts &
     (if c.efforts == 1: " effort" else: " efforts") & " (of every user)"
+  if c.manual > 0:
+    result.add "; " & $c.manual & (if c.manual == 1: " name given by hand is lost" else: " names given by hand are lost")
 
 proc countClimbs*(st: Store): Counts {.raises: [StoreError].} =
   ## How many sectors and efforts there are.
@@ -251,6 +255,7 @@ proc countClimbs*(st: Store): Counts {.raises: [StoreError].} =
     try:
       result.sectors = parseInt(st.db.getValue(sql"select count(*) from sector"))
       result.efforts = parseInt(st.db.getValue(sql"select count(*) from effort"))
+      result.manual = parseInt(st.db.getValue(sql"select count(*) from sector where manual = 1"))
     except ValueError:
       raiseStore("a bad count")
 

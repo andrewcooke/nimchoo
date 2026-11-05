@@ -2492,7 +2492,9 @@ NEW at most 60 characters, no control characters, not ending in "(n/m)"; sets `m
 (segments from overlapping activities) arrives: a type column (a CHECK, or a lookup table with a foreign key; SQLite has no enums) or a table for each kind
 (a subclass-in-SQL question); every query of the climbs must then keep to its own kind so that other sectors do not appear in `nch climbs`.  Tried on a copy
 of the real database: the migration runs.
-Next: step 6 (`empty --sectors` says how many manual names it would lose), step 7 (docs).
+**Step 6 is built (2026-11-05)**: `climbs/work.Counts` has `manual` (sectors with `manual = 1`); `describe` adds "; 2 names given by hand are lost" when there
+are any, so `nch empty --sectors` (the message before the countdown) says it.  `--help` says so too.  (`--all` deletes the whole database; it says nothing new.)
+Next: step 7 (docs; the tests came with each step).
 
 **Idea (the author, 2026-11-05)**: `nch empty` with no arguments should show resource use (database size, cache size by part, ...), like `--offline` it gives
 the user information and control over resources.  Today it is a usage error.  Fits the `cache.nim` convention (each module's `usage`).  Not built.

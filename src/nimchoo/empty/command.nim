@@ -31,7 +31,8 @@ Say what to empty; several can be given at once, and are asked about, counted do
                 what was worked out from them.  The user, and their threshold heart rate,
                 stay.  (To delete the user as well: `nch user --remove NAME -f`.)
   --sectors     delete the catalogue of climbs, and with it the efforts of every user on them;
-                the next `nch climbs` works them out again from the rides
+                the next `nch climbs` works them out again from the rides.  Names given by hand
+                (`nch sector --edit`) are lost; the message says how many
   --names       delete the place names and countries: their tables, and the GeoNames files downloaded
                 for them (both are fetched again when wanted; the names already given to climbs stay)
   --all         delete the database file, and with it the data of every user and the users

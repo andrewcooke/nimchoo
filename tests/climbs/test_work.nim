@@ -93,6 +93,17 @@ suite "climbs: working them out":
     check s.count("climbs_done") == 2
     check ensureClimbs(s) == Worked()
 
+  test "the count says how many names given by hand would be lost":
+    let s = fresh("manual")
+    defer: s.close()
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    discard ensureClimbs(s)
+    check countClimbs(s).manual == 0
+    check describe(countClimbs(s)) == "1 sector and 1 effort (of every user)"
+    s.db.exec(sql"update sector set name = 'Mine', manual = 1")
+    check countClimbs(s) == Counts(sectors: 1, efforts: 1, manual: 1)
+    check describe(countClimbs(s)) == "1 sector and 1 effort (of every user); 1 name given by hand is lost"
+    check describe(Counts(sectors: 9, efforts: 20, manual: 3)).endsWith("; 3 names given by hand are lost")
   test "a change of the method is noticed; clearing starts again":
     let s = fresh("version")
     defer: s.close()
