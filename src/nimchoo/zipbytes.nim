@@ -48,6 +48,8 @@ func listEntries*(z: string): Table[string, ZipEntry] {.raises: [ZipError].} =
 
 const maxEntrySize = 256 * 1024 * 1024  ## larger declared sizes are refused
 
+func readEntry*(z, name: string): string {.raises: [ZipError].}
+
 func extractEntry*(z: string, e: ZipEntry): string {.raises: [ZipError].} =
   let p = e.offset
   if e.size > maxEntrySize: raiseZip("zip entry too large")
@@ -70,3 +72,9 @@ func extractEntry*(z: string, e: ZipEntry): string {.raises: [ZipError].} =
     data
   else:
     raiseZip("unsupported zip compression " & $e.compression)
+
+func readEntry*(z, name: string): string {.raises: [ZipError].} =
+  ## The contents of the entry called `name` in the zip `z`.
+  let entries = listEntries(z)
+  if name notin entries: raiseZip("no " & name & " in the zip file")
+  extractEntry(z, entries.getOrDefault(name))

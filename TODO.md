@@ -2227,3 +2227,18 @@ Roughly a third of the size of the names work.
 * `-d:ssl` is in the nimble tasks.  Checked against geonames.org: CL.zip (1.4 MB), the outlines (1.3 MB), countryInfo
   (32 kB), the cache hit, a 404 for a country that does not exist, 7.8 GB free reported.
 * Not yet: `empty --data` (to clear the downloads), the names module (step 2 onwards).
+
+### Task 13, step 2 is built (2026-11-04): `names/` countries
+
+* `names/001-schema.sql` (`country`, `name_source`, `feature`; the last two for step 3), `names/ddl.nim`, registered after `places`.
+* `names/outlines.nim` (pure): reads `countryInfo.txt` and the outlines GeoJSON into well-known text; reads that text back into
+  polygons and answers "is this point inside" by **counting crossings (even-odd)**.
+* `names/countries.nim`: the `Names` handle (store, data directory, network and disk, sink) and `countryAt(names, lon, lat)`:
+  fetches the outlines and the list of countries the first time (1.6 s for the real ones), fills `country` (252 countries, 247
+  with an outline), picks the candidates by the spatial index (bounding boxes), then decides with the crossing count; a point in
+  no outline takes the country of the nearest place carried in the program if that is within 300 km, else none.  Without the
+  network it still answers from the places and tries again next time; a file that cannot be read is said, deleted and fetched again.
+* **Why not SpatiaLite's `Contains`**: GEOS calls **137 of the 247** GeoNames outlines invalid (they are coarse, about 100 m, with tiny
+  rings and touching parts); `Contains` then threw topology errors and gave wrong answers (Santiago in Argentina, Lisbon in
+  Spain), and `MakeValid` failed too.  A source of valid outlines (Natural Earth) would let SQL do it all.
+* Checked on the real outlines: Santiago CL, Mendoza AR, Lisbon PT, Bristol GB, the Los Libertadores pass CL, Tokyo JP, Willemstad CW.

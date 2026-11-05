@@ -1,0 +1,39 @@
+
+# nimchoo
+
+nimchoo is a rewrite of my choochoo project, which was an
+over-ambitious kinda-strava clone.  unlike choochoo, nimchoo:
+
+* stays focussed on the command line (no sneaking off trying to be
+  strava, or repairing fits files, or...)
+
+* uses an embedded database (no more worrying about postgresql)
+
+* is written in a fast language (no more python or pandas)
+
+* is unlikely to care about power meters
+
+* should be easy to install (like, we might even have exacutables)
+
+but it does keep:
+
+* some smart ideas about fit parsing
+
+* GIS in the database
+
+* auto-detection of climbs and segments
+
+those decisions make it pretty boutique.  on the other hand, it will
+be easier to use.  and i am going to try hard to make it easy to use
+and extensible.  so if someone else does come along, they can
+contribute more easily.
+
+finally, one significant difference - nimchoo is firmly developed with
+ai (claude code).  this simplifies hugely the amount of work that goes
+into extracting snippets from choochoo and rewriting them as nim.  i'm
+on the fence about ai in general, but as a software engineering tool
+it blows my mind.
+
+## eye candy
+
+i'll try get some screenshots here soon.
