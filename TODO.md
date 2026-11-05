@@ -2266,6 +2266,8 @@ route and the pure `pickName`.
 * On the 43 climbs of the author's sample (Chile): 20 named for a hill, 20 "near <place>", 3 nothing, none for a pass or peak (they are
   city-edge climbs).  Good where the distance is small (Cerro San Cristobal at 155 m, Cerro Calan 242 m; the HC climb is "near Farellones",
   240 m); weak at 1 to 1.5 km, now shown as "near".
-* To settle: the author asked to "test both ends of the segment" (meaning to be confirmed: the country at both ends for climbs over a
-  border? names from the bottom of the climb as well as the top? or both ends in the tests?).  Not yet done: step 5, `sector.name`,
+* **Settled (author)**: terrain (pass, peak, hill) is measured from the **top** only ("the climb ends at the mountain, it does not start
+  there"); a place for "near <town>" is measured from the **middle** of the climb (half way along it), since it says where the climb is
+  as a whole.  On the 43 climbs: 16 hills, 23 "near <place>", 4 nothing (the HC climb is "near Farellones").
+  Not yet done: step 5, `sector.name`,
   the name in `nch climbs`, `empty --names` and `--data`.

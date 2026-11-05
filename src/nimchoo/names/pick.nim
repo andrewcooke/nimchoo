@@ -3,10 +3,11 @@
 ## In order of preference:
 ##   1. a pass or saddle (PASS, SDL) within 400 m of the top of the climb: "Paso Los Libertadores";
 ##   2. a peak or mountain (PK, PKS, MT, MTS) within 1 km of the top;
-##   3. a hill, ridge or spur (HLL, HLLS, RDGE, SPUR) within 1.5 km of the route (the climb goes up it);
-##   4. the nearest populated place within 5 km of the route: "near Lo Barnechea".
-## The nearest wins within a kind (to the top for 1 and 2, to the route for 3 and 4).  A feature more than
-## 1 km away gives "near <name>" and not the name itself.  They are labels, not facts: the nearest named hill
+##   3. a hill, ridge or spur (HLL, HLLS, RDGE, SPUR) within 1.5 km of the top;
+##   4. the nearest populated place within 5 km of the middle of the climb: "near Lo Barnechea".
+## Terrain is measured from the top only: a climb ends at its mountain, it does not start there.  A place says
+## where the climb is as a whole, so it is measured from the middle.  The nearest wins within a kind.  A feature
+## more than 1 km away gives "near <name>" and not the name itself.  They are labels, not facts: the nearest named hill
 ## is often not what the climb is called.
 
 import std/options
@@ -16,8 +17,8 @@ import std/options
 const
   passRadiusM* = 400.0         ## from the top
   peakRadiusM* = 1000.0        ## from the top
-  hillRadiusM* = 1500.0        ## from the route
-  townRadiusM* = 5000.0        ## from the route
+  hillRadiusM* = 1500.0        ## from the top
+  townRadiusM* = 5000.0        ## from the middle
   nearAboveM* = 1000.0         ## further than this a feature is only "near" the climb
 
 type
@@ -25,8 +26,8 @@ type
     ## A feature near the route.
     name*, code*: string       ## GeoNames feature code (PASS, PK, HLL, PPL...)
     isPlace*: bool             ## a populated place (class P), not terrain
-    fromTopM*: float           ## distance from the top of the climb
-    fromRouteM*: float         ## distance from the nearest point of the route
+    fromTopM*: float           ## distance from the top of the climb (its last point)
+    fromMiddleM*: float        ## distance from the middle of the climb (half way along it)
 
   PickKind* = enum pkPass = "pass", pkPeak = "peak", pkHill = "hill", pkNear = "near"
 
@@ -49,9 +50,9 @@ func pickName*(candidates: openArray[Candidate]): Option[Pick] =
     var kind: PickKind
     var distance: float
     if c.isPlace:
-      if c.fromRouteM > townRadiusM: continue
+      distance = c.fromMiddleM
+      if distance > townRadiusM: continue
       kind = pkNear
-      distance = c.fromRouteM
     else:
       let k = kindOf(c.code)
       if k.isNone: continue
@@ -64,8 +65,8 @@ func pickName*(candidates: openArray[Candidate]): Option[Pick] =
         if c.fromTopM > peakRadiusM: continue
         distance = c.fromTopM
       of pkHill:
-        if c.fromRouteM > hillRadiusM: continue
-        distance = c.fromRouteM
+        if c.fromTopM > hillRadiusM: continue
+        distance = c.fromTopM
       of pkNear: continue
     if best[kind].isNone or distance < best[kind].get.distanceM:
       best[kind] = some(Pick(name: (if kind == pkNear or distance > nearAboveM: "near " & c.name else: c.name),

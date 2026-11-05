@@ -23,9 +23,21 @@ type
     status*: NameStatus
     pick*: Pick                ## when named
 
+func middleOf(route: openArray[XY]): XY =
+  ## The point half way along the route.
+  let half = route.length / 2.0
+  var travelled = 0.0
+  for i in 0 ..< route.high:
+    let step = dist(route[i], route[i + 1])
+    if step > 0 and travelled + step >= half:
+      let u = (half - travelled) / step
+      return XY(x: route[i].x + u * (route[i + 1].x - route[i].x), y: route[i].y + u * (route[i + 1].y - route[i].y))
+    travelled += step
+  route[^1]
+
 proc candidatesNear*(n: Names, iso: string, lons, lats: openArray[float]): seq[Candidate]
     {.raises: [StoreError].} =
-  ## The features of the country near the route, with their distances from the route and from its top.
+  ## The features of the country near the route, with their distances from its top and from its middle.
   if lons.len == 0: return
   var box = (lon0: Inf, lat0: Inf, lon1: -Inf, lat1: -Inf)
   for i in 0 ..< lons.len:
@@ -34,6 +46,7 @@ proc candidatesNear*(n: Names, iso: string, lons, lats: openArray[float]): seq[C
   var route: seq[XY]
   for i in 0 ..< lons.len: route.add pr.project(lons[i], lats[i])
   let top = route[^1]
+  let middle = middleOf(route)
   guard:
     for r in n.st.db.fastRows(sql("select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature " &
         "where country = ? and id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
@@ -43,7 +56,7 @@ proc candidatesNear*(n: Names, iso: string, lons, lats: openArray[float]): seq[C
       try:
         let p = pr.project(parseFloat(r[3]), parseFloat(r[4]))
         result.add Candidate(name: r[0], code: r[1], isPlace: r[2] == "1", fromTopM: dist(p, top),
-                             fromRouteM: pointLineDistance(p, route))
+                             fromMiddleM: dist(p, middle))
       except ValueError:
         discard
 
