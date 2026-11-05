@@ -2398,6 +2398,23 @@ Store the facts and **work the names out whenever they are shown**, instead of r
   (cannot go stale).  The author prefers stored.
 * Everything else in the plan above stands (names not ids, the `sector` command, "unnamed", the steps).  Nothing is built yet.
 
+### Resumed 2026-11-05: the naming reconsidered (the author), with numbers from the 138 real climbs
+
+The author's new rules (to confirm, see the questions below; nothing is built):
+* a name comes first from a feature **within 1 km of the end** (the top), **the closer the better**; else from one **within 1.5 km of the middle**,
+  shown as "near <name>" when 1 km or more away;
+* climbs that end up with the same name are shown with **"(n/m)"**, n from ranking by **length**, **worked out when shown, never stored**;
+* **manual naming** is allowed.  (This drops the stored difficulty and phi coupling, the stored numbers and the unique-name constraint.)
+
+Simulated on a copy of the real database (138 climbs, Chile names loaded): end within 1 km 52 (38 %); middle within 1 km 19; middle "near"
+(1 to 1.5 km) 23; **unnamed 44 (32 %)**.  Terrain features only (no places): 26 / 6 / 12 and **94 unnamed (68 %)**.  The rule now in the code (up to 5 km
+from the middle as "near <town>", kinds in a fixed order) leaves 12 of 138 unnamed.  "The closest of anything" often picks a neighbourhood
+(Lo Contador, Monserrat) where a hill is also within 1 km (Cerro San Cristobal).
+
+Questions: (1) kind priority inside the 1 km of the end (terrain, then places) or purely the closest?  (2) keep the 5 km "near <town>" fallback after
+the 1.5 km tier?  (3) (n/m): the longest is 1?  shown only when m > 1?  ties by id?  (4) manual names: duplicates allowed (the suffix tells
+them apart) and `nch sector --edit NAME --rename NEW` with NAME as shown, "(n/m)" included?  (5) drop the difficulty column and phi coupling?
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
