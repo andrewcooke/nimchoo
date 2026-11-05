@@ -10,3 +10,5 @@ nimble.develop
 /nch-test
 \#*#
 .#*
+.saves-*
+*.elc
