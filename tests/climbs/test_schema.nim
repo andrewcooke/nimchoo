@@ -37,6 +37,35 @@ suite "climbs: the tables":
     s.db.exec(sql"update sector set name = 'Cerro Calan', name_checked = 1")
     check s.db.getValue(sql"select name from sector") == "Cerro Calan"
 
+  test "a sector is not manual until it is made so":
+    let s = fresh("manual")
+    defer: s.close()
+    s.db.exec(sql"insert into sector(length_m, gain_m, gradient) values (1000, 50, 5)")
+    check s.db.getValue(sql"select manual from sector") == "0"
+    s.db.exec(sql"update sector set name = 'Mi cerro', manual = 1")
+    check s.db.getValue(sql"select manual from sector") == "1"
+
+  test "a database made before the rules changed has its automatic names forgotten, to be made again":
+    let top = getTempDir() / "nch-test-climbs-migration"
+    removeDir(top)
+    var before: seq[Fragment]
+    for f in allFragments:
+      if f.name != "climbs/003-names.sql": before.add f
+    let old = openStore(top / "x.db", before)
+    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'near La Florida', 1)")
+    old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (2000, 90, 4, 'Cerro Calan', 1)")
+    old.close()
+    let now = openStore(top / "x.db", allFragments)
+    defer: now.close()
+    check now.count("sector") == 2                                   # (the climbs themselves stay)
+    check now.db.getValue(sql"select count(*) from sector where name is null and name_checked = 0 and manual = 0") == "2"
+    # and it is done once: names given afterwards are kept the next time the database is opened
+    now.db.exec(sql"update sector set name = 'Cerro Calan', name_checked = 1 where id = 2")
+    now.close()
+    let again = openStore(top / "x.db", allFragments)
+    defer: again.close()
+    check again.db.getValue(sql"select name from sector where id = 2") == "Cerro Calan"
+
   test "efforts go with their ride or with their sector, and the sector stays when the ride goes":
     let s = fresh("cascade")
     defer: s.close()

@@ -2458,6 +2458,11 @@ by kind (pass x0.5, peak x0.75, hill x1, village x1.5, neighbourhood x2.5) and t
 first; (d) the **categories stay by gain** (80, 160, 320, 640, 800 m).  Where this file says "length" above for the ranking, read gain.  Nothing is open;
 nothing is built.
 
+**Step 1 is built (2026-11-05)**: `climbs/003-names.sql` adds `sector.manual` (0 or 1) and, once, forgets the automatic names (`name = null`,
+`name_checked = 0`) so that the next `nch climbs` makes them again.  It runs when a database is next opened, so on the author's 138 sectors it will:
+until step 2 is built they are named again by the rules of that day, so nothing visible changes.  Tests: the column, the one-time reset, and that
+names given afterwards survive the next opening.
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
