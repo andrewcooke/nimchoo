@@ -2482,7 +2482,16 @@ On a copy of the real database: "Farellones", "Cuesta de Chacabuco", "Morro La C
 refused silently (no request, no event), so the names are still made from what is loaded and `nch climbs` says "N climbs could not be named now (offline ...)".
 Every download goes through `fetchSource`, so anything added later (the height correction) obeys `--offline` for free.  The pages of `--web` still load
 Leaflet, d3 and the map tiles from the internet in the BROWSER; that is not `nch` using the network and `--offline` does not change it (open question).
-Next: step 5, the `sector` command.
+Decided: `--web` is left alone under `--offline` (browsers keep the pinned libraries for a year: unpkg sends `max-age=31536000`; tiles need the network).
+
+**Step 5 is built (2026-11-05)**: new module `sector/` (`params.nim`, `edit.nim`, `command.nim`; no tables of its own).  `nch sector` lists the climbs (biggest gain
+first, "manual" against hand-given names); `--edit NAME --rename NEW` (NAME as shown, case ignored; a shared name needs its number, and the error lists them;
+NEW at most 60 characters, no control characters, not ending in "(n/m)"; sets `manual = 1`, `name_checked = 1`); `--edit NAME --auto` (forgets the name,
+`manual = 0`, `name_checked = 0`: the next `nch climbs` names it again).  `--user` before it is refused.  Logged as `saved`.  Tests: `tests/sector/`.
+Next: step 6 (`empty --sectors` says how many manual names it would lose), step 7 (docs).
+
+**Idea (the author, 2026-11-05)**: `nch empty` with no arguments should show resource use (database size, cache size by part, ...), like `--offline` it gives
+the user information and control over resources.  Today it is a usage error.  Fits the `cache.nim` convention (each module's `usage`).  Not built.
 
 **Convention to consider (the author, 2026-11-05)**: a `cache.nim` in each module that keeps something to be emptied, so that what a module stores and how to
 reset it is in one standard place and `empty` asks the modules instead of knowing them.  It covers modules that download (names now; the height correction

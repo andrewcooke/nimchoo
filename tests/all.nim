@@ -18,6 +18,7 @@ import ./selection/[test_ranges, test_criteria, test_table, test_command, test_s
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./cli/test_args
 import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_command, test_naming, test_display]
+import ./sector/[test_params as sectorParams, test_command as sectorCommand]
 import ./download/test_fetch
 import ./names/[test_outlines, test_countries, test_features, test_pick, test_naming]
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]

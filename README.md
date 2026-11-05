@@ -1,11 +1,12 @@
 
 # nimchoo
 
-* a small, fast, local, cli toolkit for fits files from sports watches
-  and bike computers.
+* a small, fast, local, cli toolkit for the fits files you can
+  download from sports watches and bike computers.
 
-* stores data fro fits files in a local database (no data shared;
-  nothing in the cloud).
+* stores fits data in a local database (no data shared; nothing in the
+  cloud; you can open it up with standard tools and see what is
+  inside).
 
 * analysis and display of results, performance, records, etc.
 

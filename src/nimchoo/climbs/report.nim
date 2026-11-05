@@ -37,6 +37,7 @@ type
     best*: Option[float]           ## the fastest effort, seconds
     by*: string                    ## whose it was
     yours*: Option[float]          ## the best of the user asking
+    manual*: bool                  ## the name was given by a person
 
 # --- the rows
 
@@ -95,14 +96,15 @@ proc allSectors*(st: Store): seq[SectorRow] {.raises: [StoreError].} =
                            join file f on f.id = a.file_id join user u on u.id = f.user_id
                           where e.sector_id = s.id order by e.elapsed_s limit 1), ''),
                (select min(e.elapsed_s) from effort e join activity a on a.id = e.activity_id
-                  join file f on f.id = a.file_id where e.sector_id = s.id and f.user_id = ?)
+                  join file f on f.id = a.file_id where e.sector_id = s.id and f.user_id = ?),
+               s.manual
           from sector s order by s.gain_m desc, s.id""", st.userId):
       try:
         result.add SectorRow(id: parseBiggestInt(r[0]), lengthM: num(r[1]), gainM: num(r[2]),
                              gradient: num(r[3]), category: r[4], name: names.getOrDefault(parseBiggestInt(r[0]), unnamed),
                              efforts: parseInt(r[5]),
                              best: (if r[6].len > 0: some(num(r[6])) else: none(float)), by: r[7],
-                             yours: (if r[8].len > 0: some(num(r[8])) else: none(float)))
+                             yours: (if r[8].len > 0: some(num(r[8])) else: none(float)), manual: r[9] == "1")
       except ValueError:
         raiseStore("a bad number in the climbs")
 
@@ -121,7 +123,7 @@ func km*(metres: float): string =
   ## Metres as kilometres to a tenth: "14.5".
   formatFloat(metres / 1000.0, ffDecimal, 1)
 
-func columns(rows: seq[seq[string]], right: set[0 .. 31]): seq[string] =
+func columns*(rows: seq[seq[string]], right: set[0 .. 31]): seq[string] =
   ## The rows with their cells lined up (two spaces between), those in `right` to the right.
   var widths: seq[int]
   for row in rows:
