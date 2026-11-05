@@ -2658,3 +2658,6 @@ as that activity (resolved in `resolve`, like `--sport`).  Case and accents are 
 of its forms (`selection/fold.nim`: "arrayan" finds "El Arrayán", "ñuñoa" finds "Nunoa"); no schema change.  Nim 2.4 quirk met: `runes` on a constant string crashes (copy it to a
 `let` first).  `-v` help now says it shows the start place and the name.  Not done: the same filters for the other commands that take criteria (none do yet).
 
+**`nch list --path`, and the `file` column is `path` (2026-11-05)**: `--path TEXT...` finds the text (case and accents ignored, as `--name`) in the file's name or in ANY path the
+file was seen at (`seen_file`; a copy has two); alternatives, commas; no `none`/`latest`/`previous` for it.  `-v` calls the last column `path`.
+

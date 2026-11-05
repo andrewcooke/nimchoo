@@ -76,7 +76,7 @@ suite "list table: the table":
     check withUser[0] == "date        start  user   sport     km  active"
     check withUser[1] == "2018-03-04  09:12  alice  cycling  1.0   1m00s"
     let verbose = table(rows, zone, false, true).texts
-    check verbose[0] == "date        start  sport     km  active  position  place  name  file"
+    check verbose[0] == "date        start  sport     km  active  position  place  name  path"
     check verbose[1].endsWith("1m00s" & " ".repeat(25) & "/x/a.fit")     # (no position, place or name: blank)
     check verbose[2].endsWith("2m00s" & " ".repeat(25) & "/y/bb.fit")
     check table(rows, zone, true, true).texts[0].startsWith("date        start  user   sport")
@@ -86,7 +86,7 @@ suite "list table: the table":
                  row(aug27, "cycling", "", 2000.0, 120.0, "c.fit", "alice", "/z/c.fit", "Ñuñoa, CL", "-33.4473,-70.5828")]
     let t = table(rows, zone, false, true).texts
     check t[0] == "date        start  sport     km  active  position" & " ".repeat(9) & "  place" &
-      " ".repeat(12) & "  name  file"
+      " ".repeat(12) & "  name  path"
     check t[1].endsWith("1m00s  -33.0360,-71.6296  Valparaíso, CL" & " ".repeat(11) & "/x/a.fit")   # (14 characters, 17 wide)
     check t[2].endsWith("2m00s  47.3667,8.5500" & " ".repeat(3) & "  Zürich, CH (45km)" & " ".repeat(8) & "/y/b.fit")
     check t[3].endsWith("2m00s  -33.4473,-70.5828  Ñuñoa, CL" & " ".repeat(16) & "/z/c.fit")

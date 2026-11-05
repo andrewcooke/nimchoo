@@ -95,9 +95,9 @@ proc activityText*(r: ListRow, zone: Timezone): string =
 
 proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active
-  ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `file`
+  ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `path`
   ## columns at the end: `position` (the start as latitude,longitude; "no GPS" if there is none),
-  ## `place` (the place it started, blank if not known), `name` (what it is called) and `file` (the path the file was
+  ## `place` (the place it started, blank if not known), `name` (what it is called) and `path` (the path the file was
   ## imported from).  No lines at all if
   ## there are no rows.
   ##
@@ -118,7 +118,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
     for i, r in rows: cells[i].add r.place
     header.add "name"
     for i, r in rows: cells[i].add r.name
-    header.add "file"
+    header.add "path"
     for i, r in rows: cells[i].add r.path
   let first = if showUser: 4 else: 3                  # the first number column
   var widths = newSeq[int](header.len)

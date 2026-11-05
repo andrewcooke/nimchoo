@@ -281,3 +281,16 @@ suite "list: --name and --start":
     check r.contains("a.name = 'El Toyo and back'") and r.contains("(a.name is null or a.name = '')")
     check r.contains("a.start_place = 'Providencia'")
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("glob")
+
+suite "list: --path":
+  test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
+    let c = parseArgs(@["--path", "bowman,run", "2026-10"], utcZone).criteria
+    check c.paths == @["bowman", "run", "2026-10"]
+    let q = matchSql(@[UserId(1)], c, none((float, float)))
+    check q.contains("f.name glob") and q.contains("from seen_file s where s.file_id = f.id and s.path glob")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("seen_file")
+  test "latest is just text here; a path needs some text and is a criterion":
+    check parseArgs(@["--path", "latest"], utcZone).criteria.paths == @["latest"]
+    check parseArgs(@["--path"], utcZone).problem.len > 0
+    check parseArgs(@["--show", "--path", "x"], utcZone).problem.contains("takes no criteria")
+

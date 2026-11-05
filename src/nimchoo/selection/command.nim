@@ -36,6 +36,8 @@ last one).  Criteria are combined with "and".
                      "latest" or "previous": the same name as that activity
   --start TEXT       the same for the place the activity started ("Providencia", "near Lo
                      Barnechea"): --start providencia
+  --path TEXT        the same for the path of the file the activity was imported from (or any
+                     other path the same file was seen at): --path bowman, --path 2026-10
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
                      0.5- for half a km; 42~2 (between 40 and 44), latest~10%,
                      previous~10%

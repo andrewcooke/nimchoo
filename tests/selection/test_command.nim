@@ -519,7 +519,7 @@ suite "list: what is shown":
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")
     let r = shown(db, "-v", "-n", "1")
-    check r.lines.texts[0].endsWith("file")
+    check r.lines.texts[0].endsWith("path")
     check r.lines.texts[1].endsWith("paris")
 
   test "saving says so, and --show shows what was saved":
@@ -654,3 +654,44 @@ suite "list: --name and --start":
     check rows[1].contains("Lisboa") and rows[1].contains("São Pedro and back")     # lisbon1
     check rows[2].contains("Almada") and rows[2].contains("São Pedro and back")     # lisbon2 (bob's)
     check not rows[3].contains("Lisboa") and not rows[3].contains("Almada")          # paris
+
+suite "list: --path":
+  proc seen(db, tag, path: string) =
+    let s = openStore(db, allFragments)
+    defer: s.close()
+    s.db.exec(sql"""insert into seen_file(user_id, path, size, mtime, file_id)
+      select f.user_id, ?, 1, 1, f.id from file f where f.name = ?""", path, tag)
+
+  test "the text is found in a path the file was seen at, or in its name; case and accents ignored; alternatives":
+    let db = world("paths")
+    seen(db, "lisbon1", "/home/andrew/fit/bike/Bowman/2018-07-01-ride.fit")
+    seen(db, "lisbon1", "/home/andrew/fit/copia/Cámara/2018-07-01-ride.fit")     # (a copy: the file has two paths)
+    seen(db, "paris", "/home/andrew/fit/run/2018-08-27-run.fit")
+    discard save(db, "--path", "BOWMAN")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--path", "camara")                                          # (the second path of lisbon1)
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--path", "fit/run")
+    check chosen(db) == @["paris"]
+    discard save(db, "--path", "bowman", "fit/run")
+    check chosen(db) == @["lisbon1", "paris"]
+    discard save(db, "--path", "nothing")
+    check chosen(db).len == 0
+  test "a file with no path seen is found by its name; --path combines with the others by 'and'":
+    let db = world("pathname")
+    discard save(db, "--path", "PARIS")
+    check chosen(db) == @["paris"]
+    seen(db, "lisbon1", "/x/bike/a.fit")
+    seen(db, "paris", "/x/bike/b.fit")
+    discard save(db, "--path", "/x/bike")
+    check chosen(db) == @["lisbon1", "paris"]
+    discard save(db, "--path", "/x/bike", "--sport", "running")
+    check chosen(db) == @["paris"]
+  test "-v has a path column, last":
+    let db = world("pathcolumn")
+    seen(db, "lisbon1", "/x/bike/a.fit")
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let rows = listActivities(st, parseArgs(@["-v"], utc()).criteria, utc()).lines.texts
+    check rows[0].endsWith("path") and rows[1].endsWith("/x/bike/a.fit")
+

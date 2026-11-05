@@ -33,6 +33,7 @@ type
     names*, starts*: seq[string]      ## --name, --start: text found in the name (the start place), whatever its case and
                                       ## accents; "none": nothing; empty: any
     namesExact*, startsExact*: seq[string]  ## what `latest` / `previous` came to: the whole value ("" is none)
+    paths*: seq[string]       ## --path: text found in a path the file was imported from (or in its name)
     fromT*: Option[UnixTime]  ## start of the activity at or after
     toT*: Option[UnixTime]    ## start of the activity before (exclusive)
     gps*: GpsFilter
@@ -161,6 +162,14 @@ proc takeNames(p: var ListState, name: string, values: seq[string]): string {.ni
 proc takeStarts(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
   takeTexts(p, name, values, p.c.starts, p.c.startRef)
 
+proc takePaths(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  p.criteriaGiven = true
+  for v in values:
+    for part in v.split(','):
+      if part.strip.len > 0: p.c.paths.add part.strip
+  if p.c.paths.len == 0: return name & " needs some text"
+  ""
+
 proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
   p.criteriaGiven = true
   if '~' in v:
@@ -250,6 +259,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     listOption[ListState](["--sub-sport"], takeSubSports),
     listOption[ListState](["--name"], takeNames),
     listOption[ListState](["--start"], takeStarts),
+    listOption[ListState](["--path"], takePaths),
     custom(ListState, ["--distance"], true, takeDistance(p, name, value)),
     custom(ListState, ["--active"], true, takeActive(p, name, value)),
     custom(ListState, ["--from"], true, takeWhen(p, value, false)),
@@ -354,6 +364,16 @@ func textSql*(column: string, typed, exact: seq[string]): string =
     else: parts.add column & " = '" & e.replace("'", "''") & "'"
   " and (" & parts.join(" or ") & ")"
 
+func pathSql*(paths: seq[string]): string =
+  ## " and (exists (select 1 from seen_file ...) or f.name glob ...)": the text found in any path the file was imported
+  ## from (a file can have been seen at several), or in the file's name; whatever its case and accents (see fold.nim).
+  if paths.len == 0: return ""
+  var parts: seq[string]
+  for t in paths:
+    let g = "'" & foldGlob(t).replace("'", "''") & "'"
+    parts.add "(f.name glob " & g & " or exists (select 1 from seen_file s where s.file_id = f.id and s.path glob " & g & "))"
+  " and (" & parts.join(" or ") & ")"
+
 func rangeSql*(column: string, r: NumRange): string =
   ## " and a.distance_m >= 40000.000 and a.distance_m <= 50000.000": the ends that are
   ## given, both inclusive.  (Not recorded, NULL, is never in a range.)
@@ -375,6 +395,7 @@ func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)]
   result.add inValues("a.sub_sport", c.subSports)
   result.add textSql("a.name", c.names, c.namesExact)
   result.add textSql("a.start_place", c.starts, c.startsExact)
+  result.add pathSql(c.paths)
   result.add rangeSql("a.distance_m", c.distanceM)
   result.add rangeSql("a.timer_s", c.activeS)
   case c.gps
