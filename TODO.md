@@ -2666,3 +2666,14 @@ is `not coalesce((1 and ...), 0)`, so an unknown counts as no match).  `latest` 
 apply after; it needs a real criterion to invert (`hasFilter`: not the users, the limits or the display); counts as a criterion for `--show`.  A per-criterion `--not` was the
 alternative (kept out: "not this OR that" cannot be said with it, and "everything except X" is `--name X --invert`).
 
+**OPEN QUESTION (the author, 2026-11-05): should `nch list --users A B C` exist?**  The global `--user NAME` already says whose data a command works on.  `--users` lets one listing (and so
+one selection) hold activities of several users, which is why a selection can point at other users' activities, and every command that works on "the selection" has to decide
+what to do with those that are not the current user's (`delete` deletes only the current user's and says how many it left; `climbs` shows the ranks among everyone anyway).  Keeping
+it costs that complication; removing it makes a selection one user's, and comparing users would be done another way (the climbs already rank everyone's efforts).  Not decided.
+
+**`nch delete` (2026-11-05)**: new module `delete/` (`remove.nim`: `planDelete`, `deleteActivities`; `command.nim`).  Deletes the CURRENT USER's activities in the selection (others' in the selection
+are left alone and counted in the message), with everything that hangs off them (cascade: coords, route, segments, heart rate, impulses, efforts, climbs_done, the selection rows); the
+climbs (sectors) and their names stay.  A file left with no activity is FORGOTTEN too (its row and the `seen_file` paths), so importing the folder again brings the activities back
+(the author's choice).  A file with several activities stays until the last goes.  `-f` to confirm, 5 s countdown on a terminal.  **Idea, not built**: `exclude` would delete the
+activities but KEEP the file record, so the import skips the file for good (a bad recording, a ride that is not yours).
+
