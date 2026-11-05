@@ -10,7 +10,7 @@ import ../errors
 import ../profile/model
 import ../profiling
 import ../warnings
-import ../places/seed
+import ../names/place
 import ./[extract, route]
 
 {.push raises: [].}
@@ -149,9 +149,9 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
       if a.coords.len > 0:                  # where it started: the first position
         startStmt.bindReal(1, a.coords[0].lon)
         startStmt.bindReal(2, a.coords[0].lat)
-        var near: Option[Nearest]
+        var near: Option[Place]
         timed "nearest place":
-          near = nearestPlace(s.db, a.coords[0].lon, a.coords[0].lat)
+          near = placeAt(s, a.coords[0].lon, a.coords[0].lat)
         timed "update start":
           if near.isSome: startStmt.bindInt(3, near.get.id) else: startStmt.bindNull(3)
           startStmt.bindInt(4, activityId)

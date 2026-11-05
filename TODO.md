@@ -2562,3 +2562,10 @@ kind (towns, then parks and reserves, then lakes, then ranges and valleys; to be
 terrain subset: parks, reserves, lakes need more GeoNames codes loaded (class L `PRK` `RES` `RGN` `AREA`, class H `LK` `RSV`, and ranges/valleys/plains/plateaus in T; check the code list)
 and the table rebuilt once.
 
+**Step 2, first half, is built (2026-11-05)**: `names/place.nim`: `placeAt(st, lon, lat) -> Option[Place]` (name, country, distanceM, id), the one way to ask "which
+place is near this position".  The import's start lookup and the country fallback in `countries.nim` both call it; `places/` (schema, the carried list, `nearestPlace`)
+is now read only through it.  Behaviour unchanged: the answer is still the nearest town or city of the list carried in the program.
+**Second half, to decide**: GeoNames in front of the list when a country's names are loaded.  `activity.place_id` points at the carried list's `place` table, so a
+GeoNames start cannot be stored there.  Options: (a) keep `place_id` (offline, at import) and add a text `start_place` (name, country) that the lazy pass upgrades
+from GeoNames, `nch list` showing it when there; (b) one text column only, filled at import from the list and replaced later; (c) leave the start as it is.
+

@@ -12,7 +12,7 @@ import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../download/[fetch, sources]
 import ../errors
-import ../places/seed
+import ./place
 import ../zipbytes
 import ./outlines
 
@@ -92,5 +92,5 @@ proc countryAt*(n: Names, lon, lat: float): Option[string] {.raises: [StoreError
       guard:
         n.shapes[][iso] = parseShape(n.st.db.getValue(sql"select AsText(geom) from country where iso = ?", iso))
     if n.shapes[].getOrDefault(iso).contains(lon, lat): return some(iso)
-  let near = nearestPlace(n.st.db, lon, lat)
+  let near = placeAt(n.st, lon, lat)
   if near.isSome and near.get.distanceM <= fallbackLimitM: some(near.get.country) else: none(string)
