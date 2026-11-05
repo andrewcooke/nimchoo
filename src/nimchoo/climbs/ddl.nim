@@ -6,4 +6,5 @@ import ../db/fragment
 
 const fragments* = @[
   fragment("001-schema.sql"),   # sector, effort, climbs_done
+  fragment("002-name.sql"),     # sector.name
 ]

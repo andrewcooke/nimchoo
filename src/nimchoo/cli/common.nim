@@ -16,6 +16,7 @@ type
     ## Options given before the command name, for every command.
     dbPath*: string   ## the database file; "" for the default
     user*: string     ## whose data to work with; "" for the default user
+    offline*: bool    ## do not use the network (nothing is downloaded: names wait for another time)
     fragments*: seq[Fragment]  ## the schema: the fragments of all modules
     importSteps*: seq[ImportStep]  ## what modules add to an import
     log*: Log         ## the log file; nil (disabled) unless `nch` opened it

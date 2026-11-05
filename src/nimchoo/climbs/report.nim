@@ -21,6 +21,7 @@ type
     atM*: float                    ## metres along the activity where the climb began
     lengthM*, gainM*, gradient*: float
     category*: string              ## "" if none
+    name*: string                  ## "" if it has none
     elapsed*: float                ## seconds
     rank*, total*: int             ## 1 for the fastest; of all efforts on the sector, by everyone
     best*: float                   ## the fastest, seconds
@@ -29,6 +30,7 @@ type
     id*: int64
     lengthM*, gainM*, gradient*: float
     category*: string
+    name*: string                  ## "" if it has none
     efforts*: int
     best*: Option[float]           ## the fastest effort, seconds
     by*: string                    ## whose it was
@@ -49,7 +51,7 @@ proc selectedEfforts*(st: Store): seq[EffortRow] {.raises: [StoreError].} =
   guard:
     for r in st.db.fastRows(sql"""
         select a.id, a.start_t, coalesce(a.sport, ''), a.distance_m, e.sector_id, e.start_m,
-               s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), e.elapsed_s,
+               s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), coalesce(s.name, ''), e.elapsed_s,
                (select count(*) from effort x where x.sector_id = e.sector_id and x.elapsed_s < e.elapsed_s) + 1,
                (select count(*) from effort x where x.sector_id = e.sector_id),
                (select min(x.elapsed_s) from effort x where x.sector_id = e.sector_id)
@@ -62,8 +64,8 @@ proc selectedEfforts*(st: Store): seq[EffortRow] {.raises: [StoreError].} =
         result.add EffortRow(activity: parseBiggestInt(r[0]), startT: parseBiggestInt(r[1]), sport: r[2],
                              distanceM: (if r[3].len > 0: some(num(r[3])) else: none(float)),
                              sector: parseBiggestInt(r[4]), atM: num(r[5]), lengthM: num(r[6]),
-                             gainM: num(r[7]), gradient: num(r[8]), category: r[9], elapsed: num(r[10]),
-                             rank: parseInt(r[11]), total: parseInt(r[12]), best: num(r[13]))
+                             gainM: num(r[7]), gradient: num(r[8]), category: r[9], name: r[10],
+                             elapsed: num(r[11]), rank: parseInt(r[12]), total: parseInt(r[13]), best: num(r[14]))
       except ValueError:
         raiseStore("a bad number in the climbs")
 
@@ -71,7 +73,7 @@ proc allSectors*(st: Store): seq[SectorRow] {.raises: [StoreError].} =
   ## Every sector, the biggest climb first, with the best time and the user's own.
   guard:
     for r in st.db.fastRows(sql"""
-        select s.id, s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''),
+        select s.id, s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), coalesce(s.name, ''),
                (select count(*) from effort e where e.sector_id = s.id),
                (select min(e.elapsed_s) from effort e where e.sector_id = s.id),
                coalesce((select u.name from effort e join activity a on a.id = e.activity_id
@@ -82,9 +84,9 @@ proc allSectors*(st: Store): seq[SectorRow] {.raises: [StoreError].} =
           from sector s order by s.gain_m desc, s.id""", st.userId):
       try:
         result.add SectorRow(id: parseBiggestInt(r[0]), lengthM: num(r[1]), gainM: num(r[2]),
-                             gradient: num(r[3]), category: r[4], efforts: parseInt(r[5]),
-                             best: (if r[6].len > 0: some(num(r[6])) else: none(float)), by: r[7],
-                             yours: (if r[8].len > 0: some(num(r[8])) else: none(float)))
+                             gradient: num(r[3]), category: r[4], name: r[5], efforts: parseInt(r[6]),
+                             best: (if r[7].len > 0: some(num(r[7])) else: none(float)), by: r[8],
+                             yours: (if r[9].len > 0: some(num(r[9])) else: none(float)))
       except ValueError:
         raiseStore("a bad number in the climbs")
 
@@ -120,7 +122,7 @@ func columns(rows: seq[seq[string]], right: set[0 .. 31]): seq[string] =
 func effortCells(e: EffortRow): seq[string] =
   @["#" & $e.sector, "at " & km(e.atM) & " km", km(e.lengthM) & " km", "+" & $int(e.gainM + 0.5) & " m",
     formatFloat(e.gradient, ffDecimal, 1) & " %", (if e.category.len > 0: "cat " & e.category else: ""),
-    duration(e.elapsed), $e.rank & " of " & $e.total, "best " & duration(e.best)]
+    duration(e.elapsed), $e.rank & " of " & $e.total, "best " & duration(e.best), e.name]
 
 proc effortLines*(rows: seq[EffortRow], zone: Timezone): seq[string] =
   ## For each activity (as it was picked) a line, then a line for each climb it went up.
@@ -139,10 +141,10 @@ proc effortLines*(rows: seq[EffortRow], zone: Timezone): seq[string] =
 
 func sectorLines*(rows: seq[SectorRow]): seq[string] =
   ## A table of the sectors with a line of headings.
-  var cells = @[@["climb", "length", "gain", "gradient", "cat", "efforts", "best", "by", "yours"]]
+  var cells = @[@["climb", "length", "gain", "gradient", "cat", "efforts", "best", "by", "yours", "name"]]
   for s in rows:
     cells.add @["#" & $s.id, km(s.lengthM) & " km", "+" & $int(s.gainM + 0.5) & " m",
                 formatFloat(s.gradient, ffDecimal, 1) & " %", s.category, $s.efforts,
                 (if s.best.isSome: duration(s.best.get) else: ""), s.by,
-                (if s.yours.isSome: duration(s.yours.get) else: "")]
+                (if s.yours.isSome: duration(s.yours.get) else: ""), s.name]
   columns(cells, {1, 2, 3, 5, 6, 8})

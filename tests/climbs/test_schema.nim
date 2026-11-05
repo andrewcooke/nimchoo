@@ -28,6 +28,15 @@ suite "climbs: the tables":
         where f_table_name = 'sector' and f_geometry_column = 'route' and
               search_frame = BuildMbr(50, 50, 51, 51))""") == "0"
 
+  test "a sector has a name, unset, and has not been looked at":
+    let s = fresh("name")
+    defer: s.close()
+    s.db.exec(sql"insert into sector(length_m, gain_m, gradient) values (1000, 50, 5)")
+    check s.db.getValue(sql"select name_checked from sector") == "0"
+    check s.db.getValue(sql"select count(*) from sector where name is null") == "1"
+    s.db.exec(sql"update sector set name = 'Cerro Calan', name_checked = 1")
+    check s.db.getValue(sql"select name from sector") == "Cerro Calan"
+
   test "efforts go with their ride or with their sector, and the sector stays when the ride goes":
     let s = fresh("cascade")
     defer: s.close()

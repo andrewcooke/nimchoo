@@ -44,9 +44,16 @@ suite "climbs report: the lines":
       SectorRow(id: 20, lengthM: 14900, gainM: 1109, gradient: 7.4, category: "HC", efforts: 1,
                 best: some(7751.0), by: "default", yours: some(7751.0)),
       SectorRow(id: 3, lengthM: 4900, gainM: 245, gradient: 5.0, category: "3", efforts: 0)])
-    check lines[0].startsWith("climb") and "length" in lines[0] and lines[0].endsWith("yours")
+    check lines[0].startsWith("climb") and "length" in lines[0] and lines[0].endsWith("name")
     check lines[1].startsWith("#20") and "+1109 m" in lines[1] and "2:09:11" in lines[1] and "default" in lines[1]
     check lines[2].startsWith("#3 ") and lines[2].endsWith("0")             # (no efforts: no time, nobody)
+    let named = sectorLines(@[SectorRow(id: 20, lengthM: 14900, gainM: 1109, gradient: 7.4, category: "HC",
+                                        name: "near Farellones", efforts: 1, best: some(7751.0), by: "default")])
+    check named[1].endsWith("near Farellones")
+  test "the name ends the line of an effort":
+    var r = row(1, 17, 3, 12, 552.4, 521.0)
+    r.name = "Cerro Calan"
+    check effortLines(@[r], utc())[1].endsWith("best 8:41  Cerro Calan")
 
 suite "climbs report: from the tables":
   test "the rank is among everyone's efforts; the selection chooses the activities":

@@ -27,6 +27,7 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --db PATH      the database file (default: $NCH_DB, else nch/nch.db in the
                  user's data directory)
   --user NAME    whose data to work with (default: the default user)
+  --offline      do not use the network (nothing is downloaded; climbs are named another time)
   --version      print the version and the git commit it was built from
 
 commands:
@@ -75,7 +76,7 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
 type Head = object
   ## The options before the command name.
   g: Globals
-  help, version: bool
+  help, version, offline: bool
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
@@ -83,6 +84,7 @@ proc main(): int {.raises: [].} =
   let spec = Spec[Head](opts: @[
     flag(Head, ["-h", "--help"], help),
     flag(Head, ["--version"], version),
+    custom(Head, ["--offline"], false, (p.g.offline = true; "")),
     custom(Head, ["--db"], true, (p.g.dbPath = value; "")),
     custom(Head, ["--user"], true, (p.g.user = value; ""))])
   var i = 0

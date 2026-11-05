@@ -112,3 +112,36 @@ proc ensureNames*(n: Names, iso: string): bool {.raises: [StoreError].} =
   finally:
     if not done: n.st.rollback()
   true
+
+type NameCounts* = object
+  features*, countries*: int
+
+proc countNames*(st: Store): NameCounts {.raises: [StoreError].} =
+  ## How many features, and of how many countries, are in the table.
+  guard:
+    try:
+      result.features = parseInt(st.db.getValue(sql"select count(*) from feature"))
+      result.countries = parseInt(st.db.getValue(sql"select count(*) from name_source"))
+    except ValueError:
+      raiseStore("a bad count")
+
+func describe*(c: NameCounts): string =
+  ## "16,223 features of 1 country".
+  $c.features & (if c.features == 1: " feature" else: " features") & " of " & $c.countries &
+    (if c.countries == 1: " country" else: " countries")
+
+proc clearNames*(st: Store) {.raises: [StoreError].} =
+  ## Empty the tables of names and countries (the downloaded files stay, so they are read in again when wanted;
+  ## the names already given to sectors stay: they are copies).
+  st.begin()
+  var done = false
+  try:
+    guard:
+      st.db.exec(sql"delete from name_source")
+      st.db.exec(sql"delete from feature")
+      st.db.exec(sql"delete from country")
+    st.commit()
+    done = true
+  finally:
+    if not done: st.rollback()
+

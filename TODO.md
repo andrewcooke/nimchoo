@@ -2271,3 +2271,18 @@ route and the pure `pickName`.
   as a whole.  On the 43 climbs: 16 hills, 23 "near <place>", 4 nothing (the HC climb is "near Farellones").
   Not yet done: step 5, `sector.name`,
   the name in `nch climbs`, `empty --names` and `--data`.
+
+### Task 13, step 5 is built (2026-11-04): names on sectors, in `nch climbs`, `empty --names`/`--data`, `--offline`
+
+* `climbs/002-name.sql`: `sector.name` and `sector.name_checked` (0 until looked at, 1 after, with or without a name).
+* `climbs/naming.nim`: `ensureSectorNames(store, names)` names the sectors not yet looked at; if the names cannot be had (no network)
+  nothing is marked and the rest wait ("pending").  `nch climbs` calls it after `ensureClimbs`: downloads are logged (`downloaded`, `failed`)
+  and said once on stderr; the name is shown last on each line of `nch climbs` and in `--sectors`.
+* `nch --offline` (a global option, `Globals.offline`): nothing is downloaded; climbs are named another time.  Every test uses it.
+* `cache.dataDir` (`<cache>/data`, downloads); `empty --names` empties `feature`, `name_source` and `country` (the files stay; names already given
+  to climbs stay); `empty --data -f` deletes the downloaded files.  Both need `-f`.
+* Real run (scratch cache): the 43 climbs of the sample named in about 15 s including three downloads (outlines 1.3 MB, countries 32 kB,
+  Chile 1.4 MB): 39 named, 4 with nothing near; the second run takes 30 ms.  E.g. the HC climb is "near Farellones", #29 "Morro La Cabra",
+  #3 "Cerro San Cristobal".
+* Not done: a way to name again (`name_checked = 0`), the starts of activities named from the same features (task 13, step 6), streaming for
+  the very big country files, the licence and README work.

@@ -73,6 +73,12 @@ func systemDir*(dir: string): string =
   ## of it can be deleted: it is unpacked again.
   dir / "system"
 
+func dataDir*(dir: string): string =
+  ## Where what is downloaded goes (the country files for names): the third part of the cache directory.
+  ## Not made by a command and not unpacked from the program, so `empty --cache` leaves it; `empty --data`
+  ## deletes it.
+  dir / "data"
+
 func cacheFile*(dir, stem, extension: string): Option[string] =
   ## The path of a file in the cache directory; none for an extension not allowed.
   if extension in extensions: some(dir / (stem & "." & extension)) else: none(string)

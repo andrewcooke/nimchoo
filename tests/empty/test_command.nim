@@ -44,6 +44,7 @@ suite "empty: what to empty is named":
     check emptyCommand.run(globals(d / "x.db"), @["--all", "--cache", "-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--user", "bob", "-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--sectors", "--all", "-f"]) == exitUsage
+    check emptyCommand.run(globals(d / "x.db"), @["--names", "--data", "-f"]) == exitUsage
     check fileExists(d / "x.db")
 
   test "--user before the command is refused, with a hint":
@@ -130,3 +131,34 @@ suite "empty --sectors: the catalogue of climbs":
     let d = fresh("sectorsuser")
     openStore(d / "x.db", allFragments).close()
     check emptyCommand.run(globals(d / "x.db", "bob"), @["--sectors", "-f"]) == exitUsage
+
+suite "empty --names and --data: the names, and the files downloaded for them":
+  test "--names empties the tables of names and countries; the names given to climbs stay":
+    let d = fresh("names")
+    let st = openStore(d / "x.db", allFragments)
+    st.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
+    st.db.exec(sql"insert into name_source(country, loaded_at, features) values ('CL', 1, 1)")
+    st.db.exec(sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))")
+    st.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'Cerro', 1)")
+    st.close()
+    check emptyCommand.run(globals(d / "x.db"), @["--names"]) == exitFailure          # no -f
+    check emptyCommand.run(globals(d / "x.db"), @["--names", "-f"]) == exitOk
+    let after = openStore(d / "x.db", allFragments)
+    defer: after.close()
+    check after.count("feature") == 0 and after.count("name_source") == 0 and after.count("country") == 0
+    check after.db.getValue(sql"select name from sector") == "Cerro"
+
+  test "--data deletes the downloaded files (and needs -f); the generated files and the system files stay":
+    let d = fresh("data")
+    putEnv("NCH_CACHE", d / "cache")
+    defer: delEnv("NCH_CACHE")
+    createDir(d / "cache" / "data" / "geonames")
+    createDir(d / "cache" / "user")
+    writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
+    writeFile(d / "cache" / "user" / "heatmap--key-ab.geojson", "{}")
+    check emptyCommand.run(globals(d / "none.db"), @["--data"]) == exitFailure
+    check fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
+    check emptyCommand.run(globals(d / "none.db"), @["--data", "-f"]) == exitOk
+    check not dirExists(d / "cache" / "data")
+    check fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
+    check emptyCommand.run(globals(d / "none.db"), @["--data", "-f"]) == exitOk        # nothing left: fine

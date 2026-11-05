@@ -26,7 +26,7 @@ proc fill*(s: Store, tag: string) =
   s.db.exec(sql"insert into selection(user_id, activity_id) values (?, ?)", u, a)
 
 func globals*(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments)
+  Globals(dbPath: db, user: user, fragments: allFragments, offline: true)     # (no test uses the network)
 
 proc addUser*(path, name: string) =
   ## Make a user by hand (the command that does it is not what is being tested).
