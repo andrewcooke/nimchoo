@@ -2087,3 +2087,79 @@ time and whose it is, and the user's own best.  Both first call `ensureClimbs` (
 the work is logged as `done`).  `climbs/report.nim` has the queries and the (pure) formatting; the output is
 plain text, to be tweaked once it has been used (the author's words).  Shown on the 4 newest rides of the sample:
 `#42  at 30.5 km  7.6 km  +505 m  6.7 %  cat 2  56:46  5 of 6  best 48:41`.
+
+## Task 13: names for places and climbs (plan, 2026-11-04; nothing built yet)
+
+Aim: `lon, lat -> a name`, for climbs first ("Cerro San Cristobal", "Paso Los Libertadores", else "near Lo Barnechea") and
+later for the starts of activities.  From outside it is one call; underneath it uses tables, a file cache and the
+network.
+
+### Country: outlines, not cities
+
+GeoNames publishes simplified country outlines (`shapes_simplified_low.json.zip`, 1.3 MB zipped, 4.6 MB of GeoJSON,
+247 countries as 28,198 polygons with 270,203 vertices; each keyed by `geoNameId`, which `countryInfo.txt` (32 KB, 252
+countries) maps to the ISO code and name).  Tried on real points: Santiago CL, Mendoza AR, Lisbon PT, Bristol GB,
+the pass on the Chile/Argentina border CL, and all 608 sampled points of the author's 43 climbs CL.  It lacks tiny
+territories (Curacao gave nothing) and the sea, so a point with no polygon takes the country of the nearest place in
+the embedded list.  Licence CC BY 4.0, as the places (NOTICE).  This replaces the earlier idea of finding the
+country from the nearest town (wrong across a border) and makes a smaller embedded city list pointless.
+
+### Shape (a functional shell over a mutable core)
+
+* **Pure**: `pickName(candidates, route)`: the rules, tested on made-up features; the SQL queries are reads.
+* **The handle** `Names` holds the store, the data directory and a `Fetcher` (a closure: url -> bytes or an error), so
+  a test serves a made-up zip and no test touches the network.
+* **One call**: `nameOfClimb(names, route)` -> `Option[string]` (and later `placeNear(names, lon, lat)`): find the
+  country (polygon), make sure its names are loaded (download, import: the side effect), query the nearest
+  features, pick.  The library never prints: it returns notes ("cannot reach geonames.org: ...") for the
+  command to say once.
+* **Offline**: nothing is marked as looked at, the name stays unset and is tried again next time; no crash.
+
+### Tables (module `names/`, after `places`, before `climbs`)
+
+* `country(iso primary key, name, geoname_id)` + `geom MULTIPOLYGON` with a spatial index; seeded from the embedded
+  outlines (a small set for the tests, as `nchSmallPlaces` does).
+* `name_source(country references country, loaded_at, features)`: which country files are in.
+* `feature(id = geonameid, country references country, name, class, code, population, lon/lat as a POINT with a
+  spatial index)`: the terrain features (class T: mountains, hills, peaks, passes, saddles, ridges, spurs, valleys,
+  canyons) and the populated places (P) of the countries loaded: about 20,000 rows for Chile; the other classes
+  (water, spots, roads: only 34 in Chile) are left out.
+* `climbs/002-name.sql`: `sector.name` and `sector.name_checked` (unset and 0: not looked at; set: the name; 0 name and 1:
+  looked and nothing near).  A sector is still a copy: the name is text, not a link.
+
+### Data files
+
+`<cache>/data/geonames/CL.zip` etc., fetched when a name is wanted (`std/httpclient` with `-d:ssl`: OpenSSL 3.5 is
+installed and a test fetched `CL.zip`); `empty --cache` leaves them (they are downloads, not generated), a new
+`empty --names` clears the `feature` and `name_source` tables.  Sizes: Chile 1.4 MB, Spain 3.3, Italy 4.4, Brazil 7.2,
+France 7.3, Russia 15, China 32, the United States 71 (the largest, one-off).  The zip is checked (a zip, holding
+`XX.txt`) before it is used.
+
+### The rules for a climb's name (to tune on the 43 sectors of the sample)
+
+1. a pass or saddle (PASS, SDL) within 400 m of the top of the climb;
+2. else a peak or mountain (PK, PKS, MT, MTS) within 1 km of the top, else a hill or ridge (HLL, HLLS, RDGE, SPUR)
+   within 1.5 km of the route; the nearest of the best kind;
+3. else "near <the nearest populated place within 5 km>"; else none.
+On the sample every climb has a terrain feature within 3 km but only 8 of 43 within 1 km: expect "near ..." and
+loose names; they are labels, not facts.
+
+### Steps (each a commit)
+
+1. `names/`: the embedded outlines (and a small test set), the `country` table seeded from them, `countryAt` (polygon,
+   then the nearest embedded place), tests on known points.  The binary grows by about 1.3 MB.
+2. Loading a country: `Fetcher`, the zip, the parser (tab-separated GeoNames lines), the import of T and P features, the
+   cache file; tests with a made-up zip; a manual check with the real Chile file.
+3. Candidates near a route and `pickName` (pure), tests; run on the 43 sectors and look at the names with the author.
+4. `climbs/002-name.sql`, `ensureNames` after `ensureClimbs`, the name shown in `nch climbs` and `--sectors`,
+   `empty --names`, `-d:ssl` in the nimble tasks, the NOTICE.
+5. Later: the starts of activities named from the same features (6,967 populated places in Chile against the 247
+   in the embedded list), which needs the `place` table and the stored place ids reworked; then the embedded city
+   list can go or shrink to a fallback.
+
+### To settle with the author
+
+* Embed the outlines (1.3 MB, works offline) or fetch them on first use?  Recommended: embed.
+* Import every populated place and terrain feature of a country (about 20,000 rows for Chile, perhaps 600,000 for the
+  United States), or only those near a climb?  Recommended: whole country, once.
+* The rules above, and what to show when there is only "near <town>".
