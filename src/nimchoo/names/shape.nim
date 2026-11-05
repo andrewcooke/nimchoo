@@ -1,15 +1,18 @@
 ## The shape of an activity, from its route alone (pure): the first step of naming activities (TODO.md, "Names refactor and
 ## activity naming").  Three shapes are told apart, and a fourth for rides too small to name:
 ##
-##   A  out and back: ends near where it began, and the way back goes mostly over the way out;
-##   B  a loop: ends near where it began, but the way back is mostly a different road;
+##   A  out and back: ends near where it began, and the way back goes (almost) all over the way out;
+##   B  a loop: ends near where it began, and the way back is (almost) all a different road;
 ##   C  one place to another: does not end near where it began;
+##   mixed: ends near where it began, and the way back is partly over the way out and partly not;
 ##   local: never gets far from the start.
 ##
 ## The route is taken every 50 m along the way (so a ride is a few thousand points however it was recorded).  The turning
 ## point is the point furthest from the start.  "Near where it began" is within a quarter of that distance.  The way back is
 ## the part of the route after the turning point; a point of it is "over the way out" if some point of the way out is within
-## 50 m.  Every number is a constant here, to be settled by looking at real rides.
+## 50 m.  Every number is a constant here, to be settled by looking at real rides.  (On the author's rides: 305 of 1,028
+## closed rides are under 0.1, 235 are 0.9 or more, and 488 are between.)  (On the author's rides: 305 of 1,028
+## closed rides are under 0.1, 235 are 0.9 or more, and 488 are between.)
 
 import std/[math, tables]
 import ../geo
@@ -21,10 +24,11 @@ const
   localFarM* = 1500.0           ## furthest from the start under this: local
   closedFraction* = 0.25        ## ends within this fraction of the furthest distance of the start: closed
   nearM* = 50.0                 ## "over the way out"
-  retracedMin* = 0.7            ## this share of the way back over the way out: out and back, else a loop
+  loopBelow* = 0.1              ## under this share of the way back over the way out: a loop
+  outAndBackFrom* = 0.9         ## this share or more: out and back; in between, mixed
 
 type
-  ShapeKind* = enum skLocal = "local", skOutAndBack = "out and back", skLoop = "loop", skOneWay = "one way"
+  ShapeKind* = enum skLocal = "local", skOutAndBack = "out and back", skLoop = "loop", skMixed = "mixed", skOneWay = "one way"
 
   Shape* = object
     kind*: ShapeKind
@@ -75,4 +79,7 @@ func shapeOf*(lons, lats: openArray[float]): Shape =
                 inc over
                 break search
   result.retraced = if back > 0: over / back else: 0.0
-  result.kind = if result.retraced >= retracedMin: skOutAndBack else: skLoop
+  result.kind =
+    if result.retraced >= outAndBackFrom: skOutAndBack
+    elif result.retraced < loopBelow: skLoop
+    else: skMixed

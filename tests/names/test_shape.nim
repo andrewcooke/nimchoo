@@ -38,12 +38,14 @@ suite "names: the shape of an activity":
             line((8_000.0, 6_000.0), (0.0, 6_000.0)) & line((0.0, 6_000.0), (0.0, 0.0))
     let s = shapeOfPoints(p)
     check s.kind == skLoop
-    check s.retraced < 0.3
-  test "a lollipop is a loop, not an out and back (half of the way back is new)":
+    check s.retraced < 0.1
+  test "a lollipop is mixed: part of the way back is over the way out, part is not":
     let p = line((0.0, 0.0), (5_000.0, 0.0)) & line((5_000.0, 0.0), (5_000.0, 6_000.0)) &
             line((5_000.0, 6_000.0), (9_000.0, 6_000.0)) & line((9_000.0, 6_000.0), (9_000.0, 0.0)) &
             line((9_000.0, 0.0), (5_000.0, 0.0)) & line((5_000.0, 0.0), (0.0, 0.0))
-    check shapeOfPoints(p).kind == skLoop
+    let s = shapeOfPoints(p)
+    check s.kind == skMixed
+    check s.retraced >= loopBelow and s.retraced < outAndBackFrom
   test "from one place to another":
     let p = line((0.0, 0.0), (30_000.0, 4_000.0))
     let s = shapeOfPoints(p)

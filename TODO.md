@@ -2551,3 +2551,14 @@ about 60 are one way, few between).  Out and back or loop is NOT clean: `retrace
 (a peak below 0.1 for loops, one above 0.9 for out and back, and about 440 in between: loops that share a road out, or out and backs with a detour).
 Open: where to cut, or whether a middle class ("out and back with a loop") helps; to be looked at with the author on real rides.
 
+**Decided (the author, 2026-11-05, after the survey)**: the shapes and their names: local "at <start>" (swimming and training too); A out and back
+"<destination> and back"; B loop "loop via <feature>"; C one way "to <destination>"; **mixed** (a new class: closed, neither of the above) "around <feature>".
+Thresholds on the share of the way back over the way out: under 0.1 loop, 0.9 or more out and back, between mixed (on the real rides 305, 235 and 488 of
+1,028 closed ones).  `shapeOf` has them (`skMixed`, `loopBelow`, `outAndBackFrom`).
+**The feature or destination**: something with spatial extent that the rider explores (a town, a valley, a range, a park, a lake), not a point (a pass, a bridge,
+a peak).  Looked for within HALF the distance from the start to the furthest point, round the furthest point (for A and C the destination; for B and "around" the
+features along the route, at least a third of the way out).  **Option 2**: kinds in a fixed order, the first kind with anything in range wins, the closest within a
+kind (towns, then parks and reserves, then lakes, then ranges and valleys; to be settled on real picks).  The features table has only populated places and the
+terrain subset: parks, reserves, lakes need more GeoNames codes loaded (class L `PRK` `RES` `RGN` `AREA`, class H `LK` `RSV`, and ranges/valleys/plains/plateaus in T; check the code list)
+and the table rebuilt once.
+
