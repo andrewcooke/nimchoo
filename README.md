@@ -36,8 +36,8 @@ over-ambitious kinda-strava.  unlike choochoo, nimchoo:
 
 * automatically **migrates database schema** (thanks to claude)
 
-* is written in a single, **fast** language (no more python or pandas;
-  lightning fast fit import)
+* is written in a single, **fast** language (nim - no more python or
+  pandas; there is now a lightning fast fit import)
 
 * should be **easy to install** (like, we might even have executables)
 

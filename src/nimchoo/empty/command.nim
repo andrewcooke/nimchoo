@@ -33,11 +33,11 @@ Say what to empty; several can be given at once, and are asked about, counted do
                 the next `nch climbs` works them out again from the rides.  Names given by hand
                 (`nch sector --edit`) are lost; the message says how many
   --all         delete the database file, and with it the data of every user and the users
-  --downloads   delete the files downloaded into the cache (the GeoNames country files, ...), to free the
+  --downloads   delete the downloaded files in the data cache (the GeoNames country files, ...), to free the
                 space.  They are fetched again when a new place needs them; nothing in the database
                 changes (the names already given to climbs and activities are copies and stay, and so
                 do the places read from the files).  Needs no -f.
-  --cache       delete the files in the cache that commands made (maps, CSVs, pages); they
+  --cache       delete the generated files in the user cache (maps, CSVs, web pages); they
                 are made again when asked for.  Needs no -f.
 
 (To make all the names again, say with newer GeoNames data: `nch empty --all -f` and import again.)
