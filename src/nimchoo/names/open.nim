@@ -16,6 +16,6 @@ proc openNames*(g: Globals, st: Store, command: string, say: proc(line: string) 
   ## `say` is where the downloads are told on the screen (a line each).
   let cache = cacheDir()
   if cache.isNone: return none(Names)
-  var env = realEnv()
-  env.offline = g.offline
-  some(newNames(st, dataDir(cache.get), env, fanOut(@[logSink(g.log, command), screenSink(say)])))
+  var names = newNames(st, dataDir(cache.get), realEnv(), fanOut(@[logSink(g.log, command), screenSink(say)]))
+  names.offline = g.offline
+  some(names)

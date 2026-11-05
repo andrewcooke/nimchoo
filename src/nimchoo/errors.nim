@@ -29,6 +29,10 @@ type
     ## The database cannot be used (cannot be opened or created, a query
     ## failed, a constraint was violated).
 
+  DownloadError* = object of NchError
+    ## A file that was needed from the network could not be had (no connection, the server said no, the file is
+    ## not what it should be).  The message says what and why.
+
   TemplateError* = object of NchError
     ## A page template that cannot be used (a tag not closed, a name the values do not have).
     line*: int  ## 1-based line of the template, 0 if not known

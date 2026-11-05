@@ -1,9 +1,8 @@
-## Naming the sectors: for each that has not been looked at, ask the names module for a name from the places
+## Naming the sectors: for each that has no name yet, ask the names module for a name from the places
 ## near its route, and keep it on the sector (as text).  Done after `ensureClimbs`, when a command wants the
-## names.  If the names cannot be had now (no network), nothing is marked as looked at and the rest is left
-## for another time.
+## names.  If the names cannot be had (no network) it is a DownloadError and the command stops.
 
-import std/strutils
+import std/[options, strutils]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
@@ -12,8 +11,7 @@ import ../names/[climb, climbpick, countries]
 {.push raises: [].}
 
 type Named* = object
-  named*, nothing*: int          ## sectors given a name, and those looked at that have none
-  pending*: int                  ## left for another time (the names could not be had)
+  named*, nothing*: int          ## sectors given a name, and those looked at that have none near
 
 proc parseRoute(text: string): tuple[lons, lats: seq[float]] =
   ## The positions of "LINESTRING Z(lon lat alt, ...)".
@@ -29,25 +27,22 @@ proc parseRoute(text: string): tuple[lons, lats: seq[float]] =
   except ValueError:
     result = (@[], @[])
 
-proc ensureSectorNames*(st: Store, names: Names): Named {.raises: [StoreError].} =
-  ## Name the sectors that have not been looked at.
+proc ensureSectorNames*(st: Store, names: Names): Named {.raises: [StoreError, DownloadError].} =
+  ## Name the sectors that have no name yet (a null name; "" is a sector looked at that has none near).  If the names
+  ## are needed and cannot be had, a DownloadError: the sectors named so far keep their names and the rest stay null.
   var todo: seq[int64]
   guard:
-    for r in st.db.fastRows(sql"select id from sector where name_checked = 0 order by id"):
+    for r in st.db.fastRows(sql"select id from sector where name is null order by id"):
       try: todo.add parseBiggestInt(r[0])
       except ValueError: raiseStore("a bad sector id")
-  for k, id in todo:
+  for id in todo:
     var route: tuple[lons, lats: seq[float]]
     guard:
       route = parseRoute(st.db.getValue(sql"select AsText(route) from sector where id = ?", id))
-    let r = nameClimb(names, route.lons, route.lats)
-    case r.status
-    of nsLater:
-      result.pending = todo.len - k
-      return
-    of nsNamed:
-      guard: st.db.exec(sql"update sector set name = ?, name_checked = 1 where id = ?", r.pick.name, id)
+    let pick = nameClimb(names, route.lons, route.lats)
+    if pick.isSome:
+      guard: st.db.exec(sql"update sector set name = ? where id = ?", pick.get.name, id)
       inc result.named
-    of nsNothing:
-      guard: st.db.exec(sql"update sector set name_checked = 1 where id = ?", id)
+    else:
+      guard: st.db.exec(sql"update sector set name = '' where id = ?", id)
       inc result.nothing

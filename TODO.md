@@ -2577,3 +2577,12 @@ fine, and simpler than code full of "later" and null cases.  **Simplifications t
 `pending` count and "could not be named now" note, no `name_checked` half-states (a sector is named or has been looked at); `--offline` may go (the tests
 already inject a fake network, which stays); download failures stop the command with the reason.  Names that really are absent (nothing near) stay null.
 
+**Cleanup done (2026-11-05)**: no more back-filling when the internet returns.  A name is decided in the run that needs it, or the command stops with the reason
+(`DownloadError`, new in `errors.nim`; `ensureCountries`/`ensureNames`/`prepare`/`countryAt` raise it, `Names.couldNot` builds the message from the last failed
+download).  `--offline` (`Names.offline`, set by `openNames`): every question is answered "nothing", no fetch, no error; climbs found then are "" (shown "unnamed") and
+stay so.  Gone: `nsLater`/`rdLater`, `NameResult`/`NameStatus` (`nameClimb` returns an `Option[Pick]`), `Named.pending` and its note, `Env.offline`, and the column
+`sector.name_checked` (`climbs/005-names-now.sql`: name null = not named yet, which the next `nch climbs` does; "" = nothing near / offline).  `nch sector --edit NAME
+--auto` forgets the name and names the climb at once (if the names cannot be had it says so, and the next `nch climbs` does it).  **Care**: running `nch --offline
+climbs` on a database with unnamed (null) climbs gives them "" for good; use it for tests and trips, not before the names are first loaded.
+**Left from this principle**: `places/` and `activity.place_id` still exist (the start and the sea fallback), and `countryAt` still falls back to them.
+

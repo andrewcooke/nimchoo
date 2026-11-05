@@ -39,12 +39,12 @@ proc shownName*(st: Store, id: int64): string {.raises: [StoreError].} =
 proc rename*(st: Store, id: int64, name: string) {.raises: [StoreError].} =
   ## Give the climb a name of the person's choosing: kept, and not looked at again by the program.
   guard:
-    st.db.exec(sql"update sector set name = ?, manual = 1, name_checked = 1 where id = ?", name.strip, id)
+    st.db.exec(sql"update sector set name = ?, manual = 1 where id = ?", name.strip, id)
 
 proc setAuto*(st: Store, id: int64) {.raises: [StoreError].} =
-  ## Forget the name: the next `nch climbs` makes one from the places near the climb.
+  ## Forget the name (null): the command then names the climb again from the places near it (`ensureSectorNames`).
   guard:
-    st.db.exec(sql"update sector set name = null, manual = 0, name_checked = 0 where id = ?", id)
+    st.db.exec(sql"update sector set name = null, manual = 0 where id = ?", id)
 
 func catalogueLines*(rows: seq[SectorRow]): seq[string] =
   ## The climbs, one to a line, biggest gain first; "manual" marks the names given by a person.

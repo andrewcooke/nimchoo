@@ -3,9 +3,11 @@
 ## by all users, so the user is not a part of this command.
 
 import ../cli/common
-import ../climbs/report
+import std/options
+import ../climbs/[naming, report]
 import ../db/store
 import ../errors
+import ../names/open
 import ../ui/logfile
 import ./[edit, params]
 
@@ -23,7 +25,7 @@ a name: "Morro La Cabra (1/3)".
     --rename NEW    give it the name NEW (any words; at most 60 characters; not ending in "(n/m)",
                     which is added by the program when climbs share a name).  The name is kept: the
                     program never changes it.  Several climbs may have the same name.
-    --auto          forget the name; the next `nch climbs` makes one again from the places near it
+    --auto          forget the name; it is named again at once from the places near it (or by the next `nch climbs` if the names cannot be had)
   -h, --help      show this help
 
 (The climbs are shared by all users, so `--user` goes nowhere here.)
@@ -56,7 +58,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let was = shownName(st, id)
     if p.auto:
       setAuto(st, id)
-      let said = was & ": the name is forgotten; the next `nch climbs` makes one again"
+      var said = was & ": the name is forgotten"
+      let names = openNames(g, st, "sector", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
+      if names.isSome:
+        try:
+          discard ensureSectorNames(st, names.get)
+          said = was & " is now called " & shownName(st, id)
+        except DownloadError as e:
+          said.add "; " & e.msg & " (the next `nch climbs` makes one)"
       g.log.log(lvInfo, "sector", leSaved, said)
       stdout.say said & "\n"
     else:

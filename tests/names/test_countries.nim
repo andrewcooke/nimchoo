@@ -2,6 +2,7 @@ import std/[options, os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/download/[fetch, sources]
+import nimchoo/errors
 import nimchoo/modules
 import nimchoo/names/countries
 import ../support/zips
@@ -79,13 +80,17 @@ suite "names: which country":
     check countryAt(names, -120.0, -30.0).isNone                      # the middle of the Pacific: nowhere
     check countryAt(names, -70.65, -33.45) == some("CL")
 
-  test "without the network the answer still comes, from the places, and nothing is marked as done":
+  test "without the network it is an error that says why, and nothing is marked as done":
     let net = Net(broken: true)
     let (st, dir) = fresh("offline")
     defer: st.close()
     var events: seq[DownloadEvent]
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
-    check countryAt(names, -70.65, -33.45) == some("CL")
+    try:
+      discard countryAt(names, -70.65, -33.45)
+      check false
+    except DownloadError as e:
+      check "cannot get the countries" in e.msg and "cannot reach" in e.msg
     check st.db.getValue(sql"select count(*) from country") == "0"
     check events.len >= 2 and events[0].kind == deStarting and events[1].kind == deFailed and "cannot reach" in events[1].message
     # ... and when the network is back, the next call fills the table
@@ -102,7 +107,8 @@ suite "names: which country":
               makeZip([("shapes_simplified_low.json", "not json")]))
     var events: seq[DownloadEvent]
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
-    check not ensureCountries(names)
+    expect DownloadError:
+      ensureCountries(names)
     check events.len >= 1 and events[^1].kind == deFailed and "cannot be read" in events[^1].message
     check not fileExists(dir / "geonames" / "shapes_simplified_low.json.zip")
-    check ensureCountries(names)                                      # the good file is fetched
+    ensureCountries(names)                                            # the good file is fetched

@@ -3,6 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/climbs/naming
 import nimchoo/db/store
 import nimchoo/download/fetch
+import nimchoo/errors
 import nimchoo/modules
 import nimchoo/names/countries
 import ../support/namesdata
@@ -28,15 +29,15 @@ suite "climbs: naming the sectors":
     sectorAt(w.st, [-70.14, -70.135, -70.13, -70.125, -70.12], -32.83)       # tops out at the pass
     sectorAt(w.st, [-71.0, -71.01], -40.0)                                  # nothing near it
     let r = ensureSectorNames(w.st, w.names)
-    check r == Named(named: 1, nothing: 1, pending: 0)
+    check r == Named(named: 1, nothing: 1)
     check w.st.db.getValue(sql"select name from sector where id = 1") == "Paso Los Libertadores"
-    check w.st.db.getValue(sql"select name from sector where id = 2") == ""          # (null)
-    check w.st.db.getValue(sql"select count(*) from sector where name_checked = 1") == "2"
+    check w.st.db.getValue(sql"select name from sector where id = 2") == ""          # (looked at, nothing near)
+    check w.st.db.getValue(sql"select count(*) from sector where name is null") == "0"
     let gets = w.net.gets.len
     check ensureSectorNames(w.st, w.names) == Named()                        # nothing left to look at
     check w.net.gets.len == gets
 
-  test "without the network nothing is marked as looked at, and the rest wait":
+  test "without the network it is an error, and the sectors stay unnamed (null) for the next time":
     let top = getTempDir() / "nch-test-climbs-naming" / "offline"
     removeDir(top)
     let st = openStore(top / "x.db", allFragments)
@@ -47,8 +48,14 @@ suite "climbs: naming the sectors":
     let names = newNames(st, top / "data", env, silent())
     sectorAt(st, [-70.14, -70.12], -32.83)
     sectorAt(st, [-70.14, -70.12], -32.9)
-    check ensureSectorNames(st, names) == Named(pending: 2)
-    check st.db.getValue(sql"select count(*) from sector where name_checked = 0") == "2"
+    expect DownloadError:
+      discard ensureSectorNames(st, names)
+    check st.db.getValue(sql"select count(*) from sector where name is null") == "2"
+    # the network back: the same sectors are named now
+    let good = Net(chile: @[santiago, sanCristobal, pass, barrio].join("\n") & "\n")
+    let r = ensureSectorNames(st, newNames(st, top / "data", envOf(good), silent()))
+    check r.named + r.nothing == 2
+    check st.db.getValue(sql"select count(*) from sector where name is null") == "0"
 
   test "a sector added later is named on the next pass":
     let w = world("later")

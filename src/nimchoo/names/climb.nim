@@ -1,8 +1,7 @@
 ## Naming a climb (see TODO.md, task 13 and 15): from its route (positions in order, the last being the top) it finds
 ## the country of the top, makes sure the names of that country are in the table (lookup.nim), looks at the features
-## near the route and picks a name by the rules of climbpick.nim.  What the caller gets is a result: a name, nothing to
-## name it with, or "later" (the network or the disk stopped the names being had: nothing is decided, ask again
-## another time).
+## near the route and picks a name by the rules of climbpick.nim.  A name, or none; or a DownloadError if the names
+## were needed and could not be had.
 
 import std/options
 import ../errors
@@ -10,13 +9,6 @@ import ../geo
 import ./[climbpick, countries, lookup]
 
 {.push raises: [].}
-
-type
-  NameStatus* = enum nsNamed, nsNothing, nsLater
-
-  NameResult* = object
-    status*: NameStatus
-    pick*: Pick                ## when named
 
 func middleOf(route: openArray[XY]): XY =
   ## The point half way along the route.
@@ -44,13 +36,10 @@ proc candidatesNear*(n: Names, iso: string, lons, lats: openArray[float]): seq[C
     result.add Candidate(name: f.name, code: f.code, isPlace: f.isPlace, fromTopM: dist(p, top),
                          fromMiddleM: dist(p, middle))
 
-proc nameClimb*(n: Names, lons, lats: openArray[float]): NameResult {.raises: [StoreError].} =
-  ## The name for a climb, if the names can be had now.
-  if lons.len == 0: return NameResult(status: nsNothing)
+proc nameClimb*(n: Names, lons, lats: openArray[float]): Option[Pick] {.raises: [StoreError, DownloadError].} =
+  ## The name for a climb: none if there is nothing near to name it by, or `--offline`.  A DownloadError if the
+  ## names are needed and cannot be had.
+  if lons.len == 0: return none(Pick)
   let ready = n.prepare(lons[^1], lats[^1])
-  case ready.status
-  of rdLater: return NameResult(status: nsLater)
-  of rdNothing: return NameResult(status: nsNothing)
-  of rdReady: discard
-  let p = pickClimbName(n.candidatesNear(ready.iso, lons, lats))
-  if p.isSome: NameResult(status: nsNamed, pick: p.get) else: NameResult(status: nsNothing)
+  if ready.status != rdReady: return none(Pick)
+  pickClimbName(n.candidatesNear(ready.iso, lons, lats))

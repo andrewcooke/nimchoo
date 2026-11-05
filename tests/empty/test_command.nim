@@ -145,7 +145,7 @@ suite "empty --names: the place names and countries, tables and downloaded files
     st.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
     st.db.exec(sql"insert into name_source(country, loaded_at, features) values ('CL', 1, 1)")
     st.db.exec(sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))")
-    st.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'Cerro', 1)")
+    st.db.exec(sql"insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')")
     st.close()
     check emptyCommand.run(globals(d / "x.db"), @["--names"]) == exitFailure          # no -f
     check fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
@@ -170,7 +170,7 @@ suite "empty: several things at once":
     writeFile(d / "cache" / "user" / "heatmap--key-ab.geojson", "{}")
     let a = openStore(d / "x.db", allFragments)
     fill(a, "mine")
-    a.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'Cerro', 1)")
+    a.db.exec(sql"insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')")
     a.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
     a.close()
     let everything = @["--user", defaultUser, "--sectors", "--names", "--cache"]

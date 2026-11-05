@@ -1,6 +1,7 @@
 import std/[options, os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
+import nimchoo/errors
 import nimchoo/download/fetch
 import nimchoo/names/[countries, features]
 import ../support/[namesdata, zips]
@@ -30,7 +31,7 @@ suite "names: loading a country":
     let (st, dir) = fresh("load")
     defer: st.close()
     let names = newNames(st, dir, envOf(net), silent())
-    check ensureNames(names, "CL")
+    ensureNames(names, "CL")
     check st.db.getValue(sql"select count(*) from feature") == "4"           # Santiago, the hill, the pass, Lo Barnechea
     check st.db.getValue(sql"select features from name_source where country = 'CL'") == "4"
     check st.db.getValue(sql"select name from feature where code = 'PASS'") == "Paso Los Libertadores"
@@ -40,7 +41,7 @@ suite "names: loading a country":
         where f_table_name = 'feature' and f_geometry_column = 'geom' and
               search_frame = BuildMbr(-70.2, -32.9, -70.0, -32.7))""") == "Paso Los Libertadores"
     let gets = net.gets.len
-    check ensureNames(names, "CL")
+    ensureNames(names, "CL")
     check net.gets.len == gets                                                # nothing more fetched
     check st.db.getValue(sql"select count(*) from feature") == "4"
 
@@ -49,18 +50,20 @@ suite "names: loading a country":
     let (st, dir) = fresh("again")
     defer: st.close()
     let names = newNames(st, dir, envOf(net), silent())
-    check ensureNames(names, "CL")
+    ensureNames(names, "CL")
     st.db.exec(sql"delete from name_source")
-    check ensureNames(names, "CL")                    # (the file is in the cache: no fetch)
+    ensureNames(names, "CL")                    # (the file is in the cache: no fetch)
     check st.db.getValue(sql"select count(*) from feature") == "2"
 
-  test "a country that is not known, or that cannot be fetched, is false and changes nothing":
+  test "a country that is not known, or that cannot be fetched, is an error and changes nothing":
     let net = Net(chile: santiago & "\n")
     let (st, dir) = fresh("unknown")
     defer: st.close()
     let names = newNames(st, dir, envOf(net), silent())
-    check not ensureNames(names, "ZZ")
-    check not ensureNames(names, "AR")                # known, but the server has no file (404)
+    expect DownloadError:
+      ensureNames(names, "ZZ")
+    expect DownloadError:
+      ensureNames(names, "AR")                        # known, but the server has no file (404)
     check st.db.getValue(sql"select count(*) from feature") == "0"
     check st.db.getValue(sql"select count(*) from name_source") == "0"
 
@@ -72,12 +75,13 @@ suite "names: loading a country":
     writeFile(dir / "geonames" / "CL.zip", makeZip([("other.txt", "x")]))
     var events: seq[DownloadEvent]
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
-    check not ensureNames(names, "CL")
+    expect DownloadError:
+      ensureNames(names, "CL")
     var failed: seq[DownloadEvent]
     for e in events:
       if e.kind == deFailed: failed.add e
     check failed.len == 1 and "cannot be read" in failed[0].message          # (the outlines were fetched too)
     check not fileExists(dir / "geonames" / "CL.zip")
     check st.db.getValue(sql"select count(*) from name_source") == "0"
-    check ensureNames(names, "CL")                        # the good file is fetched now
+    ensureNames(names, "CL")                        # the good file is fetched now
     check st.db.getValue(sql"select count(*) from feature") == "1"

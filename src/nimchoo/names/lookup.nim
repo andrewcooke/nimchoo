@@ -16,8 +16,7 @@ const defaultMarginDeg* = 0.06      ## degrees (about 6 km) round the route, for
 type
   Readiness* = enum
     rdReady        ## the country is known and its names are in the table
-    rdNothing      ## there is nothing to be had for this place (the sea, a country the list lacks)
-    rdLater        ## the network or the disk stopped the names being had: ask again another time
+    rdNothing      ## there is nothing to be had for this place (the sea, a country the list lacks, `--offline`)
 
   Prepared* = object
     status*: Readiness
@@ -29,16 +28,17 @@ type
     isPlace*: bool              ## a populated place (class P)
     lon*, lat*: float
 
-proc prepare*(n: Names, lon, lat: float): Prepared {.raises: [StoreError].} =
-  ## Make the names of the country of (lon, lat) available, fetching what is missing.
-  if not n.ensureCountries(): return Prepared(status: rdLater)
+proc prepare*(n: Names, lon, lat: float): Prepared {.raises: [StoreError, DownloadError].} =
+  ## Make the names of the country of (lon, lat) available, fetching what is missing.  `--offline`: nothing is had.
+  if n.offline: return Prepared(status: rdNothing)
+  n.ensureCountries()
   let iso = n.countryAt(lon, lat)
   if iso.isNone: return Prepared(status: rdNothing)
   var known = false
   guard:
     known = n.st.db.getValue(sql"select count(*) from country where iso = ?", iso.get) != "0"
   if not known: return Prepared(status: rdNothing)          # (a country the list of countries lacks)
-  if not n.ensureNames(iso.get): return Prepared(status: rdLater)
+  n.ensureNames(iso.get)
   Prepared(status: rdReady, iso: iso.get)
 
 proc featuresNear*(n: Names, iso: string, lons, lats: openArray[float],

@@ -71,10 +71,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let named = ensureSectorNames(st, names.get)
       if named.named + named.nothing > 0:
         g.log.log(lvInfo, "climbs", leDone, "named " & $named.named & " climbs (" & $named.nothing & " with no name near)")
-      if named.pending > 0:
-        stderr.say "note: " & $named.pending & " climbs could not be named now (" &
-          (if g.offline: "offline, and the names are not downloaded yet" else: "the names could not be had") &
-          "); they will be tried again\n"
     if given.sectors:
       let rows = allSectors(st)
       if rows.len == 0:
@@ -91,5 +87,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     else:
       for l in effortLines(rows, local()): stdout.say l & "\n"
     exitOk
-  except StoreError as e:
-    failure("nch climbs", e.msg)
+  except StoreError, DownloadError:
+    failure("nch climbs", getCurrentExceptionMsg())

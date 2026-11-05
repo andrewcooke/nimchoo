@@ -81,16 +81,17 @@ proc readNames(n: Names, iso: string, text: string): int {.raises: [StoreError].
     insert.run()
     inc result
 
-proc ensureNames*(n: Names, iso: string): bool {.raises: [StoreError].} =
-  ## Whether the names of the country are in the table: if not, fetch its file and read it in.  False (and the reason
-  ## told to the sink) if that cannot be done now.
+proc ensureNames*(n: Names, iso: string) {.raises: [StoreError, DownloadError].} =
+  ## The names of the country are in the table: if not, fetch its file and read it in.  A DownloadError (and the
+  ## reason told to the sink) if that cannot be done.
   guard:
-    if n.st.db.getValue(sql"select count(*) from name_source where country = ?", iso) != "0": return true
-  if not n.ensureCountries(): return false
+    if n.st.db.getValue(sql"select count(*) from name_source where country = ?", iso) != "0": return
+  n.ensureCountries()
   guard:
-    if n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) == "0": return false
+    if n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) == "0":
+      raise n.couldNot("the names of " & iso & " (no such country)")
   let path = fetchSource(n.env, n.sink, n.dataDir, geonamesCountry, iso)
-  if path.isNone: return false
+  if path.isNone: raise n.couldNot("the names of " & iso)
   var text: string
   try:
     text = readEntry(readFile(path.get), entryFor(geonamesCountry, iso), maxCountryFile)
@@ -99,7 +100,7 @@ proc ensureNames*(n: Names, iso: string): bool {.raises: [StoreError].} =
                          message: "the file cannot be read (" & getCurrentExceptionMsg() & ")"))
     try: removeFile(path.get)
     except OSError: discard
-    return false
+    raise n.couldNot("the names of " & iso)
   n.st.begin()
   var done = false
   try:
@@ -111,7 +112,6 @@ proc ensureNames*(n: Names, iso: string): bool {.raises: [StoreError].} =
     done = true
   finally:
     if not done: n.st.rollback()
-  true
 
 type NameCounts* = object
   features*, countries*: int

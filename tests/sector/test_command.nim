@@ -17,12 +17,12 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
   let s = openStore(result, allFragments)
   defer: s.close()
   for (n, gain) in climbs:
-    s.db.exec(sql"""insert into sector(length_m, gain_m, gradient, name, name_checked, route)
-      values (2000, ?, 5, nullif(?, ''), ?, GeomFromText('LINESTRING Z(-70 -33 100, -70.01 -33 200)', 4326))""",
-              gain, n, (if n.len > 0: 1 else: 0))
+    s.db.exec(sql"""insert into sector(length_m, gain_m, gradient, name, route)
+      values (2000, ?, 5, ?, GeomFromText('LINESTRING Z(-70 -33 100, -70.01 -33 200)', 4326))""",
+              gain, n)
 
 proc sector(db: string, args: varargs[string]): int =
-  command.run(Globals(dbPath: db, fragments: allFragments), @args)
+  command.run(Globals(dbPath: db, fragments: allFragments, offline: true), @args)
 
 proc q(db, sqlText: string): string =
   let s = openStore(db, allFragments)
@@ -51,7 +51,6 @@ suite "nch sector":
     check sector(db, "--edit", "cuesta (2/2)", "--rename", "Old road") == exitOk        # (case does not matter)
     check q(db, "select name from sector where id = 1") == "Old road"
     check q(db, "select manual from sector where id = 1") == "1"
-    check q(db, "select name_checked from sector where id = 1") == "1"
     check shown(db) == @["Farellones", "Cuesta", "Old road"]
   test "a shared name needs its number; a name that is not there is an error; nothing changes":
     let db = fresh("errors", [("Cuesta", 100.0), ("Cuesta", 200.0)])
@@ -71,13 +70,12 @@ suite "nch sector":
     check sector(db, "--edit", "Cuesta", "--rename", "Mine") == exitOk
     check q(db, "select manual from sector") == "1"
     check sector(db, "--edit", "Mine", "--auto") == exitOk
-    check q(db, "select coalesce(name, '-') from sector") == "-"
+    check q(db, "select coalesce(name, '-') from sector") == ""          # (named again at once: offline, nothing)
     check q(db, "select manual from sector") == "0"
-    check q(db, "select name_checked from sector") == "0"
   test "--user before the command is refused":
     let db = fresh("user", [("Cuesta", 100.0)])
     check command.run(Globals(dbPath: db, user: "default", fragments: allFragments), @[]) == exitUsage
   test "a manual name survives the program's naming":
     let db = fresh("survive", [("", 100.0)])
     check sector(db, "--edit", "unnamed", "--rename", "Mine") == exitOk
-    check q(db, "select count(*) from sector where name_checked = 0") == "0"     # (nothing left for the program)
+    check q(db, "select count(*) from sector where name is null") == "0"        # (nothing left for the program)
