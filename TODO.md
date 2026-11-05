@@ -2473,6 +2473,13 @@ database (138 climbs, through the real code path, offline): 52 named in tier 1, 
 in the order given.  The group is the name without regard to case (each climb keeps its own spelling); n is the rank by gain (biggest 1, ties by id); the
 suffix only when m > 1; no name (or blanks) is "unnamed".  Tests in `tests/climbs/test_display.nim` (8).  Next: step 4, showing the names.
 
+**Step 4 is built (2026-11-05)**: `nch climbs` and `--sectors` lead each line with the name as shown (no more `#id`), in a column lined up by
+characters (not bytes, so accents are fine); the old trailing name column is gone.  `report.shownNames` works the "(n/m)" over ALL sectors (a group
+is global, not just the selected rides); a name over 30 characters is cut with "..." but keeps its " (n/m)".  `--sectors` is still biggest gain first.
+On a copy of the real database: "Farellones", "Cuesta de Chacabuco", "Morro La Cabra (1/3)", "near El Arrayán (1/4)", "unnamed (1/8)", ...
+**Noticed**: `nch --offline climbs` skips naming altogether, although the names can be made from the tables already loaded (`nameRoute` already says
+"later" when data is missing); worth letting `--offline` name from what is loaded.  Next: step 5, the `sector` command.
+
 **Convention to consider (the author, 2026-11-05)**: a `cache.nim` in each module that keeps something to be emptied, so that what a module stores and how to
 reset it is in one standard place and `empty` asks the modules instead of knowing them.  It covers modules that download (names now; the height correction
 later) and those that only empty (each `empty` target: sectors, names, ...).  Likely shape: what it keeps (tables, folders under the cache), a `usage`, a
