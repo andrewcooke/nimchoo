@@ -2518,9 +2518,22 @@ later) and those that only empty (each `empty` target: sectors, names, ...).  Li
   `display.nim` ("name (n/m)", pure) -> `report.nim` (the queries and the lines, pure formatting) -> `command.nim` (`nch climbs`); `001` to `004` `.sql`, `ddl.nim`.
 * **Sector** (`sector/`): `params.nim` (the command line; which names are allowed), `edit.nim` (find a climb by the name shown, rename, hand back, the list), `command.nim` (`nch sector`).
 * **Names** (`names/`): `outlines.nim` (GeoNames files, point-in-polygon), `countries.nim` (country of a position; the `Names` handle),
-  `features.nim` (a country's file into the table), `pick.nim` (the rules, pure), `naming.nim` (`nameRoute`: country, names, candidates, pick).
+  `features.nim` (a country's file into the table), `lookup.nim` (generic: `prepare` a place's country and names, `featuresNear` a route),
+  `climbpick.nim` (the rules for a climb, pure), `climb.nim` (`nameClimb`: lookup, distances from the top and middle, pick),
+  `open.nim` (`openNames(g, st, command, say)`: cache, `--offline`, log and screen sinks; callers know nothing of downloads).
+  Naming an activity will be a policy of its own beside `climb.nim`.
 * **Downloads** (`download/`): `sources.nim` (the list), `fetch.nim` (room, checks, atomic write, events), `sinks.nim` (log and screen).
 * **Other new parts**: `geo.nim` (flat geometry), `zipbytes.nim` (a zip from bytes), `cli/args.nim` (the one argument parser),
   `empty/command.nim` and `user/wipe.nim` (what `empty` and `user --remove` delete), `empty/cachefiles.nim`.
 * Tests mirror the source tree under `tests/`; `tests/support/` has the made-up rides, zips and GeoNames data.
 * The history of what was decided and measured is in this file, task by task (tasks 12 to 15 are the newest).
+
+## Names refactor and activity naming (2026-11-05)
+
+**Done**: `names/` split into the generic part (`lookup.nim`, `open.nim`) and the climb policy (`climb.nim`, `climbpick.nim`; `nameRoute` is now `nameClimb`,
+`pickName` is `pickClimbName`); `nch climbs` uses `openNames`.  Next: the `cache.nim` convention and the height service (the author, in parallel).
+
+**Activity naming (an idea of the author, to be designed)**: today the import names an activity from the nearest city (embedded list) to its FIRST point.
+Three patterns to tell apart: A out and back (same route both ways; "<destination> and back"); B a loop (back at the start after a long way; "via <the most
+significant feature along it that is also fairly far from the start>"); C one place to another ("<start> to <end>" or "to <end>").
+

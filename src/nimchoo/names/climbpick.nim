@@ -45,7 +45,7 @@ func kindOf(c: Candidate): Option[PickKind] =
   of "PPLX": some(pkNeighbourhood)
   else: (if c.isPlace: some(pkTown) else: none(PickKind))
 
-func pickName*(candidates: openArray[Candidate]): Option[Pick] =
+func pickClimbName*(candidates: openArray[Candidate]): Option[Pick] =
   ## The name for a climb among the features near it, if there is one.
   for tier in 1 .. 3:
     let limit = [endRadiusM, middleRadiusM, townRadiusM][tier - 1]

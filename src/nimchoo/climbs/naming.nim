@@ -7,7 +7,7 @@ import std/strutils
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
-import ../names/[countries, naming, pick]
+import ../names/[climb, climbpick, countries]
 
 {.push raises: [].}
 
@@ -40,7 +40,7 @@ proc ensureSectorNames*(st: Store, names: Names): Named {.raises: [StoreError].}
     var route: tuple[lons, lats: seq[float]]
     guard:
       route = parseRoute(st.db.getValue(sql"select AsText(route) from sector where id = ?", id))
-    let r = nameRoute(names, route.lons, route.lats)
+    let r = nameClimb(names, route.lons, route.lats)
     case r.status
     of nsLater:
       result.pending = todo.len - k

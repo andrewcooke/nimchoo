@@ -3,12 +3,10 @@
 ## climbs of the activities that have not been looked at, and keeps them (see work.nim).
 
 import std/[options, times]
-import ../cache
 import ../cli/[args, common]
 import ../db/store
-import ../download/[fetch, sinks]
 import ../errors
-import ../names/countries
+import ../names/open
 import ../ui/[live, logfile]
 import ./[naming, report, work]
 
@@ -68,14 +66,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.log.log(lvInfo, "climbs", leDone, "worked out " & $worked.activities & " activities: " &
                 $worked.sectors & " new climbs, " & $worked.efforts & " efforts")
     # names for the climbs that have none yet: from the places near them, fetched the first time
-    let cache = cacheDir()
-    if cache.isSome:
-      var env = realEnv()
-      env.offline = g.offline          # (names are still made from what is already loaded and downloaded)
-      let names = newNames(st, dataDir(cache.get), env,
-        fanOut(@[logSink(g.log, "climbs"),
-                 screenSink(proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")]))
-      let named = ensureSectorNames(st, names)
+    let names = openNames(g, st, "climbs", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
+    if names.isSome:
+      let named = ensureSectorNames(st, names.get)
       if named.named + named.nothing > 0:
         g.log.log(lvInfo, "climbs", leDone, "named " & $named.named & " climbs (" & $named.nothing & " with no name near)")
       if named.pending > 0:
