@@ -53,7 +53,7 @@ suite "names: naming a route":
     let names = newNames(st, dir, env, silent())
     expect DownloadError:
       discard nameClimb(names, lons, lats)
-    check st.count("name_source") == 0 and st.count("feature") == 0
+    check st.count("coverage") == 0 and st.count("feature") == 0
 
   test "offline: the answer is nothing, with no fetch and no error":
     let w = world("offlineflag")

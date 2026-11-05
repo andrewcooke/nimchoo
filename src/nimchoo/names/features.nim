@@ -1,13 +1,14 @@
-## The names of one country: its GeoNames file is fetched (download/) and the terrain features and populated
-## places in it are read into the `feature` table, once; `name_source` records that it was done.
+## The names of places, read from GeoNames files into the `feature` table by CELLS: a cell is one degree of longitude by
+## one of latitude (about 100 km), and a cell is read when a name is wanted in it, from its country's file (fetched by
+## download/, kept in the cache), and recorded in `coverage` so that it is read once.  Every feature of the file that falls
+## in the cell is kept, of every class and code: what counts as a name for a climb or an activity is decided by the rules
+## that use them, so changing the rules never means reading anything again.  A rider in the United States takes the cells
+## they ride in, not the whole file.
 ##
 ## A GeoNames line is 19 tab-separated columns; we read the id (0), name (1), latitude (4), longitude (5), feature
-## class (6), feature code (7) and population (14).  Kept: class P, populated places, all of them (villages and
-## neighbourhoods too); and from the classes T (terrain), L (areas), H (water) and S (spots) only the codes listed below, the
-## points a climb is named by (peaks, passes ...) and the places with an extent that an activity can be named for
-## (towns, valleys, ranges, parks, lakes ...).  Springs, bridges, roads, buildings and the rest are not wanted.
+## class (6), feature code (7) and population (14).
 
-import std/[options, os, strutils, times]
+import std/[math, options, os, strutils, tables, times]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../download/[fetch, sources]
@@ -18,27 +19,22 @@ import ./countries
 {.push raises: [].}
 
 const
-  terrainCodes* = ["MT", "MTS", "PK", "PKS", "PASS", "SDL", "HLL", "HLLS", "RDGE", "SPUR", "VAL", "VALS", "CNYN",
-                   "PLN", "PLAT", "VLC", "DSRT", "GRGE", "PEN", "ISL", "ISLS"]
-    ## class T: mountain(s), peak(s), pass, saddle, hill(s), ridge, spur, valley(s), canyon, plain, plateau, volcano,
-    ## desert, gorge, peninsula, island(s)
-  areaCodes* = ["PRK", "RES", "RESA", "RESF", "RESH", "RESN", "RESV", "RESW", "AREA", "RGN"]
-    ## class L: park, reserves (of several kinds), area, region
-  waterCodes* = ["LK", "LKS", "RSV", "BAY", "GULF", "FJD", "GLCR"]
-    ## class H: lake(s), reservoir, bay, gulf, fjord, glacier
-  spotCodes* = ["FRM", "FRMS", "BDG"]
-    ## class S: farm(s), bridge: small named places that riders turn round at (El Toyo is a farm)
   maxCountryFile = 1024 * 1024 * 1024    ## the United States file unzips to about 300 MB
 
-type Feature* = object
-  id*: int64
-  name*: string
-  lon*, lat*: float
-  cls*, code*: string
-  population*: int
+type
+  Feature* = object
+    id*: int64
+    name*: string
+    lon*, lat*: float
+    cls*, code*: string
+    population*: int
+
+  Box* = tuple[lon0, lat0, lon1, lat1: float]      ## degrees
+
+  Cell* = tuple[lon, lat: int]                      ## the whole degrees at its south-west corner
 
 func parseFeature*(line: string): Option[Feature] =
-  ## The feature on a line of a GeoNames file, if it is of a kind we keep (and the line is whole).
+  ## The feature on a line of a GeoNames file (none if the line is not whole, or has no name).
   # find the tabs up to the 16th column without making a string for each column
   var starts: array[16, int]
   var n = 1
@@ -54,27 +50,49 @@ func parseFeature*(line: string): Option[Feature] =
     var b = if c + 1 < n: starts[c + 1] - 1 else: line.len
     if b < a: b = a
     line[a ..< b]
-  let cls = column(6)
-  if cls notin ["T", "P", "L", "H", "S"]: return
-  let code = column(7)
-  if cls == "T" and code notin terrainCodes: return
-  if cls == "L" and code notin areaCodes: return
-  if cls == "H" and code notin waterCodes: return
-  if cls == "S" and code notin spotCodes: return
   try:
     let name = column(1)
-    if name.len == 0: return
+    let cls = column(6)
+    if name.len == 0 or cls.len == 0: return
     let pop = column(14)
     result = some(Feature(id: parseBiggestInt(column(0)), name: name, lat: parseFloat(column(4)),
-                          lon: parseFloat(column(5)), cls: cls, code: code,
+                          lon: parseFloat(column(5)), cls: cls, code: column(7),
                           population: if pop.len > 0: parseInt(pop) else: 0))
   except ValueError:
     discard
 
-proc readNames(n: Names, iso: string, text: string): int {.raises: [StoreError].} =
-  ## Put the features of the text into the table (in the caller's transaction); returns how many.
+func wrapLon(lon: int): int =
+  ## A whole-degree longitude brought into -180 .. 179 (180 is -180; 185 is -175; -181 is 179).
+  ((lon + 180) mod 360 + 360) mod 360 - 180
+
+func cellOf*(lon, lat: float): Cell =
+  ## The cell of a position.  `floor`, not truncation, so that -70.12 is in -71 and -0.5 in -1; longitude wraps at the date
+  ## line (180 is in cell -180) and latitude 90 (the pole itself) is in the top row, 89.
+  (wrapLon(int(floor(lon))), max(-90, min(89, int(floor(lat)))))
+
+func cellsOf*(box: Box): seq[Cell] =
+  ## The cells the box touches (a box that crosses the date line has longitudes past 180 or below -180: the cells wrap).
+  for lon in int(floor(box.lon0)) .. int(floor(box.lon1)):
+    for lat in max(-90, int(floor(box.lat0))) .. min(89, int(floor(box.lat1))):
+      let c = (wrapLon(lon), lat)
+      if c notin result: result.add c
+
+proc missingCells(n: Names, iso: string, box: Box): seq[Cell] {.raises: [StoreError].} =
+  ## The cells of the box that are not yet read for the country.
+  for c in cellsOf(box):
+    var have = false
+    guard:
+      have = n.st.db.getValue(sql"select count(*) from coverage where country = ? and cell_lon = ? and cell_lat = ?",
+                              iso, c.lon, c.lat) != "0"
+    if not have: result.add c
+
+proc readCells(n: Names, iso: string, text: string, missing: seq[Cell]) {.raises: [StoreError].} =
+  ## Put the features of the text that fall in the missing cells into the table, and record the cells
+  ## (in the caller's transaction).
   let insert = prepareStmt(n.st.db, "insert or replace into feature(id, country, name, class, code, " &
     "population, geom) values (?, ?, ?, ?, ?, ?, MakePoint(?, ?, 4326))")
+  var counts = initTable[Cell, int]()
+  for c in missing: counts[c] = 0
   var at = 0
   while at < text.len:
     var stop = text.find('\n', at)
@@ -82,6 +100,8 @@ proc readNames(n: Names, iso: string, text: string): int {.raises: [StoreError].
     let f = parseFeature(text[at ..< stop])
     at = stop + 1
     if f.isNone: continue
+    let cell = cellOf(f.get.lon, f.get.lat)
+    if cell notin counts: continue
     insert.bindInt(1, f.get.id)
     insert.bindText(2, iso)
     insert.bindText(3, f.get.name)
@@ -91,13 +111,18 @@ proc readNames(n: Names, iso: string, text: string): int {.raises: [StoreError].
     insert.bindReal(7, f.get.lon)
     insert.bindReal(8, f.get.lat)
     insert.run()
-    inc result
+    counts.mgetOrPut(cell, 0) += 1
+  let now = getTime().toUnix
+  for c, k in counts:
+    guard:
+      n.st.db.exec(sql"insert or replace into coverage(country, cell_lon, cell_lat, loaded_at, features) values (?, ?, ?, ?, ?)",
+                   iso, c.lon, c.lat, now, k)
 
-proc ensureNames*(n: Names, iso: string) {.raises: [StoreError, DownloadError].} =
-  ## The names of the country are in the table: if not, fetch its file and read it in.  A DownloadError (and the
-  ## reason told to the sink) if that cannot be done.
-  guard:
-    if n.st.db.getValue(sql"select count(*) from name_source where country = ?", iso) != "0": return
+proc ensureCells*(n: Names, iso: string, box: Box) {.raises: [StoreError, DownloadError].} =
+  ## The features of the country in the box are in the table: the cells not read yet are read from the country's file,
+  ## fetched if need be.  A DownloadError (and the reason told to the sink) if that cannot be done.
+  let missing = n.missingCells(iso, box)
+  if missing.len == 0: return
   n.ensureCountries()
   guard:
     if n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) == "0":
@@ -116,31 +141,28 @@ proc ensureNames*(n: Names, iso: string) {.raises: [StoreError, DownloadError].}
   n.st.begin()
   var done = false
   try:
-    guard: n.st.db.exec(sql"delete from feature where country = ?", iso)
-    let count = readNames(n, iso, text)
-    guard: n.st.db.exec(sql"insert or replace into name_source(country, loaded_at, features) values (?, ?, ?)",
-                        iso, getTime().toUnix, count)
+    n.readCells(iso, text, missing)
     n.st.commit()
     done = true
   finally:
     if not done: n.st.rollback()
 
 type NameCounts* = object
-  features*, countries*: int
+  features*, cells*: int
 
 proc countNames*(st: Store): NameCounts {.raises: [StoreError].} =
-  ## How many features, and of how many countries, are in the table.
+  ## How many features, and in how many cells, are in the table.
   guard:
     try:
       result.features = parseInt(st.db.getValue(sql"select count(*) from feature"))
-      result.countries = parseInt(st.db.getValue(sql"select count(*) from name_source"))
+      result.cells = parseInt(st.db.getValue(sql"select count(*) from coverage"))
     except ValueError:
       raiseStore("a bad count")
 
 func describe*(c: NameCounts): string =
-  ## "16,223 features of 1 country".
-  $c.features & (if c.features == 1: " feature" else: " features") & " of " & $c.countries &
-    (if c.countries == 1: " country" else: " countries")
+  ## "46,467 features in 2 cells".
+  $c.features & (if c.features == 1: " feature" else: " features") & " in " & $c.cells &
+    (if c.cells == 1: " cell" else: " cells")
 
 proc clearNames*(st: Store) {.raises: [StoreError].} =
   ## Empty the tables of names and countries (the downloaded files stay, so they are read in again when wanted;
@@ -149,7 +171,7 @@ proc clearNames*(st: Store) {.raises: [StoreError].} =
   var done = false
   try:
     guard:
-      st.db.exec(sql"delete from name_source")
+      st.db.exec(sql"delete from coverage")
       st.db.exec(sql"delete from feature")
       st.db.exec(sql"delete from country")
     st.commit()

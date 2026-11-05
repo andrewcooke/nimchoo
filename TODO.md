@@ -2603,3 +2603,12 @@ range, spot), else within half the distance out (at least 1.5 km), kinds in the 
 and back" 42, "Corral Quemado and back" 72, "Lo Barnechea" 49, "El Arrayán" 30, "San José de Maipo" 23.  Open: the 72 rides that turn at the Estero de la Yerba Loca
 (a stream, class H `STM`, 0.3 km from the turning point) are named Corral Quemado (a section, 0.6 km); streams are not loaded.
 
+**Names by cells (2026-11-05)**: `names/features.nim` reads a country's GeoNames file by CELLS (one degree by one, named by the south-west corner as SRTM tiles are,
+`floor` not truncation; longitude wraps at the date line, latitude clamps at the poles) when a name is wanted in them, and records each in `coverage`
+(`names/004-cells.sql` drops `name_source`).  EVERY feature in a cell is kept, of every class and code: no filter, so no more reload migrations; the rules (`climbpick`,
+the activity rules) choose.  `lookup.prepare(lons, lats, marginM)` takes the box round the positions (a margin in METRES, so wider in degrees of longitude towards the
+poles), finds the countries it touches (the middle, corners and edge middles; so a border is covered) and `ensureCells` each; `featuresNear` has no country.
+On the author's real database: 3 cells, 5,229 features (the whole of Chile is 46,467), the climb names unchanged (8 unnamed), 0.8 s.  The same cell function is
+the SRTM tile of the height service (choochoo's `srtm/file.py` uses `floor` and the south-west corner too; its tiles overlap by one sample at each edge); to be
+extracted when that is built.  Next: the 0.7 km first tier and the own-names command with suggestions (a query on the table), then the activity naming rules.
+

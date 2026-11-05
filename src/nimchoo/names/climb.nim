@@ -22,16 +22,15 @@ func middleOf(route: openArray[XY]): XY =
     travelled += step
   route[^1]
 
-proc candidatesNear*(n: Names, iso: string, lons, lats: openArray[float]): seq[Candidate]
-    {.raises: [StoreError].} =
-  ## The features of the country near the climb, with their distances from its top and from its middle.
+proc candidatesNear*(n: Names, lons, lats: openArray[float]): seq[Candidate] {.raises: [StoreError].} =
+  ## The features near the climb, with their distances from its top and from its middle.
   if lons.len == 0: return
   let pr = projection(lons[0], lats[0])
   var route: seq[XY]
   for i in 0 ..< lons.len: route.add pr.project(lons[i], lats[i])
   let top = route[^1]
   let middle = middleOf(route)
-  for f in n.featuresNear(iso, lons, lats):
+  for f in n.featuresNear(lons, lats):
     let p = pr.project(f.lon, f.lat)
     result.add Candidate(name: f.name, code: f.code, isPlace: f.isPlace, fromTopM: dist(p, top),
                          fromMiddleM: dist(p, middle))
@@ -40,6 +39,5 @@ proc nameClimb*(n: Names, lons, lats: openArray[float]): Option[Pick] {.raises: 
   ## The name for a climb: none if there is nothing near to name it by, or `--offline`.  A DownloadError if the
   ## names are needed and cannot be had.
   if lons.len == 0: return none(Pick)
-  let ready = n.prepare(lons[^1], lats[^1])
-  if ready.status != rdReady: return none(Pick)
-  pickClimbName(n.candidatesNear(ready.iso, lons, lats))
+  if n.prepare(lons, lats).status != rdReady: return none(Pick)
+  pickClimbName(n.candidatesNear(lons, lats))

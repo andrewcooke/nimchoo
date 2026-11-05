@@ -14,13 +14,15 @@
 
 * automatic detection of climbs and segments in activities.
 
-* automatic naming of activities, climbs, etc.
+* automatic naming of activities, climbs.
 
 * heart rate based fitness / fatigue models, with user-adjustable
   parameters.
 
-* open source, hackable, extensible.  full control of data, disk use
-  (cache management), etc.
+* open source, hackable, extensible.
+
+* full control of data and disk use (cache management), although it
+  does require internet access for many operations.
 
 ## background
 

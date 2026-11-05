@@ -143,7 +143,7 @@ suite "empty --names: the place names and countries, tables and downloaded files
     writeFile(d / "cache" / "user" / "heatmap--key-ab.geojson", "{}")
     let st = openStore(d / "x.db", allFragments)
     st.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
-    st.db.exec(sql"insert into name_source(country, loaded_at, features) values ('CL', 1, 1)")
+    st.db.exec(sql"insert into coverage(country, cell_lon, cell_lat, loaded_at, features) values ('CL', -71, -34, 1, 1)")
     st.db.exec(sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))")
     st.db.exec(sql"insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')")
     st.close()
@@ -152,7 +152,7 @@ suite "empty --names: the place names and countries, tables and downloaded files
     check emptyCommand.run(globals(d / "x.db"), @["--names", "-f"]) == exitOk
     let after = openStore(d / "x.db", allFragments)
     defer: after.close()
-    check after.count("feature") == 0 and after.count("name_source") == 0 and after.count("country") == 0
+    check after.count("feature") == 0 and after.count("coverage") == 0 and after.count("country") == 0
     check after.db.getValue(sql"select name from sector") == "Cerro"
     check not dirExists(d / "cache" / "data" / "geonames")
     check fileExists(d / "cache" / "data" / "elsewhere" / "tile.bin")
