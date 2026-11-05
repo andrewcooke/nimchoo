@@ -2344,33 +2344,38 @@ route and the pure `pickName`.
   version, which means `empty --sectors` and a rebuild.
 * **Hand renames** are allowed.  A name set by hand is never overwritten.
 
-### How (the proposal)
+### How (the proposal; the single-name version, the author's choice 2026-11-05)
 
 Store the facts and **work the names out whenever they are shown**, instead of rewriting stored names when a harder sibling arrives:
-* on each sector: the base name (what `sector.name` holds now), `difficulty`, and an optional `fixed_name` (set by hand);
-* a pure function from (base name, fixed name, difficulty, id) of all sectors to unique names: fixed names are reserved first; the others
-  are grouped by base name, ordered by difficulty, and take the plain name and then " (2)", " (3)"..., **skipping any name already taken**
-  (so gaps left by renames are filled, and numbers shift by themselves when a harder climb is found: "renaming on occasion");
-* a name given as an argument (a rename) is looked up among the names as they are now.
+* on each sector: `name` (the automatic base name, or the name the author set), `renamed` (0 or 1: set by hand) and `difficulty`; no second
+  column for the old automatic name;
+* a pure function from (name, renamed, difficulty, id) of all sectors to unique names: the names set by hand are reserved first and shown as
+  they are; the others are grouped by base name, ordered by difficulty, and take the plain name and then " (2)", " (3)"..., **skipping any
+  name already taken**.  A climb that is renamed leaves its group, so the rest close up: if "Foo" is renamed "Bar", "Foo (2)" becomes "Foo"
+  (and the base name is free for the others); gaps filled by themselves; numbers shift when a harder climb is found;
+* a name given as an argument (a rename) is looked up among the names as they are now; a name that is shown already is refused;
+* undoing a rename sets `renamed` to 0 and `name_checked` to 0, so the next `nch climbs` works the automatic name out again from the places
+  tables (offline if they are loaded; it waits otherwise).
 
 ### Steps (each a commit)
 
-1. `climbs/003-difficulty.sql`: `difficulty real` and `fixed_name text`; difficulty filled in when a sector is made and, once, for the
-   sectors already there (in code: SQLite may not have `pow`).
-2. The pure function (`climbs/naming.nim` or a new file) with tests: groups, ties, case, fixed names that clash with automatic ones, gaps.
+1. `climbs/003-difficulty.sql`: `difficulty real` and `renamed integer not null default 0`; difficulty filled in when a sector is made and,
+   once, for the sectors already there (in code: SQLite may not have `pow`).
+2. The pure function (`climbs/naming.nim` or a new file) with tests: groups, ties, case, a name set by hand that clashes with an automatic
+   one, the group closing up after a rename, gaps.
 3. `nch climbs` and `nch climbs --sectors` show the names (an aligned left column; a very long name is cut); `--sectors` sorted by
    difficulty.
-4. The rename (see question B), refusing an empty or taken name, and a way back to the automatic name.
+4. The rename (see question B), refusing an empty or taken name, and the way back to the automatic name.
 5. `empty --sectors` says how many hand-renamed climbs it would lose.
 6. Tests and docs.
 
 ### Questions for the author
 
-* **A.** Sectors with nothing near them: a base name "unnamed climb" (so "unnamed climb", "unnamed climb (2)"...)?
+* **A.** Sectors with nothing near them: a base name "unnamed climb" stored in `name` (so "unnamed climb", "unnamed climb (2)"...)?
 * **B.** The rename as `nch climbs --rename NAME NEW`, or a `sector` command in the style of `user` (`nch sector --edit NAME --rename NEW`,
   with room for `--remove` and for sectors the author defines)?  The proposal leans to `sector`.
 * Smaller, proposed unless the author says otherwise: numbers freed by renames may be reused; `--sectors` is sorted by difficulty; the
-  stored base name is kept as it is for the 138 existing sectors.
+  existing names of the 138 sectors stay as they are (they are the base names).
 
 ## Where to read the code (a guide, 2026-11-05)
 
