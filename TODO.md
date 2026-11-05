@@ -2463,6 +2463,12 @@ nothing is built.
 until step 2 is built they are named again by the rules of that day, so nothing visible changes.  Tests: the column, the one-time reset, and that
 names given afterwards survive the next opening.
 
+**Step 2 is built (2026-11-05)**: `names/pick.nim` has the rules (tiers 1 to 3, kinds in strict order, the first kind that has anything in range wins; "near" from
+1 km in tier 2 and always in tier 3; abandoned, destroyed and historical places are never used; saddle with the passes, ranges with the mountains, ridge / spur /
+valley / canyon with the hills; `Pick` carries the tier and the kind).  `nameRoute` is unchanged (it already gave both distances).  On a copy of the author's real
+database (138 climbs, through the real code path, offline): 52 named in tier 1, 42 in tier 2, 36 in tier 3, **8 unnamed**; by kind: 4 pass, 9 peak, 30 hill, 42 town,
+45 neighbourhood.  The next `nch climbs` names the author's 138 again with these rules.  Next: step 3, the display-name function ("name (n/m)").
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the

@@ -1,51 +1,58 @@
 import std/[options, unittest]
 import nimchoo/names/pick
 
-func terrain(name, code: string, fromTop: float): Candidate =
-  Candidate(name: name, code: code, fromTopM: fromTop, fromMiddleM: 99999.0)
-
-func town(name: string, fromMiddle: float, fromTop = 99999.0): Candidate =
-  Candidate(name: name, code: "PPL", isPlace: true, fromTopM: fromTop, fromMiddleM: fromMiddle)
+func f(name, code: string, fromEnd: float, fromMiddle = 99999.0): Candidate =
+  ## A terrain feature, or (for a P code) a populated place.
+  Candidate(name: name, code: code, isPlace: code.len > 0 and code[0] == 'P' and code != "PASS" and code != "PK" and
+                                             code != "PKS", fromTopM: fromEnd, fromMiddleM: fromMiddle)
 
 suite "names: choosing a name for a climb":
-  test "nothing near is no name":
+  test "nothing near is no name; kinds we do not use, and places that are gone, are not names":
     check pickName(@[]).isNone
-    check pickName(@[terrain("Lago", "LK", 10)]).isNone                    # (not a kind we use)
-  test "a pass beats a peak beats a hill beats a town":
-    let all = @[town("Lo Barnechea", 100), terrain("Cerro Calan", "HLL", 50),
-                terrain("Cerro Manquehue", "MT", 300), terrain("Paso Los Libertadores", "PASS", 100)]
-    check pickName(all).get.name == "Paso Los Libertadores" and pickName(all).get.kind == pkPass
-    check pickName(all[0 .. 2]).get.name == "Cerro Manquehue" and pickName(all[0 .. 2]).get.kind == pkPeak
-    check pickName(all[0 .. 1]).get.name == "Cerro Calan" and pickName(all[0 .. 1]).get.kind == pkHill
-    check pickName(all[0 .. 0]).get.name == "near Lo Barnechea" and pickName(all[0 .. 0]).get.kind == pkNear
-  test "the radii: a pass 400 m from the top, a peak 1 km, a hill 1.5 km, a town 5 km from the middle":
-    check pickName(@[terrain("P", "PASS", 399)]).get.kind == pkPass
-    check pickName(@[terrain("P", "PASS", 401)]).isNone
-    check pickName(@[terrain("S", "SDL", 100)]).get.kind == pkPass
-    check pickName(@[terrain("M", "MT", 999)]).get.kind == pkPeak
-    check pickName(@[terrain("M", "PK", 1001)]).isNone
-    check pickName(@[terrain("H", "HLL", 1499)]).get.kind == pkHill
-    check pickName(@[terrain("H", "HLL", 1499)]).get.name == "near H"
-    check pickName(@[terrain("H", "RDGE", 1501)]).isNone
-    check pickName(@[town("T", 4999)]).get.kind == pkNear
-    check pickName(@[town("T", 5001)]).isNone
-  test "terrain is measured from the top only, a place from the middle only":
-    # a mountain close to the middle or the bottom of the climb but far from its top is not its name
-    check pickName(@[Candidate(name: "Cerro", code: "MT", fromTopM: 3000, fromMiddleM: 10)]).isNone
-    # a town close to the top but far from the middle is not "near" the climb
-    check pickName(@[town("Farellones", 6000, fromTop = 100)]).isNone
-    check pickName(@[town("Farellones", 4000, fromTop = 100)]).get.name == "near Farellones"
-  test "a pass too far from the top does not stop a nearer peak being used":
-    let got = pickName(@[terrain("Paso", "PASS", 900), terrain("Cerro", "PK", 500)])
-    check got.get.name == "Cerro" and got.get.distanceM == 500
-  test "a feature more than 1 km away is only near the climb":
-    check pickName(@[terrain("Cerro", "HLL", 1000)]).get.name == "Cerro"             # (1 km exactly: the name)
-    check pickName(@[terrain("Cerro", "HLL", 1001)]).get.name == "near Cerro"
-    check pickName(@[terrain("Cerro", "HLL", 1001)]).get.kind == pkHill              # (the kind is still a hill)
-    check pickName(@[terrain("Cerro", "MT", 999)]).get.name == "Cerro"
-    check pickName(@[terrain("Paso", "PASS", 399)]).get.name == "Paso"
-    check pickName(@[town("Lo Barnechea", 50)]).get.name == "near Lo Barnechea"      # (a town is always "near")
-  test "the nearest wins within a kind":
-    let got = pickName(@[terrain("Far", "MT", 800), terrain("Near", "MT", 200), terrain("Mid", "MTS", 500)])
+    check pickName(@[f("Lago", "LK", 10, 10)]).isNone
+    check pickName(@[f("Abandonado", "PPLQ", 10, 10), f("Destruido", "PPLW", 10, 10), f("Historico", "PPLH", 10, 10)]).isNone
+  test "tier 1: within 1 km of the end, the name itself":
+    let got = pickName(@[f("Paso Los Libertadores", "PASS", 399)])
+    check got.get.name == "Paso Los Libertadores" and got.get.kind == pkPass and got.get.tier == 1
+    check pickName(@[f("Cerro", "HLL", 1000)]).get.name == "Cerro"                 # (1 km exactly)
+    check pickName(@[f("Farellones", "PPL", 240)]).get.name == "Farellones"        # (a place is a name too, not "near")
+    check pickName(@[f("Cerro", "HLL", 1001)]).isNone                              # (and further is not tier 1)
+  test "tier 2: within 1.5 km of the middle; 'near' from 1 km":
+    check pickName(@[f("Cerro", "HLL", 9999, 800)]).get.name == "Cerro"
+    check pickName(@[f("Cerro", "HLL", 9999, 800)]).get.tier == 2
+    check pickName(@[f("Cerro", "HLL", 9999, 999)]).get.name == "Cerro"
+    check pickName(@[f("Cerro", "HLL", 9999, 1000)]).get.name == "near Cerro"      # (1 km or more)
+    check pickName(@[f("Cerro", "HLL", 9999, 1500)]).get.name == "near Cerro"
+    check pickName(@[f("Cerro", "HLL", 9999, 1501)]).isNone
+  test "tier 3: a place within 5 km of the middle, always 'near'":
+    check pickName(@[f("Lo Barnechea", "PPL", 9999, 100)]).get.tier == 2           # (close to the middle: tier 2, a name)
+    let got = pickName(@[f("Lo Barnechea", "PPL", 9999, 4999)])
+    check got.get.name == "near Lo Barnechea" and got.get.tier == 3
+    check pickName(@[f("Lo Barnechea", "PPL", 9999, 5001)]).isNone
+    check pickName(@[f("Cerro", "MT", 9999, 3000)]).isNone                         # (terrain is not a last chance)
+  test "a tier that gives a name wins over the next, even if the next is closer":
+    # a neighbourhood 900 m from the end beats a hill 100 m from the middle
+    let got = pickName(@[f("Lo Contador", "PPLX", 900, 5000), f("Cerro San Cristobal", "HLL", 9999, 100)])
+    check got.get.name == "Lo Contador" and got.get.tier == 1
+  test "inside a tier the first kind in order wins, however far":
+    let order = @[f("Paso", "PASS", 900), f("Cerro", "MT", 100), f("Loma", "HLL", 50), f("Pueblo", "PPL", 20),
+                  f("Barrio", "PPLX", 10)]
+    check pickName(order).get.name == "Paso"                                      # a pass 900 m away beats everything nearer
+    check pickName(order[1 .. 4]).get.name == "Cerro"
+    check pickName(order[2 .. 4]).get.name == "Loma"
+    check pickName(order[3 .. 4]).get.name == "Pueblo"
+    check pickName(order[4 .. 4]).get.name == "Barrio"
+    check pickName(order[4 .. 4]).get.kind == pkNeighbourhood
+  test "the kinds: saddle with the pass, peaks, ranges and mountains together, ridge, spur, valley and canyon with the hills":
+    check pickName(@[f("S", "SDL", 10)]).get.kind == pkPass
+    for code in ["PK", "PKS", "MT", "MTS"]: check pickName(@[f("M", code, 10)]).get.kind == pkPeak
+    for code in ["HLL", "HLLS", "RDGE", "SPUR", "VAL", "CNYN"]: check pickName(@[f("H", code, 10)]).get.kind == pkHill
+    for code in ["PPL", "PPLA", "PPLC", "PPLL", "PPLS"]: check pickName(@[f("T", code, 10)]).get.kind == pkTown
+  test "the closest wins within a kind":
+    let got = pickName(@[f("Far", "MT", 800), f("Near", "MT", 200), f("Mid", "MTS", 500)])
     check got.get.name == "Near" and got.get.distanceM == 200
-    check pickName(@[town("A", 3000), town("B", 1000), town("C", 2000)]).get.name == "near B"
+    # tier 2 and 3 are measured from the middle
+    check pickName(@[f("A", "PPL", 9999, 3000), f("B", "PPL", 9999, 1000), f("C", "PPL", 9999, 2000)]).get.name == "near B"
+  test "the distance reported is the one that decided":
+    check pickName(@[f("Cerro", "HLL", 300, 50)]).get.distanceM == 300             # tier 1: from the end
+    check pickName(@[f("Cerro", "HLL", 9999, 700)]).get.distanceM == 700            # tier 2: from the middle

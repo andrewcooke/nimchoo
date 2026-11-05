@@ -28,11 +28,13 @@ suite "names: naming a route":
     check nameRoute(w.names, lons, lats).status == nsNamed
     check w.net.gets.len == gets
 
-  test "a climb with no terrain near it is named for the place it is near":
+  test "a climb that ends at a place is named for it; one a few km away is near it":
     let w = world("town")
     defer: w.st.close()
-    let near = nameRoute(w.names, @[-70.54, -70.53, -70.52], @[-33.36, -33.355, -33.35])
-    check near.status == nsNamed and near.pick.name == "near Lo Barnechea"
+    let ends = nameRoute(w.names, @[-70.54, -70.53, -70.52], @[-33.36, -33.355, -33.35])      # Lo Barnechea is at -70.52, -33.35
+    check ends.status == nsNamed and ends.pick.name == "Lo Barnechea" and ends.pick.tier == 1
+    let away = nameRoute(w.names, @[-70.56, -70.555, -70.55], @[-33.35, -33.35, -33.35])      # about 3 km west of it
+    check away.status == nsNamed and away.pick.name == "near Lo Barnechea" and away.pick.tier == 3
 
   test "a climb with nothing near it is no name, and a position in the sea is nowhere":
     let w = world("nothing")

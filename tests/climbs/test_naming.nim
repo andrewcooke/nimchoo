@@ -58,4 +58,4 @@ suite "climbs: naming the sectors":
     sectorAt(w.st, [-70.54, -70.52], -33.35)
     let r = ensureSectorNames(w.st, w.names)
     check r.named == 1
-    check w.st.db.getValue(sql"select name from sector where id = 2") == "near Lo Barnechea"
+    check w.st.db.getValue(sql"select name from sector where id = 2") == "Lo Barnechea"          # (it ends there)
