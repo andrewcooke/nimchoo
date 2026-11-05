@@ -2424,6 +2424,39 @@ village or town, neighbourhood (GeoNames `PPLX`), the closest within a kind.  Tr
 instead of Lo Canas).  Softer alternative if strict order proves too strong (a far hill beating a near village such as Farellones): scale the distances
 by kind (pass x0.5, peak x0.75, hill x1, village x1.5, neighbourhood x2.5) and take the smallest.  Start strict, look at the names, change if needed.
 
+### Task 15, REVISED PLAN (2026-11-05, after the author's answers; it replaces the difficulty, phi, stored number and unique-name parts above)
+
+**Settled**
+* Names, not ids, in `nch climbs` and `--sectors`.  Names need not be unique: climbs that share a name are shown **"name (n/m)"**, n the rank by
+  **length** (the longest is 1; ties by id), only when m > 1, worked out when shown and never stored; the group is the name without regard to case.
+* No difficulty, no phi coupling, no stored numbers (the ranking is by length).
+* **Manual naming**: `nch sector --edit NAME --rename NEW`, NAME as shown ("(n/m)" included); duplicates allowed; `nch sector --edit NAME --auto`
+  goes back to the automatic name; `nch sector` lists the catalogue; sectors are shared, so `--user` before the command is refused with a hint.
+  A manual name is `manual = 1` and is never changed by the system.
+* Climbs with nothing near them are called "unnamed" ("unnamed (n/m)" by length).
+
+**The rules for the automatic name** (the author's tiers, with the kind of feature taken into account; strict order first, to be looked at on the real names):
+* tier 1: within 1 km of the end (the top); tier 2: within 1.5 km of the middle ("near ..." from 1 km); tier 3: a populated place within 5 km of the
+  middle, "near <place>";
+* inside a tier the kinds in order: pass or saddle, peak or mountain, hill / ridge / spur, village or town, neighbourhood; the closest within a kind.
+
+**Stored on a sector**: `name` (automatic or manual) and `manual`.  Nothing else new.
+
+**Steps (each a commit)**
+1. `climbs/003-names.sql`: `manual integer not null default 0`; every existing sector is marked not yet named (`name_checked = 0`, `name = null`), so the next
+   `nch climbs` names the 138 again with the new rules (offline, from the loaded tables).
+2. The rules in `names/pick.nim` (pure; the neighbourhood kind needs the GeoNames code), tests, and `nameRoute` passing both distances.
+3. The pure display-name function (id, name, length -> "name (n/m)"), tests: groups, case, ties, m = 1, the group closing up after a rename.
+4. `nch climbs` and `--sectors` show the names (an aligned left column; a very long name is cut).
+5. The `sector` command (new module `sector/`): list, `--edit NAME --rename NEW`, `--edit NAME --auto`; looks the name up as shown; refuses an empty name and
+   one that looks like a suffix ("... (2/3)").
+6. `empty --sectors` says how many manually named climbs it would lose.
+7. Tests and docs.
+
+**Still open**: (a) strict kind order or distances scaled by kind; (b) keep tier 3 (assumed yes); (c) `--sectors` sorted by length, longest first (proposed);
+(d) **the categories** (4, 3, 2, 1, HC) are by **gain** today (80, 160, 320, 640, 800 m, as Strava and choochoo); the author said classification is
+"also length based": change them to length, and with what thresholds, or keep gain?
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
