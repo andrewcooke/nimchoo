@@ -156,8 +156,8 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
   ## One activity (inside a transaction made by the caller).
   let insertEffort = prepareStmt(st.db, "insert or ignore into effort(sector_id, activity_id, start_t, " &
     "finish_t, elapsed_s, start_m) values (?, ?, ?, ?, ?, ?)")
-  let insertSector = prepareStmt(st.db, "insert into sector(kind, length_m, gain_m, gradient, category, " &
-    "found_at, route) values ('climb', ?, ?, ?, ?, ?, GeomFromText(?, 4326))")
+  let insertSector = prepareStmt(st.db, "insert into sector(length_m, gain_m, gradient, category, " &
+    "found_at, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))")
   let coords = st.readCoords(id)
   if coords.len >= 2:
     let ride = ridePath(coords)

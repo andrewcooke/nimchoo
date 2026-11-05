@@ -19,7 +19,7 @@ suite "climbs: the tables":
                             GeomFromText('LINESTRING Z(10 20 100, 10.01 20 105, 10.02 20 110)', 4326))""")
     check s.db.getValue(sql"select NumPoints(route) from sector") == "3"
     check s.db.getValue(sql"select ST_Z(PointN(route, 3)) from sector") == "110.0"
-    check s.db.getValue(sql"select kind from sector") == "climb"
+    check s.db.getValue(sql"select count(*) from pragma_table_info('sector') where name = 'kind'") == "0"        # (dropped, never used)
     # the spatial index finds it by a box
     check s.db.getValue(sql"""select count(*) from sector where id in (select ROWID from SpatialIndex
         where f_table_name = 'sector' and f_geometry_column = 'route' and
@@ -50,7 +50,7 @@ suite "climbs: the tables":
     removeDir(top)
     var before: seq[Fragment]
     for f in allFragments:
-      if f.name != "climbs/003-names.sql": before.add f
+      if f.name notin ["climbs/003-names.sql", "climbs/004-no-kind.sql"]: before.add f
     let old = openStore(top / "x.db", before)
     old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (1000, 50, 5, 'near La Florida', 1)")
     old.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, name_checked) values (2000, 90, 4, 'Cerro Calan', 1)")

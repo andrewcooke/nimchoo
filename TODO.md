@@ -2488,6 +2488,10 @@ Decided: `--web` is left alone under `--offline` (browsers keep the pinned libra
 first, "manual" against hand-given names); `--edit NAME --rename NEW` (NAME as shown, case ignored; a shared name needs its number, and the error lists them;
 NEW at most 60 characters, no control characters, not ending in "(n/m)"; sets `manual = 1`, `name_checked = 1`); `--edit NAME --auto` (forgets the name,
 `manual = 0`, `name_checked = 0`: the next `nch climbs` names it again).  `--user` before it is refused.  Logged as `saved`.  Tests: `tests/sector/`.
+**`sector.kind` removed (2026-11-05)**: `climbs/004-no-kind.sql` drops it (it was written, never read).  Open for when a second kind of sector
+(segments from overlapping activities) arrives: a type column (a CHECK, or a lookup table with a foreign key; SQLite has no enums) or a table for each kind
+(a subclass-in-SQL question); every query of the climbs must then keep to its own kind so that other sectors do not appear in `nch climbs`.  Tried on a copy
+of the real database: the migration runs.
 Next: step 6 (`empty --sectors` says how many manual names it would lose), step 7 (docs).
 
 **Idea (the author, 2026-11-05)**: `nch empty` with no arguments should show resource use (database size, cache size by part, ...), like `--offline` it gives
