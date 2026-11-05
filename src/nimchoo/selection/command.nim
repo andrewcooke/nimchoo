@@ -7,14 +7,15 @@
 ## This module is newer than `importer` and reads its tables (activity, file,
 ## coords, route) directly.
 
-import std/[options, sequtils, strutils, terminal, times]
+import std/[options, sequtils, strutils, tables, terminal, times]
 import db_connector/db_sqlite
 import ../cli/common
+import ../climbs/report
 import ../db/store
 import ../errors
 import ../fit/time
 import ../ui/[live, logfile, style, vocabulary]
-import ./[calendar, criteria, table]
+import ./[calendar, criteria, fold, table]
 
 {.push raises: [].}
 
@@ -38,6 +39,9 @@ last one).  Criteria are combined with "and".
                      Barnechea"): --start providencia
   --path TEXT        the same for the path of the file the activity was imported from (or any
                      other path the same file was seen at): --path bowman, --path 2026-10
+  --climb TEXT       activities that have an effort on a climb whose name (as `nch sector` shows
+                     it) contains TEXT: --climb farellones (all of them), --climb "farellones (2/3)"
+                     (one); retired climbs too.  It is an error if no climb has the text
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
                      0.5- for half a km; 42~2 (between 40 and 44), latest~10%,
                      previous~10%
@@ -280,6 +284,17 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   var ids: seq[string]
   for id in userIds: ids.add $id
   let idList = ids.join(", ")
+  if c.climbs.len > 0:
+    # the climbs whose name as shown ("Farellones (2/3)", retired ones too) holds the text, whatever its case and accents
+    let shown = shownNames(st)
+    for t in c.climbs:
+      var found = false
+      for id, name in shown:
+        if foldText(name).contains(foldText(t)):
+          found = true
+          if id notin c.climbIds: c.climbIds.add id
+      if not found:
+        raiseStore("no climb has '" & t & "' in its name (`nch sector` lists them)")
   checkNames(st, "sport", "sport", idList, c.sports)
   checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
   var centre = none((float, float))

@@ -2698,3 +2698,11 @@ climb, one effort, is offered: the report decides nothing).  On the real rides: 
 **Ideas kept for later**: candidate climbs that need votes before they are real (rejected for now: delays the first sight of a climb), overlap-first discovery of segments (the bigger project:
 stretches ridden by many rides; also for non-climb segments), `--retire` for all the suggested at once, near-miss tools (how far along a sector each ride got) and drawing sectors on the map.
 
+**`nch list --climb TEXT...` (2026-11-05)**: the activities that have an effort on a climb whose name AS SHOWN ("Farellones (2/3)", retired climbs too) contains the text, case and accents ignored
+(`fold.nim`: `foldText` in the program, `foldGlob` in SQL, one letter table).  The names are turned into sector ids when the command runs (`shownNames`), the SQL asks for an effort on them; no match
+is an error.  It composes with the others: `--climb "corral quemado (2/9)" --save`, then `nch climbs`, `nch heatmap --web`, `nch delete`.  Real rides: `--climb farellones` finds 10, `--climb "farellones (1/3)"`
+the one 98 km ride of 2017-03-03.
+**Next, for a user who wants to plot and compare (the author, 2026-11-05)**: (1) `nch sector --efforts NAME`: each ride on a climb (date, name, time, rank); (2) `nch heatmap --climbs`: draw the climbs
+(named, or those the selected rides rode) over the rides, in another colour, which also shows where rides turn round compared with a climb's finish; (3) an elevation profile of a climb; (4) **a cross-section
+comparison of rides up a climb: plot the efforts against distance along the climb and show how each leads or lags the others (time gap by distance)**.  Also the near-miss report (how far along a climb each ride got).
+

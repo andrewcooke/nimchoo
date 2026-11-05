@@ -727,3 +727,52 @@ suite "list: --invert":
     let db = world("invertalone")
     check list(db, "--invert") == exitUsage
 
+suite "list: --climb":
+  proc climbs(db: string) =
+    ## Two climbs called Sintra (200 m and 100 m) and one called Cabo da Roca; lisbon1 rode Sintra (1/2) and Cabo da Roca,
+    ## lisbon2 (bob's) rode Sintra (2/2), paris rode nothing.
+    let s = openStore(db, allFragments)
+    defer: s.close()
+    for (name, gain) in [("Sintra", 200.0), ("Sintra", 100.0), ("Cabo da Roca", 50.0)]:
+      s.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, route) values (1000, ?, 5, ?, GeomFromText('LINESTRING Z(0 0 0, 0.01 0 10)', 4326))", gain, name)
+    for (tag, sector) in [("lisbon1", 1), ("lisbon1", 3), ("lisbon2", 2)]:
+      s.db.exec(sql"""insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+        select ?, a.id, 1, 61, 60, 0 from activity a join file f on f.id = a.file_id where f.name = ?""", sector, tag)
+
+  test "the activities that have an effort on a climb whose name has the text; case and accents ignored":
+    let db = world("climbfind")
+    climbs(db)
+    discard save(db, "--climb", "SINTRA")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--climb", "cabo da roca")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--climb", "sintra", "--users", "default", "bob")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+  test "the name as shown, (n/m) and all, picks one of a family":
+    let db = world("climbone")
+    climbs(db)
+    discard save(db, "--climb", "sintra (1/2)", "--users", "default", "bob")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--climb", "sintra (2/2)", "--users", "default", "bob")
+    check chosen(db) == @["lisbon2"]
+    discard save(db, "--climb", "sintra (2/2)", "cabo", "--users", "default", "bob")          # either
+    check chosen(db) == @["lisbon1", "lisbon2"]
+  test "retired climbs are found too; it combines with the others; --invert gives the rides that did not":
+    let db = world("climbretired")
+    climbs(db)
+    let s = openStore(db, allFragments)
+    s.db.exec(sql"update sector set retired = 1 where id = 1")
+    s.close()
+    discard save(db, "--climb", "sintra (1/2)")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--climb", "sintra", "--sport", "running")
+    check chosen(db).len == 0
+    discard save(db, "--climb", "sintra", "--invert", "--users", "default", "bob")
+    check chosen(db) == @["paris"]
+  test "text that is in no climb's name is an error, and nothing is changed":
+    let db = world("climbnone")
+    climbs(db)
+    discard save(db, "--sport", "cycling")
+    check list(db, "--climb", "nowhere", "--save") == exitFailure
+    check chosen(db) == @["lisbon1"]
+

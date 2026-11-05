@@ -34,6 +34,8 @@ type
                                       ## accents; "none": nothing; empty: any
     namesExact*, startsExact*: seq[string]  ## what `latest` / `previous` came to: the whole value ("" is none)
     paths*: seq[string]       ## --path: text found in a path the file was imported from (or in its name)
+    climbs*: seq[string]      ## --climb: text found in the name of a climb the activity has an effort on
+    climbIds*: seq[int64]     ## ... which climbs those are (worked out when the command runs, from the names as shown)
     fromT*: Option[UnixTime]  ## start of the activity at or after
     toT*: Option[UnixTime]    ## start of the activity before (exclusive)
     gps*: GpsFilter
@@ -171,6 +173,14 @@ proc takePaths(p: var ListState, name: string, values: seq[string]): string {.ni
   if p.c.paths.len == 0: return name & " needs some text"
   ""
 
+proc takeClimbs(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  p.criteriaGiven = true
+  for v in values:
+    for part in v.split(','):
+      if part.strip.len > 0: p.c.climbs.add part.strip
+  if p.c.climbs.len == 0: return name & " needs some text"
+  ""
+
 proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
   p.criteriaGiven = true
   if '~' in v:
@@ -242,6 +252,7 @@ func takeRadius(p: var ListState, v: string): string =
 func hasFilter*(c: Criteria): bool =
   ## Whether any criterion that picks activities is given (not the limits, the users or the display).
   c.sports.len > 0 or c.subSports.len > 0 or c.names.len > 0 or c.starts.len > 0 or c.paths.len > 0 or
+    c.climbs.len > 0 or
     c.sportRef != refNone or c.subSportRef != refNone or c.nameRef != refNone or c.startRef != refNone or
     c.distanceM.lo.isSome or c.distanceM.hi.isSome or c.activeS.lo.isSome or c.activeS.hi.isSome or
     c.distanceRel.isSome or c.activeRel.isSome or c.fromT.isSome or c.toT.isSome or c.gps != gfAny or
@@ -270,6 +281,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     listOption[ListState](["--name"], takeNames),
     listOption[ListState](["--start"], takeStarts),
     listOption[ListState](["--path"], takePaths),
+    listOption[ListState](["--climb"], takeClimbs),
     custom(ListState, ["--distance"], true, takeDistance(p, name, value)),
     custom(ListState, ["--active"], true, takeActive(p, name, value)),
     custom(ListState, ["--from"], true, takeWhen(p, value, false)),
@@ -409,6 +421,12 @@ func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)]
   filt.add textSql("a.name", c.names, c.namesExact)
   filt.add textSql("a.start_place", c.starts, c.startsExact)
   filt.add pathSql(c.paths)
+  if c.climbs.len > 0:
+    # the activities that have an effort on one of the climbs (ids worked out from the names as shown, with no match: none)
+    var ids: seq[string]
+    for id in c.climbIds: ids.add $id
+    filt.add (if ids.len == 0: " and 0"
+              else: " and exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (" & ids.join(", ") & "))")
   filt.add rangeSql("a.distance_m", c.distanceM)
   filt.add rangeSql("a.timer_s", c.activeS)
   case c.gps

@@ -44,3 +44,12 @@ func foldGlob*(text: string): string =
       of Rune('['): result.add "[[]"
       else: result.add $r
   result.add "*"
+
+func foldText*(text: string): string =
+  ## The text in lower case without accents ("El Arrayán" -> "el arrayan"), for comparing in the program the way
+  ## `foldGlob` does in SQL.  Letters outside the table are lower-cased only.
+  for r in text.runes:
+    let base = baseOf(r)
+    if base != '\0': result.add base
+    else: result.add $toLower(r)
+

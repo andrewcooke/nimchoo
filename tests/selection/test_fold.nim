@@ -1,4 +1,4 @@
-import std/unittest
+import std/[strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/selection/fold
 
@@ -38,3 +38,15 @@ suite "list: finding text without regard to case or accents":
     check matches(foldGlob("  toyo "), "El Toyo")
   test "the pattern for nothing matches everything":
     check matches(foldGlob(""), "anything")
+
+suite "list: folding in the program":
+  test "lower case, no accents":
+    check foldText("El Arrayán") == "el arrayan"
+    check foldText("ÑUÑOA (2/3)") == "nunoa (2/3)"
+    check foldText("Zürich") == "zurich"
+    check foldText("") == ""
+    check foldText("Москва") == "москва"
+  test "it agrees with the pattern: what the pattern finds, the folded text contains":
+    for (value, typed) in [("San José de Maipo", "san jose"), ("Peñalolén", "PENALOLEN"), ("Cerro Calán (1/2)", "calan (1")]:
+      check foldText(value).contains(foldText(typed))
+

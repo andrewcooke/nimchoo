@@ -317,3 +317,19 @@ suite "list: --invert":
     let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).criteria
     check r.usesLatest and not r.withoutLatest.invert and not r.withoutLatest.usesLatest
 
+suite "list: --climb":
+  test "the words are alternatives; the sql asks for an effort on the climbs found":
+    let c = parseArgs(@["--climb", "farellones,corral quemado", "(2/9)"], utcZone).criteria
+    check c.climbs == @["farellones", "corral quemado", "(2/9)"]
+    var r = c
+    r.climbIds = @[3'i64, 7'i64]
+    let q = matchSql(@[UserId(1)], r, none((float, float)))
+    check q.contains("exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (3, 7))")
+    r.climbIds = @[]
+    check matchSql(@[UserId(1)], r, none((float, float))).contains(" and 0")             # no climb found: no activity
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("effort")
+  test "it is a criterion; it needs some text":
+    check parseArgs(@["--climb"], utcZone).problem.len > 0
+    check parseArgs(@["--show", "--climb", "x"], utcZone).problem.contains("takes no criteria")
+    check parseArgs(@["--invert", "--climb", "x"], utcZone).problem == ""
+
