@@ -163,7 +163,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if parts.len == 0: return exitOk
   let what = listed(parts)
   if not given.force:
-    return failure("nch empty", "would delete " & what & "; use -f to do it")
+    return failure("nch empty", "would delete " & what & "; use -f to confirm")
   if canLive():
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
   for p in parts:

@@ -122,7 +122,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let id = findUser(st, p.name)
       let what = describe(countActivities(st.path, p.name), p.name)
       if not p.force:
-        return failure("nch user", "would delete " & what & " from " & st.path & "; use -f to do it")
+        return failure("nch user", "would delete " & what & " from " & st.path & "; use -f to confirm")
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
       removeUser(st, id)
