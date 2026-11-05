@@ -2,9 +2,10 @@
 ## places in it are read into the `feature` table, once; `name_source` records that it was done.
 ##
 ## A GeoNames line is 19 tab-separated columns; we read the id (0), name (1), latitude (4), longitude (5), feature
-## class (6), feature code (7) and population (14).  Class T is terrain (mountains, hills, peaks, passes...): only the
-## codes in `terrainCodes` are kept.  Class P is populated places: all are kept (villages and neighbourhoods too).
-## Water, spots, roads and the rest are not wanted for naming a climb.
+## class (6), feature code (7) and population (14).  Kept: class P, populated places, all of them (villages and
+## neighbourhoods too); and from the classes T (terrain), L (areas) and H (water) only the codes listed below, the
+## points a climb is named by (peaks, passes ...) and the places with an extent that an activity can be named for
+## (towns, valleys, ranges, parks, lakes ...).  Springs, bridges, roads, buildings and the rest are not wanted.
 
 import std/[options, os, strutils, times]
 import db_connector/db_sqlite
@@ -17,8 +18,14 @@ import ./countries
 {.push raises: [].}
 
 const
-  terrainCodes* = ["MT", "MTS", "PK", "PKS", "PASS", "SDL", "HLL", "HLLS", "RDGE", "SPUR", "VAL", "CNYN"]
-    ## mountain, mountains, peak, peaks, pass, saddle, hill, hills, ridge, spur, valley, canyon
+  terrainCodes* = ["MT", "MTS", "PK", "PKS", "PASS", "SDL", "HLL", "HLLS", "RDGE", "SPUR", "VAL", "VALS", "CNYN",
+                   "PLN", "PLAT", "VLC", "DSRT", "GRGE", "PEN", "ISL", "ISLS"]
+    ## class T: mountain(s), peak(s), pass, saddle, hill(s), ridge, spur, valley(s), canyon, plain, plateau, volcano,
+    ## desert, gorge, peninsula, island(s)
+  areaCodes* = ["PRK", "RES", "RESA", "RESF", "RESH", "RESN", "RESV", "RESW", "AREA", "RGN"]
+    ## class L: park, reserves (of several kinds), area, region
+  waterCodes* = ["LK", "LKS", "RSV", "BAY", "GULF", "FJD", "GLCR"]
+    ## class H: lake(s), reservoir, bay, gulf, fjord, glacier
   maxCountryFile = 1024 * 1024 * 1024    ## the United States file unzips to about 300 MB
 
 type Feature* = object
@@ -46,9 +53,11 @@ func parseFeature*(line: string): Option[Feature] =
     if b < a: b = a
     line[a ..< b]
   let cls = column(6)
-  if cls != "T" and cls != "P": return
+  if cls notin ["T", "P", "L", "H"]: return
   let code = column(7)
   if cls == "T" and code notin terrainCodes: return
+  if cls == "L" and code notin areaCodes: return
+  if cls == "H" and code notin waterCodes: return
   try:
     let name = column(1)
     if name.len == 0: return

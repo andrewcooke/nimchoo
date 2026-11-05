@@ -26,7 +26,7 @@ let sanCristobal* = gn(3871427, "Cerro San Cristóbal", -33.42, -70.63, "T", "HL
 let pass* = gn(3882052, "Paso Los Libertadores", -32.83, -70.12, "T", "PASS")
 let lake* = gn(1, "Laguna del Inca", -32.83, -70.1, "H", "LK")
 let road* = gn(2, "Ruta 60", -32.8, -70.2, "R", "RD")
-let island* = gn(3, "Isla Mocha", -38.37, -73.9, "T", "ISL")
+let spring* = gn(3, "Vertiente Fria", -38.37, -73.9, "H", "SPNG")
 let barrio* = gn(4, "Lo Barnechea", -33.35, -70.52, "P", "PPLX", 0)
 
 const outlines* = """{"type":"FeatureCollection","features":[

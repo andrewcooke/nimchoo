@@ -15,35 +15,44 @@ suite "names: a line of a GeoNames file":
     check p.isSome and p.get.population == 4837295 and p.get.code == "PPLC"
     check parseFeature(pass).get.code == "PASS"
     check parseFeature(barrio).get.population == 0
-  test "water, roads, islands and other kinds are left out; so are short and broken lines":
-    check parseFeature(lake).isNone and parseFeature(road).isNone and parseFeature(island).isNone
+  test "springs, roads and other kinds are left out; so are short and broken lines":
+    check parseFeature(spring).isNone and parseFeature(road).isNone
     check parseFeature("").isNone
     check parseFeature("1\tName\tName\t\t-33.4\t-70.6\tT").isNone              # cut short
     check parseFeature(gn(5, "", -33.0, -70.0, "P", "PPL")).isNone           # no name
     check parseFeature(gn(6, "X", -33.0, -70.0, "P", "PPL").replace("-33.0", "north")).isNone
-  test "the terrain codes kept":
+  test "the codes kept, by class; other codes of those classes are not":
     for code in terrainCodes:
       check parseFeature(gn(7, "X", 1.0, 2.0, "T", code)).isSome
+    for code in areaCodes:
+      check parseFeature(gn(7, "X", 1.0, 2.0, "L", code)).isSome
+    for code in waterCodes:
+      check parseFeature(gn(7, "X", 1.0, 2.0, "H", code)).isSome
+    check parseFeature(lake).isSome and parseFeature(lake).get.cls == "H"
+    check parseFeature(gn(7, "X", 1.0, 2.0, "T", "BRDG")).isNone
+    check parseFeature(gn(7, "X", 1.0, 2.0, "L", "FLD")).isNone
+    check parseFeature(gn(7, "X", 1.0, 2.0, "H", "STM")).isNone
+    check parseFeature(gn(7, "X", 1.0, 2.0, "A", "ADM1")).isNone
 
 suite "names: loading a country":
   test "the file is fetched once, the wanted features are read in, and the country is recorded":
-    let net = Net(chile: [santiago, sanCristobal, pass, lake, road, island, barrio, "garbage line"].join("\n") & "\n")
+    let net = Net(chile: [santiago, sanCristobal, pass, lake, road, spring, barrio, "garbage line"].join("\n") & "\n")
     let (st, dir) = fresh("load")
     defer: st.close()
     let names = newNames(st, dir, envOf(net), silent())
     ensureNames(names, "CL")
-    check st.db.getValue(sql"select count(*) from feature") == "4"           # Santiago, the hill, the pass, Lo Barnechea
-    check st.db.getValue(sql"select features from name_source where country = 'CL'") == "4"
+    check st.db.getValue(sql"select count(*) from feature") == "5"           # Santiago, the hill, the pass, the lake, Lo Barnechea
+    check st.db.getValue(sql"select features from name_source where country = 'CL'") == "5"
     check st.db.getValue(sql"select name from feature where code = 'PASS'") == "Paso Los Libertadores"
-    check st.db.getValue(sql"select count(*) from feature where country = 'CL'") == "4"
+    check st.db.getValue(sql"select count(*) from feature where country = 'CL'") == "5"
     # the spatial index finds a feature by a box
     check st.db.getValue(sql"""select name from feature where id in (select ROWID from SpatialIndex
         where f_table_name = 'feature' and f_geometry_column = 'geom' and
-              search_frame = BuildMbr(-70.2, -32.9, -70.0, -32.7))""") == "Paso Los Libertadores"
+              search_frame = BuildMbr(-70.13, -32.84, -70.11, -32.82))""") == "Paso Los Libertadores"
     let gets = net.gets.len
     ensureNames(names, "CL")
     check net.gets.len == gets                                                # nothing more fetched
-    check st.db.getValue(sql"select count(*) from feature") == "4"
+    check st.db.getValue(sql"select count(*) from feature") == "5"
 
   test "loading again after the table was emptied does not double anything":
     let net = Net(chile: santiago & "\n" & pass & "\n")

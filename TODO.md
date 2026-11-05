@@ -2586,3 +2586,10 @@ stay so.  Gone: `nsLater`/`rdLater`, `NameResult`/`NameStatus` (`nameClimb` retu
 climbs` on a database with unnamed (null) climbs gives them "" for good; use it for tests and trips, not before the names are first loaded.
 **Left from this principle**: `places/` and `activity.place_id` still exist (the start and the sea fallback), and `countryAt` still falls back to them.
 
+**More kinds of feature loaded (2026-11-05)**: `names/features.nim` keeps, besides all of class P, codes of class T (now also valleys, plains, plateaus, volcanoes,
+deserts, gorges, peninsulas, islands), class L (`PRK`, the `RES*` reserves, `AREA`, `RGN`) and class H (`LK`, `LKS`, `RSV`, `BAY`, `GULF`, `FJD`, `GLCR`): the places
+with an extent that an activity can be named for.  `names/002-more-kinds.sql` forgets the loaded features once, so each country is read again from its cached file
+(no download; Chile took 1.5 s on the real database).  The climb names are unchanged (the climb rules ignore the new codes): 8 unnamed as before.
+Next: the rules for naming an activity (the extent features: kinds in a fixed order, within half the distance to the furthest point), then the start from the
+downloaded names and `places/` going.
+
