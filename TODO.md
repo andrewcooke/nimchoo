@@ -2103,6 +2103,8 @@ the pass on the Chile/Argentina border CL, and all 608 sampled points of the aut
 territories (Curacao gave nothing) and the sea, so a point with no polygon takes the country of the nearest place in
 the embedded list.  Licence CC BY 4.0, as the places (NOTICE).  This replaces the earlier idea of finding the
 country from the nearest town (wrong across a border) and makes a smaller embedded city list pointless.
+**Fetched, not embedded** (the author's suggestion, adopted): the outlines are downloaded on first use and cached, like
+the country files; naming needs the network anyway, and afterwards works offline from the cache.
 
 ### Shape (a functional shell over a mutable core)
 
@@ -2144,22 +2146,43 @@ France 7.3, Russia 15, China 32, the United States 71 (the largest, one-off).  T
 On the sample every climb has a terrain feature within 3 km but only 8 of 43 within 1 km: expect "near ..." and
 loose names; they are labels, not facts.
 
+### A download module first (the author's suggestion, adopted)
+
+Bundle only what must travel with the program or be pinned: `Profile.xlsx` (restricted), `NOTICE` (the licences),
+the page templates and `libraries.txt` (whose integrity hashes mean nothing if fetched).  Everything else that is
+data is downloaded and cached: the country outlines, the country files, later more.  The embedded city list stays
+as the offline fallback (and keeps `nch import` self-contained) until the names module has replaced it.
+`download/` (a library, no command) is the one place that:
+
+* fetches a URL (`std/httpclient`, `-d:ssl`, a timeout, a polite user-agent) through an injectable `Fetcher`, so
+  tests serve made-up bytes and never touch the network;
+* checks what came back (a zip with the entry that was expected, a size that is not zero) before it is used;
+* writes it atomically into `<cache>/data/<source>/`;
+* knows every source in one list (name, URL pattern, expected content, attribution), so there is no URL
+  scattered through the code;
+* **reports what happened as events to a sink** (as the import does), never prints: `downloaded` (url, file, bytes),
+  `failed` (url, why: cannot reach, status, not a zip), `note`.  A command passes a sink that writes the events to
+  the log (a new event word `downloaded`, green; failures are the existing `failed`, red) and says them once on the
+  screen, so every download, from any command, is logged and reported in the same way.
+
 ### Steps (each a commit)
 
-1. `names/`: the embedded outlines (and a small test set), the `country` table seeded from them, `countryAt` (polygon,
-   then the nearest embedded place), tests on known points.  The binary grows by about 1.3 MB.
-2. Loading a country: `Fetcher`, the zip, the parser (tab-separated GeoNames lines), the import of T and P features, the
-   cache file; tests with a made-up zip; a manual check with the real Chile file.
-3. Candidates near a route and `pickName` (pure), tests; run on the 43 sectors and look at the names with the author.
-4. `climbs/002-name.sql`, `ensureNames` after `ensureClimbs`, the name shown in `nch climbs` and `--sectors`,
-   `empty --names`, `-d:ssl` in the nimble tasks, the NOTICE.
-5. Later: the starts of activities named from the same features (6,967 populated places in Chile against the 247
+1. `download/`: the sources list, the `Fetcher`, the checks, the atomic cache files, the events and sinks (to the log and
+   the screen), `-d:ssl` in the nimble tasks; tests with a made-up fetcher and a made-up zip; a manual check
+   with the real `CL.zip`.
+2. `names/` countries: fetch the outlines on first use (a small made-up set in the tests), fill the `country` table,
+   `countryAt` (polygon, then the nearest embedded place), tests on known points.  The binary stays as it is.
+3. Loading a country: the zip (through `download/`), the parser (tab-separated GeoNames lines), the import of T and P
+   features, `name_source`; tests with a made-up zip; a manual check with the real Chile file.
+4. Candidates near a route and `pickName` (pure), tests; run on the 43 sectors and look at the names with the author.
+5. `climbs/002-name.sql`, `ensureNames` after `ensureClimbs`, the name shown in `nch climbs` and `--sectors`,
+   `empty --names` and `empty --data` (the downloaded files), the NOTICE.
+6. Later: the starts of activities named from the same features (6,967 populated places in Chile against the 247
    in the embedded list), which needs the `place` table and the stored place ids reworked; then the embedded city
    list can go or shrink to a fallback.
 
 ### To settle with the author
 
-* Embed the outlines (1.3 MB, works offline) or fetch them on first use?  Recommended: embed.
 * Import every populated place and terrain feature of a country (about 20,000 rows for Chile, perhaps 600,000 for the
   United States), or only those near a climb?  Recommended: whole country, once.
 * The rules above, and what to show when there is only "near <town>".
