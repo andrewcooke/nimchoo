@@ -28,7 +28,7 @@ type
     fromMiddleM*: float        ## distance from the middle of the climb (half way along it)
 
   PickKind* = enum
-    pkPass = "pass", pkPeak = "peak", pkHill = "hill", pkTown = "town", pkNeighbourhood = "neighbourhood"
+    pkLandmark = "landmark", pkPass = "pass", pkPeak = "peak", pkHill = "hill", pkTown = "town", pkNeighbourhood = "neighbourhood"
 
   Pick* = object
     name*: string              ## what to show: the feature's name, or "near <name>"

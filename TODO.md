@@ -2612,3 +2612,11 @@ On the author's real database: 3 cells, 5,229 features (the whole of Chile is 46
 the SRTM tile of the height service (choochoo's `srtm/file.py` uses `floor` and the south-west corner too; its tiles overlap by one sample at each edge); to be
 extracted when that is built.  Next: the 0.7 km first tier and the own-names command with suggestions (a query on the table), then the activity naming rules.
 
+**Landmarks, `nch landmark` (2026-11-05)**: new module `landmark/` (`001-schema.sql`: `landmark(name unique, lon, lat, radius_m)`; `landmarks.nim` the library: add, remove,
+list, `landmarkAt`; `suggest.nim`: `searchByName` and `featuresAround` on the `feature` table, every kind, so streams, farms ... appear; `params.nim`; `command.nim`).
+`nch landmark` lists; `--search TEXT` and `--near LON,LAT` list numbered suggestions; `--add NAME --search/--near ... --pick N [--radius M]` or `--add NAME --at LON,LAT`;
+`--remove NAME`.  **Shared by all users** (the climbs are shared, so a personal landmark could not name a shared climb).  `nameClimb` checks `landmarkAt` the top FIRST
+(`pkLandmark`, tier 0), even offline.  Only places whose cells are read can be found by `--search`; `--near` reads (fetches) the cells round the position first.  The name of
+the command avoids `places/`, which is to go.  Activity naming (tier 1 at 0.7 km and the shapes) is next and will use `landmarkAt` the turning point the same way.
+On the author's database (a copy): `--near -70.364,-33.344` lists "Estero de la Yerba Loca" first; as a landmark it names 3 climbs whose tops are within 1 km.
+

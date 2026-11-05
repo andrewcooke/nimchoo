@@ -2,6 +2,7 @@ import std/[options, strutils, unittest]
 import nimchoo/db/store
 import nimchoo/errors
 import nimchoo/download/fetch
+import nimchoo/landmark/landmarks
 import nimchoo/names/[climb, climbpick, countries]
 import ../support/[namesdata, userdata]
 
@@ -62,3 +63,17 @@ suite "names: naming a route":
     names.offline = true
     check nameClimb(names, lons, lats).isNone
     check w.net.gets.len == 0
+
+  test "a landmark of your own holding the top comes before the pass, and works offline":
+    let w = world("landmark")
+    defer: w.st.close()
+    addLandmark(w.st, "Mi paso", -70.12, -32.83, 1000.0)
+    let r = nameClimb(w.names, lons, lats)
+    check r.isSome and r.get.name == "Mi paso" and r.get.kind == pkLandmark and r.get.tier == 0
+    check w.net.gets.len == 0                                         # (nothing was fetched: the landmark answered first)
+    var names = w.names
+    names.offline = true
+    check nameClimb(names, lons, lats).get.name == "Mi paso"
+    # a climb that tops out outside the circle is named as before
+    let elsewhere = nameClimb(w.names, @[-70.54, -70.53, -70.52], @[-33.36, -33.355, -33.35])
+    check elsewhere.get.name == "Lo Barnechea"

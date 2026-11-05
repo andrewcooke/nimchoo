@@ -1,11 +1,12 @@
 ## Naming a climb (see TODO.md, task 13 and 15): from its route (positions in order, the last being the top) it finds
 ## the country of the top, makes sure the names of that country are in the table (lookup.nim), looks at the features
-## near the route and picks a name by the rules of climbpick.nim.  A name, or none; or a DownloadError if the names
+## near the route and picks a name by the rules of climbpick.nim; a landmark (landmark/) holding the top comes first.  A name, or none; or a DownloadError if the names
 ## were needed and could not be had.
 
 import std/options
 import ../errors
 import ../geo
+import ../landmark/landmarks
 import ./[climbpick, countries, lookup]
 
 {.push raises: [].}
@@ -39,5 +40,9 @@ proc nameClimb*(n: Names, lons, lats: openArray[float]): Option[Pick] {.raises: 
   ## The name for a climb: none if there is nothing near to name it by, or `--offline`.  A DownloadError if the
   ## names are needed and cannot be had.
   if lons.len == 0: return none(Pick)
+  # a landmark of the author's own comes before everything (even offline: it is not a download)
+  let own = landmarkAt(n.st, lons[^1], lats[^1])
+  if own.isSome:
+    return some(Pick(name: own.get.landmark.name, kind: pkLandmark, tier: 0, distanceM: own.get.distanceM))
   if n.prepare(lons, lats).status != rdReady: return none(Pick)
   pickClimbName(n.candidatesNear(lons, lats))
