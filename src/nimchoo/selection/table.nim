@@ -12,9 +12,9 @@
 
 import std/[algorithm, math, options, sequtils, strutils, tables, times, unicode]
 import ../fit/time
-import ../describe
-import ../ui/[interval, style]
-export describe
+import ../importer/describe
+import ../ui/[interval, style, units]
+export describe, units
 
 {.push raises: [].}
 

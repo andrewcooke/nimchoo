@@ -171,9 +171,12 @@ database (`nch empty --all -f`, then import again).  the cache survives
 ## describing things: one standard way (decided 2026-11-05)
 
 an activity and a climb are said the same way wherever they appear (the list, `nch climbs`, the sector
-commands, messages), like `__str__` in python.  the one place that does it is `src/nimchoo/describe.nim`
-(`activityLine` / `activityCells`, `climbLine` / `climbCells`, and the number formats).  a new command that
-shows an activity or a climb uses it, and does not make its own format.
+commands, messages), like `__str__` in python.  **each module says its own things, in its own `describe.nim`**:
+the importer owns activities (`importer/describe.nim`: `activityLine` / `activityCells`), the climbs module owns
+climbs (`climbs/describe.nim`: `climbLine` / `climbCells`).  a new module that has things to show adds a
+`describe.nim` of its own; a command that shows an activity or a climb uses the owner's, and does not make its
+own format.  the number formats every one of them needs (`km`, the dash for not recorded) are in `ui/units.nim`
+(and the active time in `ui/interval.nim`).
 
 * an activity:  `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back`
   (start, sport, distance, active time, then the place it started and what it is called, joined by " / ").

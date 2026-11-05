@@ -4,8 +4,7 @@
 
 import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
-import ../climbs/[display, report]
-import ../describe
+import ../climbs/[describe, display, report]
 import ../db/store
 import ../errors
 import ./params

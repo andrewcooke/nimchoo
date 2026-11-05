@@ -9,8 +9,7 @@ import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
-import ../describe
-import ./[display, match, report]
+import ./[describe, display, match, report]
 
 {.push raises: [].}
 

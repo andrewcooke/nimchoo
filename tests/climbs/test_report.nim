@@ -2,7 +2,7 @@ import std/[options, strutils, times, unicode, unittest]
 import db_connector/db_sqlite
 import nimchoo/climbs/[report, work]
 import nimchoo/db/store
-import nimchoo/describe
+import nimchoo/ui/units
 import nimchoo/ui/style
 import ../support/[climbdata, userdata]
 

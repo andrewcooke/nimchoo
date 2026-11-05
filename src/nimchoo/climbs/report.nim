@@ -6,11 +6,12 @@ import std/[options, strutils, tables, times, unicode]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
-import ../describe
 import ../fit/time
+import ../importer/describe
+import ../ui/units
 import ../ids
 import ../ui/style
-import ./[display, work]
+import ./[describe, display, work]
 
 {.push raises: [].}
 
