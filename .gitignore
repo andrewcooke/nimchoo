@@ -8,3 +8,5 @@ nimble.develop
 *~
 /tests/csvreport
 /nch-test
+#*#
+.#*
