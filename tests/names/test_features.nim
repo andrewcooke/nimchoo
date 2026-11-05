@@ -29,6 +29,9 @@ suite "names: a line of a GeoNames file":
     for code in waterCodes:
       check parseFeature(gn(7, "X", 1.0, 2.0, "H", code)).isSome
     check parseFeature(lake).isSome and parseFeature(lake).get.cls == "H"
+    for code in spotCodes:
+      check parseFeature(gn(7, "X", 1.0, 2.0, "S", code)).isSome
+    check parseFeature(gn(7, "X", 1.0, 2.0, "S", "HSE")).isNone
     check parseFeature(gn(7, "X", 1.0, 2.0, "T", "BRDG")).isNone
     check parseFeature(gn(7, "X", 1.0, 2.0, "L", "FLD")).isNone
     check parseFeature(gn(7, "X", 1.0, 2.0, "H", "STM")).isNone

@@ -46,6 +46,19 @@ suite "names: the shape of an activity":
     let s = shapeOfPoints(p)
     check s.kind == skMixed
     check s.retraced >= loopBelow and s.retraced < outAndBackFrom
+  test "out along the road and back, but home another way for the last part: still out and back":
+    # out 10 km east, back 7 km along the same road, then a different road (a parallel one 3 km north) home
+    let p = line((0.0, 0.0), (10_000.0, 0.0)) & line((10_000.0, 0.0), (3_000.0, 0.0)) &
+            line((3_000.0, 0.0), (3_000.0, 3_000.0)) & line((3_000.0, 3_000.0), (0.0, 3_000.0)) &
+            line((0.0, 3_000.0), (0.0, 0.0))
+    let s = shapeOfPoints(p)
+    check s.kind == skOutAndBack
+    check s.retracedNear > 0.95 and s.retraced < 0.9
+  test "a rectangle: the way back starts on a new road, so not out and back":
+    # out 6 km east, north 5 km, then west 5 km and south: nothing of the way back is over the way out
+    let p = line((0.0, 0.0), (6_000.0, 0.0)) & line((6_000.0, 0.0), (6_000.0, 5_000.0)) &
+            line((6_000.0, 5_000.0), (0.0, 5_000.0)) & line((0.0, 5_000.0), (0.0, 0.0))
+    check shapeOfPoints(p).kind == skLoop
   test "from one place to another":
     let p = line((0.0, 0.0), (30_000.0, 4_000.0))
     let s = shapeOfPoints(p)

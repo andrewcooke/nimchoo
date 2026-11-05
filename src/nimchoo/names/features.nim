@@ -3,7 +3,7 @@
 ##
 ## A GeoNames line is 19 tab-separated columns; we read the id (0), name (1), latitude (4), longitude (5), feature
 ## class (6), feature code (7) and population (14).  Kept: class P, populated places, all of them (villages and
-## neighbourhoods too); and from the classes T (terrain), L (areas) and H (water) only the codes listed below, the
+## neighbourhoods too); and from the classes T (terrain), L (areas), H (water) and S (spots) only the codes listed below, the
 ## points a climb is named by (peaks, passes ...) and the places with an extent that an activity can be named for
 ## (towns, valleys, ranges, parks, lakes ...).  Springs, bridges, roads, buildings and the rest are not wanted.
 
@@ -26,6 +26,8 @@ const
     ## class L: park, reserves (of several kinds), area, region
   waterCodes* = ["LK", "LKS", "RSV", "BAY", "GULF", "FJD", "GLCR"]
     ## class H: lake(s), reservoir, bay, gulf, fjord, glacier
+  spotCodes* = ["FRM", "FRMS", "BDG"]
+    ## class S: farm(s), bridge: small named places that riders turn round at (El Toyo is a farm)
   maxCountryFile = 1024 * 1024 * 1024    ## the United States file unzips to about 300 MB
 
 type Feature* = object
@@ -53,11 +55,12 @@ func parseFeature*(line: string): Option[Feature] =
     if b < a: b = a
     line[a ..< b]
   let cls = column(6)
-  if cls notin ["T", "P", "L", "H"]: return
+  if cls notin ["T", "P", "L", "H", "S"]: return
   let code = column(7)
   if cls == "T" and code notin terrainCodes: return
   if cls == "L" and code notin areaCodes: return
   if cls == "H" and code notin waterCodes: return
+  if cls == "S" and code notin spotCodes: return
   try:
     let name = column(1)
     if name.len == 0: return

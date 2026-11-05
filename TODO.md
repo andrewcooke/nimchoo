@@ -2593,3 +2593,13 @@ with an extent that an activity can be named for.  `names/002-more-kinds.sql` fo
 Next: the rules for naming an activity (the extent features: kinds in a fixed order, within half the distance to the furthest point), then the start from the
 downloaded names and `places/` going.
 
+**Shape rule changed, farms and bridges loaded (2026-11-05)**: `shapeOf` now measures `retracedNear`, the share of the FIRST THIRD of the way back over the way out; out
+and back is 0.9 of either that or the whole way back; loop is under 0.1 of the whole; the rest mixed.  Reason: the author's many "El Toyo and back" rides come home another
+way for the last stretch (whole-way share 0.37) but retrace the first part exactly (0.98+); `retracedNear` over the author's closed rides is bimodal (394 under 0.1,
+462 at 0.9 or more).  Counts: out and back 460, loop 305, mixed 252, one way 76.  `names/003-spots.sql` + class S codes `FRM` `FRMS` `BDG` (El Toyo is a farm;
+there is no bridge of that name in GeoNames) loaded, the countries read again from the cache.
+**The destination rule tried in the survey (not yet in the code)**: anything within 1 km of the turning point first (kinds in order: town, section, park, lake,
+range, spot), else within half the distance out (at least 1.5 km), kinds in the same order, the closest within a kind.  Result: "El Toyo and back" 35, "Farellones
+and back" 42, "Corral Quemado and back" 72, "Lo Barnechea" 49, "El Arrayán" 30, "San José de Maipo" 23.  Open: the 72 rides that turn at the Estero de la Yerba Loca
+(a stream, class H `STM`, 0.3 km from the turning point) are named Corral Quemado (a section, 0.6 km); streams are not loaded.
+
