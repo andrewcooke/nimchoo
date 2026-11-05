@@ -2329,3 +2329,59 @@ route and the pure `pickName`.
 * `nch climbs` shows what the import shows: a plain first line (`climbing` in bold), a second line of counts in green joined by grey dots
   (`climbs 12 · efforts 40`), the same frame left on the screen, and a `done: 1,650 activities: 138 new climbs, 2,661 efforts` line
   after it (on stderr, so that `nch climbs --sectors | ...` stays clean).
+
+## Task 15: climbs are known by name, numbered by difficulty (plan, 2026-11-05; nothing built yet)
+
+### Agreed
+
+* `nch climbs` shows **names, not `#n`**; the ids stay inside the database.
+* Names are **unique** (compared without regard to case).  Climbs with the same base name are ordered by **difficulty**, the hardest
+  first (ties by id): the hardest has the plain name, the next gets " (2)", then " (3)" and so on ("near La Florida (2)").
+* **Difficulty = `gain_m × length_m ^ (1 - phi)`**, that is `gain × length^0.3` (phi 0.7), which is `length × the detection score`
+  (`gain / length^phi`; the exponent applies to the length only).  It is stored on the sector.  The detection score stays what it is: it
+  favours short steep climbs and is only used to choose where a climb starts and ends; difficulty is only for ranking finished climbs
+  (HC near Farellones 19,800; the 400 m ramp 808; Cerro Calan 700).  It needs phi to stay as it is; a change of phi is a change of method
+  version, which means `empty --sectors` and a rebuild.
+* **Hand renames** are allowed.  A name set by hand is never overwritten.
+
+### How (the proposal)
+
+Store the facts and **work the names out whenever they are shown**, instead of rewriting stored names when a harder sibling arrives:
+* on each sector: the base name (what `sector.name` holds now), `difficulty`, and an optional `fixed_name` (set by hand);
+* a pure function from (base name, fixed name, difficulty, id) of all sectors to unique names: fixed names are reserved first; the others
+  are grouped by base name, ordered by difficulty, and take the plain name and then " (2)", " (3)"..., **skipping any name already taken**
+  (so gaps left by renames are filled, and numbers shift by themselves when a harder climb is found: "renaming on occasion");
+* a name given as an argument (a rename) is looked up among the names as they are now.
+
+### Steps (each a commit)
+
+1. `climbs/003-difficulty.sql`: `difficulty real` and `fixed_name text`; difficulty filled in when a sector is made and, once, for the
+   sectors already there (in code: SQLite may not have `pow`).
+2. The pure function (`climbs/naming.nim` or a new file) with tests: groups, ties, case, fixed names that clash with automatic ones, gaps.
+3. `nch climbs` and `nch climbs --sectors` show the names (an aligned left column; a very long name is cut); `--sectors` sorted by
+   difficulty.
+4. The rename (see question B), refusing an empty or taken name, and a way back to the automatic name.
+5. `empty --sectors` says how many hand-renamed climbs it would lose.
+6. Tests and docs.
+
+### Questions for the author
+
+* **A.** Sectors with nothing near them: a base name "unnamed climb" (so "unnamed climb", "unnamed climb (2)"...)?
+* **B.** The rename as `nch climbs --rename NAME NEW`, or a `sector` command in the style of `user` (`nch sector --edit NAME --rename NEW`,
+  with room for `--remove` and for sectors the author defines)?  The proposal leans to `sector`.
+* Smaller, proposed unless the author says otherwise: numbers freed by renames may be reused; `--sectors` is sorted by difficulty; the
+  stored base name is kept as it is for the 138 existing sectors.
+
+## Where to read the code (a guide, 2026-11-05)
+
+* **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
+  score, the greedy search, reversals) -> `match.nim` (gates, a ride over a stored climb, "the same climb again") -> `work.nim` (the lazy
+  pass: activities not yet looked at, in start order; efforts; new sectors; the version check) -> `naming.nim` (names for sectors) ->
+  `report.nim` (the queries and the lines, pure formatting) -> `command.nim` (`nch climbs`); `001-schema.sql`, `002-name.sql`, `ddl.nim`.
+* **Names** (`names/`): `outlines.nim` (GeoNames files, point-in-polygon), `countries.nim` (country of a position; the `Names` handle),
+  `features.nim` (a country's file into the table), `pick.nim` (the rules, pure), `naming.nim` (`nameRoute`: country, names, candidates, pick).
+* **Downloads** (`download/`): `sources.nim` (the list), `fetch.nim` (room, checks, atomic write, events), `sinks.nim` (log and screen).
+* **Other new parts**: `geo.nim` (flat geometry), `zipbytes.nim` (a zip from bytes), `cli/args.nim` (the one argument parser),
+  `empty/command.nim` and `user/wipe.nim` (what `empty` and `user --remove` delete), `empty/cachefiles.nim`.
+* Tests mirror the source tree under `tests/`; `tests/support/` has the made-up rides, zips and GeoNames data.
+* The history of what was decided and measured is in this file, task by task (tasks 12 to 15 are the newest).
