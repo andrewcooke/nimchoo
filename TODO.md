@@ -2646,3 +2646,9 @@ except `place`, `activity.place_id`, its foreign key and `activity_place` (52 of
 `nch empty --all -f` (a copy of the old database file kept first), then `nch user --edit default --fthr N`, the models, and `nch import`.  An old database is refused with
 "run `nch empty --all -f` and import again".  The test migrations of the old fragments are gone (nothing to migrate); the fragment names and count are in `tests/db/test_store.nim`.
 
+**`empty --downloads` replaces `empty --names` (2026-11-05)**: it deletes the downloaded files (the whole `data/` part of the cache) and nothing in the database: the
+tables read from them (`country`, `coverage`, `feature`) stay, and so do the names on climbs and activities, because those are copies, not links.  It needs no -f (the files
+are fetched again when a new cell needs them), like `--cache`; it combines with the others (`--all` stands alone or with `--downloads` and `--cache`).  Reason: the files are
+the only big part; deleting the tables too would gain nothing, as the copied names would not change; to make everything again from newer GeoNames data, `empty --all -f` and
+import again (about 1.5 minutes).  `--downloads` also covers the height tiles when they come.  `countNames`, `clearNames` and `NameCounts` are gone (nothing used them).
+

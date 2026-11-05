@@ -138,17 +138,3 @@ suite "names: loading cells of a country":
     check st.db.getValue(sql"select count(*) from coverage") == "0"
     ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))                       # the good file is fetched now
     check st.db.getValue(sql"select count(*) from feature") == "1"
-
-suite "names: counts":
-  test "features and cells":
-    let net = Net(chile: [santiago, pass].join("\n") & "\n")
-    let (st, dir) = fresh("counts")
-    defer: st.close()
-    let names = newNames(st, dir, envOf(net), silent())
-    ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))
-    ensureCells(names, "CL", box(-70.2, -32.9, -70.05, -32.7))
-    check countNames(st) == NameCounts(features: 2, cells: 2)
-    check describe(countNames(st)) == "2 features in 2 cells"
-    check describe(NameCounts(features: 1, cells: 1)) == "1 feature in 1 cell"
-    clearNames(st)
-    check countNames(st) == NameCounts()

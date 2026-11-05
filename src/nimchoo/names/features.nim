@@ -146,36 +146,3 @@ proc ensureCells*(n: Names, iso: string, box: Box) {.raises: [StoreError, Downlo
     done = true
   finally:
     if not done: n.st.rollback()
-
-type NameCounts* = object
-  features*, cells*: int
-
-proc countNames*(st: Store): NameCounts {.raises: [StoreError].} =
-  ## How many features, and in how many cells, are in the table.
-  guard:
-    try:
-      result.features = parseInt(st.db.getValue(sql"select count(*) from feature"))
-      result.cells = parseInt(st.db.getValue(sql"select count(*) from coverage"))
-    except ValueError:
-      raiseStore("a bad count")
-
-func describe*(c: NameCounts): string =
-  ## "46,467 features in 2 cells".
-  $c.features & (if c.features == 1: " feature" else: " features") & " in " & $c.cells &
-    (if c.cells == 1: " cell" else: " cells")
-
-proc clearNames*(st: Store) {.raises: [StoreError].} =
-  ## Empty the tables of names and countries (the downloaded files stay, so they are read in again when wanted;
-  ## the names already given to sectors stay: they are copies).
-  st.begin()
-  var done = false
-  try:
-    guard:
-      st.db.exec(sql"delete from coverage")
-      st.db.exec(sql"delete from feature")
-      st.db.exec(sql"delete from country")
-    st.commit()
-    done = true
-  finally:
-    if not done: st.rollback()
-

@@ -35,7 +35,7 @@ suite "empty --all: the whole database":
     check not fileExists(d / "x.db")
 
 suite "empty: what to empty is named":
-  test "there is no default: a target is needed; --all holds the rest, so it stands alone (with --names and --cache)":
+  test "there is no default: a target is needed; --all holds the rest, so it stands alone (with --downloads and --cache)":
     let d = fresh("target")
     openStore(d / "x.db", allFragments).close()
     check emptyCommand.run(globals(d / "x.db"), @[]) == exitUsage
@@ -43,6 +43,7 @@ suite "empty: what to empty is named":
     check emptyCommand.run(globals(d / "x.db"), @["--all", "--user", "bob", "-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--all", "--sectors", "-f"]) == exitUsage
     check emptyCommand.run(globals(d / "x.db"), @["--data", "-f"]) == exitUsage                # (there is no --data)
+    check emptyCommand.run(globals(d / "x.db"), @["--names", "-f"]) == exitUsage               # (nor --names: the names are copies)
     check fileExists(d / "x.db")
 
   test "--user before the command is refused, with a hint":
@@ -130,9 +131,9 @@ suite "empty --sectors: the catalogue of climbs":
     openStore(d / "x.db", allFragments).close()
     check emptyCommand.run(globals(d / "x.db", "bob"), @["--sectors", "-f"]) == exitUsage
 
-suite "empty --names: the place names and countries, tables and downloaded files":
-  test "the tables are emptied and the GeoNames files deleted; other downloads, the generated files and the names given to climbs stay":
-    let d = fresh("names")
+suite "empty --downloads: the downloaded files":
+  test "the downloaded files go, with no -f; the tables read from them, the names, and the generated files stay":
+    let d = fresh("downloads")
     putEnv("NCH_CACHE", d / "cache")
     defer: delEnv("NCH_CACHE")
     createDir(d / "cache" / "data" / "geonames")
@@ -147,17 +148,25 @@ suite "empty --names: the place names and countries, tables and downloaded files
     st.db.exec(sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))")
     st.db.exec(sql"insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')")
     st.close()
-    check emptyCommand.run(globals(d / "x.db"), @["--names"]) == exitFailure          # no -f
-    check fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
-    check emptyCommand.run(globals(d / "x.db"), @["--names", "-f"]) == exitOk
+    check emptyCommand.run(globals(d / "x.db"), @["--downloads"]) == exitOk            # (no -f: they are fetched again)
+    check not dirExists(d / "cache" / "data")
+    check fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
     let after = openStore(d / "x.db", allFragments)
     defer: after.close()
-    check after.count("feature") == 0 and after.count("coverage") == 0 and after.count("country") == 0
+    check after.count("feature") == 1 and after.count("coverage") == 1 and after.count("country") == 1
     check after.db.getValue(sql"select name from sector") == "Cerro"
-    check not dirExists(d / "cache" / "data" / "geonames")
-    check fileExists(d / "cache" / "data" / "elsewhere" / "tile.bin")
-    check fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
-    check emptyCommand.run(globals(d / "x.db"), @["--names", "-f"]) == exitOk          # nothing left: fine
+    check emptyCommand.run(globals(d / "x.db"), @["--downloads"]) == exitOk          # nothing left: fine
+  test "with --cache too, both go, with one message":
+    let d = fresh("downloadscache")
+    putEnv("NCH_CACHE", d / "cache")
+    defer: delEnv("NCH_CACHE")
+    createDir(d / "cache" / "data" / "geonames")
+    createDir(d / "cache" / "user")
+    writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
+    writeFile(d / "cache" / "user" / "a.geojson", "{}")
+    check emptyCommand.run(globals(d / "x.db"), @["--downloads", "--cache"]) == exitOk
+    check not dirExists(d / "cache" / "data")
+    check not fileExists(d / "cache" / "user" / "a.geojson")
 
 suite "empty: several things at once":
   test "one message, one countdown, one done; and without -f none of them is done":
@@ -173,7 +182,7 @@ suite "empty: several things at once":
     a.db.exec(sql"insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')")
     a.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
     a.close()
-    let everything = @["--user", defaultUser, "--sectors", "--names", "--cache"]
+    let everything = @["--user", defaultUser, "--sectors", "--downloads", "--cache"]
     check emptyCommand.run(globals(d / "x.db"), everything) == exitFailure         # no -f: none of it
     let before = openStore(d / "x.db", allFragments)
     check before.count("activity") == 1 and before.count("sector") == 1 and before.count("country") == 1
@@ -184,9 +193,9 @@ suite "empty: several things at once":
     let after = openStore(d / "x.db", allFragments)
     defer: after.close()
     check after.count("file") == 0 and after.count("activity") == 0         # the user's data
-    check after.count("sector") == 0 and after.count("country") == 0           # the climbs, the names
+    check after.count("sector") == 0 and after.count("country") == 1           # the climbs (the countries stay)
     check after.count("user") == 1                                              # (the user stays)
-    check not dirExists(d / "cache" / "data" / "geonames")
+    check not dirExists(d / "cache" / "data")
     check not fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson")
 
   test "an unknown user is found out before anything is done":
@@ -199,7 +208,7 @@ suite "empty: several things at once":
     defer: after.close()
     check after.count("sector") == 1
 
-  test "--all goes with --names and --cache (the downloaded and the generated files)":
+  test "--all goes with --downloads and --cache (the downloaded and the generated files)":
     let d = fresh("allfiles")
     putEnv("NCH_CACHE", d / "cache")
     defer: delEnv("NCH_CACHE")
@@ -208,9 +217,9 @@ suite "empty: several things at once":
     writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
     writeFile(d / "cache" / "user" / "a.geojson", "{}")
     openStore(d / "x.db", allFragments).close()
-    check emptyCommand.run(globals(d / "x.db"), @["--all", "--names", "--cache", "-f"]) == exitOk
+    check emptyCommand.run(globals(d / "x.db"), @["--all", "--downloads", "--cache", "-f"]) == exitOk
     check not fileExists(d / "x.db")
-    check not dirExists(d / "cache" / "data" / "geonames")
+    check not dirExists(d / "cache" / "data")
     check not fileExists(d / "cache" / "user" / "a.geojson")
 
   test "with no database the files can still be emptied":
@@ -219,6 +228,6 @@ suite "empty: several things at once":
     defer: delEnv("NCH_CACHE")
     createDir(d / "cache" / "data" / "geonames")
     writeFile(d / "cache" / "data" / "geonames" / "CL.zip", "zip")
-    check emptyCommand.run(globals(d / "none.db"), @["--sectors", "--names", "-f"]) == exitOk
-    check not dirExists(d / "cache" / "data" / "geonames")
+    check emptyCommand.run(globals(d / "none.db"), @["--sectors", "--downloads", "-f"]) == exitOk
+    check not dirExists(d / "cache" / "data")
     check not fileExists(d / "none.db")
