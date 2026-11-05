@@ -6,7 +6,7 @@ import std/strutils
 import ../cli/[args, common]
 import ../db/store
 import ../errors
-import ../ui/[live, logfile]
+import ../ui/[live, logfile, style]
 import ../user/wipe
 import ./remove
 
@@ -31,6 +31,16 @@ Nothing is deleted without -f.  On a terminal there are then 5 seconds in which 
 
 type DeleteArgs = object
   force, help: bool
+
+func deletingLines*(done, total, files: int): seq[Line] =
+  ## The two lines shown while the activities go, as the import's and the climbs' are (the counts in red here, not green):
+  ## the first plain with the word in bold, the second the counts joined by grey dots.
+  ##
+  ##     deleting 340 / 1,381 activities
+  ##     activities 340 · files 120
+  @[@[span("deleting ", bold = true),
+      span(insertSep($done, ',') & " / " & insertSep($total, ',') & (if total == 1: " activity" else: " activities"))],
+    @[span("activities " & insertSep($done, ','), red), span(" · ", grey), span("files " & insertSep($files, ','), red)]]
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch delete ARGS`; returns the exit status.
@@ -61,7 +71,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
                      "; use -f to confirm")
     if canLive():
       countdown(newTerminalLive(), what, waitSeconds, sleepMs)
-    let done = deleteActivities(st, plan)
+    # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
+    var shown = false
+    var live = Live()
+    let screen = canLive()
+    if screen: live = newTerminalLive()
+    let done = deleteActivities(st, plan, proc(n, total, files: int) {.closure, raises: [].} =
+      if screen and (n == total or live.due()):
+        shown = true
+        live.show(deletingLines(n, total, files)))
+    if screen:
+      if shown: live.keep(deletingLines(plan.ids.len, plan.ids.len, done.files))
+      else: live.finish()
     var said = "deleted " & what
     if done.files > 0:
       said.add "; " & $done.files & (if done.files == 1: " file" else: " files") & " forgotten (importing them again would bring the activities back)"

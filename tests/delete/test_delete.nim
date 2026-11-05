@@ -3,6 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/delete/[command, remove]
+import nimchoo/ui/style
 import nimchoo/modules
 import ../support/userdata
 
@@ -155,3 +156,42 @@ suite "delete: the command":
     check run(d, "--nonesuch") == exitUsage
     check run(d, "x") == exitUsage
     check not fileExists(d)
+
+suite "delete: progress":
+  test "the report comes after each chunk: how many activities are gone and how many files are forgotten":
+    let d = fresh("progress")
+    let s = openStore(d, allFragments)
+    defer: s.close()
+    for i in 1 .. 60: fill(s, "t" & $i)
+    var seen: seq[(int, int, int)]
+    let done = deleteActivities(s, planDelete(s), proc(n, total, files: int) {.closure, raises: [].} = seen.add (n, total, files))
+    check seen == @[(25, 60, 25), (50, 60, 50), (60, 60, 60)]
+    check done == Done(activities: 60, files: 60, kept: 0)
+    check s.count("activity") == 0 and s.count("file") == 0
+  test "a file with activities in two chunks is forgotten when the later one goes; one that keeps an activity stays":
+    let d = fresh("progressfiles")
+    let s = openStore(d, allFragments)
+    defer: s.close()
+    fill(s, "tri")                                          # activity 1, file tri
+    for i in 1 .. 29: fill(s, "t" & $i)                     # activities 2 .. 30
+    s.extra("tri", 1, 100, "swimming")                      # activity 31: a second session of tri, in the second chunk
+    fill(s, "keeper")                                       # activity 32: its file will keep another activity
+    s.extra("keeper", 1, 200, "running")                    # activity 33
+    s.db.exec(sql"delete from selection where activity_id = 33")
+    var seen: seq[(int, int, int)]
+    let done = deleteActivities(s, planDelete(s), proc(n, total, files: int) {.closure, raises: [].} = seen.add (n, total, files))
+    check seen == @[(25, 32, 24), (32, 32, 30)]       # tri stays in the first chunk (its second session is to come)
+    check done.activities == 32 and done.kept == 1 and done.files == 30       # (tri and the 29 others; keeper stays)
+    check s.count("activity") == 1 and s.db.getValue(sql"select name from file") == "keeper"
+
+suite "delete: the display":
+  test "two lines, as the import's: the word in bold, then the counts in red joined by grey dots":
+    let lines = deletingLines(340, 1381, 120)
+    check lines.len == 2
+    check lines[0].text == "deleting 340 / 1,381 activities"
+    check lines[0][0].look.bold and lines[0][0].text == "deleting "
+    check lines[1].text == "activities 340 · files 120"
+    check lines[1][0].look.colour == red and lines[1][2].look.colour == red
+    check lines[1][1].text == " · " and lines[1][1].look.colour == grey
+    check deletingLines(1, 1, 1)[0].text == "deleting 1 / 1 activity"
+

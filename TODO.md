@@ -2677,3 +2677,8 @@ climbs (sectors) and their names stay.  A file left with no activity is FORGOTTE
 (the author's choice).  A file with several activities stays until the last goes.  `-f` to confirm, 5 s countdown on a terminal.  **Idea, not built**: `exclude` would delete the
 activities but KEEP the file record, so the import skips the file for good (a bad recording, a ride that is not yours).
 
+**`nch delete` shows its progress (2026-11-05)**: deleting costs about 9 ms for a ride with a track and about 0.1 ms for an activity with none (5 rides 0.05 s, 500 activities 4.6 s, 1,381 mostly
+rides 12.7 s), so the activities go in chunks of 25 (still one transaction) and, after the countdown, the same live display as the import and the climbs draws two lines, the first plain with the
+word in bold, the second the counts in RED joined by grey dots (`deleting 340 / 1,381 activities` / `activities 340 · files 120`); nothing is drawn if it takes less than 150 ms; the last frame
+stays on the screen, then the "done:" line.  A file is forgotten as soon as its last selected activity goes.  Checked under a pseudo-terminal: bold, red and grey codes, no green.
+

@@ -14,6 +14,7 @@ import ../errors
 type
   Plan* = object
     ids*: seq[int64]                 ## the current user's selected activities
+    fileOf*: seq[int64]              ## the file of each (parallel to `ids`)
     fileIds*: seq[int64]             ## their files (each once)
     others*: int                     ## selected activities of other users: left alone
     first*, last*: int64             ## when the first and the last of them began (Unix seconds)
@@ -36,6 +37,7 @@ proc planDelete*(st: Store): Plan {.raises: [StoreError].} =
         let file = parseBiggestInt(r[1])
         let t = parseBiggestInt(r[2])
         result.ids.add id
+        result.fileOf.add file
         if file notin files: files.add file
         if result.ids.len == 1: result.first = t
         result.last = t
@@ -72,27 +74,42 @@ func list(ids: openArray[int64]): string =
     if i > 0: result.add ", "
     result.add $id
 
-proc deleteActivities*(st: Store, p: Plan): Done {.raises: [StoreError].} =
-  ## Delete the activities of the plan, and the files left with none.  One transaction: all or nothing.
+const chunk* = 25        ## activities deleted between two reports of progress (a ride with a track takes about 9 ms)
+
+proc deleteActivities*(st: Store, p: Plan,
+                       progress: proc(done, total, files: int) {.closure, raises: [].} = nil): Done {.raises: [StoreError].} =
+  ## Delete the activities of the plan, and each file when it is left with none (so the count of files forgotten grows
+  ## with the activities).  One transaction: all or nothing.  `progress` is told, after each few activities, how many are
+  ## gone and how many files are forgotten.
   st.begin()
   var done = false
   try:
     var at = 0
     while at < p.ids.len:
-      let stop = min(at + 500, p.ids.len)
+      let stop = min(at + chunk, p.ids.len)
       guard: st.db.exec(sql("delete from activity where id in (" & list(p.ids[at ..< stop]) & ")"))
-      at = stop
-    result.activities = p.ids.len
-    at = 0
-    while at < p.fileIds.len:
-      let stop = min(at + 500, p.fileIds.len)
-      let chunk = list(p.fileIds[at ..< stop])
+      # the files of these activities that have none left (one that still has an activity in a later chunk is met again then)
+      var files: seq[int64]
+      for k in at ..< stop:
+        if p.fileOf[k] notin files: files.add p.fileOf[k]
       guard:
-        st.db.exec(sql("delete from file where id in (" & chunk & ") and id not in (select file_id from activity)"))
-        try: result.kept += parseInt(st.db.getValue(sql("select count(*) from file where id in (" & chunk & ")")))
+        st.db.exec(sql("delete from file where id in (" & list(files) & ") and id not in (select file_id from activity)"))
+        try: result.files += files.len - parseInt(st.db.getValue(sql("select count(*) from file where id in (" & list(files) & ")")))
         except ValueError: raiseStore("a bad count")
       at = stop
-    result.files = p.fileIds.len - result.kept
+      if progress != nil: progress(at, p.ids.len, result.files)
+    result.activities = p.ids.len
+    # the files that are still there are those with activities that were not selected
+    var remaining = 0
+    var k = 0
+    while k < p.fileIds.len:
+      let stop = min(k + 500, p.fileIds.len)
+      guard:
+        try: remaining += parseInt(st.db.getValue(sql("select count(*) from file where id in (" & list(p.fileIds[k ..< stop]) & ")")))
+        except ValueError: raiseStore("a bad count")
+      k = stop
+    result.kept = remaining
+    result.files = p.fileIds.len - remaining
     st.commit()
     done = true
   finally:
