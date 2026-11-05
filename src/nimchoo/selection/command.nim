@@ -53,6 +53,10 @@ last one).  Criteria are combined with "and".
   --near latest      ... of where the latest activity started (or "previous")
   --radius KM        radius for --near in kilometres (default: 100); on its own it
                      means --near latest
+  --invert           the activities that do NOT meet the criteria (all of them taken together):
+                     everything that fails to match, including those that have nothing
+                     recorded for a criterion.  "latest" and "previous" are found before
+                     inverting; --newest and --oldest apply after.  Needs a criterion
   -n, --newest N     only the N newest of the activities that meet the other criteria
   --oldest N         only the N oldest of them
   --latest           the same as --newest 1

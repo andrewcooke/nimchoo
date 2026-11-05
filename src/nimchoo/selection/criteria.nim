@@ -37,6 +37,7 @@ type
     fromT*: Option[UnixTime]  ## start of the activity at or after
     toT*: Option[UnixTime]    ## start of the activity before (exclusive)
     gps*: GpsFilter
+    invert*: bool             ## --invert: the activities that do NOT meet the criteria (before --newest / --oldest)
     near*: NearKind
     lat*, lon*: float         ## for nkPoint
     radiusKm*: float
@@ -238,6 +239,14 @@ func takeRadius(p: var ListState, v: string): string =
   p.radiusGiven = true
   ""
 
+func hasFilter*(c: Criteria): bool =
+  ## Whether any criterion that picks activities is given (not the limits, the users or the display).
+  c.sports.len > 0 or c.subSports.len > 0 or c.names.len > 0 or c.starts.len > 0 or c.paths.len > 0 or
+    c.sportRef != refNone or c.subSportRef != refNone or c.nameRef != refNone or c.startRef != refNone or
+    c.distanceM.lo.isSome or c.distanceM.hi.isSome or c.activeS.lo.isSome or c.activeS.hi.isSome or
+    c.distanceRel.isSome or c.activeRel.isSome or c.fromT.isSome or c.toT.isSome or c.gps != gfAny or
+    c.near != nkNone
+
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## The command line of `nch list`.  Options with values: `--users A B C`, `--sport A B`, `--sub-sport A B` (names up to
   ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
@@ -253,6 +262,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")),
     custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")),
     custom(ListState, ["--show"], false, (p.c.show = true; "")),
+    custom(ListState, ["--invert"], false, (p.criteriaGiven = true; p.c.invert = true; "")),
     latestOption, newestOption, oldestOption,
     listOption[ListState](["--users"], takeUsers),
     listOption[ListState](["--sport"], takeSports),
@@ -279,6 +289,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     if c.save: fail("--show shows the stored selection: it cannot be combined with --save")
     if st.criteriaGiven: fail("--show takes no criteria (it shows the stored selection)")
   if st.radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest
+  if c.invert and not c.hasFilter: fail("--invert needs a criterion to invert (--sport, --name, --distance ...)")
   if c.newest > 0 and c.oldest > 0: fail("--newest and --oldest cannot be used together")
   if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
     fail("--from is not before --to")
@@ -334,6 +345,7 @@ func withoutLatest*(c: Criteria): Criteria =
   if result.subSportRef == refLatest: result.subSportRef = refNone
   if result.nameRef == refLatest: result.nameRef = refNone
   if result.startRef == refLatest: result.startRef = refNone
+  result.invert = false        # (`latest` is found among the activities that meet the criteria, before they are inverted)
   result.newest = 0
   result.oldest = 0
 
@@ -391,19 +403,20 @@ func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)]
   for id in userIds: ids.add $id
   result = "select " & columns & " from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & ids.join(", ") & ")"
-  result.add inValues("a.sport", c.sports)
-  result.add inValues("a.sub_sport", c.subSports)
-  result.add textSql("a.name", c.names, c.namesExact)
-  result.add textSql("a.start_place", c.starts, c.startsExact)
-  result.add pathSql(c.paths)
-  result.add rangeSql("a.distance_m", c.distanceM)
-  result.add rangeSql("a.timer_s", c.activeS)
+  var filt = ""                 # the criteria, each as " and ...": with --invert, the whole is negated
+  filt.add inValues("a.sport", c.sports)
+  filt.add inValues("a.sub_sport", c.subSports)
+  filt.add textSql("a.name", c.names, c.namesExact)
+  filt.add textSql("a.start_place", c.starts, c.startsExact)
+  filt.add pathSql(c.paths)
+  filt.add rangeSql("a.distance_m", c.distanceM)
+  filt.add rangeSql("a.timer_s", c.activeS)
   case c.gps
-  of gfWith: result.add " and exists (select 1 from coords k where k.activity_id = a.id)"
-  of gfWithout: result.add " and not exists (select 1 from coords k where k.activity_id = a.id)"
+  of gfWith: filt.add " and exists (select 1 from coords k where k.activity_id = a.id)"
+  of gfWithout: filt.add " and not exists (select 1 from coords k where k.activity_id = a.id)"
   of gfAny: discard
-  if c.fromT.isSome: result.add " and a.start_t >= " & $c.fromT.get
-  if c.toT.isSome: result.add " and a.start_t < " & $c.toT.get
+  if c.fromT.isSome: filt.add " and a.start_t >= " & $c.fromT.get
+  if c.toT.isSome: filt.add " and a.start_t < " & $c.toT.get
   if centre.isSome:
     let (lat, lon) = centre.get
     # activities that START within the radius: the spatial index finds those in a box, and
@@ -413,8 +426,10 @@ func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)]
       probes.add "a.id in (select ROWID from SpatialIndex where f_table_name = 'activity' and " &
         "f_geometry_column = 'start' and search_frame = BuildMbr(" &
         deg(b.minX) & ", " & deg(b.minY) & ", " & deg(b.maxX) & ", " & deg(b.maxY) & "))"
-    result.add " and (" & probes.join(" or ") & ") and ST_Distance(a.start, MakePoint(" &
+    filt.add " and (" & probes.join(" or ") & ") and ST_Distance(a.start, MakePoint(" &
       deg(lon) & ", " & deg(lat) & ", 4326), 1) <= " & deg(c.radiusKm * 1000)
+  # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
+  result.add (if c.invert: " and not coalesce((1" & filt & "), 0)" else: filt)
   if c.newest > 0: result.add " order by a.start_t desc limit " & $c.newest
   if c.oldest > 0: result.add " order by a.start_t asc limit " & $c.oldest
 

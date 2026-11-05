@@ -695,3 +695,35 @@ suite "list: --path":
     let rows = listActivities(st, parseArgs(@["-v"], utc()).criteria, utc()).lines.texts
     check rows[0].endsWith("path") and rows[1].endsWith("/x/bike/a.fit")
 
+suite "list: --invert":
+  test "everything that fails to match, including what has nothing recorded":
+    let db = world("invert")
+    discard save(db, "--users", "default", "bob", "--sport", "cycling")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--invert")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--sub-sport", "road", "--invert")       # (lisbon2 has no sub-sport: it fails to match)
+    check chosen(db) == @["lisbon2", "paris"]
+  test "all the criteria together: not (cycling and in July)":
+    let db = world("invertall")
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--to", "2018-07-31")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--to", "2018-07-31", "--invert")
+    check chosen(db) == @["lisbon2", "paris"]
+  test "names, starts and gps are inverted too; an activity not named yet fails to match":
+    let db = world("invertnames")
+    named(db)
+    discard save(db, "--users", "default", "bob", "--name", "pedro", "--invert")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--gps", "--invert")         # (the test activities have routes but no coords: none has gps)
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]
+  test "--newest takes the newest of the inverted; latest is found before inverting":
+    let db = world("invertlimits")
+    discard save(db, "--users", "default", "bob", "--sport", "cycling", "--invert", "--newest", "1")
+    check chosen(db) == @["paris"]
+    discard save(db, "--users", "default", "bob", "--sport", "latest", "--invert")      # latest is paris (running): everything else
+    check chosen(db) == @["lisbon1", "lisbon2"]
+  test "--invert alone is refused":
+    let db = world("invertalone")
+    check list(db, "--invert") == exitUsage
+

@@ -2661,3 +2661,8 @@ of its forms (`selection/fold.nim`: "arrayan" finds "El Arrayán", "ñuñoa" fin
 **`nch list --path`, and the `file` column is `path` (2026-11-05)**: `--path TEXT...` finds the text (case and accents ignored, as `--name`) in the file's name or in ANY path the
 file was seen at (`seen_file`; a copy has two); alternatives, commas; no `none`/`latest`/`previous` for it.  `-v` calls the last column `path`.
 
+**`nch list --invert` (2026-11-05)**: the activities that do NOT meet the criteria taken together (not (a and b and c)), including those where a value is not recorded (the SQL
+is `not coalesce((1 and ...), 0)`, so an unknown counts as no match).  `latest` and `previous` are found before inverting (`withoutLatest` clears `invert`); `--newest` and `--oldest`
+apply after; it needs a real criterion to invert (`hasFilter`: not the users, the limits or the display); counts as a criterion for `--show`.  A per-criterion `--not` was the
+alternative (kept out: "not this OR that" cannot be said with it, and "everything except X" is `--name X --invert`).
+

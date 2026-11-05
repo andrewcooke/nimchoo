@@ -294,3 +294,26 @@ suite "list: --path":
     check parseArgs(@["--path"], utcZone).problem.len > 0
     check parseArgs(@["--show", "--path", "x"], utcZone).problem.contains("takes no criteria")
 
+suite "list: --invert":
+  test "it is a criterion on its own, and needs something to invert":
+    check parseArgs(@["--sport", "cycling", "--invert"], utcZone).criteria.invert
+    check parseArgs(@["--invert"], utcZone).problem.contains("needs a criterion")
+    check parseArgs(@["--invert", "--newest", "2"], utcZone).problem.contains("needs a criterion")     # (limits are not criteria)
+    check parseArgs(@["--invert", "--users", "bob"], utcZone).problem.contains("needs a criterion")
+    check parseArgs(@["--show", "--invert"], utcZone).problem.len > 0
+    check parseArgs(@["--invert", "--gps"], utcZone).problem == ""
+    check parseArgs(@["--invert", "--distance", "40-"], utcZone).problem == ""
+    check parseArgs(@["--invert", "--name", "latest"], utcZone).problem == ""
+  test "the sql negates all of the criteria together, treating an unknown as no match":
+    let c = parseArgs(@["--sport", "cycling", "--name", "toyo", "--invert"], utcZone).criteria
+    let q = matchSql(@[UserId(1)], c, none((float, float)))
+    check q.contains(" and not coalesce((1 and (a.sport in ('cycling')) and (a.name glob ")
+    check q.endsWith("), 0)")
+    let plain = matchSql(@[UserId(1)], parseArgs(@["--sport", "cycling"], utcZone).criteria, none((float, float)))
+    check not plain.contains("coalesce")
+  test "the limits come after the inverting, and latest is found before it":
+    let c = parseArgs(@["--sport", "cycling", "--invert", "--newest", "2"], utcZone).criteria
+    check matchSql(@[UserId(1)], c, none((float, float))).endsWith(" order by a.start_t desc limit 2")
+    let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).criteria
+    check r.usesLatest and not r.withoutLatest.invert and not r.withoutLatest.usesLatest
+
