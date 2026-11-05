@@ -2360,22 +2360,27 @@ Store the facts and **work the names out whenever they are shown**, instead of r
 ### Steps (each a commit)
 
 1. `climbs/003-difficulty.sql`: `difficulty real` and `renamed integer not null default 0`; difficulty filled in when a sector is made and,
-   once, for the sectors already there (in code: SQLite may not have `pow`).
+   once, for the sectors already there (in code: SQLite may not have `pow`).  Sectors with nothing near them get the base name **"unnamed"**
+   (stored in `name`: "unnamed", "unnamed (2)"...).
 2. The pure function (`climbs/naming.nim` or a new file) with tests: groups, ties, case, a name set by hand that clashes with an automatic
    one, the group closing up after a rename, gaps.
 3. `nch climbs` and `nch climbs --sectors` show the names (an aligned left column; a very long name is cut); `--sectors` sorted by
    difficulty.
-4. The rename (see question B), refusing an empty or taken name, and the way back to the automatic name.
+4. **A `sector` command** (a new module `sector/` whose `command.nim` uses the climbs library files; the table stays with climbs), in the style
+   of `user`: the target is named after the command, never `--user` before it (shared by all users).
+   * `nch sector`: lists the catalogue (as `climbs --sectors` does);
+   * `nch sector --edit NAME --rename NEW`: sets the name (`renamed` = 1); NAME is looked up among the names as they are now (without regard
+     to case); NEW is trimmed, may not be empty or already shown by another climb;
+   * `nch sector --edit NAME --auto`: the way back to the automatic name (`renamed` = 0, `name_checked` = 0);
+   * logged (`saved`); room for `--remove` and `--add` (sectors the author defines) later.
 5. `empty --sectors` says how many hand-renamed climbs it would lose.
 6. Tests and docs.
 
-### Questions for the author
+### Settled by the author (2026-11-05)
 
-* **A.** Sectors with nothing near them: a base name "unnamed climb" stored in `name` (so "unnamed climb", "unnamed climb (2)"...)?
-* **B.** The rename as `nch climbs --rename NAME NEW`, or a `sector` command in the style of `user` (`nch sector --edit NAME --rename NEW`,
-  with room for `--remove` and for sectors the author defines)?  The proposal leans to `sector`.
-* Smaller, proposed unless the author says otherwise: numbers freed by renames may be reused; `--sectors` is sorted by difficulty; the
-  existing names of the 138 sectors stay as they are (they are the base names).
+* **A.** Nothing near a climb: the base name is "unnamed".  **B.** A `sector` command (`--edit NAME --rename NEW`).
+* Small defaults (unless the author says otherwise): numbers freed by renames may be reused; `--sectors` is sorted by difficulty; the names
+  of the 138 existing sectors stay as they are (they are the base names).
 
 ## Where to read the code (a guide, 2026-11-05)
 
