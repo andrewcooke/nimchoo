@@ -18,7 +18,7 @@ import ./importer/[test_extract, test_route, test_importer, test_command, test_b
 import ./selection/[test_fold, test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./cli/test_args
-import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_command, test_naming, test_display]
+import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_command, test_naming, test_display, test_duplicates]
 import ./sector/[test_params as sectorParams, test_command as sectorCommand]
 import ./landmark/[test_params as landmarkParams, test_landmarks, test_command as landmarkCommand]
 import ./download/test_fetch

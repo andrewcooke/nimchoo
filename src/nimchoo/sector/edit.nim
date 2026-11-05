@@ -46,6 +46,12 @@ proc setAuto*(st: Store, id: int64) {.raises: [StoreError].} =
   guard:
     st.db.exec(sql"update sector set name = null, manual = 0 where id = ?", id)
 
+proc setRetired*(st: Store, id: int64, retired: bool) {.raises: [StoreError].} =
+  ## Hide the climb from the lists, or show it again.  Nothing else changes: it keeps its efforts, its place in the
+  ## numbering of its name, and takes the efforts of new rides.
+  guard:
+    st.db.exec(sql"update sector set retired = ? where id = ?", (if retired: 1 else: 0), id)
+
 func catalogueLines*(rows: seq[SectorRow]): seq[string] =
   ## The climbs, one to a line, biggest gain first; "manual" marks the names given by a person.
   var cells = @[@["climb", "length", "gain", "gradient", "cat", "efforts", ""]]

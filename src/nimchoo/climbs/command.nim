@@ -77,6 +77,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         stdout.say "no climbs found yet\n"
       else:
         for l in sectorLines(rows): stdout.say l & "\n"
+        let hidden = countRetired(st)
+        if hidden > 0:
+          stdout.say $hidden & (if hidden == 1: " climb is retired" else: " climbs are retired") &
+            " (hidden; `nch sector --retired` shows them): the numbers in the names include them\n"
       return exitOk
     if selectedActivities(st) == 0:
       stdout.say "nothing is selected: `nch list ... --save` chooses activities, `nch climbs --sectors` lists every climb\n"

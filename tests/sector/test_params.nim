@@ -28,3 +28,18 @@ suite "sector: the command line":
   test "looking numbered":
     check looksNumbered("A (1/2)") and looksNumbered("A B (10/12)")
     check not looksNumbered("A (1)") and not looksNumbered("A(1/2)") and not looksNumbered("(1/2)") and not looksNumbered("A (/2)")
+
+suite "sector: retiring":
+  test "retire and unretire go with --edit; --retired and --duplicates are lists":
+    check parseArgs(@["--edit", "X (2/3)", "--retire"]).retire
+    check parseArgs(@["--edit", "X (2/3)", "--unretire"]).unretire
+    check parseArgs(@["--retired"]).retired and not parseArgs(@["--retired"]).list
+    check parseArgs(@["--duplicates"]).duplicates and not parseArgs(@["--duplicates"]).list
+    check parseArgs(@["--retire"]).problem.contains("go with --edit")
+    check parseArgs(@["--unretire"]).problem.contains("go with --edit")
+    check parseArgs(@["--edit", "X", "--retire", "--unretire"]).problem.contains("cannot be used together")
+    check parseArgs(@["--edit", "X", "--retire", "--rename", "Y"]).problem.contains("cannot be used together")
+    check parseArgs(@["--edit", "X"]).problem.contains("--retire")
+    check parseArgs(@["--retired", "--duplicates"]).problem.contains("cannot be used together")
+    check parseArgs(@["--edit", "X", "--retire", "--retired"]).problem.contains("do not go with --edit")
+

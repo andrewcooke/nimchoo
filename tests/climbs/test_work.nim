@@ -75,6 +75,36 @@ suite "climbs: working them out":
     check w.sectors == 1 and w.efforts == 2                   # up, down (no climb), up again
     check s.db.getValue(sql"select count(*) from effort where elapsed_s between 580 and 600") == "2"
 
+  test "a ride that stops short of a stored climb's finish makes a climb of its own, and the earlier ride is matched to it":
+    let s = fresh("short")
+    defer: s.close()
+    addRide(s, "default", "long", 1_000_000, 5.0, eastbound(5.0))                          # up the whole 3 km
+    addRide(s, "default", "short", 2_000_000, 5.0, eastbound(5.0, to0 = 3500.0))           # stops 500 m before the top
+    let w = ensureClimbs(s)
+    check w.sectors == 2
+    check s.count("sector") == 2
+    # the long ride earned an effort on both (it crosses the gates of the shorter one), the short ride on its own only
+    check s.db.getValue(sql"select count(*) from effort where sector_id = 1") == "1"
+    check s.db.getValue(sql"select count(*) from effort where sector_id = 2") == "2"
+    check s.db.getValue(sql"select length_m between 2800 and 3200 from sector where id = 1") == "1"      # the whole climb
+    check s.db.getValue(sql"select length_m between 2200 and 2700 from sector where id = 2") == "1"      # up to where the short ride stopped
+  test "the same short ride again is that climb again, not a third":
+    let s = fresh("shortagain")
+    defer: s.close()
+    addRide(s, "default", "long", 1_000_000, 5.0, eastbound(5.0))
+    addRide(s, "default", "short", 2_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
+    addRide(s, "default", "short2", 3_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
+    discard ensureClimbs(s)
+    check s.count("sector") == 2
+    check s.db.getValue(sql"select count(*) from effort where sector_id = 2") == "3"
+  test "a longer ride after a shorter one crosses its gates and makes no sector (the shorter climb is the common part)":
+    let s = fresh("longafter")
+    defer: s.close()
+    addRide(s, "default", "short", 1_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
+    addRide(s, "default", "long", 2_000_000, 5.0, eastbound(5.0))
+    let w = ensureClimbs(s)
+    check w.sectors == 1 and s.count("sector") == 1
+    check s.db.getValue(sql"select count(*) from effort where sector_id = 1") == "2"
   test "rides elsewhere have nothing to do with it":
     let s = fresh("elsewhere")
     defer: s.close()

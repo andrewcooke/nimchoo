@@ -38,6 +38,7 @@ type
     by*: string                    ## whose it was
     yours*: Option[float]          ## the best of the user asking
     manual*: bool                  ## the name was given by a person
+    retired*: bool                 ## hidden from the lists
 
 # --- the rows
 
@@ -72,7 +73,7 @@ proc selectedEfforts*(st: Store): seq[EffortRow] {.raises: [StoreError].} =
           from effort e
           join sector s on s.id = e.sector_id
           join activity a on a.id = e.activity_id
-         where a.id in (select activity_id from selection where user_id = ?)
+         where a.id in (select activity_id from selection where user_id = ?) and s.retired = 0
          order by a.start_t, a.id, e.start_t""", st.userId):
       try:
         result.add EffortRow(activity: parseBiggestInt(r[0]), startT: parseBiggestInt(r[1]), sport: r[2],
@@ -84,8 +85,15 @@ proc selectedEfforts*(st: Store): seq[EffortRow] {.raises: [StoreError].} =
       except ValueError:
         raiseStore("a bad number in the climbs")
 
-proc allSectors*(st: Store): seq[SectorRow] {.raises: [StoreError].} =
-  ## Every sector, the biggest climb first, with the best time and the user's own.
+proc countRetired*(st: Store): int {.raises: [StoreError].} =
+  ## How many climbs are retired (hidden).
+  guard:
+    try: result = parseInt(st.db.getValue(sql"select count(*) from sector where retired = 1"))
+    except ValueError: raiseStore("a bad count")
+
+proc allSectors*(st: Store, retired = false): seq[SectorRow] {.raises: [StoreError].} =
+  ## The sectors that are not retired (or, with `retired`, only those that are), the biggest climb first, with the best
+  ## time and the user's own.  The names are numbered among all of them, retired ones too.
   let names = shownNames(st)
   guard:
     for r in st.db.fastRows(sql"""
@@ -97,14 +105,15 @@ proc allSectors*(st: Store): seq[SectorRow] {.raises: [StoreError].} =
                           where e.sector_id = s.id order by e.elapsed_s limit 1), ''),
                (select min(e.elapsed_s) from effort e join activity a on a.id = e.activity_id
                   join file f on f.id = a.file_id where e.sector_id = s.id and f.user_id = ?),
-               s.manual
-          from sector s order by s.gain_m desc, s.id""", st.userId):
+               s.manual, s.retired
+          from sector s where s.retired = ? order by s.gain_m desc, s.id""", st.userId, (if retired: 1 else: 0)):
       try:
         result.add SectorRow(id: parseBiggestInt(r[0]), lengthM: num(r[1]), gainM: num(r[2]),
                              gradient: num(r[3]), category: r[4], name: names.getOrDefault(parseBiggestInt(r[0]), unnamed),
                              efforts: parseInt(r[5]),
                              best: (if r[6].len > 0: some(num(r[6])) else: none(float)), by: r[7],
-                             yours: (if r[8].len > 0: some(num(r[8])) else: none(float)), manual: r[9] == "1")
+                             yours: (if r[8].len > 0: some(num(r[8])) else: none(float)), manual: r[9] == "1",
+                             retired: r[10] == "1")
       except ValueError:
         raiseStore("a bad number in the climbs")
 

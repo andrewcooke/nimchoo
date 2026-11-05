@@ -13,6 +13,9 @@ type Params* = object
   name*: string              ## the climb, as `nch sector` shows it ("Morro La Cabra (1/3)")
   rename*: string            ## the new name ("": no)
   auto*: bool                ## go back to the name the program makes
+  retire*, unretire*: bool   ## `--retire` / `--unretire`: hide the climb from the lists / show it again
+  retired*: bool             ## `--retired`: list the retired climbs
+  duplicates*: bool          ## `--duplicates`: list the climbs that largely overlap
   help*: bool
   problem*: string
 
@@ -43,7 +46,8 @@ func nameProblem*(s: string): string =
   ""
 
 proc parseArgs*(args: seq[string]): Params =
-  ## `nch sector` (list), `--edit NAME --rename NEW`, `--edit NAME --auto`.
+  ## `nch sector` (list), `--retired`, `--duplicates`, `--edit NAME --rename NEW`, `--edit NAME --auto`,
+  ## `--edit NAME --retire`, `--edit NAME --unretire`.
   let editOption = custom(Params, ["--edit"], true):
     p.edit = true
     p.name = value
@@ -57,20 +61,25 @@ proc parseArgs*(args: seq[string]): Params =
     opts: @[
       flag(Params, ["-h", "--help"], help),
       editOption, renameOption,
-      flag(Params, ["--auto"], auto)],
+      flag(Params, ["--auto"], auto),
+      flag(Params, ["--retire"], retire), flag(Params, ["--unretire"], unretire),
+      flag(Params, ["--retired"], retired), flag(Params, ["--duplicates"], duplicates)],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to change a climb: --edit " & arg & " --rename NEW, or --edit " & arg & " --auto)")
+      " (to change a climb: --edit " & arg & " --rename NEW, --auto, --retire or --unretire)")
   template fail(msg: string) =
     result.problem = msg
     return
   let why = parseOptions(args, spec, result)
   if why.len > 0: fail(why)
   if result.help: return
-  let changes = (if result.rename.len > 0: 1 else: 0) + (if result.auto: 1 else: 0)
+  let changes = (if result.rename.len > 0: 1 else: 0) + (if result.auto: 1 else: 0) +
+                (if result.retire: 1 else: 0) + (if result.unretire: 1 else: 0)
   if result.edit:
     if result.name.strip.len == 0: fail("--edit needs the name of a climb, as `nch sector` shows it")
-    if changes == 0: fail("--edit needs something to change: --rename NEW or --auto")
-    if changes > 1: fail("--rename and --auto cannot be used together")
+    if changes == 0: fail("--edit needs something to change: --rename NEW, --auto, --retire or --unretire")
+    if changes > 1: fail("--rename, --auto, --retire and --unretire cannot be used together")
+    if result.retired or result.duplicates: fail("--retired and --duplicates list climbs: they do not go with --edit")
   elif changes > 0:
-    fail("--rename and --auto go with --edit NAME")
-  result.list = not result.edit
+    fail("--rename, --auto, --retire and --unretire go with --edit NAME")
+  if result.retired and result.duplicates: fail("--retired and --duplicates cannot be used together")
+  result.list = not result.edit and not result.retired and not result.duplicates

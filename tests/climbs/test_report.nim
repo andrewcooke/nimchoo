@@ -99,6 +99,9 @@ suite "climbs report: from the tables":
     check rows[1].startT == 2_000_000 and rows[1].rank == 3 and rows[1].total == 3
     check rows[0].best < rows[0].elapsed
     check abs(rows[0].gainM - 118.0) < 3.0 and rows[0].category == "4"
+    # a retired climb is not listed
+    s.db.exec(sql"update sector set retired = 1")
+    check selectedEfforts(s).len == 0
   test "the sectors: best, whose, and the user's own":
     let s = fresh("sectors")
     defer: s.close()

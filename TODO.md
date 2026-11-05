@@ -2682,3 +2682,19 @@ rides 12.7 s), so the activities go in chunks of 25 (still one transaction) and,
 word in bold, the second the counts in RED joined by grey dots (`deleting 340 / 1,381 activities` / `activities 340 · files 120`); nothing is drawn if it takes less than 150 ms; the last frame
 stays on the screen, then the "done:" line.  A file is forgotten as soon as its last selected activity goes.  Checked under a pseudo-terminal: bold, red and grey codes, no green.
 
+**Climbs: a ride that stops short makes a climb of its own; retiring; the duplicates report (2026-11-05)**.  The author's Farellones sector had ONE effort: climbs are worked out in
+start order, the oldest ride (2017-03-03) went furthest and defined the sector (16.7 km, +1,211 m), and every later ride found a climb that overlapped it (14.0 to 15.1 km) and stopped
+1.5 to 2.5 km of road short of its finish gate, so it earned no effort and was thrown away as "a repeat".  choochoo does exactly the same (`DISTINCT_CLIMB = 0.5`, the later climb is deleted):
+the limitation is inherited, not a porting error.  Tried on the author's 1,108 rides (scratch copies): shortest-first order gains little (+69 efforts); the rule below finds 61% more
+efforts.  **Rule (`algorithmVersion` 2)**: a climb found on a ride is "the same again" only if the ride EARNED AN EFFORT on that stored sector (a sector made from this ride counts, so laps
+are not new climbs); otherwise it is a sector of its own, made at once (the author does not want to wait for votes: anyone riding to Farellones wants to see that climb) and matched to the
+earlier rides.  On the real rides: 138 sectors / 2,661 efforts become 179 / 4,295 (rebuild: `nch empty --sectors -f`, then `nch climbs`, 32 s).  Known: a longer ride after a shorter one
+crosses the short climb's gates and makes no sector (the common part is the sector; pinned by a test).
+**Never delete a climb**, but **retire**: `sector.retired` (`climbs/002-retired.sql`); `nch sector --edit NAME --retire` / `--unretire` (one at a time), `--retired` lists them.  A retired climb
+is hidden from `nch climbs` and `nch sector` but keeps its efforts and its place in the (n/m) numbering (so the gap shows: the author's wish), still takes the efforts of new rides and still counts
+as stored (or the next short ride would make it again).  The lists say how many are hidden.  `nch sector --duplicates` groups the climbs that largely overlap (`isRepeat`: more than half of each
+within 25 m of the other; the group can be a chain), the most ridden first, and offers `hide:` only for a climb that directly overlaps a MORE RIDDEN one (the author's 16.7 km Farellones
+climb, one effort, is offered: the report decides nothing).  On the real rides: 44 suggestions among 179 climbs, ten of them in the Farellones road's chain (16.7 km down to 2.8 km).
+**Ideas kept for later**: candidate climbs that need votes before they are real (rejected for now: delays the first sight of a climb), overlap-first discovery of segments (the bigger project:
+stretches ridden by many rides; also for non-climb segments), `--retire` for all the suggested at once, near-miss tools (how far along a sector each ride got) and drawing sectors on the map.
+

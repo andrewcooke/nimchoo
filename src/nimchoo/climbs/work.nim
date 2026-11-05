@@ -26,7 +26,7 @@ import ./[detect, match, profile]
 {.push raises: [].}
 
 const
-  algorithmVersion* = 1
+  algorithmVersion* = 2        ## 2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
   margin = 0.001                 ## degrees (about 100 m) added to a box that is looked for
   ridePointLimit = 3_000_000     ## about 70 MB
 
@@ -168,9 +168,12 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
     rides.paths[int64(id)] = ride
     rides.points += ride.len
     # 1. the sectors that exist
+    var matched: seq[int64]               # the sectors this ride earned an effort on
     for sector in st.sectorsNear(cache, rideBox):
       timed "climbs: match a ride to a sector":
-        result.efforts += insertEffort.addEfforts(sector, id, overPaths(cache.must(sector), ride))
+        let n = insertEffort.addEfforts(sector, id, overPaths(cache.must(sector), ride))
+        result.efforts += n
+        if n > 0: matched.add sector
     # 2. its climbs
     var foundAt = 0'i64
     guard:
@@ -185,7 +188,9 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
       let route = climbPath(prof, climb)
       var again = false
       for sector in st.sectorsNear(cache, boxOf(route)):
-        if isRepeat(cache.must(sector), route):
+        # the same climb again only if the ride went over that sector: a climb that overlaps a stored one but stops
+        # short of its finish (or starts after its start) earned no effort on it, and is a climb of its own
+        if sector in matched and isRepeat(cache.must(sector), route):
           again = true
           break
       if again: continue
@@ -200,7 +205,9 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
       cache[sector] = route
       inc result.sectors
       # 3. the new sector against the ride it came from, and the earlier rides near it
-      result.efforts += insertEffort.addEfforts(sector, id, overPaths(route, ride))
+      let own = insertEffort.addEfforts(sector, id, overPaths(route, ride))
+      result.efforts += own
+      if own > 0: matched.add sector                # (so that a later lap over the same climb is this sector again)
       for other in st.ridesNear(boxOf(route)):
         if other != id:
           let otherRide = st.rideOf(rides, other)

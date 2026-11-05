@@ -79,3 +79,25 @@ suite "nch sector":
     let db = fresh("survive", [("", 100.0)])
     check sector(db, "--edit", "unnamed", "--rename", "Mine") == exitOk
     check q(db, "select count(*) from sector where name is null") == "0"        # (nothing left for the program)
+
+suite "nch sector: retiring":
+  test "a retired climb is hidden from the list but keeps its place in the numbering; unretire shows it again":
+    let db = fresh("retire", [("Cuesta", 100.0), ("Cuesta", 200.0), ("Cuesta", 300.0), ("Farellones", 400.0)])
+    check shown(db) == @["Farellones", "Cuesta (1/3)", "Cuesta (2/3)", "Cuesta (3/3)"]
+    check sector(db, "--edit", "Cuesta (2/3)", "--retire") == exitOk
+    check shown(db) == @["Farellones", "Cuesta (1/3)", "Cuesta (3/3)"]              # (the gap shows: no (2/3))
+    check q(db, "select retired from sector where id = 2") == "1"
+    check q(db, "select count(*) from sector") == "4"                                # nothing is deleted
+    let s = openStore(db, allFragments)
+    defer: s.close()
+    check allSectors(s, retired = true)[0].name == "Cuesta (2/3)"
+    check allSectors(s, retired = true).len == 1 and countRetired(s) == 1
+    check findShown(s, "Cuesta (2/3)") == 2                                          # (it can still be found by its name)
+    check sector(db, "--retired") == exitOk
+    check sector(db, "--edit", "cuesta (2/3)", "--unretire") == exitOk
+    check shown(db) == @["Farellones", "Cuesta (1/3)", "Cuesta (2/3)", "Cuesta (3/3)"]
+  test "the duplicates report runs; an unknown climb is a failure":
+    let db = fresh("dupscmd", [("Cuesta", 100.0), ("Farellones", 400.0)])
+    check sector(db, "--duplicates") == exitOk
+    check sector(db, "--edit", "Nowhere", "--retire") == exitFailure
+
