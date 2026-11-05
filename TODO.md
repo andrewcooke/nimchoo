@@ -2718,3 +2718,12 @@ comparison of rides up a climb: plot the efforts against distance along the clim
 name inside (where other kinds, e.g. segments from overlapping rides, will be added later with their own command); fold `nch sector`'s modes into `nch climbs` (`--all` for `--sectors`, `--edit NAME --rename/--auto/--retire/--unretire`,
 `--retired`, `--duplicates`, `--efforts NAME`) and drop `nch sector`.  But the author thinks the confusion is DEEPER ("we need to look at fundamentals and maybe change very basic ideas"): to be discussed before any rename.
 
+**THE SHAPE OF THE COMMANDS (the author's theory, agreed 2026-11-05; the guide is in AGENTS.md)**.  Plural commands for the types in the database, a common grammar, the selection as the default for activities, `--all`
+for everything, singular for what is outside, `cache` and `db` in place of `empty`.  **Steps** (each a commit, tests and help updated, nothing kept for compatibility):
+1. `climbs` takes over `sector` (`--all` for `--sectors`; `--edit NAME` with `--rename/--auto/--retire/--unretire`; `--retired`; `--duplicates`); `nch sector` goes.  [in progress]
+2. `list` becomes `activities` (`--select` for `--save`; no arguments = the selection, `--all` = all; `--show` goes), `delete` becomes `activities --delete`, `import` becomes `activities --import`; `--users` goes.
+3. `user`, `model`, `landmark` become `users`, `models`, `landmarks`; `--remove` becomes `--delete`.
+4. `cache` and `db` replace `empty`: `cache` alone lists the kinds and sizes (downloads, system, geojson, csv, html ...), `cache --delete KIND`; `db` alone says where and how big, `db --delete`;
+   `empty --user NAME` is `activities --all --delete` (that user), `empty --sectors` is `climbs --delete --all` (only with `--all`: a reset); `empty` goes.
+Later: `--efforts NAME` on `climbs` (the rides on one climb), `heatmap --climbs`, the elevation profile, the lead/lag comparison, the near-miss report, `exclude`.  "spatial" in the old plan meant the height-correction data (not yet).
+

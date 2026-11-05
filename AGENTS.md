@@ -187,3 +187,30 @@ own format.  the number formats every one of them needs (`km`, the dash for not 
 * in a table the parts are cells lined up in columns (padded, numbers to the right), headed `start`, `sport`,
   `distance`, `active`, `place / name` (and `path`); the one-line form is for headings and sentences.
 * not recorded is `-` (dim); an activity with no positions says `no GPS` where the place and name would be (-v only).
+
+## the shape of the commands (decided 2026-11-05)
+
+a theory of the commands, to keep the interface consistent.  the work of getting there is tracked in TODO.md.
+
+* **a type that lives in the database has a plural command that manages the collection**: `activities`, `climbs`,
+  `users`, `models`, `landmarks`.  the plural is a reminder that it works on a collection of instances.  the grammar
+  is the same for all: `TYPE [which ones] [action]`, with the actions `--add NAME`, `--edit NAME ...`, `--delete NAME`
+  (and `--import PATH...` for activities, `--retire` / `--unretire` for climbs).  every `--delete` is confirmed with
+  `-f` (with the countdown and the "would delete ..." message).  the parameters both say what to do and pick the
+  instances it is done to.
+* **which ones**: a named type takes a NAME (`users --edit NAME`).  activities, which are what everything is about and
+  are too many to name, take criteria (`--sport`, `--climb`, `--from` ...) or the selection.
+* **the selection**: the activities that commands which work on activities use by default.  `activities` with no
+  arguments shows it; with criteria (or `--all`) it searches all the activities, and `--select` keeps what is listed
+  as the selection.  `climbs` with no arguments shows the climbs of the selected activities, and `--all` shows every
+  climb.  **`--all` means everything, not just the selection**, wherever the default is the selection.
+  a selection belongs to one user (there is no `--users`).
+* **commands about things outside the database are singular**: `heatmap`, `fit`, `log`, `ff` (which is both, and can
+  wait).  `cache` (the files outside: downloads, generated files; with no arguments it says what is there and how big,
+  `cache --delete KIND` deletes) and `db` (the database file: no arguments says where and how big, `db --delete`
+  deletes it) are of this kind too.
+* so there is no `list`, `import`, `delete`, `empty`, `sector`, `user`, `model` or `landmark` command: they are
+  `activities` (with `--select`, `--import`, `--delete`), `climbs`, `users`, `models`, `landmarks`, `cache` and `db`.
+  `empty --user NAME` is `activities --all --delete` for that user; `user --remove` is `users --delete NAME`;
+  `empty --sectors` is `climbs --delete --all` (a reset: climbs are retired, never deleted one at a time).
+* nothing is kept for backward compatibility: there is one user.
