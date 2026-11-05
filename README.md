@@ -1,22 +1,22 @@
 
 # nimchoo
 
-* a small, fast, local, cli toolkit for the fits files you can
+* is a small, fast, local, **cli toolkit for fits files** like you can
   download from sports watches and bike computers.
 
-* stores fits data in a local database (no data shared; nothing in the
-  cloud; you can open it up with standard tools and see what is
+* it stores fits data in a **local database** (no data shared; nothing
+  in the cloud; you can open it up with standard tools and see what is
   inside).
 
-* analysis of routes, performance, records, etc.
+* **analysis** of routes, performance, records, etc.
 
-* display of results at the terminal and in a web browser.
+* **display** of results at the terminal and in a web browser.
 
-* automatic detection of climbs and segments in activities.
+* automatic **detection of climbs and segments** in activities.
 
-* automatic naming of activities, climbs.
+* **automatic naming** of activities, climbs.
 
-* heart rate based fitness / fatigue models, with user-adjustable
+* heart rate based **fitness / fatigue** models, with user-adjustable
   parameters.
 
 * open source, hackable, extensible.
@@ -29,26 +29,26 @@
 nimchoo is a rewrite of my choochoo project, which was an
 over-ambitious kinda-strava.  unlike choochoo, nimchoo:
 
-* stays focussed on the command line (no sneaking off trying to be
+* stays focussed on the **command line** (no sneaking off trying to be
   strava, or repairing fits files, or...)
 
-* uses an embedded database (no more worrying about postgresql)
+* uses an **embedded database** (no more worrying about postgresql)
 
-* is written in a single, fast language (no more python or pandas;
+* is written in a single, **fast** language (no more python or pandas;
   lightning fast fit import)
 
-* should be easy to install (like, we might even have executables)
+* should be **easy to install** (like, we might even have executables)
 
 * is unlikely to care about power meters
 
 but it does keep:
 
-* some smart ideas about fit parsing, auto-detection of climbs and
+* some **smart ideas** about fit parsing, auto-detection of climbs and
   segments
 
-* GIS in the database
+* **gis** in the database (inbuilt support for gegraphic operations).
 
-* the ability to display complex data via web technologies
+* the ability to **display complex data in your web browser**.
 
 those decisions (particularly command line and no power) make it
 pretty boutique.  that's ok.  i am also trying hard to make it extensible. 
