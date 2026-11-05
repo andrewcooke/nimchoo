@@ -2382,6 +2382,22 @@ Store the facts and **work the names out whenever they are shown**, instead of r
 * Small defaults (unless the author says otherwise): numbers freed by renames may be reused; `--sectors` is sorted by difficulty; the names
   of the 138 existing sectors stay as they are (they are the base names).
 
+### Latest comments (2026-11-05, end of day) and what to settle tomorrow
+
+* **Difficulty is written in terms of phi**: one function `difficulty(gain, length) = gain × length^(1 - phi)` using the same `phi` as the detector
+  (one definition, in `detect.nim`; never a literal 0.3), so editing the parameter changes it.
+* The flag is called **`immutable`** (not `renamed`): a name the system never changes.  A rename sets it; locking a name without changing it
+  (`nch sector --edit NAME --lock`, `--unlock`) is possible and cheap.  The names of climbs that are not immutable may change when new sectors
+  are found (the numbers shift).
+* **Stored or computed numbers: to discuss.**  The author prefers the number **stored** (perhaps as a separate integer column, with `name` the
+  base name), suspecting there is an advantage the assistant's preference for computing misses.  For: the database can enforce uniqueness
+  (`unique (name collate nocase, number)`), the full name is visible to SQL, exports and other tools, and a name stays what it was between runs
+  until something changes it on purpose.  Against: the numbers must be rewritten when a sibling is found, renamed, locked or removed (a rewrite
+  pass in the same transaction as the change), and values can only go stale if that pass is skipped.  Either way the visible behaviour is the same.
+  The same question for **difficulty**: stored (sortable in SQL; recomputed when the method version changes) or computed from gain and length
+  (cannot go stale).  The author prefers stored.
+* Everything else in the plan above stands (names not ids, the `sector` command, "unnamed", the steps).  Nothing is built yet.
+
 ## Where to read the code (a guide, 2026-11-05)
 
 * **Climbs** (`src/nimchoo/climbs/`): `profile.nim` (positions to altitude every 10 m, smoothed) -> `detect.nim` (choochoo's detector; the
