@@ -129,13 +129,12 @@ func rowColumns(verbose: bool, userId: UserId): string =
     "a.id in (select activity_id from selection where user_id = " & $userId & ") as chosen, " &
     (if verbose:
        "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, " &
-       # where it started: the nearest place, and how far the start is from it
-       "coalesce((select p.name || ', ' || p.country from place p where p.id = a.place_id), '') as pname, " &
-       "coalesce((select ST_Distance(a.start, p.geom, 1) from place p where p.id = a.place_id), -1) as pdist, " &
+       # where it started and what it is called (text made when it was imported: see names/activity.nim)
+       "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " &
        "coalesce(ST_Y(a.start), '') as slat, coalesce(ST_X(a.start), '') as slon"
-     else: "f.name as path, '' as pname, -1 as pdist, '' as slat, '' as slon")
+     else: "f.name as path, '' as pname, '' as aname, '' as slat, '' as slon")
 
-const rowFields = "start_t, sport, sub, dist, active, file, user, chosen, path, pname, pdist, slat, slon"
+const rowFields = "start_t, sport, sub, dist, active, file, user, chosen, path, pname, aname, slat, slon"
   ## the columns of a row, in the order `readRows` reads them
 
 proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
@@ -149,7 +148,7 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
                            distanceM: if dist >= 0: some(dist) else: none(float),
                            activeS: if active >= 0: some(active) else: none(float),
                            file: r[5], user: r[6], selected: r[7] == "1", path: r[8],
-                           place: placeText(r[9], parseFloat(r[10])),
+                           place: r[9], name: r[10],
                            position: positionText(r[11], r[12]))
       except ValueError:
         raiseStore("bad number from the database")

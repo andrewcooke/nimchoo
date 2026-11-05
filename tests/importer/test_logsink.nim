@@ -75,7 +75,7 @@ suite "import log: the command":
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     writeFile(d / "src" / "bad.fit", "junk")
     let path = d / "nch.log"
-    let g = Globals(dbPath: d / "x.db", fragments: allFragments, log: openLog(path))
+    let g = Globals(dbPath: d / "x.db", fragments: allFragments, log: openLog(path), offline: true)
     check importCommand.run(g, @["-q", d / "src"]) == exitFailure
     g.log.close()
     let text = readFile(path)
@@ -88,7 +88,7 @@ suite "import log: the command":
     let d = fresh("again")
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let path = d / "nch.log"
-    var g = Globals(dbPath: d / "x.db", fragments: allFragments)
+    var g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
     discard importCommand.run(g, @["-q", d / "src"])
     g.log = openLog(path)
     check importCommand.run(g, @["-q", d / "src"]) == exitOk
@@ -100,6 +100,6 @@ suite "import log: the command":
   test "no log, no file":
     let d = fresh("nolog")
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
-    let g = Globals(dbPath: d / "x.db", fragments: allFragments)
+    let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
     check importCommand.run(g, @["-q", d / "src"]) == exitOk
     check not fileExists(d / "nch.log")

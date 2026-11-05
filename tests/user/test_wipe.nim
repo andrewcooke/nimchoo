@@ -53,7 +53,7 @@ suite "wipe: counting":
     check countActivities(d / "x.db", "nobody") == some 0
     # an older layout, which openStore refuses
     let c = db_sqlite.open(d / "x.db", "", "", "")
-    c.exec(sql"update fragment set name = 'activity/001-tables.sql' where name like 'importer/%'")
+    c.exec(sql"update fragment set name = 'activity/001-tables.sql' where name = 'importer/001-schema.sql'")
     c.close()
     expect StoreError:
       openStore(d / "x.db", allFragments).close()

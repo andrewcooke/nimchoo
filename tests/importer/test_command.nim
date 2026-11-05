@@ -35,7 +35,7 @@ proc fresh(name: string): string =
 proc open(path: string): Store = openStore(path, allFragments)
 
 func globals(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments)
+  Globals(dbPath: db, user: user, fragments: allFragments, offline: true)
 
 suite "nch import: finding files":
   test "directories are searched recursively, for .fit and .FIT only":

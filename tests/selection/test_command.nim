@@ -547,19 +547,19 @@ suite "list: what is shown":
     check r.lines.texts[0] == "near 38.7300,-9.1300, within 10km"
     check r.lines.texts[^1].startsWith("done: 2 of 3 activities")
 
-  test "-v says where it started: the stored place, and how far if it is not close":
+  test "-v says where it started and what it is called: the stored text":
     let db = world("verbose-place")
     let st = openStore(db, allFragments)
-    st.db.exec(sql"""update activity set place_id = (select id from place where name = 'Lisbon')
-      where file_id in (select id from file where name in ('lisbon1', 'paris'))""")
+    st.db.exec(sql"""update activity set start_place = 'Lisbon', name = 'Sintra and back'
+      where file_id in (select id from file where name = 'lisbon1')""")
     st.close()
     let rows = shown(db, "-v").lines.texts
-    check rows[0].contains("place")
-    check rows[1].contains("Lisbon, PT") and not rows[1].contains("Lisbon, PT (")     # lisbon1: 2 km away
-    check rows[2].contains("Lisbon, PT (") and rows[2].contains("km)")                 # paris: a long way
-    check not shown(db).lines.texts[0].contains("place")                               # (only with -v)
+    check rows[0].contains("place") and rows[0].contains("name")
+    check rows[1].contains("Lisbon") and rows[1].contains("Sintra and back")
+    check not rows[2].contains("Lisbon") and not rows[2].contains("Sintra")            # paris: nothing stored
+    check not shown(db).lines.texts[0].contains("name")                                # (only with -v)
 
-  test "a start with no place stored: its position, and a blank place; no start: no GPS and no position":
+  test "a start with no place stored: its position, and a blank start; no start: no GPS and no position":
     let db = world("verbose-noplace")
     let st = openStore(db, allFragments)
     st.db.exec(sql"update activity set start = null where file_id in (select id from file where name = 'paris')")

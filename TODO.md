@@ -2620,3 +2620,15 @@ list, `landmarkAt`; `suggest.nim`: `searchByName` and `featuresAround` on the `f
 the command avoids `places/`, which is to go.  Activity naming (tier 1 at 0.7 km and the shapes) is next and will use `landmarkAt` the turning point the same way.
 On the author's database (a copy): `--near -70.364,-33.344` lists "Estero de la Yerba Loca" first; as a landmark it names 3 climbs whose tops are within 1 km.
 
+**Activities are named (2026-11-05)**: `names/activity.nim` (rules, pure pieces tested apart; `nameActivity(names, lons, lats)` -> start place and name),
+`importer/002-names.sql` (`activity.start_place`, `activity.name`: null = not named yet, "" = nothing to say / `--offline`), `importer/naming.nim`
+(`ensureActivityNames`: every activity with a null name, in start order) run at the END of every `nch import` (so the names are decided in the run that imports;
+a DownloadError says why and the activities are named by the next import).  Forms: "<dest> and back", "to <dest>", "loop via <feature>", "around <feature>",
+"at <start>" for a local ride; the start place is the nearest populated place within 5 km, "near ..." to 20 km.  Landmarks first, then anything within 700 m of the
+turning point, then within half the distance out (at least 1.5 km), kinds in order (town, section, park, lake, range, farm/bridge).  `nch list -v` shows `place`
+(the start) and `name`.  On the author's real database (a copy): 1,650 activities, 1,115 with positions; the rest ("" start and name) have none; "Providencia" is the
+start of 1,051; "Corral Quemado and back" 72, "Farellones and back" 42, "El Toyo and back" 35; 21 s the first time (Argentina and Britain fetched).
+**Mistake caught**: the import command tests built `Globals` without `offline`, so the new naming step fetched `US.zip` (71 MB) into the real cache; removed; every
+Globals in the tests now says `offline: true`.  **Left**: `places/`, `activity.place_id` and the importer's call to `placeAt` are unused by the display now; remove them
+(and the country fallback in `countryAt`) next.
+

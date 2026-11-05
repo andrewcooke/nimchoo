@@ -23,7 +23,8 @@ type
     distanceM*, activeS*: Option[float]
     file*, user*: string          ## the file's name; who it belongs to
     path*: string                 ## where the file was imported from (its name if not known)
-    place*: string                ## the nearest place, as `placeText` ("" if it has no start)
+    place*: string                ## where it started, as text ("" if not known)
+    name*: string                 ## what it is called ("" if nothing)
     position*: string             ## its start as `positionText` (no GPS if it has none)
     selected*: bool               ## it is in the selection (of the current user)
 
@@ -34,12 +35,6 @@ func clockOf(d: DateTime): string =
   d.hour.intToStr(2) & ":" & d.minute.intToStr(2)
 
 const noGps* = "no GPS"                ## said of an activity with no positions
-
-func placeText*(name: string, distanceM: float): string =
-  ## "Santiago, CL" (the name as the places list has it, with the country); if the nearest
-  ## place is more than 10 km away, how far: "Coyhaique, CL (180km)".  "" without a name.
-  if name.len == 0: return ""
-  if distanceM > 10_000: name & " (" & $int(round(distanceM / 1000.0)) & "km)" else: name
 
 func positionText*(lat, lon: string): string =
   ## The start as "-33.4362,-70.6090": latitude, longitude, four decimals (about 10 metres), as
@@ -102,7 +97,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
   ## The header and a line for each row, columns aligned (distance and active
   ## right-aligned).  A `user` column after `start` if `showUser`; if `verbose`, a `file`
   ## columns at the end: `position` (the start as latitude,longitude; "no GPS" if there is none),
-  ## `place` (the nearest town or city; blank without a start) and `file` (the path the file was
+  ## `place` (the place it started, blank if not known), `name` (what it is called) and `file` (the path the file was
   ## imported from).  No lines at all if
   ## there are no rows.
   ##
@@ -121,6 +116,8 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
     for i, r in rows: cells[i].add r.position
     header.add "place"
     for i, r in rows: cells[i].add r.place
+    header.add "name"
+    for i, r in rows: cells[i].add r.name
     header.add "file"
     for i, r in rows: cells[i].add r.path
   let first = if showUser: 4 else: 3                  # the first number column

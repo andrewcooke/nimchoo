@@ -197,7 +197,7 @@ suite "import: remembered failures":
   test "known failures do not make later runs fail":
     let d = fresh("status")
     writeFile(d / "bad.fit", "broken")
-    let g = Globals(dbPath: d / "x.db", fragments: allFragments)
+    let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
     check importCommand.run(g, @["-q", d]) == exitFailure     # new failure
     check importCommand.run(g, @["-q", d]) == exitOk          # known now
     check importCommand.run(g, @["-q", "--slow", d]) == exitFailure

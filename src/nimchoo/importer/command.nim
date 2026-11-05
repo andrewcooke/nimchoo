@@ -2,12 +2,13 @@
 ## (The command of the activity module; the module is not called `import`
 ## because that is a Nim keyword.)
 
-import std/[cpuinfo, strutils]
+import std/[cpuinfo, options, strutils]
 import ../cli/[args, common]
 import ../db/store
 import ../errors
+import ../names/open
 import ../ui/[live, logfile]
-import ./[batch, display, events, logsink, sinks]
+import ./[batch, display, events, logsink, naming, sinks]
 
 {.push raises: [].}
 
@@ -77,4 +78,17 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       plainSink(opts.quiet, logged)
   let sink = if g.log.enabled: fanOut(@[screen, logSink(g.log)]) else: screen
   let summary = importPaths(st, targets, opts, sink)
-  if summary.failed > 0: exitFailure else: exitOk
+  # the activities without a name (these, and any from before the names existed) are named now: the names are decided
+  # in the run that imports, or the command says why not
+  var namingFailed = false
+  try:
+    if pending(st).len > 0:
+      let names = openNames(g, st, "import", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
+      if names.isSome:
+        let counts = ensureActivityNames(st, names.get)
+        g.log.log(lvInfo, "import", leDone, "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
+                  $counts.startOnly & " with only a start place, " & $counts.nothing & " with neither")
+  except StoreError, DownloadError:
+    namingFailed = true
+    discard failure("nch import", getCurrentExceptionMsg() & " (the activities are imported; they are named by the next nch import)")
+  if summary.failed > 0 or namingFailed: exitFailure else: exitOk
