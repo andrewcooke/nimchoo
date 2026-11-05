@@ -8,14 +8,19 @@
   cloud; you can open it up with standard tools and see what is
   inside).
 
-* analysis and display of results, performance, records, etc.
+* analysis of routes, performance, records, etc.
+
+* display of results at the terminal and in a web browser.
 
 * automatic detection of climbs and segments in activities.
+
+* automatic naming of activities, climbs, etc.
 
 * heart rate based fitness / fatigue models, with user-adjustable
   parameters.
 
-* open source, hackable, extensible.
+* open source, hackable, extensible.  full control of data, disk use
+  (cache management), etc.
 
 ## background
 

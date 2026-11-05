@@ -2569,3 +2569,11 @@ is now read only through it.  Behaviour unchanged: the answer is still the neare
 GeoNames start cannot be stored there.  Options: (a) keep `place_id` (offline, at import) and add a text `start_place` (name, country) that the lazy pass upgrades
 from GeoNames, `nch list` showing it when there; (b) one text column only, filled at import from the list and replaced later; (c) leave the start as it is.
 
+**Decided (the author, 2026-11-05)**: the built-in list of towns and cities (`places/`, 64,000 rows) is to go.  Starts and country come from the downloaded GeoNames
+files only.  `activity.place_id` goes; the start becomes text on the activity, filled in later (the nearest populated place within 5 km, "near ..." further out,
+nothing if none), the 1,650 existing starts being made again when the names are loaded.  Sea positions get no country.
+**Principle (the author)**: do not work around a bad connection.  Code that needs the internet and refuses, with a clear message, when there is none is
+fine, and simpler than code full of "later" and null cases.  **Simplifications this allows, to do when `places/` goes**: no `nsLater`/`rdLater`, no
+`pending` count and "could not be named now" note, no `name_checked` half-states (a sector is named or has been looked at); `--offline` may go (the tests
+already inject a fake network, which stays); download failures stop the command with the reason.  Names that really are absent (nothing near) stay null.
+
