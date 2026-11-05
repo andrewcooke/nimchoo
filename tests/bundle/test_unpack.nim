@@ -115,13 +115,9 @@ suite "bundle: resolving a file":
     check r.data == "v1" and r.source == soBundled
 
 # the real files, through the cache directory of the environment (tests/support/env.nim sets one)
-import nimchoo/places/data
 import nimchoo/profile/[default, load]
-import db_connector/db_sqlite
-import nimchoo/db/store
-import nimchoo/modules
 
-suite "bundle: the profile, the list of places and the notice":
+suite "bundle: the profile and the notice":
   setup:
     let top = fresh("real")
     putEnv("NCH_CACHE", top)
@@ -145,31 +141,6 @@ suite "bundle: the profile, the list of places and the notice":
     check bad.note.contains("cannot be used") and bad.note.contains("using the built-in one")
     check bad.profile.messages.len > 0
     expect NchError: discard loadDefaultProfile()                  # (the other one says so as an error)
-  test "a new database is filled from the list in the cache: the author's, if there is one":
-    var db = top / "a.db"
-    block:
-      let s = openStore(db, allFragments)
-      check s.db.getValue(sql"select count(*) from place") == $carriedPlaces().len
-      s.close()
-    check fileExists(systemDir(top) / (if defined(nchSmallPlaces): "cities-test.tsv" else: "cities.tsv.gz"))
-    writeFile(systemDir(top) / (if defined(nchSmallPlaces): "cities-test.tsv" else: "cities.tsv.gz"),
-              "Nowhere\tZZ\t10.0\t20.0\t12345\nSomewhere\tZZ\t11.0\t21.0\t999\n")
-    check carriedPlaces().len == 2
-    check placesList().path == systemDir(top) / (if defined(nchSmallPlaces): "cities-test.tsv" else: "cities.tsv.gz")
-    db = top / "b.db"
-    let t = openStore(db, allFragments)
-    check t.db.getValue(sql"select count(*) from place") == "2"
-    t.close()
-  test "a list that cannot be read is an error naming the file":
-    discard carriedPlaces()
-    let list = systemDir(top) / (if defined(nchSmallPlaces): "cities-test.tsv" else: "cities.tsv.gz")
-    writeFile(list, "not a list of places")
-    expect StoreError: discard openStore(top / "c.db", allFragments)
-    try: discard openStore(top / "c.db", allFragments)
-    except StoreError as e: check e.msg.contains(list)
-  test "a gzipped list and a plain one are both read":
-    check listText("plain text") == "plain text"
-    check listText("") == ""
   test "NOTICE is unpacked and recorded":
     unpackNotice(top)
     check readFile(systemDir(top) / "NOTICE") == readFile("NOTICE")

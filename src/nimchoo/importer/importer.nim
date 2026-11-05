@@ -10,7 +10,6 @@ import ../errors
 import ../profile/model
 import ../profiling
 import ../warnings
-import ../names/place
 import ./[extract, route]
 
 {.push raises: [].}
@@ -133,7 +132,7 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
     let routeStmt = prepareStmt(s.db,
       "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))")
     let startStmt = prepareStmt(s.db,
-      "update activity set start = MakePoint(?, ?, 4326), place_id = ? where id = ?")
+      "update activity set start = MakePoint(?, ?, 4326) where id = ?")
     result.outcome = ioImported
     for step in steps:
       result.extras.add ExtraCount(one: step.label, many: step.labels)
@@ -149,12 +148,8 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
       if a.coords.len > 0:                  # where it started: the first position
         startStmt.bindReal(1, a.coords[0].lon)
         startStmt.bindReal(2, a.coords[0].lat)
-        var near: Option[Place]
-        timed "nearest place":
-          near = placeAt(s, a.coords[0].lon, a.coords[0].lat)
         timed "update start":
-          if near.isSome: startStmt.bindInt(3, near.get.id) else: startStmt.bindNull(3)
-          startStmt.bindInt(4, activityId)
+          startStmt.bindInt(3, activityId)
           startStmt.run()
       timed "route: insert":
         if d.routes[i].isSome:

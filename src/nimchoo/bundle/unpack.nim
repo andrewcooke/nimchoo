@@ -1,5 +1,5 @@
 ## The files built into the program that are also kept as files in the cache directory's `system/`
-## part (the FIT profile, the list of places, the licence notice, the page templates), and which one
+## part (the FIT profile, the licence notice, the page templates), and which one
 ## to use.
 ##
 ## The program carries each file (`Bundle`).  The first time it is wanted it is unpacked, and the

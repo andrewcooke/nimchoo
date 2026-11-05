@@ -75,7 +75,7 @@ suite "database: opening and bringing the schema up to date":
     var names: seq[string]
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
-    check names == @["climbs/001-schema.sql", "climbs/002-name.sql", "climbs/003-names.sql", "climbs/004-no-kind.sql", "climbs/005-names-now.sql", "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql", "importer/002-names.sql", "landmark/001-schema.sql", "model/001-schema.sql", "names/001-schema.sql", "names/002-more-kinds.sql", "names/003-spots.sql", "names/004-cells.sql", "places/001-schema.sql",
+    check names == @["climbs/001-schema.sql", "climbs/002-name.sql", "climbs/003-names.sql", "climbs/004-no-kind.sql", "climbs/005-names-now.sql", "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql", "importer/002-names.sql", "landmark/001-schema.sql", "model/001-schema.sql", "names/001-schema.sql", "names/002-more-kinds.sql", "names/003-spots.sql", "names/004-cells.sql", "places/001-schema.sql", "places/002-empty.sql",
                      "selection/001-schema.sql", "user/001-schema.sql"]
     s.close()
 
@@ -130,16 +130,6 @@ suite "database: opening and bringing the schema up to date":
       check false
     except StoreError as e:
       check "different version of nch" in e.msg and "nch empty --all -f" in e.msg
-
-  test "the places fragment has the list as replaceable data, not in its checksum":
-    var places: Fragment
-    for f in allFragments:
-      if f.name == "places/001-schema.sql": places = f
-    check places.seedVersion == ""
-    check places.checksum == frag("places/001-schema.sql", places.sql).checksum      # (the SQL alone)
-    check not places.version.isNil and not places.reseed.isNil
-    check places.currentVersion.len == 64
-    check places.legacySums.len == 1 and places.legacySums[0] != places.checksum
 
   test "data that can be replaced: reseeded when its version changes, remembered, not refused":
     let path = tempDb("reseed")      # (the version is kept in a file: a proc cannot capture a variable)
@@ -214,7 +204,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 18
+    check b.count("fragment") == 19
     b.close()
 
   test "the directory is created":

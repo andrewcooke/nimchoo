@@ -15,10 +15,10 @@ requires "db_connector"
 requires "checksums"
 
 task test, "Run all tests (optimised, with run-time checks on: about 5x faster than a debug build)":
-  # (some tests run a program: built like the tests, with the short list of places, and kept apart
-  # from ./nch so that a test build never replaces the one you use)
-  exec "nim c -d:release -d:ssl --checks:on -d:nchSmallPlaces --hints:off -o:nch-test src/nch.nim"
-  exec "nim c -r -d:release -d:ssl --checks:on -d:nchSmallPlaces --hints:off tests/all.nim"   # (a short list of places: fast databases)
+  # (some tests run a program: built like the tests, and kept apart from ./nch so that a test build never
+  # replaces the one you use)
+  exec "nim c -d:release -d:ssl --checks:on --hints:off -o:nch-test src/nch.nim"
+  exec "nim c -r -d:release -d:ssl --checks:on --hints:off tests/all.nim"
 
 task prod, "Build ./nch for use: optimised (-d:release); this is the build the author runs":
   # (--forceBuild: the git commit is looked up when the program is compiled, and Nim would not
@@ -26,8 +26,8 @@ task prod, "Build ./nch for use: optimised (-d:release); this is the build the a
   exec "nim c -d:release -d:ssl --forceBuild --hints:off -o:nch src/nch.nim"
 
 task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
-  exec "nim c -d:ssl -d:nchSmallPlaces --hints:off -o:nch-test src/nch.nim"
-  exec "nim c -r -d:ssl -d:nchSmallPlaces --hints:off tests/all.nim"
+  exec "nim c -d:ssl --hints:off -o:nch-test src/nch.nim"
+  exec "nim c -r -d:ssl --hints:off tests/all.nim"
 
 task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)":
   exec "nim c -r -d:release --hints:off -o:tests/csvreport tests/csvreport.nim"

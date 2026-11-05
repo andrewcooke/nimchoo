@@ -1,8 +1,8 @@
-nimchoo carries a list of the world's towns and cities, used to say where an activity
-started (`nch list -v`).  It is derived from GeoNames (https://www.geonames.org), the
-"cities5000" file, which is licensed under the Creative Commons Attribution 4.0 License
-(https://creativecommons.org/licenses/by/4.0/).  The list is src/nimchoo/places/cities.tsv.gz
-(name, country, latitude, longitude, population); tools/makecities.nim makes it.
+nimchoo downloads place names from GeoNames (https://www.geonames.org) when they are needed, to name climbs and
+activities and to say where an activity started (`nch list -v`): the country files and the country outlines from
+download.geonames.org.  GeoNames data are licensed under the Creative Commons Attribution 4.0 License
+(https://creativecommons.org/licenses/by/4.0/).  They are kept in the cache directory (`data/geonames/`), and the
+parts used are in the database; nimchoo itself carries none of them.
 
 Map tiles shown by `nch heatmap --web` are loaded by the browser from OpenStreetMap
 (c) OpenStreetMap contributors, and Leaflet (BSD 2-Clause) from unpkg.com.

@@ -2632,3 +2632,9 @@ start of 1,051; "Corral Quemado and back" 72, "Farellones and back" 42, "El Toyo
 Globals in the tests now says `offline: true`.  **Left**: `places/`, `activity.place_id` and the importer's call to `placeAt` are unused by the display now; remove them
 (and the country fallback in `countryAt`) next.
 
+**`places/` is gone (2026-11-05)**: the carried list of towns and cities (`cities.tsv.gz`, `data.nim`, `seed.nim`, `tools/makecities.nim`, `names/place.nim`, the `nchSmallPlaces`
+test flag, the tests of the list, the country fallback for the sea in `countryAt`, the import's `placeAt`/`place_id`) is deleted.  Starts and names come from the downloaded
+GeoNames cells only.  The `place` table and `activity.place_id` STAY in the schema, empty and unused (`places/002-empty.sql` deletes the rows from databases that had them):
+`place_id` has a foreign key and SQLite cannot drop such a column without rebuilding `activity`; both can go with the next rebuild of that table.  NOTICE now says GeoNames data
+are downloaded.  Sea positions have no country.
+

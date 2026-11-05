@@ -1,8 +1,6 @@
 ## Which country a position is in.  The outlines are fetched the first time they are wanted
 ## (download/), read into the `country` table, and kept; after that this works offline.  A position
-## inside no outline (the sea, a small island the simplified outlines leave out) takes the country of
-## the nearest place of the list carried in the program (places/), so it still answers, and answers
-## without any network if the outlines cannot be had.
+## inside no outline (the sea, a small island the simplified outlines leave out) is in no country.
 ##
 ## `Names` is the handle the module's functions share: the store, the directory the downloads go in,
 ## the network and disk (a made-up one in tests) and where events are told.
@@ -12,13 +10,11 @@ import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../download/[fetch, sources]
 import ../errors
-import ./place
 import ../zipbytes
 import ./outlines
 
 {.push raises: [].}
 
-const fallbackLimitM = 300_000.0      ## a place further away than this says nothing about the country
 
 type Names* = object
   st*: Store
@@ -86,7 +82,7 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
 func degrees(x: float): string = formatFloat(x, ffDecimal, 7)
 
 proc countryAt*(n: Names, lon, lat: float): Option[string] {.raises: [StoreError, DownloadError].} =
-  ## The ISO code of the country that holds the position: by the outlines, else by the nearest place.
+  ## The ISO code of the country that holds the position: by the outlines; none for the sea.
   n.ensureCountries()
   # the countries whose boxes hold the point (the index), then the outlines decide: they are tested here
   # and not by SpatiaLite, whose geometry library refuses many of these simplified outlines as invalid
@@ -102,5 +98,4 @@ proc countryAt*(n: Names, lon, lat: float): Option[string] {.raises: [StoreError
       guard:
         n.shapes[][iso] = parseShape(n.st.db.getValue(sql"select AsText(geom) from country where iso = ?", iso))
     if n.shapes[].getOrDefault(iso).contains(lon, lat): return some(iso)
-  let near = placeAt(n.st, lon, lat)
-  if near.isSome and near.get.distanceM <= fallbackLimitM: some(near.get.country) else: none(string)
+  none(string)

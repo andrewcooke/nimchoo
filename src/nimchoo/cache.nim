@@ -68,7 +68,7 @@ func userDir*(dir: string): string =
   dir / "user"
 
 func systemDir*(dir: string): string =
-  ## Where what is unpacked from the program goes (the profile, the cities list, the page
+  ## Where what is unpacked from the program goes (the profile, the licence notice, the page
   ## templates): the other part of the cache directory.  Nothing here is made by a command, and all
   ## of it can be deleted: it is unpacked again.
   dir / "system"
