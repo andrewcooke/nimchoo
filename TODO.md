@@ -2208,3 +2208,22 @@ curves of `nch ff` already have them).  Parts:
    (a colour bar and the range), options `--fitness`, `--fatigue`, `--form`; the calendar shows every month in the
    range (as `-v` does) when a background is asked for.
 Roughly a third of the size of the names work.
+
+### Task 13, step 1 is built (2026-11-04): `download/`, and `zipbytes.nim`
+
+* `zipbytes.nim`: reading a zip from bytes (the central directory, stored or deflated entries), moved out of
+  `xlsx.nim` (which uses it and turns `ZipError` into `XlsxError`); `ZipError` in `errors.nim`.
+* `download/sources.nim`: the list of what is downloaded (the GeoNames country files, the simplified outlines, countryInfo),
+  with the address, the file, the zip entry expected, the largest size allowed and the credit.
+* `download/fetch.nim`: `fetchSource(env, sink, dataDir, source, arg)` -> the path in `<cache>/data/<source>/`.  It returns
+  a file already there without a word; otherwise it asks the server how big (HEAD), refuses what is over the source's
+  limit, **checks the room on the disk** (the file three times over, for what is made from it, plus **500 MB kept
+  free**; if the server does not say how big, the source's largest size is assumed; if the disk cannot be asked, it goes
+  on), fetches, checks the content (a zip must be one and hold the entry expected; nothing empty), and writes
+  atomically (`.part`, then rename).  `Env` holds the network and the disk, so tests serve made-up bytes and room.
+  `dataUsage` and `clearData` say what the downloads take and delete them.
+* `download/sinks.nim`: events (`downloaded`, `failed`) go to a `Sink`; `logSink` writes them to the log (`downloaded`, a new
+  green log word, at info; `failed` at error) as the command that asked; `screenSink` says a line each; `fanOut`.
+* `-d:ssl` is in the nimble tasks.  Checked against geonames.org: CL.zip (1.4 MB), the outlines (1.3 MB), countryInfo
+  (32 kB), the cache hit, a 404 for a country that does not exist, 7.8 GB free reported.
+* Not yet: `empty --data` (to clear the downloads), the names module (step 2 onwards).

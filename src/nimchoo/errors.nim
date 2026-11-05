@@ -22,6 +22,9 @@ type
   XlsxError* = object of NchError
     ## A file that is not a readable xlsx file.
 
+  ZipError* = object of NchError
+    ## Bytes that are not a readable zip file, or an entry that cannot be read.
+
   StoreError* = object of NchError
     ## The database cannot be used (cannot be opened or created, a query
     ## failed, a constraint was violated).
@@ -54,6 +57,9 @@ proc raiseProfile*(msg: string, sheet = "", row = 0) {.noreturn,
 
 proc raiseXlsx*(msg: string) {.noreturn, raises: [XlsxError].} =
   raise (ref XlsxError)(msg: msg)
+
+proc raiseZip*(msg: string) {.noreturn, raises: [ZipError].} =
+  raise (ref ZipError)(msg: msg)
 
 proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
   raise (ref StoreError)(msg: msg)

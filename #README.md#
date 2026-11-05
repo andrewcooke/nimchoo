@@ -1,0 +1,16 @@
+
+# nimchoo
+
+nimchoo is a rewrite of my hcoochoo project, which was an
+over-ambitious kinda-strava clone.  unlike choochoo, nimchoo:
+
+* stays focussed on the command line (no sneaking off trying to be
+  strava, or repairing fits files, or...)
+
+* uses an embedded database (no more worrying about postgresql)
+
+* is written in a fast language (no more python or pandas)
+
+but it does keep:
+
+* some smart ideas about fit parsing

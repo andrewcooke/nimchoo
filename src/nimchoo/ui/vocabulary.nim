@@ -24,6 +24,7 @@ type
     leNote = "note"              ## something about the run itself
     leDone = "done"              ## a command ends its work (the totals)
     leDeleted = "deleted"        ## data was removed
+    leDownloaded = "downloaded"  ## a file was fetched from the network
     leSaved = "saved"            ## something was kept (the selection)
     leServed = "served"          ## the web server answered a request
     leDenied = "denied"          ## ... or refused one
@@ -32,7 +33,7 @@ func look*(e: LogEvent): Look =
   ## How an event is shown: imported green, failed red and bold, advisory yellow,
   ## duplicate and unchanged dim (grey), the bookkeeping words dim.
   case e
-  of leImported, leSaved: Look(colour: green)
+  of leImported, leSaved, leDownloaded: Look(colour: green)
   of leFailed: Look(colour: red, bold: true)
   of leAdvisory: Look(colour: yellow)
   of leDuplicate, leUnchanged: Look(colour: grey)

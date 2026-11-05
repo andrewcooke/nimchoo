@@ -1,16 +1,14 @@
 ## A minimal xlsx reader: just enough to read the cell values of worksheets as
 ## strings, from bytes in memory.  An xlsx file is a zip of XML files; we read
-## the zip directory ourselves (zippy only opens zips from a path) and inflate
-## entries with zippy.
+## the zip with zipbytes.nim (zippy only opens zips from a path).
 ##
 ## Cell values are returned as the text in the file: numbers are not
 ## converted, shared strings are resolved, formulas are not evaluated.
 
 import std/[parsexml, streams, strutils, tables]
-import zippy
 import ./errors
 import ./lookup
-import ./fit/bytes
+import ./zipbytes
 export errors
 
 {.push raises: [].}
@@ -18,74 +16,21 @@ export errors
 type
   Row* = Table[int, string]  ## sparse row: 0-based column -> value
 
-  ZipEntry = object
-    compression, compressedSize, size, offset: int
-
   Workbook* = object
     data: string
     entries: Table[string, ZipEntry]
     sheets: Table[string, string]   ## sheet name -> path of its xml in the zip
     shared: seq[string]             ## shared strings
 
-# --- zip
-
-func le(s: string, o, size: int): int {.raises: [XlsxError].} =
-  ## The `size` bytes at `o` as a little-endian integer.
-  if not s.toOpenArrayByte(0, s.high).canRead(o, size):
-    raiseXlsx("truncated zip file")
-  int(getUint(s.toOpenArrayByte(0, s.high), o, size))
-
-func u16(s: string, o: int): int {.raises: [XlsxError].} = le(s, o, 2)
-
-func u32(s: string, o: int): int {.raises: [XlsxError].} = le(s, o, 4)
+# --- zip (see zipbytes.nim)
 
 func zipEntries(z: string): Table[string, ZipEntry] {.raises: [XlsxError].} =
-  ## The central directory of a zip file.
-  var eocd = -1
-  var i = z.len - 22
-  while i >= 0 and i >= z.len - 22 - 65535:
-    if z[i] == 'P' and z[i + 1] == 'K' and z[i + 2] == '\5' and z[i + 3] == '\6':
-      eocd = i
-      break
-    dec i
-  if eocd < 0: raiseXlsx("not a zip file")
-  var p = u32(z, eocd + 16)
-  for _ in 0 ..< u16(z, eocd + 10):
-    if u32(z, p) != 0x02014b50:
-      raiseXlsx("bad zip central directory")
-    let nameLen = u16(z, p + 28)
-    if p + 46 + nameLen > z.len:
-      raiseXlsx("truncated zip file")
-    result[z[p + 46 ..< p + 46 + nameLen]] = ZipEntry(
-      compression: u16(z, p + 10), compressedSize: u32(z, p + 20),
-      size: u32(z, p + 24),
-      offset: u32(z, p + 42))
-    p += 46 + nameLen + u16(z, p + 30) + u16(z, p + 32)
-
-const maxEntrySize = 256 * 1024 * 1024  ## larger declared sizes are refused
+  try: listEntries(z)
+  except ZipError as e: raiseXlsx(e.msg)
 
 func extract(z: string, e: ZipEntry): string {.raises: [XlsxError].} =
-  let p = e.offset
-  if e.size > maxEntrySize: raiseXlsx("zip entry too large")
-  if u32(z, p) != 0x04034b50:
-    raiseXlsx("bad zip local header")
-  let start = p + 30 + u16(z, p + 26) + u16(z, p + 28)
-  if start + e.compressedSize > z.len:
-    raiseXlsx("truncated zip file")
-  let raw = z[start ..< start + e.compressedSize]
-  case e.compression
-  of 0:
-    if raw.len != e.size: raiseXlsx("zip entry has the wrong size")
-    raw
-  of 8:
-    let data =
-      try: uncompress(raw, dfDeflate)
-      except ZippyError as ex:
-        raiseXlsx("cannot inflate: " & ex.msg)
-    if data.len != e.size: raiseXlsx("zip entry has the wrong size")
-    data
-  else:
-    raiseXlsx("unsupported zip compression " & $e.compression)
+  try: extractEntry(z, e)
+  except ZipError as ex: raiseXlsx(ex.msg)
 
 proc file(wb: Workbook, path: string): string {.raises: [XlsxError].} =
   if path notin wb.entries:

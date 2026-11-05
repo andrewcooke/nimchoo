@@ -3,7 +3,7 @@
 ## what they share.
 {.push warning[UnusedImport]: off.}
 import ./support/env, ./support/timing
-import ./test_xlsx, ./test_errors, ./test_structure, ./test_cache, ./test_templating, ./test_version
+import ./test_zipbytes, ./test_xlsx, ./test_errors, ./test_structure, ./test_cache, ./test_templating, ./test_version
 import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
               test_command, test_sdkcsv]
 import ./profile/[test_load, test_load_errors]
@@ -18,6 +18,7 @@ import ./selection/[test_ranges, test_criteria, test_table, test_command, test_s
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./cli/test_args
 import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_command]
+import ./download/test_fetch
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
 import ./places/[test_data, test_seed, test_reload]
 import ./user/[test_params, test_command, test_wipe]
