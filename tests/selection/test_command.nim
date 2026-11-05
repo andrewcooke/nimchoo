@@ -579,3 +579,78 @@ suite "list: what is shown":
     check listCommand.run(g, @["--newest", "1", "--save"]) == exitOk
     g.log.close()
     check readFile(path).contains("list      saved      1 activity")
+
+proc named(db: string) =
+  ## lisbon1: "São Pedro and back" from Lisboa; lisbon2 (bob): "São Pedro and back" from Almada; paris: no name, no start.
+  let s = openStore(db, allFragments)
+  defer: s.close()
+  s.db.exec(sql"""update activity set name = 'São Pedro and back', start_place = 'Lisboa'
+    where file_id in (select id from file where name = 'lisbon1')""")
+  s.db.exec(sql"""update activity set name = 'São Pedro and back', start_place = 'Almada'
+    where file_id in (select id from file where name = 'lisbon2')""")
+
+suite "list: --name and --start":
+  test "the text is found in the name, without regard to case or accents; alternatives":
+    let db = world("names")
+    named(db)
+    discard save(db, "--name", "sao pedro")
+    check chosen(db) == @["lisbon1"]                                  # (the current user's activities)
+    discard save(db, "--name", "SÃO", "nothing")                      # (either word)
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--name", "são pedro", "--users", "default", "bob")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--name", "vuelta", "--users", "default", "bob")
+    check chosen(db).len == 0
+    discard save(db, "--name", "and back", "--users", "default", "bob")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+  test "--start the same, on the start place; both together are 'and'":
+    let db = world("starts")
+    named(db)
+    discard save(db, "--start", "LISBOA")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--start", "almada", "lisboa", "--users", "default", "bob")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--start", "almada", "--users", "default", "bob")
+    check chosen(db) == @["lisbon2"]
+    discard save(db, "--start", "almada", "--name", "pedro", "--users", "default", "bob")
+    check chosen(db) == @["lisbon2"]
+    discard save(db, "--start", "lisboa", "--name", "nothing")
+    check chosen(db).len == 0
+  test "none: no name (null or empty)":
+    let db = world("none")
+    named(db)
+    discard save(db, "--name", "none")
+    check chosen(db) == @["paris"]
+    discard save(db, "--start", "none")
+    check chosen(db) == @["paris"]
+    let s = openStore(db, allFragments)
+    s.db.exec(sql"update activity set name = '' where name is null")
+    s.close()
+    discard save(db, "--name", "none")
+    check chosen(db) == @["paris"]                                    # ('' counts too)
+  test "previous: the same whole name (or start place) as the selected activity":
+    let db = world("refs")
+    named(db)
+    discard save(db, "--sport", "cycling")                            # lisbon1 is the selection
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--users", "default", "bob", "--name", "previous")
+    check chosen(db) == @["lisbon1", "lisbon2"]                       # both are "São Pedro and back"
+    discard save(db, "--sport", "cycling")
+    discard save(db, "--users", "default", "bob", "--start", "previous")
+    check chosen(db) == @["lisbon1"]                                  # Lisboa only: not Almada
+  test "latest: the newest activity that meets the other criteria, whole":
+    let db = world("latest")
+    named(db)
+    discard save(db, "--users", "default", "bob", "--name", "latest")   # the newest is paris: no name
+    check chosen(db) == @["paris"]
+  test "-v shows the start place and the name":
+    let db = world("shownnames")
+    named(db)
+    let st = openStore(db, allFragments)
+    defer: st.close()
+    let p = parseArgs(@["-v", "--users", "default", "bob"], utc())
+    let rows = listActivities(st, p.criteria, utc()).lines.texts
+    check rows[0].contains("place") and rows[0].contains("name")
+    check rows[1].contains("Lisboa") and rows[1].contains("São Pedro and back")     # lisbon1
+    check rows[2].contains("Almada") and rows[2].contains("São Pedro and back")     # lisbon2 (bob's)
+    check not rows[3].contains("Lisboa") and not rows[3].contains("Almada")          # paris

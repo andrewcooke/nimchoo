@@ -2652,3 +2652,9 @@ are fetched again when a new cell needs them), like `--cache`; it combines with 
 the only big part; deleting the tables too would gain nothing, as the copied names would not change; to make everything again from newer GeoNames data, `empty --all -f` and
 import again (about 1.5 minutes).  `--downloads` also covers the height tiles when they come.  `countNames`, `clearNames` and `NameCounts` are gone (nothing used them).
 
+**`nch list --name` and `--start` (2026-11-05)**: criteria on the text made at import.  `--name TEXT...` finds the text anywhere in `activity.name`, `--start TEXT...` in
+`activity.start_place`; several words (or comma-separated) are alternatives; "none" is no name/start (null or ""); `latest` / `previous` mean the same WHOLE name/start place
+as that activity (resolved in `resolve`, like `--sport`).  Case and accents are ignored in SQL by turning the typed text into a `glob` pattern in which each letter is a class
+of its forms (`selection/fold.nim`: "arrayan" finds "El Arrayán", "ñuñoa" finds "Nunoa"); no schema change.  Nim 2.4 quirk met: `runes` on a constant string crashes (copy it to a
+`let` first).  `-v` help now says it shows the start place and the name.  Not done: the same filters for the other commands that take criteria (none do yet).
+

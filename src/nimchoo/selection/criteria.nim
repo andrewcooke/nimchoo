@@ -6,7 +6,7 @@ import std/[math, options, strutils, times]
 import ../fit/time
 import ../cli/args
 import ../ids
-import ./ranges
+import ./[fold, ranges]
 export ranges
 
 {.push raises: [].}
@@ -29,6 +29,10 @@ type
     distanceRel*, activeRel*: Option[Relative]    ## --distance latest~T / previous~T, --active ...
     sportRef*, subSportRef*: Reference            ## --sport latest / previous, --sub-sport ...
     sports*, subSports*: seq[string]  ## only these (lower case; "none": not recorded); empty: any
+    nameRef*, startRef*: Reference    ## --name latest / previous, --start ...
+    names*, starts*: seq[string]      ## --name, --start: text found in the name (the start place), whatever its case and
+                                      ## accents; "none": nothing; empty: any
+    namesExact*, startsExact*: seq[string]  ## what `latest` / `previous` came to: the whole value ("" is none)
     fromT*: Option[UnixTime]  ## start of the activity at or after
     toT*: Option[UnixTime]    ## start of the activity before (exclusive)
     gps*: GpsFilter
@@ -136,6 +140,27 @@ proc takeSubSports(p: var ListState, name: string, values: seq[string]): string 
     else: p.c.subSports.add n
   ""
 
+proc takeTexts(p: var ListState, name: string, values: seq[string], texts: var seq[string], ref0: var Reference): string =
+  p.criteriaGiven = true
+  var found: seq[string]
+  for v in values:
+    for part in v.split(','):
+      if part.strip.len > 0: found.add part.strip
+  if found.len == 0: return name & " needs some text"
+  for t in found:
+    if parseReference(t) != refNone:
+      if ref0 != refNone and ref0 != parseReference(t):
+        return name & ": latest and previous cannot be used together"
+      ref0 = parseReference(t)
+    else: texts.add t
+  ""
+
+proc takeNames(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  takeTexts(p, name, values, p.c.names, p.c.nameRef)
+
+proc takeStarts(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
+  takeTexts(p, name, values, p.c.starts, p.c.startRef)
+
 proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
   p.criteriaGiven = true
   if '~' in v:
@@ -223,6 +248,8 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     listOption[ListState](["--users"], takeUsers),
     listOption[ListState](["--sport"], takeSports),
     listOption[ListState](["--sub-sport"], takeSubSports),
+    listOption[ListState](["--name"], takeNames),
+    listOption[ListState](["--start"], takeStarts),
     custom(ListState, ["--distance"], true, takeDistance(p, name, value)),
     custom(ListState, ["--active"], true, takeActive(p, name, value)),
     custom(ListState, ["--from"], true, takeWhen(p, value, false)),
@@ -277,7 +304,8 @@ func refersTo*(c: Criteria, r: Reference): bool =
   ## Whether any criterion is measured against the activity `r` stands for.
   let near = if r == refLatest: nkLatest else: nkPrevious
   c.near == near or (c.distanceRel.isSome and c.distanceRel.get.refers == r) or
-    (c.activeRel.isSome and c.activeRel.get.refers == r) or c.sportRef == r or c.subSportRef == r
+    (c.activeRel.isSome and c.activeRel.get.refers == r) or c.sportRef == r or c.subSportRef == r or
+    c.nameRef == r or c.startRef == r
 
 func usesLatest*(c: Criteria): bool = c.refersTo(refLatest)
 func usesPrevious*(c: Criteria): bool = c.refersTo(refPrevious)
@@ -294,6 +322,8 @@ func withoutLatest*(c: Criteria): Criteria =
     result.activeRel = none(Relative)
   if result.sportRef == refLatest: result.sportRef = refNone
   if result.subSportRef == refLatest: result.subSportRef = refNone
+  if result.nameRef == refLatest: result.nameRef = refNone
+  if result.startRef == refLatest: result.startRef = refNone
   result.newest = 0
   result.oldest = 0
 
@@ -308,6 +338,20 @@ func inValues*(column: string, values: seq[string]): string =
     else: quoted.add "'" & v.replace("'", "''") & "'"
   if quoted.len > 0: parts.add column & " in (" & quoted.join(", ") & ")"
   if orNull: parts.add column & " is null"
+  " and (" & parts.join(" or ") & ")"
+
+func textSql*(column: string, typed, exact: seq[string]): string =
+  ## " and (a.name glob '*[tT]oyo*' or a.name = 'El Toyo and back')": the typed text found anywhere in the value, whatever
+  ## its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or an exact "")
+  ## is no value: null or "".  Nothing if there is nothing to match.
+  if typed.len == 0 and exact.len == 0: return ""
+  var parts: seq[string]
+  for t in typed:
+    if t.toLowerAscii == "none": parts.add "(" & column & " is null or " & column & " = '')"
+    else: parts.add column & " glob '" & foldGlob(t).replace("'", "''") & "'"
+  for e in exact:
+    if e.len == 0: parts.add "(" & column & " is null or " & column & " = '')"
+    else: parts.add column & " = '" & e.replace("'", "''") & "'"
   " and (" & parts.join(" or ") & ")"
 
 func rangeSql*(column: string, r: NumRange): string =
@@ -329,6 +373,8 @@ func matchSql*(userIds: seq[UserId], c: Criteria, centre: Option[(float, float)]
     "where f.user_id in (" & ids.join(", ") & ")"
   result.add inValues("a.sport", c.sports)
   result.add inValues("a.sub_sport", c.subSports)
+  result.add textSql("a.name", c.names, c.namesExact)
+  result.add textSql("a.start_place", c.starts, c.startsExact)
   result.add rangeSql("a.distance_m", c.distanceM)
   result.add rangeSql("a.timer_s", c.activeS)
   case c.gps

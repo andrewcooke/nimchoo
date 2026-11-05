@@ -30,6 +30,12 @@ last one).  Criteria are combined with "and".
                      means not recorded; "latest" or "previous": that activity's sport
   --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
                      files say "generic" or nothing, so this misses some rides
+  --name TEXT        activities whose name contains TEXT, whatever its case or accents:
+                     --name toyo finds "El Toyo and back"; several words are alternatives
+                     (--name toyo farellones); a name with spaces is quoted; "none": no name;
+                     "latest" or "previous": the same name as that activity
+  --start TEXT       the same for the place the activity started ("Providencia", "near Lo
+                     Barnechea"): --start providencia
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
                      0.5- for half a km; 42~2 (between 40 and 44), latest~10%,
                      previous~10%
@@ -51,8 +57,8 @@ last one).  Criteria are combined with "and".
   --save             make what is listed the selection
   --show             show the selection (no criteria allowed)
   -v, --verbose      show more of each activity: where it started (its coordinates, or
-                     "no GPS" if the file has no positions; then the nearest town or city
-                     from the GeoNames list, with the distance if far) and the path of its file
+                     "no GPS" if the file has no positions), the place it started and its name
+                     (made when it was imported), and the path of its file
   --calendar         show the activities on a calendar instead of a table: a row for each month
                      that has one (with -v, every month from the first to the last), the days
                      in columns by weekday (weeks start on Monday).  White: an activity that was
@@ -220,6 +226,19 @@ proc resolve(st: Store, c: var Criteria, which: Reference, id: ActivityId, row: 
   if c.subSportRef == which:
     c.subSports.add (if row.subSport.len > 0: row.subSport else: "none")
     c.subSportRef = refNone
+  if c.nameRef == which or c.startRef == which:
+    # the name and the start place of that activity, whole (they are not in the row unless it was listed with -v)
+    var name, start: string
+    guard:
+      let r = st.db.getRow(sql"select coalesce(name, ''), coalesce(start_place, '') from activity where id = ?", id)
+      name = r[0]
+      start = r[1]
+    if c.nameRef == which:
+      c.namesExact.add name
+      c.nameRef = refNone
+    if c.startRef == which:
+      c.startsExact.add start
+      c.startRef = refNone
   if c.distanceRel.isSome and c.distanceRel.get.refers == which:
     if row.distanceM.isNone: raiseStore("the " & nameOf & " activity has no recorded distance")
     c.distanceM = around(row.distanceM.get, c.distanceRel.get.tol)

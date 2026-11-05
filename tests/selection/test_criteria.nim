@@ -253,3 +253,31 @@ suite "list: the box and the sql":
   test "saving wraps the same query":
     let m = matchSql(@[UserId(3)], Criteria(newest: 1), none((float, float)), "a.id as id")
     check saveSql(UserId(7), m) == "insert into selection(user_id, activity_id) select 7, id from (" & m & ")"
+
+suite "list: --name and --start":
+  proc parsed(args: varargs[string]): Criteria = parseArgs(@args, utcZone).criteria
+  test "the words are alternatives; commas too; a name with spaces is one":
+    let c = parsed("--name", "toyo", "farellones", "--start", "providencia,ñuñoa")
+    check c.names == @["toyo", "farellones"] and c.starts == @["providencia", "ñuñoa"]
+    check parsed("--name", "el toyo").names == @["el toyo"]
+  test "latest and previous are references, not text; they cannot be mixed":
+    let c = parsed("--name", "latest", "--start", "previous")
+    check c.nameRef == refLatest and c.startRef == refPrevious and c.names.len == 0 and c.starts.len == 0
+    check c.usesLatest and c.usesPrevious
+    check not c.withoutLatest.usesLatest
+    check parseArgs(@["--name", "latest", "previous"], utcZone).problem.contains("cannot be used together")
+  test "a name needs some text; it is a criterion (not allowed with --show)":
+    check parseArgs(@["--name"], utcZone).problem.len > 0
+    check parseArgs(@["--show", "--name", "toyo"], utcZone).problem.contains("takes no criteria")
+  test "the sql: a glob of the folded text, none for nothing, an exact value for what latest came to":
+    let c = parsed("--name", "toyo", "none", "--start", "o'higgins")
+    let q = matchSql(@[UserId(1)], c, none((float, float)))
+    check q.contains("a.name glob '*[tT") and q.contains("(a.name is null or a.name = '')")
+    check q.contains("a.start_place glob '*") and q.contains("''")          # (the quote is doubled)
+    var e = Criteria()
+    e.namesExact = @["El Toyo and back", ""]
+    e.startsExact = @["Providencia"]
+    let r = matchSql(@[UserId(1)], e, none((float, float)))
+    check r.contains("a.name = 'El Toyo and back'") and r.contains("(a.name is null or a.name = '')")
+    check r.contains("a.start_place = 'Providencia'")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("glob")
