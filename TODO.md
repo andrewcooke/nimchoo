@@ -2428,7 +2428,7 @@ by kind (pass x0.5, peak x0.75, hill x1, village x1.5, neighbourhood x2.5) and t
 
 **Settled**
 * Names, not ids, in `nch climbs` and `--sectors`.  Names need not be unique: climbs that share a name are shown **"name (n/m)"**, n the rank by
-  **length** (the longest is 1; ties by id), only when m > 1, worked out when shown and never stored; the group is the name without regard to case.
+  **gain** (the biggest is 1; ties by id), only when m > 1, worked out when shown and never stored; the group is the name without regard to case.
 * No difficulty, no phi coupling, no stored numbers (the ranking is by length).
 * **Manual naming**: `nch sector --edit NAME --rename NEW`, NAME as shown ("(n/m)" included); duplicates allowed; `nch sector --edit NAME --auto`
   goes back to the automatic name; `nch sector` lists the catalogue; sectors are shared, so `--user` before the command is refused with a hint.
@@ -2453,9 +2453,10 @@ by kind (pass x0.5, peak x0.75, hill x1, village x1.5, neighbourhood x2.5) and t
 6. `empty --sectors` says how many manually named climbs it would lose.
 7. Tests and docs.
 
-**Still open**: (a) strict kind order or distances scaled by kind; (b) keep tier 3 (assumed yes); (c) `--sectors` sorted by length, longest first (proposed);
-(d) **the categories** (4, 3, 2, 1, HC) are by **gain** today (80, 160, 320, 640, 800 m, as Strava and choochoo); the author said classification is
-"also length based": change them to length, and with what thresholds, or keep gain?
+**Settled later the same day (the author)**: (a) **strict kind order, the first kind that matches wins** (no scaling of distances by kind); (b) tier 3 (the 5 km
+"near <place>" fallback) stays; (c) **"(n/m)" is ranked by GAIN, not length** (the biggest gain is 1; ties by id), and `--sectors` stays sorted by gain, biggest
+first; (d) the **categories stay by gain** (80, 160, 320, 640, 800 m).  Where this file says "length" above for the ranking, read gain.  Nothing is open;
+nothing is built.
 
 ## Where to read the code (a guide, 2026-11-05)
 
