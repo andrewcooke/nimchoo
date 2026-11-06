@@ -503,7 +503,7 @@ suite "list: what is shown":
     check not table.texts[^1].startsWith("warning")                      # (only a calendar leaves months out)
     # with --save the warning is still last
     let saved = listActivities(st, parseArgs(@["--all", "--calendar", "--select"], utc()).criteria, utc(), Screen(colour: true)).lines
-    check saved.texts[^1].startsWith("warning: 4 months") and saved.texts[^2].startsWith("saved ")
+    check saved.texts[^1].startsWith("warning: 4 months") and "saved as the selection" in saved.texts[^2]
 
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")
@@ -515,8 +515,9 @@ suite "list: what is shown":
     let db = world("shownsave")
     let r = shown(db, "--newest", "1", "--select")
     check r.saved == 1
-    check r.lines.texts[^1] == "saved 1 activity as the selection"
-    check r.lines[^1][0].look == Look(colour: blue)           # blue: the selection
+    check r.lines.texts[^1].startsWith("done: 1 of ") and ", 1 saved as the selection, " in r.lines.texts[^1]
+    check "match selected" notin r.lines.texts[^1]                      # (said once)
+    check r.lines[^1].anyIt(it.look.colour == blue and it.text == ", 1 saved as the selection")
     let st = openStore(db, allFragments)
     defer: st.close()
     let again = showSelection(st, Criteria(), utc())

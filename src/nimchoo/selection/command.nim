@@ -193,11 +193,11 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
         raiseStore("bad number from the database")
 
 proc listing(rows: seq[ListRow], zone: Timezone, c: Criteria, screen: Screen,
-             choices: Option[int]): seq[Line] =
+             choices: Option[int], saved = none(int)): seq[Line] =
   ## The table (or the calendar) and its last line.
   result = if c.calendar: calendarLines(rows, zone, c.verbose, screen)
            else: table(rows, zone, c.verbose)
-  result.add footerLine(rows, choices, selectedColour)
+  result.add footerLine(rows, choices, selectedColour, saved)
 
 proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] =
   ## The last line of a calendar of the months with data, if it left some out.
@@ -380,11 +380,8 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   let rows = readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
-  result.lines.add listing(rows, zone, c, screen, some(total))
+  result.lines.add listing(rows, zone, c, screen, some(total), (if c.select: some(rows.len) else: none(int)))
   result.saved = if c.select: rows.len else: -1
-  if c.select:
-    result.lines.add @[span("saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
-      " as the selection", selectedColour)]
   result.lines.add skippedWarning(rows, zone, c)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =

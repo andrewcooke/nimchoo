@@ -32,6 +32,13 @@ suite "list table: the last line":
     check l.text == "done: 3 of 5 activities, 2 match selected, 2.5km, 12m00s"
     check l.filterIt(it.look.colour == blue).mapIt(it.text) == @[", 2 match selected"]
     check footerLine(rows).text.startsWith("done: 3 activities, 2 match selected, ")
+  test "saving: said once, in blue, in place of the count of those selected":
+    let rows = @[row(0, selected = true), row(1, selected = true)]
+    let l = footerLine(rows, some 5, saved = some 2)
+    check l.text.startsWith("done: 2 of 5 activities, 2 saved as the selection")
+    check "match selected" notin l.text
+    check l.filterIt(it.look.colour == blue).mapIt(it.text) == @[", 2 saved as the selection"]
+    check footerLine(@[], some 5, saved = some 0).text == "done: 0 of 5 activities, 0 saved as the selection"
   test "all selected, and a count with no totals":
     let rows = @[row(0, selected = true)]
     check footerLine(rows, some 1).text.startsWith("done: 1 of 1 activities, 1 match selected")
