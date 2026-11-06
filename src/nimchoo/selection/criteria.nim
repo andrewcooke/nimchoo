@@ -21,6 +21,8 @@ type
     all*: bool                ## --all: every activity (not the selection)
     given*: bool              ## some criterion or limit was given: the activities are searched for, not the selection
     select*: bool             ## --select: keep what is listed as the selection
+    delete*: bool             ## --delete: delete the activities (an action, not a criterion)
+    force*: bool              ## -f: really do it (with --delete)
     verbose*: bool            ## -v: show more of each activity (a display option)
     calendar*: bool           ## --calendar: show the activities on a calendar (a display option)
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
@@ -253,7 +255,7 @@ func hasFilter*(c: Criteria): bool =
 
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
-  ## `--path`, `--climb` (words up to the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
+  ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` and `--calendar` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
@@ -265,6 +267,8 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     flag(ListState, ["-h", "--help"], help),
     custom(ListState, ["--select"], false, (p.c.select = true; "")),
     custom(ListState, ["--all"], false, (p.c.all = true; "")),
+    custom(ListState, ["--delete"], false, (p.c.delete = true; "")),
+    custom(ListState, ["-f", "--force"], false, (p.c.force = true; "")),
     custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")),
     custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")),
     custom(ListState, ["--invert"], false, (p.criteriaGiven = true; p.c.invert = true; "")),
@@ -292,6 +296,8 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   var c = st.c
   c.given = st.criteriaGiven
   if c.all and c.hasFilter: fail("--all is every activity: it does not go with criteria (--newest and --oldest do)")
+  if c.force and not c.delete: fail("-f goes with --delete")
+  if c.delete and (c.select or c.calendar or c.verbose): fail("--delete shows nothing: it does not go with --select, --calendar or -v")
   if c.select and not (c.given or c.all):
     fail("--select keeps the activities listed as the selection, so it needs criteria or --all")
   if st.radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest

@@ -324,3 +324,14 @@ suite "list: --climb":
     check parseArgs(@["--climb"], utcZone).problem.len > 0
     check parseArgs(@["--invert", "--climb", "x"], utcZone).problem == ""
 
+suite "list: --delete":
+  test "--delete is an action, not a criterion; -f goes with it":
+    let c = parseArgs(@["--delete", "-f"], utcZone).criteria
+    check c.delete and c.force and not c.given and not c.all
+    check parseArgs(@["--sport", "cycling", "--delete"], utcZone).criteria.given
+    check parseArgs(@["--all", "--delete", "-f"], utcZone).problem == ""
+    check parseArgs(@["-f"], utcZone).problem.contains("goes with --delete")
+    check parseArgs(@["--delete", "--select"], utcZone).problem.contains("shows nothing")
+    check parseArgs(@["--delete", "--calendar"], utcZone).problem.contains("shows nothing")
+    check parseArgs(@["--delete", "-v"], utcZone).problem.contains("shows nothing")
+

@@ -13,10 +13,9 @@ import ../errors
 
 type
   Plan* = object
-    ids*: seq[int64]                 ## the current user's selected activities
+    ids*: seq[int64]                 ## the activities to delete (the current user's)
     fileOf*: seq[int64]              ## the file of each (parallel to `ids`)
     fileIds*: seq[int64]             ## their files (each once)
-    others*: int                     ## selected activities of other users: left alone
     first*, last*: int64             ## when the first and the last of them began (Unix seconds)
     sports*: seq[(string, int)]      ## how many of each sport ("" is not recorded), the most first
 
@@ -25,31 +24,36 @@ type
     files*: int                      ## files forgotten (no activity left)
     kept*: int                       ## files kept: they hold other activities
 
-proc planDelete*(st: Store): Plan {.raises: [StoreError].} =
+func list(ids: openArray[int64]): string =
+  ## "1, 2, 3": numbers, so safe to put in a statement.
+  for i, id in ids:
+    if i > 0: result.add ", "
+    result.add $id
+
+proc planDelete*(st: Store, ids: seq[int64]): Plan {.raises: [StoreError].} =
+  ## What deleting these activities (of the current user) would take: their files, the sports and the dates.
   var files: seq[int64]
   var sports = initTable[string, int]()
-  guard:
-    for r in st.db.fastRows(sql"""select a.id, a.file_id, a.start_t, coalesce(a.sport, '')
-        from selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id
-        where s.user_id = ? and f.user_id = ? order by a.start_t, a.id""", st.userId, st.userId):
-      try:
-        let id = parseBiggestInt(r[0])
-        let file = parseBiggestInt(r[1])
-        let t = parseBiggestInt(r[2])
-        result.ids.add id
-        result.fileOf.add file
-        if file notin files: files.add file
-        if result.ids.len == 1: result.first = t
-        result.last = t
-        sports.mgetOrPut(r[3], 0) += 1
-      except ValueError:
-        raiseStore("a bad number in the selection")
-    try:
-      result.others = parseInt(st.db.getValue(sql"""select count(*) from selection s join activity a
-        on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = ? and f.user_id <> ?""",
-        st.userId, st.userId))
-    except ValueError:
-      raiseStore("a bad count")
+  var at = 0
+  var rows: seq[(int64, int64, int64, string)]            # id, file, start, sport
+  while at < ids.len:
+    let stop = min(at + 500, ids.len)
+    guard:
+      for r in st.db.fastRows(sql("select a.id, a.file_id, a.start_t, coalesce(a.sport, '') from activity a " &
+          "join file f on f.id = a.file_id where f.user_id = " & $st.userId & " and a.id in (" & list(ids[at ..< stop]) & ")")):
+        try: rows.add (parseBiggestInt(r[0]), parseBiggestInt(r[1]), parseBiggestInt(r[2]), r[3])
+        except ValueError: raiseStore("a bad number in the activities")
+    at = stop
+  rows.sort(proc (a, b: (int64, int64, int64, string)): int =
+    result = cmp(a[2], b[2])
+    if result == 0: result = cmp(a[0], b[0]))
+  for (id, file, t, sport) in rows:
+    result.ids.add id
+    result.fileOf.add file
+    if file notin files: files.add file
+    if result.ids.len == 1: result.first = t
+    result.last = t
+    sports.mgetOrPut(sport, 0) += 1
   result.fileIds = files
   for sport, n in sports: result.sports.add (sport, n)
   result.sports.sort(proc (a, b: (string, int)): int =
@@ -67,12 +71,6 @@ proc describe*(p: Plan): string =
   let a = fromUnix(p.first).utc.format("yyyy-MM-dd")
   let b = fromUnix(p.last).utc.format("yyyy-MM-dd")
   result.add (if a == b: " on " & a else: " from " & a & " to " & b)
-
-func list(ids: openArray[int64]): string =
-  ## "1, 2, 3": numbers, so safe to put in a statement.
-  for i, id in ids:
-    if i > 0: result.add ", "
-    result.add $id
 
 const chunk* = 25        ## activities deleted between two reports of progress (a ride with a track takes about 9 ms)
 

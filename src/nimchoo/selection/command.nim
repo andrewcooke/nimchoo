@@ -10,6 +10,7 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../climbs/report
 import ../db/store
+import ../delete/run
 import ../errors
 import ../fit/time
 import ../ui/[live, logfile, style, vocabulary]
@@ -19,6 +20,7 @@ import ./[calendar, criteria, fold, table]
 
 const usage* = """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v] [--calendar]
        nch [--db PATH] [--user NAME] activities --all [--select]
+       nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f
 
 Show the activities of the selection: the ones that other commands (climbs, heatmap ...) use unless they are
 told otherwise.  With criteria (or --all) all the activities are searched instead, those that meet the criteria
@@ -63,6 +65,12 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
   --oldest N         only the N oldest of them
   --latest           the same as --newest 1
   --select           make what is listed the selection (needs criteria or --all)
+  --delete           delete the activities (with no criteria and no --all, those of the selection) and everything
+                     made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in
+                     them stay (they are shared), and so do the names on those.  The file of an activity is forgotten
+                     as well: importing its folder again would bring the activity back.  Nothing is deleted without
+                     -f (it says what it would delete); on a terminal there are then 5 seconds in which to press Ctrl-C
+  -f, --force        really do it (with --delete)
   -v, --verbose      show more of each activity: where it started (its coordinates, or
                      "no GPS" if the file has no positions), the place it started and its name
                      (made when it was imported), and the path of its file
@@ -259,22 +267,18 @@ proc resolve(st: Store, c: var Criteria, which: Reference, id: ActivityId, row: 
     source = "the start of the " & nameOf & " activity"
     c.near = nkNone
 
-proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
-                     screen = Screen(colour: true)): tuple[lines: seq[Line], saved: int]
-    {.raises: [StoreError].} =
-  ## List the activities that meet the criteria (and keep them as the selection if
-  ## asked); `saved` is how many were kept, -1 if not asked.
-  ##
+type Resolved = object
+  ## The criteria with `latest`, `previous` and the climbs worked out, and the notes that say which activities they came to.
+  c: Criteria
+  centre: Option[(float, float)]
+  notes: seq[Line]
+
+proc resolveCriteria(st: Store, criteria: Criteria, zone: Timezone): Resolved {.raises: [StoreError].} =
   ## `previous` (in --near, --distance, --active, --sport, --sub-sport) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
   var c = criteria
-  if not (c.all or c.given):
-    # no criteria: the selection
-    result.lines = showSelection(st, c, zone, screen)
-    result.saved = -1
-    return
   let userIds = @[st.userId]
   let idList = $st.userId
   if c.climbs.len > 0:
@@ -294,7 +298,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   var centreFrom = ""
   if usesPrevious(c):
     let prev = previousSelected(st)
-    result.lines.add plain("previous: " & activityText(prev.row, zone))
+    result.notes.add plain("previous: " & activityText(prev.row, zone))
     resolve(st, c, refPrevious, prev.id, prev.row, centre, centreFrom)
   if usesLatest(c):
     let base = withoutLatest(c)
@@ -302,16 +306,49 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
                                          "a.id as id, " & rowColumns(false, st.userId)))
     if found.isNone:
       raiseStore("`latest` is the newest activity that meets the other criteria, and none does")
-    result.lines.add plain("latest: " & activityText(found.get.row, zone))
+    result.notes.add plain("latest: " & activityText(found.get.row, zone))
     resolve(st, c, refLatest, found.get.id, found.get.row, centre, centreFrom)
   if c.near == nkPoint:
     centre = some((c.lat, c.lon))
   if centre.isSome:
-    result.lines.add plain("near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
+    result.notes.add plain("near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
       formatFloat(centre.get[1], ffDecimal, 4) &
       (if centreFrom.len > 0: " (" & centreFrom & ")" else: "") &
       ", within " & radiusText(c.radiusKm) & "km")
-  let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose, st.userId))
+  result.c = c
+  result.centre = centre
+
+proc matchingIds*(st: Store, criteria: Criteria, zone: Timezone): tuple[ids: seq[int64], notes: seq[Line]]
+    {.raises: [StoreError].} =
+  ## The ids of the current user's activities the criteria mean: the selection if there are no criteria and no `--all`,
+  ## else the activities found among all of them.  (And the notes that say which activity `latest` or `previous` was.)
+  var query: string
+  if not (criteria.all or criteria.given):
+    query = "select activity_id from selection where user_id = " & $st.userId
+  else:
+    let r = resolveCriteria(st, criteria, zone)
+    result.notes = r.notes
+    query = "select id from (" & matchSql(@[st.userId], r.c, r.centre, "a.id as id") & ")"
+  guard:
+    for row in st.db.fastRows(sql(query & " order by 1")):
+      try: result.ids.add parseBiggestInt(row[0])
+      except ValueError: raiseStore("a bad activity id")
+
+proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
+                     screen = Screen(colour: true)): tuple[lines: seq[Line], saved: int]
+    {.raises: [StoreError].} =
+  ## List the activities that meet the criteria, or the selection if there are none (and keep them as the selection if
+  ## asked); `saved` is how many were kept, -1 if not asked.
+  if not (criteria.all or criteria.given):
+    # no criteria: the selection
+    result.lines = showSelection(st, criteria, zone, screen)
+    result.saved = -1
+    return
+  let r = resolveCriteria(st, criteria, zone)
+  let c = r.c
+  result.lines = r.notes
+  let idList = $st.userId
+  let match = matchSql(@[st.userId], c, r.centre, "a.id as id, " & rowColumns(c.verbose, st.userId))
   if c.select:
     st.begin()
     var committed = false
@@ -348,6 +385,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch activities", e.msg)
   try:
+    if parsed.criteria.delete:
+      let m = matchingIds(st, parsed.criteria, zone)
+      for l in m.notes: stdout.say l.text & "\n"
+      let searched = parsed.criteria.all or parsed.criteria.given
+      return runDelete(g, st, m.ids, parsed.criteria.force,
+        if searched: "no activity meets the criteria: nothing to delete"
+        else: "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all")
     let colour = canColourStdout()
     let screen = Screen(colour: colour, width: if isatty(stdout): terminalWidth() else: 0)
     let r = listActivities(st, parsed.criteria, zone, screen)

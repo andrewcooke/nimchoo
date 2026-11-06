@@ -7,7 +7,6 @@
 import std/[options, os, strutils]
 import nimchoo/cli/[args, common]
 import nimchoo/climbs/command as climbsCommand
-import nimchoo/delete/command as deleteCommand
 import nimchoo/empty/command as emptyCommand
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/heatmap/command as heatmapCommand
@@ -43,7 +42,6 @@ commands:
   fit         read a FIT file and print it
   log         show the log, filtered, with the events coloured
   import      put the activities of FIT files in the database
-  delete      delete the selected activities
   empty       delete a user's data, the whole database, or the cache files
 
 For more about a command: `nch COMMAND --help`.
@@ -70,8 +68,6 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     modelCommand.run(g, rest)
   of "ff":
     ffCommand.run(g, rest)
-  of "delete":
-    deleteCommand.run(g, rest)
   of "empty":
     emptyCommand.run(g, rest)
   of "climbs":
