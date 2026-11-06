@@ -7,7 +7,7 @@ import ../cli/common
 import ../db/store
 import ../errors
 import ../names/open
-import ../ui/[live, logfile]
+import ../ui/[live, logfile, style]
 import ./[batch, display, events, logsink, naming, sinks]
 
 {.push raises: [].}
@@ -87,8 +87,8 @@ proc runImport*(g: Globals, targets: seq[string], opts: ImportOptions): int {.ra
     if n > 0:
       g.log.log(lvInfo, "activities", leSaved, $n & (if n == 1: " activity" else: " activities") & " selected (imported)")
       if not opts.quiet:
-        stderr.say "selected " & (if n == 1: "the new activity" else: "the " & $n & " new activities") &
-          " (`nch climbs` shows where they went)\n"
+        stderr.say render(@[span("selected " & (if n == 1: "the new activity" else: "the " & $n & " new activities"), yellow)],
+                          canColour()) & "\n"
   except StoreError as e:
     discard failure("nch activities", "the new activities could not be selected: " & e.msg)
   if summary.failed > 0 or namingFailed: exitFailure else: exitOk
