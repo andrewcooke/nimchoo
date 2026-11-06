@@ -87,3 +87,11 @@ suite "climbs: duplicates, retire the redundant":
     # the long climb has 1 effort and the short one 3: the long goes, not the short, whatever their gains
     s.db.exec(sql"update sector set gain_m = 1 where gain_m > 1 and id = (select sector_id from effort group by sector_id order by count(*) limit 1)")
     check retireCopies(s, @[])[0].efforts == 1
+  test "--unretire shows the retired climbs of the chosen groups again":
+    let s = twoClimbs("retire5")
+    defer: s.close()
+    check retireCopies(s, @[]).len == 1
+    check unretireCopies(s, @["zzz-no-such-name"]).len == 0
+    check s.count("sector where retired = 1") == 1
+    check unretireCopies(s, @[]).len == 1
+    check s.count("sector where retired = 1") == 0
