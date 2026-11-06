@@ -79,8 +79,9 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
                      it was last looked at is skipped without being read (this includes files that could not be
                      imported); a file that cannot be imported is reported and the others carry on.  What happened is
                      written to the log (see `nch log --help`).  The new activities are then named, from the places
-                     they went through (the names are downloaded the first time they are needed).  It takes no
-                     criteria; it takes these:
+                     they went through (the names are downloaded the first time they are needed).  The activities
+                     added become your selection, ready for `nch climbs` or `nch heatmap` (if nothing was added
+                     the selection is left as it was).  It takes no criteria; it takes these:
     -q, --quiet      report only failures and the summary
     --slow           read and check every file, even those unchanged since last time (finds files that were moved or
                      copied; retries failures)

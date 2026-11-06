@@ -174,6 +174,29 @@ suite "nch import: the command":
     writeFile(d / "bad.fit", "junk")
     check importCmd(g, @["-q", d]) == exitFailure
 
+  test "the activities just imported become the selection; nothing new leaves it alone":
+    let d = fresh("selects")
+    createDir(d / "first")
+    createDir(d / "second")
+    bytesToFile(d / "first" / "a.fit", tiny(base + 1))
+    bytesToFile(d / "second" / "b.fit", tiny(base + 5000))
+    let g = globals(d / "x.db")
+    proc selectedStarts(): seq[string] =
+      let s = open(d / "x.db")
+      defer: s.close()
+      for r in s.db.fastRows(sql"select a.start_t from selection l join activity a on a.id = l.activity_id order by 1"):
+        result.add r[0]
+    check importCmd(g, @["-q", d / "first"]) == exitOk
+    check selectedStarts() == @[$(base + 1 + 631_065_600)]
+    check importCmd(g, @["-q", d / "second"]) == exitOk                 # the selection is replaced
+    check selectedStarts() == @[$(base + 5000 + 631_065_600)]
+    check importCmd(g, @["-q", d / "first"]) == exitOk                  # nothing new: it stays
+    check selectedStarts() == @[$(base + 5000 + 631_065_600)]
+    check importCmd(g, @["-q", "--slow", d / "second"]) == exitOk       # re-read, not new: it stays
+    check selectedStarts() == @[$(base + 5000 + 631_065_600)]
+    check importCmd(g, @["-q", d]) == exitOk                            # (both are known now)
+    check selectedStarts() == @[$(base + 5000 + 631_065_600)]
+
   test "an unknown user is a failure":
     let d = fresh("user")
     bytesToFile(d / "a.fit", tiny(base + 1))
