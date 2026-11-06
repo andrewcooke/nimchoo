@@ -40,20 +40,6 @@ suite "climbs: duplicates":
     let lines = duplicateLines(duplicateGroups(s))
     check lines.anyIt(it.contains("retired")) and not lines.anyIt(it.contains("--retire"))
 
-suite "climbs: duplicates, one command to hide them all":
-  test "several groups: one hide line at the end names every climb to hide":
-    let groups = @[
-      Group(members: @[Member(id: 1, name: "A₁", efforts: 5), Member(id: 2, name: "A₂", efforts: 2, hideable: true),
-                       Member(id: 3, name: "A₃", efforts: 1, hideable: true)]),
-      Group(members: @[Member(id: 4, name: "B₁", efforts: 9), Member(id: 5, name: "it's B₂", efforts: 3, hideable: true),
-                       Member(id: 6, name: "C₁", efforts: 2, retired: true, hideable: true)])]
-    let lines = duplicateLines(groups)
-    check lines.filterIt(it.startsWith("hide:")).len == 1 and lines[^1].startsWith("hide:")
-    check lines[^1] == "hide: nch climbs --edit 'A₂' 'A₃' 'it'\\''s B₂' --retire"          # (a retired one is not offered; a quote is escaped)
-  test "nothing to hide: no hide line":
-    let lines = duplicateLines(@[Group(members: @[Member(id: 1, name: "A₁", efforts: 5), Member(id: 2, name: "A₂", efforts: 2)])])
-    check not lines.anyIt(it.contains("hide:"))
-
 suite "climbs: duplicates, one line that shows how to hide":
   test "several groups: one hide line, at the end, with NAME as a stand-in":
     let groups = @[
