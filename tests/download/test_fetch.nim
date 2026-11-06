@@ -59,8 +59,8 @@ suite "download: fetching":
     check readFile(got.get) == net.bodies.getOrDefault(chile)
     check not fileExists(got.get & ".part")
     check net.events.len == 2 and net.events[0].kind == deStarting and net.events[1].kind == deDownloaded
-    check net.events[0].message == "names of places and mountains in CL, to name climbs and activities"
-    check describe(net.events[0]) == "need names of places and mountains in CL, to name climbs and activities"
+    check net.events[0].message == "names of places and mountains in CL to name climbs and activities"
+    check describe(net.events[0]) == "need names of places and mountains in CL to name climbs and activities"
     check net.events[1].url == chile and net.events[1].bytes == int64(net.bodies.getOrDefault(chile).len)
     check net.heads == @[chile] and net.gets == @[chile]
     # again: no request, no event

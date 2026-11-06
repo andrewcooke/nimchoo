@@ -19,7 +19,7 @@ const
   geonamesCountry* = Source(
     name: "geonames", url: "https://download.geonames.org/export/dump/{arg}.zip", file: "{arg}.zip",
     zipEntry: "{arg}.txt", maxBytes: 200 * 1024 * 1024, attribution: geonamesCredit,
-    why: "names of places and mountains in {arg}, to name climbs and activities")
+    why: "names of places and mountains in {arg} to name climbs and activities")
     ## One country's places and features, by its ISO code ("CL"); the United States is the largest, 71 MB.
 
   geonamesOutlines* = Source(
