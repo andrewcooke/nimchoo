@@ -1,0 +1,11 @@
+{{! The look of the page: the map fills the window.  The palette's colours (white, grey, red, green, yellow, blue: those of
+    the terminal, blue being the selection's) are tags in double braces, as in the line below. }}
+html, body, #map { height: 100%; margin: 0; }
+
+#caption {
+  position: absolute; z-index: 1000; left: 54px; top: 10px; padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.85);
+  color: {{white}};
+  font: 13px sans-serif;
+  border-radius: 3px;
+}

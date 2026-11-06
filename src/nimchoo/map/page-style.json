@@ -1,0 +1,13 @@
+{{! How routes and climbs are drawn, as JSON (the page reads it).  Routes are thin red threads, each moved a little
+    to the side of its direction of travel by an amount of its own (spread_m, in metres), so that routes over the same
+    road look like one line from far and like several threads from close.  Climbs are thick transparent grey lines
+    beside the road, marking sections of it: gap_px from the threads and lane_px between lanes, in pixels (so they stay
+    clear of the road at any zoom); climbs on the same stretch of road go in different lanes, alternately on each side.
+    smooth_rounds is the corner cutting: 0 none, 1 or 2 smooth.  Other Leaflet line options (dashArray, lineCap ...)
+    can be added by changing the page template.  A colour can be a tag for one of the terminal's colours (red, green,
+    blue, yellow, grey, as in the routes line below) or any #rrggbb. }}
+{
+  "routes": { "color": "{{{red}}}", "weight": 1, "opacity": 0.85, "spread_m": 4 },
+  "climbs": { "color": "#868e96", "weight": 8, "opacity": 0.35, "gap_px": 14, "lane_px": 11 },
+  "smooth_rounds": 2
+}

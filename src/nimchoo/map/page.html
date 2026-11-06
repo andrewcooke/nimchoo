@@ -6,10 +6,7 @@
 <title>{{title}}</title>
 <link rel="stylesheet" href="{{leaflet-css}}" integrity="{{leaflet-css-hash}}" crossorigin="">
 <style>
-  html, body, #map { height: 100%; margin: 0; }
-  #caption { position: absolute; z-index: 1000; left: 54px; top: 10px; padding: 4px 8px;
-             background: rgba(255, 255, 255, 0.85); font: 13px sans-serif; border-radius: 3px; }
-</style>
+{{{css}}}</style>
 </head>
 <body>
 <div id="map"></div>
@@ -23,37 +20,218 @@
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
   const text = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+  // --- routes as threads: each route is moved a little to the side of its direction of travel, by an amount of its
+  // own, so that routes over the same road look like one line from far and like several threads from close.
+  // how things look: the numbers and colours are in map-style.json (system/templates/), filled in here
+  const style = {{{style}}};
+  const spreadM = style.routes.spread_m;                         // the widest offset of a route, to either side, in metres
+  const routeStyle = { color: style.routes.color, weight: style.routes.weight, opacity: style.routes.opacity };
+  const metresPerDegree = 111320;
+
+  // an offset in -1 .. 1 for route k of n: evenly spread over the width, in a scattered order (so the neighbours
+  // along the road are not always neighbours in the cord)
+  function laneOf(k, n) {
+    const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
+    let step = Math.max(1, Math.round(n * 0.618));
+    while (gcd(step, n) !== 1) step++;
+    return (((k * step) % n) + 0.5) / n * 2 - 1;
+  }
+
+  // the points of a path moved `offsetM` metres to the left of the direction of travel (negative: to the right).
+  // At a corner the point moves along the bisector, at most twice as far, so that a sharp bend does not make a spike.
+  function offsetPath(points, offsetM) {
+    const n = points.length;
+    if (n < 2 || offsetM === 0) return points;
+    const kx = metresPerDegree * Math.cos(points[0][1] * Math.PI / 180), ky = metresPerDegree;
+    const xy = points.map((p) => [p[0] * kx, p[1] * ky]);
+    const direction = [];                                         // the unit direction of each segment (null if it has no length)
+    for (let i = 0; i + 1 < n; i++) {
+      const dx = xy[i + 1][0] - xy[i][0], dy = xy[i + 1][1] - xy[i][1], d = Math.hypot(dx, dy);
+      direction.push(d > 0 ? [dx / d, dy / d] : null);
+    }
+    const nearest = (i, step) => { for (let j = i; j >= 0 && j < direction.length; j += step) if (direction[j]) return direction[j]; return null; };
+    return points.map((p, i) => {
+      const before = nearest(i - 1, -1) || nearest(i, 1), after = nearest(i, 1) || nearest(i - 1, -1);
+      if (!before || !after) return p;
+      const n1 = [-before[1], before[0]], n2 = [-after[1], after[0]];
+      let bx = n1[0] + n2[0], by = n1[1] + n2[1];
+      const len = Math.hypot(bx, by);
+      if (len < 1e-9) { bx = n1[0]; by = n1[1]; } else { bx /= len; by /= len; }
+      const scale = 1 / Math.max(bx * n1[0] + by * n1[1], 0.5);
+      return [p[0] + bx * offsetM * scale / kx, p[1] + by * offsetM * scale / ky].concat(p.slice(2));
+    });
+  }
+
+  // --- corner cutting (Chaikin): each corner is replaced by two points a quarter of the way along each side, again and
+  // again, so that a polyline becomes a smooth curve that stays close to it (it never swings out past a corner, as some
+  // splines do).  The ends stay where they are, and the height (a third number) is carried along.
+  const smoothRounds = style.smooth_rounds;
+  function smoothPath(points, rounds) {
+    let p = points;
+    for (let r = 0; r < rounds && p.length > 2; r++) {
+      const q = [p[0]];
+      for (let i = 0; i + 1 < p.length; i++) {
+        const a = p[i], b = p[i + 1];
+        q.push(a.map((v, k) => 0.75 * v + 0.25 * b[k]));
+        q.push(a.map((v, k) => 0.25 * v + 0.75 * b[k]));
+      }
+      q.push(p[p.length - 1]);
+      p = q;
+    }
+    return p;
+  }
+
+  // move the routes of the data (in place): the lanes are given in the order of the activities' ids
+  function spreadRoutes(features) {
+    const routes = features.filter((f) => (f.properties || {}).kind === 'route')
+                           .sort((a, b) => a.properties.id - b.properties.id);
+    routes.forEach((f, k) => {
+      const offsetM = laneOf(k, routes.length) * spreadM, g = f.geometry;
+      if (g.type === 'LineString') g.coordinates = smoothPath(offsetPath(g.coordinates, offsetM), smoothRounds);
+      else if (g.type === 'MultiLineString') g.coordinates = g.coordinates.map((part) => smoothPath(offsetPath(part, offsetM), smoothRounds));
+    });
+  }
+
+  // --- climbs: thick, transparent grey lines beside the road, marking sections of it.  They are offset by a number of
+  // pixels (so they are clearly off the road at any zoom; the offset is worked out again when the zoom changes), and
+  // climbs on the same stretch of road go in different lanes so that they do not overlap: a climb takes the lowest lane
+  // that no climb on the same road (a longer one, placed first) has, and climbs that share no road share a lane.
+  const climbStyle = { color: style.climbs.color, weight: style.climbs.weight, opacity: style.climbs.opacity };
+  const climbGapPx = style.climbs.gap_px;      // from the outermost thread of the routes to the edge of the first lane
+  const climbLanePx = style.climbs.lane_px;    // from the middle of one lane to the middle of the next
+  const sameRoadM = 15;           // two climbs are on the same road if their points are this close
+  const sameRoadLengthM = 60;     // ... along at least this length (so roads that merely cross are not the same road)
+
+  // the metres a pixel is across, at a zoom and a latitude (the map's tiles are 256 pixels wide at zoom 0)
+  const metresPerPixel = (zoom, lat) => 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+
+  // how far from the road (in metres, negative: to the right of the direction of travel) the middle of a lane is.  The
+  // lanes alternate sides of the road: 0 to the right, 1 to the left, 2 further right, 3 further left ...
+  const climbOffsetM = (lane, mPerPx) =>
+    (lane % 2 === 0 ? -1 : 1) * (spreadM + (climbGapPx + climbStyle.weight / 2 + climbLanePx * Math.floor(lane / 2)) * mPerPx);
+
+  // a path with fewer points, none of it further than `tolM` metres from the original (Douglas-Peucker): a winding road
+  // is moved sideways by a long way as the same road without its hairpins, or the offset path loops
+  function simplifyPath(points, tolM) {
+    const n = points.length;
+    if (n < 3 || tolM <= 0) return points;
+    const kx = metresPerDegree * Math.cos(points[0][1] * Math.PI / 180), ky = metresPerDegree;
+    const x = points.map((p) => p[0] * kx), y = points.map((p) => p[1] * ky);
+    const keep = new Array(n).fill(false);
+    keep[0] = keep[n - 1] = true;
+    const stack = [[0, n - 1]];
+    while (stack.length) {
+      const [a, b] = stack.pop();
+      let far = -1, farD = tolM;
+      const dx = x[b] - x[a], dy = y[b] - y[a], len = Math.hypot(dx, dy);
+      for (let i = a + 1; i < b; i++) {
+        const d = len > 0 ? Math.abs(dx * (y[a] - y[i]) - (x[a] - x[i]) * dy) / len : Math.hypot(x[i] - x[a], y[i] - y[a]);
+        if (d > farD) { farD = d; far = i; }
+      }
+      if (far >= 0) { keep[far] = true; stack.push([a, far], [far, b]); }
+    }
+    return points.filter((p, i) => keep[i]);
+  }
+
+  // the points of a path every `stepM` metres along it, in metres from `origin` ([lon, lat]), with a grid to find the
+  // ones near a point
+  function roadOf(coordinates, origin, stepM) {
+    const kx = metresPerDegree * Math.cos(origin[1] * Math.PI / 180), ky = metresPerDegree;
+    const xy = coordinates.map((p) => [(p[0] - origin[0]) * kx, (p[1] - origin[1]) * ky]);
+    const points = [xy[0]];
+    let carried = 0;                                              // the distance along the path since the last point
+    for (let i = 1; i < xy.length; i++) {
+      const dx = xy[i][0] - xy[i - 1][0], dy = xy[i][1] - xy[i - 1][1], d = Math.hypot(dx, dy);
+      let at = stepM - carried;
+      for (; at <= d; at += stepM) points.push([xy[i - 1][0] + dx * at / d, xy[i - 1][1] + dy * at / d]);
+      carried = d - (at - stepM);
+    }
+    const cells = new Map();
+    const cellOf = (x, y) => Math.floor(x / sameRoadM) + ',' + Math.floor(y / sameRoadM);
+    points.forEach((p) => { const k = cellOf(p[0], p[1]); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(p); });
+    const near = (p) => {
+      const cx = Math.floor(p[0] / sameRoadM), cy = Math.floor(p[1] / sameRoadM);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++)
+        for (const q of cells.get((cx + dx) + ',' + (cy + dy)) || []) if (Math.hypot(p[0] - q[0], p[1] - q[1]) <= sameRoadM) return true;
+      return false;
+    };
+    const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+    const box = [Math.min(...xs) - sameRoadM, Math.min(...ys) - sameRoadM, Math.max(...xs) + sameRoadM, Math.max(...ys) + sameRoadM];
+    return { points, near, box };
+  }
+
+  // the lane (0, 1, 2 ...) of each climb, by its id
+  function lanesOfClimbs(features) {
+    const climbs = features.filter((f) => (f.properties || {}).kind === 'climb')
+                           .sort((a, b) => b.properties.length_m - a.properties.length_m || a.properties.id - b.properties.id);
+    if (climbs.length === 0) return new Map();
+    const origin = climbs[0].geometry.coordinates[0];
+    const roads = climbs.map((f) => roadOf(f.geometry.coordinates, origin, sameRoadM));
+    const boxesMeet = (a, b) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
+    const shares = (a, b) => {                                    // whether a runs along b for long enough
+      let along = 0;
+      for (const p of roads[a].points) if (roads[b].near(p) && (along += sameRoadM) >= sameRoadLengthM) return true;
+      return false;
+    };
+    const lanes = new Map();
+    climbs.forEach((f, i) => {
+      const taken = new Set();
+      for (let j = 0; j < i; j++)
+        if (boxesMeet(roads[i].box, roads[j].box) && (shares(i, j) || shares(j, i)))
+          taken.add(lanes.get(climbs[j].properties.id));
+      let lane = 0;
+      while (taken.has(lane)) lane++;
+      lanes.set(f.properties.id, lane);
+    });
+    return lanes;
+  }
+
   fetch('/files/{{{data}}}')
     .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then((data) => {
-      // what a thing looks like is decided here, from what it is (its `kind`); the file says only what things are
-      const climbColours = { HC: '#e03131', 1: '#f08c00', 2: '#fab005', 3: '#2f9e44', 4: '#1971c2' };
       const ofKind = (kind) => (f) => (f.properties || {}).kind === kind;
-      const routes = L.geoJSON(data, {
-        filter: ofKind('route'),
-        style: { color: '#c2185b', weight: 2, opacity: 0.25 },
-        onEachFeature: (f, l) => {
-          const p = f.properties || {};
-          l.bindPopup(text(p.start || '') + '<br>' + text(p.sport || '') + ' ' +
-                      (p.distance_m ? (p.distance_m / 1000).toFixed(1) + 'km' : ''));
-        }
-      }).addTo(map);
-      const climbs = L.geoJSON(data, {
+      spreadRoutes(data.features);
+      const lanes = lanesOfClimbs(data.features);
+      // the climbs first, so that the routes are drawn over them; they are moved to their lanes once the zoom is known
+      const climbLayers = [];
+      L.geoJSON(data, {
         filter: ofKind('climb'),
-        style: (f) => ({ color: climbColours[(f.properties || {}).category] || '#868e96', weight: 5, opacity: 0.9 }),
+        style: climbStyle,
         onEachFeature: (f, l) => {
           const p = f.properties || {};
           const facts = (p.category ? 'category ' + text(p.category) + ', ' : '') + (p.length_m / 1000).toFixed(1) + 'km, +' +
                         Math.round(p.gain_m) + 'm, ' + p.gradient.toFixed(1) + '%';
           l.bindTooltip(text(p.name || ''), { sticky: true });
           l.bindPopup('<b>' + text(p.name || '') + '</b><br>' + facts);
+          f.original = f.geometry.coordinates;
+          climbLayers.push([f, l]);
+        }
+      }).addTo(map);
+      const routes = L.geoJSON(data, {
+        filter: ofKind('route'),
+        style: routeStyle,
+        onEachFeature: (f, l) => {
+          const p = f.properties || {};
+          l.bindPopup(text(p.start || '') + '<br>' + text(p.sport || '') + ' ' +
+                      (p.distance_m ? (p.distance_m / 1000).toFixed(1) + 'km' : ''));
         }
       }).addTo(map);
       const bounds = routes.getBounds();
       if (bounds.isValid()) map.fitBounds(bounds); else map.setView([0, 0], 2);
+      const placeClimbs = () => {
+        const mPerPx = metresPerPixel(map.getZoom(), map.getCenter().lat);
+        climbLayers.forEach(([f, l]) => {
+          const offsetM = climbOffsetM(lanes.get(f.properties.id), mPerPx);
+          const road = simplifyPath(f.original, Math.abs(offsetM) * 0.35);       // (so that hairpins do not make loops)
+          l.setLatLngs(L.GeoJSON.coordsToLatLngs(smoothPath(offsetPath(road, offsetM), smoothRounds), 0));
+        });
+      };
+      placeClimbs();
+      map.on('zoomend', placeClimbs);
       const n = data.features.filter(ofKind('route')).length;
       const m = data.features.filter(ofKind('climb')).length;
-      caption.textContent = n + ' routes' + (m ? ', ' + m + ' climbs' : '');
+      caption.textContent = n + ' routes' + (n > 1 && spreadM ? ' (each moved up to ' + spreadM + ' m to the side)' : '') +
+                            (m ? ', ' + m + ' climbs (grey, beside the road, to either side)' : '');
     })
     .catch((e) => { caption.textContent = 'could not load the routes: ' + e; });
 </script>

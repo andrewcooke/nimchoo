@@ -272,3 +272,11 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   weigh it.
 * when there is no ground truth for "better" (a detection setting, say), say so, and propose how to judge: look at
   examples together, compare against what the old choochoo did, measure.
+* **The page is three templates**, each built in and unpacked to the cache's `system/templates/` where the author edits it
+  (never overwritten once changed; delete a file to get the built-in one): `map.html` (the page and its script),
+  `map.css` (the look of the page) and `map-style.json` (how routes and climbs are drawn).  The css and the style are
+  filled in first, with the palette's colours as tags (`{{blue}}`), then put into the page.  The look: routes are thin
+  red threads, each offset sideways by an amount of its own (`spread_m`); climbs are thick transparent grey lines beside
+  the road, in lanes alternating sides so that climbs on the same stretch do not overlap, offset in pixels (recomputed on
+  zoom, simplified first so that hairpins do not loop); corner cutting (`smooth_rounds`) rounds the lines.  A comment in
+  these templates must not contain a tag (the engine ends a comment at the first closing braces).
