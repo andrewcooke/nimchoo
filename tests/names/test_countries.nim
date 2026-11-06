@@ -1,4 +1,4 @@
-import std/[options, os, strutils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/download/[fetch, sources]
@@ -61,7 +61,7 @@ suite "names: which country":
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     check st.db.getValue(sql"select count(*) from country") == "0"
     check countryAt(names, -70.65, -33.45) == some("CL")             # Santiago
-    check net.gets.len == 2 and events.len == 4                       # the outlines, and the list: each said, then done
+    check net.gets.len == 2 and events.filterIt(it.kind notin {deReading, deFinished}).len == 4                       # the outlines, and the list: each said, then done
     check st.db.getValue(sql"select count(*) from country") == "4"
     check st.db.getValue(sql"select name from country where iso = 'AR'") == "Argentina"
     check st.db.getValue(sql"select count(*) from country where geom is null") == "1"       # Curacao: no outline
@@ -109,6 +109,7 @@ suite "names: which country":
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     expect DownloadError:
       ensureCountries(names)
-    check events.len >= 1 and events[^1].kind == deFailed and "cannot be read" in events[^1].message
+    let said = events.filterIt(it.kind notin {deReading, deFinished})
+    check said.len >= 1 and said[^1].kind == deFailed and "cannot be read" in said[^1].message
     check not fileExists(dir / "geonames" / "shapes_simplified_low.json.zip")
     ensureCountries(names)                                            # the good file is fetched

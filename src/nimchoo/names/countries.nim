@@ -51,6 +51,9 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
   let outlinesPath = fetchSource(n.env, n.sink, n.dataDir, geonamesOutlines)
   let infoPath = fetchSource(n.env, n.sink, n.dataDir, geonamesCountryInfo)
   if outlinesPath.isNone or infoPath.isNone: raise n.couldNot("the countries")
+  n.sink(DownloadEvent(kind: deReading, source: geonamesCountryInfo.name, url: urlFor(geonamesCountryInfo),
+                       label: labelFor(geonamesCountryInfo)))
+  defer: n.sink(DownloadEvent(kind: deFinished, source: geonamesCountryInfo.name))
   var countries: seq[CountryInfo]
   var shapes: Table[int64, string]
   try:

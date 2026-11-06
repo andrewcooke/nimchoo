@@ -129,6 +129,10 @@ proc ensureCells*(n: Names, iso: string, box: Box) {.raises: [StoreError, Downlo
       raise n.couldNot("the names of " & iso & " (no such country)")
   let path = fetchSource(n.env, n.sink, n.dataDir, geonamesCountry, iso)
   if path.isNone: raise n.couldNot("the names of " & iso)
+  # reading the file takes a while (unzipping, parsing, storing): the screen says so, and when it is done
+  n.sink(DownloadEvent(kind: deReading, source: geonamesCountry.name, url: urlFor(geonamesCountry, iso),
+                       label: labelFor(geonamesCountry, iso)))
+  defer: n.sink(DownloadEvent(kind: deFinished, source: geonamesCountry.name))
   var text: string
   try:
     text = readEntry(readFile(path.get), entryFor(geonamesCountry, iso), maxCountryFile)

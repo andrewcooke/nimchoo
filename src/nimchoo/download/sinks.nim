@@ -2,7 +2,7 @@
 ## the screen (one line each, on stderr, so a pause for the network is explained).
 
 import ../ui/[live, logfile, style]
-import ./fetch
+import ./[fetch, spinner]
 
 {.push raises: [].}
 
@@ -17,7 +17,7 @@ proc logSink*(l: Log, command: string): Sink =
     case ev.kind
     of deStarting:
       l.log(lvInfo, command, leNote, "need " & ev.message & "  " & ev.url)
-    of deProgress:
+    of deProgress, deReading, deFinished:
       discard                    # (the log has the start and the end)
     of deDownloaded:
       l.log(lvInfo, command, leDownloaded, ev.url & "  " & humanBytes(ev.bytes) & "  " & ev.path)
@@ -27,39 +27,45 @@ proc logSink*(l: Log, command: string): Sink =
 proc screenSink*(write: proc(line: string) {.closure, raises: [].}): Sink =
   ## Say each event, as a line (the progress is not: there is no animation without a terminal).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
-    if ev.kind != deProgress: write describe(ev)
+    if ev.kind notin {deProgress, deReading, deFinished}: write describe(ev)
 
-const spinnerFrames* = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
-
-func progressLine*(label, url: string, bytes: int64, frame: int, finished: bool): Line =
-  ## The line while a file comes, and after:
-  ##
-  ##     need locations in CL: download.geonames.org/export/dump/CL.zip (71.3MB) ⠹
-  ##
-  ## The address is grey; `bytes` is the size (0: not known yet, and nothing is said); the spinner turns with `frame` and
-  ## goes when the file is `finished`.
-  result = @[span("need " & label & ": "), span(shortUrl(url), grey)]
-  if bytes > 0: result.add span(" (" & humanBytes(bytes) & ")")
-  if not finished: result.add span(" " & spinnerFrames[frame mod spinnerFrames.len])
-
-proc liveSink*(live: Live): Sink =
-  ## Say a download on one line that turns a spinner while the file comes, and stays on the screen at the end.  A file
-  ## that comes in a moment is only the finished line.
+proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): Sink =
+  ## Say a download on one line that turns a spinner (see spinner.nim) while the file comes and while it is read, and that
+  ## stays on the screen at the end.  A file that is already in the cache and is only read gets the line and the spinner
+  ## too, if the reading takes a moment, and the line goes at the end.
+  var sp: Spinner
+  var downloaded = false                    # this line is of a file that came now: it stays
   var label, url = ""
-  var total = 0'i64
-  var frame = 0
+  proc endLine(ending: Ending, message = "") =
+    if sp != nil:
+      sp.stop(ending, message)
+      sp = nil
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
     case ev.kind
     of deStarting:
+      endLine(if downloaded: enKeep else: enClear)       # (the last file's line, if it was not ended)
+      downloaded = false
       label = ev.label
       url = ev.url
-      total = 0
-      frame = 0
+      sp = startSpinner(maker, label, url)
     of deProgress:
-      if ev.total > 0: total = ev.total
-      inc frame
-      if live.due(): live.show(@[progressLine(label, url, total, frame, false)])
+      if sp != nil: sp.setSize(ev.total)
     of deDownloaded:
-      live.keep(@[progressLine(label, url, ev.bytes, frame, true)])
+      downloaded = true
+      if sp != nil:
+        sp.setSize(ev.bytes)
+        sp.setReading()
+    of deReading:
+      if sp == nil:
+        downloaded = false
+        sp = startSpinner(maker, ev.label, ev.url, phReading)
+      else: sp.setReading()
+    of deFinished:
+      endLine(if downloaded: enKeep else: enClear)
+      downloaded = false
     of deFailed:
-      live.keep(@[@[span("cannot download " & shortUrl(ev.url) & ": " & ev.message, red)]])
+      if sp != nil:
+        endLine(enFailed, ev.message)
+      else:
+        maker().keep(@[@[span("cannot download " & shortUrl(ev.url) & ": " & ev.message, red)]])
+      downloaded = false

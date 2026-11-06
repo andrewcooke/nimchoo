@@ -1,5 +1,5 @@
-import std/[options, os, strutils, tables, unittest]
-import nimchoo/download/[fetch, sinks, sources]
+import std/[monotimes, options, os, sets, strutils, tables, unittest]
+import nimchoo/download/[fetch, sinks, sources, spinner]
 import nimchoo/ui/[live, logfile, palette, style]
 import ../support/zips
 
@@ -168,15 +168,33 @@ suite "download: the same events in the log and on the screen":
     check "ERROR climbs    failed" in text and "cannot reach" in text
     check said == @["need locations in CL: " & shortUrl(chile), "downloaded " & shortUrl(chile) & " (1.4MB)", "cannot download " & shortUrl(chile) & ": cannot reach"]
 
+var written: seq[string]          ## what the test terminal was given (the spinner's thread writes it; read after it is stopped)
+
+proc testMaker(): Live {.nimcall, raises: [].} =
+  ## A `Live` that writes into `written`, with no first delay, so that frames are drawn at once.
+  {.cast(gcsafe).}:
+    newLive(write = proc(s: string) {.closure, raises: [].} =
+              {.cast(gcsafe).}: written.add(s),
+            now = proc(): int64 {.closure, raises: [].} = getMonoTime().ticks div 1_000_000,
+            size = proc(): tuple[w, h: int] {.closure, raises: [].} = (120, 24),
+            colour = false, firstDelay = 0, interval = 10)
+
+proc spinnerChars(): HashSet[string] =
+  for w in written:
+    for f in frames:
+      if f in w: result.incl f
+
 suite "download: the line while a file comes":
   let url = "https://download.geonames.org/export/dump/CL.zip"
   test "the label, the address in grey without the scheme, the size, and a spinner while it comes":
-    let l = progressLine("locations in CL", url, 71_300_000, 2, false)
-    check l.text == "need locations in CL: download.geonames.org/export/dump/CL.zip (71.3MB) " & spinnerFrames[2]
+    let l = progressLine("locations in CL", url, 71_300_000, phDownloading, 2, false)
+    check l.text == "need locations in CL: download.geonames.org/export/dump/CL.zip (71.3MB) " & frames[2]
     check l[1].look.colour == grey and l[0].look.colour == white
-    check progressLine("countries", url, 0, 0, false).text == "need countries: download.geonames.org/export/dump/CL.zip " & spinnerFrames[0]
-    check progressLine("countries", url, 32_000, 5, true).text == "need countries: download.geonames.org/export/dump/CL.zip (32kB)"
-    check progressLine("x", url, 1, 13, false).text.endsWith(spinnerFrames[3])         # (the frames go round)
+    check progressLine("countries", url, 0, phDownloading, 0, false).text == "need countries: download.geonames.org/export/dump/CL.zip " & frames[0]
+    check progressLine("countries", url, 32_000, phReading, 1, false).text ==
+      "need countries: download.geonames.org/export/dump/CL.zip (32kB) reading " & frames[1]
+    check progressLine("countries", url, 32_000, phReading, 5, true).text == "need countries: download.geonames.org/export/dump/CL.zip (32kB)"
+    check progressLine("x", url, 1, phDownloading, 13, false).text.endsWith(frames[3])         # (the frames go round)
   test "a fetcher that tells how it goes is used, and each tick is an event":
     let net = newNet()
     net.bodies[chile] = makeZip([("CL.txt", "1\tSantiago\n"), ("readme.txt", "x")])
@@ -190,20 +208,41 @@ suite "download: the line while a file comes":
     for e in net.events: kinds.add e.kind
     check kinds == @[deStarting, deProgress, deProgress, deProgress, deDownloaded]      # (the first is the start, at 0)
     check net.events[2].bytes == 100 and net.events[2].total == 1000
-  test "the live sink: the final line is kept; a failure is said in red":
-    var written: seq[string]
-    var now = 0'i64
-    let live = newLive(write = proc(s: string) {.closure, raises: [].} = written.add(s),
-                       now = proc(): int64 {.closure, raises: [].} = now,
-                       size = proc(): tuple[w, h: int] {.closure, raises: [].} = (100, 24), colour = false)
-    let sink = liveSink(live)
+  test "the spinner thread turns the spinner by itself, and leaves the line, takes it away, or leaves the failure":
+    written = @[]
+    let sp = startSpinner(testMaker, "locations in CL", url)
+    sp.setSize(1000)
+    sleep(350)
+    sp.stop(enKeep)
+    check spinnerChars().len >= 2                                     # (it moved without being told anything)
+    check "need locations in CL: download.geonames.org/export/dump/CL.zip (1kB)" in written[^1]
+    check not written[^1].contains(frames[0]) and not written[^1].contains(frames[5])
+    written = @[]
+    let gone = startSpinner(testMaker, "x", url)
+    sleep(100)
+    gone.stop(enClear)
+    check "need" notin written[^1]
+    written = @[]
+    let bad = startSpinner(testMaker, "x", url)
+    bad.stop(enFailed, "cannot reach")
+    check "cannot download download.geonames.org/export/dump/CL.zip: cannot reach" in written[^1]
+  test "the live sink: a download keeps its line, a file only read gets none, a failure is said":
+    written = @[]
+    let sink = liveSink(testMaker)
     sink(DownloadEvent(kind: deStarting, source: "geonames", url: url, label: "locations in CL"))
-    sink(DownloadEvent(kind: deProgress, source: "geonames", url: url, bytes: 0, total: 1000))
-    check written.len == 0                                                  # (too soon to draw)
-    now = 200
-    sink(DownloadEvent(kind: deProgress, source: "geonames", url: url, bytes: 500, total: 1000))
-    check written.len == 1 and "need locations in CL: download.geonames.org/export/dump/CL.zip (1kB) " in written[0]
+    sink(DownloadEvent(kind: deProgress, source: "geonames", url: url, bytes: 10, total: 1000))
+    sleep(150)
     sink(DownloadEvent(kind: deDownloaded, source: "geonames", url: url, bytes: 1000))
-    check "(1kB)" in written[^1] and spinnerFrames[0] notin written[^1] and spinnerFrames[2] notin written[^1]
-    sink(DownloadEvent(kind: deFailed, source: "geonames", url: url, message: "cannot reach"))
+    sink(DownloadEvent(kind: deReading, source: "geonames", url: url, label: "locations in CL"))
+    sleep(150)
+    check "reading" in written[^1]                                    # (still going: the spinner runs while it is read)
+    sink(DownloadEvent(kind: deFinished, source: "geonames"))
+    check "(1kB)" in written[^1] and "reading" notin written[^1]
+    written = @[]
+    sink(DownloadEvent(kind: deReading, source: "geonames", url: url, label: "locations in CL"))      # a cached file
+    sleep(100)
+    sink(DownloadEvent(kind: deFinished, source: "geonames"))
+    check "need" notin written[^1]
+    written = @[]
+    sink(DownloadEvent(kind: deFailed, source: "geonames", url: url, message: "cannot reach"))     # (no line was going)
     check "cannot download download.geonames.org/export/dump/CL.zip: cannot reach" in written[^1]
