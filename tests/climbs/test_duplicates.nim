@@ -16,11 +16,11 @@ suite "climbs: duplicates":
     check groups.len == 1 and groups[0].members.len == 2
     check groups[0].members[0].efforts == 3 and groups[0].members[1].efforts == 1      # the shorter one is the most ridden
     let lines = duplicateLines(groups)
-    check lines[0].startsWith("climbs that largely overlap")
+    check lines[0].startsWith("climbs that are nearly the same")
     check lines.anyIt(it.contains("3 efforts")) and lines.anyIt(it.contains("1 effort"))
-    check lines.anyIt(it.strip.startsWith("hide: nch climbs --edit \"unnamed₁\" --retire"))      # the longer, found first, is ₁
+    check lines.anyIt(it.strip == "hide: nch climbs --edit 'unnamed₁' --retire")      # the longer, found first, is ₁; one line, nothing after it
     check groups[0].members[1].hideable and not groups[0].members[0].hideable
-    check not lines.anyIt(it.contains("unnamed₂\" --retire"))                      # (the most ridden is not offered)
+    check not lines.anyIt(it.contains("unnamed₂' --retire"))                      # (the most ridden is not offered)
   test "climbs far apart, or one climb, are not duplicates":
     let s = fresh("nodups")
     defer: s.close()

@@ -1,8 +1,8 @@
-## Climbs that are largely the same: sectors of which more than half of each lies within 25 m of the other (the test
-## `match.isRepeat` uses when it looks for a climb that is stored already).  A ride that stops a little short of a climb's
-## finish makes a climb of its own (see work.nim), so these happen.  The report puts them in groups, the most ridden
-## first, and offers to hide a climb only if it overlaps a more ridden one directly (a group can be a chain of climbs, from
-## rides that turn round in different places, which are not all copies of the most ridden).  Retiring is by hand
+## Climbs that are nearly the same: sectors of which at least four fifths of each lies within 25 m of the other
+## (`match.isNearCopy`; the looser `isRepeat`, half of each, is for deciding whether a newly found climb is one that is
+## stored already, and would join a whole road of nested climbs into one group).  A ride that stops a little short of a
+## climb's finish makes a climb of its own (see work.nim), so these happen.  The report puts them in groups, the most
+## ridden first, and offers to hide a climb only if it is a near copy of a more ridden one.  Retiring is by hand
 ## (`nch climbs --edit NAME --retire`).
 
 import std/[algorithm, strutils, tables]
@@ -21,7 +21,7 @@ type
     lengthM*, gainM*, gradient*: float
     efforts*: int
     retired*: bool
-    hideable*: bool                ## it overlaps (directly) a climb that has more efforts, so it may be a duplicate of it
+    hideable*: bool                ## it is a near copy of a climb that has more efforts, so it may be a duplicate of it
 
   Group* = object
     members*: seq[Member]          ## the most ridden first
@@ -41,7 +41,8 @@ func pathOf(text: string): Path =
     result = Path()
 
 proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
-  ## Groups of two or more sectors that largely overlap (a sector that overlaps one of a group joins it), retired ones too.
+  ## Groups of two or more sectors that are near copies of each other (a sector that is a near copy of one of a group
+  ## joins it), retired ones too.
   let names = shownNames(st)
   var members: seq[Member]
   var paths: seq[Path]
@@ -67,7 +68,7 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     k
   for i in 0 ..< members.len:
     for j in i + 1 ..< members.len:
-      if isRepeat(paths[i], paths[j]):
+      if isNearCopy(paths[i], paths[j]):
         let a = root(i)
         let b = root(j)
         if a != b: parent[b] = a
@@ -90,11 +91,15 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     for m in b.members: eb += m.efforts
     result = cmp(eb, ea))
 
+func shellQuote(s: string): string =
+  ## In single quotes for the shell; a single quote in the text is written '\'' (end the quotes, a quote, start again).
+  "'" & s.replace("'", "'\\''") & "'"
+
 func duplicateLines*(groups: seq[Group]): seq[string] =
   ## The groups, each a block of lines: the climbs with their length, gain and efforts, the most ridden first, and the
   ## command to hide one.
   if groups.len == 0: return @["no climbs overlap: nothing to tidy"]
-  result.add "climbs that largely overlap (more than half of each is within 25 m of the other), the most ridden first:"
+  result.add "climbs that are nearly the same (at least 80% of each is within 25 m of the other), the most ridden first:"
   for g in groups:
     result.add ""
     var cells: seq[seq[string]]
@@ -105,4 +110,4 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
     for l in columns(cells, {2, 3, 4, 5}): result.add "  " & l
     for m in g.members:
       if m.hideable and not m.retired:
-        result.add "    hide: nch climbs --edit \"" & m.name & "\" --retire   (overlaps a climb with more efforts)"
+        result.add "    hide: nch climbs --edit " & shellQuote(m.name) & " --retire"

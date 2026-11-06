@@ -21,6 +21,7 @@ const
   gateRadius* = 25.0             ## metres each side of the route, for the gates and for "the same place"
   lengthTolerance = 0.05         ## the ground covered may differ from the sector's length by this
   repeatLimit = 0.5              ## a repeat if less than this fraction of each is outside the other
+  nearCopyLimit = 0.2            ## a near copy (the duplicates report) if less than this fraction of each is outside the other
   sampleStep = 5.0               ## metres between the points taken along a route to compare it
 
 type
@@ -160,9 +161,8 @@ func insideShare(line: openArray[XY], other: openArray[XY]): float =
     if inHull(middle, other): inside += piece
   if total > 0: inside / total else: 0.0
 
-func isRepeat*(older, newer: Path): bool =
-  ## Whether `newer` (a climb just found) is `older` (a stored one) again: less than half of
-  ## each is outside the other.
+func overlapsBothWays(older, newer: Path, limit: float): bool =
+  ## Whether less than `limit` of each path is outside the other (within the gate radius).
   if older.len < 2 or newer.len < 2: return false
   let pr = projection(older.lon[0], older.lat[0])
   let a = older.xy(pr)
@@ -170,4 +170,13 @@ func isRepeat*(older, newer: Path): bool =
   if bounds(a).apart(bounds(b), gateRadius): return false
   let outsideA = 1.0 - insideShare(a, b)
   let outsideB = 1.0 - insideShare(b, a)
-  outsideA < repeatLimit and outsideB < repeatLimit
+  outsideA < limit and outsideB < limit
+
+func isRepeat*(older, newer: Path): bool =
+  ## Whether `newer` (a climb just found) is `older` (a stored one) again: less than half of each is outside the other.
+  overlapsBothWays(older, newer, repeatLimit)
+
+func isNearCopy*(a, b: Path): bool =
+  ## Whether two climbs are nearly the same one, for the duplicates report: less than a fifth of each is outside the
+  ## other (so a short climb inside a long one is not, and a chain of climbs that each overlap the next is not).
+  overlapsBothWays(a, b, nearCopyLimit)

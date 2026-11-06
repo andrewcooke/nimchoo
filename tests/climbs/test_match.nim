@@ -119,3 +119,19 @@ suite "climbs: a climb found again":
   test "degenerate routes are never repeats":
     check not isRepeat(Path(), old)
     check not isRepeat(old, Path())
+
+suite "climbs: near copies (the duplicates report)":
+  let a = pathOf([(0.0, 0.0), (3000.0, 0.0)], 10.0)
+  test "nearly the same stretch is a near copy; a stretch with a fifth or more outside is not":
+    check isNearCopy(a, a)
+    check isNearCopy(a, pathOf([(200.0, 0.0), (3200.0, 0.0)], 10.0))         # 7 % outside each way
+    check isNearCopy(a, pathOf([(0.0, 0.0), (2500.0, 0.0)], 10.0))           # 17 % of a outside
+    check not isNearCopy(a, pathOf([(700.0, 0.0), (3700.0, 0.0)], 10.0))     # 23 % outside each way
+    check not isNearCopy(a, pathOf([(500.0, 0.0), (1500.0, 0.0)], 10.0))     # a short climb inside a long one
+  test "a chain of climbs that each overlap the next is not made of near copies, though each pair is a repeat":
+    let b = pathOf([(1000.0, 0.0), (4000.0, 0.0)], 10.0)                     # 67 % of each in common with a
+    let c = pathOf([(2000.0, 0.0), (5000.0, 0.0)], 10.0)
+    check isRepeat(a, b) and isRepeat(b, c)
+    check not isNearCopy(a, b) and not isNearCopy(b, c) and not isNearCopy(a, c)
+  test "degenerate routes are never near copies":
+    check not isNearCopy(Path(), a) and not isNearCopy(a, Path())
