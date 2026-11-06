@@ -15,7 +15,6 @@ import nimchoo/landmark/command as landmarkCommand
 import nimchoo/user/command as userCommand
 import nimchoo/model/command as modelCommand
 import nimchoo/ff/command as ffCommand
-import nimchoo/importer/command as importCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
 import nimchoo/ui/logfile
@@ -41,7 +40,6 @@ commands:
   ff          the fitness and fatigue curves, as CSV for plotting
   fit         read a FIT file and print it
   log         show the log, filtered, with the events coloured
-  import      put the activities of FIT files in the database
   empty       delete a user's data, the whole database, or the cache files
 
 For more about a command: `nch COMMAND --help`.
@@ -54,8 +52,6 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     exitOk
   of "fit":
     fitCommand.run(g, rest)
-  of "import":
-    importCommand.run(g, rest)
   of "activities":
     activitiesCommand.run(g, rest)
   of "heatmap":

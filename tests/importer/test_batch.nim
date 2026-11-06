@@ -4,13 +4,29 @@
 import std/[os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/importer/batch
-import nimchoo/importer/command as importCommand
+import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/errors
 import nimchoo/modules
 import nimchoo/profile/[default, model]
 import ../support/fitbuilder
+
+proc importCmd(g: Globals, args: seq[string]): int =
+  ## The old `nch import ARGS` as `nch activities --import ...` (the paths first, then the options)
+  var paths, flags: seq[string]
+  var i = 0
+  while i < args.len:
+    if args[i] in ["-q", "--quiet", "--slow"]: flags.add args[i]
+    elif args[i] in ["-j", "--jobs"]:
+      flags.add args[i]
+      flags.add args[i + 1]
+      inc i
+    elif args[i].startsWith("-"): flags.add args[i]
+    else: paths.add args[i]
+    inc i
+  activitiesCommand.run(g, @["--import"] & paths & flags)
+
 
 const base = 900_000_000
 
@@ -198,9 +214,9 @@ suite "import: remembered failures":
     let d = fresh("status")
     writeFile(d / "bad.fit", "broken")
     let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
-    check importCommand.run(g, @["-q", d]) == exitFailure     # new failure
-    check importCommand.run(g, @["-q", d]) == exitOk          # known now
-    check importCommand.run(g, @["-q", "--slow", d]) == exitFailure
+    check importCmd(g, @["-q", d]) == exitFailure     # new failure
+    check importCmd(g, @["-q", d]) == exitOk          # known now
+    check importCmd(g, @["-q", "--slow", d]) == exitFailure
 
 suite "import: the profile is loaded only when needed":
   test "not for files that are skipped, nor for copies of imported content":

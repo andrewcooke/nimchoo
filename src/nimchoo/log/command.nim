@@ -22,7 +22,7 @@ commands.  Several of one kind mean "any of them".  With no names, everything.
   -n N         only the last N lines
   -h, --help   show this help
 
-On a terminal the event words have the colours they have in `nch import`
+On a terminal the event words have the colours they have in `nch activities --import`
 (imported green, failed red, advisory yellow, duplicate grey).
 """
 

@@ -1,4 +1,4 @@
-## The live display of `nch import` (see ui/live.nim): two lines that follow the
+## The live display of `nch activities --import` (see ui/live.nim): two lines that follow the
 ## run and are left on screen, final numbers and all, when it ends.  Nothing is
 ## printed per file; failures are counted here and written in the log.
 ##

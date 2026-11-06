@@ -1,5 +1,5 @@
 ## Naming the activities: each that has no name yet (null) gets its start place and its name from the places near its
-## route (see names/activity.nim), kept on the activity as text.  Done at the end of `nch import`, so the names are
+## route (see names/activity.nim), kept on the activity as text.  Done at the end of `nch activities --import`, so the names are
 ## decided in the run that imports; the first time (or after a migration) it names every activity.  If the names are
 ## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.
 

@@ -1,11 +1,27 @@
 import std/[os, sequtils, strutils, unittest]
 import nimchoo/importer/[events, failure, logsink]
-import nimchoo/importer/command as importCommand
+import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
 import nimchoo/modules
 import nimchoo/ui/logfile
 import nimchoo/warnings
 import ../support/fitbuilder
+
+proc importCmd(g: Globals, args: seq[string]): int =
+  ## The old `nch import ARGS` as `nch activities --import ...` (the paths first, then the options)
+  var paths, flags: seq[string]
+  var i = 0
+  while i < args.len:
+    if args[i] in ["-q", "--quiet", "--slow"]: flags.add args[i]
+    elif args[i] in ["-j", "--jobs"]:
+      flags.add args[i]
+      flags.add args[i + 1]
+      inc i
+    elif args[i].startsWith("-"): flags.add args[i]
+    else: paths.add args[i]
+    inc i
+  activitiesCommand.run(g, @["--import"] & paths & flags)
+
 
 const base = 900_000_000
 
@@ -76,7 +92,7 @@ suite "import log: the command":
     writeFile(d / "src" / "bad.fit", "junk")
     let path = d / "nch.log"
     let g = Globals(dbPath: d / "x.db", fragments: allFragments, log: openLog(path), offline: true)
-    check importCommand.run(g, @["-q", d / "src"]) == exitFailure
+    check importCmd(g, @["-q", d / "src"]) == exitFailure
     g.log.close()
     let text = readFile(path)
     check "start      2 files" in text
@@ -89,9 +105,9 @@ suite "import log: the command":
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let path = d / "nch.log"
     var g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
-    discard importCommand.run(g, @["-q", d / "src"])
+    discard importCmd(g, @["-q", d / "src"])
     g.log = openLog(path)
-    check importCommand.run(g, @["-q", d / "src"]) == exitOk
+    check importCmd(g, @["-q", d / "src"]) == exitOk
     g.log.close()
     let ls = readFile(path).splitLines.filterIt(it.len > 0)
     check ls.len == 2
@@ -101,5 +117,5 @@ suite "import log: the command":
     let d = fresh("nolog")
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
-    check importCommand.run(g, @["-q", d / "src"]) == exitOk
+    check importCmd(g, @["-q", d / "src"]) == exitOk
     check not fileExists(d / "nch.log")

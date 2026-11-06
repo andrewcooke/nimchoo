@@ -1,4 +1,4 @@
-## What `nch import` remembers about the paths it has looked at (the table
+## What `nch activities --import` remembers about the paths it has looked at (the table
 ## `seen_file`): a path whose size and modification time have not changed is
 ## skipped without reading it.  Rows are collected in a buffer and written in
 ## batches, so a run over thousands of files makes few transactions.

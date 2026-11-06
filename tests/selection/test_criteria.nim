@@ -335,3 +335,16 @@ suite "list: --delete":
     check parseArgs(@["--delete", "--calendar"], utcZone).problem.contains("shows nothing")
     check parseArgs(@["--delete", "-v"], utcZone).problem.contains("shows nothing")
 
+
+suite "list: --import":
+  test "several paths, and the options that go with it":
+    let c = parseArgs(@["--import", "a", "b", "-q", "--slow", "-j", "3"], utcZone).criteria
+    check c.importPaths == @["a", "b"] and c.quiet and c.slow and c.jobs == 3
+  test "it needs a path":
+    check parseArgs(@["--import"], utcZone).problem.contains("at least one path")
+  test "it excludes the criteria, the other actions and the display options":
+    for extra in [@["--sport", "cycling"], @["--all"], @["--select"], @["--delete"], @["-v"], @["--calendar"], @["--invert"]]:
+      check parseArgs(@["--import", "a"] & extra, utcZone).problem.len > 0
+  test "-q, --slow and -j need --import":
+    for o in [@["-q"], @["--slow"], @["-j", "2"]]:
+      check parseArgs(o, utcZone).problem.len > 0

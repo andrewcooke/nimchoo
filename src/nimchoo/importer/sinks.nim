@@ -1,5 +1,5 @@
-## Sinks for the events of `nch import` (events.nim): what to do with them.
-## The plain sink prints the lines `nch import` prints when its output is not a
+## Sinks for the events of `nch activities --import` (events.nim): what to do with them.
+## The plain sink prints the lines `nch activities --import` prints when its output is not a
 ## terminal; the pure function behind it is `plainLines`, so tests can check the
 ## text without a terminal.  (The live display and the log are in other modules.)
 ##

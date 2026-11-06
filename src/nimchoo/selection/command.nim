@@ -10,7 +10,9 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../climbs/report
 import ../db/store
-import ../delete/run
+import ../delete/run as deleteRun
+import ../importer/batch
+import ../importer/run as importRun
 import ../errors
 import ../fit/time
 import ../ui/[live, logfile, style, vocabulary]
@@ -21,6 +23,7 @@ import ./[calendar, criteria, fold, table]
 const usage* = """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v] [--calendar]
        nch [--db PATH] [--user NAME] activities --all [--select]
        nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f
+       nch [--db PATH] [--user NAME] activities --import [-q] [--slow] [-j N] PATH...
 
 Show the activities of the selection: the ones that other commands (climbs, heatmap ...) use unless they are
 told otherwise.  With criteria (or --all) all the activities are searched instead, those that meet the criteria
@@ -71,6 +74,19 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
                      as well: importing its folder again would bring the activity back.  Nothing is deleted without
                      -f (it says what it would delete); on a terminal there are then 5 seconds in which to press Ctrl-C
   -f, --force        really do it (with --delete)
+  --import PATH...   put the activities in FIT files into the database.  Each PATH is a file, or a directory that is
+                     searched (recursively) for *.fit files.  A file whose path, size and modification time are as when
+                     it was last looked at is skipped without being read (this includes files that could not be
+                     imported); a file that cannot be imported is reported and the others carry on.  What happened is
+                     written to the log (see `nch log --help`).  The new activities are then named, from the places
+                     they went through (the names are downloaded the first time they are needed).  It takes no
+                     criteria; it takes these:
+    -q, --quiet      report only failures and the summary
+    --slow           read and check every file, even those unchanged since last time (finds files that were moved or
+                     copied; retries failures)
+    -j, --jobs N     use N threads to read and decode the files (the database is written by one thread, in the order
+                     of the files, so the result is the same); 1: no threads.  Default: the number of processors,
+                     but not more than 8
   -v, --verbose      show more of each activity: where it started (its coordinates, or
                      "no GPS" if the file has no positions), the place it started and its name
                      (made when it was imported), and the path of its file
@@ -385,6 +401,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch activities", e.msg)
   try:
+    if parsed.criteria.importPaths.len > 0:
+      let c = parsed.criteria
+      return runImport(g, c.importPaths, ImportOptions(steps: g.importSteps, quiet: c.quiet, slow: c.slow,
+                                                       jobs: (if c.jobs > 0: c.jobs else: defaultJobs())))
     if parsed.criteria.delete:
       let m = matchingIds(st, parsed.criteria, zone)
       for l in m.notes: stdout.say l.text & "\n"

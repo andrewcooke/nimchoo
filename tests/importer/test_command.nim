@@ -1,11 +1,27 @@
 import std/[algorithm, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/importer/batch
-import nimchoo/importer/command as importCommand
+import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
 import ../support/fitbuilder
+
+proc importCmd(g: Globals, args: seq[string]): int =
+  ## The old `nch import ARGS` as `nch activities --import ...` (the paths first, then the options)
+  var paths, flags: seq[string]
+  var i = 0
+  while i < args.len:
+    if args[i] in ["-q", "--quiet", "--slow"]: flags.add args[i]
+    elif args[i] in ["-j", "--jobs"]:
+      flags.add args[i]
+      flags.add args[i + 1]
+      inc i
+    elif args[i].startsWith("-"): flags.add args[i]
+    else: paths.add args[i]
+    inc i
+  activitiesCommand.run(g, @["--import"] & paths & flags)
+
 
 const ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
 const base = 900_000_000
@@ -149,19 +165,19 @@ suite "nch import: the command":
     let d = fresh("run")
     bytesToFile(d / "a.fit", tiny(base + 1))
     let g = globals(d / "x.db")
-    check importCommand.run(g, @["--help"]) == exitOk
-    check importCommand.run(g, @[]) == exitUsage
-    check importCommand.run(g, @["--nonesuch", d]) == exitUsage
-    check importCommand.run(g, @["-q", d]) == exitOk
-    check importCommand.run(g, @["-q", d]) == exitOk              # skipped is not a failure
-    check importCommand.run(g, @["-q", d / "nonesuch"]) == exitFailure
+    check activitiesCommand.run(g, @["--help"]) == exitOk
+    check activitiesCommand.run(g, @["--import"]) == exitUsage
+    check activitiesCommand.run(g, @["--import", d, "--nonesuch"]) == exitUsage
+    check importCmd(g, @["-q", d]) == exitOk
+    check importCmd(g, @["-q", d]) == exitOk              # skipped is not a failure
+    check importCmd(g, @["-q", d / "nonesuch"]) == exitFailure
     writeFile(d / "bad.fit", "junk")
-    check importCommand.run(g, @["-q", d]) == exitFailure
+    check importCmd(g, @["-q", d]) == exitFailure
 
   test "an unknown user is a failure":
     let d = fresh("user")
     bytesToFile(d / "a.fit", tiny(base + 1))
-    check importCommand.run(globals(d / "x.db", "nobody"), @["-q", d]) ==
+    check importCmd(globals(d / "x.db", "nobody"), @["-q", d]) ==
       exitFailure
 
   test "the real ride goes in":
