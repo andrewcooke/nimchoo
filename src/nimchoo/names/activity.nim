@@ -28,6 +28,7 @@ const
   closeM* = 700.0               ## a destination this close to the turning point wins whatever its kind
   minReachM* = 1500.0           ## the least distance a destination is looked for round the turning point
   viaRouteM* = 2000.0           ## a feature along the route is within this of it
+  viaGridM = 2500.0             ## the size of the cells that route is cut into to find them
   startNearM* = 5000.0          ## the start place is this near, or "near ..." up to startFarM
   startFarM* = 20_000.0
 
@@ -139,11 +140,12 @@ proc nameActivity*(n: Names, lons, lats: openArray[float]): ActivityNames {.rais
         rt.add ll.lat
       if n.prepare(rl, rt, viaRouteM).status == rdReady:
         var cands: seq[(Found, float)]
+        let grid = newRouteGrid(sh.points, viaGridM)       # (so that a feature is measured only to the route near it)
         for f in n.featuresNear(rl, rt, viaRouteM):
           let xy = pr.project(f.lon, f.lat)
           if dist(xy, origin) < sh.farM / 3.0: continue
-          let d = pointLineDistance(xy, sh.points)
-          if d <= viaRouteM: cands.add (f, d)
+          let d = grid.distanceWithin(xy, viaRouteM)
+          if d.isSome: cands.add (f, d.get)
         let pick = choose(cands)
         if pick.isSome: via = pick.get.name
     result.name = nameFor(sh.kind, result.start, "", via)

@@ -3,7 +3,7 @@
 ## (good to a fraction of a percent over the tens of kilometres of a ride, and the same projection
 ## is used for everything that is compared).  Pure.
 
-import std/[math, options]
+import std/[math, options, tables]
 
 {.push raises: [].}
 
@@ -55,6 +55,39 @@ func pointLineDistance*(p: XY, line: openArray[XY]): float =
   result = Inf
   for i in 0 ..< line.high:
     result = min(result, pointSegmentDistance(p, line[i], line[i + 1]))
+
+type RouteGrid* = object
+  ## A polyline cut into a grid, to ask how far points are from it without measuring to every segment: each segment is
+  ## kept in every cell its bounding box touches.
+  cellM: float
+  line: seq[XY]
+  cells: Table[(int, int), seq[int]]    ## the segments (by the index of their first point) in each cell
+
+func cellOf(g: RouteGrid, v: float): int = int(floor(v / g.cellM))
+
+func newRouteGrid*(line: openArray[XY], cellM: float): RouteGrid =
+  ## The grid of the polyline, in cells `cellM` metres square (the radius to be asked about should be about the size of a
+  ## cell or less: a bigger radius still gives the right answers, but looks in more cells).
+  result = RouteGrid(cellM: cellM, line: @line, cells: initTable[(int, int), seq[int]]())
+  if line.len == 0: return
+  for i in 0 ..< max(1, line.high):
+    let a = line[i]
+    let b = line[min(i + 1, line.high)]
+    for cx in result.cellOf(min(a.x, b.x)) .. result.cellOf(max(a.x, b.x)):
+      for cy in result.cellOf(min(a.y, b.y)) .. result.cellOf(max(a.y, b.y)):
+        result.cells.mgetOrPut((cx, cy), @[]).add i
+
+func distanceWithin*(g: RouteGrid, p: XY, radiusM: float): Option[float] =
+  ## The distance from `p` to the nearest point of the polyline, if that is at most `radiusM` (the same as
+  ## `pointLineDistance`, which it replaces when only the near points matter); none if it is farther.
+  if g.line.len == 0: return
+  var best = Inf
+  for cx in g.cellOf(p.x - radiusM) .. g.cellOf(p.x + radiusM):
+    for cy in g.cellOf(p.y - radiusM) .. g.cellOf(p.y + radiusM):
+      g.cells.withValue((cx, cy), segments):
+        for i in segments:
+          best = min(best, pointSegmentDistance(p, g.line[i], g.line[min(i + 1, g.line.high)]))
+  if best <= radiusM: some(best) else: none(float)
 
 func length*(line: openArray[XY]): float =
   for i in 0 ..< line.high: result += dist(line[i], line[i + 1])
