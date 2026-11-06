@@ -131,7 +131,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
 
 proc retireCopies*(st: Store, texts: seq[string]): seq[Member] {.raises: [StoreError].} =
   ## Retire the climbs that are redundant, group by group, and say which.  Each group's climbs are taken from the
-  ## smallest gain up (ties: fewest efforts, then id); one is retired if every ride that matched it also matched a
+  ## fewest efforts up (ties: smallest gain, then id); one is retired if every ride that matched it also matched a
   ## near copy of it that is not retired, so no ride is left without a visible climb, and the last of a group is never
   ## retired.  `texts`: only groups with a climb whose name holds one of them (case and accents ignored; "farellones 2"
   ## and "farellones₂" are the same).
@@ -147,7 +147,7 @@ proc retireCopies*(st: Store, texts: seq[string]): seq[Member] {.raises: [StoreE
       if not found: continue
     var retired = initTable[int64, bool]()
     for m in g.members: retired[m.id] = m.retired
-    let order = g.members.sortedByIt((it.gainM, it.efforts, it.id))
+    let order = g.members.sortedByIt((it.efforts, it.gainM, it.id))
     for m in order:
       if retired.getOrDefault(m.id, true): continue
       var kept: seq[string]

@@ -64,7 +64,7 @@ makes a climb of its own.
   --retired       list the retired climbs
   --duplicates    list the climbs that largely overlap (more than half of each lies within 25 m of the
                   other), the most ridden first, with the command to hide each of the others
-                  with --retire: retire the redundant ones (smallest gain first; a climb goes only if every ride
+                  with --retire: retire the redundant ones (least ridden first; a climb goes only if every ride
                   of it also matched a near copy that stays), keeping the last of each group; --name TEXT
                   limits it to groups with a climb of that name; `--edit NAME --unretire` undoes one
   -h, --help      show this help

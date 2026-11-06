@@ -81,3 +81,9 @@ suite "climbs: duplicates, retire the redundant":
     s.db.exec(sql"update sector set retired = 1 where id = 1")
     check retireCopies(s, @[]).len == 0
     check s.count("sector where retired = 1") == 1
+  test "the least ridden goes first: a one-off is retired before a climb ridden often":
+    let s = twoClimbs("retire4")
+    defer: s.close()
+    # the long climb has 1 effort and the short one 3: the long goes, not the short, whatever their gains
+    s.db.exec(sql"update sector set gain_m = 1 where gain_m > 1 and id = (select sector_id from effort group by sector_id order by count(*) limit 1)")
+    check retireCopies(s, @[])[0].efforts == 1
