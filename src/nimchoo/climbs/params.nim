@@ -19,6 +19,9 @@ type Params* = object
   delete*: bool              ## `--delete`: delete every climb and start again (with `--all`)
   force*: bool               ## `-f`: really (with --delete)
   listOnly*: bool            ## `--retired` or `--duplicates`: a list that needs no working out of climbs
+  names*: seq[string]        ## `--name TEXT...`: the climbs whose name holds the text (all climbs, not the selection's)
+  verbose*: bool            ## `-v`: list the attempts under each climb
+  everyone*: bool           ## `--everyone`: the people's best times (the leaderboard) instead of the user's own attempts
   help*: bool
   problem*: string
 
@@ -48,6 +51,13 @@ func nameProblem*(s: string): string =
     return "a name cannot end in (n/m): the program adds that itself when climbs share a name"
   ""
 
+proc takeNames(p: var Params, name: string, values: seq[string]): string {.nimcall.} =
+  for v in values:
+    if v.strip.len == 0: return name & " needs some text"
+    p.names.add v.strip
+  if values.len == 0: return name & " needs some text"
+  ""
+
 proc parseArgs*(args: seq[string]): Params =
   ## `nch climbs` (the climbs of the selected activities), `--all`, `--retired`, `--duplicates`,
   ## `--delete --all -f`, `--edit NAME --rename NEW`, `--edit NAME --auto`, `--edit NAME --retire`, `--edit NAME --unretire`.
@@ -67,6 +77,8 @@ proc parseArgs*(args: seq[string]): Params =
       flag(Params, ["--auto"], auto),
       flag(Params, ["--retire"], retire), flag(Params, ["--unretire"], unretire),
       flag(Params, ["--retired"], retired), flag(Params, ["--duplicates"], duplicates),
+      flag(Params, ["-v", "--verbose"], verbose), flag(Params, ["--everyone"], everyone),
+      listOption[Params](["--name"], takeNames),
       flag(Params, ["--all"], all), flag(Params, ["--delete"], delete),
       flag(Params, ["-f", "--force"], force)],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
@@ -93,4 +105,8 @@ proc parseArgs*(args: seq[string]): Params =
   if result.delete:
     if not result.all: fail("--delete needs --all: the climbs are never deleted one at a time (to hide one: --edit NAME --retire)")
     if result.edit or result.retired or result.duplicates: fail("--delete does not go with --edit, --retired or --duplicates")
+  if result.names.len > 0 and (result.all or result.edit or result.delete or result.retired or result.duplicates):
+    fail("--name chooses the climbs to show: it does not go with --all, --edit, --delete, --retired or --duplicates")
+  if (result.verbose or result.everyone) and (result.all or result.edit or result.delete or result.retired or result.duplicates):
+    fail("-v and --everyone go with the attempts: `nch climbs` (or `--name TEXT`) shows them")
   result.listOnly = result.retired or result.duplicates

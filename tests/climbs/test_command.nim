@@ -36,6 +36,17 @@ suite "nch climbs":
     s.close()
     check climbs(path) == exitOk
     check climbs(path, "--all") == exitOk
+    check climbsCommand.run(globals(path), @["-v"]) == exitOk
+    check climbsCommand.run(globals(path), @["--everyone", "-v"]) == exitOk
+
+  test "--name looks at all the climbs; no climb of that name is a failure":
+    let s = fresh("command-name")
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    let path = s.path
+    s.close()
+    check climbsCommand.run(globals(path), @["--name", "unnamed"]) == exitOk      # (nothing is selected)
+    check climbsCommand.run(globals(path), @["--name", "nonesuch"]) == exitFailure
+    check climbsCommand.run(globals(path), @["--name", "unnamed", "--all"]) == exitUsage
 
   test "--all --delete: nothing without -f; with -f the climbs and their efforts go, the rides stay, and they come back":
     let s = fresh("command-delete")

@@ -188,7 +188,10 @@ own format.  the number formats every one of them needs (`km`, the dash for not 
   (start, sport, distance, active time, then the place it started and what it is called, joined by " / ").
   verbose adds the sub-sport (`cycling/road`) and, last, the path of the file.
 * a climb:  `Cerro San Luis (4/5)  4 0.5km +89m 17.8%`  (name, category, length, gain, gradient).  in
-  `nch climbs` the attempt follows:  `at 14.8km  9:41  24 of 34  best 8:25`.
+  `nch climbs` the summary follows: how many attempts, best, latest (with its date) and its **personal rank** (`3 of 12`: among the
+  user's own attempts); `--everyone` swaps it for the **leaderboard** (riders, fastest and who, your best's place among each
+  person's best: `4 of 6`).  The two ranks are never shown together, are worked out when asked for, and are never stored; `-v`
+  lists the attempts (or each person's best).  The selection chooses the climbs, never the attempts; `--name TEXT` chooses climbs by name.
 * **no space between a number and its unit** (`36.7km`, `+89m`, `17.8%`, `1h41m`).
 * in a table the parts are cells lined up in columns (padded, numbers to the right), headed `start`, `sport`,
   `distance`, `active`, `place / name` (and `path`); the one-line form is for headings and sentences.

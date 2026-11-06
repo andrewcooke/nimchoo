@@ -56,3 +56,16 @@ suite "climbs params: --delete":
     check parseArgs(@["--all", "-f"]).problem.contains("goes with --delete")
     check parseArgs(@["--all", "--delete", "--retired"]).problem.len > 0
     check parseArgs(@["--all", "--delete", "--edit", "X", "--retire"]).problem.len > 0
+
+suite "climbs params: --name, -v, --everyone":
+  test "names, and the flags":
+    let c = parseArgs(@["--name", "farellones", "cuesta", "-v", "--everyone"])
+    check c.problem == "" and c.names == @["farellones", "cuesta"] and c.verbose and c.everyone
+  test "--name needs text and goes with nothing that lists or changes":
+    check parseArgs(@["--name"]).problem.len > 0
+    for o in [@["--all"], @["--retired"], @["--duplicates"], @["--delete", "--all"], @["--edit", "X", "--retire"]]:
+      check parseArgs(@["--name", "x"] & o).problem.len > 0
+  test "-v and --everyone go with the attempts only":
+    for o in [@["--all"], @["--retired"], @["--duplicates"], @["--edit", "X", "--retire"]]:
+      check parseArgs(@["-v"] & o).problem.len > 0
+      check parseArgs(@["--everyone"] & o).problem.len > 0

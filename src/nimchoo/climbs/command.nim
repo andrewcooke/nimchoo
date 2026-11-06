@@ -10,12 +10,13 @@ import ../errors
 import ../names/open
 import ../ui/[live, logfile]
 import ../user/wipe
-import ./[duplicates, edit, naming, params, report, work]
+import ./[attempts, duplicates, edit, naming, params, report, work]
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] [--user NAME] climbs
-       nch [--db PATH] [--user NAME] climbs --all
+const usage* = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
+       nch [--db PATH] [--user NAME] climbs --name TEXT... [-v] [--everyone]
+       nch climbs --all
        nch climbs --all --delete -f
        nch climbs --edit NAME --rename NEW
        nch climbs --edit NAME --auto
@@ -24,19 +25,25 @@ const usage* = """usage: nch [--db PATH] [--user NAME] climbs
        nch climbs --retired
        nch climbs --duplicates
 
-Show the climbs of the selected activities (see `nch activities --select`): for each activity the climbs
-it went up (where, how long, how much, how steep, and the category by the height gained), the
-time it took, and where that ranks among the efforts of everyone on the same climb.  Times are
-from the bottom to the top, stops included.
+Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
+category by the height gained, length, gain, gradient), then how you did on it: how many times you rode it, your best
+time, your latest (and when) and where that ranks among your own attempts ("3 of 12").  All your attempts count, not
+only those of the selected rides.  Times are from the bottom to the top, stops included.
 
 The climbs are found in the rides, once: the first time it works out those of every activity
 that has not been looked at (about a minute for two thousand rides), and keeps them; after an
 import it only looks at the new ones.  A ride that goes over part of a climb but not all of it
 makes a climb of its own.
 
-  --all           every climb found instead, the biggest first: its category, length, height gained
-                  and gradient, how many times it has been ridden, the best time and whose it is, your
-                  own best, and "manual" against a name given by a person
+  --name TEXT...  the climbs whose name holds the text (any of them; case and accents do not matter; the
+                  "(n/m)" counts: `--name "farellones (2/3)"`), among all the climbs, not those of the
+                  selected rides
+  -v, --verbose   list the attempts under each climb, the fastest first, each with its rank
+  --everyone      the people instead of your attempts: how many have ridden each climb, the fastest and who,
+                  and where your best time comes among everyone's best times ("4 of 6"); with -v each person's
+                  best.  (The personal rank and this one are never shown together.)
+  --all           just the climbs found, the biggest first: category, length, height gained and gradient, how
+                  many times it has been ridden, and "manual" against a name given by a person
   --delete        (with --all) delete every climb found, with the efforts on them (of every user), and start again:
                   the next `nch climbs` works them out again from the rides.  Names given by hand are lost
                   (the message says how many).  Needs -f; on a terminal there are then 5 seconds in which to
@@ -57,8 +64,7 @@ makes a climb of its own.
                   other), the most ridden first, with the command to hide each of the others
   -h, --help      show this help
 
-The climbs are shared by all users; the ranks count everyone's efforts.  (`--user` says whose selection
-is shown, and whose best time is "yours".)
+The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are "yours".)
 """
 
 func noteRetired(count: int): string =
@@ -164,14 +170,20 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let hidden = countRetired(st)
         if hidden > 0: stdout.say noteRetired(hidden)
       return exitOk
-    if selectedActivities(st) == 0:
-      stdout.say "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
-      return exitOk
-    let rows = selectedEfforts(st)
-    if rows.len == 0:
-      stdout.say "no climbs in the " & $selectedActivities(st) & " selected activities\n"
+    var ids: seq[int64]
+    if p.names.len > 0:
+      ids = namedClimbs(st, p.names)
+      if ids.len == 0:
+        return failure("nch climbs", "no climb has a name like that (`nch climbs --all` lists them)")
     else:
-      for l in effortLines(rows, local()): stdout.say l & "\n"
+      if selectedActivities(st) == 0:
+        stdout.say "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
+        return exitOk
+      ids = selectedClimbs(st)
+      if ids.len == 0:
+        stdout.say "no climbs in the " & $selectedActivities(st) & " selected activities\n"
+        return exitOk
+    for l in summaryLines(summaries(st, ids), p.everyone, p.verbose, local()): stdout.say l & "\n"
     exitOk
   except StoreError, DownloadError:
     failure("nch climbs", getCurrentExceptionMsg())
