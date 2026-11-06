@@ -58,3 +58,34 @@ func routeWkb*(a: ActivityData): Option[string] =
       put64(buf, pos, a.coords[i].lon)
       put64(buf, pos, a.coords[i].lat)
   some(buf)
+
+func get32(buf: string, pos: var int): uint32 =
+  for i in 0 ..< 4: result = result or (uint32(ord(buf[pos + i])) shl (8 * i))
+  pos += 4
+
+func getDouble(buf: string, pos: var int): float =
+  var bits = 0'u64
+  for i in 0 ..< 8: bits = bits or (uint64(ord(buf[pos + i])) shl (8 * i))
+  pos += 8
+  cast[float](bits)
+
+func routePoints*(wkb: string): tuple[lons, lats: seq[float]] =
+  ## The points of a route in WKB, in order, parts one after the other (the inverse of `routeWkb`, little-endian, as
+  ## SpatiaLite gives it).  Nothing for anything else, or for bytes that are too short.
+  if wkb.len < 9 or ord(wkb[0]) != int(littleEndianFlag): return
+  var pos = 1
+  let kind = get32(wkb, pos)
+  var parts = 1
+  if kind == multiLineString: parts = int(get32(wkb, pos))
+  elif kind != lineString: return
+  for _ in 0 ..< parts:
+    if kind == multiLineString:
+      if pos + 9 > wkb.len or ord(wkb[pos]) != int(littleEndianFlag): return
+      pos += 1
+      if get32(wkb, pos) != lineString: return
+    if pos + 4 > wkb.len: return
+    let n = int(get32(wkb, pos))
+    if pos + 16 * n > wkb.len: return
+    for _ in 0 ..< n:
+      result.lons.add getDouble(wkb, pos)
+      result.lats.add getDouble(wkb, pos)

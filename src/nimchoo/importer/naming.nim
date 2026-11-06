@@ -5,9 +5,10 @@
 
 import db_connector/db_sqlite
 import std/strutils
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../names/[activity, countries]
+import ./route
 
 {.push raises: [].}
 
@@ -28,14 +29,24 @@ proc ensureActivityNames*(st: Store, names: Names, progress: proc(done, total: i
     {.raises: [StoreError, DownloadError].} =
   let todo = pending(st)
   result.total = todo.len
+  # the route of an activity is read as the stored geometry (one blob), not as a row for each position; an activity with no
+  # route (no segment had two points) is read from its positions
+  let routeOf = prepareStmt(st.db, "select AsBinary(geom) from route where activity_id = ?")
   for k, id in todo:
     var lons, lats: seq[float]
-    guard:
-      for r in st.db.fastRows(sql"select lon, lat from coords where activity_id = ? order by t", id):
-        try:
-          lons.add parseFloat(r[0])
-          lats.add parseFloat(r[1])
-        except ValueError: raiseStore("a bad position")
+    routeOf.bindInt(1, id)
+    if routeOf.nextRow():
+      let points = routePoints(routeOf.blobAt(0))
+      lons = points.lons
+      lats = points.lats
+    routeOf.rewind()
+    if lons.len == 0:
+      guard:
+        for r in st.db.fastRows(sql"select lon, lat from coords where activity_id = ? order by t", id):
+          try:
+            lons.add parseFloat(r[0])
+            lats.add parseFloat(r[1])
+          except ValueError: raiseStore("a bad position")
     let got = nameActivity(names, lons, lats)
     guard: st.db.exec(sql"update activity set start_place = ?, name = ? where id = ?", got.start, got.name, id)
     if got.name.len > 0: inc result.named

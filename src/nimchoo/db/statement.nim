@@ -7,7 +7,7 @@ import std/options
 import db_connector/db_sqlite
 from db_connector/sqlite3 import PStmt, prepare_v2, bind_int64, bind_double,
     bind_null, bind_text, bind_blob, SQLITE_TRANSIENT, step, reset, clear_bindings,
-    finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE
+    finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE, SQLITE_ROW, column_blob, column_bytes
 import ../errors
 import ../ids
 
@@ -78,6 +78,25 @@ proc run*(s: Stmt) {.raises: [StoreError].} =
   discard reset(s.raw)
   discard clear_bindings(s.raw)
   if bad: raiseStore(message)
+
+proc nextRow*(s: Stmt): bool {.raises: [StoreError].} =
+  ## Step to the next row of a query; false when there are no more.  (Call `rewind` before running the query again.)
+  let rc = step(s.raw)
+  if rc == SQLITE_ROW: return true
+  if rc != SQLITE_DONE: fail(s.db, "cannot read")
+  false
+
+proc blobAt*(s: Stmt, i: int): string =
+  ## The bytes of column `i` (counted from 0) of the current row, whatever they are (zeros included); "" if it is null.
+  let n = int(column_bytes(s.raw, int32(i)))
+  if n <= 0: return ""
+  result = newString(n)
+  copyMem(addr result[0], column_blob(s.raw, int32(i)), n)
+
+proc rewind*(s: Stmt) =
+  ## Get the statement ready to run again with new values.
+  discard reset(s.raw)
+  discard clear_bindings(s.raw)
 
 proc lastInsertId*(db: DbConn): int64 {.raises: [].} =
   ## The id of the row most recently inserted on this connection.

@@ -39,6 +39,14 @@ suite "route: the geometry bytes":
       segments: @[Segment(startT: UnixTime(1), endT: UnixTime(2)), Segment(startT: UnixTime(10), endT: UnixTime(11))])
     check routeWkb(a).get.lines == @[@[(1.5, 2.5), (1.6, 2.6)], @[(3.0, 4.0), (3.1, 4.1)]]
 
+  test "the points are read back, parts one after the other; anything else gives none":
+    let a = ActivityData(
+      coords: @[coord(1, 1.5, 2.5), coord(2, 1.6, 2.6), coord(10, 3.0, 4.0), coord(11, 3.1, 4.1)],
+      segments: @[Segment(startT: UnixTime(1), endT: UnixTime(2)), Segment(startT: UnixTime(10), endT: UnixTime(11))])
+    let p = routePoints(routeWkb(a).get)
+    check p.lons == @[1.5, 1.6, 3.0, 3.1] and p.lats == @[2.5, 2.6, 4.0, 4.1]
+    check routePoints("").lons.len == 0 and routePoints("nonsense bytes").lons.len == 0
+    check routePoints(routeWkb(a).get[0 ..< 30]).lons.len < 4                      # (cut short: no crash)
   test "the bytes are the standard ones: byte order, type, counts, then longitude and latitude as doubles":
     let a = ActivityData(coords: @[coord(1, 1.0, 2.0), coord(2, 3.0, 4.0)],
                          segments: @[Segment(startT: UnixTime(1), endT: UnixTime(2))])
