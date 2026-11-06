@@ -18,9 +18,9 @@ suite "climbs: duplicates":
     let lines = duplicateLines(groups)
     check lines[0].startsWith("climbs that are nearly the same")
     check lines.anyIt(it.contains("3 efforts")) and lines.anyIt(it.contains("1 effort"))
-    check lines.anyIt(it.strip == "hide: nch climbs --edit 'unnamed₁' --retire")      # the longer, found first, is ₁; one line, nothing after it
+    check lines.filterIt(it.startsWith("hide:")) == @["hide: nch climbs --edit 'NAME' --retire"]      # one line, at the end, with NAME as the stand-in
+    check lines[^1].startsWith("hide:")
     check groups[0].members[1].hideable and not groups[0].members[0].hideable
-    check not lines.anyIt(it.contains("unnamed₂' --retire"))                      # (the most ridden is not offered)
   test "climbs far apart, or one climb, are not duplicates":
     let s = fresh("nodups")
     defer: s.close()
@@ -39,3 +39,30 @@ suite "climbs: duplicates":
     s.db.exec(sql"update sector set retired = 1 where id = 1")
     let lines = duplicateLines(duplicateGroups(s))
     check lines.anyIt(it.contains("retired")) and not lines.anyIt(it.contains("--retire"))
+
+suite "climbs: duplicates, one command to hide them all":
+  test "several groups: one hide line at the end names every climb to hide":
+    let groups = @[
+      Group(members: @[Member(id: 1, name: "A₁", efforts: 5), Member(id: 2, name: "A₂", efforts: 2, hideable: true),
+                       Member(id: 3, name: "A₃", efforts: 1, hideable: true)]),
+      Group(members: @[Member(id: 4, name: "B₁", efforts: 9), Member(id: 5, name: "it's B₂", efforts: 3, hideable: true),
+                       Member(id: 6, name: "C₁", efforts: 2, retired: true, hideable: true)])]
+    let lines = duplicateLines(groups)
+    check lines.filterIt(it.startsWith("hide:")).len == 1 and lines[^1].startsWith("hide:")
+    check lines[^1] == "hide: nch climbs --edit 'A₂' 'A₃' 'it'\\''s B₂' --retire"          # (a retired one is not offered; a quote is escaped)
+  test "nothing to hide: no hide line":
+    let lines = duplicateLines(@[Group(members: @[Member(id: 1, name: "A₁", efforts: 5), Member(id: 2, name: "A₂", efforts: 2)])])
+    check not lines.anyIt(it.contains("hide:"))
+
+suite "climbs: duplicates, one line that shows how to hide":
+  test "several groups: one hide line, at the end, with NAME as a stand-in":
+    let groups = @[
+      Group(members: @[Member(id: 1, name: "A₁", efforts: 5), Member(id: 2, name: "A₂", efforts: 2, hideable: true)]),
+      Group(members: @[Member(id: 4, name: "B₁", efforts: 9), Member(id: 5, name: "B₂", efforts: 3, hideable: true)])]
+    let lines = duplicateLines(groups)
+    check lines.filterIt(it.startsWith("hide:")) == @["hide: nch climbs --edit 'NAME' --retire"]
+    check lines[^1] == "hide: nch climbs --edit 'NAME' --retire"
+  test "nothing that can be hidden (all retired, or none a copy of a more ridden one): no hide line":
+    let lines = duplicateLines(@[Group(members: @[Member(id: 1, name: "A₁", efforts: 5),
+                                                  Member(id: 2, name: "A₂", efforts: 2, retired: true, hideable: true)])])
+    check not lines.anyIt(it.contains("hide:"))

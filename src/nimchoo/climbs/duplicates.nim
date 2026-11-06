@@ -91,15 +91,12 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     for m in b.members: eb += m.efforts
     result = cmp(eb, ea))
 
-func shellQuote(s: string): string =
-  ## In single quotes for the shell; a single quote in the text is written '\'' (end the quotes, a quote, start again).
-  "'" & s.replace("'", "'\\''") & "'"
-
 func duplicateLines*(groups: seq[Group]): seq[string] =
-  ## The groups, each a block of lines: the climbs with their length, gain and efforts, the most ridden first, and the
-  ## command to hide one.
+  ## The groups, each a block of lines: the climbs with their length, gain and efforts, the most ridden first; then, at
+  ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0: return @["no climbs overlap: nothing to tidy"]
   result.add "climbs that are nearly the same (at least 80% of each is within 25 m of the other), the most ridden first:"
+  var anyToHide = false
   for g in groups:
     result.add ""
     var cells: seq[seq[string]]
@@ -109,5 +106,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
                 @[$m.efforts & (if m.efforts == 1: " effort" else: " efforts"), (if m.retired: "retired" else: "")]
     for l in columns(cells, {2, 3, 4, 5}): result.add "  " & l
     for m in g.members:
-      if m.hideable and not m.retired:
-        result.add "    hide: nch climbs --edit " & shellQuote(m.name) & " --retire"
+      if m.hideable and not m.retired: anyToHide = true
+  if anyToHide:
+    result.add ""
+    result.add "hide: nch climbs --edit 'NAME' --retire"           # (NAME: any climb above that is a copy of one with more efforts)
