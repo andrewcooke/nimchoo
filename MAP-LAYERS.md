@@ -3,6 +3,9 @@
 Status: **ideas only, nothing is built.**  The author wants to think about it first ("this is very new").  Nothing in the
 code depends on it.  When a decision is made, move it to TODO.md and AGENTS.md.
 
+**After the review below (same day) the author's view is that the whole thing is too complex for now.**  The most useful
+result of the review is a question that stands on its own: climb names are mutable (see "Mutable names" at the end).
+
 ## Where things are now
 
 * `nch heatmap` writes the routes of the selected activities as one GeoJSON file in the cache and shows them on a web page
@@ -125,3 +128,84 @@ The index makes it natural to save selections.  Decision so far: **the user neve
 * Frozen or live layers (above).
 * How to name layers made without a name (a default from the arguments?).
 * Whether the colour logic stays entirely in the page (agreed so far) or an export style is ever added.
+
+# A critical review (2026-11-06)
+
+Written at the author's request, "with a reviewer's hat on", by the same assistant that wrote the ideas above (so it is
+marking its own homework).  Two things were checked against the code and data: the server pins the data in the address
+(`serve/request.nim`, the `pin` of a rule; `selection/selection.nim` makes the key as a hash of the activities' file
+checksums), and the size of the data as GeoJSON: **all 1,108 routes simplified to 5 m: 17.3 MB** (135 MB unsimplified), **the
+179 climbs: 1.4 MB**.
+
+## Verdict
+
+The core idea (files carry logical properties; the page decides the look) is sound.  The layer index, the snapshots and the
+shared map/plot machinery are a lot of infrastructure for a problem that has not shown up yet, and they conflict with some of
+the project's own principles.
+
+## Serious problems
+
+1. **The index brings back hidden state.**  The server pins what a page shows in the address, so a reload shows the same data;
+   AGENTS.md's display section already warns that implicit state conflicts with caching.  Shown/hidden flags and live layers
+   put the answer in the database: `/map` no longer says what it displays, two browser tabs share (and fight over) the state,
+   a bookmark stops meaning anything.
+2. **Stored command lines die with every interface change.**  A layer holds "the command and its arguments"; the project's rule
+   is no backward compatibility, and the commands were renamed wholesale on the same day this was written.  Stored layers
+   would need migrations of command strings, or be thrown away each time.  That is a macro system: a big commitment.
+3. **"Rebuild from the definition gives the same result" is false for climbs.**  Snapshots freeze the activities, but climb
+   names are not stable: the `(n/m)` numbers are worked out at display time, so new climbs, retiring or renaming change what
+   `--name "farellones (2/3)"` means; `--latest` and `previous` are relative.  A layer saved by name silently changes meaning.
+   To be reproducible it needs stable climb ids, i.e. a second snapshot (of climbs), which makes problem 1 worse.
+4. **Cache invalidation is missing.**  Cache files are keyed by options and the selection key only.  A climbs file does not
+   change when climbs are renamed, retired or re-derived; a deleted activity stays in an old routes file.  "Regenerate if the
+   file is missing" is not enough: a data version would have to be part of every layer's key.
+5. **Frozen and live layers can disagree on one screen**: frozen routes next to live climbs of a different set of rides is a
+   misleading picture.
+6. **The page becomes a hub that knows every kind of layer.**  The style function must know `route`, `climb`, `landmark` and
+   every kind to come: each new layer means editing the page (JavaScript), against "each module is independent"; if a layer
+   carries its own style instead, the logical/graphical split is gone.  And it is the most complicated logic in the system in
+   the one language the project does not test.
+7. **Running commands as subprocesses on page load has hidden costs.**  `climbs --geojson` can trigger `ensureClimbs` (about a
+   minute the first time) and name downloads: a page load would wait on that, with no progress and probably a timeout; two
+   processes can meet database locks; and the server's security model is a strict allow-list of commands and options taken
+   from the address: arguments stored in the database would bypass it or need the same list.
+
+## Medium problems
+
+8. **Plots and maps share an idea, not code.**  A plot is per climb with its own parameters; two viewers over one index is
+   speculative generalisation.  It also puts infrastructure ahead of what the author wants (comparing rides up a climb), which
+   is a plot, and layers do not help it.
+9. **Size and speed are not covered** (the numbers above): the browser fetches, parses and draws that for each layer, and
+   nothing simplifies by zoom level.
+10. **The command grammar gets cluttered**: `activities` already has select, delete, import and the criteria; `--geojson` (an
+    output format) and `--layer NAME` (an action that saves a definition) break "TYPE [which ones] [action]".
+11. **"Built-in layers from the start"** needs rows seeded for every user, including later ones (migrations are plain DDL; data
+    is inserted from Nim): unanswered.
+12. **Smaller claims are untested**: other viewers honouring simplestyle; an outside GeoJSON file as a layer (it has no `kind`:
+    the style function needs defaults); line labels need placement logic, and 179 climbs crowd, and `(n/m)` text in names shifts.
+
+## What holds up
+
+* Logical properties in the files, the look in the page (matches the two-layer architecture).
+* The content-hash selection key as a stable identity for snapshots.
+* One file per layer, if layers exist at all.
+
+## What the review suggests instead
+
+Skip the layer index and the snapshots for now.  Add `--climbs` and a `kind` property to the existing `heatmap`, with a small
+style function in the page (about a day with tests).  Short layer names (`nch map routes climbs`) would cover the typing
+problem for the common case.  Add an index only when real friction shows (three or more layers; a custom layer worth keeping).
+Build the elevation profile and the lead/lag comparison as ordinary plot commands.
+
+Questions the review could not answer: does the author want to keep custom layers at all, or is "the selection plus a few
+climbs" enough?  Is the map fast enough with 17 MB of routes in the browser (not tried)?
+
+## Mutable names (the author's reaction: the most useful point)
+
+The review showed that a climb's name, as the user sees and types it, is **not an identity**: `Farellones (2/3)` is made at
+display time from the name and the climb's rank by gain among those sharing the name, so finding a new climb, retiring one or
+renaming one can change which climb a name means.  Anything that stores or remembers a name (a saved layer, a script, a
+note, `--name "farellones (2/3)"` typed last week) can silently point at something else.  The author is "really questioning
+mutable names" and thinks something should be done about it whatever happens to the map.  Not yet discussed: what a stable
+handle for a climb could be (a short stable id shown with the name; ids that never change and are never reused; a name that
+is frozen once given; the numbering made stable by never renumbering), and how `--edit NAME` and `--name` would use it.
