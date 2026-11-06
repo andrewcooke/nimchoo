@@ -60,8 +60,8 @@ suite "import display: the lines":
   test "the done line is the summary":
     var s = Summary(done: 3, imported: 2, failed: 1)
     s.failures[fkBadFormat] = 1
-    check doneLine(s) == "done: 3 files, 2 imported, 1 failed (bad format 1)"
-    check doneLine(Summary(done: 1, imported: 1)) == "done: 1 file, 1 imported, 0 failed"
+    check readLine(s) == "read: 3 files, 2 imported, 1 failed (bad format 1)"
+    check readLine(Summary(done: 1, imported: 1)) == "read: 1 file, 1 imported, 0 failed"
 
   test "the hint says what to look at, only for what happened":
     check moreHint(Summary(done: 1, imported: 1), true) == ""
@@ -141,7 +141,7 @@ suite "import display: a run":
     check drawn.contains("imported 1 · failed 1 (bad format 1)")
     check drawn.endsWith("\e[?25h")       # the cursor is back
     check not drawn.contains("bad.fit")   # no line per failure
-    check f.outs == @["done: 2 files, 1 imported, 1 failed (bad format 1)\n"]
+    check f.outs == @["read: 2 files, 1 imported, 1 failed (bad format 1)\n"]
     check f.errs == @["more: nch log import failed --last\n"]
 
   test "a longer run draws frames that follow it, and the last one stays":

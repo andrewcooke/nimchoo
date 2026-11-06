@@ -42,9 +42,10 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   if sum.advisories > 0: part span("advisories " & commas(sum.advisories), leAdvisory)
   @[first, second]
 
-func doneLine*(sum: Summary): string =
-  ## The line after the display: the summary.
-  "done: " & summaryLine(sum)
+func readLine*(sum: Summary): string =
+  ## The line after the display: the summary of the files read.  It does not say "done:", because what follows (the
+  ## names, the selection) is not over yet.
+  "read: " & summaryLine(sum)
 
 proc liveSink*(l: Live, logged: bool,
                stdoutWrite, stderrWrite: proc(s: string) {.closure, raises: [].}): Sink =
@@ -66,7 +67,7 @@ proc liveSink*(l: Live, logged: bool,
       index = ev.index
     of evFinish:
       l.keep(renderImport(sum, sum.done, ""))
-      stdoutWrite doneLine(sum) & "\n"
+      stdoutWrite readLine(sum) & "\n"
       for note in ev.summary.notes: stderrWrite "note: " & note & "\n"
       let hint = moreHint(sum, logged)
       if hint.len > 0: stderrWrite hint & "\n"
