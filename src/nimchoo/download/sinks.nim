@@ -49,17 +49,15 @@ proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): S
       url = ev.url
       sp = startSpinner(maker, label, url)
     of deProgress:
-      if sp != nil: sp.setSize(ev.total)
+      discard                    # (the size is said when the line is done)
     of deDownloaded:
       downloaded = true
       if sp != nil:
         sp.setSize(ev.bytes)
-        sp.setReading()
     of deReading:
       if sp == nil:
         downloaded = false
-        sp = startSpinner(maker, ev.label, ev.url, phReading)
-      else: sp.setReading()
+        sp = startSpinner(maker, ev.label, ev.url)
     of deFinished:
       endLine(if downloaded: enKeep else: enClear)
       downloaded = false

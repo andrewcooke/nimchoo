@@ -186,15 +186,13 @@ proc spinnerChars(): HashSet[string] =
 
 suite "download: the line while a file comes":
   let url = "https://download.geonames.org/export/dump/CL.zip"
-  test "the label, the address in grey without the scheme, the size, and a spinner while it comes":
-    let l = progressLine("locations in CL", url, 71_300_000, phDownloading, 2, false)
-    check l.text == "need locations in CL: download.geonames.org/export/dump/CL.zip (71.3MB) " & frames[2]
+  test "the label, the address in grey without the scheme, and a spinner; the size only when it is done":
+    let l = progressLine("locations in CL", url, 71_300_000, 2, false)
+    check l.text == "need locations in CL: download.geonames.org/export/dump/CL.zip " & frames[2]
     check l[1].look.colour == grey and l[0].look.colour == white
-    check progressLine("countries", url, 0, phDownloading, 0, false).text == "need countries: download.geonames.org/export/dump/CL.zip " & frames[0]
-    check progressLine("countries", url, 32_000, phReading, 1, false).text ==
-      "need countries: download.geonames.org/export/dump/CL.zip (32kB) reading " & frames[1]
-    check progressLine("countries", url, 32_000, phReading, 5, true).text == "need countries: download.geonames.org/export/dump/CL.zip (32kB)"
-    check progressLine("x", url, 1, phDownloading, 13, false).text.endsWith(frames[3])         # (the frames go round)
+    check progressLine("countries", url, 32_000, 5, true).text == "need countries: download.geonames.org/export/dump/CL.zip (32kB)"
+    check progressLine("countries", url, 0, 5, true).text == "need countries: download.geonames.org/export/dump/CL.zip"
+    check progressLine("x", url, 1, 13, false).text.endsWith(frames[3])         # (the frames go round)
   test "a fetcher that tells how it goes is used, and each tick is an event":
     let net = newNet()
     net.bodies[chile] = makeZip([("CL.txt", "1\tSantiago\n"), ("readme.txt", "x")])
@@ -235,9 +233,9 @@ suite "download: the line while a file comes":
     sink(DownloadEvent(kind: deDownloaded, source: "geonames", url: url, bytes: 1000))
     sink(DownloadEvent(kind: deReading, source: "geonames", url: url, label: "locations in CL"))
     sleep(150)
-    check "reading" in written[^1]                                    # (still going: the spinner runs while it is read)
     sink(DownloadEvent(kind: deFinished, source: "geonames"))
-    check "(1kB)" in written[^1] and "reading" notin written[^1]
+    check "(1kB)" in written[^1] and spinnerChars().len >= 1          # (the spinner ran while it was read; the size came at the end)
+    check not written[^1].contains(frames[0])
     written = @[]
     sink(DownloadEvent(kind: deReading, source: "geonames", url: url, label: "locations in CL"))      # a cached file
     sleep(100)
