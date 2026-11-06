@@ -74,7 +74,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   ## sport and the path of the file last.  No lines at all if there
   ## are no rows.
   ##
-  ## Looks: a row in the selection is yellow all through (the same yellow as a warning); a
+  ## Looks: a row in the selection is blue all through; a
   ## transition row is dim all through; "-" (not recorded) is dim; a distance
   ## or an active time that shows as zero is yellow.
   if rows.len == 0: return
@@ -98,7 +98,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
       var look = Look()
       if r.isSome:
         if r.get.isTransition: look.colour = grey
-        elif r.get.selected: look.colour = yellow         # the whole row: it is in the selection
+        elif r.get.selected: look.colour = blue           # the whole row: it is in the selection
         elif row[c] == notRecorded or row[c] == noGps: look.colour = grey
         elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
           look.colour = yellow
@@ -132,10 +132,10 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     for (k, v) in parts: text.add $v & " " & k
     result.add " (" & text.join(", ") & ")"
 
-func footerLine*(rows: seq[ListRow], choices = none(int), selectedColour = yellow): Line =
+func footerLine*(rows: seq[ListRow], choices = none(int), selectedColour = blue): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
   ## the activities are in the selection, ", 35 match selected" follows the count, in the colour
-  ## the selected ones have in the display (yellow rows in the table, red days in the calendar):
+  ## the selected ones have in the display (blue rows in the table, blue days in the calendar):
   ## "done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m".
   let text = footer(rows, choices)
   let selected = rows.countIt(it.selected)

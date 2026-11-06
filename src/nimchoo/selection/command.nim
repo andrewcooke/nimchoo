@@ -94,7 +94,7 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
   --calendar         show the activities on a calendar instead of a table: a row for each month
                      that has one (with -v, every month from the first to the last), the days
                      in columns by weekday (weeks start on Monday).  White: an activity that was
-                     listed; yellow: one that is also in the selection; grey: none
+                     listed; blue: one that is also in the selection; grey: none
   -h, --help         show this help
 
 "latest" is the newest activity among those that meet the criteria that do not use
@@ -197,7 +197,7 @@ proc listing(rows: seq[ListRow], zone: Timezone, c: Criteria, screen: Screen,
   ## The table (or the calendar) and its last line.
   result = if c.calendar: calendarLines(rows, zone, c.verbose, screen)
            else: table(rows, zone, c.verbose)
-  result.add footerLine(rows, choices, if c.calendar: selectedColour else: yellow)
+  result.add footerLine(rows, choices, selectedColour)
 
 proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] =
   ## The last line of a calendar of the months with data, if it left some out.

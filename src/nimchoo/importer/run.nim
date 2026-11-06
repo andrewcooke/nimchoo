@@ -87,7 +87,7 @@ proc runImport*(g: Globals, targets: seq[string], opts: ImportOptions): int {.ra
     if n > 0:
       g.log.log(lvInfo, "activities", leSaved, $n & (if n == 1: " activity" else: " activities") & " selected (imported)")
       if not opts.quiet:
-        stderr.say render(@[span("selected " & (if n == 1: "the new activity" else: "the " & $n & " new activities"), yellow)],
+        stderr.say render(@[span("selected " & (if n == 1: "the new activity" else: "the " & $n & " new activities"), blue)],
                           canColour()) & "\n"
   except StoreError as e:
     discard failure("nch activities", "the new activities could not be selected: " & e.msg)

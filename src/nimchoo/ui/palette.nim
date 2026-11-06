@@ -13,7 +13,8 @@ type Color* = enum
   grey      ## quiet: bookkeeping, nothing to see, not recorded
   red       ## bad: failed, deleted, denied
   green     ## good: imported, saved, fitness
-  yellow    ## a warning, and what is selected (some terminals draw it as orange)
+  yellow    ## a warning (some terminals draw it as orange)
+  blue      ## what is selected (a light blue)
 
 func terminalCode*(c: Color): string =
   ## The escape code that starts the colour in a terminal ("" for white: nothing to start).
@@ -23,6 +24,7 @@ func terminalCode*(c: Color): string =
   of red: "\e[31m"
   of green: "\e[32m"
   of yellow: "\e[33m"
+  of blue: "\e[38;5;111m"      # (a light blue: 75 is deeper, 117 paler)
 
 const resetCode* = "\e[0m"      ## ... and the one that ends any colour
 
@@ -34,3 +36,4 @@ func hex*(c: Color): string =
   of red: "#e03131"
   of green: "#2f9e44"
   of yellow: "#f08c00"
+  of blue: "#4dabf7"

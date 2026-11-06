@@ -5,7 +5,7 @@
 ##     Jan                01 02 03 04 05 06 07 08 09 10 11 12 ...                      2018
 ##     Feb       01 02 03 04 05 06 07 08 ...                                           2018
 ##
-## A day is white if an activity that was listed falls on it, yellow if one of them is also in the
+## A day is white if an activity that was listed falls on it, blue if one of them is also in the
 ## selection, grey if none was listed.  Days are the days of the time zone given (the user's, for
 ## display).  Pure: the rows, the zone and the screen are parameters.
 ##
@@ -29,7 +29,7 @@ type Screen* = object
 
 const
   dataColour* = white        ## a day with a listed activity
-  selectedColour* = yellow   ## ... and one of them is in the selection
+  selectedColour* = blue   ## ... and one of them is in the selection
   monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   weekdayNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
   cells* = 37        ## a month starting on a Sunday has 31 days in 37 cells (Monday-first weeks)

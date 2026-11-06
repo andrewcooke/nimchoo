@@ -25,12 +25,12 @@ suite "list table: the last line":
     let rows = @[row(0, "cycling", "", 1500.0, 600.0), row(1, "cycling", "", 500.0, 60.0)]
     check footerLine(rows, some 5).text == "done: " & footer(rows, some 5)
     check footerLine(rows, some 5).allIt(it.look.colour == white)
-  test "some selected: the count in yellow, after the number of activities":
+  test "some selected: the count in blue, after the number of activities":
     let rows = @[row(0, "cycling", "", 1500.0, 600.0, selected = true), row(1, "cycling", "", 500.0, 60.0),
                  row(2, "cycling", "", 500.0, 60.0, selected = true)]
     let l = footerLine(rows, some 5)
     check l.text == "done: 3 of 5 activities, 2 match selected, 2.5km, 12m00s"
-    check l.filterIt(it.look.colour == yellow).mapIt(it.text) == @[", 2 match selected"]
+    check l.filterIt(it.look.colour == blue).mapIt(it.text) == @[", 2 match selected"]
     check footerLine(rows).text.startsWith("done: 3 activities, 2 match selected, ")
   test "all selected, and a count with no totals":
     let rows = @[row(0, selected = true)]
@@ -137,18 +137,18 @@ suite "list table: the last line":
     check footer(@[row(0, ""), row(1, "cycling")]).endsWith("(1 cycling, 1 unknown)")
 
 suite "list table: looks":
-  test "a row in the selection is yellow all through; the others are not":
+  test "a row in the selection is blue all through; the others are not":
     let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, selected = true),
                  row(aug27, "running", "", 2000.0, 90.0),
                  row(aug27, "transition", "", -1.0, -1.0, selected = true)]
     let t = table(rows, zone, false)
-    for sp in t[1]: check sp.look.colour == yellow or sp.text.strip == ""
-    for sp in t[2]: check sp.look.colour != yellow or sp.text.strip == ""
+    for sp in t[1]: check sp.look.colour == blue or sp.text.strip == ""
+    for sp in t[2]: check sp.look.colour != blue or sp.text.strip == ""
     for sp in t[3]: check sp.look.colour == grey or sp.text.strip == ""          # (a transition stays dim)
     for sp in t[0]: check sp.look.colour == white                                  # (the header is plain)
-  test "a selected row with a missing value is yellow too, not grey":
+  test "a selected row with a missing value is blue too, not grey":
     let t = table(@[row(aug27, "cycling", "", -1.0, -1.0, selected = true)], zone, false)
-    for sp in t[1]: check sp.look.colour == yellow or sp.text.strip == ""
+    for sp in t[1]: check sp.look.colour == blue or sp.text.strip == ""
   test "no GPS is dim; a position and a place name are not":
     let rows = @[row(aug27, "cycling", "", 1000.0, 60.0, position = "no GPS"),
                  row(aug27, "cycling", "", 1000.0, 60.0, place = "Santiago, CL", position = "-33.4362,-70.6090")]

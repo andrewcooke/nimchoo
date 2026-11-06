@@ -450,22 +450,22 @@ suite "list: what is shown":
     check r.lines.texts[2] == "2018-08-27 12:00  running    12.3km   1h01m"
     check r.lines.texts[^1] == "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
-  test "rows in the selection are yellow; with --select all that are listed are":
+  test "rows in the selection are blue; with --select all that are listed are":
     let db = world("yellow")
-    proc yellowRows(lines: seq[Line]): seq[bool] =
+    proc blueRows(lines: seq[Line]): seq[bool] =
       for l in lines:
         if l.text.startsWith("20"):                   # the rows (they start with a date)
-          result.add l.anyIt(it.look.colour == yellow)
-    check shown(db, "--all").lines.yellowRows == @[false, false]    # nothing selected yet
+          result.add l.anyIt(it.look.colour == blue)
+    check shown(db, "--all").lines.blueRows == @[false, false]    # nothing selected yet
     discard save(db, "--sport", "cycling")                 # the selection: the cycling one
-    check shown(db, "--all").lines.yellowRows == @[true, false]
-    check shown(db, "--sport", "running").lines.yellowRows == @[false]
+    check shown(db, "--all").lines.blueRows == @[true, false]
+    check shown(db, "--sport", "running").lines.blueRows == @[false]
     let st = openStore(db, allFragments)
     defer: st.close()
     let p = parseArgs(@[], utc())
-    check showSelection(st, p.criteria, utc()).yellowRows == @[true]        # the selection: all are
-    check shown(db, "--all", "--select").lines.yellowRows == @[true, true]   # --select: what is listed is the selection
-    check shown(db, "--sport", "running").lines.yellowRows == @[true]
+    check showSelection(st, p.criteria, utc()).blueRows == @[true]        # the selection: all are
+    check shown(db, "--all", "--select").lines.blueRows == @[true, true]   # --select: what is listed is the selection
+    check shown(db, "--sport", "running").lines.blueRows == @[true]
 
   test "--calendar: a calendar in place of the table, with the same last line":
     let db = world("calendar")
@@ -477,9 +477,9 @@ suite "list: what is shown":
     check r.lines[0].text.startsWith("    Mo Tu We")
     check r.lines.texts.filterIt(it.startsWith("Jul ")).len == 1 and r.lines.texts.filterIt(it.startsWith("Aug ")).len == 1
     check r.lines.texts[^1].startsWith("done: 2 of 2 activities, 1 match selected, ")      # (July and August: none left out)
-    check r.lines[^1].anyIt(it.look.colour == yellow and it.text == ", 1 match selected")    # ... in the colour of the selected days
+    check r.lines[^1].anyIt(it.look.colour == blue and it.text == ", 1 match selected")    # ... in the colour of the selected days
     let jul = r.lines.filterIt(it.text.startsWith("Jul "))[0]
-    check jul.anyIt(it.look.colour == yellow and it.text == "01 ")              # 1 July 2018: cycling, selected
+    check jul.anyIt(it.look.colour == blue and it.text == "01 ")              # 1 July 2018: cycling, selected
     let aug = r.lines.filterIt(it.text.startsWith("Aug "))[0]
     check aug.anyIt(it.look.colour == white and it.text == "27 ")            # running, listed but not selected
     # -v: every month between the first and the last
@@ -516,7 +516,7 @@ suite "list: what is shown":
     let r = shown(db, "--newest", "1", "--select")
     check r.saved == 1
     check r.lines.texts[^1] == "saved 1 activity as the selection"
-    check r.lines[^1][0].look == Look(colour: yellow)           # yellow: the selection
+    check r.lines[^1][0].look == Look(colour: blue)           # blue: the selection
     let st = openStore(db, allFragments)
     defer: st.close()
     let again = showSelection(st, Criteria(), utc())
