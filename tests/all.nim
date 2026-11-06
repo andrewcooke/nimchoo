@@ -3,7 +3,7 @@
 ## what they share.
 {.push warning[UnusedImport]: off.}
 import ./support/env, ./support/timing
-import ./test_zipbytes, ./test_xlsx, ./test_errors, ./test_structure, ./test_cache, ./test_geo, ./test_templating, ./test_version
+import ./test_proquint, ./test_zipbytes, ./test_xlsx, ./test_errors, ./test_structure, ./test_cache, ./test_geo, ./test_templating, ./test_version
 import ./fit/[test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
               test_command, test_sdkcsv]
 import ./profile/[test_load, test_load_errors]
@@ -15,7 +15,7 @@ import ./delete/test_delete
 import ./cache/[test_command, test_files]
 import ./importer/[test_extract, test_route, test_importer, test_command, test_batch, test_pool, test_events,
                    test_display, test_logsink, test_naming as importerNaming, test_describe as importerDescribe]
-import ./selection/[test_fold, test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
+import ./selection/[test_bits, test_fold, test_ranges, test_criteria, test_table, test_command, test_selection, test_calendar]
 import ./heatmap/[test_params, test_lines, test_page, test_command, test_web]
 import ./cli/test_args
 import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_schema, test_work, test_report, test_attempts, test_command, test_naming, test_display, test_duplicates, test_describe as climbsDescribe,

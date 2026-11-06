@@ -11,7 +11,8 @@
 ## from the program), and keeps the server's token at its top.  Pure functions: no files are
 ## touched here.
 
-import std/[algorithm, options, os, sequtils, strutils]
+import std/[algorithm, options, os, parseutils, sequtils, strutils]
+import ./[hashing, proquint]
 
 {.push raises: [].}
 
@@ -47,6 +48,24 @@ func fileStem*(command: string, options: openArray[(string, string)]): Option[st
     last = k
     name.add "--" & k & "-" & v
   if name.len > maxNameLength: none(string) else: some(name)
+
+func requestStem*(command, request: string): Option[string] =
+  ## The name, without extension, for what `command` makes for a `request` (the text that says exactly what is wanted):
+  ## the command, a hyphen and 48 bits of the request's hash as pronounceable words: "map-lusab-babad-fuzoh".  The same
+  ## request gives the same name.  None if the command is not a command name.
+  if not isCommandName(command): return none(string)
+  let hex = sha256Hex(request)
+  var bytes: seq[byte]
+  for i in 0 ..< 6:
+    var v = 0
+    discard parseHex(hex[2 * i ..< 2 * i + 2], v)
+    bytes.add byte(v)
+  some(command & "-" & proquint(bytes))
+
+func isRequestStem(base: string): bool =
+  ## "map-lusab-babad-fuzoh": a command name, a hyphen, and a proquint.
+  let dash = base.find('-')
+  dash > 0 and isCommandName(base[0 ..< dash]) and isProquint(base[dash + 1 .. ^1])
 
 func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
   ## The inverse of `fileStem`: "heatmap--check-ab12--style-lines" is the command
@@ -90,6 +109,7 @@ func isCacheFileName*(name: string): bool =
   let (dir, base, ext) = splitFile(name)
   if dir.len > 0 or ext.len < 2 or ext[1 .. ^1] notin extensions: return false
   if name.len > maxNameLength + 8: return false
+  if isRequestStem(base): return true
   let parts = base.split("--")
   if not isCommandName(parts[0]): return false
   for p in parts[1 .. ^1]:

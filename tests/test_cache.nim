@@ -79,3 +79,22 @@ suite "cache: the user and system parts":
     check systemDir("/c/nch") == "/c/nch/system"
   test "files made by commands are named in the user part":
     check cacheFile(userDir("/c/nch"), "heatmap--check-a", "geojson") == some "/c/nch/user/heatmap--check-a.geojson"
+
+suite "cache: names made from a request":
+  test "the same request gives the same name: the command, a hyphen, and three proquint groups":
+    let a = requestStem("map", "bits=AsBO&check=ab12cd")
+    check a.isSome and a == requestStem("map", "bits=AsBO&check=ab12cd")
+    check a != requestStem("map", "bits=AsBO&check=ab12ce")
+    check a != requestStem("plot", "bits=AsBO&check=ab12cd")
+    let name = a.get
+    check name.startsWith("map-") and name.len == 4 + 17 and not name.contains("--")
+  test "they are accepted as file names, with an extension that is allowed":
+    let name = requestStem("map", "x").get
+    check cacheFile("/c/nch", name, "geojson").isSome
+    for ext in ["geojson", "html", "csv"]: check isCacheFileName(name & "." & ext)
+    check not isCacheFileName(name & ".exe") and not isCacheFileName("map-notaproquint.geojson")
+    check not isCacheFileName("map-lusab-babad-.geojson") and not isCacheFileName("map-.geojson")
+    check not isCacheFileName("../map-lusab-babad.geojson") and not isCacheFileName("Map-lusab-babad.geojson")
+    check isCacheFileName("map-lusab-babad.geojson") and not isCacheFileName("map-lusab-babad-xx.geojson")
+  test "not a name for anything that is not a command":
+    check requestStem("Map", "x").isNone and requestStem("", "x").isNone and requestStem("a-b", "x").isNone
