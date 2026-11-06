@@ -47,3 +47,12 @@ suite "climbs: retiring":
     check parseArgs(@["--edit", "X", "--retire", "--retired"]).problem.contains("do not go with --edit")
     check parseArgs(@["--edit", "X", "--retire", "--all"]).problem.contains("do not go with --edit")
 
+
+suite "climbs params: --delete":
+  test "--delete needs --all, and -f goes with it":
+    let c = parseArgs(@["--all", "--delete", "-f"])
+    check c.problem == "" and c.delete and c.force
+    check parseArgs(@["--delete"]).problem.contains("needs --all")
+    check parseArgs(@["--all", "-f"]).problem.contains("goes with --delete")
+    check parseArgs(@["--all", "--delete", "--retired"]).problem.len > 0
+    check parseArgs(@["--all", "--delete", "--edit", "X", "--retire"]).problem.len > 0

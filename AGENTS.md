@@ -121,7 +121,7 @@ had yet.
 * two refusals: a recorded fragment whose checksum differs from the
   program's ("made by a different version of nch"), and a recorded
   fragment the program does not have ("from a newer version").  the
-  messages say to `nch empty --all -f` (start again).
+  messages say to `nch db --delete -f` (start again).
 * so: **never edit a fragment that any database has had, and never delete
   one.**  to change a table, add a new numbered file (`alter table`,
   `update`, ...).  watch for sqlite limits: it cannot drop a column that
@@ -137,7 +137,7 @@ had yet.
 while only the author has a database we may, at a milestone, **squash**:
 merge each module's fragments into its `001-schema.sql` (the final
 schema), delete the later files and any retired module, and rebuild the
-database (`nch empty --all -f`, then import again).  the cache survives
+database (`nch db --delete -f`, then import again).  the cache survives
 (downloads, settings), so nothing is fetched again.  rules:
 
 * **once anyone else has a database, never squash again**: append only.
@@ -212,5 +212,6 @@ a theory of the commands, to keep the interface consistent.  the work of getting
 * so there is no `list`, `import`, `delete`, `empty`, `sector`, `user`, `model` or `landmark` command: they are
   `activities` (with `--select`, `--import`, `--delete`), `climbs`, `users`, `models`, `landmarks`, `cache` and `db`.
   `empty --user NAME` is `activities --all --delete` for that user; `user --remove` is `users --delete NAME`;
-  `empty --sectors` is `climbs --delete --all` (a reset: climbs are retired, never deleted one at a time).
+  `empty --sectors` is `climbs --delete --all` (a reset: climbs are retired, never deleted one at a time);
+  `empty --all` is `db --delete -f`; `empty --downloads` / `--cache` are `cache --delete downloads` / `geojson csv html` (also `system`, or `all`; no -f: the cache is made again).
 * nothing is kept for backward compatibility: there is one user.

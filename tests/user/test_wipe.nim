@@ -79,22 +79,6 @@ suite "wipe: what belongs to a user":
     for t in withUser:
       check t in userTables or t == "user_profile"           # (a new table has to be put in the list)
 
-  test "emptying keeps the user, their threshold heart rate, and everyone else's data":
-    let d = fresh("empty")
-    let a = openStore(d / "x.db", allFragments)
-    fill(a, "mine")
-    a.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 150)", a.userId)
-    a.close()
-    addUser(d / "x.db", "bob")
-    let bob = openStore(d / "x.db", allFragments, "bob")
-    fill(bob, "bobs")
-    emptyUser(bob, findUser(bob, "bob"))
-    for t in tables: check bob.count(t) == 1
-    check bob.db.getValue(sql"select count(*) from user where name = 'bob'") == "1"
-    check bob.db.getValue(sql"select count(*) from file where sha256 = 'bobs'") == "0"
-    check bob.db.getValue(sql"select fthr from user_profile where user_id = ?", a.userId) == "150"
-    bob.close()
-
   test "removing takes the user and everything under them":
     let d = fresh("remove")
     openStore(d / "x.db", allFragments).close()

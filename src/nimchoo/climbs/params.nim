@@ -16,6 +16,8 @@ type Params* = object
   retire*, unretire*: bool   ## `--retire` / `--unretire`: hide the climb from the lists / show it again
   retired*: bool             ## `--retired`: list the retired climbs
   duplicates*: bool          ## `--duplicates`: list the climbs that largely overlap
+  delete*: bool              ## `--delete`: delete every climb and start again (with `--all`)
+  force*: bool               ## `-f`: really (with --delete)
   listOnly*: bool            ## `--retired` or `--duplicates`: a list that needs no working out of climbs
   help*: bool
   problem*: string
@@ -48,7 +50,7 @@ func nameProblem*(s: string): string =
 
 proc parseArgs*(args: seq[string]): Params =
   ## `nch climbs` (the climbs of the selected activities), `--all`, `--retired`, `--duplicates`,
-  ## `--edit NAME --rename NEW`, `--edit NAME --auto`, `--edit NAME --retire`, `--edit NAME --unretire`.
+  ## `--delete --all -f`, `--edit NAME --rename NEW`, `--edit NAME --auto`, `--edit NAME --retire`, `--edit NAME --unretire`.
   let editOption = custom(Params, ["--edit"], true):
     p.edit = true
     p.name = value
@@ -65,7 +67,8 @@ proc parseArgs*(args: seq[string]): Params =
       flag(Params, ["--auto"], auto),
       flag(Params, ["--retire"], retire), flag(Params, ["--unretire"], unretire),
       flag(Params, ["--retired"], retired), flag(Params, ["--duplicates"], duplicates),
-      flag(Params, ["--all"], all)],
+      flag(Params, ["--all"], all), flag(Params, ["--delete"], delete),
+      flag(Params, ["-f", "--force"], force)],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
       " (to change a climb: --edit " & arg & " --rename NEW, --auto, --retire or --unretire)")
   template fail(msg: string) =
@@ -86,4 +89,8 @@ proc parseArgs*(args: seq[string]): Params =
     fail("--rename, --auto, --retire and --unretire go with --edit NAME")
   if (if result.retired: 1 else: 0) + (if result.duplicates: 1 else: 0) + (if result.all: 1 else: 0) > 1:
     fail("--all, --retired and --duplicates cannot be used together")
+  if result.force and not result.delete: fail("-f goes with --delete")
+  if result.delete:
+    if not result.all: fail("--delete needs --all: the climbs are never deleted one at a time (to hide one: --edit NAME --retire)")
+    if result.edit or result.retired or result.duplicates: fail("--delete does not go with --edit, --retired or --duplicates")
   result.listOnly = result.retired or result.duplicates

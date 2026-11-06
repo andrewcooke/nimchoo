@@ -75,8 +75,8 @@ func systemDir*(dir: string): string =
 
 func dataDir*(dir: string): string =
   ## Where what is downloaded goes (the country files for names): the third part of the cache directory.
-  ## Not made by a command and not unpacked from the program, so `empty --cache` leaves it; `empty --downloads`
-  ## deletes it.
+  ## Not made by a command and not unpacked from the program, so `cache --delete geojson` (and csv, html) leave it;
+  ## `cache --delete downloads` deletes it.
   dir / "data"
 
 func cacheFile*(dir, stem, extension: string): Option[string] =

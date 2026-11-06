@@ -7,7 +7,8 @@
 import std/[options, os, strutils]
 import nimchoo/cli/[args, common]
 import nimchoo/climbs/command as climbsCommand
-import nimchoo/empty/command as emptyCommand
+import nimchoo/cache/command as cacheCommand
+import nimchoo/db/command as dbCommand
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
@@ -40,7 +41,8 @@ commands:
   ff          the fitness and fatigue curves, as CSV for plotting
   fit         read a FIT file and print it
   log         show the log, filtered, with the events coloured
-  empty       delete a user's data, the whole database, or the cache files
+  cache       the files outside the database (downloads, generated files): show them, delete them
+  db          the database file: where it is and how big, or delete it
 
 For more about a command: `nch COMMAND --help`.
 """
@@ -64,8 +66,10 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     modelCommand.run(g, rest)
   of "ff":
     ffCommand.run(g, rest)
-  of "empty":
-    emptyCommand.run(g, rest)
+  of "cache":
+    cacheCommand.run(g, rest)
+  of "db":
+    dbCommand.run(g, rest)
   of "climbs":
     climbsCommand.run(g, rest)
   of "landmarks":

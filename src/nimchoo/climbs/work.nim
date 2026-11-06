@@ -10,7 +10,7 @@
 ##   3. a new sector is matched against the ride it came from and every earlier ride near it.
 ## Each activity is one transaction, and is then recorded in `climbs_done` (also when nothing was
 ## found), with the version of the method.  If the method changes the version does, and
-## `clearClimbs` (`nch empty --sectors`) starts again.
+## `clearClimbs` (`nch climbs --all --delete`) starts again.
 
 import std/[math, options, strutils, tables]
 import db_connector/db_sqlite
@@ -223,7 +223,7 @@ proc ensureClimbs*(st: Store, progress: proc(done, total: int, soFar: Worked) {.
   guard:
     if st.db.getValue(sql"select count(*) from climbs_done where version != ?", algorithmVersion) != "0":
       raiseStore("the climbs were worked out by another version of the method: " &
-                 "run `nch empty --sectors -f` and ask for them again")
+                 "run `nch climbs --all --delete -f` and ask for them again")
   var todo: seq[ActivityId]
   guard:
     for r in st.db.fastRows(sql"""select a.id from activity a left join climbs_done d on d.activity_id = a.id

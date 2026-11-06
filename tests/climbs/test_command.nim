@@ -37,6 +37,27 @@ suite "nch climbs":
     check climbs(path) == exitOk
     check climbs(path, "--all") == exitOk
 
+  test "--all --delete: nothing without -f; with -f the climbs and their efforts go, the rides stay, and they come back":
+    let s = fresh("command-delete")
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    let path = s.path
+    s.close()
+    check climbs(path, "--all") == exitOk                               # (works the climbs out)
+    check climbs(path, "--all", "--delete") == exitFailure
+    let before = openStore(path, allFragments)
+    check before.count("sector") == 1
+    before.close()
+    check climbsCommand.run(globals(path), @["--all", "--delete", "-f"]) == exitOk
+    let after = openStore(path, allFragments)
+    check after.count("sector") == 0 and after.count("effort") == 0 and after.count("climbs_done") == 0
+    check after.count("activity") == 1
+    after.close()
+    check climbs(path, "--all") == exitOk                               # (and they are worked out again)
+    let again = openStore(path, allFragments)
+    defer: again.close()
+    check again.count("sector") == 1
+    check climbsCommand.run(globals(path), @["--delete", "-f"]) == exitUsage
+
   test "a selection with no climbs in it is not an error":
     let s = fresh("command-none")
     addRide(s, "default", "flat", 1_000_000, 5.0, @[0.0, 5.0, 10.0])

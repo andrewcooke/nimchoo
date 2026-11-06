@@ -34,7 +34,7 @@ another is made so.  (The users are named after the command, not by --user befor
   --delete NAME   delete the user and everything they have (files, activities, ...); if
                   they were the default another user becomes it.  Needs -f; on a terminal
                   there are then 5 seconds in which to press Ctrl-C.  (To keep the user
-                  and delete only their data: `nch empty --user NAME`.)
+                  and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)
   -f, --force     really do it
   -h, --help      show this help
 

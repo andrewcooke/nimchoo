@@ -9,12 +9,14 @@ import ../db/store
 import ../errors
 import ../names/open
 import ../ui/[live, logfile]
+import ../user/wipe
 import ./[duplicates, edit, naming, params, report, work]
 
 {.push raises: [].}
 
 const usage* = """usage: nch [--db PATH] [--user NAME] climbs
        nch [--db PATH] [--user NAME] climbs --all
+       nch climbs --all --delete -f
        nch climbs --edit NAME --rename NEW
        nch climbs --edit NAME --auto
        nch climbs --edit NAME --retire
@@ -35,6 +37,10 @@ makes a climb of its own.
   --all           every climb found instead, the biggest first: its category, length, height gained
                   and gradient, how many times it has been ridden, the best time and whose it is, your
                   own best, and "manual" against a name given by a person
+  --delete        (with --all) delete every climb found, with the efforts on them (of every user), and start again:
+                  the next `nch climbs` works them out again from the rides.  Names given by hand are lost
+                  (the message says how many).  Needs -f; on a terminal there are then 5 seconds in which to
+                  press Ctrl-C.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one
   --edit NAME     change that climb, with one of the following.  NAME is a climb's name as `--all` shows
                   it, "(n/m)" included where several share a name: "Morro La Cabra (1/3)"
     --rename NEW    give it the name NEW (any words; at most 60 characters; not ending in "(n/m)",
@@ -85,6 +91,18 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   stdout.say said & "\n"
   exitOk
 
+proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError].} =
+  ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
+  let what = describe(countClimbs(st))
+  if not force:
+    return failure("nch climbs", "would delete " & what & "; use -f to confirm")
+  if canLive():
+    countdown(newTerminalLive(), what, waitSeconds, sleepMs)
+  clearClimbs(st)
+  g.log.log(lvInfo, "climbs", leDeleted, "deleted " & what & " from " & st.path)
+  stdout.say "done: deleted " & what & "\n"
+  exitOk
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch climbs ARGS`; returns the exit status.
   let p = parseArgs(args)
@@ -112,6 +130,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     if p.edit:
       return editClimb(g, st, p)
+    if p.delete:
+      return deleteClimbs(g, st, p.force)
     var worked: Worked
     if canLive():
       # two lines that follow the work and stay on the screen at the end (as the import's do)

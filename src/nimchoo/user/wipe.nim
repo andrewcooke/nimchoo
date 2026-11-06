@@ -1,10 +1,9 @@
-## Deleting what belongs to a user: all of it but the user (`nch empty`), or the user too
+## Deleting what belongs to a user: all of it but the user, or the user too
 ## (`nch users --delete`), with the words and the countdown both use.  Nothing is deleted without
 ## `--force`, and on a terminal there are then a few seconds in which to press Ctrl-C.
 ##
 ## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough
-## to remove the user.  Emptying one is deleting the rows that name the user in the tables below
-## (a file takes its activities, coordinates, segments, heart rate and impulses with it).  A
+## to remove the user.  A
 ## later module that stores per-user data adds its table to `userTables`; a test checks that
 ## none is forgotten.  This module counts activities, and `describe` says so; a later module
 ## that stores data it wants mentioned adds a line there (it is deleted either way).
@@ -19,7 +18,7 @@ import ../ui/[live, style]
 
 const
   userTables* = ["file", "seen_file", "selection"]
-    ## the tables with a `user_id` that `empty` clears (`user_profile` stays: it is the user's)
+    ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
   waitSeconds* = 5
 
 func activities(n: int): string =
@@ -84,20 +83,6 @@ proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
     if v.len == 0: raiseStore("no such user: " & name)
     try: result = UserId(parseBiggestInt(v))
     except ValueError: raiseStore("bad user id " & v)
-
-proc emptyUser*(st: Store, id: UserId) {.raises: [StoreError].} =
-  ## Delete everything the user has (the user, and their threshold heart rate, stay).
-  st.begin()
-  var done = false
-  try:
-    guard:
-      for table in userTables:
-        st.db.exec(sql("delete from " & table & " where user_id = ?"), id)
-    st.commit()
-    done = true
-  finally:
-    if not done: st.rollback()
-  guard: st.db.exec(sql"vacuum")
 
 proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Delete the user and everything they have.  (If it was the default user another

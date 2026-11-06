@@ -144,7 +144,7 @@ suite "climbs: working them out":
       discard ensureClimbs(s)
       check false
     except StoreError as e:
-      check "nch empty --sectors" in e.msg
+      check "nch climbs --all --delete" in e.msg
     check countClimbs(s) == Counts(sectors: 1, efforts: 1)
     clearClimbs(s)
     check countClimbs(s) == Counts()

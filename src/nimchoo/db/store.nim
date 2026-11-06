@@ -86,7 +86,7 @@ proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
   guard:
     db.exec(sql"pragma trusted_schema = 1")
 
-const outOfDate = "; it cannot be updated: run `nch empty --all -f` and import again"
+const outOfDate = "; it cannot be updated: run `nch db --delete -f` and import again"
 
 proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
   ## The fragments the database says it has had, each with the checksum of its SQL.
