@@ -9,8 +9,7 @@ import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
-import ../selection/fold
-import ./[describe, display, edit, match, report]
+import ./[describe, display, match, report]
 
 {.push raises: [].}
 
@@ -128,51 +127,3 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
   if anyToHide:
     result.add ""
     result.add "hide: nch climbs --edit 'NAME' --retire"           # (NAME: any climb above that is a copy of one with more efforts)
-
-proc chosenGroups(st: Store, texts: seq[string]): seq[Group] {.raises: [StoreError].} =
-  ## The groups with a climb whose name holds one of the texts (case and accents ignored); all, if there are none.
-  var wanted: seq[string]
-  for t in texts:
-    for f in ordinalForms(t): wanted.add foldText(f)
-  for g in duplicateGroups(st):
-    var found = wanted.len == 0
-    for m in g.members:
-      for w in wanted:
-        if w in foldText(m.name): found = true
-    if found: result.add g
-
-proc unretireCopies*(st: Store, texts: seq[string]): seq[Member] {.raises: [StoreError].} =
-  ## Show again every retired climb of the chosen groups (those of `retireCopies`, but also any retired by hand).
-  for g in chosenGroups(st, texts):
-    for m in g.members:
-      if m.retired:
-        setRetired(st, m.id, false)
-        result.add m
-
-proc retireCopies*(st: Store, texts: seq[string]): seq[Member] {.raises: [StoreError].} =
-  ## Retire the climbs that are redundant, group by group, and say which.  Each group's climbs are taken from the
-  ## fewest efforts up (ties: smallest gain, then id); one is retired if every ride that matched it also matched a
-  ## near copy of it that is not retired, so no ride is left without a visible climb, and the last of a group is never
-  ## retired.  `texts`: only groups with a climb whose name holds one of them (case and accents ignored; "farellones 2"
-  ## and "farellones₂" are the same).
-  for g in chosenGroups(st, texts):
-    var retired = initTable[int64, bool]()
-    for m in g.members: retired[m.id] = m.retired
-    let order = g.members.sortedByIt((it.efforts, it.gainM, it.id))
-    for m in order:
-      if retired.getOrDefault(m.id, true): continue
-      var kept: seq[string]
-      for c in m.copies:
-        if not retired.getOrDefault(c, true): kept.add $c
-      if kept.len == 0: continue
-      var uncovered = 0
-      guard:
-        try:
-          uncovered = parseInt(st.db.getValue(sql("select count(*) from effort e where e.sector_id = ? and not exists " &
-            "(select 1 from effort x where x.activity_id = e.activity_id and x.sector_id in (" & kept.join(",") & "))"), m.id))
-        except ValueError:
-          raiseStore("a bad count")
-      if uncovered == 0:
-        setRetired(st, m.id, true)
-        retired[m.id] = true
-        result.add m
