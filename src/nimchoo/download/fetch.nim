@@ -42,8 +42,9 @@ type
     fetcher*: Fetcher
     freeBytes*: proc(dir: string): Option[int64] {.closure, raises: [].}   ## room on the disk holding `dir`
 
-  EventKind* = enum deStarting, deProgress, deDownloaded, deReading, deFinished, deFailed
-    ## the last three but one: a file is wanted, some of it came, all of it came; then the consumer reads it (deReading, also
+  EventKind* = enum deStarting, deProgress, deDownloaded, deReading, deFinished, deFailed, deWorking, deWorkDone
+    ## deWorking / deWorkDone: a command's own long job (naming the activities) begins and ends, said with a spinner that
+    ## steps aside for the downloads inside it.  The first four: a file is wanted, some of it came, all of it came; then the consumer reads it (deReading, also
     ## for a file that was already in the cache) and is done with it (deFinished)
 
   DownloadEvent* = object
@@ -81,7 +82,7 @@ func describe*(ev: DownloadEvent): string =
   of deProgress: "downloading " & shortUrl(ev.url) & " (" & humanBytes(ev.bytes) & ")"
   of deDownloaded: "downloaded " & shortUrl(ev.url) & " (" & humanBytes(ev.bytes) & ")"
   of deReading: "reading " & shortUrl(ev.url)
-  of deFinished: ""
+  of deFinished, deWorking, deWorkDone: ""
   of deFailed: "cannot download " & shortUrl(ev.url) & ": " & ev.message
 
 proc silent*(): Sink =

@@ -17,7 +17,7 @@ proc logSink*(l: Log, command: string): Sink =
     case ev.kind
     of deStarting:
       l.log(lvInfo, command, leNote, "need " & ev.message & "  " & ev.url)
-    of deProgress, deReading, deFinished:
+    of deProgress, deReading, deFinished, deWorking, deWorkDone:
       discard                    # (the log has the start and the end)
     of deDownloaded:
       l.log(lvInfo, command, leDownloaded, ev.url & "  " & humanBytes(ev.bytes) & "  " & ev.path)
@@ -27,7 +27,7 @@ proc logSink*(l: Log, command: string): Sink =
 proc screenSink*(write: proc(line: string) {.closure, raises: [].}): Sink =
   ## Say each event, as a line (the progress is not: there is no animation without a terminal).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
-    if ev.kind notin {deProgress, deReading, deFinished}: write describe(ev)
+    if ev.kind notin {deProgress, deReading, deFinished, deWorking, deWorkDone}: write describe(ev)
 
 proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): Sink =
   ## Say a download on one line that turns a spinner (see spinner.nim) while the file comes and while it is read, and that
@@ -36,6 +36,7 @@ proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): S
   var sp: Spinner
   var downloaded = false                    # this line is of a file that came now: it stays
   var label, url = ""
+  var job = ""                              # the command's own job that is going on ("naming 1,112 activities"), if any
   proc endLine(ending: Ending, message = "") =
     if sp != nil:
       sp.stop(ending, message)
@@ -60,6 +61,16 @@ proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): S
         sp = startSpinner(maker, ev.label, ev.url)
     of deFinished:
       endLine(if downloaded: enKeep else: enClear)
+      downloaded = false
+      if job.len > 0: sp = startSpinner(maker, "", "", job)        # (the job goes on)
+    of deWorking:
+      endLine(enClear)
+      job = ev.label
+      sp = startSpinner(maker, "", "", job)
+    of deWorkDone:
+      if sp == nil and ev.message.len > 0: sp = startSpinner(maker, "", "", job)
+      endLine(if ev.message.len > 0: enKeep else: enClear, ev.message)
+      job = ""
       downloaded = false
     of deFailed:
       if sp != nil:

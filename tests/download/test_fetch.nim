@@ -245,3 +245,34 @@ suite "download: the line while a file comes":
     written = @[]
     sink(DownloadEvent(kind: deFailed, source: "geonames", url: url, message: "cannot reach"))     # (no line was going)
     check "cannot download download.geonames.org/export/dump/CL.zip: cannot reach" in written[^1]
+
+suite "download: a job of the command's own, with a spinner":
+  let url = "https://download.geonames.org/export/dump/CL.zip"
+  test "the line is the text and a spinner; when it ends the message is what stays":
+    check progressLine("", "", 0, 3, false, "naming 1,112 activities").text == "naming 1,112 activities " & frames[3]
+    written = @[]
+    let sp = startSpinner(testMaker, "", "", "naming 3 activities")
+    sleep(250)
+    sp.stop(enKeep, "named 3 activities")
+    check spinnerChars().len >= 2 and "naming 3 activities" in written[0 ..< written.high].join("")
+    check "named 3 activities" in written[^1] and not written[^1].contains("naming")
+  test "the live sink: the job's line steps aside for a download and comes back; the end leaves the message, or nothing":
+    written = @[]
+    let sink = liveSink(testMaker)
+    sink(DownloadEvent(kind: deWorking, label: "naming 2 activities"))
+    sleep(120)
+    sink(DownloadEvent(kind: deStarting, source: "geonames", url: url, label: "locations in CL"))
+    sleep(120)
+    sink(DownloadEvent(kind: deDownloaded, source: "geonames", url: url, bytes: 1000))
+    sink(DownloadEvent(kind: deFinished, source: "geonames"))
+    sleep(120)
+    sink(DownloadEvent(kind: deWorkDone, message: "named 2 activities"))
+    let text = written.join("")
+    check "naming 2 activities" in text and "need locations in CL: download.geonames.org/export/dump/CL.zip (1kB)" in text
+    check "named 2 activities" in written[^1]
+    check text.rfind("naming 2 activities") > text.find("need locations in CL")          # (it came back after the download)
+    written = @[]
+    sink(DownloadEvent(kind: deWorking, label: "naming 1 activity"))
+    sleep(100)
+    sink(DownloadEvent(kind: deWorkDone))                                                    # (it failed: the line goes)
+    check "naming" notin written[^1]

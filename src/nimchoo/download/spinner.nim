@@ -31,7 +31,7 @@ type
     lock: Lock
     ending: Ending
     bytes: int64
-    label, url, message: Text
+    label, url, message, text: Text
     maker: proc(): Live {.nimcall, raises: [].}
 
   Spinner* = ref object
@@ -39,7 +39,7 @@ type
     thread: Thread[ptr Shared]
     running*: bool
 
-func progressLine*(label, url: string, bytes: int64, frame: int, finished: bool): Line =
+func progressLine*(label, url: string, bytes: int64, frame: int, finished: bool, text = ""): Line =
   ## The line while a file comes and is read, and after:
   ##
   ##     need locations in CL: download.geonames.org/export/dump/CL.zip ⠹
@@ -47,7 +47,8 @@ func progressLine*(label, url: string, bytes: int64, frame: int, finished: bool)
   ##
   ## The address is grey.  While the work goes on there is only the spinner, turning with `frame`; the size comes when it
   ## is `finished` (nothing if it is not known: 0).
-  result = @[span("need " & label & ": "), span(shortUrl(url), grey)]
+  ## With `text` the line is that text and the spinner (a job of the command's own, like "naming 1,112 activities").
+  result = if text.len > 0: @[span(text)] else: @[span("need " & label & ": "), span(shortUrl(url), grey)]
   if finished:
     if bytes > 0: result.add span(" (" & humanBytes(bytes) & ")")
   else:
@@ -75,13 +76,14 @@ proc loop(s: ptr Shared) {.thread.} =
       let label = get(s.label)
       let url = get(s.url)
       let message = get(s.message)
+      let text = get(s.text)
       release(s.lock)
       let frame = int((getMonoTime() - start).inMilliseconds) div frameMs
       case ending
       of enRunning:
-        if live.due(): live.show(@[progressLine(label, url, bytes, frame, false)])
+        if live.due(): live.show(@[progressLine(label, url, bytes, frame, false, text)])
       of enKeep:
-        live.keep(@[progressLine(label, url, bytes, frame, true)])
+        live.keep(@[if message.len > 0: plain(message) else: progressLine(label, url, bytes, frame, true, text)])
         break
       of enClear:
         live.finish()
@@ -91,7 +93,7 @@ proc loop(s: ptr Shared) {.thread.} =
         break
       sleep(pollMs)
 
-proc startSpinner*(maker: proc(): Live {.nimcall, raises: [].}, label, url: string): Spinner =
+proc startSpinner*(maker: proc(): Live {.nimcall, raises: [].}, label, url: string, text = ""): Spinner =
   ## Start drawing the line; `maker` makes the `Live` (in the thread).  If the thread cannot be made nothing is drawn.
   result = Spinner()
   let s = cast[ptr Shared](allocShared0(sizeof(Shared)))
@@ -99,6 +101,7 @@ proc startSpinner*(maker: proc(): Live {.nimcall, raises: [].}, label, url: stri
   s.maker = maker
   put(s.label, label)
   put(s.url, url)
+  put(s.text, text)
   result.shared = s
   try:
     createThread(result.thread, loop, s)
@@ -114,7 +117,8 @@ proc setSize*(sp: Spinner, bytes: int64) =
   release(sp.shared.lock)
 
 proc stop*(sp: Spinner, ending: Ending, message = "") =
-  ## End the line, as `ending` says, and wait for the thread (a few milliseconds).
+  ## End the line, as `ending` says, and wait for the thread (a few milliseconds).  With `enKeep` a `message` is what is
+  ## left on the screen, in place of the line; with `enFailed` it is why.
   if sp.shared.isNil: return
   acquire(sp.shared.lock)
   sp.shared.ending = ending

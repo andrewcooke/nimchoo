@@ -5,6 +5,7 @@ import std/[cpuinfo, options, strutils]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/store
+import ../download/fetch
 import ../errors
 import ../names/open
 import ../ui/[live, logfile, style]
@@ -72,10 +73,20 @@ proc runImport*(g: Globals, targets: seq[string], opts: ImportOptions): int {.ra
   # in the run that imports, or the command says why not
   var namingFailed = false
   try:
-    if pending(st).len > 0:
+    let todo = pending(st).len
+    if todo > 0:
       let names = openNames(g, st, "import", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
       if names.isSome:
+        # (a spinner while it goes on, on a terminal; the downloads it makes are said by their own lines)
+        let tell = names.get.sink
+        let what = insertSep($todo, ',') & (if todo == 1: " activity" else: " activities")
+        tell(DownloadEvent(kind: deWorking, label: "naming " & what))
+        var told = false
+        defer:
+          if not told: tell(DownloadEvent(kind: deWorkDone))            # (it failed: the line goes)
         let counts = ensureActivityNames(st, names.get)
+        told = true
+        tell(DownloadEvent(kind: deWorkDone, message: "named " & what))
         g.log.log(lvInfo, "import", leDone, "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
                   $counts.startOnly & " with only a start place, " & $counts.nothing & " with neither")
   except StoreError, DownloadError:
