@@ -78,12 +78,18 @@ suite "log lines: styling":
   test "the event word has the look of the event, the rest is plain":
     let line = styled(parseLine(dup1))
     check line.text == dup1
-    check line.len == 3
-    check line[1].text == "duplicate" and line[1].look == look(leDuplicate)
-    check line[0].look == Look() and line[2].look == Look()
+    check line.len == 5
+    check line[3].text == "duplicate" and line[3].look == look(leDuplicate)
+    check line[0].look == Look() and line[2].look == Look() and line[4].look == Look()
+    check line[1].text == "INFO" and line[1].look == levelLook("INFO")
+  test "the level has its own look: ERROR red and bold, WARN yellow, INFO grey":
+    check levelLook("ERROR") == Look(colour: red, bold: true)
+    check levelLook("WARN") == Look(colour: yellow)
+    check levelLook("INFO") == Look(colour: grey)
+    check styled(parseLine(fail1))[1].text == "ERROR" and styled(parseLine(fail1))[1].look == levelLook("ERROR")
   test "each event gets its own colour":
-    check styled(parseLine(fail1))[1].look == look(leFailed)
-    check styled(parseLine(adv2))[1].look == look(leAdvisory)
+    check styled(parseLine(fail1))[3].look == look(leFailed)
+    check styled(parseLine(adv2))[3].look == look(leAdvisory)
   test "an old line is plain":
     let line = styled(parseLine(old))
     check line.len == 1 and line[0].look == Look() and line.text == old

@@ -42,11 +42,11 @@ suite "nch log: showing":
     let p = logWith("plain", run1, fail1, run2, dup2)
     check show(p, Filter(commands: @["import"], last: true), false).lines == @[run2, dup2]
     check show(p, Filter(events: {leFailed}), false).lines == @[fail1]
-  test "with colour the event word is coloured":
+  test "with colour the level word and the event word are coloured":
     let p = logWith("colour", fail1)
     let r = show(p, Filter(), true)
     check r.lines[0].contains("\e[31m\e[1mfailed\e[0m")
-    check r.lines[0].startsWith("2026-11-02T10:00:01Z ERROR import    ")
+    check r.lines[0].startsWith("2026-11-02T10:00:01Z \e[31m\e[1mERROR\e[0m import    ")      # (the level too)
   test "no log yet":
     check show(dir / "nonesuch" / "nch.log", Filter(), false).problem.contains("no log")
   test "no run to show, and why it may be":

@@ -18,6 +18,7 @@ type
     command*: string                 ## "" if the line is not in the current format
     event*: Option[LogEvent]         ## none if not
     eventStart*, eventEnd*: int      ## where the event word is in `raw`
+    levelStart*, levelEnd*: int      ## where the level word (INFO, WARN, ERROR) is
 
   Filter* = object
     commands*: seq[string]           ## only these commands (none: any)
@@ -48,6 +49,8 @@ func parseLine*(raw: string): LogLine =
   if e.isNone: return
   result.command = tokens[2].word
   result.event = e
+  result.levelStart = tokens[1].start
+  result.levelEnd = tokens[1].stop
   result.eventStart = tokens[3].start
   result.eventEnd = tokens[3].stop
 
@@ -75,9 +78,18 @@ func select*(lines: seq[LogLine], f: Filter): Selected =
   if f.count > 0 and result.lines.len > f.count:
     result.lines = result.lines[result.lines.len - f.count .. ^1]
 
+func levelLook*(level: string): Look =
+  ## ERROR red and bold, WARN yellow, INFO grey: the quiet ordinary lines, and the ones that need a look.
+  case level
+  of "ERROR": Look(colour: red, bold: true)
+  of "WARN": Look(colour: yellow)
+  else: Look(colour: grey)
+
 func styled*(l: LogLine): Line =
-  ## The line, with the event word in the look of the event.
+  ## The line, with the level word in its look (red ERROR, yellow WARN, grey INFO) and the event word in the look of the event.
   if l.event.isNone: return plain(l.raw)
-  @[span(l.raw[0 ..< l.eventStart]),
+  @[span(l.raw[0 ..< l.levelStart]),
+    Span(text: l.raw[l.levelStart ..< l.levelEnd], look: levelLook(l.raw[l.levelStart ..< l.levelEnd])),
+    span(l.raw[l.levelEnd ..< l.eventStart]),
     span(l.raw[l.eventStart ..< l.eventEnd], l.event.get),
     span(l.raw[l.eventEnd .. ^1])]
