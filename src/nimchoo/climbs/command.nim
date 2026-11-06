@@ -38,7 +38,8 @@ makes a climb of its own.
   --name TEXT...  the climbs whose name holds the text (any of them; case and accents do not matter; the
                   "(n/m)" counts: `--name "farellones (2/3)"`), among all the climbs, not those of the
                   selected rides
-  -v, --verbose   list the attempts under each climb, the fastest first, each with its rank
+  -v, --verbose   list the attempts under each climb, the fastest first, each with its rank (those of the selected
+                  rides in blue)
   --everyone      the people instead of your attempts: how many have ridden each climb, the fastest and who,
                   and where your best time comes among everyone's best times ("4 of 6"); with -v each person's
                   best.  (The personal rank and this one are never shown together.)

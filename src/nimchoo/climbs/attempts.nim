@@ -197,12 +197,17 @@ proc summaryLines*(rows: seq[Summary], everyone, verbose: bool, zone: Timezone):
     result.add table[i + 1]
     if not verbose: continue
     var inner: seq[seq[string]]
+    var chosen: seq[bool]                  # the attempts of selected rides: in the selection's colour
     if everyone:
       for r in s.riders:
         inner.add @[rankText(r.rank, r.total), duration(r.elapsed), r.user & (if r.me: " (you)" else: ""), dateText(r.startT, zone)]
+        chosen.add false
     else:
       var sorted = s.attempts
       sorted.sort(proc(a, b: Attempt): int = cmp(a.elapsed, b.elapsed))
       for a in sorted:
         inner.add @[rankText(a.rank, a.total), duration(a.elapsed), activityLine(a.activity, zone)]
-    for l in columns(inner, {0, 1}): result.add plain("    " & l)
+        chosen.add a.selected
+    let aligned = columns(inner, {0, 1})
+    for j, l in aligned:
+      result.add @[span("    " & l, (if chosen[j]: blue else: white))]
