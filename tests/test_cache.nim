@@ -16,10 +16,10 @@ suite "cache: the directory":
 
 suite "cache: names":
   test "the command, then the options in the order of their names":
-    check fileStem("heatmap", [("style", "lines"), ("key", "ab12cd")]) ==
-      some "heatmap--key-ab12cd--style-lines"
-    check fileStem("heatmap", [("key", "ab12cd"), ("style", "lines")]) ==
-      fileStem("heatmap", [("style", "lines"), ("key", "ab12cd")])
+    check fileStem("heatmap", [("style", "lines"), ("check", "ab12cd")]) ==
+      some "heatmap--check-ab12cd--style-lines"
+    check fileStem("heatmap", [("check", "ab12cd"), ("style", "lines")]) ==
+      fileStem("heatmap", [("style", "lines"), ("check", "ab12cd")])
   test "no options":
     check fileStem("heatmap", []) == some "heatmap"
   test "values may have letters, digits and . _ , -":
@@ -27,7 +27,7 @@ suite "cache: names":
       some "x--a-A_b,c-d--tolerance-5.5"
   test "anything else is refused":
     for bad in ["", "a b", "a/b", "../x", "a%20", "a--b", "é", "a\nb", "a:b", "a*"]:
-      check fileStem("heatmap", [("key", bad)]).isNone
+      check fileStem("heatmap", [("check", bad)]).isNone
     check fileStem("Heat", []).isNone
     check fileStem("", []).isNone
     check fileStem("heat map", []).isNone
@@ -35,41 +35,41 @@ suite "cache: names":
     check fileStem("heatmap", [("a-b", "x")]).isNone
     check fileStem("heatmap", [("", "x")]).isNone
   test "an option given twice is refused":
-    check fileStem("heatmap", [("key", "a"), ("key", "b")]).isNone
+    check fileStem("heatmap", [("check", "a"), ("check", "b")]).isNone
   test "a name that is too long is refused":
-    check fileStem("heatmap", [("key", "x".repeat(300))]).isNone
+    check fileStem("heatmap", [("check", "x".repeat(300))]).isNone
 
 suite "cache: names back to options":
   test "the inverse of fileStem":
-    let stem = fileStem("heatmap", [("style", "lines"), ("key", "ab12cd"), ("tolerance", "5")]).get
-    check parseStem(stem) == some(("heatmap", @[("key", "ab12cd"), ("style", "lines"), ("tolerance", "5")]))
+    let stem = fileStem("heatmap", [("style", "lines"), ("check", "ab12cd"), ("tolerance", "5")]).get
+    check parseStem(stem) == some(("heatmap", @[("check", "ab12cd"), ("style", "lines"), ("tolerance", "5")]))
     check parseStem("heatmap") == some(("heatmap", newSeq[(string, string)]()))
   test "not a stem":
-    for bad in ["", "Heatmap", "heatmap--key", "heatmap--key-", "heatmap--Sel-a", "heatmap--key-a b",
+    for bad in ["", "Heatmap", "heatmap--key", "heatmap--check-", "heatmap--Sel-a", "heatmap--check-a b",
                 "heatmap----x-y", "a b"]:
       check parseStem(bad).isNone
 
 suite "cache: files":
   test "the path, with an extension that is allowed":
-    check cacheFile("/c/nch", "heatmap--key-a", "geojson") == some "/c/nch/heatmap--key-a.geojson"
-    check cacheFile("/c/nch", "heatmap--key-a", "html").isSome
-    check cacheFile("/c/nch", "heatmap--key-a", "exe").isNone
-    check cacheFile("/c/nch", "heatmap--key-a", "").isNone
+    check cacheFile("/c/nch", "heatmap--check-a", "geojson") == some "/c/nch/heatmap--check-a.geojson"
+    check cacheFile("/c/nch", "heatmap--check-a", "html").isSome
+    check cacheFile("/c/nch", "heatmap--check-a", "exe").isNone
+    check cacheFile("/c/nch", "heatmap--check-a", "").isNone
   test "what the server may serve: the names this module makes":
-    for ok in ["heatmap.html", "heatmap--key-ab12cd--style-lines.geojson",
+    for ok in ["heatmap.html", "heatmap--check-ab12cd--style-lines.geojson",
                "x--tolerance-5.5.geojson"]:
       check isCacheFileName(ok)
   test "and nothing else":
     for bad in ["", ".geojson", "heatmap", "heatmap.exe", "heatmap.geojson.exe",
                 "../heatmap.geojson", "a/heatmap.geojson", "/etc/passwd.html",
-                "heatmap--.geojson", "heatmap--key.geojson", "heatmap--key-.geojson",
+                "heatmap--.geojson", "heatmap--key.geojson", "heatmap--check-.geojson",
                 "Heatmap.html", "heat map.html", "heatmap--Sel-a.geojson",
                 "heatmap%2e%2e.html", "..", ".", "a\\b.html",
-                "heatmap--key-a b.geojson"]:
+                "heatmap--check-a b.geojson"]:
       check not isCacheFileName(bad)
     check not isCacheFileName("x".repeat(500) & ".html")
   test "every name made is accepted":
-    let stem = fileStem("heatmap", [("key", "ab12cd"), ("style", "lines")]).get
+    let stem = fileStem("heatmap", [("check", "ab12cd"), ("style", "lines")]).get
     for ext in ["html", "geojson"]:
       check isCacheFileName(stem & "." & ext)
 
@@ -78,4 +78,4 @@ suite "cache: the user and system parts":
     check userDir("/c/nch") == "/c/nch/user"
     check systemDir("/c/nch") == "/c/nch/system"
   test "files made by commands are named in the user part":
-    check cacheFile(userDir("/c/nch"), "heatmap--key-a", "geojson") == some "/c/nch/user/heatmap--key-a.geojson"
+    check cacheFile(userDir("/c/nch"), "heatmap--check-a", "geojson") == some "/c/nch/user/heatmap--check-a.geojson"

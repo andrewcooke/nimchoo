@@ -5,11 +5,11 @@ proc target(raw: string): Target = parseTarget(raw).get
 
 suite "serve request: the target":
   test "a path and a decoded query":
-    let t = target("/heatmap?key=ab12&style=lines&x=a%20b")
+    let t = target("/heatmap?check=ab12&style=lines&x=a%20b")
     check t.path == "/heatmap"
-    check t.query == @[("key", "ab12"), ("style", "lines"), ("x", "a b")]
+    check t.query == @[("check", "ab12"), ("style", "lines"), ("x", "a b")]
     check target("/files/x.geojson").query.len == 0
-    check target("/heatmap?flag&key=a").query == @[("flag", ""), ("key", "a")]
+    check target("/heatmap?flag&check=a").query == @[("flag", ""), ("check", "a")]
   test "percent-encoding in the path is decoded":
     check target("/files/a%2Eb").path == "/files/a.b"
   test "not a plain path":
@@ -17,13 +17,13 @@ suite "serve request: the target":
                 "/a\\b", "/\x7f", "/" & "a".repeat(2001)]:
       check parseTarget(bad).isNone
   test "query helpers":
-    let t = target("/heatmap?token=T&key=ab&style=lines")
-    check t.query.queryValue("key") == some("ab")
+    let t = target("/heatmap?token=T&check=ab&style=lines")
+    check t.query.queryValue("check") == some("ab")
     check t.query.queryValue("nope").isNone
-    check t.withoutParam("token") == "/heatmap?key=ab&style=lines"
+    check t.withoutParam("token") == "/heatmap?check=ab&style=lines"
     check target("/heatmap?token=T").withoutParam("token") == "/heatmap"
     check target("/heatmap").withoutParam("token") == "/heatmap"
-    check target("/heatmap?key=a%20b").withoutParam("token") == "/heatmap?key=a%20b"
+    check target("/heatmap?check=a%20b").withoutParam("token") == "/heatmap?check=a%20b"
 
 suite "serve request: who is asking":
   test "the Host header must be this server's own address":
@@ -50,27 +50,27 @@ suite "serve request: who is asking":
 
 suite "serve request: what is asked for":
   test "a file of the cache":
-    let r = route(target("/files/heatmap--key-ab--style-lines.geojson")).get
-    check r.isFile and r.fileName == "heatmap--key-ab--style-lines.geojson"
+    let r = route(target("/files/heatmap--check-ab--style-lines.geojson")).get
+    check r.isFile and r.fileName == "heatmap--check-ab--style-lines.geojson"
   test "files: only plain cache names, no query":
     for bad in ["/files/", "/files", "/files/x", "/files/x.exe", "/files/../x.geojson",
                 "/files/%2e%2e%2fx.geojson", "/files/a%2Fb.geojson", "/files/x.geojson?a=b",
                 "/files/a/b.geojson", "/filesx/y.geojson", "/other/x.geojson"]:
       check route(target(bad)).isNone
   test "the command on the list, with its options, each once":
-    let r = route(target("/heatmap?key=ab12&style=lines&tolerance=5")).get
+    let r = route(target("/heatmap?check=ab12&style=lines&tolerance=5")).get
     check not r.isFile and r.command == "heatmap"
-    check r.args == @["--key", "ab12", "--style", "lines", "--tolerance", "5"]
+    check r.args == @["--check", "ab12", "--style", "lines", "--tolerance", "5"]
     check route(target("/heatmap")).get.args.len == 0
-    check route(target("/heatmap?token=T&key=ab")).get.args == @["--key", "ab"]  # (the token is not an option)
+    check route(target("/heatmap?token=T&check=ab")).get.args == @["--check", "ab"]  # (the token is not an option)
     check route(target("/heatmap?tolerance=2.5")).get.args == @["--tolerance", "2.5"]
   test "ff: options, and flags that are given as 1":
-    let r = route(target("/ff?key=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5")).get
-    check r.command == "ff" and r.pin == "key"
-    check r.args == @["--key", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly", "--utc",
+    let r = route(target("/ff?check=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5")).get
+    check r.command == "ff" and r.pin == "check"
+    check r.args == @["--check", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly", "--utc",
                       "--fitness-scale", "2", "--fatigue-scale", "5"]
     check route(target("/ff")).get.args.len == 0
-    check route(target("/heatmap")).get.pin == "key"
+    check route(target("/heatmap")).get.pin == "check"
   test "ff: no other option or value":
     for bad in ["/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1", "/ff?stdout=1", "/ff?web=1",
                 "/ff?worker=1", "/ff?port=1", "/ff?to=yesterday", "/ff?to=2018-8-1", "/ff?from=2018-08-0x",
@@ -79,8 +79,8 @@ suite "serve request: what is asked for":
       check route(target(bad)).isNone
   test "no other command, option or value":
     for bad in ["/", "/import?x=1", "/destroy", "/list?save=1", "/log", "/heatmap/", "/heatmap/x",
-                "/Heatmap", "/heatmap?worker=1", "/heatmap?save", "/heatmap?key=a&key=b",
-                "/heatmap?key=a%20b", "/heatmap?key=a;b", "/heatmap?key=../x", "/heatmap?key=",
+                "/Heatmap", "/heatmap?worker=1", "/heatmap?save", "/heatmap?check=a&check=b",
+                "/heatmap?check=a%20b", "/heatmap?check=a;b", "/heatmap?check=../x", "/heatmap?check=",
                 "/heatmap?style=cells", "/heatmap?tolerance=x", "/heatmap?tolerance=-1",
                 "/heatmap?tolerance=1e3", "/heatmap?tolerance=.5", "/heatmap?tolerance=5.",
                 "/heatmap?tolerance=1.2.3", "/heatmap?tolerance=123456789", "/heatmap?db=/etc/x"]:

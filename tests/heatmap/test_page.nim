@@ -8,7 +8,7 @@ import nimchoo/templating
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
-const data = "heatmap--key-ab12cd--style-lines--tolerance-5.geojson"
+const data = "heatmap--check-ab12cd--style-lines--tolerance-5.geojson"
 
 suite "heatmap page: the text":
   test "it loads Leaflet with the integrity hashes, and the data from the server":
@@ -36,8 +36,8 @@ suite "heatmap page: the text":
     check h.contains("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;")
   test "only the name of a cache file, and a geojson one":
     for bad in ["", "../x.geojson", "a/b.geojson", "heatmap.html",
-                "heatmap--key-a.geojson'); alert(1); ('", "heatmap--key-a b.geojson",
-                "heatmap--key-a.geojson.exe"]:
+                "heatmap--check-a.geojson'); alert(1); ('", "heatmap--check-a b.geojson",
+                "heatmap--check-a.geojson.exe"]:
       check pageHtml(bad, "t").isNone
     check pageHtml("heatmap.geojson", "t").isSome
     check pageHtml("x.geojson", "t").isSome               # (a name the cache could hold)

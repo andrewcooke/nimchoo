@@ -36,7 +36,10 @@ The file is named after the options and after the data it is made from, so if it
 there nothing is done: it cannot be out of date.  (A new --to, an import or a new FTHR means
 a new file; old ones are not deleted.)
 
-  --key KEY         show the data with this key (as in the file name); default: the current data
+  --check HASH      make sure the data are still those with this hash (the hash in the file name, `check-…`).
+                    It chooses nothing: it is a safeguard, so that a file or address made earlier cannot show
+                    different data.  If the data have changed and that file is gone, the command stops and
+                    says so.  Leave it out to use the current data
   --model NAME      the model to use (default: `default`)
   --from DAY        the first day to show, like 2018-08-27 (default: the first with an impulse)
   --to DAY          the last day to show (default: today)
@@ -149,7 +152,7 @@ proc latestStats(st: Store, m: Model, p: Params, now: int64, tz: Timezone): Line
 
 proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
   ## The name (without extension) of the files for the options and the data, if one can be made.
-  var options = @[("key", key), ("model", name), ("res", if p.hourly: "hour" else: "day"),
+  var options = @[("check", key), ("model", name), ("res", if p.hourly: "hour" else: "day"),
                   ("to", localDate(p.toDay.get, utc())),
                   ("tz", zoneName(tz, p, p.toDay.get, p.utc)),
                   ("fitscale", scaleText(p.fitnessScale)), ("fatscale", scaleText(p.fatigueScale))]
@@ -199,12 +202,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if current.len == 0:
       return failure("nch ff", "there are no impulses for " & st.userName &
                      " (they need activities with heart rate: import some)")
-    let key = if p.key.len > 0: p.key else: current
+    let key = if p.check.len > 0: p.check else: current
     let now = getTime().toUnix
     let tz = if p.utc: utc() else: local()
     if p.toDay.isNone: p.toDay = some(civilOf(now, tz))     # (so that the name says which day)
     let changed = "the data have changed since that was made (the key was " & key & ", it is now " &
-                  current & "); leave out --key to use the current data"
+                  current & "); leave out --check to use the current data"
     if p.stdout:
       if key != current: return failure("nch ff", changed)
       stdout.say makeCsv(st, m.get, p, now, tz)
@@ -239,7 +242,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.web.enabled:
       return serveWeb(g, "ff", WebOptions(port: p.web.port, noOpen: p.web.noOpen,
                                           newToken: p.web.newToken),
-                      dir.get, "key=" & key & (if query.len > 0: "&" & query else: ""))
+                      dir.get, "check=" & key & (if query.len > 0: "&" & query else: ""))
     if p.web.worker:
       stdout.say pageFile.get & "\n" & csvPath & "\n"
       return exitOk

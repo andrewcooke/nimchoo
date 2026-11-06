@@ -43,12 +43,12 @@ const
   defaultPort* = 62466    ## the digits of "mchoo" on a phone keypad
   # the commands the server may run: read-only, safe to repeat; with their options
   commandRules* = [
-    CommandRule(name: "heatmap", options: @["key", "style", "tolerance"], pin: "key"),
-    CommandRule(name: "ff", options: @["key", "model", "from", "to", "fitness-scale", "fatigue-scale"],
-                flags: @["hourly", "utc"], pin: "key")]
+    CommandRule(name: "heatmap", options: @["check", "style", "tolerance"], pin: "check"),
+    CommandRule(name: "ff", options: @["check", "model", "from", "to", "fitness-scale", "fatigue-scale"],
+                flags: @["hourly", "utc"], pin: "check")]
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/heatmap?key=ab12&style=lines" -> path "/heatmap" and the query, percent-decoded.
+  ## "/heatmap?check=ab12&style=lines" -> path "/heatmap" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, no spaces or control
   ## characters, not too long).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):

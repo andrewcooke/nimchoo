@@ -58,7 +58,7 @@ suite "heatmap: the command":
   test "writes a GeoJSON file named after the options, with a feature for each route":
     let w = world("basic")
     check heatmap(w.db) == exitOk
-    let name = "heatmap--key-" & key(w.db) & "--style-lines--tolerance-5.geojson"
+    let name = "heatmap--check-" & key(w.db) & "--style-lines--tolerance-5.geojson"
     check files(w.cache) == @[name]
     let j = parseFile(w.cache / name)
     check j["features"].len == 2                  # (the third has no route)
@@ -71,8 +71,8 @@ suite "heatmap: the command":
     check heatmap(w.db, "--tolerance", "0.1") == exitOk
     check files(w.cache).len == 3
     let k = key(w.db)
-    let simplified = points(parseFile(w.cache / ("heatmap--key-" & k & "--style-lines--tolerance-5.geojson")))
-    let full = points(parseFile(w.cache / ("heatmap--key-" & k & "--style-lines--tolerance-0.geojson")))
+    let simplified = points(parseFile(w.cache / ("heatmap--check-" & k & "--style-lines--tolerance-5.geojson")))
+    let full = points(parseFile(w.cache / ("heatmap--check-" & k & "--style-lines--tolerance-0.geojson")))
     check full == 120
     check simplified == 4                         # straight lines: two points each
 
@@ -93,8 +93,8 @@ suite "heatmap: the command":
     s.db.exec(sql"delete from selection where activity_id = 1")
     s.close()
     check key(w.db) != old
-    check heatmap(w.db, "--key", old) == exitOk           # it is there
-    check heatmap(w.db, "--key", "ffffffffffff") == exitFailure   # not there, not current
+    check heatmap(w.db, "--check", old) == exitOk           # it is there
+    check heatmap(w.db, "--check", "ffffffffffff") == exitFailure   # not there, not current
     check heatmap(w.db) == exitOk                         # the current one, made now
     check files(w.cache).len == 2
 
@@ -102,7 +102,7 @@ suite "heatmap: the command":
     let w = world("worker")
     check heatmap(w.db, "--worker") == exitOk
     let k = key(w.db)
-    let stem = "heatmap--key-" & k & "--style-lines--tolerance-5"
+    let stem = "heatmap--check-" & k & "--style-lines--tolerance-5"
     check files(w.cache) == @[stem & ".geojson", stem & ".html"]
     let page = readFile(w.cache / (stem & ".html"))
     check page.contains("fetch('/files/" & stem & ".geojson')")
@@ -142,7 +142,7 @@ suite "heatmap: the command":
     let w = world("usage")
     check heatmap(w.db, "--style", "cells") == exitUsage
     check heatmap(w.db, "--tolerance", "x") == exitUsage
-    check heatmap(w.db, "--key", "a/b") == exitUsage
+    check heatmap(w.db, "--check", "a/b") == exitUsage
     check heatmap(w.db, "--help") == exitOk
     check files(w.cache).len == 0
 

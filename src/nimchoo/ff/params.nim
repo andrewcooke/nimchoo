@@ -8,7 +8,7 @@ import ../serve/webopts
 {.push raises: [].}
 
 type Params* = object
-  key*: string                   ## the key of the data to show ("": the current data)
+  check*: string                 ## the hash of the data that must still be the current ones ("": no check)
   model*: string                 ## "": the default model
   fromDay*, toDay*: Option[int64]   ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
   hourly*: bool
@@ -48,9 +48,9 @@ proc parseArgs*(args: seq[string]): Params =
   result.fatigueScale = 1
   const positive = 5.0e-324          # (the smallest number above 0)
   const scaleText = "a number above 0"
-  let keyOption = custom(Params, ["--key"], true):
-    if not isOptionValue(value): return "'" & value & "' is not a key of the data"
-    p.key = value
+  let checkOption = custom(Params, ["--check"], true):
+    if not isOptionValue(value): return "'" & value & "' is not a hash of the data"
+    p.check = value
     ""
   let spec = Spec[Params](opts: @[
     flag(Params, ["-h", "--help"], help),
@@ -60,7 +60,7 @@ proc parseArgs*(args: seq[string]): Params =
     flag(Params, ["--hourly"], hourly),
     flag(Params, ["--utc"], utc),
     flag(Params, ["--stdout"], stdout),
-    keyOption,
+    checkOption,
     number(Params, ["--fitness-scale"], fitnessScale, positive, 1.0e12, scaleText),
     number(Params, ["--fatigue-scale"], fatigueScale, positive, 1.0e12, scaleText)] &
     webOptions(Params, web))

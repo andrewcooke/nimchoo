@@ -7,7 +7,7 @@ import nimchoo/serve/request
 import nimchoo/cache
 import nimchoo/ui/palette
 
-const csv = "ff--key-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
+const csv = "ff--check-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
@@ -35,7 +35,7 @@ suite "ff: the page":
     let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false).get
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")
   test "only a CSV of the cache can be named":
-    for bad in ["../x.csv", "x.geojson", "ff--key-a.html", "a/b.csv", "ff--key-a.csv.exe", ""]:
+    for bad in ["../x.csv", "x.geojson", "ff--check-a.html", "a/b.csv", "ff--check-a.csv.exe", ""]:
       check pageHtml(bad, "t", false).isNone
   test "the page loads only from places the server's policy allows":
     let h = pageHtml(csv, "t", false).get
@@ -64,9 +64,9 @@ suite "ff: --worker, --web and the address":
     let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
     check p.problem == "" and p.web.enabled and p.web.noOpen and p.web.newToken and p.web.port == 0
     check parseArgs(@["--worker"]).web.worker
-    check parseArgs(@["--key", "ab12cd"]).key == "ab12cd"
-    check parseArgs(@["--key", "a b"]).problem.contains("not a key")
-    check parseArgs(@["--key"]).problem.contains("needs a value")
+    check parseArgs(@["--check", "ab12cd"]).check == "ab12cd"
+    check parseArgs(@["--check", "a b"]).problem.contains("not a hash")
+    check parseArgs(@["--check"]).problem.contains("needs a value")
     check parseArgs(@[]).web.port == defaultPort
   test "problems":
     check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")

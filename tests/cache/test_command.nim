@@ -13,8 +13,8 @@ proc fresh(name: string): string =
   createDir(result / "cache" / "user")
   createDir(result / "cache" / "system")
   createDir(result / "cache" / "data" / "geonames")
-  writeFile(result / "cache" / "user" / "heatmap--key-ab.geojson", "{}")
-  writeFile(result / "cache" / "user" / "ff--key-cd.csv", "time\n")
+  writeFile(result / "cache" / "user" / "heatmap--check-ab.geojson", "{}")
+  writeFile(result / "cache" / "user" / "ff--check-cd.csv", "time\n")
   writeFile(result / "cache" / "system" / "libraries.txt", "x")
   writeFile(result / "cache" / "data" / "geonames" / "CL.zip", "zip")
   writeFile(result / "cache" / "server-token", "secret")
@@ -27,20 +27,20 @@ suite "nch cache":
   test "no arguments says what there is and changes nothing":
     let d = fresh("show")
     check run() == exitOk
-    check fileExists(d / "cache" / "user" / "ff--key-cd.csv") and fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
+    check fileExists(d / "cache" / "user" / "ff--check-cd.csv") and fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
   test "--delete KIND deletes that kind only, with no -f":
     let d = fresh("one")
     check run("--delete", "csv") == exitOk
-    check not fileExists(d / "cache" / "user" / "ff--key-cd.csv")
-    check fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson") and fileExists(d / "cache" / "system" / "libraries.txt")
+    check not fileExists(d / "cache" / "user" / "ff--check-cd.csv")
+    check fileExists(d / "cache" / "user" / "heatmap--check-ab.geojson") and fileExists(d / "cache" / "system" / "libraries.txt")
     check run("--delete", "csv") == exitOk                    # nothing left: fine
   test "several kinds, and all":
     let d = fresh("several")
     check run("--delete", "geojson", "downloads") == exitOk
-    check not fileExists(d / "cache" / "user" / "heatmap--key-ab.geojson") and not dirExists(d / "cache" / "data")
+    check not fileExists(d / "cache" / "user" / "heatmap--check-ab.geojson") and not dirExists(d / "cache" / "data")
     check fileExists(d / "cache" / "system" / "libraries.txt")
     check run("--delete", "all") == exitOk
-    check not dirExists(d / "cache" / "system") and not fileExists(d / "cache" / "user" / "ff--key-cd.csv")
+    check not dirExists(d / "cache" / "system") and not fileExists(d / "cache" / "user" / "ff--check-cd.csv")
     check fileExists(d / "cache" / "server-token")
   test "the database is neither touched nor made":
     let d = fresh("nodb")

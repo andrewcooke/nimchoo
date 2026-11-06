@@ -27,8 +27,12 @@ file in the cache directory, and print its path.  Several rides over the same
 roads show as a heatmap in any program that draws GeoJSON with transparency.
 Asking again for the same thing finds the file already there.
 
-  --key KEY        draw the selection with this key (as in the file name);
-                   default: the current selection
+  --check HASH     make sure the selection is still the one with this hash (the
+                   hash in the file name, `check-…`).  It chooses nothing: it is a
+                   safeguard, so that a file or address made earlier cannot show
+                   something else.  If the selection has changed, and the file made
+                   for that hash is gone, the command stops and says so.  Leave it
+                   out to draw the current selection
   --style lines    how to draw (the only style so far)
   --tolerance M    simplify routes so they stray at most M metres (default 5;
                    0: do not simplify)
@@ -79,8 +83,8 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     return Prepared(status: failure("nch heatmap", e.msg))
   try:
     let current = selectionKey(st)
-    let wanted = if p.key.len > 0: p.key else: current
-    let stem = fileStem("heatmap", [("key", wanted), ("style", p.style),
+    let wanted = if p.check.len > 0: p.check else: current
+    let stem = fileStem("heatmap", [("check", wanted), ("style", p.style),
                                     ("tolerance", metres(p.toleranceM))])
     if stem.isNone:
       return Prepared(status: usageError("nch heatmap", usage, "cannot name a file for these options"))
@@ -88,7 +92,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     if not fileExists(path):                   # (made before: nothing to do)
       if wanted != current:
         return Prepared(status: failure("nch heatmap", "the selection has changed since that was made " &
-          "(it was " & wanted & ", it is now " & current & "); leave out --key to draw " &
+          "(it was " & wanted & ", it is now " & current & "); leave out --check to draw " &
           "the current selection"))
       let chosen = selectedCount(st)
       if chosen == 0:

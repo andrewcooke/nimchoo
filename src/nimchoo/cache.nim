@@ -2,7 +2,7 @@
 ## them, and what such files are called.  A file is named after the command
 ## line that made it, so the same request finds the same files:
 ##
-##     heatmap--key-ab12cd--style-lines.geojson
+##     heatmap--check-ab12cd--style-lines.geojson
 ##
 ## (the command, then each option as `--name-value`, in the order of the option
 ## names).  What may appear in a name is limited, and anything else is refused
@@ -49,8 +49,8 @@ func fileStem*(command: string, options: openArray[(string, string)]): Option[st
   if name.len > maxNameLength: none(string) else: some(name)
 
 func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
-  ## The inverse of `fileStem`: "heatmap--key-ab12--style-lines" is the command
-  ## "heatmap" and the options [("key", "ab12"), ("style", "lines")].  None if it is not
+  ## The inverse of `fileStem`: "heatmap--check-ab12--style-lines" is the command
+  ## "heatmap" and the options [("check", "ab12"), ("style", "lines")].  None if it is not
   ## a name `fileStem` would make.
   let parts = stem.split("--")
   if not isCommandName(parts[0]): return none((string, seq[(string, string)]))

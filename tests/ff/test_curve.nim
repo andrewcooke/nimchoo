@@ -203,15 +203,15 @@ suite "nch ff: the key":
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     var name = ""
     for f in walkFiles(cache / "user" / "*.csv"): name = extractFilename(f)
-    let key = name.split("--key-")[1].split("--")[0]
+    let key = name.split("--check-")[1].split("--")[0]
     check key.len == 12
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key]) == exitOk          # the current data
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", "ffffffffffff"]) == exitFailure   # not made, not current
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", "ffffffffffff", "--stdout"]) == exitFailure
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key]) == exitOk          # the current data
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", "ffffffffffff"]) == exitFailure   # not made, not current
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", "ffffffffffff", "--stdout"]) == exitFailure
     # a file that was made stays available under its key after the data change
     let t = store.openStore(path, allFragments)
     t.db.exec(sql"update user_profile set fthr = 160")
     t.close()
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key]) == exitOk
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--key", key, "--hourly"]) == exitFailure   # (that one was never made)
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key, "--hourly"]) == exitFailure   # (that one was never made)
     useTestCache()

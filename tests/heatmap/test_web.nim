@@ -78,7 +78,7 @@ suite "nch heatmap --web: a real server":
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
     check output.contains("http://localhost:")
-    check w.url.contains("/heatmap?key=") and w.url.contains("&style=lines&tolerance=5&token=")
+    check w.url.contains("/heatmap?check=") and w.url.contains("&style=lines&tolerance=5&token=")
     check w.token.len == 32
     # the printed address: the token is traded for a cookie
     let c = client()
@@ -86,7 +86,7 @@ suite "nch heatmap --web: a real server":
     check r1.code == Http302
     check r1.headers["Set-Cookie"].contains("nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/")
     let pinned = $r1.headers["Location"]
-    check pinned.startsWith("/heatmap?key=") and not pinned.contains("token")
+    check pinned.startsWith("/heatmap?check=") and not pinned.contains("token")
     # with the cookie: the page, which asks for the data
     let withCookie = client(w.token)
     let page = withCookie.request(w.base & pinned)
