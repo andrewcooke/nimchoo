@@ -384,7 +384,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   result.saved = if c.select: rows.len else: -1
   if c.select:
     result.lines.add @[span("saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
-      " as the selection", leSaved)]
+      " as the selection", selectedColour)]
   result.lines.add skippedWarning(rows, zone, c)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
