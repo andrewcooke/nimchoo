@@ -1,5 +1,7 @@
 ## The profile of one stretch of a ride (a timer segment) as the climb detector wants it: the
-## altitude at even steps of distance along the ground, cleaned of spikes and smoothed.
+## altitude at even steps of distance along the ground, as the device recorded it.  Nothing is smoothed: the altitude
+## of a bike computer is barometric and clean (the old choochoo did not smooth it either: it smoothed only the heights
+## taken from a terrain model).  When there are terrain heights to use, `smoothed` is for them.
 ##
 ## The ride has a position and time at each second but no distance, so the distance is worked out
 ## from the positions (over the ground; the altitude is not part of it).  Samples are put every
@@ -14,9 +16,9 @@ import ../geo
 {.push raises: [].}
 
 const
-  stepM* = 10.0                  ## metres between samples
-  despikeWidth = 5               ## samples in the median that removes spikes
-  smoothWidth = 5                ## samples in the moving average that smooths what is left
+  stepM* = 5.0                   ## metres between samples: about the density of the recorded points of a bike ride
+  despikeWidth = int(50.0 / stepM)   ## samples in the median that removes spikes (50 m), in `smoothed`
+  smoothWidth = int(50.0 / stepM)    ## samples in the moving average that smooths what is left (50 m), in `smoothed`
 
 type Profile* = object
   step*: float                   ## metres between samples (`stepM`)
@@ -57,7 +59,8 @@ func filtered(elev: seq[float], width: int, median: bool): seq[float] =
         result[i] = sum / float(hi - lo + 1)
 
 func smoothed*(elev: seq[float]): seq[float] =
-  ## Without spikes (a median) and smoothed (a moving average).
+  ## Without spikes (a median) and smoothed (a moving average), over 50 m each.  For heights from a terrain model, which
+  ## are not applied yet: a profile is not smoothed.
   filtered(filtered(elev, despikeWidth, median = true), smoothWidth, median = false)
 
 func buildProfile*(coords: openArray[Coord]): Profile =
@@ -107,4 +110,4 @@ func buildProfile*(coords: openArray[Coord]): Profile =
       result.elev[s] = altV[ja] + v * (altV[ja + 1] - altV[ja])
     else:
       result.elev[s] = NaN
-  result.elev = smoothed(result.elev)
+  # (the altitude is used as it is: see the start of this file)

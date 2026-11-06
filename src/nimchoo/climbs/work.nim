@@ -26,7 +26,7 @@ import ./[detect, match, ordinal, profile]
 {.push raises: [].}
 
 const
-  algorithmVersion* = 2        ## 2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
+  algorithmVersion* = 3        ## 3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
   margin = 0.001                 ## degrees (about 100 m) added to a box that is looked for
   ridePointLimit = 3_000_000     ## about 70 MB
 

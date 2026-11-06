@@ -17,8 +17,8 @@ suite "climbs: working them out":
     check abs(parseFloat(s.db.getValue(sql"select gain_m from sector")) - 118.0) < 3.0
     check abs(parseFloat(s.db.getValue(sql"select gradient from sector")) - 4.0) < 0.2
     check s.db.getValue(sql"select found_at from sector") == "1000000"
-    check abs(parseFloat(s.db.getValue(sql"select elapsed_s from effort")) - 592.0) < 3.0
-    check abs(parseFloat(s.db.getValue(sql"select start_m from effort")) - 1520.0) < 15.0      # (the ride starts 500 m before the road does)
+    check abs(parseFloat(s.db.getValue(sql"select elapsed_s from effort")) - 600.0) < 5.0         # 3 km at 5 m/s
+    check abs(parseFloat(s.db.getValue(sql"select start_m from effort")) - 1500.0) < 10.0     # (the ride starts 500 m before the road does, which climbs from 1 km)
     check ensureClimbs(s) == Worked()
 
   test "another ride, by another user, is a pass over the same sector, not a new one":

@@ -39,7 +39,7 @@ suite "climbs: from a ride to a stored climb and back":
     check abs(cs[0].gain - 119.0) < 3.0 and abs(cs[0].gradient - 4.0) < 0.2
     check cs[0].category == "4"
     let sector = climbPath(p, cs[0])
-    check sector.len > 250                                        # about 3 km every 10 m
+    check sector.len > 250                                        # about 3 km every 5 m
     # the same ride finds the climb at the right times
     let es = overPaths(sector, asPath(first))
     check es.len == 1
