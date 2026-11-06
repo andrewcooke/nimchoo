@@ -7,6 +7,7 @@ import ../cache
 import ../cli/[args, common]
 import ../download/fetch
 import ../ui/logfile
+import ../user/wipe
 import ./files
 
 {.push raises: [].}
@@ -74,5 +75,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     what.add $k & ": " & describe(u)
   let text = what.join("; ")
   g.log.log(lvInfo, "cache", leDeleted, text & " from " & dir.get)
-  stdout.say "done: deleted " & text & "\n"
+  sayDeleted("deleted " & text)
   exitOk

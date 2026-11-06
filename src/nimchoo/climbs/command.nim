@@ -101,7 +101,7 @@ proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError
   clearClimbs(st)
   st.reclaim()
   g.log.log(lvInfo, "climbs", leDeleted, "deleted " & what & " from " & st.path)
-  stdout.say "done: deleted " & what & "\n"
+  sayDeleted("deleted " & what)
   exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =

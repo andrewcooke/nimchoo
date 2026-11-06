@@ -127,7 +127,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
       removeUser(st, id)
       g.log.log(lvInfo, "user", leDeleted, what & " from " & st.path)
-      stdout.say "done: deleted " & what & "\n"
+      sayDeleted("deleted " & what)
       return exitOk
     if p.create:
       if exists(st, p.name):

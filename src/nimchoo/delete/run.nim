@@ -54,7 +54,7 @@ proc runDelete*(g: Globals, st: Store, ids: seq[int64], force: bool, nothing: st
     if done.kept > 0:
       said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") & " kept, with other activities in"
     g.log.log(lvInfo, "activities", leDeleted, said & " from " & st.path)
-    stdout.say "done: " & said & "\n"
+    sayDeleted(said)
     exitOk
   except StoreError as e:
     failure("nch activities", e.msg)

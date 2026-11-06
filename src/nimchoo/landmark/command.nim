@@ -10,6 +10,7 @@ import ../db/store
 import ../errors
 import ../names/[lookup, open]
 import ../ui/logfile
+import ../user/wipe
 import ./[landmarks, params, suggest]
 
 {.push raises: [].}
@@ -77,9 +78,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.delete:
       if not removeLandmark(st, p.name):
         return failure("nch landmarks", "there is no landmark called '" & p.name & "'")
-      let said = "removed the landmark " & p.name
+      let said = "deleted the landmark " & p.name
       g.log.log(lvInfo, "landmarks", leDeleted, said)
-      stdout.say said & "\n"
+      sayDeleted(said)
       return exitOk
     if p.add and p.at.isSome:
       addLandmark(st, p.name, p.at.get.lon, p.at.get.lat, p.radiusM)

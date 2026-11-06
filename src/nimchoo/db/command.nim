@@ -6,7 +6,7 @@ import std/[os, strutils]
 import db_connector/db_sqlite
 import ../cli/[args, common]
 import ../download/fetch
-import ../ui/[live, logfile, style]
+import ../ui/[live, logfile]
 import ../user/wipe
 import ./store
 
@@ -76,5 +76,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except OSError as e:
     return failure("nch db", "cannot delete " & path & ": " & e.msg)
   g.log.log(lvInfo, "db", leDeleted, "deleted " & what)
-  stdout.say render(@[span("done: deleted " & what, red)], canColourStdout()) & "\n"
+  sayDeleted("deleted " & what)
   exitOk

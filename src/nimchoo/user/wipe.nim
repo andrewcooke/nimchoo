@@ -10,6 +10,7 @@
 
 import std/[options, os, strutils]
 import db_connector/db_sqlite
+import ../cli/common
 import ../db/store
 import ../errors
 import ../ui/[live, style]
@@ -47,6 +48,10 @@ proc countdown*(l: Live, what: string, seconds: int,
     l.show @[countdownLine(what, s)]
     wait 1000
   l.finish()
+
+proc sayDeleted*(text: string) =
+  ## The line that says what was deleted ("done: deleted ..."), in red on a terminal, so that it stands out.
+  stdout.say render(@[span("done: " & text, red)], canColourStdout()) & "\n"
 
 proc sleepMs*(ms: int) {.raises: [].} =
   try: sleep(ms)
