@@ -224,3 +224,18 @@ a theory of the commands, to keep the interface consistent.  the work of getting
   `empty --sectors` is `climbs --delete --all` (a reset: climbs are retired, never deleted one at a time);
   `empty --all` is `db --delete -f`; `empty --downloads` / `--cache` are `cache --delete downloads` / `geojson csv html` (also `system`, or `all`; no -f: the cache is made again).
 * nothing is kept for backward compatibility: there is one user.
+
+## choosing resources and libraries: take the time (decided 2026-11-06)
+
+the author is slower than the assistant and does not follow all of its work, so a workaround can go unnoticed
+(the GeoNames country outlines were "invalid" for GEOS, so point-in-polygon was written by hand in nim, and only
+later did a better data source turn up).  the rule:
+
+* it is fine to spend extra time finding a good resource (a data source, a library, a format).  this is a personal
+  project, not a commercial one, and there is no time pressure.
+* **having to work round errors in other people's work is a negative.**  if a data source or a library has
+  problems (invalid data, wrong answers, a missing feature), do not quietly build a workaround: **stop and tell the
+  author**, and look at the alternatives together.  say what is wrong, what the workaround would be, and what the
+  alternatives are.
+* prefer resources with clean licences (public domain over attribution), small size, and that let the work be done in
+  the database (sql, spatialite) rather than in hand-written code.
