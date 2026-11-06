@@ -16,9 +16,9 @@ suite "cache files: kinds":
     check kindNames() == "downloads, system, geojson, csv, html"
   test "what is said of a use":
     check describe(Use()) == "no files"
-    check describe(Use(count: 1, bytes: 12_345)) == "1 file (12 kB)"
-    check describe(Use(count: 12, bytes: 3_400_000)) == "12 files (3.4 MB)"
-    check describe(Use(count: 2, bytes: 90)) == "2 files (90 bytes)"
+    check describe(Use(count: 1, bytes: 12_345)) == "1 file (12kB)"
+    check describe(Use(count: 12, bytes: 3_400_000)) == "12 files (3.4MB)"
+    check describe(Use(count: 2, bytes: 90)) == "2 files (90B)"
 
 suite "cache files: counting and deleting":
   setup:

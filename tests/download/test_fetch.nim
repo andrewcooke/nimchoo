@@ -1,6 +1,6 @@
 import std/[options, os, strutils, tables, unittest]
 import nimchoo/download/[fetch, sinks, sources]
-import nimchoo/ui/logfile
+import nimchoo/ui/[live, logfile, palette, style]
 import ../support/zips
 
 type Net = ref object
@@ -60,7 +60,8 @@ suite "download: fetching":
     check not fileExists(got.get & ".part")
     check net.events.len == 2 and net.events[0].kind == deStarting and net.events[1].kind == deDownloaded
     check net.events[0].message == "names of places and mountains in CL to name climbs and activities"
-    check describe(net.events[0]) == "need names of places and mountains in CL to name climbs and activities"
+    check net.events[0].label == "locations in CL"
+    check describe(net.events[0]) == "need locations in CL: download.geonames.org/export/dump/CL.zip"
     check net.events[1].url == chile and net.events[1].bytes == int64(net.bodies.getOrDefault(chile).len)
     check net.heads == @[chile] and net.gets == @[chile]
     # again: no request, no event
@@ -94,7 +95,7 @@ suite "download: fetching":
     let dir = fresh("net")
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL").isNone
     check net.failed.len == 1 and "cannot reach" in net.failed[0].message
-    check describe(net.failed[0]) == "cannot download " & chile & ": cannot reach download.geonames.org"
+    check describe(net.failed[0]) == "cannot download " & shortUrl(chile) & ": cannot reach download.geonames.org"
     # a country that does not exist
     check fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "XX").isNone
     check "404" in net.failed[1].message
@@ -147,7 +148,7 @@ suite "download: fetching":
     check dataUsage(dir).files == 1 and dataUsage(dir).bytes == int64(net.bodies.getOrDefault(chile).len)
     check clearData(dir).files == 1
     check dataUsage(dir) == DataUsage() and not dirExists(dir)
-    check humanBytes(1_400_000) == "1.4 MB" and humanBytes(85_000) == "85 kB" and humanBytes(12) == "12 bytes"
+    check humanBytes(1_400_000) == "1.4MB" and humanBytes(85_000) == "85kB" and humanBytes(12) == "12B"
 
 suite "download: the same events in the log and on the screen":
   test "downloaded is info, failed is an error; the screen gets a line each":
@@ -157,12 +158,52 @@ suite "download: the same events in the log and on the screen":
     var said: seq[string]
     let sink = fanOut(@[logSink(l, "climbs"),
                         screenSink(proc(line: string) {.closure, raises: [].} = said.add line)])
-    sink(DownloadEvent(kind: deStarting, source: "geonames", url: chile, message: "names of places in CL"))
+    sink(DownloadEvent(kind: deStarting, source: "geonames", url: chile, message: "names of places in CL", label: "locations in CL"))
     sink(DownloadEvent(kind: deDownloaded, source: "geonames", url: chile, path: "/c/CL.zip", bytes: 1_421_434))
     sink(DownloadEvent(kind: deFailed, source: "geonames", url: chile, message: "cannot reach"))
     l.close()
     let text = readFile(path)
     check "INFO  climbs    note       need names of places in CL" in text
-    check "INFO  climbs    downloaded" in text and chile in text and "1.4 MB" in text
+    check "INFO  climbs    downloaded" in text and chile in text and "1.4MB" in text
     check "ERROR climbs    failed" in text and "cannot reach" in text
-    check said == @["need names of places in CL", "downloaded " & chile & " (1.4 MB)", "cannot download " & chile & ": cannot reach"]
+    check said == @["need locations in CL: " & shortUrl(chile), "downloaded " & shortUrl(chile) & " (1.4MB)", "cannot download " & shortUrl(chile) & ": cannot reach"]
+
+suite "download: the line while a file comes":
+  let url = "https://download.geonames.org/export/dump/CL.zip"
+  test "the label, the address in grey without the scheme, the size, and a spinner while it comes":
+    let l = progressLine("locations in CL", url, 71_300_000, 2, false)
+    check l.text == "need locations in CL: download.geonames.org/export/dump/CL.zip (71.3MB) " & spinnerFrames[2]
+    check l[1].look.colour == grey and l[0].look.colour == white
+    check progressLine("countries", url, 0, 0, false).text == "need countries: download.geonames.org/export/dump/CL.zip " & spinnerFrames[0]
+    check progressLine("countries", url, 32_000, 5, true).text == "need countries: download.geonames.org/export/dump/CL.zip (32kB)"
+    check progressLine("x", url, 1, 13, false).text.endsWith(spinnerFrames[3])         # (the frames go round)
+  test "a fetcher that tells how it goes is used, and each tick is an event":
+    let net = newNet()
+    net.bodies[chile] = makeZip([("CL.txt", "1\tSantiago\n"), ("readme.txt", "x")])
+    var env = envOf(net)
+    env.fetcher.getTelling = proc(u: string, tick: Tick): FetchResult {.closure, raises: [].} =
+      tick(100, 1000)
+      tick(1000, 1000)
+      FetchResult(ok: true, status: 200, body: net.bodies.getOrDefault(u))
+    discard fetchSource(env, sinkOf(net), fresh("telling"), geonamesCountry, "CL")
+    var kinds: seq[EventKind]
+    for e in net.events: kinds.add e.kind
+    check kinds == @[deStarting, deProgress, deProgress, deProgress, deDownloaded]      # (the first is the start, at 0)
+    check net.events[2].bytes == 100 and net.events[2].total == 1000
+  test "the live sink: the final line is kept; a failure is said in red":
+    var written: seq[string]
+    var now = 0'i64
+    let live = newLive(write = proc(s: string) {.closure, raises: [].} = written.add(s),
+                       now = proc(): int64 {.closure, raises: [].} = now,
+                       size = proc(): tuple[w, h: int] {.closure, raises: [].} = (100, 24), colour = false)
+    let sink = liveSink(live)
+    sink(DownloadEvent(kind: deStarting, source: "geonames", url: url, label: "locations in CL"))
+    sink(DownloadEvent(kind: deProgress, source: "geonames", url: url, bytes: 0, total: 1000))
+    check written.len == 0                                                  # (too soon to draw)
+    now = 200
+    sink(DownloadEvent(kind: deProgress, source: "geonames", url: url, bytes: 500, total: 1000))
+    check written.len == 1 and "need locations in CL: download.geonames.org/export/dump/CL.zip (1kB) " in written[0]
+    sink(DownloadEvent(kind: deDownloaded, source: "geonames", url: url, bytes: 1000))
+    check "(1kB)" in written[^1] and spinnerFrames[0] notin written[^1] and spinnerFrames[2] notin written[^1]
+    sink(DownloadEvent(kind: deFailed, source: "geonames", url: url, message: "cannot reach"))
+    check "cannot download download.geonames.org/export/dump/CL.zip: cannot reach" in written[^1]

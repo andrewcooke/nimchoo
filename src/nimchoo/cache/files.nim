@@ -43,7 +43,7 @@ func parseKind*(s: string, kind: var Kind): bool =
       return true
 
 func describe*(use: Use): string =
-  ## "12 files (3.4 MB)", "1 file (12 kB)", "no files".
+  ## "12 files (3.4MB)", "1 file (12kB)", "no files".
   if use.count == 0: return "no files"
   $use.count & (if use.count == 1: " file" else: " files") & " (" & humanBytes(use.bytes) & ")"
 
