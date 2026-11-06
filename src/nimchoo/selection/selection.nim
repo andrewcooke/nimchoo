@@ -5,7 +5,7 @@
 ## each one's file, and its session), not of database ids: the same activities
 ## give the same key in any database, and a changed selection gives a new one.
 
-import std/algorithm
+import std/[algorithm, sets, strutils]
 import ../hashing
 import db_connector/db_sqlite
 import ../db/store
@@ -31,3 +31,42 @@ proc selectionKey*(st: Store): string {.raises: [StoreError].} =
         join file f on f.id = a.file_id where s.user_id = ?""", st.userId):
       entries.add row[0] & ":" & row[1]
   keyOf(entries)
+
+proc selectedIds*(st: Store): seq[int64] {.raises: [StoreError].} =
+  ## The ids of the current selection of the store's user, in order.
+  guard:
+    for row in st.db.fastRows(sql"select activity_id from selection where user_id = ? order by 1", st.userId):
+      try: result.add parseBiggestInt(row[0])
+      except ValueError: raiseStore("a bad activity id")
+
+proc maxActivityId*(st: Store): int64 {.raises: [StoreError].} =
+  ## The highest activity id there is (0 if there are none): the largest an address can name.
+  guard:
+    try: result = parseBiggestInt(st.db.getValue(sql"select coalesce(max(id), 0) from activity"))
+    except ValueError: raiseStore("a bad activity id")
+
+proc ownedIds*(st: Store, ids: seq[int64]): seq[int64] {.raises: [StoreError].} =
+  ## Of `ids` (in order), those that are activities of the store's user: an address may name any number, and only the
+  ## user's own activities are ever drawn.
+  var mine = initHashSet[int64]()
+  guard:
+    for row in st.db.fastRows(sql"""select a.id from activity a join file f on f.id = a.file_id
+        where f.user_id = ?""", st.userId):
+      try: mine.incl parseBiggestInt(row[0])
+      except ValueError: raiseStore("a bad activity id")
+  for id in ids:
+    if id in mine: result.add id
+
+const checkLength* = 6
+
+proc checkOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
+  ## A short check of the *content* of the activities `ids` (the first 6 hex digits of their key: the same as the
+  ## selection key's start).  An address carries it with its list of activities, so that after the database has been
+  ## rebuilt (and the ids mean other activities) or activities deleted, the address is refused and not wrong.
+  var entries: seq[string]
+  guard:
+    for id in ids:
+      for row in st.db.fastRows(sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
+          where a.id = ?""", id):
+        entries.add row[0] & ":" & row[1]
+  keyOf(entries)[0 ..< checkLength]

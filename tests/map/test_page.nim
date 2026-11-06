@@ -2,17 +2,17 @@ import std/[options, os, strutils, tables, unittest]
 import ../support/env
 import nimchoo/bundle/unpack
 import nimchoo/cache
-import nimchoo/heatmap/page
+import nimchoo/map/page
 import nimchoo/serve/libraries
 import nimchoo/templating
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
-const data = "heatmap--check-ab12cd--style-lines--tolerance-5.geojson"
+const data = "map-lusab-babad-fuzoh.geojson"
 
-suite "heatmap page: the text":
+suite "map page: the text":
   test "it loads Leaflet with the integrity hashes, and the data from the server":
-    let h = pageHtml(data, "Heat map ab12cd").get
+    let h = pageHtml(data, "Map").get
     check h.startsWith("<!DOCTYPE html>")
     check h.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
     check h.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
@@ -35,26 +35,26 @@ suite "heatmap page: the text":
     check not h.contains("<script>alert")
     check h.contains("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;")
   test "only the name of a cache file, and a geojson one":
-    for bad in ["", "../x.geojson", "a/b.geojson", "heatmap.html",
+    for bad in ["", "../x.geojson", "a/b.geojson", "map.html",
                 "heatmap--check-a.geojson'); alert(1); ('", "heatmap--check-a b.geojson",
                 "heatmap--check-a.geojson.exe"]:
       check pageHtml(bad, "t").isNone
     check pageHtml("heatmap.geojson", "t").isSome
     check pageHtml("x.geojson", "t").isSome               # (a name the cache could hold)
 
-suite "heatmap page: the template and the libraries are files":
+suite "map page: the template and the libraries are files":
   teardown: useTestCache()
   test "the built-in template is the one in the cache until the author changes it":
-    let top = getTempDir() / "nch-test-heatmap-page"
+    let top = getTempDir() / "nch-test-map-page"
     removeDir top
     putEnv("NCH_CACHE", top)
     check pageHtml(data, "t").get.startsWith("<!DOCTYPE html>")
-    check readFile(systemDir(top) / "templates" / "heatmap.html") == pageTemplate
+    check readFile(systemDir(top) / "templates" / "map.html") == pageTemplate
     check readFile(systemDir(top) / "libraries.txt") == librariesBundle.data
-    writeFile(systemDir(top) / "templates" / "heatmap.html", "<h1>{{title}}</h1> <a href=\"{{leaflet-js}}\">{{data}}</a>\n")
+    writeFile(systemDir(top) / "templates" / "map.html", "<h1>{{title}}</h1> <a href=\"{{leaflet-js}}\">{{data}}</a>\n")
     check pageHtml(data, "My <map>").get == "<h1>My &lt;map&gt;</h1> <a href=\"" & libs["leaflet-js"] & "\">" & data & "</a>\n"
   test "other versions of the libraries: change the file":
-    let top = getTempDir() / "nch-test-heatmap-libs"
+    let top = getTempDir() / "nch-test-map-libs"
     removeDir top
     putEnv("NCH_CACHE", top)
     discard pageHtml(data, "t")
@@ -62,11 +62,11 @@ suite "heatmap page: the template and the libraries are files":
     let h = pageHtml(data, "t").get
     check h.contains("leaflet@9.9.9/dist/leaflet.js") and not h.contains("leaflet@1.9.4")
   test "a template with a mistake is an error that says where":
-    let top = getTempDir() / "nch-test-heatmap-bad"
+    let top = getTempDir() / "nch-test-map-bad"
     removeDir top
     putEnv("NCH_CACHE", top)
     discard pageHtml(data, "t")
-    writeFile(systemDir(top) / "templates" / "heatmap.html", "line one\n{{nothing-like-this}}\n")
+    writeFile(systemDir(top) / "templates" / "map.html", "line one\n{{nothing-like-this}}\n")
     expect TemplateError: discard pageHtml(data, "t")
     try: discard pageHtml(data, "t")
     except TemplateError as e: check e.msg == "line 2: there is no value called 'nothing-like-this'"

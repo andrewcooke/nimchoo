@@ -26,7 +26,11 @@
   fetch('/files/{{{data}}}')
     .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then((data) => {
-      const layer = L.geoJSON(data, {
+      // what a thing looks like is decided here, from what it is (its `kind`); the file says only what things are
+      const climbColours = { HC: '#e03131', 1: '#f08c00', 2: '#fab005', 3: '#2f9e44', 4: '#1971c2' };
+      const ofKind = (kind) => (f) => (f.properties || {}).kind === kind;
+      const routes = L.geoJSON(data, {
+        filter: ofKind('route'),
         style: { color: '#c2185b', weight: 2, opacity: 0.25 },
         onEachFeature: (f, l) => {
           const p = f.properties || {};
@@ -34,9 +38,22 @@
                       (p.distance_m ? (p.distance_m / 1000).toFixed(1) + 'km' : ''));
         }
       }).addTo(map);
-      const bounds = layer.getBounds();
+      const climbs = L.geoJSON(data, {
+        filter: ofKind('climb'),
+        style: (f) => ({ color: climbColours[(f.properties || {}).category] || '#868e96', weight: 5, opacity: 0.9 }),
+        onEachFeature: (f, l) => {
+          const p = f.properties || {};
+          const facts = (p.category ? 'category ' + text(p.category) + ', ' : '') + (p.length_m / 1000).toFixed(1) + 'km, +' +
+                        Math.round(p.gain_m) + 'm, ' + p.gradient.toFixed(1) + '%';
+          l.bindTooltip(text(p.name || ''), { sticky: true });
+          l.bindPopup('<b>' + text(p.name || '') + '</b><br>' + facts);
+        }
+      }).addTo(map);
+      const bounds = routes.getBounds();
       if (bounds.isValid()) map.fitBounds(bounds); else map.setView([0, 0], 2);
-      caption.textContent = data.features.length + ' routes';
+      const n = data.features.filter(ofKind('route')).length;
+      const m = data.features.filter(ofKind('climb')).length;
+      caption.textContent = n + ' routes' + (m ? ', ' + m + ' climbs' : '');
     })
     .catch((e) => { caption.textContent = 'could not load the routes: ' + e; });
 </script>

@@ -216,7 +216,7 @@ a theory of the commands, to keep the interface consistent.  the work of getting
   as the selection.  `climbs` with no arguments shows the climbs of the selected activities, and `--all` shows every
   climb.  **`--all` means everything, not just the selection**, wherever the default is the selection.
   a selection belongs to one user (there is no `--users`).
-* **commands about things outside the database are singular**: `heatmap`, `fit`, `log`, `ff` (which is both, and can
+* **commands about things outside the database are singular**: `map`, `fit`, `log`, `ff` (which is both, and can
   wait).  `cache` (the files outside: downloads, generated files; with no arguments it says what is there and how big,
   `cache --delete KIND` deletes) and `db` (the database file: no arguments says where and how big, `db --delete`
   deletes it) are of this kind too.
@@ -241,3 +241,19 @@ later did a better data source turn up).  the rule:
   alternatives are.
 * prefer resources with clean licences (public domain over attribution), small size, and that let the work be done in
   the database (sql, spatialite) rather than in hand-written code.
+
+## the map and its addresses (decided 2026-11-06)
+
+* `heatmap` is `map`: the routes of the selected activities and the climbs they went up, in one GeoJSON file whose features
+  say what they are (`kind`: route, climb) and nothing about how they look; the page (Leaflet) decides the look.  `map`
+  makes everything itself: no layer commands, no layer index (see MAP-LAYERS.md for what was considered and why not).
+* **The address carries the activities**: `/map?bits=LIST&check=HASH`.  `LIST` is the set of activity ids as a short string
+  (`selection/bits.nim`: runs or a bitmap, bit-level codes, URL-safe base64, one ride is 5 characters, a date range 5 to 8).
+  `HASH` is the first 6 hex digits of the content key of those activities (`selection/selection.nim`, `checkOf`): after a
+  database rebuild the ids mean other activities, and the check refuses the old address.  So addresses work until the
+  database is rebuilt.  The address is a readable interface and may grow parameters.
+* **`--check` means check** (verification, never choice): in `ff` it is a hash of the data the curves are made from.
+  `ff` is not about the selection: it always uses all the activities.
+* **Cache file names are not the address**: `map-lusab-babad-fuzoh.geojson` is the command and 48 bits of the hash of the
+  request as proquints (`proquint.nim`, `cache.nim` `requestStem`).  The request is written into the file (`nch.request`)
+  and checked when the file is found, so a clash of names cannot show the wrong map.

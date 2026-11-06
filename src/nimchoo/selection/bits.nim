@@ -13,7 +13,7 @@
 ## The empty set is the empty string.  A set of 10 single rides among 1,112 is 18 characters; a range or all of them, 5 to 8.
 ## One ride among 1,112 is 5 characters.  The string comes from an address, so `decodeBits` trusts nothing: it stops at anything wrong and says what.
 
-import std/[algorithm, strutils]
+import std/[algorithm, sequtils, strutils]
 
 {.push raises: [].}
 
@@ -22,6 +22,11 @@ const
   maxChars* = 40_000          ## a longer string is refused
   maxRuns* = 100_000          ## more runs than this are refused
   maxK = 7
+
+func isBitsString*(s: string): bool =
+  ## Whether the text could be a list of activities: only the alphabet, and not too long.  (A cheap check for a command line
+  ## or an address; `decodeBits` reads it.)
+  s.len <= maxChars and s.allIt(it in alphabet)
 
 type Decoded* = object
   ids*: seq[int64]            ## in order, no repeats

@@ -4,7 +4,7 @@
 ##
 ## A request must (1) be a GET, (2) have our own address in its Host header, (3) carry the
 ## token, in the cookie, or once in the URL (then the cookie is set and the browser is sent
-## on to the same address without it).  Then it is a page (`/heatmap?check=...`: the worker
+## on to the same address without it).  Then it is a page (`/map?bits=...`: the worker
 ## makes the files and the first it names is sent) or a file of the cache directory
 ## (`/files/NAME`).  Anything else is "not found".
 
@@ -87,6 +87,9 @@ proc page(cfg: ServerConfig, route: Route, t: Target): Reply =
   if route.pin.len > 0 and t.query.queryValue(route.pin).isNone:
     # the data were "the current ones": pin their key in the address, so that a reload shows
     # the same data (the other options of the request stay as they were)
+    # (a worker that names the request, as its third line, says what to pin; one that does not has it in the file name)
+    if lines.len > 2:
+      return Reply(code: 302, headers: @[("Location", "/" & route.command & "?" & lines[2])])
     let stem = parseStem(name[0 ..< name.len - ".html".len])
     let key = if stem.isSome: stem.get[1].queryValue(route.pin) else: none(string)
     if key.isSome:

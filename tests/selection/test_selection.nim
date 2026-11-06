@@ -77,3 +77,28 @@ suite "selection: of the database":
     defer: bob.close()
     check selectionKey(bob) == keyOf(@[])
     check selectionKey(s) != keyOf(@[])
+
+suite "selection: for an address (the ids, the check)":
+  test "the selected ids, in order; the highest id; the user's own":
+    let s = fresh("ids")
+    defer: s.close()
+    check selectedIds(s).len == 0 and maxActivityId(s) == 0
+    s.add "a"
+    s.add "b"
+    s.add "c"
+    check selectedIds(s) == @[1'i64, 2, 3] and maxActivityId(s) == 3
+    check ownedIds(s, @[3'i64, 1, 9, 2]) == @[3'i64, 1, 2]                     # (9 is not an activity)
+    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
+    s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) select id, 'x', 'x', 0 from user where name = 'bob'")
+    s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file")
+    check ownedIds(s, @[1'i64, 4]) == @[1'i64]                                  # (4 is bob's)
+  test "the check is of the content, short, and the same however the ids are arranged":
+    let s = fresh("check")
+    defer: s.close()
+    s.add "a"
+    s.add "b"
+    let c = checkOf(s, @[1'i64, 2])
+    check c.len == checkLength and c.allIt(it in HexDigits and it notin {'A' .. 'F'})
+    check c == checkOf(s, @[2'i64, 1])
+    check c != checkOf(s, @[1'i64])
+    check c == selectionKey(s)[0 ..< checkLength]                                # (the start of the selection's key)

@@ -9,6 +9,7 @@
 
 import std/[options, sequtils, strutils, uri]
 import ../cache
+import ../selection/bits
 
 {.push raises: [].}
 
@@ -37,18 +38,18 @@ type
                                             ## shows the same data)
 
 const
-  maxTarget = 2000
+  maxTarget = 8000
   cookieName* = "nch"
   tokenParam* = "token"
   defaultPort* = 62466    ## the digits of "mchoo" on a phone keypad
   # the commands the server may run: read-only, safe to repeat; with their options
   commandRules* = [
-    CommandRule(name: "heatmap", options: @["check", "style", "tolerance"], pin: "check"),
+    CommandRule(name: "map", options: @["bits", "check"], pin: "bits"),
     CommandRule(name: "ff", options: @["check", "model", "from", "to", "fitness-scale", "fatigue-scale"],
                 flags: @["hourly", "utc"], pin: "check")]
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/heatmap?check=ab12&style=lines" -> path "/heatmap" and the query, percent-decoded.
+  ## "/map?bits=AsBO&check=ab12cd" -> path "/map" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, no spaces or control
   ## characters, not too long).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):
@@ -111,10 +112,11 @@ func isDay(value: string): bool =
 
 func validValue(command, option, value: string): bool =
   ## What an option of a command may be set to.
+  if option == "bits": return value.len > 0 and isBitsString(value)           # (a list of activities may have two dashes in a row)
   if not isOptionValue(value): return false
   case option
-  of "style": value == "lines"
-  of "tolerance", "fitness-scale", "fatigue-scale": isPlainNumber(value)   # (metres, or a multiplier)
+  of "check": value.allIt(it in {'0' .. '9', 'a' .. 'f'})            # (a hash)
+  of "fitness-scale", "fatigue-scale": isPlainNumber(value)   # (a multiplier)
   of "from", "to": isDay(value)
   else: true
 

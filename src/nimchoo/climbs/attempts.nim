@@ -59,6 +59,17 @@ proc selectedClimbs*(st: Store): seq[int64] {.raises: [StoreError].} =
       try: result.add parseBiggestInt(r[0])
       except ValueError: raiseStore("a bad id")
 
+proc climbsOfActivities*(st: Store, activities: seq[int64]): seq[int64] {.raises: [StoreError].} =
+  ## The climbs (not retired) that the activities went up, the biggest first.  (The numbers are ids from the program,
+  ## written into the query.)
+  if activities.len == 0: return
+  let list = activities.mapIt($it).join(",")
+  guard:
+    for r in st.db.fastRows(sql("select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
+        "where e.sector_id = s.id and e.activity_id in (" & list & ")) order by s.gain_m desc, s.id")):
+      try: result.add parseBiggestInt(r[0])
+      except ValueError: raiseStore("a bad id")
+
 proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreError].} =
   ## The climbs (not retired) whose name as shown ("Farellones₂") holds any of the texts, case and accents ignored, the
   ## biggest first.  "farellones 2" and "farellones2" mean "farellones₂" as well (`ordinalForms`).

@@ -3,7 +3,7 @@
 Status: **ideas only, nothing is built.**  The author wants to think about it first ("this is very new").  Nothing in the
 code depends on it.  When a decision is made, move it to TODO.md and AGENTS.md.
 
-**After the review below (same day) the author's view is that the whole thing is too complex for now.**  The most useful
+**Decision (same day): the layer ideas are set aside.**  `nch map` makes the routes and the climbs itself; the address carries the activities as `bits` and a `check`; file names are proquints of a hash of the request.  See AGENTS.md, "the map and its addresses".  **After the review below the author's view was that the whole thing is too complex for now.**  The most useful
 result of the review is a question that stands on its own: climb names are mutable (see "Mutable names" at the end).
 
 ## Where things are now

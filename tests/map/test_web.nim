@@ -1,4 +1,4 @@
-## `nch heatmap --web` as a real program: started as a subprocess on a fixture database,
+## `nch map --web` as a real program: started as a subprocess on a fixture database,
 ## on any free port, and asked for things over plain HTTP.  Needs a built ./nch-test (the
 ## `test` task builds it); without one these tests are skipped.
 
@@ -42,7 +42,7 @@ proc environment(cache: string): StringTableRef =
 proc start(db, cache: string, extra: seq[string] = @[]): tuple[web: Web, output: string] =
   ## Start the server (not opening a browser, on any free port) and read the address it
   ## prints.  If it stops instead, `output` is what it said and `web.process` is finished.
-  let p = startProcess(exe, args = @["--db", db, "heatmap", "--web", "--no-open", "--port", "0"] & extra,
+  let p = startProcess(exe, args = @["--db", db, "map", "--web", "--no-open", "--port", "0"] & extra,
                        env = environment(cache), options = {poStdErrToStdOut})
   result.web.process = p
   var line = ""
@@ -50,7 +50,7 @@ proc start(db, cache: string, extra: seq[string] = @[]): tuple[web: Web, output:
     result.output.add line & "\n"
     if line.startsWith("http://"):
       result.web.url = line
-      result.web.base = line[0 ..< line.find("/heatmap")]
+      result.web.base = line[0 ..< line.find("/map")]
       result.web.token = line[line.find("token=") + 6 .. ^1]
       return
 
@@ -71,14 +71,14 @@ proc client(cookie = "", host = ""): HttpClient =
 
 proc built(): bool = fileExists(exe)
 
-suite "nch heatmap --web: a real server":
+suite "nch map --web: a real server":
   test "the address, the cookie, the pinned page, the data":
     if not built(): skip()
     let f = fixture("flow")
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
     check output.contains("http://localhost:")
-    check w.url.contains("/heatmap?check=") and w.url.contains("&style=lines&tolerance=5&token=")
+    check w.url.contains("/map?bits=") and w.url.contains("&check=")
     check w.token.len == 32
     # the printed address: the token is traded for a cookie
     let c = client()
@@ -86,7 +86,7 @@ suite "nch heatmap --web: a real server":
     check r1.code == Http302
     check r1.headers["Set-Cookie"].contains("nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/")
     let pinned = $r1.headers["Location"]
-    check pinned.startsWith("/heatmap?check=") and not pinned.contains("token")
+    check pinned.startsWith("/map?bits=") and not pinned.contains("token")
     # with the cookie: the page, which asks for the data
     let withCookie = client(w.token)
     let page = withCookie.request(w.base & pinned)
@@ -99,7 +99,7 @@ suite "nch heatmap --web: a real server":
     check $data.headers["Content-Type"] == "application/geo+json"
     check parseJson(data.body)["features"].len == 2
     # no address with only the selection key: pinned again
-    let again = withCookie.request(w.base & "/heatmap")
+    let again = withCookie.request(w.base & "/map")
     check again.code == Http302
     check pinned.startsWith($again.headers["Location"])          # (the key; the defaults are not repeated)
     check dirExists(f.cache / "user") and dirExists(f.cache / "system")
@@ -112,11 +112,11 @@ suite "nch heatmap --web: a real server":
     let f = fixture("forbidden")
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
-    check client().request(w.base & "/heatmap").code == Http403
-    check client("0".repeat(32)).request(w.base & "/heatmap").code == Http403
-    check client().request(w.base & "/heatmap?token=" & "0".repeat(32)).code == Http403
-    check client(w.token, host = "evil.example:" & w.base.split(':')[^1]).request(w.base & "/heatmap").code == Http403
-    check client(w.token, host = "127.0.0.1:1").request(w.base & "/heatmap").code == Http403
+    check client().request(w.base & "/map").code == Http403
+    check client("0".repeat(32)).request(w.base & "/map").code == Http403
+    check client().request(w.base & "/map?token=" & "0".repeat(32)).code == Http403
+    check client(w.token, host = "evil.example:" & w.base.split(':')[^1]).request(w.base & "/map").code == Http403
+    check client(w.token, host = "127.0.0.1:1").request(w.base & "/map").code == Http403
     check w.stop() == 130
 
   test "nothing else is served":
@@ -125,10 +125,10 @@ suite "nch heatmap --web: a real server":
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
     let c = client(w.token)
-    for path in ["/", "/destroy", "/import?x=1", "/list?save=1", "/heatmap?worker=1", "/heatmap?db=/etc/passwd",
+    for path in ["/", "/destroy", "/import?x=1", "/list?save=1", "/map?worker=1", "/map?db=/etc/passwd",
                  "/files/server-token", "/files/..%2fx.geojson", "/files/%2e%2e%2fserver-token", "/files/nope.geojson"]:
       check c.request(w.base & path).code == Http404
-    check c.request(w.base & "/heatmap", httpMethod = HttpPost, body = "x").code in [Http405, Http411]
+    check c.request(w.base & "/map", httpMethod = HttpPost, body = "x").code in [Http405, Http411]
     check w.stop() == 130
 
   test "the token is kept in a file only you can read, and kept between runs":
@@ -151,11 +151,11 @@ suite "nch heatmap --web: a real server":
     if not built(): skip()
     let f = fixture("renew")
     let (w1, _) = start(f.db, f.cache)
-    check client(w1.token).request(w1.base & "/heatmap").code == Http302
+    check client(w1.token).request(w1.base & "/map").code == Http302
     check w1.stop() == 130
     let (w2, _) = start(f.db, f.cache, @["--new-token"])
-    check client(w1.token).request(w2.base & "/heatmap").code == Http403
-    check client(w2.token).request(w2.base & "/heatmap").code == Http302
+    check client(w1.token).request(w2.base & "/map").code == Http403
+    check client(w2.token).request(w2.base & "/map").code == Http302
     check w2.stop() == 130
 
   test "nothing to show: it says so in the terminal and does not start":
@@ -173,7 +173,7 @@ suite "nch heatmap --web: a real server":
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
     let port = w.base.split(':')[^1]
-    let p = startProcess(exe, args = @["--db", f.db, "heatmap", "--web", "--no-open", "--port", port],
+    let p = startProcess(exe, args = @["--db", f.db, "map", "--web", "--no-open", "--port", port],
                          env = environment(f.cache), options = {poStdErrToStdOut})
     let said = p.outputStream.readAll()
     check p.waitForExit(10_000) == 1

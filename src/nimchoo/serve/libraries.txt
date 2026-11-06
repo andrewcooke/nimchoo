@@ -4,7 +4,7 @@
 # (The pages may load scripts and styles only from unpkg.com, and tiles from tile.openstreetmap.org:
 # that is fixed in the server, see serve/handler.nim.)
 
-# Leaflet 1.9.4: the map of `nch heatmap`
+# Leaflet 1.9.4: the map of `nch map`
 leaflet-js = https://unpkg.com/leaflet@1.9.4/dist/leaflet.js
 leaflet-js-hash = sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=
 leaflet-css = https://unpkg.com/leaflet@1.9.4/dist/leaflet.css

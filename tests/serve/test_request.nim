@@ -14,7 +14,7 @@ suite "serve request: the target":
     check target("/files/a%2Eb").path == "/files/a.b"
   test "not a plain path":
     for bad in ["", "heatmap", "//evil.example/x", "http://x/y", "/a b", "/a\tb", "/a\nb",
-                "/a\\b", "/\x7f", "/" & "a".repeat(2001)]:
+                "/a\\b", "/\x7f", "/" & "a".repeat(8001)]:
       check parseTarget(bad).isNone
   test "query helpers":
     let t = target("/heatmap?token=T&check=ab&style=lines")
@@ -58,19 +58,20 @@ suite "serve request: what is asked for":
                 "/files/a/b.geojson", "/filesx/y.geojson", "/other/x.geojson"]:
       check route(target(bad)).isNone
   test "the command on the list, with its options, each once":
-    let r = route(target("/heatmap?check=ab12&style=lines&tolerance=5")).get
-    check not r.isFile and r.command == "heatmap"
-    check r.args == @["--check", "ab12", "--style", "lines", "--tolerance", "5"]
-    check route(target("/heatmap")).get.args.len == 0
-    check route(target("/heatmap?token=T&check=ab")).get.args == @["--check", "ab"]  # (the token is not an option)
-    check route(target("/heatmap?tolerance=2.5")).get.args == @["--tolerance", "2.5"]
+    let r = route(target("/map?bits=AWAnLmgGhgZI6JjZom&check=c3eef5")).get
+    check not r.isFile and r.command == "map"
+    check r.args == @["--bits", "AWAnLmgGhgZI6JjZom", "--check", "c3eef5"]
+    check route(target("/map")).get.args.len == 0
+    check route(target("/map?token=T&bits=AB")).get.args == @["--bits", "AB"]          # (the token is not an option)
+    check route(target("/map?bits=A--B_-")).isSome                                     # (a list may have two dashes in a row)
+    check route(target("/map?bits=" & "A".repeat(7000))).isSome                       # (and be long)
   test "ff: options, and flags that are given as 1":
     let r = route(target("/ff?check=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5")).get
     check r.command == "ff" and r.pin == "check"
     check r.args == @["--check", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly", "--utc",
                       "--fitness-scale", "2", "--fatigue-scale", "5"]
     check route(target("/ff")).get.args.len == 0
-    check route(target("/heatmap")).get.pin == "check"
+    check route(target("/map")).get.pin == "bits"
   test "ff: no other option or value":
     for bad in ["/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1", "/ff?stdout=1", "/ff?web=1",
                 "/ff?worker=1", "/ff?port=1", "/ff?to=yesterday", "/ff?to=2018-8-1", "/ff?from=2018-08-0x",
@@ -78,10 +79,8 @@ suite "serve request: what is asked for":
                 "/ff?style=lines", "/ff/x", "/FF"]:
       check route(target(bad)).isNone
   test "no other command, option or value":
-    for bad in ["/", "/import?x=1", "/destroy", "/list?save=1", "/log", "/heatmap/", "/heatmap/x",
-                "/Heatmap", "/heatmap?worker=1", "/heatmap?save", "/heatmap?check=a&check=b",
-                "/heatmap?check=a%20b", "/heatmap?check=a;b", "/heatmap?check=../x", "/heatmap?check=",
-                "/heatmap?style=cells", "/heatmap?tolerance=x", "/heatmap?tolerance=-1",
-                "/heatmap?tolerance=1e3", "/heatmap?tolerance=.5", "/heatmap?tolerance=5.",
-                "/heatmap?tolerance=1.2.3", "/heatmap?tolerance=123456789", "/heatmap?db=/etc/x"]:
+    for bad in ["/", "/import?x=1", "/destroy", "/list?save=1", "/log", "/heatmap", "/heatmap?check=ab12", "/map/", "/map/x",
+                "/Map", "/map?worker=1", "/map?save", "/map?bits=a&bits=b", "/map?bits=a%20b", "/map?bits=a;b",
+                "/map?bits=a+b", "/map?bits=../x", "/map?bits=", "/map?check=zz", "/map?style=lines", "/map?tolerance=5",
+                "/map?db=/etc/x", "/map?bits=" & "+".repeat(10)]:
       check route(target(bad)).isNone

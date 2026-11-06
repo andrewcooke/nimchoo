@@ -10,7 +10,7 @@ import nimchoo/climbs/command as climbsCommand
 import nimchoo/cache/command as cacheCommand
 import nimchoo/db/command as dbCommand
 import nimchoo/selection/command as activitiesCommand
-import nimchoo/heatmap/command as heatmapCommand
+import nimchoo/map/command as mapCommand
 import nimchoo/log/command as logCommand
 import nimchoo/landmark/command as landmarkCommand
 import nimchoo/user/command as userCommand
@@ -37,7 +37,7 @@ commands:
   users       the users: make, rename, set the threshold heart rate
   models      the models: sets of variables for the training impulse
   landmarks   places of your own, named: they come before every other name
-  heatmap     write the routes of the selected activities as GeoJSON
+  map         the routes of the selected activities and their climbs, on a map
   ff          the fitness and fatigue curves, as CSV for plotting
   fit         read a FIT file and print it
   log         show the log, filtered, with the events coloured
@@ -56,8 +56,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     fitCommand.run(g, rest)
   of "activities":
     activitiesCommand.run(g, rest)
-  of "heatmap":
-    heatmapCommand.run(g, rest)
+  of "map":
+    mapCommand.run(g, rest)
   of "log":
     logCommand.run(g, rest)
   of "users":

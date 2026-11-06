@@ -5,7 +5,7 @@ import nimchoo/ui/logfile
 const
   token = "0123456789abcdef0123456789abcdef"
   port = 62466
-  stem = "heatmap--check-ab12cd--style-lines--tolerance-5"
+  stem = "map-lusab-babad-fuzoh"
 
 let dir = getTempDir() / "nch-test-serve-handler"
 
@@ -25,9 +25,9 @@ proc setup(name: string, withLog = false): tuple[cfg: ServerConfig, fake: Fake, 
   writeFile(cache / (stem & ".html"), "<html>the page</html>")
   writeFile(cache / (stem & ".geojson"), "{\"type\":\"FeatureCollection\",\"features\":[]}")
   let fake = Fake(result: WorkerResult(
-    stdout: cache / (stem & ".html") & "\n" & cache / (stem & ".geojson") & "\n"))
+    stdout: cache / (stem & ".html") & "\n" & cache / (stem & ".geojson") & "\n" & "bits=AB&check=ab12cd\n"))
   var cfg = ServerConfig(token: token, cacheDir: cache, run: runner(fake),
-                         baseArgs: @["--db", "/x/y.db"], logCommand: "heatmap")
+                         baseArgs: @["--db", "/x/y.db"], logCommand: "map")
   if withLog: cfg.log = openLog(dir / name / "nch.log")
   (cfg, fake, cache)
 
@@ -41,24 +41,24 @@ func header(r: Reply, name: string): string =
 suite "serve handler: who may ask":
   test "no token, no cookie: forbidden, and it says what to do":
     let s = setup("none")
-    let r = handle(s.cfg, port, get("/heatmap", cookie = ""))
+    let r = handle(s.cfg, port, get("/map", cookie = ""))
     check r.code == 403
-    check r.body.contains("nch heatmap --web")
+    check r.body.contains("nch map --web")
     check s.fake.calls.len == 0                       # (nothing was run)
   test "a wrong cookie is as good as none":
     let s = setup("wrongcookie")
-    check handle(s.cfg, port, get("/heatmap", cookie = "nch=" & "f".repeat(32))).code == 403
-    check handle(s.cfg, port, get("/heatmap", cookie = "other=" & token)).code == 403
+    check handle(s.cfg, port, get("/map", cookie = "nch=" & "f".repeat(32))).code == 403
+    check handle(s.cfg, port, get("/map", cookie = "other=" & token)).code == 403
     check s.fake.calls.len == 0
   test "the Host header must be ours, even with the right token":
     let s = setup("host")
     for host in ["", "evil.example", "127.0.0.1", "127.0.0.1:1234", "evil.example:62466"]:
-      check handle(s.cfg, port, get("/heatmap", host = host)).code == 403
+      check handle(s.cfg, port, get("/map", host = host)).code == 403
     check s.fake.calls.len == 0
   test "only GET":
     let s = setup("method")
     for m in ["POST", "PUT", "DELETE", "HEAD", "OPTIONS", "get"]:
-      var req = get("/heatmap")
+      var req = get("/map")
       req.meth = m
       check handle(s.cfg, port, req).code == 405
     check s.fake.calls.len == 0
@@ -68,63 +68,59 @@ suite "serve handler: who may ask":
     check handle(s.cfg, port, get("//evil.example/x")).code == 400
   test "the token in the address: the cookie is set and the browser goes on without it":
     let s = setup("token")
-    let r = handle(s.cfg, port, get("/heatmap?token=" & token & "&check=ab12cd", cookie = ""))
+    let r = handle(s.cfg, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = ""))
     check r.code == 302
-    check r.header("Location") == "/heatmap?check=ab12cd"
+    check r.header("Location") == "/map?bits=AB&check=ab12cd"
     let c = r.header("Set-Cookie")
     check c == "nch=" & token & "; HttpOnly; SameSite=Strict; Path=/"
     check s.fake.calls.len == 0                       # (nothing run until the cookie is back)
     check r.body == ""
   test "the token alone":
     let s = setup("tokenonly")
-    check handle(s.cfg, port, get("/heatmap?token=" & token, cookie = "")).header("Location") == "/heatmap"
+    check handle(s.cfg, port, get("/map?token=" & token, cookie = "")).header("Location") == "/map"
   test "a wrong token in the address: forbidden, no cookie":
     let s = setup("wrongtoken")
-    let r = handle(s.cfg, port, get("/heatmap?token=" & "0".repeat(32), cookie = ""))
+    let r = handle(s.cfg, port, get("/map?token=" & "0".repeat(32), cookie = ""))
     check r.code == 403 and r.header("Set-Cookie") == ""
-    check handle(s.cfg, port, get("/heatmap?token=", cookie = "")).code == 403
+    check handle(s.cfg, port, get("/map?token=", cookie = "")).code == 403
 
 suite "serve handler: pages":
   test "the worker is asked, with the base options, and the page it makes is sent":
     let s = setup("page")
-    let r = handle(s.cfg, port, get("/heatmap?check=ab12cd&style=lines&tolerance=5"))
+    let r = handle(s.cfg, port, get("/map?bits=AB&check=ab12cd"))
     check r.code == 200
     check r.body == "<html>the page</html>"
     check r.header("Content-Type") == "text/html; charset=utf-8"
-    check s.fake.calls == @[@["--db", "/x/y.db", "heatmap", "--worker", "--check", "ab12cd",
-                              "--style", "lines", "--tolerance", "5"]]
-  test "no key: the current selection is pinned in the address":
+    check s.fake.calls == @[@["--db", "/x/y.db", "map", "--worker", "--bits", "AB", "--check", "ab12cd"]]
+  test "no list of activities: the current selection is pinned in the address, as the worker says":
     let s = setup("pin")
-    let r = handle(s.cfg, port, get("/heatmap"))
+    let r = handle(s.cfg, port, get("/map"))
     check r.code == 302
-    check r.header("Location") == "/heatmap?check=ab12cd"
-    check s.fake.calls == @[@["--db", "/x/y.db", "heatmap", "--worker"]]
-    # the other options of the request stay in the address (the token does not)
-    let q = handle(s.cfg, port, get("/heatmap?style=lines&tolerance=2.5"))
-    check q.code == 302 and q.header("Location") == "/heatmap?check=ab12cd&style=lines&tolerance=2.5"
+    check r.header("Location") == "/map?bits=AB&check=ab12cd"
+    check s.fake.calls == @[@["--db", "/x/y.db", "map", "--worker"]]
   test "the worker failing: its message, as text, not markup":
     let s = setup("fails")
-    s.fake.result = WorkerResult(code: 1, stderr: "nch heatmap: the selection is empty <script>x</script>\n")
-    let r = handle(s.cfg, port, get("/heatmap?check=ab12cd"))
+    s.fake.result = WorkerResult(code: 1, stderr: "nch map: the selection is empty <script>x</script>\n")
+    let r = handle(s.cfg, port, get("/map?bits=AB&check=ab12cd"))
     check r.code == 500
     check r.body.contains("the selection is empty &lt;script&gt;x&lt;/script&gt;")
     check not r.body.contains("<script>")
     s.fake.result = WorkerResult(code: 1)
-    check handle(s.cfg, port, get("/heatmap?check=ab12cd")).body.contains("nch heatmap failed")
+    check handle(s.cfg, port, get("/map?bits=AB&check=ab12cd")).body.contains("nch map failed")
   test "a worker that names something else than a page of the cache is not believed":
     let s = setup("liar")
     for named in ["", "\n", "/etc/passwd\n", s.cache / "x.geojson\n", "/tmp/" & stem & ".html\n",
                 s.cache / ".." / stem & ".html\n"]:
       s.fake.result = WorkerResult(stdout: named)
-      check handle(s.cfg, port, get("/heatmap?check=ab12cd")).code == 500
+      check handle(s.cfg, port, get("/map?bits=AB&check=ab12cd")).code == 500
   test "a page that is not there is not found":
     let s = setup("gone")
     removeFile(s.cache / (stem & ".html"))
-    check handle(s.cfg, port, get("/heatmap?check=ab12cd")).code == 404
+    check handle(s.cfg, port, get("/map?bits=AB&check=ab12cd")).code == 404
   test "no other command is run, and no other option":
     let s = setup("allow")
-    for bad in ["/", "/import", "/destroy?x=1", "/list?save=1", "/heatmap?worker=1", "/heatmap?db=/etc/x",
-                "/heatmap?check=a;b", "/heatmap?style=cells", "/heatmap/x", "/Heatmap", "/log"]:
+    for bad in ["/", "/import", "/destroy?x=1", "/list?save=1", "/map?worker=1", "/map?db=/etc/x",
+                "/map?bits=a;b", "/map?style=cells", "/map/x", "/Map", "/heatmap", "/log"]:
       check handle(s.cfg, port, get(bad)).code == 404
     check s.fake.calls.len == 0
 
@@ -172,8 +168,8 @@ suite "serve handler: files":
 suite "serve handler: every reply":
   test "carries the security headers, whatever it is":
     let s = setup("headers")
-    for req in [get("/heatmap?check=ab12cd"), get("/heatmap", cookie = ""), get("/nope"),
-                get("/files/" & stem & ".geojson"), get("/a b"), get("/heatmap", host = "evil")]:
+    for req in [get("/map?bits=AB&check=ab12cd"), get("/map", cookie = ""), get("/nope"),
+                get("/files/" & stem & ".geojson"), get("/a b"), get("/map", host = "evil")]:
       let r = handle(s.cfg, port, req)
       check r.header("X-Content-Type-Options") == "nosniff"
       check r.header("Cache-Control") == "no-cache"
@@ -189,14 +185,14 @@ suite "serve handler: every reply":
 suite "serve handler: the log":
   test "what was served and what was refused, never the token":
     let s = setup("log", withLog = true)
-    discard handle(s.cfg, port, get("/heatmap?token=" & token & "&check=ab12cd", cookie = ""))
-    discard handle(s.cfg, port, get("/heatmap?check=ab12cd"))
-    discard handle(s.cfg, port, get("/heatmap", cookie = ""))
+    discard handle(s.cfg, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = ""))
+    discard handle(s.cfg, port, get("/map?bits=AB&check=ab12cd"))
+    discard handle(s.cfg, port, get("/map", cookie = ""))
     discard handle(s.cfg, port, get("/nope"))
     s.cfg.log.close()
     let text = readFile(s.cache.parentDir / "nch.log")
-    check text.contains("heatmap   served     GET /heatmap?check=ab12cd 302")      # the token step
-    check text.contains("served     GET /heatmap?check=ab12cd 200")
-    check text.contains("WARN  heatmap   denied     GET /heatmap 403")
+    check text.contains("map       served     GET /map?bits=AB&check=ab12cd 302")      # the token step
+    check text.contains("served     GET /map?bits=AB&check=ab12cd 200")
+    check text.contains("WARN  map       denied     GET /map 403")
     check text.contains("served     GET /nope 404")
     check not text.contains(token)

@@ -4,7 +4,8 @@
 ## `system/templates/`, see bundle/unpack.nim) filled in with the title, the name of the data and the
 ## libraries (serve/libraries.nim).
 ##
-## The routes are drawn as thin, mostly transparent lines, so where many rides share a road
+## The routes and the climbs are told apart by their `kind` property in the file; the climbs are drawn thick and coloured by
+## category, and the routes as thin, mostly transparent lines, so where many rides share a road
 ## the lines add up and glow.  A click on a line says which activity it is.
 
 import std/[options, strutils]
@@ -16,7 +17,7 @@ import ../templating
 {.push raises: [].}
 
 const pageTemplate* = staticRead("page.html")
-const templateBundle* = Bundle(name: "templates/heatmap.html", data: pageTemplate)
+const templateBundle* = Bundle(name: "templates/map.html", data: pageTemplate)
 
 proc renderPage*(source: string, libs: seq[(string, Value)], dataName, title: string): Option[string]
     {.raises: [TemplateError].} =

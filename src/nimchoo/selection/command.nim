@@ -1,5 +1,5 @@
 ## `nch activities`: the activities, and the selection.  With no criteria it shows the selection, the activities that
-## the commands which work on activities (climbs, heatmap, delete ...) use by default; with criteria or `--all` it
+## the commands which work on activities (climbs, map, delete ...) use by default; with criteria or `--all` it
 ## searches all the activities, and `--select` keeps what is listed as the selection.  The selection is kept in the
 ## database (table `selection`), for the current user, and replaced whenever `--select` is given.
 ##
@@ -25,7 +25,7 @@ const usage* = """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--
        nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f
        nch [--db PATH] [--user NAME] activities --import [-q] [--slow] [-j N] PATH...
 
-Show the activities of the selection: the ones that other commands (climbs, heatmap ...) use unless they are
+Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are
 told otherwise.  With criteria (or --all) all the activities are searched instead, those that meet the criteria
 (combined with "and") are shown, and with --select they become the selection (replacing the last one).
 
@@ -80,7 +80,7 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
                      imported); a file that cannot be imported is reported and the others carry on.  What happened is
                      written to the log (see `nch log --help`).  The new activities are then named, from the places
                      they went through (the names are downloaded the first time they are needed).  The activities
-                     added become your selection, ready for `nch climbs` or `nch heatmap` (if nothing was added
+                     added become your selection, ready for `nch climbs` or `nch map` (if nothing was added
                      the selection is left as it was).  It takes no criteria; it takes these:
     -q, --quiet      report only failures and the summary
     --slow           read and check every file, even those unchanged since last time (finds files that were moved or

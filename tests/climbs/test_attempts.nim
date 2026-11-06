@@ -110,3 +110,14 @@ suite "attempts: the lines":
     s.db.exec(sql"update file set user_id = (select id from user where name = 'bob')")
     let table = summaryLines(summaries(s, selectedClimbs(s)), false, false, utc()).texts
     check table[1].endsWith("0") and table[1].splitWhitespace()[^4 .. ^2] == @["-", "-", "-"]
+
+suite "attempts: the climbs of given activities":
+  test "the climbs of the activities named, not of the selection":
+    let s = world("of-activities")
+    defer: s.close()
+    let all = s.db.getValue(sql"select group_concat(id) from activity").split(',').mapIt(parseBiggestInt(it))
+    check climbsOfActivities(s, all).len == 1
+    check climbsOfActivities(s, @[]).len == 0
+    check climbsOfActivities(s, @[99999'i64]).len == 0
+    s.db.exec(sql"update sector set retired = 1")
+    check climbsOfActivities(s, all).len == 0                                   # (a retired climb is hidden)
