@@ -1,6 +1,7 @@
 ## The command line of `nch climbs`, parsed.  Pure.
 
 import ../cli/args
+import ./display
 import std/[strutils, unicode]
 
 {.push raises: [].}
@@ -10,7 +11,7 @@ const maxNameLength* = 60
 type Params* = object
   all*: bool                 ## `--all`: every climb, not just those of the selected activities
   edit*: bool                ## `--edit`: change the climb `name`
-  name*: string              ## the climb, as `nch climbs --all` shows it ("Morro La Cabra (1/3)")
+  name*: string              ## the climb, as `nch climbs --all` shows it ("Morro La Cabra₁")
   rename*: string            ## the new name ("": no)
   auto*: bool                ## go back to the name the program makes
   retire*, unretire*: bool   ## `--retire` / `--unretire`: hide the climb from the lists / show it again
@@ -25,21 +26,6 @@ type Params* = object
   help*: bool
   problem*: string
 
-func looksNumbered*(s: string): bool =
-  ## Ends in " (n/m)": the form the program adds to names that are shared, so a name given by a person
-  ## must not, or `--edit` could not tell which climb is meant.
-  if not s.endsWith(")"): return false
-  let open = s.rfind(" (")
-  if open < 0: return false
-  let inside = s[open + 2 ..< s.high]
-  let parts = inside.split('/')
-  if parts.len != 2: return false
-  for part in parts:
-    if part.len == 0: return false
-    for c in part:
-      if c notin {'0' .. '9'}: return false
-  true
-
 func nameProblem*(s: string): string =
   ## "" if `s` can be the name of a climb, else what is wrong.
   let t = s.strip
@@ -47,8 +33,8 @@ func nameProblem*(s: string): string =
   if t.runeLen > maxNameLength: return "a name has at most " & $maxNameLength & " characters"
   for c in t:
     if c < ' ' or c == '\x7f': return "a name cannot hold control characters"
-  if looksNumbered(t):
-    return "a name cannot end in (n/m): the program adds that itself when climbs share a name"
+  if endsWithSubscript(t):
+    return "a name cannot end in a subscript number: the program adds that itself when climbs share a name"
   ""
 
 proc takeNames(p: var Params, name: string, values: seq[string]): string {.nimcall.} =

@@ -7,6 +7,7 @@ import db_connector/db_sqlite
 import ../db/store
 import ../errors
 import ../names/[climb, climbpick, countries]
+import ./ordinal
 
 {.push raises: [].}
 
@@ -42,7 +43,9 @@ proc ensureSectorNames*(st: Store, names: Names): Named {.raises: [StoreError, D
     let pick = nameClimb(names, route.lons, route.lats)
     if pick.isSome:
       guard: st.db.exec(sql"update sector set name = ? where id = ?", pick.get.name, id)
+      assignNumber(st, id)
       inc result.named
     else:
       guard: st.db.exec(sql"update sector set name = '' where id = ?", id)
+      assignNumber(st, id)
       inc result.nothing

@@ -8,8 +8,8 @@ suite "climbs: the command line":
     let a = parseArgs(@["--all"])
     check a.problem.len == 0 and a.all and not a.listOnly
   test "rename and auto":
-    let r = parseArgs(@["--edit", "Morro La Cabra (1/3)", "--rename", "  La Cabra  "])
-    check r.problem.len == 0 and r.edit and r.name == "Morro La Cabra (1/3)" and r.rename == "La Cabra"
+    let r = parseArgs(@["--edit", "Morro La Cabra₁", "--rename", "  La Cabra  "])
+    check r.problem.len == 0 and r.edit and r.name == "Morro La Cabra₁" and r.rename == "La Cabra"
     let a = parseArgs(@["--edit", "X", "--auto"])
     check a.problem.len == 0 and a.edit and a.auto
   test "mistakes":
@@ -24,17 +24,16 @@ suite "climbs: the command line":
     check nameProblem("  ").contains("empty")
     check nameProblem("x".repeat(61)).contains("at most")
     check nameProblem("a\nb").contains("control")
-    check nameProblem("Cuesta (2/3)").contains("(n/m)")
+    check nameProblem("Cuesta₂").contains("subscript")
     check nameProblem("Cuesta (the 2/3 one)") == ""
-    check parseArgs(@["--edit", "X", "--rename", "Cuesta (2/3)"]).problem.contains("(n/m)")
-  test "looking numbered":
-    check looksNumbered("A (1/2)") and looksNumbered("A B (10/12)")
-    check not looksNumbered("A (1)") and not looksNumbered("A(1/2)") and not looksNumbered("(1/2)") and not looksNumbered("A (/2)")
+    check parseArgs(@["--edit", "X", "--rename", "Cuesta₂"]).problem.contains("subscript")
+  test "an old-style (n/m) at the end is just text now":
+    check nameProblem("Cuesta (2/3)") == ""
 
 suite "climbs: retiring":
   test "retire and unretire go with --edit; --retired and --duplicates are lists":
-    check parseArgs(@["--edit", "X (2/3)", "--retire"]).retire
-    check parseArgs(@["--edit", "X (2/3)", "--unretire"]).unretire
+    check parseArgs(@["--edit", "X₂", "--retire"]).retire
+    check parseArgs(@["--edit", "X₂", "--unretire"]).unretire
     check parseArgs(@["--retired"]).retired and parseArgs(@["--retired"]).listOnly
     check parseArgs(@["--duplicates"]).duplicates and parseArgs(@["--duplicates"]).listOnly
     check parseArgs(@["--retire"]).problem.contains("go with --edit")

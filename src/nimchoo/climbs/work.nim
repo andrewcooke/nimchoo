@@ -21,7 +21,7 @@ import ../ids
 import ../importer/extract
 import ../lookup
 import ../profiling
-import ./[detect, match, profile]
+import ./[detect, match, ordinal, profile]
 
 {.push raises: [].}
 
@@ -202,6 +202,7 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
       insertSector.bindText(6, lineStringText(route))
       insertSector.run()
       let sector = lastInsertId(st.db)
+      assignNumber(st, sector)
       cache[sector] = route
       inc result.sectors
       # 3. the new sector against the ride it came from, and the earlier rides near it

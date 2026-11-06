@@ -41,14 +41,15 @@ suite "climbs report: the lines":
     check lines[1].contains("HC   14.9km  +1109m      7.4%") and lines[2].contains("3     4.9km   +245m      5.0%")
     check lines[1].endsWith("manual") and lines[2].endsWith("0")
     let named = sectorLines(@[SectorRow(id: 20, lengthM: 14900, gainM: 1109, gradient: 7.4, category: "HC",
-                                        name: "near Farellones (1/2)", efforts: 1)])
-    check named[1].startsWith("near Farellones (1/2)")
+                                        name: "near Farellones₁", efforts: 1)])
+    check named[1].startsWith("near Farellones₁")
   test "the name leads a line, lined up by characters, and a long one is cut":
     check cut("short") == "short"
     check cut("x".repeat(40)) == "x".repeat(27) & "..."
     check cut("é".repeat(31)).runeLen == 30
-    check cut("near San Carlos de Apoquindo (1/3)") == "near San Carlos de Ap... (1/3)"
-    check cut("near San Carlos de Apoquindo (1/3)").runeLen == 30
+    check cut("near San Carlos de Apoquindo Alto₁₃") == "near San Carlos de Apoqui...₁₃"
+    check cut("near San Carlos de Apoquindo Alto₁₃").runeLen == 30
+    check cut("near San Carlos de Apoquindo₁₃") == "near San Carlos de Apoquindo₁₃"      # (fits)
 
 suite "climbs report: from the tables":
   test "the sectors: how often each was ridden, by anyone":

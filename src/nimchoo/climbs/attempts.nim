@@ -60,10 +60,12 @@ proc selectedClimbs*(st: Store): seq[int64] {.raises: [StoreError].} =
       except ValueError: raiseStore("a bad id")
 
 proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreError].} =
-  ## The climbs (not retired) whose name as shown ("Farellones (2/3)") holds any of the texts, case and accents ignored,
-  ## the biggest first.
+  ## The climbs (not retired) whose name as shown ("Farellones₂") holds any of the texts, case and accents ignored, the
+  ## biggest first.  "farellones 2" and "farellones2" mean "farellones₂" as well (`ordinalForms`).
   let names = shownNames(st)
-  let wanted = texts.mapIt(foldText(it))
+  var wanted: seq[string]
+  for t in texts:
+    for f in ordinalForms(t): wanted.add foldText(f)
   guard:
     for r in st.db.fastRows(sql"select id from sector where retired = 0 order by gain_m desc, id"):
       try:

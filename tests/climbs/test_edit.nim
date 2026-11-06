@@ -1,8 +1,8 @@
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
-import nimchoo/climbs/[command, edit, report]
-import nimchoo/db/store
+import nimchoo/climbs/[command, edit, ordinal, report]
+import nimchoo/db/[statement, store]
 import nimchoo/errors
 import nimchoo/modules
 
@@ -19,6 +19,7 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
     s.db.exec(sql"""insert into sector(length_m, gain_m, gradient, name, route)
       values (2000, ?, 5, ?, GeomFromText('LINESTRING Z(-70 -33 100, -70.01 -33 200)', 4326))""",
               gain, n)
+    assignNumber(s, lastInsertId(s.db))            # (the number a climb gets when it is named: in the order made)
 
 proc climbs(db: string, args: varargs[string]): int =
   command.run(Globals(dbPath: db, fragments: allFragments, offline: true), @args)
@@ -39,7 +40,7 @@ suite "nch climbs: names, and the list of all":
     check climbs(empty, "--all") == exitOk
     let db = fresh("list", [("Farellones", 300.0), ("Cuesta", 100.0), ("cuesta", 200.0)])
     check climbs(db, "--all") == exitOk
-    check shown(db) == @["Farellones", "cuesta (1/2)", "Cuesta (2/2)"]
+    check shown(db) == @["Farellones", "cuesta₂", "Cuesta₁"]
     let s = openStore(db, allFragments)
     defer: s.close()
     check sectorLines(allSectors(s))[0].startsWith("climb")
@@ -47,8 +48,8 @@ suite "nch climbs: names, and the list of all":
     check climbs(db) == exitOk                                                       # (nothing selected: said, not an error)
   test "rename by the name as shown; the group closes up; the name is kept":
     let db = fresh("rename", [("Cuesta", 100.0), ("Cuesta", 200.0), ("Farellones", 300.0)])
-    check shown(db) == @["Farellones", "Cuesta (1/2)", "Cuesta (2/2)"]
-    check climbs(db, "--edit", "cuesta (2/2)", "--rename", "Old road") == exitOk        # (case does not matter)
+    check shown(db) == @["Farellones", "Cuesta₂", "Cuesta₁"]
+    check climbs(db, "--edit", "cuesta₁", "--rename", "Old road") == exitOk        # (case does not matter)
     check q(db, "select name from sector where id = 1") == "Old road"
     check q(db, "select manual from sector where id = 1") == "1"
     check shown(db) == @["Farellones", "Cuesta", "Old road"]
@@ -60,10 +61,10 @@ suite "nch climbs: names, and the list of all":
     let s = openStore(db, allFragments)
     defer: s.close()
     expect StoreError: discard findShown(s, "Cuesta")
-    check findShown(s, "Cuesta (1/2)") == 2
+    check findShown(s, "Cuesta₁") == 1 and findShown(s, "cuesta 2") == 2 and findShown(s, "CUESTA1") == 1      # (typed any way)
   test "a name that looks numbered is refused":
     let db = fresh("numbered", [("Cuesta", 100.0)])
-    check climbs(db, "--edit", "Cuesta", "--rename", "Cuesta (2/3)") == exitUsage
+    check climbs(db, "--edit", "Cuesta", "--rename", "Cuesta₂") == exitUsage
     check q(db, "select name from sector") == "Cuesta"
   test "--auto hands the climb back to the program":
     let db = fresh("auto", [("Cuesta", 100.0)])
@@ -85,19 +86,19 @@ suite "nch climbs: names, and the list of all":
 suite "nch climbs: retiring":
   test "a retired climb is hidden from the list but keeps its place in the numbering; unretire shows it again":
     let db = fresh("retire", [("Cuesta", 100.0), ("Cuesta", 200.0), ("Cuesta", 300.0), ("Farellones", 400.0)])
-    check shown(db) == @["Farellones", "Cuesta (1/3)", "Cuesta (2/3)", "Cuesta (3/3)"]
-    check climbs(db, "--edit", "Cuesta (2/3)", "--retire") == exitOk
-    check shown(db) == @["Farellones", "Cuesta (1/3)", "Cuesta (3/3)"]              # (the gap shows: no (2/3))
+    check shown(db) == @["Farellones", "Cuesta₃", "Cuesta₂", "Cuesta₁"]
+    check climbs(db, "--edit", "Cuesta₂", "--retire") == exitOk
+    check shown(db) == @["Farellones", "Cuesta₃", "Cuesta₁"]              # (the gap shows: no ₂)
     check q(db, "select retired from sector where id = 2") == "1"
     check q(db, "select count(*) from sector") == "4"                                # nothing is deleted
     let s = openStore(db, allFragments)
     defer: s.close()
-    check allSectors(s, retired = true)[0].name == "Cuesta (2/3)"
+    check allSectors(s, retired = true)[0].name == "Cuesta₂"
     check allSectors(s, retired = true).len == 1 and countRetired(s) == 1
-    check findShown(s, "Cuesta (2/3)") == 2                                          # (it can still be found by its name)
+    check findShown(s, "Cuesta₂") == 2                                          # (it can still be found by its name)
     check climbs(db, "--retired") == exitOk
-    check climbs(db, "--edit", "cuesta (2/3)", "--unretire") == exitOk
-    check shown(db) == @["Farellones", "Cuesta (1/3)", "Cuesta (2/3)", "Cuesta (3/3)"]
+    check climbs(db, "--edit", "cuesta₂", "--unretire") == exitOk
+    check shown(db) == @["Farellones", "Cuesta₃", "Cuesta₂", "Cuesta₁"]
   test "the duplicates report runs; an unknown climb is a failure":
     let db = fresh("dupscmd", [("Cuesta", 100.0), ("Farellones", 400.0)])
     check climbs(db, "--duplicates") == exitOk

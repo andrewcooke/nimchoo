@@ -90,7 +90,7 @@ suite "database: opening and bringing the schema up to date":
     var names: seq[string]
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
-    check names == @["climbs/001-schema.sql", "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql",
+    check names == @["climbs/001-schema.sql", "climbs/002-name-number.sql", "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql",
                      "landmark/001-schema.sql", "model/001-schema.sql", "names/001-schema.sql", "names/002-country-cells.sql", "selection/001-schema.sql",
                      "user/001-schema.sql"]
     s.close()
@@ -220,7 +220,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 10
+    check b.count("fragment") == 11
     b.close()
 
   test "the directory is created":

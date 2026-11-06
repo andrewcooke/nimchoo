@@ -187,7 +187,9 @@ own format.  the number formats every one of them needs (`km`, the dash for not 
 * an activity:  `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back`
   (start, sport, distance, active time, then the place it started and what it is called, joined by " / ").
   verbose adds the sub-sport (`cycling/road`) and, last, the path of the file.
-* a climb:  `Cerro San Luis (4/5)  4 0.5km +89m 17.8%`  (name, category, length, gain, gradient).  in
+* a climb:  `Cerro San Luis₄  4 0.5km +89m 17.8%`  (name, category, length, gain, gradient).  a name shared by several climbs
+  carries a **kept number as a subscript** (`sector.name_n`, given when the climb gets its name, never renumbered; no "of m"); typed as
+  `Cerro San Luis₄`, `Cerro San Luis 4` or `Cerro San Luis4` (`climbs/display.nim`, `ordinalForms`).  in
   `nch climbs` the summary follows: how many attempts, best, latest (with its date) and its **personal rank** (`3 of 12`: among the
   user's own attempts); `--everyone` swaps it for the **leaderboard** (riders, fastest and who, your best's place among each
   person's best: `4 of 6`).  The two ranks are never shown together, are worked out when asked for, and are never stored; `-v`

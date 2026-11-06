@@ -17,7 +17,7 @@ type
     id*: int64
     lengthM*, gainM*, gradient*: float
     category*: string
-    name*: string                  ## as shown: "name (n/m)", "unnamed" if it has none
+    name*: string                  ## as shown: "name₃", "unnamed" if it has none
     efforts*: int
     manual*: bool                  ## the name was given by a person
     retired*: bool                 ## hidden from the lists
@@ -33,11 +33,11 @@ proc selectedActivities*(st: Store): int {.raises: [StoreError].} =
     except ValueError: raiseStore("a bad count")
 
 proc shownNames*(st: Store): Table[int64, string] {.raises: [StoreError].} =
-  ## The name of every sector as it is shown, "name (n/m)" where a name is shared (ranked by gain).
+  ## The name of every sector as it is shown, "name₃" where a name is shared (the number is kept: see ordinal.nim).
   var climbs: seq[Shown]
   guard:
-    for r in st.db.fastRows(sql"select id, coalesce(name, ''), gain_m from sector order by id"):
-      try: climbs.add Shown(id: parseBiggestInt(r[0]), name: r[1], gainM: num(r[2]))
+    for r in st.db.fastRows(sql"select id, coalesce(name, ''), name_n from sector order by id"):
+      try: climbs.add Shown(id: parseBiggestInt(r[0]), name: r[1], n: parseInt(r[2]))
       except ValueError: raiseStore("a bad number in the climbs")
   let texts = displayNames(climbs)
   for i, c in climbs: result[c.id] = texts[i]
@@ -93,14 +93,13 @@ func columns*(rows: seq[seq[string]], right: set[0 .. 31]): seq[string] =
 const nameWidth* = 30
 
 func cut*(name: string, width = nameWidth): string =
-  ## A name no wider than `width` characters; a longer one ends in "...", but a trailing " (n/m)" is kept.
+  ## A name no wider than `width` characters; a longer one ends in "...", but a trailing subscript number is kept.
   if name.runeLen <= width: return name
   var base = name
   var suffix = ""
-  let open = name.rfind(" (")
-  if open > 0 and name.endsWith(")") and '/' in name[open .. ^1]:
-    base = name[0 ..< open]
-    suffix = name[open .. ^1]
+  if endsWithSubscript(name):
+    base = withoutSubscript(name)
+    suffix = name[base.len .. ^1]
   let room = width - suffix.runeLen
   if room < 4 or base.runeLen <= room: name.runeSubStr(0, width - 3) & "..."
   else: base.runeSubStr(0, room - 3) & "..." & suffix

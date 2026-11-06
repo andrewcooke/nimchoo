@@ -1,7 +1,8 @@
 import std/[algorithm, os, sequtils, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
-import nimchoo/db/store
+import nimchoo/climbs/ordinal
+import nimchoo/db/[statement, store]
 import nimchoo/ids
 import nimchoo/modules
 import nimchoo/selection/calendar
@@ -721,12 +722,13 @@ suite "list: --invert":
 
 suite "list: --climb":
   proc climbs(db: string) =
-    ## Two climbs called Sintra (200 m and 100 m) and one called Cabo da Roca; lisbon1 rode Sintra (1/2) and Cabo da Roca,
-    ## lisbon2 (bob's) rode Sintra (2/2), paris rode nothing.
+    ## Two climbs called Sintra (200 m and 100 m) and one called Cabo da Roca; lisbon1 rode Sintra₁ and Cabo da Roca,
+    ## lisbon2 (bob's) rode Sintra₂, paris rode nothing.
     let s = openStore(db, allFragments)
     defer: s.close()
     for (name, gain) in [("Sintra", 200.0), ("Sintra", 100.0), ("Cabo da Roca", 50.0)]:
       s.db.exec(sql"insert into sector(length_m, gain_m, gradient, name, route) values (1000, ?, 5, ?, GeomFromText('LINESTRING Z(0 0 0, 0.01 0 10)', 4326))", gain, name)
+      assignNumber(s, lastInsertId(s.db))
     for (tag, sector) in [("lisbon1", 1), ("lisbon1", 3), ("lisbon2", 2)]:
       s.db.exec(sql"""insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
         select ?, a.id, 1, 61, 60, 0 from activity a join file f on f.id = a.file_id where f.name = ?""", sector, tag)
@@ -740,14 +742,14 @@ suite "list: --climb":
     check chosen(db) == @["lisbon1"]
     discard save(db, "--climb", "sintra")
     check chosen(db) == @["lisbon1", "lisbon2"]
-  test "the name as shown, (n/m) and all, picks one of a family":
+  test "the name as shown, number and all, picks one of a family (typed with a subscript or without)":
     let db = world("climbone", true)
     climbs(db)
-    discard save(db, "--climb", "sintra (1/2)")
+    discard save(db, "--climb", "sintra₁")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--climb", "sintra (2/2)")
+    discard save(db, "--climb", "sintra 2")
     check chosen(db) == @["lisbon2"]
-    discard save(db, "--climb", "sintra (2/2)", "cabo")          # either
+    discard save(db, "--climb", "sintra2", "cabo")          # either
     check chosen(db) == @["lisbon1", "lisbon2"]
   test "retired climbs are found too; it combines with the others; --invert gives the rides that did not":
     let db = world("climbretired", true)
@@ -755,7 +757,7 @@ suite "list: --climb":
     let s = openStore(db, allFragments)
     s.db.exec(sql"update sector set retired = 1 where id = 1")
     s.close()
-    discard save(db, "--climb", "sintra (1/2)")
+    discard save(db, "--climb", "sintra₁")
     check chosen(db) == @["lisbon1"]
     discard save(db, "--climb", "sintra", "--sport", "running")
     check chosen(db).len == 0

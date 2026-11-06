@@ -8,7 +8,7 @@
 import std/[options, sequtils, strutils, tables, terminal, times]
 import db_connector/db_sqlite
 import ../cli/common
-import ../climbs/report
+import ../climbs/[display, report]
 import ../db/store
 import ../delete/run as deleteRun
 import ../importer/batch
@@ -43,7 +43,7 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
   --path TEXT        the same for the path of the file the activity was imported from (or any
                      other path the same file was seen at): --path bowman, --path 2026-10
   --climb TEXT       activities that have an effort on a climb whose name (as `nch climbs --all` shows
-                     it) contains TEXT: --climb farellones (all of them), --climb "farellones (2/3)"
+                     it) contains TEXT: --climb farellones (all of them), --climb farellones₂ (or "farellones 2")
                      (one); retired climbs too.  It is an error if no climb has the text
   --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
                      0.5- for half a km; 42~2 (between 40 and 44), latest~10%,
@@ -299,14 +299,16 @@ proc resolveCriteria(st: Store, criteria: Criteria, zone: Timezone): Resolved {.
   let userIds = @[st.userId]
   let idList = $st.userId
   if c.climbs.len > 0:
-    # the climbs whose name as shown ("Farellones (2/3)", retired ones too) holds the text, whatever its case and accents
+    # the climbs whose name as shown ("Farellones₂", retired ones too) holds the text, whatever its case and accents
+    # ("farellones 2" and "farellones2" mean "farellones₂" as well)
     let shown = shownNames(st)
     for t in c.climbs:
       var found = false
       for id, name in shown:
-        if foldText(name).contains(foldText(t)):
-          found = true
-          if id notin c.climbIds: c.climbIds.add id
+        for form in ordinalForms(t):
+          if foldText(name).contains(foldText(form)):
+            found = true
+            if id notin c.climbIds: c.climbIds.add id
       if not found:
         raiseStore("no climb has '" & t & "' in its name (`nch climbs --all` lists them)")
   checkNames(st, "sport", "sport", idList, c.sports)

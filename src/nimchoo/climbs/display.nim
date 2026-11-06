@@ -1,36 +1,64 @@
-## How a climb is shown by name.  Names need not be unique: climbs that share a name (without regard to case)
-## are shown "name (n/m)", n the rank by gain (the biggest is 1, ties by id) among the m that share it, and only
-## when m > 1.  Worked out when shown, never stored, so the numbers close up by themselves when a climb is
-## renamed or removed.  A climb with no name is "unnamed".
+## How a climb is shown by name.  Names need not be unique: climbs that share a name (without regard to case) are shown
+## with their number as a subscript, "Farellones₃", and only when the name is shared.  The number is kept with the climb
+## (`sector.name_n`, given when the climb gets its name: the next one among those with that name) and never changes, so
+## "Farellones₃" is always the same climb.  A climb with no name is "unnamed".  What a person types is "Farellones₃" or
+## "Farellones 3" or "Farellones3" (`ordinalForms`).
 
-import std/[algorithm, strutils, tables, unicode]
+import std/[strutils, tables, unicode]
 
 {.push raises: [].}
 
-const unnamed* = "unnamed"
+const
+  unnamed* = "unnamed"
+  subscriptDigits = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"]
 
 type Shown* = object
   id*: int64
   name*: string      ## "" if it has none
-  gainM*: float
+  n*: int            ## its number among the climbs with that name
 
 func baseName(name: string): string =
   if name.strip.len == 0: unnamed else: name.strip
 
-func groupKey(name: string): string = baseName(name).toLower
+func groupKey*(name: string): string = baseName(name).toLower
+
+func subscriptNumber*(n: int): string =
+  ## 12 -> "₁₂".
+  for c in $n: result.add subscriptDigits[ord(c) - ord('0')]
+
+func endsWithSubscript*(s: string): bool =
+  ## Whether the text ends in a subscript digit (the program adds those; a name given by a person may not).
+  if s.len == 0: return false
+  var last = Rune(0)
+  for r in s.runes: last = r
+  int(last) in 0x2080 .. 0x2089
+
+func withoutSubscript*(s: string): string =
+  ## "Morro La Cabra₁₂" -> "Morro La Cabra".
+  var rs: seq[Rune]
+  for r in s.runes: rs.add r
+  var k = rs.len
+  while k > 0 and int(rs[k - 1]) in 0x2080 .. 0x2089: dec k
+  $rs[0 ..< k]
 
 func displayNames*(climbs: openArray[Shown]): seq[string] =
   ## One text per climb, in the order given.
-  var groups = initTable[string, seq[int]]()      # key -> positions in `climbs`
-  for i, c in climbs:
-    groups.mgetOrPut(groupKey(c.name), @[]).add i
+  var sizes = initCountTable[string]()
+  for c in climbs: sizes.inc groupKey(c.name)
   result = newSeq[string](climbs.len)
-  for _, members in groups:
-    var ranked = newSeq[(float, int64, int)]()          # (gain, id, position)
-    for i in members: ranked.add (climbs[i].gainM, climbs[i].id, i)
-    ranked.sort(proc (a, b: (float, int64, int)): int =
-      result = cmp(b[0], a[0])                           # biggest gain first
-      if result == 0: result = cmp(a[1], b[1]))
-    for n, r in ranked:
-      let base = baseName(climbs[r[2]].name)
-      result[r[2]] = if ranked.len > 1: base & " (" & $(n + 1) & "/" & $ranked.len & ")" else: base
+  for i, c in climbs:
+    let base = baseName(c.name)
+    result[i] = if sizes[groupKey(c.name)] > 1: base & subscriptNumber(c.n) else: base
+
+func ordinalForms*(text: string): seq[string] =
+  ## The ways to read what a person typed: as it is, and, if it ends in a number ("Farellones 3", "Farellones3"), with
+  ## that number as a subscript ("Farellones₃").  (Both, because a name can really end in a number: "Ruta 60".)
+  let t = text.strip
+  result = @[t]
+  var i = t.len
+  while i > 0 and t[i - 1] in {'0' .. '9'}: dec i
+  if i < t.len and i > 0:
+    let stem = t[0 ..< i].strip(leading = false)
+    if stem.len > 0:
+      try: result.add stem & subscriptNumber(parseInt(t[i .. ^1]))
+      except ValueError: discard

@@ -36,8 +36,8 @@ import it only looks at the new ones.  A ride that goes over part of a climb but
 makes a climb of its own.
 
   --name TEXT...  the climbs whose name holds the text (any of them; case and accents do not matter; the
-                  "(n/m)" counts: `--name "farellones (2/3)"`), among all the climbs, not those of the
-                  selected rides
+                  number counts: `--name farellones₂`, which `--name "farellones 2"` also means), among all the
+                  climbs, not those of the selected rides
   -v, --verbose   list the attempts under each climb, the fastest first, each with its rank (those of the selected
                   rides in blue)
   --everyone      the people instead of your attempts: how many have ridden each climb, the fastest and who,
@@ -50,15 +50,16 @@ makes a climb of its own.
                   (the message says how many).  Needs -f; on a terminal there are then 5 seconds in which to
                   press Ctrl-C.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one
   --edit NAME     change that climb, with one of the following.  NAME is a climb's name as `--all` shows
-                  it, "(n/m)" included where several share a name: "Morro La Cabra (1/3)"
-    --rename NEW    give it the name NEW (any words; at most 60 characters; not ending in "(n/m)",
-                    which is added by the program when climbs share a name).  The name is kept: the
+                  it, its number included where several share a name: "Morro La Cabra₁" ("Morro La Cabra 1" and
+                  "Morro La Cabra1" do as well).  The number is kept: it never changes
+    --rename NEW    give it the name NEW (any words; at most 60 characters; not ending in a subscript
+                    number, which the program adds when climbs share a name).  The name is kept: the
                     program never changes it.  Several climbs may have the same name
     --auto          forget the name; it is named again at once from the places near it (or by the
                     next `nch climbs` if the names cannot be had)
     --retire        hide the climb from the lists, as a segment can be hidden on Strava.  Nothing is
-                    deleted: it keeps its efforts, still takes those of new rides, and keeps its place
-                    in the (n/m) of its name, so the gap shows
+                    deleted: it keeps its efforts, still takes those of new rides, and keeps its number,
+                    so the gap shows
     --unretire      show it again
   --retired       list the retired climbs
   --duplicates    list the climbs that largely overlap (more than half of each lies within 25 m of the

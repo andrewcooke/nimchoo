@@ -16,7 +16,7 @@ import ./[describe, display, match, report]
 type
   Member* = object
     id*: int64
-    name*: string                  ## as shown ("name (n/m)")
+    name*: string                  ## as shown ("name₃")
     category*: string
     lengthM*, gainM*, gradient*: float
     efforts*: int
