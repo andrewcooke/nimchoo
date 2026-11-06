@@ -99,6 +99,7 @@ proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError
   if canLive():
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
   clearClimbs(st)
+  st.reclaim()
   g.log.log(lvInfo, "climbs", leDeleted, "deleted " & what & " from " & st.path)
   stdout.say "done: deleted " & what & "\n"
   exitOk

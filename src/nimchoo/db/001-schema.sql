@@ -6,7 +6,7 @@
 create table user (
   id integer primary key,
   name text not null unique,
-  is_default integer not null default 0 check (is_default in (0, 1)));
+  is_default integer not null default 0 check (is_default in (0, 1))) strict;
 create unique index user_default on user(is_default) where is_default = 1;
 
 -- SpatiaLite's bookkeeping (its tables of coordinate systems and geometry

@@ -5,4 +5,4 @@
 -- again.  The user itself (and its name) is in the `user` table of the database module.
 create table user_profile (
   user_id integer primary key references user(id) on delete cascade,
-  fthr integer);
+  fthr integer) strict;

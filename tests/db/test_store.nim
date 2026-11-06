@@ -44,6 +44,21 @@ suite "database: opening and bringing the schema up to date":
                           table) == "1"
     s.close()
 
+  test "every table is strict; a geometry column holds only its kind of geometry; deleted space can be given back":
+    let s = open(tempDb("strict"))
+    defer: s.close()
+    for t in ["user", "file", "activity", "coords", "segment", "route", "seen_file", "sector", "effort", "climbs_done",
+              "heartrate", "landmark", "ff_model", "impulse", "country", "coverage", "feature", "selection", "user_profile", "fragment"]:
+      checkpoint t
+      check s.db.getValue(sql"select strict from pragma_table_list where schema = 'main' and name = ?", t) == "1"
+    expect DbError:
+      s.db.exec(sql"insert into landmark(name, lon, lat, radius_m) values ('x', 'west', 1, 1)")
+    s.db.exec(sql"insert into landmark(name, lon, lat, radius_m) values ('x', 1, 1, 1)")
+    expect DbError:
+      s.db.exec(sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'x', 'T', 'PK', MakePoint(1, 2, 4326))")
+    check s.db.getValue(sql"pragma auto_vacuum") == "2"
+    s.reclaim()
+
   test "a store is closed when it goes out of scope; closing by hand as well is fine":
     let path = tempDb("scope")
     block opened:
@@ -75,7 +90,7 @@ suite "database: opening and bringing the schema up to date":
     var names: seq[string]
     for row in s.db.fastRows(sql"select name from fragment order by name"):
       names.add row[0]
-    check names == @["climbs/001-schema.sql", "climbs/002-retired.sql", "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql",
+    check names == @["climbs/001-schema.sql", "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql",
                      "landmark/001-schema.sql", "model/001-schema.sql", "names/001-schema.sql", "selection/001-schema.sql",
                      "user/001-schema.sql"]
     s.close()
@@ -205,7 +220,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 10
+    check b.count("fragment") == 9
     b.close()
 
   test "the directory is created":

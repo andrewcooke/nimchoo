@@ -154,6 +154,12 @@ database (`nch db --delete -f`, then import again).  the cache survives
   list of towns, `place` table, `activity.place_id`), `name_source`,
   `sector.kind`, `sector.name_checked`, and the one-off "forget the names"
   steps.
+* the second squash (2026-11-05) made every table `strict` (a text value in an integer column is an error) and
+  merged `climbs/002-retired.sql` into `001-schema.sql`.  SpatiaLite's `AddGeometryColumn` does not work on a strict
+  table (it declares the column with the type "POINT"), so a geometry column is declared `blob` in the table and
+  registered with `RecoverGeometryColumn(table, column, 4326, 'POINT', 'XY')`: the same constraints and spatial index.
+  A new file is also made with `auto_vacuum = incremental`; `reclaim` (in `db/store.nim`) gives the space back after a
+  big delete.  Every new table must say `strict`.
 
 ### other decisions to remember (details in TODO.md)
 

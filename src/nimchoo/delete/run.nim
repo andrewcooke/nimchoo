@@ -44,6 +44,7 @@ proc runDelete*(g: Globals, st: Store, ids: seq[int64], force: bool, nothing: st
       if screen and (n == total or live.due()):
         shown = true
         live.show(deletingLines(n, total, files)))
+    st.reclaim()
     if screen:
       if shown: live.keep(deletingLines(plan.ids.len, plan.ids.len, done.files))
       else: live.finish()

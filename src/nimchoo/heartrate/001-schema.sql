@@ -3,4 +3,4 @@ create table heartrate (
   activity_id integer not null references activity(id) on delete cascade,
   t integer not null,                 -- Unix seconds, UTC
   bpm integer not null,
-  primary key (activity_id, t)) without rowid;
+  primary key (activity_id, t)) strict, without rowid;

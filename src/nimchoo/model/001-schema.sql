@@ -19,7 +19,7 @@ create table ff_model (
   fitness_days real not null check (fitness_days > 0),
   fatigue_days real not null check (fatigue_days > 0),
   check (zero < one),
-  check (0 < zone1 and zone1 < zone2 and zone2 < zone3 and zone3 < zone4 and zone4 < zone5));
+  check (0 < zone1 and zone1 < zone2 and zone2 < zone3 and zone3 < zone4 and zone4 < zone5)) strict;
 
 -- The impulse of an activity in each hour (Unix seconds at the start of the hour, UTC), in
 -- units of "per 10 seconds".  An activity with heart rate has a row for each hour the heart
@@ -30,7 +30,7 @@ create table impulse (
   model_id integer not null references ff_model(id) on delete cascade,
   hour_t integer not null,
   value real not null check (value >= 0),
-  primary key (activity_id, model_id, hour_t)) without rowid;
+  primary key (activity_id, model_id, hour_t)) strict, without rowid;
 
 -- Every impulse depends on the user's threshold heart rate, so if it changes (a very rare
 -- event) the user's impulses go and are calculated again from scratch.

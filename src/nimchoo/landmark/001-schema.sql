@@ -6,4 +6,4 @@ create table landmark (
   name text not null unique,
   lon real not null,
   lat real not null,
-  radius_m real not null);
+  radius_m real not null) strict;

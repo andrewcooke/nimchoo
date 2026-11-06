@@ -123,7 +123,7 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
     db.exec(sql"""create table if not exists fragment (
                     name text primary key,
                     applied_at integer not null,
-                    sha256 text not null) without rowid""")
+                    sha256 text not null) strict, without rowid""")
     # a database made before checksums were recorded has no such column
     var columns: seq[string]
     for row in db.fastRows(sql"pragma table_info(fragment)"): columns.add row[1]
@@ -173,6 +173,11 @@ proc close*(s: Store) {.raises: [].} =
   ## only needed to let go of the file at a particular moment).  Closing twice is fine.
   closeConn(s.conn)
 
+proc reclaim*(s: Store) {.raises: [StoreError].} =
+  ## Give the space of deleted rows back to the file system (the free pages are removed from the end of the file).
+  ## Call it after a big delete, outside a transaction.  Does nothing to a file made without incremental vacuum.
+  guard: s.db.exec(sql"pragma incremental_vacuum")
+
 proc openStore*(path: string, fragments: seq[Fragment],
                 user = ""): Store {.raises: [StoreError].} =
   ## Open the database at `path`, creating the file and applying the fragments
@@ -191,6 +196,10 @@ proc openStore*(path: string, fragments: seq[Fragment],
   try:
     loadSpatialite(result.db)
     guard:
+      # a new file: deleted rows give their space back (`reclaim`), instead of the file only ever growing.  This
+      # must be said before the first table is made; a file made without it stays as it is.
+      if result.db.getValue(sql"pragma page_count") == "0":
+        result.db.exec(sql"pragma auto_vacuum = incremental")
       result.db.exec(sql"pragma foreign_keys = on")
       # write-ahead log: a commit does not wait for the disk (the log is synced when it is checkpointed),
       # and readers (the web server's workers) do not wait for a writer.  A power cut can lose the last

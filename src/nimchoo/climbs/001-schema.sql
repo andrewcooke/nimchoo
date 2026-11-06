@@ -15,8 +15,13 @@ create table sector (
   category text,                      -- 4, 3, 2, 1 or HC; null if too small to have one
   found_at integer,                   -- Unix seconds: when the ride it was first found on began (a note, not a link)
   name text,
-  manual integer not null default 0 check (manual in (0, 1)));
-select AddGeometryColumn('sector', 'route', 4326, 'LINESTRING', 'XYZ');       -- longitude, latitude, altitude
+  manual integer not null default 0 check (manual in (0, 1)),
+  -- hidden from the lists, as a segment can be hidden on Strava.  Nothing is deleted: it keeps its efforts and its place
+  -- in the (n/m) numbering of its name (so that the gap shows), it still takes the efforts of new rides, and it still
+  -- counts as a stored climb when a new one is looked for (or the next ride would make it again).
+  retired integer not null default 0 check (retired in (0, 1)),
+  route blob) strict;
+select RecoverGeometryColumn('sector', 'route', 4326, 'LINESTRING', 'XYZ');       -- longitude, latitude, altitude
 select CreateSpatialIndex('sector', 'route');
 
 -- One pass of a ride over a sector (a lap is another row).  It belongs to the user of the ride, and
@@ -28,11 +33,11 @@ create table effort (
   finish_t real not null,
   elapsed_s real not null,            -- finish_t - start_t
   start_m real not null,              -- metres along the ride at the start gate
-  primary key (sector_id, activity_id, start_t)) without rowid;
+  primary key (sector_id, activity_id, start_t)) strict, without rowid;
 
 -- Which activities have been looked at for climbs, and with which version of the method (so that a
 -- change of the method shows).  An activity with no positions or no altitude is recorded too: it
 -- is not looked at again.
 create table climbs_done (
   activity_id integer primary key references activity(id) on delete cascade,
-  version integer not null) without rowid;
+  version integer not null) strict, without rowid;

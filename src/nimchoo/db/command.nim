@@ -3,6 +3,7 @@
 ## -f; on a terminal it then counts down, in red, so there is time to press Ctrl-C.
 
 import std/[os, strutils]
+import db_connector/db_sqlite
 import ../cli/[args, common]
 import ../download/fetch
 import ../ui/[live, logfile]
@@ -35,6 +36,16 @@ proc size(path: string): int64 =
     except OSError:
       discard
 
+proc freeSpace(path: string): string =
+  ## ", 12 MB free" when a deleted row's space is waiting to be reused or given back; "" if none or unknown.
+  try:
+    let db = open(path, "", "", "")
+    defer: db.close()
+    let free = parseBiggestInt(db.getValue(sql"pragma freelist_count")) * parseBiggestInt(db.getValue(sql"pragma page_size"))
+    if free > 0: result = ", " & humanBytes(free) & " free"
+  except DbError, ValueError:
+    discard
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch db ARGS`; returns the exit status.
   var given = DbArgs()
@@ -52,7 +63,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     stdout.say "no database at " & path & "\n"
     return exitOk
   if not given.delete:
-    stdout.say path & " (" & humanBytes(size(path)) & ")\n"
+    stdout.say path & " (" & humanBytes(size(path)) & freeSpace(path) & ")\n"
     return exitOk
   let what = "the database " & path & " (" & humanBytes(size(path)) & ") with the data of every user"
   if not given.force:

@@ -10,7 +10,7 @@ create table file (
   name text not null,
   sha256 text not null,
   imported_at integer not null,
-  unique (user_id, sha256));
+  unique (user_id, sha256)) strict;
 
 -- One per FIT session.  (A FIT file has one "activity" message and under it one or
 -- more "session" messages, each a stretch of one sport: a triathlon has three.)
@@ -32,10 +32,11 @@ create table activity (
   -- null: not named yet (the next `nch import` does it); "": looked at, nothing to say (or made with --offline).
   start_place text,
   name text,
-  unique (file_id, session));
+  start blob,                -- see below
+  unique (file_id, session)) strict;
 -- Where the activity started (its first position), for "starts near here".  NULL if the file
 -- has no positions.  Written when the activity is imported.
-select AddGeometryColumn('activity', 'start', 4326, 'POINT', 'XY');
+select RecoverGeometryColumn('activity', 'start', 4326, 'POINT', 'XY');
 select CreateSpatialIndex('activity', 'start');
 
 create table coords (
@@ -44,7 +45,7 @@ create table coords (
   lon real not null,
   lat real not null,
   alt real,
-  primary key (activity_id, t)) without rowid;
+  primary key (activity_id, t)) strict, without rowid;
 
 -- The stretches of an activity during which the timer ran (between a timer
 -- start and the next stop).  Intervals on the activity's time axis: samples do
@@ -54,7 +55,7 @@ create table segment (
   n integer not null,
   start_t integer not null,
   end_t integer not null,
-  primary key (activity_id, n)) without rowid;
+  primary key (activity_id, n)) strict, without rowid;
 
 -- The route of an activity as one geometry, a part for each segment, so that
 -- "passes near here", GeoJSON and GPX are queries and not scans of coords.  Derived from
@@ -62,8 +63,9 @@ create table segment (
 -- fewer than two points are left out, and an activity with no part has no row.  (SpatiaLite
 -- cannot put geometry on WITHOUT ROWID tables, so this is an ordinary table.)
 create table route (
-  activity_id integer primary key references activity(id) on delete cascade);
-select AddGeometryColumn('route', 'geom', 4326, 'MULTILINESTRING', 'XY');
+  activity_id integer primary key references activity(id) on delete cascade,
+  geom blob) strict;
+select RecoverGeometryColumn('route', 'geom', 4326, 'MULTILINESTRING', 'XY');
 select CreateSpatialIndex('route', 'geom');
 
 -- Every path `nch import` has looked at, with the size and modification time it
@@ -78,4 +80,4 @@ create table seen_file (
   file_id integer references file(id) on delete cascade,
   failure text,
   message text,
-  primary key (user_id, path)) without rowid;
+  primary key (user_id, path)) strict, without rowid;

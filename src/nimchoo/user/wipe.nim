@@ -90,4 +90,4 @@ proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## database is opened.)
   guard:
     st.db.exec(sql"delete from user where id = ?", id)
-    st.db.exec(sql"vacuum")
+  st.reclaim()
