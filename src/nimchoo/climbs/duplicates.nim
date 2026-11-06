@@ -9,7 +9,8 @@ import std/[algorithm, strutils, tables]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
-import ./[describe, display, match, report]
+import ../selection/fold
+import ./[describe, display, edit, match, report]
 
 {.push raises: [].}
 
@@ -20,7 +21,8 @@ type
     category*: string
     lengthM*, gainM*, gradient*: float
     efforts*: int
-    unique*: int                   ## of the efforts, those of rides that did not match any other climb of the group
+    unique*: int                   ## of the efforts, those of rides that did not match any of its near copies
+    copies*: seq[int64]            ## the ids of the climbs that are near copies of this one (directly)
     retired*: bool
     hideable*: bool                ## it is a near copy of a climb that has more efforts, so it may be a duplicate of it
 
@@ -63,6 +65,7 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   var parent = newSeq[int](members.len)
   for i in 0 ..< parent.len: parent[i] = i
   var hideable = newSeq[bool](members.len)
+  var copies = newSeq[seq[int64]](members.len)
   proc root(i: int): int =
     var k = i
     while parent[k] != k: k = parent[k]
@@ -70,6 +73,8 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   for i in 0 ..< members.len:
     for j in i + 1 ..< members.len:
       if isNearCopy(paths[i], paths[j]):
+        copies[i].add members[j].id
+        copies[j].add members[i].id
         let a = root(i)
         let b = root(j)
         if a != b: parent[b] = a
@@ -78,6 +83,7 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   var byRoot = initOrderedTable[int, seq[Member]]()
   for i in 0 ..< members.len:
     members[i].hideable = hideable[i]
+    members[i].copies = copies[i]
     byRoot.mgetOrPut(root(i), @[]).add members[i]
   for _, ms in byRoot:
     if ms.len < 2: continue
@@ -85,11 +91,10 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     g.members.sort(proc (a, b: Member): int =
       result = cmp(b.efforts, a.efforts)
       if result == 0: result = cmp(a.id, b.id))
-    # the efforts that are this climb's alone: the ride has no effort on any other climb of the group
+    # the efforts that are this climb's alone: the ride has no effort on any climb that is a near copy of it
     for m in g.members.mitems:
       var others: seq[string]
-      for o in g.members:
-        if o.id != m.id: others.add $o.id
+      for o in m.copies: others.add $o
       guard:
         try:
           m.unique = parseInt(st.db.getValue(sql("select count(*) from effort e where e.sector_id = ? and not exists " &
@@ -105,7 +110,7 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
 
 func duplicateLines*(groups: seq[Group]): seq[string] =
   ## The groups, each a block of lines: the climbs with their length, gain and efforts (and how many of them are unique to
-  ## the climb: no other climb of the group was matched by that ride), the most ridden first; then, at
+  ## the climb: none of its near copies was matched by that ride), the most ridden first; then, at
   ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0: return @["no climbs overlap: nothing to tidy"]
   result.add "climbs that are nearly the same (at least 80% of each is within 25 m of the other), the most ridden first:"
@@ -123,3 +128,40 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
   if anyToHide:
     result.add ""
     result.add "hide: nch climbs --edit 'NAME' --retire"           # (NAME: any climb above that is a copy of one with more efforts)
+
+proc retireCopies*(st: Store, texts: seq[string]): seq[Member] {.raises: [StoreError].} =
+  ## Retire the climbs that are redundant, group by group, and say which.  Each group's climbs are taken from the
+  ## smallest gain up (ties: fewest efforts, then id); one is retired if every ride that matched it also matched a
+  ## near copy of it that is not retired, so no ride is left without a visible climb, and the last of a group is never
+  ## retired.  `texts`: only groups with a climb whose name holds one of them (case and accents ignored; "farellones 2"
+  ## and "farellones₂" are the same).
+  var wanted: seq[string]
+  for t in texts:
+    for f in ordinalForms(t): wanted.add foldText(f)
+  for g in duplicateGroups(st):
+    if wanted.len > 0:
+      var found = false
+      for m in g.members:
+        for w in wanted:
+          if w in foldText(m.name): found = true
+      if not found: continue
+    var retired = initTable[int64, bool]()
+    for m in g.members: retired[m.id] = m.retired
+    let order = g.members.sortedByIt((it.gainM, it.efforts, it.id))
+    for m in order:
+      if retired.getOrDefault(m.id, true): continue
+      var kept: seq[string]
+      for c in m.copies:
+        if not retired.getOrDefault(c, true): kept.add $c
+      if kept.len == 0: continue
+      var uncovered = 0
+      guard:
+        try:
+          uncovered = parseInt(st.db.getValue(sql("select count(*) from effort e where e.sector_id = ? and not exists " &
+            "(select 1 from effort x where x.activity_id = e.activity_id and x.sector_id in (" & kept.join(",") & "))"), m.id))
+        except ValueError:
+          raiseStore("a bad count")
+      if uncovered == 0:
+        setRetired(st, m.id, true)
+        retired[m.id] = true
+        result.add m

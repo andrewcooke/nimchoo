@@ -19,6 +19,7 @@ type Params* = object
   duplicates*: bool          ## `--duplicates`: list the climbs that largely overlap
   delete*: bool              ## `--delete`: delete every climb and start again (with `--all`)
   force*: bool               ## `-f`: really (with --delete)
+  retireCopies*: bool        ## `--duplicates --retire`: retire the climbs that are redundant (see duplicates.nim)
   listOnly*: bool            ## `--retired` or `--duplicates`: a list that needs no working out of climbs
   names*: seq[string]        ## `--name TEXT...`: the climbs whose name holds the text (all climbs, not the selection's)
   verbose*: bool            ## `-v`: list the attempts under each climb
@@ -83,16 +84,19 @@ proc parseArgs*(args: seq[string]): Params =
     if changes > 1: fail("--rename, --auto, --retire and --unretire cannot be used together")
     if result.retired or result.duplicates or result.all:
       fail("--all, --retired and --duplicates list climbs: they do not go with --edit")
-  elif changes > 0:
-    fail("--rename, --auto, --retire and --unretire go with --edit NAME")
+  elif changes > 0 and not (result.duplicates and result.retire and changes == 1):
+    fail("--rename, --auto, --retire and --unretire go with --edit NAME (--retire also goes with --duplicates)")
   if (if result.retired: 1 else: 0) + (if result.duplicates: 1 else: 0) + (if result.all: 1 else: 0) > 1:
     fail("--all, --retired and --duplicates cannot be used together")
   if result.force and not result.delete: fail("-f goes with --delete")
   if result.delete:
     if not result.all: fail("--delete needs --all: the climbs are never deleted one at a time (to hide one: --edit NAME --retire)")
     if result.edit or result.retired or result.duplicates: fail("--delete does not go with --edit, --retired or --duplicates")
-  if result.names.len > 0 and (result.all or result.edit or result.delete or result.retired or result.duplicates):
-    fail("--name chooses the climbs to show: it does not go with --all, --edit, --delete, --retired or --duplicates")
+  result.retireCopies = result.duplicates and result.retire and not result.edit
+  if result.names.len > 0 and (result.all or result.edit or result.delete or result.retired or
+                               (result.duplicates and not result.retireCopies)):
+    fail("--name chooses the climbs to show: it does not go with --all, --edit, --delete, --retired or --duplicates " &
+         "(with `--duplicates --retire` it says which groups)")
   if (result.verbose or result.everyone) and (result.all or result.edit or result.delete or result.retired or result.duplicates):
     fail("-v and --everyone go with the attempts: `nch climbs` (or `--name TEXT`) shows them")
   result.listOnly = result.retired or result.duplicates

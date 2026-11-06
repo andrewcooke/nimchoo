@@ -57,6 +57,14 @@ suite "climbs params: --delete":
     check parseArgs(@["--all", "--delete", "--edit", "X", "--retire"]).problem.len > 0
 
 suite "climbs params: --name, -v, --everyone":
+  test "--duplicates --retire retires the redundant copies; --name chooses the groups":
+    let c = parseArgs(@["--duplicates", "--retire"])
+    check c.problem == "" and c.retireCopies
+    let n = parseArgs(@["--duplicates", "--retire", "--name", "farellones"])
+    check n.problem == "" and n.retireCopies and n.names == @["farellones"]
+    check not parseArgs(@["--duplicates"]).retireCopies
+    check parseArgs(@["--duplicates", "--unretire"]).problem.len > 0
+    check parseArgs(@["--duplicates", "--retire", "--all"]).problem.len > 0
   test "names, and the flags":
     let c = parseArgs(@["--name", "farellones", "cuesta", "-v", "--everyone"])
     check c.problem == "" and c.names == @["farellones", "cuesta"] and c.verbose and c.everyone

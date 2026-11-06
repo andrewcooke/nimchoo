@@ -23,7 +23,7 @@ const usage* = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
        nch climbs --edit NAME --retire
        nch climbs --edit NAME --unretire
        nch climbs --retired
-       nch climbs --duplicates
+       nch climbs --duplicates [--retire [--name TEXT...]]
 
 Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
 category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time
@@ -64,6 +64,9 @@ makes a climb of its own.
   --retired       list the retired climbs
   --duplicates    list the climbs that largely overlap (more than half of each lies within 25 m of the
                   other), the most ridden first, with the command to hide each of the others
+                  with --retire: retire the redundant ones (smallest gain first; a climb goes only if every ride
+                  of it also matched a near copy that stays), keeping the last of each group; --name TEXT
+                  limits it to groups with a climb of that name; `--edit NAME --unretire` undoes one
   -h, --help      show this help
 
 The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are "yours".)
@@ -99,6 +102,19 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   stdout.say said & "\n"
   exitOk
 
+proc retireCopiesNow(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
+  ## `--duplicates --retire`: retire the climbs that are redundant, and say which.
+  let done = retireCopies(st, p.names)
+  if done.len == 0:
+    stdout.say "no climb is redundant: nothing retired\n"
+    return exitOk
+  for m in done: stdout.say "retired " & m.name & "\n"
+  let said = $done.len & (if done.len == 1: " climb" else: " climbs") &
+    " retired: every ride is still on a climb that is shown (`nch climbs --edit 'NAME' --unretire` brings one back)"
+  g.log.log(lvInfo, "climbs", leSaved, said)
+  stdout.say said & "\n"
+  exitOk
+
 proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError].} =
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
@@ -127,6 +143,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch climbs", e.msg)
   try:
     # the lists for tidying, and the changes, need no working out of climbs
+    if p.retireCopies:
+      return retireCopiesNow(g, st, p)
     if p.duplicates:
       for l in duplicateLines(duplicateGroups(st)): stdout.say l & "\n"
       return exitOk

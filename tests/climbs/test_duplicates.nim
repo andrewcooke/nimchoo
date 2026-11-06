@@ -53,3 +53,31 @@ suite "climbs: duplicates, one line that shows how to hide":
     let lines = duplicateLines(@[Group(members: @[Member(id: 1, name: "A₁", efforts: 5),
                                                   Member(id: 2, name: "A₂", efforts: 2, retired: true, hideable: true)])])
     check not lines.anyIt(it.contains("hide:"))
+
+suite "climbs: duplicates, retire the redundant":
+  proc twoClimbs(name: string): Store =
+    result = fresh(name)
+    addRide(result, "default", "long", 1_000_000, 5.0, eastbound(5.0))
+    addRide(result, "default", "short", 2_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
+    addRide(result, "default", "short2", 3_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
+    discard ensureClimbs(result)
+  test "the climb whose every ride also matched a copy is retired; the one with rides of its own stays":
+    let s = twoClimbs("retire1")
+    defer: s.close()
+    let done = retireCopies(s, @[])
+    check done.len == 1 and done[0].efforts == 1          # (the long climb: its one ride also matched the short one)
+    check s.count("sector where retired = 1") == 1
+    check s.count("effort") == 4                          # (efforts are kept)
+    check retireCopies(s, @[]).len == 0                   # (and the last of the group is never retired)
+  test "--name chooses the groups; the empty text is all of them":
+    let s = twoClimbs("retire2")
+    defer: s.close()
+    check retireCopies(s, @["zzz-no-such-name"]).len == 0
+    check s.count("sector where retired = 1") == 0
+    check retireCopies(s, @[""]).len == 1
+  test "retired climbs give no coverage: the shorter climb is kept when the longer is already retired":
+    let s = twoClimbs("retire3")
+    defer: s.close()
+    s.db.exec(sql"update sector set retired = 1 where id = 1")
+    check retireCopies(s, @[]).len == 0
+    check s.count("sector where retired = 1") == 1

@@ -2755,3 +2755,5 @@ Decided: the flag stays `--import` (not `--ingest`).
 
 **PAUSED (2026-11-05, the author is thinking).**  Everything is committed and pushed (main).  The database at ~/.local/share/nch/nch.db is a HALF-BUILT import (stopped on request): run `nch db --delete -f`, then re-import (~/fit/bike/*; a copy of the old one is in the scratchpad, not needed).  Next candidate: `climbs --efforts NAME` (NAME = the climb as `climbs --all` shows it, "(n/m)" included; best first, `--by date`).  Open questions for the author: (1) whose rides by default (the user's, with `--all` for everyone's)? (2) ignore the selection or use it?  Then `heatmap --climbs`, elevation profile, lead/lag comparison, near-miss report, `exclude`, retire-all; and the "climbs vs sectors" question.
 
+
+- done 2026-11-06: `climbs --duplicates --retire [--name TEXT]` retires redundant near copies (smallest gain first, only if every ride also matched a non-retired direct near copy; the last of a group stays); report's unique counts are against direct near copies.
