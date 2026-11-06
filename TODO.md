@@ -2727,12 +2727,5 @@ for everything, singular for what is outside, `cache` and `db` in place of `empt
    `empty --user NAME` is `activities --all --delete` (that user), `empty --sectors` is `climbs --delete --all` (only with `--all`: a reset); `empty` goes.
 Later: `--efforts NAME` on `climbs` (the rides on one climb), `heatmap --climbs`, the elevation profile, the lead/lag comparison, the near-miss report, `exclude`.  "spatial" in the old plan meant the height-correction data (not yet).
 
-**STOPPED PART WAY (2026-11-05, night): step 2 of the command shape is on the branch `wip/activities-command`, NOT on main** (main is green at "climbs takes over sector").  The branch has step 2a:
-`list` is now `activities` (no criteria = the selection; criteria, limits or `--all` = search all; `--select` for `--save`; `--show` and `--users` gone; the user column of the table gone; the dispatcher, help texts and
-`commandNames` updated).  **The source compiles; the tests are only partly updated and fail.**  To continue: `git checkout wip/activities-command`, `nimble test`, and fix the expectations in
-`tests/selection/test_command.nim` (`world(name, together = false)`: `together` puts lisbon2 under the default user; the tests that used `--users default bob` were switched to it with the flag stripped, but several of
-them ALSO had checks of the default user only, which now see lisbon2 too, so each needs its expected list looked at: "by sport", "a sport nobody has", "--near latest", "previous ...", "latest ...", and more) and in
-`tests/selection/test_criteria.nim` (`--all --invert` should say it "does not go with criteria": hasFilter is false for a bare --invert, so the check is on `c.invert` too).  Then 2b: `--delete` (acts on the criteria, or the selection
-with none; `delete/remove.nim` plans from ids, no more "others"), 2c: `--import PATH...` with `-q`, `--slow`, `-j` (`importer/command.nim` becomes a library `importer/run.nim`; `delete/command.nim` likewise),
-remove `import` and `delete` from the dispatcher, update the tests that call them.  Then steps 3 and 4 as listed above.
+**Step 2 of the command shape is done (2026-11-05):** `list` is `activities` (no criteria = the selection; criteria or `--all` search all; `--select`; `--delete [-f]`; `--import PATH... [-q] [--slow] [-j N]`), and `import`, `list`, `delete` are gone from the dispatcher (`importer/run.nim` and `delete/` are libraries now).  Next: step 3 (`users`, `models`, `landmarks`; `--remove` becomes `--delete`), then step 4 (`cache` and `db` replace `empty`).
 
