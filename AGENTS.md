@@ -257,3 +257,18 @@ later did a better data source turn up).  the rule:
 * **Cache file names are not the address**: `map-lusab-babad-fuzoh.geojson` is the command and 48 bits of the hash of the
   request as proquints (`proquint.nim`, `cache.nim` `requestStem`).  The request is written into the file (`nch.request`)
   and checked when the file is found, so a clash of names cannot show the wrong map.
+
+## no past to protect: choose what is better, not what is the same (the author, 2026-11-06, said again, firmly)
+
+there are no users, no deployments and no permanent data.  the database is rebuilt from the fit files at will; the
+cache can be deleted; nothing outside the author's machine depends on anything here.  so:
+
+* **"it keeps the results the same / closest to what we have" is not a reason, for or against.**  never offer it as a
+  justification.  decide by which option is *better*: more correct, simpler, faster, clearer, better looking.  results
+  that change because something was improved are the point, not a cost.
+* **do not keep things for compatibility**: no aliases, no migration of old stored forms, no "unless it breaks X" for
+  anything that exists only on the author's machine.  rebuild instead.
+* what is still worth saying about a change: *what* will be different, and *how to rebuild*.  say that in a line; do not
+  weigh it.
+* when there is no ground truth for "better" (a detection setting, say), say so, and propose how to judge: look at
+  examples together, compare against what the old choochoo did, measure.
