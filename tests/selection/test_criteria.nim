@@ -159,7 +159,7 @@ suite "list: the command line":
     check cmdline("--all", "--newest", "1").problem == ""
     check cmdline("--all", "--select").problem == ""
     check cmdline("--all", "-h").problem == ""
-    check cmdline("--all", "--invert").problem.contains("does not go with criteria")
+    check cmdline("--all", "--invert").problem.contains("needs a criterion")
 
   test "problems":
     check cmdline("--radius", "x", "--near", "1,2").problem.contains("radius")

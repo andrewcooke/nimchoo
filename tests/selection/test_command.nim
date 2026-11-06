@@ -151,8 +151,6 @@ suite "list: the command":
     check chosen(db) == @["paris"]
     discard save(db, "--sport", "Running,CYCLING")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
-    discard save(db, "--sport", "cycling")                    # (the current user only)
-    check chosen(db) == @["lisbon1"]
 
   test "by sub-sport; none means not recorded":
     let db = world("subsport", true)
@@ -177,7 +175,7 @@ suite "list: the command":
     discard save(db, "--sport", "cycling")
     check save(db, "--sport", "swimming") == exitFailure
     check save(db, "--sub-sport", "nothing") == exitFailure
-    check chosen(db) == @["lisbon1"]                 # (nothing changed)
+    check chosen(db) == @["lisbon1", "lisbon2"]      # (nothing changed)
     check list(db, "--sport", "cycling", "swimming") == exitFailure
 
   proc setNumbers(db, tag: string, distanceM, timerS: string) =
@@ -262,7 +260,7 @@ suite "list: the command":
   test "--near latest respects the other criteria":
     let db = numbered("latest3")
     discard save(db, "--sport", "cycling", "--near", "latest", "--radius", "5")
-    check chosen(db) == @["lisbon1"]                  # (the latest cycling ride, not the latest ride)
+    check chosen(db) == @["lisbon2"]                  # (the latest cycling ride, not the latest ride; 5 km round it)
     discard save(db, "--radius", "5")                 # alone: --near latest, of everything: paris
     check chosen(db) == @["paris"]
 
@@ -291,16 +289,16 @@ suite "list: the command":
     let db = numbered("previous3")
     check list(db, "--sport", "previous") == exitFailure        # none
     discard save(db, "--all")
-    check list(db, "--distance", "previous~10%") == exitFailure # two
+    check list(db, "--distance", "previous~10%") == exitFailure # three
     check list(db, "--near", "previous") == exitFailure
-    check chosen(db) == @["lisbon1", "paris"]
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
   test "--near previous":
     let db = numbered("previous4")
-    discard save(db, "--sport", "cycling")                      # the one ride: lisbon1
+    discard save(db, "--sport", "cycling", "--oldest", "1")     # the one ride: lisbon1
     discard save(db, "--near", "previous", "--radius", "5")
-    check chosen(db) == @["lisbon1"]                            # (bob's started 6.9 km away)
-    discard save(db, "--sport", "cycling")
+    check chosen(db) == @["lisbon1"]                            # (lisbon2 started 6.9 km away)
+    discard save(db, "--sport", "cycling", "--oldest", "1")
     discard save(db, "--near", "previous", "--radius", "10")
     check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--sport", "running")                      # paris
@@ -313,12 +311,12 @@ suite "list: the command":
 
   test "previous with latest: previous first, then latest among what is left":
     let db = numbered("previous5")
-    discard save(db, "--sport", "cycling")                      # the one ride: lisbon1 (cycling)
-    # cycling rides of both users: the newest is lisbon2 (50 km); within 20% of that: 40-60
+    discard save(db, "--sport", "cycling", "--oldest", "1")     # the one ride: lisbon1 (cycling)
+    # cycling rides: the newest is lisbon2 (50 km); within 20% of that: 40-60
     discard save(db, "--sport", "previous", "--distance", "latest~20%")
     check chosen(db) == @["lisbon2"]
 
-  test "a reference that is another user's, or has no recorded numbers":
+  test "a reference that has no recorded numbers":
     let db = numbered("previous6")
     setNumbers(db, "lisbon2", "null", "null")
     discard save(db, "--sub-sport", "none")
@@ -343,11 +341,11 @@ suite "list: the command":
     let db = numbered("latest5")
     discard save(db, "--all")
     check save(db, "--sport", "cycling", "--from", "2030-01-01", "--distance", "latest~5") == exitFailure
-    check chosen(db) == @["lisbon1", "paris"]
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]
     setNumbers(db, "paris", "null", "null")
     check save(db, "--distance", "latest~5") == exitFailure     # paris is the latest and has no distance
     check save(db, "--active", "latest~5m") == exitFailure
-    check chosen(db) == @["lisbon1", "paris"]
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]
     check save(db, "--sport", "swimming", "--sport", "latest") == exitFailure   # nobody has it
 
   test "bad ranges are a usage error and change nothing":
@@ -423,14 +421,14 @@ suite "list: the command":
     discard save(db, "--all")
     check save(db, "--newest", "0") == exitUsage
     check save(db, "--from", "soon") == exitUsage
-    check chosen(db) == @["lisbon1", "paris"]
+    check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
-  test "deleting an activity's owner takes it out of everyone's selection":
+  test "deleting an activity's file takes it out of the selection":
     let db = world("cascade", true)
     discard save(db, "--all")
     check chosen(db).len == 3
     let s = openStore(db, allFragments)
-    s.db.exec(sql"delete from user where name = 'bob'")
+    s.db.exec(sql"delete from file where name = 'lisbon2'")
     s.close()
     check chosen(db) == @["lisbon1", "paris"]
 
@@ -445,28 +443,28 @@ suite "list: what is shown":
 
   test "a table of the activities, oldest first, with a last line":
     let db = world("shown")
-    let r = shown(db)
+    let r = shown(db, "--all")
     check r.saved == -1
     check r.lines.texts[0] == "start             sport    distance  active  place / name"
     check r.lines.texts[1] == "2018-07-01 12:00  cycling    12.3km   1h01m"
     check r.lines.texts[2] == "2018-08-27 12:00  running    12.3km   1h01m"
     check r.lines.texts[^1] == "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
-  test "rows in the selection are yellow; with --save or --show all are":
+  test "rows in the selection are yellow; with --select all that are listed are":
     let db = world("yellow")
     proc yellowRows(lines: seq[Line]): seq[bool] =
       for l in lines:
         if l.text.startsWith("20"):                   # the rows (they start with a date)
           result.add l.anyIt(it.look.colour == yellow)
-    check shown(db).lines.yellowRows == @[false, false]    # nothing selected yet
+    check shown(db, "--all").lines.yellowRows == @[false, false]    # nothing selected yet
     discard save(db, "--sport", "cycling")                 # the selection: the cycling one
-    check shown(db).lines.yellowRows == @[true, false]
+    check shown(db, "--all").lines.yellowRows == @[true, false]
     check shown(db, "--sport", "running").lines.yellowRows == @[false]
     let st = openStore(db, allFragments)
     defer: st.close()
     let p = parseArgs(@[], utc())
-    check showSelection(st, p.criteria, utc()).yellowRows == @[true]        # --show: all are
-    check shown(db, "--select").lines.yellowRows == @[true, true]            # --save: what is listed is the selection
+    check showSelection(st, p.criteria, utc()).yellowRows == @[true]        # the selection: all are
+    check shown(db, "--all", "--select").lines.yellowRows == @[true, true]   # --select: what is listed is the selection
     check shown(db, "--sport", "running").lines.yellowRows == @[true]
 
   test "--calendar: a calendar in place of the table, with the same last line":
@@ -474,7 +472,7 @@ suite "list: what is shown":
     discard save(db, "--sport", "cycling")
     let st = openStore(db, allFragments)
     defer: st.close()
-    let p = parseArgs(@["--calendar"], utc())
+    let p = parseArgs(@["--all", "--calendar"], utc())
     let r = listActivities(st, p.criteria, utc(), Screen(colour: true))
     check r.lines[0].text.startsWith("    Mo Tu We")
     check r.lines.texts.filterIt(it.startsWith("Jul ")).len == 1 and r.lines.texts.filterIt(it.startsWith("Aug ")).len == 1
@@ -485,7 +483,7 @@ suite "list: what is shown":
     let aug = r.lines.filterIt(it.text.startsWith("Aug "))[0]
     check aug.anyIt(it.look.colour == white and it.text == "27 ")            # running, listed but not selected
     # -v: every month between the first and the last
-    let v = listActivities(st, parseArgs(@["--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true))
+    let v = listActivities(st, parseArgs(@["--all", "--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true))
     check v.lines.texts.filterIt(it[0 .. 2] in ["Jul", "Aug"]).len == 2
     let shownCal = showSelection(st, parseArgs(@["--calendar"], utc()).criteria, utc(), Screen(colour: true))
     check shownCal.texts.filterIt(it.startsWith("Jul ")).len == 1 and shownCal.texts.filterIt(it.startsWith("Aug ")).len == 0
@@ -495,16 +493,16 @@ suite "list: what is shown":
     let st = openStore(db, allFragments)
     defer: st.close()
     st.db.exec(sql"update activity set start_t = 1520640000 where id = (select min(id) from activity)")   # 2018-03-10
-    let lines = listActivities(st, parseArgs(@["--calendar"], utc()).criteria, utc(), Screen(colour: true)).lines
+    let lines = listActivities(st, parseArgs(@["--all", "--calendar"], utc()).criteria, utc(), Screen(colour: true)).lines
     check lines.texts[^1] == "warning: 4 months with no activity not shown, at the yellow month names; use --verbose to show them"
     check lines[^1][0].look.colour == yellow
-    let all = listActivities(st, parseArgs(@["--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true)).lines
+    let all = listActivities(st, parseArgs(@["--all", "--calendar", "-v"], utc()).criteria, utc(), Screen(colour: true)).lines
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4     # (March to August: only August and March have any)
     check not all.texts[^1].startsWith("warning")
-    let table = listActivities(st, parseArgs(@[], utc()).criteria, utc(), Screen(colour: true)).lines
+    let table = listActivities(st, parseArgs(@["--all"], utc()).criteria, utc(), Screen(colour: true)).lines
     check not table.texts[^1].startsWith("warning")                      # (only a calendar leaves months out)
     # with --save the warning is still last
-    let saved = listActivities(st, parseArgs(@["--calendar", "--select"], utc()).criteria, utc(), Screen(colour: true)).lines
+    let saved = listActivities(st, parseArgs(@["--all", "--calendar", "--select"], utc()).criteria, utc(), Screen(colour: true)).lines
     check saved.texts[^1].startsWith("warning: 4 months") and saved.texts[^2].startsWith("saved ")
 
   test "-v adds the path of the file, -n is --newest":
@@ -529,7 +527,7 @@ suite "list: what is shown":
     let db = world("shownempty")
     let st = openStore(db, allFragments)
     defer: st.close()
-    check showSelection(st, Criteria(), utc()).texts == @["selection: empty"]
+    check showSelection(st, Criteria(), utc()).texts[0].startsWith("nothing is selected")
     check shown(db, "--from", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
 
   test "--near says where":
@@ -544,25 +542,25 @@ suite "list: what is shown":
     st.db.exec(sql"""update activity set start_place = 'Lisbon', name = 'Sintra and back'
       where file_id in (select id from file where name = 'lisbon1')""")
     st.close()
-    let rows = shown(db, "-v").lines.texts
+    let rows = shown(db, "-v", "--all").lines.texts
     check rows[0].contains("place") and rows[0].contains("name")
     check rows[1].contains("Lisbon") and rows[1].contains("Sintra and back")
     check not rows[2].contains("Lisbon") and not rows[2].contains("Sintra")            # paris: nothing stored
-    check not shown(db).lines.texts[0].contains("path")                                # (the path only with -v)
-    check shown(db).lines.texts[1].endsWith("Lisbon / Sintra and back")                # (the place and name in every listing)
+    check not shown(db, "--all").lines.texts[0].contains("path")                                # (the path only with -v)
+    check shown(db, "--all").lines.texts[1].endsWith("Lisbon / Sintra and back")                # (the place and name in every listing)
 
   test "-v says no GPS where the place and name would be, for an activity with no start; the sub-sport follows the sport":
     let db = world("verbose-noplace")
     let st = openStore(db, allFragments)
     st.db.exec(sql"update activity set start = null where file_id in (select id from file where name = 'paris')")
     st.close()
-    let rows = shown(db, "-v").lines.texts
+    let rows = shown(db, "-v", "--all").lines.texts
     check rows[0].contains("place / name") and rows[0].endsWith("path")
     check rows[1].contains("cycling/road") and not rows[1].contains("no GPS")       # lisbon1: a start, though no place is stored
     check rows[2].contains("running/trail") and rows[2].contains("no GPS")          # paris: no start at all
     check rows[2].find("no GPS") < rows[2].find("paris")                            # (and before the path)
-    check not shown(db).lines.texts[1].contains("no GPS")                           # (not without -v)
-    check shown(db).lines.texts[1].contains("cycling") and not shown(db).lines.texts[1].contains("cycling/road")
+    check not shown(db, "--all").lines.texts[1].contains("no GPS")                           # (not without -v)
+    check shown(db, "--all").lines.texts[1].contains("cycling") and not shown(db, "--all").lines.texts[1].contains("cycling/road")
 
   test "saving is logged":
     let db = world("shownlog")
@@ -570,7 +568,8 @@ suite "list: what is shown":
     let g = Globals(dbPath: db, fragments: allFragments, log: openLog(path))
     check listCommand.run(g, @["--newest", "1", "--select"]) == exitOk
     g.log.close()
-    check readFile(path).contains("list      saved      1 activity")
+    let text = readFile(path)
+    check text.contains("activities") and text.contains("saved") and text.contains("1 activity")
 
 proc named(db: string) =
   ## lisbon1: "São Pedro and back" from Lisboa; lisbon2 (bob): "São Pedro and back" from Almada; paris: no name, no start.
@@ -586,9 +585,9 @@ suite "list: --name and --start":
     let db = world("names", true)
     named(db)
     discard save(db, "--name", "sao pedro")
-    check chosen(db) == @["lisbon1"]                                  # (the current user's activities)
+    check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--name", "SÃO", "nothing")                      # (either word)
-    check chosen(db) == @["lisbon1"]
+    check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--name", "são pedro")
     check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--name", "vuelta")
@@ -623,11 +622,11 @@ suite "list: --name and --start":
   test "previous: the same whole name (or start place) as the selected activity":
     let db = world("refs", true)
     named(db)
-    discard save(db, "--sport", "cycling")                            # lisbon1 is the selection
+    discard save(db, "--sport", "cycling", "--oldest", "1")           # lisbon1 is the selection
     check chosen(db) == @["lisbon1"]
     discard save(db, "--name", "previous")
     check chosen(db) == @["lisbon1", "lisbon2"]                       # both are "São Pedro and back"
-    discard save(db, "--sport", "cycling")
+    discard save(db, "--sport", "cycling", "--oldest", "1")
     discard save(db, "--start", "previous")
     check chosen(db) == @["lisbon1"]                                  # Lisboa only: not Almada
   test "latest: the newest activity that meets the other criteria, whole":
@@ -640,7 +639,7 @@ suite "list: --name and --start":
     named(db)
     let st = openStore(db, allFragments)
     defer: st.close()
-    let p = parseArgs(@["-v"], utc())
+    let p = parseArgs(@["-v", "--all"], utc())
     let rows = listActivities(st, p.criteria, utc()).lines.texts
     check rows[0].contains("place / name") and rows[0].endsWith("path")
     check rows[1].contains("Lisboa") and rows[1].contains("São Pedro and back")     # lisbon1
@@ -684,7 +683,7 @@ suite "list: --path":
     seen(db, "lisbon1", "/x/bike/a.fit")
     let st = openStore(db, allFragments)
     defer: st.close()
-    let rows = listActivities(st, parseArgs(@["-v"], utc()).criteria, utc()).lines.texts
+    let rows = listActivities(st, parseArgs(@["-v", "--all"], utc()).criteria, utc()).lines.texts
     check rows[0].endsWith("path") and rows[1].endsWith("/x/bike/a.fit")
 
 suite "list: --invert":
@@ -735,7 +734,7 @@ suite "list: --climb":
     let db = world("climbfind", true)
     climbs(db)
     discard save(db, "--climb", "SINTRA")
-    check chosen(db) == @["lisbon1"]
+    check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--climb", "cabo da roca")
     check chosen(db) == @["lisbon1"]
     discard save(db, "--climb", "sintra")
