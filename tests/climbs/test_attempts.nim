@@ -84,7 +84,7 @@ suite "attempts: the lines":
     check lines[1].filterIt(it.look.colour == blue).len == 2
     let long = summaryLines(rows, false, true, utc()).texts
     check long.len == 4 and long[0] == table[0] and long[1] == table[1]
-    check long[2].strip.startsWith("1 of 2") and long[3].strip.startsWith("2 of 2")
+    check long[2].strip.startsWith("1  ") and long[3].strip.startsWith("2  ") and " of " notin long[2]
     check long[2].startsWith("    ") and "1970-02-" in long[2]
     # the attempt of the selected ride (the slower, 1970-01) is in the selection's colour, the other is not
     let lines2 = summaryLines(rows, false, true, utc())
