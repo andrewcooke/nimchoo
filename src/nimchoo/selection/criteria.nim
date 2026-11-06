@@ -1,4 +1,4 @@
-## What `nch list` is asked for: the command line parsed into criteria, and the
+## What `nch activities` is asked for: the command line parsed into criteria, and the
 ## criteria turned into SQL.  Pure: no database, no clock, no terminal (the time
 ## zone is a parameter), so all of it is tested directly.
 
@@ -18,13 +18,13 @@ type
     ## --gps: only activities with at least one position; --no-gps: only those without any
 
   Criteria* = object
-    show*: bool               ## --show: the stored selection, no criteria
-    save*: bool               ## --save: keep what is listed as the selection
+    all*: bool                ## --all: every activity (not the selection)
+    given*: bool              ## some criterion or limit was given: the activities are searched for, not the selection
+    select*: bool             ## --select: keep what is listed as the selection
     verbose*: bool            ## -v: show more of each activity (a display option)
     calendar*: bool           ## --calendar: show the activities on a calendar (a display option)
     newest*, oldest*: int     ## only the N newest (oldest) of those that meet the other
                               ## criteria, by start time; 0: no limit
-    users*: seq[string]       ## empty: the current user
     distanceM*, activeS*: NumRange   ## --distance, --active (metres, seconds; open: any)
     distanceRel*, activeRel*: Option[Relative]    ## --distance latest~T / previous~T, --active ...
     sportRef*, subSportRef*: Reference            ## --sport latest / previous, --sub-sport ...
@@ -91,7 +91,7 @@ func parseLatLon*(s: string): Option[(float, float)] =
     none((float, float))
 
 type ListState = object
-  ## What the options of `nch list` fill in as they are read.
+  ## What the options of `nch activities` fill in as they are read.
   c: Criteria
   help: bool
   zone: Timezone
@@ -112,13 +112,6 @@ func splitNames(values: seq[string], lower: bool): seq[string] =
   for v in values:
     for name in v.split(','):
       if name.len > 0: result.add (if lower: name.toLowerAscii else: name)
-
-proc takeUsers(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
-  p.criteriaGiven = true
-  let names = splitNames(values, false)
-  if names.len == 0: return name & " needs at least one name"
-  p.c.users.add names
-  ""
 
 proc takeSports(p: var ListState, name: string, values: seq[string]): string {.nimcall.} =
   p.criteriaGiven = true
@@ -259,23 +252,23 @@ func hasFilter*(c: Criteria): bool =
     c.near != nkNone
 
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
-  ## The command line of `nch list`.  Options with values: `--users A B C`, `--sport A B`, `--sub-sport A B` (names up to
-  ## the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
-  ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), and `--save` or
-  ## `--show` (which takes no criteria), and `-v`/`--verbose` and `--calendar` (what to display).
+  ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
+  ## `--path`, `--climb` (words up to the next option), `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
+  ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
+  ## (keep what is listed as the selection), and `-v`/`--verbose` and `--calendar` (what to display).  With no
+  ## criterion and no `--all` it is the selection that is meant.
   var st = ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone)
   let newestOption = custom(ListState, ["--newest", "-n"], true, takeCount(p, name, value, false))
   let oldestOption = custom(ListState, ["--oldest"], true, takeCount(p, name, value, true))
   let latestOption = custom(ListState, ["--latest"], false, (p.criteriaGiven = true; p.c.newest = 1; ""))
   let spec = Spec[ListState](opts: @[
     flag(ListState, ["-h", "--help"], help),
-    custom(ListState, ["--save"], false, (p.c.save = true; "")),
+    custom(ListState, ["--select"], false, (p.c.select = true; "")),
+    custom(ListState, ["--all"], false, (p.c.all = true; "")),
     custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")),
     custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")),
-    custom(ListState, ["--show"], false, (p.c.show = true; "")),
     custom(ListState, ["--invert"], false, (p.criteriaGiven = true; p.c.invert = true; "")),
     latestOption, newestOption, oldestOption,
-    listOption[ListState](["--users"], takeUsers),
     listOption[ListState](["--sport"], takeSports),
     listOption[ListState](["--sub-sport"], takeSubSports),
     listOption[ListState](["--name"], takeNames),
@@ -297,9 +290,10 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   if why.len > 0: fail(why)
   result.help = st.help
   var c = st.c
-  if c.show:
-    if c.save: fail("--show shows the stored selection: it cannot be combined with --save")
-    if st.criteriaGiven: fail("--show takes no criteria (it shows the stored selection)")
+  c.given = st.criteriaGiven
+  if c.all and c.hasFilter: fail("--all is every activity: it does not go with criteria (--newest and --oldest do)")
+  if c.select and not (c.given or c.all):
+    fail("--select keeps the activities listed as the selection, so it needs criteria or --all")
   if st.radiusGiven and c.near == nkNone: c.near = nkLatest   # --radius alone: around the latest
   if c.invert and not c.hasFilter: fail("--invert needs a criterion to invert (--sport, --name, --distance ...)")
   if c.newest > 0 and c.oldest > 0: fail("--newest and --oldest cannot be used together")

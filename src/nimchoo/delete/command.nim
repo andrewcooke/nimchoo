@@ -1,4 +1,4 @@
-## `nch delete`: delete the selected activities (see `nch list --save`) of the current user, with everything made from
+## `nch delete`: delete the selected activities (see `nch activities --select`) of the current user, with everything made from
 ## them.  Does nothing without --force; on a terminal it then counts down, in red, so there is time to press Ctrl-C.
 ## The file of an activity is forgotten too, so importing its folder again brings the activity back.
 
@@ -14,7 +14,7 @@ import ./remove
 
 const usage* = """usage: nch [--db PATH] [--user NAME] delete -f
 
-Delete the activities of the selection (what `nch list --save` kept; `nch list --show` shows it) that belong to
+Delete the activities of the selection (what `nch activities --select` kept; `nch activities` shows it) that belong to
 the current user, and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs
 found in them stay (they are shared), and so do the names on those.
 
@@ -63,7 +63,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       $plan.others & (if plan.others == 1: " selected activity of another user is left alone" else: " selected activities of other users are left alone")
     if plan.ids.len == 0:
       stdout.say (if plan.others > 0: "none of the selected activities is yours: " & others & "\n"
-                  else: "nothing is selected: `nch list ... --save` chooses activities\n")
+                  else: "nothing is selected: `nch activities CRITERIA --select` chooses activities\n")
       return exitOk
     let what = describe(plan)
     if not given.force:

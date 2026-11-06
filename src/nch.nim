@@ -9,7 +9,7 @@ import nimchoo/cli/[args, common]
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/delete/command as deleteCommand
 import nimchoo/empty/command as emptyCommand
-import nimchoo/selection/command as listCommand
+import nimchoo/selection/command as activitiesCommand
 import nimchoo/heatmap/command as heatmapCommand
 import nimchoo/log/command as logCommand
 import nimchoo/landmark/command as landmarkCommand
@@ -33,18 +33,18 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --version      print the version and the git commit it was built from
 
 commands:
-  fit      read a FIT file and print it
-  import   put the activities of FIT files in the database
-  list     list activities, and choose the ones other commands use
-  heatmap  write the routes of the selected activities as GeoJSON
-  log      show the log, filtered, with the events coloured
-  user     the users: make, rename, set the threshold heart rate
-  model    the models: sets of variables for the training impulse
-  ff       the fitness and fatigue curves, as CSV for plotting
-  climbs   the climbs of the selected activities, with times and ranks
-  landmark places of your own, named: they come before every other name
-  delete   delete the selected activities
-  empty    delete a user's data, the whole database, or the cache files
+  activities  the activities: show them, choose the ones other commands use
+  climbs      the climbs of the selected activities, with times and ranks
+  users       the users: make, rename, set the threshold heart rate
+  models      the models: sets of variables for the training impulse
+  landmarks   places of your own, named: they come before every other name
+  heatmap     write the routes of the selected activities as GeoJSON
+  ff          the fitness and fatigue curves, as CSV for plotting
+  fit         read a FIT file and print it
+  log         show the log, filtered, with the events coloured
+  import      put the activities of FIT files in the database
+  delete      delete the selected activities
+  empty       delete a user's data, the whole database, or the cache files
 
 For more about a command: `nch COMMAND --help`.
 """
@@ -58,8 +58,8 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     fitCommand.run(g, rest)
   of "import":
     importCommand.run(g, rest)
-  of "list":
-    listCommand.run(g, rest)
+  of "activities":
+    activitiesCommand.run(g, rest)
   of "heatmap":
     heatmapCommand.run(g, rest)
   of "log":

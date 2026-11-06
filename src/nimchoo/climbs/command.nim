@@ -22,7 +22,7 @@ const usage* = """usage: nch [--db PATH] [--user NAME] climbs
        nch climbs --retired
        nch climbs --duplicates
 
-Show the climbs of the selected activities (see `nch list --save`): for each activity the climbs
+Show the climbs of the selected activities (see `nch activities --select`): for each activity the climbs
 it went up (where, how long, how much, how steep, and the category by the height gained), the
 time it took, and where that ranks among the efforts of everyone on the same climb.  Times are
 from the bottom to the top, stops included.
@@ -144,7 +144,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         if hidden > 0: stdout.say noteRetired(hidden)
       return exitOk
     if selectedActivities(st) == 0:
-      stdout.say "nothing is selected: `nch list ... --save` chooses activities, `nch climbs --all` lists every climb\n"
+      stdout.say "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
       return exitOk
     let rows = selectedEfforts(st)
     if rows.len == 0:

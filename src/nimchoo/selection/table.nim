@@ -1,4 +1,4 @@
-## The listing `nch list` prints: a row for each activity and a last line with the
+## The listing `nch activities` prints: a row for each activity and a last line with the
 ## totals.  Pure (the time zone is a parameter, the rows are styled lines), so tests
 ## need no database or terminal.  An activity is said the standard way (describe.nim).
 ##
@@ -68,10 +68,10 @@ proc activityText*(r: ListRow, zone: Timezone): string =
   ## One activity in a sentence, the standard way: "2019-05-21 14:04  running  0.0km 2s".
   activityLine(info(r), zone)
 
-proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Line] =
+proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active right-aligned): the start, the sport, the
-  ## distance, the active time and "place / name" of each activity (describe.nim), with a `user` column after `start` if
-  ## `showUser`, and if `verbose` the sub-sport after the sport and the path of the file last.  No lines at all if there
+  ## distance, the active time and "place / name" of each activity (describe.nim), and if `verbose` the sub-sport after the
+  ## sport and the path of the file last.  No lines at all if there
   ## are no rows.
   ##
   ## Looks: a row in the selection is yellow all through (the same yellow as a warning); a
@@ -82,10 +82,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, showUser, verbose: bool): seq[Li
   if verbose: header.add "path"
   var cells: seq[seq[string]]
   for r in rows: cells.add activityCells(info(r, verbose), zone, verbose)
-  if showUser:
-    header.insert("user", 1)
-    for i, r in rows: cells[i].insert(r.user, 1)
-  let first = if showUser: 3 else: 2                  # the distance column; the active time follows
+  let first = 2                                       # the distance column; the active time follows
   var widths = newSeq[int](header.len)
   for c in 0 ..< header.len:
     widths[c] = header[c].runeLen

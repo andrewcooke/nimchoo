@@ -6,11 +6,11 @@ import nimchoo/selection/criteria
 let utcZone = utc()
 
 suite "list criteria: --calendar":
-  test "--calendar is a display option: it is not a criterion, and it goes with --show":
+  test "--calendar is a display option: it is not a criterion, and it goes with -v":
     let p = parseArgs(@["--calendar"], utc())
     check p.problem == "" and p.criteria.calendar
-    let q = parseArgs(@["--show", "--calendar", "-v"], utc())
-    check q.problem == "" and q.criteria.show and q.criteria.calendar and q.criteria.verbose
+    let q = parseArgs(@["--calendar", "-v"], utc())
+    check q.problem == "" and not q.criteria.given and q.criteria.calendar and q.criteria.verbose
     check parseArgs(@["--sport", "cycling", "--calendar"], utc()).criteria.calendar
     check not parseArgs(@[], utc()).criteria.calendar
 
@@ -42,19 +42,17 @@ suite "list: positions":
 suite "list: the command line":
   proc cmdline(args: varargs[string]): Parsed = parseArgs(@args, utcZone)
 
-  test "--show and --save":
-    check not cmdline().criteria.show and not cmdline().criteria.save
-    check cmdline("--show").criteria.show
-    check cmdline("--save").criteria.save
-    check cmdline("--show").problem == ""
-  test "users up to the next option, with commas too":
-    check cmdline("--users", "a", "b,c", "--save").criteria.users == @["a", "b", "c"]
-    check cmdline("--users").problem.contains("at least one")
-    check cmdline("--users", "--save").problem.contains("at least one")
+  test "--select and --all":
+    check not cmdline().criteria.select and not cmdline().criteria.all and not cmdline().criteria.given
+    check cmdline("--all", "--select").criteria.select and cmdline("--all").criteria.all
+    check cmdline("--sport", "cycling", "--select").criteria.select and cmdline("--sport", "cycling").criteria.given
+    check cmdline("--select").problem.contains("needs criteria or --all")
+    check cmdline("--newest", "1").criteria.given                     # (a limit searches all, too)
+
   test "the options":
-    let c = cmdline("--save", "--newest", "3", "--from", "2018-08-01", "--to", "2018-08-31",
+    let c = cmdline("--select", "--newest", "3", "--from", "2018-08-01", "--to", "2018-08-31",
                   "--near", "38.7,-9.1", "--radius", "5").criteria
-    check c.save and c.newest == 3 and c.oldest == 0
+    check c.select and c.newest == 3 and c.oldest == 0
     check c.fromT.isSome and c.toT.isSome and c.fromT.get < c.toT.get
     check c.near == nkPoint and c.lat == 38.7 and c.lon == -9.1 and c.radiusKm == 5.0
     check cmdline("--near", "latest").criteria.near == nkLatest
@@ -74,12 +72,11 @@ suite "list: the command line":
     check c.sports == @["cycling", "running", "swimming", "walking"]
     check c.subSports == @["road"]
     check cmdline("--sport").problem.contains("at least one name")
-    check cmdline("--sub-sport", "--save").problem.contains("at least one name")
-    check cmdline("--users", "Bob").criteria.users == @["Bob"]       # (names of users keep their case)
+    check cmdline("--sub-sport", "--select").problem.contains("at least one name")
   test "-v is a display option, not a criterion; --file is gone":
     check cmdline("-v").criteria.verbose and cmdline("--verbose").criteria.verbose
-    check cmdline("--show", "-v").problem == ""
-    check cmdline("--show", "--verbose").criteria.show
+    check cmdline("-v").problem == ""
+    check cmdline("--verbose").criteria.verbose
     check cmdline("--file").problem.contains("unexpected")
   test "-n is --newest":
     check cmdline("-n", "3").criteria.newest == 3
@@ -93,7 +90,6 @@ suite "list: the command line":
     check cmdline("--distance", "10-50").criteria.distanceM == NumRange(lo: some 10000.0, hi: some 50000.0)
     check cmdline("--distance", "0.5-").criteria.distanceM == NumRange(lo: some 500.0)
     check cmdline("--distance", "500m-").problem.contains("cannot read the distance range")   # (m is minutes)
-    check cmdline("--show", "--distance", "5-").problem.contains("no criteria")
   test "--distance and --active around a value, or around latest":
     let c = cmdline("--distance", "42~2", "--active", "2h~15m").criteria
     check c.distanceM == NumRange(lo: some 40000.0, hi: some 44000.0)
@@ -158,12 +154,13 @@ suite "list: the command line":
     check cmdline("--active", "2h~15").problem.contains("cannot read the active time")
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").criteria.radiusKm == 100.0
-  test "--show takes no criteria, and cannot be saved":
-    check cmdline("--show", "--newest", "1").problem.contains("no criteria")
-    check cmdline("--show", "--users", "bob").problem.contains("no criteria")
-    check cmdline("--newest", "1", "--show").problem.contains("no criteria")
-    check cmdline("--show", "--save").problem.contains("cannot be combined")
-    check cmdline("--show", "-h").problem == ""
+  test "--all is every activity: it does not go with criteria, but with the limits":
+    check cmdline("--all", "--sport", "cycling").problem.contains("does not go with criteria")
+    check cmdline("--all", "--newest", "1").problem == ""
+    check cmdline("--all", "--select").problem == ""
+    check cmdline("--all", "-h").problem == ""
+    check cmdline("--all", "--invert").problem.contains("does not go with criteria")
+
   test "problems":
     check cmdline("--radius", "x", "--near", "1,2").problem.contains("radius")
     check cmdline("--radius", "0", "--near", "1,2").problem.contains("more than 0")
@@ -208,7 +205,6 @@ suite "list: the box and the sql":
     check parseArgs(@["--gps", "--gps"], utcZone).problem == ""
     check parseArgs(@["--gps", "--no-gps"], utcZone).problem.contains("cannot be used together")
     check parseArgs(@["--no-gps", "--gps"], utcZone).problem.contains("cannot be used together")
-    check parseArgs(@["--show", "--gps"], utcZone).problem.contains("takes no criteria")
     let with = matchSql(@[UserId(1)], Criteria(gps: gfWith), none((float, float)))
     check with.contains(" and exists (select 1 from coords k where k.activity_id = a.id)")
     let without = matchSql(@[UserId(1)], Criteria(gps: gfWithout), none((float, float)))
@@ -266,9 +262,8 @@ suite "list: --name and --start":
     check c.usesLatest and c.usesPrevious
     check not c.withoutLatest.usesLatest
     check parseArgs(@["--name", "latest", "previous"], utcZone).problem.contains("cannot be used together")
-  test "a name needs some text; it is a criterion (not allowed with --show)":
+  test "a name needs some text; it is a criterion ":
     check parseArgs(@["--name"], utcZone).problem.len > 0
-    check parseArgs(@["--show", "--name", "toyo"], utcZone).problem.contains("takes no criteria")
   test "the sql: a glob of the folded text, none for nothing, an exact value for what latest came to":
     let c = parsed("--name", "toyo", "none", "--start", "o'higgins")
     let q = matchSql(@[UserId(1)], c, none((float, float)))
@@ -292,15 +287,12 @@ suite "list: --path":
   test "latest is just text here; a path needs some text and is a criterion":
     check parseArgs(@["--path", "latest"], utcZone).criteria.paths == @["latest"]
     check parseArgs(@["--path"], utcZone).problem.len > 0
-    check parseArgs(@["--show", "--path", "x"], utcZone).problem.contains("takes no criteria")
 
 suite "list: --invert":
   test "it is a criterion on its own, and needs something to invert":
     check parseArgs(@["--sport", "cycling", "--invert"], utcZone).criteria.invert
     check parseArgs(@["--invert"], utcZone).problem.contains("needs a criterion")
     check parseArgs(@["--invert", "--newest", "2"], utcZone).problem.contains("needs a criterion")     # (limits are not criteria)
-    check parseArgs(@["--invert", "--users", "bob"], utcZone).problem.contains("needs a criterion")
-    check parseArgs(@["--show", "--invert"], utcZone).problem.len > 0
     check parseArgs(@["--invert", "--gps"], utcZone).problem == ""
     check parseArgs(@["--invert", "--distance", "40-"], utcZone).problem == ""
     check parseArgs(@["--invert", "--name", "latest"], utcZone).problem == ""
@@ -330,6 +322,5 @@ suite "list: --climb":
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("effort")
   test "it is a criterion; it needs some text":
     check parseArgs(@["--climb"], utcZone).problem.len > 0
-    check parseArgs(@["--show", "--climb", "x"], utcZone).problem.contains("takes no criteria")
     check parseArgs(@["--invert", "--climb", "x"], utcZone).problem == ""
 

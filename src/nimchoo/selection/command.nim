@@ -1,11 +1,9 @@
-## `nch list`: the activities that meet some criteria, and (with `--save`) the
-## choice of those as "the selection", which other commands (heatmap ...) work on.
-## The selection is kept in the database (table `selection`), for the current user,
-## and replaced whenever `--save` is given; `--show` shows it.  What is listed is
-## what is saved.
+## `nch activities`: the activities, and the selection.  With no criteria it shows the selection, the activities that
+## the commands which work on activities (climbs, heatmap, delete ...) use by default; with criteria or `--all` it
+## searches all the activities, and `--select` keeps what is listed as the selection.  The selection is kept in the
+## database (table `selection`), for the current user, and replaced whenever `--select` is given.
 ##
-## This module is newer than `importer` and reads its tables (activity, file,
-## coords, route) directly.
+## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
 import std/[options, sequtils, strutils, tables, terminal, times]
 import db_connector/db_sqlite
@@ -19,14 +17,14 @@ import ./[calendar, criteria, fold, table]
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] [--user NAME] list [CRITERIA] [--save]
-       nch [--db PATH] [--user NAME] list --show
+const usage* = """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v] [--calendar]
+       nch [--db PATH] [--user NAME] activities --all [--select]
 
-List the activities that meet the criteria (all of them if there are none), and
-with --save keep them as the "selection" that other commands use (replacing the
-last one).  Criteria are combined with "and".
+Show the activities of the selection: the ones that other commands (climbs, heatmap ...) use unless they are
+told otherwise.  With criteria (or --all) all the activities are searched instead, those that meet the criteria
+(combined with "and") are shown, and with --select they become the selection (replacing the last one).
 
-  --users A B C      whose activities (default: the current user)
+  --all              every activity, not just the selection
   --sport A B        only these sports (cycling, running, swimming ...); "none"
                      means not recorded; "latest" or "previous": that activity's sport
   --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
@@ -64,8 +62,7 @@ last one).  Criteria are combined with "and".
   -n, --newest N     only the N newest of the activities that meet the other criteria
   --oldest N         only the N oldest of them
   --latest           the same as --newest 1
-  --save             make what is listed the selection
-  --show             show the selection (no criteria allowed)
+  --select           make what is listed the selection (needs criteria or --all)
   -v, --verbose      show more of each activity: where it started (its coordinates, or
                      "no GPS" if the file has no positions), the place it started and its name
                      (made when it was imported), and the path of its file
@@ -79,8 +76,8 @@ last one).  Criteria are combined with "and".
 "latest": so  --sport cycling --distance latest~10%  is cycling rides within 10% of
 the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 
-"previous" is the one activity that was selected before (see --show): list it with
---save, then  --sport previous --distance previous~10%  finds rides like it.  It is an
+"previous" is the one activity that was selected before (`nch activities` shows it): select it
+with --select, then  --sport previous --distance previous~10%  finds rides like it.  It is an
 error unless exactly one activity is selected.
 """
 
@@ -170,14 +167,11 @@ proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
       except ValueError:
         raiseStore("bad number from the database")
 
-func moreThanOneUser(rows: seq[ListRow]): bool =
-  rows.anyIt(it.user != rows[0].user)
-
 proc listing(rows: seq[ListRow], zone: Timezone, c: Criteria, screen: Screen,
              choices: Option[int]): seq[Line] =
   ## The table (or the calendar) and its last line.
   result = if c.calendar: calendarLines(rows, zone, c.verbose, screen)
-           else: table(rows, zone, rows.len > 0 and moreThanOneUser(rows), c.verbose)
+           else: table(rows, zone, c.verbose)
   result.add footerLine(rows, choices, if c.calendar: selectedColour else: yellow)
 
 proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] =
@@ -194,7 +188,8 @@ proc showSelection*(st: Store, c: Criteria, zone: Timezone, screen = Screen(colo
   let rows = readRows(st, "select " & rowColumns(c.verbose, st.userId) & " from selection s join activity a on " &
     "a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId &
     " order by a.start_t, a.id")
-  if rows.len == 0: return @[plain("selection: empty")]
+  if rows.len == 0:
+    return @[plain("nothing is selected: `nch activities --all` lists every activity; with criteria and --select some are chosen")]
   result = listing(rows, zone, c, screen, none(int))
   result.add skippedWarning(rows, zone, c)
 
@@ -216,7 +211,7 @@ proc previousSelected(st: Store): tuple[id: ActivityId, row: ListRow] {.raises: 
   let n = number(st, "select count(*) from selection where user_id = " & $st.userId)
   if n != 1:
     raiseStore("`previous` needs a selection of exactly one activity, and it has " & $n &
-               " (see `nch list --show`)")
+               " (see `nch activities`)")
   let rows = readRows(st, "select " & rowColumns(false, st.userId) & " from selection s join activity a " &
     "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " & $st.userId)
   guard:
@@ -275,16 +270,13 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
   var c = criteria
-  var userIds: seq[UserId]
-  if c.users.len == 0:
-    userIds.add st.userId
-  else:
-    for name in c.users:
-      let id = userIdOf(st, name)
-      if id notin userIds: userIds.add id
-  var ids: seq[string]
-  for id in userIds: ids.add $id
-  let idList = ids.join(", ")
+  if not (c.all or c.given):
+    # no criteria: the selection
+    result.lines = showSelection(st, c, zone, screen)
+    result.saved = -1
+    return
+  let userIds = @[st.userId]
+  let idList = $st.userId
   if c.climbs.len > 0:
     # the climbs whose name as shown ("Farellones (2/3)", retired ones too) holds the text, whatever its case and accents
     let shown = shownNames(st)
@@ -320,7 +312,7 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
       (if centreFrom.len > 0: " (" & centreFrom & ")" else: "") &
       ", within " & radiusText(c.radiusKm) & "km")
   let match = matchSql(userIds, c, centre, "a.id as id, " & rowColumns(c.verbose, st.userId))
-  if c.save:
+  if c.select:
     st.begin()
     var committed = false
     try:
@@ -335,38 +327,33 @@ proc listActivities*(st: Store, criteria: Criteria, zone: Timezone,
   let total = number(st, "select count(*) from activity a join file f on f.id = a.file_id " &
     "where f.user_id in (" & idList & ")")
   result.lines.add listing(rows, zone, c, screen, some(total))
-  result.saved = if c.save: rows.len else: -1
-  if c.save:
+  result.saved = if c.select: rows.len else: -1
+  if c.select:
     result.lines.add @[span("saved " & $rows.len & (if rows.len == 1: " activity" else: " activities") &
       " as the selection", leSaved)]
   result.lines.add skippedWarning(rows, zone, c)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
-  ## Entry point for `nch list ARGS`; returns the exit status.
+  ## Entry point for `nch activities ARGS`; returns the exit status.
   let zone = local()
   let parsed = parseArgs(args, zone)
   if parsed.help:
     stdout.say usage
     return exitOk
   if parsed.problem.len > 0:
-    return usageError("nch list", usage, parsed.problem)
+    return usageError("nch activities", usage, parsed.problem)
   var st: Store
   try:
     st = openStore(g)
   except StoreError as e:
-    return failure("nch list", e.msg)
+    return failure("nch activities", e.msg)
   try:
-    var lines: seq[Line]
     let colour = canColourStdout()
     let screen = Screen(colour: colour, width: if isatty(stdout): terminalWidth() else: 0)
-    if parsed.criteria.show:
-      lines = showSelection(st, parsed.criteria, zone, screen)
-    else:
-      let r = listActivities(st, parsed.criteria, zone, screen)
-      lines = r.lines
-      if r.saved >= 0:
-        g.log.log(lvInfo, "list", leSaved, $r.saved & (if r.saved == 1: " activity" else: " activities"))
-    for l in lines: stdout.say render(l, colour) & "\n"
+    let r = listActivities(st, parsed.criteria, zone, screen)
+    if r.saved >= 0:
+      g.log.log(lvInfo, "activities", leSaved, $r.saved & (if r.saved == 1: " activity" else: " activities"))
+    for l in r.lines: stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError as e:
-    failure("nch list", e.msg)
+    failure("nch activities", e.msg)

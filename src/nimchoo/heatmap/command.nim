@@ -22,7 +22,7 @@ import ./[lines, page, params]
 
 const usage* = """usage: nch [--db PATH] [--user NAME] heatmap [OPTIONS]
 
-Write the routes of the selected activities (see `nch list --save`) as a GeoJSON
+Write the routes of the selected activities (see `nch activities --select`) as a GeoJSON
 file in the cache directory, and print its path.  Several rides over the same
 roads show as a heatmap in any program that draws GeoJSON with transparency.
 Asking again for the same thing finds the file already there.
@@ -92,7 +92,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
           "the current selection"))
       let chosen = selectedCount(st)
       if chosen == 0:
-        return Prepared(status: failure("nch heatmap", "the selection is empty (see `nch list --save`)"))
+        return Prepared(status: failure("nch heatmap", "the selection is empty (see `nch activities --select`)"))
       let routes = routesOf(st, p.toleranceM)
       if routes.len == 0:
         return Prepared(status: failure("nch heatmap", "none of the " & $chosen &
