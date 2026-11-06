@@ -1,7 +1,8 @@
-import std/[strutils, times, unittest]
+import std/[sequtils, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/climbs/[attempts, display, work]
 import nimchoo/db/store
+import nimchoo/ui/[palette, style]
 import ../support/[climbdata, userdata]
 
 suite "attempts: the ranks":
@@ -59,31 +60,50 @@ suite "attempts: from the tables":
     s.db.exec(sql"delete from selection")                  # (the selection is not looked at)
     check namedClimbs(s, @["cuesta"]).len == 1
 
+func texts(ls: seq[Line]): seq[string] = ls.mapIt(it.text)
+
 suite "attempts: the lines":
-  test "the summary of the user's attempts, and with -v the attempts, the fastest first":
+  test "the summary of the user's attempts: the best of the selected rides in the selection's colour; with -v the attempts":
     let s = world("lines-own")
     defer: s.close()
     let rows = summaries(s, selectedClimbs(s))
-    let table = summaryLines(rows, everyone = false, verbose = false, zone = utc())
+    let lines = summaryLines(rows, everyone = false, verbose = false, zone = utc())
+    let table = lines.texts
     check table.len == 2
-    check table[0].startsWith("climb") and "attempts" in table[0] and table[0].endsWith("rank")
-    check table[1].startsWith(unnamed) and table[1].endsWith("1 of 2")          # the latest is the faster
-    let long = summaryLines(rows, false, true, utc())
+    check table[0].startsWith("climb") and table[0].endsWith("attempts") and "best selected" in table[0]
+    check table[0].find("best") < table[0].find("best selected") and table[0].find("rank") < table[0].find("attempts")
+    # the best (with its date) is the faster ride, from 1970-02; the selected ride is the slower of the two: its time and
+    # date, and its rank (just the number) among the user's own attempts; the number of attempts is last
+    check table[1].startsWith(unnamed)
+    let cells = table[1].splitWhitespace()
+    check cells[^1] == "2" and cells[^2] == "2"                           # (attempts, then the rank of the selected one)
+    check "1970-02-04" in table[1] and "1970-01-12" in table[1]            # (the best, and the best selected)
+    check lines[1].filterIt(it.look.colour == blue).mapIt(it.text.strip).join(" ").contains("1970-01-12")
+    check lines[1].filterIt(it.look.colour == blue).mapIt(it.text.strip)[^1] == "2"
+    check lines[0].filterIt(it.look.colour == blue).mapIt(it.text.strip) == @["best selected", "rank"]
+    check lines[1].filterIt(it.look.colour == blue).len == 2
+    let long = summaryLines(rows, false, true, utc()).texts
     check long.len == 4 and long[0] == table[0] and long[1] == table[1]
     check long[2].strip.startsWith("1 of 2") and long[3].strip.startsWith("2 of 2")
     check long[2].startsWith("    ") and "1970-02-" in long[2]
+  test "no selected ride on the climb (found by --name): dashes in the selection's columns":
+    let s = world("lines-none-selected")
+    defer: s.close()
+    s.db.exec(sql"delete from selection")
+    let table = summaryLines(summaries(s, namedClimbs(s, @["unnamed"])), false, false, utc()).texts
+    check not table[1].contains("1970-01") and table[1].splitWhitespace()[^3 .. ^1] == @["-", "-", "2"]
   test "with everyone: the people, never the personal rank":
     let s = world("lines-everyone")
     defer: s.close()
     let rows = summaries(s, selectedClimbs(s))
-    let table = summaryLines(rows, true, false, utc())
+    let table = summaryLines(rows, true, false, utc()).texts
     check "riders" in table[0] and "fastest" in table[0] and "attempts" notin table[0]
     check table[1].endsWith("1 of 2") and "default" in table[1]
-    let long = summaryLines(rows, true, true, utc())
+    let long = summaryLines(rows, true, true, utc()).texts
     check long.len == 4 and "default (you)" in long[2] and "bob" in long[3]
   test "a climb you never rode: dashes":
     let s = world("lines-never")
     defer: s.close()
     s.db.exec(sql"update file set user_id = (select id from user where name = 'bob')")
-    let table = summaryLines(summaries(s, selectedClimbs(s)), false, false, utc())
-    check "0" in table[1] and table[1].endsWith("-")
+    let table = summaryLines(summaries(s, selectedClimbs(s)), false, false, utc()).texts
+    check table[1].endsWith("0") and table[1].splitWhitespace()[^4 .. ^2] == @["-", "-", "-"]

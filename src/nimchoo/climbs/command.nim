@@ -8,7 +8,7 @@ import ../cli/common
 import ../db/store
 import ../errors
 import ../names/open
-import ../ui/[live, logfile]
+import ../ui/[live, logfile, style]
 import ../user/wipe
 import ./[attempts, duplicates, edit, naming, params, report, work]
 
@@ -26,9 +26,9 @@ const usage* = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
        nch climbs --duplicates
 
 Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
-category by the height gained, length, gain, gradient), then how you did on it: how many times you rode it, your best
-time, your latest (and when) and where that ranks among your own attempts ("3 of 12").  All your attempts count, not
-only those of the selected rides.  Times are from the bottom to the top, stops included.
+category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time
+on the selected rides (blue) and when, where that one ranks among your own attempts, and how many times you rode it.
+All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the top, stops included.
 
 The climbs are found in the rides, once: the first time it works out those of every activity
 that has not been looked at (about a minute for two thousand rides), and keeps them; after an
@@ -183,7 +183,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if ids.len == 0:
         stdout.say "no climbs in the " & $selectedActivities(st) & " selected activities\n"
         return exitOk
-    for l in summaryLines(summaries(st, ids), p.everyone, p.verbose, local()): stdout.say l & "\n"
+    let colour = canColourStdout()
+    for l in summaryLines(summaries(st, ids), p.everyone, p.verbose, local()): stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError, DownloadError:
     failure("nch climbs", getCurrentExceptionMsg())
