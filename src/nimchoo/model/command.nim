@@ -1,4 +1,4 @@
-## `nch model`: the models, the named sets of variables of the training-impulse calculation
+## `nch models`: the models, the named sets of variables of the training-impulse calculation
 ## (see calc.nim), and the making of new ones.  Models belong to no user.  The impulses of a
 ## model are worked out when they are wanted (see `nch ff`), not when the model is added.
 ##
@@ -11,8 +11,8 @@ import ./[calc, models, params]
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] model
-       nch [--db PATH] model --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]
+const usage* = """usage: nch [--db PATH] models
+       nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]
                              [--zones A,B,C,D,E] [--fitness-days D] [--fatigue-days D]
 
 Without options, show the models.  A model is a named set of the variables of the training
@@ -61,28 +61,28 @@ proc modelLines*(ms: seq[Model]): seq[string] =
   for r in rows: result.add line(r)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
-  ## Entry point for `nch model ARGS`; returns the exit status.
+  ## Entry point for `nch models ARGS`; returns the exit status.
   let p = parseArgs(args)
   if p.help:
     stdout.say usage
     return exitOk
   if p.problem.len > 0:
-    return usageError("nch model", usage, p.problem)
+    return usageError("nch models", usage, p.problem)
   var st: Store
   try:
     st = openStore(g)
   except StoreError as e:
-    return failure("nch model", e.msg)
+    return failure("nch models", e.msg)
   try:
     if p.list:
       for l in modelLines(loadModels(st.db)): stdout.say l & "\n"
       return exitOk
     if findModel(st.db, p.model.name).isSome:
-      return failure("nch model", "there is a model called '" & p.model.name & "' already")
+      return failure("nch models", "there is a model called '" & p.model.name & "' already")
     insertModel(st.db, p.model)
     let said = "made the model " & p.model.name
-    g.log.log(lvInfo, "model", leSaved, said)
+    g.log.log(lvInfo, "models", leSaved, said)
     stdout.say said & "\n"
     exitOk
   except StoreError as e:
-    failure("nch model", e.msg)
+    failure("nch models", e.msg)

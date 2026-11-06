@@ -1,5 +1,5 @@
 ## Deleting what belongs to a user: all of it but the user (`nch empty`), or the user too
-## (`nch user --remove`), with the words and the countdown both use.  Nothing is deleted without
+## (`nch users --delete`), with the words and the countdown both use.  Nothing is deleted without
 ## `--force`, and on a terminal there are then a few seconds in which to press Ctrl-C.
 ##
 ## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough

@@ -1,4 +1,4 @@
-## The command line of `nch user`, parsed.  Pure.
+## The command line of `nch users`, parsed.  Pure.
 
 import ../cli/args
 import std/[options, sequtils, strutils]
@@ -14,13 +14,13 @@ type Params* = object
   list*: bool                ## show the users (nothing to change)
   create*: bool              ## `--add`: make the user `name`
   edit*: bool                ## `--edit`: change the user `name`
-  remove*: bool              ## `--remove`: delete the user `name` and everything they have
+  delete*: bool              ## `--delete`: delete the user `name` and everything they have
   name*: string              ## the user the one of those three is about
   fthr*: Option[int]         ## set the threshold heart rate (of the new user, or the one edited)
   clearFthr*: bool
   makeDefault*: bool         ## make the user the default one
   rename*: string            ## the new name of the user edited ("": no)
-  force*: bool               ## ... really (with --remove)
+  force*: bool               ## ... really (with --delete)
   help*: bool
   problem*: string
 
@@ -42,8 +42,8 @@ func parseFthr*(s: string): Option[int] =
   none(int)
 
 proc parseArgs*(args: seq[string]): Params =
-  ## `nch user` (list), `--add NAME [--fthr N] [--default]`,
-  ## `--edit NAME` with `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`, `--remove NAME -f`.
+  ## `nch users` (list), `--add NAME [--fthr N] [--default]`,
+  ## `--edit NAME` with `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`, `--delete NAME -f`.
   let addOption = custom(Params, ["--add"], true):
     p.create = true
     p.name = value
@@ -52,8 +52,8 @@ proc parseArgs*(args: seq[string]): Params =
     p.edit = true
     p.name = value
     ""
-  let removeOption = custom(Params, ["--remove"], true):
-    p.remove = true
+  let removeOption = custom(Params, ["--delete"], true):
+    p.delete = true
     p.name = value
     ""
   let fthrOption = custom(Params, ["--fthr"], true):
@@ -85,8 +85,8 @@ proc parseArgs*(args: seq[string]): Params =
   let why = parseOptions(args, spec, result)
   if why.len > 0: fail(why)
   if result.help: return
-  let modes = [result.create, result.edit, result.remove]
-  if modes.count(true) > 1: fail("--add, --edit and --remove cannot be used together")
+  let modes = [result.create, result.edit, result.delete]
+  if modes.count(true) > 1: fail("--add, --edit and --delete cannot be used together")
   let changes = result.fthr.isSome or result.clearFthr or result.makeDefault or result.rename.len > 0
   if result.create:
     if not validUserName(result.name):
@@ -98,9 +98,9 @@ proc parseArgs*(args: seq[string]): Params =
     fail("--fthr and --clear-fthr cannot be used together")
   if result.edit and not changes:
     fail("--edit needs something to change: --fthr, --clear-fthr, --rename or --default")
-  if result.remove and changes:
-    fail("--remove cannot be combined with the other options (only -f)")
+  if result.delete and changes:
+    fail("--delete cannot be combined with the other options (only -f)")
   if changes and not (result.create or result.edit):
     fail("--fthr, --clear-fthr, --rename and --default go with --add NAME or --edit NAME")
-  if result.force and not result.remove: fail("-f goes with --remove")
-  result.list = not (result.create or result.edit or result.remove)
+  if result.force and not result.delete: fail("-f goes with --delete")
+  result.list = not (result.create or result.edit or result.delete)

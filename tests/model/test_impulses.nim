@@ -183,7 +183,7 @@ suite "model: the key of what impulses are made from":
       discard s.importRide()
     check inputKey(a.db, a.userId, a.defaultM) == inputKey(b.db, b.userId, b.defaultM)
 
-suite "nch model":
+suite "nch models":
   test "the list":
     let db = fresh("list")
     let s = open(db)
@@ -208,7 +208,7 @@ suite "nch model":
     check loadModels(t.db).len == 2
     check command.run(globals(db), @[]) == exitOk
 
-suite "nch user: the FTHR and the impulses":
+suite "nch users: the FTHR and the impulses":
   test "setting it works nothing out; changing it deletes the impulses; clearing it deletes them":
     let db = fresh("usercmd")
     let s = open(db)

@@ -1,4 +1,4 @@
-## The command line of `nch landmark`, parsed.  Pure.
+## The command line of `nch landmarks`, parsed.  Pure.
 
 import ../cli/args
 import std/[options, strutils]
@@ -9,7 +9,8 @@ import ./landmarks
 type Params* = object
   list*: bool                    ## show the landmarks (nothing else asked)
   add*: bool                     ## `--add NAME`
-  remove*: bool                  ## `--remove NAME`
+  delete*: bool                  ## `--delete NAME`
+  force*: bool                   ## `-f`: really (with --delete)
   name*: string
   search*: string                ## `--search TEXT`: suggest features by name
   near*: Option[tuple[lon, lat: float]]    ## `--near LON,LAT`: suggest features round a position
@@ -32,15 +33,15 @@ func parsePosition*(s: string): Option[tuple[lon, lat: float]] =
     discard
 
 proc parseArgs*(args: seq[string]): Params =
-  ## `nch landmark` (list), `--search TEXT`, `--near LON,LAT`, `--add NAME (--search TEXT | --near LON,LAT) --pick N`,
-  ## `--add NAME --at LON,LAT`, each with `--radius METRES`; `--remove NAME`.
+  ## `nch landmarks` (list), `--search TEXT`, `--near LON,LAT`, `--add NAME (--search TEXT | --near LON,LAT) --pick N`,
+  ## `--add NAME --at LON,LAT`, each with `--radius METRES`; `--delete NAME`.
   result.radiusM = defaultRadiusM
   let addOption = custom(Params, ["--add"], true):
     p.add = true
     p.name = value
     ""
-  let removeOption = custom(Params, ["--remove"], true):
-    p.remove = true
+  let removeOption = custom(Params, ["--delete"], true):
+    p.delete = true
     p.name = value
     ""
   let nearOption = custom(Params, ["--near"], true):
@@ -63,6 +64,7 @@ proc parseArgs*(args: seq[string]): Params =
   let spec = Spec[Params](
     opts: @[
       flag(Params, ["-h", "--help"], help),
+      flag(Params, ["-f", "--force"], force),
       addOption, removeOption, nearOption, atOption, pickOption, radiusOption,
       text(Params, ["--search"], search)],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
@@ -73,10 +75,11 @@ proc parseArgs*(args: seq[string]): Params =
   let why = parseOptions(args, spec, result)
   if why.len > 0: fail(why)
   if result.help: return
-  if result.add and result.remove: fail("--add and --remove cannot be used together")
+  if result.force and not result.delete: fail("-f goes with --delete")
+  if result.add and result.delete: fail("--add and --delete cannot be used together")
   let sources = (if result.search.len > 0: 1 else: 0) + (if result.near.isSome: 1 else: 0) + (if result.at.isSome: 1 else: 0)
-  if result.remove:
-    if sources > 0 or result.pick > 0: fail("--remove goes with a name only")
+  if result.delete:
+    if sources > 0 or result.pick > 0: fail("--delete goes with a name only")
   elif result.add:
     if sources != 1: fail("--add needs one of: --search TEXT --pick N, --near LON,LAT --pick N, --at LON,LAT")
     if result.at.isNone and result.pick == 0: fail("--add with --search or --near also needs --pick N (the number of the suggestion)")
@@ -88,4 +91,4 @@ proc parseArgs*(args: seq[string]): Params =
     if result.at.isSome: fail("--at goes with --add NAME")
     if sources > 1: fail("--search and --near cannot be used together")
     if result.radiusM != defaultRadiusM: fail("--radius goes with --add")
-  result.list = not (result.add or result.remove or result.search.len > 0 or result.near.isSome)
+  result.list = not (result.add or result.delete or result.search.len > 0 or result.near.isSome)

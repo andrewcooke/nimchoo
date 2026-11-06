@@ -58,9 +58,9 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     heatmapCommand.run(g, rest)
   of "log":
     logCommand.run(g, rest)
-  of "user":
+  of "users":
     userCommand.run(g, rest)
-  of "model":
+  of "models":
     modelCommand.run(g, rest)
   of "ff":
     ffCommand.run(g, rest)
@@ -68,7 +68,7 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
     emptyCommand.run(g, rest)
   of "climbs":
     climbsCommand.run(g, rest)
-  of "landmark":
+  of "landmarks":
     landmarkCommand.run(g, rest)
   else:
     usageError("nch", usage, "unknown command " & command)

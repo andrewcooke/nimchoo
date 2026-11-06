@@ -22,7 +22,7 @@ proc user(db: string, args: varargs[string]): int =
   userAs(db, "", @args)
 
 proc edit(db, name: string, args: varargs[string]): int =
-  ## nch user --edit NAME ARGS
+  ## nch users --edit NAME ARGS
   user(db, @["--edit", name] & @args)
 
 proc q(db, sqlText: string): string =
@@ -35,7 +35,7 @@ proc lines(db: string): seq[string] =
   defer: s.close()
   userLines(s)
 
-suite "nch user":
+suite "nch users":
   test "a new database has the default user, with no FTHR and no activities":
     let db = fresh("fresh")
     check user(db) == exitOk
@@ -176,16 +176,16 @@ suite "nch user":
     defer: s.close()
     check s.userName == "bob"
 
-suite "nch user --remove":
+suite "nch users --delete":
   test "without -f nothing is deleted; with -f the user and everything of theirs go":
     let db = fresh("remove")
     check user(db, "--add", "bob") == exitOk
     let bob = openStore(db, allFragments, "bob")
     fill(bob, "bobs")
     bob.close()
-    check user(db, "--remove", "bob") == exitFailure
+    check user(db, "--delete", "bob") == exitFailure
     check q(db, "select count(*) from user where name = 'bob'") == "1"
-    check user(db, "--remove", "bob", "-f") == exitOk
+    check user(db, "--delete", "bob", "-f") == exitOk
     check q(db, "select count(*) from user where name = 'bob'") == "0"
     check q(db, "select count(*) from file") == "0"
     check q(db, "select count(*) from activity") == "0"
@@ -194,11 +194,11 @@ suite "nch user --remove":
   test "removing the default user makes another the default":
     let db = fresh("removedefault")
     check user(db, "--add", "bob") == exitOk
-    check user(db, "--remove", "default", "-f") == exitOk
+    check user(db, "--delete", "default", "-f") == exitOk
     check q(db, "select name from user where is_default = 1") == "bob"
 
   test "an unknown user is an error, and nothing is deleted":
     let db = fresh("removeunknown")
     check user(db) == exitOk
-    check user(db, "--remove", "nobody", "-f") == exitFailure
+    check user(db, "--delete", "nobody", "-f") == exitFailure
     check q(db, "select count(*) from user") == "1"

@@ -18,8 +18,8 @@ suite "landmark: the command line":
     let c = parseArgs(@["--add", "Calán", "--near", "-70.6,-33.4", "--pick", "1"])
     check c.problem.len == 0 and c.near.isSome and c.pick == 1
   test "removing":
-    let r = parseArgs(@["--remove", "Casa"])
-    check r.problem.len == 0 and r.remove and r.name == "Casa"
+    let r = parseArgs(@["--delete", "Casa"])
+    check r.problem.len == 0 and r.delete and r.name == "Casa"
   test "mistakes":
     check parseArgs(@["--add", "X"]).problem.contains("needs one of")
     check parseArgs(@["--add", "X", "--search", "y"]).problem.contains("--pick")
@@ -32,8 +32,8 @@ suite "landmark: the command line":
     check parseArgs(@["--at", "1,2"]).problem.contains("--add")
     check parseArgs(@["--pick", "1"]).problem.contains("--add")
     check parseArgs(@["--pick", "0"]).problem.contains("from 1")
-    check parseArgs(@["--remove", "X", "--add", "Y"]).problem.contains("cannot be used together")
-    check parseArgs(@["--remove", "X", "--search", "y"]).problem.contains("name only")
+    check parseArgs(@["--delete", "X", "--add", "Y"]).problem.contains("cannot be used together")
+    check parseArgs(@["--delete", "X", "--search", "y"]).problem.contains("name only")
     check parseArgs(@["--search", "a", "--near", "1,2"]).problem.contains("cannot be used together")
     check parseArgs(@["--radius", "500"]).problem.contains("--add")
     check parseArgs(@["Yerba"]).problem.contains("--search Yerba")

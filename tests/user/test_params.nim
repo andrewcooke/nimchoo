@@ -42,7 +42,7 @@ suite "user: the command line":
   test "--default, alone with --edit or with --add":
     let p = parseArgs(@["--add", "bob", "--default"])
     check p.makeDefault and p.create and p.problem == ""
-  test "only one of --add, --edit and --remove":
+  test "only one of --add, --edit and --delete":
     check parseArgs(@["--add", "a", "--edit", "b", "--fthr", "150"]).problem.contains("cannot be used together")
   test "problems":
     check parseArgs(@["--add"]).problem.contains("--add needs a value")
@@ -63,14 +63,14 @@ suite "user: the command line":
     check parseArgs(@["-h"]).help and parseArgs(@["--help"]).help
     check parseArgs(@["--add", "bob", "-h"]).problem == ""                  # (help wins over the rest)
 
-suite "user params: --remove":
-  test "--remove NAME, with -f":
-    let p = parseArgs(@["--remove", "bob", "-f"])
-    check p.problem == "" and p.remove and p.name == "bob" and p.force and not p.list
-    check parseArgs(@["--remove", "bob"]).force == false
-    check parseArgs(@["--remove"]).problem.contains("needs a value")
-  test "--remove stands alone, and -f goes with it":
-    check parseArgs(@["--remove", "bob", "--fthr", "150", "-f"]).problem.contains("cannot be combined")
-    check parseArgs(@["--remove", "bob", "--rename", "x"]).problem.contains("cannot be combined")
-    check parseArgs(@["-f"]).problem.contains("goes with --remove")
-    check parseArgs(@["--add", "bob", "-f"]).problem.contains("goes with --remove")
+suite "user params: --delete":
+  test "--delete NAME, with -f":
+    let p = parseArgs(@["--delete", "bob", "-f"])
+    check p.problem == "" and p.delete and p.name == "bob" and p.force and not p.list
+    check parseArgs(@["--delete", "bob"]).force == false
+    check parseArgs(@["--delete"]).problem.contains("needs a value")
+  test "--delete stands alone, and -f goes with it":
+    check parseArgs(@["--delete", "bob", "--fthr", "150", "-f"]).problem.contains("cannot be combined")
+    check parseArgs(@["--delete", "bob", "--rename", "x"]).problem.contains("cannot be combined")
+    check parseArgs(@["-f"]).problem.contains("goes with --delete")
+    check parseArgs(@["--add", "bob", "-f"]).problem.contains("goes with --delete")

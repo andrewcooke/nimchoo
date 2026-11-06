@@ -28,7 +28,7 @@ proc q(db, sqlText: string): string =
   defer: s.close()
   s.db.getValue(sql(sqlText))
 
-suite "nch landmark":
+suite "nch landmarks":
   test "listing, with nothing and with something":
     let db = fresh("list")
     check landmark(db) == exitOk
@@ -58,8 +58,10 @@ suite "nch landmark":
   test "removing":
     let db = fresh("remove")
     check landmark(db, "--add", "Casa", "--at", "1,1") == exitOk
-    check landmark(db, "--remove", "nothing") == exitFailure
-    check landmark(db, "--remove", "casa") == exitOk
+    check landmark(db, "--delete", "nothing", "-f") == exitFailure
+    check landmark(db, "--delete", "casa") == exitFailure                  # (without -f nothing is done)
+    check q(db, "select count(*) from landmark") == "1"
+    check landmark(db, "--delete", "casa", "-f") == exitOk
     check q(db, "select count(*) from landmark") == "0"
   test "bad arguments are a usage error; --user before the command is refused":
     let db = fresh("usage")

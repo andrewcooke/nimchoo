@@ -2,7 +2,7 @@
 ## cache (those commands made, and those downloaded).  What to empty is named after the command: there is no default, since a command that
 ## deletes should not guess.  Does nothing without --force (except the cache, which is made
 ## again as needed); on a terminal it then counts down, in red, so there is time to press
-## Ctrl-C.  (The deleting is in user/wipe.nim; `nch user --remove` shares it.)
+## Ctrl-C.  (The deleting is in user/wipe.nim; `nch users --delete` shares it.)
 
 import std/[options, os, strutils]
 import ../cache
@@ -28,7 +28,7 @@ Say what to empty; several can be given at once, and are asked about, counted do
 
   --user NAME   delete all the data of the user NAME: their files, activities, selection and
                 what was worked out from them.  The user, and their threshold heart rate,
-                stay.  (To delete the user as well: `nch user --remove NAME -f`.)
+                stay.  (To delete the user as well: `nch users --delete NAME -f`.)
   --sectors     delete the catalogue of climbs, and with it the efforts of every user on them;
                 the next `nch climbs` works them out again from the rides.  Names given by hand
                 (`nch climbs --edit`) are lost; the message says how many

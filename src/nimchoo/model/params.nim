@@ -1,4 +1,4 @@
-## The command line of `nch model`, parsed.  Pure.
+## The command line of `nch models`, parsed.  Pure.
 
 import std/strutils
 import ../cli/args
@@ -35,7 +35,7 @@ template variable(nameList: openArray[string], field: untyped): Opt[Params] =
 const zonesWhat = "--zones is five percentages of the threshold heart rate, like 68,83,94,105,121"
 
 proc parseArgs*(args: seq[string]): Params =
-  ## `nch model` (list), `--add NAME` with any of the variables.
+  ## `nch models` (list), `--add NAME` with any of the variables.
   result.model = defaultModel()
   let addOption = custom(Params, ["--add"], true):
     p.add = true

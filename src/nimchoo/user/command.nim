@@ -1,5 +1,5 @@
-## `nch user`: the users, and what is known about each for training calculations (their
-## functional threshold heart rate).  A user's name is the key for `--user`; `nch user`
+## `nch users`: the users, and what is known about each for training calculations (their
+## functional threshold heart rate).  A user's name is the key for `--user`; `nch users`
 ## makes users (never implicitly, so a typo cannot), renames them and sets their FTHR.
 ##
 ## This module is newer than `importer` and `model`: it counts each user's activities and sees
@@ -15,10 +15,10 @@ import ./[params, wipe]
 
 {.push raises: [].}
 
-const usage* = """usage: nch user
-       nch user --add NAME [--fthr BPM] [--default]
-       nch user --edit NAME [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
-       nch user --remove NAME -f
+const usage* = """usage: nch users
+       nch users --add NAME [--fthr BPM] [--default]
+       nch users --edit NAME [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
+       nch users --delete NAME -f
 
 Without options, show the users.  One user is always the default: the first, until
 another is made so.  (The users are named after the command, not by --user before it.)
@@ -31,7 +31,7 @@ another is made so.  (The users are named after the command, not by --user befor
     --clear-fthr    forget it
     --rename NEW    change the user's name
     --default       make the user the default: the one used when there is no --user
-  --remove NAME   delete the user and everything they have (files, activities, ...); if
+  --delete NAME   delete the user and everything they have (files, activities, ...); if
                   they were the default another user becomes it.  Needs -f; on a terminal
                   there are then 5 seconds in which to press Ctrl-C.  (To keep the user
                   and delete only their data: `nch empty --user NAME`.)
@@ -99,30 +99,30 @@ proc userLines*(st: Store): seq[string] {.raises: [StoreError].} =
                 "  " & r[3]).strip(leading = false)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
-  ## Entry point for `nch user ARGS`; returns the exit status.
+  ## Entry point for `nch users ARGS`; returns the exit status.
   let p = parseArgs(args)
   if p.help:
     stdout.say usage
     return exitOk
   if p.problem.len > 0:
-    return usageError("nch user", usage, p.problem)
+    return usageError("nch users", usage, p.problem)
   if g.user.len > 0:
-    return usageError("nch user", usage,
-      "--user goes after the command here: nch user --edit " & g.user & " ... (the users are named there)")
+    return usageError("nch users", usage,
+      "--user goes after the command here: nch users --edit " & g.user & " ... (the users are named there)")
   var st: Store
   try:
     st = openStore(g)
   except StoreError as e:
-    return failure("nch user", e.msg)
+    return failure("nch users", e.msg)
   try:
     if p.list:
       for l in userLines(st): stdout.say l & "\n"
       return exitOk
-    if p.remove:
+    if p.delete:
       let id = findUser(st, p.name)
       let what = describe(countActivities(st.path, p.name), p.name)
       if not p.force:
-        return failure("nch user", "would delete " & what & " from " & st.path & "; use -f to confirm")
+        return failure("nch users", "would delete " & what & " from " & st.path & "; use -f to confirm")
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
       removeUser(st, id)
@@ -131,7 +131,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     if p.create:
       if exists(st, p.name):
-        return failure("nch user", "there is a user called '" & p.name & "' already")
+        return failure("nch users", "there is a user called '" & p.name & "' already")
       guard: st.db.exec(sql"insert into user(name) values (?)", p.name)
       let id = findUser(st, p.name)
       var said = "made the user " & p.name
@@ -168,11 +168,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stdout.say said & "\n"
     if p.rename.len > 0:
       if exists(st, p.rename):
-        return failure("nch user", "there is a user called '" & p.rename & "' already")
+        return failure("nch users", "there is a user called '" & p.rename & "' already")
       guard: st.db.exec(sql"update user set name = ? where id = ?", p.rename, id)
       let said = p.name & " is now called " & p.rename
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     exitOk
   except StoreError as e:
-    failure("nch user", e.msg)
+    failure("nch users", e.msg)
