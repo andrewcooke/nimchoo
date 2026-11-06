@@ -7,7 +7,6 @@ import nimchoo/modules
 import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand
 import nimchoo/selection/criteria
-import nimchoo/ui/[logfile, style, vocabulary]
 
 let dir = getTempDir() / "nch-test-select"
 
@@ -516,7 +515,7 @@ suite "list: what is shown":
     let r = shown(db, "--newest", "1", "--select")
     check r.saved == 1
     check r.lines.texts[^1] == "saved 1 activity as the selection"
-    check r.lines[^1][0].look == look(leSaved)           # green, like the log event
+    check r.lines[^1][0].look == Look(colour: yellow)           # yellow: the selection
     let st = openStore(db, allFragments)
     defer: st.close()
     let again = showSelection(st, Criteria(), utc())
