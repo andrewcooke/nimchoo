@@ -20,6 +20,7 @@ type
     category*: string
     lengthM*, gainM*, gradient*: float
     efforts*: int
+    unique*: int                   ## of the efforts, those of rides that did not match any other climb of the group
     retired*: bool
     hideable*: bool                ## it is a near copy of a climb that has more efforts, so it may be a duplicate of it
 
@@ -84,6 +85,17 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     g.members.sort(proc (a, b: Member): int =
       result = cmp(b.efforts, a.efforts)
       if result == 0: result = cmp(a.id, b.id))
+    # the efforts that are this climb's alone: the ride has no effort on any other climb of the group
+    for m in g.members.mitems:
+      var others: seq[string]
+      for o in g.members:
+        if o.id != m.id: others.add $o.id
+      guard:
+        try:
+          m.unique = parseInt(st.db.getValue(sql("select count(*) from effort e where e.sector_id = ? and not exists " &
+            "(select 1 from effort x where x.activity_id = e.activity_id and x.sector_id in (" & others.join(",") & "))"), m.id))
+        except ValueError:
+          raiseStore("a bad count")
     result.add g
   result.sort(proc (a, b: Group): int =
     var ea, eb = 0
@@ -92,7 +104,8 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     result = cmp(eb, ea))
 
 func duplicateLines*(groups: seq[Group]): seq[string] =
-  ## The groups, each a block of lines: the climbs with their length, gain and efforts, the most ridden first; then, at
+  ## The groups, each a block of lines: the climbs with their length, gain and efforts (and how many of them are unique to
+  ## the climb: no other climb of the group was matched by that ride), the most ridden first; then, at
   ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0: return @["no climbs overlap: nothing to tidy"]
   result.add "climbs that are nearly the same (at least 80% of each is within 25 m of the other), the most ridden first:"
@@ -103,7 +116,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
     for m in g.members:
       cells.add climbCells(ClimbInfo(name: cut(m.name), category: m.category, lengthM: m.lengthM, gainM: m.gainM,
                                      gradient: m.gradient)) &
-                @[$m.efforts & (if m.efforts == 1: " effort" else: " efforts"), (if m.retired: "retired" else: "")]
+                @[$m.unique & "/" & $m.efforts & (if m.efforts == 1: " effort unique" else: " efforts unique"), (if m.retired: "retired" else: "")]
     for l in columns(cells, {2, 3, 4, 5}): result.add "  " & l
     for m in g.members:
       if m.hideable and not m.retired: anyToHide = true

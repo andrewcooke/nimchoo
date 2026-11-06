@@ -15,9 +15,10 @@ suite "climbs: duplicates":
     let groups = duplicateGroups(s)
     check groups.len == 1 and groups[0].members.len == 2
     check groups[0].members[0].efforts == 3 and groups[0].members[1].efforts == 1      # the shorter one is the most ridden
+    check groups[0].members[0].unique == 2 and groups[0].members[1].unique == 0         # the two short rides matched only it; the long ride both
     let lines = duplicateLines(groups)
     check lines[0].startsWith("climbs that are nearly the same")
-    check lines.anyIt(it.contains("3 efforts")) and lines.anyIt(it.contains("1 effort"))
+    check lines.anyIt(it.contains("2/3 efforts unique")) and lines.anyIt(it.contains("0/1 effort unique"))      # (the long ride also matched the short climb)
     check lines.filterIt(it.startsWith("hide:")) == @["hide: nch climbs --edit 'NAME' --retire"]      # one line, at the end, with NAME as the stand-in
     check lines[^1].startsWith("hide:")
     check groups[0].members[1].hideable and not groups[0].members[0].hideable
