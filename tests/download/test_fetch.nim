@@ -45,7 +45,8 @@ suite "download: the sources":
     check urlFor(geonamesCountry, "CL") == chile
     check fileFor(geonamesCountry, "CL") == "CL.zip"
     check entryFor(geonamesCountry, "CL") == "CL.txt"
-    check urlFor(geonamesOutlines) == "https://download.geonames.org/export/dump/shapes_simplified_low.json.zip"
+    check urlFor(naturalEarthCountries) == "https://naturalearth.s3.amazonaws.com/50m_cultural/ne_50m_admin_0_countries.zip"
+    check entryFor(naturalEarthCountries) == "ne_50m_admin_0_countries.shp"
     check entryFor(geonamesCountryInfo) == ""
 
 suite "download: fetching":

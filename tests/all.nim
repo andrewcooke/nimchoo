@@ -22,7 +22,7 @@ import ./climbs/[test_detect, test_profile, test_match, test_pipeline, test_sche
                     test_params as climbsParams, test_edit as climbsEdit]
 import ./landmark/[test_params as landmarkParams, test_landmarks, test_command as landmarkCommand]
 import ./download/test_fetch
-import ./names/[test_outlines, test_countries, test_features, test_climbpick, test_climb, test_lookup, test_shape, test_activity]
+import ./names/[test_countryinfo, test_countries, test_features, test_climbpick, test_climb, test_lookup, test_shape, test_activity]
 import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
 import ./user/[test_params, test_command, test_wipe]
 import ./bundle/test_unpack

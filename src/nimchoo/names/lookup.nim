@@ -3,7 +3,7 @@
 ## What a name should be for a climb, an activity, ... is a rule of its own (climb.nim, and the others to come),
 ## made from these.
 
-import std/[math, options, strutils]
+import std/[math, strutils]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
@@ -39,17 +39,18 @@ func boxAround*(lons, lats: openArray[float], marginM: float): Box =
   (lon0: b.lon0 - dLon, lat0: max(-90.0, b.lat0 - dLat), lon1: b.lon1 + dLon, lat1: min(90.0, b.lat1 + dLat))
 
 proc countriesIn(n: Names, box: Box): seq[string] {.raises: [StoreError, DownloadError].} =
-  ## The countries the box touches: the country of its middle, corners and edge middles (so a box over a border
-  ## takes both).  Positions are put back into -180 .. 180 first.
-  let midLon = (box.lon0 + box.lon1) / 2
-  let midLat = (box.lat0 + box.lat1) / 2
-  for (lon, lat) in [(midLon, midLat), (box.lon0, box.lat0), (box.lon0, box.lat1), (box.lon1, box.lat0),
-                     (box.lon1, box.lat1), (box.lon0, midLat), (box.lon1, midLat), (midLon, box.lat0), (midLon, box.lat1)]:
-    var l = lon
-    while l >= 180.0: l -= 360.0
-    while l < -180.0: l += 360.0
-    let iso = n.countryAt(l, max(-90.0, min(90.0, lat)))
-    if iso.isSome and iso.get notin result: result.add iso.get
+  ## The countries the box touches: those of the cells it covers (a cell on a border has both countries, so a box over
+  ## a border takes both).  The cells are worked out once and kept (see countries.nim).
+  let cx0 = int(floor(box.lon0 * cellsPerDegree.float))
+  let cx1 = int(floor(box.lon1 * cellsPerDegree.float))
+  let cy0 = max(-90 * cellsPerDegree, int(floor(box.lat0 * cellsPerDegree.float)))
+  let cy1 = min(90 * cellsPerDegree - 1, int(floor(box.lat1 * cellsPerDegree.float)))
+  if (cx1 - cx0 + 1) * (cy1 - cy0 + 1) > maxCells:
+    return n.allCountries()
+  for cx in cx0 .. cx1:
+    for cy in cy0 .. cy1:
+      for iso in n.countriesOfCell(wrapCell(cx), cy):
+        if iso notin result: result.add iso
 
 proc prepare*(n: Names, lons, lats: openArray[float], marginM = defaultMarginM): Prepared
     {.raises: [StoreError, DownloadError].} =

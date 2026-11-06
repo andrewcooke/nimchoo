@@ -4,5 +4,8 @@ download.geonames.org.  GeoNames data are licensed under the Creative Commons At
 (https://creativecommons.org/licenses/by/4.0/).  They are kept in the cache directory (`data/geonames/`), and the
 parts used are in the database; nimchoo itself carries none of them.
 
+The outlines of the countries, used to tell which country a place is in, are Natural Earth's (https://www.naturalearthdata.com),
+which is in the public domain; they are downloaded when needed and kept in the cache directory (`data/naturalearth/`).
+
 Map tiles shown by `nch heatmap --web` are loaded by the browser from OpenStreetMap
 (c) OpenStreetMap contributors, and Leaflet (BSD 2-Clause) from unpkg.com.

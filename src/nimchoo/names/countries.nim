@@ -1,17 +1,18 @@
-## Which country a position is in.  The outlines are fetched the first time they are wanted
-## (download/), read into the `country` table, and kept; after that this works offline.  A position
-## inside no outline (the sea, a small island the simplified outlines leave out) is in no country.
+## Which countries are round a place.  The outlines (Natural Earth's) are fetched the first time they are wanted
+## (download/), read into the `country` table by SpatiaLite, and kept; after that this works offline.  The question
+## is asked of a cell of the map (a quarter of a degree square): which countries' outlines touch it?  The answer is
+## worked out once by SpatiaLite and kept in `country_cell`, so asking again is a lookup.  A cell of open sea has none.
 ##
 ## `Names` is the handle the module's functions share: the store, the directory the downloads go in,
 ## the network and disk (a made-up one in tests) and where events are told.
 
-import std/[options, os, strutils, tables]
+import std/[math, options, os, strutils]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../download/[fetch, sources]
 import ../errors
 import ../zipbytes
-import ./outlines
+import ./countryinfo
 
 {.push raises: [].}
 
@@ -22,7 +23,6 @@ type Names* = object
   env*: Env
   sink*: Sink
   offline*: bool                       ## `--offline`: no names are had; every question is answered "nothing"
-  shapes: ref Table[string, Shape]     ## the outlines read from the table, by country: kept
   lastFailure: ref string              ## what the last failed download said (for the error that is raised)
 
 func newNames*(st: Store, dataDir: string, env: Env, sink: Sink): Names =
@@ -31,7 +31,7 @@ func newNames*(st: Store, dataDir: string, env: Env, sink: Sink): Names =
   let told = proc(ev: DownloadEvent) {.closure, raises: [].} =
     if ev.kind == deFailed: last[] = describe(ev)
     sink(ev)
-  Names(st: st, dataDir: dataDir, env: env, sink: told, shapes: new(Table[string, Shape]), lastFailure: last)
+  Names(st: st, dataDir: dataDir, env: env, sink: told, lastFailure: last)
 
 proc couldNot*(n: Names, what: string): ref DownloadError =
   ## The error for something that could not be had: what was wanted, and why (the last failure told).
@@ -43,39 +43,75 @@ proc refuse(n: Names, src: Source, why: string, path: string) =
   try: removeFile(path)
   except OSError: discard
 
+const
+  cellsPerDegree* = 4              ## a cell is a quarter of a degree square
+  neStem = "ne_50m_admin_0_countries"
+  maxCells* = 4000                 ## a box over more cells than this (the poles) takes every country
+
+proc loadOutlines(n: Names, zip: string) {.raises: [StoreError, ZipError, IOError, OSError].} =
+  ## Put the shapefile of the zip beside the data (SpatiaLite reads a shapefile from files), make the countries from
+  ## it and the list, and remove the files again.
+  let work = n.dataDir / "naturalearth" / "work"
+  createDir(work)
+  defer:
+    try: removeDir(work)
+    except OSError: discard
+  for ext in [".shp", ".shx", ".dbf"]:
+    writeFile(work / (neStem & ext), readEntry(zip, neStem & ext, 64 * 1024 * 1024))
+  guard:
+    n.st.db.exec(sql("create virtual table temp.ne_shapes using VirtualShape('" &
+                     (work / neStem).replace("'", "''") & "', 'UTF-8', 4326)"))
+
+proc dropOutlines(n: Names) =
+  try:
+    n.st.db.exec(sql"drop table if exists temp.ne_shapes")
+  except DbError: discard
+
 proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
   ## The `country` table is filled: if it is not, fetch the outlines and the list of countries and fill it.
   ## A DownloadError (and the reason told to the sink) if that cannot be done.
   guard:
-    if n.st.db.getValue(sql"select count(*) from country") != "0": return
-  let outlinesPath = fetchSource(n.env, n.sink, n.dataDir, geonamesOutlines)
+    if n.st.db.getValue(sql"select count(*) from country where geom is not null") != "0": return
+  let outlinesPath = fetchSource(n.env, n.sink, n.dataDir, naturalEarthCountries)
   let infoPath = fetchSource(n.env, n.sink, n.dataDir, geonamesCountryInfo)
   if outlinesPath.isNone or infoPath.isNone: raise n.couldNot("the countries")
   n.sink(DownloadEvent(kind: deReading, source: geonamesCountryInfo.name, url: urlFor(geonamesCountryInfo),
                        label: labelFor(geonamesCountryInfo)))
   defer: n.sink(DownloadEvent(kind: deFinished, source: geonamesCountryInfo.name))
   var countries: seq[CountryInfo]
-  var shapes: Table[int64, string]
   try:
     countries = parseCountryInfo(readFile(infoPath.get))
-    for o in parseOutlines(readEntry(readFile(outlinesPath.get), geonamesOutlines.zipEntry)):
-      shapes[o.geonameId] = o.wkt
-  except ValueError, ZipError, IOError, OSError:
-    n.refuse(geonamesOutlines, "the outlines cannot be read (" & getCurrentExceptionMsg() & ")", outlinesPath.get)
+  except IOError, OSError:
+    n.refuse(geonamesCountryInfo, "the list of countries cannot be read (" & getCurrentExceptionMsg() & ")", infoPath.get)
     raise n.couldNot("the countries")
   if countries.len == 0:
     n.refuse(geonamesCountryInfo, "no countries in the list", infoPath.get)
     raise n.couldNot("the countries")
+  var loaded = false
+  try:
+    n.loadOutlines(readFile(outlinesPath.get))
+    loaded = true
+  except ZipError, IOError, OSError:
+    n.refuse(naturalEarthCountries, "the outlines cannot be read (" & getCurrentExceptionMsg() & ")", outlinesPath.get)
+  except StoreError:
+    n.refuse(naturalEarthCountries, "the outlines cannot be read (" & getCurrentExceptionMsg() & ")", outlinesPath.get)
+  if not loaded: raise n.couldNot("the countries")
+  defer: n.dropOutlines()
   n.st.begin()
   var done = false
   try:
-    let insert = prepareStmt(n.st.db, "insert or replace into country(iso, name, geoname_id, geom) " &
-      "values (?, ?, ?, GeomFromText(nullif(?, ''), 4326))")
+    # a country is matched by its ISO code: Natural Earth's main field is -99 for a few (France, Norway), the real
+    # one is in the second field
+    # (an upsert and not a replace: a replace would delete the row, and with it the places and cells read for the country)
+    let insert = prepareStmt(n.st.db, "insert into country(iso, name, geoname_id, geom) " &
+      "values (?, ?, ?, (select CastToMultiPolygon(Geometry) from temp.ne_shapes " &
+      "where coalesce(nullif(ISO_A2_EH, '-99'), nullif(ISO_A2, '-99')) = ? limit 1)) " &
+      "on conflict(iso) do update set name = excluded.name, geoname_id = excluded.geoname_id, geom = excluded.geom")
     for c in countries:
       insert.bindText(1, c.iso)
       insert.bindText(2, c.name)
       insert.bindInt(3, c.geonameId)
-      insert.bindText(4, shapes.getOrDefault(c.geonameId))
+      insert.bindText(4, c.iso)
       insert.run()
     n.st.commit()
     done = true
@@ -84,21 +120,33 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
 
 func degrees(x: float): string = formatFloat(x, ffDecimal, 7)
 
-proc countryAt*(n: Names, lon, lat: float): Option[string] {.raises: [StoreError, DownloadError].} =
-  ## The ISO code of the country that holds the position: by the outlines; none for the sea.
+func wrapCell*(cx: int): int =
+  ## A cell's longitude put back into -180 .. 180 degrees (in cells).
+  let width = 360 * cellsPerDegree
+  ((cx + width div 2) mod width + width) mod width - width div 2
+
+proc countriesOfCell*(n: Names, cx, cy: int): seq[string] {.raises: [StoreError, DownloadError].} =
+  ## The countries whose outlines touch the cell (cx, cy in quarter degrees from the south-west corner): looked up in
+  ## `country_cell`, or worked out by SpatiaLite the first time and kept.  None for open sea.
   n.ensureCountries()
-  # the countries whose boxes hold the point (the index), then the outlines decide: they are tested here
-  # and not by SpatiaLite, whose geometry library refuses many of these simplified outlines as invalid
-  var candidates: seq[string]
+  let x0 = cx.float / cellsPerDegree.float
+  let y0 = cy.float / cellsPerDegree.float
+  let x1 = x0 + 1.0 / cellsPerDegree.float
+  let y1 = y0 + 1.0 / cellsPerDegree.float
   guard:
-    for r in n.st.db.fastRows(sql("select iso from country where rowid in (select ROWID from " &
-        "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and search_frame = " &
-        "BuildMbr(" & degrees(lon) & ", " & degrees(lat) & ", " & degrees(lon) & ", " & degrees(lat) &
-        ")) order by iso")):
-      candidates.add r[0]
-  for iso in candidates:
-    if iso notin n.shapes[]:
-      guard:
-        n.shapes[][iso] = parseShape(n.st.db.getValue(sql"select AsText(geom) from country where iso = ?", iso))
-    if n.shapes[].getOrDefault(iso).contains(lon, lat): return some(iso)
-  none(string)
+    if n.st.db.getValue(sql"select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?", cx, cy) == "0":
+      let mbr = "BuildMbr(" & degrees(x0) & ", " & degrees(y0) & ", " & degrees(x1) & ", " & degrees(y1)
+      for r in n.st.db.fastRows(sql("select iso from country where geom is not null and rowid in (select ROWID from " &
+          "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and search_frame = " & mbr & ")) " &
+          "and Intersects(geom, " & mbr & ", 4326)) = 1 order by iso")):
+        n.st.db.exec(sql"insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)", cx, cy, r[0])
+      n.st.db.exec(sql"insert or ignore into country_cell_done(cell_lon, cell_lat) values (?, ?)", cx, cy)
+    for r in n.st.db.fastRows(sql"select country from country_cell where cell_lon = ? and cell_lat = ? order by country", cx, cy):
+      result.add r[0]
+
+proc allCountries*(n: Names): seq[string] {.raises: [StoreError, DownloadError].} =
+  ## Every country that has an outline (for a box too big to go cell by cell).
+  n.ensureCountries()
+  guard:
+    for r in n.st.db.fastRows(sql"select iso from country where geom is not null order by iso"):
+      result.add r[0]

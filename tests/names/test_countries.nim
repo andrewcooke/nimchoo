@@ -1,19 +1,17 @@
-import std/[options, os, sequtils, strutils, unittest]
+import std/[math, options, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/download/[fetch, sources]
 import nimchoo/errors
 import nimchoo/modules
 import nimchoo/names/countries
-import ../support/zips
+import ../support/[shapefile, zips]
 
-const outlines = """{"type":"FeatureCollection","features":[
- {"type":"Feature","properties":{"geoNameId":"3895114"},"geometry":{"type":"Polygon",
-   "coordinates":[[[-76.0,-56.0],[-69.5,-56.0],[-69.5,-17.0],[-76.0,-17.0],[-76.0,-56.0]]]}},
- {"type":"Feature","properties":{"geoNameId":"3865483"},"geometry":{"type":"Polygon",
-   "coordinates":[[[-69.5,-56.0],[-53.0,-56.0],[-53.0,-21.0],[-69.5,-21.0],[-69.5,-56.0]]]}},
- {"type":"Feature","properties":{"geoNameId":"2510769"},"geometry":{"type":"Polygon",
-   "coordinates":[[[-9.5,37.0],[-6.2,42.1],[-6.2,37.0],[-9.5,42.1],[-9.5,37.0]]]}}]}"""   # (a bow tie: invalid)
+let shapes = [
+  CountryShape(iso: "CL", isoEh: "CL", name: "Chile", rects: @[(-76.0, -56.0, -69.5, -17.0)]),
+  CountryShape(iso: "AR", isoEh: "AR", name: "Argentina", rects: @[(-69.5, -56.0, -53.0, -21.0)]),
+  CountryShape(iso: "PT", isoEh: "PT", name: "Portugal", rects: @[(-9.5, 37.0, -6.2, 42.1), (-17.3, 32.6, -16.6, 33.1)]),
+  CountryShape(iso: "-99", isoEh: "FR", name: "France", rects: @[(-5.0, 43.0, 8.0, 51.0)])]    # (the code is in the second field)
 
 proc infoLine(iso, name: string, id: int): string =
   var cols = newSeq[string](19)
@@ -23,14 +21,15 @@ proc infoLine(iso, name: string, id: int): string =
   cols.join("\t")
 
 let countryInfo = "# comment\n" & infoLine("CL", "Chile", 3895114) & "\n" & infoLine("AR", "Argentina", 3865483) &
-  "\n" & infoLine("PT", "Portugal", 2510769) & "\n" & infoLine("CW", "Curacao", 7626836) & "\n"
+  "\n" & infoLine("PT", "Portugal", 2510769) & "\n" & infoLine("CW", "Curacao", 7626836) & "\n" &
+  infoLine("FR", "France", 3017382) & "\n"
 
 type Net = ref object
   gets: seq[string]
   broken: bool
 
 proc envOf(net: Net): Env =
-  let outlinesUrl = urlFor(geonamesOutlines)
+  let outlinesUrl = urlFor(naturalEarthCountries)
   let infoUrl = urlFor(geonamesCountryInfo)
   result.fetcher.head = proc(url: string): Option[int64] {.closure, raises: [].} = none(int64)
   result.fetcher.get = proc(url: string): FetchResult {.closure, raises: [].} =
@@ -39,7 +38,7 @@ proc envOf(net: Net): Env =
     if url == outlinesUrl:
       try:
         return FetchResult(ok: true, status: 200,
-                           body: makeZip([("shapes_simplified_low.json", outlines)]))
+                           body: naturalEarthZip(shapes))
       except CatchableError:
         return FetchResult(ok: false, message: "cannot make the zip")
     if url == infoUrl:
@@ -52,7 +51,14 @@ proc fresh(name: string): tuple[st: Store, dir: string] =
   removeDir(top)
   (openStore(top / "x.db", allFragments), top / "data")
 
-suite "names: which country":
+func cellOf(lon, lat: float): (int, int) =
+  (int(floor(lon * cellsPerDegree.float)), int(floor(lat * cellsPerDegree.float)))
+
+proc countries(n: Names, lon, lat: float): seq[string] =
+  let (cx, cy) = cellOf(lon, lat)
+  countriesOfCell(n, cx, cy)
+
+suite "names: which countries":
   test "the outlines are fetched the first time, kept in the table, and used":
     let net = Net()
     let (st, dir) = fresh("outlines")
@@ -60,25 +66,45 @@ suite "names: which country":
     var events: seq[DownloadEvent]
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     check st.db.getValue(sql"select count(*) from country") == "0"
-    check countryAt(names, -70.65, -33.45) == some("CL")             # Santiago
-    check net.gets.len == 2 and events.filterIt(it.kind notin {deReading, deFinished}).len == 4                       # the outlines, and the list: each said, then done
-    check st.db.getValue(sql"select count(*) from country") == "4"
+    check names.countries(-70.65, -33.45) == @["CL"]                  # Santiago
+    check net.gets.len == 2 and events.filterIt(it.kind notin {deReading, deFinished}).len == 4       # the outlines, and the list: each said, then done
+    check st.db.getValue(sql"select count(*) from country") == "5"
     check st.db.getValue(sql"select name from country where iso = 'AR'") == "Argentina"
     check st.db.getValue(sql"select count(*) from country where geom is null") == "1"       # Curacao: no outline
-    check countryAt(names, -68.83, -32.89) == some("AR")              # Mendoza
-    check countryAt(names, -69.6, -40.0) == some("CL")                # either side of the border (at -69.5)
-    check countryAt(names, -69.4, -40.0) == some("AR")
+    check st.db.getValue(sql"select count(*) from country where iso = 'FR' and geom is not null") == "1"   # (found by the second code)
+    check names.countries(-68.83, -32.89) == @["AR"]                  # Mendoza
+    check names.countries(-9.14, 38.72) == @["PT"]                    # Lisbon
+    check names.countries(2.35, 48.85) == @["FR"]                     # Paris
     check net.gets.len == 2                                           # no more fetching
+    check not fileExists(dir / "naturalearth" / "work" / "ne_50m_admin_0_countries.shp")    # (the unpacked files are removed)
 
-  test "a position inside no outline takes the country of the nearest place carried in the program":
+  test "a cell on a border has both countries; a cell of open sea has none; the answers are kept":
     let net = Net()
-    let (st, dir) = fresh("fallback")
+    let (st, dir) = fresh("cells")
     defer: st.close()
     let names = newNames(st, dir, envOf(net), silent())
-    check countryAt(names, -9.14, 38.72) == some("PT")               # Lisbon
-    check countryAt(names, -71.9, -33.1) == some("CL")               # in the sea off Valparaiso
-    check countryAt(names, -120.0, -30.0).isNone                      # the middle of the Pacific: nowhere
-    check countryAt(names, -70.65, -33.45) == some("CL")
+    check names.countries(-69.6, -40.0) == @["AR", "CL"]               # the cell holding the border at -69.5
+    check names.countries(-69.9, -40.0) == @["CL"]                     # a cell away from it
+    check names.countries(-69.1, -40.0) == @["AR"]
+    check names.countries(-120.0, -30.0).len == 0                      # the Pacific
+    check st.db.getValue(sql"select count(*) from country_cell_done") == "4"
+    check st.db.getValue(sql"select count(*) from country_cell") == "4"      # (two for the border cell, none for the sea)
+    check names.countries(-120.0, -30.0).len == 0 and names.countries(-69.6, -40.0) == @["AR", "CL"]
+    check st.db.getValue(sql"select count(*) from country_cell_done") == "4"
+  test "a database with the old outlines forgotten (geom null) reads the new ones and keeps what hangs on a country":
+    let net = Net()
+    let (st, dir) = fresh("migrate")
+    defer: st.close()
+    st.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)")
+    st.db.exec(sql"insert into coverage(country, cell_lon, cell_lat, loaded_at, features) values ('CL', -71, -34, 1, 1)")
+    st.db.exec(sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))")
+    let names = newNames(st, dir, envOf(net), silent())
+    check names.countries(-70.65, -33.45) == @["CL"]
+    check st.db.getValue(sql"select count(*) from country") == "5"
+    check st.db.getValue(sql"select count(*) from coverage") == "1" and st.db.getValue(sql"select count(*) from feature") == "1"
+  test "cells wrap round the antimeridian":
+    check wrapCell(-720) == -720 and wrapCell(719) == 719
+    check wrapCell(720) == -720 and wrapCell(-721) == 719 and wrapCell(1440) == 0
 
   test "without the network it is an error that says why, and nothing is marked as done":
     let net = Net(broken: true)
@@ -87,7 +113,7 @@ suite "names: which country":
     var events: seq[DownloadEvent]
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     try:
-      discard countryAt(names, -70.65, -33.45)
+      discard names.countries(-70.65, -33.45)
       check false
     except DownloadError as e:
       check "cannot get the countries" in e.msg and "cannot reach" in e.msg
@@ -95,21 +121,21 @@ suite "names: which country":
     check events.len >= 2 and events[0].kind == deStarting and events[1].kind == deFailed and "cannot reach" in events[1].message
     # ... and when the network is back, the next call fills the table
     net.broken = false
-    check countryAt(names, -68.83, -32.89) == some("AR")
-    check st.db.getValue(sql"select count(*) from country") == "4"
+    check names.countries(-68.83, -32.89) == @["AR"]
+    check st.db.getValue(sql"select count(*) from country") == "5"
 
   test "files that cannot be read are said, deleted, and fetched again next time":
     let net = Net()
     let (st, dir) = fresh("unreadable")
     defer: st.close()
-    createDir(dir / "geonames")
-    writeFile(dir / "geonames" / "shapes_simplified_low.json.zip",
-              makeZip([("shapes_simplified_low.json", "not json")]))
+    createDir(dir / "naturalearth")
+    writeFile(dir / "naturalearth" / "ne_50m_admin_0_countries.zip", makeZip([("ne_50m_admin_0_countries.shp", "not a shapefile")]))
     var events: seq[DownloadEvent]
     let names = newNames(st, dir, envOf(net), proc(ev: DownloadEvent) {.closure, raises: [].} = events.add ev)
     expect DownloadError:
       ensureCountries(names)
     let said = events.filterIt(it.kind notin {deReading, deFinished})
     check said.len >= 1 and said[^1].kind == deFailed and "cannot be read" in said[^1].message
-    check not fileExists(dir / "geonames" / "shapes_simplified_low.json.zip")
+    check not fileExists(dir / "naturalearth" / "ne_50m_admin_0_countries.zip")
     ensureCountries(names)                                            # the good file is fetched
+    check st.db.getValue(sql"select count(*) from country") == "5"

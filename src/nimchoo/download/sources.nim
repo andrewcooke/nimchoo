@@ -23,12 +23,13 @@ const
     why: "names of places and mountains in {arg} to name climbs and activities", label: "locations in {arg}")
     ## One country's places and features, by its ISO code ("CL"); the United States is the largest, 71 MB.
 
-  geonamesOutlines* = Source(
-    name: "geonames", url: "https://download.geonames.org/export/dump/shapes_simplified_low.json.zip",
-    file: "shapes_simplified_low.json.zip", zipEntry: "shapes_simplified_low.json",
-    maxBytes: 20 * 1024 * 1024, attribution: geonamesCredit,
+  naturalEarthCountries* = Source(
+    name: "naturalearth", url: "https://naturalearth.s3.amazonaws.com/50m_cultural/ne_50m_admin_0_countries.zip",
+    file: "ne_50m_admin_0_countries.zip", zipEntry: "ne_50m_admin_0_countries.shp",
+    maxBytes: 20 * 1024 * 1024, attribution: "Natural Earth (https://www.naturalearthdata.com), public domain",
     why: "country shapes, to infer country from position", label: "country outlines")
-    ## The simplified outlines of the countries (1.3 MB), keyed by GeoNames id.
+    ## The outlines of the countries (1:50m, a shapefile in a zip of 0.8 MB): public domain, and valid polygons, which
+    ## the GeoNames outlines were not (GEOS calls more than half of them invalid).
 
   geonamesCountryInfo* = Source(
     name: "geonames", url: "https://download.geonames.org/export/dump/countryInfo.txt",
@@ -36,7 +37,7 @@ const
     why: "the list of countries, for their names and codes", label: "countries")
     ## The countries: ISO code, name, GeoNames id (32 KB).
 
-  allSources* = [geonamesCountry, geonamesOutlines, geonamesCountryInfo]
+  allSources* = [geonamesCountry, naturalEarthCountries, geonamesCountryInfo]
 
 func fill(pattern, arg: string): string =
   var i = 0

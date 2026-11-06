@@ -5,7 +5,7 @@ import std/[options, os, strutils]
 import nimchoo/db/store
 import nimchoo/download/[fetch, sources]
 import nimchoo/modules
-import ./zips
+import ./[shapefile, zips]
 
 proc gn*(id: int, name: string, lat, lon: float, cls, code: string, pop = 0): string =
   ## A line of a GeoNames file: 19 columns.
@@ -29,9 +29,8 @@ let road* = gn(2, "Ruta 60", -32.8, -70.2, "R", "RD")
 let spring* = gn(3, "Vertiente Fria", -38.37, -73.9, "H", "SPNG")
 let barrio* = gn(4, "Lo Barnechea", -33.35, -70.52, "P", "PPLX", 0)
 
-const outlines* = """{"type":"FeatureCollection","features":[
- {"type":"Feature","properties":{"geoNameId":"3895114"},"geometry":{"type":"Polygon",
-   "coordinates":[[[-76.0,-56.0],[-69.5,-56.0],[-69.5,-17.0],[-76.0,-17.0],[-76.0,-56.0]]]}}]}"""
+let chileShape* = CountryShape(iso: "CL", isoEh: "CL", name: "Chile", rects: @[(-76.0, -56.0, -69.5, -17.0)])
+  ## (a rectangle: the whole of Chile for the tests of the names)
 
 proc infoLine*(iso, name: string, id: int): string =
   var cols = newSeq[string](19)
@@ -49,8 +48,8 @@ proc envOf*(net: Net): Env =
   result.fetcher.get = proc(url: string): FetchResult {.closure, raises: [].} =
     net.gets.add url
     try:
-      if url == urlFor(geonamesOutlines):
-        return FetchResult(ok: true, status: 200, body: makeZip([("shapes_simplified_low.json", outlines)]))
+      if url == urlFor(naturalEarthCountries):
+        return FetchResult(ok: true, status: 200, body: naturalEarthZip([chileShape]))
       if url == urlFor(geonamesCountryInfo):
         return FetchResult(ok: true, status: 200, body: infoLine("CL", "Chile", 3895114) & "\n" & infoLine("AR", "Argentina", 3865483) & "\n")
       if url == urlFor(geonamesCountry, "CL"):
