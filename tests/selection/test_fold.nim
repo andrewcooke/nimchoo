@@ -4,7 +4,8 @@ import nimchoo/selection/fold
 
 proc matches(pattern, value: string): bool =
   let db = open(":memory:", "", "", "")
-  defer: db.close()
+  defer:
+    db.close()
   db.getValue(sql"select ? glob ?", value, pattern) == "1"
 
 suite "list: finding text without regard to case or accents":
@@ -47,6 +48,9 @@ suite "list: folding in the program":
     check foldText("") == ""
     check foldText("Москва") == "москва"
   test "it agrees with the pattern: what the pattern finds, the folded text contains":
-    for (value, typed) in [("San José de Maipo", "san jose"), ("Peñalolén", "PENALOLEN"), ("Cerro Calán (1/2)", "calan (1")]:
+    for (value, typed) in [
+      ("San José de Maipo", "san jose"),
+      ("Peñalolén", "PENALOLEN"),
+      ("Cerro Calán (1/2)", "calan (1"),
+    ]:
       check foldText(value).contains(foldText(typed))
-

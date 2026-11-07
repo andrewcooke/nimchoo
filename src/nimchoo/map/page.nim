@@ -22,15 +22,25 @@ import ../ui/palette
 const pageTemplate* = staticRead("page.html")
 const templateBundle* = Bundle(name: "templates/map.html", data: pageTemplate)
 const cssBundle* = Bundle(name: "templates/map.css", data: staticRead("page.css"))
-const styleBundle* = Bundle(name: "templates/map-style.json", data: staticRead("page-style.json"))
+const styleBundle* =
+  Bundle(name: "templates/map-style.json", data: staticRead("page-style.json"))
 
-const requiredStyle = [("routes", "color"), ("routes", "weight"), ("routes", "opacity"), ("routes", "spread_m"),
-                       ("climbs", "color"), ("climbs", "weight"), ("climbs", "opacity"), ("climbs", "gap_px"),
-                       ("climbs", "lane_px")]
+const requiredStyle = [
+  ("routes", "color"),
+  ("routes", "weight"),
+  ("routes", "opacity"),
+  ("routes", "spread_m"),
+  ("climbs", "color"),
+  ("climbs", "weight"),
+  ("climbs", "opacity"),
+  ("climbs", "gap_px"),
+  ("climbs", "lane_px"),
+]
 
 func paletteValues*(): seq[(string, Value)] =
   ## The palette's colours as template values: {{white}} {{grey}} {{red}} {{green}} {{yellow}} {{blue}}.
-  for c in Color: result.add ($c, text(hex(c)))
+  for c in Color:
+    result.add ($c, text(hex(c)))
 
 proc checkedStyle*(styleText: string): string {.raises: [TemplateError].} =
   ## The style text if it is JSON with what the page reads; else a TemplateError that says what is wrong.
@@ -40,18 +50,37 @@ proc checkedStyle*(styleText: string): string {.raises: [TemplateError].} =
   except CatchableError:
     raiseTemplate("map-style.json is not valid JSON: " & getCurrentExceptionMsg())
   for (group, key) in requiredStyle:
-    if j{group, key}.isNil: raiseTemplate("map-style.json has no " & group & "." & key)
-  if j{"smooth_rounds"}.isNil: raiseTemplate("map-style.json has no smooth_rounds")
+    if j{group, key}.isNil:
+      raiseTemplate("map-style.json has no " & group & "." & key)
+  if j{"smooth_rounds"}.isNil:
+    raiseTemplate("map-style.json has no smooth_rounds")
   styleText
 
-proc renderPage*(source: string, libs: seq[(string, Value)], dataName, title: string, css = "", style = "{}"):
-    Option[string] {.raises: [TemplateError].} =
+proc renderPage*(
+    source: string,
+    libs: seq[(string, Value)],
+    dataName, title: string,
+    css = "",
+    style = "{}",
+): Option[string] {.raises: [TemplateError].} =
   ## The page from a template text, the libraries, and the css and the style text (already filled in); none if
   ## `dataName` is not a GeoJSON file of the cache directory (which is what makes it safe to put in the page).  Pure.
   if not isCacheFileName(dataName) or not dataName.endsWith(".geojson"):
     return none(string)
-  some(render(source, context(libs & @[("title", text(title)), ("data", text(dataName)), ("css", text(css)),
-                                       ("style", text(style))])))
+  some(
+    render(
+      source,
+      context(
+        libs &
+          @[
+            ("title", text(title)),
+            ("data", text(dataName)),
+            ("css", text(css)),
+            ("style", text(style)),
+          ]
+      ),
+    )
+  )
 
 proc pageHtml*(dataName, title: string): Option[string] {.raises: [TemplateError].} =
   ## The page for the GeoJSON file `dataName`, from the templates and the libraries in use (the author's if they have
@@ -65,5 +94,10 @@ proc pageHtml*(dataName, title: string): Option[string] {.raises: [TemplateError
   try:
     style = checkedStyle(render(resolve(styleBundle).data, context(palette)))
   except TemplateError as e:
-    raiseTemplate(if e.msg.startsWith("map-style.json") or e.msg.startsWith("line ") == false: e.msg else: "map-style.json: " & e.msg)
+    raiseTemplate(
+      if e.msg.startsWith("map-style.json") or e.msg.startsWith("line ") == false:
+        e.msg
+      else:
+        "map-style.json: " & e.msg
+    )
   renderPage(resolve(templateBundle).data, libraryValues(), dataName, title, css, style)

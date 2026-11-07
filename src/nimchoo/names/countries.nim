@@ -16,73 +16,104 @@ import ./countryinfo
 
 {.push raises: [].}
 
-
 type Names* = object
   st*: Store
   dataDir*: string
   env*: Env
   sink*: Sink
-  offline*: bool                       ## `--offline`: no names are had; every question is answered "nothing"
-  lastFailure: ref string              ## what the last failed download said (for the error that is raised)
+  offline*: bool ## `--offline`: no names are had; every question is answered "nothing"
+  lastFailure: ref string
+    ## what the last failed download said (for the error that is raised)
 
 func newNames*(st: Store, dataDir: string, env: Env, sink: Sink): Names =
   ## The handle.  A failed download is told to `sink` and also kept, to be the message of the DownloadError.
   let last = new(string)
   let told = proc(ev: DownloadEvent) {.closure, raises: [].} =
-    if ev.kind == deFailed: last[] = describe(ev)
+    if ev.kind == deFailed:
+      last[] = describe(ev)
     sink(ev)
   Names(st: st, dataDir: dataDir, env: env, sink: told, lastFailure: last)
 
 proc couldNot*(n: Names, what: string): ref DownloadError =
   ## The error for something that could not be had: what was wanted, and why (the last failure told).
-  (ref DownloadError)(msg: "cannot get " & what & (if n.lastFailure[].len > 0: ": " & n.lastFailure[] else: ""))
+  (ref DownloadError)(
+    msg:
+      "cannot get " & what &
+      (if n.lastFailure[].len > 0: ": " & n.lastFailure[] else: "")
+  )
 
 proc refuse(n: Names, src: Source, why: string, path: string) =
   ## A file that came but cannot be read: say so, and delete it so that it is fetched again.
-  n.sink(DownloadEvent(kind: deFailed, source: src.name, url: urlFor(src), message: why))
-  try: removeFile(path)
-  except OSError: discard
+  n.sink(
+    DownloadEvent(kind: deFailed, source: src.name, url: urlFor(src), message: why)
+  )
+  try:
+    removeFile(path)
+  except OSError:
+    discard
 
 const
-  cellsPerDegree* = 4              ## a cell is a quarter of a degree square
+  cellsPerDegree* = 4 ## a cell is a quarter of a degree square
   neStem = "ne_50m_admin_0_countries"
-  maxCells* = 4000                 ## a box over more cells than this (the poles) takes every country
+  maxCells* = 4000 ## a box over more cells than this (the poles) takes every country
 
-proc loadOutlines(n: Names, zip: string) {.raises: [StoreError, ZipError, IOError, OSError].} =
+proc loadOutlines(
+    n: Names, zip: string
+) {.raises: [StoreError, ZipError, IOError, OSError].} =
   ## Put the shapefile of the zip beside the data (SpatiaLite reads a shapefile from files), make the countries from
   ## it and the list, and remove the files again.
   let work = n.dataDir / "naturalearth" / "work"
   createDir(work)
   defer:
-    try: removeDir(work)
-    except OSError: discard
+    try:
+      removeDir(work)
+    except OSError:
+      discard
   for ext in [".shp", ".shx", ".dbf"]:
     writeFile(work / (neStem & ext), readEntry(zip, neStem & ext, 64 * 1024 * 1024))
   guard:
-    n.st.db.exec(sql("create virtual table temp.ne_shapes using VirtualShape('" &
-                     (work / neStem).replace("'", "''") & "', 'UTF-8', 4326)"))
+    n.st.db.exec(
+      sql(
+        "create virtual table temp.ne_shapes using VirtualShape('" &
+          (work / neStem).replace("'", "''") & "', 'UTF-8', 4326)"
+      )
+    )
 
 proc dropOutlines(n: Names) =
   try:
     n.st.db.exec(sql"drop table if exists temp.ne_shapes")
-  except DbError: discard
+  except DbError:
+    discard
 
 proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
   ## The `country` table is filled: if it is not, fetch the outlines and the list of countries and fill it.
   ## A DownloadError (and the reason told to the sink) if that cannot be done.
   guard:
-    if n.st.db.getValue(sql"select count(*) from country where geom is not null") != "0": return
+    if n.st.db.getValue(sql"select count(*) from country where geom is not null") != "0":
+      return
   let outlinesPath = fetchSource(n.env, n.sink, n.dataDir, naturalEarthCountries)
   let infoPath = fetchSource(n.env, n.sink, n.dataDir, geonamesCountryInfo)
-  if outlinesPath.isNone or infoPath.isNone: raise n.couldNot("the countries")
-  n.sink(DownloadEvent(kind: deReading, source: geonamesCountryInfo.name, url: urlFor(geonamesCountryInfo),
-                       label: labelFor(geonamesCountryInfo)))
-  defer: n.sink(DownloadEvent(kind: deFinished, source: geonamesCountryInfo.name))
+  if outlinesPath.isNone or infoPath.isNone:
+    raise n.couldNot("the countries")
+  n.sink(
+    DownloadEvent(
+      kind: deReading,
+      source: geonamesCountryInfo.name,
+      url: urlFor(geonamesCountryInfo),
+      label: labelFor(geonamesCountryInfo),
+    )
+  )
+  defer:
+    n.sink(DownloadEvent(kind: deFinished, source: geonamesCountryInfo.name))
   var countries: seq[CountryInfo]
   try:
     countries = parseCountryInfo(readFile(infoPath.get))
   except IOError, OSError:
-    n.refuse(geonamesCountryInfo, "the list of countries cannot be read (" & getCurrentExceptionMsg() & ")", infoPath.get)
+    n.refuse(
+      geonamesCountryInfo,
+      "the list of countries cannot be read (" & getCurrentExceptionMsg() & ")",
+      infoPath.get,
+    )
     raise n.couldNot("the countries")
   if countries.len == 0:
     n.refuse(geonamesCountryInfo, "no countries in the list", infoPath.get)
@@ -92,21 +123,34 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
     n.loadOutlines(readFile(outlinesPath.get))
     loaded = true
   except ZipError, IOError, OSError:
-    n.refuse(naturalEarthCountries, "the outlines cannot be read (" & getCurrentExceptionMsg() & ")", outlinesPath.get)
+    n.refuse(
+      naturalEarthCountries,
+      "the outlines cannot be read (" & getCurrentExceptionMsg() & ")",
+      outlinesPath.get,
+    )
   except StoreError:
-    n.refuse(naturalEarthCountries, "the outlines cannot be read (" & getCurrentExceptionMsg() & ")", outlinesPath.get)
-  if not loaded: raise n.couldNot("the countries")
-  defer: n.dropOutlines()
+    n.refuse(
+      naturalEarthCountries,
+      "the outlines cannot be read (" & getCurrentExceptionMsg() & ")",
+      outlinesPath.get,
+    )
+  if not loaded:
+    raise n.couldNot("the countries")
+  defer:
+    n.dropOutlines()
   n.st.begin()
   var done = false
   try:
     # a country is matched by its ISO code: Natural Earth's main field is -99 for a few (France, Norway), the real
     # one is in the second field
     # (an upsert and not a replace: a replace would delete the row, and with it the places and cells read for the country)
-    let insert = prepareStmt(n.st.db, "insert into country(iso, name, geoname_id, geom) " &
-      "values (?, ?, ?, (select CastToMultiPolygon(Geometry) from temp.ne_shapes " &
-      "where coalesce(nullif(ISO_A2_EH, '-99'), nullif(ISO_A2, '-99')) = ? limit 1)) " &
-      "on conflict(iso) do update set name = excluded.name, geoname_id = excluded.geoname_id, geom = excluded.geom")
+    let insert = prepareStmt(
+      n.st.db,
+      "insert into country(iso, name, geoname_id, geom) " &
+        "values (?, ?, ?, (select CastToMultiPolygon(Geometry) from temp.ne_shapes " &
+        "where coalesce(nullif(ISO_A2_EH, '-99'), nullif(ISO_A2, '-99')) = ? limit 1)) " &
+        "on conflict(iso) do update set name = excluded.name, geoname_id = excluded.geoname_id, geom = excluded.geom",
+    )
     for c in countries:
       insert.bindText(1, c.iso)
       insert.bindText(2, c.name)
@@ -116,16 +160,20 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
     n.st.commit()
     done = true
   finally:
-    if not done: n.st.rollback()
+    if not done:
+      n.st.rollback()
 
-func degrees(x: float): string = formatFloat(x, ffDecimal, 7)
+func degrees(x: float): string =
+  formatFloat(x, ffDecimal, 7)
 
 func wrapCell*(cx: int): int =
   ## A cell's longitude put back into -180 .. 180 degrees (in cells).
   let width = 360 * cellsPerDegree
   ((cx + width div 2) mod width + width) mod width - width div 2
 
-proc countriesOfCell*(n: Names, cx, cy: int): seq[string] {.raises: [StoreError, DownloadError].} =
+proc countriesOfCell*(
+    n: Names, cx, cy: int
+): seq[string] {.raises: [StoreError, DownloadError].} =
   ## The countries whose outlines touch the cell (cx, cy in quarter degrees from the south-west corner): looked up in
   ## `country_cell`, or worked out by SpatiaLite the first time and kept.  None for open sea.
   n.ensureCountries()
@@ -134,19 +182,44 @@ proc countriesOfCell*(n: Names, cx, cy: int): seq[string] {.raises: [StoreError,
   let x1 = x0 + 1.0 / cellsPerDegree.float
   let y1 = y0 + 1.0 / cellsPerDegree.float
   guard:
-    if n.st.db.getValue(sql"select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?", cx, cy) == "0":
-      let mbr = "BuildMbr(" & degrees(x0) & ", " & degrees(y0) & ", " & degrees(x1) & ", " & degrees(y1)
-      for r in n.st.db.fastRows(sql("select iso from country where geom is not null and rowid in (select ROWID from " &
-          "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and search_frame = " & mbr & ")) " &
-          "and Intersects(geom, " & mbr & ", 4326)) = 1 order by iso")):
-        n.st.db.exec(sql"insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)", cx, cy, r[0])
-      n.st.db.exec(sql"insert or ignore into country_cell_done(cell_lon, cell_lat) values (?, ?)", cx, cy)
-    for r in n.st.db.fastRows(sql"select country from country_cell where cell_lon = ? and cell_lat = ? order by country", cx, cy):
+    if n.st.db.getValue(
+      sql"select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?",
+      cx,
+      cy,
+    ) == "0":
+      let mbr =
+        "BuildMbr(" & degrees(x0) & ", " & degrees(y0) & ", " & degrees(x1) & ", " &
+        degrees(y1)
+      for r in n.st.db.fastRows(
+        sql(
+          "select iso from country where geom is not null and rowid in (select ROWID from " &
+            "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and search_frame = " &
+            mbr & ")) " & "and Intersects(geom, " & mbr & ", 4326)) = 1 order by iso"
+        )
+      ):
+        n.st.db.exec(
+          sql"insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)",
+          cx,
+          cy,
+          r[0],
+        )
+      n.st.db.exec(
+        sql"insert or ignore into country_cell_done(cell_lon, cell_lat) values (?, ?)",
+        cx,
+        cy,
+      )
+    for r in n.st.db.fastRows(
+      sql"select country from country_cell where cell_lon = ? and cell_lat = ? order by country",
+      cx,
+      cy,
+    ):
       result.add r[0]
 
 proc allCountries*(n: Names): seq[string] {.raises: [StoreError, DownloadError].} =
   ## Every country that has an outline (for a box too big to go cell by cell).
   n.ensureCountries()
   guard:
-    for r in n.st.db.fastRows(sql"select iso from country where geom is not null order by iso"):
+    for r in n.st.db.fastRows(
+      sql"select iso from country where geom is not null order by iso"
+    ):
       result.add r[0]

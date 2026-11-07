@@ -28,7 +28,8 @@ suite "serve token":
     createDir(dir)
     writeFile(dir / tokenFileName, "not a token\n")
     check isToken(loadToken(dir).token)
-    writeFile(dir / tokenFileName, "ABCDEF0123456789ABCDEF0123456789\n")    # (upper case: not ours)
+    writeFile(dir / tokenFileName, "ABCDEF0123456789ABCDEF0123456789\n")
+      # (upper case: not ours)
     check isToken(loadToken(dir).token)
   test "two tokens are not the same":
     removeDir(dir)
@@ -43,6 +44,8 @@ suite "serve token":
     check r.token == "" and r.problem.contains("cannot keep the server's token")
   test "what is a token":
     check isToken("0123456789abcdef0123456789abcdef")
-    for bad in ["", "abc", "0123456789ABCDEF0123456789abcdef", "0123456789abcdef0123456789abcdeg",
-                "0123456789abcdef0123456789abcdef0"]:
+    for bad in [
+      "", "abc", "0123456789ABCDEF0123456789abcdef", "0123456789abcdef0123456789abcdeg",
+      "0123456789abcdef0123456789abcdef0",
+    ]:
       check not isToken(bad)

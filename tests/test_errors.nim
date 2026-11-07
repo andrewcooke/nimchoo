@@ -1,4 +1,4 @@
-{.push warning[UnreachableCode]: off.}      # (`expect` around procedures that never return)
+{.push warning[UnreachableCode]: off.} # (`expect` around procedures that never return)
 import std/[sets, strutils, unittest]
 import nimchoo/errors
 import nimchoo/fit/header
@@ -36,10 +36,11 @@ suite "errors":
   test "the tokenizer reports the offset as a field":
     var t = initTokenizer(fitFile(b(0x03, 1)), initHashSet[(int, int)]())
     try:
-      for tok in t.tokens: discard
-      check false  # a FitError was expected
+      for tok in t.tokens:
+        discard
+      check false # a FitError was expected
     except FitError as e:
-      check e.offset == 12  # just after the 12 byte header
+      check e.offset == 12 # just after the 12 byte header
       check "no definition" in e.msg
 
   test "ProfileError carries the sheet and row":

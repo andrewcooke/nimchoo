@@ -5,52 +5,76 @@
 {.push raises: [].}
 
 type Source* = object
-  name*: string            ## also the directory of its files under `data/` in the cache
-  url*: string             ## the address, with `{arg}` where the argument goes
-  file*: string            ## the name of the file kept
-  zipEntry*: string        ## the entry the zip must hold ("" if the file is not a zip)
-  maxBytes*: int64         ## a bigger file is refused (before it is fetched, if the server says)
-  attribution*: string     ## the licence and who to credit (also in NOTICE)
-  why*: string             ## what it is needed for, said before it is fetched (`{arg}` as in the others)
-  label*: string           ## a few words for the screen ("locations in CL"); `why` is for the log
+  name*: string ## also the directory of its files under `data/` in the cache
+  url*: string ## the address, with `{arg}` where the argument goes
+  file*: string ## the name of the file kept
+  zipEntry*: string ## the entry the zip must hold ("" if the file is not a zip)
+  maxBytes*: int64 ## a bigger file is refused (before it is fetched, if the server says)
+  attribution*: string ## the licence and who to credit (also in NOTICE)
+  why*: string
+    ## what it is needed for, said before it is fetched (`{arg}` as in the others)
+  label*: string ## a few words for the screen ("locations in CL"); `why` is for the log
 
 const
   geonamesCredit* = "GeoNames (https://www.geonames.org), licensed under CC BY 4.0"
 
   geonamesCountry* = Source(
-    name: "geonames", url: "https://download.geonames.org/export/dump/{arg}.zip", file: "{arg}.zip",
-    zipEntry: "{arg}.txt", maxBytes: 200 * 1024 * 1024, attribution: geonamesCredit,
-    why: "names of places and mountains in {arg} to name climbs and activities", label: "locations in {arg}")
+    name: "geonames",
+    url: "https://download.geonames.org/export/dump/{arg}.zip",
+    file: "{arg}.zip",
+    zipEntry: "{arg}.txt",
+    maxBytes: 200 * 1024 * 1024,
+    attribution: geonamesCredit,
+    why: "names of places and mountains in {arg} to name climbs and activities",
+    label: "locations in {arg}",
+  )
     ## One country's places and features, by its ISO code ("CL"); the United States is the largest, 71 MB.
 
   naturalEarthCountries* = Source(
-    name: "naturalearth", url: "https://naturalearth.s3.amazonaws.com/50m_cultural/ne_50m_admin_0_countries.zip",
-    file: "ne_50m_admin_0_countries.zip", zipEntry: "ne_50m_admin_0_countries.shp",
-    maxBytes: 20 * 1024 * 1024, attribution: "Natural Earth (https://www.naturalearthdata.com), public domain",
-    why: "country shapes, to infer country from position", label: "country outlines")
+    name: "naturalearth",
+    url:
+      "https://naturalearth.s3.amazonaws.com/50m_cultural/ne_50m_admin_0_countries.zip",
+    file: "ne_50m_admin_0_countries.zip",
+    zipEntry: "ne_50m_admin_0_countries.shp",
+    maxBytes: 20 * 1024 * 1024,
+    attribution: "Natural Earth (https://www.naturalearthdata.com), public domain",
+    why: "country shapes, to infer country from position",
+    label: "country outlines",
+  )
     ## The outlines of the countries (1:50m, a shapefile in a zip of 0.8 MB): public domain, and valid polygons, which
     ## the GeoNames outlines were not (GEOS calls more than half of them invalid).
 
   geonamesCountryInfo* = Source(
-    name: "geonames", url: "https://download.geonames.org/export/dump/countryInfo.txt",
-    file: "countryInfo.txt", zipEntry: "", maxBytes: 5 * 1024 * 1024, attribution: geonamesCredit,
-    why: "the list of countries, for their names and codes", label: "countries")
-    ## The countries: ISO code, name, GeoNames id (32 KB).
+    name: "geonames",
+    url: "https://download.geonames.org/export/dump/countryInfo.txt",
+    file: "countryInfo.txt",
+    zipEntry: "",
+    maxBytes: 5 * 1024 * 1024,
+    attribution: geonamesCredit,
+    why: "the list of countries, for their names and codes",
+    label: "countries",
+  ) ## The countries: ISO code, name, GeoNames id (32 KB).
 
   allSources* = [geonamesCountry, naturalEarthCountries, geonamesCountryInfo]
 
 func fill(pattern, arg: string): string =
   var i = 0
   while i < pattern.len:
-    if pattern[i] == '{' and i + 5 < pattern.len + 1 and pattern[i ..< min(pattern.len, i + 5)] == "{arg}":
+    if pattern[i] == '{' and i + 5 < pattern.len + 1 and
+        pattern[i ..< min(pattern.len, i + 5)] == "{arg}":
       result.add arg
       i += 5
     else:
       result.add pattern[i]
       inc i
 
-func urlFor*(s: Source, arg = ""): string = fill(s.url, arg)
-func fileFor*(s: Source, arg = ""): string = fill(s.file, arg)
-func entryFor*(s: Source, arg = ""): string = fill(s.zipEntry, arg)
-func whyFor*(s: Source, arg = ""): string = fill(s.why, arg)
-func labelFor*(s: Source, arg = ""): string = fill(s.label, arg)
+func urlFor*(s: Source, arg = ""): string =
+  fill(s.url, arg)
+func fileFor*(s: Source, arg = ""): string =
+  fill(s.file, arg)
+func entryFor*(s: Source, arg = ""): string =
+  fill(s.zipEntry, arg)
+func whyFor*(s: Source, arg = ""): string =
+  fill(s.why, arg)
+func labelFor*(s: Source, arg = ""): string =
+  fill(s.label, arg)

@@ -16,11 +16,13 @@ const
   run1 = "2026-11-02T10:00:00Z INFO  import    run        /a"
   fail1 = "2026-11-02T10:00:01Z ERROR import    failed     /a/bad.fit  (bad format) why"
   run2 = "2026-11-02T11:00:00Z INFO  import    run        /b"
-  dup2 = "2026-11-02T11:00:01Z INFO  import    duplicate  /b/x.fit  same content as /b/y.fit"
+  dup2 =
+    "2026-11-02T11:00:01Z INFO  import    duplicate  /b/x.fit  same content as /b/y.fit"
 
 suite "nch log: the command line":
   test "commands and events are told apart":
-    let p = parseArgs(@["import", "failed", "activities", "advisory", "--last", "-n", "5"])
+    let p =
+      parseArgs(@["import", "failed", "activities", "advisory", "--last", "-n", "5"])
     check p.problem == ""
     check p.filter.commands == @["import", "activities"]
     check p.filter.events == {leFailed, leAdvisory}
@@ -29,7 +31,7 @@ suite "nch log: the command line":
     check parseArgs(@[]).filter == Filter()
   test "problems":
     check parseArgs(@["bogus"]).problem.contains("neither a command nor an event")
-    check parseArgs(@["bogus"]).problem.contains("advisory")        # the known names are listed
+    check parseArgs(@["bogus"]).problem.contains("advisory") # the known names are listed
     check parseArgs(@["bogus"]).problem.contains("map")
     check parseArgs(@["-n"]).problem.contains("needs a value")
     check parseArgs(@["-n", "0"]).problem.contains("number of lines")
@@ -40,13 +42,15 @@ suite "nch log: the command line":
 suite "nch log: showing":
   test "the lines, plain without colour":
     let p = logWith("plain", run1, fail1, run2, dup2)
-    check show(p, Filter(commands: @["import"], last: true), false).lines == @[run2, dup2]
+    check show(p, Filter(commands: @["import"], last: true), false).lines ==
+      @[run2, dup2]
     check show(p, Filter(events: {leFailed}), false).lines == @[fail1]
   test "with colour the level word and the event word are coloured":
     let p = logWith("colour", fail1)
     let r = show(p, Filter(), true)
     check r.lines[0].contains("\e[31m\e[1mfailed\e[0m")
-    check r.lines[0].startsWith("2026-11-02T10:00:01Z \e[31m\e[1mERROR\e[0m import    ")      # (the level too)
+    check r.lines[0].startsWith("2026-11-02T10:00:01Z \e[31m\e[1mERROR\e[0m import    ")
+      # (the level too)
   test "no log yet":
     check show(dir / "nonesuch" / "nch.log", Filter(), false).problem.contains("no log")
   test "no run to show, and why it may be":
@@ -55,4 +59,5 @@ suite "nch log: showing":
     check r.problem.contains("no run of import")
     check r.problem.contains("not recognised")
     let q = logWith("norun2", run1)
-    check not show(q, Filter(commands: @["heatmap"], last: true), false).problem.contains("not recognised")
+    check not show(q, Filter(commands: @["heatmap"], last: true), false).problem
+      .contains("not recognised")

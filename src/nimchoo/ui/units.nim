@@ -5,7 +5,7 @@ import std/[math, strutils]
 
 {.push raises: [].}
 
-const notRecorded* = "-"             ## said of a value that is not there
+const notRecorded* = "-" ## said of a value that is not there
 
 func kmNumber*(metres: float): string =
   ## "102.7": kilometres to a tenth, with commas from 1,000.

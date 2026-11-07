@@ -20,7 +20,7 @@ import ./style
 
 type
   Write = proc(s: string) {.closure, raises: [].}
-  Clock = proc(): int64 {.closure, raises: [].}          # milliseconds, monotonic
+  Clock = proc(): int64 {.closure, raises: [].} # milliseconds, monotonic
   Size = proc(): tuple[w, h: int] {.closure, raises: [].}
 
   Live* = ref object
@@ -30,9 +30,9 @@ type
     colour: bool
     firstDelay, interval: int64
     startAt, lastDraw: int64
-    drawn: int                # lines of the region now on screen
-    shown: bool               # a frame has been drawn: the cursor is hidden
-    queued: seq[Line]         # permanent lines waiting for the next frame
+    drawn: int # lines of the region now on screen
+    shown: bool # a frame has been drawn: the cursor is hidden
+    queued: seq[Line] # permanent lines waiting for the next frame
 
 const
   hideCursor = "\e[?25l"
@@ -40,15 +40,29 @@ const
   eraseLine = "\e[2K"
   eraseBelow = "\e[J"
 
-func up(n: int): string = "\e[" & $n & "A"
+func up(n: int): string =
+  "\e[" & $n & "A"
 
-proc newLive*(write: Write, now: Clock, size: Size, colour: bool,
-              firstDelay = 150'i64, interval = 100'i64): Live =
+proc newLive*(
+    write: Write,
+    now: Clock,
+    size: Size,
+    colour: bool,
+    firstDelay = 150'i64,
+    interval = 100'i64,
+): Live =
   ## A live region.  The first frame is shown no sooner than `firstDelay` ms
   ## after this call (a short run draws nothing), and then at most one frame
   ## every `interval` ms.
-  Live(write: write, now: now, size: size, colour: colour,
-       firstDelay: firstDelay, interval: interval, startAt: now())
+  Live(
+    write: write,
+    now: now,
+    size: size,
+    colour: colour,
+    firstDelay: firstDelay,
+    interval: interval,
+    startAt: now(),
+  )
 
 proc due*(l: Live): bool =
   ## Whether it is time to show a frame.
@@ -61,7 +75,8 @@ proc print*(l: Live, line: Line) =
   l.queued.add line
 
 proc permanent(l: Live, f: var string) =
-  for q in l.queued: f.add eraseLine & q.render(l.colour) & "\n"
+  for q in l.queued:
+    f.add eraseLine & q.render(l.colour) & "\n"
   l.queued.setLen(0)
 
 proc frame(l: Live, lines: seq[Line]): string =
@@ -74,7 +89,8 @@ proc frame(l: Live, lines: seq[Line]): string =
   if not l.shown:
     f.add hideCursor
     l.shown = true
-  if l.drawn > 0: f.add up(l.drawn)
+  if l.drawn > 0:
+    f.add up(l.drawn)
   l.permanent(f)
   for ln in shownLines:
     f.add eraseLine & ln.truncated(w - 1).render(l.colour) & "\n"
@@ -98,10 +114,12 @@ proc finish*(l: Live) =
   ## End the display, removing the region: print what is still queued, and
   ## give the cursor back.  (`keep` leaves the region instead.)
   var f = ""
-  if l.drawn > 0: f.add up(l.drawn)
+  if l.drawn > 0:
+    f.add up(l.drawn)
   l.permanent(f)
   f.add eraseBelow
-  if l.shown: f.add showCursor
+  if l.shown:
+    f.add showCursor
   l.drawn = 0
   l.shown = false
   l.write f
@@ -128,10 +146,12 @@ func orDefault(n, default: int): int =
 proc restoreCursor() {.noconv.} =
   ## Ctrl-C: give the terminal back, then stop.  (The handler cannot see any
   ## Live, so it shows the cursor whether or not it was hidden.)
-  try: stderr.write showCursor & "\n"
-  except IOError: discard
+  try:
+    stderr.write showCursor & "\n"
+  except IOError:
+    discard
   when defined(posix):
-    exitnow(130)      # (`quit` in a signal handler ends with status 127)
+    exitnow(130) # (`quit` in a signal handler ends with status 127)
   else:
     quit(130)
 
@@ -143,8 +163,11 @@ proc newTerminalLive*(): Live =
       try:
         stderr.write s
         stderr.flushFile
-      except IOError: discard,
-    now = proc(): int64 {.closure, raises: [].} = getMonoTime().ticks div 1_000_000,
+      except IOError:
+        discard,
+    now = proc(): int64 {.closure, raises: [].} =
+      getMonoTime().ticks div 1_000_000,
     size = proc(): tuple[w, h: int] {.closure, raises: [].} =
       (orDefault(terminalWidth(), 80), orDefault(terminalHeight(), 24)),
-    colour = canColour())
+    colour = canColour(),
+  )

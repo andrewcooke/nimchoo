@@ -13,8 +13,8 @@ let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")
 let composites = compositeNames(p)
 
 func describe(d: Diff): string =
-  "row " & $d.row & " " & $d.kind & " " & d.message & "." & d.key &
-    ": ours=" & d.ours & " theirs=" & d.theirs
+  "row " & $d.row & " " & $d.kind & " " & d.message & "." & d.key & ": ours=" & d.ours &
+    " theirs=" & d.theirs
 
 suite "SDK CSV comparison":
   for pair in sdkPairs():
@@ -23,9 +23,10 @@ suite "SDK CSV comparison":
       var warnings: seq[Warning]
       renderInto(p, readBytes(pair.fitPath), true, lines, warnings)
       var ignore: HashSet[string]
-      for k in ignoredFields.getOrDefault(pair.name): ignore.incl k
-      let diffs = compareCsv(lines.join("\n"), readFile(pair.csvPath),
-                             composites, ignore)
+      for k in ignoredFields.getOrDefault(pair.name):
+        ignore.incl k
+      let diffs =
+        compareCsv(lines.join("\n"), readFile(pair.csvPath), composites, ignore)
       for d in diffs[0 ..< min(5, diffs.len)]:
         checkpoint describe(d)
       check diffs.len == 0

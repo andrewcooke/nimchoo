@@ -3,7 +3,8 @@ import nimchoo/version
 
 suite "version":
   test "the number is the one in the nimble file":
-    check versionFromNimble("# Package\n\nversion       = \"1.2.3\"\nauthor = \"x\"\n") == "1.2.3"
+    check versionFromNimble("# Package\n\nversion       = \"1.2.3\"\nauthor = \"x\"\n") ==
+      "1.2.3"
     check versionFromNimble("author = \"x\"\n") == "unknown"
     check versionFromNimble("") == "unknown"
     check versionFromNimble("version = ") == "unknown"

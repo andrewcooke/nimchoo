@@ -6,43 +6,77 @@ import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
 
-const metre* = 360.0 / (2.0 * PI * 6_371_008.8)      # degrees of longitude per metre at the equator
+const metre* = 360.0 / (2.0 * PI * 6_371_008.8)
+  # degrees of longitude per metre at the equator
 
 let dir* = getTempDir() / "nch-test-climbs-work"
 
 func altitude*(x: float): float =
   ## The road: 1 km flat, 3 km up at 4 % (120 m), then flat.
-  if x < 1000.0: 100.0
-  elif x < 4000.0: 100.0 + (x - 1000.0) * 0.04
-  else: 220.0
+  if x < 1000.0:
+    100.0
+  elif x < 4000.0:
+    100.0 + (x - 1000.0) * 0.04
+  else:
+    220.0
 
 proc fresh*(name: string): Store =
   removeDir(dir / name)
   openStore(dir / name / "x.db", allFragments)
 
-proc addRide*(s: Store, user: string, tag: string, startT: int, speed: float, xs: seq[float],
-             withAltitude = true, northM = 0.0) =
+proc addRide*(
+    s: Store,
+    user: string,
+    tag: string,
+    startT: int,
+    speed: float,
+    xs: seq[float],
+    withAltitude = true,
+    northM = 0.0,
+) =
   ## A ride along the road: the places it passes in turn (metres east), a point a second.
   let u = s.db.getValue(sql"select id from user where name = ?", user)
-  s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)", u, tag, tag)
+  s.db.exec(
+    sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
+    u,
+    tag,
+    tag,
+  )
   let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
-            f, startT, startT + 10000)
+  s.db.exec(
+    sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
+    f,
+    startT,
+    startT + 10000,
+  )
   let a = s.db.getValue(sql"select max(id) from activity")
   var wkt: seq[string]
   var t = startT
   for x in xs:
-    let alt = if withAltitude: $altitude(x) else: ""
-    s.db.exec(sql"insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, nullif(?, ''))",
-              a, t, x * metre, northM * metre, alt)
-    wkt.add formatFloat(x * metre, ffDecimal, 9) & " " & formatFloat(northM * metre, ffDecimal, 9)
+    let alt =
+      if withAltitude:
+        $altitude(x)
+      else:
+        ""
+    s.db.exec(
+      sql"insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, nullif(?, ''))",
+      a,
+      t,
+      x * metre,
+      northM * metre,
+      alt,
+    )
+    wkt.add formatFloat(x * metre, ffDecimal, 9) & " " &
+      formatFloat(northM * metre, ffDecimal, 9)
     inc t
-  s.db.exec(sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
-            a, "MULTILINESTRING((" & wkt.join(", ") & "))")
+  s.db.exec(
+    sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
+    a,
+    "MULTILINESTRING((" & wkt.join(", ") & "))",
+  )
 
 func eastbound*(speed: float, from0 = -500.0, to0 = 6500.0): seq[float] =
   var x = from0
   while x <= to0:
     result.add x
     x += speed
-

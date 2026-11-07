@@ -18,11 +18,14 @@ proc randomToken(): string =
   var bytes: array[16, byte]
   try:
     let f = open("/dev/urandom", fmRead)
-    defer: f.close()
-    if f.readBytes(bytes, 0, 16) != 16: return ""
+    defer:
+      f.close()
+    if f.readBytes(bytes, 0, 16) != 16:
+      return ""
   except IOError:
     return ""
-  for b in bytes: result.add toLowerAscii(toHex(int(b), 2))
+  for b in bytes:
+    result.add toLowerAscii(toHex(int(b), 2))
 
 proc loadToken*(dir: string, renew = false): tuple[token, problem: string] =
   ## The token in `dir`, made (with the directory) if there is none, or if it is not a
@@ -32,11 +35,13 @@ proc loadToken*(dir: string, renew = false): tuple[token, problem: string] =
   try:
     if not renew and fileExists(path):
       let old = readFile(path).strip
-      if isToken(old): return (old, "")
+      if isToken(old):
+        return (old, "")
     createDir dir
     let t = randomToken()
-    if t.len == 0: return ("", "cannot read random numbers from /dev/urandom")
-    let f = open(path, fmWrite)          # (created empty, locked down, then filled)
+    if t.len == 0:
+      return ("", "cannot read random numbers from /dev/urandom")
+    let f = open(path, fmWrite) # (created empty, locked down, then filled)
     try:
       setFilePermissions(path, {fpUserRead, fpUserWrite})
       f.write t & "\n"

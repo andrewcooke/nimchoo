@@ -26,7 +26,7 @@ export db_sqlite.DbConn, fragment
 {.push raises: [].}
 
 const
-  defaultUser* = "default"   ## the name of the user made in an empty database
+  defaultUser* = "default" ## the name of the user made in an empty database
   baseFragments = @[fragment("001-schema.sql")]
 
 type
@@ -39,22 +39,25 @@ type
 
 proc closeConn(c: Conn) {.raises: [].} =
   if c != nil and c.db != nil:
-    try: db_sqlite.close(c.db)
-    except DbError: discard    # nothing useful can be done
+    try:
+      db_sqlite.close(c.db)
+    except DbError:
+      discard # nothing useful can be done
     c.db = nil
 
 proc `=destroy`(c: ConnObj) {.raises: [].} =
   if c.db != nil:
-    try: db_sqlite.close(c.db)
-    except DbError: discard
+    try:
+      db_sqlite.close(c.db)
+    except DbError:
+      discard
 
-type
-  Store* = object
-    db*: DbConn
-    conn: Conn
-    path*: string      ## the database file (":memory:" for one in memory)
-    userId*: UserId
-    userName*: string
+type Store* = object
+  db*: DbConn
+  conn: Conn
+  path*: string ## the database file (":memory:" for one in memory)
+  userId*: UserId
+  userName*: string
 
 template guard*(body: untyped) =
   ## Run database code, turning a DbError into a StoreError.
@@ -66,9 +69,11 @@ template guard*(body: untyped) =
 proc resolveDbPath*(option: string): string =
   ## The database file: the `--db` option, else `$NCH_DB`, else
   ## `nch/nch.db` in the user's data directory.
-  if option.len > 0: return option
+  if option.len > 0:
+    return option
   let env = getEnv("NCH_DB")
-  if env.len > 0: return env
+  if env.len > 0:
+    return env
   string(getDataDir()) / "nch" / "nch.db"
 
 proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
@@ -81,8 +86,11 @@ proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
   let rc = load_extension(db, "mod_spatialite", nil, addr err)
   discard enable_load_extension(db, 0)
   if rc != SQLITE_OK:
-    raiseStore("cannot load SpatiaLite (is the package that provides " &
-               "mod_spatialite installed?): " & (if err.isNil: "unknown error" else: $err))
+    raiseStore(
+      "cannot load SpatiaLite (is the package that provides " &
+        "mod_spatialite installed?): " & (if err.isNil: "unknown error"
+      else: $err)
+    )
   guard:
     db.exec(sql"pragma trusted_schema = 1")
 
@@ -96,37 +104,49 @@ proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
 
 proc record(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   guard:
-    db.exec(sql"insert into fragment(name, applied_at, sha256, seed_version) values (?, ?, ?, ?)",
-            f.name, getTime().toUnix, f.checksum, f.currentVersion)
+    db.exec(
+      sql"insert into fragment(name, applied_at, sha256, seed_version) values (?, ?, ?, ?)",
+      f.name,
+      getTime().toUnix,
+      f.checksum,
+      f.currentVersion,
+    )
 
 proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   ## Run a fragment and record it, as one transaction.
-  guard: db.exec(sql"begin")
+  guard:
+    db.exec(sql"begin")
   var done = false
   try:
     execScript(db, f.sql)
-    if not f.seed.isNil: f.seed(db)
+    if not f.seed.isNil:
+      f.seed(db)
     record(db, f)
-    guard: db.exec(sql"commit")
+    guard:
+      db.exec(sql"commit")
     done = true
   except StoreError as e:
     raiseStore("applying " & f.name & ": " & e.msg)
   finally:
     if not done:
-      try: discard db.tryExec(sql"rollback")
-      except DbError: discard
+      try:
+        discard db.tryExec(sql"rollback")
+      except DbError:
+        discard
 
-proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
-    {.raises: [StoreError].} =
+proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].} =
   let all = baseFragments & fragments
   guard:
-    db.exec(sql"""create table if not exists fragment (
+    db.exec(
+      sql"""create table if not exists fragment (
                     name text primary key,
                     applied_at integer not null,
-                    sha256 text not null) strict, without rowid""")
+                    sha256 text not null) strict, without rowid"""
+    )
     # a database made before checksums were recorded has no such column
     var columns: seq[string]
-    for row in db.fastRows(sql"pragma table_info(fragment)"): columns.add row[1]
+    for row in db.fastRows(sql"pragma table_info(fragment)"):
+      columns.add row[1]
     if "sha256" notin columns:
       raiseStore("the database was made by an older version of nch" & outOfDate)
     # which data a fragment's seed put in (for the fragments whose data can be replaced)
@@ -138,35 +158,51 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment])
     if known.len == 0:
       raiseStore("the database is from a newer version of nch (it has '" & name & "')")
     if known[0].checksum != sum:
-      if sum in known[0].legacySums:        # recorded when the data were part of the checksum
+      if sum in known[0].legacySums: # recorded when the data were part of the checksum
         guard:
-          db.exec(sql"update fragment set sha256 = ?, seed_version = ? where name = ?",
-                  known[0].checksum, known[0].legacyVersion, name)
+          db.exec(
+            sql"update fragment set sha256 = ?, seed_version = ? where name = ?",
+            known[0].checksum,
+            known[0].legacyVersion,
+            name,
+          )
       else:
-        raiseStore("the database was made by a different version of nch (its '" & name &
-                   "' is not the one this version has)" & outOfDate)
+        raiseStore(
+          "the database was made by a different version of nch (its '" & name &
+            "' is not the one this version has)" & outOfDate
+        )
   for f in all:
-    if have.allIt(it[0] != f.name): apply(db, f)
-  for f in all:                              # data that can be replaced: is it the version wanted?
-    if f.reseed.isNil: continue
+    if have.allIt(it[0] != f.name):
+      apply(db, f)
+  for f in all: # data that can be replaced: is it the version wanted?
+    if f.reseed.isNil:
+      continue
     let want = f.currentVersion
     var has = ""
     guard:
-      has = db.getValue(sql"select coalesce(seed_version, '') from fragment where name = ?", f.name)
-    if has == want: continue
-    guard: db.exec(sql"begin")
+      has = db.getValue(
+        sql"select coalesce(seed_version, '') from fragment where name = ?", f.name
+      )
+    if has == want:
+      continue
+    guard:
+      db.exec(sql"begin")
     var done = false
     try:
       f.reseed(db)
-      guard: db.exec(sql"update fragment set seed_version = ? where name = ?", want, f.name)
-      guard: db.exec(sql"commit")
+      guard:
+        db.exec(sql"update fragment set seed_version = ? where name = ?", want, f.name)
+      guard:
+        db.exec(sql"commit")
       done = true
     except StoreError as e:
       raiseStore("replacing the data of " & f.name & ": " & e.msg)
     finally:
       if not done:
-        try: discard db.tryExec(sql"rollback")
-        except DbError: discard
+        try:
+          discard db.tryExec(sql"rollback")
+        except DbError:
+          discard
 
 proc close*(s: Store) {.raises: [].} =
   ## Close the database now (it is also closed when the last copy of the store goes, so this is
@@ -176,10 +212,12 @@ proc close*(s: Store) {.raises: [].} =
 proc reclaim*(s: Store) {.raises: [StoreError].} =
   ## Give the space of deleted rows back to the file system (the free pages are removed from the end of the file).
   ## Call it after a big delete, outside a transaction.  Does nothing to a file made without incremental vacuum.
-  guard: s.db.exec(sql"pragma incremental_vacuum")
+  guard:
+    s.db.exec(sql"pragma incremental_vacuum")
 
-proc openStore*(path: string, fragments: seq[Fragment],
-                user = ""): Store {.raises: [StoreError].} =
+proc openStore*(
+    path: string, fragments: seq[Fragment], user = ""
+): Store {.raises: [StoreError].} =
   ## Open the database at `path`, creating the file and applying the fragments
   ## it lacks, and find `user` ("": the default user, made if there are no users).
   ## Raises StoreError if that cannot be done or the user does not exist.
@@ -187,8 +225,9 @@ proc openStore*(path: string, fragments: seq[Fragment],
     try:
       createDir(parentDir(path))
     except OSError, IOError:
-      raiseStore("cannot create the directory for " & path & ": " &
-                 getCurrentExceptionMsg())
+      raiseStore(
+        "cannot create the directory for " & path & ": " & getCurrentExceptionMsg()
+      )
   guard:
     result.db = open(path, "", "", "")
     result.conn = Conn(db: result.db)
@@ -212,13 +251,18 @@ proc openStore*(path: string, fragments: seq[Fragment],
     bringUpToDate(result.db, fragments)
     guard:
       if result.db.getValue(sql"select count(*) from user") == "0":
-        result.db.exec(sql"insert into user(name, is_default) values (?, 1)", defaultUser)
+        result.db.exec(
+          sql"insert into user(name, is_default) values (?, 1)", defaultUser
+        )
       elif result.db.getValue(sql"select count(*) from user where is_default = 1") == "0":
-        result.db.exec(sql"update user set is_default = 1 where id = (select min(id) from user)")
-      let id = if user.len == 0:
-                 result.db.getValue(sql"select id from user where is_default = 1")
-               else:
-                 result.db.getValue(sql"select id from user where name = ?", user)
+        result.db.exec(
+          sql"update user set is_default = 1 where id = (select min(id) from user)"
+        )
+      let id =
+        if user.len == 0:
+          result.db.getValue(sql"select id from user where is_default = 1")
+        else:
+          result.db.getValue(sql"select id from user where name = ?", user)
       if id.len == 0:
         raiseStore("no such user: " & user)
       try:
@@ -233,15 +277,20 @@ proc openStore*(path: string, fragments: seq[Fragment],
 proc setAutoCheckpoint*(s: Store, pages: int) {.raises: [StoreError].} =
   ## Copy the log back into the database whenever it holds this many pages (0: never, leaving it to
   ## someone else, see checkpointer.nim; the last connection to close does it anyway).
-  guard: s.db.exec(sql("pragma wal_autocheckpoint = " & $pages))
+  guard:
+    s.db.exec(sql("pragma wal_autocheckpoint = " & $pages))
 
 proc begin*(s: Store) {.raises: [StoreError].} =
-  guard: s.db.exec(sql"begin")
+  guard:
+    s.db.exec(sql"begin")
 
 proc commit*(s: Store) {.raises: [StoreError].} =
-  guard: s.db.exec(sql"commit")
+  guard:
+    s.db.exec(sql"commit")
 
 proc rollback*(s: Store) {.raises: [].} =
   ## Undo the open transaction; a failure here has nowhere useful to go.
-  try: discard s.db.tryExec(sql"rollback")
-  except DbError: discard
+  try:
+    discard s.db.tryExec(sql"rollback")
+  except DbError:
+    discard

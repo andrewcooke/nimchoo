@@ -18,7 +18,11 @@ suite "proquint: numbers as pronounceable words":
         bytes.add byte(seed shr 16)
       check fromProquint(proquint(bytes)) == some(bytes)
   test "what is not a proquint is refused":
-    for bad in ["", "lusab", "lusab-", "lusab-babad-", "lusabbabad", "lusab_babad", "LUSAB-babad", "lusac-babad", "lusab-babadd", "xxxxx"]:
-      if bad != "lusab": check fromProquint(bad).isNone
+    for bad in [
+      "", "lusab", "lusab-", "lusab-babad-", "lusabbabad", "lusab_babad", "LUSAB-babad",
+      "lusac-babad", "lusab-babadd", "xxxxx",
+    ]:
+      if bad != "lusab":
+        check fromProquint(bad).isNone
     check fromProquint("lusab").isSome
     check isProquint("lusab-babad-fuzoh") and not isProquint("lusab-bab")

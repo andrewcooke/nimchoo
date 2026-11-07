@@ -45,5 +45,4 @@ suite "ui style: rendering":
     check render(@[span("sh", grey)], true) == "\e[38;5;240msh\e[0m"
 
   test "unstyled spans get no codes":
-    check render(@[span("a"), span("b", yellow), span("c")], true) ==
-      "a\e[33mb\e[0mc"
+    check render(@[span("a"), span("b", yellow), span("c")], true) == "a\e[33mb\e[0mc"

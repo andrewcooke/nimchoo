@@ -15,22 +15,23 @@ import ../ui/[style, vocabulary]
 type
   LogLine* = object
     raw*: string
-    command*: string                 ## "" if the line is not in the current format
-    event*: Option[LogEvent]         ## none if not
-    eventStart*, eventEnd*: int      ## where the event word is in `raw`
-    levelStart*, levelEnd*: int      ## where the level word (INFO, WARN, ERROR) is
+    command*: string ## "" if the line is not in the current format
+    event*: Option[LogEvent] ## none if not
+    eventStart*, eventEnd*: int ## where the event word is in `raw`
+    levelStart*, levelEnd*: int ## where the level word (INFO, WARN, ERROR) is
 
   Filter* = object
-    commands*: seq[string]           ## only these commands (none: any)
-    events*: set[LogEvent]           ## only these events (empty: any)
-    last*: bool                      ## only the latest run (see `select` below)
-    count*: int                      ## only the last N lines (0: all)
+    commands*: seq[string] ## only these commands (none: any)
+    events*: set[LogEvent] ## only these events (empty: any)
+    last*: bool ## only the latest run (see `select` below)
+    count*: int ## only the last N lines (0: all)
 
   Selected* = object
     lines*: seq[LogLine]
-    noRun*: bool                     ## `last` was asked for, but there is no run to show
+    noRun*: bool ## `last` was asked for, but there is no run to show
 
-func isLevel(s: string): bool = s in ["INFO", "WARN", "ERROR"]
+func isLevel(s: string): bool =
+  s in ["INFO", "WARN", "ERROR"]
 
 func parseLine*(raw: string): LogLine =
   ## Take a line apart: time, level, command, event, then the text.
@@ -38,15 +39,24 @@ func parseLine*(raw: string): LogLine =
   var tokens: seq[tuple[word: string, start, stop: int]]
   var i = 0
   while i < raw.len and tokens.len < 4:
-    while i < raw.len and raw[i] == ' ': inc i
+    while i < raw.len and raw[i] == ' ':
+      inc i
     let start = i
-    while i < raw.len and raw[i] != ' ': inc i
-    if i > start: tokens.add (raw[start ..< i], start, i)
-  if tokens.len < 4: return
-  if not (tokens[0].word.len == 20 and tokens[0].word.endsWith("Z") and isLevel(tokens[1].word)):
+    while i < raw.len and raw[i] != ' ':
+      inc i
+    if i > start:
+      tokens.add (raw[start ..< i], start, i)
+  if tokens.len < 4:
+    return
+  if not (
+    tokens[0].word.len == 20 and tokens[0].word.endsWith("Z") and isLevel(
+      tokens[1].word
+    )
+  ):
     return
   let e = parseEvent(tokens[3].word)
-  if e.isNone: return
+  if e.isNone:
+    return
   result.command = tokens[2].word
   result.event = e
   result.levelStart = tokens[1].start
@@ -55,8 +65,10 @@ func parseLine*(raw: string): LogLine =
   result.eventEnd = tokens[3].stop
 
 func matches(l: LogLine, f: Filter): bool =
-  if f.commands.len > 0 and l.command notin f.commands: return false
-  if f.events != {} and (l.event.isNone or l.event.get notin f.events): return false
+  if f.commands.len > 0 and l.command notin f.commands:
+    return false
+  if f.events != {} and (l.event.isNone or l.event.get notin f.events):
+    return false
   true
 
 func select*(lines: seq[LogLine], f: Filter): Selected =
@@ -72,24 +84,35 @@ func select*(lines: seq[LogLine], f: Filter): Selected =
         start = i
         found = true
         break
-    if not found: return Selected(noRun: true)
+    if not found:
+      return Selected(noRun: true)
   for i in start .. lines.high:
-    if lines[i].matches(f): result.lines.add lines[i]
+    if lines[i].matches(f):
+      result.lines.add lines[i]
   if f.count > 0 and result.lines.len > f.count:
     result.lines = result.lines[result.lines.len - f.count .. ^1]
 
 func levelLook*(level: string): Look =
   ## ERROR red and bold, WARN yellow, INFO grey: the quiet ordinary lines, and the ones that need a look.
   case level
-  of "ERROR": Look(colour: red, bold: true)
-  of "WARN": Look(colour: yellow)
-  else: Look(colour: grey)
+  of "ERROR":
+    Look(colour: red, bold: true)
+  of "WARN":
+    Look(colour: yellow)
+  else:
+    Look(colour: grey)
 
 func styled*(l: LogLine): Line =
   ## The line, with the level word in its look (red ERROR, yellow WARN, grey INFO) and the event word in the look of the event.
-  if l.event.isNone: return plain(l.raw)
-  @[span(l.raw[0 ..< l.levelStart]),
-    Span(text: l.raw[l.levelStart ..< l.levelEnd], look: levelLook(l.raw[l.levelStart ..< l.levelEnd])),
+  if l.event.isNone:
+    return plain(l.raw)
+  @[
+    span(l.raw[0 ..< l.levelStart]),
+    Span(
+      text: l.raw[l.levelStart ..< l.levelEnd],
+      look: levelLook(l.raw[l.levelStart ..< l.levelEnd]),
+    ),
     span(l.raw[l.levelEnd ..< l.eventStart]),
     span(l.raw[l.eventStart ..< l.eventEnd], l.event.get),
-    span(l.raw[l.eventEnd .. ^1])]
+    span(l.raw[l.eventEnd .. ^1]),
+  ]

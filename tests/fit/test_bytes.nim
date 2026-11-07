@@ -43,7 +43,7 @@ suite "byte primitives":
     check d.getBits(littleEndian, 4, 4) == 0xb'u64
     check d.getBits(littleEndian, 8, 4) == 0xa'u64
     check d.getBits(littleEndian, 0, 12) == 0xabc'u64
-    check d.getBits(littleEndian, 12, 8) == 0'u64     # beyond the data: zeros
+    check d.getBits(littleEndian, 12, 8) == 0'u64 # beyond the data: zeros
     check b(0x0a, 0xbc).getBits(bigEndian, 0, 12) == 0xabc'u64
     check d.getBits(littleEndian, 3, 0) == 0'u64
 

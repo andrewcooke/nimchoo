@@ -11,7 +11,7 @@ export palette
 
 type
   Look* = object
-    colour*: Color            ## white (the default) is ordinary text
+    colour*: Color ## white (the default) is ordinary text
     bold*: bool
 
   Span* = object
@@ -20,30 +20,35 @@ type
 
   Line* = seq[Span]
 
-const
-  ellipsis = "…"
+const ellipsis = "…"
 
 func span*(text: string, colour = white, bold = false): Span =
   Span(text: text, look: Look(colour: colour, bold: bold))
 
-func plain*(text: string): Line = @[span(text)]
+func plain*(text: string): Line =
+  @[span(text)]
 
 func width*(line: Line): int =
   ## Columns the line takes (one per character: wide characters are not
   ## counted as two).
-  for s in line: result += s.text.runeLen
+  for s in line:
+    result += s.text.runeLen
 
 func text*(line: Line): string =
   ## The line without any styling.
-  for s in line: result.add s.text
+  for s in line:
+    result.add s.text
 
 func truncated*(line: Line, maxWidth: int): Line =
   ## The line cut to `maxWidth` columns; if it was cut, it ends in an ellipsis.
-  if maxWidth <= 0: return @[]
-  if line.width <= maxWidth: return line
-  var room = maxWidth - 1             # the ellipsis takes a column
+  if maxWidth <= 0:
+    return @[]
+  if line.width <= maxWidth:
+    return line
+  var room = maxWidth - 1 # the ellipsis takes a column
   for s in line:
-    if room <= 0: break
+    if room <= 0:
+      break
     let n = s.text.runeLen
     if n <= room:
       result.add s
@@ -62,6 +67,8 @@ func render*(line: Line, colour: bool): string =
     let styled = colour and (s.look.colour != white or s.look.bold)
     if styled:
       result.add terminalCode(s.look.colour)
-      if s.look.bold: result.add "\e[1m"
+      if s.look.bold:
+        result.add "\e[1m"
     result.add s.text
-    if styled: result.add resetCode
+    if styled:
+      result.add resetCode

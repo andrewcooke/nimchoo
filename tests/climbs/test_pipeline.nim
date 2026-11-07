@@ -13,9 +13,12 @@ proc rideAt(speed: float, t0: int): seq[Coord] =
   for s in 0 .. seconds:
     let x = speed * float(s)
     let alt =
-      if x < 1000.0: 100.0
-      elif x < 4000.0: 100.0 + (x - 1000.0) * 0.04
-      else: 220.0
+      if x < 1000.0:
+        100.0
+      elif x < 4000.0:
+        100.0 + (x - 1000.0) * 0.04
+      else:
+        220.0
     result.add Coord(t: UnixTime(t0 + s), lon: x * metre, lat: 0.0, alt: some(alt))
 
 func asPath(coords: openArray[Coord]): Path =
@@ -39,11 +42,11 @@ suite "climbs: from a ride to a stored climb and back":
     check abs(cs[0].gain - 119.0) < 3.0 and abs(cs[0].gradient - 4.0) < 0.2
     check cs[0].category == "4"
     let sector = climbPath(p, cs[0])
-    check sector.len > 250                                        # about 3 km every 5 m
+    check sector.len > 250 # about 3 km every 5 m
     # the same ride finds the climb at the right times
     let es = overPaths(sector, asPath(first))
     check es.len == 1
-    check abs(es[0].elapsed - cs[0].length / 5.0) < 3.0           # the climb's length at 5 m/s
+    check abs(es[0].elapsed - cs[0].length / 5.0) < 3.0 # the climb's length at 5 m/s
     # a slower ride later
     let second = rideAt(4.0, 2_000_000)
     let es2 = overPaths(sector, asPath(second))
@@ -59,5 +62,7 @@ suite "climbs: from a ride to a stored climb and back":
   test "a flat ride finds nothing, and matches nothing":
     var flat: seq[Coord]
     for s in 0 .. 1000:
-      flat.add Coord(t: UnixTime(s), lon: 5.0 * float(s) * metre, lat: 0.0, alt: some(50.0))
+      flat.add Coord(
+        t: UnixTime(s), lon: 5.0 * float(s) * metre, lat: 0.0, alt: some(50.0)
+      )
     check findClimbs(buildProfile(flat)).len == 0

@@ -6,5 +6,6 @@ import ./models
 {.push raises: [].}
 
 const fragments* = @[
-  fragment("001-schema.sql").withSeed(seedDefaultModel, seedVersion),   # ff_model (with `default`), impulse
+  fragment("001-schema.sql").withSeed(seedDefaultModel, seedVersion)
+    # ff_model (with `default`), impulse
 ]

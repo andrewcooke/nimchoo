@@ -28,24 +28,37 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
   case ev.kind
   of evStart:
     result.add entry(lvInfo, leStart, plural(ev.total, "file", "files"))
-  of evFileStart: discard
+  of evFileStart:
+    discard
   of evFileDone:
     case ev.outcome
     of oImported:
-      result.add entry(lvInfo, leImported, ev.path & "  " &
-        plural(ev.counts.activities, "activity", "activities") & ", " &
-        plural(ev.counts.segments, "segment", "segments") & ", " &
-        plural(ev.counts.coords, "coordinate", "coordinates") &
-        extrasText(ev.counts))
+      result.add entry(
+        lvInfo,
+        leImported,
+        ev.path & "  " & plural(ev.counts.activities, "activity", "activities") & ", " &
+          plural(ev.counts.segments, "segment", "segments") & ", " &
+          plural(ev.counts.coords, "coordinate", "coordinates") & extrasText(ev.counts),
+      )
     of oDuplicate:
-      result.add entry(lvInfo, leDuplicate, ev.path & "  " &
-        (if ev.sameAs.len > 0: "same content as " & ev.sameAs else: "already imported"))
-    of oUnchanged, oKnownFailure, oMonitor: discard
+      result.add entry(
+        lvInfo,
+        leDuplicate,
+        ev.path & "  " & (
+          if ev.sameAs.len > 0: "same content as " & ev.sameAs
+          else: "already imported"
+        ),
+      )
+    of oUnchanged, oKnownFailure, oMonitor:
+      discard
     of oFailed:
-      result.add entry(lvError, leFailed, ev.path & "  (" & ev.failure.label & ") " &
-        ev.message)
+      result.add entry(
+        lvError, leFailed, ev.path & "  (" & ev.failure.label & ") " & ev.message
+      )
     for w in ev.advisories:
-      result.add entry(lvWarn, leAdvisory, ev.path & "  offset " & $w.offset & ": " & w.msg)
+      result.add entry(
+        lvWarn, leAdvisory, ev.path & "  offset " & $w.offset & ": " & w.msg
+      )
   of evFinish:
     for note in ev.summary.notes:
       result.add entry(lvWarn, leNote, note)
@@ -54,4 +67,5 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
 proc logSink*(l: Log): Sink =
   ## Write the entries of each event to `l`.
   result = proc(ev: ImportEvent) {.closure, raises: [].} =
-    for e in logEntries(ev): l.log(e.level, command, e.event, e.text)
+    for e in logEntries(ev):
+      l.log(e.level, command, e.event, e.text)

@@ -14,23 +14,27 @@ export errors
 {.push raises: [].}
 
 type
-  Row* = Table[int, string]  ## sparse row: 0-based column -> value
+  Row* = Table[int, string] ## sparse row: 0-based column -> value
 
   Workbook* = object
     data: string
     entries: Table[string, ZipEntry]
-    sheets: Table[string, string]   ## sheet name -> path of its xml in the zip
-    shared: seq[string]             ## shared strings
+    sheets: Table[string, string] ## sheet name -> path of its xml in the zip
+    shared: seq[string] ## shared strings
 
 # --- zip (see zipbytes.nim)
 
 func zipEntries(z: string): Table[string, ZipEntry] {.raises: [XlsxError].} =
-  try: listEntries(z)
-  except ZipError as e: raiseXlsx(e.msg)
+  try:
+    listEntries(z)
+  except ZipError as e:
+    raiseXlsx(e.msg)
 
 func extract(z: string, e: ZipEntry): string {.raises: [XlsxError].} =
-  try: extractEntry(z, e)
-  except ZipError as ex: raiseXlsx(ex.msg)
+  try:
+    extractEntry(z, e)
+  except ZipError as ex:
+    raiseXlsx(ex.msg)
 
 proc file(wb: Workbook, path: string): string {.raises: [XlsxError].} =
   if path notin wb.entries:
@@ -42,7 +46,11 @@ proc file(wb: Workbook, path: string): string {.raises: [XlsxError].} =
 proc openXml(xml, path: string): XmlParser {.raises: [XlsxError].} =
   ## `path` (the name in the zip) appears in error messages.
   const bom = "\xEF\xBB\xBF"
-  let text = if xml.startsWith(bom): xml[bom.len .. ^1] else: xml
+  let text =
+    if xml.startsWith(bom):
+      xml[bom.len .. ^1]
+    else:
+      xml
   try:
     result.open(newStringStream(text), path, {reportWhitespace})
   except IOError, OSError:
@@ -57,99 +65,140 @@ proc nextEvent(x: var XmlParser) {.raises: [XlsxError].} =
 
 proc xmlProblem(x: XmlParser): string {.raises: [].} =
   ## The parser's description of what is wrong, with file, line and column.
-  try: x.errorMsg
-  except ValueError: "malformed xml"
+  try:
+    x.errorMsg
+  except ValueError:
+    "malformed xml"
 
 proc closeXml(x: var XmlParser) {.raises: [].} =
   ## Close the parser.  (It reads an in-memory string, so there is nothing
   ## useful to do if closing it were to fail.)
-  try: x.close()
-  except IOError, OSError: discard
+  try:
+    x.close()
+  except IOError, OSError:
+    discard
 
 func local(name: string): string =
   ## An element or attribute name without its namespace prefix.
   let i = name.rfind(':')
-  if i < 0: name else: name[i + 1 .. ^1]
+  if i < 0:
+    name
+  else:
+    name[i + 1 .. ^1]
 
 proc parseSharedStrings(xml, path: string): seq[string] {.raises: [XlsxError].} =
   ## One string per <si>: the text of its <t> elements (rich text runs are
   ## joined; phonetic runs <rPh> are left out).
   var x = openXml(xml, path)
-  defer: x.closeXml()
+  defer:
+    x.closeXml()
   var inT, inPh = false
   var cur = ""
   while true:
     x.nextEvent()
     case x.kind
-    of xmlEof: break
-    of xmlError: raiseXlsx(xmlProblem(x))
+    of xmlEof:
+      break
+    of xmlError:
+      raiseXlsx(xmlProblem(x))
     of xmlElementStart, xmlElementOpen:
       case local(x.elementName)
-      of "si": cur = ""
-      of "t": inT = true
-      of "rPh": inPh = true
-      else: discard
+      of "si":
+        cur = ""
+      of "t":
+        inT = true
+      of "rPh":
+        inPh = true
+      else:
+        discard
     of xmlElementEnd:
       case local(x.elementName)
-      of "si": result.add cur
-      of "t": inT = false
-      of "rPh": inPh = false
-      else: discard
+      of "si":
+        result.add cur
+      of "t":
+        inT = false
+      of "rPh":
+        inPh = false
+      else:
+        discard
     of xmlCharData, xmlWhitespace, xmlCData:
-      if inT and not inPh: cur.add x.charData
-    else: discard
+      if inT and not inPh:
+        cur.add x.charData
+    else:
+      discard
 
-proc parseRelationships(xml, path: string): Table[string, string] {.raises: [XlsxError].} =
+proc parseRelationships(
+    xml, path: string
+): Table[string, string] {.raises: [XlsxError].} =
   ## id -> target
   var x = openXml(xml, path)
-  defer: x.closeXml()
+  defer:
+    x.closeXml()
   var id, target = ""
   while true:
     x.nextEvent()
     case x.kind
-    of xmlEof: break
-    of xmlError: raiseXlsx(xmlProblem(x))
+    of xmlEof:
+      break
+    of xmlError:
+      raiseXlsx(xmlProblem(x))
     of xmlElementOpen:
-      if local(x.elementName) == "Relationship": id = ""; target = ""
+      if local(x.elementName) == "Relationship":
+        id = ""
+        target = ""
     of xmlAttribute:
       case x.attrKey
-      of "Id": id = x.attrValue
-      of "Target": target = x.attrValue
-      else: discard
+      of "Id":
+        id = x.attrValue
+      of "Target":
+        target = x.attrValue
+      else:
+        discard
     of xmlElementClose, xmlElementEnd:
       if id.len > 0 and target.len > 0:
         result[id] = target
-        id = ""; target = ""
-    else: discard
+        id = ""
+        target = ""
+    else:
+      discard
 
 proc parseSheetNames(xml, path: string): seq[(string, string)] {.raises: [XlsxError].} =
   ## (name, relationship id) of each sheet in workbook.xml
   var x = openXml(xml, path)
-  defer: x.closeXml()
+  defer:
+    x.closeXml()
   var name, rid = ""
   var inSheet = false
   while true:
     x.nextEvent()
     case x.kind
-    of xmlEof: break
-    of xmlError: raiseXlsx(xmlProblem(x))
+    of xmlEof:
+      break
+    of xmlError:
+      raiseXlsx(xmlProblem(x))
     of xmlElementOpen:
       inSheet = local(x.elementName) == "sheet"
-      name = ""; rid = ""
+      name = ""
+      rid = ""
     of xmlAttribute:
       if inSheet:
         case local(x.attrKey)
-        of "name": name = x.attrValue
-        of "id": rid = x.attrValue  # r:id (sheetId is a different name)
-        else: discard
+        of "name":
+          name = x.attrValue
+        of "id":
+          rid = x.attrValue
+        # r:id (sheetId is a different name)
+        else:
+          discard
     of xmlElementClose, xmlElementEnd:
       if inSheet and name.len > 0:
         result.add (name, rid)
       inSheet = false
-    else: discard
+    else:
+      discard
 
 const
-  maxRows = 1_048_576  ## as Excel
+  maxRows = 1_048_576 ## as Excel
   maxCols = 16_384
 
 func cellPosition(r: string): (int, int) {.raises: [XlsxError].} =
@@ -171,32 +220,49 @@ func cellPosition(r: string): (int, int) {.raises: [XlsxError].} =
     raiseXlsx("bad cell reference " & r)
   (row - 1, col - 1)
 
-proc parseSheet(xml, path: string, shared: seq[string]): seq[Row] {.raises: [XlsxError].} =
+proc parseSheet(
+    xml, path: string, shared: seq[string]
+): seq[Row] {.raises: [XlsxError].} =
   var x = openXml(xml, path)
-  defer: x.closeXml()
+  defer:
+    x.closeXml()
   var cellRef, ctype, text = ""
   var inC, inV, inT = false
   while true:
     x.nextEvent()
     case x.kind
-    of xmlEof: break
-    of xmlError: raiseXlsx(xmlProblem(x))
+    of xmlEof:
+      break
+    of xmlError:
+      raiseXlsx(xmlProblem(x))
     of xmlElementOpen, xmlElementStart:
       case local(x.elementName)
-      of "c": inC = true; cellRef = ""; ctype = ""; text = ""
-      of "v": inV = true
-      of "t": inT = inC
-      else: discard
+      of "c":
+        inC = true
+        cellRef = ""
+        ctype = ""
+        text = ""
+      of "v":
+        inV = true
+      of "t":
+        inT = inC
+      else:
+        discard
     of xmlAttribute:
       if inC and not inV:
         case x.attrKey
-        of "r": cellRef = x.attrValue
-        of "t": ctype = x.attrValue
-        else: discard
+        of "r":
+          cellRef = x.attrValue
+        of "t":
+          ctype = x.attrValue
+        else:
+          discard
     of xmlElementEnd:
       case local(x.elementName)
-      of "v": inV = false
-      of "t": inT = false
+      of "v":
+        inV = false
+      of "t":
+        inT = false
       of "c":
         inC = false
         if text.len > 0:
@@ -205,16 +271,24 @@ proc parseSheet(xml, path: string, shared: seq[string]): seq[Row] {.raises: [Xls
           let (row, col) = cellPosition(cellRef)
           var value = text
           if ctype == "s":
-            let i = try: parseInt(text) except ValueError: -1
+            let i =
+              try:
+                parseInt(text)
+              except ValueError:
+                -1
             if i < 0 or i >= shared.len:
               raiseXlsx("bad shared string " & text)
             value = shared[i]
-          while result.len <= row: result.add Row()
+          while result.len <= row:
+            result.add Row()
           result[row][col] = value
-      else: discard
+      else:
+        discard
     of xmlCharData, xmlWhitespace, xmlCData:
-      if inC and (inV or inT): text.add x.charData
-    else: discard
+      if inC and (inV or inT):
+        text.add x.charData
+    else:
+      discard
 
 # --- workbook
 
@@ -224,18 +298,21 @@ proc openWorkbook*(data: string): Workbook {.raises: [XlsxError].} =
   result.entries = zipEntries(data)
   const relsPath = "xl/_rels/workbook.xml.rels"
   let rels = parseRelationships(result.file(relsPath), relsPath)
-  for (name, rid) in parseSheetNames(result.file("xl/workbook.xml"),
-                                     "xl/workbook.xml"):
+  for (name, rid) in parseSheetNames(result.file("xl/workbook.xml"), "xl/workbook.xml"):
     if rid in rels:
       let target = rels.must(rid)
       result.sheets[name] =
-        if target.startsWith("/"): target[1 .. ^1] else: "xl/" & target
+        if target.startsWith("/"):
+          target[1 .. ^1]
+        else:
+          "xl/" & target
   if "xl/sharedStrings.xml" in result.entries:
-    result.shared = parseSharedStrings(result.file("xl/sharedStrings.xml"),
-                                       "xl/sharedStrings.xml")
+    result.shared =
+      parseSharedStrings(result.file("xl/sharedStrings.xml"), "xl/sharedStrings.xml")
 
 func sheetNames*(wb: Workbook): seq[string] =
-  for name in wb.sheets.keys: result.add name
+  for name in wb.sheets.keys:
+    result.add name
 
 proc rows*(wb: Workbook, sheet: string): seq[Row] {.raises: [XlsxError].} =
   ## All rows of `sheet`, indexed by 0-based row number (empty rows are empty

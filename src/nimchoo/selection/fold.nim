@@ -8,18 +8,33 @@ import std/[strutils, unicode]
 {.push raises: [].}
 
 const accented = [
-  ('a', "àáâãäåāăą"), ('c', "çćĉčċ"), ('d', "ďđ"), ('e', "èéêëēĕėęě"), ('g', "ğĝġģ"), ('i', "ìíîïĩīĭįı"),
-  ('l', "łľĺļ"), ('n', "ñńņň"), ('o', "òóôõöøōŏő"), ('r', "ŕřŗ"), ('s', "śŝşšș"), ('t', "ţťț"),
-  ('u', "ùúûüũūŭůűų"), ('y', "ýÿ"), ('z', "źżž")]
+  ('a', "àáâãäåāăą"),
+  ('c', "çćĉčċ"),
+  ('d', "ďđ"),
+  ('e', "èéêëēĕėęě"),
+  ('g', "ğĝġģ"),
+  ('i', "ìíîïĩīĭįı"),
+  ('l', "łľĺļ"),
+  ('n', "ñńņň"),
+  ('o', "òóôõöøōŏő"),
+  ('r', "ŕřŗ"),
+  ('s', "śŝşšș"),
+  ('t', "ţťț"),
+  ('u', "ùúûüũūŭůűų"),
+  ('y', "ýÿ"),
+  ('z', "źżž"),
+]
 
 func baseOf(r: Rune): char =
   ## The plain lower-case letter of a letter with or without accents or capital ('É' -> 'e'); '\0' for anything else.
   let lower = toLower(r)
-  if int(lower) >= int('a') and int(lower) <= int('z'): return char(int(lower))
+  if int(lower) >= int('a') and int(lower) <= int('z'):
+    return char(int(lower))
   for (base, letters) in accented:
-    let forms = letters                 # (a copy: `runes` on a constant string crashes in this Nim)
+    let forms = letters # (a copy: `runes` on a constant string crashes in this Nim)
     for f in forms.runes:
-      if f == lower: return base
+      if f == lower:
+        return base
   '\0'
 
 func classOf(base: char): string =
@@ -28,7 +43,8 @@ func classOf(base: char): string =
   for (b, letters) in accented:
     if b == base:
       let forms = letters
-      for f in forms.runes: result.add $f & $toUpper(f)
+      for f in forms.runes:
+        result.add $f & $toUpper(f)
   result.add "]"
 
 func foldGlob*(text: string): string =
@@ -36,13 +52,18 @@ func foldGlob*(text: string): string =
   result = "*"
   for r in text.strip.runes:
     let base = baseOf(r)
-    if base != '\0': result.add classOf(base)
+    if base != '\0':
+      result.add classOf(base)
     else:
       case r
-      of Rune('*'): result.add "[*]"
-      of Rune('?'): result.add "[?]"
-      of Rune('['): result.add "[[]"
-      else: result.add $r
+      of Rune('*'):
+        result.add "[*]"
+      of Rune('?'):
+        result.add "[?]"
+      of Rune('['):
+        result.add "[[]"
+      else:
+        result.add $r
   result.add "*"
 
 func foldText*(text: string): string =
@@ -50,6 +71,7 @@ func foldText*(text: string): string =
   ## `foldGlob` does in SQL.  Letters outside the table are lower-cased only.
   for r in text.runes:
     let base = baseOf(r)
-    if base != '\0': result.add base
-    else: result.add $toLower(r)
-
+    if base != '\0':
+      result.add base
+    else:
+      result.add $toLower(r)

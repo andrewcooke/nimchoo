@@ -28,8 +28,15 @@ func activities(n: int): string =
 func describe*(count: Option[int], user: string): string =
   ## What is to go when a user, or everything, is removed: "74 activities for all users",
   ## "74 activities and user bob"; "all data" if the count is not known.
-  let items = if count.isSome: activities(count.get) else: "all data"
-  if user.len == 0: items & " for all users" else: items & " and user " & user
+  let items =
+    if count.isSome:
+      activities(count.get)
+    else:
+      "all data"
+  if user.len == 0:
+    items & " for all users"
+  else:
+    items & " and user " & user
 
 func describeEmpty*(count: Option[int], user: string): string =
   ## What is to go when a user is emptied: "74 activities of user bob" (the user stays).
@@ -37,12 +44,15 @@ func describeEmpty*(count: Option[int], user: string): string =
 
 func countdownLine*(what: string, seconds: int): Line =
   ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", in red.
-  @[span("deleting " & what & " in ", red),
+  @[
+    span("deleting " & what & " in ", red),
     span($seconds, red, bold = true),
-    span(" s ... (Ctrl-C to cancel)", red)]
+    span(" s ... (Ctrl-C to cancel)", red),
+  ]
 
-proc countdown*(l: Live, what: string, seconds: int,
-                wait: proc(ms: int) {.closure, raises: [].}) =
+proc countdown*(
+    l: Live, what: string, seconds: int, wait: proc(ms: int) {.closure, raises: [].}
+) =
   ## Show the line once a second, from `seconds` down to 1, then take it away.
   for s in countdown(seconds, 1):
     l.show @[countdownLine(what, s)]
@@ -54,8 +64,10 @@ proc sayDeleted*(text: string) =
   stdout.say render(@[span("done: " & text, red)], canColourStdout()) & "\n"
 
 proc sleepMs*(ms: int) {.raises: [].} =
-  try: sleep(ms)
-  except OSError: discard
+  try:
+    sleep(ms)
+  except OSError:
+    discard
 
 proc countActivities*(path, user: string): Option[int] =
   ## How many activities there are (of `user`, if given), counted straight from
@@ -67,16 +79,21 @@ proc countActivities*(path, user: string): Option[int] =
   except DbError:
     return none(int)
   defer:
-    try: db.close()
-    except DbError: discard
+    try:
+      db.close()
+    except DbError:
+      discard
   try:
-    let n = if user.len == 0:
-              db.getValue(sql"select count(*) from activity")
-            else:
-              db.getValue(sql"""select count(*) from activity a
+    let n =
+      if user.len == 0:
+        db.getValue(sql"select count(*) from activity")
+      else:
+        db.getValue(
+          sql"""select count(*) from activity a
                                 join file f on f.id = a.file_id
                                 where f.user_id = (select id from user where name = ?)""",
-                          user)
+          user,
+        )
     result = some(parseInt(n))
   except DbError, ValueError:
     result = none(int)
@@ -85,9 +102,12 @@ proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   ## The id of the user called `name`; an error if there is none.
   guard:
     let v = st.db.getValue(sql"select id from user where name = ?", name)
-    if v.len == 0: raiseStore("no such user: " & name)
-    try: result = UserId(parseBiggestInt(v))
-    except ValueError: raiseStore("bad user id " & v)
+    if v.len == 0:
+      raiseStore("no such user: " & name)
+    try:
+      result = UserId(parseBiggestInt(v))
+    except ValueError:
+      raiseStore("bad user id " & v)
 
 proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Delete the user and everything they have.  (If it was the default user another

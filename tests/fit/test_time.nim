@@ -26,6 +26,6 @@ suite "time":
     check not compiles(FitTime(1) < UnixTime(1))
     check not compiles(fitToUnix(UnixTime(1)))
     check not compiles(UnixTime(1) == FitTime(1))
-    check not compiles(UnixTime(1) < 5)                # (a plain number is not a time)
-    check UnixTime(10) - UnixTime(4) == 6              # the difference is a number of seconds
+    check not compiles(UnixTime(1) < 5) # (a plain number is not a time)
+    check UnixTime(10) - UnixTime(4) == 6 # the difference is a number of seconds
     check FitTime(10) + 5 == FitTime(15)

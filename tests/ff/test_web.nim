@@ -17,24 +17,37 @@ proc fixture(name: string): tuple[db, cache: string] =
   removeDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache")
   let s = openStore(result.db, allFragments)
-  defer: s.close()
+  defer:
+    s.close()
   s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
-  s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, 'a', 'aa', 0)", s.userId)
+  s.db.exec(
+    sql"insert into file(user_id, name, sha256, imported_at) values (?, 'a', 'aa', 0)",
+    s.userId,
+  )
   let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 1535373814, 1535374414)", f)
+  s.db.exec(
+    sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 1535373814, 1535374414)",
+    f,
+  )
   let a = s.db.getValue(sql"select max(id) from activity")
   s.db.exec(sql"begin")
   for k in 0 ..< 600:
-    s.db.exec(sql"insert into heartrate(activity_id, t, bpm) values (?, ?, 160)", a, 1535373814 + k)
+    s.db.exec(
+      sql"insert into heartrate(activity_id, t, bpm) values (?, ?, 160)",
+      a,
+      1535373814 + k,
+    )
   s.db.exec(sql"commit")
 
 proc environment(cache: string): StringTableRef =
   result = newStringTable()
-  for k, v in envPairs(): result[k] = v
+  for k, v in envPairs():
+    result[k] = v
   result["NCH_CACHE"] = cache
   result["NCH_LOG"] = ""
 
-proc built(): bool = fileExists(exe)
+proc built(): bool =
+  fileExists(exe)
 
 proc keyOf(url: string): string =
   ## The key in an address ("/ff?check=KEY&...").
@@ -42,15 +55,20 @@ proc keyOf(url: string): string =
   url[start ..< url.find('&', start)]
 
 proc worker(db, cache: string, extra: seq[string]): tuple[output: string, code: int] =
-  let p = startProcess(exe, args = @["--db", db, "ff", "--worker", "--utc", "--to", "2018-09-05"] & extra,
-                       env = environment(cache), options = {poStdErrToStdOut})
+  let p = startProcess(
+    exe,
+    args = @["--db", db, "ff", "--worker", "--utc", "--to", "2018-09-05"] & extra,
+    env = environment(cache),
+    options = {poStdErrToStdOut},
+  )
   result.output = p.outputStream.readAll()
   result.code = p.waitForExit(30_000)
   p.close()
 
 suite "nch ff --worker":
   test "the page, then the CSV, in the cache; nothing else printed":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("worker")
     let (output, code) = worker(f.db, f.cache, @[])
     check code == 0
@@ -58,29 +76,41 @@ suite "nch ff --worker":
     check lines.len == 2
     check lines[0].startsWith(f.cache) and lines[0].endsWith(".html")
     check lines[1].startsWith(f.cache) and lines[1].endsWith(".csv")
-    check lines[0].startsWith(f.cache / "user" / "ff--") and lines[1].startsWith(f.cache / "user" / "ff--")
-    check dirExists(f.cache / "system")                                   # (the other part is made too)
+    check lines[0].startsWith(f.cache / "user" / "ff--") and
+      lines[1].startsWith(f.cache / "user" / "ff--")
+    check dirExists(f.cache / "system") # (the other part is made too)
     check readFile(lines[0]).contains("plot.umd.min.js")
     let csv = readFile(lines[1]).splitLines
     check csv[0] == "time,fitness,fatigue"
-    check csv[1].startsWith("2018-08-27,")                       # (the ride, 14:03 UTC)
-    check csv.len == 1 + 10 + 1                                    # (to 2018-09-05, and the closing newline)
+    check csv[1].startsWith("2018-08-27,") # (the ride, 14:03 UTC)
+    check csv.len == 1 + 10 + 1 # (to 2018-09-05, and the closing newline)
   test "no FTHR: an error, no files":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("nofthr")
     let s = openStore(f.db, allFragments)
     s.db.exec(sql"delete from user_profile")
     s.close()
     let (output, code) = worker(f.db, f.cache, @[])
     check code == 1 and output.contains("no FTHR")
-    check not dirExists(f.cache / "user") or toSeq(walkFiles(f.cache / "user" / "*")).len == 0     # (nothing made; the cache has only what was unpacked)
+    check not dirExists(f.cache / "user") or
+      toSeq(walkFiles(f.cache / "user" / "*")).len == 0
+      # (nothing made; the cache has only what was unpacked)
 
 suite "nch ff --web: a real server":
   test "the address, the cookie, the page and the data":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("web")
-    let p = startProcess(exe, args = @["--db", f.db, "ff", "--web", "--no-open", "--port", "0", "--utc", "--to", "2018-09-05"],
-                         env = environment(f.cache), options = {poStdErrToStdOut})
+    let p = startProcess(
+      exe,
+      args = @[
+        "--db", f.db, "ff", "--web", "--no-open", "--port", "0", "--utc", "--to",
+        "2018-09-05",
+      ],
+      env = environment(f.cache),
+      options = {poStdErrToStdOut},
+    )
     var url = ""
     var line = ""
     while p.outputStream.readLine(line):
@@ -106,7 +136,9 @@ suite "nch ff --web: a real server":
     check data.body.startsWith("time,fitness,fatigue\n2018-08-27,")
     # the hourly chart is another file
     let unpinned = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
-    check unpinned.code == Http302 and $unpinned.headers["Location"] == "/ff?check=" & keyOf(url) & "&to=2018-09-05&utc=1&hourly=1"
+    check unpinned.code == Http302 and
+      $unpinned.headers["Location"] ==
+      "/ff?check=" & keyOf(url) & "&to=2018-09-05&utc=1&hourly=1"
     let hourly = withCookie.request(base & $unpinned.headers["Location"])
     check hourly.code == Http200 and hourly.body.contains("const hourly = true;")
     check withCookie.request(base & "/ff?to=2018-09-05&bogus=1").code == Http404

@@ -13,7 +13,10 @@ func quoted(s: string): string =
 
 func cell(s: string): string =
   ## Quoted only if it has to be.
-  if s.anyIt(it in {',', '"', '\n', '\r'}): quoted(s) else: s
+  if s.anyIt(it in {',', '"', '\n', '\r'}):
+    quoted(s)
+  else:
+    s
 
 func orUnknown(s: string): string =
   if s.len == 0: "unknown" else: s
@@ -23,15 +26,18 @@ func fmtValue*(f: FieldValue): string =
   case f.kind
   of vkInt:
     for i, v in f.ints:
-      if i > 0: result.add '|'
+      if i > 0:
+        result.add '|'
       result.add $v
   of vkFloat:
     for i, v in f.floats:
-      if i > 0: result.add '|'
+      if i > 0:
+        result.add '|'
       result.add $v
   of vkString:
     for i, v in f.strings:
-      if i > 0: result.add '|'
+      if i > 0:
+        result.add '|'
       result.add v
 
 func csvLine*(ev: Event): string =
@@ -45,5 +51,5 @@ func csvLine*(ev: Event): string =
     let r = ev.record
     result = "Data," & $r.local & "," & cell(orUnknown(r.name))
     for f in r.fields:
-      result.add "," & cell(orUnknown(f.name)) & "," & quoted(fmtValue(f)) &
-                 "," & cell(f.units)
+      result.add "," & cell(orUnknown(f.name)) & "," & quoted(fmtValue(f)) & "," &
+        cell(f.units)

@@ -17,32 +17,38 @@ const
   multiLineString = 5'u32
 
 func put32(buf: var string, pos: var int, v: uint32) =
-  for i in 0 ..< 4: buf[pos + i] = char((v shr (8 * i)) and 0xff)
+  for i in 0 ..< 4:
+    buf[pos + i] = char((v shr (8 * i)) and 0xff)
   pos += 4
 
 func put64(buf: var string, pos: var int, x: float) =
   let v = cast[uint64](x)
-  for i in 0 ..< 8: buf[pos + i] = char((v shr (8 * i)) and 0xff)
+  for i in 0 ..< 8:
+    buf[pos + i] = char((v shr (8 * i)) and 0xff)
   pos += 8
 
 func routeWkb*(a: ActivityData): Option[string] =
   ## The WKB of the route (as bytes in a string), or none if no segment has two points (a line
   ## needs two).  Each coordinate is in the segment whose interval holds its time (extract.nim
   ## makes sure there is exactly one).  Points are longitude, latitude.
-  var parts: seq[(int, int)]       # (index of the first coordinate, how many) of each segment
-  var k = 0                        # coords are in time order, segments too
+  var parts: seq[(int, int)] # (index of the first coordinate, how many) of each segment
+  var k = 0 # coords are in time order, segments too
   for g in a.segments:
     var first = -1
     var n = 0
     while k < a.coords.len and a.coords[k].t <= g.endT:
       if a.coords[k].t >= g.startT:
-        if first < 0: first = k
+        if first < 0:
+          first = k
         inc n
       inc k
-    if n >= 2: parts.add (first, n)
-  if parts.len == 0: return none(string)
+    if n >= 2:
+      parts.add (first, n)
+  if parts.len == 0:
+    return none(string)
   var size = 1 + 4 + 4
-  for (_, n) in parts: size += 1 + 4 + 4 + 16 * n
+  for (_, n) in parts:
+    size += 1 + 4 + 4 + 16 * n
   var buf = newString(size)
   var pos = 0
   buf[pos] = char(littleEndianFlag)
@@ -60,32 +66,41 @@ func routeWkb*(a: ActivityData): Option[string] =
   some(buf)
 
 func get32(buf: string, pos: var int): uint32 =
-  for i in 0 ..< 4: result = result or (uint32(ord(buf[pos + i])) shl (8 * i))
+  for i in 0 ..< 4:
+    result = result or (uint32(ord(buf[pos + i])) shl (8 * i))
   pos += 4
 
 func getDouble(buf: string, pos: var int): float =
   var bits = 0'u64
-  for i in 0 ..< 8: bits = bits or (uint64(ord(buf[pos + i])) shl (8 * i))
+  for i in 0 ..< 8:
+    bits = bits or (uint64(ord(buf[pos + i])) shl (8 * i))
   pos += 8
   cast[float](bits)
 
 func routePoints*(wkb: string): tuple[lons, lats: seq[float]] =
   ## The points of a route in WKB, in order, parts one after the other (the inverse of `routeWkb`, little-endian, as
   ## SpatiaLite gives it).  Nothing for anything else, or for bytes that are too short.
-  if wkb.len < 9 or ord(wkb[0]) != int(littleEndianFlag): return
+  if wkb.len < 9 or ord(wkb[0]) != int(littleEndianFlag):
+    return
   var pos = 1
   let kind = get32(wkb, pos)
   var parts = 1
-  if kind == multiLineString: parts = int(get32(wkb, pos))
-  elif kind != lineString: return
+  if kind == multiLineString:
+    parts = int(get32(wkb, pos))
+  elif kind != lineString:
+    return
   for _ in 0 ..< parts:
     if kind == multiLineString:
-      if pos + 9 > wkb.len or ord(wkb[pos]) != int(littleEndianFlag): return
+      if pos + 9 > wkb.len or ord(wkb[pos]) != int(littleEndianFlag):
+        return
       pos += 1
-      if get32(wkb, pos) != lineString: return
-    if pos + 4 > wkb.len: return
+      if get32(wkb, pos) != lineString:
+        return
+    if pos + 4 > wkb.len:
+      return
     let n = int(get32(wkb, pos))
-    if pos + 16 * n > wkb.len: return
+    if pos + 16 * n > wkb.len:
+      return
     for _ in 0 ..< n:
       result.lons.add getDouble(wkb, pos)
       result.lats.add getDouble(wkb, pos)

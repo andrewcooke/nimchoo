@@ -18,24 +18,25 @@ export describe, units
 
 {.push raises: [].}
 
-type
-  ListRow* = object
-    startT*: UnixTime
-    sport*, subSport*: string     ## "" if not recorded
-    distanceM*, activeS*: Option[float]
-    file*, user*: string          ## the file's name; who it belongs to
-    path*: string                 ## where the file was imported from (its name if not known)
-    place*: string                ## where it started, as text ("" if not known)
-    name*: string                 ## what it is called ("" if nothing)
-    position*: string             ## its start as `positionText` (no GPS if it has none)
-    selected*: bool               ## it is in the selection (of the current user)
+type ListRow* = object
+  startT*: UnixTime
+  sport*, subSport*: string ## "" if not recorded
+  distanceM*, activeS*: Option[float]
+  file*, user*: string ## the file's name; who it belongs to
+  path*: string ## where the file was imported from (its name if not known)
+  place*: string ## where it started, as text ("" if not known)
+  name*: string ## what it is called ("" if nothing)
+  position*: string ## its start as `positionText` (no GPS if it has none)
+  selected*: bool ## it is in the selection (of the current user)
 
 func positionText*(lat, lon: string): string =
   ## The start as "-33.4362,-70.6090": latitude, longitude, four decimals (about 10 metres), as
   ## Google Maps takes them; "no GPS" if there is no start (`lat` or `lon` empty, or not numbers).
-  if lat.len == 0 or lon.len == 0: return noGps
+  if lat.len == 0 or lon.len == 0:
+    return noGps
   try:
-    formatFloat(parseFloat(lat), ffDecimal, 4) & "," & formatFloat(parseFloat(lon), ffDecimal, 4)
+    formatFloat(parseFloat(lat), ffDecimal, 4) & "," &
+      formatFloat(parseFloat(lon), ffDecimal, 4)
   except ValueError:
     noGps
 
@@ -46,14 +47,24 @@ func padRight*(s: string, width: int): string =
 func padLeft*(s: string, width: int): string =
   ' '.repeat(max(0, width - s.runeLen)) & s
 
-const transition = "transition"      ## the sport of the gaps between the legs of a triathlon
+const transition = "transition" ## the sport of the gaps between the legs of a triathlon
 
 func info*(r: ListRow, verbose = false): ActivityInfo =
   ## The row as the standard description takes it.  ("no GPS" is said only if verbose: otherwise the positions are not read.)
-  ActivityInfo(startT: r.startT, sport: r.sport, subSport: r.subSport, distanceM: r.distanceM, activeS: r.activeS,
-               place: r.place, name: r.name, path: r.path, noPositions: verbose and r.position == noGps)
+  ActivityInfo(
+    startT: r.startT,
+    sport: r.sport,
+    subSport: r.subSport,
+    distanceM: r.distanceM,
+    activeS: r.activeS,
+    place: r.place,
+    name: r.name,
+    path: r.path,
+    noPositions: verbose and r.position == noGps,
+  )
 
-func isTransition(r: ListRow): bool = r.sport == transition
+func isTransition(r: ListRow): bool =
+  r.sport == transition
 
 func zeroDistance(r: ListRow): bool =
   ## A distance that shows as "0.0" (under 50 m; not "not recorded"): often a stray
@@ -77,36 +88,54 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   ## Looks: a row in the selection is blue all through; a
   ## transition row is dim all through; "-" (not recorded) is dim; a distance
   ## or an active time that shows as zero is yellow.
-  if rows.len == 0: return
+  if rows.len == 0:
+    return
   var header = @["start", "sport", "distance", "active", "place / name"]
-  if verbose: header.add "path"
+  if verbose:
+    header.add "path"
   var cells: seq[seq[string]]
-  for r in rows: cells.add activityCells(info(r, verbose), zone, verbose)
-  let first = 2                                       # the distance column; the active time follows
+  for r in rows:
+    cells.add activityCells(info(r, verbose), zone, verbose)
+  let first = 2 # the distance column; the active time follows
   var widths = newSeq[int](header.len)
   for c in 0 ..< header.len:
     widths[c] = header[c].runeLen
-    for row in cells: widths[c] = max(widths[c], row[c].runeLen)
+    for row in cells:
+      widths[c] = max(widths[c], row[c].runeLen)
   proc padded(text: string, c: int): string =
-    if c == first or c == first + 1: text.padLeft(widths[c])
-    elif c == header.len - 1: text
-    else: text.padRight(widths[c])
+    if c == first or c == first + 1:
+      text.padLeft(widths[c])
+    elif c == header.len - 1:
+      text
+    else:
+      text.padRight(widths[c])
+
   proc line(row: seq[string], r: Option[ListRow]): Line =
     for c in 0 ..< row.len:
-      if c == row.len - 1 and row[c].len == 0 and c > 0: break      # (nothing to say last: no trailing blanks)
-      if c > 0: result.add span("  ")
+      if c == row.len - 1 and row[c].len == 0 and c > 0:
+        break # (nothing to say last: no trailing blanks)
+      if c > 0:
+        result.add span("  ")
       var look = Look()
       if r.isSome:
-        if r.get.isTransition: look.colour = grey
-        elif r.get.selected: look.colour = blue           # the whole row: it is in the selection
-        elif row[c] == notRecorded or row[c] == noGps: look.colour = grey
-        elif (c == first and r.get.zeroDistance) or (c == first + 1 and r.get.zeroActive):
+        if r.get.isTransition:
+          look.colour = grey
+        elif r.get.selected:
+          look.colour = blue # the whole row: it is in the selection
+        elif row[c] == notRecorded or row[c] == noGps:
+          look.colour = grey
+        elif (c == first and r.get.zeroDistance) or (
+          c == first + 1 and r.get.zeroActive
+        ):
           look.colour = yellow
       result.add Span(text: padded(row[c], c), look: look)
-  result.add line(header, none(ListRow))
-  for i, row in cells: result.add line(row, some(rows[i]))
 
-func plural(n: int, one, many: string): string = $n & " " & (if n == 1: one else: many)
+  result.add line(header, none(ListRow))
+  for i, row in cells:
+    result.add line(row, some(rows[i]))
+
+func plural(n: int, one, many: string): string =
+  $n & " " & (if n == 1: one else: many)
 
 func footer*(rows: seq[ListRow], choices = none(int)): string =
   ## "42 of 310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many
@@ -115,24 +144,33 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
   var metres, seconds = 0.0
   var bySport: CountTable[string]
   for r in rows:
-    if r.distanceM.isSome: metres += r.distanceM.get
-    if r.activeS.isSome: seconds += r.activeS.get
+    if r.distanceM.isSome:
+      metres += r.distanceM.get
+    if r.activeS.isSome:
+      seconds += r.activeS.get
     bySport.inc(if r.sport.len > 0: r.sport else: "unknown")
-  result = $rows.len & (if choices.isSome: " of " & $choices.get else: "") &
+  result =
+    $rows.len & (if choices.isSome: " of " & $choices.get else: "") &
     (if rows.len == 1 and choices.isNone: " activity" else: " activities")
-  if rows.len == 0: return
+  if rows.len == 0:
+    return
   result.add ", " & km(metres) & ", " & interval(seconds)
   if bySport.len > 1:
     var parts: seq[(string, int)]
-    for k, v in bySport: parts.add (k, v)
-    parts.sort do (a, b: (string, int)) -> int:
+    for k, v in bySport:
+      parts.add (k, v)
+    parts.sort do(a, b: (string, int)) -> int:
       result = cmp(b[1], a[1])
-      if result == 0: result = cmp(a[0], b[0])
+      if result == 0:
+        result = cmp(a[0], b[0])
     var text: seq[string]
-    for (k, v) in parts: text.add $v & " " & k
+    for (k, v) in parts:
+      text.add $v & " " & k
     result.add " (" & text.join(", ") & ")"
 
-func footerLine*(rows: seq[ListRow], choices = none(int), selectedColour = blue, saved = none(int)): Line =
+func footerLine*(
+    rows: seq[ListRow], choices = none(int), selectedColour = blue, saved = none(int)
+): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
   ## the activities are in the selection, ", 35 match selected" follows the count, in the colour
   ## the selected ones have in the display (blue rows in the table, blue days in the calendar):
@@ -141,9 +179,19 @@ func footerLine*(rows: seq[ListRow], choices = none(int), selectedColour = blue,
   ## "done: 1 of 1112 activities, 1 saved as the selection, 95.4km, 5h24m".
   let text = footer(rows, choices)
   let selected = rows.countIt(it.selected)
-  if selected == 0 and saved.isNone: return plain("done: " & text)
-  let split = text.find(", ")                       # the count comes first; the rest follows a comma
-  let head = if split < 0: text else: text[0 ..< split]
-  let said = if saved.isSome: ", " & $saved.get & " saved as the selection" else: ", " & $selected & " match selected"
+  if selected == 0 and saved.isNone:
+    return plain("done: " & text)
+  let split = text.find(", ") # the count comes first; the rest follows a comma
+  let head =
+    if split < 0:
+      text
+    else:
+      text[0 ..< split]
+  let said =
+    if saved.isSome:
+      ", " & $saved.get & " saved as the selection"
+    else:
+      ", " & $selected & " match selected"
   result = @[span("done: " & head), span(said, selectedColour)]
-  if split >= 0: result.add span(text[split .. ^1])
+  if split >= 0:
+    result.add span(text[split .. ^1])

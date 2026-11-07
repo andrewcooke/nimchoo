@@ -47,8 +47,12 @@ proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
 
 proc setFthr(st: Store, id: UserId, fthr: int) {.raises: [StoreError].} =
   guard:
-    st.db.exec(sql"""insert into user_profile(user_id, fthr) values (?, ?)
-      on conflict(user_id) do update set fthr = excluded.fthr""", id, fthr)
+    st.db.exec(
+      sql"""insert into user_profile(user_id, fthr) values (?, ?)
+      on conflict(user_id) do update set fthr = excluded.fthr""",
+      id,
+      fthr,
+    )
 
 proc setDefault(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Make `id` the default user (the old one stops being; both or neither).
@@ -68,35 +72,55 @@ proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
   guard:
     let v = st.db.getValue(sql"select fthr from user_profile where user_id = ?", id)
     if v.len > 0:
-      try: return some(parseInt(v))
-      except ValueError: discard
+      try:
+        return some(parseInt(v))
+      except ValueError:
+        discard
 
 proc hasImpulses(st: Store, id: UserId): bool {.raises: [StoreError].} =
   guard:
-    result = st.db.getValue(sql"""select count(*) from impulse i join activity a on a.id = i.activity_id
-      join file f on f.id = a.file_id where f.user_id = ?""", id) != "0"
+    result =
+      st.db.getValue(
+        sql"""select count(*) from impulse i join activity a on a.id = i.activity_id
+      join file f on f.id = a.file_id where f.user_id = ?""",
+        id,
+      ) != "0"
 
 func commas(n: string): string =
-  try: insertSep($parseInt(n), ',') except ValueError: n
+  try:
+    insertSep($parseInt(n), ',')
+  except ValueError:
+    n
 
 proc userLines*(st: Store): seq[string] {.raises: [StoreError].} =
   ## The users, one to a line: name, FTHR ("-" if not set), how many activities they have, and
   ## "yes" for the default user.
   var rows: seq[array[4, string]]
   guard:
-    for r in st.db.fastRows(sql"""select u.name, coalesce(p.fthr, ''), (select count(*) from activity a
+    for r in st.db.fastRows(
+      sql"""select u.name, coalesce(p.fthr, ''), (select count(*) from activity a
         join file f on f.id = a.file_id where f.user_id = u.id), u.is_default
-        from user u left join user_profile p on p.user_id = u.id order by u.name"""):
-      rows.add [r[0], (if r[1].len > 0: r[1] else: "-"), commas(r[2]),
-                (if r[3] == "1": "yes" else: "")]
+        from user u left join user_profile p on p.user_id = u.id order by u.name"""
+    ):
+      rows.add [
+        r[0],
+        (if r[1].len > 0: r[1] else: "-"),
+        commas(r[2]),
+        (if r[3] == "1": "yes" else: ""),
+      ]
   var w = [4, 4, 10]
   for r in rows:
-    for c in 0 .. 2: w[c] = max(w[c], r[c].len)
-  result.add ("user".alignLeft(w[0]) & "  " & "fthr".align(w[1]) & "  " & "activities".align(w[2]) &
-              "  default").strip(leading = false)
+    for c in 0 .. 2:
+      w[c] = max(w[c], r[c].len)
+  result.add (
+    "user".alignLeft(w[0]) & "  " & "fthr".align(w[1]) & "  " & "activities".align(w[2]) &
+    "  default"
+  ).strip(leading = false)
   for r in rows:
-    result.add (r[0].alignLeft(w[0]) & "  " & r[1].align(w[1]) & "  " & r[2].align(w[2]) &
-                "  " & r[3]).strip(leading = false)
+    result.add (
+      r[0].alignLeft(w[0]) & "  " & r[1].align(w[1]) & "  " & r[2].align(w[2]) & "  " &
+      r[3]
+    ).strip(leading = false)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch users ARGS`; returns the exit status.
@@ -107,8 +131,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if p.problem.len > 0:
     return usageError("nch users", usage, p.problem)
   if g.user.len > 0:
-    return usageError("nch users", usage,
-      "--user goes after the command here: nch users --edit " & g.user & " ... (the users are named there)")
+    return usageError(
+      "nch users",
+      usage,
+      "--user goes after the command here: nch users --edit " & g.user &
+        " ... (the users are named there)",
+    )
   var st: Store
   try:
     st = openStore(g)
@@ -116,13 +144,17 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch users", e.msg)
   try:
     if p.list:
-      for l in userLines(st): stdout.say l & "\n"
+      for l in userLines(st):
+        stdout.say l & "\n"
       return exitOk
     if p.delete:
       let id = findUser(st, p.name)
       let what = describe(countActivities(st.path, p.name), p.name)
       if not p.force:
-        return failure("nch users", "would delete " & what & " from " & st.path & "; use -f to confirm")
+        return failure(
+          "nch users",
+          "would delete " & what & " from " & st.path & "; use -f to confirm",
+        )
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
       removeUser(st, id)
@@ -132,7 +164,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.create:
       if exists(st, p.name):
         return failure("nch users", "there is a user called '" & p.name & "' already")
-      guard: st.db.exec(sql"insert into user(name) values (?)", p.name)
+      guard:
+        st.db.exec(sql"insert into user(name) values (?)", p.name)
       let id = findUser(st, p.name)
       var said = "made the user " & p.name
       if p.makeDefault:
@@ -150,15 +183,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let had = hasImpulses(st, id)
       let old = currentFthr(st, id)
       setFthr(st, id, p.fthr.get)
-      let said = p.name & ": FTHR is " & $p.fthr.get &
-                 (if had and old.isSome and old.get != p.fthr.get: deletedNote else: "")
+      let said =
+        p.name & ": FTHR is " & $p.fthr.get &
+        (if had and old.isSome and old.get != p.fthr.get: deletedNote else: "")
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.clearFthr:
       let had = hasImpulses(st, id)
-      guard: st.db.exec(sql"update user_profile set fthr = null where user_id = ?", id)
-      let said = p.name & ": FTHR forgotten" &
-                 (if had: " (and the impulses worked out with it are deleted)" else: "")
+      guard:
+        st.db.exec(sql"update user_profile set fthr = null where user_id = ?", id)
+      let said =
+        p.name & ": FTHR forgotten" &
+        (if had: " (and the impulses worked out with it are deleted)" else: "")
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:
@@ -169,7 +205,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.rename.len > 0:
       if exists(st, p.rename):
         return failure("nch users", "there is a user called '" & p.rename & "' already")
-      guard: st.db.exec(sql"update user set name = ? where id = ?", p.rename, id)
+      guard:
+        st.db.exec(sql"update user set name = ? where id = ?", p.rename, id)
       let said = p.name & " is now called " & p.rename
       g.log.log(lvInfo, "user", leSaved, said)
       stdout.say said & "\n"

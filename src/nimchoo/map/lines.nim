@@ -13,16 +13,16 @@ import ../ids
 type Route* = object
   id*: ActivityId
   startT*: UnixTime
-  sport*: string                ## "" if unknown
+  sport*: string ## "" if unknown
   distanceM*: Option[float]
-  geometry*: string             ## GeoJSON text of the route (a LineString or MultiLineString)
+  geometry*: string ## GeoJSON text of the route (a LineString or MultiLineString)
 
 type Climb* = object
   id*: int64
-  name*: string                 ## as shown: "Farellones₃"
-  category*: string             ## "" if none
+  name*: string ## as shown: "Farellones₃"
+  category*: string ## "" if none
   lengthM*, gainM*, gradient*: float
-  geometry*: string             ## GeoJSON text of the climb's line (with heights)
+  geometry*: string ## GeoJSON text of the climb's line (with heights)
 
 proc isoUtc*(t: UnixTime): string =
   ## "2018-08-27T12:00:00Z"
@@ -32,28 +32,37 @@ proc isoUtc*(t: UnixTime): string =
 proc feature*(r: Route): string =
   ## One feature, on one line.  Properties: kind ("route"), id, start (UTC, ISO 8601), sport,
   ## distance_m (the last two only if known).
-  var props = "\"kind\":\"route\",\"id\":" & $r.id & ",\"start\":" & escapeJson(isoUtc(r.startT))
-  if r.sport.len > 0: props.add ",\"sport\":" & escapeJson(r.sport)
-  if r.distanceM.isSome: props.add ",\"distance_m\":" & formatFloat(r.distanceM.get, ffDecimal, 1)
+  var props =
+    "\"kind\":\"route\",\"id\":" & $r.id & ",\"start\":" & escapeJson(isoUtc(r.startT))
+  if r.sport.len > 0:
+    props.add ",\"sport\":" & escapeJson(r.sport)
+  if r.distanceM.isSome:
+    props.add ",\"distance_m\":" & formatFloat(r.distanceM.get, ffDecimal, 1)
   "{\"type\":\"Feature\",\"properties\":{" & props & "},\"geometry\":" & r.geometry & "}"
 
 proc climbFeature*(c: Climb): string =
   ## One feature, on one line.  Properties: kind ("climb"), id, name, category (if it has one), length_m, gain_m, gradient
   ## (percent).
   var props = "\"kind\":\"climb\",\"id\":" & $c.id & ",\"name\":" & escapeJson(c.name)
-  if c.category.len > 0: props.add ",\"category\":" & escapeJson(c.category)
-  props.add ",\"length_m\":" & $int(c.lengthM + 0.5) & ",\"gain_m\":" & $int(c.gainM + 0.5) &
-    ",\"gradient\":" & formatFloat(c.gradient, ffDecimal, 1)
+  if c.category.len > 0:
+    props.add ",\"category\":" & escapeJson(c.category)
+  props.add ",\"length_m\":" & $int(c.lengthM + 0.5) & ",\"gain_m\":" &
+    $int(c.gainM + 0.5) & ",\"gradient\":" & formatFloat(c.gradient, ffDecimal, 1)
   "{\"type\":\"Feature\",\"properties\":{" & props & "},\"geometry\":" & c.geometry & "}"
 
 const filePrefix* = "{\"type\":\"FeatureCollection\",\"nch\":{\"request\":"
   ## What every file starts with, up to the request: so a file found by its name can be checked to be for that request.
 
-func filePrefixFor*(request: string): string = filePrefix & escapeJson(request) & "},"
+func filePrefixFor*(request: string): string =
+  filePrefix & escapeJson(request) & "},"
 
-proc featureCollection*(routes: seq[Route], climbs: seq[Climb], request: string): string =
+proc featureCollection*(
+    routes: seq[Route], climbs: seq[Climb], request: string
+): string =
   ## The whole file: valid JSON, a feature to a line, the routes and then the climbs (so they are drawn on top).
   var fs: seq[string]
-  for r in routes: fs.add feature(r)
-  for c in climbs: fs.add climbFeature(c)
+  for r in routes:
+    fs.add feature(r)
+  for c in climbs:
+    fs.add climbFeature(c)
   filePrefixFor(request) & "\"features\":[\n" & fs.join(",\n") & "\n]}\n"

@@ -10,7 +10,8 @@ when defined(posix):
   import std/posix
 
 let dir = getTempDir() / "nch-test-web"
-let exe = getCurrentDir() / "nch-test"      # (built by the `test` task, like the tests: see nimchoo.nimble)
+let exe = getCurrentDir() / "nch-test"
+  # (built by the `test` task, like the tests: see nimchoo.nimble)
 
 type Web = object
   process: Process
@@ -21,29 +22,52 @@ proc fixture(name: string, selected = true): tuple[db, cache: string] =
   removeDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache")
   let s = openStore(result.db, allFragments)
-  defer: s.close()
-  for (tag, route) in [("a", "MULTILINESTRING((-9.14 38.72, -9.10 38.75, -9.00 38.80))"),
-                       ("b", "MULTILINESTRING((2.35 48.85, 2.40 48.90))")]:
-    s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-              s.userId, tag, tag)
+  defer:
+    s.close()
+  for (tag, route) in [
+    ("a", "MULTILINESTRING((-9.14 38.72, -9.10 38.75, -9.00 38.80))"),
+    ("b", "MULTILINESTRING((2.35 48.85, 2.40 48.90))"),
+  ]:
+    s.db.exec(
+      sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
+      s.userId,
+      tag,
+      tag,
+    )
     let f = s.db.getValue(sql"select max(id) from file")
-    s.db.exec(sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 1000, 1100)", f)
+    s.db.exec(
+      sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 1000, 1100)",
+      f,
+    )
     let a = s.db.getValue(sql"select max(id) from activity")
-    s.db.exec(sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, route)
+    s.db.exec(
+      sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
+      a,
+      route,
+    )
     if selected:
-      s.db.exec(sql"insert into selection(user_id, activity_id) values (?, ?)", s.userId, a)
+      s.db.exec(
+        sql"insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
+      )
 
 proc environment(cache: string): StringTableRef =
   result = newStringTable()
-  for k, v in envPairs(): result[k] = v
+  for k, v in envPairs():
+    result[k] = v
   result["NCH_CACHE"] = cache
-  result["NCH_LOG"] = ""                       # (no log)
+  result["NCH_LOG"] = "" # (no log)
 
-proc start(db, cache: string, extra: seq[string] = @[]): tuple[web: Web, output: string] =
+proc start(
+    db, cache: string, extra: seq[string] = @[]
+): tuple[web: Web, output: string] =
   ## Start the server (not opening a browser, on any free port) and read the address it
   ## prints.  If it stops instead, `output` is what it said and `web.process` is finished.
-  let p = startProcess(exe, args = @["--db", db, "map", "--web", "--no-open", "--port", "0"] & extra,
-                       env = environment(cache), options = {poStdErrToStdOut})
+  let p = startProcess(
+    exe,
+    args = @["--db", db, "map", "--web", "--no-open", "--port", "0"] & extra,
+    env = environment(cache),
+    options = {poStdErrToStdOut},
+  )
   result.web.process = p
   var line = ""
   while p.outputStream.readLine(line):
@@ -65,15 +89,18 @@ proc stop(w: Web): int =
 
 proc client(cookie = "", host = ""): HttpClient =
   result = newHttpClient(maxRedirects = 0, timeout = 10_000)
-  if cookie.len > 0: result.headers = newHttpHeaders({"Cookie": "nch=" & cookie})
+  if cookie.len > 0:
+    result.headers = newHttpHeaders({"Cookie": "nch=" & cookie})
   if host.len > 0:
     result.headers = newHttpHeaders({"Host": host, "Cookie": "nch=" & cookie})
 
-proc built(): bool = fileExists(exe)
+proc built(): bool =
+  fileExists(exe)
 
 suite "nch map --web: a real server":
   test "the address, the cookie, the pinned page, the data":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("flow")
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
@@ -84,7 +111,9 @@ suite "nch map --web: a real server":
     let c = client()
     let r1 = c.request(w.url)
     check r1.code == Http302
-    check r1.headers["Set-Cookie"].contains("nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/")
+    check r1.headers["Set-Cookie"].contains(
+      "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/"
+    )
     let pinned = $r1.headers["Location"]
     check pinned.startsWith("/map?bits=") and not pinned.contains("token")
     # with the cookie: the page, which asks for the data
@@ -101,38 +130,48 @@ suite "nch map --web: a real server":
     # no address with only the selection key: pinned again
     let again = withCookie.request(w.base & "/map")
     check again.code == Http302
-    check pinned.startsWith($again.headers["Location"])          # (the key; the defaults are not repeated)
+    check pinned.startsWith($again.headers["Location"])
+      # (the key; the defaults are not repeated)
     check dirExists(f.cache / "user") and dirExists(f.cache / "system")
-    check fileExists(f.cache / "server-token")                            # (the token is at the top, not in what is served)
+    check fileExists(f.cache / "server-token")
+      # (the token is at the top, not in what is served)
     check withCookie.request(w.base & "/files/server-token").code == Http404
     check w.stop() == 130
 
   test "without the token or with the wrong Host: forbidden":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("forbidden")
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
     check client().request(w.base & "/map").code == Http403
     check client("0".repeat(32)).request(w.base & "/map").code == Http403
     check client().request(w.base & "/map?token=" & "0".repeat(32)).code == Http403
-    check client(w.token, host = "evil.example:" & w.base.split(':')[^1]).request(w.base & "/map").code == Http403
+    check client(w.token, host = "evil.example:" & w.base.split(':')[^1])
+      .request(w.base & "/map").code == Http403
     check client(w.token, host = "127.0.0.1:1").request(w.base & "/map").code == Http403
     check w.stop() == 130
 
   test "nothing else is served":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("nothing")
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
     let c = client(w.token)
-    for path in ["/", "/destroy", "/import?x=1", "/list?save=1", "/map?worker=1", "/map?db=/etc/passwd",
-                 "/files/server-token", "/files/..%2fx.geojson", "/files/%2e%2e%2fserver-token", "/files/nope.geojson"]:
+    for path in [
+      "/", "/destroy", "/import?x=1", "/list?save=1", "/map?worker=1",
+      "/map?db=/etc/passwd", "/files/server-token", "/files/..%2fx.geojson",
+      "/files/%2e%2e%2fserver-token", "/files/nope.geojson",
+    ]:
       check c.request(w.base & path).code == Http404
-    check c.request(w.base & "/map", httpMethod = HttpPost, body = "x").code in [Http405, Http411]
+    check c.request(w.base & "/map", httpMethod = HttpPost, body = "x").code in
+      [Http405, Http411]
     check w.stop() == 130
 
   test "the token is kept in a file only you can read, and kept between runs":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("token")
     let (w1, _) = start(f.db, f.cache)
     check w1.stop() == 130
@@ -148,7 +187,8 @@ suite "nch map --web: a real server":
     check w3.stop() == 130
 
   test "an old cookie stops working after --new-token":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("renew")
     let (w1, _) = start(f.db, f.cache)
     check client(w1.token).request(w1.base & "/map").code == Http302
@@ -159,7 +199,8 @@ suite "nch map --web: a real server":
     check w2.stop() == 130
 
   test "nothing to show: it says so in the terminal and does not start":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("empty", selected = false)
     let (w, output) = start(f.db, f.cache)
     check w.url == ""
@@ -168,13 +209,18 @@ suite "nch map --web: a real server":
     w.process.close()
 
   test "a port that is taken: it says so and does not start":
-    if not built(): skip()
+    if not built():
+      skip()
     let f = fixture("taken")
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
     let port = w.base.split(':')[^1]
-    let p = startProcess(exe, args = @["--db", f.db, "map", "--web", "--no-open", "--port", port],
-                         env = environment(f.cache), options = {poStdErrToStdOut})
+    let p = startProcess(
+      exe,
+      args = @["--db", f.db, "map", "--web", "--no-open", "--port", port],
+      env = environment(f.cache),
+      options = {poStdErrToStdOut},
+    )
     let said = p.outputStream.readAll()
     check p.waitForExit(10_000) == 1
     p.close()

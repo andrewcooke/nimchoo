@@ -22,32 +22,44 @@ import ../geo
 {.push raises: [].}
 
 const
-  stepM* = 50.0                 ## the route is taken every this many metres
-  localFarM* = 1500.0           ## furthest from the start under this: local
-  closedFraction* = 0.25        ## ends within this fraction of the furthest distance of the start: closed
-  nearM* = 50.0                 ## "over the way out"
-  loopBelow* = 0.1              ## under this share of the way back over the way out: a loop
-  outAndBackFrom* = 0.9         ## this share or more (of the whole way back, or of its first third): out and back
+  stepM* = 50.0 ## the route is taken every this many metres
+  localFarM* = 1500.0 ## furthest from the start under this: local
+  closedFraction* = 0.25
+    ## ends within this fraction of the furthest distance of the start: closed
+  nearM* = 50.0 ## "over the way out"
+  loopBelow* = 0.1 ## under this share of the way back over the way out: a loop
+  outAndBackFrom* = 0.9
+    ## this share or more (of the whole way back, or of its first third): out and back
 
 type
-  ShapeKind* = enum skLocal = "local", skOutAndBack = "out and back", skLoop = "loop", skMixed = "mixed", skOneWay = "one way"
+  ShapeKind* = enum
+    skLocal = "local"
+    skOutAndBack = "out and back"
+    skLoop = "loop"
+    skMixed = "mixed"
+    skOneWay = "one way"
 
   Shape* = object
     kind*: ShapeKind
-    lengthM*: float             ## along the route
-    farM*: float                ## the furthest from the start (straight line)
-    endM*: float                ## from the start to the end (straight line)
-    retraced*: float            ## 0 to 1: the share of the way back over the way out (0 if there is no way back)
-    retracedNear*: float        ## the same for the first third of the way back (the part nearest the turning point)
-    turn*: int                  ## index of the turning point in `points`
-    points*: seq[XY]            ## the route every `stepM` metres, in metres east and north of the start
+    lengthM*: float ## along the route
+    farM*: float ## the furthest from the start (straight line)
+    endM*: float ## from the start to the end (straight line)
+    retraced*: float
+      ## 0 to 1: the share of the way back over the way out (0 if there is no way back)
+    retracedNear*: float
+      ## the same for the first third of the way back (the part nearest the turning point)
+    turn*: int ## index of the turning point in `points`
+    points*: seq[XY]
+      ## the route every `stepM` metres, in metres east and north of the start
 
 func shapeOf*(lons, lats: openArray[float]): Shape =
   ## The shape of the route (positions in order).  A route of fewer than two positions is local.
-  if lons.len < 2 or lats.len < lons.len: return Shape(kind: skLocal)
+  if lons.len < 2 or lats.len < lons.len:
+    return Shape(kind: skLocal)
   let pr = projection(lons[0], lats[0])
   var raw = newSeq[XY](lons.len)
-  for i in 0 ..< lons.len: raw[i] = pr.project(lons[i], lats[i])
+  for i in 0 ..< lons.len:
+    raw[i] = pr.project(lons[i], lats[i])
   result.points = raw.along(stepM)
   let pts = result.points
   result.lengthM = raw.length
@@ -67,10 +79,13 @@ func shapeOf*(lons, lats: openArray[float]): Shape =
   # closed: how much of the way back is over the way out (a grid of cells the size of the tolerance)
   var cells = initTable[(int, int), seq[XY]]()
   for i in 0 .. result.turn:
-    cells.mgetOrPut((int(floor(pts[i].x / nearM)), int(floor(pts[i].y / nearM))), @[]).add pts[i]
+    cells.mgetOrPut((int(floor(pts[i].x / nearM)), int(floor(pts[i].y / nearM))), @[]).add pts[
+      i
+    ]
   var back, over = 0
   var nearBack, nearOver = 0
-  let nearCount = max(1, (pts.high - result.turn) div 3)         # the points of the first third of the way back
+  let nearCount = max(1, (pts.high - result.turn) div 3)
+    # the points of the first third of the way back
   for i in result.turn + 1 .. pts.high:
     inc back
     let cx = int(floor(pts[i].x / nearM))
@@ -84,13 +99,26 @@ func shapeOf*(lons, lats: openArray[float]): Shape =
               if dist(q, pts[i]) <= nearM:
                 found = true
                 break search
-    if found: inc over
+    if found:
+      inc over
     if back <= nearCount:
       inc nearBack
-      if found: inc nearOver
-  result.retraced = if back > 0: over / back else: 0.0
-  result.retracedNear = if nearBack > 0: nearOver / nearBack else: 0.0
+      if found:
+        inc nearOver
+  result.retraced =
+    if back > 0:
+      over / back
+    else:
+      0.0
+  result.retracedNear =
+    if nearBack > 0:
+      nearOver / nearBack
+    else:
+      0.0
   result.kind =
-    if result.retracedNear >= outAndBackFrom or result.retraced >= outAndBackFrom: skOutAndBack
-    elif result.retraced < loopBelow: skLoop
-    else: skMixed
+    if result.retracedNear >= outAndBackFrom or result.retraced >= outAndBackFrom:
+      skOutAndBack
+    elif result.retraced < loopBelow:
+      skLoop
+    else:
+      skMixed

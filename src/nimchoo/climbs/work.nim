@@ -26,9 +26,10 @@ import ./[detect, match, ordinal, profile]
 {.push raises: [].}
 
 const
-  algorithmVersion* = 3        ## 3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
-  margin = 0.001                 ## degrees (about 100 m) added to a box that is looked for
-  ridePointLimit = 3_000_000     ## about 70 MB
+  algorithmVersion* = 3
+    ## 3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
+  margin = 0.001 ## degrees (about 100 m) added to a box that is looked for
+  ridePointLimit = 3_000_000 ## about 70 MB
 
 type
   Worked* = object
@@ -36,7 +37,7 @@ type
 
   Box = tuple[lon0, lat0, lon1, lat1: float]
 
-  Sectors = Table[int64, Path]   ## the routes of the sectors read so far, by id
+  Sectors = Table[int64, Path] ## the routes of the sectors read so far, by id
 
   Rides = object
     ## The rides read recently (the same rides are wanted again for each new sector near them),
@@ -52,7 +53,8 @@ func boxOf(p: Path): Box =
     result.lon1 = max(result.lon1, p.lon[i])
     result.lat1 = max(result.lat1, p.lat[i])
 
-func degrees(x: float): string = formatFloat(x, ffDecimal, 7)
+func degrees(x: float): string =
+  formatFloat(x, ffDecimal, 7)
 
 func frame(b: Box): string =
   ## The box, a little wider, as the SpatiaLite function that the spatial indexes are asked with.
@@ -63,11 +65,13 @@ func parseLineString(text: string): Path =
   ## The positions of "LINESTRING Z(lon lat alt, ...)".
   let a = text.find('(')
   let b = text.rfind(')')
-  if a < 0 or b <= a: return
+  if a < 0 or b <= a:
+    return
   try:
     for part in text[a + 1 ..< b].split(','):
       let f = part.splitWhitespace
-      if f.len < 2: return Path()
+      if f.len < 2:
+        return Path()
       result.lon.add parseFloat(f[0])
       result.lat.add parseFloat(f[1])
   except ValueError:
@@ -77,18 +81,29 @@ func lineStringText(p: Path): string =
   ## "LINESTRING Z(lon lat alt, ...)" for a route that has altitudes.
   var points: seq[string]
   for i in 0 ..< p.len:
-    points.add degrees(p.lon[i]) & " " & degrees(p.lat[i]) & " " & formatFloat(p.elev[i], ffDecimal, 1)
+    points.add degrees(p.lon[i]) & " " & degrees(p.lat[i]) & " " &
+      formatFloat(p.elev[i], ffDecimal, 1)
   "LINESTRING Z(" & points.join(", ") & ")"
 
 proc readCoords(st: Store, id: ActivityId): seq[Coord] {.raises: [StoreError].} =
   timed "climbs: read coords":
-   guard:
-    for r in st.db.fastRows(sql"select t, lon, lat, alt from coords where activity_id = ? order by t", id):
-      try:
-        result.add Coord(t: UnixTime(parseBiggestInt(r[0])), lon: parseFloat(r[1]), lat: parseFloat(r[2]),
-                         alt: if r[3].len > 0: some(parseFloat(r[3])) else: none(float))
-      except ValueError:
-        raiseStore("a bad coordinate in the database")
+    guard:
+      for r in st.db.fastRows(
+        sql"select t, lon, lat, alt from coords where activity_id = ? order by t", id
+      ):
+        try:
+          result.add Coord(
+            t: UnixTime(parseBiggestInt(r[0])),
+            lon: parseFloat(r[1]),
+            lat: parseFloat(r[2]),
+            alt:
+              if r[3].len > 0:
+                some(parseFloat(r[3]))
+              else:
+                none(float),
+          )
+        except ValueError:
+          raiseStore("a bad coordinate in the database")
 
 func ridePath(coords: openArray[Coord]): Path =
   for c in coords:
@@ -96,10 +111,13 @@ func ridePath(coords: openArray[Coord]): Path =
     result.lat.add c.lat
     result.t.add float(int64(c.t))
 
-proc rideOf(st: Store, rides: var Rides, id: ActivityId): Path {.raises: [StoreError].} =
+proc rideOf(
+    st: Store, rides: var Rides, id: ActivityId
+): Path {.raises: [StoreError].} =
   ## The positions and times of an activity, read once while it is wanted.
   let key = int64(id)
-  if key in rides.paths: return rides.paths.getOrDefault(key)
+  if key in rides.paths:
+    return rides.paths.getOrDefault(key)
   result = ridePath(st.readCoords(id))
   if rides.points + result.len > ridePointLimit:
     rides.paths.clear()
@@ -114,33 +132,51 @@ func climbPath(p: Profile, c: Climb): Path =
     result.lat.add p.lat[i]
     result.elev.add p.elev[i]
 
-proc sectorsNear(st: Store, cache: var Sectors, box: Box): seq[int64] {.raises: [StoreError].} =
+proc sectorsNear(
+    st: Store, cache: var Sectors, box: Box
+): seq[int64] {.raises: [StoreError].} =
   ## The ids of the sectors whose boxes meet the box; their routes are read into the cache.
   var ids: seq[int64]
   guard:
-    for r in st.db.fastRows(sql("select id from sector where id in (select ROWID from SpatialIndex " &
-        "where f_table_name = 'sector' and f_geometry_column = 'route' and search_frame = " &
-        frame(box) & ")")):
-      try: ids.add parseBiggestInt(r[0])
-      except ValueError: raiseStore("a bad sector id")
+    for r in st.db.fastRows(
+      sql(
+        "select id from sector where id in (select ROWID from SpatialIndex " &
+          "where f_table_name = 'sector' and f_geometry_column = 'route' and search_frame = " &
+          frame(box) & ")"
+      )
+    ):
+      try:
+        ids.add parseBiggestInt(r[0])
+      except ValueError:
+        raiseStore("a bad sector id")
   for id in ids:
     if id notin cache:
       guard:
-        cache[id] = parseLineString(st.db.getValue(sql"select AsText(route) from sector where id = ?", id))
+        cache[id] = parseLineString(
+          st.db.getValue(sql"select AsText(route) from sector where id = ?", id)
+        )
     result.add id
 
 proc ridesNear(st: Store, box: Box): seq[ActivityId] {.raises: [StoreError].} =
   ## The activities already looked at whose routes meet the box.
   guard:
-    for r in st.db.fastRows(sql("select activity_id from route where activity_id in " &
-        "(select ROWID from SpatialIndex where f_table_name = 'route' and f_geometry_column = 'geom' " &
-        "and search_frame = " & frame(box) & ") and activity_id in (select activity_id from climbs_done) " &
-        "order by activity_id")):
-      try: result.add ActivityId(parseBiggestInt(r[0]))
-      except ValueError: raiseStore("a bad activity id")
+    for r in st.db.fastRows(
+      sql(
+        "select activity_id from route where activity_id in " &
+          "(select ROWID from SpatialIndex where f_table_name = 'route' and f_geometry_column = 'geom' " &
+          "and search_frame = " & frame(box) &
+          ") and activity_id in (select activity_id from climbs_done) " &
+          "order by activity_id"
+      )
+    ):
+      try:
+        result.add ActivityId(parseBiggestInt(r[0]))
+      except ValueError:
+        raiseStore("a bad activity id")
 
-proc addEfforts(insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[Effort]): int
-    {.raises: [StoreError].} =
+proc addEfforts(
+    insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[Effort]
+): int {.raises: [StoreError].} =
   for e in efforts:
     insert.bindInt(1, sector)
     insert.bindInt(2, activity)
@@ -151,13 +187,20 @@ proc addEfforts(insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[
     insert.run()
     inc result
 
-proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, result: var Worked)
-    {.raises: [StoreError].} =
+proc workOn(
+    st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, result: var Worked
+) {.raises: [StoreError].} =
   ## One activity (inside a transaction made by the caller).
-  let insertEffort = prepareStmt(st.db, "insert or ignore into effort(sector_id, activity_id, start_t, " &
-    "finish_t, elapsed_s, start_m) values (?, ?, ?, ?, ?, ?)")
-  let insertSector = prepareStmt(st.db, "insert into sector(length_m, gain_m, gradient, category, " &
-    "found_at, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))")
+  let insertEffort = prepareStmt(
+    st.db,
+    "insert or ignore into effort(sector_id, activity_id, start_t, " &
+      "finish_t, elapsed_s, start_m) values (?, ?, ?, ?, ?, ?)",
+  )
+  let insertSector = prepareStmt(
+    st.db,
+    "insert into sector(length_m, gain_m, gradient, category, " &
+      "found_at, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))",
+  )
   let coords = st.readCoords(id)
   if coords.len >= 2:
     let ride = ridePath(coords)
@@ -168,17 +211,22 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
     rides.paths[int64(id)] = ride
     rides.points += ride.len
     # 1. the sectors that exist
-    var matched: seq[int64]               # the sectors this ride earned an effort on
+    var matched: seq[int64] # the sectors this ride earned an effort on
     for sector in st.sectorsNear(cache, rideBox):
       timed "climbs: match a ride to a sector":
         let n = insertEffort.addEfforts(sector, id, overPaths(cache.must(sector), ride))
         result.efforts += n
-        if n > 0: matched.add sector
+        if n > 0:
+          matched.add sector
     # 2. its climbs
     var foundAt = 0'i64
     guard:
-      try: foundAt = parseBiggestInt(st.db.getValue(sql"select start_t from activity where id = ?", id))
-      except ValueError: raiseStore("a bad start time in the database")
+      try:
+        foundAt = parseBiggestInt(
+          st.db.getValue(sql"select start_t from activity where id = ?", id)
+        )
+      except ValueError:
+        raiseStore("a bad start time in the database")
     var prof: Profile
     var climbs: seq[Climb]
     timed "climbs: profile and detect":
@@ -193,7 +241,8 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
         if sector in matched and isRepeat(cache.must(sector), route):
           again = true
           break
-      if again: continue
+      if again:
+        continue
       insertSector.bindReal(1, climb.length)
       insertSector.bindReal(2, climb.gain)
       insertSector.bindReal(3, climb.gradient)
@@ -208,29 +257,46 @@ proc workOn(st: Store, id: ActivityId, cache: var Sectors, rides: var Rides, res
       # 3. the new sector against the ride it came from, and the earlier rides near it
       let own = insertEffort.addEfforts(sector, id, overPaths(route, ride))
       result.efforts += own
-      if own > 0: matched.add sector                # (so that a later lap over the same climb is this sector again)
+      if own > 0:
+        matched.add sector
+        # (so that a later lap over the same climb is this sector again)
       for other in st.ridesNear(boxOf(route)):
         if other != id:
           let otherRide = st.rideOf(rides, other)
           timed "climbs: match a new sector to an earlier ride":
-            result.efforts += insertEffort.addEfforts(sector, other, overPaths(route, otherRide))
+            result.efforts +=
+              insertEffort.addEfforts(sector, other, overPaths(route, otherRide))
   guard:
-    st.db.exec(sql"insert into climbs_done(activity_id, version) values (?, ?)", id, algorithmVersion)
+    st.db.exec(
+      sql"insert into climbs_done(activity_id, version) values (?, ?)",
+      id,
+      algorithmVersion,
+    )
 
-proc ensureClimbs*(st: Store, progress: proc(done, total: int, soFar: Worked) {.closure, raises: [].} = nil): Worked
-    {.raises: [StoreError].} =
+proc ensureClimbs*(
+    st: Store,
+    progress: proc(done, total: int, soFar: Worked) {.closure, raises: [].} = nil,
+): Worked {.raises: [StoreError].} =
   ## Look at the activities that have not been looked at, and bring the sectors and efforts up to
   ## date.  An error if some were looked at by another version of the method.
   guard:
-    if st.db.getValue(sql"select count(*) from climbs_done where version != ?", algorithmVersion) != "0":
-      raiseStore("the climbs were worked out by another version of the method: " &
-                 "run `nch climbs --all --delete -f` and ask for them again")
+    if st.db.getValue(
+      sql"select count(*) from climbs_done where version != ?", algorithmVersion
+    ) != "0":
+      raiseStore(
+        "the climbs were worked out by another version of the method: " &
+          "run `nch climbs --all --delete -f` and ask for them again"
+      )
   var todo: seq[ActivityId]
   guard:
-    for r in st.db.fastRows(sql"""select a.id from activity a left join climbs_done d on d.activity_id = a.id
-                                  where d.activity_id is null order by a.start_t, a.id"""):
-      try: todo.add ActivityId(parseBiggestInt(r[0]))
-      except ValueError: raiseStore("a bad activity id")
+    for r in st.db.fastRows(
+      sql"""select a.id from activity a left join climbs_done d on d.activity_id = a.id
+                                  where d.activity_id is null order by a.start_t, a.id"""
+    ):
+      try:
+        todo.add ActivityId(parseBiggestInt(r[0]))
+      except ValueError:
+        raiseStore("a bad activity id")
   var cache: Sectors
   var rides: Rides
   for k, id in todo:
@@ -241,21 +307,27 @@ proc ensureClimbs*(st: Store, progress: proc(done, total: int, soFar: Worked) {.
       st.commit()
       done = true
     finally:
-      if not done: st.rollback()
+      if not done:
+        st.rollback()
     inc result.activities
-    if progress != nil: progress(k + 1, todo.len, result)
+    if progress != nil:
+      progress(k + 1, todo.len, result)
 
 type Counts* = object
   sectors*, efforts*: int
-  manual*: int                   ## of the sectors, those with a name given by hand
+  manual*: int ## of the sectors, those with a name given by hand
 
 func describe*(c: Counts): string =
   ## "43 sectors and 220 efforts (of every user)", and what would be lost that cannot be made again:
   ## "43 sectors and 220 efforts (of every user); 2 names given by hand are lost".
-  result = $c.sectors & (if c.sectors == 1: " sector" else: " sectors") & " and " & $c.efforts &
+  result =
+    $c.sectors & (if c.sectors == 1: " sector" else: " sectors") & " and " & $c.efforts &
     (if c.efforts == 1: " effort" else: " efforts") & " (of every user)"
   if c.manual > 0:
-    result.add "; " & $c.manual & (if c.manual == 1: " name given by hand is lost" else: " names given by hand are lost")
+    result.add "; " & $c.manual & (
+      if c.manual == 1: " name given by hand is lost"
+      else: " names given by hand are lost"
+    )
 
 proc countClimbs*(st: Store): Counts {.raises: [StoreError].} =
   ## How many sectors and efforts there are.
@@ -263,7 +335,8 @@ proc countClimbs*(st: Store): Counts {.raises: [StoreError].} =
     try:
       result.sectors = parseInt(st.db.getValue(sql"select count(*) from sector"))
       result.efforts = parseInt(st.db.getValue(sql"select count(*) from effort"))
-      result.manual = parseInt(st.db.getValue(sql"select count(*) from sector where manual = 1"))
+      result.manual =
+        parseInt(st.db.getValue(sql"select count(*) from sector where manual = 1"))
     except ValueError:
       raiseStore("a bad count")
 
@@ -279,4 +352,5 @@ proc clearClimbs*(st: Store) {.raises: [StoreError].} =
     st.commit()
     done = true
   finally:
-    if not done: st.rollback()
+    if not done:
+      st.rollback()

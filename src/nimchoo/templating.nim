@@ -27,7 +27,10 @@ export errors
 {.push raises: [].}
 
 type
-  ValueKind* = enum vkText, vkFlag, vkList
+  ValueKind* = enum
+    vkText
+    vkFlag
+    vkList
 
   Context* = ref object
     values: Table[string, Value]
@@ -38,38 +41,58 @@ type
     of vkFlag: flag*: bool
     of vkList: items*: seq[Context]
 
-func text*(s: string): Value = Value(kind: vkText, text: s)
-func flag*(b: bool): Value = Value(kind: vkFlag, flag: b)
-func list*(items: seq[Context]): Value = Value(kind: vkList, items: items)
+func text*(s: string): Value =
+  Value(kind: vkText, text: s)
+func flag*(b: bool): Value =
+  Value(kind: vkFlag, flag: b)
+func list*(items: seq[Context]): Value =
+  Value(kind: vkList, items: items)
 
 func context*(values: openArray[(string, Value)]): Context =
   ## The values of a page (or of one item of a list).
   result = Context(values: initTable[string, Value]())
-  for (k, v) in values: result.values[k] = v
+  for (k, v) in values:
+    result.values[k] = v
 
 func htmlEscape*(s: string): string =
   ## `s` as text in a page: markup in it is shown, not obeyed.
   for c in s:
     case c
-    of '<': result.add "&lt;"
-    of '>': result.add "&gt;"
-    of '&': result.add "&amp;"
-    of '"': result.add "&quot;"
-    else: result.add c
+    of '<':
+      result.add "&lt;"
+    of '>':
+      result.add "&gt;"
+    of '&':
+      result.add "&amp;"
+    of '"':
+      result.add "&quot;"
+    else:
+      result.add c
 
 type
-  Kind = enum kText, kVar, kRaw, kOpen, kInverted, kClose, kComment
+  Kind = enum
+    kText
+    kVar
+    kRaw
+    kOpen
+    kInverted
+    kClose
+    kComment
 
   Token = object
     kind: Kind
-    text: string          ## the text, or the name
+    text: string ## the text, or the name
     line: int
 
-  NodeKind = enum nText, nVar, nRaw, nSection
+  NodeKind = enum
+    nText
+    nVar
+    nRaw
+    nSection
 
   Node = ref object
     kind: NodeKind
-    text: string          ## the text, or the name
+    text: string ## the text, or the name
     inverted: bool
     children: seq[Node]
     line: int
@@ -77,7 +100,8 @@ type
   Template* = object
     nodes: seq[Node]
 
-func isNameChar(c: char): bool = c in {'a' .. 'z', 'A' .. 'Z', '0' .. '9', '_', '-'}
+func isNameChar(c: char): bool =
+  c in {'a' .. 'z', 'A' .. 'Z', '0' .. '9', '_', '-'}
 
 proc tokenize(source: string): seq[Token] {.raises: [TemplateError].} =
   ## The template cut into text and tags.
@@ -85,47 +109,66 @@ proc tokenize(source: string): seq[Token] {.raises: [TemplateError].} =
   var line = 1
   var textStart = 0
   template flushText(upTo: int) =
-    if upTo > textStart: result.add Token(kind: kText, text: source[textStart ..< upTo], line: line)
+    if upTo > textStart:
+      result.add Token(kind: kText, text: source[textStart ..< upTo], line: line)
+
   while i < source.len:
-    if source[i] == '\n': inc line
+    if source[i] == '\n':
+      inc line
     if i + 1 < source.len and source[i] == '{' and source[i + 1] == '{':
       let triple = i + 2 < source.len and source[i + 2] == '{'
       let closer = if triple: "}}}" else: "}}"
       let bodyStart = i + (if triple: 3 else: 2)
       let stop = source.find(closer, bodyStart)
-      if stop < 0: raiseTemplate("a tag is not closed", line)
+      if stop < 0:
+        raiseTemplate("a tag is not closed", line)
       let body = source[bodyStart ..< stop].strip
       flushText(i)
       var kind = kVar
       var name = body
-      if triple: kind = kRaw
+      if triple:
+        kind = kRaw
       elif body.len > 0:
         case body[0]
-        of '&': kind = kRaw; name = body[1 .. ^1].strip
-        of '#': kind = kOpen; name = body[1 .. ^1].strip
-        of '^': kind = kInverted; name = body[1 .. ^1].strip
-        of '/': kind = kClose; name = body[1 .. ^1].strip
-        of '!': kind = kComment; name = ""
-        else: discard
+        of '&':
+          kind = kRaw
+          name = body[1 .. ^1].strip
+        of '#':
+          kind = kOpen
+          name = body[1 .. ^1].strip
+        of '^':
+          kind = kInverted
+          name = body[1 .. ^1].strip
+        of '/':
+          kind = kClose
+          name = body[1 .. ^1].strip
+        of '!':
+          kind = kComment
+          name = ""
+        else:
+          discard
       if kind != kComment and (name.len == 0 or not name.allIt(isNameChar(it))):
         raiseTemplate("'" & body & "' is not a name", line)
       result.add Token(kind: kind, text: name, line: line)
       for c in source[i ..< stop + closer.len]:
-        if c == '\n': inc line
+        if c == '\n':
+          inc line
       i = stop + closer.len
       textStart = i
     else:
       inc i
   flushText(source.len)
 
-proc isBlank(s: string): bool = s.allIt(it in {' ', '\t', '\r'})
+proc isBlank(s: string): bool =
+  s.allIt(it in {' ', '\t', '\r'})
 
 proc standalone(tokens: var seq[Token]) =
   ## A section tag, its end or a comment on a line of its own takes the whole line with it.
-  var lineStartAt = -1                               # the text that begins a line because a tag took the line before
+  var lineStartAt = -1 # the text that begins a line because a tag took the line before
   for k in 0 ..< tokens.len:
-    if tokens[k].kind notin {kOpen, kInverted, kClose, kComment}: continue
-    var before = ""                                  # what is on the line before the tag
+    if tokens[k].kind notin {kOpen, kInverted, kClose, kComment}:
+      continue
+    var before = "" # what is on the line before the tag
     var beforeOk = k == 0
     if k > 0 and tokens[k - 1].kind == kText:
       let t = tokens[k - 1].text
@@ -133,7 +176,7 @@ proc standalone(tokens: var seq[Token]) =
       before = t[nl + 1 .. ^1]
       beforeOk = isBlank(before) and (nl >= 0 or k - 1 == 0 or k - 1 == lineStartAt)
     var afterOk = k == tokens.high
-    var skip = 0                                     # how much of the text after the tag goes
+    var skip = 0 # how much of the text after the tag goes
     if k < tokens.high and tokens[k + 1].kind == kText:
       let t = tokens[k + 1].text
       let nl = t.find('\n')
@@ -144,7 +187,9 @@ proc standalone(tokens: var seq[Token]) =
         afterOk = true
         skip = t.len
     if beforeOk and afterOk:
-      if before.len > 0: tokens[k - 1].text = tokens[k - 1].text[0 ..< tokens[k - 1].text.len - before.len]
+      if before.len > 0:
+        tokens[k - 1].text =
+          tokens[k - 1].text[0 ..< tokens[k - 1].text.len - before.len]
       if skip > 0:
         tokens[k + 1].text = tokens[k + 1].text[skip .. ^1]
         lineStartAt = k + 1
@@ -153,60 +198,85 @@ proc parse*(source: string): Template {.raises: [TemplateError].} =
   ## The template, ready to fill in.  Raises TemplateError if a tag is wrong.
   var tokens = tokenize(source)
   standalone(tokens)
-  var stack: seq[Node] = @[Node(kind: nSection, text: "", children: @[])]    # the root, then each open section
+  var stack: seq[Node] =
+    @[Node(kind: nSection, text: "", children: @[])] # the root, then each open section
   for t in tokens:
     case t.kind
     of kText:
-      if t.text.len > 0: stack[^1].children.add Node(kind: nText, text: t.text, line: t.line)
-    of kVar: stack[^1].children.add Node(kind: nVar, text: t.text, line: t.line)
-    of kRaw: stack[^1].children.add Node(kind: nRaw, text: t.text, line: t.line)
-    of kComment: discard
+      if t.text.len > 0:
+        stack[^1].children.add Node(kind: nText, text: t.text, line: t.line)
+    of kVar:
+      stack[^1].children.add Node(kind: nVar, text: t.text, line: t.line)
+    of kRaw:
+      stack[^1].children.add Node(kind: nRaw, text: t.text, line: t.line)
+    of kComment:
+      discard
     of kOpen, kInverted:
-      let n = Node(kind: nSection, text: t.text, inverted: t.kind == kInverted, line: t.line)
+      let n =
+        Node(kind: nSection, text: t.text, inverted: t.kind == kInverted, line: t.line)
       stack[^1].children.add n
       stack.add n
     of kClose:
-      if stack.len == 1: raiseTemplate("{{/" & t.text & "}} closes nothing", t.line)
+      if stack.len == 1:
+        raiseTemplate("{{/" & t.text & "}} closes nothing", t.line)
       if stack[^1].text != t.text:
-        raiseTemplate("{{/" & t.text & "}} closes {{#" & stack[^1].text & "}} (opened on line " &
-                      $stack[^1].line & ")", t.line)
+        raiseTemplate(
+          "{{/" & t.text & "}} closes {{#" & stack[^1].text & "}} (opened on line " &
+            $stack[^1].line & ")",
+          t.line,
+        )
       stack.setLen stack.len - 1
   if stack.len > 1:
     raiseTemplate("{{#" & stack[^1].text & "}} is never closed", stack[^1].line)
   Template(nodes: stack[0].children)
 
-proc lookup(scopes: seq[Context], name: string, line: int): Value {.raises: [TemplateError].} =
+proc lookup(
+    scopes: seq[Context], name: string, line: int
+): Value {.raises: [TemplateError].} =
   for i in countdown(scopes.high, 0):
     if scopes[i].values.hasKey(name):
       for k, v in scopes[i].values:
-        if k == name: return v
+        if k == name:
+          return v
   raiseTemplate("there is no value called '" & name & "'", line)
 
 func shows(v: Value): bool =
   ## Whether a section on the value is shown.
   case v.kind
-  of vkText: v.text.len > 0
-  of vkFlag: v.flag
-  of vkList: v.items.len > 0
+  of vkText:
+    v.text.len > 0
+  of vkFlag:
+    v.flag
+  of vkList:
+    v.items.len > 0
 
-proc renderNodes(nodes: seq[Node], scopes: seq[Context], output: var string) {.raises: [TemplateError].} =
+proc renderNodes(
+    nodes: seq[Node], scopes: seq[Context], output: var string
+) {.raises: [TemplateError].} =
   for n in nodes:
     case n.kind
-    of nText: output.add n.text
+    of nText:
+      output.add n.text
     of nVar, nRaw:
       let v = lookup(scopes, n.text, n.line)
-      let s = case v.kind
-        of vkText: v.text
-        of vkFlag: (if v.flag: "true" else: "false")
-        of vkList: raiseTemplate("'" & n.text & "' is a list, which a tag cannot show", n.line)
+      let s =
+        case v.kind
+        of vkText:
+          v.text
+        of vkFlag:
+          (if v.flag: "true" else: "false")
+        of vkList:
+          raiseTemplate("'" & n.text & "' is a list, which a tag cannot show", n.line)
       output.add (if n.kind == nVar: htmlEscape(s) else: s)
     of nSection:
       let v = lookup(scopes, n.text, n.line)
       if n.inverted:
-        if not shows(v): renderNodes(n.children, scopes, output)
+        if not shows(v):
+          renderNodes(n.children, scopes, output)
       elif shows(v):
         if v.kind == vkList:
-          for item in v.items: renderNodes(n.children, scopes & @[item], output)
+          for item in v.items:
+            renderNodes(n.children, scopes & @[item], output)
         else:
           renderNodes(n.children, scopes, output)
 

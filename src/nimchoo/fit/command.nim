@@ -29,15 +29,20 @@ proc textValue(p: Profile, r: Record, f: FieldValue): string =
   case f.kind
   of vkInt:
     for i, v in f.ints:
-      if i > 0: result.add '|'
+      if i > 0:
+        result.add '|'
       case f.typeName
-      of "date_time": result.add fitToTime(FitTime(v)).utc.format(isoFormat) & "Z"
-      of "local_date_time": result.add fitToTime(FitTime(v)).utc.format(isoFormat)
+      of "date_time":
+        result.add fitToTime(FitTime(v)).utc.format(isoFormat) & "Z"
+      of "local_date_time":
+        result.add fitToTime(FitTime(v)).utc.format(isoFormat)
       of "timestamp_16":
-        if r.timestamp.isSome:  # the record's expanded time, not the raw bits
+        if r.timestamp.isSome: # the record's expanded time, not the raw bits
           result.add fitToTime(r.timestamp.get).utc.format(isoFormat) & "Z"
-        else: result.add $v
-      else: result.add valueName(p, f, i)
+        else:
+          result.add $v
+      else:
+        result.add valueName(p, f, i)
   of vkFloat, vkString:
     result = fmtValue(f)
 
@@ -47,23 +52,33 @@ proc textLine*(p: Profile, r: Record): string =
   for i, f in r.fields:
     result.add(if i == 0: " " else: "  ")
     let name =
-      if f.name.len == 0: "?" & $f.number
-      elif f.dev: "dev." & f.name
-      else: f.name
+      if f.name.len == 0:
+        "?" & $f.number
+      elif f.dev:
+        "dev." & f.name
+      else:
+        f.name
     result.add name & "=" & textValue(p, r, f)
-    if f.units.len > 0 and f.typeName notin ["date_time", "local_date_time", "timestamp_16"]:
+    if f.units.len > 0 and
+        f.typeName notin ["date_time", "local_date_time", "timestamp_16"]:
       result.add " " & f.units
 
-proc renderInto*(p: Profile, data: seq[byte], csv: bool,
-                 lines: var seq[string],
-                 warnings: var seq[Warning]) {.raises: [FitError].} =
+proc renderInto*(
+    p: Profile,
+    data: seq[byte],
+    csv: bool,
+    lines: var seq[string],
+    warnings: var seq[Warning],
+) {.raises: [FitError].} =
   ## Append the lines for `data` to `lines` and any warnings to `warnings`.
   ## If reading fails part way, what was read before the error is kept.
   var r = initReader(p, data)
   try:
     for ev in r.events(p):
-      if csv: lines.add csvLine(ev)
-      elif ev.kind == evRecord: lines.add textLine(p, ev.record)
+      if csv:
+        lines.add csvLine(ev)
+      elif ev.kind == evRecord:
+        lines.add textLine(p, ev.record)
   finally:
     warnings.add r.warnings
 
@@ -77,13 +92,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## the database, so ignores the global options.)
   var given = FitArgs()
   let spec = Spec[FitArgs](
-    opts: @[flag(FitArgs, ["-h", "--help"], help), flag(FitArgs, ["--csv"], csv),
-            text(FitArgs, ["--profile"], profilePath)],
+    opts: @[
+      flag(FitArgs, ["-h", "--help"], help),
+      flag(FitArgs, ["--csv"], csv),
+      text(FitArgs, ["--profile"], profilePath),
+    ],
     positional: proc(p: var FitArgs, arg: string): string {.nimcall, raises: [].} =
       p.files.add arg
-      "")
+      "",
+  )
   let why = parseOptions(args, spec, given)
-  if why.len > 0: return usageError("nch fit", usage, why)
+  if why.len > 0:
+    return usageError("nch fit", usage, why)
   if given.help:
     stdout.say usage
     return exitOk
@@ -101,14 +121,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           loadProfile(profilePath)
         else:
           let d = defaultProfile()
-          if d.note.len > 0: stderr.say "note: " & d.note & "\n"
+          if d.note.len > 0:
+            stderr.say "note: " & d.note & "\n"
           d.profile
       except NchError as e:
         return failure("nch fit", "cannot use the profile: " & e.msg)
     try:
       renderInto(p, readBytes(files[0]), csv, lines, warnings)
     except FitError as e:
-      problem = e.msg  # report it after the output so far
+      problem = e.msg # report it after the output so far
   except NchError as e:
     return failure("nch fit", e.msg)
   except IOError as e:
@@ -116,9 +137,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except OSError as e:
     return failure("nch fit", e.msg)
   try:
-    for l in lines: stdout.write l & "\n"
+    for l in lines:
+      stdout.write l & "\n"
   except IOError as e:
     return failure("nch fit", "cannot write the output: " & e.msg)
   for w in warnings:
     stderr.say "warning: offset " & $w.offset & ": " & w.msg & "\n"
-  if problem.len > 0: failure("nch fit", problem) else: exitOk
+  if problem.len > 0:
+    failure("nch fit", problem)
+  else:
+    exitOk

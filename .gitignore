@@ -12,3 +12,4 @@ nimble.develop
 .#*
 .saves-*
 *.elc
+.zed

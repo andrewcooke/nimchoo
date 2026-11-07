@@ -8,11 +8,12 @@ suite "structure":
     # depend on it; other code uses the module's library files)
     var offenders: seq[string]
     for path in walkDirRec("src"):
-      if not path.endsWith(".nim") or path == "src" / "nch.nim": continue
+      if not path.endsWith(".nim") or path == "src" / "nch.nim":
+        continue
       for line in readFile(path).splitLines:
         let l = line.strip
-        if l.startsWith("import ") and
-           (l.contains("/command") or l.contains("[command") or l.contains(", command")):
+        if l.startsWith("import ") and (
+          l.contains("/command") or l.contains("[command") or l.contains(", command")
+        ):
           offenders.add path & ": " & l
     check offenders == newSeq[string]()
-

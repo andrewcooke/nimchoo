@@ -12,16 +12,23 @@ type Fake = ref object
   w, h: int
   written: seq[string]
 
-proc newFake(w = 80, h = 24): Fake = Fake(w: w, h: h)
+proc newFake(w = 80, h = 24): Fake =
+  Fake(w: w, h: h)
 
 proc live(f: Fake, colour = false): Live =
-  newLive(write = proc(s: string) {.closure, raises: [].} = f.written.add(s),
-          now = proc(): int64 {.closure, raises: [].} = f.now,
-          size = proc(): tuple[w, h: int] {.closure, raises: [].} = (f.w, f.h),
-          colour = colour)
+  newLive(
+    write = proc(s: string) {.closure, raises: [].} =
+      f.written.add(s),
+    now = proc(): int64 {.closure, raises: [].} =
+      f.now,
+    size = proc(): tuple[w, h: int] {.closure, raises: [].} =
+      (f.w, f.h),
+    colour = colour,
+  )
 
 func lines(xs: varargs[string]): seq[Line] =
-  for x in xs: result.add plain(x)
+  for x in xs:
+    result.add plain(x)
 
 suite "live region: when to draw":
   test "not before the first delay, then not more often than the interval":
@@ -43,8 +50,9 @@ suite "live region: when to draw":
     let l = f.live
     for i in 1 .. 1000:
       f.now = int64(i)
-      if l.due: l.show lines("frame")
-    check f.written.len == 9           # at 150, 250, ... 950 ms
+      if l.due:
+        l.show lines("frame")
+    check f.written.len == 9 # at 150, 250, ... 950 ms
 
 suite "live region: what is drawn":
   test "the first frame hides the cursor and writes each line":
@@ -65,7 +73,7 @@ suite "live region: what is drawn":
     let l = f.live
     l.show lines("a", "b", "c")
     l.show lines("a")
-    check f.written[1] == "\e[3A" & erase & "a\n" & below     # erase-below clears b, c
+    check f.written[1] == "\e[3A" & erase & "a\n" & below # erase-below clears b, c
 
   test "permanent lines go above the region, in order, once":
     let f = newFake()
@@ -74,8 +82,9 @@ suite "live region: what is drawn":
     l.print plain("failed one")
     l.print plain("failed two")
     l.show lines("status")
-    check f.written[1] == "\e[1A" & erase & "failed one\n" & erase & "failed two\n" &
-      erase & "status\n" & below
+    check f.written[1] ==
+      "\e[1A" & erase & "failed one\n" & erase & "failed two\n" & erase & "status\n" &
+      below
     l.show lines("status")
     check f.written[2] == "\e[1A" & erase & "status\n" & below
 
@@ -83,11 +92,12 @@ suite "live region: what is drawn":
     let f = newFake(w = 10, h = 5)
     let l = f.live
     var many: seq[Line]
-    for i in 1 .. 10: many.add plain("a rather long line number " & $i)
+    for i in 1 .. 10:
+      many.add plain("a rather long line number " & $i)
     l.show many
     let drawn = f.written[0].split("\n")
-    check drawn.len == 5                      # four lines (h - 1) and the rest
-    check drawn[0].endsWith("a rather…")      # 9 columns: width - 1
+    check drawn.len == 5 # four lines (h - 1) and the rest
+    check drawn[0].endsWith("a rather…") # 9 columns: width - 1
 
   test "permanent lines are not cut":
     let f = newFake(w = 10)
@@ -116,7 +126,7 @@ suite "live region: finishing":
     let l = f.live
     l.print plain("failed early")
     l.finish
-    check f.written == @[erase & "failed early\n" & below]     # cursor never hidden
+    check f.written == @[erase & "failed early\n" & below] # cursor never hidden
 
   test "queued lines are printed when finishing, above where the region was":
     let f = newFake()
@@ -140,7 +150,7 @@ suite "live region: finishing":
     l.show lines("a", "b")
     l.keep lines("A", "B")
     check f.written[1].startsWith("\e[2A")
-    l.show lines("c")                       # a new region: no cursor-up over the kept lines
+    l.show lines("c") # a new region: no cursor-up over the kept lines
     check not f.written[2].contains("\e[2A")
 
   test "after finishing it can be used again":

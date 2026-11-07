@@ -18,15 +18,19 @@ func readings*(samples: Samples): seq[(UnixTime, int)] =
   ## has lost contact.
   for x in samples.getOrDefault(field):
     let bpm = int(round(x.v))
-    if bpm >= 1: result.add (x.t, bpm)
+    if bpm >= 1:
+      result.add (x.t, bpm)
 
-proc write(db: DbConn, activityId: ActivityId, samples: Samples): int
-    {.nimcall, raises: [StoreError].} =
+proc write(
+    db: DbConn, activityId: ActivityId, samples: Samples
+): int {.nimcall, raises: [StoreError].} =
   let rows = readings(samples)
-  if rows.len == 0: return 0
-  var insert = initMultiInsert(db, "insert into heartrate(activity_id, t, bpm) values ", 3)
+  if rows.len == 0:
+    return 0
+  var insert =
+    initMultiInsert(db, "insert into heartrate(activity_id, t, bpm) values ", 3)
   var i = 0
-  while i < rows.len:                       # many rows to a statement
+  while i < rows.len: # many rows to a statement
     let n = min(rowsPerStatement, rows.len - i)
     let st = insert.statement(n)
     for r in 0 ..< n:
@@ -37,5 +41,9 @@ proc write(db: DbConn, activityId: ActivityId, samples: Samples): int
     i += n
   rows.len
 
-let heartrateStep* = ImportStep(label: "heart-rate reading", labels: "heart-rate readings",
-                                channels: @[field], write: write)
+let heartrateStep* = ImportStep(
+  label: "heart-rate reading",
+  labels: "heart-rate readings",
+  channels: @[field],
+  write: write,
+)

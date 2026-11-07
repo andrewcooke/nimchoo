@@ -8,10 +8,11 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-proc fixed(): Time {.raises: [].} = fromUnix(1_793_000_000)   # 2026-10-26T07:33:20Z
+proc fixed(): Time {.raises: [].} =
+  fromUnix(1_793_000_000) # 2026-10-26T07:33:20Z
 
-proc lines(path: string): seq[string] = readFile(path).splitLines.filterIt(it.len > 0)
-
+proc lines(path: string): seq[string] =
+  readFile(path).splitLines.filterIt(it.len > 0)
 
 suite "log: where it goes":
   test "NCH_LOG wins, and empty switches logging off":
@@ -19,8 +20,10 @@ suite "log: where it goes":
     check logPath(some "", some "/s", some "/h").isNone
   test "XDG_STATE_HOME, if absolute; else the home directory":
     check logPath(none string, some "/s", some "/h") == some "/s/nch/nch.log"
-    check logPath(none string, some "rel", some "/h") == some "/h/.local/state/nch/nch.log"
-    check logPath(none string, none string, some "/h") == some "/h/.local/state/nch/nch.log"
+    check logPath(none string, some "rel", some "/h") ==
+      some "/h/.local/state/nch/nch.log"
+    check logPath(none string, none string, some "/h") ==
+      some "/h/.local/state/nch/nch.log"
   test "no home, nothing":
     check logPath(none string, none string, none string).isNone
     check logPath(none string, none string, some "").isNone
@@ -39,7 +42,7 @@ suite "log: lines":
 suite "log: files":
   test "lines are appended, across opens":
     let d = fresh("append")
-    let path = d / "sub" / "nch.log"          # directory is created
+    let path = d / "sub" / "nch.log" # directory is created
     let a = openLog(path, now = fixed)
     check a.problem == ""
     a.log(lvInfo, "t", leNote, "one")
@@ -53,7 +56,8 @@ suite "log: files":
   test "warnings and errors are on disk before the log is closed":
     let d = fresh("flush")
     let l = openLog(d / "nch.log", now = fixed)
-    defer: l.close()
+    defer:
+      l.close()
     l.log(lvWarn, "t", leNote, "careful")
     check lines(d / "nch.log").len == 1
     l.log(lvError, "t", leNote, "bad")
@@ -72,10 +76,10 @@ suite "log: files":
   test "a log that cannot be opened is disabled, with the reason":
     let d = fresh("blocked")
     writeFile(d / "file", "")
-    let l = openLog(d / "file" / "nch.log")      # parent is a file
+    let l = openLog(d / "file" / "nch.log") # parent is a file
     check not l.enabled
     check l.problem.startsWith("cannot open")
-    l.log(lvInfo, "t", leNote, "x")                       # and nothing happens
+    l.log(lvInfo, "t", leNote, "x") # and nothing happens
     l.close()
 
 suite "log: rotation":

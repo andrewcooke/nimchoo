@@ -18,8 +18,8 @@ import ./countries
 
 {.push raises: [].}
 
-const
-  maxCountryFile = 1024 * 1024 * 1024    ## the United States file unzips to about 300 MB
+const maxCountryFile = 1024 * 1024 * 1024
+  ## the United States file unzips to about 300 MB
 
 type
   Feature* = object
@@ -29,9 +29,9 @@ type
     cls*, code*: string
     population*: int
 
-  Box* = tuple[lon0, lat0, lon1, lat1: float]      ## degrees
+  Box* = tuple[lon0, lat0, lon1, lat1: float] ## degrees
 
-  Cell* = tuple[lon, lat: int]                      ## the whole degrees at its south-west corner
+  Cell* = tuple[lon, lat: int] ## the whole degrees at its south-west corner
 
 func parseFeature*(line: string): Option[Feature] =
   ## The feature on a line of a GeoNames file (none if the line is not whole, or has no name).
@@ -44,20 +44,40 @@ func parseFeature*(line: string): Option[Feature] =
       starts[n] = i + 1
       inc n
     inc i
-  if n < 15: return
+  if n < 15:
+    return
   proc column(c: int): string =
     let a = starts[c]
-    var b = if c + 1 < n: starts[c + 1] - 1 else: line.len
-    if b < a: b = a
+    var b =
+      if c + 1 < n:
+        starts[c + 1] - 1
+      else:
+        line.len
+    if b < a:
+      b = a
     line[a ..< b]
+
   try:
     let name = column(1)
     let cls = column(6)
-    if name.len == 0 or cls.len == 0: return
+    if name.len == 0 or cls.len == 0:
+      return
     let pop = column(14)
-    result = some(Feature(id: parseBiggestInt(column(0)), name: name, lat: parseFloat(column(4)),
-                          lon: parseFloat(column(5)), cls: cls, code: column(7),
-                          population: if pop.len > 0: parseInt(pop) else: 0))
+    result = some(
+      Feature(
+        id: parseBiggestInt(column(0)),
+        name: name,
+        lat: parseFloat(column(4)),
+        lon: parseFloat(column(5)),
+        cls: cls,
+        code: column(7),
+        population:
+          if pop.len > 0:
+            parseInt(pop)
+          else:
+            0,
+      )
+    )
   except ValueError:
     discard
 
@@ -75,33 +95,49 @@ func cellsOf*(box: Box): seq[Cell] =
   for lon in int(floor(box.lon0)) .. int(floor(box.lon1)):
     for lat in max(-90, int(floor(box.lat0))) .. min(89, int(floor(box.lat1))):
       let c = (wrapLon(lon), lat)
-      if c notin result: result.add c
+      if c notin result:
+        result.add c
 
 proc missingCells(n: Names, iso: string, box: Box): seq[Cell] {.raises: [StoreError].} =
   ## The cells of the box that are not yet read for the country.
   for c in cellsOf(box):
     var have = false
     guard:
-      have = n.st.db.getValue(sql"select count(*) from coverage where country = ? and cell_lon = ? and cell_lat = ?",
-                              iso, c.lon, c.lat) != "0"
-    if not have: result.add c
+      have =
+        n.st.db.getValue(
+          sql"select count(*) from coverage where country = ? and cell_lon = ? and cell_lat = ?",
+          iso,
+          c.lon,
+          c.lat,
+        ) != "0"
+    if not have:
+      result.add c
 
-proc readCells(n: Names, iso: string, text: string, missing: seq[Cell]) {.raises: [StoreError].} =
+proc readCells(
+    n: Names, iso: string, text: string, missing: seq[Cell]
+) {.raises: [StoreError].} =
   ## Put the features of the text that fall in the missing cells into the table, and record the cells
   ## (in the caller's transaction).
-  let insert = prepareStmt(n.st.db, "insert or replace into feature(id, country, name, class, code, " &
-    "population, geom) values (?, ?, ?, ?, ?, ?, MakePoint(?, ?, 4326))")
+  let insert = prepareStmt(
+    n.st.db,
+    "insert or replace into feature(id, country, name, class, code, " &
+      "population, geom) values (?, ?, ?, ?, ?, ?, MakePoint(?, ?, 4326))",
+  )
   var counts = initTable[Cell, int]()
-  for c in missing: counts[c] = 0
+  for c in missing:
+    counts[c] = 0
   var at = 0
   while at < text.len:
     var stop = text.find('\n', at)
-    if stop < 0: stop = text.len
+    if stop < 0:
+      stop = text.len
     let f = parseFeature(text[at ..< stop])
     at = stop + 1
-    if f.isNone: continue
+    if f.isNone:
+      continue
     let cell = cellOf(f.get.lon, f.get.lat)
-    if cell notin counts: continue
+    if cell notin counts:
+      continue
     insert.bindInt(1, f.get.id)
     insert.bindText(2, iso)
     insert.bindText(3, f.get.name)
@@ -115,32 +151,57 @@ proc readCells(n: Names, iso: string, text: string, missing: seq[Cell]) {.raises
   let now = getTime().toUnix
   for c, k in counts:
     guard:
-      n.st.db.exec(sql"insert or replace into coverage(country, cell_lon, cell_lat, loaded_at, features) values (?, ?, ?, ?, ?)",
-                   iso, c.lon, c.lat, now, k)
+      n.st.db.exec(
+        sql"insert or replace into coverage(country, cell_lon, cell_lat, loaded_at, features) values (?, ?, ?, ?, ?)",
+        iso,
+        c.lon,
+        c.lat,
+        now,
+        k,
+      )
 
-proc ensureCells*(n: Names, iso: string, box: Box) {.raises: [StoreError, DownloadError].} =
+proc ensureCells*(
+    n: Names, iso: string, box: Box
+) {.raises: [StoreError, DownloadError].} =
   ## The features of the country in the box are in the table: the cells not read yet are read from the country's file,
   ## fetched if need be.  A DownloadError (and the reason told to the sink) if that cannot be done.
   let missing = n.missingCells(iso, box)
-  if missing.len == 0: return
+  if missing.len == 0:
+    return
   n.ensureCountries()
   guard:
     if n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) == "0":
       raise n.couldNot("the names of " & iso & " (no such country)")
   let path = fetchSource(n.env, n.sink, n.dataDir, geonamesCountry, iso)
-  if path.isNone: raise n.couldNot("the names of " & iso)
+  if path.isNone:
+    raise n.couldNot("the names of " & iso)
   # reading the file takes a while (unzipping, parsing, storing): the screen says so, and when it is done
-  n.sink(DownloadEvent(kind: deReading, source: geonamesCountry.name, url: urlFor(geonamesCountry, iso),
-                       label: labelFor(geonamesCountry, iso)))
-  defer: n.sink(DownloadEvent(kind: deFinished, source: geonamesCountry.name))
+  n.sink(
+    DownloadEvent(
+      kind: deReading,
+      source: geonamesCountry.name,
+      url: urlFor(geonamesCountry, iso),
+      label: labelFor(geonamesCountry, iso),
+    )
+  )
+  defer:
+    n.sink(DownloadEvent(kind: deFinished, source: geonamesCountry.name))
   var text: string
   try:
     text = readEntry(readFile(path.get), entryFor(geonamesCountry, iso), maxCountryFile)
   except ZipError, IOError, OSError:
-    n.sink(DownloadEvent(kind: deFailed, source: geonamesCountry.name, url: urlFor(geonamesCountry, iso),
-                         message: "the file cannot be read (" & getCurrentExceptionMsg() & ")"))
-    try: removeFile(path.get)
-    except OSError: discard
+    n.sink(
+      DownloadEvent(
+        kind: deFailed,
+        source: geonamesCountry.name,
+        url: urlFor(geonamesCountry, iso),
+        message: "the file cannot be read (" & getCurrentExceptionMsg() & ")",
+      )
+    )
+    try:
+      removeFile(path.get)
+    except OSError:
+      discard
     raise n.couldNot("the names of " & iso)
   n.st.begin()
   var done = false
@@ -149,4 +210,5 @@ proc ensureCells*(n: Names, iso: string, box: Box) {.raises: [StoreError, Downlo
     n.st.commit()
     done = true
   finally:
-    if not done: n.st.rollback()
+    if not done:
+      n.st.rollback()

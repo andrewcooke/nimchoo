@@ -11,7 +11,8 @@ proc fresh(name: string): string =
   createDir(dir / name)
   dir / name
 
-func bundle(data: string, name = "Profile.xlsx"): Bundle = Bundle(name: name, data: data)
+func bundle(data: string, name = "Profile.xlsx"): Bundle =
+  Bundle(name: name, data: data)
 
 suite "bundle: what to do about a file":
   let h1 = sha256Hex("one")
@@ -27,8 +28,8 @@ suite "bundle: what to do about a file":
   test "as it was unpacked, but the program has another: replace it":
     check decide(some h2, some h2, h1) == acRefresh
   test "anything else was put there by the author":
-    check decide(some h3, some h2, h1) == acCustom        # changed since it was unpacked
-    check decide(some h3, none string, h1) == acCustom    # nothing is known about it
+    check decide(some h3, some h2, h1) == acCustom # changed since it was unpacked
+    check decide(some h3, none string, h1) == acCustom # nothing is known about it
 
 suite "bundle: the manifest":
   test "written sorted, read back":
@@ -36,7 +37,8 @@ suite "bundle: the manifest":
     m["b.txt"] = sha256Hex("b")
     m["a.txt"] = sha256Hex("a")
     let text = formatManifest(m)
-    check text.splitLines[0].endsWith("  a.txt") and text.splitLines[1].endsWith("  b.txt")
+    check text.splitLines[0].endsWith("  a.txt") and
+      text.splitLines[1].endsWith("  b.txt")
     check parseManifest(text) == m
   test "lines that are not entries are left out":
     check parseManifest("junk\n\nshort  x\n" & sha256Hex("a") & "  a.txt\n") ==
@@ -50,9 +52,10 @@ suite "bundle: resolving a file":
     check readFile(systemDir(top) / "NOTICE") == noticeBundle.data
     check parseManifest(readFile(top / manifestName)).hasKey("NOTICE")
     removeFile(systemDir(top) / "NOTICE")
-    discard resolve(top, bundle("v1"))                       # (nothing to unpack: the notice is not brought back)
+    discard
+      resolve(top, bundle("v1")) # (nothing to unpack: the notice is not brought back)
     check not fileExists(systemDir(top) / "NOTICE")
-    discard resolve(top, bundle("v2"))                       # (something is unpacked: it is)
+    discard resolve(top, bundle("v2")) # (something is unpacked: it is)
     check fileExists(systemDir(top) / "NOTICE")
   test "the first time it is unpacked and recorded":
     let top = fresh("first")
@@ -63,10 +66,11 @@ suite "bundle: resolving a file":
   test "again: the same, nothing rewritten":
     let top = fresh("again")
     discard resolve(top, bundle("v1"))
-    let old = fromUnix(1_000_000_000)                       # (a time long ago, set by hand: no waiting)
+    let old = fromUnix(1_000_000_000) # (a time long ago, set by hand: no waiting)
     setLastModificationTime(systemDir(top) / "Profile.xlsx", old)
     check resolve(top, bundle("v1")).source == soUnpacked
-    check getLastModificationTime(systemDir(top) / "Profile.xlsx") == old     # (not written again)
+    check getLastModificationTime(systemDir(top) / "Profile.xlsx") == old
+      # (not written again)
   test "a file that was deleted is unpacked again":
     let top = fresh("deleted")
     discard resolve(top, bundle("v1"))
@@ -78,7 +82,8 @@ suite "bundle: resolving a file":
     discard resolve(top, bundle("v1"))
     writeFile(systemDir(top) / "Profile.xlsx", "mine")
     let r = resolve(top, bundle("v1"))
-    check r.source == soCustom and r.data == "mine" and r.path == systemDir(top) / "Profile.xlsx"
+    check r.source == soCustom and r.data == "mine" and
+      r.path == systemDir(top) / "Profile.xlsx"
     # ... even when the program has a newer one
     check resolve(top, bundle("v2")).data == "mine"
     check readFile(systemDir(top) / "Profile.xlsx") == "mine"
@@ -98,7 +103,8 @@ suite "bundle: resolving a file":
     check resolve(top, bundle("v1")).source == soCustom
     writeFile(systemDir(top) / "Profile.xlsx", "v1")
     check resolve(top, bundle("v1")).source == soUnpacked
-    check parseManifest(readFile(top / manifestName))["Profile.xlsx"] == sha256Hex("v1")      # (and it is recorded)
+    check parseManifest(readFile(top / manifestName))["Profile.xlsx"] == sha256Hex("v1")
+      # (and it is recorded)
   test "several files, each its own":
     let top = fresh("several")
     discard resolve(top, bundle("p1", "Profile.xlsx"))
@@ -106,9 +112,10 @@ suite "bundle: resolving a file":
     writeFile(systemDir(top) / "cities.tsv.gz", "my cities")
     check resolve(top, bundle("p2", "Profile.xlsx")).data == "p2"
     check resolve(top, bundle("c2", "cities.tsv.gz")).data == "my cities"
-    check parseManifest(readFile(top / manifestName)).len == 3        # (and the notice)
+    check parseManifest(readFile(top / manifestName)).len == 3 # (and the notice)
   test "no cache directory, or one that cannot be used: the program's copy":
-    check resolve("", bundle("v1")) == Resolved(data: "v1", source: soBundled, path: "", hash: sha256Hex("v1"))
+    check resolve("", bundle("v1")) ==
+      Resolved(data: "v1", source: soBundled, path: "", hash: sha256Hex("v1"))
     let top = fresh("unusable")
     writeFile(top / "system", "a file where the directory should be")
     let r = resolve(top, bundle("v1"))
@@ -128,19 +135,23 @@ suite "bundle: the profile and the notice":
     check d.note == ""
     check fileExists(systemDir(top) / "Profile.xlsx")
     check readFile(systemDir(top) / "Profile.xlsx") == readFile("data/Profile.xlsx")
-    check parseManifest(readFile(top / manifestName))["Profile.xlsx"] == sha256Hex(readFile("data/Profile.xlsx"))
+    check parseManifest(readFile(top / manifestName))["Profile.xlsx"] ==
+      sha256Hex(readFile("data/Profile.xlsx"))
   test "the author's profile is used, with a note; one that cannot be read is not, with a note":
     discard defaultProfile()
     # a good one: the same spreadsheet with a byte on the end, which readers of zip files allow
     writeFile(systemDir(top) / "Profile.xlsx", readFile("data/Profile.xlsx") & "\0")
     let mine = defaultProfile()
-    check mine.note.startsWith("using the profile ") and mine.note.endsWith("(not the built-in one)")
+    check mine.note.startsWith("using the profile ") and
+      mine.note.endsWith("(not the built-in one)")
     # a bad one: the built-in is used instead
     writeFile(systemDir(top) / "Profile.xlsx", "this is not a spreadsheet")
     let bad = defaultProfile()
-    check bad.note.contains("cannot be used") and bad.note.contains("using the built-in one")
+    check bad.note.contains("cannot be used") and
+      bad.note.contains("using the built-in one")
     check bad.profile.messages.len > 0
-    expect NchError: discard loadDefaultProfile()                  # (the other one says so as an error)
+    expect NchError:
+      discard loadDefaultProfile() # (the other one says so as an error)
   test "NOTICE is unpacked and recorded":
     unpackNotice(top)
     check readFile(systemDir(top) / "NOTICE") == readFile("NOTICE")

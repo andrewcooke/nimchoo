@@ -77,23 +77,26 @@ proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].
   else:
     usageError("nch", usage, "unknown command " & command)
 
-type Head = object
-  ## The options before the command name.
+type Head = object ## The options before the command name.
   g: Globals
   help, version, offline: bool
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
   var head = Head(g: Globals(fragments: allFragments, importSteps: allImportSteps))
-  let spec = Spec[Head](opts: @[
-    flag(Head, ["-h", "--help"], help),
-    flag(Head, ["--version"], version),
-    custom(Head, ["--offline"], false, (p.g.offline = true; "")),
-    custom(Head, ["--db"], true, (p.g.dbPath = value; "")),
-    custom(Head, ["--user"], true, (p.g.user = value; ""))])
+  let spec = Spec[Head](
+    opts: @[
+      flag(Head, ["-h", "--help"], help),
+      flag(Head, ["--version"], version),
+      custom(Head, ["--offline"], false, (p.g.offline = true; "")),
+      custom(Head, ["--db"], true, (p.g.dbPath = value; "")),
+      custom(Head, ["--user"], true, (p.g.user = value; "")),
+    ]
+  )
   var i = 0
   let why = parseLeading(args, spec, head, i)
-  if why.len > 0: return usageError("nch", usage, why)
+  if why.len > 0:
+    return usageError("nch", usage, why)
   if head.help:
     stdout.say usage
     return exitOk
@@ -106,7 +109,7 @@ proc main(): int {.raises: [].} =
     return exitUsage
   let rest = args[i + 1 .. ^1]
   let command = args[i]
-  if command in commandNames and command != "log":      # (reading the log is not logged)
+  if command in commandNames and command != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)

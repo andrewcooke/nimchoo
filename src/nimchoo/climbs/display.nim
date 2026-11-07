@@ -10,45 +10,57 @@ import std/[strutils, tables, unicode]
 
 const
   unnamed* = "unnamed"
-  subscriptDigits = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"]
+  subscriptDigits =
+    ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"]
 
 type Shown* = object
   id*: int64
-  name*: string      ## "" if it has none
-  n*: int            ## its number among the climbs with that name
+  name*: string ## "" if it has none
+  n*: int ## its number among the climbs with that name
 
 func baseName(name: string): string =
   if name.strip.len == 0: unnamed else: name.strip
 
-func groupKey*(name: string): string = baseName(name).toLower
+func groupKey*(name: string): string =
+  baseName(name).toLower
 
 func subscriptNumber*(n: int): string =
   ## 12 -> "₁₂".
-  for c in $n: result.add subscriptDigits[ord(c) - ord('0')]
+  for c in $n:
+    result.add subscriptDigits[ord(c) - ord('0')]
 
 func endsWithSubscript*(s: string): bool =
   ## Whether the text ends in a subscript digit (the program adds those; a name given by a person may not).
-  if s.len == 0: return false
+  if s.len == 0:
+    return false
   var last = Rune(0)
-  for r in s.runes: last = r
+  for r in s.runes:
+    last = r
   int(last) in 0x2080 .. 0x2089
 
 func withoutSubscript*(s: string): string =
   ## "Morro La Cabra₁₂" -> "Morro La Cabra".
   var rs: seq[Rune]
-  for r in s.runes: rs.add r
+  for r in s.runes:
+    rs.add r
   var k = rs.len
-  while k > 0 and int(rs[k - 1]) in 0x2080 .. 0x2089: dec k
+  while k > 0 and int(rs[k - 1]) in 0x2080 .. 0x2089:
+    dec k
   $rs[0 ..< k]
 
 func displayNames*(climbs: openArray[Shown]): seq[string] =
   ## One text per climb, in the order given.
   var sizes = initCountTable[string]()
-  for c in climbs: sizes.inc groupKey(c.name)
+  for c in climbs:
+    sizes.inc groupKey(c.name)
   result = newSeq[string](climbs.len)
   for i, c in climbs:
     let base = baseName(c.name)
-    result[i] = if sizes[groupKey(c.name)] > 1: base & subscriptNumber(c.n) else: base
+    result[i] =
+      if sizes[groupKey(c.name)] > 1:
+        base & subscriptNumber(c.n)
+      else:
+        base
 
 func ordinalForms*(text: string): seq[string] =
   ## The ways to read what a person typed: as it is, and, if it ends in a number ("Farellones 3", "Farellones3"), with
@@ -56,9 +68,12 @@ func ordinalForms*(text: string): seq[string] =
   let t = text.strip
   result = @[t]
   var i = t.len
-  while i > 0 and t[i - 1] in {'0' .. '9'}: dec i
+  while i > 0 and t[i - 1] in {'0' .. '9'}:
+    dec i
   if i < t.len and i > 0:
     let stem = t[0 ..< i].strip(leading = false)
     if stem.len > 0:
-      try: result.add stem & subscriptNumber(parseInt(t[i .. ^1]))
-      except ValueError: discard
+      try:
+        result.add stem & subscriptNumber(parseInt(t[i .. ^1]))
+      except ValueError:
+        discard

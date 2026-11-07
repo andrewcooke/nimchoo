@@ -41,31 +41,40 @@ suite "cache: names":
 
 suite "cache: names back to options":
   test "the inverse of fileStem":
-    let stem = fileStem("heatmap", [("style", "lines"), ("check", "ab12cd"), ("tolerance", "5")]).get
-    check parseStem(stem) == some(("heatmap", @[("check", "ab12cd"), ("style", "lines"), ("tolerance", "5")]))
+    let stem = fileStem(
+      "heatmap", [("style", "lines"), ("check", "ab12cd"), ("tolerance", "5")]
+    ).get
+    check parseStem(stem) ==
+      some(("heatmap", @[("check", "ab12cd"), ("style", "lines"), ("tolerance", "5")]))
     check parseStem("heatmap") == some(("heatmap", newSeq[(string, string)]()))
   test "not a stem":
-    for bad in ["", "Heatmap", "heatmap--key", "heatmap--check-", "heatmap--Sel-a", "heatmap--check-a b",
-                "heatmap----x-y", "a b"]:
+    for bad in [
+      "", "Heatmap", "heatmap--key", "heatmap--check-", "heatmap--Sel-a",
+      "heatmap--check-a b", "heatmap----x-y", "a b",
+    ]:
       check parseStem(bad).isNone
 
 suite "cache: files":
   test "the path, with an extension that is allowed":
-    check cacheFile("/c/nch", "heatmap--check-a", "geojson") == some "/c/nch/heatmap--check-a.geojson"
+    check cacheFile("/c/nch", "heatmap--check-a", "geojson") ==
+      some "/c/nch/heatmap--check-a.geojson"
     check cacheFile("/c/nch", "heatmap--check-a", "html").isSome
     check cacheFile("/c/nch", "heatmap--check-a", "exe").isNone
     check cacheFile("/c/nch", "heatmap--check-a", "").isNone
   test "what the server may serve: the names this module makes":
-    for ok in ["heatmap.html", "heatmap--check-ab12cd--style-lines.geojson",
-               "x--tolerance-5.5.geojson"]:
+    for ok in [
+      "heatmap.html", "heatmap--check-ab12cd--style-lines.geojson",
+      "x--tolerance-5.5.geojson",
+    ]:
       check isCacheFileName(ok)
   test "and nothing else":
-    for bad in ["", ".geojson", "heatmap", "heatmap.exe", "heatmap.geojson.exe",
-                "../heatmap.geojson", "a/heatmap.geojson", "/etc/passwd.html",
-                "heatmap--.geojson", "heatmap--key.geojson", "heatmap--check-.geojson",
-                "Heatmap.html", "heat map.html", "heatmap--Sel-a.geojson",
-                "heatmap%2e%2e.html", "..", ".", "a\\b.html",
-                "heatmap--check-a b.geojson"]:
+    for bad in [
+      "", ".geojson", "heatmap", "heatmap.exe", "heatmap.geojson.exe",
+      "../heatmap.geojson", "a/heatmap.geojson", "/etc/passwd.html",
+      "heatmap--.geojson", "heatmap--key.geojson", "heatmap--check-.geojson",
+      "Heatmap.html", "heat map.html", "heatmap--Sel-a.geojson", "heatmap%2e%2e.html",
+      "..", ".", "a\\b.html", "heatmap--check-a b.geojson",
+    ]:
       check not isCacheFileName(bad)
     check not isCacheFileName("x".repeat(500) & ".html")
   test "every name made is accepted":
@@ -78,7 +87,8 @@ suite "cache: the user and system parts":
     check userDir("/c/nch") == "/c/nch/user"
     check systemDir("/c/nch") == "/c/nch/system"
   test "files made by commands are named in the user part":
-    check cacheFile(userDir("/c/nch"), "heatmap--check-a", "geojson") == some "/c/nch/user/heatmap--check-a.geojson"
+    check cacheFile(userDir("/c/nch"), "heatmap--check-a", "geojson") ==
+      some "/c/nch/user/heatmap--check-a.geojson"
 
 suite "cache: names made from a request":
   test "the same request gives the same name: the command, a hyphen, and three proquint groups":
@@ -91,10 +101,16 @@ suite "cache: names made from a request":
   test "they are accepted as file names, with an extension that is allowed":
     let name = requestStem("map", "x").get
     check cacheFile("/c/nch", name, "geojson").isSome
-    for ext in ["geojson", "html", "csv"]: check isCacheFileName(name & "." & ext)
-    check not isCacheFileName(name & ".exe") and not isCacheFileName("map-notaproquint.geojson")
-    check not isCacheFileName("map-lusab-babad-.geojson") and not isCacheFileName("map-.geojson")
-    check not isCacheFileName("../map-lusab-babad.geojson") and not isCacheFileName("Map-lusab-babad.geojson")
-    check isCacheFileName("map-lusab-babad.geojson") and not isCacheFileName("map-lusab-babad-xx.geojson")
+    for ext in ["geojson", "html", "csv"]:
+      check isCacheFileName(name & "." & ext)
+    check not isCacheFileName(name & ".exe") and
+      not isCacheFileName("map-notaproquint.geojson")
+    check not isCacheFileName("map-lusab-babad-.geojson") and
+      not isCacheFileName("map-.geojson")
+    check not isCacheFileName("../map-lusab-babad.geojson") and
+      not isCacheFileName("Map-lusab-babad.geojson")
+    check isCacheFileName("map-lusab-babad.geojson") and
+      not isCacheFileName("map-lusab-babad-xx.geojson")
   test "not a name for anything that is not a command":
-    check requestStem("Map", "x").isNone and requestStem("", "x").isNone and requestStem("a-b", "x").isNone
+    check requestStem("Map", "x").isNone and requestStem("", "x").isNone and
+      requestStem("a-b", "x").isNone

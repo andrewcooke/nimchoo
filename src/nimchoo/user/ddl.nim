@@ -5,5 +5,5 @@ import ../db/fragment
 {.push raises: [].}
 
 const fragments* = @[
-  fragment("001-schema.sql"),   # user_profile
+  fragment("001-schema.sql") # user_profile
 ]

@@ -44,7 +44,8 @@ suite "cache files: counting and deleting":
     check deleteKind(dir, ckSystem).count == 1
     check not dirExists(dir / "system")
     check fileExists(dir / "server-token") and dirExists(dir / "user")
-    check deleteKind(dir, ckCsv).count == 0                   # nothing left: fine
+    check deleteKind(dir, ckCsv).count == 0 # nothing left: fine
   test "a missing cache is nothing":
     removeDir(dir)
-    for k in Kind: check useOf(dir, k).count == 0 and deleteKind(dir, k).count == 0
+    for k in Kind:
+      check useOf(dir, k).count == 0 and deleteKind(dir, k).count == 0

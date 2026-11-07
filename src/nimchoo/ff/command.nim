@@ -19,7 +19,8 @@ import ./[curve, page, params, stats]
 
 {.push raises: [].}
 
-const usage* = """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
+const usage* =
+  """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
                                       [--hourly] [--utc] [--stdout | --worker | --web]
                                       [--fitness-scale S] [--fatigue-scale S]
 
@@ -47,20 +48,30 @@ a new file; old ones are not deleted.)
                     from UTC: 2018-08-27T14:00:00-03:00)
   --utc             days and times in UTC, not this computer's timezone
   --stdout          print the CSV instead of making a file
-""" & webUsage("the chart", "CSV", 20) & """  --fitness-scale S multiply the fitness by S (default 1)
+""" &
+  webUsage("the chart", "CSV", 20) &
+  """  --fitness-scale S multiply the fitness by S (default 1)
   --fatigue-scale S multiply the fatigue by S (default 1; the original program used 5, to
                     make the two curves look alike)
   -h, --help        show this help
 """
 
-proc hourlyImpulses(db: DbConn, userId: UserId, modelId: ModelId): seq[Hourly] {.raises: [StoreError].} =
+proc hourlyImpulses(
+    db: DbConn, userId: UserId, modelId: ModelId
+): seq[Hourly] {.raises: [StoreError].} =
   ## The user's impulse in each hour, over all their activities.
   guard:
-    for r in db.fastRows(sql"""select i.hour_t, sum(i.value) from impulse i
+    for r in db.fastRows(
+      sql"""select i.hour_t, sum(i.value) from impulse i
         join activity a on a.id = i.activity_id join file f on f.id = a.file_id
-        where f.user_id = ? and i.model_id = ? group by i.hour_t order by i.hour_t""", userId, modelId):
-      try: result.add (parseBiggestInt(r[0]), parseFloat(r[1]))
-      except ValueError: raiseStore("bad impulse row")
+        where f.user_id = ? and i.model_id = ? group by i.hour_t order by i.hour_t""",
+      userId,
+      modelId,
+    ):
+      try:
+        result.add (parseBiggestInt(r[0]), parseFloat(r[1]))
+      except ValueError:
+        raiseStore("bad impulse row")
 
 proc civilOf(t: int64, tz: Timezone): int64 =
   ## The date at an instant in a timezone, as Unix seconds at its start in UTC (the form of
@@ -73,40 +84,63 @@ proc dayStart(civil: int64, tz: Timezone): int64 =
   let d = fromUnix(civil).utc
   dateTime(d.year, d.month, d.monthday, 0, 0, 0, 0, tz).toTime.toUnix
 
-proc rows*(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): seq[string] =
+proc rows*(
+    impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone
+): seq[string] =
   ## The CSV lines (without the header) for the impulses.  Days are those of the timezone; a
   ## daily row is labelled with the date, an hourly one with the time at the end of the hour.
-  let toCivil = if p.toDay.isSome: p.toDay.get else: civilOf(now, tz)
-  let midnight = dayStart(toCivil + secondsPerDay, tz)          # the end of the last day
+  let toCivil =
+    if p.toDay.isSome:
+      p.toDay.get
+    else:
+      civilOf(now, tz)
+  let midnight = dayStart(toCivil + secondsPerDay, tz) # the end of the last day
   let last = floorDiv(midnight, bucketSeconds) * bucketSeconds - bucketSeconds
   var fitness = response(impulses, m.fitnessDays, last)
   var fatigue = response(impulses, m.fatigueDays, last)
   if not p.hourly:
     fitness = dayEnds(fitness, tz)
     fatigue = dayEnds(fatigue, tz)
-  let firstDay = if p.fromDay.isSome: localDate(p.fromDay.get, utc()) else: ""
-  let firstInstant = if p.fromDay.isSome: dayStart(p.fromDay.get, tz) else: low(int64)
+  let firstDay =
+    if p.fromDay.isSome:
+      localDate(p.fromDay.get, utc())
+    else:
+      ""
+  let firstInstant =
+    if p.fromDay.isSome:
+      dayStart(p.fromDay.get, tz)
+    else:
+      low(int64)
   for k in 0 ..< fitness.len:
     let finish = fitness[k].hourT + bucketSeconds
-    let label = if p.hourly: fromUnix(finish).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
-                else: localDate(finish - 1, tz)
+    let label =
+      if p.hourly:
+        fromUnix(finish).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
+      else:
+        localDate(finish - 1, tz)
     if p.hourly:
-      if finish <= firstInstant: continue
-    elif label < firstDay: continue
-    result.add label & "," & formatFloat(fitness[k].value * p.fitnessScale, ffDecimal, 4) &
-      "," & formatFloat(fatigue[k].value * p.fatigueScale, ffDecimal, 4)
+      if finish <= firstInstant:
+        continue
+    elif label < firstDay:
+      continue
+    result.add label & "," & formatFloat(
+      fitness[k].value * p.fitnessScale, ffDecimal, 4
+    ) & "," & formatFloat(fatigue[k].value * p.fatigueScale, ffDecimal, 4)
 
 proc zoneName(tz: Timezone, p: Params, toCivil: int64, isUtc: bool): string =
   ## What goes in a file name to tell timezones apart: "utc", or the offset east of UTC, in
   ## seconds, at the end of the last day ("east-10800").
-  if isUtc: return "utc"
+  if isUtc:
+    return "utc"
   "east" & $(-fromUnix(dayStart(toCivil, tz)).inZone(tz).utcOffset)
 
-func scaleText(x: float): string = $x
+func scaleText(x: float): string =
+  $x
 
 proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): string =
   result = "time,fitness,fatigue\n"
-  for l in rows(impulses, m, p, now, tz): result.add l & "\n"
+  for l in rows(impulses, m, p, now, tz):
+    result.add l & "\n"
 
 proc ensureImpulses(st: Store, m: Model) {.raises: [StoreError].} =
   ## Work out the impulses that are lacking (in one transaction).
@@ -117,16 +151,19 @@ proc ensureImpulses(st: Store, m: Model) {.raises: [StoreError].} =
     st.commit()
     committed = true
   finally:
-    if not committed: st.rollback()
+    if not committed:
+      st.rollback()
 
-proc makeCsv(st: Store, m: Model, p: Params, now: int64, tz: Timezone): string
-    {.raises: [StoreError].} =
+proc makeCsv(
+    st: Store, m: Model, p: Params, now: int64, tz: Timezone
+): string {.raises: [StoreError].} =
   ## The CSV, after working out the impulses that are lacking.
   ensureImpulses(st, m)
   csv(hourlyImpulses(st.db, st.userId, m.id), m, p, now, tz)
 
-proc latestStats(st: Store, m: Model, p: Params, now: int64, tz: Timezone): Line
-    {.raises: [StoreError].} =
+proc latestStats(
+    st: Store, m: Model, p: Params, now: int64, tz: Timezone
+): Line {.raises: [StoreError].} =
   ## The line about the latest values (see stats.nim): for today, as of the last whole hour (the
   ## label is the date and time); for an earlier last day (`--to`), at the end of it (the date).
   ## `p.toDay` is set.
@@ -140,23 +177,38 @@ proc latestStats(st: Store, m: Model, p: Params, now: int64, tz: Timezone): Line
   if p.toDay.get >= today:
     asOf = nowHour - bucketSeconds
     day = today
-    label = localDate(today, utc()) & " " & fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm")
+    label =
+      localDate(today, utc()) & " " &
+      fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm")
   else:
     day = p.toDay.get
-    asOf = floorDiv(dayStart(day + secondsPerDay, tz), bucketSeconds) * bucketSeconds - bucketSeconds
+    asOf =
+      floorDiv(dayStart(day + secondsPerDay, tz), bucketSeconds) * bucketSeconds -
+      bucketSeconds
     label = localDate(day, utc())
   let fitness = response(impulses, m.fitnessDays, asOf)
   let fatigue = response(impulses, m.fatigueDays, asOf)
-  statLine(label, standingAt(fitness, asOf, dayStart(day, tz), tz),
-           standingAt(fatigue, asOf, dayStart(day, tz), tz), p.fitnessScale, p.fatigueScale)
+  statLine(
+    label,
+    standingAt(fitness, asOf, dayStart(day, tz), tz),
+    standingAt(fatigue, asOf, dayStart(day, tz), tz),
+    p.fitnessScale,
+    p.fatigueScale,
+  )
 
 proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
   ## The name (without extension) of the files for the options and the data, if one can be made.
-  var options = @[("check", key), ("model", name), ("res", if p.hourly: "hour" else: "day"),
-                  ("to", localDate(p.toDay.get, utc())),
-                  ("tz", zoneName(tz, p, p.toDay.get, p.utc)),
-                  ("fitscale", scaleText(p.fitnessScale)), ("fatscale", scaleText(p.fatigueScale))]
-  if p.fromDay.isSome: options.add ("from", localDate(p.fromDay.get, utc()))
+  var options = @[
+    ("check", key),
+    ("model", name),
+    ("res", if p.hourly: "hour" else: "day"),
+    ("to", localDate(p.toDay.get, utc())),
+    ("tz", zoneName(tz, p, p.toDay.get, p.utc)),
+    ("fitscale", scaleText(p.fitnessScale)),
+    ("fatscale", scaleText(p.fatigueScale)),
+  ]
+  if p.fromDay.isSome:
+    options.add ("from", localDate(p.fromDay.get, utc()))
   fileStem("ff", options)
 
 func queryNumber(x: float): string =
@@ -168,13 +220,20 @@ proc webQuery*(p: Params): string =
   ## What the address of the chart says: the options given (before the defaults are filled in,
   ## so that a page asked for tomorrow is tomorrow's).  See serve/request.nim for the names.
   var q: seq[string]
-  if p.model.len > 0: q.add "model=" & p.model
-  if p.fromDay.isSome: q.add "from=" & localDate(p.fromDay.get, utc())
-  if p.toDay.isSome: q.add "to=" & localDate(p.toDay.get, utc())
-  if p.hourly: q.add "hourly=1"
-  if p.utc: q.add "utc=1"
-  if p.fitnessScale != 1: q.add "fitness-scale=" & queryNumber(p.fitnessScale)
-  if p.fatigueScale != 1: q.add "fatigue-scale=" & queryNumber(p.fatigueScale)
+  if p.model.len > 0:
+    q.add "model=" & p.model
+  if p.fromDay.isSome:
+    q.add "from=" & localDate(p.fromDay.get, utc())
+  if p.toDay.isSome:
+    q.add "to=" & localDate(p.toDay.get, utc())
+  if p.hourly:
+    q.add "hourly=1"
+  if p.utc:
+    q.add "utc=1"
+  if p.fitnessScale != 1:
+    q.add "fitness-scale=" & queryNumber(p.fitnessScale)
+  if p.fatigueScale != 1:
+    q.add "fatigue-scale=" & queryNumber(p.fatigueScale)
   q.join("&")
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -194,29 +253,46 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     let name = if p.model.len > 0: p.model else: "default"
     let m = findModel(st.db, name)
-    if m.isNone: return failure("nch ff", "no such model: " & name & " (see `nch models`)")
+    if m.isNone:
+      return failure("nch ff", "no such model: " & name & " (see `nch models`)")
     if fthrOf(st.db, st.userId).isNone:
-      return failure("nch ff", st.userName & " has no FTHR, which the impulse calculations require " &
-                     "(set it with `nch users --edit " & st.userName & " --fthr BPM`)")
+      return failure(
+        "nch ff",
+        st.userName & " has no FTHR, which the impulse calculations require " &
+          "(set it with `nch users --edit " & st.userName & " --fthr BPM`)",
+      )
     let current = inputKey(st.db, st.userId, m.get)
     if current.len == 0:
-      return failure("nch ff", "there are no impulses for " & st.userName &
-                     " (they need activities with heart rate: import some)")
+      return failure(
+        "nch ff",
+        "there are no impulses for " & st.userName &
+          " (they need activities with heart rate: import some)",
+      )
     let key = if p.check.len > 0: p.check else: current
     let now = getTime().toUnix
-    let tz = if p.utc: utc() else: local()
-    if p.toDay.isNone: p.toDay = some(civilOf(now, tz))     # (so that the name says which day)
-    let changed = "the data have changed since that was made (the key was " & key & ", it is now " &
-                  current & "); leave out --check to use the current data"
+    let tz =
+      if p.utc:
+        utc()
+      else:
+        local()
+    if p.toDay.isNone:
+      p.toDay = some(civilOf(now, tz)) # (so that the name says which day)
+    let changed =
+      "the data have changed since that was made (the key was " & key & ", it is now " &
+      current & "); leave out --check to use the current data"
     if p.stdout:
-      if key != current: return failure("nch ff", changed)
+      if key != current:
+        return failure("nch ff", changed)
       stdout.say makeCsv(st, m.get, p, now, tz)
       return exitOk
     let dir = cacheDir()
     let stem = cacheStem(p, name, key, tz)
     if dir.isNone or stem.isNone:
-      return failure("nch ff", "no cache directory is known (set NCH_CACHE), or the options " &
-                     "cannot be made into a file name; use --stdout")
+      return failure(
+        "nch ff",
+        "no cache directory is known (set NCH_CACHE), or the options " &
+          "cannot be made into a file name; use --stdout",
+      )
     # (the paths are kept in `let`s: `.get` on a temporary Option that is assigned on to a `var` has
     # left a dangling string here, with this compiler)
     let files = userDir(dir.get)
@@ -225,29 +301,42 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let csvPath = csvFile.get
     try:
       makeCacheDirs(dir.get)
-      if not fileExists(csvPath):                 # (made before from the same data: nothing to do)
-        if key != current: return failure("nch ff", changed)
+      if not fileExists(csvPath): # (made before from the same data: nothing to do)
+        if key != current:
+          return failure("nch ff", changed)
         writeAtomic(csvPath, makeCsv(st, m.get, p, now, tz))
       if p.web.worker or p.web.enabled:
         # the page is rewritten each time (it is tiny, and may have changed since)
-        let html = pageHtml(extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly)
-        if html.isNone: return failure("nch ff", "cannot make a page for " & csvPath)
+        let html = pageHtml(
+          extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly
+        )
+        if html.isNone:
+          return failure("nch ff", "cannot make a page for " & csvPath)
         writeAtomic(pageFile.get, html.get)
     except IOError, OSError:
-      return failure("nch ff", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg())
+      return failure(
+        "nch ff", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg()
+      )
     except TemplateError as e:
-      return failure("nch ff", "cannot make the page: " & e.msg & " (the template is " &
-        "system/templates/ff.html and the libraries are system/libraries.txt, in the cache directory; " &
-        "delete one to have the built-in one again)")
+      return failure(
+        "nch ff",
+        "cannot make the page: " & e.msg & " (the template is " &
+          "system/templates/ff.html and the libraries are system/libraries.txt, in the cache directory; " &
+          "delete one to have the built-in one again)",
+      )
     if p.web.enabled:
-      return serveWeb(g, "ff", WebOptions(port: p.web.port, noOpen: p.web.noOpen,
-                                          newToken: p.web.newToken),
-                      dir.get, "check=" & key & (if query.len > 0: "&" & query else: ""))
+      return serveWeb(
+        g,
+        "ff",
+        WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
+        dir.get,
+        "check=" & key & (if query.len > 0: "&" & query else: ""),
+      )
     if p.web.worker:
       stdout.say pageFile.get & "\n" & csvPath & "\n"
       return exitOk
     stdout.say csvPath & "\n"
-    if key == current:                     # (the latest values are of the current data)
+    if key == current: # (the latest values are of the current data)
       let colour = canColourStdout()
       stdout.say render(latestStats(st, m.get, p, now, tz), colour) & "\n"
     exitOk

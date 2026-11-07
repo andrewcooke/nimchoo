@@ -21,17 +21,32 @@ import ../ui/palette
 const pageTemplate* = staticRead("page.html")
 const templateBundle* = Bundle(name: "templates/ff.html", data: pageTemplate)
 
-proc renderPage*(source: string, libs: seq[(string, Value)], dataName, title: string, hourly: bool): Option[string]
-    {.raises: [TemplateError].} =
+proc renderPage*(
+    source: string, libs: seq[(string, Value)], dataName, title: string, hourly: bool
+): Option[string] {.raises: [TemplateError].} =
   ## The page from a template text and the libraries; none if `dataName` is not a CSV file of the
   ## cache directory (which is what makes it safe to put in the page).  Pure.
   if not isCacheFileName(dataName) or not dataName.endsWith(".csv"):
     return none(string)
-  some(render(source, context(libs & @[("title", text(title)), ("data", text(dataName)),
-                                       ("hourly", flag(hourly)), ("green", text(hex(green))),
-                                       ("red", text(hex(red)))])))
+  some(
+    render(
+      source,
+      context(
+        libs &
+          @[
+            ("title", text(title)),
+            ("data", text(dataName)),
+            ("hourly", flag(hourly)),
+            ("green", text(hex(green))),
+            ("red", text(hex(red))),
+          ]
+      ),
+    )
+  )
 
-proc pageHtml*(dataName, title: string, hourly: bool): Option[string] {.raises: [TemplateError].} =
+proc pageHtml*(
+    dataName, title: string, hourly: bool
+): Option[string] {.raises: [TemplateError].} =
   ## The page for the CSV file `dataName`, from the template and the libraries in use (the author's
   ## if they have put their own in the cache's `system/` part).
   renderPage(resolve(templateBundle).data, libraryValues(), dataName, title, hourly)

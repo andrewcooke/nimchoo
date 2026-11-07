@@ -9,12 +9,15 @@ suite "climbs: the command line":
     check a.problem.len == 0 and a.all and not a.listOnly
   test "rename and auto":
     let r = parseArgs(@["--edit", "Morro La Cabra₁", "--rename", "  La Cabra  "])
-    check r.problem.len == 0 and r.edit and r.name == "Morro La Cabra₁" and r.rename == "La Cabra"
+    check r.problem.len == 0 and r.edit and r.name == "Morro La Cabra₁" and
+      r.rename == "La Cabra"
     let a = parseArgs(@["--edit", "X", "--auto"])
     check a.problem.len == 0 and a.edit and a.auto
   test "mistakes":
     check parseArgs(@["--edit", "X"]).problem.contains("something to change")
-    check parseArgs(@["--edit", "X", "--rename", "Y", "--auto"]).problem.contains("cannot be used together")
+    check parseArgs(@["--edit", "X", "--rename", "Y", "--auto"]).problem.contains(
+      "cannot be used together"
+    )
     check parseArgs(@["--rename", "Y"]).problem.contains("go with --edit")
     check parseArgs(@["--auto"]).problem.contains("go with --edit")
     check parseArgs(@["--edit", " ", "--auto"]).problem.contains("needs the name")
@@ -26,7 +29,9 @@ suite "climbs: the command line":
     check nameProblem("a\nb").contains("control")
     check nameProblem("Cuesta₂").contains("subscript")
     check nameProblem("Cuesta (the 2/3 one)") == ""
-    check parseArgs(@["--edit", "X", "--rename", "Cuesta₂"]).problem.contains("subscript")
+    check parseArgs(@["--edit", "X", "--rename", "Cuesta₂"]).problem.contains(
+      "subscript"
+    )
   test "an old-style (n/m) at the end is just text now":
     check nameProblem("Cuesta (2/3)") == ""
 
@@ -35,17 +40,27 @@ suite "climbs: retiring":
     check parseArgs(@["--edit", "X₂", "--retire"]).retire
     check parseArgs(@["--edit", "X₂", "--unretire"]).unretire
     check parseArgs(@["--retired"]).retired and parseArgs(@["--retired"]).listOnly
-    check parseArgs(@["--duplicates"]).duplicates and parseArgs(@["--duplicates"]).listOnly
+    check parseArgs(@["--duplicates"]).duplicates and
+      parseArgs(@["--duplicates"]).listOnly
     check parseArgs(@["--retire"]).problem.contains("go with --edit")
     check parseArgs(@["--unretire"]).problem.contains("go with --edit")
-    check parseArgs(@["--edit", "X", "--retire", "--unretire"]).problem.contains("cannot be used together")
-    check parseArgs(@["--edit", "X", "--retire", "--rename", "Y"]).problem.contains("cannot be used together")
+    check parseArgs(@["--edit", "X", "--retire", "--unretire"]).problem.contains(
+      "cannot be used together"
+    )
+    check parseArgs(@["--edit", "X", "--retire", "--rename", "Y"]).problem.contains(
+      "cannot be used together"
+    )
     check parseArgs(@["--edit", "X"]).problem.contains("--retire")
-    check parseArgs(@["--retired", "--duplicates"]).problem.contains("cannot be used together")
+    check parseArgs(@["--retired", "--duplicates"]).problem.contains(
+      "cannot be used together"
+    )
     check parseArgs(@["--all", "--retired"]).problem.contains("cannot be used together")
-    check parseArgs(@["--edit", "X", "--retire", "--retired"]).problem.contains("do not go with --edit")
-    check parseArgs(@["--edit", "X", "--retire", "--all"]).problem.contains("do not go with --edit")
-
+    check parseArgs(@["--edit", "X", "--retire", "--retired"]).problem.contains(
+      "do not go with --edit"
+    )
+    check parseArgs(@["--edit", "X", "--retire", "--all"]).problem.contains(
+      "do not go with --edit"
+    )
 
 suite "climbs params: --delete":
   test "--delete needs --all, and -f goes with it":
@@ -59,12 +74,21 @@ suite "climbs params: --delete":
 suite "climbs params: --name, -v, --everyone":
   test "names, and the flags":
     let c = parseArgs(@["--name", "farellones", "cuesta", "-v", "--everyone"])
-    check c.problem == "" and c.names == @["farellones", "cuesta"] and c.verbose and c.everyone
+    check c.problem == "" and c.names == @["farellones", "cuesta"] and c.verbose and
+      c.everyone
   test "--name needs text and goes with nothing that lists or changes":
     check parseArgs(@["--name"]).problem.len > 0
-    for o in [@["--all"], @["--retired"], @["--duplicates"], @["--delete", "--all"], @["--edit", "X", "--retire"]]:
+    for o in [
+      @["--all"],
+      @["--retired"],
+      @["--duplicates"],
+      @["--delete", "--all"],
+      @["--edit", "X", "--retire"],
+    ]:
       check parseArgs(@["--name", "x"] & o).problem.len > 0
   test "-v and --everyone go with the attempts only":
-    for o in [@["--all"], @["--retired"], @["--duplicates"], @["--edit", "X", "--retire"]]:
+    for o in [
+      @["--all"], @["--retired"], @["--duplicates"], @["--edit", "X", "--retire"]
+    ]:
       check parseArgs(@["-v"] & o).problem.len > 0
       check parseArgs(@["--everyone"] & o).problem.len > 0

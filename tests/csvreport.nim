@@ -29,33 +29,41 @@ proc main() =
     except FitError as e:
       err = e.msg
     var ignore: HashSet[string]
-    for k in ignoredFields.getOrDefault(pair.name): ignore.incl k
-    let diffs = compareCsv(lines.join("\n"), readFile(pair.csvPath),
-                           composites, ignore)
+    for k in ignoredFields.getOrDefault(pair.name):
+      ignore.incl k
+    let diffs = compareCsv(lines.join("\n"), readFile(pair.csvPath), composites, ignore)
     let label = pair.dir & "/" & pair.name
     if diffs.len == 0 and err.len == 0:
       inc clean
     else:
-      echo label, ": ", diffs.len, " diffs", (if err.len > 0: " (FitError: " & err & ")" else: "")
+      echo label,
+        ": ", diffs.len, " diffs", (if err.len > 0: " (FitError: " & err & ")"
+        else: "")
     for d in diffs:
       let key = d.message & " " & d.key & " " & $d.kind
       var g = groups.getOrDefault(key)
       inc g.count
       g.files.incl label
       if g.example.len == 0:
-        g.example = label & " row " & $d.row & ": ours=" & d.ours[0 ..< min(60, d.ours.len)] &
-                    " theirs=" & d.theirs[0 ..< min(60, d.theirs.len)]
+        g.example =
+          label & " row " & $d.row & ": ours=" & d.ours[0 ..< min(60, d.ours.len)] &
+          " theirs=" & d.theirs[0 ..< min(60, d.theirs.len)]
       groups[key] = g
   echo ""
   echo clean, " of ", total, " files identical"
   var keys = toSeq(groups.keys)
-  keys.sort(proc (a, b: string): int = cmp(groups[b].count, groups[a].count))
+  keys.sort(
+    proc(a, b: string): int =
+      cmp(groups[b].count, groups[a].count)
+  )
   for k in keys:
     let g = groups[k]
     var dirs: CountTable[string]
-    for f in g.files: dirs.inc f.split('/')[0]
+    for f in g.files:
+      dirs.inc f.split('/')[0]
     var ds: seq[string]
-    for d, n in dirs: ds.add d & ":" & $n
+    for d, n in dirs:
+      ds.add d & ":" & $n
     echo g.count, "x [", ds.join(" "), "] ", k
     echo "     e.g. ", g.example
 

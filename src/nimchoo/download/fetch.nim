@@ -19,8 +19,8 @@ when defined(posix):
 {.push raises: [].}
 
 const
-  reserveBytes* = 500'i64 * 1024 * 1024     ## left free on the disk after a download
-  spaceFactor* = 3'i64                      ## the file, and what is made from it (the database, a copy)
+  reserveBytes* = 500'i64 * 1024 * 1024 ## left free on the disk after a download
+  spaceFactor* = 3'i64 ## the file, and what is made from it (the database, a copy)
   userAgent = "nimchoo (https://github.com/andrewcooke/nimchoo)"
 
 type
@@ -28,34 +28,45 @@ type
     ok*: bool
     status*: int
     body*: string
-    message*: string          ## why not, if not ok
+    message*: string ## why not, if not ok
 
-  Tick* = proc(done, total: int64) {.closure, raises: [].}    ## told how much has come (`total` 0: not known)
+  Tick* = proc(done, total: int64) {.closure, raises: [].}
+    ## told how much has come (`total` 0: not known)
 
   Fetcher* = object
-    head*: proc(url: string): Option[int64] {.closure, raises: [].}     ## the size the server announces
+    head*: proc(url: string): Option[int64] {.closure, raises: [].}
+      ## the size the server announces
     get*: proc(url: string): FetchResult {.closure, raises: [].}
     getTelling*: proc(url: string, tick: Tick): FetchResult {.closure, raises: [].}
       ## like `get`, but tells `tick` as the body comes (nil: the fetcher cannot, and `get` is used)
 
   Env* = object
     fetcher*: Fetcher
-    freeBytes*: proc(dir: string): Option[int64] {.closure, raises: [].}   ## room on the disk holding `dir`
+    freeBytes*: proc(dir: string): Option[int64] {.closure, raises: [].}
+      ## room on the disk holding `dir`
 
-  EventKind* = enum deStarting, deProgress, deDownloaded, deReading, deFinished, deFailed, deWorking, deWorkDone
-    ## deWorking / deWorkDone: a command's own long job (naming the activities) begins and ends, said with a spinner that
-    ## steps aside for the downloads inside it.  The first four: a file is wanted, some of it came, all of it came; then the consumer reads it (deReading, also
-    ## for a file that was already in the cache) and is done with it (deFinished)
+  EventKind* = enum
+    deStarting
+    deProgress
+    deDownloaded
+    deReading
+    deFinished
+    deFailed
+    deWorking
+    deWorkDone
+      ## deWorking / deWorkDone: a command's own long job (naming the activities) begins and ends, said with a spinner that
+      ## steps aside for the downloads inside it.  The first four: a file is wanted, some of it came, all of it came; then the consumer reads it (deReading, also
+      ## for a file that was already in the cache) and is done with it (deFinished)
 
   DownloadEvent* = object
     kind*: EventKind
-    source*: string           ## the source's name
+    source*: string ## the source's name
     url*: string
-    path*: string             ## where it is now (deDownloaded)
-    bytes*: int64             ## how big (deDownloaded), or how much has come (deProgress)
-    total*: int64             ## how big it will be, 0 if not known (deProgress)
-    label*: string            ## a few words for the screen: what is wanted (deStarting)
-    message*: string          ## why it is wanted (deStarting), or why not (deFailed)
+    path*: string ## where it is now (deDownloaded)
+    bytes*: int64 ## how big (deDownloaded), or how much has come (deProgress)
+    total*: int64 ## how big it will be, 0 if not known (deProgress)
+    label*: string ## a few words for the screen: what is wanted (deStarting)
+    message*: string ## why it is wanted (deStarting), or why not (deFailed)
 
   Sink* = proc(ev: DownloadEvent) {.closure, raises: [].}
 
@@ -65,25 +76,37 @@ type
 
 func humanBytes*(n: int64): string =
   ## "1.4MB", "85kB", "12B": no space before the unit.
-  if n >= 1_000_000: formatFloat(float(n) / 1e6, ffDecimal, 1) & "MB"
-  elif n >= 1_000: $(n div 1_000) & "kB"
-  else: $n & "B"
+  if n >= 1_000_000:
+    formatFloat(float(n) / 1e6, ffDecimal, 1) & "MB"
+  elif n >= 1_000:
+    $(n div 1_000) & "kB"
+  else:
+    $n & "B"
 
 func shortUrl*(url: string): string =
   ## The address without "https://" (or "http://"), for the screen.
-  if url.startsWith("https://"): url[8 .. ^1]
-  elif url.startsWith("http://"): url[7 .. ^1]
-  else: url
+  if url.startsWith("https://"):
+    url[8 .. ^1]
+  elif url.startsWith("http://"):
+    url[7 .. ^1]
+  else:
+    url
 
 func describe*(ev: DownloadEvent): string =
   ## One line for people.
   case ev.kind
-  of deStarting: "need " & ev.label & ": " & shortUrl(ev.url)
-  of deProgress: "downloading " & shortUrl(ev.url) & " (" & humanBytes(ev.bytes) & ")"
-  of deDownloaded: "downloaded " & shortUrl(ev.url) & " (" & humanBytes(ev.bytes) & ")"
-  of deReading: "reading " & shortUrl(ev.url)
-  of deFinished, deWorking, deWorkDone: ""
-  of deFailed: "cannot download " & shortUrl(ev.url) & ": " & ev.message
+  of deStarting:
+    "need " & ev.label & ": " & shortUrl(ev.url)
+  of deProgress:
+    "downloading " & shortUrl(ev.url) & " (" & humanBytes(ev.bytes) & ")"
+  of deDownloaded:
+    "downloaded " & shortUrl(ev.url) & " (" & humanBytes(ev.bytes) & ")"
+  of deReading:
+    "reading " & shortUrl(ev.url)
+  of deFinished, deWorking, deWorkDone:
+    ""
+  of deFailed:
+    "cannot download " & shortUrl(ev.url) & ": " & ev.message
 
 proc silent*(): Sink =
   ## A sink that ignores every event.
@@ -97,34 +120,44 @@ proc realFetcher*(timeoutMs = 60_000): Fetcher =
   result.head = proc(url: string): Option[int64] {.closure, raises: [].} =
     try:
       let c = newHttpClient(userAgent = userAgent, timeout = timeoutMs)
-      defer: c.close()
+      defer:
+        c.close()
       let r = c.head(url)
       if r.code.is2xx and r.headers.hasKey("content-length"):
         return some(parseBiggestInt(r.headers["content-length"]))
-    except Exception:           # (httpclient is declared to raise anything)
+    except Exception: # (httpclient is declared to raise anything)
       discard
-  result.getTelling = proc(url: string, tick: Tick): FetchResult {.closure, raises: [].} =
+  result.getTelling = proc(
+      url: string, tick: Tick
+  ): FetchResult {.closure, raises: [].} =
     try:
       let c = newHttpClient(userAgent = userAgent, timeout = timeoutMs)
-      defer: c.close()
+      defer:
+        c.close()
       if tick != nil:
-        c.onProgressChanged = proc(total, progress, speed: BiggestInt) {.closure, gcsafe.} =
-          {.cast(gcsafe).}:      # (the sink is ours and runs in this thread)
+        c.onProgressChanged = proc(
+            total, progress, speed: BiggestInt
+        ) {.closure, gcsafe.} =
+          {.cast(gcsafe).}: # (the sink is ours and runs in this thread)
             tick(int64(progress), int64(max(total, 0)))
       let r = c.get(url)
       if r.code.is2xx:
         return FetchResult(ok: true, status: int(r.code), body: r.body)
-      return FetchResult(ok: false, status: int(r.code), message: "the server said " & r.status)
-    except Exception:           # (httpclient is declared to raise anything)
+      return FetchResult(
+        ok: false, status: int(r.code), message: "the server said " & r.status
+      )
+    except Exception: # (httpclient is declared to raise anything)
       return FetchResult(ok: false, message: getCurrentExceptionMsg())
   let telling = result.getTelling
-  result.get = proc(url: string): FetchResult {.closure, raises: [].} = telling(url, nil)
+  result.get = proc(url: string): FetchResult {.closure, raises: [].} =
+    telling(url, nil)
 
 proc realFreeBytes*(dir: string): Option[int64] {.raises: [].} =
   ## Room left on the disk that holds `dir` (or the nearest directory above it that exists).
   when defined(posix):
     var path = dir
-    while path.len > 1 and not dirExists(path): path = parentDir(path)
+    while path.len > 1 and not dirExists(path):
+      path = parentDir(path)
     var s: Statvfs
     if statvfs(cstring(path), s) == 0:
       return some(int64(s.f_bavail) * int64(s.f_frsize))
@@ -145,54 +178,92 @@ proc fail(sink: Sink, src: Source, url, why: string): Option[string] =
 
 proc checkContent(src: Source, arg, body: string): string =
   ## "" if what came is what was asked for, else what is wrong with it.
-  if body.len == 0: return "the file is empty"
-  if src.zipEntry.len == 0: return ""
+  if body.len == 0:
+    return "the file is empty"
+  if src.zipEntry.len == 0:
+    return ""
   let want = entryFor(src, arg)
   try:
     let entries = listEntries(body)
-    if want notin entries: return "the zip has no " & want
-    if entries.must(want).size == 0: return "the zip's " & want & " is empty"
+    if want notin entries:
+      return "the zip has no " & want
+    if entries.must(want).size == 0:
+      return "the zip's " & want & " is empty"
   except ZipError as e:
     return "not a zip file (" & e.msg & ")"
   ""
 
-proc fetchSource*(env: Env, sink: Sink, dataDir: string, src: Source, arg = ""): Option[string] =
+proc fetchSource*(
+    env: Env, sink: Sink, dataDir: string, src: Source, arg = ""
+): Option[string] =
   ## The path of the source's file in the cache: already there, or fetched now.  None if it could
   ## not be had (a failed event says why).
   let dir = sourceDir(dataDir, src)
   let path = dir / fileFor(src, arg)
   try:
-    if fileExists(path) and getFileSize(path) > 0: return some(path)
+    if fileExists(path) and getFileSize(path) > 0:
+      return some(path)
   except OSError:
     discard
   let url = urlFor(src, arg)
-  sink(DownloadEvent(kind: deStarting, source: src.name, url: url, message: whyFor(src, arg), label: labelFor(src, arg)))
+  sink(
+    DownloadEvent(
+      kind: deStarting,
+      source: src.name,
+      url: url,
+      message: whyFor(src, arg),
+      label: labelFor(src, arg),
+    )
+  )
   # the size, and the room
   let announced = env.fetcher.head(url)
   if announced.isSome and announced.get > src.maxBytes:
-    return fail(sink, src, url, "the file is " & humanBytes(announced.get) & ", more than the " &
-                humanBytes(src.maxBytes) & " allowed")
+    return fail(
+      sink,
+      src,
+      url,
+      "the file is " & humanBytes(announced.get) & ", more than the " &
+        humanBytes(src.maxBytes) & " allowed",
+    )
   let size = if announced.isSome: announced.get else: src.maxBytes
   let need = size * spaceFactor + reserveBytes
   let free = env.freeBytes(dataDir)
   if free.isSome and free.get < need:
-    return fail(sink, src, url, "not enough room on the disk: " & humanBytes(need) &
-                " wanted (the file, what is made from it and " & humanBytes(reserveBytes) &
-                " to spare), " & humanBytes(free.get) & " free")
+    return fail(
+      sink,
+      src,
+      url,
+      "not enough room on the disk: " & humanBytes(need) &
+        " wanted (the file, what is made from it and " & humanBytes(reserveBytes) &
+        " to spare), " & humanBytes(free.get) & " free",
+    )
   # the file
   let tick = proc(done, total: int64) {.closure, raises: [].} =
-    sink(DownloadEvent(kind: deProgress, source: src.name, url: url, bytes: done,
-                       total: (if total > 0: total elif announced.isSome: announced.get else: 0)))
+    sink(
+      DownloadEvent(
+        kind: deProgress,
+        source: src.name,
+        url: url,
+        bytes: done,
+        total: (if total > 0: total elif announced.isSome: announced.get else: 0),
+      )
+    )
   let r =
     if env.fetcher.getTelling != nil:
-      tick(0, 0)                          # (the size the server announced goes with it)
+      tick(0, 0) # (the size the server announced goes with it)
       env.fetcher.getTelling(url, tick)
-    else: env.fetcher.get(url)
+    else:
+      env.fetcher.get(url)
   if not r.ok:
     return fail(sink, src, url, r.message)
   if int64(r.body.len) > src.maxBytes:
-    return fail(sink, src, url, "the file is " & humanBytes(int64(r.body.len)) & ", more than the " &
-                humanBytes(src.maxBytes) & " allowed")
+    return fail(
+      sink,
+      src,
+      url,
+      "the file is " & humanBytes(int64(r.body.len)) & ", more than the " &
+        humanBytes(src.maxBytes) & " allowed",
+    )
   let problem = checkContent(src, arg, r.body)
   if problem.len > 0:
     return fail(sink, src, url, problem)
@@ -202,10 +273,19 @@ proc fetchSource*(env: Env, sink: Sink, dataDir: string, src: Source, arg = ""):
     writeFile(tmp, r.body)
     moveFile(tmp, path)
   except IOError, OSError:
-    return fail(sink, src, url, "cannot write " & path & ": " & getCurrentExceptionMsg())
-  except Exception:                 # (moveFile is declared to raise anything)
+    return
+      fail(sink, src, url, "cannot write " & path & ": " & getCurrentExceptionMsg())
+  except Exception: # (moveFile is declared to raise anything)
     return fail(sink, src, url, "cannot write " & path)
-  sink(DownloadEvent(kind: deDownloaded, source: src.name, url: url, path: path, bytes: int64(r.body.len)))
+  sink(
+    DownloadEvent(
+      kind: deDownloaded,
+      source: src.name,
+      url: url,
+      path: path,
+      bytes: int64(r.body.len),
+    )
+  )
   some(path)
 
 # --- what is there

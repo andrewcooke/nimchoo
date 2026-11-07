@@ -65,8 +65,7 @@ suite "profile":
     check f.components.mapIt(it.scale) == @[100.0, 16.0]
 
   test "timestamp_16 override":
-    check p.messages["monitoring"].fields["timestamp_16"].typeName ==
-      "timestamp_16"
+    check p.messages["monitoring"].fields["timestamp_16"].typeName == "timestamp_16"
 
   test "profile is self-consistent":
     var numbers: seq[int]
@@ -75,9 +74,11 @@ suite "profile":
       for f in m.fields.values:
         check f.typeName in p.types
         case f.kind
-        of fkPlain: discard
+        of fkPlain:
+          discard
         of fkComposite:
-          for c in f.components: check c.target in m.fields
+          for c in f.components:
+            check c.target in m.fields
         of fkDynamic:
           for c in f.choices:
             check c.refField in m.fields

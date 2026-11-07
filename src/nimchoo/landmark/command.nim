@@ -46,8 +46,13 @@ func positionText(lon, lat: float): string =
 func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
   var cells = @[@["", "name", "kind", "position", (if withDistance: "from" else: "")]]
   for i, s in rows:
-    cells.add @[$(i + 1), s.name, s.cls & " " & s.code, positionText(s.lon, s.lat),
-                (if withDistance: km(s.distanceM) else: "")]
+    cells.add @[
+      $(i + 1),
+      s.name,
+      s.cls & " " & s.code,
+      positionText(s.lon, s.lat),
+      (if withDistance: km(s.distanceM) else: ""),
+    ]
   columns(cells, {0})
 
 proc landmarkLines(rows: seq[Landmark]): seq[string] =
@@ -65,7 +70,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if p.problem.len > 0:
     return usageError("nch landmarks", usage, p.problem)
   if g.user.len > 0:
-    return usageError("nch landmarks", usage, "the landmarks are shared by all users: --user has no part in this command")
+    return usageError(
+      "nch landmarks", usage,
+      "the landmarks are shared by all users: --user has no part in this command",
+    )
   var st: Store
   try:
     st = openStore(g)
@@ -84,7 +92,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     if p.add and p.at.isSome:
       addLandmark(st, p.name, p.at.get.lon, p.at.get.lat, p.radiusM)
-      let said = "made the landmark " & p.name.strip & " at " & positionText(p.at.get.lon, p.at.get.lat)
+      let said =
+        "made the landmark " & p.name.strip & " at " &
+        positionText(p.at.get.lon, p.at.get.lat)
       g.log.log(lvInfo, "landmarks", leSaved, said)
       stdout.say said & "\n"
       return exitOk
@@ -94,30 +104,47 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         found = searchByName(st, p.search)
       else:
         # the names round the position are read (and fetched) first
-        let names = openNames(g, st, "landmark", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
+        let names = openNames(
+          g,
+          st,
+          "landmark",
+          proc(line: string) {.closure, raises: [].} =
+            stderr.say line & "\n"
+          ,
+        )
         if names.isSome:
           discard names.get.prepare([p.near.get.lon], [p.near.get.lat], 2000.0)
         found = featuresAround(st, p.near.get.lon, p.near.get.lat)
       if p.add:
         if p.pick > found.len:
-          return failure("nch landmarks", "there is no suggestion " & $p.pick & " (" & $found.len & " found)")
+          return failure(
+            "nch landmarks",
+            "there is no suggestion " & $p.pick & " (" & $found.len & " found)",
+          )
         let s = found[p.pick - 1]
         addLandmark(st, p.name, s.lon, s.lat, p.radiusM)
-        let said = "made the landmark " & p.name.strip & " at " & s.name & " (" & positionText(s.lon, s.lat) & ")"
+        let said =
+          "made the landmark " & p.name.strip & " at " & s.name & " (" &
+          positionText(s.lon, s.lat) & ")"
         g.log.log(lvInfo, "landmarks", leSaved, said)
         stdout.say said & "\n"
         return exitOk
       if found.len == 0:
-        stdout.say (if p.search.len > 0: "nothing is called like that among the names loaded (the places you have ridden)\n"
-                    else: "no features within 2 km\n")
+        stdout.say (
+          if p.search.len > 0:
+          "nothing is called like that among the names loaded (the places you have ridden)\n"
+          else: "no features within 2 km\n"
+        )
         return exitOk
-      for l in suggestionLines(found, p.near.isSome): stdout.say l & "\n"
+      for l in suggestionLines(found, p.near.isSome):
+        stdout.say l & "\n"
       return exitOk
     let rows = listLandmarks(st)
     if rows.len == 0:
       stdout.say "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
     else:
-      for l in landmarkLines(rows): stdout.say l & "\n"
+      for l in landmarkLines(rows):
+        stdout.say l & "\n"
     exitOk
   except StoreError, DownloadError:
     failure("nch landmarks", getCurrentExceptionMsg())

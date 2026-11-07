@@ -62,5 +62,5 @@ suite "file header":
     var d = readBytes(personalDir & "2018-03-04-qdp.fit")
     let h = readHeader(d)
     if h.checksum.isSome:
-      d[4] = d[4] xor 1  # data size changes, so header crc is now wrong
+      d[4] = d[4] xor 1 # data size changes, so header crc is now wrong
       check problems(readHeader(d), d).hasKind(wkHeaderChecksum)

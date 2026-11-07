@@ -25,21 +25,28 @@ type
     ## Which data a seed would put in now (a hash), worked out when the database is opened.
 
   Fragment* = object
-    name*: string    ## "module/file", unique
-    sql*: string     ## DDL only (data is inserted from Nim)
-    seed*: SeedProc  ## nil if there is no data to put in
-    seedVersion*: string  ## which data the seed puts in (a hash), part of the checksum
+    name*: string ## "module/file", unique
+    sql*: string ## DDL only (data is inserted from Nim)
+    seed*: SeedProc ## nil if there is no data to put in
+    seedVersion*: string ## which data the seed puts in (a hash), part of the checksum
     # data that can be replaced without destroying the database (the places): not part of the checksum
-    version*: VersionProc ## nil, or which data there is now; the database remembers which it has
-    reseed*: SeedProc     ## replaces the data when it is not the version the database has
-    legacySums*: seq[string]  ## checksums that earlier versions recorded and that are still accepted ...
-    legacyVersion*: string    ## ... meaning the data of this version was loaded
+    version*: VersionProc
+      ## nil, or which data there is now; the database remembers which it has
+    reseed*: SeedProc ## replaces the data when it is not the version the database has
+    legacySums*: seq[string]
+      ## checksums that earlier versions recorded and that are still accepted ...
+    legacyVersion*: string ## ... meaning the data of this version was loaded
 
 proc checksum*(f: Fragment): string =
   ## The SHA-256 of the fragment's SQL (and of the version of the data its seed puts in), in
   ## hex: recorded with the fragment when it is applied, so that a database made from
   ## different SQL or different data is noticed when it is opened.
-  sha256Hex(if f.seedVersion.len > 0: f.sql & "\n-- seed data: " & f.seedVersion else: f.sql)
+  sha256Hex(
+    if f.seedVersion.len > 0:
+      f.sql & "\n-- seed data: " & f.seedVersion
+    else:
+      f.sql
+  )
 
 func withSeed*(f: Fragment, seed: SeedProc, version = ""): Fragment =
   ## The same fragment, with data to put in after its tables are made.  `version` names
@@ -65,10 +72,12 @@ func withLegacy*(f: Fragment, sums: seq[string], version: string): Fragment =
 
 proc currentVersion*(f: Fragment): string =
   ## Which data the fragment's seed puts in now.
-  if f.version.isNil: f.seedVersion else: f.version()
+  if f.version.isNil:
+    f.seedVersion
+  else:
+    f.version()
 
 template fragment*(file: static string): Fragment =
   ## The fragment in `<file>` next to the calling source file.
   const dir = instantiationInfo(-1, true).filename.parentDir
-  Fragment(name: lastPathPart(dir) & "/" & file,
-           sql: staticRead(dir / file))
+  Fragment(name: lastPathPart(dir) & "/" & file, sql: staticRead(dir / file))

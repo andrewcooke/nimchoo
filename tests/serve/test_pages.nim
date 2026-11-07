@@ -24,9 +24,12 @@ suite "serve web options: shared by the commands":
   let spec = Spec[Holder](opts: webOptions(Holder, web))
   test "each option is taken, with its value":
     var h = Holder(web: initWebArgs())
-    check parseOptions(@["--web", "--no-open", "--port", "0", "--new-token", "--worker"], spec, h) == ""
-    check h.web.enabled and h.web.noOpen and h.web.newToken and h.web.worker and h.web.port == 0
-    check parseOptions(@["--other"], spec, h) == "unexpected option --other"    # (not ours)
+    check parseOptions(
+      @["--web", "--no-open", "--port", "0", "--new-token", "--worker"], spec, h
+    ) == ""
+    check h.web.enabled and h.web.noOpen and h.web.newToken and h.web.worker and
+      h.web.port == 0
+    check parseOptions(@["--other"], spec, h) == "unexpected option --other" # (not ours)
   test "bad ports":
     for bad in [@["--port"], @["--port", "x"], @["--port", "-1"], @["--port", "65536"]]:
       var h = Holder(web: initWebArgs())
@@ -47,7 +50,18 @@ suite "serve web options: shared by the commands":
     check webProblem(w) == ""
   test "the help text names every option, in the columns asked for":
     let t = webUsage("the chart", "CSV", 20)
-    for o in ["--worker", "--web", "--port N", "--no-open", "--new-token", "the chart", "CSV file", "localhost", $defaultPort]:
+    for o in [
+      "--worker",
+      "--web",
+      "--port N",
+      "--no-open",
+      "--new-token",
+      "the chart",
+      "CSV file",
+      "localhost",
+      $defaultPort,
+    ]:
       check o in t
     for l in t.splitLines:
-      if l.startsWith("  --"): check l[20 - 1] == ' ' and l[20] != ' '
+      if l.startsWith("  --"):
+        check l[20 - 1] == ' ' and l[20] != ' '

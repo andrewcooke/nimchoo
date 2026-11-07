@@ -13,25 +13,33 @@ import ./route
 {.push raises: [].}
 
 type Named* = object
-  total*: int                    ## activities that had no name
-  named*: int                    ## ... of which now have one
-  startOnly*: int                ## ... and only a start place
-  nothing*: int                  ## ... and nothing to say
+  total*: int ## activities that had no name
+  named*: int ## ... of which now have one
+  startOnly*: int ## ... and only a start place
+  nothing*: int ## ... and nothing to say
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
   guard:
-    for r in st.db.fastRows(sql"select id from activity where name is null order by start_t, id"):
-      try: result.add parseBiggestInt(r[0])
-      except ValueError: raiseStore("a bad activity id")
+    for r in st.db.fastRows(
+      sql"select id from activity where name is null order by start_t, id"
+    ):
+      try:
+        result.add parseBiggestInt(r[0])
+      except ValueError:
+        raiseStore("a bad activity id")
 
-proc ensureActivityNames*(st: Store, names: Names, progress: proc(done, total: int) {.closure, raises: [].} = nil): Named
-    {.raises: [StoreError, DownloadError].} =
+proc ensureActivityNames*(
+    st: Store,
+    names: Names,
+    progress: proc(done, total: int) {.closure, raises: [].} = nil,
+): Named {.raises: [StoreError, DownloadError].} =
   let todo = pending(st)
   result.total = todo.len
   # the route of an activity is read as the stored geometry (one blob), not as a row for each position; an activity with no
   # route (no segment had two points) is read from its positions
-  let routeOf = prepareStmt(st.db, "select AsBinary(geom) from route where activity_id = ?")
+  let routeOf =
+    prepareStmt(st.db, "select AsBinary(geom) from route where activity_id = ?")
   for k, id in todo:
     var lons, lats: seq[float]
     routeOf.bindInt(1, id)
@@ -42,14 +50,27 @@ proc ensureActivityNames*(st: Store, names: Names, progress: proc(done, total: i
     routeOf.rewind()
     if lons.len == 0:
       guard:
-        for r in st.db.fastRows(sql"select lon, lat from coords where activity_id = ? order by t", id):
+        for r in st.db.fastRows(
+          sql"select lon, lat from coords where activity_id = ? order by t", id
+        ):
           try:
             lons.add parseFloat(r[0])
             lats.add parseFloat(r[1])
-          except ValueError: raiseStore("a bad position")
+          except ValueError:
+            raiseStore("a bad position")
     let got = nameActivity(names, lons, lats)
-    guard: st.db.exec(sql"update activity set start_place = ?, name = ? where id = ?", got.start, got.name, id)
-    if got.name.len > 0: inc result.named
-    elif got.start.len > 0: inc result.startOnly
-    else: inc result.nothing
-    if progress != nil: progress(k + 1, todo.len)
+    guard:
+      st.db.exec(
+        sql"update activity set start_place = ?, name = ? where id = ?",
+        got.start,
+        got.name,
+        id,
+      )
+    if got.name.len > 0:
+      inc result.named
+    elif got.start.len > 0:
+      inc result.startOnly
+    else:
+      inc result.nothing
+    if progress != nil:
+      progress(k + 1, todo.len)

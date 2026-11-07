@@ -15,9 +15,9 @@ suite "interval: the one rule":
   test "from an hour: hours and two-digit minutes, to the minute":
     check interval(3600.0) == "1h00m"
     check interval(16860.0) == "4h41m"
-    check interval(16889.0) == "4h41m"            # (29 s: the seconds are not shown)
-    check interval(16891.0) == "4h42m"            # (31 s: rounded up)
-    check interval(86399.0) == "1d00h00m"          # (rounded to the minute, which carries)
+    check interval(16889.0) == "4h41m" # (29 s: the seconds are not shown)
+    check interval(16891.0) == "4h42m" # (31 s: rounded up)
+    check interval(86399.0) == "1d00h00m" # (rounded to the minute, which carries)
   test "from a day: days, two-digit hours and minutes":
     check interval(86400.0) == "1d00h00m"
     check interval(2 * 86400.0 + 3 * 3600.0 + 7 * 60.0) == "2d03h07m"

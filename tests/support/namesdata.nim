@@ -29,8 +29,9 @@ let road* = gn(2, "Ruta 60", -32.8, -70.2, "R", "RD")
 let spring* = gn(3, "Vertiente Fria", -38.37, -73.9, "H", "SPNG")
 let barrio* = gn(4, "Lo Barnechea", -33.35, -70.52, "P", "PPLX", 0)
 
-let chileShape* = CountryShape(iso: "CL", isoEh: "CL", name: "Chile", rects: @[(-76.0, -56.0, -69.5, -17.0)])
-  ## (a rectangle: the whole of Chile for the tests of the names)
+let chileShape* = CountryShape(
+  iso: "CL", isoEh: "CL", name: "Chile", rects: @[(-76.0, -56.0, -69.5, -17.0)]
+) ## (a rectangle: the whole of Chile for the tests of the names)
 
 proc infoLine*(iso, name: string, id: int): string =
   var cols = newSeq[string](19)
@@ -44,23 +45,31 @@ type Net* = ref object
   chile*: string
 
 proc envOf*(net: Net): Env =
-  result.fetcher.head = proc(url: string): Option[int64] {.closure, raises: [].} = none(int64)
+  result.fetcher.head = proc(url: string): Option[int64] {.closure, raises: [].} =
+    none(int64)
   result.fetcher.get = proc(url: string): FetchResult {.closure, raises: [].} =
     net.gets.add url
     try:
       if url == urlFor(naturalEarthCountries):
         return FetchResult(ok: true, status: 200, body: naturalEarthZip([chileShape]))
       if url == urlFor(geonamesCountryInfo):
-        return FetchResult(ok: true, status: 200, body: infoLine("CL", "Chile", 3895114) & "\n" & infoLine("AR", "Argentina", 3865483) & "\n")
+        return FetchResult(
+          ok: true,
+          status: 200,
+          body:
+            infoLine("CL", "Chile", 3895114) & "\n" &
+            infoLine("AR", "Argentina", 3865483) & "\n",
+        )
       if url == urlFor(geonamesCountry, "CL"):
-        return FetchResult(ok: true, status: 200, body: makeZip([("CL.txt", net.chile)]))
+        return
+          FetchResult(ok: true, status: 200, body: makeZip([("CL.txt", net.chile)]))
     except CatchableError:
       return FetchResult(ok: false, message: "cannot make the zip")
     FetchResult(ok: false, status: 404, message: "the server said 404")
-  result.freeBytes = proc(dir: string): Option[int64] {.closure, raises: [].} = none(int64)
+  result.freeBytes = proc(dir: string): Option[int64] {.closure, raises: [].} =
+    none(int64)
 
 proc fresh*(name: string): tuple[st: Store, dir: string] =
   let top = getTempDir() / "nch-test-features" / name
   removeDir(top)
   (openStore(top / "x.db", allFragments), top / "data")
-

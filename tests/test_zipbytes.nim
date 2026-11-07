@@ -14,22 +14,29 @@ suite "zip files in memory":
       check es["a.txt"].size == 5
 
   test "bytes that are not a zip, or a zip cut short":
-    expect ZipError: discard listEntries("this is not a zip file at all, not even close to one")
-    expect ZipError: discard listEntries("")
+    expect ZipError:
+      discard listEntries("this is not a zip file at all, not even close to one")
+    expect ZipError:
+      discard listEntries("")
     let z = makeZip([("a.txt", "hello")])
-    expect ZipError: discard listEntries(z[0 ..< z.len - 10])        # the end record is gone
+    expect ZipError:
+      discard listEntries(z[0 ..< z.len - 10]) # the end record is gone
     let es = listEntries(z)
-    expect ZipError: discard extractEntry(z[0 ..< 20], es["a.txt"])    # the data are gone
+    expect ZipError:
+      discard extractEntry(z[0 ..< 20], es["a.txt"]) # the data are gone
 
   test "an entry with the wrong size, or a compression we cannot do":
     let z = makeZip([("a.txt", "hello")], deflate = false)
     var es = listEntries(z)
     var bad = es["a.txt"]
     bad.size = 99
-    expect ZipError: discard extractEntry(z, bad)
+    expect ZipError:
+      discard extractEntry(z, bad)
     bad = es["a.txt"]
     bad.compression = 12
-    expect ZipError: discard extractEntry(z, bad)
+    expect ZipError:
+      discard extractEntry(z, bad)
     bad = es["a.txt"]
     bad.size = 300 * 1024 * 1024
-    expect ZipError: discard extractEntry(z, bad)
+    expect ZipError:
+      discard extractEntry(z, bad)

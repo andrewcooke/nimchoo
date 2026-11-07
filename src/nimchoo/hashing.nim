@@ -14,5 +14,6 @@ func sha256Hex*(text: string): string =
 func sha256Hex*(data: openArray[byte]): string =
   ## ... of bytes.
   var text = newString(data.len)
-  for i, b in data: text[i] = char(b)
+  for i, b in data:
+    text[i] = char(b)
   sha256Hex(text)

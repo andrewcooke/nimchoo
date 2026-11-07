@@ -9,24 +9,31 @@
 {.push raises: [].}
 
 type Color* = enum
-  white     ## ordinary text
-  grey      ## quiet: bookkeeping, nothing to see, not recorded
-  red       ## bad: failed, deleted, denied
-  green     ## good: imported, saved, fitness
-  yellow    ## a warning (some terminals draw it as orange)
-  blue      ## what is selected (a light blue)
+  white ## ordinary text
+  grey ## quiet: bookkeeping, nothing to see, not recorded
+  red ## bad: failed, deleted, denied
+  green ## good: imported, saved, fitness
+  yellow ## a warning (some terminals draw it as orange)
+  blue ## what is selected (a light blue)
 
 func terminalCode*(c: Color): string =
   ## The escape code that starts the colour in a terminal ("" for white: nothing to start).
   case c
-  of white: ""
-  of grey: "\e[38;5;240m"      # (238 is darker, 242 lighter; "\e[90m" is the theme's bright black)
-  of red: "\e[31m"
-  of green: "\e[32m"
-  of yellow: "\e[33m"
-  of blue: "\e[38;5;111m"      # (a light blue: 75 is deeper, 117 paler)
+  of white:
+    ""
+  of grey:
+    "\e[38;5;240m"
+  # (238 is darker, 242 lighter; "\e[90m" is the theme's bright black)
+  of red:
+    "\e[31m"
+  of green:
+    "\e[32m"
+  of yellow:
+    "\e[33m"
+  of blue:
+    "\e[38;5;111m" # (a light blue: 75 is deeper, 117 paler)
 
-const resetCode* = "\e[0m"      ## ... and the one that ends any colour
+const resetCode* = "\e[0m" ## ... and the one that ends any colour
 
 func hex*(c: Color): string =
   ## The colour on a web page with a white background.

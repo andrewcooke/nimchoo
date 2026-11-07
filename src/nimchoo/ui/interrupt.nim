@@ -8,8 +8,10 @@ when defined(posix):
 {.push raises: [].}
 
 proc stopOnInterrupt() {.noconv.} =
-  try: stderr.write "\n"
-  except IOError: discard
+  try:
+    stderr.write "\n"
+  except IOError:
+    discard
   when defined(posix):
     exitnow(130)
   else:

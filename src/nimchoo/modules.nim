@@ -19,6 +19,7 @@ import ./db/[channel, fragment]
 
 const allFragments*: seq[Fragment] =
   namesDdl.fragments & importerDdl.fragments & heartrateDdl.fragments &
-  climbsDdl.fragments & landmarkDdl.fragments & selectionDdl.fragments & userDdl.fragments & modelDdl.fragments
+  climbsDdl.fragments & landmarkDdl.fragments & selectionDdl.fragments &
+  userDdl.fragments & modelDdl.fragments
 
 let allImportSteps*: seq[ImportStep] = @[heartrateStep.heartrateStep]

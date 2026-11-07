@@ -19,11 +19,24 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ##
   ##     deleting 340 / 1,381 activities
   ##     activities 340 · files 120
-  @[@[span("deleting ", bold = true),
-      span(insertSep($done, ',') & " / " & insertSep($total, ',') & (if total == 1: " activity" else: " activities"))],
-    @[span("activities " & insertSep($done, ','), red), span(" · ", grey), span("files " & insertSep($files, ','), red)]]
+  @[
+    @[
+      span("deleting ", bold = true),
+      span(
+        insertSep($done, ',') & " / " & insertSep($total, ',') &
+          (if total == 1: " activity" else: " activities")
+      ),
+    ],
+    @[
+      span("activities " & insertSep($done, ','), red),
+      span(" · ", grey),
+      span("files " & insertSep($files, ','), red),
+    ],
+  ]
 
-proc runDelete*(g: Globals, st: Store, ids: seq[int64], force: bool, nothing: string): int {.raises: [].} =
+proc runDelete*(
+    g: Globals, st: Store, ids: seq[int64], force: bool, nothing: string
+): int {.raises: [].} =
   ## Delete the activities `ids` (all of the current user's).  `nothing` is what to say if there are none.
   try:
     let plan = planDelete(st, ids)
@@ -39,20 +52,30 @@ proc runDelete*(g: Globals, st: Store, ids: seq[int64], force: bool, nothing: st
     var shown = false
     var live = Live()
     let screen = canLive()
-    if screen: live = newTerminalLive()
-    let done = deleteActivities(st, plan, proc(n, total, files: int) {.closure, raises: [].} =
-      if screen and (n == total or live.due()):
-        shown = true
-        live.show(deletingLines(n, total, files)))
+    if screen:
+      live = newTerminalLive()
+    let done = deleteActivities(
+      st,
+      plan,
+      proc(n, total, files: int) {.closure, raises: [].} =
+        if screen and (n == total or live.due()):
+          shown = true
+          live.show(deletingLines(n, total, files))
+      ,
+    )
     st.reclaim()
     if screen:
-      if shown: live.keep(deletingLines(plan.ids.len, plan.ids.len, done.files))
-      else: live.finish()
+      if shown:
+        live.keep(deletingLines(plan.ids.len, plan.ids.len, done.files))
+      else:
+        live.finish()
     var said = "deleted " & what
     if done.files > 0:
-      said.add "; " & $done.files & (if done.files == 1: " file" else: " files") & " forgotten (importing them again would bring the activities back)"
+      said.add "; " & $done.files & (if done.files == 1: " file" else: " files") &
+        " forgotten (importing them again would bring the activities back)"
     if done.kept > 0:
-      said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") & " kept, with other activities in"
+      said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
+        " kept, with other activities in"
     g.log.log(lvInfo, "activities", leDeleted, said & " from " & st.path)
     sayDeleted(said)
     exitOk

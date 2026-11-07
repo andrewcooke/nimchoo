@@ -25,5 +25,5 @@ proc writeAtomic*(path, text: string) {.raises: [IOError, OSError].} =
     moveFile(tmp, path)
   except OSError as e:
     raise e
-  except Exception:              # (moveFile is declared to raise anything)
+  except Exception: # (moveFile is declared to raise anything)
     raise newException(OSError, "cannot rename " & tmp)

@@ -18,9 +18,9 @@ const rowsPerStatement* = 128
 
 type MultiInsert* = object
   db: DbConn
-  head: string                 ## "insert into t(a, b) values "
-  group: string                ## "(?, ?)": one row
-  stmts: Table[int, Stmt]      ## by the number of rows
+  head: string ## "insert into t(a, b) values "
+  group: string ## "(?, ?)": one row
+  stmts: Table[int, Stmt] ## by the number of rows
 
 proc initMultiInsert*(db: DbConn, head: string, columns: int): MultiInsert =
   ## For inserts that start with `head` (ending in "values ") of rows of this many columns.
@@ -34,9 +34,8 @@ proc statement*(m: var MultiInsert, rows: int): Stmt {.raises: [StoreError].} =
   if rows notin m.stmts:
     var sql = m.head
     for r in 0 ..< rows:
-      if r > 0: sql.add ", "
+      if r > 0:
+        sql.add ", "
       sql.add m.group
     m.stmts[rows] = prepareStmt(m.db, sql)
   m.stmts.must(rows)
-
-

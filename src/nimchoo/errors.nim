@@ -7,20 +7,16 @@
 {.push raises: [].}
 
 type
-  NchError* = object of CatchableError
-    ## Base of all errors raised on unusable input.
+  NchError* = object of CatchableError ## Base of all errors raised on unusable input.
 
-  FitError* = object of NchError
-    ## A FIT file that cannot be read (further).
-    offset*: int  ## byte offset in the file, or -1 if not known
+  FitError* = object of NchError ## A FIT file that cannot be read (further).
+    offset*: int ## byte offset in the file, or -1 if not known
 
-  ProfileError* = object of NchError
-    ## A profile spreadsheet that cannot be used.
-    sheet*: string  ## "" if not about a particular sheet
-    row*: int       ## 1-based spreadsheet row, 0 if not known
+  ProfileError* = object of NchError ## A profile spreadsheet that cannot be used.
+    sheet*: string ## "" if not about a particular sheet
+    row*: int ## 1-based spreadsheet row, 0 if not known
 
-  XlsxError* = object of NchError
-    ## A file that is not a readable xlsx file.
+  XlsxError* = object of NchError ## A file that is not a readable xlsx file.
 
   ZipError* = object of NchError
     ## Bytes that are not a readable zip file, or an entry that cannot be read.
@@ -35,12 +31,13 @@ type
 
   TemplateError* = object of NchError
     ## A page template that cannot be used (a tag not closed, a name the values do not have).
-    line*: int  ## 1-based line of the template, 0 if not known
+    line*: int ## 1-based line of the template, 0 if not known
 
   ImportFailure* = enum
-    ifNoActivity,   ## the file has no activity in it (no session message)
-    ifBadTime,      ## its times are not calendar times
-    ifMonitor       ## a file that says it is not an activity (monitoring and other all-day data): none is expected
+    ifNoActivity ## the file has no activity in it (no session message)
+    ifBadTime ## its times are not calendar times
+    ifMonitor
+      ## a file that says it is not an activity (monitoring and other all-day data): none is expected
 
   ImportError* = object of NchError
     ## A file that is readable but cannot be imported as an activity.
@@ -54,8 +51,9 @@ proc raiseFit*(offset: int, msg: string) {.noreturn, raises: [FitError].} =
   ## Raise a FitError at a byte offset; the offset is added to the message.
   raise (ref FitError)(msg: msg & " (at offset " & $offset & ")", offset: offset)
 
-proc raiseProfile*(msg: string, sheet = "", row = 0) {.noreturn,
-    raises: [ProfileError].} =
+proc raiseProfile*(
+    msg: string, sheet = "", row = 0
+) {.noreturn, raises: [ProfileError].} =
   ## Raise a ProfileError, optionally for a 1-based `row` of `sheet`.
   raise (ref ProfileError)(msg: msg, sheet: sheet, row: row)
 
@@ -68,10 +66,13 @@ proc raiseZip*(msg: string) {.noreturn, raises: [ZipError].} =
 proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
   raise (ref StoreError)(msg: msg)
 
-proc raiseImport*(kind: ImportFailure, msg: string) {.noreturn,
-    raises: [ImportError].} =
+proc raiseImport*(
+    kind: ImportFailure, msg: string
+) {.noreturn, raises: [ImportError].} =
   raise (ref ImportError)(msg: msg, kind: kind)
 
 proc raiseTemplate*(msg: string, line = 0) {.noreturn, raises: [TemplateError].} =
   ## Raise a TemplateError.
-  raise (ref TemplateError)(msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line)
+  raise (ref TemplateError)(
+    msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line
+  )

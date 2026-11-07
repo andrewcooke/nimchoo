@@ -18,7 +18,11 @@ func interval*(seconds: float): string =
   ## `seconds` as text by the rule above.  Negative or not a number counts as zero.
   let s = if seconds != seconds or seconds < 0: 0.0 else: seconds
   # rounded to the minute from an hour (so 3,599.7 s rounds to the second first)
-  let total = if s >= 3600: int64(round(s / 60.0)) * 60 else: int64(round(s))
+  let total =
+    if s >= 3600:
+      int64(round(s / 60.0)) * 60
+    else:
+      int64(round(s))
   let days = total div 86400
   let hours = (total mod 86400) div 3600
   let minutes = (total mod 3600) div 60

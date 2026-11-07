@@ -11,28 +11,28 @@ import ../download/fetch
 
 type
   Kind* = enum
-    ckDownloads = "downloads"      ## fetched from the net (the GeoNames country files): `data/`
-    ckSystem = "system"            ## unpacked from the program (the profile, templates): `system/`
-    ckGeojson = "geojson"          ## made by commands: `user/*.geojson`
-    ckCsv = "csv"                  ## made by commands: `user/*.csv`
-    ckHtml = "html"                ## made by commands: `user/*.html`
+    ckDownloads = "downloads"
+      ## fetched from the net (the GeoNames country files): `data/`
+    ckSystem = "system" ## unpacked from the program (the profile, templates): `system/`
+    ckGeojson = "geojson" ## made by commands: `user/*.geojson`
+    ckCsv = "csv" ## made by commands: `user/*.csv`
+    ckHtml = "html" ## made by commands: `user/*.html`
 
   Use* = object
     count*: int
     bytes*: int64
 
-const
-  kindHelp*: array[Kind, string] = [
-    "files fetched from the net (the GeoNames country files); fetched again when a place needs them",
-    "files unpacked from the program (the profile, the licence notice, page templates); unpacked again",
-    "maps made by commands",
-    "tables made by commands",
-    "web pages made by commands"]
+const kindHelp*: array[Kind, string] = [
+  "files fetched from the net (the GeoNames country files); fetched again when a place needs them",
+  "files unpacked from the program (the profile, the licence notice, page templates); unpacked again",
+  "maps made by commands", "tables made by commands", "web pages made by commands",
+]
 
 func kindNames*(): string =
   ## "downloads, system, geojson, csv, html"
   for k in Kind:
-    if result.len > 0: result.add ", "
+    if result.len > 0:
+      result.add ", "
     result.add $k
 
 func parseKind*(s: string, kind: var Kind): bool =
@@ -44,25 +44,33 @@ func parseKind*(s: string, kind: var Kind): bool =
 
 func describe*(use: Use): string =
   ## "12 files (3.4MB)", "1 file (12kB)", "no files".
-  if use.count == 0: return "no files"
-  $use.count & (if use.count == 1: " file" else: " files") & " (" & humanBytes(use.bytes) & ")"
+  if use.count == 0:
+    return "no files"
+  $use.count & (if use.count == 1: " file" else: " files") & " (" & humanBytes(
+    use.bytes
+  ) & ")"
 
 proc walkFiles(dir: string, extension = ""): seq[string] =
   ## The files below `dir` (all levels), or those directly in it with the extension; none if there is no such directory.
   try:
     if extension.len == 0:
-      for path in walkDirRec(dir): result.add path
+      for path in walkDirRec(dir):
+        result.add path
     else:
       for kind, path in walkDir(dir):
-        if kind == pcFile and path.endsWith("." & extension): result.add path
+        if kind == pcFile and path.endsWith("." & extension):
+          result.add path
   except OSError:
     discard
 
 proc filesOf(dir: string, kind: Kind): seq[string] =
   case kind
-  of ckDownloads: walkFiles(dataDir(dir))
-  of ckSystem: walkFiles(systemDir(dir))
-  of ckGeojson, ckCsv, ckHtml: walkFiles(userDir(dir), $kind)
+  of ckDownloads:
+    walkFiles(dataDir(dir))
+  of ckSystem:
+    walkFiles(systemDir(dir))
+  of ckGeojson, ckCsv, ckHtml:
+    walkFiles(userDir(dir), $kind)
 
 proc useOf*(dir: string, kind: Kind): Use =
   ## What there is of the kind (nothing if the directory is missing).
@@ -86,8 +94,11 @@ proc deleteKind*(dir: string, kind: Kind): Use =
       discard
   try:
     case kind
-    of ckDownloads: removeDir dataDir(dir)
-    of ckSystem: removeDir systemDir(dir)
-    else: discard
+    of ckDownloads:
+      removeDir dataDir(dir)
+    of ckSystem:
+      removeDir systemDir(dir)
+    else:
+      discard
   except OSError, Exception:
     discard

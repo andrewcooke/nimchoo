@@ -19,17 +19,18 @@ proc defaultProfile*(): tuple[profile: Profile, note: string, bytes: string] =
   ## `loadDefaultProfile`, but if the author's profile cannot be used the built-in one is, with a
   ## note saying so.  The note also says when the author's is the one in use ("" otherwise).
   let r = resolve(profileBundle)
-  result.bytes = r.data              # (the spreadsheet in use: another thread can load its own copy)
+  result.bytes = r.data # (the spreadsheet in use: another thread can load its own copy)
   try:
     result.profile = loadProfileFromBytes(r.data)
     if r.source == soCustom:
       result.note = "using the profile " & r.path & " (not the built-in one)"
   except NchError as e:
     if r.source != soCustom:
-      raiseAssert "the built-in profile does not load: " & e.msg      # a bug
+      raiseAssert "the built-in profile does not load: " & e.msg # a bug
     result.bytes = embedded
     try:
       result.profile = loadProfileFromBytes(embedded)
     except NchError as e2:
-      raiseAssert "the built-in profile does not load: " & e2.msg      # a bug
-    result.note = "the profile " & r.path & " cannot be used (" & e.msg & "): using the built-in one"
+      raiseAssert "the built-in profile does not load: " & e2.msg # a bug
+    result.note =
+      "the profile " & r.path & " cannot be used (" & e.msg & "): using the built-in one"

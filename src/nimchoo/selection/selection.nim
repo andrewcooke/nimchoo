@@ -19,43 +19,60 @@ func keyOf*(entries: seq[string]): string =
   ## The key of a selection, from "file-sha256:session" for each activity (in
   ## any order): the first 12 hex digits of the SHA-256 of the sorted entries.
   var text = ""
-  for e in entries.sorted: text.add e & "\n"
+  for e in entries.sorted:
+    text.add e & "\n"
   sha256Hex(text)[0 ..< keyLength]
 
 proc selectionKey*(st: Store): string {.raises: [StoreError].} =
   ## The key of the current selection of the store's user.
   var entries: seq[string]
   guard:
-    for row in st.db.fastRows(sql"""select f.sha256, a.session
+    for row in st.db.fastRows(
+      sql"""select f.sha256, a.session
         from selection s join activity a on a.id = s.activity_id
-        join file f on f.id = a.file_id where s.user_id = ?""", st.userId):
+        join file f on f.id = a.file_id where s.user_id = ?""",
+      st.userId,
+    ):
       entries.add row[0] & ":" & row[1]
   keyOf(entries)
 
 proc selectedIds*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
   guard:
-    for row in st.db.fastRows(sql"select activity_id from selection where user_id = ? order by 1", st.userId):
-      try: result.add parseBiggestInt(row[0])
-      except ValueError: raiseStore("a bad activity id")
+    for row in st.db.fastRows(
+      sql"select activity_id from selection where user_id = ? order by 1", st.userId
+    ):
+      try:
+        result.add parseBiggestInt(row[0])
+      except ValueError:
+        raiseStore("a bad activity id")
 
 proc maxActivityId*(st: Store): int64 {.raises: [StoreError].} =
   ## The highest activity id there is (0 if there are none): the largest an address can name.
   guard:
-    try: result = parseBiggestInt(st.db.getValue(sql"select coalesce(max(id), 0) from activity"))
-    except ValueError: raiseStore("a bad activity id")
+    try:
+      result =
+        parseBiggestInt(st.db.getValue(sql"select coalesce(max(id), 0) from activity"))
+    except ValueError:
+      raiseStore("a bad activity id")
 
 proc ownedIds*(st: Store, ids: seq[int64]): seq[int64] {.raises: [StoreError].} =
   ## Of `ids` (in order), those that are activities of the store's user: an address may name any number, and only the
   ## user's own activities are ever drawn.
   var mine = initHashSet[int64]()
   guard:
-    for row in st.db.fastRows(sql"""select a.id from activity a join file f on f.id = a.file_id
-        where f.user_id = ?""", st.userId):
-      try: mine.incl parseBiggestInt(row[0])
-      except ValueError: raiseStore("a bad activity id")
+    for row in st.db.fastRows(
+      sql"""select a.id from activity a join file f on f.id = a.file_id
+        where f.user_id = ?""",
+      st.userId,
+    ):
+      try:
+        mine.incl parseBiggestInt(row[0])
+      except ValueError:
+        raiseStore("a bad activity id")
   for id in ids:
-    if id in mine: result.add id
+    if id in mine:
+      result.add id
 
 const checkLength* = 6
 
@@ -66,7 +83,10 @@ proc checkOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
   var entries: seq[string]
   guard:
     for id in ids:
-      for row in st.db.fastRows(sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
-          where a.id = ?""", id):
+      for row in st.db.fastRows(
+        sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
+          where a.id = ?""",
+        id,
+      ):
         entries.add row[0] & ":" & row[1]
   keyOf(entries)[0 ..< checkLength]

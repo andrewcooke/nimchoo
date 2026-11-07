@@ -31,12 +31,11 @@ suite "integers":
     check ints(btSint16, b(0x00, 0x80)) == @[-32768'i64]
     check ints(btSint16, b(0x80, 0x00), bigEndian) == @[-32768'i64]
     check ints(btSint32, b(0xff, 0xff, 0xff, 0xff)) == @[-1'i64]
-    check ints(btSint64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff)) ==
-      @[-1'i64]
+    check ints(btSint64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff)) == @[-1'i64]
   test "arrays":
     check ints(btUint8, b(1, 2, 3)) == @[1'i64, 2, 3]
     check ints(btUint16, b(1, 0, 2, 0)) == @[1'i64, 2]
-    check ints(btUint16, b(1, 0, 2, 0, 9)) == @[1'i64, 2]  # trailing partial
+    check ints(btUint16, b(1, 0, 2, 0, 9)) == @[1'i64, 2] # trailing partial
   test "enum and byte":
     check ints(btEnum, b(5)) == @[5'i64]
     check ints(btByte, b(7)) == @[7'i64]
@@ -52,8 +51,9 @@ suite "bad values":
     check decode(btSint16, b(0x7f, 0xff), bigEndian).isNone
     check decode(btUint32, b(0xff, 0xff, 0xff, 0xff), littleEndian).isNone
     check decode(btSint32, b(0xff, 0xff, 0xff, 0x7f), littleEndian).isNone
-    check decode(btUint64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-                 littleEndian).isNone
+    check decode(
+      btUint64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), littleEndian
+    ).isNone
   test "zero is bad for z types only":
     check decode(btUint8z, b(0), littleEndian).isNone
     check decode(btUint16z, b(0, 0), littleEndian).isNone
@@ -75,18 +75,18 @@ suite "bad values":
 suite "floats":
   test "float32":
     # 1.5 = 0x3fc00000
-    check decode(btFloat32, b(0, 0, 0xc0, 0x3f), littleEndian).get.floats ==
-      @[1.5]
+    check decode(btFloat32, b(0, 0, 0xc0, 0x3f), littleEndian).get.floats == @[1.5]
     check decode(btFloat32, b(0x3f, 0xc0, 0, 0), bigEndian).get.floats == @[1.5]
   test "float64":
-    check decode(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f),
-                 littleEndian).get.floats == @[1.5]
-    check decode(btFloat64, b(0x3f, 0xf8, 0, 0, 0, 0, 0, 0),
-                 bigEndian).get.floats == @[1.5]
+    check decode(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), littleEndian).get.floats ==
+      @[1.5]
+    check decode(btFloat64, b(0x3f, 0xf8, 0, 0, 0, 0, 0, 0), bigEndian).get.floats ==
+      @[1.5]
   test "all ones is bad":
     check decode(btFloat32, b(0xff, 0xff, 0xff, 0xff), littleEndian).isNone
-    check decode(btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff),
-                 bigEndian).isNone
+    check decode(
+      btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), bigEndian
+    ).isNone
 
 suite "strings":
   func strs(data: seq[byte]): seq[string] =

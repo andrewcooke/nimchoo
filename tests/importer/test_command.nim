@@ -12,16 +12,18 @@ proc importCmd(g: Globals, args: seq[string]): int =
   var paths, flags: seq[string]
   var i = 0
   while i < args.len:
-    if args[i] in ["-q", "--quiet", "--slow"]: flags.add args[i]
+    if args[i] in ["-q", "--quiet", "--slow"]:
+      flags.add args[i]
     elif args[i] in ["-j", "--jobs"]:
       flags.add args[i]
       flags.add args[i + 1]
       inc i
-    elif args[i].startsWith("-"): flags.add args[i]
-    else: paths.add args[i]
+    elif args[i].startsWith("-"):
+      flags.add args[i]
+    else:
+      paths.add args[i]
     inc i
   activitiesCommand.run(g, @["--import"] & paths & flags)
-
 
 const ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
 const base = 900_000_000
@@ -31,16 +33,18 @@ let dir = getTempDir() / "nch-test-import-cmd"
 proc bytesToFile(path: string, data: seq[byte]) =
   createDir(parentDir(path))
   var s = newString(data.len)
-  for i, x in data: s[i] = char(x)
+  for i, x in data:
+    s[i] = char(x)
   writeFile(path, s)
 
 proc tiny(startAt: int): seq[byte] =
   ## A different small activity for each `startAt` (so a different file hash).
   fitFile(
-    defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) &
-    b(0) & le32(startAt) & le32(536870912) & le32(-1073741824) &
-    defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T)]) &
-    b(1) & le32(startAt) & le32(startAt))
+    defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) & b(0) &
+      le32(startAt) & le32(536870912) & le32(-1073741824) &
+      defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T)]) & b(1) & le32(startAt) &
+      le32(startAt)
+  )
 
 proc fresh(name: string): string =
   ## An empty directory to work in.
@@ -48,7 +52,8 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-proc open(path: string): Store = openStore(path, allFragments)
+proc open(path: string): Store =
+  openStore(path, allFragments)
 
 func globals(db: string, user = ""): Globals =
   Globals(dbPath: db, user: user, fragments: allFragments, offline: true)
@@ -62,7 +67,8 @@ suite "nch import: finding files":
     writeFile(d / "notes.txt", "not a fit file")
     writeFile(d / "sub" / "README", "nor this")
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let r = importReport(st, @[d])
     check r.imported == 3
     check r.failed == 0
@@ -77,7 +83,8 @@ suite "nch import: finding files":
     let d = fresh("dups")
     bytesToFile(d / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let r = importReport(st, @[d / "a.fit", d, d / "a.fit"])
     check r.imported == 1
     check r.duplicates + r.unchanged == 0
@@ -87,7 +94,8 @@ suite "nch import: finding files":
     let d = fresh("ext")
     bytesToFile(d / "ride.bin", tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     check importReport(st, @[d / "ride.bin"]).imported == 1
 
   test "a path that is not there, and a directory with no FIT files":
@@ -95,7 +103,8 @@ suite "nch import: finding files":
     createDir(d / "empty")
     writeFile(d / "empty" / "x.txt", "text")
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let r = importReport(st, @[d / "nonesuch", d / "empty"])
     check r.failed == 2
     check r.lines[0].contains("no such file or directory")
@@ -109,7 +118,8 @@ suite "nch import: a mixed run":
     writeFile(d / "2-bad.fit", "this is not a fit file at all")
     bytesToFile(d / "3-good.fit", tiny(base + 2))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let r = importReport(st, @[d])
     check r.imported == 2
     check r.failed == 1
@@ -120,7 +130,8 @@ suite "nch import: a mixed run":
     let d = fresh("again")
     bytesToFile(d / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
     let r = importReport(st, @[d])
     check r.imported == 0
@@ -136,7 +147,8 @@ suite "nch import: a mixed run":
     bytesToFile(d / "a.fit", tiny(base + 1))
     writeFile(d / "b.fit", "junk")
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let r = importReport(st, @[d], ImportOptions(quiet: true))
     check r.lines.len == 2
     check r.lines[0].startsWith("failed")
@@ -146,14 +158,16 @@ suite "nch import: a mixed run":
     let d = fresh("warn")
     # three records in the same second: two duplicate warnings
     let body = fitFile(
-      defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) &
-      b(0) & le32(base) & le32(1) & le32(1) & b(0) & le32(base) & le32(2) & le32(2) &
-      b(0) & le32(base) & le32(3) & le32(3) &
-      defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T)]) &
-      b(1) & le32(base) & le32(base))
+      defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) & b(0) &
+        le32(base) & le32(1) & le32(1) & b(0) & le32(base) & le32(2) & le32(2) & b(0) &
+        le32(base) & le32(3) & le32(3) &
+        defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T)]) & b(1) & le32(base) &
+        le32(base)
+    )
     bytesToFile(d / "dup.fit", body)
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let r = importReport(st, @[d])
     check r.imported == 1
     check r.stderr.len == 1
@@ -169,7 +183,7 @@ suite "nch import: the command":
     check activitiesCommand.run(g, @["--import"]) == exitUsage
     check activitiesCommand.run(g, @["--import", d, "--nonesuch"]) == exitUsage
     check importCmd(g, @["-q", d]) == exitOk
-    check importCmd(g, @["-q", d]) == exitOk              # skipped is not a failure
+    check importCmd(g, @["-q", d]) == exitOk # skipped is not a failure
     check importCmd(g, @["-q", d / "nonesuch"]) == exitFailure
     writeFile(d / "bad.fit", "junk")
     check importCmd(g, @["-q", d]) == exitFailure
@@ -183,25 +197,29 @@ suite "nch import: the command":
     let g = globals(d / "x.db")
     proc selectedStarts(): seq[string] =
       let s = open(d / "x.db")
-      defer: s.close()
-      for r in s.db.fastRows(sql"select a.start_t from selection l join activity a on a.id = l.activity_id order by 1"):
+      defer:
+        s.close()
+      for r in s.db.fastRows(
+        sql"select a.start_t from selection l join activity a on a.id = l.activity_id order by 1"
+      ):
         result.add r[0]
+
     check importCmd(g, @["-q", d / "first"]) == exitOk
     check selectedStarts() == @[$(base + 1 + 631_065_600)]
-    check importCmd(g, @["-q", d / "second"]) == exitOk                 # the selection is replaced
+    check importCmd(g, @["-q", d / "second"]) == exitOk # the selection is replaced
     check selectedStarts() == @[$(base + 5000 + 631_065_600)]
-    check importCmd(g, @["-q", d / "first"]) == exitOk                  # nothing new: it stays
+    check importCmd(g, @["-q", d / "first"]) == exitOk # nothing new: it stays
     check selectedStarts() == @[$(base + 5000 + 631_065_600)]
-    check importCmd(g, @["-q", "--slow", d / "second"]) == exitOk       # re-read, not new: it stays
+    check importCmd(g, @["-q", "--slow", d / "second"]) == exitOk
+      # re-read, not new: it stays
     check selectedStarts() == @[$(base + 5000 + 631_065_600)]
-    check importCmd(g, @["-q", d]) == exitOk                            # (both are known now)
+    check importCmd(g, @["-q", d]) == exitOk # (both are known now)
     check selectedStarts() == @[$(base + 5000 + 631_065_600)]
 
   test "an unknown user is a failure":
     let d = fresh("user")
     bytesToFile(d / "a.fit", tiny(base + 1))
-    check importCmd(globals(d / "x.db", "nobody"), @["-q", d]) ==
-      exitFailure
+    check importCmd(globals(d / "x.db", "nobody"), @["-q", d]) == exitFailure
 
   test "the real ride goes in":
     let d = fresh("ride")

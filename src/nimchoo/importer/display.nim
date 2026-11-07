@@ -16,30 +16,41 @@ import ./[events, sinks]
 
 const dot = " · "
 
-func commas(n: int): string = insertSep($n, ',')
+func commas(n: int): string =
+  insertSep($n, ',')
 
 func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   ## The lines for the run so far: file number `index` (the one being looked
   ## at, `current`, if any) of `sum.total`.  What is zero is left out, except
   ## imported and failed.
-  var first: Line = @[span("importing ", bold = true),
-                      span(commas(index) & " / " & commas(sum.total))]
-  if current.len > 0: first.add span("   " & current, grey)
+  var first: Line =
+    @[span("importing ", bold = true), span(commas(index) & " / " & commas(sum.total))]
+  if current.len > 0:
+    first.add span("   " & current, grey)
   var second: Line
   template part(sp: Span) =
-    if second.len > 0: second.add span(dot, grey)
+    if second.len > 0:
+      second.add span(dot, grey)
     second.add sp
+
   # the looks are those of the events of the same name (ui/vocabulary.nim)
   part span("imported " & commas(sum.imported), leImported)
-  if sum.duplicates > 0: part span("duplicates " & commas(sum.duplicates), leDuplicate)
-  if sum.unchanged > 0: part span("unchanged " & commas(sum.unchanged), leUnchanged)
-  if sum.monitor > 0: part span("monitor " & commas(sum.monitor), leUnchanged)
-  if sum.known > 0: part span("known failures " & commas(sum.known), leUnchanged)
+  if sum.duplicates > 0:
+    part span("duplicates " & commas(sum.duplicates), leDuplicate)
+  if sum.unchanged > 0:
+    part span("unchanged " & commas(sum.unchanged), leUnchanged)
+  if sum.monitor > 0:
+    part span("monitor " & commas(sum.monitor), leUnchanged)
+  if sum.known > 0:
+    part span("known failures " & commas(sum.known), leUnchanged)
   if sum.failed > 0:
-    part span("failed " & commas(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed)
+    part span(
+      "failed " & commas(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed
+    )
   else:
-    part span("failed 0", leUnchanged)             # (nothing to see: dim)
-  if sum.advisories > 0: part span("advisories " & commas(sum.advisories), leAdvisory)
+    part span("failed 0", leUnchanged) # (nothing to see: dim)
+  if sum.advisories > 0:
+    part span("advisories " & commas(sum.advisories), leAdvisory)
   @[first, second]
 
 func readLine*(sum: Summary): string =
@@ -47,8 +58,11 @@ func readLine*(sum: Summary): string =
   ## names, the selection) is not over yet.
   "read: " & summaryLine(sum)
 
-proc liveSink*(l: Live, logged: bool,
-               stdoutWrite, stderrWrite: proc(s: string) {.closure, raises: [].}): Sink =
+proc liveSink*(
+    l: Live,
+    logged: bool,
+    stdoutWrite, stderrWrite: proc(s: string) {.closure, raises: [].},
+): Sink =
   ## Show the run on `l`.  When it ends the last frame stays on screen, then
   ## `stdoutWrite` gets the done line, and `stderrWrite` any notes and the hint
   ## about how to look for more (`nch log ...`, if there is a log).
@@ -68,8 +82,11 @@ proc liveSink*(l: Live, logged: bool,
     of evFinish:
       l.keep(renderImport(sum, sum.done, ""))
       stdoutWrite readLine(sum) & "\n"
-      for note in ev.summary.notes: stderrWrite "note: " & note & "\n"
+      for note in ev.summary.notes:
+        stderrWrite "note: " & note & "\n"
       let hint = moreHint(sum, logged)
-      if hint.len > 0: stderrWrite hint & "\n"
+      if hint.len > 0:
+        stderrWrite hint & "\n"
       return
-    if l.due(): l.show(renderImport(sum, index, current))
+    if l.due():
+      l.show(renderImport(sum, index, current))

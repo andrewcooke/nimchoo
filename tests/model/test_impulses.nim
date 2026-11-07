@@ -23,17 +23,23 @@ proc fresh(name: string): string =
   result = dir / name & ".db"
   removeFile(result)
 
-proc open(path: string, user = ""): Store = store.openStore(path, allFragments, user)
+proc open(path: string, user = ""): Store =
+  store.openStore(path, allFragments, user)
 
 proc importRide(s: Store, name = "ride.fit"): ImportResult =
   var ws: seq[Warning]
   s.importFile(p, name, readBytes(ride), ws, allImportSteps)
 
-proc q(s: Store, sqlText: string): string = s.db.getValue(sql(sqlText))
+proc q(s: Store, sqlText: string): string =
+  s.db.getValue(sql(sqlText))
 
 proc setFthr(s: Store, fthr: int) =
-  s.db.exec(sql"""insert into user_profile(user_id, fthr) values (?, ?)
-    on conflict(user_id) do update set fthr = excluded.fthr""", s.userId, fthr)
+  s.db.exec(
+    sql"""insert into user_profile(user_id, fthr) values (?, ?)
+    on conflict(user_id) do update set fthr = excluded.fthr""",
+    s.userId,
+    fthr,
+  )
 
 proc globals(db: string, user = ""): Globals =
   Globals(dbPath: db, user: user, fragments: allFragments, importSteps: allImportSteps)
@@ -41,7 +47,8 @@ proc globals(db: string, user = ""): Globals =
 suite "model: the models in the database":
   test "a new database has the default model, as the program defines it":
     let s = open(fresh("default"))
-    defer: s.close()
+    defer:
+      s.close()
     let ms = loadModels(s.db)
     check ms.len == 1
     var d = defaultModel()
@@ -50,36 +57,46 @@ suite "model: the models in the database":
     check findModel(s.db, "default").isSome and findModel(s.db, "nope").isNone
   test "a model is added; a name is used once; bad values are refused":
     let s = open(fresh("add"))
-    defer: s.close()
+    defer:
+      s.close()
     var m = defaultModel()
     m.name = "flat"
     m.gamma = 1
     insertModel(s.db, m)
     check findModel(s.db, "flat").get.gamma == 1
-    expect StoreError: insertModel(s.db, m)
+    expect StoreError:
+      insertModel(s.db, m)
     m.name = "bad"
     m.zero = 6
-    expect StoreError: insertModel(s.db, m)
-    m = defaultModel(); m.name = "bad2"; m.zones = [68.0, 80, 70, 105, 121]
-    expect StoreError: insertModel(s.db, m)
+    expect StoreError:
+      insertModel(s.db, m)
+    m = defaultModel()
+    m.name = "bad2"
+    m.zones = [68.0, 80, 70, 105, 121]
+    expect StoreError:
+      insertModel(s.db, m)
     check loadModels(s.db).len == 2
 
-proc defaultM(s: Store): Model = findModel(s.db, "default").get
+proc defaultM(s: Store): Model =
+  findModel(s.db, "default").get
 
 suite "model: impulses, worked out when wanted":
   test "importing makes no impulse, with or without an FTHR; the heart rate is stored":
     let s = open(fresh("import"))
-    defer: s.close()
+    defer:
+      s.close()
     s.setFthr(154)
     let r = s.importRide()
     check r.extras.len == 1 and r.extras[0].n == 2099
     check s.q("select count(*) from impulse") == "0"
   test "when wanted they are worked out, close to the original's algorithm; asking again does nothing":
     let s = open(fresh("wanted"))
-    defer: s.close()
+    defer:
+      s.close()
     s.setFthr(154)
     discard s.importRide()
-    check calculateMissing(s.db, s.userId, s.defaultM) == Calculated(activities: 1, hours: 2)
+    check calculateMissing(s.db, s.userId, s.defaultM) ==
+      Calculated(activities: 1, hours: 2)
     check s.q("select count(*) from impulse") == "2"
     # the same ride on the original's 10-second grid gives 72.53 (this is exact: within 1%)
     let total = parseFloat(s.q("select sum(value) from impulse"))
@@ -87,14 +104,17 @@ suite "model: impulses, worked out when wanted":
     check calculateMissing(s.db, s.userId, s.defaultM) == Calculated()
   test "no FTHR, no impulse; with one given later, the existing activities get theirs":
     let s = open(fresh("later"))
-    defer: s.close()
+    defer:
+      s.close()
     discard s.importRide()
     check calculateMissing(s.db, s.userId, s.defaultM) == Calculated()
     s.setFthr(154)
-    check calculateMissing(s.db, s.userId, s.defaultM) == Calculated(activities: 1, hours: 2)
+    check calculateMissing(s.db, s.userId, s.defaultM) ==
+      Calculated(activities: 1, hours: 2)
   test "an activity with no heart rate has no impulse":
     let s = open(fresh("nohr"))
-    defer: s.close()
+    defer:
+      s.close()
     s.setFthr(154)
     discard s.importRide()
     s.db.exec(sql"delete from heartrate")
@@ -108,21 +128,25 @@ suite "model: impulses, worked out when wanted":
     discard calculateMissing(a.db, a.userId, a.defaultM)
     a.close()
     let b = open(path, "bob")
-    defer: b.close()
+    defer:
+      b.close()
     b.setFthr(150)
     discard b.importRide("bobs.fit")
     discard calculateMissing(b.db, b.userId, b.defaultM)
     check b.q("select count(*) from impulse") == "4"
     b.setFthr(150)
-    check b.q("select count(*) from impulse") == "4"                 # (unchanged)
+    check b.q("select count(*) from impulse") == "4" # (unchanged)
     b.setFthr(160)
     check b.q("select count(*) from impulse") == "2"
-    check b.q("select count(*) from impulse i join activity a on a.id = i.activity_id join file f on f.id = a.file_id join user u on u.id = f.user_id where u.name = 'default'") == "2"
+    check b.q(
+      "select count(*) from impulse i join activity a on a.id = i.activity_id join file f on f.id = a.file_id join user u on u.id = f.user_id where u.name = 'default'"
+    ) == "2"
     b.db.exec(sql"update user_profile set fthr = null where user_id = ?", b.userId)
     check b.q("select count(*) from impulse") == "2"
   test "a higher FTHR means less impulse":
     let s = open(fresh("higher"))
-    defer: s.close()
+    defer:
+      s.close()
     discard s.importRide()
     s.setFthr(150)
     discard calculateMissing(s.db, s.userId, s.defaultM)
@@ -132,7 +156,8 @@ suite "model: impulses, worked out when wanted":
     check parseFloat(s.q("select sum(value) from impulse")) < low
   test "each model has its own, and they go with their activity and their model":
     let s = open(fresh("cascade"))
-    defer: s.close()
+    defer:
+      s.close()
     s.setFthr(154)
     discard s.importRide()
     var m = defaultModel()
@@ -140,7 +165,8 @@ suite "model: impulses, worked out when wanted":
     insertModel(s.db, m)
     check s.q("select count(*) from impulse") == "0"
     discard calculateMissing(s.db, s.userId, s.defaultM)
-    check calculateMissing(s.db, s.userId, findModel(s.db, "other").get) == Calculated(activities: 1, hours: 2)
+    check calculateMissing(s.db, s.userId, findModel(s.db, "other").get) ==
+      Calculated(activities: 1, hours: 2)
     check s.q("select count(*) from impulse") == "4"
     s.db.exec(sql"delete from ff_model where name = 'other'")
     check s.q("select count(*) from impulse") == "2"
@@ -151,23 +177,24 @@ suite "model: the key of what impulses are made from":
   test "none without an FTHR or heart rate; the same for the same data; different when anything changes":
     let path = fresh("key")
     let s = open(path)
-    defer: s.close()
+    defer:
+      s.close()
     check inputKey(s.db, s.userId, s.defaultM) == ""
     discard s.importRide()
-    check inputKey(s.db, s.userId, s.defaultM) == ""                  # (no FTHR)
+    check inputKey(s.db, s.userId, s.defaultM) == "" # (no FTHR)
     s.setFthr(154)
     let k = inputKey(s.db, s.userId, s.defaultM)
     check k.len == 12
     check inputKey(s.db, s.userId, s.defaultM) == k
     s.setFthr(155)
-    check inputKey(s.db, s.userId, s.defaultM) != k                   # another FTHR
+    check inputKey(s.db, s.userId, s.defaultM) != k # another FTHR
     s.setFthr(154)
     check inputKey(s.db, s.userId, s.defaultM) == k
     var m = defaultModel()
     m.name = "other"
     insertModel(s.db, m)
-    check inputKey(s.db, s.userId, findModel(s.db, "other").get) != k   # another model
-    discard s.importRide("copy.fit")                                  # the same content: nothing new
+    check inputKey(s.db, s.userId, findModel(s.db, "other").get) != k # another model
+    discard s.importRide("copy.fit") # the same content: nothing new
     check inputKey(s.db, s.userId, s.defaultM) == k
     s.db.exec(sql"delete from heartrate")
     check inputKey(s.db, s.userId, s.defaultM) == ""
@@ -177,7 +204,7 @@ suite "model: the key of what impulses are made from":
     defer:
       a.close()
       b.close()
-    b.db.exec(sql"insert into user(name) values ('pad')")             # (other ids)
+    b.db.exec(sql"insert into user(name) values ('pad')") # (other ids)
     for s in [a, b]:
       s.setFthr(154)
       discard s.importRide()
@@ -187,22 +214,28 @@ suite "nch models":
   test "the list":
     let db = fresh("list")
     let s = open(db)
-    defer: s.close()
-    check modelLines(loadModels(s.db)) == @[
-      "model    gamma  zero  one  max_secs  zones_%           fitness_d  fatigue_d",
-      "default      2     1    6        60  68/83/94/105/121         42          7"]
+    defer:
+      s.close()
+    check modelLines(loadModels(s.db)) ==
+      @[
+        "model    gamma  zero  one  max_secs  zones_%           fitness_d  fatigue_d",
+        "default      2     1    6        60  68/83/94/105/121         42          7",
+      ]
   test "add a model: it is listed, and nothing is worked out yet":
     let db = fresh("addcmd")
     let s = open(db)
     s.setFthr(154)
     discard s.importRide()
     s.close()
-    check command.run(globals(db), @["--add", "flat", "--gamma", "1", "--zones", "60,70,80,90,100"]) == exitOk
+    check command.run(
+      globals(db), @["--add", "flat", "--gamma", "1", "--zones", "60,70,80,90,100"]
+    ) == exitOk
     let t = open(db)
-    defer: t.close()
+    defer:
+      t.close()
     check loadModels(t.db).len == 2
     check t.q("select count(*) from impulse") == "0"
-    check command.run(globals(db), @["--add", "flat"]) == exitFailure      # the name is taken
+    check command.run(globals(db), @["--add", "flat"]) == exitFailure # the name is taken
     check command.run(globals(db), @["--add", "bad", "--zero", "9"]) == exitUsage
     check command.run(globals(db), @["--gamma", "9"]) == exitUsage
     check loadModels(t.db).len == 2
@@ -227,9 +260,10 @@ suite "nch users: the FTHR and the impulses":
     u.close()
     check userCommand.run(globals(db), @["--edit", "default", "--clear-fthr"]) == exitOk
     let v = open(db)
-    defer: v.close()
+    defer:
+      v.close()
     check v.q("select count(*) from impulse") == "0"
-    check v.q("select count(*) from heartrate") == "2099"             # (the heart rate stays)
+    check v.q("select count(*) from heartrate") == "2099" # (the heart rate stays)
   test "making a user with an FTHR":
     let db = fresh("usernew")
     check userCommand.run(globals(db), @["--add", "bob", "--fthr", "150"]) == exitOk

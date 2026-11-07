@@ -1,7 +1,8 @@
 import std/[math, options, unittest]
 import nimchoo/geo
 
-proc xy(x, y: float): XY = XY(x: x, y: y)
+proc xy(x, y: float): XY =
+  XY(x: x, y: y)
 
 suite "geo: the route grid":
   test "it gives the distance to the nearest point of the line when that is near, and none when it is not":
@@ -13,8 +14,10 @@ suite "geo: the route grid":
     check g.distanceWithin(xy(500, 300), 400.0).get == 300.0
     check newRouteGrid(@[], 500.0).distanceWithin(xy(0, 0), 100.0).isNone
   test "a single point is a line of no length; a long segment is found from any cell it crosses":
-    check abs(newRouteGrid(@[xy(10, 10)], 500.0).distanceWithin(xy(13, 14), 10.0).get - 5.0) < 1e-9
-    let g = newRouteGrid(@[xy(0, 0), xy(20_000, 0)], 500.0)             # (a segment 40 cells long)
+    check abs(
+      newRouteGrid(@[xy(10, 10)], 500.0).distanceWithin(xy(13, 14), 10.0).get - 5.0
+    ) < 1e-9
+    let g = newRouteGrid(@[xy(0, 0), xy(20_000, 0)], 500.0) # (a segment 40 cells long)
     check abs(g.distanceWithin(xy(12_345, 40), 100.0).get - 40.0) < 1e-9
   test "it agrees with measuring to every segment, on a route made of many short steps":
     var line: seq[XY]
@@ -22,6 +25,7 @@ suite "geo: the route grid":
     proc next(): float =
       seed = seed * 1664525'u32 + 1013904223'u32
       float(seed shr 8) / float(1 shl 24)
+
     var p = xy(0, 0)
     for i in 0 ..< 800:
       line.add p

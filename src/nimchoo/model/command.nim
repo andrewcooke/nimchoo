@@ -38,27 +38,44 @@ func num(x: float): string =
 
 func zones(m: Model): string =
   for i, z in m.zones:
-    if i > 0: result.add '/'
+    if i > 0:
+      result.add '/'
     result.add num(z)
 
 proc modelLines*(ms: seq[Model]): seq[string] =
   ## The models, one to a line.
-  let head = ["model", "gamma", "zero", "one", "max_secs", "zones_%", "fitness_d", "fatigue_d"]
+  let head =
+    ["model", "gamma", "zero", "one", "max_secs", "zones_%", "fitness_d", "fatigue_d"]
   var rows: seq[array[8, string]]
   for m in ms:
-    rows.add [m.name, num(m.gamma), num(m.zero), num(m.one), $m.maxSecs, zones(m),
-              num(m.fitnessDays), num(m.fatigueDays)]
+    rows.add [
+      m.name,
+      num(m.gamma),
+      num(m.zero),
+      num(m.one),
+      $m.maxSecs,
+      zones(m),
+      num(m.fitnessDays),
+      num(m.fatigueDays),
+    ]
   var w: array[8, int]
   for c in 0 .. 7:
     w[c] = head[c].len
-    for r in rows: w[c] = max(w[c], r[c].len)
+    for r in rows:
+      w[c] = max(w[c], r[c].len)
   proc line(cells: array[8, string]): string =
     for c in 0 .. 7:
-      if c > 0: result.add "  "
-      result.add (if c == 0 or c == 5: cells[c].alignLeft(w[c]) else: cells[c].align(w[c]))
+      if c > 0:
+        result.add "  "
+      result.add (
+        if c == 0 or c == 5: cells[c].alignLeft(w[c])
+        else: cells[c].align(w[c])
+      )
     result = result.strip(leading = false)
+
   result.add line(head)
-  for r in rows: result.add line(r)
+  for r in rows:
+    result.add line(r)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch models ARGS`; returns the exit status.
@@ -75,10 +92,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch models", e.msg)
   try:
     if p.list:
-      for l in modelLines(loadModels(st.db)): stdout.say l & "\n"
+      for l in modelLines(loadModels(st.db)):
+        stdout.say l & "\n"
       return exitOk
     if findModel(st.db, p.model.name).isSome:
-      return failure("nch models", "there is a model called '" & p.model.name & "' already")
+      return
+        failure("nch models", "there is a model called '" & p.model.name & "' already")
     insertModel(st.db, p.model)
     let said = "made the model " & p.model.name
     g.log.log(lvInfo, "models", leSaved, said)

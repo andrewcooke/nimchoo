@@ -32,7 +32,8 @@ proc size(path: string): int64 =
   ## The database file with its journal files.
   for suffix in ["", "-journal", "-wal", "-shm"]:
     try:
-      if fileExists(path & suffix): result += getFileSize(path & suffix)
+      if fileExists(path & suffix):
+        result += getFileSize(path & suffix)
     except OSError:
       discard
 
@@ -40,24 +41,34 @@ proc freeSpace(path: string): string =
   ## ", 12 MB free" when a deleted row's space is waiting to be reused or given back; "" if none or unknown.
   try:
     let db = open(path, "", "", "")
-    defer: db.close()
-    let free = parseBiggestInt(db.getValue(sql"pragma freelist_count")) * parseBiggestInt(db.getValue(sql"pragma page_size"))
-    if free > 0: result = ", " & humanBytes(free) & " free"
+    defer:
+      db.close()
+    let free =
+      parseBiggestInt(db.getValue(sql"pragma freelist_count")) *
+      parseBiggestInt(db.getValue(sql"pragma page_size"))
+    if free > 0:
+      result = ", " & humanBytes(free) & " free"
   except DbError, ValueError:
     discard
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch db ARGS`; returns the exit status.
   var given = DbArgs()
-  let spec = Spec[DbArgs](opts: @[
-    flag(DbArgs, ["-h", "--help"], help), flag(DbArgs, ["-f", "--force"], force),
-    flag(DbArgs, ["--delete"], delete)])
+  let spec = Spec[DbArgs](
+    opts: @[
+      flag(DbArgs, ["-h", "--help"], help),
+      flag(DbArgs, ["-f", "--force"], force),
+      flag(DbArgs, ["--delete"], delete),
+    ]
+  )
   let why = parseOptions(args, spec, given)
-  if why.len > 0: return usageError("nch db", usage, why)
+  if why.len > 0:
+    return usageError("nch db", usage, why)
   if given.help:
     stdout.say usage
     return exitOk
-  if given.force and not given.delete: return usageError("nch db", usage, "-f goes with --delete")
+  if given.force and not given.delete:
+    return usageError("nch db", usage, "-f goes with --delete")
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
     stdout.say "no database at " & path & "\n"
@@ -65,7 +76,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if not given.delete:
     stdout.say path & " (" & humanBytes(size(path)) & freeSpace(path) & ")\n"
     return exitOk
-  let what = "the database " & path & " (" & humanBytes(size(path)) & ") with the data of every user"
+  let what =
+    "the database " & path & " (" & humanBytes(size(path)) &
+    ") with the data of every user"
   if not given.force:
     return failure("nch db", "would delete " & what & "; use -f to confirm")
   if canLive():

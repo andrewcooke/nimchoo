@@ -16,30 +16,44 @@ import ./[calc, models]
 {.push raises: [].}
 
 type Calculated* = object
-  activities*, hours*: int      ## activities worked out, impulse rows written
+  activities*, hours*: int ## activities worked out, impulse rows written
 
-proc readings(db: DbConn, activityId: ActivityId): seq[(UnixTime, int)] {.raises: [StoreError].} =
+proc readings(
+    db: DbConn, activityId: ActivityId
+): seq[(UnixTime, int)] {.raises: [StoreError].} =
   guard:
-    for r in db.fastRows(sql"select t, bpm from heartrate where activity_id = ? order by t", activityId):
-      try: result.add (UnixTime(parseBiggestInt(r[0])), parseInt(r[1]))
-      except ValueError: raiseStore("bad heart rate row")
+    for r in db.fastRows(
+      sql"select t, bpm from heartrate where activity_id = ? order by t", activityId
+    ):
+      try:
+        result.add (UnixTime(parseBiggestInt(r[0])), parseInt(r[1]))
+      except ValueError:
+        raiseStore("bad heart rate row")
 
 proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   guard:
     let v = db.getValue(sql"select fthr from user_profile where user_id = ?", userId)
     if v.len > 0:
-      try: return some(parseInt(v))
-      except ValueError: discard
+      try:
+        return some(parseInt(v))
+      except ValueError:
+        discard
 
-proc calculateActivity*(db: DbConn, activityId: ActivityId, fthr: int, m: Model): int
-    {.raises: [StoreError].} =
+proc calculateActivity*(
+    db: DbConn, activityId: ActivityId, fthr: int, m: Model
+): int {.raises: [StoreError].} =
   ## Work out and store one activity's impulses for a model (replacing any); returns the
   ## number of hours.
   let rows = hourlyImpulse(readings(db, activityId), fthr, m)
   guard:
-    db.exec(sql"delete from impulse where activity_id = ? and model_id = ?", activityId, m.id)
-  if rows.len == 0: return 0
-  let st = prepareStmt(db, "insert into impulse(activity_id, model_id, hour_t, value) values (?, ?, ?, ?)")
+    db.exec(
+      sql"delete from impulse where activity_id = ? and model_id = ?", activityId, m.id
+    )
+  if rows.len == 0:
+    return 0
+  let st = prepareStmt(
+    db, "insert into impulse(activity_id, model_id, hour_t, value) values (?, ?, ?, ?)"
+  )
   for (hour, v) in rows:
     st.bindInt(1, activityId)
     st.bindInt(2, m.id)
@@ -48,27 +62,39 @@ proc calculateActivity*(db: DbConn, activityId: ActivityId, fthr: int, m: Model)
     st.run()
   rows.len
 
-proc missing(db: DbConn, userId: UserId, modelId: ModelId): seq[ActivityId] {.raises: [StoreError].} =
+proc missing(
+    db: DbConn, userId: UserId, modelId: ModelId
+): seq[ActivityId] {.raises: [StoreError].} =
   ## The user's activities that have heart rate but no impulses for the model.
   guard:
-    for r in db.fastRows(sql"""select a.id from activity a join file f on f.id = a.file_id
+    for r in db.fastRows(
+      sql"""select a.id from activity a join file f on f.id = a.file_id
         where f.user_id = ?
           and exists (select 1 from heartrate h where h.activity_id = a.id)
           and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = ?)
-        order by a.id""", userId, modelId):
-      try: result.add ActivityId(parseBiggestInt(r[0]))
-      except ValueError: raiseStore("bad activity id")
+        order by a.id""",
+      userId,
+      modelId,
+    ):
+      try:
+        result.add ActivityId(parseBiggestInt(r[0]))
+      except ValueError:
+        raiseStore("bad activity id")
 
-proc calculateMissing*(db: DbConn, userId: UserId, m: Model): Calculated {.raises: [StoreError].} =
+proc calculateMissing*(
+    db: DbConn, userId: UserId, m: Model
+): Calculated {.raises: [StoreError].} =
   ## Work out the impulses the user's activities lack for a model.  Nothing if the user has no
   ## threshold heart rate.  (An activity whose heart rate yields no hour at all is tried again
   ## each time; that costs little.)  Called when impulses are wanted, by the commands that show them.
   let fthr = fthrOf(db, userId)
-  if fthr.isNone: return
+  if fthr.isNone:
+    return
   for id in missing(db, userId, m.id):
     let n = calculateActivity(db, id, fthr.get, m)
     result.hours += n
-    if n > 0: inc result.activities
+    if n > 0:
+      inc result.activities
 
 proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreError].} =
   ## A name for everything the user's impulses for a model are made from: the FTHR, the model's
@@ -76,12 +102,19 @@ proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreErr
   ## by database ids).  The first 12 hex digits of a hash; "" if there is no such activity or no
   ## FTHR.  If the key has not changed, nothing the impulses depend on has.
   let fthr = fthrOf(db, userId)
-  if fthr.isNone: return
+  if fthr.isNone:
+    return
   var entries: seq[string]
   guard:
-    for r in db.fastRows(sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
-        where f.user_id = ? and exists (select 1 from heartrate h where h.activity_id = a.id)""", userId):
+    for r in db.fastRows(
+      sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
+        where f.user_id = ? and exists (select 1 from heartrate h where h.activity_id = a.id)""",
+      userId,
+    ):
       entries.add r[0] & ":" & r[1]
-  if entries.len == 0: return
+  if entries.len == 0:
+    return
   entries.sort
-  sha256Hex("fthr " & $fthr.get & "\n" & describe(m) & "\n" & entries.join("\n"))[0 ..< 12]
+  sha256Hex("fthr " & $fthr.get & "\n" & describe(m) & "\n" & entries.join("\n"))[
+    0 ..< 12
+  ]

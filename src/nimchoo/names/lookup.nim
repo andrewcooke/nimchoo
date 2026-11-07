@@ -11,20 +11,21 @@ import ./[countries, features]
 
 {.push raises: [].}
 
-const defaultMarginM* = 6_000.0      ## metres round the route, for the features looked at
+const defaultMarginM* = 6_000.0 ## metres round the route, for the features looked at
 
 type
   Readiness* = enum
-    rdReady        ## the names round the place are in the table
-    rdNothing      ## there is nothing to be had for this place (the sea, a country the list lacks, `--offline`)
+    rdReady ## the names round the place are in the table
+    rdNothing
+      ## there is nothing to be had for this place (the sea, a country the list lacks, `--offline`)
 
   Prepared* = object
     status*: Readiness
 
   Found* = object
     ## A feature of the table, as it is: where it is and what it is called.
-    name*, code*: string        ## the GeoNames feature code ("PASS", "HLL", "PPL", ...)
-    isPlace*: bool              ## a populated place (class P)
+    name*, code*: string ## the GeoNames feature code ("PASS", "HLL", "PPL", ...)
+    isPlace*: bool ## a populated place (class P)
     lon*, lat*: float
 
 func boxAround*(lons, lats: openArray[float], marginM: float): Box =
@@ -32,13 +33,30 @@ func boxAround*(lons, lats: openArray[float], marginM: float): Box =
   ## towards the poles (the box then reaches further in degrees of longitude, up to the whole circle).
   var b = (lon0: Inf, lat0: Inf, lon1: -Inf, lat1: -Inf)
   for i in 0 ..< lons.len:
-    b = (min(b.lon0, lons[i]), min(b.lat0, lats[i]), max(b.lon1, lons[i]), max(b.lat1, lats[i]))
+    b = (
+      min(b.lon0, lons[i]),
+      min(b.lat0, lats[i]),
+      max(b.lon1, lons[i]),
+      max(b.lat1, lats[i]),
+    )
   let dLat = marginM / 111_000.0
-  let worst = max(abs(b.lat0), abs(b.lat1)) + dLat                  # the latitude where a degree of longitude is shortest
-  let dLon = if worst >= 89.0: 360.0 else: dLat / max(cos(degToRad(worst)), 0.02)
-  (lon0: b.lon0 - dLon, lat0: max(-90.0, b.lat0 - dLat), lon1: b.lon1 + dLon, lat1: min(90.0, b.lat1 + dLat))
+  let worst = max(abs(b.lat0), abs(b.lat1)) + dLat
+    # the latitude where a degree of longitude is shortest
+  let dLon =
+    if worst >= 89.0:
+      360.0
+    else:
+      dLat / max(cos(degToRad(worst)), 0.02)
+  (
+    lon0: b.lon0 - dLon,
+    lat0: max(-90.0, b.lat0 - dLat),
+    lon1: b.lon1 + dLon,
+    lat1: min(90.0, b.lat1 + dLat),
+  )
 
-proc countriesIn(n: Names, box: Box): seq[string] {.raises: [StoreError, DownloadError].} =
+proc countriesIn(
+    n: Names, box: Box
+): seq[string] {.raises: [StoreError, DownloadError].} =
   ## The countries the box touches: those of the cells it covers (a cell on a border has both countries, so a box over
   ## a border takes both).  The cells are worked out once and kept (see countries.nim).
   let cx0 = int(floor(box.lon0 * cellsPerDegree.float))
@@ -50,36 +68,56 @@ proc countriesIn(n: Names, box: Box): seq[string] {.raises: [StoreError, Downloa
   for cx in cx0 .. cx1:
     for cy in cy0 .. cy1:
       for iso in n.countriesOfCell(wrapCell(cx), cy):
-        if iso notin result: result.add iso
+        if iso notin result:
+          result.add iso
 
-proc prepare*(n: Names, lons, lats: openArray[float], marginM = defaultMarginM): Prepared
-    {.raises: [StoreError, DownloadError].} =
+proc prepare*(
+    n: Names, lons, lats: openArray[float], marginM = defaultMarginM
+): Prepared {.raises: [StoreError, DownloadError].} =
   ## Make the names round the positions available (the cells they touch, of the countries they touch), fetching what is
   ## missing.  `--offline`: nothing is had.
-  if n.offline or lons.len == 0: return Prepared(status: rdNothing)
+  if n.offline or lons.len == 0:
+    return Prepared(status: rdNothing)
   n.ensureCountries()
   let box = boxAround(lons, lats, marginM)
   let isos = n.countriesIn(box)
-  if isos.len == 0: return Prepared(status: rdNothing)
+  if isos.len == 0:
+    return Prepared(status: rdNothing)
   for iso in isos:
     var known = false
     guard:
-      known = n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) != "0"
-    if known: n.ensureCells(iso, box)         # (a country the list of countries lacks has nothing)
+      known =
+        n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) != "0"
+    if known:
+      n.ensureCells(iso, box) # (a country the list of countries lacks has nothing)
   Prepared(status: rdReady)
 
-proc featuresNear*(n: Names, lons, lats: openArray[float], marginM = defaultMarginM): seq[Found]
-    {.raises: [StoreError].} =
+proc featuresNear*(
+    n: Names, lons, lats: openArray[float], marginM = defaultMarginM
+): seq[Found] {.raises: [StoreError].} =
   ## The features in the box round the positions, widened by the margin (whatever country they are in).
-  if lons.len == 0: return
+  if lons.len == 0:
+    return
   let box = boxAround(lons, lats, marginM)
   guard:
-    for r in n.st.db.fastRows(sql("select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature " &
-        "where id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
-        "f_geometry_column = 'geom' and search_frame = BuildMbr(" &
-        formatFloat(box.lon0, ffDecimal, 6) & ", " & formatFloat(box.lat0, ffDecimal, 6) & ", " &
-        formatFloat(box.lon1, ffDecimal, 6) & ", " & formatFloat(box.lat1, ffDecimal, 6) & "))")):
+    for r in n.st.db.fastRows(
+      sql(
+        "select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature " &
+          "where id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
+          "f_geometry_column = 'geom' and search_frame = BuildMbr(" &
+          formatFloat(box.lon0, ffDecimal, 6) & ", " &
+          formatFloat(box.lat0, ffDecimal, 6) & ", " &
+          formatFloat(box.lon1, ffDecimal, 6) & ", " &
+          formatFloat(box.lat1, ffDecimal, 6) & "))"
+      )
+    ):
       try:
-        result.add Found(name: r[0], code: r[1], isPlace: r[2] == "1", lon: parseFloat(r[3]), lat: parseFloat(r[4]))
+        result.add Found(
+          name: r[0],
+          code: r[1],
+          isPlace: r[2] == "1",
+          lon: parseFloat(r[3]),
+          lat: parseFloat(r[4]),
+        )
       except ValueError:
         discard

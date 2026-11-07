@@ -25,13 +25,17 @@ suite "nch climbs":
     # ... and the catalogue is there to list, and the climbs were worked out on the way
     check climbs(path, "--all") == exitOk
     let again = openStore(path, allFragments)
-    defer: again.close()
+    defer:
+      again.close()
     check again.count("sector") == 1 and again.count("climbs_done") == 1
 
   test "the climbs of the selected activities":
     let s = fresh("command-selected")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
-    s.db.exec(sql"insert into selection(user_id, activity_id) select ?, id from activity", s.userId)
+    s.db.exec(
+      sql"insert into selection(user_id, activity_id) select ?, id from activity",
+      s.userId,
+    )
     let path = s.path
     s.close()
     check climbs(path) == exitOk
@@ -44,7 +48,8 @@ suite "nch climbs":
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     let path = s.path
     s.close()
-    check climbsCommand.run(globals(path), @["--name", "unnamed"]) == exitOk      # (nothing is selected)
+    check climbsCommand.run(globals(path), @["--name", "unnamed"]) == exitOk
+      # (nothing is selected)
     check climbsCommand.run(globals(path), @["--name", "nonesuch"]) == exitFailure
     check climbsCommand.run(globals(path), @["--name", "unnamed", "--all"]) == exitUsage
 
@@ -53,26 +58,31 @@ suite "nch climbs":
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     let path = s.path
     s.close()
-    check climbs(path, "--all") == exitOk                               # (works the climbs out)
+    check climbs(path, "--all") == exitOk # (works the climbs out)
     check climbs(path, "--all", "--delete") == exitFailure
     let before = openStore(path, allFragments)
     check before.count("sector") == 1
     before.close()
     check climbsCommand.run(globals(path), @["--all", "--delete", "-f"]) == exitOk
     let after = openStore(path, allFragments)
-    check after.count("sector") == 0 and after.count("effort") == 0 and after.count("climbs_done") == 0
+    check after.count("sector") == 0 and after.count("effort") == 0 and
+      after.count("climbs_done") == 0
     check after.count("activity") == 1
     after.close()
-    check climbs(path, "--all") == exitOk                               # (and they are worked out again)
+    check climbs(path, "--all") == exitOk # (and they are worked out again)
     let again = openStore(path, allFragments)
-    defer: again.close()
+    defer:
+      again.close()
     check again.count("sector") == 1
     check climbsCommand.run(globals(path), @["--delete", "-f"]) == exitUsage
 
   test "a selection with no climbs in it is not an error":
     let s = fresh("command-none")
     addRide(s, "default", "flat", 1_000_000, 5.0, @[0.0, 5.0, 10.0])
-    s.db.exec(sql"insert into selection(user_id, activity_id) select ?, id from activity", s.userId)
+    s.db.exec(
+      sql"insert into selection(user_id, activity_id) select ?, id from activity",
+      s.userId,
+    )
     let path = s.path
     s.close()
     check climbs(path) == exitOk
@@ -87,9 +97,13 @@ suite "nch climbs":
     let s = fresh("command-user")
     addUser(s.path, "bob")
     addRide(s, "bob", "two", 2_000_000, 4.0, eastbound(4.0))
-    let bob = UserId(parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'")))
-    s.db.exec(sql"insert into selection(user_id, activity_id) select ?, id from activity", bob)
+    let bob = UserId(
+      parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'"))
+    )
+    s.db.exec(
+      sql"insert into selection(user_id, activity_id) select ?, id from activity", bob
+    )
     let path = s.path
     s.close()
     check climbs(path, user = "bob") == exitOk
-    check climbs(path) == exitOk                         # the default user selected nothing: a note
+    check climbs(path) == exitOk # the default user selected nothing: a note

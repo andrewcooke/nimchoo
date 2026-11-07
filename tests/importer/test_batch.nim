@@ -17,44 +17,51 @@ proc importCmd(g: Globals, args: seq[string]): int =
   var paths, flags: seq[string]
   var i = 0
   while i < args.len:
-    if args[i] in ["-q", "--quiet", "--slow"]: flags.add args[i]
+    if args[i] in ["-q", "--quiet", "--slow"]:
+      flags.add args[i]
     elif args[i] in ["-j", "--jobs"]:
       flags.add args[i]
       flags.add args[i + 1]
       inc i
-    elif args[i].startsWith("-"): flags.add args[i]
-    else: paths.add args[i]
+    elif args[i].startsWith("-"):
+      flags.add args[i]
+    else:
+      paths.add args[i]
     inc i
   activitiesCommand.run(g, @["--import"] & paths & flags)
-
 
 const base = 900_000_000
 
 let dir = getTempDir() / "nch-test-import-fast"
 
 proc realProfile(): Profile {.raises: [].} =
-  try: loadDefaultProfile()
-  except NchError as e: raiseAssert e.msg
+  try:
+    loadDefaultProfile()
+  except NchError as e:
+    raiseAssert e.msg
 
 proc bytesToFile(path: string, data: seq[byte]) =
   createDir(parentDir(path))
   var s = newString(data.len)
-  for i, x in data: s[i] = char(x)
+  for i, x in data:
+    s[i] = char(x)
   writeFile(path, s)
 
 proc tiny(startAt: int): seq[byte] =
   fitFile(
-    defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) &
-    b(0) & le32(startAt) & le32(536870912) & le32(-1073741824) &
-    defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T)]) &
-    b(1) & le32(startAt) & le32(startAt))
+    defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)]) & b(0) &
+      le32(startAt) & le32(536870912) & le32(-1073741824) &
+      defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T)]) & b(1) & le32(startAt) &
+      le32(startAt)
+  )
 
 proc fresh(name: string): string =
   result = dir / name
   removeDir(result)
   createDir(result)
 
-proc open(path: string): Store = openStore(path, allFragments)
+proc open(path: string): Store =
+  openStore(path, allFragments)
 
 proc count(s: Store, table: string): int =
   parseInt(s.db.getValue(sql("select count(*) from " & table)))
@@ -64,9 +71,11 @@ type Counted = ref object
 
 proc counting(c: Counted): ImportOptions =
   ## Options whose profile source counts how often it is asked.
-  ImportOptions(profile: proc(): Profile {.closure, raises: [].} =
-    inc c.loads
-    realProfile())
+  ImportOptions(
+    profile: proc(): Profile {.closure, raises: [].} =
+      inc c.loads
+      realProfile()
+  )
 
 suite "import: skipping what has not changed":
   test "the second run skips by path, without reading":
@@ -74,12 +83,13 @@ suite "import: skipping what has not changed":
     let path = d / "a.fit"
     bytesToFile(path, tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     check importReport(st, @[d]).imported == 1
     # new content of the same size and the same modification time: not read
     let mtime = getLastModificationTime(path)
     var changed = tiny(base + 1)
-    changed[33] = changed[33] xor 0xff        # a coordinate byte
+    changed[33] = changed[33] xor 0xff # a coordinate byte
     bytesToFile(path, changed)
     setLastModificationTime(path, mtime)
     let r = importReport(st, @[d])
@@ -94,33 +104,38 @@ suite "import: skipping what has not changed":
     let path = d / "a.fit"
     bytesToFile(path, tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
-    setLastModificationTime(path, getLastModificationTime(path) + initDuration(seconds = 5))
+    setLastModificationTime(
+      path, getLastModificationTime(path) + initDuration(seconds = 5)
+    )
     let r = importReport(st, @[d])
     check r.duplicates == 1
-    check r.lines[0].contains("duplicate")             # same content: found by its hash
-    check importReport(st, @[d]).lines[0].contains("unchanged")   # and now remembered
+    check r.lines[0].contains("duplicate") # same content: found by its hash
+    check importReport(st, @[d]).lines[0].contains("unchanged") # and now remembered
 
   test "a changed size means the file is looked at again":
     let d = fresh("size")
     let path = d / "a.fit"
     bytesToFile(path, tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
     bytesToFile(path, tiny(base + 2) & b(0))
     let r = importReport(st, @[d])
-    check r.imported + r.failed == 1                   # not skipped as unchanged
+    check r.imported + r.failed == 1 # not skipped as unchanged
 
   test "a moved or copied file is found by its hash, then remembered":
     let d = fresh("moved")
     bytesToFile(d / "one" / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d / "one"])
     createDir(d / "two")
-    copyFile(d / "one" / "a.fit", d / "two" / "b.fit")   # same content, new path
+    copyFile(d / "one" / "a.fit", d / "two" / "b.fit") # same content, new path
     let r = importReport(st, @[d / "two"])
     check r.duplicates == 1
     check r.lines[0].contains("same content as " & (d / "one" / "a.fit"))
@@ -131,7 +146,8 @@ suite "import: skipping what has not changed":
     let d = fresh("empty")
     bytesToFile(d / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
     st.db.exec(sql"delete from seen_file")
     check importReport(st, @[d]).lines[0].contains("duplicate")
@@ -143,7 +159,8 @@ suite "import: skipping what has not changed":
     for i in 1 .. 450:
       bytesToFile(d / ("r" & $i & ".fit"), tiny(base + i))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     check importReport(st, @[d], ImportOptions(quiet: true)).imported == 450
     check st.count("seen_file") == 450
     let r = importReport(st, @[d], ImportOptions(quiet: true))
@@ -155,7 +172,8 @@ suite "import: skipping what has not changed":
     bytesToFile(d / "a.fit", tiny(base + 1))
     bytesToFile(d / "b.fit", tiny(base + 2))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
     removeFile(d / "a.fit")
     let r = importReport(st, @[d])
@@ -167,7 +185,8 @@ suite "import: remembered failures":
     let d = fresh("known")
     writeFile(d / "bad.fit", "this is not a fit file at all")
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let first = importReport(st, @[d])
     check first.failed == 1
     check first.known == 0
@@ -183,7 +202,8 @@ suite "import: remembered failures":
     let noSession = fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base))
     bytesToFile(d / "nosession.fit", noSession)
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
     check st.db.getValue(sql"select failure from seen_file") == "no_activity"
 
@@ -192,9 +212,10 @@ suite "import: remembered failures":
     let path = d / "a.fit"
     writeFile(path, "broken")
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
-    bytesToFile(path, tiny(base + 1))                  # repaired, saved over it
+    bytesToFile(path, tiny(base + 1)) # repaired, saved over it
     let r = importReport(st, @[d])
     check r.imported == 1
     check r.known == 0
@@ -204,7 +225,8 @@ suite "import: remembered failures":
     let d = fresh("retry")
     writeFile(d / "bad.fit", "broken")
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     discard importReport(st, @[d])
     let r = importReport(st, @[d], ImportOptions(slow: true))
     check r.failed == 1
@@ -214,8 +236,8 @@ suite "import: remembered failures":
     let d = fresh("status")
     writeFile(d / "bad.fit", "broken")
     let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
-    check importCmd(g, @["-q", d]) == exitFailure     # new failure
-    check importCmd(g, @["-q", d]) == exitOk          # known now
+    check importCmd(g, @["-q", d]) == exitFailure # new failure
+    check importCmd(g, @["-q", d]) == exitOk # known now
     check importCmd(g, @["-q", "--slow", d]) == exitFailure
 
 suite "import: the profile is loaded only when needed":
@@ -223,15 +245,16 @@ suite "import: the profile is loaded only when needed":
     let d = fresh("lazy")
     bytesToFile(d / "one" / "a.fit", tiny(base + 1))
     let st = open(d / "x.db")
-    defer: st.close()
+    defer:
+      st.close()
     let c = Counted()
     discard importReport(st, @[d / "one"], c.counting)
     check c.loads == 1
-    discard importReport(st, @[d / "one"], c.counting)       # skipped by path
+    discard importReport(st, @[d / "one"], c.counting) # skipped by path
     check c.loads == 1
     createDir(d / "two")
     copyFile(d / "one" / "a.fit", d / "two" / "b.fit")
-    discard importReport(st, @[d / "two"], c.counting)       # known by hash
+    discard importReport(st, @[d / "two"], c.counting) # known by hash
     check c.loads == 1
     discard importReport(st, @[d / "one"], c.counting)
     check c.loads == 1

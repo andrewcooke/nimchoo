@@ -15,30 +15,31 @@ import ./importer
 
 type
   Job* = object
-    index*: int          ## which file (its place among the files to look at); negative: stop
+    index*: int ## which file (its place among the files to look at); negative: stop
     path*: string
 
   PrepOutcome* = enum
-    poDecoded,           ## decoded: the activities are in `decoded`
-    poKnown,             ## its content is in the database already (nothing was decoded)
-    poFailed             ## it could not be read or decoded: see `failure` and `message`
+    poDecoded ## decoded: the activities are in `decoded`
+    poKnown ## its content is in the database already (nothing was decoded)
+    poFailed ## it could not be read or decoded: see `failure` and `message`
 
   Prepared* = object
     index*: int
     outcome*: PrepOutcome
-    bytes*: int          ## size of the file
-    nanos*: int64        ## how long this took
-    digest*: string      ## SHA-256 of the contents
+    bytes*: int ## size of the file
+    nanos*: int64 ## how long this took
+    digest*: string ## SHA-256 of the contents
     decoded*: Decoded
-    warnings*: seq[Warning]   ## noticed while decoding (also when it then failed)
+    warnings*: seq[Warning] ## noticed while decoding (also when it then failed)
     failure*: FailureKind
     message*: string
 
 type KnownCheck* = proc(digest: string): bool {.closure, raises: [].}
   ## Whether a content (its hash) is in the database already.
 
-proc prepareFile*(profile: ProfileSource, channels: seq[string], isKnown: KnownCheck,
-                  job: Job): Prepared =
+proc prepareFile*(
+    profile: ProfileSource, channels: seq[string], isKnown: KnownCheck, job: Job
+): Prepared =
   ## Read, hash and decode the file.  A file whose content `isKnown` is not decoded (and `profile`,
   ## which can be costly to make, is asked for only when a file is decoded).
   let t0 = getMonoTime()

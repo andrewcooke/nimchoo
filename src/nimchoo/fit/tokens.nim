@@ -17,58 +17,64 @@ export warnings
 
 {.push raises: [].}
 
-const
-  timestampFieldNo* = 253  ## global field number of `timestamp`
+const timestampFieldNo* = 253 ## global field number of `timestamp`
 
 type
   FieldDef* = object
     number*, size*: int
-    base*: Option[BaseType]  ## none if the base type byte is unknown
-    offset*: int             ## from start of the data message (header = 0)
+    base*: Option[BaseType] ## none if the base type byte is unknown
+    offset*: int ## from start of the data message (header = 0)
 
   DevFieldDef* = object
     number*, size*, devIndex*, offset*: int
 
   Definition* = object
-    local*: int              ## local message type (0-15)
+    local*: int ## local message type (0-15)
     endian*: Endianness
     globalNum*: int
     fields*: seq[FieldDef]
     devFields*: seq[DevFieldDef]
-    size*: int               ## bytes per data message, header included
-    timestampField*: int     ## index into fields (253 or timestamp_16), or -1
+    size*: int ## bytes per data message, header included
+    timestampField*: int ## index into fields (253 or timestamp_16), or -1
 
-  TokenKind* = enum tokHeader, tokDefinition, tokData, tokChecksum
+  TokenKind* = enum
+    tokHeader
+    tokDefinition
+    tokData
+    tokChecksum
 
   Token* = object
-    offset*, len*: int       ## byte range in the file
+    offset*, len*: int ## byte range in the file
     case kind*: TokenKind
     of tokHeader:
       header*: FileHeader
     of tokDefinition, tokData:
-      defn*: int                 ## index into Tokenizer.defs
-      timestamp*: Option[FitTime]  ## (data) current FIT time after this message
-      compressed*: bool          ## (data) compressed timestamp header
+      defn*: int ## index into Tokenizer.defs
+      timestamp*: Option[FitTime] ## (data) current FIT time after this message
+      compressed*: bool ## (data) compressed timestamp header
     of tokChecksum:
       checksum*: uint16
 
-  Phase = enum phHeader, phRecords, phDone
+  Phase = enum
+    phHeader
+    phRecords
+    phDone
 
   Tokenizer* = object
     data*: seq[byte]
-    defs*: seq[Definition]      ## every definition seen, in order
+    defs*: seq[Definition] ## every definition seen, in order
     warnings*: seq[Warning]
-    ts16: HashSet[(int, int)]   ## (message number, field number) of timestamp_16
+    ts16: HashSet[(int, int)] ## (message number, field number) of timestamp_16
     phase: Phase
     pos, dataEnd, fileEnd: int
-    active: array[16, int]      ## local type -> index into defs, or -1
+    active: array[16, int] ## local type -> index into defs, or -1
     timestamp: Option[FitTime]
 
-proc initTokenizer*(data: sink seq[byte],
-                    ts16: HashSet[(int, int)]): Tokenizer =
+proc initTokenizer*(data: sink seq[byte], ts16: HashSet[(int, int)]): Tokenizer =
   ## `ts16` is `timestamp16Fields(profile)` (or empty if not needed).
   result = Tokenizer(data: data, ts16: ts16, phase: phHeader)
-  for i in 0 ..< 16: result.active[i] = -1
+  for i in 0 ..< 16:
+    result.active[i] = -1
 
 proc fail(offset: int, msg: string) {.noreturn, raises: [FitError].} =
   raiseFit(offset, msg)
@@ -100,12 +106,14 @@ proc readFileHeader(t: var Tokenizer): Token {.raises: [FitError].} =
       fail(start, "file too short for header and checksum")
     t.dataEnd = t.data.len - 2
     t.fileEnd = t.data.len
-    t.warnings.add wkDataSizeIgnored, start, "header data size ignored; reading to end of file"
+    t.warnings.add wkDataSizeIgnored,
+      start, "header data size ignored; reading to end of file"
   for w in problems(h, t.data.toOpenArray(start, t.fileEnd - 1)):
     t.warnings.add w.kind, start, w.msg
   t.pos = start + h.size
   t.phase = phRecords
-  for i in 0 ..< 16: t.active[i] = -1  # definitions do not carry over
+  for i in 0 ..< 16:
+    t.active[i] = -1 # definitions do not carry over
   Token(kind: tokHeader, offset: start, len: h.size, header: h)
 
 proc readChecksum(t: var Tokenizer): Token =
@@ -116,7 +124,7 @@ proc readChecksum(t: var Tokenizer): Token =
   if remaining == 0:
     t.phase = phDone
   elif remaining >= 12 and t.hasFitTag(t.pos):
-    t.phase = phHeader  # chained file
+    t.phase = phHeader # chained file
   else:
     t.warnings.add wkTrailingBytes, t.pos, $remaining & " trailing bytes ignored"
     t.phase = phDone
@@ -126,28 +134,34 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
   let pos = t.pos
   let h0 = t.data[pos]
   let hasDev = (h0 and 0x20) != 0
-  if pos + 6 > t.dataEnd: fail(pos, "truncated definition")
+  if pos + 6 > t.dataEnd:
+    fail(pos, "truncated definition")
   let endian = if (t.data[pos + 2] and 1) == 1: bigEndian else: littleEndian
   let globalNum = int(getUint(t.data, pos + 3, 2, endian))
   let n = int(t.data[pos + 5])
-  var p = pos + 6 + 3 * n  # start of dev field count, or end if none
-  if p > t.dataEnd: fail(pos, "truncated definition")
+  var p = pos + 6 + 3 * n # start of dev field count, or end if none
+  if p > t.dataEnd:
+    fail(pos, "truncated definition")
   var m = 0
   if hasDev:
-    if p + 1 > t.dataEnd: fail(pos, "truncated definition")
+    if p + 1 > t.dataEnd:
+      fail(pos, "truncated definition")
     m = int(t.data[p])
     inc p
-  if p + 3 * m > t.dataEnd: fail(pos, "truncated definition")
-  var d = Definition(local: int(h0 and 0x0f), endian: endian,
-                     globalNum: globalNum, timestampField: -1)
-  var offset = 1  # the header byte
+  if p + 3 * m > t.dataEnd:
+    fail(pos, "truncated definition")
+  var d = Definition(
+    local: int(h0 and 0x0f), endian: endian, globalNum: globalNum, timestampField: -1
+  )
+  var offset = 1 # the header byte
   for i in 0 ..< n:
     let q = pos + 6 + 3 * i
     let number = int(t.data[q])
     let size = int(t.data[q + 1])
     let base = baseTypeOf(t.data[q + 2])
     if base.isNone:
-      t.warnings.add wkUnknownBaseType, q, "unknown base type " & $t.data[q + 2] & " for field " & $number
+      t.warnings.add wkUnknownBaseType,
+        q, "unknown base type " & $t.data[q + 2] & " for field " & $number
     if d.timestampField < 0 and
         (number == timestampFieldNo or (globalNum, number) in t.ts16):
       d.timestampField = i
@@ -156,20 +170,21 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
   for j in 0 ..< m:
     let q = p + 3 * j
     let size = int(t.data[q + 1])
-    d.devFields.add DevFieldDef(number: int(t.data[q]), size: size,
-                                devIndex: int(t.data[q + 2]), offset: offset)
+    d.devFields.add DevFieldDef(
+      number: int(t.data[q]), size: size, devIndex: int(t.data[q + 2]), offset: offset
+    )
     offset += size
   d.size = offset
   t.defs.add d
   t.active[d.local] = t.defs.high
-  Token(kind: tokDefinition, offset: pos, len: p + 3 * m - pos,
-        defn: t.defs.high)
+  Token(kind: tokDefinition, offset: pos, len: p + 3 * m - pos, defn: t.defs.high)
 
 proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
   ## Update the current time from the timestamp field of data message `idx`
   ## starting at `pos`.
   let tf = t.defs[idx].timestampField
-  if tf < 0: return
+  if tf < 0:
+    return
   let f = t.defs[idx].fields[tf]
   let endian = t.defs[idx].endian
   let at = pos + f.offset
@@ -187,29 +202,37 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
       return
     let t16 = uint16(getUint(t.data, at, 2, endian))
     let r = expandTimestamp16(t16, t.timestamp.get)
-    if r.backwards: t.warnings.add wkTimestamp16Backwards, at, "timestamp_16 moved back in time"
+    if r.backwards:
+      t.warnings.add wkTimestamp16Backwards, at, "timestamp_16 moved back in time"
     t.timestamp = some(r.time)
 
-proc readData(t: var Tokenizer, local: int,
-              compressed: bool): Token {.raises: [FitError].} =
+proc readData(
+    t: var Tokenizer, local: int, compressed: bool
+): Token {.raises: [FitError].} =
   let pos = t.pos
   let idx = t.active[local]
   if idx < 0:
     fail(pos, "no definition for local message type " & $local)
   let size = t.defs[idx].size
   if pos + size > t.dataEnd:
-    fail(pos, "truncated data message (" & $(t.dataEnd - pos) & "/" & $size &
-         " bytes)")
+    fail(pos, "truncated data message (" & $(t.dataEnd - pos) & "/" & $size & " bytes)")
   if compressed:
     if t.timestamp.isNone:
       fail(pos, "compressed timestamp with no preceding timestamp")
     let ts = int64(t.timestamp.get)
     let delta = int64(t.data[pos] and 0x1f)
     let rollover = delta < (ts and 0x1f)
-    t.timestamp = some(FitTime((ts and not 0x1f'i64) + delta + (if rollover: 0x20 else: 0)))
+    t.timestamp =
+      some(FitTime((ts and not 0x1f'i64) + delta + (if rollover: 0x20 else: 0)))
   t.updateTimestamp(idx, pos)
-  Token(kind: tokData, offset: pos, len: size, defn: idx,
-        timestamp: t.timestamp, compressed: compressed)
+  Token(
+    kind: tokData,
+    offset: pos,
+    len: size,
+    defn: idx,
+    timestamp: t.timestamp,
+    compressed: compressed,
+  )
 
 proc readRecord(t: var Tokenizer): Token {.raises: [FitError].} =
   let h0 = t.data[t.pos]
@@ -218,21 +241,27 @@ proc readRecord(t: var Tokenizer): Token {.raises: [FitError].} =
   elif (h0 and 0x40) != 0:
     result = t.readDefinition()
   else:
-    if (h0 and 0x10) != 0: t.warnings.add wkReservedBit, t.pos, "reserved bit set in record header"
+    if (h0 and 0x10) != 0:
+      t.warnings.add wkReservedBit, t.pos, "reserved bit set in record header"
     result = t.readData(int(h0 and 0x0f), false)
   t.pos += result.len
 
 proc next*(t: var Tokenizer): Option[Token] {.raises: [FitError].} =
   ## The next token, or none at the end of the data.
   case t.phase
-  of phDone: none(Token)
-  of phHeader: some(t.readFileHeader())
+  of phDone:
+    none(Token)
+  of phHeader:
+    some(t.readFileHeader())
   of phRecords:
-    if t.pos >= t.dataEnd: some(t.readChecksum())
-    else: some(t.readRecord())
+    if t.pos >= t.dataEnd:
+      some(t.readChecksum())
+    else:
+      some(t.readRecord())
 
 iterator tokens*(t: var Tokenizer): Token {.raises: [FitError].} =
   while true:
     let tok = t.next()
-    if tok.isNone: break
+    if tok.isNone:
+      break
     yield tok.get

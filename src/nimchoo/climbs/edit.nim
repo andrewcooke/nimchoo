@@ -20,15 +20,23 @@ proc findShown*(st: Store, shown: string): int64 {.raises: [StoreError].} =
   var sharing: seq[string]
   for id, text in names:
     let t = text.toLower
-    if t in wants: found.add id
-    elif endsWithSubscript(text) and withoutSubscript(t) == wants[0]: sharing.add text
-  if found.len == 1: return found[0]
-  if found.len > 1: raiseStore("more than one climb is called '" & shown & "'")
+    if t in wants:
+      found.add id
+    elif endsWithSubscript(text) and withoutSubscript(t) == wants[0]:
+      sharing.add text
+  if found.len == 1:
+    return found[0]
+  if found.len > 1:
+    raiseStore("more than one climb is called '" & shown & "'")
   if sharing.len > 0:
     sharing.sort()
-    raiseStore("'" & shown & "' is shared by " & $sharing.len & " climbs: say which one: " &
-               sharing.join(", "))
-  raiseStore("no climb is called '" & shown & "' (see `nch climbs --all` for the names)")
+    raiseStore(
+      "'" & shown & "' is shared by " & $sharing.len & " climbs: say which one: " &
+        sharing.join(", ")
+    )
+  raiseStore(
+    "no climb is called '" & shown & "' (see `nch climbs --all` for the names)"
+  )
 
 proc shownName*(st: Store, id: int64): string {.raises: [StoreError].} =
   shownNames(st).getOrDefault(id, unnamed)
@@ -49,4 +57,6 @@ proc setRetired*(st: Store, id: int64, retired: bool) {.raises: [StoreError].} =
   ## Hide the climb from the lists, or show it again.  Nothing else changes: it keeps its efforts, its place in the
   ## numbering of its name, and takes the efforts of new rides.
   guard:
-    st.db.exec(sql"update sector set retired = ? where id = ?", (if retired: 1 else: 0), id)
+    st.db.exec(
+      sql"update sector set retired = ? where id = ?", (if retired: 1 else: 0), id
+    )

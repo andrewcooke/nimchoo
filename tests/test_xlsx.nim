@@ -29,22 +29,39 @@ suite "xlsx files":
 const
   sheetBody = """<row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1"><v>42</v></c></row>
 <row r="3"><c r="B3" t="s"><v>1</v></c><c r="D3" t="inlineStr"><is><t>inline</t></is></c><c r="AA3" t="s"><v>2</v></c></row>"""
-  shared = """<si><t>plain</t></si><si><r><t>rich </t></r><r><t>text</t></r></si><si><t>a &amp; b &#65;</t></si>"""
+  shared =
+    """<si><t>plain</t></si><si><r><t>rich </t></r><r><t>text</t></r></si><si><t>a &amp; b &#65;</t></si>"""
 
 func workbook(prefix, bom: string): string =
   ## An xlsx with one sheet "One", elements optionally with a namespace prefix.
   let p = prefix
-  storedZip(@[
-    ("xl/workbook.xml", bom & "<" & p & "workbook xmlns:r=\"r\"><" & p &
-     "sheets><" & p & "sheet name=\"One\" sheetId=\"1\" r:id=\"rId1\"/></" & p &
-     "sheets></" & p & "workbook>"),
-    ("xl/_rels/workbook.xml.rels", "<Relationships><Relationship Id=\"rId1\" " &
-     "Type=\"worksheet\" Target=\"worksheets/s1.xml\"/></Relationships>"),
-    ("xl/sharedStrings.xml", bom & "<" & p & "sst>" &
-     shared.replace("<", "<" & p).replace("<" & p & "/", "</" & p) & "</" & p & "sst>"),
-    ("xl/worksheets/s1.xml", bom & "<" & p & "worksheet><" & p & "sheetData>" &
-     sheetBody.replace("<", "<" & p).replace("<" & p & "/", "</" & p) &
-     "</" & p & "sheetData></" & p & "worksheet>")])
+  storedZip(
+    @[
+      (
+        "xl/workbook.xml",
+        bom & "<" & p & "workbook xmlns:r=\"r\"><" & p & "sheets><" & p &
+          "sheet name=\"One\" sheetId=\"1\" r:id=\"rId1\"/></" & p & "sheets></" & p &
+          "workbook>",
+      ),
+      (
+        "xl/_rels/workbook.xml.rels",
+        "<Relationships><Relationship Id=\"rId1\" " &
+          "Type=\"worksheet\" Target=\"worksheets/s1.xml\"/></Relationships>",
+      ),
+      (
+        "xl/sharedStrings.xml",
+        bom & "<" & p & "sst>" &
+          shared.replace("<", "<" & p).replace("<" & p & "/", "</" & p) & "</" & p &
+          "sst>",
+      ),
+      (
+        "xl/worksheets/s1.xml",
+        bom & "<" & p & "worksheet><" & p & "sheetData>" &
+          sheetBody.replace("<", "<" & p).replace("<" & p & "/", "</" & p) & "</" & p &
+          "sheetData></" & p & "worksheet>",
+      ),
+    ]
+  )
 
 proc check1(wb: Workbook) =
   let rows = wb.rows("One")
@@ -52,7 +69,6 @@ proc check1(wb: Workbook) =
   check rows[0] == {0: "plain", 2: "42"}.toTable
   check rows[1].len == 0
   check rows[2] == {1: "rich text", 3: "inline", 26: "a & b A"}.toTable
-
 
 suite "xlsx reader":
   test "shared strings (rich text, entities), numbers, inline strings":
@@ -96,32 +112,40 @@ suite "xlsx reader: bad input":
     let msg = sheetError("<worksheet><![CDATA[ never closed")
     check "s1.xml" in msg
     check msg != "no error"
-    check sheetError("<worksheet><sheetData><row r=\"1\"><c r=A1><v>1</v></c>" &
-                     "</row></sheetData></worksheet>") != "no error"
+    check sheetError(
+      "<worksheet><sheetData><row r=\"1\"><c r=A1><v>1</v></c>" &
+        "</row></sheetData></worksheet>"
+    ) != "no error"
 
   test "malformed workbook xml":
-    let z = storedZip(@[("xl/workbook.xml", "<workbook><![CDATA[ never closed"),
-                        ("xl/_rels/workbook.xml.rels", "<Relationships/>")])
+    let z = storedZip(
+      @[
+        ("xl/workbook.xml", "<workbook><![CDATA[ never closed"),
+        ("xl/_rels/workbook.xml.rels", "<Relationships/>"),
+      ]
+    )
     expect XlsxError:
       discard openWorkbook(z)
 
   test "cell references are bounded as in Excel":
     check "out of range" in sheetError(cell("A99999999999"))
-    check "out of range" in sheetError(cell("XFE1"))       # column 16385
-    check "out of range" in sheetError(cell("A1048577"))   # row 1048577
+    check "out of range" in sheetError(cell("XFE1")) # column 16385
+    check "out of range" in sheetError(cell("A1048577")) # row 1048577
     check "bad cell reference" in sheetError(cell("12"))
     check "bad cell reference" in sheetError(cell("a1"))
-    check sheetError(cell("XFD1")) == "no error"           # the last column
+    check sheetError(cell("XFD1")) == "no error" # the last column
 
   test "a shared string index that does not exist":
-    check "bad shared string" in sheetError(
-      "<worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>7</v></c>" &
-      "</row></sheetData></worksheet>")
+    check "bad shared string" in
+      sheetError(
+        "<worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"s\"><v>7</v></c>" &
+          "</row></sheetData></worksheet>"
+      )
 
   test "a zip entry whose size is not as declared":
     var z = xlsxWithSheetXml(cell("A1"))
     let central = z.find("PK\1\2")
     check central > 0
-    z[central + 24 ..< central + 28] = le32(999)  # the first entry's size
+    z[central + 24 ..< central + 28] = le32(999) # the first entry's size
     expect XlsxError:
       discard openWorkbook(z)

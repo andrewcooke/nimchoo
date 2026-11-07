@@ -19,10 +19,12 @@ suite "climbs report: the words":
 
 suite "climbs report: the display while they are worked out":
   test "two lines like the import's: plain, then the counts in green joined by grey dots":
-    let lines = climbingLines(120, 1986, Worked(activities: 120, sectors: 12, efforts: 40))
+    let lines =
+      climbingLines(120, 1986, Worked(activities: 120, sectors: 12, efforts: 40))
     check lines.len == 2
     check lines[0].text == "climbing 120 / 1,986 activities"
-    check lines[0][0].look.bold and lines[0][0].look.colour == white and lines[0][1].look.colour == white
+    check lines[0][0].look.bold and lines[0][0].look.colour == white and
+      lines[0][1].look.colour == white
     check lines[1].text == "climbs 12 · efforts 40"
     check lines[1][0].look.colour == green and lines[1][2].look.colour == green
     check lines[1][1].text == " · " and lines[1][1].look.colour == grey
@@ -34,27 +36,64 @@ suite "climbs report: the display while they are worked out":
 
 suite "climbs report: the lines":
   test "the sectors, with headings: only the climbs, how often ridden, and the mark of a name given by hand":
-    let lines = sectorLines(@[
-      SectorRow(id: 20, lengthM: 14900, gainM: 1109, gradient: 7.4, category: "HC", efforts: 1, name: "unnamed", manual: true),
-      SectorRow(id: 3, lengthM: 4900, gainM: 245, gradient: 5.0, category: "3", efforts: 0, name: "unnamed")])
-    check lines[0].startsWith("climb") and "length" in lines[0] and "efforts" in lines[0] and "best" notin lines[0]
-    check lines[1].contains("HC   14.9km  +1109m      7.4%") and lines[2].contains("3     4.9km   +245m      5.0%")
+    let lines = sectorLines(
+      @[
+        SectorRow(
+          id: 20,
+          lengthM: 14900,
+          gainM: 1109,
+          gradient: 7.4,
+          category: "HC",
+          efforts: 1,
+          name: "unnamed",
+          manual: true,
+        ),
+        SectorRow(
+          id: 3,
+          lengthM: 4900,
+          gainM: 245,
+          gradient: 5.0,
+          category: "3",
+          efforts: 0,
+          name: "unnamed",
+        ),
+      ]
+    )
+    check lines[0].startsWith("climb") and "length" in lines[0] and "efforts" in lines[
+      0
+    ] and "best" notin lines[0]
+    check lines[1].contains("HC   14.9km  +1109m      7.4%") and
+      lines[2].contains("3     4.9km   +245m      5.0%")
     check lines[1].endsWith("manual") and lines[2].endsWith("0")
-    let named = sectorLines(@[SectorRow(id: 20, lengthM: 14900, gainM: 1109, gradient: 7.4, category: "HC",
-                                        name: "near Farellones₁", efforts: 1)])
+    let named = sectorLines(
+      @[
+        SectorRow(
+          id: 20,
+          lengthM: 14900,
+          gainM: 1109,
+          gradient: 7.4,
+          category: "HC",
+          name: "near Farellones₁",
+          efforts: 1,
+        )
+      ]
+    )
     check named[1].startsWith("near Farellones₁")
   test "the name leads a line, lined up by characters, and a long one is cut":
     check cut("short") == "short"
     check cut("x".repeat(40)) == "x".repeat(27) & "..."
     check cut("é".repeat(31)).runeLen == 30
-    check cut("near San Carlos de Apoquindo Alto₁₃") == "near San Carlos de Apoqui...₁₃"
+    check cut("near San Carlos de Apoquindo Alto₁₃") ==
+      "near San Carlos de Apoqui...₁₃"
     check cut("near San Carlos de Apoquindo Alto₁₃").runeLen == 30
-    check cut("near San Carlos de Apoquindo₁₃") == "near San Carlos de Apoquindo₁₃"      # (fits)
+    check cut("near San Carlos de Apoquindo₁₃") ==
+      "near San Carlos de Apoquindo₁₃" # (fits)
 
 suite "climbs report: from the tables":
   test "the sectors: how often each was ridden, by anyone":
     let s = fresh("sectors")
-    defer: s.close()
+    defer:
+      s.close()
     addUser(s.path, "bob")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     addRide(s, "bob", "two", 2_000_000, 6.0, eastbound(6.0))

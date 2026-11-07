@@ -25,23 +25,25 @@ import ./[countries, lookup, shape]
 {.push raises: [].}
 
 const
-  closeM* = 700.0               ## a destination this close to the turning point wins whatever its kind
-  minReachM* = 1500.0           ## the least distance a destination is looked for round the turning point
-  viaRouteM* = 2000.0           ## a feature along the route is within this of it
-  viaGridM = 2500.0             ## the size of the cells that route is cut into to find them
-  startNearM* = 5000.0          ## the start place is this near, or "near ..." up to startFarM
+  closeM* = 700.0 ## a destination this close to the turning point wins whatever its kind
+  minReachM* = 1500.0
+    ## the least distance a destination is looked for round the turning point
+  viaRouteM* = 2000.0 ## a feature along the route is within this of it
+  viaGridM = 2500.0 ## the size of the cells that route is cut into to find them
+  startNearM* = 5000.0 ## the start place is this near, or "near ..." up to startFarM
   startFarM* = 20_000.0
 
 type ActivityNames* = object
-  start*: string                ## "" if none
-  name*: string                 ## "" if none
+  start*: string ## "" if none
+  name*: string ## "" if none
   shape*: ShapeKind
 
 func destKind*(f: Found): int =
   ## How a feature ranks as a destination: 1 town, 2 section of a town, 3 park or reserve, 4 lake, 5 range / valley / other
   ## area, 6 farm or bridge; 0 not wanted (abandoned places, and everything else).
   if f.isPlace:
-    if f.code in ["PPLQ", "PPLW", "PPLH"]: return 0
+    if f.code in ["PPLQ", "PPLW", "PPLH"]:
+      return 0
     return if f.code == "PPLX": 2 else: 1
   case f.code
   of "PRK", "RES", "RESA", "RESF", "RESH", "RESN", "RESV", "RESW": 3
@@ -56,7 +58,8 @@ func choose*(found: openArray[(Found, float)]): Option[Found] =
   var bestD = 0.0
   for (f, d) in found:
     let k = destKind(f)
-    if k == 0: continue
+    if k == 0:
+      continue
     if result.isNone or k < best or (k == best and d < bestD):
       result = some(f)
       best = k
@@ -71,32 +74,49 @@ func startText*(found: openArray[(Found, float)]): string =
     if f.isPlace and f.code notin ["PPLQ", "PPLW", "PPLH"] and d < bestD:
       bestD = d
       name = f.name
-  if name.len == 0 or bestD > startFarM: ""
-  elif bestD <= startNearM: name
-  else: "near " & name
+  if name.len == 0 or bestD > startFarM:
+    ""
+  elif bestD <= startNearM:
+    name
+  else:
+    "near " & name
 
 func nameFor*(shape: ShapeKind, start, destination, via: string): string =
   ## The name in the form of the shape; "" when what it needs is missing.
   case shape
   of skLocal:
-    if start.len == 0: ""
-    elif start.startsWith("near "): start
-    else: "at " & start
-  of skOutAndBack: (if destination.len > 0: destination & " and back" else: "")
-  of skOneWay: (if destination.len > 0: "to " & destination else: "")
-  of skLoop: (if via.len > 0: "loop via " & via else: "")
-  of skMixed: (if via.len > 0: "around " & via else: "")
+    if start.len == 0:
+      ""
+    elif start.startsWith("near "):
+      start
+    else:
+      "at " & start
+  of skOutAndBack:
+    (if destination.len > 0: destination & " and back" else: "")
+  of skOneWay:
+    (if destination.len > 0: "to " & destination else: "")
+  of skLoop:
+    (if via.len > 0: "loop via " & via else: "")
+  of skMixed:
+    (if via.len > 0: "around " & via else: "")
 
-proc around(n: Names, lon, lat, radiusM: float): seq[(Found, float)] {.raises: [StoreError, DownloadError].} =
+proc around(
+    n: Names, lon, lat, radiusM: float
+): seq[(Found, float)] {.raises: [StoreError, DownloadError].} =
   ## The features within the radius of a position, with their distances (the names are made available first).
-  if n.prepare([lon], [lat], radiusM).status != rdReady: return
+  if n.prepare([lon], [lat], radiusM).status != rdReady:
+    return
   for f in n.featuresNear([lon], [lat], radiusM):
     let d = haversine(lon, lat, f.lon, f.lat)
-    if d <= radiusM: result.add (f, d)
+    if d <= radiusM:
+      result.add (f, d)
 
-proc nameActivity*(n: Names, lons, lats: openArray[float]): ActivityNames {.raises: [StoreError, DownloadError].} =
+proc nameActivity*(
+    n: Names, lons, lats: openArray[float]
+): ActivityNames {.raises: [StoreError, DownloadError].} =
   ## The start place and the name of an activity with this route (positions in order).
-  if lons.len == 0: return
+  if lons.len == 0:
+    return
   result.start = startText(n.around(lons[0], lats[0], startFarM))
   let sh = shapeOf(lons, lats)
   result.shape = sh.kind
@@ -117,10 +137,13 @@ proc nameActivity*(n: Names, lons, lats: openArray[float]): ActivityNames {.rais
       let found = n.around(turn.lon, turn.lat, radius)
       var close: seq[(Found, float)]
       for (f, d) in found:
-        if d <= closeM: close.add (f, d)
+        if d <= closeM:
+          close.add (f, d)
       var pick = choose(close)
-      if pick.isNone: pick = choose(found)
-      if pick.isSome: destination = pick.get.name
+      if pick.isNone:
+        pick = choose(found)
+      if pick.isSome:
+        destination = pick.get.name
     result.name = nameFor(sh.kind, result.start, destination, "")
   of skLoop, skMixed:
     # a landmark along the route, well away from the start, else a feature there
@@ -140,14 +163,18 @@ proc nameActivity*(n: Names, lons, lats: openArray[float]): ActivityNames {.rais
         rt.add ll.lat
       if n.prepare(rl, rt, viaRouteM).status == rdReady:
         var cands: seq[(Found, float)]
-        let grid = newRouteGrid(sh.points, viaGridM)       # (so that a feature is measured only to the route near it)
+        let grid = newRouteGrid(sh.points, viaGridM)
+          # (so that a feature is measured only to the route near it)
         for f in n.featuresNear(rl, rt, viaRouteM):
           let xy = pr.project(f.lon, f.lat)
-          if dist(xy, origin) < sh.farM / 3.0: continue
+          if dist(xy, origin) < sh.farM / 3.0:
+            continue
           let d = grid.distanceWithin(xy, viaRouteM)
-          if d.isSome: cands.add (f, d.get)
+          if d.isSome:
+            cands.add (f, d.get)
         let pick = choose(cands)
-        if pick.isSome: via = pick.get.name
+        if pick.isSome:
+          via = pick.get.name
     result.name = nameFor(sh.kind, result.start, "", via)
   of skLocal:
     discard

@@ -80,12 +80,23 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   var said: string
   if p.retire or p.unretire:
     setRetired(st, id, p.retire)
-    said = was & (if p.retire: " is retired: hidden from the lists (`nch climbs --retired` shows it; --unretire brings it back)"
-                  else: " is shown again")
+    said =
+      was & (
+        if p.retire:
+        " is retired: hidden from the lists (`nch climbs --retired` shows it; --unretire brings it back)"
+        else: " is shown again"
+      )
   elif p.auto:
     setAuto(st, id)
     said = was & ": the name is forgotten"
-    let names = openNames(g, st, "climbs", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
+    let names = openNames(
+      g,
+      st,
+      "climbs",
+      proc(line: string) {.closure, raises: [].} =
+        stderr.say line & "\n"
+      ,
+    )
     if names.isSome:
       try:
         discard ensureSectorNames(st, names.get)
@@ -128,14 +139,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     # the lists for tidying, and the changes, need no working out of climbs
     if p.duplicates:
-      for l in duplicateLines(duplicateGroups(st)): stdout.say l & "\n"
+      for l in duplicateLines(duplicateGroups(st)):
+        stdout.say l & "\n"
       return exitOk
     if p.retired:
       let rows = allSectors(st, retired = true)
       if rows.len == 0:
         stdout.say "no climbs are retired\n"
       else:
-        for l in sectorLines(rows): stdout.say l & "\n"
+        for l in sectorLines(rows):
+          stdout.say l & "\n"
       return exitOk
     if p.edit:
       return editClimb(g, st, p)
@@ -146,47 +159,77 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       # two lines that follow the work and stay on the screen at the end (as the import's do)
       let live = newTerminalLive()
       var shown = false
-      worked = ensureClimbs(st, proc(done, total: int, soFar: Worked) {.closure, raises: [].} =
-        shown = true
-        if done == total or live.due(): live.show(climbingLines(done, total, soFar)))
-      if shown: live.keep(climbingLines(worked.activities, worked.activities, worked))
-      else: live.finish()
+      worked = ensureClimbs(
+        st,
+        proc(done, total: int, soFar: Worked) {.closure, raises: [].} =
+          shown = true
+          if done == total or live.due():
+            live.show(climbingLines(done, total, soFar))
+        ,
+      )
+      if shown:
+        live.keep(climbingLines(worked.activities, worked.activities, worked))
+      else:
+        live.finish()
     else:
       worked = ensureClimbs(st)
     if worked.activities > 0:
       stderr.say doneLine(worked) & "\n"
-      g.log.log(lvInfo, "climbs", leDone, "worked out " & $worked.activities & " activities: " &
-                $worked.sectors & " new climbs, " & $worked.efforts & " efforts")
+      g.log.log(
+        lvInfo,
+        "climbs",
+        leDone,
+        "worked out " & $worked.activities & " activities: " & $worked.sectors &
+          " new climbs, " & $worked.efforts & " efforts",
+      )
     # names for the climbs that have none yet: from the places near them, fetched the first time
-    let names = openNames(g, st, "climbs", proc(line: string) {.closure, raises: [].} = stderr.say line & "\n")
+    let names = openNames(
+      g,
+      st,
+      "climbs",
+      proc(line: string) {.closure, raises: [].} =
+        stderr.say line & "\n"
+      ,
+    )
     if names.isSome:
       let named = ensureSectorNames(st, names.get)
       if named.named + named.nothing > 0:
-        g.log.log(lvInfo, "climbs", leDone, "named " & $named.named & " climbs (" & $named.nothing & " with no name near)")
+        g.log.log(
+          lvInfo,
+          "climbs",
+          leDone,
+          "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
+        )
     if p.all:
       let rows = allSectors(st)
       if rows.len == 0:
         stdout.say "no climbs found yet\n"
       else:
-        for l in sectorLines(rows): stdout.say l & "\n"
+        for l in sectorLines(rows):
+          stdout.say l & "\n"
         let hidden = countRetired(st)
-        if hidden > 0: stdout.say noteRetired(hidden)
+        if hidden > 0:
+          stdout.say noteRetired(hidden)
       return exitOk
     var ids: seq[int64]
     if p.names.len > 0:
       ids = namedClimbs(st, p.names)
       if ids.len == 0:
-        return failure("nch climbs", "no climb has a name like that (`nch climbs --all` lists them)")
+        return failure(
+          "nch climbs", "no climb has a name like that (`nch climbs --all` lists them)"
+        )
     else:
       if selectedActivities(st) == 0:
         stdout.say "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
         return exitOk
       ids = selectedClimbs(st)
       if ids.len == 0:
-        stdout.say "no climbs in the " & $selectedActivities(st) & " selected activities\n"
+        stdout.say "no climbs in the " & $selectedActivities(st) &
+          " selected activities\n"
         return exitOk
     let colour = canColourStdout()
-    for l in summaryLines(summaries(st, ids), p.everyone, p.verbose, local()): stdout.say render(l, colour) & "\n"
+    for l in summaryLines(summaries(st, ids), p.everyone, p.verbose, local()):
+      stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError, DownloadError:
     failure("nch climbs", getCurrentExceptionMsg())

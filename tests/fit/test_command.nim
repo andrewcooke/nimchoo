@@ -17,7 +17,8 @@ let p = loadProfile(profilePath)
 
 func counts(p: Profile): (int, int, int) =
   var fields = 0
-  for m in p.messages.values: fields += m.fields.len
+  for m in p.messages.values:
+    fields += m.fields.len
   (p.types.len, p.messages.len, fields)
 
 suite "default profile":
@@ -30,22 +31,28 @@ suite "nch fit rendering":
     var lines: seq[string]
     var warnings: seq[Warning]
     renderInto(p, readBytes(activity), true, lines, warnings)
-    check lines[0] == "Definition,0,file_id,serial_number,1,,time_created,1,," &
+    check lines[0] ==
+      "Definition,0,file_id,serial_number,1,,time_created,1,," &
       "manufacturer,1,,product,1,,type,1,"
-    check lines[1] == "Data,0,file_id,serial_number,\"2147483647\",," &
+    check lines[1] ==
+      "Data,0,file_id,serial_number,\"2147483647\",," &
       "time_created,\"702940946\",,manufacturer,\"15\",,garmin_product,\"1\",," &
       "type,\"4\","
     check warnings.len == 0
 
   test "text dump names enumerations and formats times":
-    let body = defn(0, 20, @[(253, 4, uint32T), (3, 1, uint8T)]) &
-      defn(1, 21, @[(0, 1, enumT), (1, 1, enumT)]) &
-      b(0) & le32(1000) & b(150) & b(1, 0, 0)
+    let body =
+      defn(0, 20, @[(253, 4, uint32T), (3, 1, uint8T)]) &
+      defn(1, 21, @[(0, 1, enumT), (1, 1, enumT)]) & b(0) & le32(1000) & b(150) &
+      b(1, 0, 0)
     var lines: seq[string]
     var warnings: seq[Warning]
     renderInto(p, fitFile(body), false, lines, warnings)
-    check lines == @["record: timestamp=1989-12-31T00:16:40Z  heart_rate=150 bpm",
-                     "event: event=timer  event_type=start"]
+    check lines ==
+      @[
+        "record: timestamp=1989-12-31T00:16:40Z  heart_rate=150 bpm",
+        "event: event=timer  event_type=start",
+      ]
 
   test "unknown messages and fields are shown":
     let body = defn(0, 65000, @[(7, 1, uint8T)]) & b(0, 5)
@@ -60,7 +67,7 @@ suite "nch fit rendering":
     var warnings: seq[Warning]
     expect FitError:
       renderInto(p, data, true, lines, warnings)
-    check lines.len == 2  # the definition and the first record
+    check lines.len == 2 # the definition and the first record
 
 suite "nch fit command line":
   test "bad usage":
@@ -74,16 +81,26 @@ suite "nch fit command line":
 
 suite "definition events":
   test "developer fields are named once described":
-    let described = defn(0, 206, @[(0, 1, uint8T), (1, 1, uint8T), (2, 1, uint8T),
-                                   (3, 8, stringT), (8, 4, stringT)]) &
-      b(0, 0, 1, 132) & b(112, 111, 119, 101, 114, 0, 0, 0) & b(87, 0, 0, 0)
-    let body = described &
-      defn(1, 20, @[(3, 1, uint8T)], dev = @[(1, 2, 0), (2, 1, 0)]) &
+    let described =
+      defn(
+        0,
+        206,
+        @[
+          (0, 1, uint8T),
+          (1, 1, uint8T),
+          (2, 1, uint8T),
+          (3, 8, stringT),
+          (8, 4, stringT),
+        ],
+      ) & b(0, 0, 1, 132) & b(112, 111, 119, 101, 114, 0, 0, 0) & b(87, 0, 0, 0)
+    let body =
+      described & defn(1, 20, @[(3, 1, uint8T)], dev = @[(1, 2, 0), (2, 1, 0)]) &
       b(1, 99) & le16(321) & b(5)
     var r = initReader(p, fitFile(body))
     var defs: seq[Event]
     for ev in r.events(p):
-      if ev.kind == evDefinition: defs.add ev
+      if ev.kind == evDefinition:
+        defs.add ev
     check defs.len == 2
     check defs[0].message == "field_description"
     check defs[1].message == "record"
@@ -105,7 +122,8 @@ suite "nch fit exit codes":
     removeFile(bad)
 
   test "a missing profile file":
-    check fitCommand.run(Globals(), @["--profile=" & dir / "missing.xlsx", activity]) == 1
+    check fitCommand.run(Globals(), @["--profile=" & dir / "missing.xlsx", activity]) ==
+      1
 
   test "a corrupt fit file":
     let bad = dir / "bad.fit"
@@ -117,7 +135,8 @@ suite "nch fit exit codes":
     let data = fitFile(defn(0, 20, @[(3, 4, uint32T)]) & b(0, 1, 2))
     let path = dir / "truncated.fit"
     var s = newString(data.len)
-    for i, x in data: s[i] = char(x)
+    for i, x in data:
+      s[i] = char(x)
     writeFile(path, s)
     check fitCommand.run(Globals(), @[path]) == 1
     removeFile(path)

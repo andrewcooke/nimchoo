@@ -12,20 +12,19 @@ import ./tokens
 
 {.push raises: [].}
 
-type
-  Reader* = object
-    tokenizer*: Tokenizer
-    decoder*: Decoder
-    started: bool
+type Reader* = object
+  tokenizer*: Tokenizer
+  decoder*: Decoder
+  started: bool
 
 proc initReader*(p: Profile, data: sink seq[byte]): Reader =
-  Reader(tokenizer: initTokenizer(data, p.timestamp16Fields),
-         decoder: initDecoder(p))
+  Reader(tokenizer: initTokenizer(data, p.timestamp16Fields), decoder: initDecoder(p))
 
 func warnings*(r: Reader): seq[Warning] =
   ## The tokenizer's and the decoder's warnings, in file order.
   result = r.tokenizer.warnings & r.decoder.warnings
-  result.sort do (a, b: Warning) -> int: cmp(a.offset, b.offset)
+  result.sort do(a, b: Warning) -> int:
+    cmp(a.offset, b.offset)
 
 iterator events*(r: var Reader, p: Profile): Event {.raises: [FitError].} =
   ## Every definition and data message in the file, in order.  Raises
@@ -33,20 +32,26 @@ iterator events*(r: var Reader, p: Profile): Event {.raises: [FitError].} =
   ## yielded).
   while true:
     let tok = r.tokenizer.next()
-    if tok.isNone: break
+    if tok.isNone:
+      break
     case tok.get.kind
     of tokHeader:
-      if r.started:  # chained file: accumulators and developer fields restart
+      if r.started: # chained file: accumulators and developer fields restart
         r.decoder.resetFile()
       r.started = true
     of tokDefinition:
       yield r.decoder.definitionEvent(p, r.tokenizer, tok.get)
     of tokData:
-      yield Event(kind: evRecord, offset: tok.get.offset,
-                  record: r.decoder.decode(p, r.tokenizer, tok.get))
-    of tokChecksum: discard      # (nothing to say about it; a new kind of token must be dealt with here)
+      yield Event(
+        kind: evRecord,
+        offset: tok.get.offset,
+        record: r.decoder.decode(p, r.tokenizer, tok.get),
+      )
+    of tokChecksum:
+      discard # (nothing to say about it; a new kind of token must be dealt with here)
 
 iterator records*(r: var Reader, p: Profile): Record {.raises: [FitError].} =
   ## Every data message in the file, in order (see `events`).
   for ev in r.events(p):
-    if ev.kind == evRecord: yield ev.record
+    if ev.kind == evRecord:
+      yield ev.record

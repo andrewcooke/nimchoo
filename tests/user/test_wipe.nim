@@ -31,16 +31,27 @@ suite "wipe: what is said":
   test "it counts down once a second, then takes the line away":
     var written: seq[string]
     var waits: seq[int]
-    let l = newLive(write = proc(s: string) {.closure, raises: [].} = written.add(s),
-                    now = proc(): int64 {.closure, raises: [].} = 0,
-                    size = proc(): tuple[w, h: int] {.closure, raises: [].} = (100, 24),
-                    colour = false)
-    countdown(l, "x", 3, proc(ms: int) {.closure, raises: [].} = waits.add(ms))
+    let l = newLive(
+      write = proc(s: string) {.closure, raises: [].} =
+        written.add(s),
+      now = proc(): int64 {.closure, raises: [].} =
+        0,
+      size = proc(): tuple[w, h: int] {.closure, raises: [].} =
+        (100, 24),
+      colour = false,
+    )
+    countdown(
+      l,
+      "x",
+      3,
+      proc(ms: int) {.closure, raises: [].} =
+        waits.add(ms),
+    )
     check waits == @[1000, 1000, 1000]
-    check written.len == 4                 # three frames, then the removal
+    check written.len == 4 # three frames, then the removal
     check written[0].contains("in 3 s") and written[1].contains("in 2 s") and
-          written[2].contains("in 1 s")
-    check written[3].endsWith("\e[?25h")   # the cursor is back
+      written[2].contains("in 1 s")
+    check written[3].endsWith("\e[?25h") # the cursor is back
 
 suite "wipe: counting":
   test "activities are counted straight from the file, whatever its layout":
@@ -53,7 +64,9 @@ suite "wipe: counting":
     check countActivities(d / "x.db", "nobody") == some 0
     # an older layout, which openStore refuses
     let c = db_sqlite.open(d / "x.db", "", "", "")
-    c.exec(sql"update fragment set name = 'activity/001-tables.sql' where name = 'importer/001-schema.sql'")
+    c.exec(
+      sql"update fragment set name = 'activity/001-tables.sql' where name = 'importer/001-schema.sql'"
+    )
     c.close()
     expect StoreError:
       openStore(d / "x.db", allFragments).close()
@@ -70,14 +83,17 @@ suite "wipe: what belongs to a user":
   test "every table that names a user is emptied or goes with the user, so none is forgotten":
     let d = fresh("tables")
     let s = openStore(d / "x.db", allFragments)
-    defer: s.close()
+    defer:
+      s.close()
     var withUser: seq[string]
     for r in s.db.fastRows(sql"select name from sqlite_master where type = 'table'"):
       for c in s.db.fastRows(sql("select name from pragma_table_info('" & r[0] & "')")):
-        if c[0] == "user_id": withUser.add r[0]
-    check "file" in withUser and "seen_file" in withUser     # (the query finds the tables)
+        if c[0] == "user_id":
+          withUser.add r[0]
+    check "file" in withUser and "seen_file" in withUser # (the query finds the tables)
     for t in withUser:
-      check t in userTables or t == "user_profile"           # (a new table has to be put in the list)
+      check t in userTables or t == "user_profile"
+        # (a new table has to be put in the list)
 
   test "removing takes the user and everything under them":
     let d = fresh("remove")
@@ -87,5 +103,6 @@ suite "wipe: what belongs to a user":
     fill(bob, "bobs")
     removeUser(bob, findUser(bob, "bob"))
     check bob.db.getValue(sql"select count(*) from user where name = 'bob'") == "0"
-    for t in tables: check bob.count(t) == 0
+    for t in tables:
+      check bob.count(t) == 0
     bob.close()

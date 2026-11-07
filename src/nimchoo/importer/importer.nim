@@ -15,15 +15,19 @@ import ./[extract, route]
 {.push raises: [].}
 
 type
-  ImportOutcome* = enum ioImported, ioDuplicate
+  ImportOutcome* = enum
+    ioImported
+    ioDuplicate
 
   ImportResult* = object
     outcome*: ImportOutcome
-    fileId*: FileId              ## the `file` row: the new one, or the one it duplicates
-    activities*, segments*, coords*: int   ## rows written (0 if already imported)
-    extras*: seq[ExtraCount]    ## what the import steps wrote, in the order of the steps
+    fileId*: FileId ## the `file` row: the new one, or the one it duplicates
+    activities*, segments*, coords*: int ## rows written (0 if already imported)
+    extras*: seq[ExtraCount] ## what the import steps wrote, in the order of the steps
 
-proc insertActivity(st: Stmt, fileId: FileId, a: ActivityData) {.raises: [StoreError].} =
+proc insertActivity(
+    st: Stmt, fileId: FileId, a: ActivityData
+) {.raises: [StoreError].} =
   st.bindInt(1, fileId)
   st.bindInt(2, a.session)
   st.bindInt(3, int64(a.startT))
@@ -37,15 +41,18 @@ proc insertActivity(st: Stmt, fileId: FileId, a: ActivityData) {.raises: [StoreE
   st.bindInt(11, a.calories)
   st.run()
 
-proc insertSegment(st: Stmt, activityId: ActivityId, n: int, g: Segment)
-    {.raises: [StoreError].} =
+proc insertSegment(
+    st: Stmt, activityId: ActivityId, n: int, g: Segment
+) {.raises: [StoreError].} =
   st.bindInt(1, activityId)
   st.bindInt(2, int64(n))
   st.bindInt(3, int64(g.startT))
   st.bindInt(4, int64(g.endT))
   st.run()
 
-proc insertCoords(m: var MultiInsert, activityId: ActivityId, coords: seq[Coord]) {.raises: [StoreError].} =
+proc insertCoords(
+    m: var MultiInsert, activityId: ActivityId, coords: seq[Coord]
+) {.raises: [StoreError].} =
   ## All the coordinates of an activity, many rows to a statement.
   var i = 0
   while i < coords.len:
@@ -62,32 +69,33 @@ proc insertCoords(m: var MultiInsert, activityId: ActivityId, coords: seq[Coord]
     st.run()
     i += n
 
-type
-  ProfileSource* = proc(): Profile {.closure, raises: [].}
-    ## Gives the profile; called only when a file has to be decoded.
+type ProfileSource* = proc(): Profile {.closure, raises: [].}
+  ## Gives the profile; called only when a file has to be decoded.
 
-type
-  Decoded* = object
-    ## What the contents of a FIT file come to, worked out with no database: the activities, the
-    ## route of each as bytes (see route.nim), in the same order.  Everything here is plain data, so
-    ## it can be made on any thread and handed to the one that writes the database.
-    activities*: seq[ActivityData]
-    routes*: seq[Option[string]]
+type Decoded* = object
+  ## What the contents of a FIT file come to, worked out with no database: the activities, the
+  ## route of each as bytes (see route.nim), in the same order.  Everything here is plain data, so
+  ## it can be made on any thread and handed to the one that writes the database.
+  activities*: seq[ActivityData]
+  routes*: seq[Option[string]]
 
 func channelsOf*(steps: seq[ImportStep]): seq[string] =
   ## The record fields the import steps want besides the position (see db/channel.nim), once each.
   for step in steps:
     for ch in step.channels:
-      if ch notin result: result.add ch
+      if ch notin result:
+        result.add ch
 
-proc decodeFile*(profile: Profile, data: seq[byte], channels: seq[string],
-                 ws: var seq[Warning]): Decoded {.raises: [FitError, ImportError].} =
+proc decodeFile*(
+    profile: Profile, data: seq[byte], channels: seq[string], ws: var seq[Warning]
+): Decoded {.raises: [FitError, ImportError].} =
   ## Decode a FIT file into its activities.  Warnings are added to `ws` (also if it then raises
   ## FitError, the file being unreadable, or ImportError, it having no activity).
   timed "decode":
     result.activities = readActivities(profile, data, ws, channels)
   timed "route: bytes":
-    for a in result.activities: result.routes.add routeWkb(a)
+    for a in result.activities:
+      result.routes.add routeWkb(a)
 
 proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError].} =
   ## The `file` row of the user's that has this content (hash), if there is one.
@@ -95,8 +103,8 @@ proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError]
     var known = ""
     timed "known?":
       known = s.db.getValue(
-        sql"select id from file where user_id = ? and sha256 = ?",
-        s.userId, digest)
+        sql"select id from file where user_id = ? and sha256 = ?", s.userId, digest
+      )
     if known.len > 0:
       try:
         return some(FileId(parseBiggestInt(known)))
@@ -110,29 +118,43 @@ proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
     for r in s.db.fastRows(sql"select sha256 from file where user_id = ?", s.userId):
       result.incl r[0]
 
-proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
-                   steps: seq[ImportStep]): ImportResult {.raises: [StoreError].} =
+proc writeDecoded*(
+    s: Store, name, digest: string, d: Decoded, steps: seq[ImportStep]
+): ImportResult {.raises: [StoreError].} =
   ## Write a decoded file (called `name` in the database, with this content hash) for the
   ## store's user, in one transaction: nothing is written unless all of it is.  The import
   ## steps (heart rate, ...) write their rows for each activity.
   s.begin()
   var committed = false
   try:
-    var coordInsert = initMultiInsert(s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5)
+    var coordInsert = initMultiInsert(
+      s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5
+    )
     guard:
-      s.db.exec(sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
-                s.userId, name, digest, getTime().toUnix)
+      s.db.exec(
+        sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
+        s.userId,
+        name,
+        digest,
+        getTime().toUnix,
+      )
     let fileId = FileId(lastInsertId(s.db))
     result.fileId = fileId
-    let actStmt = prepareStmt(s.db, "insert into activity(file_id, session, " &
-      "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
-      "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-    let segStmt = prepareStmt(s.db,
-      "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)")
-    let routeStmt = prepareStmt(s.db,
-      "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))")
-    let startStmt = prepareStmt(s.db,
-      "update activity set start = MakePoint(?, ?, 4326) where id = ?")
+    let actStmt = prepareStmt(
+      s.db,
+      "insert into activity(file_id, session, " &
+        "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
+        "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    let segStmt = prepareStmt(
+      s.db, "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"
+    )
+    let routeStmt = prepareStmt(
+      s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
+    )
+    let startStmt = prepareStmt(
+      s.db, "update activity set start = MakePoint(?, ?, 4326) where id = ?"
+    )
     result.outcome = ioImported
     for step in steps:
       result.extras.add ExtraCount(one: step.label, many: step.labels)
@@ -142,10 +164,11 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
         insertActivity(actStmt, fileId, a)
         activityId = ActivityId(lastInsertId(s.db))
       timed "insert segments":
-        for n, g in a.segments: insertSegment(segStmt, activityId, n, g)
+        for n, g in a.segments:
+          insertSegment(segStmt, activityId, n, g)
       timed "insert coords":
         insertCoords(coordInsert, activityId, a.coords)
-      if a.coords.len > 0:                  # where it started: the first position
+      if a.coords.len > 0: # where it started: the first position
         startStmt.bindReal(1, a.coords[0].lon)
         startStmt.bindReal(2, a.coords[0].lat)
         timed "update start":
@@ -166,13 +189,17 @@ proc writeDecoded*(s: Store, name, digest: string, d: Decoded,
       s.commit()
     committed = true
   finally:
-    if not committed: s.rollback()
+    if not committed:
+      s.rollback()
 
-
-proc importFileWith*(s: Store, profile: ProfileSource, name: string,
-                     data: seq[byte], ws: var seq[Warning],
-                     steps: seq[ImportStep] = @[]): ImportResult
-    {.raises: [FitError, ImportError, StoreError].} =
+proc importFileWith*(
+    s: Store,
+    profile: ProfileSource,
+    name: string,
+    data: seq[byte],
+    ws: var seq[Warning],
+    steps: seq[ImportStep] = @[],
+): ImportResult {.raises: [FitError, ImportError, StoreError].} =
   ## Import the FIT file `data` (called `name` in the database) for the
   ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
   ## whole file imports.  A file already imported (same content) is recognised
@@ -186,8 +213,21 @@ proc importFileWith*(s: Store, profile: ProfileSource, name: string,
   let d = decodeFile(profile(), data, channelsOf(steps), ws)
   writeDecoded(s, name, digest, d, steps)
 
-proc importFile*(s: Store, p: Profile, name: string, data: seq[byte],
-                 ws: var seq[Warning], steps: seq[ImportStep] = @[]): ImportResult
-    {.raises: [FitError, ImportError, StoreError].} =
+proc importFile*(
+    s: Store,
+    p: Profile,
+    name: string,
+    data: seq[byte],
+    ws: var seq[Warning],
+    steps: seq[ImportStep] = @[],
+): ImportResult {.raises: [FitError, ImportError, StoreError].} =
   ## `importFileWith` for a profile already in hand.
-  importFileWith(s, proc(): Profile {.closure, raises: [].} = p, name, data, ws, steps)
+  importFileWith(
+    s,
+    proc(): Profile {.closure, raises: [].} =
+      p,
+    name,
+    data,
+    ws,
+    steps,
+  )
