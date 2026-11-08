@@ -116,7 +116,19 @@ limit applies to what is actually read; here, cap the inflated output.
 ### 3.3 Finding more
 
 * **Fuzz the FIT decoder**: mutate real FIT files at random; the result must be success or a `FitError`,
-  never a Defect.  Cheap, and it tests L directly.
+  never a Defect.  Cheap, and it tests L directly.  Two levels:
+  1. **A mutation loop, as an ordinary test** (first; no installs).  Start from the real FIT files the tests
+     already use; flip bits, overwrite bytes, truncate, splice in parts of other files, change the header's size
+     and length fields; decode each result.  A fixed random seed, so a failure can be reproduced, and the failing
+     input saved.  A few thousand mutations run in seconds, so it sits in `nimble test`.  Its limit: it does not
+     know which changes reach new code, so it rarely gets past a correct CRC and a valid definition into the
+     field decoding (mutations that also fix up the CRC help).
+  2. **Coverage-guided fuzzing (libFuzzer)**, once level 1 stops finding things: Nim built with clang's
+     `-fsanitize=fuzzer` (which also brings the address sanitizer), run for minutes or hours as `nimble fuzz`,
+     not in the tests; whatever it finds becomes a level-1 regression case.  Needs clang (the author installs
+     it); a Nim wrapper package may exist but is unchecked (the libraries rule applies).
+  The same approach suits the other readers of input we do not control: the xlsx and zip readers and the
+  `bits` decoder of the map address.
 * **Invariant checks on real data**, run over the author's database as well as test data: every effort lies
   within one timer segment; every activity's samples are in time order; every climb has a name decision; and so on.
 * **Schema tests** (C): an index for every foreign key; no scans of big tables in the program's queries.
