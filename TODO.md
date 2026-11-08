@@ -8,8 +8,6 @@ Open work only.  Finished work is in git and in HISTORY.md (with the reasoning b
 Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
 author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
-- [ ] 1. *(mechanical)* Housekeeping: untrack `tests/delete/test_delete`, fix `.gitignore`, remove `tests/sector/`, add
-      `landmarks` to `commandNames`.  (CLAUDE.md is a symlink to AGENTS.md: edit AGENTS.md.)
 - [ ] 2. *(mechanical)* Tests that find bugs: the FIT fuzzer, the foreign-key index test, invariant checks (also over the
       author's database).  Report what they find before fixing.
 - [ ] 3. Fix the bug classes A-H, J-L (the abstraction, a test for the class, the known bugs as first cases).

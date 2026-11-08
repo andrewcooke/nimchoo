@@ -75,7 +75,7 @@ deleted.  `ff` does it right (`inputKey`).  *Fix:* one cache interface: a cached
 its maker declares (the data and the versions of the methods).  It belongs to the cache package (§6) and ties
 to the versions of on-demand work.
 
-**F. One fact in several places.**  `commandNames` (cli/common.nim) lists `import` (gone) and lacks
+**F. One fact in several places.**  `commandNames` (cli/common.nim) lists `import` (not a command, but the importer logs under it) and lacked
 `landmarks`, so `landmarks` runs are not logged.  *Fix:* the registry (§6); more generally 4.1.
 
 **G. Facts about each FIT base type spread over `case` statements.**  A bool's invalid marker (0xFF) reads as
