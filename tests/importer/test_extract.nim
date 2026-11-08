@@ -175,6 +175,20 @@ suite "activities: refusing files":
     except ImportError as e:
       check e.kind == ifBadTime
 
+  test "a session start declared wider than 32 bits and out of range is a bad time, not an overflow":
+    let wide = defn(
+      1, 18, @[(253, 4, uint32T), (2, 8, sint64T), (5, 1, enumT), (6, 1, enumT)]
+    )
+    for hi in [0x7FFFFFFF'i64, 0x80000000'i64]:
+      try:
+        discard activities(
+          recordDefn & at(base) & wide & b(1) & le32(base) & le32(0xFFFFFFFF'i64) & le32(hi) &
+            b(2, 0)
+        )
+        check false
+      except ImportError as e:
+        check e.kind == ifBadTime
+
   test "a file that cannot be read":
     expect FitError:
       discard activities(b(0x03, 1))

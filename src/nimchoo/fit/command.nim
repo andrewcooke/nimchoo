@@ -25,6 +25,12 @@ Read a FIT file and print its messages.
 
 const isoFormat = "yyyy-MM-dd'T'HH:mm:ss"
 
+proc fitText(v: int64, zulu: bool): string =
+  ## A FIT time as text; a number that cannot be a time (the field may be declared wider than 32 bits) as the number.
+  if not isFitTime(FitTime(v)):
+    return $v
+  fitToTime(FitTime(v)).utc.format(isoFormat) & (if zulu: "Z" else: "")
+
 proc textValue(p: Profile, r: Record, f: FieldValue): string =
   case f.kind
   of vkInt:
@@ -33,12 +39,12 @@ proc textValue(p: Profile, r: Record, f: FieldValue): string =
         result.add '|'
       case f.typeName
       of "date_time":
-        result.add fitToTime(FitTime(v)).utc.format(isoFormat) & "Z"
+        result.add fitText(v, true)
       of "local_date_time":
-        result.add fitToTime(FitTime(v)).utc.format(isoFormat)
+        result.add fitText(v, false)
       of "timestamp_16":
         if r.timestamp.isSome: # the record's expanded time, not the raw bits
-          result.add fitToTime(r.timestamp.get).utc.format(isoFormat) & "Z"
+          result.add fitText(int64(r.timestamp.get), true)
         else:
           result.add $v
       else:

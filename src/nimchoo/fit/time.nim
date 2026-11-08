@@ -37,13 +37,21 @@ func max*(a, b: UnixTime): UnixTime =
 func min*(a, b: UnixTime): UnixTime =
   (if a < b: a else: b)
 
+func isFitTime*(t: FitTime): bool =
+  ## Whether `t` can be a time in a FIT file: a 32-bit count of seconds, less the all-ones value that means "no time".
+  ## (A field can be declared wider than that, and then holds any number; ask before converting.)
+  int64(t) >= 0 and int64(t) < 0xFFFF_FFFF'i64
+
 func toTime*(t: UnixTime): Time {.raises: [].} =
   fromUnix(int64(t))
 
 func fitToUnix*(t: FitTime): UnixTime {.raises: [].} =
+  ## (Only for a time that `isFitTime` says is one: anything else would overflow, and is a bug in the caller.)
+  doAssert isFitTime(t), "not a FIT time: " & $int64(t)
   UnixTime(int64(t) + fitEpoch)
 
 func fitToTime*(t: FitTime): Time {.raises: [].} =
+  doAssert isFitTime(t), "not a FIT time: " & $int64(t)
   fromUnix(int64(t) + fitEpoch)
 
 func expandTimestamp16*(

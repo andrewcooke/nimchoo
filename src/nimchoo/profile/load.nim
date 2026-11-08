@@ -1,7 +1,7 @@
 ## Loading the FIT profile (model.nim) from the `Types` and `Messages` sheets
 ## of Profile.xlsx.
 
-import std/[math, options, sequtils, strutils, tables]
+import std/[math, options, sequtils, sets, strutils, tables]
 import ../errors
 import ../fit/basetype
 import ../lookup
@@ -80,13 +80,19 @@ proc seedTypes(): Table[string, FitType] =
 proc loadTypes*(rows: seq[Row]): Table[string, FitType] {.raises: [ProfileError].} =
   ## Columns: 0 type_name, 1 base_type, 2 value_name, 3 value.
   result = seedTypes()
+  var fromSheet: HashSet[string] # the types the sheet has defined (the program's own are not among them)
   var cur = "" # name of the mapping being filled, or "" if none
   for i, row in rows:
     let name = row.cell(0)
     if name.len > 0:
       cur = ""
-      if name.isHeading or name in result:
+      if name.isHeading:
         continue
+      if name in result:
+        if name in fromSheet:
+          fail("Types", i, "type " & name & " is defined twice")
+        continue # (one the program has already: bool, date_time ...)
+      fromSheet.incl name
       let base = baseTypeFromName(row.cell(1))
       if base.isNone:
         fail("Types", i, "unknown base type " & row.cell(1))
@@ -94,6 +100,8 @@ proc loadTypes*(rows: seq[Row]): Table[string, FitType] {.raises: [ProfileError]
       cur = name
     elif cur.len > 0 and row.cell(2).len > 0 and row.cell(3).len > 0:
       let value = intCell("Types", i, "value", row.cell(3))
+      if row.cell(2) in result.must(cur).toValue:
+        fail("Types", i, cur & " has the value name " & row.cell(2) & " twice")
       result.mustMut(cur).toValue[row.cell(2)] = value
       result.mustMut(cur).toName[value] = row.cell(2)
     else:
@@ -103,6 +111,12 @@ proc loadTypes*(rows: seq[Row]): Table[string, FitType] {.raises: [ProfileError]
 
 proc isSubfieldRow(row: Row): bool =
   row.cell(0).len == 0 and row.cell(1).len == 0 and row.cell(2).len > 0
+
+proc scaleCell(i: int, what, s: string): float {.raises: [ProfileError].} =
+  ## A scale (1 if the cell is empty): never 0, which every value would be divided by.
+  result = floatCell("Messages", i, what, s, 1)
+  if result == 0:
+    fail("Messages", i, "bad " & what & " " & s & " (values are divided by it)")
 
 proc component(
     i: int, target, bits, units, scale, offset, accum: string
@@ -114,7 +128,7 @@ proc component(
     target: target,
     bits: int(n),
     units: units,
-    scale: floatCell("Messages", i, "component scale", scale, 1),
+    scale: scaleCell(i, "component scale", scale),
     offset: floatCell("Messages", i, "component offset", offset, 0),
     accumulate:
       accum.len > 0 and intCell("Messages", i, "component accumulate", accum) != 0,
@@ -154,15 +168,13 @@ proc plainField(row: Row, i: int): Field {.raises: [ProfileError].} =
   let
     name = row.cell(2)
     isComposite = row.cell(5).len > 0 # scale etc are per-component lists
-    scale = floatCell(
-      "Messages",
+    scale = scaleCell(
       i,
       "scale",
       if isComposite:
         ""
       else:
         row.cell(6),
-      1,
     )
     offset = floatCell(
       "Messages",
@@ -191,7 +203,7 @@ proc plainField(row: Row, i: int): Field {.raises: [ProfileError].} =
         ""
       else:
         row.cell(8),
-    scale: if scale == 0: 1 else: scale,
+    scale: scale,
     offset: offset,
     accumulate:
       not isComposite and row.cell(10).len > 0 and
@@ -256,6 +268,10 @@ proc loadMessages*(
       if name notin mesgNum.toValue:
         fail("Messages", i, "message " & name & " not in mesg_num")
       let number = int(mesgNum.toValue.must(name))
+      if name in messages:
+        fail("Messages", i, "message " & name & " is defined twice")
+      if number in byNumber:
+        fail("Messages", i, "messages " & byNumber.must(number) & " and " & name & " have number " & $number)
       messages[name] = Message(name: name, number: number)
       byNumber[number] = name
       cur = name
@@ -297,8 +313,12 @@ proc loadMessages*(
           inc j
         pending[f.name] = raws
         f = d
+      if f.name in messages.must(cur).fields:
+        fail("Messages", i, cur & " has the field " & f.name & " twice")
       messages.mustMut(cur).fields[f.name] = f
       if f.number.isSome:
+        if f.number.get in messages.must(cur).byNumber:
+          fail("Messages", i, cur & " has the field number " & $f.number.get & " twice")
         messages.mustMut(cur).byNumber[f.number.get] = f.name
   finish()
   (messages, byNumber)

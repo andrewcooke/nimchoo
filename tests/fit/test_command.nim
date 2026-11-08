@@ -54,6 +54,19 @@ suite "nch fit rendering":
         "event: event=timer  event_type=start",
       ]
 
+  test "a time field declared wider than 32 bits shows a number that cannot be a time as the number":
+    # (the class: corrupt input never reaches a Defect; this was an overflow in fromUnix)
+    for (lo, hi, shown) in [
+      (0xFFFFFFFE'i64, 0x7FFFFFFF'i64, "9223372036854775806"), # (the largest that is not the marker)
+      (0'i64, 0x80000000'i64, "-9223372036854775808"),
+      (0xFFFFFFFF'i64, 0'i64, "4294967295"),
+    ]:
+      let body = defn(0, 20, @[(253, 8, sint64T)]) & b(0) & le32(lo) & le32(hi)
+      var lines: seq[string]
+      var warnings: seq[Warning]
+      renderInto(p, fitFile(body), false, lines, warnings)
+      check lines == @["record: timestamp=" & shown]
+
   test "unknown messages and fields are shown":
     let body = defn(0, 65000, @[(7, 1, uint8T)]) & b(0, 5)
     var lines: seq[string]

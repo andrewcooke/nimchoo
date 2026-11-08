@@ -98,6 +98,57 @@ suite "profile errors":
       "bad scale inf",
     )
 
+  test "a scale of 0 is refused: every value would be divided by it":
+    expectError(
+      types(), record(@[field("3", "hr", "uint8", scale = "0")]), "Messages", 3, "bad scale 0"
+    )
+    expectError(
+      types(),
+      record(@[field("2", "alt", "uint16", components = "a", bits = "8", scale = "0")]),
+      "Messages",
+      3,
+      "bad component scale 0",
+    )
+    expectError(
+      types(),
+      record(@[field("2", "alt", "uint16", components = "a,b", bits = "8,8", scale = "5,0")]),
+      "Messages",
+      3,
+      "bad component scale 0",
+    )
+
+  test "a name or number defined twice is refused, not overwritten":
+    expectError(
+      types(@[@["sport", "enum", "", "", ""]]), record(@[]), "Types", 8, "type sport is defined twice"
+    )
+    expectError(
+      types(@[@["", "", "running", "7", ""]]),
+      record(@[]),
+      "Types",
+      8,
+      "sport has the value name running twice",
+    )
+    expectError(
+      types(),
+      record(@[field("3", "hr", "uint8"), field("4", "hr", "uint8")]),
+      "Messages",
+      4,
+      "record has the field hr twice",
+    )
+    expectError(
+      types(),
+      record(@[field("3", "hr", "uint8"), field("3", "cad", "uint8")]),
+      "Messages",
+      4,
+      "record has the field number 3 twice",
+    )
+    let twice = @[
+      messagesHeader,
+      @["record", "", "", "", "", "", "", "", "", "", "", "", ""],
+      @["record", "", "", "", "", "", "", "", "", "", "", "", ""],
+    ]
+    expectError(types(), twice, "Messages", 3, "message record is defined twice")
+
   test "bad mapping value in the Types sheet":
     expectError(
       types(@[@["", "", "walking", "1x", ""]]), record(@[]), "Types", 8, "bad value 1x"

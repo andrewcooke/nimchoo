@@ -2938,3 +2938,22 @@ processes) shared it, and one could rename the other's half-written text or find
   (declared to raise anything).  `pages` no longer defines it; `map`, `ff`, `unpack` and `fetch` use it.
 * Test: four threads write one file 60 times each while a reader checks that it is always one writer's text, whole.
   Not done: other writers of files (the log, the database) are not these.
+
+### Corrupt input never reaches a Defect (2026-11-08, REVIEW.md class L)
+
+Each case of the review was checked with a test before it was fixed.  Confirmed and fixed:
+* **A huge `date_time`**: a field can be declared wider than 32 bits, and then holds any number; `fitToTime` overflowed
+  (`OverflowDefect`) on values near `high(int64)`, and smaller ones printed years like `+146138514303`.
+  `isFitTime` (0 up to, not including, 0xFFFFFFFF) is asked first: `nch fit` shows a number that cannot be a time as the
+  number, and a session start that is not one is a bad time (`ifBadTime`); `fitToTime` and `fitToUnix` assert it.
+* **A timestamp of 0xFFFFFFFF**, and a time that a compressed header or a `timestamp_16` takes past 32 bits: ignored with
+  `wkTimestampInvalid`, the time stays as it was (one place, `setTimestamp`).
+* **A compressed timestamp with no time before it**: was a `FitError` that ended the file; now `wkCompressedNoBase`, and
+  the message has no time.
+* **Chained files** kept the previous file's time; it is reset at each header, as the definitions are.
+* **A scale of 0** (a plain field or a component): was turned into 1 for a plain field and divided by for a component;
+  now a `ProfileError`.  **Duplicates in the profile** (a type, a value name, a message, two messages with one number,
+  a field, a field number) were overwritten; now a `ProfileError` that says where.  The author's Profile.xlsx has none of
+  these (checked).
+* Not confirmed as problems: the fuzzer (84,000 mutations) finds nothing more.  The SDK comparison is unchanged
+  (26 of 26 files identical).

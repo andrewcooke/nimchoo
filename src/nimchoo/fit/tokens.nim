@@ -114,6 +114,7 @@ proc readFileHeader(t: var Tokenizer): Token {.raises: [FitError].} =
   t.phase = phRecords
   for i in 0 ..< 16:
     t.active[i] = -1 # definitions do not carry over
+  t.timestamp = none(FitTime) # nor does the time: a chained file has its own
   Token(kind: tokHeader, offset: start, len: h.size, header: h)
 
 proc readChecksum(t: var Tokenizer): Token =
@@ -179,6 +180,15 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
   t.active[d.local] = t.defs.high
   Token(kind: tokDefinition, offset: pos, len: p + 3 * m - pos, defn: t.defs.high)
 
+proc setTimestamp(t: var Tokenizer, seconds: int64, at: int) =
+  ## The current time becomes `seconds` (FIT time), if that can be a time: the all-ones value is the file saying "no
+  ## time", and a sum can pass what 32 bits hold.  Otherwise the time stays as it was, with a warning.
+  if isFitTime(FitTime(seconds)):
+    t.timestamp = some(FitTime(seconds))
+  else:
+    t.warnings.add wkTimestampInvalid,
+      at, "timestamp " & $seconds & " is not a time (ignored)"
+
 proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
   ## Update the current time from the timestamp field of data message `idx`
   ## starting at `pos`.
@@ -192,7 +202,7 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
     if f.size != 4:
       t.warnings.add wkTimestampSize, at, "timestamp field has size " & $f.size
       return
-    t.timestamp = some(FitTime(getUint(t.data, at, 4, endian)))
+    t.setTimestamp(int64(getUint(t.data, at, 4, endian)), at)
   else:
     if f.size != 2:
       t.warnings.add wkTimestamp16Size, at, "timestamp_16 field has size " & $f.size
@@ -204,7 +214,7 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
     let r = expandTimestamp16(t16, t.timestamp.get)
     if r.backwards:
       t.warnings.add wkTimestamp16Backwards, at, "timestamp_16 moved back in time"
-    t.timestamp = some(r.time)
+    t.setTimestamp(int64(r.time), at)
 
 proc readData(
     t: var Tokenizer, local: int, compressed: bool
@@ -218,12 +228,13 @@ proc readData(
     fail(pos, "truncated data message (" & $(t.dataEnd - pos) & "/" & $size & " bytes)")
   if compressed:
     if t.timestamp.isNone:
-      fail(pos, "compressed timestamp with no preceding timestamp")
-    let ts = int64(t.timestamp.get)
-    let delta = int64(t.data[pos] and 0x1f)
-    let rollover = delta < (ts and 0x1f)
-    t.timestamp =
-      some(FitTime((ts and not 0x1f'i64) + delta + (if rollover: 0x20 else: 0)))
+      t.warnings.add wkCompressedNoBase,
+        pos, "compressed timestamp with no preceding timestamp (the message has no time)"
+    else:
+      let ts = int64(t.timestamp.get)
+      let delta = int64(t.data[pos] and 0x1f)
+      let rollover = delta < (ts and 0x1f)
+      t.setTimestamp((ts and not 0x1f'i64) + delta + (if rollover: 0x20 else: 0), pos)
   t.updateTimestamp(idx, pos)
   Token(
     kind: tokData,

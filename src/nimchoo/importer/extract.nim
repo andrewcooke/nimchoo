@@ -108,7 +108,8 @@ func sessionOf(
   ## The summary part of an activity from a session record.
   result = ActivityData(session: index)
   let start = r.firstInt("start_time")
-  if start.isNone or FitTime(start.get) < minCalendarFit:
+  if start.isNone or not isFitTime(FitTime(start.get)) or
+      FitTime(start.get) < minCalendarFit:
     raiseImport(ifBadTime, "session " & $index & " has no valid start time")
   let startFit = FitTime(start.get)
   result.startT = fitToUnix(startFit)

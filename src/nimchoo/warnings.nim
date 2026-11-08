@@ -23,6 +23,8 @@ type
     wkTimestamp16Size ## timestamp_16 field is not 2 bytes
     wkTimestamp16NoBase ## timestamp_16 before any full timestamp
     wkTimestamp16Backwards ## timestamp_16 moved back in time
+    wkTimestampInvalid ## a timestamp that is the "no time" marker or beyond what 32 bits hold (ignored)
+    wkCompressedNoBase ## a compressed-timestamp header before any full timestamp (it gets no time)
     # decoding
     wkCannotAccumulate ## an accumulated field has several values
     wkNestingTooDeep ## components nested too deeply

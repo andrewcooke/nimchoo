@@ -8,6 +8,8 @@ const
   uint8T* = 0x02
   uint16T* = 0x84
   uint32T* = 0x86
+  uint64T* = 0x8f
+  sint64T* = 0x8e
   stringT* = 0x07
   byteT* = 0x0d
 

@@ -113,6 +113,36 @@ suite "tokenizer: hand-built files":
       ]
     check t.defs.len == 2
 
+  test "chained files: the time does not carry over either":
+    let one = fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(1000))
+    let two = fitFile(defn(0, 21, @[(5, 1, uint8T)]) & b(0x80 or 2, 9))
+      # (a compressed timestamp in a file that has had no time of its own)
+    let (t, toks) = tokenize(one & two)
+    check toks[2].timestamp == some(FitTime(1000))
+    check toks[^2].compressed and toks[^2].timestamp.isNone
+    check t.warnings.mapIt(it.kind) == @[wkCompressedNoBase]
+
+  test "a timestamp of all ones (no time) or beyond 32 bits is ignored, with a warning":
+    let body =
+      defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(1000) & b(0) & le32(0xFFFFFFFF'i64)
+    let (t, toks) = tokenize(fitFile(body))
+    check toks[2].timestamp == some(FitTime(1000))
+    check toks[3].timestamp == some(FitTime(1000)) # (as it was)
+    check t.warnings.mapIt(it.kind) == @[wkTimestampInvalid]
+    # as the first time
+    let (t2, toks2) = tokenize(
+      fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(0xFFFFFFFF'i64))
+    )
+    check toks2[2].timestamp.isNone and t2.warnings.mapIt(it.kind) == @[wkTimestampInvalid]
+    # a compressed timestamp that would pass the top of 32 bits
+    let top = fitFile(
+      defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(0xFFFFFFFE'i64) &
+        defn(1, 21, @[(5, 1, uint8T)]) & b(0x80 or (1 shl 5) or 5, 0)
+    )
+    let (t3, toks3) = tokenize(top)
+    check toks3[^2].timestamp == some(FitTime(0xFFFFFFFE'i64))
+    check t3.warnings.mapIt(it.kind) == @[wkTimestampInvalid]
+
   test "chained files: definitions do not carry over":
     let one = fitFile(defn(0, 20, @[(3, 1, uint8T)]) & b(0, 1))
     let two = fitFile(b(0, 1)) # data with no definition
@@ -145,9 +175,12 @@ suite "tokenizer: errors":
     check fitFile(body).raisesWith("truncated data message")
   test "truncated definition":
     check fitFile(b(0x40, 0, 0, 20, 0, 5, 1)).raisesWith("truncated definition")
-  test "compressed timestamp before any timestamp":
+  test "compressed timestamp before any timestamp: a warning, and the message has no time":
     let body = defn(0, 20, @[(3, 1, uint8T)]) & b(0x80, 1)
-    check fitFile(body).raisesWith("compressed timestamp with no preceding")
+    let (t, toks) = tokenize(fitFile(body))
+    check toks.kinds == @[tokHeader, tokDefinition, tokData, tokChecksum]
+    check toks[2].timestamp.isNone
+    check t.warnings.mapIt(it.kind) == @[wkCompressedNoBase]
   test "error message includes offset":
     check fitFile(b(0x03, 1)).raisesWith("at offset 12")
   test "too short":
