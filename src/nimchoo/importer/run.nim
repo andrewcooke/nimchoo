@@ -130,7 +130,11 @@ proc runImport*(
           leDone,
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
-            " with neither",
+            " with neither" &
+            (if counts.wideStretches > 0:
+              "; " & $counts.wideStretches & " stretches with positions too far apart (bad fixes) were not searched for places"
+            else:
+              ""),
         )
   except StoreError, DownloadError:
     namingFailed = true

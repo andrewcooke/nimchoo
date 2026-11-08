@@ -86,7 +86,7 @@ suite "names: an activity's name, from a route":
     defer:
       w.st.close()
     let r = path([home, barnechea, home])
-    let got = nameActivity(w.names, r.lons, r.lats)
+    let got = nameActivity(w.names, [(r.lons, r.lats)])
     check got.shape == skOutAndBack
     check got.name == "Lo Barnechea and back" and got.start == "Santiago"
   test "one way: 'to <destination>'":
@@ -94,7 +94,7 @@ suite "names: an activity's name, from a route":
     defer:
       w.st.close()
     let r = path([home, barnechea])
-    let got = nameActivity(w.names, r.lons, r.lats)
+    let got = nameActivity(w.names, [(r.lons, r.lats)])
     check got.shape == skOneWay and got.name == "to Lo Barnechea" and
       got.start == "Santiago"
   test "a loop: 'loop via <feature>', a feature well away from the start along the route":
@@ -103,15 +103,29 @@ suite "names: an activity's name, from a route":
       w.st.close()
     # east, north to Lo Barnechea's latitude, west along it (past Lo Barnechea), and south home
     let r = path([home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home])
-    let got = nameActivity(w.names, r.lons, r.lats)
+    let got = nameActivity(w.names, [(r.lons, r.lats)])
     check got.shape == skLoop
     check got.name == "loop via Lo Barnechea"
+  test "a stretch with a bad fix is left out, and costs no download; the others are still searched":
+    let r = path([home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home])
+    let clean = world("loop clean")
+    defer:
+      clean.st.close()
+    discard nameActivity(clean.names, [(r.lons, r.lats)])
+    let w = world("loop bad fix")
+    defer:
+      w.st.close()
+    # (a fix at the other side of the world, between two real ones)
+    let bad: Part = (@[-70.45, 110.0, -70.46], @[-33.40, 10.0, -33.41])
+    let got = nameActivity(w.names, [(r.lons, r.lats), bad])
+    check got.wideStretches == 1
+    check w.net.gets.len == clean.net.gets.len
   test "a short ride is 'at <start>'":
     let w = world("local")
     defer:
       w.st.close()
     let r = path([home, (-70.65, -33.455), (-70.645, -33.455), home])
-    let got = nameActivity(w.names, r.lons, r.lats)
+    let got = nameActivity(w.names, [(r.lons, r.lats)])
     check got.shape == skLocal and got.name == "at Santiago" and got.start == "Santiago"
   test "a landmark at the turning point comes first, and names the ride without any fetch":
     let w = world("landmark")
@@ -121,7 +135,7 @@ suite "names: an activity's name, from a route":
     var names = w.names
     names.offline = true # (no names at all: the landmark still answers)
     let r = path([home, barnechea, home])
-    let got = nameActivity(names, r.lons, r.lats)
+    let got = nameActivity(names, [(r.lons, r.lats)])
     check got.name == "Mi destino and back" and got.start == ""
     check w.net.gets.len == 0
   test "a landmark along a loop is 'loop via <landmark>'":
@@ -132,7 +146,7 @@ suite "names: an activity's name, from a route":
     var names = w.names
     names.offline = true
     let r = path([home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home])
-    check nameActivity(names, r.lons, r.lats).name == "loop via Mi cuesta"
+    check nameActivity(names, [(r.lons, r.lats)]).name == "loop via Mi cuesta"
   test "offline: no start, no name (nothing is fetched)":
     let w = world("offline")
     defer:
@@ -140,14 +154,14 @@ suite "names: an activity's name, from a route":
     var names = w.names
     names.offline = true
     let r = path([home, barnechea, home])
-    let got = nameActivity(names, r.lons, r.lats)
+    let got = nameActivity(names, [(r.lons, r.lats)])
     check got.name == "" and got.start == "" and got.shape == skOutAndBack
     check w.net.gets.len == 0
   test "no positions: nothing":
     let w = world("none")
     defer:
       w.st.close()
-    check nameActivity(w.names, [], []) == ActivityNames()
+    check nameActivity(w.names, newSeq[Part]()) == ActivityNames()
   test "no network: an error that says why":
     let (st, dir) = fresh("nonet")
     defer:
@@ -158,4 +172,4 @@ suite "names: an activity's name, from a route":
     let names = newNames(st, dir, env, silent())
     let r = path([home, barnechea, home])
     expect DownloadError:
-      discard nameActivity(names, r.lons, r.lats)
+      discard nameActivity(names, [(r.lons, r.lats)])

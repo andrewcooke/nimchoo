@@ -37,6 +37,8 @@ type ActivityNames* = object
   start*: string ## "" if none
   name*: string ## "" if none
   shape*: ShapeKind
+  wideStretches*: int
+    ## stretches of the route left out of the search for a place along it (their positions spread too far: bad fixes)
 
 func destKind*(f: Found): int =
   ## How a feature ranks as a destination: 1 town, 2 section of a town, 3 park or reserve, 4 lake, 5 range / valley / other
@@ -112,9 +114,15 @@ proc around(
       result.add (f, d)
 
 proc nameActivity*(
-    n: Names, lons, lats: openArray[float]
+    n: Names, parts: openArray[Part]
 ): ActivityNames {.raises: [StoreError, DownloadError].} =
-  ## The start place and the name of an activity with this route (positions in order).
+  ## The start place and the name of an activity with this route (its stretches of riding, in order).  The names
+  ## along the route are looked for one stretch at a time, so that a stretch with a bad fix is left out (and counted)
+  ## and the others are still used.
+  var lons, lats: seq[float]
+  for part in parts:
+    lons.add part.lons
+    lats.add part.lats
   if lons.len == 0:
     return
   result.start = startText(n.around(lons[0], lats[0], startFarM))
@@ -156,25 +164,26 @@ proc nameActivity*(
         via = l.name
         bestD = d
     if via.len == 0:
-      var rl, rt: seq[float]
-      for p in sh.points:
-        let ll = pr.unproject(p)
-        rl.add ll.lon
-        rt.add ll.lat
-      if n.prepare(rl, rt, viaRouteM).status == rdReady:
-        var cands: seq[(Found, float)]
-        let grid = newRouteGrid(sh.points, viaGridM)
-          # (so that a feature is measured only to the route near it)
-        for f in n.featuresNear(rl, rt, viaRouteM):
-          let xy = pr.project(f.lon, f.lat)
-          if dist(xy, origin) < sh.farM / 3.0:
-            continue
-          let d = grid.distanceWithin(xy, viaRouteM)
-          if d.isSome:
-            cands.add (f, d.get)
-        let pick = choose(cands)
-        if pick.isSome:
-          via = pick.get.name
+      var cands: seq[(Found, float)]
+      let grid = newRouteGrid(sh.points, viaGridM)
+        # (so that a feature is measured only to the route near it)
+      for part in parts:
+        case n.prepare(part.lons, part.lats, viaRouteM).status
+        of rdTooWide:
+          inc result.wideStretches
+        of rdNothing:
+          discard
+        of rdReady:
+          for f in n.featuresNear(part.lons, part.lats, viaRouteM):
+            let xy = pr.project(f.lon, f.lat)
+            if dist(xy, origin) < sh.farM / 3.0:
+              continue
+            let d = grid.distanceWithin(xy, viaRouteM)
+            if d.isSome:
+              cands.add (f, d.get)
+      let pick = choose(cands)
+      if pick.isSome:
+        via = pick.get.name
     result.name = nameFor(sh.kind, result.start, "", via)
   of skLocal:
     discard

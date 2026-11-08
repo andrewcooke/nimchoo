@@ -1,5 +1,6 @@
 ## The part of naming that does not depend on what is being named: where a position is (its country), that
-## the names of that country are in the table (fetched the first time), and the features near a route.
+## the names of that country are in the table (fetched the first time), and the features near a route.  Positions that
+## spread too far for a ride (`maxSpanDeg`) get nothing fetched, so one bad fix cannot make a download.
 ## What a name should be for a climb, an activity, ... is a rule of its own (climb.nim, and the others to come),
 ## made from these.
 
@@ -11,22 +12,38 @@ import ./[countries, features]
 
 {.push raises: [].}
 
-const defaultMarginM* = 6_000.0 ## metres round the route, for the features looked at
+const
+  defaultMarginM* = 6_000.0 ## metres round the route, for the features looked at
+  maxSpanDeg* = 5.0
+    ## The most a set of positions may spread, in degrees of longitude or latitude (about 550 km), for names to be fetched
+    ## for it.  A stretch of riding is continuous, so a spread beyond this is a bad fix, and fetching the countries it
+    ## would touch (once, every country: ~250 downloads) is the cost of believing it.  The widest stretch of the author's
+    ## 1,112 activities is 1.01 degrees.
 
 type
   Readiness* = enum
     rdReady ## the names round the place are in the table
     rdNothing
       ## there is nothing to be had for this place (the sea, a country the list lacks, `--offline`)
+    rdTooWide ## the positions spread over more than `maxSpanDeg`: nothing is fetched for them
 
   Prepared* = object
     status*: Readiness
+
+  Part* = tuple[lons, lats: seq[float]] ## The positions of one stretch of riding, in order.
 
   Found* = object
     ## A feature of the table, as it is: where it is and what it is called.
     name*, code*: string ## the GeoNames feature code ("PASS", "HLL", "PPL", ...)
     isPlace*: bool ## a populated place (class P)
     lon*, lat*: float
+
+func spreadDeg(xs: openArray[float]): float =
+  ## The distance from the smallest to the largest (a stretch that crosses the date line spreads over the whole circle).
+  if xs.len > 0:
+    max(xs) - min(xs)
+  else:
+    0.0
 
 func boxAround*(lons, lats: openArray[float], marginM: float): Box =
   ## The box round the positions, widened by the margin: the margin is metres, so a degree of longitude counts for less
@@ -58,13 +75,12 @@ proc countriesIn(
     n: Names, box: Box
 ): seq[string] {.raises: [StoreError, DownloadError].} =
   ## The countries the box touches: those of the cells it covers (a cell on a border has both countries, so a box over
-  ## a border takes both).  The cells are worked out once and kept (see countries.nim).
+  ## a border takes both).  The cells are worked out once and kept (see countries.nim).  The box is not wide
+  ## (`prepare` refuses a spread over `maxSpanDeg`), so these are few.
   let cx0 = int(floor(box.lon0 * cellsPerDegree.float))
   let cx1 = int(floor(box.lon1 * cellsPerDegree.float))
   let cy0 = max(-90 * cellsPerDegree, int(floor(box.lat0 * cellsPerDegree.float)))
   let cy1 = min(90 * cellsPerDegree - 1, int(floor(box.lat1 * cellsPerDegree.float)))
-  if (cx1 - cx0 + 1) * (cy1 - cy0 + 1) > maxCells:
-    return n.allCountries()
   for cx in cx0 .. cx1:
     for cy in cy0 .. cy1:
       for iso in n.countriesOfCell(wrapCell(cx), cy):
@@ -78,6 +94,8 @@ proc prepare*(
   ## missing.  `--offline`: nothing is had.
   if n.offline or lons.len == 0:
     return Prepared(status: rdNothing)
+  if spreadDeg(lons) > maxSpanDeg or spreadDeg(lats) > maxSpanDeg:
+    return Prepared(status: rdTooWide)
   n.ensureCountries()
   let box = boxAround(lons, lats, marginM)
   let isos = n.countriesIn(box)

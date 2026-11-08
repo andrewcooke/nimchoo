@@ -2797,3 +2797,19 @@ invariants hold, Farellones 1 to 3 as before the change (1, 2 and 11 efforts, 14
 `activity_id in (...)`) scanned those tables.  Each module got a new fragment with its index (fragments are appended, never
 edited; a later squash can merge them), and the test is part of `tests/all.nim`.  Still open: the `explain query plan` test
 that flags scans of big tables (TODO step 7, once queries go through the typed layer).
+
+### One bad fix cannot download the world (2026-11-08, REVIEW.md class B)
+
+A box of more than 4,000 quarter-degree cells made `names/lookup.nim` take `allCountries()`: every country's GeoNames file
+(~250 zips) for one wild position.  The author's point: the positions were used all together, and a trip's stretches are
+far apart anyway; look at each stretch of riding in turn.  A stretch is continuous (the join rule lets no jump across a
+pause in), so a spread over `maxSpanDeg` = 5 degrees (about 550 km) inside one can only be a bad fix.  The widest of the
+1,429 stretches with positions in the author's database is 1.01 degrees, so the limit refuses nothing real.
+
+Now `prepare` says `rdTooWide` for such positions, before anything is fetched (the all-countries fallback and `maxCells`
+are deleted).  `nameActivity` takes the route by stretch (`routeParts` replaces `routePoints`) and looks for the place
+along the route one stretch at a time: only the bad stretch is left out, and counted (`wideStretches`, shown in the log
+line of the import).  A climb is inside one stretch, so it is refused as a whole.  Not done: a bad fix at the start or
+the turning point still costs the lookup of one point (at most one country), and a stretch across the date line is
+refused.  Result: all 1,112 names and start places are the same after naming again from scratch.  Tests: wide positions
+fetch nothing; a route with one bad stretch costs the same downloads as without it.  Cleaning at import is in TODO.md.

@@ -55,7 +55,6 @@ proc refuse(n: Names, src: Source, why: string, path: string) =
 const
   cellsPerDegree* = 4 ## a cell is a quarter of a degree square
   neStem = "ne_50m_admin_0_countries"
-  maxCells* = 4000 ## a box over more cells than this (the poles) takes every country
 
 proc loadOutlines(
     n: Names, zip: string
@@ -212,14 +211,5 @@ proc countriesOfCell*(
       sql"select country from country_cell where cell_lon = ? and cell_lat = ? order by country",
       cx,
       cy,
-    ):
-      result.add r[0]
-
-proc allCountries*(n: Names): seq[string] {.raises: [StoreError, DownloadError].} =
-  ## Every country that has an outline (for a box too big to go cell by cell).
-  n.ensureCountries()
-  guard:
-    for r in n.st.db.fastRows(
-      sql"select iso from country where geom is not null order by iso"
     ):
       result.add r[0]

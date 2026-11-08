@@ -58,10 +58,12 @@ suite "route: the geometry bytes":
         Segment(startT: UnixTime(10), endT: UnixTime(11)),
       ],
     )
-    let p = routePoints(routeWkb(a).get)
-    check p.lons == @[1.5, 1.6, 3.0, 3.1] and p.lats == @[2.5, 2.6, 4.0, 4.1]
-    check routePoints("").lons.len == 0 and routePoints("nonsense bytes").lons.len == 0
-    check routePoints(routeWkb(a).get[0 ..< 30]).lons.len < 4 # (cut short: no crash)
+    let p = routeParts(routeWkb(a).get)
+    check p.len == 2
+    check p[0].lons == @[1.5, 1.6] and p[0].lats == @[2.5, 2.6]
+    check p[1].lons == @[3.0, 3.1] and p[1].lats == @[4.0, 4.1]
+    check routeParts("").len == 0 and routeParts("nonsense bytes").len == 0
+    check routeParts(routeWkb(a).get[0 ..< 30]).len < 2 # (cut short: no crash)
   test "the bytes are the standard ones: byte order, type, counts, then longitude and latitude as doubles":
     let a = ActivityData(
       coords: @[coord(1, 1.0, 2.0), coord(2, 3.0, 4.0)],

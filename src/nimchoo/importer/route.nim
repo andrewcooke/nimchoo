@@ -77,9 +77,9 @@ func getDouble(buf: string, pos: var int): float =
   pos += 8
   cast[float](bits)
 
-func routePoints*(wkb: string): tuple[lons, lats: seq[float]] =
-  ## The points of a route in WKB, in order, parts one after the other (the inverse of `routeWkb`, little-endian, as
-  ## SpatiaLite gives it).  Nothing for anything else, or for bytes that are too short.
+func routeParts*(wkb: string): seq[tuple[lons, lats: seq[float]]] =
+  ## The parts of a route in WKB, one for each stretch, in order (the inverse of `routeWkb`, little-endian, as SpatiaLite
+  ## gives it).  Nothing for anything else; the parts read before bytes that are too short.
   if wkb.len < 9 or ord(wkb[0]) != int(littleEndianFlag):
     return
   var pos = 1
@@ -101,6 +101,8 @@ func routePoints*(wkb: string): tuple[lons, lats: seq[float]] =
     let n = int(get32(wkb, pos))
     if pos + 16 * n > wkb.len:
       return
+    var part: tuple[lons, lats: seq[float]]
     for _ in 0 ..< n:
-      result.lons.add getDouble(wkb, pos)
-      result.lats.add getDouble(wkb, pos)
+      part.lons.add getDouble(wkb, pos)
+      part.lats.add getDouble(wkb, pos)
+    result.add part
