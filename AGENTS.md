@@ -73,7 +73,8 @@ build enforces a DAG; a third party adds a package by dropping a directory in an
 minimal (the `Package` type and registry, the database handle and fragments, the extension-point types); everything
 else is a package, small ones included.  an early package that must be extended offers an extension point; it does
 not import the later package, and no package alters another's tables.  per-second data is stored per activity, as
-arrays.  details and steps: REVIEW.md §6; until that work is done the layout above is what exists.
+arrays; by default other data refers to it by time (never by array index), and the arrays are never changed once
+written (an alternative needs a reason).  details and steps: REVIEW.md §6; until that work is done the layout above is what exists.
 
 ## display
 

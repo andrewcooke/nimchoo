@@ -363,6 +363,13 @@ create table heartrate (
   extension point that exists): heart rate stays a package of its own.
 * The spatial queries are unaffected: they use `route` and `activity.start`.
 * The encoding (plain fixed-width numbers, or compressed with zippy) is decided by measuring; plain first.
+* **Defaults** (an alternative needs a reason, given when it is discussed):
+  * **refer to samples by time, never by array index** (an index is tied to one encoding; a time is not);
+  * **arrays are immutable once written**: cleaning happens before the write; a change to cleaning is a re-import
+    (the cascade takes the derived data) or a version bump of the on-demand work;
+  * **what SQL cannot check, a test checks**: the invariant checks (§3.3: every effort within one timer
+    segment...), run over the author's database too.  Storing a row of arrays per timer segment, rather than per
+    activity, would also let a trigger check that an effort lies inside one: to decide at that step.
 
 ### Cache
 
