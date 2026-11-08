@@ -92,7 +92,7 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
     let names = openNames(
       g,
       st,
-      "climbs",
+      cmClimbs,
       proc(line: string) {.closure, raises: [].} =
         stderr.say line & "\n"
       ,
@@ -106,7 +106,7 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   else:
     rename(st, id, p.rename)
     said = was & " is now called " & shownName(st, id)
-  g.log.log(lvInfo, "climbs", leSaved, said)
+  g.log.log(lvInfo, cmClimbs, leSaved, said)
   stdout.say said & "\n"
   exitOk
 
@@ -119,7 +119,7 @@ proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
   clearClimbs(st)
   st.reclaim()
-  g.log.log(lvInfo, "climbs", leDeleted, "deleted " & what & " from " & st.path)
+  g.log.log(lvInfo, cmClimbs, leDeleted, "deleted " & what & " from " & st.path)
   sayDeleted("deleted " & what)
   exitOk
 
@@ -177,7 +177,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stderr.say doneLine(worked) & "\n"
       g.log.log(
         lvInfo,
-        "climbs",
+        cmClimbs,
         leDone,
         "worked out " & $worked.activities & " activities: " & $worked.sectors &
           " new climbs, " & $worked.efforts & " efforts",
@@ -186,7 +186,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let names = openNames(
       g,
       st,
-      "climbs",
+      cmClimbs,
       proc(line: string) {.closure, raises: [].} =
         stderr.say line & "\n"
       ,
@@ -196,7 +196,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if named.named + named.nothing > 0:
         g.log.log(
           lvInfo,
-          "climbs",
+          cmClimbs,
           leDone,
           "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
         )

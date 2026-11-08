@@ -100,7 +100,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         failure("nch models", "there is a model called '" & p.model.name & "' already")
     insertModel(st.db, p.model)
     let said = "made the model " & p.model.name
-    g.log.log(lvInfo, "models", leSaved, said)
+    g.log.log(lvInfo, cmModels, leSaved, said)
     stdout.say said & "\n"
     exitOk
   except StoreError as e:

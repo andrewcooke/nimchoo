@@ -12,7 +12,7 @@ func fanOut*(sinks: seq[Sink]): Sink =
     for s in sinks:
       s(ev)
 
-proc logSink*(l: Log, command: string): Sink =
+proc logSink*(l: Log, command: Command): Sink =
   ## Write the events to the log as `command`: `downloaded` (info) and `failed` (error).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
     case ev.kind

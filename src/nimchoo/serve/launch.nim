@@ -37,12 +37,12 @@ proc openBrowser(url: string): bool =
     false
 
 proc serveWeb*(
-    g: Globals, command: string, o: WebOptions, cacheDir, query: string
+    g: Globals, command: Command, o: WebOptions, cacheDir, query: string
 ): int =
   ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its
   ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
   ## pins the page in the address, e.g. "bits=AsBO&check=ab12cd".
-  let name = "nch " & command
+  let name = "nch " & $command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:
     return failure(name, t.problem)
@@ -60,7 +60,7 @@ proc serveWeb*(
     o.port,
     proc(port: int) {.closure, raises: [].} =
       let url =
-        "http://localhost:" & $port & "/" & command & "?" & query & "&token=" & t.token
+        "http://localhost:" & $port & "/" & $command & "?" & query & "&token=" & t.token
       stdout.say url & "\n(Ctrl-C to stop)\n"
       try:
         stdout.flushFile()

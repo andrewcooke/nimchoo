@@ -47,7 +47,7 @@ import
     test_selection, test_calendar,
   ]
 import ./map/[test_params, test_lines, test_page, test_command, test_web]
-import ./cli/test_args
+import ./cli/[test_args, test_catalog]
 import
   ./climbs/[
     test_detect,

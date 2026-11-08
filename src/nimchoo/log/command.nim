@@ -33,8 +33,8 @@ type Parsed* = object
 
 proc names(): string =
   var cs: seq[string]
-  for c in commandNames:
-    cs.add c
+  for c in Command:
+    cs.add $c
   var es: seq[string]
   for e in LogEvent:
     es.add $e
@@ -45,7 +45,7 @@ proc takeLogName(p: var Parsed, arg: string): string {.nimcall, raises: [].} =
   let e = parseEvent(arg)
   if e.isSome:
     p.filter.events.incl e.get
-  elif arg in commandNames:
+  elif parseCommand(arg).isSome:
     p.filter.commands.add arg
   else:
     return "'" & arg & "' is neither a command nor an event (" & names() & ")"

@@ -8,6 +8,7 @@
 import ../db/[channel, store]
 import ../errors
 import ../ui/logfile
+export logfile.Command, logfile.catalog
 
 {.push raises: [].}
 
@@ -21,10 +22,6 @@ type Globals* = object ## Options given before the command name, for every comma
   log*: Log ## the log file; nil (disabled) unless `nch` opened it
 
 const
-  commandNames* = [
-    "fit", "import", "activities", "map", "cache", "db", "log", "users", "models", "ff",
-    "climbs", "landmarks",
-  ] ## every command `nch` has (the names the log's command column can hold)
   exitOk* = 0
   exitFailure* = 1 ## the work failed (unusable input, I/O error)
   exitUsage* = 2 ## the command line was wrong

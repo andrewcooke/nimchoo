@@ -88,6 +88,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       removeFile path & suffix
   except OSError as e:
     return failure("nch db", "cannot delete " & path & ": " & e.msg)
-  g.log.log(lvInfo, "db", leDeleted, "deleted " & what)
+  g.log.log(lvInfo, cmDb, leDeleted, "deleted " & what)
   sayDeleted("deleted " & what)
   exitOk

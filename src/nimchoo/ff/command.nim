@@ -327,7 +327,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.web.enabled:
       return serveWeb(
         g,
-        "ff",
+        cmFf,
         WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
         dir.get,
         "check=" & key & (if query.len > 0: "&" & query else: ""),

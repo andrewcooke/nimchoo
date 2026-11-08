@@ -13,6 +13,8 @@
 ## fails is ignored.  A nil `Log` is a disabled log.
 
 import std/[options, os, strutils, times]
+import ../cli/catalog
+export catalog
 import ./vocabulary
 export vocabulary.LogEvent
 
@@ -110,13 +112,13 @@ proc openLog*(
 func enabled*(l: Log): bool =
   not l.isNil and not l.f.isNil
 
-proc log*(l: Log, level: Level, command: string, event: LogEvent, text: string) =
+proc log*(l: Log, level: Level, command: Command, event: LogEvent, text: string) =
   ## Append a line.  Warnings and errors are flushed at once, the rest when
   ## the buffer fills or the log is closed.
   if not l.enabled:
     return
   try:
-    l.f.write logLine(l.now(), level, command, event, text) & "\n"
+    l.f.write logLine(l.now(), level, $command, event, text) & "\n"
     if level != lvInfo:
       l.f.flushFile()
   except IOError:

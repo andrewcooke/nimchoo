@@ -2856,3 +2856,19 @@ by triggers (more schema, and no help with the code version).
   makes every map again once.  `ff` keeps its own scheme (key in the name), which is correct; it can move onto
   `inputsKey` later.  When packages exist (step 8) each package offers its key and the list of a command's inputs is made
   from its declared dependencies.
+
+### One list of commands (2026-11-08, REVIEW.md class F)
+
+`commandNames` (a list of strings in `cli/common.nim`) was one of four copies of "what the commands are": the usage text,
+the `dispatch` case, that list, and the string each module logged under.  It had `import`, which is not a command
+(CLAUDE.md: imports are `nch activities --import`), and had lacked `landmarks`; the modules logged `user` and `landmark`
+where the commands are `users` and `landmarks`, so `nch log users` found nothing.
+* `cli/catalog.nim` has the enum `Command` (its string value is the name) and a summary for each.  The usage list is made
+  from it, `dispatch` is a `case` over it with no `else` (a command that is not run does not compile), the log's filter
+  takes its names from it, and `log()` takes a `Command`, not a string: a log line can only name a real command.
+  (The module is not called `commands`: the structure test treats every import of `.../command*` as a command module.)
+* `import` is gone as a log word: the importer logs as `activities`.  So `nch log activities failed --last` is the
+  hint after an import; it shows the *latest run of `activities`*, which is the import only until another `activities`
+  command is run (a listing is a run too).  A way round it is a run id in the log, or filtering on the event alone.
+* Not derived yet: the server's `commandRules` (a test checks that its names are commands; its options move into
+  the command's definition with step 9), and the `nch map` style prefixes of messages.

@@ -267,7 +267,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # the address pins what was made: the activities, and the check of them
     return serveWeb(
       g,
-      "map",
+      cmMap,
       WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
       dir.get,
       made.query,

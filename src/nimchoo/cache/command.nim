@@ -95,6 +95,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let u = deleteKind(dir.get, k)
     what.add $k & ": " & describe(u)
   let text = what.join("; ")
-  g.log.log(lvInfo, "cache", leDeleted, text & " from " & dir.get)
+  g.log.log(lvInfo, cmCache, leDeleted, text & " from " & dir.get)
   sayDeleted("deleted " & text)
   exitOk

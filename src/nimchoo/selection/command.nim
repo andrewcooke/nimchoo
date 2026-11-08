@@ -580,7 +580,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if r.saved >= 0:
       g.log.log(
         lvInfo,
-        "activities",
+        cmActivities,
         leSaved,
         $r.saved & (if r.saved == 1: " activity" else: " activities"),
       )

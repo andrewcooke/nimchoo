@@ -158,7 +158,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
       removeUser(st, id)
-      g.log.log(lvInfo, "user", leDeleted, what & " from " & st.path)
+      g.log.log(lvInfo, cmUsers, leDeleted, what & " from " & st.path)
       sayDeleted("deleted " & what)
       return exitOk
     if p.create:
@@ -174,7 +174,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if p.fthr.isSome:
         said.add ", with an FTHR of " & $p.fthr.get
         setFthr(st, id, p.fthr.get)
-      g.log.log(lvInfo, "user", leSaved, said)
+      g.log.log(lvInfo, cmUsers, leSaved, said)
       stdout.say said & "\n"
       return exitOk
     # --edit
@@ -186,7 +186,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         p.name & ": FTHR is " & $p.fthr.get &
         (if had and old.isSome and old.get != p.fthr.get: deletedNote else: "")
-      g.log.log(lvInfo, "user", leSaved, said)
+      g.log.log(lvInfo, cmUsers, leSaved, said)
       stdout.say said & "\n"
     if p.clearFthr:
       let had = hasImpulses(st, id)
@@ -195,12 +195,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         p.name & ": FTHR forgotten" &
         (if had: " (and the impulses worked out with it are deleted)" else: "")
-      g.log.log(lvInfo, "user", leSaved, said)
+      g.log.log(lvInfo, cmUsers, leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:
       setDefault(st, id)
       let said = p.name & " is now the default user"
-      g.log.log(lvInfo, "user", leSaved, said)
+      g.log.log(lvInfo, cmUsers, leSaved, said)
       stdout.say said & "\n"
     if p.rename.len > 0:
       if exists(st, p.rename):
@@ -208,7 +208,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       guard:
         st.db.exec(sql"update user set name = ? where id = ?", p.rename, id)
       let said = p.name & " is now called " & p.rename
-      g.log.log(lvInfo, "user", leSaved, said)
+      g.log.log(lvInfo, cmUsers, leSaved, said)
       stdout.say said & "\n"
     exitOk
   except StoreError as e:

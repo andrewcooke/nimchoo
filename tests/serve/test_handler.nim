@@ -39,7 +39,7 @@ proc setup(
     token: token,
     cacheDir: cache,
     baseArgs: @["--db", "/x/y.db"],
-    logCommand: "map",
+    logCommand: cmMap,
   )
   if withLog:
     cfg.log = openLog(dir / name / "nch.log")

@@ -32,7 +32,7 @@ type
     cacheDir*: string
     baseArgs*: seq[string] ## the options before the command (--db ..., --user ...)
     log*: Log
-    logCommand*: string
+    logCommand*: Command
 
   Incoming* = object
     meth*, target*, host*, cookie*: string
@@ -168,7 +168,7 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
   if not sameToken(cookieValue(req.cookie, cookieName), cfg.token):
     return reply(
       403,
-      "forbidden: open the address that `nch " & cfg.logCommand & " --web` printed\n",
+      "forbidden: open the address that `nch " & $cfg.logCommand & " --web` printed\n",
     )
   let route = route(t)
   if route.isNone:

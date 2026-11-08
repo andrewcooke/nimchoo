@@ -79,7 +79,7 @@ func summaryLine*(s: Summary): string =
 
 func moreHint*(s: Summary, logged: bool): string =
   ## How to see more: `nch log` with the words of what happened, such as
-  ## "more: nch log import failed duplicate --last" (the latest import only).  ""
+  ## "more: nch log activities failed duplicate --last" (the latest import only).  ""
   ## if there is nothing to look into or no log.
   if not logged:
     return ""
@@ -92,7 +92,7 @@ func moreHint*(s: Summary, logged: bool): string =
     words.add $leAdvisory
   if words.len == 0:
     return ""
-  "more: nch log import " & words.join(" ") & " --last"
+  "more: nch log activities " & words.join(" ") & " --last"
 
 func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   ## The lines to print for an event.  Failures, advisories and the summary are

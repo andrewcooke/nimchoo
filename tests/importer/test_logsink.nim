@@ -120,7 +120,7 @@ suite "import log: the command":
     let text = readFile(path)
     check "start      2 files" in text
     check "imported   " in text and "a.fit  1 activity" in text
-    check "ERROR import    failed" in text and "bad.fit  (bad format)" in text
+    check "ERROR activities  failed" in text and "bad.fit  (bad format)" in text
     check "done       2 files, 1 imported, 1 failed" in text
 
   test "a second run logs no file lines, only the totals":

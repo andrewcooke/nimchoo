@@ -15,7 +15,7 @@ import ./countries
 proc openNames*(
     g: Globals,
     st: Store,
-    command: string,
+    command: Command,
     say: proc(line: string) {.closure, raises: [].},
 ): Option[Names] =
   ## The names for `st`, as `command` (the name the log uses).  None if there is no cache directory to keep them in.

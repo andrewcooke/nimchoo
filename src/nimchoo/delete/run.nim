@@ -76,7 +76,7 @@ proc runDelete*(
     if done.kept > 0:
       said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
         " kept, with other activities in"
-    g.log.log(lvInfo, "activities", leDeleted, said & " from " & st.path)
+    g.log.log(lvInfo, cmActivities, leDeleted, said & " from " & st.path)
     sayDeleted(said)
     exitOk
   except StoreError as e:

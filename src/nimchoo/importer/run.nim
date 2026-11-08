@@ -106,7 +106,7 @@ proc runImport*(
       let names = openNames(
         g,
         st,
-        "import",
+        cmActivities,
         proc(line: string) {.closure, raises: [].} =
           stderr.say line & "\n"
         ,
@@ -136,14 +136,14 @@ proc runImport*(
         for e in counts.gpsErrors:
           g.log.log(
             lvWarn,
-            "import",
+            cmActivities,
             leAdvisory,
             e.where & "  " & plural(e.searches, "search", "searches") &
               " for a place not made: positions too far apart (GPS errors)",
           )
         g.log.log(
           lvInfo,
-          "import",
+          cmActivities,
           leDone,
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
@@ -163,7 +163,7 @@ proc runImport*(
     if n > 0:
       g.log.log(
         lvInfo,
-        "activities",
+        cmActivities,
         leSaved,
         $n & (if n == 1: " activity" else: " activities") & " selected (imported)",
       )

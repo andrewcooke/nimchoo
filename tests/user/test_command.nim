@@ -198,8 +198,8 @@ suite "nch users":
     check userCommand.run(g, @["--edit", "default", "--fthr", "151"]) == exitOk
     g.log.close()
     let text = readFile(path)
-    check text.contains("user      saved      made the user bob, with an FTHR of 150")
-    check text.contains("user      saved      default: FTHR is 151")
+    check text.contains("users     saved      made the user bob, with an FTHR of 150")
+    check text.contains("users     saved      default: FTHR is 151")
     check text.count("saved") == 2
 
   test "other commands see a made user":

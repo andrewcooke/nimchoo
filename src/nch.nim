@@ -5,7 +5,7 @@
 ## and are parsed here.
 
 import std/[options, os, strutils]
-import nimchoo/cli/[args, common]
+import nimchoo/cli/[args, catalog, common]
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/cache/command as cacheCommand
 import nimchoo/db/command as dbCommand
@@ -32,50 +32,35 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --version      print the version and the git commit it was built from
 
 commands:
-  activities  the activities: show them, choose the ones other commands use
-  climbs      the climbs of the selected activities, with times and ranks
-  users       the users: make, rename, set the threshold heart rate
-  models      the models: sets of variables for the training impulse
-  landmarks   places of your own, named: they come before every other name
-  map         the routes of the selected activities and their climbs, on a map
-  ff          the fitness and fatigue curves, as CSV for plotting
-  fit         read a FIT file and print it
-  log         show the log, filtered, with the events coloured
-  cache       the files outside the database (downloads, generated files): show them, delete them
-  db          the database file: where it is and how big, or delete it
-
+""" & commandList() & """
 For more about a command: `nch COMMAND --help`.
 """
 
-proc dispatch(g: Globals, command: string, rest: seq[string]): int {.raises: [].} =
+proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: [].} =
+  ## (no `else`: a command in `Command` that is not run here does not compile)
   case command
-  of "help":
-    stdout.say usage
-    exitOk
-  of "fit":
+  of cmFit:
     fitCommand.run(g, rest)
-  of "activities":
+  of cmActivities:
     activitiesCommand.run(g, rest)
-  of "map":
+  of cmMap:
     mapCommand.run(g, rest)
-  of "log":
+  of cmLog:
     logCommand.run(g, rest)
-  of "users":
+  of cmUsers:
     userCommand.run(g, rest)
-  of "models":
+  of cmModels:
     modelCommand.run(g, rest)
-  of "ff":
+  of cmFf:
     ffCommand.run(g, rest)
-  of "cache":
+  of cmCache:
     cacheCommand.run(g, rest)
-  of "db":
+  of cmDb:
     dbCommand.run(g, rest)
-  of "climbs":
+  of cmClimbs:
     climbsCommand.run(g, rest)
-  of "landmarks":
+  of cmLandmarks:
     landmarkCommand.run(g, rest)
-  else:
-    usageError("nch", usage, "unknown command " & command)
 
 type Head = object ## The options before the command name.
   g: Globals
@@ -108,8 +93,14 @@ proc main(): int {.raises: [].} =
     stderr.say usage
     return exitUsage
   let rest = args[i + 1 .. ^1]
-  let command = args[i]
-  if command in commandNames and command != "log": # (reading the log is not logged)
+  if args[i] == "help":
+    stdout.say usage
+    return exitOk
+  let parsed = parseCommand(args[i])
+  if parsed.isNone:
+    return usageError("nch", usage, "unknown command " & args[i])
+  let command = parsed.get
+  if command != cmLog: # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)

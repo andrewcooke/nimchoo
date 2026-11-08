@@ -178,7 +178,7 @@ suite "download: the same events in the log and on the screen":
     var said: seq[string]
     let sink = fanOut(
       @[
-        logSink(l, "climbs"),
+        logSink(l, cmClimbs),
         screenSink(
           proc(line: string) {.closure, raises: [].} =
             said.add line
