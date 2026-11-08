@@ -266,7 +266,8 @@ call" shape; `confutils` (Status) is solid but heavy; `argparse` is Python-like.
 deciding fact is that the useful completions are **dynamic** (climb, user and model names, sports come from the
 database), which no library does for you.  So: keep the parser, make the spec the single source (each option
 carries its help text and the kind of value it completes), generate `usage` from it, parse into a variant
-object, and add a hidden `nch __complete WORDS...` that a small bash/zsh function calls.
+object, and add a hidden `nch __complete WORDS...` that a small bash/zsh function calls.  With packages (§6) each
+package registers its commands and options, so completion reads them from the registry.
 
 On libraries generally: use one when it does something hard and is maintained by an organisation or many
 users (zippy, db_connector, checksums qualify); write it yourself when it is small and shapes the program (the
@@ -399,51 +400,68 @@ The current mechanism stays, per package (`package/NNN-name.sql`, as recorded no
 
 Cheap and safe first; each later step is easier because of the earlier ones.  Letters refer to the classes of §3.
 
-1. **Housekeeping.**  Untrack `tests/delete/test_delete`, fix `.gitignore` (`/tests/**/test_*` with `!*.nim`),
+**Mechanical or design.**  Steps marked *(mechanical)* change no behaviour or design the author sees: they can be
+approved together and done without a discussion each (the tests are the check).  The others need a discussion
+before they start.  Mechanical: 1, 2 (writing the tests; what they find is reported), 4 (confirming), 5, 6, 8.1,
+8.3, 8.4, 8.6, 11, 13 (except the cache naming scheme).  Design: 3, 7, 8.2, 8.5, 9, 10, 12 (each change is
+measured and shown), 14.
+
+**Order.**  Packages (8) come before the options rewrite (9) so that each command is rewritten once, in its final
+home.  Nothing new for the author to use appears until about step 10; open features (TODO.md) can go in after step
+3 or step 8, not before 3 (they would build on code with known bugs).
+
+1. *(mechanical)* **Housekeeping.**  Untrack `tests/delete/test_delete`, fix `.gitignore` (`/tests/**/test_*` with `!*.nim`),
    remove `tests/sector/`, add `landmarks` to `commandNames` (F; the
    registry replaces it later).
-2. **Tests that find bugs** (3.3): the FIT fuzzer, the foreign-key index test, the invariant checks (with a way
+2. *(mechanical)* **Tests that find bugs** (3.3): the FIT fuzzer, the foreign-key index test, the invariant checks (with a way
    to run them over the author's database).  Report what they find before fixing it.
 3. **Fix the classes**, each as the abstraction, a test for the class, and the known bugs as its first cases:
    A (the track loader; climbs per segment; check the other consumers), B (limits where work fans out; the
    country fallback), C (the indexes the test asks for), D (the child-process helper; the server), E (the
    cache interface; the map key), G (the base-type table; the bool marker), H (the zip cap), J (no failure
    stored as a result), K (one atomic write), L (what the fuzzer finds).  I waits for step 7.
-4. **The other reported bugs (3.2)**: confirm each with a test; fix the real ones, report the rest.
-5. **Check the conventions** now in CLAUDE.md against the code.  (TODO.md was pruned to open work and its
+   The track loader (A) is built over today's `coords`; step 14 changes the storage, and then only the loader
+   changes.
+4. *(mechanical)* **The other reported bugs (3.2)**: confirm each with a test; fix the real ones, report the rest.
+5. *(mechanical)* **Check the conventions** now in CLAUDE.md against the code.  (TODO.md was pruned to open work and its
    history moved to HISTORY.md on 2026-11-08; the conventions moved to CLAUDE.md, corrected by hand.)
-6. **Dead code**: the dead paths in `bringUpToDate`/`fragment.nim` (not the fragment mechanism), and the dead
+6. *(mechanical)* **Dead code**: the dead paths in `bringUpToDate`/`fragment.nim` (not the fragment mechanism), and the dead
    and test-only code of 4.7.
 7. **Typed database access.**  First half a day evaluating `tiny_sqlite` against extending `db/statement.nim`;
    report back.  Then typed reads, bound parameters everywhere (SpatiaLite then gets real numbers), one user
    lookup, the registered `fold()` SQL function (I); convert module by module; then the query-plan test (C).
 8. **Packages (§6)**:
-   1. move shared code into packages of its own (time, the delete countdown, text folding, geo...); merge
+   1. *(mechanical)* move shared code into packages of its own (time, the delete countdown, text folding, geo...); merge
       `fit` and `profile`;
    2. the framework: `Package`, the generated registry (F), the topological sort; fragments in DAG order; the
       "missing package" refusal (rebuild the database);
-   3. a `package.nim` in each directory, with the package's own doc (the feature detail now in CLAUDE.md
+   3. *(mechanical)* a `package.nim` in each directory, with the package's own doc (the feature detail now in CLAUDE.md
       moves there); the track loader lands in the importer package, the cache interface in
       the cache package;
-   4. the import and SQL-table tests;
+   4. *(mechanical)* the import and SQL-table tests;
    5. the extension points, one commit each, each discussed first (on-demand activity work, activity
       criteria, name sources, deletion lines); the cycles go;
-   6. the schema-by-several-orders test.
+   6. *(mechanical)* the schema-by-several-orders test.
 9. **Options carry their help; parse into variants.**  `Opt` gets `help`, `metavar` and a completion kind;
    usage is generated from the spec (prose before and after stays hand-written); the web options come from
    the same spec.  `climbs` first, shown to the author, then the others (`ff`'s output mode as an enum).
    Errors as `Option[string]`, not "".
-10. **Tab completion**: `nch __complete` and a bash function; dynamic values from the database.
-11. **One owner per fact** (the rest of 4.1): GeoNames codes in one place, the duplicated helpers merged,
+10. **Tab completion**: `nch __complete` and a bash function; commands and options from the registry, dynamic
+    values from the database.
+11. *(mechanical)* **One owner per fact** (the rest of 4.1): GeoNames codes in one place, the duplicated helpers merged,
     messages built from the constants.
 12. **Push work into SQL** (4.4), measuring before and after.
-13. **Shrink** (4.7): templating to what is used; one cache naming scheme; `decode` dispatch written once.
+13. *(mechanical, but the cache naming scheme is design)* **Shrink** (4.7): templating to what is used; one cache naming scheme; `decode` dispatch written once.
 14. **Larger changes, each discussed first**: the `sectors` split; per-activity arrays for the per-second data, with
     cleaning at import (B; measure size and the import, climbs and map times before and after; then a simplified
     `route`); the
     cache manifest.
 
 ## 8. Proposed additions to CLAUDE.md
+
+(Added to CLAUDE.md on 2026-11-08, with changes: "revisit, don't pile on" and "before finishing a step" became
+working practice; "a missing abstraction is the bug" and "a failure is never stored as a result" were added.
+CLAUDE.md is the current text.)
 
 ```markdown
 ## guidelines for writing code (from the review of 2026-11-08)

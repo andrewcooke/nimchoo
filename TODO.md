@@ -5,24 +5,25 @@ Open work only.  Finished work is in git and in HISTORY.md (with the reasoning b
 
 ## Now: the review plan (REVIEW.md §7)
 
-Each step is discussed with the author before it starts.  Letters are the bug classes of REVIEW.md §3.
+Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
+author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
-- [ ] 1. Housekeeping: untrack `tests/delete/test_delete`, fix `.gitignore`, remove `tests/sector/`, add
+- [ ] 1. *(mechanical)* Housekeeping: untrack `tests/delete/test_delete`, fix `.gitignore`, remove `tests/sector/`, add
       `landmarks` to `commandNames`.  (CLAUDE.md is a symlink to AGENTS.md: edit AGENTS.md.)
-- [ ] 2. Tests that find bugs: the FIT fuzzer, the foreign-key index test, invariant checks (also over the
+- [ ] 2. *(mechanical)* Tests that find bugs: the FIT fuzzer, the foreign-key index test, invariant checks (also over the
       author's database).  Report what they find before fixing.
 - [ ] 3. Fix the bug classes A-H, J-L (the abstraction, a test for the class, the known bugs as first cases).
-- [ ] 4. The other reported bugs (REVIEW.md §3.2): confirm with a test, fix the real ones.
-- [ ] 5. Check the conventions in CLAUDE.md against the code (moved there from the old TODO.md, corrected by hand
+- [ ] 4. *(mechanical)* The other reported bugs (REVIEW.md §3.2): confirm with a test, fix the real ones.
+- [ ] 5. *(mechanical)* Check the conventions in CLAUDE.md against the code (moved there from the old TODO.md, corrected by hand
       without a full check).
-- [ ] 6. Dead code (REVIEW.md 4.3, 4.7).
+- [ ] 6. *(mechanical)* Dead code (REVIEW.md 4.3, 4.7).
 - [ ] 7. Typed database access (evaluate `tiny_sqlite` first); the `fold()` SQL function (I); the query-plan test.
-- [ ] 8. Packages (REVIEW.md §6), in its six sub-steps; feature detail moves from CLAUDE.md to each package's doc.
+- [ ] 8. Packages (REVIEW.md §6), in its six sub-steps (8.1, 8.3, 8.4, 8.6 mechanical); feature detail moves from CLAUDE.md to each package's doc.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).
-- [ ] 11. One owner per fact (REVIEW.md 4.1).
+- [ ] 11. *(mechanical)* One owner per fact (REVIEW.md 4.1).
 - [ ] 12. Push work into SQL (REVIEW.md 4.4), measured.
-- [ ] 13. Shrink (REVIEW.md 4.7).
+- [ ] 13. Shrink (REVIEW.md 4.7) (mechanical, except one cache naming scheme).
 - [ ] 14. Larger changes: the `sectors` package; per-second data as arrays per activity, with cleaning at import;
       a simplified `route`; the cache manifest.
 
