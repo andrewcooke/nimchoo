@@ -13,3 +13,4 @@ nimble.develop
 .saves-*
 *.elc
 .zed
+/tests/invariants

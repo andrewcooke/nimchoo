@@ -8,9 +8,11 @@ Open work only.  Finished work is in git and in HISTORY.md (with the reasoning b
 Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
 author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
-- [ ] 2. *(mechanical)* Tests that find bugs: the FIT fuzzer, the foreign-key index test, invariant checks (also over the
-      author's database).  Report what they find before fixing.
 - [ ] 3. Fix the bug classes A-H, J-L (the abstraction, a test for the class, the known bugs as first cases).
+      Found by step 2 (done): A: 1666 of 4569 efforts in the author's database cross a timer-segment gap (`nimble
+      invariants`); C: `tests/db/test_schema.nim` fails for five foreign keys (effort, country_cell, impulse,
+      seen_file, selection) and is not yet in `tests/all.nim`: add the indexes, then add it.  Still open from
+      3.3: the FIT fuzzer's level 2 (libFuzzer), and fuzzers for the xlsx and zip readers and the `bits` decoder.
 - [ ] 4. *(mechanical)* The other reported bugs (REVIEW.md §3.2): confirm with a test, fix the real ones.
 - [ ] 5. *(mechanical)* Check the conventions in CLAUDE.md against the code (moved there from the old TODO.md, corrected by hand
       without a full check).
