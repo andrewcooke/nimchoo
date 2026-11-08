@@ -9,6 +9,14 @@ Design steps are discussed with the author before they start; steps marked *(mec
 author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
 - [ ] 3. Fix the bug classes A-H, J-L (the abstraction, a test for the class, the known bugs as first cases).
+      **A, decided 2026-11-08 (stretches):** the `segment` table will hold *stretches*: neighbouring timer segments
+      joined when `importer/stretch.nim` `joinable` says so (auto-pause both ends, and the rider moved under 30 m, or
+      the gap was under 30 s at under 15 m/s; a manual stop always separates).  Stops stay in an effort's time.
+      Done: the rule and its tests.  To do: `extract.nim` keeps the timer trigger and merges segments after `cover`
+      (distance from the coords either side); `climbs/work.nim` reads coords per stretch (profile, matching a ride
+      to sectors, matching a new sector to earlier rides) and `algorithmVersion` goes up; a class test (a ride with
+      a real jump gives no effort or climb across it); rebuild (`nch db --delete -f`, import, climbs) and
+      `nimble invariants`; check the Farellones climbs (#72, #109, #115) still come out whole.
       Found by step 2 (done): A: 1666 of 4569 efforts in the author's database cross a timer-segment gap (`nimble
       invariants`); C: `tests/db/test_schema.nim` fails for five foreign keys (effort, country_cell, impulse,
       seen_file, selection) and is not yet in `tests/all.nim`: add the indexes, then add it.  Still open from

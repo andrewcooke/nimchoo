@@ -36,6 +36,7 @@ import
     test_events,
     test_display,
     test_logsink,
+    test_stretch,
     test_naming as importerNaming,
     test_describe as importerDescribe,
   ]
