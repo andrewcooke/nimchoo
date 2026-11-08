@@ -188,7 +188,9 @@ proc ensureCells*(
     n.sink(DownloadEvent(kind: deFinished, source: geonamesCountry.name))
   var text: string
   try:
-    text = readEntry(readFile(path.get), entryFor(geonamesCountry, iso), maxCountryFile)
+    text = readEntry(
+      readFile(path.get), entryFor(geonamesCountry, iso), maxCountryFile, n.env.inflater
+    )
   except ZipError, IOError, OSError:
     n.sink(
       DownloadEvent(

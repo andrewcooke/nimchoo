@@ -1,6 +1,10 @@
 ## Reading a zip file from bytes in memory: the entries listed in its central directory, and an
 ## entry inflated (zippy only opens zips from a path).  Used for xlsx files and for downloads.
 ## Only stored and deflated entries are supported, and an entry that declares more than 256 MB is refused.
+##
+## The limit is also on what is inflated, not only on what the header declares: zippy cannot stop at a size, so an
+## `Inflater` can be given that does the inflating where a runaway is contained (`zipchild.nim`: a child process with
+## a memory ceiling).  Without one the entry is inflated here, and only the declared size is a limit.
 
 import std/tables
 import zippy
@@ -53,8 +57,21 @@ func listEntries*(z: string): Table[string, ZipEntry] {.raises: [ZipError].} =
 
 const maxEntrySize* = 256 * 1024 * 1024 ## the default: larger declared sizes are refused
 
-func extractEntry*(
-    z: string, e: ZipEntry, limit = maxEntrySize
+type Inflater* = proc(raw: string, size, limit: int): string {.closure, raises: [ZipError].}
+  ## Inflates the deflated bytes `raw`, which should come to `size` bytes; ZipError if they come to more than `limit`
+  ## or are damaged.
+
+proc inflateHere*(raw: string, size, limit: int): string {.raises: [ZipError].} =
+  ## The inflater that works in this process (zippy has no way to stop at `limit`: see the top of this file).
+  try:
+    result = uncompress(raw, dfDeflate)
+  except ZippyError as ex:
+    raiseZip("cannot inflate: " & ex.msg)
+  if result.len > limit:
+    raiseZip("zip entry too large")
+
+proc extractEntry*(
+    z: string, e: ZipEntry, limit = maxEntrySize, inflate: Inflater = nil
 ): string {.raises: [ZipError].} =
   let p = e.offset
   if e.size > limit:
@@ -72,19 +89,21 @@ func extractEntry*(
     raw
   of 8:
     let data =
-      try:
-        uncompress(raw, dfDeflate)
-      except ZippyError as ex:
-        raiseZip("cannot inflate: " & ex.msg)
+      if inflate.isNil:
+        inflateHere(raw, e.size, limit)
+      else:
+        inflate(raw, e.size, limit)
     if data.len != e.size:
       raiseZip("zip entry has the wrong size")
     data
   else:
     raiseZip("unsupported zip compression " & $e.compression)
 
-func readEntry*(z, name: string, limit = maxEntrySize): string {.raises: [ZipError].} =
+proc readEntry*(
+    z, name: string, limit = maxEntrySize, inflate: Inflater = nil
+): string {.raises: [ZipError].} =
   ## The contents of the entry called `name` in the zip `z`.
   let entries = listEntries(z)
   if name notin entries:
     raiseZip("no " & name & " in the zip file")
-  extractEntry(z, entries.getOrDefault(name), limit)
+  extractEntry(z, entries.getOrDefault(name), limit, inflate)

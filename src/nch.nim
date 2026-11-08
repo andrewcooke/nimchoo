@@ -20,6 +20,7 @@ import nimchoo/fit/command as fitCommand
 import nimchoo/modules
 import nimchoo/ui/logfile
 import nimchoo/version
+import nimchoo/zipchild
 
 {.push raises: [].}
 
@@ -68,6 +69,8 @@ type Head = object ## The options before the command name.
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
+  if args.len > 0 and args[0] == inflateFlag: # (a child of the downloads: see zipchild.nim)
+    return inflateChildMain(args[1 ..^ 1])
   var head = Head(g: Globals(fragments: allFragments, importSteps: allImportSteps))
   let spec = Spec[Head](
     opts: @[

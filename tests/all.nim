@@ -9,6 +9,7 @@ import
   ./test_xlsx,
   ./test_errors,
   ./test_child,
+  ./test_zipchild,
   ./test_structure,
   ./test_cache,
   ./test_geo,

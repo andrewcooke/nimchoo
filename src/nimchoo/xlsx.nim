@@ -30,7 +30,7 @@ func zipEntries(z: string): Table[string, ZipEntry] {.raises: [XlsxError].} =
   except ZipError as e:
     raiseXlsx(e.msg)
 
-func extract(z: string, e: ZipEntry): string {.raises: [XlsxError].} =
+proc extract(z: string, e: ZipEntry): string {.raises: [XlsxError].} =
   try:
     extractEntry(z, e)
   except ZipError as ex:

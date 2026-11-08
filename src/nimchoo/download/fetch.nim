@@ -11,7 +11,7 @@
 import std/[httpclient, options, os, strutils, tables]
 import ../errors
 import ../lookup
-import ../zipbytes
+import ../[zipbytes, zipchild]
 import ./sources
 when defined(posix):
   import std/posix
@@ -37,13 +37,18 @@ type
     head*: proc(url: string): Option[int64] {.closure, raises: [].}
       ## the size the server announces
     get*: proc(url: string): FetchResult {.closure, raises: [].}
-    getTelling*: proc(url: string, tick: Tick): FetchResult {.closure, raises: [].}
-      ## like `get`, but tells `tick` as the body comes (nil: the fetcher cannot, and `get` is used)
+    getTelling*: proc(url: string, tick: Tick, maxBytes: int64): FetchResult {.
+      closure, raises: []
+    .}
+      ## like `get`, but tells `tick` as the body comes, and stops reading when more than `maxBytes` have come (what the
+      ## server announced is a claim; this is the limit on what arrives).  nil: the fetcher cannot, and `get` is used
 
   Env* = object
     fetcher*: Fetcher
     freeBytes*: proc(dir: string): Option[int64] {.closure, raises: [].}
       ## room on the disk holding `dir`
+    inflater*: Inflater
+      ## how the zips it fetched are inflated (nil: here; the real one does it in a child with a memory ceiling)
 
   EventKind* = enum
     deStarting
@@ -115,6 +120,20 @@ proc silent*(): Sink =
 
 # --- the real network and disk
 
+type TooBig* = object of CatchableError
+  ## more has come than the limit allows: the download is stopped
+
+proc checkProgress*(progress, maxBytes: int64) {.raises: [TooBig].} =
+  ## Called as the body comes, with the bytes so far: stops the download once more than `maxBytes` have come.  (The
+  ## size the server announces is only a claim; this is the limit on what really arrives.)  `httpclient` reports at
+  ## most once a second, so what has come can pass the limit by up to a second of the link's speed: the memory is
+  ## bounded, not exact.
+  if progress > maxBytes:
+    raise newException(
+      TooBig,
+      "more than the " & humanBytes(maxBytes) & " allowed came; the download was stopped",
+    )
+
 proc realFetcher*(timeoutMs = 60_000): Fetcher =
   ## HTTP and HTTPS by `std/httpclient` (HTTPS needs the program built with -d:ssl and OpenSSL installed).
   result.head = proc(url: string): Option[int64] {.closure, raises: [].} =
@@ -128,29 +147,32 @@ proc realFetcher*(timeoutMs = 60_000): Fetcher =
     except Exception: # (httpclient is declared to raise anything)
       discard
   result.getTelling = proc(
-      url: string, tick: Tick
+      url: string, tick: Tick, maxBytes: int64
   ): FetchResult {.closure, raises: [].} =
     try:
       let c = newHttpClient(userAgent = userAgent, timeout = timeoutMs)
       defer:
         c.close()
-      if tick != nil:
-        c.onProgressChanged = proc(
-            total, progress, speed: BiggestInt
-        ) {.closure, gcsafe.} =
-          {.cast(gcsafe).}: # (the sink is ours and runs in this thread)
+      c.onProgressChanged = proc(
+          total, progress, speed: BiggestInt
+      ) {.closure, gcsafe, raises: [TooBig].} =
+        {.cast(gcsafe).}: # (the sink is ours and runs in this thread)
+          if tick != nil:
             tick(int64(progress), int64(max(total, 0)))
+          checkProgress(int64(progress), maxBytes)
       let r = c.get(url)
       if r.code.is2xx:
         return FetchResult(ok: true, status: int(r.code), body: r.body)
       return FetchResult(
         ok: false, status: int(r.code), message: "the server said " & r.status
       )
+    except TooBig as e:
+      return FetchResult(ok: false, message: e.msg)
     except Exception: # (httpclient is declared to raise anything)
       return FetchResult(ok: false, message: getCurrentExceptionMsg())
   let telling = result.getTelling
   result.get = proc(url: string): FetchResult {.closure, raises: [].} =
-    telling(url, nil)
+    telling(url, nil, high(int64))
 
 proc realFreeBytes*(dir: string): Option[int64] {.raises: [].} =
   ## Room left on the disk that holds `dir` (or the nearest directory above it that exists).
@@ -164,7 +186,11 @@ proc realFreeBytes*(dir: string): Option[int64] {.raises: [].} =
   none(int64)
 
 proc realEnv*(): Env =
-  Env(fetcher: realFetcher(), freeBytes: realFreeBytes)
+  Env(
+    fetcher: realFetcher(),
+    freeBytes: realFreeBytes,
+    inflater: inflateInChild(getAppFilename()),
+  )
 
 # --- fetching
 
@@ -251,7 +277,7 @@ proc fetchSource*(
   let r =
     if env.fetcher.getTelling != nil:
       tick(0, 0) # (the size the server announced goes with it)
-      env.fetcher.getTelling(url, tick)
+      env.fetcher.getTelling(url, tick, src.maxBytes)
     else:
       env.fetcher.get(url)
   if not r.ok:

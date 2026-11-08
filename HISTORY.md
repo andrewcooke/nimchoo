@@ -2886,3 +2886,25 @@ two functions called `baseTypeOf` (from the definition's byte, from the profile'
   `baseTypeFromName` replace the two `baseTypeOf`.
 * Now: a bool that is 255 (or all 255) is left out of the record; an isolated 255 in an array stays 255, as for numbers.
   The 26 sample files give the same CSV as the SDK before and after (`nimble csvreport`), so none of them has such a bool.
+
+### A limit applies to what arrives (2026-11-08, REVIEW.md class H)
+
+Two limits were checked against a claim, or after everything had been read: a zip entry's declared size (then zippy
+inflated all of it into memory before the length was compared), and a download's `Content-Length` (checked by a `HEAD`
+request and again after `httpclient` had the whole body in memory).
+* **Downloads:** `fetch.checkProgress` is called from `httpclient`'s progress callback and stops the download with
+  `TooBig` once more than the source's `maxBytes` has come.  `httpclient` reports at most once a second, so what has
+  arrived can pass the limit by up to a second of the link's speed: the memory is bounded, not exact.  The test runs a
+  paced server on the loopback (a fast one finishes before the first report) and checks that 50 MB offered is stopped
+  early, whether or not the length was announced.
+* **Zips:** zippy has no way to stop at a size (its buffer grows as the output does; no maximum is taken).  The
+  options were an inflate of our own with a cap, a patched copy of zippy's, leaving it, `unzip -p` to a file (a new
+  dependency), and a child process.  Chosen: the child.  `zipchild.nim` runs this program as
+  `nch --inflate IN OUT LIMIT`; the child limits its own address space (`RLIMIT_AS`: three times the limit, for zippy's
+  doubling, and 512 MB for the program) and inflates; an entry that runs away ends the child, and the caller says "zip
+  entry too large".  The caller passes an `Inflater` to `extractEntry`/`readEntry`; `realEnv()` has one (so the
+  downloaded zips, GeoNames and Natural Earth, go through it), and without one the entry is inflated in the process
+  as before (xlsx, tests).  The child writes its result to a file, but zippy still builds it in memory first, so this
+  is a ceiling and not a stream.  A 150 MB entry of zeros with a header claiming 1000 bytes is refused in the test.
+* Reported to zippy (draft in the session scratchpad: an optional `maxSize` for `uncompress`); if it is taken, the
+  child can go and the limit be a parameter.

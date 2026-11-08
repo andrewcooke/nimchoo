@@ -1,4 +1,4 @@
-import std/[monotimes, options, os, sets, strutils, tables, unittest]
+import std/[monotimes, nativesockets, net, options, os, sets, strutils, tables, times, unittest]
 import nimchoo/download/[fetch, sinks, sources, spinner]
 import nimchoo/ui/[live, logfile, palette, style]
 import ../support/zips
@@ -263,7 +263,7 @@ suite "download: the line while a file comes":
     net.bodies[chile] = makeZip([("CL.txt", "1\tSantiago\n"), ("readme.txt", "x")])
     var env = envOf(net)
     env.fetcher.getTelling = proc(
-        u: string, tick: Tick
+        u: string, tick: Tick, maxBytes: int64
     ): FetchResult {.closure, raises: [].} =
       tick(100, 1000)
       tick(1000, 1000)
@@ -377,3 +377,70 @@ suite "download: a job of the command's own, with a spinner":
     sleep(100)
     sink(DownloadEvent(kind: deWorkDone)) # (it failed: the line goes)
     check "naming" notin written[^1]
+
+# --- the limit is on what arrives, not on what the server says
+
+type Junk = tuple[fd: int, sent: int, announce: bool]
+
+proc serveJunk(j: Junk) {.thread.} =
+  ## A server on the loopback that answers one request with `sent` bytes (and says so, or not) and closes.
+  {.cast(gcsafe).}:
+    try:
+      let server = newSocket(SocketHandle(j.fd))
+      var client: Socket
+      server.accept(client)
+      var line = ""
+      while not line.endsWith("\r\n\r\n"):
+        var c = ""
+        if client.recv(c, 1) <= 0:
+          break
+        line.add c
+      client.send(
+        "HTTP/1.1 200 OK\r\n" & (if j.announce: "Content-Length: " & $j.sent & "\r\n" else: "") &
+          "Connection: close\r\n\r\n"
+      )
+      # (paced: httpclient reports progress at most once a second, so a body that comes at once is not caught)
+      let chunk = repeat('x', 250_000)
+      var left = j.sent
+      while left > 0:
+        let n = min(left, chunk.len)
+        client.send(chunk[0 ..< n])
+        left -= n
+        sleep(100)
+      client.close()
+    except CatchableError:
+      discard # (the client stopped reading: that is what is tested)
+
+proc fromJunk(sent: int, announce: bool, maxBytes: int64): tuple[r: FetchResult, ms: int64] =
+  let server = newSocket()
+  server.setSockOpt(OptReuseAddr, true)
+  server.bindAddr(Port(0), "127.0.0.1")
+  server.listen()
+  let port = server.getLocalAddr()[1]
+  var t: Thread[Junk]
+  createThread(t, serveJunk, (int(server.getFd()), sent, announce))
+  let t0 = getMonoTime()
+  result.r = realFetcher(5000).getTelling(
+    "http://127.0.0.1:" & $int(port) & "/x", nil, maxBytes
+  )
+  result.ms = (getMonoTime() - t0).inMilliseconds
+  joinThread(t)
+  server.close()
+
+suite "download: the size limit applies to what arrives":
+  test "checkProgress stops at the limit and not before":
+    checkProgress(0, 1000)
+    checkProgress(1000, 1000)
+    expect TooBig:
+      checkProgress(1001, 1000)
+  test "a body within the limit comes whole":
+    let (r, _) = fromJunk(300_000, true, 1_000_000)
+    check r.ok and r.body.len == 300_000
+  test "a server that sends more than the limit is stopped, long before it has sent it all":
+    let (r, ms) = fromJunk(50_000_000, true, 1_000_000) # (it would take 20 s)
+    check not r.ok and r.message.contains("allowed")
+    check ms < 5000
+  test "so is one that says nothing about the size":
+    let (r, ms) = fromJunk(50_000_000, false, 1_000_000)
+    check not r.ok and r.message.contains("allowed")
+    check ms < 5000
