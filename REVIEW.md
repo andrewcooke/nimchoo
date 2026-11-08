@@ -56,8 +56,8 @@ consumer cannot ignore them; check the other consumers (impulses, names, map) ag
 **B. Noisy input reaches every consumer, and work grows with it unbounded.**  One bad GPS fix makes a box of
 more than 4000 cells, and `names/lookup.nim:66` falls back to `allCountries()`: every country's GeoNames file
 is downloaded (~250 zips).  *Fix:* explicit limits wherever work fans out (downloads, cells, sizes), refusing
-with a message; later, cleaning at import (outlier positions, impossible jumps) in one place, with the `sample`
-table.
+with a message; later, cleaning at import (outlier positions, impossible jumps) in one place, with the per-activity
+arrays.
 
 **C. Queries are not checked against the schema.**  No index on `effort(activity_id)`: deleting activities and
 `activity_id in (...)` scan the table.  SQLite does not index foreign keys by itself.  *Fix:* a test that every
@@ -211,11 +211,16 @@ Use `Option`, enums, or a small `Result`.
 
 474 MB for 1112 activities: `coords` 263 MB (6.2 M rows), `route` 101 MB, `heartrate` 100 MB (6.1 M rows).
 
-* `heartrate` repeats the `(activity_id, t)` key of `coords` for every second and costs a join.  The normal
-  design is one `sample` table with the common FIT channels as nullable columns (§6).
+* The cost is **a row per second**, not the number of tables: `heartrate` is ~16 bytes per reading, mostly the
+  repeated `(activity_id, t)` key and its index; the value is one byte.
+* Every read of `coords` and `heartrate` is "all of one activity, in time order" (`climbs/work.nim:92`,
+  `importer/naming.nim:54`, `model/impulses.nim:26`) or "has it any" (`model/impulses.nim:73,111`,
+  `selection/criteria.nim:611,613`).  Nothing filters, sorts or aggregates single samples in SQL.
+* So per-second data should be **one row per activity, holding arrays** (§6): heart rate ~6 MB instead of 100,
+  read in one go.  The cost: an array is opaque to SQL (nothing needs that today; a package that ever does can
+  keep a row table of its own).
 * `route` is a second full copy of the positions.  It is needed for the spatial index but may not need every
   point: `ST_Simplify` at ~2-5 m could shrink it a lot without changing a "passes near" answer.  Measure.
-* Bigger option, not recommended yet: one compressed blob of columns per activity instead of rows.
 
 ### 4.6 Module boundaries have drifted
 
@@ -342,9 +347,23 @@ another's table.
 
 ### Samples
 
-The importer owns the raw per-second data: one `sample` table with the common FIT channels (position,
-altitude, heart rate, power, cadence, speed, temperature), nullable.  Packages own derived data.  This replaces
-`coords` + `heartrate`; the heart-rate import step goes.
+Per-second data is stored **per activity, as arrays**: one row per activity in a table per channel (or group of
+channels), not one row per second.  Under this rule a table per package costs almost nothing, so pluggability
+and efficiency agree:
+
+```sql
+create table heartrate (
+  activity_id integer primary key references activity(id) on delete cascade,
+  t0 integer not null,     -- time of the first reading
+  bpm blob not null        -- one byte per second; 0: no reading
+) strict;
+```
+
+* The importer owns time, position and altitude (one table, arrays per activity; the timer segments with them).
+* Other channels belong to the package that wants them, taken from the FIT file by an import step (the
+  extension point that exists): heart rate stays a package of its own.
+* The spatial queries are unaffected: they use `route` and `activity.start`.
+* The encoding (plain fixed-width numbers, or compressed with zippy) is decided by measuring; plain first.
 
 ### Cache
 
@@ -412,8 +431,9 @@ Cheap and safe first; each later step is easier because of the earlier ones.  Le
     messages built from the constants.
 12. **Push work into SQL** (4.4), measuring before and after.
 13. **Shrink** (4.7): templating to what is used; one cache naming scheme; `decode` dispatch written once.
-14. **Larger changes, each discussed first**: the `sectors` split; the `sample` table with cleaning at import
-    (B; measure size and the import, climbs and map times before and after; then a simplified `route`); the
+14. **Larger changes, each discussed first**: the `sectors` split; per-activity arrays for the per-second data, with
+    cleaning at import (B; measure size and the import, climbs and map times before and after; then a simplified
+    `route`); the
     cache manifest.
 
 ## 8. Proposed additions to CLAUDE.md
