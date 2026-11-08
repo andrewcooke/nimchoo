@@ -9,7 +9,7 @@
 ## here tells them apart from what the file says (who stopped and restarted
 ## the timer) and what the rider did (how far they were from where they
 ## stopped, in how long).  Measured on 55,171 gaps of the author's rides it
-## joins 99.3%; the rest are manual stops, long gaps that moved, and short
+## joins 99.4%; the rest are manual stops, long gaps that moved, and short
 ## ones that moved too far to be explained by the rider's own speed.
 ##
 ## Pure: the importer measures the gap and asks.
@@ -41,12 +41,15 @@ type
     stoppedBy*, restartedBy*: Trigger
 
 func joinable*(g: Gap): bool =
-  ## True if the segments on either side of `g` are one stretch.  Only a timer
-  ## known to have been stopped and restarted by the device joins: by hand is
-  ## the rider's way to say "this is apart", and what the file does not say we
-  ## do not assume.
+  ## True if the segments on either side of `g` are one stretch.  The timer
+  ## must have been stopped by the device: a stop by hand is the rider's way to
+  ## say "this is apart", and what the file does not say we do not assume.  It
+  ## may have been restarted by hand, which is what a rider does when the device
+  ## did not notice they were off again.  (Measured on the author's rides: 97 of
+  ## the gaps are an auto stop and a manual restart, 72 of them under 20 m; a
+  ## stop by hand is never followed by an automatic restart.)
   doAssert g.seconds >= 0 and g.metres >= 0, "a gap has a length and a duration"
-  if g.stoppedBy != trAuto or g.restartedBy != trAuto:
+  if g.stoppedBy != trAuto or g.restartedBy notin {trAuto, trManual}:
     return false
   if g.metres < stillM:
     return true

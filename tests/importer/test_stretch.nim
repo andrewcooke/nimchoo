@@ -25,11 +25,16 @@ suite "stretches: when timer segments join":
     check not auto(30, 400).joinable # 13.3 m/s, but the gap is not short
     check not auto(120, 100).joinable
     check not auto(0, 40).joinable # no time at all is read as one second: 40 m/s
-  test "only a timer known to be stopped and restarted by the device joins":
+  test "the device must have stopped the timer; the restart may be by hand":
     for stop in Trigger:
       for restart in Trigger:
         let g = Gap(seconds: 1, metres: 0, stoppedBy: stop, restartedBy: restart)
-        check g.joinable == (stop == trAuto and restart == trAuto)
+        check g.joinable == (stop == trAuto and restart in {trAuto, trManual})
+  test "a restart by hand is judged like any other: by how far and how fast":
+    let g = Gap(seconds: 97, metres: 0, stoppedBy: trAuto, restartedBy: trManual)
+    check g.joinable
+    check not Gap(seconds: 97, metres: 40, stoppedBy: trAuto, restartedBy: trManual).joinable
+    check Gap(seconds: 20, metres: 200, stoppedBy: trAuto, restartedBy: trManual).joinable
   test "the longest jump the speed rule can join is bounded by its constants":
     check quickS.float * ridingMps == 450.0
     check not auto(quickS - 1, 450).joinable

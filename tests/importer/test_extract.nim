@@ -397,18 +397,22 @@ proc stretchesOf(body: seq[byte]): seq[Segment] =
 
 suite "segments: stretches in files":
   # two timer segments, [base, base+10] and [base+50, base+70], with a gap of 40 s
-  proc twoSegments(restartTrigger, metresMoved: int, gap = 40): seq[byte] =
+  proc twoSegments(restartTrigger, metresMoved: int, gap = 40, stopTrigger = 1): seq[byte] =
     let t2 = base + 10 + gap
     recordDefn & pos(base, 0) & pos(base + 10, 10) & pos(t2 + 10, 10 + metresMoved) &
       pos(t2 + 20, 20 + metresMoved) & timerTDefn & timerT(base, 0, 1) &
-      timerT(base + 10, 4, 1) & timerT(t2, 0, restartTrigger) & timerT(t2 + 20, 4, 1) &
+      timerT(base + 10, 4, stopTrigger) & timerT(t2, 0, restartTrigger) & timerT(t2 + 20, 4, 1) &
       sessionDefn & session(base, t2 + 20)
 
   test "an auto-pause where the rider stayed is one stretch":
     check stretchesOf(twoSegments(1, 5)).spans == @[seg(unixBase, unixBase + 70)]
 
-  test "restarted by hand: two stretches":
-    check stretchesOf(twoSegments(0, 5)).len == 2
+  test "stopped by the device and restarted by hand: one stretch":
+    check stretchesOf(twoSegments(0, 5)).len == 1
+
+  test "stopped by hand: two stretches, even if the rider did not move":
+    check stretchesOf(twoSegments(0, 0, stopTrigger = 0)).len == 2
+    check stretchesOf(twoSegments(1, 0, stopTrigger = 0)).len == 2
 
   test "an auto-pause in which the rider moved 500 m: two stretches":
     check stretchesOf(twoSegments(1, 500)).len == 2

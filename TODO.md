@@ -31,10 +31,6 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 
 To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
 
-* **A manual restart after an auto-pause** (decided 2026-11-08 that a manual stop or start keeps stretches apart):
-  97 gaps in the author's rides are an auto stop and a manual start (72 of them moved under 20 m).  One of them
-  split a Farellones ride, which lost its effort on the whole climb and made a climb of the upper 6 km
-  (`Farellones₄`).  Decide whether a manual restart after an auto stop should join (a manual *stop* still separates).
 * **Naming is slow** (11 s for 1,112 activities: 4.6 s reading 6.2 M `coords` rows as text, 6.2 s in
   `nameActivity`, not broken down; nothing shown meanwhile).  The author wants to go through how naming works
   first.  Steps 7 and 14 (typed reads, arrays) take most of the reading time away.

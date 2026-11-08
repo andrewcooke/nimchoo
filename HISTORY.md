@@ -2772,16 +2772,19 @@ itself (`timer_trigger` = auto) whenever the rider slows down.  Of 55,171 gaps, 
 **Decision (the author).**  A gap joins two timer segments into one *stretch* (the `segment` table now holds stretches) when
 both ends were the device's own (`trAuto`) and the rider moved under 30 m, however long the pause (a drink stop on a climb
 is 2 to 13 minutes), or the gap was under 30 s at under 15 m/s (the timer blinked off while the rider carried on).  A timer
-stopped or started by hand, or not said to be auto, always separates ("allowing the user to mark things as separate").  A
+stopped by hand, or not said to be stopped by the device, always separates ("allowing the user to mark things as
+separate"); a restart by hand after an auto stop is judged like any other (added the same day, below).  A
 time limit on the distance branch was tried and dropped: it would have split 9 of the 14 efforts on the Farellones climbs,
 all of whose gaps moved 13 m or less.  An effort's time stays gate to gate, stops included (a rider who does not stop earns
 the faster time), as the author settled on 2026-11-04.  Rule: `importer/stretch.nim` (pure, `joinable`); applied in
 `extract.nim` after `cover`; read by `importer/track.nim` (`readTrack`: positions by stretch, no flat view), used by
 `climbs/work.nim` for matching, detecting and matching new sectors (algorithm version 4).
 
-**Result (rebuilt the same day).** The 1,112 rides have 2,266 stretches (57,035 - 54,769 joinable gaps: as predicted from
-the gaps, 99.3% joined); all 12 invariants hold; 187 climbs and 4,532 efforts (before: 184 and 4,569).  Farellones 1 to 3
-are whole (lengths within 5 m); one ride, whose timer was restarted by hand 97 s after an auto-pause, was split, lost its
-effort on the whole climb and made a climb of the upper 6 km (Farellones 4, 9.2%, with 8 efforts).  Open: whether a manual
-restart after an auto stop should join (TODO.md).
-
+**Result (rebuilt the same day).** First with every manual trigger separating: 2,266 stretches (57,035 - 54,769
+joinable gaps: as predicted from the gaps), all 12 invariants held, 187 climbs and 4,532 efforts (before: 184 and 4,569),
+but one Farellones ride, whose timer was restarted by hand 97 s after an auto-pause, was split: it lost its effort on the
+whole climb and made a climb of the upper 6 km (Farellones 4, 9.2%, 8 efforts).  97 gaps in the rides are an auto stop
+and a manual restart (72 moved under 20 m), and a manual stop is never followed by an automatic restart, so the author
+decided that a **restart by hand after an auto stop joins** (judged by distance and speed like any other); a stop by
+hand still separates.  Final: 99.4% of the 55,171 gaps join (54,847), 2,188 stretches, 183 climbs, 4,493 efforts, all
+invariants hold, Farellones 1 to 3 as before the change (1, 2 and 11 efforts, 14 in all, 11 rides) and no Farellones 4.
