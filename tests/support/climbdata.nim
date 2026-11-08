@@ -33,8 +33,11 @@ proc addRide*(
     xs: seq[float],
     withAltitude = true,
     northM = 0.0,
+    breaksAfter: seq[int] = @[],
 ) =
-  ## A ride along the road: the places it passes in turn (metres east), a point a second.
+  ## A ride along the road: the places it passes in turn (metres east), a point a second, in one
+  ## stretch of riding.  After the points whose index is in `breaksAfter` the timer is stopped
+  ## for a minute (the rider is carried on to the next place): a new stretch.
   let u = s.db.getValue(sql"select id from user where name = ?", user)
   s.db.exec(
     sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
@@ -52,7 +55,9 @@ proc addRide*(
   let a = s.db.getValue(sql"select max(id) from activity")
   var wkt: seq[string]
   var t = startT
-  for x in xs:
+  var stretches: seq[(int, int)] # (start, end) times of each stretch
+  var since = startT
+  for i, x in xs:
     let alt =
       if withAltitude:
         $altitude(x)
@@ -68,7 +73,21 @@ proc addRide*(
     )
     wkt.add formatFloat(x * metre, ffDecimal, 9) & " " &
       formatFloat(northM * metre, ffDecimal, 9)
-    inc t
+    if i in breaksAfter:
+      stretches.add (since, t)
+      t += 60
+      since = t
+    else:
+      inc t
+  stretches.add (since, t - 1)
+  for n, (g0, g1) in stretches:
+    s.db.exec(
+      sql"insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)",
+      a,
+      n,
+      g0,
+      g1,
+    )
   s.db.exec(
     sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
     a,

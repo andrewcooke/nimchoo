@@ -32,12 +32,12 @@ suite "invariants":
     check violations(s.db) == newSeq[string]()
     s.close()
 
-  test "an effort across a gap between timer segments is found":
+  test "an effort across a gap between stretches is found":
     let s = fresh("gap")
     s.db.effort(1400, 1700)
     let v = violations(s.db)
     check v.len == 1
-    check v[0].startsWith("every effort lies within one timer segment")
+    check v[0].startsWith("every effort lies within one stretch")
     s.close()
 
   test "overlapping segments, a missing climb decision and an orphan are found":
@@ -47,7 +47,7 @@ suite "invariants":
     s.db.exec(sql"pragma foreign_keys = off")
     s.db.exec(sql"insert into heartrate values (99, 1000, 70)")
     let v = violations(s.db).join("\n")
-    check "segments of an activity are in order" in v
+    check "stretches of an activity are in order" in v
     check "every climb has a name decision" in v
     check "no foreign key points at nothing" in v
     s.close()

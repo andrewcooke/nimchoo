@@ -14,7 +14,7 @@ type Invariant* = object
 
 const allInvariants* = [
   Invariant(
-    name: "every effort lies within one timer segment of its activity",
+    name: "every effort lies within one stretch of riding of its activity",
     offenders:
       "select e.activity_id || ' sector ' || e.sector_id || ' at ' || e.start_t from effort e " &
       "where not exists (select 1 from segment s where s.activity_id = e.activity_id " &
@@ -27,14 +27,14 @@ const allInvariants* = [
       "where finish_t <= start_t or abs(elapsed_s - (finish_t - start_t)) > 0.001",
   ),
   Invariant(
-    name: "the segments of an activity are in order and disjoint",
+    name: "the stretches of an activity are in order and disjoint",
     offenders:
       "select a.activity_id || ' segment ' || a.n from segment a " &
       "left join segment b on b.activity_id = a.activity_id and b.n = a.n + 1 " &
       "where a.end_t < a.start_t or (b.n is not null and b.start_t < a.end_t)",
   ),
   Invariant(
-    name: "the segments of an activity lie within the activity",
+    name: "the stretches of an activity lie within the activity",
     offenders:
       "select s.activity_id || ' segment ' || s.n from segment s join activity a on a.id = s.activity_id " &
       "where s.start_t < a.start_t or s.end_t > a.end_t",

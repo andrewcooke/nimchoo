@@ -13,11 +13,11 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
       joined when `importer/stretch.nim` `joinable` says so (auto-pause both ends, and the rider moved under 30 m, or
       the gap was under 30 s at under 15 m/s; a manual stop always separates).  Stops stay in an effort's time.
       Done: the rule and its tests; the importer (`extract.nim` keeps `timer_trigger`, `joinStretches` after
-      `cover`; the route has a part per stretch).  To do: `climbs/work.nim` reads coords per stretch (profile,
-      matching a ride to sectors, matching a new sector to earlier rides) and `algorithmVersion` goes up; a class test
-      (a ride with a real jump gives no effort or climb across it); rebuild (the schema comment of
-      `importer/001-schema.sql` changed, so `nch db --delete -f`, import, climbs) and `nimble invariants`; check the
-      Farellones climbs (#72, #109, #115) still come out whole.
+      `cover`; the route has a part per stretch); `importer/track.nim` reads a track as its stretches and
+      `climbs/work.nim` uses it everywhere (`algorithmVersion` 4), with class tests.  To do: rebuild (the schema
+      comment of `importer/001-schema.sql` changed, so `nch db --delete -f`, import, climbs), `nimble invariants`,
+      and check the Farellones climbs (#72, #109, #115) still come out whole; also check the other consumers of a
+      track against the loader (names reads `route`, which is per stretch already; the map reads `route`).
       Found by step 2 (done): A: 1666 of 4569 efforts in the author's database cross a timer-segment gap (`nimble
       invariants`); C: `tests/db/test_schema.nim` fails for five foreign keys (effort, country_cell, impulse,
       seen_file, selection) and is not yet in `tests/all.nim`: add the indexes, then add it.  Still open from

@@ -3,7 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/climbs/work
 import nimchoo/db/store
 import nimchoo/errors
-import ../support/[climbdata, userdata]
+import ../support/[climbdata, invariants, userdata]
 
 suite "climbs: working them out":
   test "a ride with a climb makes a sector and an effort; asking again does nothing":
@@ -204,3 +204,49 @@ suite "climbs: working them out":
     check seen == @[(1, 2), (2, 2)]
     check counts[0].activities == 1 and counts[0].sectors == 1 # the counts so far
     check counts[1].activities == 2 and counts[1].efforts == 2
+
+suite "climbs: stretches of riding":
+  # the ride starts 500 m before the road does and goes 5 m/s: point 600 is 2.5 km along, the middle of the climb
+  test "no effort or climb crosses a break in the middle of the climb":
+    let s = fresh("break")
+    defer:
+      s.close()
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[600])
+    discard ensureClimbs(s)
+    check s.db.getValue(sql"select count(*) from segment") == "2"
+    # nothing was made across it: the invariant that nimble invariants checks on real data
+    for line in violations(s.db):
+      check not line.startsWith("every effort lies within one stretch")
+    # and the whole 3 km climb was not found: each half is shorter
+    check s.db.getValue(sql"select count(*) from sector where length_m > 2500") == "0"
+
+  test "the same ride in one stretch finds the whole climb":
+    let s = fresh("nobreak")
+    defer:
+      s.close()
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    discard ensureClimbs(s)
+    check s.db.getValue(sql"select count(*) from sector where length_m > 2500") == "1"
+
+  test "a ride that has a break before the climb still finds it, with its effort":
+    let s = fresh("breakbefore")
+    defer:
+      s.close()
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[100])
+    check ensureClimbs(s) == Worked(activities: 1, sectors: 1, efforts: 1)
+    for line in violations(s.db):
+      check not line.startsWith("every effort lies within one stretch")
+
+  test "an earlier ride with a break is matched, stretch by stretch, against a later sector":
+    let s = fresh("earlier")
+    defer:
+      s.close()
+    # the first ride is broken in the middle of the climb: it makes no 3 km sector and no effort across the break;
+    # the second ride is whole and makes the sector; the first, being earlier and near it, gets no effort on it,
+    # because the pass is not within one of its stretches
+    addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[600])
+    addRide(s, "default", "two", 2_000_000, 5.0, eastbound(5.0))
+    discard ensureClimbs(s)
+    check s.db.getValue(sql"select count(*) from effort e join sector c on c.id = e.sector_id where c.length_m > 2500") == "1"
+    for line in violations(s.db):
+      check not line.startsWith("every effort lies within one stretch")

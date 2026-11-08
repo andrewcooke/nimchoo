@@ -8,17 +8,21 @@
 ##      times, so a ride with no altitude gets efforts on known climbs);
 ##   2. its climbs (from the altitude): one that is not a stored sector again becomes a sector;
 ##   3. a new sector is matched against the ride it came from and every earlier ride near it.
+## A ride is read as its stretches of riding (importer/track.nim) and everything above is done in each
+## stretch, never across a break: a pause the device made by itself is inside a stretch, and a stop by
+## hand or a jump (a car, a train) is between two, so an effort or a climb cannot include road the rider
+## did not ride.
+##
 ## Each activity is one transaction, and is then recorded in `climbs_done` (also when nothing was
 ## found), with the version of the method.  If the method changes the version does, and
 ## `clearClimbs` (`nch climbs --all --delete`) starts again.
 
-import std/[math, options, strutils, tables]
+import std/[math, strutils, tables]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
-import ../fit/time
 import ../ids
-import ../importer/extract
+import ../importer/[extract, track]
 import ../lookup
 import ../profiling
 import ./[detect, match, ordinal, profile]
@@ -26,8 +30,8 @@ import ./[detect, match, ordinal, profile]
 {.push raises: [].}
 
 const
-  algorithmVersion* = 3
-    ## 3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
+  algorithmVersion* = 4
+    ## 4: a ride is read as its stretches of riding (importer/stretch.nim), and a climb or an effort never crosses a break.  3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
   margin = 0.001 ## degrees (about 100 m) added to a box that is looked for
   ridePointLimit = 3_000_000 ## about 70 MB
 
@@ -42,7 +46,7 @@ type
   Rides = object
     ## The rides read recently (the same rides are wanted again for each new sector near them),
     ## kept while they hold fewer than `ridePointLimit` points in all.
-    paths: Table[int64, Path]
+    paths: Table[int64, seq[Path]] ## a path for each stretch of the ride that has two positions
     points: int
 
 func boxOf(p: Path): Box =
@@ -85,45 +89,50 @@ func lineStringText(p: Path): string =
       formatFloat(p.elev[i], ffDecimal, 1)
   "LINESTRING Z(" & points.join(", ") & ")"
 
-proc readCoords(st: Store, id: ActivityId): seq[Coord] {.raises: [StoreError].} =
-  timed "climbs: read coords":
-    guard:
-      for r in st.db.fastRows(
-        sql"select t, lon, lat, alt from coords where activity_id = ? order by t", id
-      ):
-        try:
-          result.add Coord(
-            t: UnixTime(parseBiggestInt(r[0])),
-            lon: parseFloat(r[1]),
-            lat: parseFloat(r[2]),
-            alt:
-              if r[3].len > 0:
-                some(parseFloat(r[3]))
-              else:
-                none(float),
-          )
-        except ValueError:
-          raiseStore("a bad coordinate in the database")
+func ridePaths(track: Track): seq[Path] =
+  ## The positions and times of each stretch of a ride as a path (a stretch of fewer than two
+  ## positions holds no line, so none is made).
+  for coords in track:
+    if coords.len < 2:
+      continue
+    var p: Path
+    for c in coords:
+      p.lon.add c.lon
+      p.lat.add c.lat
+      p.t.add float(int64(c.t))
+    result.add p
 
-func ridePath(coords: openArray[Coord]): Path =
-  for c in coords:
-    result.lon.add c.lon
-    result.lat.add c.lat
-    result.t.add float(int64(c.t))
+func pointCount(ride: seq[Path]): int =
+  for p in ride:
+    result += p.len
+
+func boxOf(ride: seq[Path]): Box =
+  result = (Inf, Inf, -Inf, -Inf)
+  for p in ride:
+    let b = boxOf(p)
+    result.lon0 = min(result.lon0, b.lon0)
+    result.lat0 = min(result.lat0, b.lat0)
+    result.lon1 = max(result.lon1, b.lon1)
+    result.lat1 = max(result.lat1, b.lat1)
+
+func overRide(sector: Path, ride: seq[Path]): seq[Effort] =
+  ## The passes of a ride over a sector: those of each stretch (a pass lies within one).
+  for p in ride:
+    result.add overPaths(sector, p)
 
 proc rideOf(
     st: Store, rides: var Rides, id: ActivityId
-): Path {.raises: [StoreError].} =
-  ## The positions and times of an activity, read once while it is wanted.
+): seq[Path] {.raises: [StoreError].} =
+  ## The stretches of an activity as paths, read once while it is wanted.
   let key = int64(id)
   if key in rides.paths:
     return rides.paths.getOrDefault(key)
-  result = ridePath(st.readCoords(id))
-  if rides.points + result.len > ridePointLimit:
+  result = ridePaths(readTrack(st.db, id))
+  if rides.points + result.pointCount > ridePointLimit:
     rides.paths.clear()
     rides.points = 0
   rides.paths[key] = result
-  rides.points += result.len
+  rides.points += result.pointCount
 
 func climbPath(p: Profile, c: Climb): Path =
   ## The route of a climb: the samples of the profile from its start to its end.
@@ -201,24 +210,24 @@ proc workOn(
     "insert into sector(length_m, gain_m, gradient, category, " &
       "found_at, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))",
   )
-  let coords = st.readCoords(id)
-  if coords.len >= 2:
-    let ride = ridePath(coords)
+  let track = readTrack(st.db, id)
+  let ride = ridePaths(track)
+  if ride.len > 0:
     let rideBox = boxOf(ride)
-    if rides.points + ride.len > ridePointLimit:
+    if rides.points + ride.pointCount > ridePointLimit:
       rides.paths.clear()
       rides.points = 0
     rides.paths[int64(id)] = ride
-    rides.points += ride.len
+    rides.points += ride.pointCount
     # 1. the sectors that exist
     var matched: seq[int64] # the sectors this ride earned an effort on
     for sector in st.sectorsNear(cache, rideBox):
       timed "climbs: match a ride to a sector":
-        let n = insertEffort.addEfforts(sector, id, overPaths(cache.must(sector), ride))
+        let n = insertEffort.addEfforts(sector, id, overRide(cache.must(sector), ride))
         result.efforts += n
         if n > 0:
           matched.add sector
-    # 2. its climbs
+    # 2. its climbs, in each stretch of riding (a climb does not cross a break)
     var foundAt = 0'i64
     guard:
       try:
@@ -227,45 +236,48 @@ proc workOn(
         )
       except ValueError:
         raiseStore("a bad start time in the database")
-    var prof: Profile
-    var climbs: seq[Climb]
-    timed "climbs: profile and detect":
-      prof = buildProfile(coords)
-      climbs = findClimbs(prof)
-    for climb in climbs:
-      let route = climbPath(prof, climb)
-      var again = false
-      for sector in st.sectorsNear(cache, boxOf(route)):
-        # the same climb again only if the ride went over that sector: a climb that overlaps a stored one but stops
-        # short of its finish (or starts after its start) earned no effort on it, and is a climb of its own
-        if sector in matched and isRepeat(cache.must(sector), route):
-          again = true
-          break
-      if again:
+    for coords in track:
+      if coords.len < 2:
         continue
-      insertSector.bindReal(1, climb.length)
-      insertSector.bindReal(2, climb.gain)
-      insertSector.bindReal(3, climb.gradient)
-      insertSector.bindOptText(4, climb.category)
-      insertSector.bindInt(5, foundAt)
-      insertSector.bindText(6, lineStringText(route))
-      insertSector.run()
-      let sector = lastInsertId(st.db)
-      assignNumber(st, sector)
-      cache[sector] = route
-      inc result.sectors
-      # 3. the new sector against the ride it came from, and the earlier rides near it
-      let own = insertEffort.addEfforts(sector, id, overPaths(route, ride))
-      result.efforts += own
-      if own > 0:
-        matched.add sector
-        # (so that a later lap over the same climb is this sector again)
-      for other in st.ridesNear(boxOf(route)):
-        if other != id:
-          let otherRide = st.rideOf(rides, other)
-          timed "climbs: match a new sector to an earlier ride":
-            result.efforts +=
-              insertEffort.addEfforts(sector, other, overPaths(route, otherRide))
+      var prof: Profile
+      var climbs: seq[Climb]
+      timed "climbs: profile and detect":
+        prof = buildProfile(coords)
+        climbs = findClimbs(prof)
+      for climb in climbs:
+        let route = climbPath(prof, climb)
+        var again = false
+        for sector in st.sectorsNear(cache, boxOf(route)):
+          # the same climb again only if the ride went over that sector: a climb that overlaps a stored one but stops
+          # short of its finish (or starts after its start) earned no effort on it, and is a climb of its own
+          if sector in matched and isRepeat(cache.must(sector), route):
+            again = true
+            break
+        if again:
+          continue
+        insertSector.bindReal(1, climb.length)
+        insertSector.bindReal(2, climb.gain)
+        insertSector.bindReal(3, climb.gradient)
+        insertSector.bindOptText(4, climb.category)
+        insertSector.bindInt(5, foundAt)
+        insertSector.bindText(6, lineStringText(route))
+        insertSector.run()
+        let sector = lastInsertId(st.db)
+        assignNumber(st, sector)
+        cache[sector] = route
+        inc result.sectors
+        # 3. the new sector against the ride it came from, and the earlier rides near it
+        let own = insertEffort.addEfforts(sector, id, overRide(route, ride))
+        result.efforts += own
+        if own > 0:
+          matched.add sector
+          # (so that a later lap over the same climb is this sector again)
+        for other in st.ridesNear(boxOf(route)):
+          if other != id:
+            let otherRide = st.rideOf(rides, other)
+            timed "climbs: match a new sector to an earlier ride":
+              result.efforts +=
+                insertEffort.addEfforts(sector, other, overRide(route, otherRide))
   guard:
     st.db.exec(
       sql"insert into climbs_done(activity_id, version) values (?, ?)",
