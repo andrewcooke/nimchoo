@@ -18,10 +18,13 @@ the choochoo directory parallel to this one).  what i want to do is:
 
 * use ai for development.
 
-## TODO.md
+## TODO.md, HISTORY.md, REVIEW.md
 
-you will track what we are doing via the file TODO.md in the nimchoo
-directory.
+* TODO.md holds **open work only**.  when something is done, delete it from TODO.md in the same commit.
+* HISTORY.md holds finished tasks and the reasoning behind decisions (TODO.md until 2026-11-08).  read it for *why*
+  something was decided; its names of commands and files are those of their time, so it is not current guidance.
+* REVIEW.md is the code review of 2026-11-08: the bugs, the problems, the package design and the plan that
+  TODO.md follows.
 
 ## rules
 
@@ -64,6 +67,13 @@ and later commands use its library files.  the only rule is that
 nothing but the top level dispatcher imports a command (that's not
 enforced by the language, but is checked by a test).  tests mirror the
 source tree.
+
+**direction (decided 2026-11-08): packages.**  the modules become packages that declare their dependencies; the
+build enforces a DAG; a third party adds a package by dropping a directory in and rebuilding.  the framework is
+minimal (the `Package` type and registry, the database handle and fragments, the extension-point types); everything
+else is a package, small ones included.  an early package that must be extended offers an extension point; it does
+not import the later package, and no package alters another's tables.  per-second data is stored per activity, as
+arrays.  details and steps: REVIEW.md §6; until that work is done the layout above is what exists.
 
 ## display
 
@@ -161,7 +171,7 @@ database (`nch db --delete -f`, then import again).  the cache survives
   A new file is also made with `auto_vacuum = incremental`; `reclaim` (in `db/store.nim`) gives the space back after a
   big delete.  Every new table must say `strict`.
 
-### other decisions to remember (details in TODO.md)
+### other decisions to remember (details in HISTORY.md)
 
 * names (climbs, activities, starts) come from GeoNames files downloaded on
   demand, read by one-degree cells into `feature`/`coverage`; every feature is
@@ -201,7 +211,7 @@ own format.  the number formats every one of them needs (`km`, the dash for not 
 
 ## the shape of the commands (decided 2026-11-05)
 
-a theory of the commands, to keep the interface consistent.  the work of getting there is tracked in TODO.md.
+a theory of the commands, to keep the interface consistent.  the work of getting there is in HISTORY.md (finished).
 
 * **a type that lives in the database has a plural command that manages the collection**: `activities`, `climbs`,
   `users`, `models`, `landmarks`.  the plural is a reminder that it works on a collection of instances.  the grammar
@@ -280,3 +290,94 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   the road, in lanes alternating sides so that climbs on the same stretch do not overlap, offset in pixels (recomputed on
   zoom, simplified first so that hairpins do not loop); corner cutting (`smooth_rounds`) rounds the lines.  A comment in
   these templates must not contain a tag (the engine ends a comment at the first closing braces).
+
+## working practice (decided 2026-11-08, after the review)
+
+* the author is exact about what is seen (output, behaviour, limits); how the code does it is for you to choose,
+  with the whole program in mind.  at a design point, offer two or three options and a recommendation rather
+  than one design.
+* when a feature fits badly on what exists, say so and propose changing what exists (within the package rules)
+  rather than working round it.
+* **a step is done when**: its tests pass (with a test for the class of bug, where there is one); what refers to
+  it is updated (help text, CLAUDE.md, TODO.md: grep the names you changed); the code it made dead is deleted.
+* a claim that something is faster, smaller or better comes with a measurement, or with before-and-after
+  examples where there is no ground truth.
+* suggest a whole-system review at milestones (every several features, before a squash), in a fresh session:
+  each step can be right while the whole drifts.
+
+## guidelines for writing code (from the review of 2026-11-08)
+
+* **one fact, one place.**  a list of names, options, kinds or help texts is written once and everything
+  else is made from it (a table indexed by an enum, generated usage).  never keep two lists in step by hand.
+* **parse, don't validate.**  input (the command line, rows from the database, files) is turned into a type
+  that can only hold valid values (variant objects, enums, distinct types, `Option`).  no bags of booleans
+  checked afterwards; no "" or -1 meaning "none" or "ok".
+* **a missing abstraction is the bug.**  when fixing a bug, ask what class it belongs to and fix the class (one
+  loader, one helper, one table), with a test that would catch the next instance.
+* **packages declare what they use.**  a package imports only its declared dependencies (checked by a test);
+  shared code is a package of its own, not part of the module that needed it first.
+* **let the database do database work.**  values are bound, never put into sql text; rows are read into typed
+  tuples or objects; filtering, joining, ranking and spatial search are sql, not loops in nim.
+* **a failure is never stored as a result**: raise, or warn and leave the work undone.
+* **delete dead code and stale docs in the same commit** that makes them dead.
+
+## conventions
+
+(moved from the old TODO.md on 2026-11-08 and corrected by hand; checking them against the code is TODO step 5.)
+
+### error handling
+
+four kinds of things go wrong, and each has one mechanism:
+
+1. **bugs are Defects.**  a violated precondition or a "can't happen" case uses `doAssert`/`raiseAssert` (or the
+   built-in bounds checks).  never caught, never turned into a warning.  a table lookup that must succeed uses
+   `must`/`mustMut` (`lookup.nim`), which asserts instead of raising `KeyError`.
+2. **input we cannot use is an exception**: a corrupt FIT file, a bad profile, a file that is not an xlsx.  all are
+   subtypes of `NchError` (`errors.nim`), raised with the `raiseFit` / `raiseProfile` / ... helpers and listed in
+   `{.raises.}`.  corrupt input must never reach a Defect (a fuzzer is to check this for FIT files: TODO step 2).
+3. **ordinary absence is an `Option`**.  no sentinel values.
+4. **oddities we can recover from are warnings**, collected (`warnings.nim`, each with a `WarningKind`), never
+   logged or printed by library code.
+
+* `try` only at boundaries: the commands, and where a third-party or `std` call is wrapped into one of our errors.
+  never `except CatchableError`/`Exception` (except at the top of a thread or server loop, said so in a comment).
+* every module starts with `{.push raises: [].}` after its imports, so a proc raises nothing unless it says so.
+* **commands** (`cli/common.nim`): `run(globals, args): int` is `{.raises: [].}`; 0 for success, 1 when the work
+  failed (one line on stderr, no trace), 2 for a usage error.
+
+### style
+
+* Nim 2.2 or later; the standard library first.  third-party: zippy (inflate), db_connector, checksums; C:
+  SQLite, with SpatiaLite loaded as an extension.  compiler-checked is better than convention (`raises`, `case`
+  over enums with no `else`, distinct types).
+* formatted with `nph`.  every module opens with a `##` comment saying what it is for, and `##` documents each
+  exported thing.  comments say *why*, not what the next line does.
+* `camelCase` for procs, variables, fields and constants; `PascalCase` for types; lower-case one-word module
+  names.  enum members carry a short tag of their type (`wkDataSize`, `vkInt`).
+* export with `*` only what other modules need.  `std/` imports first, as one bracketed list, then project
+  modules: relative inside `src/`, `nimchoo/...` in tests.
+* `func` for pure functions, `proc` for anything with effects.  results are returned, not written to out
+  parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
+  default.  no module-level mutable state (exceptions today: the importer's thread pool and `profiling.nim`).
+* templates only where a proc cannot do it; no macros unless they remove real repetition.
+
+### output
+
+* a table column carries its unit in its header; in a sentence the unit is attached with no space (`842.2km`,
+  `4h41m`).  input never takes a unit for distance (decimal km), and `m` always means minutes.
+* intervals of time (`ui/interval.nim`): units `d h m s`, no leading zero unit, the first unpadded and later ones
+  two digits (`45s`, `22m05s`, `4h41m`, `2d03h07m`); seconds only under an hour, minutes from an hour; rounding
+  carries.
+* the words and looks for what happened are in `ui/vocabulary.nim`; colour only where it means something, and the
+  status colours (green done, red failed or deleted, yellow advisory, blue the selection) for nothing else.
+
+### tests
+
+* `std/unittest`, mirroring the source tree (`tests/<dir>/test_<file>.nim`, all imported by `tests/all.nim`);
+  test names are plain sentences.  `nimble test` (optimised, with run-time checks) is the one to run often;
+  `nimble testdebug` for tracking down a failure.
+* small cases are built by hand (`tests/support/`); behaviour that must match the FIT SDK uses real files
+  (`../choochoo/data/test`; `nimble csvreport` compares our CSV with the SDK's).  error paths are tested; a bug fix
+  comes with a test.
+* tests never use the network or the real cache: every `Globals` in a test says `offline: true`.
+* one logical step per commit, tests passing in each; the message has a summary line and a short paragraph on why.

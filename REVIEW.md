@@ -144,7 +144,6 @@ The pattern behind the author's enum question.  Nothing keeps the copies in step
   three hex checks; user lookup by name in `openStore`, `user/wipe.findUser`, `selection/command.userIdOf`;
   two near-identical Ctrl-C handlers (`ui/live`, `ui/interrupt`).
 * Messages that hard-code the constants they describe ("80%", "25 m" in `duplicateLines`).
-* CLAUDE.md and AGENTS.md are identical copies (both tracked).
 
 ### 4.2 Illegal states are representable
 
@@ -255,7 +254,7 @@ The fix is the package design (§6): declared dependencies, checked, and extensi
 
 * A compiled binary is tracked: `tests/delete/test_delete` (the `.gitignore` pattern `/tests/test_*` only
   matches the top level).  `tests/sector/` is an empty leftover.
-* TODO.md is 2,758 lines, mostly history; its "Conventions" and "Code layout" describe commands that no longer
+* (done 2026-11-08: TODO.md is open work, history in HISTORY.md, conventions in CLAUDE.md.)  It was 2,758 lines, mostly history; its "Conventions" and "Code layout" describe commands that no longer
   exist (`import`, `list`, `destroy`, `heatmap`) and "one third-party dependency".  Sonnet reads it as current.
 * Long, branchy `run` procs (follows from 4.2).
 
@@ -394,7 +393,7 @@ The current mechanism stays, per package (`package/NNN-name.sql`, as recorded no
 Cheap and safe first; each later step is easier because of the earlier ones.  Letters refer to the classes of §3.
 
 1. **Housekeeping.**  Untrack `tests/delete/test_delete`, fix `.gitignore` (`/tests/**/test_*` with `!*.nim`),
-   remove `tests/sector/`, make AGENTS.md a symlink to CLAUDE.md, add `landmarks` to `commandNames` (F; the
+   remove `tests/sector/`, add `landmarks` to `commandNames` (F; the
    registry replaces it later).
 2. **Tests that find bugs** (3.3): the FIT fuzzer, the foreign-key index test, the invariant checks (with a way
    to run them over the author's database).  Report what they find before fixing it.
@@ -404,8 +403,8 @@ Cheap and safe first; each later step is easier because of the earlier ones.  Le
    cache interface; the map key), G (the base-type table; the bool marker), H (the zip cap), J (no failure
    stored as a result), K (one atomic write), L (what the fuzzer finds).  I waits for step 7.
 4. **The other reported bugs (3.2)**: confirm each with a test; fix the real ones, report the rest.
-5. **Prune TODO.md.**  Finished tasks out (git has them); rewrite conventions and code layout to match the code
-   (or move them to CLAUDE.md); TODO.md holds open work only.
+5. **Check the conventions** now in CLAUDE.md against the code.  (TODO.md was pruned to open work and its
+   history moved to HISTORY.md on 2026-11-08; the conventions moved to CLAUDE.md, corrected by hand.)
 6. **Dead code**: the dead paths in `bringUpToDate`/`fragment.nim` (not the fragment mechanism), and the dead
    and test-only code of 4.7.
 7. **Typed database access.**  First half a day evaluating `tiny_sqlite` against extending `db/statement.nim`;
@@ -416,7 +415,8 @@ Cheap and safe first; each later step is easier because of the earlier ones.  Le
       `fit` and `profile`;
    2. the framework: `Package`, the generated registry (F), the topological sort; fragments in DAG order; the
       "missing package" refusal (rebuild the database);
-   3. a `package.nim` in each directory; the track loader lands in the importer package, the cache interface in
+   3. a `package.nim` in each directory, with the package's own doc (the feature detail now in CLAUDE.md
+      moves there); the track loader lands in the importer package, the cache interface in
       the cache package;
    4. the import and SQL-table tests;
    5. the extension points, one commit each, each discussed first (on-demand activity work, activity
@@ -458,3 +458,26 @@ Cheap and safe first; each later step is easier because of the earlier ones.  Le
 * **before finishing a step**, check what else refers to what you changed (grep the names): lists, help text,
   docs, tests.
 ```
+
+## 9. For the author
+
+From the record the work left (CLAUDE.md, TODO.md, the commits, the code), not from the conversations.
+
+1. **Specify what, not how.**  Be exact about what you see (output, behaviour, limits); leave the mechanism open.
+   At design points ask Sonnet for two or three options and a recommendation rather than giving it the design.
+2. **Review shapes, not lines.**  When a change comes back, look at the new types, signatures, schema and module
+   dependencies: that is where drift starts, and it is quicker to read than the code.
+3. **Hold whole-system reviews**, like this one, at each milestone (or every several features) and before a
+   squash, in a fresh session and ideally another model, so that the reviewer is not anchored on the author's
+   reasoning.  Each step can be right while the whole drifts; only a whole-system look catches that.
+4. **Give permission to revisit.**  "No past to protect" applies to code too: when a feature fits badly, Sonnet
+   should say so and propose changing what exists.
+5. **CLAUDE.md for rules, not records.**  It is loaded every session; detailed design of particular features
+   (climb subscripts, map styling, cache names) pushes Sonnet towards local consistency over overall design.
+   With packages, that detail moves to each package's doc.
+6. **TODO.md for open work only.**  History is in git (and HISTORY.md); a stale document is read as current.
+7. **Make "done" explicit**: tests (with one for the class of bug), docs updated, dead code deleted, references
+   checked.
+8. **Ask for evidence**: a measurement, or before-and-after examples where there is no ground truth.
+
+Items 1, 4, 6 and 7 are now in CLAUDE.md as working practice; 3 is there as "suggest a review"; 5 is plan step 8.
