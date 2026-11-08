@@ -13,7 +13,7 @@
 
 import std/[options, os, strutils, tables]
 import db_connector/db_sqlite
-import ../cache
+import ../[atomic, cache]
 import ../cli/common
 import ../climbs/[attempts, report, work]
 import ../db/store

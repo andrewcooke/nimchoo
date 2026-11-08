@@ -9,7 +9,7 @@
 import std/[math, options, os, strutils, times]
 import db_connector/db_sqlite
 import ../cli/common
-import ../cache
+import ../[atomic, cache]
 import ../db/store
 import ../errors
 import ../model/[calc, impulses, models]

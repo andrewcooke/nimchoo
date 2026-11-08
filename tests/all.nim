@@ -10,6 +10,7 @@ import
   ./test_errors,
   ./test_child,
   ./test_zipchild,
+  ./test_atomic,
   ./test_structure,
   ./test_cache,
   ./test_geo,

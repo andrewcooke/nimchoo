@@ -16,7 +16,7 @@
 ## cannot be used is never an error: the program's own copy is used.
 
 import std/[algorithm, options, os, strutils, tables]
-import ../cache
+import ../[atomic, cache]
 import ../hashing
 
 {.push raises: [].}
@@ -91,11 +91,8 @@ proc record(top, name, hash: string) =
   var entries = readManifest(top)
   entries[name] = hash
   try:
-    createDir top
-    let tmp = top / manifestName & ".part"
-    writeFile(tmp, formatManifest(entries))
-    moveFile(tmp, top / manifestName)
-  except IOError, OSError, Exception:
+    writeAtomic(top / manifestName, formatManifest(entries))
+  except IOError, OSError:
     discard
 
 proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
@@ -130,11 +127,8 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
     if b.name != noticeBundle.name:
       discard resolve(top, noticeBundle) # (the notice goes with them)
     try:
-      createDir parentDir(path)
-      let tmp = path & ".part"
-      writeFile(tmp, b.data)
-      moveFile(tmp, path)
-    except IOError, OSError, Exception:
+      writeAtomic(path, b.data)
+    except IOError, OSError:
       return program # cannot write: the program's copy will do
     record(top, b.name, bundled)
     return Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)

@@ -11,7 +11,7 @@
 import std/[httpclient, options, os, strutils, tables]
 import ../errors
 import ../lookup
-import ../[zipbytes, zipchild]
+import ../[atomic, zipbytes, zipchild]
 import ./sources
 when defined(posix):
   import std/posix
@@ -295,14 +295,10 @@ proc fetchSource*(
     return fail(sink, src, url, problem)
   try:
     createDir(dir)
-    let tmp = path & ".part"
-    writeFile(tmp, r.body)
-    moveFile(tmp, path)
+    writeAtomic(path, r.body)
   except IOError, OSError:
     return
       fail(sink, src, url, "cannot write " & path & ": " & getCurrentExceptionMsg())
-  except Exception: # (moveFile is declared to raise anything)
-    return fail(sink, src, url, "cannot write " & path)
   sink(
     DownloadEvent(
       kind: deDownloaded,

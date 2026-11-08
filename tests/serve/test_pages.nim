@@ -8,14 +8,6 @@ suite "serve pages: the shared helpers":
   test "text is escaped for a page":
     check htmlEscape("<b>\"a\" & b</b>") == "&lt;b&gt;&quot;a&quot; &amp; b&lt;/b&gt;"
     check htmlEscape("plain") == "plain"
-  test "a file is written whole, with its directory made, and no part file is left":
-    removeDir(dir)
-    let path = dir / "a" / "b.txt"
-    writeAtomic(path, "one")
-    check readFile(path) == "one"
-    writeAtomic(path, "two")
-    check readFile(path) == "two"
-    check not fileExists(path & ".part")
 
 type Holder = object
   web: WebArgs

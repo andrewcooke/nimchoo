@@ -2926,3 +2926,15 @@ unnameable for good.  In `work.nim` an empty route would have stored "no efforts
   is not ours); a changed format there would drop lines quietly, which is a risk noted and not handled.
 * Most of these guards exist because every column is read as a string and parsed in Nim; typed access (plan step 7)
   will remove them.  The route is text from SpatiaLite (`AsText`), so its parser stays unless the points are asked for directly.
+
+### One way to write a file (2026-11-08, REVIEW.md class K)
+
+Files were written to `NAME.part` and renamed in four places (`serve/pages.writeAtomic`, `bundle/unpack` twice,
+`download/fetch`), all with the same fixed temporary name: two writers of one file (two web workers, two `nch`
+processes) shared it, and one could rename the other's half-written text or find it gone.  `unpack` also caught
+`Exception`, which hides bugs.
+* `atomic.nim` has the one `writeAtomic`: the temporary name is the target's plus the process id and a nanosecond
+  clock, the temporary is removed if anything fails, and the one `except Exception` left is the wrapper for `moveFile`
+  (declared to raise anything).  `pages` no longer defines it; `map`, `ff`, `unpack` and `fetch` use it.
+* Test: four threads write one file 60 times each while a reader checks that it is always one writer's text, whole.
+  Not done: other writers of files (the log, the database) are not these.

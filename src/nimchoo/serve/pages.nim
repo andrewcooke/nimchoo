@@ -1,6 +1,5 @@
 ## What the commands with web pages share for making their files: making the cache directories,
-## escaping text for a page (re-exported from templating.nim), and writing a file so that nobody sees
-## half of it.
+## and escaping text for a page (re-exported from templating.nim).
 
 import std/os
 import ../bundle/unpack
@@ -15,15 +14,3 @@ proc makeCacheDirs*(dir: string) {.raises: [IOError, OSError].} =
   createDir userDir(dir)
   createDir systemDir(dir)
   unpackNotice(dir)
-
-proc writeAtomic*(path, text: string) {.raises: [IOError, OSError].} =
-  ## Write the file so that nobody sees half of it: to a new name, then rename.
-  createDir parentDir(path)
-  let tmp = path & ".part"
-  writeFile(tmp, text)
-  try:
-    moveFile(tmp, path)
-  except OSError as e:
-    raise e
-  except Exception: # (moveFile is declared to raise anything)
-    raise newException(OSError, "cannot rename " & tmp)
