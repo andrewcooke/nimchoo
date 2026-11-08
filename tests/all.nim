@@ -8,6 +8,7 @@ import
   ./test_zipbytes,
   ./test_xlsx,
   ./test_errors,
+  ./test_child,
   ./test_structure,
   ./test_cache,
   ./test_geo,
@@ -74,7 +75,7 @@ import
     test_countryinfo, test_countries, test_features, test_climbpick, test_climb,
     test_lookup, test_shape, test_activity,
   ]
-import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries]
+import ./serve/[test_request, test_token, test_handler, test_pages, test_libraries, test_workers]
 import ./user/[test_params, test_command, test_wipe]
 import ./bundle/test_unpack
 import

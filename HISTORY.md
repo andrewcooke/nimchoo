@@ -2819,3 +2819,20 @@ farthest point is over about 500 km from the start gets no destination name (the
 all 1,112 names and start places are the same after naming again from scratch.  Tests: wide positions and wide radii fetch
 nothing; a route with one bad stretch costs the same downloads as without it; the count and the file reach `Named`.
 Cleaning at import is in TODO.md.
+
+### Running the web server's worker (2026-11-08, REVIEW.md class D)
+
+The server read all of the worker's stdout, then all of its stderr, then waited with a timeout: a worker that filled the
+stderr pipe deadlocked, a hung one was never stopped, and the single-threaded loop stood still for every other request
+while one page was made.  Now `child.nim` is the one way to run a child (both outputs read as they come with `poll`, a
+time limit, then a kill; what the child had written is kept), `childasync.nim` does the same waiting with `sleepAsync`
+between looks at the pipes, and `serve/workers.nim` runs the server's workers: requests for the same page (the same
+arguments) share one run, at most four run at once (the rest wait), and a worker is stopped after 120 s with a message.
+`handler.nim` is in two steps round the worker (`begin`: decide and say which worker; `finish`: make the reply from its
+result), and `server.nim` awaits the worker in between, so other requests (files, other pages) are answered meanwhile.
+
+The author's point: the server should serve several requests at once.  Threads were not needed for that: the slow thing
+is a child process, and one event loop can wait for many children (threads would only have waited too, and needed locks
+on the log and the config).  The loop looks at the pipes every 15 ms.  Tests: a child that fills one or both pipes, a
+hung child, a child that closes its outputs and carries on, three children at once take the time of one, the loop's timer
+keeps firing, sharing, the limit, the timeout.

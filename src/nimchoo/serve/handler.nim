@@ -1,6 +1,10 @@
-## What the local web server answers.  Everything it decides is here, as a function from
-## a request to a reply, with the running of the worker (`nch COMMAND --worker`) passed in
-## so that tests need neither a socket nor a subprocess.  (The socket loop is server.nim.)
+## What the local web server answers.  Everything it decides is here, as functions from a
+## request to a reply, in two steps round the one slow thing, the running of the worker
+## (`nch COMMAND --worker`): `begin` decides (and for a page says which worker to run),
+## `finish` makes the reply from what the worker said.  The server (server.nim) runs the
+## worker in between without stopping the other requests; `handle` runs the two steps one
+## after the other with a runner it is given, so that tests need neither a socket nor a
+## subprocess.
 ##
 ## A request must (1) be a GET, (2) have our own address in its Host header, (3) carry the
 ## token, in the cookie, or once in the URL (then the cookie is set and the browser is sent
@@ -21,17 +25,27 @@ type
     code*: int
 
   WorkerRunner* = proc(args: seq[string]): WorkerResult {.closure, raises: [].}
+    ## (a blocking one: for tests and `handle`; the server's is asynchronous)
 
   ServerConfig* = object
     token*: string
     cacheDir*: string
-    run*: WorkerRunner
     baseArgs*: seq[string] ## the options before the command (--db ..., --user ...)
     log*: Log
     logCommand*: string
 
   Incoming* = object
     meth*, target*, host*, cookie*: string
+
+  Step* = object
+    ## What `begin` made of a request: the reply, or a page that needs a worker run first.
+    case needsWorker*: bool
+    of false:
+      reply*: Reply
+    of true:
+      args*: seq[string] ## the arguments of the worker (the same arguments give the same page)
+      route: Route
+      target: Target
 
   Reply* = object
     code*: int
@@ -76,9 +90,12 @@ proc readCacheFile(cfg: ServerConfig, name: string): Option[string] =
   except IOError:
     none(string)
 
-proc page(cfg: ServerConfig, route: Route, t: Target): Reply =
-  ## Run the worker for a command and send the page it makes.
-  let r = cfg.run(cfg.baseArgs & @[route.command, "--worker"] & route.args)
+converter toStep(r: Reply): Step =
+  ## (so that a reply that needs nothing more can be returned as it is)
+  Step(needsWorker: false, reply: r)
+
+proc page(cfg: ServerConfig, route: Route, t: Target, r: WorkerResult): Reply =
+  ## The page that the worker made.
   if r.code != 0:
     let why = r.stderr.strip
     return reply(
@@ -124,7 +141,7 @@ proc page(cfg: ServerConfig, route: Route, t: Target): Reply =
     return reply(404, "not found")
   reply(200, body.get, htmlType)
 
-proc answer(cfg: ServerConfig, port: int, req: Incoming): Reply =
+proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
   if req.meth != "GET":
     return reply(405, "method not allowed")
   if not hostAllowed(req.host, port):
@@ -161,11 +178,16 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Reply =
     if body.isNone:
       return reply(404, "not found")
     return reply(200, body.get, contentTypeOf(route.get.fileName))
-  page(cfg, route.get, t)
+  Step(
+    needsWorker: true,
+    args: cfg.baseArgs & @[route.get.command, "--worker"] & route.get.args,
+    route: route.get,
+    target: t,
+  )
 
-proc handle*(cfg: ServerConfig, port: int, req: Incoming): Reply =
-  ## The reply to a request (and a line in the log; never the token).
-  result = withSecurity(answer(cfg, port, req))
+proc conclude(cfg: ServerConfig, req: Incoming, raw: Reply): Reply =
+  ## The reply with the security headers, and a line in the log (never the token).
+  result = withSecurity(raw)
   let shown = block:
     let t = parseTarget(req.target)
     if t.isSome:
@@ -177,3 +199,25 @@ proc handle*(cfg: ServerConfig, port: int, req: Incoming): Reply =
     cfg.log.log(lvWarn, cfg.logCommand, leDenied, line)
   else:
     cfg.log.log(lvInfo, cfg.logCommand, leServed, line)
+
+proc begin*(cfg: ServerConfig, port: int, req: Incoming): Step =
+  ## Decide what to do with a request: answer it, or say which worker has to run for it.
+  answer(cfg, port, req)
+
+proc answered*(cfg: ServerConfig, req: Incoming, step: Step): Reply =
+  ## The reply of a step that did not need a worker.
+  doAssert not step.needsWorker, "a step that needs a worker is finished with its result"
+  conclude(cfg, req, step.reply)
+
+proc finish*(cfg: ServerConfig, req: Incoming, step: Step, r: WorkerResult): Reply =
+  ## The reply of a step that needed a worker, given what the worker did.
+  doAssert step.needsWorker, "a step that needs no worker has its reply already"
+  conclude(cfg, req, page(cfg, step.route, step.target, r))
+
+proc handle*(cfg: ServerConfig, port: int, req: Incoming, run: WorkerRunner): Reply =
+  ## The reply to a request, running the worker (if there is one) with `run`.
+  let step = begin(cfg, port, req)
+  if step.needsWorker:
+    finish(cfg, req, step, run(step.args))
+  else:
+    answered(cfg, req, step)

@@ -1,37 +1,25 @@
 ## The socket loop of the local web server: it listens on 127.0.0.1 only and passes each
-## request to `handle` (handler.nim), which decides everything.  Single-threaded: one
-## user, and a worker that runs for a moment.
+## request to `begin` and `finish` (handler.nim), which decide everything.  One thread and
+## an event loop: what is slow is the worker, a child process (`nch COMMAND --worker`), and
+## waiting for children does not stop the loop, so requests are answered while workers run.
+## (How workers are run, shared and limited: workers.nim.)
 
 import
-  std/
-    [asyncdispatch, asynchttpserver, httpcore, nativesockets, osproc, streams, strutils]
-import ./handler
+  std/[asyncdispatch, asynchttpserver, httpcore, nativesockets, strutils]
+import ./[handler, workers]
 
 {.push raises: [].}
-
-proc runWorker*(exe: string): WorkerRunner =
-  ## A runner that starts `exe` with the arguments (no shell) and waits for it.
-  result = proc(args: seq[string]): WorkerResult {.closure, raises: [].} =
-    try:
-      let p = startProcess(exe, args = args, options = {})
-      defer:
-        p.close()
-      result.stdout = p.outputStream.readAll()
-      result.stderr = p.errorStream.readAll()
-      result.code = p.waitForExit(120_000)
-    except CatchableError, Defect:
-      result = WorkerResult(
-        code: 127, stderr: "cannot run " & exe & ": " & getCurrentExceptionMsg()
-      )
 
 {.pop.} # (the standard library's server and its async callbacks may raise anything)
 
 proc serveForever*(
-    cfg: ServerConfig, port: int, ready: proc(port: int) {.closure, raises: [].}
+    cfg: ServerConfig, exe: string, port: int, ready: proc(port: int) {.closure, raises: [].}
 ): string {.raises: [].} =
   ## Listen on 127.0.0.1:`port` (0: any free port; `ready` is told which) and answer until
-  ## the process is stopped.  Returns what went wrong, if it could not start.
+  ## the process is stopped; pages are made by running `exe` (this program) as the worker.
+  ## Returns what went wrong, if it could not start.
   try:
+    let workers = newWorkers(exe)
     let server = newAsyncHttpServer(reuseAddr = true)
     server.listen(Port(port), "127.0.0.1")
     let actual = int(server.getPort)
@@ -44,8 +32,13 @@ proc serveForever*(
         cookie: $req.headers.getOrDefault("Cookie"),
       )
       var r: Reply
-      {.cast(gcsafe).}: # (one thread: nothing else touches the config or the log)
-        r = handle(cfg, actual, incoming)
+      {.cast(gcsafe).}: # (one thread: nothing else touches the config, the log or the workers)
+        let step = begin(cfg, actual, incoming)
+        if step.needsWorker:
+          let done = await workers.run(step.args)
+          r = finish(cfg, incoming, step, done)
+        else:
+          r = answered(cfg, incoming, step)
       await req.respond(HttpCode(r.code), r.body, newHttpHeaders(r.headers))
 
     ready(actual)

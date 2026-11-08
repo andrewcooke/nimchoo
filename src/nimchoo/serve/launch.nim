@@ -49,7 +49,6 @@ proc serveWeb*(
   let cfg = ServerConfig(
     token: t.token,
     cacheDir: userDir(cacheDir),
-    run: runWorker(getAppFilename()),
     baseArgs: workerOptions(g),
     log: g.log,
     logCommand: command,
@@ -57,6 +56,7 @@ proc serveWeb*(
   exitOnInterrupt()
   let problem = serveForever(
     cfg,
+    getAppFilename(),
     o.port,
     proc(port: int) {.closure, raises: [].} =
       let url =

@@ -8,7 +8,7 @@ Open work only.  Finished work is in git and in HISTORY.md (with the reasoning b
 Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
 author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
-- [ ] 3. Fix the bug classes D-H, J-L (the abstraction, a test for the class, the known bugs as first cases).  A, B and C are done
+- [ ] 3. Fix the bug classes E-H, J-L (the abstraction, a test for the class, the known bugs as first cases).  A to D are done
       (HISTORY.md, 2026-11-08).
       Still open from
       3.3: the FIT fuzzer's level 2 (libFuzzer), and fuzzers for the xlsx and zip readers and the `bits` decoder.
