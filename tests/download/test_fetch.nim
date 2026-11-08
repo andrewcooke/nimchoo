@@ -1,4 +1,4 @@
-import std/[monotimes, nativesockets, net, options, os, sets, strutils, tables, times, unittest]
+import std/[atomics, monotimes, nativesockets, net, options, os, sets, strutils, tables, times, unittest]
 import nimchoo/download/[fetch, sinks, sources, spinner]
 import nimchoo/ui/[live, logfile, palette, style]
 import ../support/zips
@@ -382,6 +382,8 @@ suite "download: a job of the command's own, with a spinner":
 
 type Junk = tuple[fd: int, sent: int, announce: bool]
 
+var junkDone: Atomic[bool] ## set when the client has finished: the server stops sending
+
 proc serveJunk(j: Junk) {.thread.} =
   ## A server on the loopback that answers one request with `sent` bytes (and says so, or not) and closes.
   {.cast(gcsafe).}:
@@ -402,7 +404,7 @@ proc serveJunk(j: Junk) {.thread.} =
       # (paced: httpclient reports progress at most once a second, so a body that comes at once is not caught)
       let chunk = repeat('x', 250_000)
       var left = j.sent
-      while left > 0:
+      while left > 0 and not junkDone.load():
         let n = min(left, chunk.len)
         client.send(chunk[0 ..< n])
         left -= n
@@ -417,6 +419,7 @@ proc fromJunk(sent: int, announce: bool, maxBytes: int64): tuple[r: FetchResult,
   server.bindAddr(Port(0), "127.0.0.1")
   server.listen()
   let port = server.getLocalAddr()[1]
+  junkDone.store(false)
   var t: Thread[Junk]
   createThread(t, serveJunk, (int(server.getFd()), sent, announce))
   let t0 = getMonoTime()
@@ -424,6 +427,7 @@ proc fromJunk(sent: int, announce: bool, maxBytes: int64): tuple[r: FetchResult,
     "http://127.0.0.1:" & $int(port) & "/x", nil, maxBytes
   )
   result.ms = (getMonoTime() - t0).inMilliseconds
+  junkDone.store(true)
   joinThread(t)
   server.close()
 
@@ -437,7 +441,7 @@ suite "download: the size limit applies to what arrives":
     let (r, _) = fromJunk(300_000, true, 1_000_000)
     check r.ok and r.body.len == 300_000
   test "a server that sends more than the limit is stopped, long before it has sent it all":
-    let (r, ms) = fromJunk(50_000_000, true, 1_000_000) # (it would take 20 s)
+    let (r, ms) = fromJunk(50_000_000, true, 1_000_000) # (it would take 20 s to send)
     check not r.ok and r.message.contains("allowed")
     check ms < 5000
   test "so is one that says nothing about the size":
