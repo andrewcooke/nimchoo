@@ -12,7 +12,7 @@
 ## A climb found on a ride is the same as a stored one if more than half of each lies within 25 m
 ## of the other (choochoo: less than half of each outside the other's hull).  Pure.
 
-import std/[algorithm, math, options]
+import std/[algorithm, math, options, strutils]
 import ../geo
 
 {.push raises: [].}
@@ -44,6 +44,35 @@ func elapsed*(e: Effort): float =
 
 func len*(p: Path): int =
   p.lon.len
+
+func parseLineString*(text: string): Option[Path] =
+  ## The positions of "LINESTRING Z(lon lat alt, ...)" (SpatiaLite's `AsText`), the one reader of a stored route.  None
+  ## if the text is not a route: no brackets, fewer than two points, a point without two finite numbers.  (A route
+  ## that cannot be read is damaged data: callers say so and leave the work undone; none of them treats it as an empty
+  ## route, which would be stored as "nothing here".)
+  let a = text.find('(')
+  let b = text.rfind(')')
+  if a < 0 or b <= a:
+    return
+  var p: Path
+  try:
+    for part in text[a + 1 ..< b].split(','):
+      let f = part.splitWhitespace
+      if f.len < 2:
+        return
+      let lon = parseFloat(f[0])
+      let lat = parseFloat(f[1])
+      if classify(lon) in {fcNan, fcInf, fcNegInf} or
+          classify(lat) in {fcNan, fcInf, fcNegInf}:
+        return
+      p.lon.add lon
+      p.lat.add lat
+  except ValueError:
+    return
+  if p.len >= 2:
+    some(p)
+  else:
+    none(Path)
 
 func xy(p: Path, pr: Projection): seq[XY] =
   for i in 0 ..< p.len:

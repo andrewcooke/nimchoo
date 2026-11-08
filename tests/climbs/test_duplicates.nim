@@ -2,9 +2,18 @@ import std/[sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/climbs/[duplicates, work]
 import nimchoo/db/store
+import nimchoo/errors
 import ../support/[climbdata, userdata]
 
 suite "climbs: duplicates":
+  test "a climb whose route cannot be read is an error, not an empty route":
+    let s = fresh("dupsdamaged")
+    defer:
+      s.close()
+    s.db.exec(sql"insert into sector(length_m, gain_m, gradient) values (1000, 100, 5)")
+    expect StoreError:
+      discard duplicateGroups(s)
+
   test "climbs that largely overlap are grouped, the most ridden first, with the command to hide the others":
     let s = fresh("dups")
     defer:

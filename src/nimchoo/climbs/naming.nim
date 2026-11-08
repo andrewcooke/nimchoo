@@ -7,28 +7,15 @@ import db_connector/db_sqlite
 import ../db/store
 import ../errors
 import ../names/[climb, climbpick, countries]
-import ./ordinal
+import ./[match, ordinal]
 
 {.push raises: [].}
 
 type Named* = object
   named*, nothing*: int ## sectors given a name, and those looked at that have none near
-
-proc parseRoute(text: string): tuple[lons, lats: seq[float]] =
-  ## The positions of "LINESTRING Z(lon lat alt, ...)".
-  let a = text.find('(')
-  let b = text.rfind(')')
-  if a < 0 or b <= a:
-    return
-  try:
-    for part in text[a + 1 ..< b].split(','):
-      let f = part.splitWhitespace
-      if f.len < 2:
-        return (@[], @[])
-      result.lons.add parseFloat(f[0])
-      result.lats.add parseFloat(f[1])
-  except ValueError:
-    result = (@[], @[])
+  damaged*: seq[int64]
+    ## sectors whose route cannot be read: left without a name (null), so that they are tried again, not marked as
+    ## having none near
 
 proc ensureSectorNames*(
     st: Store, names: Names
@@ -43,12 +30,15 @@ proc ensureSectorNames*(
       except ValueError:
         raiseStore("a bad sector id")
   for id in todo:
-    var route: tuple[lons, lats: seq[float]]
+    var route: Option[Path]
     guard:
-      route = parseRoute(
+      route = parseLineString(
         st.db.getValue(sql"select AsText(route) from sector where id = ?", id)
       )
-    let pick = nameClimb(names, route.lons, route.lats)
+    if route.isNone:
+      result.damaged.add id
+      continue
+    let pick = nameClimb(names, route.get.lon, route.get.lat)
     if pick.isSome:
       guard:
         st.db.exec(sql"update sector set name = ? where id = ?", pick.get.name, id)

@@ -5,7 +5,7 @@
 ## ridden first, and offers to hide a climb only if it is a near copy of a more ridden one.  Retiring is by hand
 ## (`nch climbs --edit NAME --retire`).
 
-import std/[algorithm, strutils, tables]
+import std/[algorithm, options, strutils, tables]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
@@ -31,22 +31,6 @@ type
   Group* = object
     members*: seq[Member] ## the most ridden first
 
-func pathOf(text: string): Path =
-  ## The positions of "LINESTRING Z(lon lat alt, ...)".
-  let a = text.find('(')
-  let b = text.rfind(')')
-  if a < 0 or b <= a:
-    return
-  try:
-    for part in text[a + 1 ..< b].split(','):
-      let f = part.splitWhitespace
-      if f.len < 2:
-        return Path()
-      result.lon.add parseFloat(f[0])
-      result.lat.add parseFloat(f[1])
-  except ValueError:
-    result = Path()
-
 proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   ## Groups of two or more sectors that are near copies of each other (a sector that is a near copy of one of a group
   ## joins it), retired ones too.
@@ -71,7 +55,13 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
           category: r[6],
           gradient: parseFloat(r[7]),
         )
-        paths.add pathOf(r[3])
+        let path = parseLineString(r[3])
+        if path.isNone:
+          raiseStore(
+            "climb " & r[0] & " has a route that cannot be read (damaged data): " &
+              "run `nch climbs --all --delete -f` and ask for the climbs again"
+          )
+        paths.add path.get
       except ValueError:
         raiseStore("a bad number in the climbs")
   # groups by union: a climb that overlaps one in a group is in it

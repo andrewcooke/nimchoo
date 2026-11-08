@@ -17,7 +17,7 @@
 ## found), with the version of the method.  If the method changes the version does, and
 ## `clearClimbs` (`nch climbs --all --delete`) starts again.
 
-import std/[math, strutils, tables]
+import std/[math, options, strutils, tables]
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
@@ -64,22 +64,6 @@ func frame(b: Box): string =
   ## The box, a little wider, as the SpatiaLite function that the spatial indexes are asked with.
   "BuildMbr(" & degrees(b.lon0 - margin) & ", " & degrees(b.lat0 - margin) & ", " &
     degrees(b.lon1 + margin) & ", " & degrees(b.lat1 + margin) & ")"
-
-func parseLineString(text: string): Path =
-  ## The positions of "LINESTRING Z(lon lat alt, ...)".
-  let a = text.find('(')
-  let b = text.rfind(')')
-  if a < 0 or b <= a:
-    return
-  try:
-    for part in text[a + 1 ..< b].split(','):
-      let f = part.splitWhitespace
-      if f.len < 2:
-        return Path()
-      result.lon.add parseFloat(f[0])
-      result.lat.add parseFloat(f[1])
-  except ValueError:
-    result = Path()
 
 func lineStringText(p: Path): string =
   ## "LINESTRING Z(lon lat alt, ...)" for a route that has altitudes.
@@ -160,10 +144,18 @@ proc sectorsNear(
         raiseStore("a bad sector id")
   for id in ids:
     if id notin cache:
+      var route: Option[Path]
       guard:
-        cache[id] = parseLineString(
+        route = parseLineString(
           st.db.getValue(sql"select AsText(route) from sector where id = ?", id)
         )
+      if route.isNone:
+        # (not an empty route: the rides would then be stored as having no efforts on it)
+        raiseStore(
+          "climb " & $id & " has a route that cannot be read (damaged data): " &
+            "run `nch climbs --all --delete -f` and ask for the climbs again"
+        )
+      cache[id] = route.get
     result.add id
 
 proc ridesNear(st: Store, box: Box): seq[ActivityId] {.raises: [StoreError].} =

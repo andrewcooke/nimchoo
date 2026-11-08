@@ -132,4 +132,4 @@ proc featuresNear*(
           lat: parseFloat(r[4]),
         )
       except ValueError:
-        discard
+        raiseStore("a bad number in the features")

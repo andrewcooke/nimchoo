@@ -3,7 +3,7 @@
 ## `--duplicates` are lists for tidying.  The first time (and after an import) it works out the climbs of the activities
 ## that have not been looked at, and keeps them (see work.nim).  The climbs are shared by all users.
 
-import std/[options, times]
+import std/[options, strutils, times]
 import ../cli/common
 import ../db/store
 import ../errors
@@ -73,6 +73,12 @@ func noteRetired(count: int): string =
   $count & (if count == 1: " climb is retired" else: " climbs are retired") &
     " (hidden; `nch climbs --retired` shows them): the numbers in the names include them\n"
 
+func damagedText(n: Named): string =
+  ## What to say about climbs that were not named because their route cannot be read.
+  $n.damaged.len & (if n.damaged.len == 1: " climb has" else: " climbs have") &
+    " a route that cannot be read (damaged data) and " &
+    (if n.damaged.len == 1: "was" else: "were") & " not named: " & n.damaged.join(", ")
+
 proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   ## `--edit NAME` with one thing to change.
   let id = findShown(st, p.name)
@@ -99,8 +105,10 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
     )
     if names.isSome:
       try:
-        discard ensureSectorNames(st, names.get)
+        let named = ensureSectorNames(st, names.get)
         said = was & " is now called " & shownName(st, id)
+        if named.damaged.len > 0:
+          said.add " (" & damagedText(named) & ")"
       except DownloadError as e:
         said.add "; " & e.msg & " (the next `nch climbs` makes one)"
   else:
@@ -193,6 +201,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     )
     if names.isSome:
       let named = ensureSectorNames(st, names.get)
+      if named.damaged.len > 0:
+        stderr.say "warning: " & damagedText(named) & "\n"
+        g.log.log(lvWarn, cmClimbs, leAdvisory, damagedText(named))
       if named.named + named.nothing > 0:
         g.log.log(
           lvInfo,

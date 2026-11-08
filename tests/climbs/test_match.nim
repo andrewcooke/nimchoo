@@ -1,4 +1,4 @@
-import std/[math, unittest]
+import std/[math, options, unittest]
 import nimchoo/climbs/match
 import nimchoo/geo
 
@@ -176,3 +176,20 @@ suite "climbs: near copies (the duplicates report)":
     check not isNearCopy(a, b) and not isNearCopy(b, c) and not isNearCopy(a, c)
   test "degenerate routes are never near copies":
     check not isNearCopy(Path(), a) and not isNearCopy(a, Path())
+
+suite "climbs: reading a stored route":
+  test "the positions of a LINESTRING Z, altitudes ignored":
+    let p = parseLineString("LINESTRING Z(-70.1 -32.8 100, -70.2 -32.9 110.5, -70.3 -33 120)")
+    check p.isSome
+    check p.get.lon == @[-70.1, -70.2, -70.3] and p.get.lat == @[-32.8, -32.9, -33.0]
+  test "extra spaces are fine":
+    check parseLineString("LINESTRING Z( 1 2 3 ,  4   5 6 )").get.len == 2
+  test "anything that is not a route is none, never an empty route":
+    for bad in [
+      "", "LINESTRING EMPTY", "LINESTRING Z(1 2 3)", # (one point)
+      "LINESTRING Z(1 2 3, 4)", # a point with one number
+      "LINESTRING Z(1 2 3, a b c)", "LINESTRING Z(1 2 3, 4 nan 6)",
+      "LINESTRING Z(1 2 3, inf 5 6)", "POINT(1 2", "LINESTRING Z(1 2 3, 4 5 6",
+      "LINESTRING Z(, )",
+    ]:
+      check parseLineString(bad).isNone

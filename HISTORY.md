@@ -2908,3 +2908,21 @@ request and again after `httpclient` had the whole body in memory).
   is a ceiling and not a stream.  A 150 MB entry of zeros with a header claiming 1000 bytes is refused in the test.
 * Reported to zippy (draft in the session scratchpad: an optional `maxSize` for `uncompress`); if it is taken, the
   child can go and the limit be a parameter.
+
+### A failure is never stored as a result (2026-11-08, REVIEW.md class J)
+
+The stored route of a climb was parsed in three places (`climbs/naming.nim`, `work.nim`, `duplicates.nim`), each
+returning an empty route on any problem.  In naming, an empty route meant "no name near", which was stored (`name = ''`
+is "looked at, none near") and never looked at again: a parsing bug or a damaged route would have marked a climb
+unnameable for good.  In `work.nim` an empty route would have stored "no efforts" for every ride.
+* `match.parseLineString` is the one reader: `Option[Path]`, none for anything that is not a route (no brackets, fewer
+  than two points, a point without two finite numbers).
+* Naming leaves a damaged climb's name null (so it is tried again) and says so: `Named.damaged`, a warning on the
+  screen and in the log.  `work` and `duplicates` raise a `StoreError` that names the climb and says how to rebuild.
+* The other `except ValueError: discard` sites were read one by one.  Those reading a row of our own database now raise
+  `StoreError` (the start position of an activity, the threshold heart rate in two places, a feature row in a lookup).
+  Those that read what a person typed (`parseFthr`, a landmark position, `ordinalForms`) answer none, by design, and
+  the readers of downloaded text files (`parseCountryInfo`, the GeoNames line) skip a bad line, also by design (the file
+  is not ours); a changed format there would drop lines quietly, which is a risk noted and not handled.
+* Most of these guards exist because every column is read as a string and parsed in Nim; typed access (plan step 7)
+  will remove them.  The route is text from SpatiaLite (`AsText`), so its parser stays unless the points are asked for directly.

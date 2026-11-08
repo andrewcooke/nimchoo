@@ -75,7 +75,7 @@ proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
       try:
         return some(parseInt(v))
       except ValueError:
-        discard
+        raiseStore("a bad threshold heart rate in the database: " & v)
 
 proc hasImpulses(st: Store, id: UserId): bool {.raises: [StoreError].} =
   guard:

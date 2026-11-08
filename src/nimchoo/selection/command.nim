@@ -144,7 +144,7 @@ proc startOf(
       if c[0].len > 0:
         result = some((parseFloat(c[0]), parseFloat(c[1])))
     except ValueError:
-      discard
+      raiseStore("a bad start position for activity " & $activityId)
 
 proc present(
     st: Store, column, idList: string
