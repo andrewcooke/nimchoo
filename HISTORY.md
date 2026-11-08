@@ -2760,3 +2760,28 @@ Decided: the flag stays `--import` (not `--ingest`).
 **PAUSED (2026-11-05, the author is thinking).**  Everything is committed and pushed (main).  The database at ~/.local/share/nch/nch.db is a HALF-BUILT import (stopped on request): run `nch db --delete -f`, then re-import (~/fit/bike/*; a copy of the old one is in the scratchpad, not needed).  Next candidate: `climbs --efforts NAME` (NAME = the climb as `climbs --all` shows it, "(n/m)" included; best first, `--by date`).  Open questions for the author: (1) whose rides by default (the user's, with `--all` for everyone's)? (2) ignore the selection or use it?  Then `heatmap --climbs`, elevation profile, lead/lag comparison, near-miss report, `exclude`, retire-all; and the "climbs vs sectors" question.
 
 - tried 2026-11-06 and dropped: auto-retire of duplicates (`--duplicates --retire/--unretire`): the rule retired long climbs into shorter near copies (Farellones into El Medio); would need 'only into one at least as big'. The report keeps the unique counts (against direct near copies).
+
+### Stretches of riding (2026-11-08, REVIEW.md class A)
+
+**Problem.** `climbs/work.nim` read all of an activity's positions as one line, though `overPaths` wants one stretch with
+continuous time: 1,666 of 4,569 efforts in the author's database crossed a gap between timer segments (`nimble invariants`).
+Timer segments are not the right unit: the author's 1,112 rides had 57,035 of them, because the Garmin pauses the timer by
+itself (`timer_trigger` = auto) whenever the rider slows down.  Of 55,171 gaps, 55,017 were auto/auto and 98% moved under
+20 m, but 40 auto-pauses ended 100 m or more away (a GPS jump, or a car or train: one was 5 km in 6 hours).
+
+**Decision (the author).**  A gap joins two timer segments into one *stretch* (the `segment` table now holds stretches) when
+both ends were the device's own (`trAuto`) and the rider moved under 30 m, however long the pause (a drink stop on a climb
+is 2 to 13 minutes), or the gap was under 30 s at under 15 m/s (the timer blinked off while the rider carried on).  A timer
+stopped or started by hand, or not said to be auto, always separates ("allowing the user to mark things as separate").  A
+time limit on the distance branch was tried and dropped: it would have split 9 of the 14 efforts on the Farellones climbs,
+all of whose gaps moved 13 m or less.  An effort's time stays gate to gate, stops included (a rider who does not stop earns
+the faster time), as the author settled on 2026-11-04.  Rule: `importer/stretch.nim` (pure, `joinable`); applied in
+`extract.nim` after `cover`; read by `importer/track.nim` (`readTrack`: positions by stretch, no flat view), used by
+`climbs/work.nim` for matching, detecting and matching new sectors (algorithm version 4).
+
+**Result (rebuilt the same day).** The 1,112 rides have 2,266 stretches (57,035 - 54,769 joinable gaps: as predicted from
+the gaps, 99.3% joined); all 12 invariants hold; 187 climbs and 4,532 efforts (before: 184 and 4,569).  Farellones 1 to 3
+are whole (lengths within 5 m); one ride, whose timer was restarted by hand 97 s after an auto-pause, was split, lost its
+effort on the whole climb and made a climb of the upper 6 km (Farellones 4, 9.2%, with 8 efforts).  Open: whether a manual
+restart after an auto stop should join (TODO.md).
+

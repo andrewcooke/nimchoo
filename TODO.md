@@ -8,19 +8,10 @@ Open work only.  Finished work is in git and in HISTORY.md (with the reasoning b
 Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
 author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
-- [ ] 3. Fix the bug classes A-H, J-L (the abstraction, a test for the class, the known bugs as first cases).
-      **A, decided 2026-11-08 (stretches):** the `segment` table will hold *stretches*: neighbouring timer segments
-      joined when `importer/stretch.nim` `joinable` says so (auto-pause both ends, and the rider moved under 30 m, or
-      the gap was under 30 s at under 15 m/s; a manual stop always separates).  Stops stay in an effort's time.
-      Done: the rule and its tests; the importer (`extract.nim` keeps `timer_trigger`, `joinStretches` after
-      `cover`; the route has a part per stretch); `importer/track.nim` reads a track as its stretches and
-      `climbs/work.nim` uses it everywhere (`algorithmVersion` 4), with class tests.  To do: rebuild (the schema
-      comment of `importer/001-schema.sql` changed, so `nch db --delete -f`, import, climbs), `nimble invariants`,
-      and check the Farellones climbs (#72, #109, #115) still come out whole; also check the other consumers of a
-      track against the loader (names reads `route`, which is per stretch already; the map reads `route`).
-      Found by step 2 (done): A: 1666 of 4569 efforts in the author's database cross a timer-segment gap (`nimble
-      invariants`); C: `tests/db/test_schema.nim` fails for five foreign keys (effort, country_cell, impulse,
-      seen_file, selection) and is not yet in `tests/all.nim`: add the indexes, then add it.  Still open from
+- [ ] 3. Fix the bug classes B-H, J-L (the abstraction, a test for the class, the known bugs as first cases).  A is done
+      (stretches of riding: HISTORY.md, 2026-11-08).
+      Found by step 2 (done): C: `tests/db/test_schema.nim` fails for five foreign keys (effort, country_cell,
+      impulse, seen_file, selection) and is not yet in `tests/all.nim`: add the indexes, then add it.  Still open from
       3.3: the FIT fuzzer's level 2 (libFuzzer), and fuzzers for the xlsx and zip readers and the `bits` decoder.
 - [ ] 4. *(mechanical)* The other reported bugs (REVIEW.md §3.2): confirm with a test, fix the real ones.
 - [ ] 5. *(mechanical)* Check the conventions in CLAUDE.md against the code (moved there from the old TODO.md, corrected by hand
@@ -40,6 +31,10 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 
 To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
 
+* **A manual restart after an auto-pause** (decided 2026-11-08 that a manual stop or start keeps stretches apart):
+  97 gaps in the author's rides are an auto stop and a manual start (72 of them moved under 20 m).  One of them
+  split a Farellones ride, which lost its effort on the whole climb and made a climb of the upper 6 km
+  (`Farellones₄`).  Decide whether a manual restart after an auto stop should join (a manual *stop* still separates).
 * **Naming is slow** (11 s for 1,112 activities: 4.6 s reading 6.2 M `coords` rows as text, 6.2 s in
   `nameActivity`, not broken down; nothing shown meanwhile).  The author wants to go through how naming works
   first.  Steps 7 and 14 (typed reads, arrays) take most of the reading time away.
