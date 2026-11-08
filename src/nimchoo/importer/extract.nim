@@ -11,8 +11,10 @@
 ## * records are put in time order, records in the same second keep the last;
 ## * a record without a position makes no coordinate;
 ## * the stretches during which the timer ran (between a timer start and the
-##   next stop) are the activity's segments: disjoint intervals in time order.
-##   Every coordinate lies in one.
+##   next stop) are the activity's timer segments; those the device paused by
+##   itself and the rider hardly left (stretch.nim) are joined into one, so the
+##   activity's segments are stretches of riding: disjoint intervals in time
+##   order.  Every coordinate lies in one.
 
 import std/[algorithm, options, sequtils, strutils, tables]
 import ../db/channel
@@ -23,6 +25,8 @@ import ../warnings
 import ../fit/reader
 import ../fit/records
 import ../fit/time
+import ../geo
+import ./stretch
 
 {.push raises: [].}
 
@@ -36,12 +40,19 @@ type
     lon*, lat*: float ## degrees
     alt*: Option[float] ## metres
 
-  Segment* = object ## A stretch during which the timer ran (a closed interval).
+  Segment* = object
+    ## A stretch of riding (a closed interval): a stretch during which the timer ran,
+    ## or several of them joined across pauses the rider did not mean (see `joinStretches`).
     startT*, endT*: UnixTime
+    startedBy*, endedBy*: Trigger
+      ## who started and stopped the timer that began and ended it.  A session's
+      ## own start and end are no timer events and have the default; the gaps
+      ## between segments are what these are looked at for.
 
   TimerEvent* = object
     t*: UnixTime
     running*: bool ## a start (true) or a stop (false)
+    trigger*: Trigger
 
   ActivityData* = object ## One session of a file.
     session*: int ## position of the session message in the file
@@ -52,7 +63,7 @@ type
     calories*: Option[int]
     coords*: seq[Coord] ## in time order, one per second at most
     samples*: Samples ## the other fields asked for (see `readActivities`), by name
-    segments*: seq[Segment] ## disjoint, in time order, covering all coords
+    segments*: seq[Segment] ## stretches of riding: disjoint, in time order, covering all coords
 
   RawCoord = object
     c: Coord
@@ -138,9 +149,21 @@ func merged(segs: seq[Segment]): seq[Segment] =
   ## Segments in time order; those that touch or overlap become one.
   for g in segs:
     if result.len > 0 and g.startT <= result[^1].endT:
-      result[^1].endT = max(result[^1].endT, g.endT)
+      if g.endT > result[^1].endT:
+        result[^1].endT = g.endT
+        result[^1].endedBy = g.endedBy
     else:
       result.add g
+
+func triggerOf(name: string): Trigger =
+  ## The `timer_trigger` of a timer event, by its name ("" if the event has none).
+  case name
+  of "auto":
+    trAuto
+  of "manual":
+    trManual
+  else:
+    trOther
 
 func segmentsOf*(startT, endT: UnixTime, events: seq[TimerEvent]): seq[Segment] =
   ## The segments of a session lasting from `startT` to `endT`, given its timer
@@ -150,16 +173,18 @@ func segmentsOf*(startT, endT: UnixTime, events: seq[TimerEvent]): seq[Segment] 
   ## there; no events at all is one segment.
   var running = events.len == 0 or not events[0].running
   var since = startT
+  var sinceBy: Trigger
   var found: seq[Segment]
   for e in events:
     if e.running and not running:
       running = true
       since = e.t
+      sinceBy = e.trigger
     elif not e.running and running:
       running = false
-      found.add Segment(startT: since, endT: e.t)
+      found.add Segment(startT: since, endT: e.t, startedBy: sinceBy, endedBy: e.trigger)
   if running:
-    found.add Segment(startT: since, endT: endT)
+    found.add Segment(startT: since, endT: endT, startedBy: sinceBy)
   for g in found.mitems:
     g.startT = max(g.startT, startT)
     g.endT = min(g.endT, endT)
@@ -198,6 +223,35 @@ proc cover(segs: var seq[Segment], coords: seq[Coord], ws: var seq[Warning]) =
       "a coordinate at " & $c.t &
         " is outside the timer segments; the nearest segment is extended"
   segs = merged(segs)
+
+func joinStretches*(segs: seq[Segment], coords: seq[Coord]): seq[Segment] =
+  ## Join the segments that `joinable` says are one stretch of riding.  `segs` are in time order and
+  ## disjoint and `coords` in time order (each in a segment, as `cover` leaves them).  How far the
+  ## rider moved over a gap is from the last position before it to the first after it; with no
+  ## position on one side there is nothing to measure, and the segments stay apart.
+  var p = 0 # the first coordinate after the end of the segment before the gap
+  for i, g in segs:
+    if i == 0:
+      result.add g
+      continue
+    let before = segs[i - 1]
+    while p < coords.len and coords[p].t <= before.endT:
+      inc p
+    if p > 0 and p < coords.len and
+        joinable(
+          Gap(
+            seconds: g.startT - before.endT,
+            metres: haversine(
+              coords[p - 1].lon, coords[p - 1].lat, coords[p].lon, coords[p].lat
+            ),
+            stoppedBy: before.endedBy,
+            restartedBy: g.startedBy,
+          )
+        ):
+      result[^1].endT = g.endT
+      result[^1].endedBy = g.endedBy
+    else:
+      result.add g
 
 proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
   ## Time order; of several in one second the last (by appearance) is kept.
@@ -276,7 +330,9 @@ proc readActivities*(
             let kind = nameOf(p, rec, "event_type")
             if kind == "start" or kind.startsWith("stop"):
               timer.add TimerEvent(
-                t: fitToUnix(rec.timestamp.get), running: kind == "start"
+                t: fitToUnix(rec.timestamp.get),
+                running: kind == "start",
+                trigger: triggerOf(nameOf(p, rec, "timer_trigger")),
               )
         of "file_id":
           let kind = nameOf(p, rec, "type") # (a type the profile lacks is its number)
@@ -337,4 +393,5 @@ proc readActivities*(
     s.utcOffsetS = offsetS
     s.segments = segmentsOf(s.startT, s.endT, perSession[i])
     cover(s.segments, s.coords, ws)
+    s.segments = joinStretches(s.segments, s.coords)
   sessions

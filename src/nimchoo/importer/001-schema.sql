@@ -1,5 +1,5 @@
 -- The tables of the importer module: imported FIT files, the activities in
--- them (one per FIT session), their coordinates and timer segments, and the
+-- them (one per FIT session), their coordinates and stretches, and the
 -- paths already looked at.  Times are Unix seconds UTC, lon/lat degrees
 -- (SRID 4326), alt metres.  Everything belongs to a user and goes with them
 -- (on delete cascade), which is how `nch --user NAME destroy` works.
@@ -47,9 +47,11 @@ create table coords (
   alt real,
   primary key (activity_id, t)) strict, without rowid;
 
--- The stretches of an activity during which the timer ran (between a timer
--- start and the next stop).  Intervals on the activity's time axis: samples do
--- not refer to them.  Segments of an activity are disjoint and in time order.
+-- The stretches of riding of an activity: the times the timer ran (between a timer start and the
+-- next stop), with those the device paused by itself and the rider hardly left joined across the
+-- pause (importer/stretch.nim).  A stretch is what the climbs are looked for in, so an effort lies
+-- within one.  Intervals on the activity's time axis: samples do not refer to them.  Segments of
+-- an activity are disjoint and in time order.
 create table segment (
   activity_id integer not null references activity(id) on delete cascade,
   n integer not null,

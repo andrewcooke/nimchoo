@@ -50,6 +50,25 @@ let tiny = fitFile(
     le32(base + 2) & le32(base) & b(2)
 )
 
+# three stretches of riding (the timer stopped and restarted by hand): 5, 4 and 3 coordinates,
+# paused for 6 s and 7 s between them
+let threeStretches =
+  block:
+    func rec(t, i: int): seq[byte] =
+      b(0) & le32(base + t) & le32(536870912 + 100 * i) & le32(-1073741824)
+    func timer(t, kind: int): seq[byte] =
+      b(5) & le32(base + t) & b(0, kind, 0)
+    var body = defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)])
+    body.add defn(5, 21, @[(253, 4, uint32T), (0, 1, enumT), (1, 1, enumT), (3, 1, enumT)])
+    for (from0, to0) in [(0, 4), (10, 13), (20, 22)]:
+      body.add timer(from0, 0)
+      for t in from0 .. to0:
+        body.add rec(t, t)
+      body.add timer(to0, 4)
+    body.add defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)])
+    body.add b(1) & le32(base + 22) & le32(base) & b(2)
+    fitFile(body)
+
 suite "import: a real ride":
   test "one activity and all its coordinates":
     let s = openStore(tempDb("ride"))
@@ -59,9 +78,9 @@ suite "import: a real ride":
     check r.outcome == ioImported
     check r.activities == 1
     check r.coords == 2099
-    check r.segments == 20
+    check r.segments == 1 # its 20 timer segments are auto-pauses the rider did not leave
     check ws.len == 0
-    check s.count("segment") == 20
+    check s.count("segment") == 1
     check s.count("file") == 1
     check s.count("activity") == 1
     check s.count("coords") == 2099
@@ -80,7 +99,7 @@ suite "import: a real ride":
       s.close()
     discard s.importPath(ride)
     check s.count("route") == 1
-    check s.db.getValue(sql"select NumGeometries(geom) from route") == "20"
+    check s.db.getValue(sql"select NumGeometries(geom) from route") == "1"
     check s.db.getValue(sql"select ST_NPoints(geom) from route") == "2099"
     # every point is within the route's bounding box (to the rounding of 7 decimals), and the route is about as long as the ride
     check s.db.getValue(
@@ -238,6 +257,15 @@ suite "import: files that cannot be imported":
       discard s.importFile(p, "x.fit", b(1, 2, 3), ws)
     check s.count("file") == 0
 
+  test "a route has a part for each stretch, with every point in some part":
+    let s = openStore(tempDb("route-parts"))
+    defer:
+      s.close()
+    var ws: seq[Warning]
+    discard s.importFile(p, "three.fit", threeStretches, ws)
+    check s.db.getValue(sql"select NumGeometries(geom) from route") == "3"
+    check s.db.getValue(sql"select ST_NPoints(geom) from route") == "12"
+
   test "a failure part way leaves no rows behind":
     let s = openStore(tempDb("rollback"))
     defer:
@@ -252,12 +280,13 @@ suite "import: files that cannot be imported":
     s.db.exec(sql"create table coords(x)")
 
 suite "import: segments":
-  test "the ride's segments are stored in order, covering every coordinate":
+  test "the segments are stored in order, covering every coordinate":
     let s = openStore(tempDb("segments"))
     defer:
       s.close()
-    discard s.importPath(ride)
-    check s.db.getValue(sql"select min(n) || '-' || max(n) from segment") == "0-19"
+    var ws: seq[Warning]
+    discard s.importFile(p, "three.fit", threeStretches, ws)
+    check s.db.getValue(sql"select min(n) || '-' || max(n) from segment") == "0-2"
     check s.db.getValue(
       sql"""select count(*) from segment a join segment b
       on b.activity_id = a.activity_id and b.n = a.n + 1
@@ -272,7 +301,17 @@ suite "import: segments":
     check s.db.getValue(
       sql"""select sum(b.start_t - a.end_t) from segment a
       join segment b on b.activity_id = a.activity_id and b.n = a.n + 1"""
-    ) == "412"
+    ) == "13"
+
+  test "the real ride's auto-pauses are joined: one stretch from its first start to its last stop":
+    let s = openStore(tempDb("ride-stretch"))
+    defer:
+      s.close()
+    discard s.importPath(ride)
+    check s.db.getValue(sql"select min(n) || '-' || max(n) from segment") == "0-0"
+    check s.db.getValue(
+      sql"""select count(*) from coords c, segment g where c.t < g.start_t or c.t > g.end_t"""
+    ) == "0"
 
   test "the coordinates of one segment are a range of the key":
     let s = openStore(tempDb("segrange"))
@@ -308,7 +347,7 @@ suite "import: decoding apart from writing":
     let d = decodeFile(p, readBytes(ride), @["heart_rate"], ws)
     check d.activities[0].coords.len == 2099 and
       d.activities[0].samples["heart_rate"].len == 2099
-    check d.routes[0].get.len == 9 + 20 * 9 + 2099 * 16 # 20 segments
+    check d.routes[0].get.len == 9 + 1 * 9 + 2099 * 16 # one stretch
 
   test "a file that cannot be used raises, and the warnings so far are kept":
     var ws: seq[Warning]

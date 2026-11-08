@@ -225,5 +225,5 @@ suite "nch import: the command":
     let d = fresh("ride")
     let st = open(d / "x.db")
     let r = importReport(st, @[ride])
-    check r.lines[0].endsWith("(1 activity, 20 segments, 2099 coordinates)")
+    check r.lines[0].endsWith("(1 activity, 1 segment, 2099 coordinates)")
     st.close()

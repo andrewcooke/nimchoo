@@ -1,5 +1,5 @@
 ## The route of an activity as well-known binary (WKB, the OGC standard form), for SpatiaLite: a
-## MULTILINESTRING with one part for each timer segment, in time order.  Pure: the importer hands
+## MULTILINESTRING with one part for each segment (stretch of riding), in time order.  Pure: the importer hands
 ## the bytes to the database (`GeomFromWKB`).
 ##
 ## (Binary, not text: SpatiaLite takes 20 ms to read the routes of 166 activities in this form and

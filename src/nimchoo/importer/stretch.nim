@@ -33,6 +33,7 @@ type
     ## event).
     trAuto
     trManual
+    trOther ## not said (older devices), or another kind (fitness equipment)
 
   Gap* = object ## The time between one timer segment and the next.
     seconds*: int64 ## from the stop to the restart
@@ -40,11 +41,12 @@ type
     stoppedBy*, restartedBy*: Trigger
 
 func joinable*(g: Gap): bool =
-  ## True if the segments on either side of `g` are one stretch.  A timer
-  ## stopped or started by hand always separates them: it is the rider's way
-  ## to say "this is apart".
+  ## True if the segments on either side of `g` are one stretch.  Only a timer
+  ## known to have been stopped and restarted by the device joins: by hand is
+  ## the rider's way to say "this is apart", and what the file does not say we
+  ## do not assume.
   doAssert g.seconds >= 0 and g.metres >= 0, "a gap has a length and a duration"
-  if g.stoppedBy == trManual or g.restartedBy == trManual:
+  if g.stoppedBy != trAuto or g.restartedBy != trAuto:
     return false
   if g.metres < stillM:
     return true
