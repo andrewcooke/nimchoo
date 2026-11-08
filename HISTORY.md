@@ -2806,10 +2806,16 @@ far apart anyway; look at each stretch of riding in turn.  A stretch is continuo
 pause in), so a spread over `maxSpanDeg` = 5 degrees (about 550 km) inside one can only be a bad fix.  The widest of the
 1,429 stretches with positions in the author's database is 1.01 degrees, so the limit refuses nothing real.
 
-Now `prepare` says `rdTooWide` for such positions, before anything is fetched (the all-countries fallback and `maxCells`
-are deleted).  `nameActivity` takes the route by stretch (`routeParts` replaces `routePoints`) and looks for the place
-along the route one stretch at a time: only the bad stretch is left out, and counted (`wideStretches`, shown in the log
-line of the import).  A climb is inside one stretch, so it is refused as a whole.  Not done: a bad fix at the start or
-the turning point still costs the lookup of one point (at most one country), and a stretch across the date line is
-refused.  Result: all 1,112 names and start places are the same after naming again from scratch.  Tests: wide positions
-fetch nothing; a route with one bad stretch costs the same downloads as without it.  Cleaning at import is in TODO.md.
+Now `prepare` says `rdTooWide` when the *box* (positions plus margin) is wider than that, before anything is fetched (the
+all-countries fallback and `maxCells` are deleted).  The box, not the positions: a first version tested the spread of the
+positions, and a test found the hole: a bad fix at the end of a route makes it "one way" to there, and the destination search
+is a single point with a radius of half the way to it (8,500 km), so it hung.  `nameActivity` takes the route by stretch
+(`routeParts` replaces `routePoints`) and looks for the place along the route one stretch at a time: only the bad stretch
+is left out.  Every search refused is a **GPS error** (the author's word, as that is what they mostly are): counted per
+activity (`Named.gpsErrors`, with the file), logged as a warn advisory for each activity, and said in the line that ends
+the naming ("named 1,112 activities: 900 with a name, ...; 3 GPS errors") and in the log's `done` line.  A climb is inside
+one stretch, so it is refused as a whole (not counted).  Not done: a stretch across the date line is refused; a ride whose
+farthest point is over about 500 km from the start gets no destination name (the radius makes the box too wide).  Result:
+all 1,112 names and start places are the same after naming again from scratch.  Tests: wide positions and wide radii fetch
+nothing; a route with one bad stretch costs the same downloads as without it; the count and the file reach `Named`.
+Cleaning at import is in TODO.md.

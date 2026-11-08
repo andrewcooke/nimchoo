@@ -90,6 +90,28 @@ suite "import: naming the activities":
     check w.st.db.getValue(sql"select coalesce(name, '-') from activity where id = 1") ==
       ""
     check w.st.db.getValue(sql"select name from activity where id = 2") == "at Santiago"
+  test "a stretch with a bad GPS fix is counted, with its file; the other stretch still names the ride":
+    let w = world("gps errors")
+    defer:
+      w.st.close()
+    w.st.addActivity("a", 1_000_000, [home, barnechea, home])
+    let u = w.st.db.getValue(sql"select id from user where name = 'default'")
+    w.st.db.exec(
+      sql"insert into seen_file(user_id, path, size, mtime, file_id) values (?, '/rides/a.fit', 1, 1, 1)",
+      u,
+    )
+    # (the route: the loop, as one stretch, and a stretch with a fix on the other side of the world: it ends the route,
+    # so the ride is "one way" to it, and the search at the turning point is the one that cannot be made)
+    var good = ""
+    for k, (x, y) in [home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home]:
+      good.add (if k > 0: ", " else: "") & $x & " " & $y
+    w.st.db.exec(
+      sql"insert into route(activity_id, geom) values (1, GeomFromText(?, 4326))",
+      "MULTILINESTRING((" & good & "), (-70.45 -33.40, 110 10))",
+    )
+    let r = ensureActivityNames(w.st, w.names)
+    check r.gpsErrors == @[GpsErrors(where: "/rides/a.fit", searches: 1)]
+    check r.gpsErrorCount == 1
   test "no positions at all: '' too":
     let w = world("nogps")
     defer:

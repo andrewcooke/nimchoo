@@ -12,12 +12,23 @@ import ./route
 
 {.push raises: [].}
 
-type Named* = object
-  total*: int ## activities that had no name
-  named*: int ## ... of which now have one
-  startOnly*: int ## ... and only a start place
-  nothing*: int ## ... and nothing to say
-  wideStretches*: int ## stretches left out of the search for a place along the route (bad fixes)
+type
+  GpsErrors* = object
+    where*: string ## the file of the activity (else "activity N")
+    searches*: int ## how many searches for a place were not made, the positions being too far apart
+
+  Named* = object
+    total*: int ## activities that had no name
+    named*: int ## ... of which now have one
+    startOnly*: int ## ... and only a start place
+    nothing*: int ## ... and nothing to say
+    gpsErrors*: seq[GpsErrors]
+      ## activities with stretches left out of the search for a place along the route (bad GPS fixes)
+
+func gpsErrorCount*(n: Named): int =
+  ## The searches not made, in all.
+  for e in n.gpsErrors:
+    result += e.searches
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
@@ -60,7 +71,15 @@ proc ensureActivityNames*(
             raiseStore("a bad position")
       parts.add (lons, lats)
     let got = nameActivity(names, parts)
-    result.wideStretches += got.wideStretches
+    if got.gpsErrors > 0:
+      var where = ""
+      guard:
+        where = st.db.getValue(
+          sql"""select ifnull((select path from seen_file where file_id = a.file_id limit 1),
+                              'activity ' || a.id) from activity a where a.id = ?""",
+          id,
+        )
+      result.gpsErrors.add GpsErrors(where: where, searches: got.gpsErrors)
     guard:
       st.db.exec(
         sql"update activity set start_place = ?, name = ? where id = ?",

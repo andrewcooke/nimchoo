@@ -123,7 +123,24 @@ proc runImport*(
             tell(DownloadEvent(kind: deWorkDone)) # (it failed: the line goes)
         let counts = ensureActivityNames(st, names.get)
         told = true
-        tell(DownloadEvent(kind: deWorkDone, message: "named " & what))
+        let gps = counts.gpsErrorCount
+        tell(
+          DownloadEvent(
+            kind: deWorkDone,
+            message:
+              "named " & what & ": " & $counts.named & " with a name, " & $counts.startOnly &
+              " with only a start place, " & $counts.nothing & " with neither" &
+              (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: ""),
+          )
+        )
+        for e in counts.gpsErrors:
+          g.log.log(
+            lvWarn,
+            "import",
+            leAdvisory,
+            e.where & "  " & plural(e.searches, "search", "searches") &
+              " for a place not made: positions too far apart (GPS errors)",
+          )
         g.log.log(
           lvInfo,
           "import",
@@ -131,10 +148,7 @@ proc runImport*(
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
             " with neither" &
-            (if counts.wideStretches > 0:
-              "; " & $counts.wideStretches & " stretches with positions too far apart (bad fixes) were not searched for places"
-            else:
-              ""),
+            (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: ""),
         )
   except StoreError, DownloadError:
     namingFailed = true

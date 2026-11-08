@@ -118,7 +118,7 @@ suite "names: an activity's name, from a route":
     # (a fix at the other side of the world, between two real ones)
     let bad: Part = (@[-70.45, 110.0, -70.46], @[-33.40, 10.0, -33.41])
     let got = nameActivity(w.names, [(r.lons, r.lats), bad])
-    check got.wideStretches == 1
+    check got.gpsErrors == 1
     check w.net.gets.len == clean.net.gets.len
   test "a short ride is 'at <start>'":
     let w = world("local")

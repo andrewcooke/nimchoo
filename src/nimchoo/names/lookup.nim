@@ -15,8 +15,8 @@ import ./[countries, features]
 const
   defaultMarginM* = 6_000.0 ## metres round the route, for the features looked at
   maxSpanDeg* = 5.0
-    ## The most a set of positions may spread, in degrees of longitude or latitude (about 550 km), for names to be fetched
-    ## for it.  A stretch of riding is continuous, so a spread beyond this is a bad fix, and fetching the countries it
+    ## The most the box round some positions (with its margin) may measure, in degrees of longitude or latitude (about
+    ## 550 km), for names to be fetched for it.  A stretch of riding is continuous, so a spread beyond this is a bad fix, and fetching the countries it
     ## would touch (once, every country: ~250 downloads) is the cost of believing it.  The widest stretch of the author's
     ## 1,112 activities is 1.01 degrees.
 
@@ -37,13 +37,6 @@ type
     name*, code*: string ## the GeoNames feature code ("PASS", "HLL", "PPL", ...)
     isPlace*: bool ## a populated place (class P)
     lon*, lat*: float
-
-func spreadDeg(xs: openArray[float]): float =
-  ## The distance from the smallest to the largest (a stretch that crosses the date line spreads over the whole circle).
-  if xs.len > 0:
-    max(xs) - min(xs)
-  else:
-    0.0
 
 func boxAround*(lons, lats: openArray[float], marginM: float): Box =
   ## The box round the positions, widened by the margin: the margin is metres, so a degree of longitude counts for less
@@ -94,10 +87,11 @@ proc prepare*(
   ## missing.  `--offline`: nothing is had.
   if n.offline or lons.len == 0:
     return Prepared(status: rdNothing)
-  if spreadDeg(lons) > maxSpanDeg or spreadDeg(lats) > maxSpanDeg:
-    return Prepared(status: rdTooWide)
-  n.ensureCountries()
   let box = boxAround(lons, lats, marginM)
+  if box.lon1 - box.lon0 > maxSpanDeg or box.lat1 - box.lat0 > maxSpanDeg:
+    return Prepared(status: rdTooWide)
+      # (the box, not the positions: a single point with a radius of thousands of km is as wide)
+  n.ensureCountries()
   let isos = n.countriesIn(box)
   if isos.len == 0:
     return Prepared(status: rdNothing)

@@ -37,8 +37,9 @@ type ActivityNames* = object
   start*: string ## "" if none
   name*: string ## "" if none
   shape*: ShapeKind
-  wideStretches*: int
-    ## stretches of the route left out of the search for a place along it (their positions spread too far: bad fixes)
+  gpsErrors*: int
+    ## searches for a place not made because the positions were too far apart (bad GPS fixes): the start, the turning
+    ## point, and each stretch along the route
 
 func destKind*(f: Found): int =
   ## How a feature ranks as a destination: 1 town, 2 section of a town, 3 park or reserve, 4 lake, 5 range / valley / other
@@ -103,11 +104,18 @@ func nameFor*(shape: ShapeKind, start, destination, via: string): string =
     (if via.len > 0: "around " & via else: "")
 
 proc around(
-    n: Names, lon, lat, radiusM: float
+    n: Names, lon, lat, radiusM: float, gpsErrors: var int
 ): seq[(Found, float)] {.raises: [StoreError, DownloadError].} =
-  ## The features within the radius of a position, with their distances (the names are made available first).
-  if n.prepare([lon], [lat], radiusM).status != rdReady:
+  ## The features within the radius of a position, with their distances (the names are made available first).  A search
+  ## too wide to make (the radius is set by the distance to a position that is a bad fix) is counted in `gpsErrors`.
+  case n.prepare([lon], [lat], radiusM).status
+  of rdTooWide:
+    inc gpsErrors
     return
+  of rdNothing:
+    return
+  of rdReady:
+    discard
   for f in n.featuresNear([lon], [lat], radiusM):
     let d = haversine(lon, lat, f.lon, f.lat)
     if d <= radiusM:
@@ -125,7 +133,7 @@ proc nameActivity*(
     lats.add part.lats
   if lons.len == 0:
     return
-  result.start = startText(n.around(lons[0], lats[0], startFarM))
+  result.start = startText(n.around(lons[0], lats[0], startFarM, result.gpsErrors))
   let sh = shapeOf(lons, lats)
   result.shape = sh.kind
   if sh.kind == skLocal:
@@ -142,7 +150,7 @@ proc nameActivity*(
       destination = own.get.landmark.name
     else:
       let radius = max(sh.farM / 2.0, minReachM)
-      let found = n.around(turn.lon, turn.lat, radius)
+      let found = n.around(turn.lon, turn.lat, radius, result.gpsErrors)
       var close: seq[(Found, float)]
       for (f, d) in found:
         if d <= closeM:
@@ -170,7 +178,7 @@ proc nameActivity*(
       for part in parts:
         case n.prepare(part.lons, part.lats, viaRouteM).status
         of rdTooWide:
-          inc result.wideStretches
+          inc result.gpsErrors
         of rdNothing:
           discard
         of rdReady:

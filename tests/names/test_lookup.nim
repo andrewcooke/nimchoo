@@ -31,6 +31,8 @@ suite "names: looking things up":
       w.st.close()
     check w.names.prepare([-70.64, 100.0], [-33.45, -33.45]).status == rdTooWide
     check w.names.prepare([-70.64, -70.64], [-33.45, 20.0]).status == rdTooWide
+    check w.names.prepare([-70.64], [-33.45], 8_500_000.0).status == rdTooWide
+      # (one point, but a radius of half the way to a bad fix: the box is as wide)
     check w.net.gets.len == 0 and w.st.count("coverage") == 0
     check w.names.prepare([-70.64, -68.0], [-33.45, -31.0]).status == rdReady
       # (a long day: a few degrees)
