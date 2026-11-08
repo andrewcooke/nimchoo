@@ -2788,3 +2788,12 @@ and a manual restart (72 moved under 20 m), and a manual stop is never followed 
 decided that a **restart by hand after an auto stop joins** (judged by distance and speed like any other); a stop by
 hand still separates.  Final: 99.4% of the 55,171 gaps join (54,847), 2,188 stretches, 183 climbs, 4,493 efforts, all
 invariants hold, Farellones 1 to 3 as before the change (1, 2 and 11 efforts, 14 in all, 11 rides) and no Farellones 4.
+
+### Foreign keys have indexes (2026-11-08, REVIEW.md class C)
+
+`tests/db/test_schema.nim` (every foreign-key column is the first column of some index, from `pragma foreign_key_list` and
+`index_list`) found five that were not: `effort.activity_id`, `country_cell.country`, `impulse.model_id`,
+`seen_file.file_id`, `selection.activity_id`.  SQLite does not index a foreign key by itself, so deleting an activity (or any
+`activity_id in (...)`) scanned those tables.  Each module got a new fragment with its index (fragments are appended, never
+edited; a later squash can merge them), and the test is part of `tests/all.nim`.  Still open: the `explain query plan` test
+that flags scans of big tables (TODO step 7, once queries go through the typed layer).

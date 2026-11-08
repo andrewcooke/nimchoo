@@ -8,10 +8,9 @@ Open work only.  Finished work is in git and in HISTORY.md (with the reasoning b
 Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
 author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
 
-- [ ] 3. Fix the bug classes B-H, J-L (the abstraction, a test for the class, the known bugs as first cases).  A is done
-      (stretches of riding: HISTORY.md, 2026-11-08).
-      Found by step 2 (done): C: `tests/db/test_schema.nim` fails for five foreign keys (effort, country_cell,
-      impulse, seen_file, selection) and is not yet in `tests/all.nim`: add the indexes, then add it.  Still open from
+- [ ] 3. Fix the bug classes B, D-H, J-L (the abstraction, a test for the class, the known bugs as first cases).  A and C are done
+      (HISTORY.md, 2026-11-08).
+      Still open from
       3.3: the FIT fuzzer's level 2 (libFuzzer), and fuzzers for the xlsx and zip readers and the `bits` decoder.
 - [ ] 4. *(mechanical)* The other reported bugs (REVIEW.md §3.2): confirm with a test, fix the real ones.
 - [ ] 5. *(mechanical)* Check the conventions in CLAUDE.md against the code (moved there from the old TODO.md, corrected by hand
