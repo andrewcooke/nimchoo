@@ -17,7 +17,7 @@ checked by the compiler) is stricter than most Nim.  What is weak is the layer a
 fact is written in several places that nothing keeps in step, module boundaries no longer match what the
 modules do, the database layer stops halfway (typed writes, string reads), work that SQL should do is done in
 Nim, and some parts are built bigger than they need to be.  These are the typical results of many small
-AI-written increments, each correct, none revisiting the whole.  There are also a handful of real bugs (§3).
+AI-written increments, each correct, none revisiting the whole.  There are also real bugs (§3), each an instance of a missing abstraction.
 
 ## 2. Good
 
@@ -38,51 +38,88 @@ AI-written increments, each correct, none revisiting the whole.  There are also 
 * **Tests**: real databases in temp dirs, error paths tested, `offline: true` enforced, a structure test.
 * **Dependencies**: few and sensible (zippy, db_connector, checksums).
 
-## 3. Bugs
+## 3. Bugs, and the missing abstractions behind them
 
-### 3.1 Checked
+These were found by reading part of the code; there will be more of the same kinds.  Each bug is an instance of
+a class, and the class is a missing abstraction (a common idea with no single home).  So the fix is the
+abstraction, plus a test that would catch the next instance; the known bugs are its first cases.  The classes
+are lettered so that the plan (§7) can refer to them.
 
-* **Climbs ignore timer segments.**  `climbs/work.nim:204-233` builds one profile from every point of the
-  activity, though `buildProfile` (profile.nim:76) says its input is one timer segment.  A ride with the timer
-  stopped while the rider is moved (car, train) gets the gap as road: invented climbs, efforts across the gap.
-  A café stop is harmless.
-* **One bad GPS fix can fetch every country**: `names/lookup.nim:66` falls back to `allCountries()` when the
-  box has more than 4000 cells, and every country's GeoNames file is downloaded (~250 zips).
-* **No index on `effort(activity_id)`**: deleting activities and `activity_id in (...)` scan the table.
-* **The web server can hang**: `serve/server.nim:19-21` reads all of stdout, then all of stderr, then waits
-  with a timeout; a hung worker is never timed out or killed, and one that fills the stderr pipe deadlocks.  The
-  server is single-threaded, so one slow `map` (the first works out climbs) blocks every request.
-* **The map cache goes stale**: `map/command.nim:186-188` reuses an existing file; the key covers the
-  activities only, so a renamed climb (or a changed detector) keeps the old map until the cache is deleted.
-* **`landmarks` runs are not logged**: `commandNames` (cli/common.nim) lists `import` (gone) and lacks it.
-* **A FIT bool's invalid marker (0xFF) reads as true** (`fit/decode.nim:124-127`); every other type drops
-  invalid values.
-* **The zip size limit does not limit**: `zipbytes.nim:60` checks the *declared* size, inflates everything,
-  and compares afterwards.  Low risk (inputs are GeoNames and the profile), but it should cap the output.
+### 3.1 Checked (confirmed in the code)
 
-### 3.2 Reported, not yet checked (check each with a test before fixing)
+**A. The structure of an activity's track is left to each consumer.**  `climbs/work.nim:204-233` builds one
+profile from every point, though `buildProfile` (profile.nim:76) says its input is one timer segment: a ride
+with the timer stopped while the rider is moved (car, train) gets the gap as road (invented climbs, efforts
+across the gap; a café stop is harmless).  *Fix:* one loader that returns a track as its segments, so a
+consumer cannot ignore them; check the other consumers (impulses, names, map) against it.
 
-* Case folding disagrees: SQL `lower()`/`trim()` are ASCII-only (ordinal.nim, landmarks.nim, suggest.nim) and
-  `findShown` uses ASCII `toLower`, while `--name` uses `foldText`: `--name ñuñoa` and `--edit Ñuñoa` match
-  differently, and the numbering key can differ from the display key.
-* `countries.nim ensureCountries` keeps one outline per ISO (`limit 1`): split or disputed countries lose
-  parts.  Cells near a border are assigned by exact intersection with a generalised 1:50m outline, so a
-  neighbour can be missed and its names never loaded.
-* A route that fails to parse gives an empty path, then stored as "nothing near": a parsing bug would mark a
-  climb unnameable for good.  Several `except ValueError: discard` drop bad rows silently.
-* Corrupt FIT input can crash rather than raise `FitError`: a huge `date_time` overflows in `fromUnix` when
-  `nch fit` prints it (a Defect; `raises: []` does not cover Defects).
-* Chained FIT files keep the previous file's timestamp across a new header; a 0xFFFFFFFF timestamp is
-  accepted; a compressed timestamp with no base aborts the file instead of warning.
-* A component scale of 0 is not rejected (plain fields are); duplicate names in the profile silently overwrite.
-* `bundle/unpack.nim` catches `Exception` (hides bugs); it and `serve/pages.nim` use a fixed `.part` name
-  (two processes clash).
-* The map request uses `bits` as typed, not re-encoded from the ids: two spellings, two cache files.
-* `validModelName` allows `--`, which `isCacheFileName` rejects: `ff` fails for such a model.
-* The token cookie has no `Max-Age`: bookmarks stop working when the browser closes (the docs say otherwise).
-* `{{{style}}}` is raw JSON inside `<script>`: a `</script>` in the author's edited style breaks the page.
-* `model/calc.nim:20-23`'s comment understates the hour-bucket error about 10x (0.3%, not 0.03%).
-* The antimeridian is only half handled (BuildMbr boxes, projection, interpolation).  Low priority; document it.
+**B. Noisy input reaches every consumer, and work grows with it unbounded.**  One bad GPS fix makes a box of
+more than 4000 cells, and `names/lookup.nim:66` falls back to `allCountries()`: every country's GeoNames file
+is downloaded (~250 zips).  *Fix:* explicit limits wherever work fans out (downloads, cells, sizes), refusing
+with a message; later, cleaning at import (outlier positions, impossible jumps) in one place, with the `sample`
+table.
+
+**C. Queries are not checked against the schema.**  No index on `effort(activity_id)`: deleting activities and
+`activity_id in (...)` scan the table.  SQLite does not index foreign keys by itself.  *Fix:* a test that every
+foreign-key column has an index (`pragma foreign_key_list`, `index_list`); once queries go through the typed
+layer, a test that runs `explain query plan` on them and flags scans of big tables.
+
+**D. Running a child process.**  `serve/server.nim:19-21` reads all of stdout, then all of stderr, then waits
+with a timeout: a hung worker is never timed out or killed, and one that fills the stderr pipe deadlocks.  The
+server is single-threaded, so one slow `map` blocks every request.  *Fix:* one helper that runs a child (both
+outputs read at once, a timeout, kill); the server stops blocking on one request.
+
+**E. Cache keys that do not cover all the inputs.**  `map/command.nim:186-188` reuses an existing file; the
+key covers the activities only, so a renamed climb or a changed detector keeps the old map until the cache is
+deleted.  `ff` does it right (`inputKey`).  *Fix:* one cache interface: a cached file is keyed by the inputs
+its maker declares (the data and the versions of the methods).  It belongs to the cache package (§6) and ties
+to the versions of on-demand work.
+
+**F. One fact in several places.**  `commandNames` (cli/common.nim) lists `import` (gone) and lacks
+`landmarks`, so `landmarks` runs are not logged.  *Fix:* the registry (§6); more generally 4.1.
+
+**G. Facts about each FIT base type spread over `case` statements.**  A bool's invalid marker (0xFF) reads as
+true (`fit/decode.nim:124-127`); every other type drops invalid values.  *Fix:* one table of base-type facts,
+the invalid check applied to every type before it is interpreted.
+
+**H. Limits checked against what a file claims, not what it does.**  `zipbytes.nim:60` checks the declared
+size, inflates everything, and compares afterwards.  Low risk (GeoNames, the profile).  *Fix:* the rule that a
+limit applies to what is actually read; here, cap the inflated output.
+
+### 3.2 Reported, not yet checked (confirm each with a test before fixing)
+
+* **I. Text compared in different ways.**  SQL `lower()`/`trim()` are ASCII-only (ordinal.nim, landmarks.nim,
+  suggest.nim) and `findShown` uses ASCII `toLower`, while `--name` uses `foldText`: `--name ñuñoa` and `--edit
+  Ñuñoa` match differently, and the numbering key can differ from the display key.  *Fix:* one fold function,
+  registered in SQLite, used everywhere.
+* **J. Failures that become data.**  A route that fails to parse gives an empty path, then stored as "nothing
+  near": a parsing bug would mark a climb unnameable for good.  Several `except ValueError: discard` drop bad rows.
+  *Fix:* the rule that a failure is never stored as a result (raise, or warn and leave the row undone).
+* **K. Writing files.**  `bundle/unpack.nim` and `serve/pages.nim` use a fixed `.part` name (two processes
+  clash); `unpack.nim` catches `Exception` (hides bugs).  *Fix:* one atomic-write helper with a unique temporary
+  name (one exists in serve: use it everywhere).
+* **L. Corrupt input reaching a Defect.**  A huge `date_time` overflows in `fromUnix` when `nch fit` prints it
+  (`raises: []` does not cover Defects).  Chained FIT files keep the previous file's timestamp; a 0xFFFFFFFF
+  timestamp is accepted; a compressed timestamp with no base aborts the file instead of warning; a component
+  scale of 0 is not rejected; duplicate names in the profile silently overwrite.  *Fix:* fuzzing (3.3), then
+  each case.
+* Geography: `countries.nim ensureCountries` keeps one outline per ISO (`limit 1`), so split or disputed
+  countries lose parts; cells near a border are assigned by exact intersection with a generalised 1:50m
+  outline, so a neighbour can be missed.  The antimeridian is only half handled (low priority; document it).
+* Validators that disagree (F/I again): `validModelName` allows `--`, which `isCacheFileName` rejects, so `ff`
+  fails for such a model; the map request uses `bits` as typed, not re-encoded from the ids (two spellings,
+  two cache files).
+* Smaller: the token cookie has no `Max-Age` (bookmarks stop working when the browser closes, though the docs
+  say otherwise); `{{{style}}}` is raw JSON inside `<script>` (a `</script>` in the edited style breaks the
+  page); `model/calc.nim:20-23`'s comment understates the hour-bucket error about 10x (0.3%, not 0.03%).
+
+### 3.3 Finding more
+
+* **Fuzz the FIT decoder**: mutate real FIT files at random; the result must be success or a `FitError`,
+  never a Defect.  Cheap, and it tests L directly.
+* **Invariant checks on real data**, run over the author's database as well as test data: every effort lies
+  within one timer segment; every activity's samples are in time order; every climb has a name decision; and so on.
+* **Schema tests** (C): an index for every foreign key; no scans of big tables in the program's queries.
 
 ## 4. Problems, by pattern
 
@@ -335,44 +372,49 @@ The current mechanism stays, per package (`package/NNN-name.sql`, as recorded no
 
 ## 7. Plan (for Sonnet; each step one or more commits, tests passing, discuss before starting)
 
-Cheap and safe first; each later step is easier because of the earlier ones.
+Cheap and safe first; each later step is easier because of the earlier ones.  Letters refer to the classes of §3.
 
 1. **Housekeeping.**  Untrack `tests/delete/test_delete`, fix `.gitignore` (`/tests/**/test_*` with `!*.nim`),
-   remove `tests/sector/`, make AGENTS.md a symlink to CLAUDE.md, add `landmarks` to `commandNames` (the
+   remove `tests/sector/`, make AGENTS.md a symlink to CLAUDE.md, add `landmarks` to `commandNames` (F; the
    registry replaces it later).
-2. **The checked bugs (§3.1)**, each with a test that fails first: climbs per timer segment; cap the country
-   fallback; index `effort(activity_id)`; the server reads both pipes, times out and kills, and does not block
-   on one request; the map cache key covers what the map shows (or the file is always remade: measure first);
-   FIT bool invalid marker; cap the inflated zip size.
-3. **The reported bugs (§3.2)**: confirm each with a test; fix the real ones, report the rest.
-4. **Prune TODO.md.**  Finished tasks out (git has them); rewrite conventions and code layout to match the code
+2. **Tests that find bugs** (3.3): the FIT fuzzer, the foreign-key index test, the invariant checks (with a way
+   to run them over the author's database).  Report what they find before fixing it.
+3. **Fix the classes**, each as the abstraction, a test for the class, and the known bugs as its first cases:
+   A (the track loader; climbs per segment; check the other consumers), B (limits where work fans out; the
+   country fallback), C (the indexes the test asks for), D (the child-process helper; the server), E (the
+   cache interface; the map key), G (the base-type table; the bool marker), H (the zip cap), J (no failure
+   stored as a result), K (one atomic write), L (what the fuzzer finds).  I waits for step 7.
+4. **The other reported bugs (3.2)**: confirm each with a test; fix the real ones, report the rest.
+5. **Prune TODO.md.**  Finished tasks out (git has them); rewrite conventions and code layout to match the code
    (or move them to CLAUDE.md); TODO.md holds open work only.
-5. **Dead code**: the dead paths in `bringUpToDate`/`fragment.nim` (not the fragment mechanism), and the dead
+6. **Dead code**: the dead paths in `bringUpToDate`/`fragment.nim` (not the fragment mechanism), and the dead
    and test-only code of 4.7.
-6. **Typed database access.**  First half a day evaluating `tiny_sqlite` against extending `db/statement.nim`;
+7. **Typed database access.**  First half a day evaluating `tiny_sqlite` against extending `db/statement.nim`;
    report back.  Then typed reads, bound parameters everywhere (SpatiaLite then gets real numbers), one user
-   lookup, a registered `fold()` SQL function; convert module by module.
-7. **Packages (§6)**:
+   lookup, the registered `fold()` SQL function (I); convert module by module; then the query-plan test (C).
+8. **Packages (§6)**:
    1. move shared code into packages of its own (time, the delete countdown, text folding, geo...); merge
       `fit` and `profile`;
-   2. the framework: `Package`, the generated registry, the topological sort; fragments in DAG order; the
+   2. the framework: `Package`, the generated registry (F), the topological sort; fragments in DAG order; the
       "missing package" refusal (rebuild the database);
-   3. a `package.nim` in each directory;
+   3. a `package.nim` in each directory; the track loader lands in the importer package, the cache interface in
+      the cache package;
    4. the import and SQL-table tests;
    5. the extension points, one commit each, each discussed first (on-demand activity work, activity
       criteria, name sources, deletion lines); the cycles go;
    6. the schema-by-several-orders test.
-8. **Options carry their help; parse into variants.**  `Opt` gets `help`, `metavar` and a completion kind;
+9. **Options carry their help; parse into variants.**  `Opt` gets `help`, `metavar` and a completion kind;
    usage is generated from the spec (prose before and after stays hand-written); the web options come from
    the same spec.  `climbs` first, shown to the author, then the others (`ff`'s output mode as an enum).
    Errors as `Option[string]`, not "".
-9. **Tab completion**: `nch __complete` and a bash function; dynamic values from the database.
-10. **One owner per fact** (the rest of 4.1): GeoNames codes in one place, `BaseType` facts in one table,
-    the duplicated helpers merged, messages built from the constants.
-11. **Push work into SQL** (4.4), measuring before and after.
-12. **Shrink** (4.7): templating to what is used; one cache naming scheme; `decode` dispatch written once.
-13. **Larger changes, each discussed first**: the `sectors` split; the `sample` table (measure size and the
-    import, climbs and map times before and after; then a simplified `route`); the cache manifest.
+10. **Tab completion**: `nch __complete` and a bash function; dynamic values from the database.
+11. **One owner per fact** (the rest of 4.1): GeoNames codes in one place, the duplicated helpers merged,
+    messages built from the constants.
+12. **Push work into SQL** (4.4), measuring before and after.
+13. **Shrink** (4.7): templating to what is used; one cache naming scheme; `decode` dispatch written once.
+14. **Larger changes, each discussed first**: the `sectors` split; the `sample` table with cleaning at import
+    (B; measure size and the import, climbs and map times before and after; then a simplified `route`); the
+    cache manifest.
 
 ## 8. Proposed additions to CLAUDE.md
 
