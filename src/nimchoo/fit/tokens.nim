@@ -158,7 +158,7 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
     let q = pos + 6 + 3 * i
     let number = int(t.data[q])
     let size = int(t.data[q + 1])
-    let base = baseTypeOf(t.data[q + 2])
+    let base = baseTypeFromByte(t.data[q + 2])
     if base.isNone:
       t.warnings.add wkUnknownBaseType,
         q, "unknown base type " & $t.data[q + 2] & " for field " & $number

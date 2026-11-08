@@ -2872,3 +2872,17 @@ where the commands are `users` and `landmarks`, so `nch log users` found nothing
   command is run (a listing is a run too).  A way round it is a run id in the log, or filtering on the event alone.
 * Not derived yet: the server's `commandRules` (a test checks that its names are commands; its options move into
   the command's definition with step 9), and the `nch map` style prefixes of messages.
+
+### One table of base-type facts (2026-11-08, REVIEW.md class G)
+
+A bool whose byte was the "not recorded" marker (0xFF) read as `true`: `decode.interpret` handled `tkBool` before the
+bad-value check that every other type met.  Behind it, the facts about a base type (size, signedness, marker) were in
+three `case` statements, "is this the marker" was written three ways (`isBad`, `isBadInt`, `floatKind`), and there were
+two functions called `baseTypeOf` (from the definition's byte, from the profile's name).
+* `fit/basetype.nim` has one table (`facts`, an array indexed by `BaseType`, so a new type that lacks an entry does not
+  compile): size, kind of number, marker.  `size`, `isSigned` and `invalid` read it.  `elementKind` says whether an
+  element is a value, the marker, or (floats) a NaN or infinity, and every path (bool, scaled and unscaled integers,
+  floats, accumulated fields) asks it before interpreting; `isBad` is built on it.  `baseTypeFromByte` and
+  `baseTypeFromName` replace the two `baseTypeOf`.
+* Now: a bool that is 255 (or all 255) is left out of the record; an isolated 255 in an array stays 255, as for numbers.
+  The 26 sample files give the same CSV as the SDK before and after (`nimble csvreport`), so none of them has such a bool.

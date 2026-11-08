@@ -92,15 +92,6 @@ proc initDecoder*(p: Profile): Decoder =
   for name, t in p.types:
     result.types[name] = (t.kind, t.base)
 
-func isBadInt(bt: BaseType, v: int64): bool =
-  let sz = bt.size
-  let mask =
-    if sz >= 8:
-      high(uint64)
-    else:
-      (1'u64 shl (8 * sz)) - 1
-  (cast[uint64](v) and mask) == invalid(bt)
-
 func leBytes(v: uint64): array[8, byte] =
   for i in 0 ..< 8:
     result[i] = byte((v shr (8 * i)) and 0xff)
@@ -132,12 +123,6 @@ proc interpret(
   template mk(k: ValueKind): FieldValue =
     FieldValue(kind: k, meta: sp.meta, number: sp.number, dev: sp.dev, bits: sp.bits)
 
-  if sp.kind == tkBool:
-    var fv = mk(vkInt)
-    for x in data:
-      fv.ints.add(if x != 0: 1'i64 else: 0'i64)
-    into.add move(fv)
-    return
   if sp.base == btString:
     var fv = mk(vkString)
     fv.strings = decodeString(data)
@@ -146,6 +131,21 @@ proc interpret(
   if sp.check and isBad(sp.base, data, endian):
     return
   let n = data.len div sp.base.size
+  if sp.kind == tkBool:
+    # true for any value that is not 0, except the marker, which (as for numbers, in an array) stays as it is
+    var fv = mk(vkInt)
+    fv.ints = newSeq[int64](n)
+    for i in 0 ..< n:
+      let v = readInt(sp.base, data, i, endian)
+      fv.ints[i] =
+        if elementKind(sp.base, data, i, endian) == ekBad:
+          v
+        elif v != 0:
+          1'i64
+        else:
+          0'i64
+    into.add move(fv)
+    return
   let identity = (sp.scale == 1 and sp.offset == 0) or sp.base == btEnum
   if sp.base in {btFloat32, btFloat64}:
     # a float that is not finite is not a measurement: the field is left out
@@ -154,8 +154,8 @@ proc interpret(
     fv.floats = newSeq[float](n)
     var left, odd = false
     for i in 0 ..< n:
-      case floatKind(sp.base, data, i, endian)
-      of fkFinite:
+      case elementKind(sp.base, data, i, endian)
+      of ekValue:
         let x = readFloat(sp.base, data, i, endian)
         let y = if identity: some(x) else: scaled(x, sp.scale, sp.offset)
         if y.isSome:
@@ -163,9 +163,9 @@ proc interpret(
         else:
           left = true
           odd = true
-      of fkInvalid:
+      of ekBad:
         left = true
-      of fkNonFinite:
+      of ekNonFinite:
         left = true
         odd = true
     if odd:
@@ -204,8 +204,8 @@ proc interpret(
       into.add move(fv)
     else:
       var fv = mk(vkFloat)
-      for v in vals:
-        if vals.len > 1 and isBadInt(sp.base, v):
+      for i, v in vals:
+        if vals.len > 1 and elementKind(sp.base, data, i, endian) == ekBad:
           fv.floats.add float(v)
         else:
           fv.floats.add float(v) / sp.scale - sp.offset
@@ -224,7 +224,7 @@ proc interpret(
       let v = readInt(sp.base, data, i, endian)
       # isolated bad values in arrays stay unscaled (as the SDK CSV does)
       fv.floats[i] =
-        if n > 1 and isBadInt(sp.base, v):
+        if n > 1 and elementKind(sp.base, data, i, endian) == ekBad:
           float(v)
         else:
           float(v) / sp.scale - sp.offset
@@ -506,7 +506,7 @@ proc registerDev(d: var Decoder, r: Record, offset: int) =
   if idx.isNone or num.isNone or bid.isNone:
     d.warnings.add wkFieldDescription, offset, "incomplete field_description"
     return
-  let base = baseTypeOf(byte(bid.get and 0xff))
+  let base = baseTypeFromByte(byte(bid.get and 0xff))
   if base.isNone:
     d.warnings.add wkFieldDescription,
       offset, "field_description: unknown base type " & $bid.get

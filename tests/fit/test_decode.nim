@@ -38,6 +38,26 @@ func csd(speed, dist: int): seq[byte] =
   ## compressed_speed_distance: 12 bits speed, 12 bits distance
   le32(speed or (dist shl 12))[0 .. 2]
 
+suite "decode: a bool is checked for the bad-value marker like every other type":
+  # sdm_profile.enabled: a bool (profile base type uint8)
+  proc enabled(values: seq[byte], base = 0x02): Record =
+    let (_, recs) =
+      decodeAll(defn(0, 5, @[(0, values.len, base)]) & b(0) & values)
+    check recs.len == 1
+    recs[0]
+
+  test "0 and 1 are false and true":
+    check enabled(b(0)).fv("enabled").ints == @[0'i64]
+    check enabled(b(1)).fv("enabled").ints == @[1'i64]
+    check enabled(b(7)).fv("enabled").ints == @[1'i64] # (anything else that is not the marker)
+
+  test "the marker (255) leaves the field out; it is not true":
+    check enabled(b(0xff)).field("enabled").isNone
+    check enabled(b(0xff, 0xff)).field("enabled").isNone
+
+  test "an isolated marker in an array stays raw, as for numbers":
+    check enabled(b(1, 0xff, 0)).fv("enabled").ints == @[1'i64, 255, 0]
+
 suite "decode: floats that are not finite":
   # hrv.time: a float32 (base type 0x88), scale 1000
   proc hrv(values: seq[byte]): (Reader, Record) =

@@ -62,11 +62,6 @@ proc floatCell(
   if classify(result) in {fcNan, fcInf, fcNegInf}:
     fail(sheet, row, "bad " & what & " " & s)
 
-proc baseTypeOf(name: string): Option[BaseType] =
-  for b in BaseType:
-    if $b == name:
-      return some(b)
-
 proc isHeading(s: string): bool =
   s.len > 0 and s[0].isUpperAscii
 
@@ -92,7 +87,7 @@ proc loadTypes*(rows: seq[Row]): Table[string, FitType] {.raises: [ProfileError]
       cur = ""
       if name.isHeading or name in result:
         continue
-      let base = baseTypeOf(row.cell(1))
+      let base = baseTypeFromName(row.cell(1))
       if base.isNone:
         fail("Types", i, "unknown base type " & row.cell(1))
       result[name] = FitType(name: name, base: base.get, kind: tkMapping)

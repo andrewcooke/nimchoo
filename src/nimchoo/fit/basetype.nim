@@ -42,18 +42,71 @@ type
     of rkFloat: floats*: seq[float]
     of rkString: strings*: seq[string]
 
+type
+  NumberKind = enum
+    nkUnsigned
+    nkSigned
+    nkFloat
+    nkText
+
+  Facts = object
+    ## Everything fixed about a base type.  The only place these are written.
+    size: int ## bytes per element (a string's and a byte's count as 1)
+    number: NumberKind
+    marker: uint64
+      ## the "bad value" marker, as the raw unsigned value (unused for text, which has none)
+
+func allOnes(size: int): uint64 =
+  ## All bits of an element of `size` bytes set.
+  if size >= 8:
+    high(uint64)
+  else:
+    (1'u64 shl (8 * size)) - 1
+
+func unsigned(size: int): Facts =
+  Facts(size: size, number: nkUnsigned, marker: allOnes(size))
+
+func signed(size: int): Facts =
+  Facts(size: size, number: nkSigned, marker: allOnes(size) shr 1)
+
+func zeroBad(size: int): Facts =
+  Facts(size: size, number: nkUnsigned, marker: 0)
+
+func real(size: int): Facts =
+  Facts(size: size, number: nkFloat, marker: allOnes(size))
+
+const facts: array[BaseType, Facts] = [
+  btEnum: unsigned(1),
+  btSint8: signed(1),
+  btUint8: unsigned(1),
+  btSint16: signed(2),
+  btUint16: unsigned(2),
+  btSint32: signed(4),
+  btUint32: unsigned(4),
+  btString: Facts(size: 1, number: nkText),
+  btFloat32: real(4),
+  btFloat64: real(8),
+  btUint8z: zeroBad(1),
+  btUint16z: zeroBad(2),
+  btUint32z: zeroBad(4),
+  btByte: unsigned(1),
+  btSint64: signed(8),
+  btUint64: unsigned(8),
+  btUint64z: zeroBad(8),
+]
+
 func size*(bt: BaseType): int {.raises: [].} =
   ## Bytes per element (strings and bytes count as 1).
-  case bt
-  of btEnum, btSint8, btUint8, btString, btUint8z, btByte: 1
-  of btSint16, btUint16, btUint16z: 2
-  of btSint32, btUint32, btFloat32, btUint32z: 4
-  of btFloat64, btSint64, btUint64, btUint64z: 8
+  facts[bt].size
 
 func isSigned*(bt: BaseType): bool {.raises: [].} =
-  bt in {btSint8, btSint16, btSint32, btSint64}
+  facts[bt].number == nkSigned
 
-func baseTypeOf*(b: byte): Option[BaseType] {.raises: [].} =
+func invalid*(bt: BaseType): uint64 {.raises: [].} =
+  ## The "bad value" marker, as the raw unsigned value.
+  facts[bt].marker
+
+func baseTypeFromByte*(b: byte): Option[BaseType] {.raises: [].} =
   ## Base type from the byte in a definition message: low 5 bits are the
   ## number; bit 7 (endian ability) is ignored.
   let n = int(b and 0x1f)
@@ -62,21 +115,38 @@ func baseTypeOf*(b: byte): Option[BaseType] {.raises: [].} =
   else:
     none(BaseType)
 
-func invalid*(bt: BaseType): uint64 {.raises: [].} =
-  ## The "bad value" marker, as the raw unsigned value.
-  let bits = 8 * bt.size
-  let ones =
-    if bits == 64:
-      high(uint64)
-    else:
-      (1'u64 shl bits) - 1
-  case bt
-  of btUint8z, btUint16z, btUint32z, btUint64z:
-    0'u64
-  of btSint8, btSint16, btSint32, btSint64:
-    ones shr 1
-  else:
-    ones # unsigned, enum, byte, floats (all bits set)
+func baseTypeFromName*(name: string): Option[BaseType] {.raises: [].} =
+  ## Base type from its name in the profile ("uint16").
+  for b in BaseType:
+    if $b == name:
+      return some(b)
+
+type ElementKind* = enum
+  ekValue ## an ordinary value
+  ekBad ## the type's "bad value" marker: the file says "no value"
+  ekNonFinite ## a float that is a NaN other than the marker, or an infinity: not a measurement
+
+func elementKind*(
+    bt: BaseType, data: openArray[byte], i: int, endian: Endianness
+): ElementKind {.raises: [].} =
+  ## What element `i` is, from its bits alone.  Every type is asked this before its value is interpreted (a bool or a
+  ## scaled number alike), so that no type reads the marker as a value.  (A NaN must not meet float arithmetic: a
+  ## signalling one raises an exception with checks on, and quietly spreads with them off.)  Text has no marker.
+  if facts[bt].number == nkText:
+    return ekValue
+  let sz = bt.size
+  let u = getUint(data, i * sz, sz, endian)
+  if u == facts[bt].marker:
+    return ekBad
+  if facts[bt].number == nkFloat:
+    let exponentOnes =
+      if sz == 4:
+        ((u shr 23) and 0xff) == 0xff
+      else:
+        ((u shr 52) and 0x7ff) == 0x7ff
+    if exponentOnes:
+      return ekNonFinite
+  ekValue
 
 func isBad*(
     bt: BaseType, data: openArray[byte], endian: Endianness
@@ -85,13 +155,11 @@ func isBad*(
   ## are never bad.
   if bt == btString:
     return false
-  let sz = bt.size
-  let marker = invalid(bt)
-  let n = data.len div sz
+  let n = data.len div bt.size
   if n == 0:
     return true
   for i in 0 ..< n:
-    if getUint(data, i * sz, sz, endian) != marker:
+    if bt.elementKind(data, i, endian) != ekBad:
       return false
   true
 
@@ -123,32 +191,10 @@ func readInt*(
   else:
     cast[int64](getUint(data, i * sz, sz, endian))
 
-type FloatKind* = enum
-  fkFinite
-  fkInvalid ## the all-bits-set marker (a quiet NaN): the file says "no value"
-  fkNonFinite ## some other NaN or an infinity: not a measurement
-
-func floatKind*(
-    bt: BaseType, data: openArray[byte], i: int, endian: Endianness
-): FloatKind {.raises: [].} =
-  ## What element `i` is, from its bits alone: a NaN must not meet float
-  ## arithmetic (a signalling one raises an exception with checks on, and
-  ## quietly spreads with them off).
-  let sz = bt.size
-  let u = getUint(data, i * sz, sz, endian)
-  if u == invalid(bt):
-    return fkInvalid
-  let exponentOnes =
-    if sz == 4:
-      ((u shr 23) and 0xff) == 0xff
-    else:
-      ((u shr 52) and 0x7ff) == 0x7ff
-  if exponentOnes: fkNonFinite else: fkFinite
-
 func readFloat*(
     bt: BaseType, data: openArray[byte], i: int, endian: Endianness
 ): float {.raises: [].} =
-  ## Element `i` of `data` as a float.  Only for elements that `floatKind` says
+  ## Element `i` of `data` as a float.  Only for elements that `elementKind` says
   ## are finite.
   let sz = bt.size
   let u = getUint(data, i * sz, sz, endian)

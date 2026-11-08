@@ -9,13 +9,13 @@ func ints(bt: BaseType, data: seq[byte], e = littleEndian): seq[int64] =
 
 suite "base type byte":
   test "known":
-    check baseTypeOf(0x84).get == btUint16
-    check baseTypeOf(0x07).get == btString
-    check baseTypeOf(0x00).get == btEnum
-    check baseTypeOf(0x10).get == btUint64z
+    check baseTypeFromByte(0x84).get == btUint16
+    check baseTypeFromByte(0x07).get == btString
+    check baseTypeFromByte(0x00).get == btEnum
+    check baseTypeFromByte(0x10).get == btUint64z
   test "unknown":
-    check baseTypeOf(0x1f).isNone
-    check baseTypeOf(0x11).isNone
+    check baseTypeFromByte(0x1f).isNone
+    check baseTypeFromByte(0x11).isNone
 
 suite "integers":
   test "unsigned, both endians":
@@ -91,27 +91,27 @@ suite "floats":
 suite "floats that are not finite":
   # judged from the bits, so that a NaN never meets arithmetic
   test "float32: the marker, other NaNs and infinities are told apart from numbers":
-    check floatKind(btFloat32, b(0, 0, 0xc0, 0x3f), 0, littleEndian) == fkFinite
-    check floatKind(btFloat32, b(0, 0, 0, 0), 0, littleEndian) == fkFinite
-    check floatKind(btFloat32, b(1, 0, 0, 0), 0, littleEndian) == fkFinite # subnormal
-    check floatKind(btFloat32, b(0xff, 0xff, 0xff, 0xff), 0, littleEndian) == fkInvalid
-    check floatKind(btFloat32, b(0, 0, 0xc0, 0x7f), 0, littleEndian) == fkNonFinite # quiet NaN
-    check floatKind(btFloat32, b(1, 0, 0x80, 0x7f), 0, littleEndian) == fkNonFinite # signalling NaN
-    check floatKind(btFloat32, b(0, 0, 0x80, 0x7f), 0, littleEndian) == fkNonFinite # +inf
-    check floatKind(btFloat32, b(0, 0, 0x80, 0xff), 0, littleEndian) == fkNonFinite # -inf
-    check floatKind(btFloat32, b(0x7f, 0x80, 0, 0), 0, bigEndian) == fkNonFinite
+    check elementKind(btFloat32, b(0, 0, 0xc0, 0x3f), 0, littleEndian) == ekValue
+    check elementKind(btFloat32, b(0, 0, 0, 0), 0, littleEndian) == ekValue
+    check elementKind(btFloat32, b(1, 0, 0, 0), 0, littleEndian) == ekValue # subnormal
+    check elementKind(btFloat32, b(0xff, 0xff, 0xff, 0xff), 0, littleEndian) == ekBad
+    check elementKind(btFloat32, b(0, 0, 0xc0, 0x7f), 0, littleEndian) == ekNonFinite # quiet NaN
+    check elementKind(btFloat32, b(1, 0, 0x80, 0x7f), 0, littleEndian) == ekNonFinite # signalling NaN
+    check elementKind(btFloat32, b(0, 0, 0x80, 0x7f), 0, littleEndian) == ekNonFinite # +inf
+    check elementKind(btFloat32, b(0, 0, 0x80, 0xff), 0, littleEndian) == ekNonFinite # -inf
+    check elementKind(btFloat32, b(0x7f, 0x80, 0, 0), 0, bigEndian) == ekNonFinite
   test "float64":
-    check floatKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), 0, littleEndian) == fkFinite
-    check floatKind(btFloat64, b(1, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
-      fkNonFinite
-    check floatKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
-      fkNonFinite
-    check floatKind(
+    check elementKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), 0, littleEndian) == ekValue
+    check elementKind(btFloat64, b(1, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
+      ekNonFinite
+    check elementKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
+      ekNonFinite
+    check elementKind(
       btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), 0, bigEndian
-    ) == fkInvalid
+    ) == ekBad
   test "the element asked for":
-    check floatKind(btFloat32, b(0, 0, 0xc0, 0x3f, 0, 0, 0x80, 0x7f), 1, littleEndian) ==
-      fkNonFinite
+    check elementKind(btFloat32, b(0, 0, 0xc0, 0x3f, 0, 0, 0x80, 0x7f), 1, littleEndian) ==
+      ekNonFinite
 
 suite "strings":
   func strs(data: seq[byte]): seq[string] =
@@ -126,3 +126,37 @@ suite "strings":
     check strs(b(ord('a'), 0xff, 0)) == @["a\x01"]
   test "empty":
     check strs(b(0, 0)) == @[""]
+
+suite "every base type, from its table of facts":
+  func bytesOf(v: uint64, size: int, e: Endianness): seq[byte] =
+    for i in 0 ..< size:
+      let shift = if e == littleEndian: 8 * i else: 8 * (size - 1 - i)
+      result.add byte((v shr shift) and 0xff)
+
+  test "the marker is bad, in both byte orders, and is the only bad value of its size":
+    for bt in BaseType:
+      if bt == btString:
+        continue
+      for e in [littleEndian, bigEndian]:
+        let marker = bytesOf(invalid(bt), bt.size, e)
+        check isBad(bt, marker, e)
+        check bt.elementKind(marker, 0, e) == ekBad
+        check decode(bt, marker, e).isNone
+        # a neighbour of the marker is a value (floats: some value; z types: 1 is not their marker)
+        let other = bytesOf(if invalid(bt) == 1: 2 else: 1, bt.size, e)
+        check not isBad(bt, other, e)
+        check bt.elementKind(other, 0, e) == ekValue
+  test "a marker among values: only that element is bad":
+    for bt in BaseType:
+      if bt in {btString, btFloat32, btFloat64}:
+        continue
+      let data = bytesOf(1, bt.size, littleEndian) &
+        bytesOf(invalid(bt), bt.size, littleEndian)
+      check not isBad(bt, data, littleEndian)
+      check bt.elementKind(data, 0, littleEndian) == ekValue
+      check bt.elementKind(data, 1, littleEndian) == ekBad
+  test "names and bytes find the same types":
+    for bt in BaseType:
+      check baseTypeFromName($bt) == some(bt)
+      check baseTypeFromByte(byte(ord(bt))) == some(bt)
+    check baseTypeFromName("uint9").isNone and baseTypeFromName("").isNone
