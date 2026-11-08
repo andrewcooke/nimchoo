@@ -68,13 +68,18 @@ nothing but the top level dispatcher imports a command (that's not
 enforced by the language, but is checked by a test).  tests mirror the
 source tree.
 
-**direction (decided 2026-11-08): packages.**  the modules become packages that declare their dependencies; the
-build enforces a DAG; a third party adds a package by dropping a directory in and rebuilding.  the framework is
-minimal (the `Package` type and registry, the database handle and fragments, the extension-point types); everything
-else is a package, small ones included.  an early package that must be extended offers an extension point; it does
-not import the later package, and no package alters another's tables.  per-second data is stored per activity, as
-arrays; by default other data refers to it by time (never by array index), and the arrays are never changed once
-written (an alternative needs a reason).  details and steps: REVIEW.md §6; until that work is done the layout above is what exists.
+**direction (decided 2026-11-08): packages.** the modules become
+packages that declare their dependencies; the build enforces a DAG; a
+third party adds a package by dropping a directory in and rebuilding.
+the framework is minimal (the `Package` type and registry, the
+database handle and fragments, the extension-point types); everything
+else is a package, small ones included.  an early package that must be
+extended offers an extension point; it does not import the later
+package, and no package alters another's tables.  per-second data is
+stored per activity, as arrays; by default other data refers to it by
+time (never by array index), and the arrays are never changed once
+written (an alternative needs a reason).  details and steps: REVIEW.md
+§6; until that work is done the layout above is what exists.
 
 ## display
 
@@ -165,12 +170,16 @@ database (`nch db --delete -f`, then import again).  the cache survives
   list of towns, `place` table, `activity.place_id`), `name_source`,
   `sector.kind`, `sector.name_checked`, and the one-off "forget the names"
   steps.
-* the second squash (2026-11-05) made every table `strict` (a text value in an integer column is an error) and
-  merged `climbs/002-retired.sql` into `001-schema.sql`.  SpatiaLite's `AddGeometryColumn` does not work on a strict
-  table (it declares the column with the type "POINT"), so a geometry column is declared `blob` in the table and
-  registered with `RecoverGeometryColumn(table, column, 4326, 'POINT', 'XY')`: the same constraints and spatial index.
-  A new file is also made with `auto_vacuum = incremental`; `reclaim` (in `db/store.nim`) gives the space back after a
-  big delete.  Every new table must say `strict`.
+* the second squash (2026-11-05) made every table `strict` (a text
+  value in an integer column is an error) and merged
+  `climbs/002-retired.sql` into `001-schema.sql`.  SpatiaLite's
+  `AddGeometryColumn` does not work on a strict table (it declares the
+  column with the type "POINT"), so a geometry column is declared
+  `blob` in the table and registered with
+  `RecoverGeometryColumn(table, column, 4326, 'POINT', 'XY')`: the
+  same constraints and spatial index.  A new file is also made with
+  `auto_vacuum = incremental`; `reclaim` (in `db/store.nim`) gives the
+  space back after a big delete.  Every new table must say `strict`.
 
 ### other decisions to remember (details in HISTORY.md)
 
