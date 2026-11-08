@@ -123,10 +123,33 @@ func readInt*(
   else:
     cast[int64](getUint(data, i * sz, sz, endian))
 
+type FloatKind* = enum
+  fkFinite
+  fkInvalid ## the all-bits-set marker (a quiet NaN): the file says "no value"
+  fkNonFinite ## some other NaN or an infinity: not a measurement
+
+func floatKind*(
+    bt: BaseType, data: openArray[byte], i: int, endian: Endianness
+): FloatKind {.raises: [].} =
+  ## What element `i` is, from its bits alone: a NaN must not meet float
+  ## arithmetic (a signalling one raises an exception with checks on, and
+  ## quietly spreads with them off).
+  let sz = bt.size
+  let u = getUint(data, i * sz, sz, endian)
+  if u == invalid(bt):
+    return fkInvalid
+  let exponentOnes =
+    if sz == 4:
+      ((u shr 23) and 0xff) == 0xff
+    else:
+      ((u shr 52) and 0x7ff) == 0x7ff
+  if exponentOnes: fkNonFinite else: fkFinite
+
 func readFloat*(
     bt: BaseType, data: openArray[byte], i: int, endian: Endianness
 ): float {.raises: [].} =
-  ## Element `i` of `data` as a float (for the float base types).
+  ## Element `i` of `data` as a float.  Only for elements that `floatKind` says
+  ## are finite.
   let sz = bt.size
   let u = getUint(data, i * sz, sz, endian)
   if sz == 4:

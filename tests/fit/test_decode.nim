@@ -2,6 +2,7 @@ import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
 import nimchoo/fit/[bytes, time]
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
+import nimchoo/warnings
 import nimchoo/fit/tokens
 import ../support/fitbuilder
 
@@ -36,6 +37,35 @@ func str(s: string, n: int): seq[byte] =
 func csd(speed, dist: int): seq[byte] =
   ## compressed_speed_distance: 12 bits speed, 12 bits distance
   le32(speed or (dist shl 12))[0 .. 2]
+
+suite "decode: floats that are not finite":
+  # hrv.time: a float32 (base type 0x88), scale 1000
+  proc hrv(values: seq[byte]): (Reader, Record) =
+    let (r, recs) = decodeAll(defn(0, 78, @[(0, values.len, 0x88)]) & b(0) & values)
+    check recs.len == 1
+    (r, recs[0])
+
+  test "a finite value is scaled":
+    let (r, rec) = hrv(b(0, 0, 0xc0, 0x3f)) # 1.5
+    check rec.fv("time").floats == @[0.0015]
+    check r.warnings.len == 0
+
+  test "the bad-value marker leaves the field out, without a warning":
+    let (r, rec) = hrv(b(0xff, 0xff, 0xff, 0xff))
+    check rec.field("time").isNone
+    check r.warnings.len == 0
+
+  test "a NaN (quiet or signalling) or an infinity leaves the field out, with a warning":
+    for bytes in [b(0, 0, 0xc0, 0x7f), b(1, 0, 0x80, 0x7f), b(0, 0, 0x80, 0x7f),
+                  b(0, 0, 0x80, 0xff)]:
+      let (r, rec) = hrv(bytes)
+      check rec.field("time").isNone
+      check r.warnings.mapIt(it.kind) == @[wkNonFiniteFloat]
+
+  test "one bad element leaves out the whole array":
+    let (r, rec) = hrv(b(0, 0, 0xc0, 0x3f, 0, 0, 0x80, 0x7f))
+    check rec.field("time").isNone
+    check r.warnings.mapIt(it.kind) == @[wkNonFiniteFloat]
 
 suite "decode: plain fields":
   test "ints, scaled floats, signed":

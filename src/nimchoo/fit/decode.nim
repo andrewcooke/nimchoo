@@ -107,6 +107,17 @@ func leBytes(v: uint64): array[8, byte] =
 
 # --- one value
 
+{.push floatChecks: off.}
+func scaled(x, scale, offset: float): Option[float] =
+  ## `x / scale - offset`, or none if that is not a finite number (with float
+  ## checks off here, so that it is the same with them on or off elsewhere).
+  let y = x / scale - offset
+  if y == y and y - y == 0.0: # not NaN, not infinite
+    some(y)
+  else:
+    none(float)
+{.pop.}
+
 proc interpret(
     d: var Decoder,
     sp: Spec,
@@ -137,16 +148,31 @@ proc interpret(
   let n = data.len div sp.base.size
   let identity = (sp.scale == 1 and sp.offset == 0) or sp.base == btEnum
   if sp.base in {btFloat32, btFloat64}:
+    # a float that is not finite is not a measurement: the field is left out
+    # (the marker silently, any other NaN or infinity with a warning)
     var fv = mk(vkFloat)
     fv.floats = newSeq[float](n)
+    var left, odd = false
     for i in 0 ..< n:
-      let x = readFloat(sp.base, data, i, endian)
-      fv.floats[i] =
-        if identity:
-          x
+      case floatKind(sp.base, data, i, endian)
+      of fkFinite:
+        let x = readFloat(sp.base, data, i, endian)
+        let y = if identity: some(x) else: scaled(x, sp.scale, sp.offset)
+        if y.isSome:
+          fv.floats[i] = y.get
         else:
-          x / sp.scale - sp.offset
-    into.add move(fv)
+          left = true
+          odd = true
+      of fkInvalid:
+        left = true
+      of fkNonFinite:
+        left = true
+        odd = true
+    if odd:
+      d.warnings.add wkNonFiniteFloat,
+        ctx.offset, "a NaN or infinite value in " & sp.meta.name & " (field left out)"
+    if not left:
+      into.add move(fv)
     return
   if sp.acc > 0:
     # an accumulated field: its running total is kept (rare)

@@ -88,6 +88,31 @@ suite "floats":
       btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), bigEndian
     ).isNone
 
+suite "floats that are not finite":
+  # judged from the bits, so that a NaN never meets arithmetic
+  test "float32: the marker, other NaNs and infinities are told apart from numbers":
+    check floatKind(btFloat32, b(0, 0, 0xc0, 0x3f), 0, littleEndian) == fkFinite
+    check floatKind(btFloat32, b(0, 0, 0, 0), 0, littleEndian) == fkFinite
+    check floatKind(btFloat32, b(1, 0, 0, 0), 0, littleEndian) == fkFinite # subnormal
+    check floatKind(btFloat32, b(0xff, 0xff, 0xff, 0xff), 0, littleEndian) == fkInvalid
+    check floatKind(btFloat32, b(0, 0, 0xc0, 0x7f), 0, littleEndian) == fkNonFinite # quiet NaN
+    check floatKind(btFloat32, b(1, 0, 0x80, 0x7f), 0, littleEndian) == fkNonFinite # signalling NaN
+    check floatKind(btFloat32, b(0, 0, 0x80, 0x7f), 0, littleEndian) == fkNonFinite # +inf
+    check floatKind(btFloat32, b(0, 0, 0x80, 0xff), 0, littleEndian) == fkNonFinite # -inf
+    check floatKind(btFloat32, b(0x7f, 0x80, 0, 0), 0, bigEndian) == fkNonFinite
+  test "float64":
+    check floatKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), 0, littleEndian) == fkFinite
+    check floatKind(btFloat64, b(1, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
+      fkNonFinite
+    check floatKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
+      fkNonFinite
+    check floatKind(
+      btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), 0, bigEndian
+    ) == fkInvalid
+  test "the element asked for":
+    check floatKind(btFloat32, b(0, 0, 0xc0, 0x3f, 0, 0, 0x80, 0x7f), 1, littleEndian) ==
+      fkNonFinite
+
 suite "strings":
   func strs(data: seq[byte]): seq[string] =
     decode(btString, data, littleEndian).get.strings

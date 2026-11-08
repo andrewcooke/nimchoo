@@ -30,6 +30,7 @@ type
     wkCompositeTarget ## a composite component names a missing field
     wkFieldDescription ## a field_description record is unusable
     wkUndescribedDevField ## developer field with no field_description
+    wkNonFiniteFloat ## a float field that is NaN or infinite, or becomes so when scaled (dropped)
     # importing activities
     wkDuplicateTime ## several records in one second (the last is kept)
     wkInvalidTime ## a timestamp that is not a calendar time (dropped)
