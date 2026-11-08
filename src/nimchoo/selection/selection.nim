@@ -76,10 +76,9 @@ proc ownedIds*(st: Store, ids: seq[int64]): seq[int64] {.raises: [StoreError].} 
 
 const checkLength* = 6
 
-proc checkOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
-  ## A short check of the *content* of the activities `ids` (the first 6 hex digits of their key: the same as the
-  ## selection key's start).  An address carries it with its list of activities, so that after the database has been
-  ## rebuilt (and the ids mean other activities) or activities deleted, the address is refused and not wrong.
+proc contentKey*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
+  ## The key of the *content* of the activities `ids`: of their files and sessions (the same kind of key as the
+  ## selection key).
   var entries: seq[string]
   guard:
     for id in ids:
@@ -89,4 +88,11 @@ proc checkOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
         id,
       ):
         entries.add row[0] & ":" & row[1]
-  keyOf(entries)[0 ..< checkLength]
+  keyOf(entries)
+
+proc checkOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
+  ## A short check of the content of the activities `ids` (the first 6 hex digits of `contentKey`).  An address carries
+  ## it with its list of activities, so that after the database has been rebuilt (and the ids mean other activities) or
+  ## activities deleted, the address is refused and not wrong.  (It checks the address; it is not the key of a cached
+  ## file's inputs: that is the whole of `contentKey` and more, see `cache.inputsKey`.)
+  contentKey(st, ids)[0 ..< checkLength]

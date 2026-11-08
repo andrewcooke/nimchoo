@@ -1,12 +1,12 @@
 ## The routes of activities and the climbs on them as GeoJSON: a FeatureCollection with a feature for each activity and
 ## a feature for each climb.  Every feature says what it is in a property `kind` ("route" or "climb") and carries only
 ## facts, never colours or widths: the page decides how things look.  The request that made the file is written into
-## it (`nch.request`), to tell the file when it is found again.  Pure: the geometry arrives as GeoJSON text from the
+## it (`nch.request`), and the key of the inputs it was made from (`nch.inputs`), to tell the file when it is found again.  Pure: the geometry arrives as GeoJSON text from the
 ## database, the rest is put round it here.
 
 import std/[json, options, strutils, times]
+import ../[hashing, ids]
 import ../fit/time
-import ../ids
 
 {.push raises: [].}
 
@@ -53,11 +53,23 @@ proc climbFeature*(c: Climb): string =
 const filePrefix* = "{\"type\":\"FeatureCollection\",\"nch\":{\"request\":"
   ## What every file starts with, up to the request: so a file found by its name can be checked to be for that request.
 
-func filePrefixFor*(request: string): string =
-  filePrefix & escapeJson(request) & "},"
+func requestPrefixFor*(request: string): string =
+  ## ... up to the inputs: the file is for this request (a file found by a name that is another request's is not ours).
+  filePrefix & escapeJson(request) & ",\"inputs\":"
+
+func filePrefixFor*(request, inputs: string): string =
+  ## ... through the key of the inputs: the file is for this request and was made from these inputs.
+  requestPrefixFor(request) & escapeJson(inputs) & "},"
+
+func climbsKey*(climbs: seq[Climb]): string =
+  ## The key of the climbs as they are read (what goes into the file, so nothing that is shown can be left out).
+  var text = ""
+  for c in climbs:
+    text.add climbFeature(c) & "\n"
+  sha256Hex(text)[0 ..< 16]
 
 proc featureCollection*(
-    routes: seq[Route], climbs: seq[Climb], request: string
+    routes: seq[Route], climbs: seq[Climb], request, inputs: string
 ): string =
   ## The whole file: valid JSON, a feature to a line, the routes and then the climbs (so they are drawn on top).
   var fs: seq[string]
@@ -65,4 +77,4 @@ proc featureCollection*(
     fs.add feature(r)
   for c in climbs:
     fs.add climbFeature(c)
-  filePrefixFor(request) & "\"features\":[\n" & fs.join(",\n") & "\n]}\n"
+  filePrefixFor(request, inputs) & "\"features\":[\n" & fs.join(",\n") & "\n]}\n"

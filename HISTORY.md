@@ -2836,3 +2836,23 @@ is a child process, and one event loop can wait for many children (threads would
 on the log and the config).  The loop looks at the pipes every 15 ms.  Tests: a child that fills one or both pipes, a
 hung child, a child that closes its outputs and carries on, three children at once take the time of one, the loop's timer
 keeps firing, sharing, the limit, the timeout.
+
+### A cached map knows what it was made from (2026-11-08, REVIEW.md class E)
+
+The map's file was keyed only by the activities (`bits`, `check`), but it also shows routes, climbs and their names, and
+is written by one version of the program.  Renaming a climb left the old map in place (shown on a copy of the author's
+database: 5.4 s to make, 0.03 s from the cache, so the cache stays).  Options were: a key in the file (chosen), a key in
+the file name as `ff` has it (stale files pile up, and the address would have to carry the key), and change counters kept
+by triggers (more schema, and no help with the code version).
+* The file name is as before (command and a hash of the request, which includes the activities).  The file's header now
+  also holds `nch.inputs`: `cache.inputsKey(code, [(owner, key)...])`, where `code` is the build's commit and the
+  tolerance, and each owner gives the key of the data it supplied: the activities' content (`selection.contentKey`),
+  their routes (`importer/keys.routesKey`: id, size and points, because reading the lines is the slow part), and the
+  climbs as read (`lines.climbsKey`: a hash of the features written, so nothing shown can be left out).  A file whose
+  inputs differ is made again in place.
+* `check` stays: it checks the *address* (an old link after a rebuild), which the inputs key cannot do, and it must not
+  hold the climbs or a rename would break links.
+* Cost: a cached hit takes 0.17 s (was 0.03 s): the climbs are brought up to date and read each time.  A new commit
+  makes every map again once.  `ff` keeps its own scheme (key in the name), which is correct; it can move onto
+  `inputsKey` later.  When packages exist (step 8) each package offers its key and the list of a command's inputs is made
+  from its declared dependencies.

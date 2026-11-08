@@ -6,7 +6,8 @@
 ## and `check=...` a short hash of their content, so that an address made before the database was rebuilt (when the
 ## ids mean other activities) or before activities were deleted is refused and not wrong.  The files are named by a
 ## hash of that request, in pronounceable words (`map-lusab-babad-fuzoh.geojson`), so asking again for the same thing
-## finds the file already there.
+## finds the file already there, if the data it was made from are unchanged (the header records a key of them; if it
+## differs the file is made again).
 ##
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
@@ -17,6 +18,8 @@ import ../cli/common
 import ../climbs/[attempts, report, work]
 import ../db/store
 import ../errors
+import ../importer/keys
+import ../version
 import ../fit/time
 import ../ids
 import ../selection/[bits, selection]
@@ -168,6 +171,29 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       stderr.say "note: " & $(ids.len - mine.len) & " of the " & $ids.len &
         " activities of this address do not exist\n"
     let request = "bits=" & bitsText & "&check=" & check
+    # what the file is made from: the data of each package it reads, and the version of the program
+    let routeKey = routesKey(st, mine)
+    if routeKey.count == 0:
+      return Prepared(
+        status: failure(
+          "nch map",
+          "none of the " & $mine.len &
+            " activities has a route (no positions in the files)",
+        )
+      )
+    let worked = ensureClimbs(st)
+    if worked.activities > 0:
+      stderr.say "worked out the climbs of " & $worked.activities & " activities: " &
+        $worked.sectors & " new climbs\n"
+    let climbs = climbsOf(st, mine)
+    let inputs = inputsKey(
+      "map " & nchCommit & " tolerance " & $toleranceM,
+      [
+        ("activities", contentKey(st, mine)),
+        ("routes", routeKey.key),
+        ("climbs", climbsKey(climbs)),
+      ],
+    )
     # the files are named by a hash of the request; if the name is found to be another request's, the next is tried
     var stem = ""
     var path = ""
@@ -183,26 +209,15 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
         return Prepared(status: failure("nch map", "cannot name a file"))
       stem = s.get
       path = cacheFile(dir, stem, "geojson").get
-      if not fileExists(path) or startsWithFile(path, filePrefixFor(request)):
+      if not fileExists(path) or startsWithFile(path, requestPrefixFor(request)):
         break
-    if not fileExists(path):
+    if not startsWithFile(path, filePrefixFor(request, inputs)):
+      # not there, or made from other inputs: made again, in place
       let routes = routesOf(st, mine)
       if routes.len < mine.len:
         stderr.say "note: " & $(mine.len - routes.len) & " of the " & $mine.len &
           " activities have no route (no positions in the files)\n"
-      if routes.len == 0:
-        return Prepared(
-          status: failure(
-            "nch map",
-            "none of the " & $mine.len &
-              " activities has a route (no positions in the files)",
-          )
-        )
-      let worked = ensureClimbs(st)
-      if worked.activities > 0:
-        stderr.say "worked out the climbs of " & $worked.activities & " activities: " &
-          $worked.sectors & " new climbs\n"
-      writeAtomic(path, featureCollection(routes, climbsOf(st, mine), request))
+      writeAtomic(path, featureCollection(routes, climbs, request, inputs))
     result = Prepared(stem: stem, query: request, geojson: path)
     if withPage:
       # the page is rewritten each time (it is tiny, and may have changed since)

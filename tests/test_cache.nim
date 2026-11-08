@@ -114,3 +114,15 @@ suite "cache: names made from a request":
   test "not a name for anything that is not a command":
     check requestStem("Map", "x").isNone and requestStem("", "x").isNone and
       requestStem("a-b", "x").isNone
+
+suite "cache: the key of the inputs":
+  test "the same inputs give the same key; any change of the code or of an input changes it":
+    let k = inputsKey("v1", [("importer", "aa"), ("climbs", "bb")])
+    check k == inputsKey("v1", [("importer", "aa"), ("climbs", "bb")])
+    check k.len == 16
+    check k != inputsKey("v2", [("importer", "aa"), ("climbs", "bb")])
+    check k != inputsKey("v1", [("importer", "aa"), ("climbs", "bc")])
+    check k != inputsKey("v1", [("importer", "aa")]) # (an input dropped)
+    check k != inputsKey("v1", [("importer", "aa"), ("climbs", "bb"), ("speed", "cc")])
+  test "the owner is part of the key: the same value from another owner is another input":
+    check inputsKey("v", [("a", "x")]) != inputsKey("v", [("b", "x")])

@@ -277,6 +277,8 @@ later did a better data source turn up).  the rule:
 * **Cache file names are not the address**: `map-lusab-babad-fuzoh.geojson` is the command and 48 bits of the hash of the
   request as proquints (`proquint.nim`, `cache.nim` `requestStem`).  The request is written into the file (`nch.request`)
   and checked when the file is found, so a clash of names cannot show the wrong map.
+  The key of everything else the file is made from (the data of the packages it reads, and the build) is written too
+  (`nch.inputs`, `cache.inputsKey`); if it differs the file is made again, in place.
 
 ## no past to protect: choose what is better, not what is the same (the author, 2026-11-06, said again, firmly)
 

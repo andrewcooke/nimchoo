@@ -128,6 +128,58 @@ suite "map: the command":
     check getLastModificationTime(path).toUnix == 1_000_000_000
     check files(w.cache).len == 1
 
+  test "every input of the file is part of its key: a change of any of them makes the file again, in place":
+    # (the class of bug: a cached file kept after something it is made from changed)
+    let w = world("inputs")
+    withClimb(w.db)
+    check map(w.db) == exitOk
+    let path = w.cache / files(w.cache)[0]
+    proc changeAndRemake(sql: string): string =
+      let s = openStore(w.db, allFragments)
+      s.db.exec(sql(sql))
+      s.close()
+      setLastModificationTime(path, fromUnix(1_000_000_000))
+      check map(w.db) == exitOk
+      check files(w.cache).len == 1 # (in place: no second file)
+      readFile(path)
+
+    check readFile(path).contains("\"name\":\"Cerro\"")
+    # the name of a climb
+    check changeAndRemake("update sector set name = 'Renamed'").contains("Renamed")
+    # its category, and its retiring
+    check changeAndRemake("update sector set category = 'HC'").contains("\"HC\"")
+    check not changeAndRemake("update sector set retired = 1").contains(
+      "\"kind\":\"climb\""
+    )
+    discard changeAndRemake("update sector set retired = 0")
+    # the route of an activity
+    let before = readFile(path)
+    check changeAndRemake(
+      "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72))', 4326) where activity_id = 1"
+    ) != before
+    # (the content of an activity is in the request, through `check`: another file, see below)
+
+  test "the content of an activity changes the request: a file of its own":
+    let w = world("content")
+    check map(w.db) == exitOk
+    let s = openStore(w.db, allFragments)
+    s.db.exec(sql"update file set sha256 = 'z' where name = 'a'")
+    s.close()
+    check map(w.db) == exitOk
+    check files(w.cache).len == 2
+
+  test "nothing changed: the file is left alone (also across other changes the map does not read)":
+    let w = world("unchanged")
+    withClimb(w.db)
+    check map(w.db) == exitOk
+    let path = w.cache / files(w.cache)[0]
+    let s = openStore(w.db, allFragments)
+    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
+    s.close()
+    setLastModificationTime(path, fromUnix(1_000_000_000))
+    check map(w.db) == exitOk
+    check getLastModificationTime(path).toUnix == 1_000_000_000
+
   test "an address made for a selection still draws it after the selection changes":
     let w = world("pinned")
     check map(w.db) == exitOk

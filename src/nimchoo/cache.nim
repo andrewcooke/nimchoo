@@ -71,6 +71,17 @@ func requestStem*(command, request: string): Option[string] =
     bytes.add byte(v)
   some(command & "-" & proquint(bytes))
 
+func inputsKey*(code: string, inputs: openArray[(string, string)]): string =
+  ## The key of everything a cached file was made from, besides the request that names it: `code` says the version of
+  ## the program and of the method (a change of either makes every file stale), and each input is the key its owner
+  ## gives to the data it supplied, as (owner, key).  The file records this key; a file whose key differs from the
+  ## one worked out now is made again, in place.  Declaring the inputs here, with the owner's name in the key, is what
+  ## stops a new input from being forgotten: a file is fresh only if every declared input is unchanged.
+  var text = "code=" & code & "\n"
+  for (owner, key) in inputs:
+    text.add owner & "=" & key & "\n"
+  sha256Hex(text)[0 ..< 16]
+
 func isRequestStem(base: string): bool =
   ## "map-lusab-babad-fuzoh": a command name, a hyphen, and a proquint.
   let dash = base.find('-')
