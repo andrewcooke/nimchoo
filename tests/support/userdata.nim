@@ -5,7 +5,7 @@ import nimchoo/packages/db/statement
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 proc count*(s: Store, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)

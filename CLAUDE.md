@@ -74,8 +74,8 @@ system can be extended with new fit-related functionality by adding a package, w
   the package of the file it is written in, and a breach is a `StoreError` naming the package, the table and the sql.  a
   query joining another package's tables must be run by a package that may read them.  a table is written by its owner's
   functions (`selection/replaceSelection`, `db/users`, `user/profile`, `importer/remove`), so a command calls those.
-* **fragments** (see below): each package with tables keeps its sql in its own directory, listed in its `ddl.nim`;
-  `src/nimchoo/modules.nim` joins the lists until the registry does it (TODO).
+* **fragments** (see below): each package with tables keeps its sql in its own directory, listed in `fragments:` of its
+  `package.nim`; the registry joins the lists, in dependency order, into `allFragments`.
 * **extension points** are few, and there is one: the import steps (`core/extension.nim`; `importer/channel.nim` declares the
   point `importStep`, and `heartrate/package.nim` contributes its step with `contributes:`).  the registry collects the
   contributions in dependency order into `registry.extensions`, in memory; `nch.nim` puts them in `Globals.extensions`,
@@ -87,7 +87,7 @@ system can be extended with new fit-related functionality by adding a package, w
 * per-second data is stored per activity, as arrays; by default other data refers to it by time (never by array index),
   and the arrays are never changed once written (an alternative needs a reason; REVIEW.md §6 "Samples").
 * **adding a package**: make the directory, its `package.nim` (with `depends`), the files and tests; run
-  `nimble registry`; if it adds tables, their fragments in its `ddl.nim` and an entry in `modules.nim`; if it is a
+  `nimble registry`; if it adds tables, their fragments in `fragments:` of its `package.nim` (the package must depend on the packages whose tables they refer to: the build checks); if it is a
   command, `commands:` in `package.nim` and a `commandName` constant in its `command.nim` (the log uses it).
 
 ## display
@@ -132,9 +132,10 @@ had yet.
 
 * each package with tables keeps its sql in its own directory, as
   `NNN-name.sql` (eg `packages/climbs/001-schema.sql`, recorded as `climbs/001-schema.sql`: the name is the
-  package's).  the package's `ddl.nim` lists them in order (`fragment("001-schema.sql")`);
-  `src/nimchoo/modules.nim` joins the lists of all packages into `allFragments`.  the order there matters: a
-  package whose tables refer to another's comes after it.
+  package's).  the package's `package.nim` lists them in order (`fragments: @[fragment("001-schema.sql")]`);
+  the registry joins the lists of all packages into `allFragments`, each package after those it depends on (a table that refers to a
+  table of a package it does not depend on stops the build).  a test builds the schema in several valid orders, and from a database made before a
+  package's later fragments, and compares them.
   the sql is read at compile time, so it is inside the `nch` binary.
   `packages/db/001-schema.sql` (the `user` table and spatialite's metadata) is
   applied first, always.  the numbers only order the files within a module.
@@ -407,7 +408,7 @@ four kinds of things go wrong, and each has one mechanism:
 ### tests
 
 * `std/unittest`, mirroring the source tree (`tests/<dir>/test_<file>.nim`, all imported by `tests/all.nim`; **when source moves, its tests move with it in the same commit**; a test file may cover its neighbouring files, and a
-  module that only wires others together (`ddl.nim`, a command that is tested through its parts) may have none);
+  module that only wires others together (`package.nim`, a command that is tested through its parts) may have none);
   test names are plain sentences.  `nimble test` (optimised, with run-time checks) is the one to run often;
   `nimble testdebug` for tracking down a failure.
 * small cases are built by hand (`tests/support/`); behaviour that must match the FIT SDK uses real files

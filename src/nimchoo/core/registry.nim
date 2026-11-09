@@ -117,3 +117,36 @@ func accessOf*(
   for p in packages:
     depends[p.name] = p.package.depends
   newAccess(mode, tableOwners(fragments), depends, parentTables(fragments))
+
+func collectFragments*(
+    packages: seq[Registered]
+): seq[Fragment] {.raises: [PackageError].} =
+  ## The fragments of all the packages, each package's in its order, the packages in the order given (dependency
+  ## order: a package whose tables refer to another's comes after it).  Raises `PackageError` for a fragment that
+  ## is not named after its package, and for a table that refers (by `references`) to one of a package that this
+  ## package does not depend on: SQLite would not notice when the table is made, only when a row is deleted.
+  for p in packages:
+    for f in p.package.fragments:
+      if f.ownerName.normalised != p.name.normalised:
+        raisePackage(
+          "package '" & p.name & "' lists the fragment '" & f.name &
+            "', which belongs to '" & f.ownerName & "'"
+        )
+      result.add f
+  let owners = tableOwners(result)
+  var depends: Table[string, seq[string]]
+  for p in packages:
+    var names: seq[string]
+    for d in p.package.depends:
+      names.add d.normalised
+    depends[p.name.normalised] = names
+  for child, parents in parentTables(result):
+    let owner = owners.getOrDefault(child, "").normalised
+    for parent in parents:
+      let theirs = owners.getOrDefault(parent, "").normalised
+      if owner.len > 0 and theirs.len > 0 and theirs != owner and
+          theirs notin depends.getOrDefault(owner):
+        raisePackage(
+          "table '" & child & "' of '" & owner & "' refers to '" & parent & "' of '" &
+            theirs & "', which '" & owner & "' does not depend on"
+        )

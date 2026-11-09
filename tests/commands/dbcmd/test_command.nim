@@ -2,7 +2,7 @@ import std/[os, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/commands/dbcmd/command as dbCommand
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../../support/userdata
 
 let dir = getTempDir() / "nch-test-dbcommand"

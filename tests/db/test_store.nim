@@ -4,7 +4,7 @@ import nimchoo/packages/db/fragment
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/errors
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-db"
 

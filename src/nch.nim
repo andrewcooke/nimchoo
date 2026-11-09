@@ -7,7 +7,7 @@
 import std/[options, os, sequtils, strutils]
 import nimchoo/core/[globals, registry as packageRegistry]
 import nimchoo/packages/util/args/args
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/registry
 import nimchoo/core/logfile
 import nimchoo/packages/util/version/version

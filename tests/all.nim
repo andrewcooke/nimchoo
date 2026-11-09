@@ -6,6 +6,7 @@ import ./support/env, ./support/timing
 import
   ./core/test_access,
   ./db/test_access,
+  ./db/test_orders,
   ./core/test_registry,
   ./core/test_imports,
   ./core/test_ownership,

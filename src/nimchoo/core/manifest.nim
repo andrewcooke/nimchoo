@@ -3,6 +3,7 @@
 ## This module imports no package: `core` is below all of them.
 
 import ./[extension, fragment, globals]
+export fragment
 
 {.push raises: [].}
 

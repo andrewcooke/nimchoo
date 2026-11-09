@@ -4,7 +4,7 @@ import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/packages/commands/landmarkscmd/command as landmarkCommand
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-landmark-cmd"
 

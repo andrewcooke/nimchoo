@@ -9,7 +9,7 @@ import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/core/errors
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/fit/default
 import nimchoo/packages/fit/model
 import ../support/fitbuilder

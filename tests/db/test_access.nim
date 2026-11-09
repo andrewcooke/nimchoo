@@ -5,7 +5,7 @@ import std/[os, strutils, unittest]
 import std/[algorithm, sequtils, tables]
 import nimchoo/core/[access, errors, ownership]
 import nimchoo/packages/db/[access, statement, store]
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-access"
 

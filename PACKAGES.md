@@ -80,9 +80,8 @@ const package* = Package(
 ```
 
 (Built: `depends`, `fragments` and `commands` (a `CommandDecl`: name, summary, `run`; the registry's `commands` is what
-`nch` dispatches on and prints in its usage).  `contributes` (built 2026-11-09 with the first extension point, import steps) is a proc, because the values are made at run time and `package` is a constant.  `fragments` is still
-`@[]` in every package: the fragments are listed in each package's `ddl.nim` and joined by `modules.nim` (see "What is
-left").  The type is in `core/manifest.nim`; it is not called `package.nim`, because a `package.nim` is what makes a directory a package.)
+`nch` dispatches on and prints in its usage).  `contributes` (built 2026-11-09 with the first extension point, import steps) is a proc, because the values are made at run time and `package` is a constant.  `fragments` (built 2026-11-09): the DDL files of a package, `fragment("001-schema.sql")` (read next to
+`package.nim` when the program is compiled), in the order they are applied; the registry's `allFragments` joins them.  The type is in `core/manifest.nim`; it is not called `package.nim`, because a `package.nim` is what makes a directory a package.)
 
 The registry (below) reads it.  A package's own documentation (the feature detail now in CLAUDE.md) goes in a
 `README.md` beside it.
@@ -95,7 +94,7 @@ dependency, a duplicate package name or a duplicate command name.  A compile-tim
 a *new* directory, because Nim does not recompile a module whose files have not changed, hence the generator.  The
 generated file **is checked in** (decided 2026-11-09), with a test that makes it again and fails if it differs, so plain
 `nim c` works on a fresh clone and a stale registry cannot go unnoticed.  It replaced the dispatcher's table of
-commands and the usage list; it has not yet replaced `modules.nim` (fragments).  It also holds `extensions`, what the packages contribute to each other.
+commands and the usage list; It also holds `allFragments`, `allAccess` and `extensions` (what the packages contribute to each other).  `modules.nim` is gone.
 
 ## Layers: libraries below, commands above
 
@@ -185,7 +184,7 @@ readers.  They are now visible, acyclic and few, and the typed readers and the t
 
 **Built (2026-11-09)**: the rule is `core/access.nim` (pure; `refusal`), made from the owners (`core/ownership.nim`), the
 `depends` and the foreign keys by `accessOf` in `core/registry.nim`; `packages/db/access.nim` is SQLite's authorizer and the
-file-to-package rule; `modules.nim` makes `allAccess`, which `nch.nim` puts in `Globals.access` and the tests give their
+file-to-package rule; the registry makes `allAccess`, which `nch.nim` puts in `Globals.access` and the tests give their
 stores.  A violation is a `StoreError` naming the package, the table and the statement.  What was settled on the way:
 
 * **The tables of `db`** (`user` and the metadata every table refers to) may be read by every package, written by `db` alone;
@@ -264,9 +263,10 @@ Left:
    selection is written by `selection` (`replaceSelection`), deleting activities moved from the package `delete` (which is
    gone) into `importer` (`remove.nim`), the `user` table is written by `db` (`users.nim`) and `user_profile` by `user`
    (`profile.nim`).
-7. **The schema-by-several-orders test** and a `README.md` in each package (the feature detail now in CLAUDE.md).
-   Together with it: the fragments to come from the registry (`Package.fragments`, in dependency order) instead of
-   `modules.nim`, which then goes.
+7. **Built 2026-11-09**: the fragments come from the registry (`Package.fragments`, in dependency order; the build refuses a
+   fragment in the wrong package and a `references` to a package not in `depends`), `modules.nim` and the `ddl.nim` files are
+   gone, and `tests/db/test_orders.nim` builds the schema in other valid orders and from a database made before a
+   package's later fragments, and compares.  **Left** (to the next review, which will look at documentation tools): a `README.md` in each package, for the feature detail now in CLAUDE.md.
 
 After this, TODO steps 9 (options carry their help) and later follow, each command being rewritten once in its final
 home.

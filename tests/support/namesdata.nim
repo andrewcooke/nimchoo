@@ -5,7 +5,7 @@ import std/[options, os, strutils]
 import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ./[shapefile, zips]
 
 proc gn*(id: int, name: string, lat, lon: float, cls, code: string, pop = 0): string =

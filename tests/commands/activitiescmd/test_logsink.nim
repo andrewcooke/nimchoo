@@ -4,7 +4,7 @@ import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
 import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/core/logfile
 import nimchoo/packages/util/warnings/warnings
 import ../../support/fitbuilder

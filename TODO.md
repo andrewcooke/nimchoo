@@ -14,8 +14,9 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 8. Packages: the design is PACKAGES.md.  Done on 2026-11-09 (8.1 to 8.4): the inventory, `core`, the generated
       registry, the import checker, inferred table ownership, every module a package, the four cycles broken, every
       command a package.  Done on the same day, 8.5: the extension mechanism and the import steps (PACKAGES.md); on-demand
-      work and criteria wait (below).  Done, 8.6: the access model (PACKAGES.md).  Left: 8.7 the schema-by-several-orders test, a
-      README in each package, the fragments from the registry instead of `modules.nim` (which then goes).
+      work and criteria wait (below).  Done, 8.6: the access model (PACKAGES.md).  Done, 8.7: the
+      fragments from the registry (`modules.nim` is gone) and the schema-by-several-orders test.  Left: a README in each
+      package, which the author left for the next review (it will look at documentation tools).
       Your database must be made again (`nch db --delete -f`): the landmark
       fragment moved into `names`.
 - [ ] 9. Options carry their help; parse into variants.

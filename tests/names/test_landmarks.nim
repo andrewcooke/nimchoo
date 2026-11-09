@@ -4,7 +4,7 @@ import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/names/landmarks
 import nimchoo/packages/names/suggest
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 proc fresh(name: string): Store =
   let top = getTempDir() / "nch-test-landmark" / name

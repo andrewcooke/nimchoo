@@ -4,7 +4,7 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/importer/count
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/userdata
 
 let dir = getTempDir() / "nch-test-count"

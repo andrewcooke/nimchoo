@@ -6,7 +6,7 @@ import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
 import nimchoo/packages/db/store
 import nimchoo/packages/commands/logcmd/command as logCommand
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
 import nimchoo/packages/ui/vocabulary

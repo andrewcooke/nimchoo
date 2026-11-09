@@ -1,7 +1,7 @@
 import nimchoo/packages/db/statement
 import std/[os, sequtils, strutils, unittest]
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/selection/selection
 
 let dir = getTempDir() / "nch-test-selection"

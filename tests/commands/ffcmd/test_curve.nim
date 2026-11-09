@@ -5,7 +5,7 @@ import std/[math, options, os, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/packages/util/bytes/bytes
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/heartrate/step
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings

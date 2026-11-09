@@ -3,7 +3,7 @@ import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/core/logfile
 import nimchoo/packages/commands/userscmd/command as userCommand
 import ../../support/userdata

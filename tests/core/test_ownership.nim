@@ -6,7 +6,7 @@ import nimchoo/core/ownership
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/errors
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 func frag(name, sql: string): Fragment =
   Fragment(name: name, sql: sql)

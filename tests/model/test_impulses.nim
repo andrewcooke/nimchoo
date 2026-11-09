@@ -10,7 +10,7 @@ import nimchoo/packages/commands/modelscmd/command
 import nimchoo/packages/model/calc
 import nimchoo/packages/model/impulses
 import nimchoo/packages/model/models
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/heartrate/step
 import nimchoo/packages/fit/load
 import nimchoo/packages/commands/userscmd/command as userCommand

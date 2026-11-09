@@ -4,7 +4,7 @@ import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/ids
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/commands/activitiescmd/calendar
 import nimchoo/packages/commands/activitiescmd/command as listCommand
 import nimchoo/packages/commands/activitiescmd/criteria

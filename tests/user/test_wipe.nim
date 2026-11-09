@@ -1,7 +1,7 @@
 import std/[options, os, unittest]
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/db/users
 import nimchoo/packages/user/wipe
 import ../support/userdata

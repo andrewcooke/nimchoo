@@ -7,7 +7,7 @@ import ../support/shims
 from ../support/env import useTestCache
 import nimchoo/packages/importer/batch
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/fitbuilder
 
 const

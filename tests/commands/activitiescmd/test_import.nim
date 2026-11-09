@@ -5,7 +5,7 @@ import nimchoo/packages/importer/batch
 import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =

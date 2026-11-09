@@ -4,7 +4,7 @@
 import nimchoo/packages/db/statement
 import std/[math, os, strutils]
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 const metre* = 360.0 / (2.0 * PI * 6_371_008.8)
   # degrees of longitude per metre at the equator

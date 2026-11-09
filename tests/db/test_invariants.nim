@@ -5,7 +5,7 @@ import nimchoo/packages/db/statement
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/packages/db/store
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/invariants
 
 let dir = getTempDir() / "nch-test-invariants"

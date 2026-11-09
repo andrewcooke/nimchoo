@@ -5,7 +5,7 @@ import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
 import nimchoo/core/errors
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import ../support/[shapefile, zips]
 

@@ -6,7 +6,7 @@ import nimchoo/packages/commands/activitiescmd/deleterun
 import nimchoo/packages/importer/remove
 import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/packages/ui/style
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../../support/userdata
 
 let dir = getTempDir() / "nch-test-delete"

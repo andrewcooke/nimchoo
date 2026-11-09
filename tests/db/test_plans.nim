@@ -7,7 +7,7 @@ import nimchoo/core/ids
 import nimchoo/packages/importer/importer
 import nimchoo/packages/importer/track
 import nimchoo/packages/names/suggest
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup
 import nimchoo/packages/commands/activitiescmd/criteria

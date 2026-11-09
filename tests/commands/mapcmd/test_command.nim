@@ -5,7 +5,7 @@ import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/packages/commands/mapcmd/command as mapCommand
 import nimchoo/packages/cache/cache
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/selection/bits
 import nimchoo/packages/selection/selection
 

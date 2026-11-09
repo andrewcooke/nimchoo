@@ -7,7 +7,7 @@ import nimchoo/packages/heartrate/step
 import nimchoo/packages/importer/importer
 import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder

@@ -5,7 +5,7 @@ import nimchoo/packages/climbs/naming
 import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/core/errors
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import ../support/namesdata
 

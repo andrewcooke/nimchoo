@@ -4,7 +4,7 @@ import nimchoo/packages/db/store
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/extract
 import nimchoo/packages/importer/route
-import nimchoo/modules
+from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 func coord(t: int64, lon, lat: float): Coord =
   Coord(t: UnixTime(t), lon: lon, lat: lat)
