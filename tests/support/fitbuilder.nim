@@ -1,6 +1,6 @@
 ## Helpers for building small FIT files by hand in tests.
 
-import nimchoo/fit/crc
+import nimchoo/packages/fit/crc
 
 const
   enumT* = 0x00

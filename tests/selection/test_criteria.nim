@@ -1,6 +1,6 @@
 import nimchoo/db/sqltext
 import std/[options, strutils, times, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/selection/criteria
 

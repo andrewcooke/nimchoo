@@ -15,7 +15,7 @@ import ../delete/run as deleteRun
 import ../importer/batch
 import ../importer/run as importRun
 import ../core/errors
-import ../fit/time
+import ../packages/fit/time
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style

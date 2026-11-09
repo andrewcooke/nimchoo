@@ -3,8 +3,8 @@
 ## accessors that go with them.
 
 import std/[options, tables]
-import ../packages/util/lookup/lookup
-import ../profile/model
+import ../util/lookup/lookup
+import ./model
 import ./basetype
 import ./time
 export time.FitTime

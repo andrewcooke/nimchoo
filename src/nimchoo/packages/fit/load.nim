@@ -2,10 +2,10 @@
 ## of Profile.xlsx.
 
 import std/[math, options, sequtils, sets, strutils, tables]
-import ../core/errors
-import ../fit/basetype
-import ../packages/util/lookup/lookup
-import ../packages/util/xlsx/xlsx
+import ../../core/errors
+import ./basetype
+import ../util/lookup/lookup
+import ../util/xlsx/xlsx
 import ./model
 export errors, model
 

@@ -10,7 +10,8 @@ import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/core/errors
 import nimchoo/modules
-import nimchoo/profile/[default, model]
+import nimchoo/packages/fit/default
+import nimchoo/packages/fit/model
 import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =

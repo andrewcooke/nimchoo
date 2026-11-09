@@ -1,5 +1,5 @@
 import std/[options, sequtils, strutils, times, unicode, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/selection/table
 import nimchoo/packages/ui/style
 

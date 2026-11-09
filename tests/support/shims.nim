@@ -5,7 +5,7 @@ import nimchoo/packages/download/fetch
 import nimchoo/db/[channel, store]
 import nimchoo/core/errors
 import nimchoo/importer/[batch, events, importer, sinks]
-import nimchoo/profile/model
+import nimchoo/packages/fit/model
 import nimchoo/packages/util/warnings/warnings
 
 type Report* = ref object

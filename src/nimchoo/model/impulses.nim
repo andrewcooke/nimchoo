@@ -8,7 +8,7 @@
 import std/[algorithm, options, strutils]
 import ../db/[statement, store]
 import ../core/errors
-import ../fit/time
+import ../packages/fit/time
 import ../packages/util/hashing/hashing
 import ./[calc, models]
 

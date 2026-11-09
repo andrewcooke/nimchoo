@@ -122,7 +122,8 @@ suite "bundle: resolving a file":
     check r.data == "v1" and r.source == soBundled
 
 # the real files, through the cache directory of the environment (tests/support/env.nim sets one)
-import nimchoo/profile/[default, load]
+import nimchoo/packages/fit/default
+import nimchoo/packages/fit/load
 
 suite "bundle: the profile and the notice":
   setup:

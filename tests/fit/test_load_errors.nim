@@ -1,7 +1,7 @@
 ## Bad profile spreadsheets give a ProfileError that says where.
 
 import std/[strutils, tables, unittest]
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 import ../support/xlsxbuilder
 
 const

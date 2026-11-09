@@ -9,7 +9,7 @@
 import std/[algorithm, options, sequtils, strutils, tables, times]
 import ../db/[statement, store]
 import ../core/errors
-import ../fit/time
+import ../packages/fit/time
 import ../importer/describe
 import ../packages/util/lookup/lookup
 import ../packages/text/fold/fold

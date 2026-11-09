@@ -101,7 +101,7 @@ never depends on a command package.  The commands of today:
 | Cycle now | Cause | Resolved by |
 |---|---|---|
 | `cli` ↔ `ui` | `ui/logfile` needs `cli/catalog` (the list of commands) | **done (2026-11-09)**: the log (`Log`, `Level`, `LogEvent`) is `core/logfile.nim` and takes the command as a string; `ui` no longer imports `cli` |
-| `fit` ↔ `profile` ↔ `xlsx` ↔ `zipbytes` | `profile` is part of `fit`; `zipbytes` needs `fit/bytes`, a general byte reader | `profile` into `fit`; `bytes` below both |
+| `fit` ↔ `profile` ↔ `xlsx` ↔ `zipbytes` | `profile` is part of `fit`; `zipbytes` needs `fit/bytes`, a general byte reader | **done (2026-11-09)**: `profile` is in the package `fit` (`default`, `load`, `model` keep their names); `bytes`, `zip`, `xlsx`, `bundle`, `cache`, `download` are packages below it; `fit/command.nim` stays in `src/nimchoo/fit/` until `fitcmd` |
 | `db` ↔ `user` | `nch db` (in `db/`) uses the delete countdown (`user/wipe`) | the countdown is its own package; the `db` command leaves the framework |
 | `climbs` ↔ `importer` ↔ `landmark` ↔ `names` | `landmark`'s command uses `climbs/report` and `names`; the importer's command names activities | libraries below (`landmark`, `names`, `importer`, `sectors`), commands above them |
 

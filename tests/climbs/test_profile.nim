@@ -1,7 +1,7 @@
 import std/[math, options, unittest]
 import nimchoo/climbs/profile
 import nimchoo/packages/geo/geo
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/importer/extract
 
 const metre = 360.0 / (2.0 * PI * earthRadius)

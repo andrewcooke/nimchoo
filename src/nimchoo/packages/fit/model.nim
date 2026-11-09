@@ -6,7 +6,7 @@
 ## by reference, so a Profile is an immutable-in-spirit value with no cycles.
 
 import std/[options, sets, tables]
-import ../fit/basetype
+import ./basetype
 
 {.push raises: [].}
 

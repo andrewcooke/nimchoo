@@ -8,7 +8,7 @@
 ## by the decoder and not just reported as a bad checksum.
 
 import std/[random, sequtils]
-import nimchoo/fit/crc
+import nimchoo/packages/fit/crc
 
 type
   FieldAt* = object

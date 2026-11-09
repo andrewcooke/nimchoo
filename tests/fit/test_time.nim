@@ -1,5 +1,5 @@
 import std/[times, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 
 suite "time":
   test "fit epoch":

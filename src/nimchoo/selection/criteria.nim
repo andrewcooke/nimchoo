@@ -3,7 +3,7 @@
 ## zone is a parameter), so all of it is tested directly.
 
 import std/[math, options, strutils, times]
-import ../fit/time
+import ../packages/fit/time
 import ../packages/util/args/args
 import ../db/sqltext
 import ../core/ids

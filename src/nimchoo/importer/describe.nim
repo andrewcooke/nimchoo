@@ -10,7 +10,7 @@
 ## Pure.
 
 import std/[options, times]
-import ../fit/time
+import ../packages/fit/time
 import ../packages/ui/interval
 import ../packages/ui/units
 

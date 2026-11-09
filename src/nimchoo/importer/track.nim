@@ -7,7 +7,7 @@
 import std/options
 import ../db/[statement, store]
 import ../core/errors
-import ../fit/time
+import ../packages/fit/time
 import ../core/ids
 import ./extract
 

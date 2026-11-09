@@ -19,12 +19,12 @@
 import std/[algorithm, options, sequtils, strutils, tables]
 import ../db/channel
 import ../core/errors
-import ../profile/model
+import ../packages/fit/model
 import ../packages/util/profiling/profiling
 import ../packages/util/warnings/warnings
-import ../fit/reader
-import ../fit/records
-import ../fit/time
+import ../packages/fit/reader
+import ../packages/fit/records
+import ../packages/fit/time
 import ../packages/geo/geo
 import ./stretch
 

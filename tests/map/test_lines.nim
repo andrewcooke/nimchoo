@@ -1,5 +1,5 @@
 import std/[json, options, strutils, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/map/lines
 import nimchoo/core/ids
 

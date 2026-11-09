@@ -4,10 +4,10 @@ import ../support/shims
 import nimchoo/db/[channel, store]
 import nimchoo/heartrate/step
 import nimchoo/importer/importer
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 

@@ -1,10 +1,11 @@
 import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
-import nimchoo/fit/[reader, records]
-import nimchoo/profile/load
+import nimchoo/packages/fit/reader
+import nimchoo/packages/fit/records
+import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
-import nimchoo/fit/tokens
+import nimchoo/packages/fit/tokens
 import ../support/fitbuilder
 
 const

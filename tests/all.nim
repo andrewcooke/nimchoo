@@ -27,7 +27,8 @@ import
     test_sdkcsv, test_fuzz,
   ]
 import ./util/bytes/test_bytes
-import ./profile/[test_load, test_load_errors]
+import ./fit/test_load_errors
+import ./fit/test_load
 import
   ./db/[
     test_statement, test_plans, test_store, test_multirow, test_command,

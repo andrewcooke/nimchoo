@@ -8,7 +8,7 @@ import nimchoo/packages/util/hashing/hashing
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 

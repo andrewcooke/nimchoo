@@ -1,5 +1,5 @@
 import std/[options, unittest]
-import nimchoo/fit/basetype
+import nimchoo/packages/fit/basetype
 import ../support/fitbuilder
 
 func ints(bt: BaseType, data: seq[byte], e = littleEndian): seq[int64] =

@@ -7,7 +7,7 @@
 
 import std/options
 import ./extract
-import ../fit/time
+import ../packages/fit/time
 
 {.push raises: [].}
 

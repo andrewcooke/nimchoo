@@ -21,7 +21,7 @@ import ../db/[statement, store]
 import ../core/errors
 import ../importer/keys
 import ../packages/util/version/version
-import ../fit/time
+import ../packages/fit/time
 import ../core/ids
 import ../selection/[bits, selection]
 import ../serve/[launch, pages, webopts]

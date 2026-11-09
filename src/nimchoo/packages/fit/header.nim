@@ -1,9 +1,9 @@
 ## The FIT file header, and checks of it and of the file's checksums.
 
 import std/[options, strutils]
-import ../core/errors
-import ../packages/util/warnings/warnings
-import ../packages/util/bytes/bytes
+import ../../core/errors
+import ../util/warnings/warnings
+import ../util/bytes/bytes
 import ./crc
 
 {.push raises: [].}

@@ -7,12 +7,12 @@
 ## everything else is recorded in `Tokenizer.warnings`.
 
 import std/[options, sets]
-import ../core/errors
+import ../../core/errors
 import ./basetype
-import ../packages/util/bytes/bytes
+import ../util/bytes/bytes
 import ./header
 import ./time
-import ../packages/util/warnings/warnings
+import ../util/warnings/warnings
 export warnings
 
 {.push raises: [].}

@@ -8,7 +8,7 @@
 
 import std/[options, sets, typedthreads]
 import ../core/errors
-import ../profile/load
+import ../packages/fit/load
 import ../packages/util/profiling/profiling
 import ./failure
 import ./importer

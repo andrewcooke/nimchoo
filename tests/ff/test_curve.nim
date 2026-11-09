@@ -6,7 +6,7 @@ import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import nimchoo/ff/[curve, params]
 import nimchoo/ff/command as ffCommand

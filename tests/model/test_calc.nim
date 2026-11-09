@@ -1,5 +1,5 @@
 import std/[math, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/model/calc
 
 proc near(a, b: float, eps = 1e-9): bool =

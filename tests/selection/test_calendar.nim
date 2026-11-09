@@ -1,5 +1,5 @@
 import std/[sequtils, strutils, times, unittest]
-import nimchoo/fit/time
+import nimchoo/packages/fit/time
 import nimchoo/selection/[calendar, table]
 import nimchoo/packages/ui/style
 import ../support/zones

@@ -6,7 +6,7 @@ import std/[math, tables]
 import db_connector/db_sqlite
 import ../db/[channel, multirow, statement]
 import ../core/errors
-import ../fit/time
+import ../packages/fit/time
 import ../core/ids
 
 {.push raises: [].}

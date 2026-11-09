@@ -1,9 +1,9 @@
 {.push warning[UnreachableCode]: off.} # (`expect` around procedures that never return)
 import std/[sets, strutils, unittest]
 import nimchoo/core/errors
-import nimchoo/fit/header
-import nimchoo/profile/load
-import nimchoo/fit/tokens
+import nimchoo/packages/fit/header
+import nimchoo/packages/fit/load
+import nimchoo/packages/fit/tokens
 import nimchoo/packages/util/xlsx/xlsx
 import ../support/fitbuilder
 

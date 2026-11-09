@@ -8,7 +8,7 @@ import nimchoo/packages/util/bytes/bytes
 import nimchoo/importer/importer
 import nimchoo/model/[calc, command, impulses, models]
 import nimchoo/modules
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 import nimchoo/user/command as userCommand
 import nimchoo/packages/util/warnings/warnings
 

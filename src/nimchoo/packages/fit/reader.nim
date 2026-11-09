@@ -3,9 +3,9 @@
 ## are described by earlier records), which the iterators guarantee.
 
 import std/[algorithm, options]
-import ../core/errors
-import ../profile/model
-import ../packages/util/warnings/warnings
+import ../../core/errors
+import ./model
+import ../util/warnings/warnings
 import ./decode
 import ./records
 import ./tokens

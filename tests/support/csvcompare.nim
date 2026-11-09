@@ -10,7 +10,7 @@
 ##    are skipped.
 
 import std/[algorithm, os, parsecsv, sequtils, sets, streams, strutils, tables]
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 
 type
   DiffKind* = enum

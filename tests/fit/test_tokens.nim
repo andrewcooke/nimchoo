@@ -1,9 +1,10 @@
 import std/[options, os, sequtils, sets, strutils, unittest]
 import nimchoo/core/errors
-import nimchoo/fit/[crc, time]
+import nimchoo/packages/fit/crc
+import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
-import nimchoo/profile/load
-import nimchoo/fit/tokens
+import nimchoo/packages/fit/load
+import nimchoo/packages/fit/tokens
 import ../support/fitbuilder
 
 const dataDirs =

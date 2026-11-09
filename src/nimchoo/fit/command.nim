@@ -2,15 +2,16 @@
 
 import std/[options, strutils, times]
 import ../packages/util/bytes/bytes
-import ./time
+import ../packages/fit/time
 import ../core/globals
 import ../packages/util/args/args
-import ./csvout
-import ./reader
-import ./records
-import ../profile/[default, load]
+import ../packages/fit/csvout
+import ../packages/fit/reader
+import ../packages/fit/records
+import ../packages/fit/default
+import ../packages/fit/load
 import ../core/errors
-import ../profile/model
+import ../packages/fit/model
 import ../packages/util/warnings/warnings
 
 {.push raises: [].}

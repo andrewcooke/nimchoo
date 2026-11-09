@@ -12,11 +12,11 @@
 ## invariant is a bug and an AssertionDefect, see packages/util/lookup.)
 
 import std/[options, tables]
-import ../packages/util/lookup/lookup
-import ../profile/model
-import ../packages/util/warnings/warnings
+import ../util/lookup/lookup
+import ./model
+import ../util/warnings/warnings
 import ./basetype
-import ../packages/util/bytes/bytes
+import ../util/bytes/bytes
 import ./records
 import ./tokens
 

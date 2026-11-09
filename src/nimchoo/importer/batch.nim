@@ -6,8 +6,8 @@ import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
 import ../db/[channel, checkpointer, store]
 import ../core/errors
 import ../core/ids
-import ../profile/default
-import ../profile/model
+import ../packages/fit/default
+import ../packages/fit/model
 import ../packages/util/profiling/profiling
 import ../packages/util/warnings/warnings
 import ./events

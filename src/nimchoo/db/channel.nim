@@ -8,7 +8,7 @@ import std/tables
 import db_connector/db_sqlite
 import ../core/errors
 import ../core/ids
-import ../fit/time
+import ../packages/fit/time
 
 {.push raises: [].}
 

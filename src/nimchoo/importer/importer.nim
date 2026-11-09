@@ -6,7 +6,7 @@ import std/[options, sets, times]
 import ../packages/util/hashing/hashing
 import ../db/[channel, multirow, statement, store]
 import ../core/errors
-import ../profile/model
+import ../packages/fit/model
 import ../packages/util/profiling/profiling
 import ../packages/util/warnings/warnings
 import ./[extract, route]

@@ -7,7 +7,7 @@
 import std/[json, options, strutils, times]
 import ../core/ids
 import ../packages/util/hashing/hashing
-import ../fit/time
+import ../packages/fit/time
 
 {.push raises: [].}
 

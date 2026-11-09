@@ -1,9 +1,11 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/core/errors
 import nimchoo/importer/[extract, stretch]
-import nimchoo/fit/[reader, records, time]
+import nimchoo/packages/fit/reader
+import nimchoo/packages/fit/records
+import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
-import nimchoo/profile/load
+import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 
