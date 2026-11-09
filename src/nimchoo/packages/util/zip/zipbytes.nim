@@ -8,8 +8,8 @@
 
 import std/tables
 import zippy
-import ./core/errors
-import ./packages/util/bytes/bytes
+import ../../../core/errors
+import ../bytes/bytes
 export errors
 
 {.push raises: [].}

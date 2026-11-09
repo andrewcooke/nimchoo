@@ -11,7 +11,8 @@
 import std/[httpclient, options, os, strutils, tables]
 import ../core/errors
 import ../packages/util/lookup/lookup
-import ../[zipbytes, zipchild]
+import ../packages/util/zip/zipbytes
+import ../packages/util/zip/zipchild
 import ../packages/util/atomic/atomic
 import ./sources
 when defined(posix):

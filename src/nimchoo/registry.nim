@@ -17,6 +17,8 @@ import ./packages/util/lookup/package as pkgLookup
 import ./packages/util/profiling/package as pkgProfiling
 import ./packages/util/version/package as pkgVersion
 import ./packages/util/warnings/package as pkgWarnings
+import ./packages/util/xlsx/package as pkgXlsx
+import ./packages/util/zip/package as pkgZip
 
 const packages*: seq[Registered] = inDependencyOrder(
   @[
@@ -34,5 +36,7 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "profiling", package: pkgProfiling.package),
     Registered(name: "version", package: pkgVersion.package),
     Registered(name: "warnings", package: pkgWarnings.package),
+    Registered(name: "xlsx", package: pkgXlsx.package),
+    Registered(name: "zip", package: pkgZip.package),
   ]
 )

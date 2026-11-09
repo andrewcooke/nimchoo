@@ -1,6 +1,7 @@
 import std/[monotimes, os, strutils, tables, times, unittest]
-import nimchoo/[zipbytes, zipchild]
-import ./support/zips
+import nimchoo/packages/util/zip/zipbytes
+import nimchoo/packages/util/zip/zipchild
+import ../../support/zips
 
 const exe = "./nch-test" ## the program (built by `nimble test`), run as the child
 

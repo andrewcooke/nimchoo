@@ -8,12 +8,12 @@ import
   ./core/test_imports,
   ./core/test_ownership,
   ./text/fold/test_fold,
-  ./test_zipbytes,
-  ./test_xlsx,
   ./core/test_errors,
-  ./test_zipchild,
   ./test_structure,
   ./test_cache
+import ./util/zip/test_zipbytes
+import ./util/xlsx/test_xlsx
+import ./util/zip/test_zipchild
 import ./util/child/test_child
 import ./text/templating/test_templating
 import ./util/version/test_version

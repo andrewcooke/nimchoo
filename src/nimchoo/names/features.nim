@@ -12,7 +12,7 @@ import std/[math, options, os, strutils, tables, times]
 import ../db/[statement, store]
 import ../download/[fetch, sources]
 import ../core/errors
-import ../zipbytes
+import ../packages/util/zip/zipbytes
 import ./countries
 
 {.push raises: [].}

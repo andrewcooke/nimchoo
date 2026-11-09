@@ -5,7 +5,7 @@ import std/[math, options, sequtils, sets, strutils, tables]
 import ../core/errors
 import ../fit/basetype
 import ../packages/util/lookup/lookup
-import ../xlsx
+import ../packages/util/xlsx/xlsx
 import ./model
 export errors, model
 

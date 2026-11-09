@@ -10,7 +10,7 @@
 import std/[os, posix, strutils, tempfiles]
 import zippy
 import ./zipbytes
-import ./packages/util/child/child
+import ../child/child
 
 {.push raises: [].}
 

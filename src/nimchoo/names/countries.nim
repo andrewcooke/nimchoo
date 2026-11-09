@@ -10,7 +10,7 @@ import std/[math, options, os, strutils]
 import ../db/[statement, store]
 import ../download/[fetch, sources]
 import ../core/errors
-import ../zipbytes
+import ../packages/util/zip/zipbytes
 import ./countryinfo
 
 {.push raises: [].}

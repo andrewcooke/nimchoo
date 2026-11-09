@@ -1,6 +1,6 @@
 import std/[strutils, tables, unittest]
-import nimchoo/zipbytes
-import ./support/zips
+import nimchoo/packages/util/zip/zipbytes
+import ../../support/zips
 
 suite "zip files in memory":
   test "the entries of a zip, deflated or stored":

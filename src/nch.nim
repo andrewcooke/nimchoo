@@ -21,7 +21,7 @@ import nimchoo/fit/command as fitCommand
 import nimchoo/modules
 import nimchoo/ui/logfile
 import nimchoo/packages/util/version/version
-import nimchoo/zipchild
+import nimchoo/packages/util/zip/zipchild
 
 {.push raises: [].}
 

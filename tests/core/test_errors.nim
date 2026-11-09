@@ -4,7 +4,7 @@ import nimchoo/core/errors
 import nimchoo/fit/header
 import nimchoo/profile/load
 import nimchoo/fit/tokens
-import nimchoo/xlsx
+import nimchoo/packages/util/xlsx/xlsx
 import ../support/fitbuilder
 
 suite "errors":

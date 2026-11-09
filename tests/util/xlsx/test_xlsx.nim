@@ -1,6 +1,6 @@
 import std/[strutils, tables, unittest]
-import nimchoo/xlsx
-import ./support/xlsxbuilder
+import nimchoo/packages/util/xlsx/xlsx
+import ../../support/xlsxbuilder
 
 const profile = "../choochoo/data/sdk/Profile.xlsx"
 

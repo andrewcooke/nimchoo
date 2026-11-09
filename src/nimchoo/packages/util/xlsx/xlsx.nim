@@ -6,9 +6,9 @@
 ## converted, shared strings are resolved, formulas are not evaluated.
 
 import std/[parsexml, streams, strutils, tables]
-import ./core/errors
-import ./packages/util/lookup/lookup
-import ./zipbytes
+import ../../../core/errors
+import ../lookup/lookup
+import ../zip/zipbytes
 export errors
 
 {.push raises: [].}
