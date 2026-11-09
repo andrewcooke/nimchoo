@@ -10,10 +10,13 @@ import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
 import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
+import ./packages/landmark/package as pkgLandmark
+import ./packages/names/package as pkgNames
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/proquint/package as pkgProquint
 import ./packages/text/templating/package as pkgTemplating
 import ./packages/ui/package as pkgUi
+import ./packages/user/package as pkgUser
 import ./packages/util/args/package as pkgArgs
 import ./packages/util/atomic/package as pkgAtomic
 import ./packages/util/bytes/package as pkgBytes
@@ -36,10 +39,13 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "download", package: pkgDownload.package),
     Registered(name: "fit", package: pkgFit.package),
     Registered(name: "geo", package: pkgGeo.package),
+    Registered(name: "landmark", package: pkgLandmark.package),
+    Registered(name: "names", package: pkgNames.package),
     Registered(name: "fold", package: pkgFold.package),
     Registered(name: "proquint", package: pkgProquint.package),
     Registered(name: "templating", package: pkgTemplating.package),
     Registered(name: "ui", package: pkgUi.package),
+    Registered(name: "user", package: pkgUser.package),
     Registered(name: "args", package: pkgArgs.package),
     Registered(name: "atomic", package: pkgAtomic.package),
     Registered(name: "bytes", package: pkgBytes.package),

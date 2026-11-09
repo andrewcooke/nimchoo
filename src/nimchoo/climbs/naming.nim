@@ -6,7 +6,9 @@ import std/options
 import ../packages/db/statement
 import ../packages/db/store
 import ../core/errors
-import ../names/[climb, climbpick, countries]
+import ../packages/names/climb
+import ../packages/names/climbpick
+import ../packages/names/countries
 import ./[match, ordinal]
 
 {.push raises: [].}

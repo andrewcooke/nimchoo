@@ -5,9 +5,9 @@
 ## made from these.
 
 import std/math
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../db/statement
+import ../db/store
+import ../../core/errors
 import ./[countries, features]
 
 {.push raises: [].}

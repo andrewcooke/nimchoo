@@ -6,7 +6,7 @@ import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
 import nimchoo/core/errors
 import nimchoo/modules
-import nimchoo/names/countries
+import nimchoo/packages/names/countries
 import ../support/[shapefile, zips]
 
 let shapes = [

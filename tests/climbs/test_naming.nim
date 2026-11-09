@@ -6,7 +6,7 @@ import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/core/errors
 import nimchoo/modules
-import nimchoo/names/countries
+import nimchoo/packages/names/countries
 import ../support/namesdata
 
 proc sectorAt(s: Store, lons: openArray[float], lat: float) =

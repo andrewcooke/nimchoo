@@ -2,7 +2,7 @@ import std/[options, os, unittest]
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/modules
-import nimchoo/user/wipe
+import nimchoo/packages/user/wipe
 import ../support/userdata
 
 let dir = getTempDir() / "nch-test-wipe"

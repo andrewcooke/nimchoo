@@ -8,11 +8,11 @@ import ./climbs/ddl as climbsDdl
 import ./heartrate/ddl as heartrateDdl
 import ./heartrate/step as heartrateStep
 import ./importer/ddl as importerDdl
-import ./landmark/ddl as landmarkDdl
+import ./packages/landmark/ddl as landmarkDdl
 import ./model/ddl as modelDdl
-import ./names/ddl as namesDdl
+import ./packages/names/ddl as namesDdl
 import ./selection/ddl as selectionDdl
-import ./user/ddl as userDdl
+import ./packages/user/ddl as userDdl
 import ./core/fragment
 import ./importer/channel
 

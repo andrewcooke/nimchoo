@@ -9,10 +9,13 @@ import ../climbs/report
 import ../packages/ui/units
 import ../packages/db/store
 import ../core/errors
-import ../names/[lookup, open]
+import ../packages/names/lookup
+import ../packages/names/open
 import ../core/logfile
 import ../packages/confirm/confirm
-import ./[landmarks, params, suggest]
+import ./params
+import ../packages/landmark/landmarks
+import ../packages/landmark/suggest
 
 {.push raises: [].}
 
@@ -108,7 +111,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let names = openNames(
           g,
           st,
-          cmLandmarks,
+          $cmLandmarks,
           proc(line: string) {.closure, raises: [].} =
             stderr.say line & "\n"
           ,

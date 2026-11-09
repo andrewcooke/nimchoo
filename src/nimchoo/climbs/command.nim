@@ -8,7 +8,7 @@ import ../cli/catalog
 import ../core/globals
 import ../packages/db/store
 import ../core/errors
-import ../names/open
+import ../packages/names/open
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
@@ -101,7 +101,7 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
     let names = openNames(
       g,
       st,
-      cmClimbs,
+      $cmClimbs,
       proc(line: string) {.closure, raises: [].} =
         stderr.say line & "\n"
       ,
@@ -197,7 +197,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let names = openNames(
       g,
       st,
-      cmClimbs,
+      $cmClimbs,
       proc(line: string) {.closure, raises: [].} =
         stderr.say line & "\n"
       ,

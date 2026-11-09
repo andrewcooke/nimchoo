@@ -2,7 +2,8 @@ import nimchoo/packages/db/statement
 import std/[options, os, unittest]
 import nimchoo/packages/db/store
 import nimchoo/core/errors
-import nimchoo/landmark/[landmarks, suggest]
+import nimchoo/packages/landmark/landmarks
+import nimchoo/packages/landmark/suggest
 import nimchoo/modules
 
 proc fresh(name: string): Store =

@@ -5,7 +5,7 @@ import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/core/errors
 import nimchoo/importer/naming
-import nimchoo/names/countries
+import nimchoo/packages/names/countries
 import ../support/namesdata
 
 const home = (-70.65, -33.46) # Santiago

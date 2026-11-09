@@ -6,7 +6,9 @@
 import ../packages/db/statement
 import ../packages/db/store
 import ../core/errors
-import ../names/[activity, countries, lookup]
+import ../packages/names/activity
+import ../packages/names/countries
+import ../packages/names/lookup
 import ./route
 
 {.push raises: [].}

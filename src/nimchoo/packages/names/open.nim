@@ -3,13 +3,12 @@
 ## downloads or sinks.
 
 import std/options
-import ../cli/catalog
-import ../packages/cache/cache
-import ../core/globals
-import ../packages/db/store
-import ../packages/download/fetch
-import ../packages/download/sinks
-import ../packages/ui/live
+import ../cache/cache
+import ../../core/globals
+import ../db/store
+import ../download/fetch
+import ../download/sinks
+import ../ui/live
 import ./countries
 
 {.push raises: [].}
@@ -17,7 +16,7 @@ import ./countries
 proc openNames*(
     g: Globals,
     st: Store,
-    command: Command,
+    command: string,
     say: proc(line: string) {.closure, raises: [].},
 ): Option[Names] =
   ## The names for `st`, as `command` (the name the log uses).  None if there is no cache directory to keep them in.
@@ -31,7 +30,7 @@ proc openNames*(
     else:
       screenSink(say)
   var names = newNames(
-    st, dataDir(cache.get), realEnv(), fanOut(@[logSink(g.log, $command), screen])
+    st, dataDir(cache.get), realEnv(), fanOut(@[logSink(g.log, command), screen])
   )
   names.offline = g.offline
   some(names)

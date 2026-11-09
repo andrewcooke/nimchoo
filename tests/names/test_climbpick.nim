@@ -1,5 +1,5 @@
 import std/[options, unittest]
-import nimchoo/names/climbpick
+import nimchoo/packages/names/climbpick
 
 func f(name, code: string, fromEnd: float, fromMiddle = 99999.0): Candidate =
   ## A terrain feature, or (for a P code) a populated place.

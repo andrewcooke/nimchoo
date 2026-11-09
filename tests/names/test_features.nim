@@ -4,7 +4,8 @@ import ../support/shims
 import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/download/fetch
-import nimchoo/names/[countries, features]
+import nimchoo/packages/names/countries
+import nimchoo/packages/names/features
 import ../support/[namesdata, zips]
 
 proc box(lon0, lat0, lon1, lat1: float): Box =

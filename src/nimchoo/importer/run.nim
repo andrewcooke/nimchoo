@@ -8,7 +8,7 @@ import ../packages/db/statement
 import ../packages/db/store
 import ../packages/download/fetch
 import ../core/errors
-import ../names/open
+import ../packages/names/open
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
@@ -98,7 +98,7 @@ proc runImport*(
       let names = openNames(
         g,
         st,
-        cmActivities,
+        $cmActivities,
         proc(line: string) {.closure, raises: [].} =
           stderr.say line & "\n"
         ,

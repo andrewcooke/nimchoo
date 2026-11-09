@@ -2,7 +2,7 @@
 
 import ../packages/util/args/args
 import std/[options, strutils]
-import ./landmarks
+import ../packages/landmark/landmarks
 
 {.push raises: [].}
 

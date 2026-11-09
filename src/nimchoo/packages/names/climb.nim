@@ -4,8 +4,8 @@
 ## were needed and could not be had.
 
 import std/options
-import ../core/errors
-import ../packages/geo/geo
+import ../../core/errors
+import ../geo/geo
 import ../landmark/landmarks
 import ./[climbpick, countries, lookup]
 

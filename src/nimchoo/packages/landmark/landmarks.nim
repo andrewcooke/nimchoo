@@ -2,10 +2,10 @@
 ## code, used by the naming (a landmark comes before every other name) and by `nch landmarks`.
 
 import std/[options, strutils]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/geo/geo
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../geo/geo
 
 {.push raises: [].}
 

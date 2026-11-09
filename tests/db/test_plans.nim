@@ -5,9 +5,10 @@ import nimchoo/packages/db/store
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/importer/[importer, track]
-import nimchoo/landmark/suggest
+import nimchoo/packages/landmark/suggest
 import nimchoo/modules
-import nimchoo/names/[countries, lookup]
+import nimchoo/packages/names/countries
+import nimchoo/packages/names/lookup
 import nimchoo/selection/criteria
 import nimchoo/selection/ranges
 

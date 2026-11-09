@@ -1,5 +1,5 @@
 import std/[math, unittest]
-import nimchoo/names/shape
+import nimchoo/packages/names/shape
 
 # routes on a flat patch near the equator: metres east/north turned into positions
 const mDeg = 360.0 / (2.0 * PI * 6_371_008.8)

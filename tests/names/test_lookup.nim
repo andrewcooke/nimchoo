@@ -1,7 +1,9 @@
 import std/[math, strutils, unittest]
 import ../support/shims
 import nimchoo/packages/db/store
-import nimchoo/names/[countries, features, lookup]
+import nimchoo/packages/names/countries
+import nimchoo/packages/names/features
+import nimchoo/packages/names/lookup
 import ../support/[namesdata, userdata]
 
 proc world(name: string): tuple[names: Names, st: Store, net: Net] =

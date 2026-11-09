@@ -3,8 +3,10 @@ import ../support/shims
 import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/download/fetch
-import nimchoo/landmark/landmarks
-import nimchoo/names/[climb, climbpick, countries]
+import nimchoo/packages/landmark/landmarks
+import nimchoo/packages/names/climb
+import nimchoo/packages/names/climbpick
+import nimchoo/packages/names/countries
 import ../support/[namesdata, userdata]
 
 # a climb in Chile that goes up towards the Paso Los Libertadores (-70.12, -32.83): from 600 m below to the pass

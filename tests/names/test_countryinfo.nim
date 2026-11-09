@@ -1,5 +1,5 @@
 import std/[strutils, unittest]
-import nimchoo/names/countryinfo as names
+import nimchoo/packages/names/countryinfo as names
 
 proc line(iso, name: string, id: int): string =
   ## A line of countryInfo.txt: 19 columns.

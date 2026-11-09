@@ -7,12 +7,12 @@
 ## the network and disk (a made-up one in tests) and where events are told.
 
 import std/[math, options, os, strutils]
-import ../packages/db/statement
-import ../packages/db/store
-import ../packages/download/fetch
-import ../packages/download/sources
-import ../core/errors
-import ../packages/util/zip/zipbytes
+import ../db/statement
+import ../db/store
+import ../download/fetch
+import ../download/sources
+import ../../core/errors
+import ../util/zip/zipbytes
 import ./countryinfo
 
 {.push raises: [].}

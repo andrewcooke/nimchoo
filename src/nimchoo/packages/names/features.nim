@@ -9,12 +9,12 @@
 ## class (6), feature code (7) and population (14).
 
 import std/[math, options, os, strutils, tables, times]
-import ../packages/db/statement
-import ../packages/db/store
-import ../packages/download/fetch
-import ../packages/download/sources
-import ../core/errors
-import ../packages/util/zip/zipbytes
+import ../db/statement
+import ../db/store
+import ../download/fetch
+import ../download/sources
+import ../../core/errors
+import ../util/zip/zipbytes
 import ./countries
 
 {.push raises: [].}

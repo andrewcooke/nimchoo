@@ -17,7 +17,7 @@
 ## and 0.9 or more for 462, with few between, and it finds the "El Toyo and back" rides that come home another way.
 
 import std/[math, tables]
-import ../packages/geo/geo
+import ../geo/geo
 
 {.push raises: [].}
 

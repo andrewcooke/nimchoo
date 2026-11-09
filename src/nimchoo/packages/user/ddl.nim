@@ -1,6 +1,6 @@
 ## The database tables of the user module (see core/fragment.nim).
 
-import ../core/fragment
+import ../../core/fragment
 
 {.push raises: [].}
 

@@ -6,9 +6,9 @@
 ## forgotten.
 
 import std/options
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../db/statement
+import ../db/store
+import ../../core/errors
 
 {.push raises: [].}
 
