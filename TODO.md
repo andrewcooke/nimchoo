@@ -11,11 +11,14 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
-- [ ] 8. Packages (8.1 inventory done; in 8.2 `core`, the registry and the package `fold` are built; the import checker and the ownership scan are next): the design is PACKAGES.md (agreed 2026-11-09; it replaces REVIEW.md §6).  Its "Order of work": 1 the inventory of packages and layers
-  (settled with the author), 2 `core` and the generated registry with the import checker and inferred table ownership,
-  3 the leaf libraries move, 4 the four directory cycles are broken (library below, command above), 5 the extension
-  points that remain (import steps, on-demand work), 6 the access model (SQLite's authorizer: report-only, then writes,
-  then reads), 7 the schema-by-several-orders test and a README in each package (the feature detail now in CLAUDE.md).
+- [ ] 8. Packages: the design is PACKAGES.md.  Done on 2026-11-09 (8.1 to 8.4): the inventory, `core`, the generated
+      registry, the import checker, inferred table ownership, every module a package, the four cycles broken, every
+      command a package.  Left: 8.5 the extension points that remain (import steps, on-demand work; and how a later
+      package adds criteria to `activities`, see below); 8.6 the access model (SQLite's authorizer: report-only, then
+      writes, then reads; the SQL-reads check that is a hand-run text scan now); 8.7 the schema-by-several-orders test, a
+      README in each package, the fragments from the registry instead of `modules.nim` (which then goes, with
+      `allowLegacy` in the import checker).  Your database must be made again (`nch db --delete -f`): the landmark
+      fragment moved into `names`.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).
 - [ ] 11. *(mechanical)* One owner per fact (REVIEW.md 4.1).
@@ -54,8 +57,8 @@ Either replaces the direct dependency of `activities` on `climbs`.
   (`nimble`-run report: `python3 sqlrefs.py`, in the session scratchpad; it is a text scan, step 6 makes it exact):
   `userscmd` (`user`, `user_profile`), `activitiescmd` (`selection`); and `delete` (`activity`, `file`: the deletion
   of activities may belong in `importer`), `user` (`user`, which `db` owns).
-* The nimble tasks for tests do not yet run the package checks of this move on a schedule: a check that SQL reads match
-  `depends` is a text scan done by hand so far.
+* A check that the SQL reads of a package match its `depends` is a text scan done by hand so far (a script in the
+  session scratchpad of 2026-11-09); make it a test, or let step 8.6 do it exactly.
 
 ## Open from before the review
 
