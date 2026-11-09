@@ -13,7 +13,7 @@
 
 import std/[options, os, tables]
 import ../cli/catalog
-import ../cache
+import ../packages/cache/cache
 import ../packages/util/atomic/atomic
 import ../core/globals
 import ../climbs/[attempts, report, work]

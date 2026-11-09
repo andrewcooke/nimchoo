@@ -4,8 +4,8 @@
 ## not a kind and is never touched.
 
 import std/[os, strutils]
-import ../cache
-import ../packages/download/fetch
+import ./cache
+import ../download/fetch
 
 {.push raises: [].}
 

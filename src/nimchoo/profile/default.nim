@@ -2,7 +2,7 @@
 ## `--profile`.  It is also kept as a file in the cache's `system/` part (see bundle/unpack.nim):
 ## a file the author puts there instead (say a newer SDK's) is used in its place.
 
-import ../bundle/unpack
+import ../packages/bundle/unpack
 import ./load
 
 {.push raises: [].}

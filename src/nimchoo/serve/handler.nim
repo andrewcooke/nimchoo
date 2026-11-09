@@ -13,7 +13,7 @@
 ## (`/files/NAME`).  Anything else is "not found".
 
 import std/[options, os, sequtils, strutils]
-import ../cache
+import ../packages/cache/cache
 import ../core/logfile
 import ./[pages, request]
 

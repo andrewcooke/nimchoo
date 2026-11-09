@@ -10,7 +10,7 @@ import std/[math, options, os, strutils, times]
 import ../cli/catalog
 import db_connector/db_sqlite
 import ../core/globals
-import ../cache
+import ../packages/cache/cache
 import ../packages/util/atomic/atomic
 import ../db/[statement, store]
 import ../core/errors

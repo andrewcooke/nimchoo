@@ -1,7 +1,7 @@
 ## The command line of `nch ff`, parsed.  Pure.
 
 import std/[options, strutils, times]
-import ../cache
+import ../packages/cache/cache
 import ../packages/util/args/args
 import ../serve/webopts
 

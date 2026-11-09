@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/cache
+import nimchoo/packages/cache/cache
 
 suite "cache: the directory":
   test "NCH_CACHE wins":

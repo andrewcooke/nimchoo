@@ -4,7 +4,7 @@
 ## Every name in it can be used in a page template.
 
 import std/[strutils]
-import ../bundle/unpack
+import ../packages/bundle/unpack
 import ../packages/text/templating/templating
 
 {.push raises: [].}

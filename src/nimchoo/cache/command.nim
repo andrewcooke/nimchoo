@@ -4,13 +4,13 @@
 
 import std/[options, strutils]
 import ../cli/catalog
-import ../cache
+import ../packages/cache/cache
 import ../core/globals
 import ../packages/util/args/args
 import ../packages/download/fetch
 import ../core/logfile
 import ../user/wipe
-import ./files
+import ../packages/cache/files
 
 {.push raises: [].}
 

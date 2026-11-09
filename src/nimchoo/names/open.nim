@@ -4,7 +4,7 @@
 
 import std/options
 import ../cli/catalog
-import ../cache
+import ../packages/cache/cache
 import ../core/globals
 import ../db/store
 import ../packages/download/fetch

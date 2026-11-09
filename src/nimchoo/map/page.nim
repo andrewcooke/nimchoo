@@ -11,8 +11,8 @@
 ## the lines add up and glow.  A click on a line says which activity it is.
 
 import std/[json, options, strutils]
-import ../bundle/unpack
-import ../cache
+import ../packages/bundle/unpack
+import ../packages/cache/cache
 import ../serve/libraries
 import ../packages/text/templating/templating
 import ../packages/ui/palette

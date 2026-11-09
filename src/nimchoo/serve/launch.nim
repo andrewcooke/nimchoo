@@ -5,7 +5,7 @@
 
 import std/[os, osproc]
 import ../cli/catalog
-import ../cache
+import ../packages/cache/cache
 import ../core/globals
 import ../db/store
 import ../core/logfile

@@ -1,10 +1,10 @@
 import std/[options, os, strutils, tables, unittest]
 import ../support/env
-import nimchoo/bundle/unpack
+import nimchoo/packages/bundle/unpack
 import nimchoo/serve/libraries
 import nimchoo/ff/[command, page, params]
 import nimchoo/serve/request
-import nimchoo/cache
+import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette
 
 const csv = "ff--check-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"

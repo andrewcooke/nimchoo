@@ -4,7 +4,7 @@ import std/[json, options, os, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/map/command as mapCommand
-import nimchoo/cache
+import nimchoo/packages/cache/cache
 import nimchoo/modules
 import nimchoo/selection/[bits, selection]
 

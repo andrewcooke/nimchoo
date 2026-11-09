@@ -1,5 +1,5 @@
 import std/[os, unittest]
-import nimchoo/cache/files
+import nimchoo/packages/cache/files
 
 let dir = getTempDir() / "nch-test-cachefiles"
 

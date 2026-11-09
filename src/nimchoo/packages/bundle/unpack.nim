@@ -16,9 +16,9 @@
 ## cannot be used is never an error: the program's own copy is used.
 
 import std/[algorithm, options, os, strutils, tables]
-import ../cache
-import ../packages/util/atomic/atomic
-import ../packages/util/hashing/hashing
+import ../cache/cache
+import ../util/atomic/atomic
+import ../util/hashing/hashing
 
 {.push raises: [].}
 
@@ -47,7 +47,7 @@ type
 
 const
   manifestName* = "manifest"
-  noticeBundle* = Bundle(name: "NOTICE", data: staticRead("../../../NOTICE"))
+  noticeBundle* = Bundle(name: "NOTICE", data: staticRead("../../../../NOTICE"))
     ## The licence notice (the data and libraries the program carries and their licences): kept as a
     ## file in `system/` so that it can be read, and unpacked whenever anything else is.  Nothing
     ## reads it back.

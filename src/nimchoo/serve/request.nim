@@ -8,7 +8,7 @@
 ## kind a cache file name can hold.
 
 import std/[options, sequtils, strutils, uri]
-import ../cache
+import ../packages/cache/cache
 import ../selection/bits
 
 {.push raises: [].}

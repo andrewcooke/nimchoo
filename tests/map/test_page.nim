@@ -1,7 +1,7 @@
 import std/[options, os, strutils, tables, unittest]
 import ../support/env
-import nimchoo/bundle/unpack
-import nimchoo/cache
+import nimchoo/packages/bundle/unpack
+import nimchoo/packages/cache/cache
 import nimchoo/map/page
 import nimchoo/serve/libraries
 import nimchoo/packages/text/templating/templating

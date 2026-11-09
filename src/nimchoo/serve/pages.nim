@@ -2,8 +2,8 @@
 ## and escaping text for a page (re-exported from packages/text/templating).
 
 import std/os
-import ../bundle/unpack
-import ../cache
+import ../packages/bundle/unpack
+import ../packages/cache/cache
 import ../packages/text/templating/templating
 export templating.htmlEscape
 

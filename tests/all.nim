@@ -10,8 +10,8 @@ import
   ./core/test_logfile,
   ./text/fold/test_fold,
   ./core/test_errors,
-  ./test_structure,
-  ./test_cache
+  ./test_structure
+import ./cache/test_cache
 import ./util/zip/test_zipbytes
 import ./util/xlsx/test_xlsx
 import ./util/zip/test_zipchild

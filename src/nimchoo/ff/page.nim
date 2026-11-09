@@ -10,8 +10,8 @@
 ## browser's timezone, which is the computer's.
 
 import std/[options, strutils]
-import ../bundle/unpack
-import ../cache
+import ../packages/bundle/unpack
+import ../packages/cache/cache
 import ../serve/libraries
 import ../packages/text/templating/templating
 import ../packages/ui/palette
