@@ -150,7 +150,7 @@ the command package depends on the libraries it joins.  A new point is added onl
 
 The package that makes a table owns it; nothing is listed in `package.nim`.
 
-* At compile time the registry scans the package's fragments for `create [virtual] table NAME` and
+* (Built: `core/ownership.nim`, `tableOwners`/`ownerOf`, and `tests/core/test_ownership.nim` on today's modules, each module standing in for a package.)  At compile time the registry scans the package's fragments for `create [virtual] table NAME` and
   `alter table … rename to` (fragments are plain DDL by rule).
 * A test checks it exactly with SQLite: apply the fragments package by package, in dependency order, and diff
   `sqlite_master` after each.  Anything that a text scan cannot see (SpatiaLite makes `idx_activity_start` when a
