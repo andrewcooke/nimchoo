@@ -48,6 +48,7 @@ func dayOption(names: openArray[string], toDay: bool): Opt[Params] =
       ""
 
 proc parseArgs*(args: seq[string]): Params =
+  ## The options of `nch ff`; `problem` says what is wrong with them, if anything.
   result.web = initWebArgs()
   result.fitnessScale = 1
   result.fatigueScale = 1

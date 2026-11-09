@@ -18,13 +18,16 @@ type
     kx, ky: float ## metres per degree of longitude and latitude
 
 func projection*(lon0, lat0: float): Projection =
+  ## A flat map of the neighbourhood of a point (metres east and north of it).
   let perDegree = earthRadius * PI / 180.0
   Projection(lon0: lon0, lat0: lat0, kx: perDegree * cos(degToRad(lat0)), ky: perDegree)
 
 func project*(p: Projection, lon, lat: float): XY =
+  ## The position in metres from the projection's origin.
   XY(x: (lon - p.lon0) * p.kx, y: (lat - p.lat0) * p.ky)
 
 func unproject*(p: Projection, xy: XY): tuple[lon, lat: float] =
+  ## The longitude and latitude (degrees) of a position in metres.
   (p.lon0 + xy.x / p.kx, p.lat0 + xy.y / p.ky)
 
 func haversine*(lon1, lat1, lon2, lat2: float): float =
@@ -37,6 +40,7 @@ func haversine*(lon1, lat1, lon2, lat2: float): float =
   2 * earthRadius * arcsin(min(1.0, sqrt(a)))
 
 func dist*(a, b: XY): float =
+  ## The distance in metres between two flat positions.
   hypot(b.x - a.x, b.y - a.y)
 
 func pointSegmentDistance*(p, a, b: XY): float =
@@ -103,6 +107,7 @@ func distanceWithin*(g: RouteGrid, p: XY, radiusM: float): Option[float] =
     none(float)
 
 func length*(line: openArray[XY]): float =
+  ## The length of a line in metres.
   for i in 0 ..< line.high:
     result += dist(line[i], line[i + 1])
 

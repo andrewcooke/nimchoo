@@ -45,6 +45,7 @@ func padRight*(s: string, width: int): string =
   s & ' '.repeat(max(0, width - s.runeLen))
 
 func padLeft*(s: string, width: int): string =
+  ## The text with blanks before it, to the width (by characters, not bytes).
   ' '.repeat(max(0, width - s.runeLen)) & s
 
 const transition = "transition" ## the sport of the gaps between the legs of a triathlon

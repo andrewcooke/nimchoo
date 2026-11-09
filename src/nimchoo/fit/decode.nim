@@ -89,6 +89,7 @@ type
 const maxDepth = 8
 
 proc initDecoder*(p: Profile): Decoder =
+  ## A decoder for the profile's types.
   for name, t in p.types:
     result.types[name] = (t.kind, t.base)
 

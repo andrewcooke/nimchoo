@@ -64,6 +64,7 @@ proc sayDeleted*(text: string) =
   stdout.say render(@[span("done: " & text, red)], canColourStdout()) & "\n"
 
 proc sleepMs*(ms: int) {.raises: [].} =
+  ## Wait for `ms` milliseconds.
   try:
     sleep(ms)
   except OSError:

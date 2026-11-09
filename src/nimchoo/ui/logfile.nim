@@ -110,6 +110,7 @@ proc openLog*(
     result.problem = "cannot open " & path & ": " & getCurrentExceptionMsg()
 
 func enabled*(l: Log): bool =
+  ## Whether there is a log file to write to.
   not l.isNil and not l.f.isNil
 
 proc log*(l: Log, level: Level, command: Command, event: LogEvent, text: string) =
@@ -125,6 +126,7 @@ proc log*(l: Log, level: Level, command: Command, event: LogEvent, text: string)
     discard
 
 proc close*(l: Log) =
+  ## Close the log file.
   if not l.enabled:
     return
   try:

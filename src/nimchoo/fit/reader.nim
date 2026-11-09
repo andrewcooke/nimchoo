@@ -18,6 +18,7 @@ type Reader* = object
   started: bool
 
 proc initReader*(p: Profile, data: sink seq[byte]): Reader =
+  ## A reader of one file's bytes, with the profile.
   Reader(tokenizer: initTokenizer(data, p.timestamp16Fields), decoder: initDecoder(p))
 
 func warnings*(r: Reader): seq[Warning] =

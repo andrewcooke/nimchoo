@@ -35,7 +35,7 @@ proc startChild*(exe: string, args: seq[string], timeoutMs: int): Child =
   result.deadline = getMonoTime() + initDuration(milliseconds = timeoutMs)
   try:
     result.p = startProcess(exe, args = args, options = {})
-  except CatchableError:
+  except OSError, IOError:
     result.collected = ChildResult(
       code: notStarted, stderr: "cannot run " & exe & ": " & getCurrentExceptionMsg()
     )
@@ -79,7 +79,7 @@ proc busy*(c: Child): bool =
     return false
   try:
     c.p.running
-  except CatchableError:
+  except OSError, IOError:
     false
 
 proc waitFor*(c: var Child) =
@@ -87,7 +87,7 @@ proc waitFor*(c: var Child) =
   if c.started and not c.collected.timedOut:
     try:
       discard c.p.waitForExit(max(1, int((c.deadline - getMonoTime()).inMilliseconds)))
-    except CatchableError:
+    except OSError, IOError, ValueError:
       discard
 
 proc settle*(c: var Child): ChildResult =
@@ -106,12 +106,12 @@ proc settle*(c: var Child): ChildResult =
       result.code = timedOutCode # (it ended just as the time was up)
     else:
       result.code = c.p.peekExitCode
-  except CatchableError:
+  except OSError, IOError, ValueError:
     result.code = notStarted
     result.stderr.add "\ncannot wait for " & c.exe & ": " & getCurrentExceptionMsg()
   try:
     c.p.close()
-  except CatchableError:
+  except OSError, IOError:
     discard
   c.started = false
 

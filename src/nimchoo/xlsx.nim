@@ -311,6 +311,7 @@ proc openWorkbook*(data: string): Workbook {.raises: [XlsxError].} =
       parseSharedStrings(result.file("xl/sharedStrings.xml"), "xl/sharedStrings.xml")
 
 func sheetNames*(wb: Workbook): seq[string] =
+  ## The names of the sheets.
   for name in wb.sheets.keys:
     result.add name
 

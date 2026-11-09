@@ -46,4 +46,5 @@ type
 proc add*(
     ws: var seq[Warning], kind: WarningKind, offset: int, msg: string
 ) {.raises: [].} =
+  ## Add a warning.
   ws.add Warning(offset: offset, kind: kind, msg: msg)

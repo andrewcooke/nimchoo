@@ -33,6 +33,7 @@ func isNaN(x: float): bool =
   x != x
 
 func len*(p: Profile): int =
+  ## The number of points.
   p.elev.len
 
 func validRuns*(elev: openArray[float]): seq[Slice[int]] =

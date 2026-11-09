@@ -15,6 +15,7 @@ type WebArgs* = object
   port*: int ## ... on this port (0: any free one)
 
 func initWebArgs*(): WebArgs =
+  ## The defaults: the default port, the rest off.
   WebArgs(port: defaultPort)
 
 proc takePort*(name, value: string, port: var int): string =

@@ -31,6 +31,7 @@ proc readings(
         raiseStore("bad heart rate row")
 
 proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
+  ## The user's threshold heart rate, if they have one.
   guard:
     let v = db.getValue(sql"select fthr from user_profile where user_id = ?", userId)
     if v.len > 0:

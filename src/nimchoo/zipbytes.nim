@@ -73,6 +73,7 @@ proc inflateHere*(raw: string, size, limit: int): string {.raises: [ZipError].} 
 proc extractEntry*(
     z: string, e: ZipEntry, limit = maxEntrySize, inflate: Inflater = nil
 ): string {.raises: [ZipError].} =
+  ## The bytes of an entry (inflated, with `inflate` if given, and at most `limit`), checked against its declared size.
   let p = e.offset
   if e.size > limit:
     raiseZip("zip entry too large")

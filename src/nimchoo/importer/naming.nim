@@ -46,6 +46,7 @@ proc ensureActivityNames*(
     names: Names,
     progress: proc(done, total: int) {.closure, raises: [].} = nil,
 ): Named {.raises: [StoreError, DownloadError].} =
+  ## Name the activities that have no name yet (the place they started); `progress` is told how far it has got.
   let todo = pending(st)
   result.total = todo.len
   # the route of an activity is read as the stored geometry (one blob), not as a row for each position; an activity with no

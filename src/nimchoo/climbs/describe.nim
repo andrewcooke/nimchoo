@@ -18,9 +18,11 @@ type ClimbInfo* = object
   lengthM*, gainM*, gradient*: float ## metres, metres, percent
 
 func gainText*(metres: float): string =
+  ## "+89m".
   "+" & $int(metres + 0.5) & "m"
 
 func gradientText*(percent: float): string =
+  ## "17.8%".
   formatFloat(percent, ffDecimal, 1) & "%"
 
 func climbCells*(c: ClimbInfo): seq[string] =

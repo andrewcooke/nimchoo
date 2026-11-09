@@ -23,9 +23,11 @@ type
 const ellipsis = "…"
 
 func span*(text: string, colour = white, bold = false): Span =
+  ## A piece of text with its look.
   Span(text: text, look: Look(colour: colour, bold: bold))
 
 func plain*(text: string): Line =
+  ## A line of text with no look.
   @[span(text)]
 
 func width*(line: Line): int =

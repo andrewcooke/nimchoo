@@ -39,6 +39,7 @@ const
   yearWidth = 6
 
 func cellWidth*(s: Screen): int =
+  ## The width of a day in the calendar: 3 with colour (the day is coloured), 5 without.
   (if s.colour: 3 else: 5)
 
 func calendarWidth*(s: Screen): int =

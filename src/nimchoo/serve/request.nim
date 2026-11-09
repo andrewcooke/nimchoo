@@ -88,6 +88,7 @@ func parseTarget*(raw: string): Option[Target] =
   some(t)
 
 func queryValue*(q: Query, name: string): Option[string] =
+  ## The value of the first parameter with the name, if any.
   for (k, v) in q:
     if k == name:
       return some(v)

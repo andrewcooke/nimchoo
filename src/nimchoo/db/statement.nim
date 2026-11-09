@@ -39,17 +39,21 @@ proc prepareStmt*(db: DbConn, sql: string): Stmt {.raises: [StoreError].} =
   Stmt(raw: raw, db: db)
 
 proc bindInt*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
+  ## Bind a whole number (or an id) to parameter `i` (counted from 1).
   if bind_int64(s.raw, int32(i), v) != SQLITE_OK:
     fail(s.db, "cannot bind")
 
 proc bindInt*(s: Stmt, i: int, v: AnyId) {.raises: [StoreError].} =
+  ## Bind a whole number (or an id) to parameter `i` (counted from 1).
   s.bindInt(i, int64(v))
 
 proc bindReal*(s: Stmt, i: int, v: float) {.raises: [StoreError].} =
+  ## Bind a real number to parameter `i`; an absent one binds nothing (the parameter stays null).
   if bind_double(s.raw, int32(i), v) != SQLITE_OK:
     fail(s.db, "cannot bind")
 
 proc bindText*(s: Stmt, i: int, v: string) {.raises: [StoreError].} =
+  ## Bind text to parameter `i` (copied).
   if bind_text(s.raw, int32(i), cstring(v), int32(v.len), SQLITE_TRANSIENT) != SQLITE_OK:
     fail(s.db, "cannot bind")
 
@@ -59,6 +63,7 @@ proc bindBlob*(s: Stmt, i: int, v: string) {.raises: [StoreError].} =
     fail(s.db, "cannot bind")
 
 proc bindNull*(s: Stmt, i: int) {.raises: [StoreError].} =
+  ## Bind null to parameter `i`.
   if bind_null(s.raw, int32(i)) != SQLITE_OK:
     fail(s.db, "cannot bind")
 
@@ -70,6 +75,7 @@ proc bindInt*(s: Stmt, i: int, v: Option[int]) {.raises: [StoreError].} =
     s.bindNull(i)
 
 proc bindReal*(s: Stmt, i: int, v: Option[float]) {.raises: [StoreError].} =
+  ## Bind a real number to parameter `i`; an absent one binds nothing (the parameter stays null).
   if v.isSome:
     s.bindReal(i, v.get)
   else:

@@ -33,7 +33,7 @@ proc openBrowser(url: string): bool =
       options = {poParentStreams},
     )
     true
-  except CatchableError:
+  except OSError, IOError:
     false
 
 proc serveWeb*(

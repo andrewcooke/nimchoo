@@ -145,6 +145,7 @@ func parseFloatIn*(v: string, lo, hi: float, x: var float): bool =
   x == x and x >= lo and x <= hi and classify(x) notin {fcInf, fcNegInf}
 
 func parseIntIn*(v: string, lo, hi: int, n: var int): bool =
+  ## Read a whole number from `v` into `n` if it is between `lo` and `hi`; whether it was.
   try:
     n = parseInt(v)
   except ValueError:

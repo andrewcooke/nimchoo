@@ -28,6 +28,7 @@ func matches*(row: Seen, size, mtime: int64): bool =
   row.size == size and row.mtime == mtime
 
 func failed*(row: Seen): bool =
+  ## Whether the file failed when it was seen.
   row.failure.len > 0
 
 proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
@@ -51,6 +52,7 @@ proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
         raiseStore("a bad row in seen_file for " & row[0])
 
 proc add*(b: var SeenBuffer, path: string, row: Seen) =
+  ## Keep a row to be written.
   b.rows.add (path, row)
 
 proc pathOfFile*(s: Store, fileId: FileId): string =
@@ -69,6 +71,7 @@ proc pathOfFile*(s: Store, fileId: FileId): string =
     result = ""
 
 func full*(b: SeenBuffer): bool =
+  ## Whether it is time to write the rows.
   b.rows.len >= batchSize
 
 proc flush*(s: Store, b: var SeenBuffer) {.raises: [StoreError].} =

@@ -42,10 +42,13 @@ type
     of vkList: items*: seq[Context]
 
 func text*(s: string): Value =
+  ## A value that is text.
   Value(kind: vkText, text: s)
 func flag*(b: bool): Value =
+  ## A value that is yes or no (for a conditional section).
   Value(kind: vkFlag, flag: b)
 func list*(items: seq[Context]): Value =
+  ## A value that is a list of items, each with its own values (for a repeated section).
   Value(kind: vkList, items: items)
 
 func context*(values: openArray[(string, Value)]): Context =

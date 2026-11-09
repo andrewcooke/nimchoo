@@ -30,6 +30,7 @@ func isCommandName*(s: string): bool =
   s.len > 0 and s.allIt(it.isNameChar)
 
 func isOptionName*(s: string): bool =
+  ## The name of an option in a cache file name (the same rule as a command's).
   isCommandName(s)
 
 func isOptionValue*(s: string): bool =

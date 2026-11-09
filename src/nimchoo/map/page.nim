@@ -47,7 +47,7 @@ proc checkedStyle*(styleText: string): string {.raises: [TemplateError].} =
   var j: JsonNode
   try:
     j = parseJson(styleText)
-  except CatchableError:
+  except JsonParsingError, ValueError, IOError, OSError:
     raiseTemplate("map-style.json is not valid JSON: " & getCurrentExceptionMsg())
   for (group, key) in requiredStyle:
     if j{group, key}.isNil:

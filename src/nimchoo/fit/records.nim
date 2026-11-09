@@ -65,13 +65,17 @@ type
       record*: Record
 
 func newMeta*(name, units, typeName: string, kind: TypeKind, base: BaseType): Meta =
+  ## The description of a field (see Meta).
   Meta(name: name, units: units, typeName: typeName, kind: kind, base: base)
 
 func name*(f: FieldValue): lent string =
+  ## The field's name.
   f.meta.name
 func units*(f: FieldValue): lent string =
+  ## The field's units ("" if none).
   f.meta.units
 func typeName*(f: FieldValue): lent string =
+  ## The name of the field's FIT type.
   f.meta.typeName
 
 func field*(r: Record, name: string): Option[FieldValue] =

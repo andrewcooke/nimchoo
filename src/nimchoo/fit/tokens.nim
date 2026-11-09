@@ -271,6 +271,7 @@ proc next*(t: var Tokenizer): Option[Token] {.raises: [FitError].} =
       some(t.readRecord())
 
 iterator tokens*(t: var Tokenizer): Token {.raises: [FitError].} =
+  ## Every token, in order.
   while true:
     let tok = t.next()
     if tok.isNone:

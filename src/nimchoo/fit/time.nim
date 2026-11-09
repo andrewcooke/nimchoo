@@ -43,6 +43,7 @@ func isFitTime*(t: FitTime): bool =
   int64(t) >= 0 and int64(t) < 0xFFFF_FFFF'i64
 
 func toTime*(t: UnixTime): Time {.raises: [].} =
+  ## As a `Time`.
   fromUnix(int64(t))
 
 func fitToUnix*(t: FitTime): UnixTime {.raises: [].} =
@@ -51,6 +52,7 @@ func fitToUnix*(t: FitTime): UnixTime {.raises: [].} =
   UnixTime(int64(t) + fitEpoch)
 
 func fitToTime*(t: FitTime): Time {.raises: [].} =
+  ## As a `Time`; the FIT time must be a time (`isFitTime`).
   doAssert isFitTime(t), "not a FIT time: " & $int64(t)
   fromUnix(int64(t) + fitEpoch)
 

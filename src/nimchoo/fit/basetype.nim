@@ -100,6 +100,7 @@ func size*(bt: BaseType): int {.raises: [].} =
   facts[bt].size
 
 func isSigned*(bt: BaseType): bool {.raises: [].} =
+  ## Whether the type holds signed whole numbers.
   facts[bt].number == nkSigned
 
 func invalid*(bt: BaseType): uint64 {.raises: [].} =
@@ -170,6 +171,8 @@ func splitStrings(s: string): seq[string] {.raises: [].} =
   s.split('\0')
 
 func decodeString*(data: openArray[byte]): seq[string] {.raises: [].} =
+  ## The strings in a field of text (zero-terminated; several if it holds several).  Text that is not UTF-8 is made 7-bit,
+  ## as the Garmin CSV does.
   var s = newString(data.len)
   for i, b in data:
     s[i] = char(b)

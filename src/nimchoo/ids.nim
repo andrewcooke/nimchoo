@@ -4,6 +4,8 @@
 
 import std/hashes
 
+{.push raises: [].}
+
 type
   UserId* = distinct int64
   ActivityId* = distinct int64

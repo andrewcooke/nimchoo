@@ -74,6 +74,7 @@ proc loadModels*(db: DbConn): seq[Model] {.raises: [StoreError].} =
       result.add modelOf(r)
 
 proc findModel*(db: DbConn, name: string): Option[Model] {.raises: [StoreError].} =
+  ## The model called `name`, if there is one.
   guard:
     let r = db.getRow(sql("select " & columns & " from ff_model where name = ?"), name)
     if r[0].len > 0:

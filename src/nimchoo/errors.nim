@@ -58,17 +58,21 @@ proc raiseProfile*(
   raise (ref ProfileError)(msg: msg, sheet: sheet, row: row)
 
 proc raiseXlsx*(msg: string) {.noreturn, raises: [XlsxError].} =
+  ## Raise an XlsxError.
   raise (ref XlsxError)(msg: msg)
 
 proc raiseZip*(msg: string) {.noreturn, raises: [ZipError].} =
+  ## Raise a ZipError.
   raise (ref ZipError)(msg: msg)
 
 proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
+  ## Raise a StoreError.
   raise (ref StoreError)(msg: msg)
 
 proc raiseImport*(
     kind: ImportFailure, msg: string
 ) {.noreturn, raises: [ImportError].} =
+  ## Raise an ImportError of the given kind.
   raise (ref ImportError)(msg: msg, kind: kind)
 
 proc raiseTemplate*(msg: string, line = 0) {.noreturn, raises: [TemplateError].} =

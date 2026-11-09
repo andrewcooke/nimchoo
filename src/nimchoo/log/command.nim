@@ -52,6 +52,7 @@ proc takeLogName(p: var Parsed, arg: string): string {.nimcall, raises: [].} =
   ""
 
 proc parseArgs*(args: seq[string]): Parsed =
+  ## The options of `nch log`; `problem` says what is wrong with them, if anything.
   let lastOption = custom(Parsed, ["--last"], false, (p.filter.last = true; ""))
   let countOption = custom(Parsed, ["-n"], true):
     var n = 0

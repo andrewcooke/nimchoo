@@ -38,6 +38,7 @@ type
     lo*, hi*: Option[float]
 
 func isOpen*(r: NumRange): bool =
+  ## Whether the range has no ends: anything is in it.
   r.lo.isNone and r.hi.isNone
 
 func parseDistance*(s: string): Option[float] =

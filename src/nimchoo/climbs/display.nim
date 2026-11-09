@@ -23,6 +23,7 @@ func baseName(name: string): string =
   if name.strip.len == 0: unnamed else: name.strip
 
 func groupKey*(name: string): string =
+  ## What climbs of one name share (case and accents folded, "unnamed" for none): the key of their numbering.
   foldText(baseName(name))
 
 func subscriptNumber*(n: int): string =

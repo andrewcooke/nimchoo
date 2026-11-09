@@ -2989,3 +2989,13 @@ Each was checked first; these were real.
   glob made of character classes, `foldGlob`, which is deleted).  A consequence: climbs called `Calan` and `Calán` are now
   one group (numbered `Calan₁`, `Calán₂`).  The fragment `climbs/002-name-number.sql` still says `lower(trim(..))`: a
   fragment is never edited, and it runs once on names that are then empty; the next squash drops it.
+
+### The conventions checked against the code (2026-11-08, TODO step 5)
+
+* `CatchableError` is no longer caught where a call's own errors are known (`child.nim`, `serve/launch.nim`,
+  `map/page.nim`: `OSError`, `IOError`, `ValueError`, `JsonParsingError`); the `Exception` catches all say why (the
+  library is declared to raise anything, or it is the top of the server).  `ids.nim` has `raises: []`.
+* The rules were corrected, not the code, where the code was right: the two async modules cannot be `raises: []`; the
+  atomic stop flag of `db/checkpointer.nim` is state like `profiling.nim`'s (and the importer has no thread-pool
+  global); a test file may cover its neighbours.
+* 75 exported procs had no `##`; they have one now.  Borrowed operators of a distinct type are exempt.

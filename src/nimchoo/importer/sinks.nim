@@ -32,6 +32,7 @@ func extrasText*(c: Counts): string =
       result.add ", " & $x.n & " " & (if x.n == 1: x.one else: x.many)
 
 func plural*(n: int, one, many: string): string =
+  ## "1 file", "3 files".
   $n & " " & (if n == 1: one else: many)
 
 func advisoryLines*(path: string, ws: seq[Warning]): seq[string] =

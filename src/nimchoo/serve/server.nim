@@ -47,5 +47,5 @@ proc serveForever*(
         await server.acceptRequest(onRequest)
 
     waitFor loop()
-  except Exception:
+  except Exception: # (the top of the server: whatever ends it is told, not a trace)
     result = getCurrentExceptionMsg()

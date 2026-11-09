@@ -69,6 +69,7 @@ proc fileDone*(bytes: int, nanos: int64, imported: bool) =
       files.add (bytes, nanos, imported) # (only the thread that reports calls this)
 
 proc startClock*() =
+  ## Start timing (when profiling is on).
   if enabled:
     started = getMonoTime()
 

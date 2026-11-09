@@ -138,6 +138,7 @@ func cut*(name: string, width = nameWidth): string =
 func climbOf*(
     name: string, category: string, lengthM, gainM, gradient: float
 ): ClimbInfo =
+  ## The description of a climb (see ClimbInfo) from its columns.
   ClimbInfo(
     name: cut(name),
     category: category,

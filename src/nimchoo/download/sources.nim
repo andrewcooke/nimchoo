@@ -69,12 +69,17 @@ func fill(pattern, arg: string): string =
       inc i
 
 func urlFor*(s: Source, arg = ""): string =
+  ## The address, with `arg` put in where the template says.
   fill(s.url, arg)
 func fileFor*(s: Source, arg = ""): string =
+  ## The file name, with `arg` put in.
   fill(s.file, arg)
 func entryFor*(s: Source, arg = ""): string =
+  ## The name of the entry in the zip, with `arg` put in.
   fill(s.zipEntry, arg)
 func whyFor*(s: Source, arg = ""): string =
+  ## Why it is wanted (said when it is fetched), with `arg` put in.
   fill(s.why, arg)
 func labelFor*(s: Source, arg = ""): string =
+  ## A short name for the screen, with `arg` put in.
   fill(s.label, arg)

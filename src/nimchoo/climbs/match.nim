@@ -40,9 +40,11 @@ type
     startElev*, finishElev*: float ## NaN if unknown
 
 func elapsed*(e: Effort): float =
+  ## Seconds from the start of the effort to its finish.
   e.finishT - e.startT
 
 func len*(p: Path): int =
+  ## The number of points.
   p.lon.len
 
 func parseLineString*(text: string): Option[Path] =

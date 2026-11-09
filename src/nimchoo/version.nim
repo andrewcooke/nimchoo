@@ -33,6 +33,7 @@ func commitText*(hash: string, dirty: bool): string =
     hash
 
 func versionLine*(version, commit: string): string =
+  ## "nch 0.1 (abc1234)".
   "nch " & version & " (" & commit & ")"
 
 const

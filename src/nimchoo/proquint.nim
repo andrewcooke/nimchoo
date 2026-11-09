@@ -54,4 +54,5 @@ func fromProquint*(s: string): Option[seq[byte]] =
     some(bytes)
 
 func isProquint*(s: string): bool =
+  ## Whether the text is a proquint.
   fromProquint(s).isSome

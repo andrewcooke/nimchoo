@@ -186,6 +186,7 @@ proc realFreeBytes*(dir: string): Option[int64] {.raises: [].} =
   none(int64)
 
 proc realEnv*(): Env =
+  ## The environment for real use: the network, the disk, and the child process that inflates zips.
   Env(
     fetcher: realFetcher(),
     freeBytes: realFreeBytes,
@@ -328,5 +329,5 @@ proc clearData*(dataDir: string): DataUsage =
     removeDir(dataDir)
   except OSError:
     discard
-  except Exception:
+  except Exception: # (removeDir is declared to raise anything)
     discard

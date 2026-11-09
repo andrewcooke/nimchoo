@@ -354,6 +354,7 @@ four kinds of things go wrong, and each has one mechanism:
 * `try` only at boundaries: the commands, and where a third-party or `std` call is wrapped into one of our errors.
   never `except CatchableError`/`Exception` (except at the top of a thread or server loop, said so in a comment).
 * every module starts with `{.push raises: [].}` after its imports, so a proc raises nothing unless it says so.
+  (the exceptions are the two async modules, `childasync.nim` and `serve/workers.nim`: async code is not `raises: []`.)
 * **commands** (`cli/common.nim`): `run(globals, args): int` is `{.raises: [].}`; 0 for success, 1 when the work
   failed (one line on stderr, no trace), 2 for a usage error.
 
@@ -363,14 +364,14 @@ four kinds of things go wrong, and each has one mechanism:
   SQLite, with SpatiaLite loaded as an extension.  compiler-checked is better than convention (`raises`, `case`
   over enums with no `else`, distinct types).
 * formatted with `nph`.  every module opens with a `##` comment saying what it is for, and `##` documents each
-  exported thing.  comments say *why*, not what the next line does.
+  exported thing (not the borrowed operators of a distinct type).  comments say *why*, not what the next line does.
 * `camelCase` for procs, variables, fields and constants; `PascalCase` for types; lower-case one-word module
   names.  enum members carry a short tag of their type (`wkDataSize`, `vkInt`).
 * export with `*` only what other modules need.  `std/` imports first, as one bracketed list, then project
   modules: relative inside `src/`, `nimchoo/...` in tests.
 * `func` for pure functions, `proc` for anything with effects.  results are returned, not written to out
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
-  default.  no module-level mutable state (exceptions today: the importer's thread pool and `profiling.nim`).
+  default.  no module-level mutable state (exceptions today: `profiling.nim`, and the stop flag of `db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
 
 ### output
@@ -385,7 +386,8 @@ four kinds of things go wrong, and each has one mechanism:
 
 ### tests
 
-* `std/unittest`, mirroring the source tree (`tests/<dir>/test_<file>.nim`, all imported by `tests/all.nim`);
+* `std/unittest`, mirroring the source tree (`tests/<dir>/test_<file>.nim`, all imported by `tests/all.nim`; a test file may cover its neighbouring files, and a
+  module that only wires others together (`ddl.nim`, a command that is tested through its parts) may have none);
   test names are plain sentences.  `nimble test` (optimised, with run-time checks) is the one to run often;
   `nimble testdebug` for tracking down a failure.
 * small cases are built by hand (`tests/support/`); behaviour that must match the FIT SDK uses real files

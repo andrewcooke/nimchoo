@@ -488,8 +488,10 @@ func refersTo*(c: Criteria, r: Reference): bool =
     c.subSportRef == r or c.nameRef == r or c.startRef == r
 
 func usesLatest*(c: Criteria): bool =
+  ## Whether a criterion refers to "latest".
   c.refersTo(refLatest)
 func usesPrevious*(c: Criteria): bool =
+  ## Whether a criterion refers to "previous".
   c.refersTo(refPrevious)
 
 func withoutLatest*(c: Criteria): Criteria =

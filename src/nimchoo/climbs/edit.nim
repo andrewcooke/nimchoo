@@ -40,6 +40,7 @@ proc findShown*(st: Store, shown: string): int64 {.raises: [StoreError].} =
   )
 
 proc shownName*(st: Store, id: int64): string {.raises: [StoreError].} =
+  ## The name of the climb as shown (with its number), or "unnamed".
   shownNames(st).getOrDefault(id, unnamed)
 
 proc rename*(st: Store, id: int64, name: string) {.raises: [StoreError].} =

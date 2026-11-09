@@ -282,10 +282,12 @@ proc setAutoCheckpoint*(s: Store, pages: int) {.raises: [StoreError].} =
     s.db.exec(sql("pragma wal_autocheckpoint = " & $pages))
 
 proc begin*(s: Store) {.raises: [StoreError].} =
+  ## Start a transaction.
   guard:
     s.db.exec(sql"begin")
 
 proc commit*(s: Store) {.raises: [StoreError].} =
+  ## End the transaction, keeping its changes.
   guard:
     s.db.exec(sql"commit")
 
