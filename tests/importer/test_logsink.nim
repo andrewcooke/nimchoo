@@ -3,7 +3,7 @@ import nimchoo/importer/[events, failure, logsink]
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
 import nimchoo/modules
-import nimchoo/ui/logfile
+import nimchoo/core/logfile
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 

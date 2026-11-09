@@ -7,7 +7,8 @@ import std/strutils
 import ../cli/common
 import ../db/store
 import ../core/errors
-import ../ui/[live, logfile, style]
+import ../core/logfile
+import ../ui/[live, style]
 import ../user/wipe
 import ./remove
 
@@ -76,7 +77,7 @@ proc runDelete*(
     if done.kept > 0:
       said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
         " kept, with other activities in"
-    g.log.log(lvInfo, cmActivities, leDeleted, said & " from " & st.path)
+    g.log.log(lvInfo, $cmActivities, leDeleted, said & " from " & st.path)
     sayDeleted(said)
     exitOk
   except StoreError as e:

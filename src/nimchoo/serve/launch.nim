@@ -7,7 +7,8 @@ import std/[os, osproc]
 import ../cache
 import ../cli/common
 import ../db/store
-import ../ui/[interrupt, logfile, vocabulary]
+import ../core/logfile
+import ../ui/[interrupt, vocabulary]
 import ./[handler, request, server, token]
 
 {.push raises: [].}
@@ -51,7 +52,7 @@ proc serveWeb*(
     cacheDir: userDir(cacheDir),
     baseArgs: workerOptions(g),
     log: g.log,
-    logCommand: command,
+    logCommand: $command,
   )
   exitOnInterrupt()
   let problem = serveForever(
@@ -67,7 +68,7 @@ proc serveWeb*(
       # (a program reading our output waits for this line)
       except IOError:
         discard
-      g.log.log(lvInfo, command, leServed, "listening on 127.0.0.1:" & $port)
+      g.log.log(lvInfo, $command, leServed, "listening on 127.0.0.1:" & $port)
       if not o.noOpen and not openBrowser(url):
         stderr.say "note: could not open a browser; open the address above\n"
     ,

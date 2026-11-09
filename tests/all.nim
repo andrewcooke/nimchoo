@@ -7,6 +7,7 @@ import
   ./core/test_registry,
   ./core/test_imports,
   ./core/test_ownership,
+  ./core/test_logfile,
   ./text/fold/test_fold,
   ./core/test_errors,
   ./test_structure,
@@ -93,9 +94,6 @@ import
 import ./user/[test_params, test_command, test_wipe]
 import ./bundle/test_unpack
 import
-  ./ui/[
-    test_units, test_style, test_live, test_logfile, test_vocabulary, test_interval,
-    test_palette,
-  ]
+  ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval, test_palette]
 import ./log/[test_lines, test_command]
 {.pop.}

@@ -100,7 +100,7 @@ never depends on a command package.  The commands of today:
 
 | Cycle now | Cause | Resolved by |
 |---|---|---|
-| `cli` ↔ `ui` | `ui/logfile` needs `cli/catalog` (the list of commands) | the catalogue moves below both |
+| `cli` ↔ `ui` | `ui/logfile` needs `cli/catalog` (the list of commands) | **done (2026-11-09)**: the log (`Log`, `Level`, `LogEvent`) is `core/logfile.nim` and takes the command as a string; `ui` no longer imports `cli` |
 | `fit` ↔ `profile` ↔ `xlsx` ↔ `zipbytes` | `profile` is part of `fit`; `zipbytes` needs `fit/bytes`, a general byte reader | `profile` into `fit`; `bytes` below both |
 | `db` ↔ `user` | `nch db` (in `db/`) uses the delete countdown (`user/wipe`) | the countdown is its own package; the `db` command leaves the framework |
 | `climbs` ↔ `importer` ↔ `landmark` ↔ `names` | `landmark`'s command uses `climbs/report` and `names`; the importer's command names activities | libraries below (`landmark`, `names`, `importer`, `sectors`), commands above them |
@@ -329,7 +329,7 @@ A command package holds the command (`run`, its options, its output) and nothing
 ### Changes this makes to today's code (the cycle table, made specific)
 
 * `cli/common` splits: `Globals` and the exit codes go to core; nothing in core imports `ui` or `db`.
-* `ui/logfile` stops importing `cli/catalog`: the registry knows the commands, the log is given the names.
+* `ui/logfile` stops importing `cli/catalog`: **done**; the log is `core/logfile.nim` (decided 2026-11-09: whole log code in `core`, pluggable logs are not needed; `Globals` in `core` too; `importSteps` leave `Globals`, and `selection/command` reads `modules.allImportSteps` until the extension point).
 * `db/channel` (which imports `fit/time`) moves to `importer`, so `store` does not depend on `fit`.
 * `user/wipe` splits in three: words and countdown (`confirm`), user lookup and removal (`user`), counting activities
   (the `activities` command, which knows about activities).

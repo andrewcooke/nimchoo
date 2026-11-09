@@ -6,14 +6,14 @@
 ## re-import of thousands would fill the log); the `done` line counts them.  `-q`
 ## affects the screen only; the log is always complete.
 
-import ../ui/logfile
+import ../core/logfile
 import ./events
 import ./failure
 import ./sinks
 
 {.push raises: [].}
 
-const command = cmActivities
+const command = "activities"
 
 type Entry* = object
   level*: Level

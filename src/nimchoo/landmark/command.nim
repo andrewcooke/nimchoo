@@ -9,7 +9,7 @@ import ../ui/units
 import ../db/store
 import ../core/errors
 import ../names/[lookup, open]
-import ../ui/logfile
+import ../core/logfile
 import ../user/wipe
 import ./[landmarks, params, suggest]
 
@@ -87,7 +87,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if not removeLandmark(st, p.name):
         return failure("nch landmarks", "there is no landmark called '" & p.name & "'")
       let said = "deleted the landmark " & p.name
-      g.log.log(lvInfo, cmLandmarks, leDeleted, said)
+      g.log.log(lvInfo, $cmLandmarks, leDeleted, said)
       sayDeleted(said)
       return exitOk
     if p.add and p.at.isSome:
@@ -95,7 +95,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         "made the landmark " & p.name.strip & " at " &
         positionText(p.at.get.lon, p.at.get.lat)
-      g.log.log(lvInfo, cmLandmarks, leSaved, said)
+      g.log.log(lvInfo, $cmLandmarks, leSaved, said)
       stdout.say said & "\n"
       return exitOk
     if p.search.len > 0 or p.near.isSome:
@@ -126,7 +126,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let said =
           "made the landmark " & p.name.strip & " at " & s.name & " (" &
           positionText(s.lon, s.lat) & ")"
-        g.log.log(lvInfo, cmLandmarks, leSaved, said)
+        g.log.log(lvInfo, $cmLandmarks, leSaved, said)
         stdout.say said & "\n"
         return exitOk
       if found.len == 0:

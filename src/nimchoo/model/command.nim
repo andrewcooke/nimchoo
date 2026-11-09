@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ../cli/common
 import ../db/store
 import ../core/errors
-import ../ui/logfile
+import ../core/logfile
 import ./[calc, models, params]
 
 {.push raises: [].}
@@ -100,7 +100,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         failure("nch models", "there is a model called '" & p.model.name & "' already")
     insertModel(st.db, p.model)
     let said = "made the model " & p.model.name
-    g.log.log(lvInfo, cmModels, leSaved, said)
+    g.log.log(lvInfo, $cmModels, leSaved, said)
     stdout.say said & "\n"
     exitOk
   except StoreError as e:

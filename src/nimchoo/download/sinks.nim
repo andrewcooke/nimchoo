@@ -1,7 +1,8 @@
 ## Where download events go: into the log (every download, whichever command asked for it) and onto
 ## the screen (one line each, on stderr, so a pause for the network is explained).
 
-import ../ui/[live, logfile, style]
+import ../core/logfile
+import ../ui/[live, style]
 import ./[fetch, spinner]
 
 {.push raises: [].}
@@ -12,7 +13,7 @@ func fanOut*(sinks: seq[Sink]): Sink =
     for s in sinks:
       s(ev)
 
-proc logSink*(l: Log, command: Command): Sink =
+proc logSink*(l: Log, command: string): Sink =
   ## Write the events to the log as `command`: `downloaded` (info) and `failed` (error).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
     case ev.kind

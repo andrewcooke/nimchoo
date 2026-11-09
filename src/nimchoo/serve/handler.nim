@@ -14,7 +14,7 @@
 
 import std/[options, os, sequtils, strutils]
 import ../cache
-import ../ui/logfile
+import ../core/logfile
 import ./[pages, request]
 
 {.push raises: [].}
@@ -32,7 +32,7 @@ type
     cacheDir*: string
     baseArgs*: seq[string] ## the options before the command (--db ..., --user ...)
     log*: Log
-    logCommand*: Command
+    logCommand*: string
 
   Incoming* = object
     meth*, target*, host*, cookie*: string
@@ -198,9 +198,9 @@ proc conclude(cfg: ServerConfig, req: Incoming, raw: Reply): Reply =
       "(unreadable)"
   let line = req.meth & " " & shown & " " & $result.code
   if result.code == 403 or result.code == 400 or result.code == 405:
-    cfg.log.log(lvWarn, cfg.logCommand, leDenied, line)
+    cfg.log.log(lvWarn, $cfg.logCommand, leDenied, line)
   else:
-    cfg.log.log(lvInfo, cfg.logCommand, leServed, line)
+    cfg.log.log(lvInfo, $cfg.logCommand, leServed, line)
 
 proc begin*(cfg: ServerConfig, port: int, req: Incoming): Step =
   ## Decide what to do with a request: answer it, or say which worker has to run for it.

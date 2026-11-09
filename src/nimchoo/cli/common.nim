@@ -7,8 +7,9 @@
 
 import ../db/[channel, store]
 import ../core/errors
-import ../ui/logfile
-export logfile.Command, logfile.catalog
+import ../core/logfile
+import ./catalog
+export catalog, logfile.Log, logfile.Level, logfile.LogEvent
 
 {.push raises: [].}
 

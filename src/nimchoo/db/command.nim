@@ -8,7 +8,8 @@ import ../cli/common
 import ../packages/util/args/args
 import ../download/fetch
 import ../core/errors
-import ../ui/[live, logfile]
+import ../core/logfile
+import ../ui/live
 import ../user/wipe
 import ./[statement, store]
 
@@ -89,6 +90,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       removeFile path & suffix
   except OSError as e:
     return failure("nch db", "cannot delete " & path & ": " & e.msg)
-  g.log.log(lvInfo, cmDb, leDeleted, "deleted " & what)
+  g.log.log(lvInfo, $cmDb, leDeleted, "deleted " & what)
   sayDeleted("deleted " & what)
   exitOk

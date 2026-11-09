@@ -7,7 +7,7 @@ import ../cache
 import ../cli/common
 import ../packages/util/args/args
 import ../download/fetch
-import ../ui/logfile
+import ../core/logfile
 import ../user/wipe
 import ./files
 
@@ -96,6 +96,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let u = deleteKind(dir.get, k)
     what.add $k & ": " & describe(u)
   let text = what.join("; ")
-  g.log.log(lvInfo, cmCache, leDeleted, text & " from " & dir.get)
+  g.log.log(lvInfo, $cmCache, leDeleted, text & " from " & dir.get)
   sayDeleted("deleted " & text)
   exitOk

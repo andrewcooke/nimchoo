@@ -29,7 +29,7 @@ proc openNames*(
     else:
       screenSink(say)
   var names = newNames(
-    st, dataDir(cache.get), realEnv(), fanOut(@[logSink(g.log, command), screen])
+    st, dataDir(cache.get), realEnv(), fanOut(@[logSink(g.log, $command), screen])
   )
   names.offline = g.offline
   some(names)

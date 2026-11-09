@@ -1,7 +1,7 @@
 import std/[os, strutils, unittest]
 import nimchoo/serve/handler
 import nimchoo/serve/request
-import nimchoo/ui/logfile
+import nimchoo/core/logfile
 
 const
   token = "0123456789abcdef0123456789abcdef"
@@ -37,7 +37,7 @@ proc setup(
     )
   )
   var cfg = ServerConfig(
-    token: token, cacheDir: cache, baseArgs: @["--db", "/x/y.db"], logCommand: cmMap
+    token: token, cacheDir: cache, baseArgs: @["--db", "/x/y.db"], logCommand: "map"
   )
   if withLog:
     cfg.log = openLog(dir / name / "nch.log")

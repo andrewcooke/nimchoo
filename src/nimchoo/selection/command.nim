@@ -14,7 +14,8 @@ import ../importer/batch
 import ../importer/run as importRun
 import ../core/errors
 import ../fit/time
-import ../ui/[live, logfile, style, vocabulary]
+import ../core/logfile
+import ../ui/[live, style, vocabulary]
 import ../packages/text/fold/fold
 import ./[calendar, criteria, table]
 
@@ -534,7 +535,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if r.saved >= 0:
       g.log.log(
         lvInfo,
-        cmActivities,
+        $cmActivities,
         leSaved,
         $r.saved & (if r.saved == 1: " activity" else: " activities"),
       )

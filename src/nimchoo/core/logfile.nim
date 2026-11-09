@@ -5,20 +5,34 @@
 ##     2026-11-02T23:10:34Z INFO  import    duplicate  text
 ##     time                 level command   event      text
 ##
-## where the command is what the user ran and the event is one of the shared
-## words in vocabulary.nim.
+## where the command is what the user ran (its name) and the event is one of the shared
+## words, `LogEvent` below (the looks they are shown in are in ui/vocabulary.nim).
 ##
 ## Logging must never break the work: a log that cannot be opened is disabled
 ## (`problem` says why, for the caller to mention once), and a write that
 ## fails is ignored.  A nil `Log` is a disabled log.
 
 import std/[options, os, strutils, times]
-import ../cli/catalog
-export catalog
-import ./vocabulary
-export vocabulary.LogEvent
 
 {.push raises: [].}
+
+type LogEvent* = enum
+  ## the shared words of the log (their looks are in ui/vocabulary.nim)
+  leStart = "start" ## a command begins its work (the number of things)
+  leRun = "run" ## the dispatcher: a command was run (with its arguments)
+  leExit = "exit" ## ... and ended (with its exit status)
+  leImported = "imported" ## something was made (a file's activities were stored)
+  leDuplicate = "duplicate" ## the same content was imported before
+  leUnchanged = "unchanged" ## nothing to do: as last time
+  leFailed = "failed" ## it did not work
+  leAdvisory = "advisory" ## something noticed in what was processed anyway
+  leNote = "note" ## something about the run itself
+  leDone = "done" ## a command ends its work (the totals)
+  leDeleted = "deleted" ## data was removed
+  leDownloaded = "downloaded" ## a file was fetched from the network
+  leSaved = "saved" ## something was kept (the selection)
+  leServed = "served" ## the web server answered a request
+  leDenied = "denied" ## ... or refused one
 
 type
   Level* = enum
@@ -113,13 +127,13 @@ func enabled*(l: Log): bool =
   ## Whether there is a log file to write to.
   not l.isNil and not l.f.isNil
 
-proc log*(l: Log, level: Level, command: Command, event: LogEvent, text: string) =
+proc log*(l: Log, level: Level, command: string, event: LogEvent, text: string) =
   ## Append a line.  Warnings and errors are flushed at once, the rest when
   ## the buffer fills or the log is closed.
   if not l.enabled:
     return
   try:
-    l.f.write logLine(l.now(), level, $command, event, text) & "\n"
+    l.f.write logLine(l.now(), level, command, event, text) & "\n"
     if level != lvInfo:
       l.f.flushFile()
   except IOError:

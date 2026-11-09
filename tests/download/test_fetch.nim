@@ -4,7 +4,8 @@ import
     unittest,
   ]
 import nimchoo/download/[fetch, sinks, sources, spinner]
-import nimchoo/ui/[live, logfile, palette, style]
+import nimchoo/core/logfile
+import nimchoo/ui/[live, palette, style]
 import ../support/zips
 
 type Net = ref object
@@ -180,7 +181,7 @@ suite "download: the same events in the log and on the screen":
     var said: seq[string]
     let sink = fanOut(
       @[
-        logSink(l, cmClimbs),
+        logSink(l, "climbs"),
         screenSink(
           proc(line: string) {.closure, raises: [].} =
             said.add line

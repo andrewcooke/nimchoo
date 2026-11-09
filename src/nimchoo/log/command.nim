@@ -6,7 +6,8 @@
 import std/[options, os, sequtils, strutils]
 import ../cli/common
 import ../packages/util/args/args
-import ../ui/[live, logfile, style, vocabulary]
+import ../core/logfile
+import ../ui/[live, style, vocabulary]
 import ./lines
 
 {.push raises: [].}

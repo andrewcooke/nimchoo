@@ -7,7 +7,8 @@ import ../db/[statement, store]
 import ../download/fetch
 import ../core/errors
 import ../names/open
-import ../ui/[live, logfile, style]
+import ../core/logfile
+import ../ui/[live, style]
 import ./[batch, display, events, logsink, naming, sinks]
 
 {.push raises: [].}
@@ -125,14 +126,14 @@ proc runImport*(
         for e in counts.gpsErrors:
           g.log.log(
             lvWarn,
-            cmActivities,
+            $cmActivities,
             leAdvisory,
             e.where & "  " & plural(e.searches, "search", "searches") &
               " for a place not made: positions too far apart (GPS errors)",
           )
         g.log.log(
           lvInfo,
-          cmActivities,
+          $cmActivities,
           leDone,
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
@@ -152,7 +153,7 @@ proc runImport*(
     if n > 0:
       g.log.log(
         lvInfo,
-        cmActivities,
+        $cmActivities,
         leSaved,
         $n & (if n == 1: " activity" else: " activities") & " selected (imported)",
       )

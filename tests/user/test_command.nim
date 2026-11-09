@@ -4,7 +4,7 @@ import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/modules
-import nimchoo/ui/logfile
+import nimchoo/core/logfile
 import nimchoo/user/command as userCommand
 import ../support/userdata
 

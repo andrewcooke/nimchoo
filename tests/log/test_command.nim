@@ -1,6 +1,6 @@
 import std/[os, strutils, unittest]
 import nimchoo/log/command as logCommand
-import nimchoo/ui/logfile
+import nimchoo/core/logfile
 import nimchoo/ui/vocabulary
 import nimchoo/log/lines
 

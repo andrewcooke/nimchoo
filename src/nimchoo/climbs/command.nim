@@ -8,7 +8,8 @@ import ../cli/common
 import ../db/store
 import ../core/errors
 import ../names/open
-import ../ui/[live, logfile, style]
+import ../core/logfile
+import ../ui/[live, style]
 import ../user/wipe
 import ./[attempts, duplicates, edit, naming, params, report, work]
 
@@ -114,7 +115,7 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   else:
     rename(st, id, p.rename)
     said = was & " is now called " & shownName(st, id)
-  g.log.log(lvInfo, cmClimbs, leSaved, said)
+  g.log.log(lvInfo, $cmClimbs, leSaved, said)
   stdout.say said & "\n"
   exitOk
 
@@ -127,7 +128,7 @@ proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
   clearClimbs(st)
   st.reclaim()
-  g.log.log(lvInfo, cmClimbs, leDeleted, "deleted " & what & " from " & st.path)
+  g.log.log(lvInfo, $cmClimbs, leDeleted, "deleted " & what & " from " & st.path)
   sayDeleted("deleted " & what)
   exitOk
 
@@ -185,7 +186,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stderr.say doneLine(worked) & "\n"
       g.log.log(
         lvInfo,
-        cmClimbs,
+        $cmClimbs,
         leDone,
         "worked out " & $worked.activities & " activities: " & $worked.sectors &
           " new climbs, " & $worked.efforts & " efforts",
@@ -203,11 +204,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let named = ensureSectorNames(st, names.get)
       if named.damaged.len > 0:
         stderr.say "warning: " & damagedText(named) & "\n"
-        g.log.log(lvWarn, cmClimbs, leAdvisory, damagedText(named))
+        g.log.log(lvWarn, $cmClimbs, leAdvisory, damagedText(named))
       if named.named + named.nothing > 0:
         g.log.log(
           lvInfo,
-          cmClimbs,
+          $cmClimbs,
           leDone,
           "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
         )

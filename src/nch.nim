@@ -19,7 +19,7 @@ import nimchoo/model/command as modelCommand
 import nimchoo/ff/command as ffCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
-import nimchoo/ui/logfile
+import nimchoo/core/logfile
 import nimchoo/packages/util/version/version
 import nimchoo/packages/util/zip/zipchild
 
@@ -113,9 +113,9 @@ proc main(): int {.raises: [].} =
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
         stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
-  g.log.log(lvInfo, command, leRun, "[" & nchCommit & "] " & rest.join(" "))
+  g.log.log(lvInfo, $command, leRun, "[" & nchCommit & "] " & rest.join(" "))
   result = dispatch(g, command, rest)
-  g.log.log(lvInfo, command, leExit, $result)
+  g.log.log(lvInfo, $command, leExit, $result)
   g.log.close()
 
 when isMainModule:
