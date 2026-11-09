@@ -19,9 +19,10 @@ import db_connector/sqlite3 as lowlevel
 import ../errors
 import ../ids
 export ids
+import ../core/fragment as coreFragment
 import ./[fragment, functions]
 import ./statement
-export db_sqlite.DbConn, fragment
+export db_sqlite.DbConn, fragment, coreFragment
 
 {.push raises: [].}
 

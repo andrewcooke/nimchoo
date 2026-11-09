@@ -11,7 +11,7 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
-- [ ] 8. Packages: the design is PACKAGES.md (agreed 2026-11-09; it replaces REVIEW.md §6).  Its "Order of work": 1 the inventory of packages and layers
+- [ ] 8. Packages (8.1 inventory done; in 8.2 `core`, the registry and the package `fold` are built; the import checker and the ownership scan are next): the design is PACKAGES.md (agreed 2026-11-09; it replaces REVIEW.md §6).  Its "Order of work": 1 the inventory of packages and layers
   (settled with the author), 2 `core` and the generated registry with the import checker and inferred table ownership,
   3 the leaf libraries move, 4 the four directory cycles are broken (library below, command above), 5 the extension
   points that remain (import steps, on-demand work), 6 the access model (SQLite's authorizer: report-only, then writes,

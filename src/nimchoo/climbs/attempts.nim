@@ -12,7 +12,7 @@ import ../errors
 import ../fit/time
 import ../importer/describe
 import ../lookup
-import ../fold
+import ../packages/text/fold/fold
 import std/unicode
 import ../ui/[palette, style, units]
 import ./[describe, display, report]

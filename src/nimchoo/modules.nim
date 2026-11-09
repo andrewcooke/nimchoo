@@ -13,7 +13,8 @@ import ./model/ddl as modelDdl
 import ./names/ddl as namesDdl
 import ./selection/ddl as selectionDdl
 import ./user/ddl as userDdl
-import ./db/[channel, fragment]
+import ./core/fragment
+import ./db/channel
 
 {.push raises: [].}
 

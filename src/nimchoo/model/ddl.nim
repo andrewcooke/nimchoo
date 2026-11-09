@@ -1,6 +1,6 @@
 ## The database tables of the model module (see db/fragment.nim).
 
-import ../db/fragment
+import ../core/fragment
 import ./models
 
 {.push raises: [].}

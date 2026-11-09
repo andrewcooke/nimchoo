@@ -5,7 +5,7 @@
 ## "Farellones 3" or "Farellones3" (`ordinalForms`).
 
 import std/[strutils, tables, unicode]
-import ../fold
+import ../packages/text/fold/fold
 
 {.push raises: [].}
 

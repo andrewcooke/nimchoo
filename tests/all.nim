@@ -5,7 +5,8 @@
 import ./support/env, ./support/timing
 import
   ./test_proquint,
-  ./test_fold,
+  ./core/test_registry,
+  ./text/fold/test_fold,
   ./test_zipbytes,
   ./test_xlsx,
   ./test_errors,

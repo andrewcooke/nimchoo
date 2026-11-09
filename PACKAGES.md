@@ -1,7 +1,7 @@
 # Packages
 
 The design of packages, agreed in discussion on 2026-11-09 (it replaces the first sketch in REVIEW.md §6, which is
-kept for the reasoning).  Nothing here is built yet; TODO.md step 8 is the work.  When something is built, the text
+kept for the reasoning).  Built so far (step 8.2, first commit): `core/package.nim`, the registry and its generator, and the package `fold`; the rest is the work of TODO.md step 8.  When something is built, the text
 that describes it moves to CLAUDE.md, and this file keeps the reasons.
 
 ## What a package is, and what it is not
@@ -49,7 +49,7 @@ src/nimchoo/
 ```
 
 1. **A package is a directory that contains `package.nim`.**  Its **name is the name of that directory** (not the
-   path), and it is unique among all packages (compared ignoring case and underscores, as Nim does).  Directories
+   path), and it is unique among all packages (compared as Nim compares names: ignoring underscores and case except that of the first letter).  Directories
    above it only group; moving a package to another group changes nothing but import paths.
 2. **No nesting**: a package directory contains no other `package.nim` anywhere below it.  It may have
    implementation subdirectories.  A grouping directory holds no code.
@@ -76,6 +76,10 @@ const package* = Package(
   contributes: @[],                 # see extension points
 )
 ```
+
+(Built so far: `depends` and `fragments` only; `commands` comes with the command packages, `contributes` with the
+first extension point.  The module `core/package` is imported `as corePackage`, because the constant is also
+called `package`.)
 
 The registry (below) reads it.  A package's own documentation (the feature detail now in CLAUDE.md) goes in a
 `README.md` beside it.
@@ -225,7 +229,9 @@ final home.
 
 ## Open
 
-* The generated `registry.nim`: checked in or ignored.
+* (Decided 2026-11-09) The generated `registry.nim` is checked in; a test makes it again and fails if it differs, and
+  the nimble tasks regenerate it first (`nimble registry`).  `ExtensionPoint` is built with the first extension point
+  (step 5), not in step 8.2.
 * Import paths: plain (`import text/fold/fold`, so regrouping is a search-and-replace the compiler checks) or a
   generated search path for the parent of every package (`import fold/fold` whatever the grouping, but a generate
   step).  Start plain.

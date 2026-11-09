@@ -7,7 +7,7 @@ import ../fit/time
 import ../cli/args
 import ../db/sqltext
 import ../ids
-import ../fold
+import ../packages/text/fold/fold
 import ./ranges
 export ranges
 

@@ -5,7 +5,7 @@
 import std/[algorithm, sequtils, strutils, tables]
 import ../db/[statement, store]
 import ../errors
-import ../fold
+import ../packages/text/fold/fold
 import ./[display, ordinal, report]
 
 {.push raises: [].}

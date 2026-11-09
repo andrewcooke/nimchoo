@@ -39,6 +39,10 @@ type
     ifMonitor
       ## a file that says it is not an activity (monitoring and other all-day data): none is expected
 
+  PackageError* = object of NchError
+    ## The packages do not fit together (a cycle, a missing dependency, a name used twice).  Raised while the
+    ## program is compiled, so it stops the build with this message.
+
   ImportError* = object of NchError
     ## A file that is readable but cannot be imported as an activity.
     kind*: ImportFailure
@@ -68,6 +72,10 @@ proc raiseZip*(msg: string) {.noreturn, raises: [ZipError].} =
 proc raiseStore*(msg: string) {.noreturn, raises: [StoreError].} =
   ## Raise a StoreError.
   raise (ref StoreError)(msg: msg)
+
+proc raisePackage*(msg: string) {.noreturn, raises: [PackageError].} =
+  ## Raise a PackageError.
+  raise (ref PackageError)(msg: msg)
 
 proc raiseImport*(
     kind: ImportFailure, msg: string

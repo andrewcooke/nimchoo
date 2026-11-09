@@ -1,6 +1,6 @@
 ## The database tables of the names module (see db/fragment.nim).
 
-import ../db/fragment
+import ../core/fragment
 
 {.push raises: [].}
 
