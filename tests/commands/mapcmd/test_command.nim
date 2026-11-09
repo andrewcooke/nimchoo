@@ -1,9 +1,9 @@
 import nimchoo/packages/db/statement
-import ../support/env
+import ../../support/env
 import std/[json, options, os, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/map/command as mapCommand
+import nimchoo/packages/commands/mapcmd/command as mapCommand
 import nimchoo/packages/cache/cache
 import nimchoo/modules
 import nimchoo/packages/selection/bits

@@ -1,8 +1,10 @@
 import std/[options, os, strutils, tables, unittest]
-import ../support/env
+import ../../support/env
 import nimchoo/packages/bundle/unpack
 import nimchoo/packages/web/libraries
-import nimchoo/ff/[command, page, params]
+import nimchoo/packages/commands/ffcmd/command
+import nimchoo/packages/commands/ffcmd/page
+import nimchoo/packages/commands/ffcmd/params
 import nimchoo/packages/web/request
 import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette

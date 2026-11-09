@@ -5,9 +5,9 @@
 ## database, the rest is put round it here.
 
 import std/[json, options, strutils, times]
-import ../core/ids
-import ../packages/util/hashing/hashing
-import ../packages/fit/time
+import ../../../core/ids
+import ../../util/hashing/hashing
+import ../../fit/time
 
 {.push raises: [].}
 

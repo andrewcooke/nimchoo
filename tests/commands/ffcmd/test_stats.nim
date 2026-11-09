@@ -1,5 +1,6 @@
 import std/[math, options, times, unittest]
-import nimchoo/ff/[curve, stats]
+import nimchoo/packages/commands/ffcmd/curve
+import nimchoo/packages/commands/ffcmd/stats
 import nimchoo/packages/model/calc
 import nimchoo/packages/ui/style
 

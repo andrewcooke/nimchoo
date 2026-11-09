@@ -12,28 +12,29 @@
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
 import std/[options, os, tables]
-import ../cli/catalog
-import ../packages/cache/cache
-import ../packages/util/atomic/atomic
-import ../core/globals
-import ../packages/climbs/attempts
-import ../packages/climbs/report
-import ../packages/climbs/work
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/importer/keys
-import ../packages/util/version/version
-import ../packages/fit/time
-import ../core/ids
-import ../packages/selection/bits
-import ../packages/selection/selection
-import ../packages/web/launch
-import ../packages/web/pages
-import ../packages/web/webopts
+import ../../cache/cache
+import ../../util/atomic/atomic
+import ../../../core/globals
+import ../../climbs/attempts
+import ../../climbs/report
+import ../../climbs/work
+import ../../db/statement
+import ../../db/store
+import ../../../core/errors
+import ../../importer/keys
+import ../../util/version/version
+import ../../fit/time
+import ../../../core/ids
+import ../../selection/bits
+import ../../selection/selection
+import ../../web/launch
+import ../../web/pages
+import ../../web/webopts
 import ./[lines, page, params]
 
 {.push raises: [].}
+
+const commandName* = "map" ## what the user types after `nch`
 
 const usage* =
   """usage: nch [--db PATH] [--user NAME] map [--web [--no-open] [--port N] [--new-token]]
@@ -261,7 +262,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # the address pins what was made: the activities, and the check of them
     return serveWeb(
       g,
-      $cmMap,
+      commandName,
       WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
       dir.get,
       made.query,

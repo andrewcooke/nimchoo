@@ -9,8 +9,6 @@ import nimchoo/cli/catalog
 import nimchoo/core/globals
 import nimchoo/packages/util/args/args
 import nimchoo/selection/command as activitiesCommand
-import nimchoo/map/command as mapCommand
-import nimchoo/ff/command as ffCommand
 import nimchoo/modules
 import nimchoo/registry
 import nimchoo/core/logfile
@@ -39,10 +37,6 @@ proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: []
   case command
   of cmActivities:
     activitiesCommand.run(g, rest)
-  of cmMap:
-    mapCommand.run(g, rest)
-  of cmFf:
-    ffCommand.run(g, rest)
 
 type Head = object ## The options before the command name.
   g: Globals

@@ -9,14 +9,9 @@ import std/[algorithm, options, strutils]
 
 type Command* = enum
   cmActivities = "activities"
-  cmMap = "map"
-  cmFf = "ff"
 
-const summaries*: array[Command, string] = [
-  cmActivities: "the activities: show them, choose the ones other commands use",
-  cmMap: "the routes of the selected activities and their climbs, on a map",
-  cmFf: "the fitness and fatigue curves, as CSV for plotting",
-]
+const summaries*: array[Command, string] =
+  [cmActivities: "the activities: show them, choose the ones other commands use"]
 
 func parseCommand*(name: string): Option[Command] =
   ## The command called `name`, if there is one.

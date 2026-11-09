@@ -1,6 +1,6 @@
 import nimchoo/packages/db/statement
-import ../support/shims
-import ../support/env
+import ../../support/shims
+import ../../support/env
 import std/[math, options, os, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/db/store
@@ -8,8 +8,9 @@ import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
-import nimchoo/ff/[curve, params]
-import nimchoo/ff/command as ffCommand
+import nimchoo/packages/commands/ffcmd/curve
+import nimchoo/packages/commands/ffcmd/params
+import nimchoo/packages/commands/ffcmd/command as ffCommand
 import nimchoo/packages/model/calc
 
 proc near(a, b: float, eps = 1e-9): bool =

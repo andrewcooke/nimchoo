@@ -1,6 +1,6 @@
 import std/[json, options, strutils, unittest]
 import nimchoo/packages/fit/time
-import nimchoo/map/lines
+import nimchoo/packages/commands/mapcmd/lines
 import nimchoo/core/ids
 
 const line = """{"type":"LineString","coordinates":[[1,2],[3,4]]}"""

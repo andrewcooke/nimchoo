@@ -38,7 +38,10 @@ import ./commands/dbcmd/test_command
 import ./heartrate/test_step
 import ./model/[test_calc, test_impulses]
 import ./commands/modelscmd/test_params
-import ./ff/[test_curve, test_page, test_web, test_stats]
+import ./commands/ffcmd/test_curve
+import ./commands/ffcmd/test_page
+import ./commands/ffcmd/test_web
+import ./commands/ffcmd/test_stats
 import ./delete/test_delete
 import ./cache/test_files
 import ./commands/cachecmd/test_command
@@ -62,7 +65,11 @@ import
     test_bits, test_ranges, test_criteria, test_table, test_command, test_selection,
     test_calendar,
   ]
-import ./map/[test_params, test_lines, test_page, test_command, test_web]
+import ./commands/mapcmd/test_params
+import ./commands/mapcmd/test_lines
+import ./commands/mapcmd/test_page
+import ./commands/mapcmd/test_command
+import ./commands/mapcmd/test_web
 import ./cli/test_catalog
 import ./util/args/test_args
 import

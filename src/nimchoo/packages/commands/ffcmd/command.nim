@@ -7,25 +7,26 @@
 ## This module is newer than `model`: it works out the impulses that are lacking, and reads them.
 
 import std/[math, options, os, strutils, times]
-import ../cli/catalog
 import db_connector/db_sqlite
-import ../core/globals
-import ../packages/cache/cache
-import ../packages/util/atomic/atomic
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/model/calc
-import ../packages/model/impulses
-import ../packages/model/models
-import ../packages/web/launch
-import ../packages/web/pages
-import ../packages/web/webopts
-import ../packages/ui/live
-import ../packages/ui/style
+import ../../../core/globals
+import ../../cache/cache
+import ../../util/atomic/atomic
+import ../../db/statement
+import ../../db/store
+import ../../../core/errors
+import ../../model/calc
+import ../../model/impulses
+import ../../model/models
+import ../../web/launch
+import ../../web/pages
+import ../../web/webopts
+import ../../ui/live
+import ../../ui/style
 import ./[curve, page, params, stats]
 
 {.push raises: [].}
+
+const commandName* = "ff" ## what the user types after `nch`
 
 const usage* =
   """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
@@ -331,7 +332,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.web.enabled:
       return serveWeb(
         g,
-        $cmFf,
+        commandName,
         WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
         dir.get,
         "check=" & key & (if query.len > 0: "&" & query else: ""),

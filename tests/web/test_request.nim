@@ -1,5 +1,7 @@
+import std/sequtils
 import std/[options, strutils, unittest]
 import nimchoo/packages/web/request
+import nimchoo/registry
 
 proc target(raw: string): Target =
   parseTarget(raw).get
@@ -133,3 +135,9 @@ suite "serve request: what is asked for":
       "/map?bits=" & "+".repeat(10),
     ]:
       check route(target(bad)).isNone
+
+suite "web: the commands it may run":
+  test "are commands the registry has":
+    let names = registry.commands.mapIt(it.name)
+    for rule in commandRules:
+      check rule.name in names

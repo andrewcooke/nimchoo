@@ -354,7 +354,7 @@ four kinds of things go wrong, and each has one mechanism:
 * `try` only at boundaries: the commands, and where a third-party or `std` call is wrapped into one of our errors.
   never `except CatchableError`/`Exception` (except at the top of a thread or server loop, said so in a comment).
 * every module starts with `{.push raises: [].}` after its imports, so a proc raises nothing unless it says so.
-  (the exceptions are the two async modules, `childasync.nim` and `serve/workers.nim`: async code is not `raises: []`.)
+  (the exceptions are the two async modules, `childasync.nim` and `packages/web/workers.nim`: async code is not `raises: []`.)
 * **commands** (`core/globals.nim`): `run(globals, args): int` is `{.raises: [].}`; 0 for success, 1 when the work
   failed (one line on stderr, no trace), 2 for a usage error.
 

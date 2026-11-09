@@ -1,5 +1,5 @@
 import std/[strutils, unittest]
-import nimchoo/map/params
+import nimchoo/packages/commands/mapcmd/params
 
 suite "map: the command line":
   test "no options: the current selection":

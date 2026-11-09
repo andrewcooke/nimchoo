@@ -324,7 +324,6 @@ A command package holds the command (`run`, its options, its output) and nothing
 | `logcmd` | `log` | `log/` | `ui` |
 | `cachecmd` | `cache` | `cache/command` | `cache`, `download`, `confirm` |
 | `dbcmd` | `db` | `db/command` | `store`, `download`, `confirm` |
-| `servecmd` | `serve` | `serve/launch` | `web`, `selection` |
 
 ### Changes this makes to today's code (the cycle table, made specific)
 
@@ -337,7 +336,7 @@ A command package holds the command (`run`, its options, its output) and nothing
 * `climbs/attempts` → `importer/describe` and `climbs/profile` → `importer/extract` stay: `climbs` depends on
   `importer`, which is the right direction.
 * `selection/command` → `delete/run`: both are inside `activitiescmd`.
-* `serve` splits into `web` (library) and `servecmd`, because `ff` and `map` are commands and may not depend on one.
+* `serve` is the library package `web` (**done**): there is no `serve` command, so no `servecmd`; `ff` and `map` use it.
 
 ### Decisions (the author, 2026-11-09)
 

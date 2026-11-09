@@ -1,9 +1,9 @@
 ## The command line of `nch ff`, parsed.  Pure.
 
 import std/[options, strutils, times]
-import ../packages/cache/cache
-import ../packages/util/args/args
-import ../packages/web/webopts
+import ../../cache/cache
+import ../../util/args/args
+import ../../web/webopts
 
 {.push raises: [].}
 

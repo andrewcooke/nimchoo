@@ -4,7 +4,7 @@
 ## Pure: lines of styled spans (see packages/ui/style.nim), drawn with or without colour by the caller.
 
 import std/[options, strutils]
-import ../packages/ui/style
+import ../../ui/style
 import ./curve
 
 {.push raises: [].}

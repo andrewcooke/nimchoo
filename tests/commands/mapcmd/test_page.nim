@@ -1,8 +1,8 @@
 import std/[options, os, strutils, tables, unittest]
-import ../support/env
+import ../../support/env
 import nimchoo/packages/bundle/unpack
 import nimchoo/packages/cache/cache
-import nimchoo/map/page
+import nimchoo/packages/commands/mapcmd/page
 import nimchoo/packages/web/libraries
 import nimchoo/packages/text/templating/templating
 

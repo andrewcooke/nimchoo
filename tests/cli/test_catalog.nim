@@ -1,6 +1,5 @@
 import std/[algorithm, options, strutils, unittest]
 import nimchoo/cli/catalog
-import nimchoo/packages/web/request
 
 suite "commands: the one list":
   test "a name finds its command, and only a command's name does":
@@ -19,6 +18,3 @@ suite "commands: the one list":
       # (a line each, the other one, and the end)
     let lines = text.splitLines
     check lines[0 ..< ^1] == sorted(lines[0 ..< ^1]) # (by name)
-  test "the commands the web server may run are commands":
-    for rule in commandRules:
-      check parseCommand(rule.name).isSome
