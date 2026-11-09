@@ -6,7 +6,8 @@ import std/[math, options, strutils, times]
 import ../fit/time
 import ../cli/args
 import ../ids
-import ./[fold, ranges]
+import ../fold
+import ./ranges
 export ranges
 
 {.push raises: [].}
@@ -533,9 +534,13 @@ func inValues*(column: string, values: seq[string]): string =
     parts.add column & " is null"
   " and (" & parts.join(" or ") & ")"
 
+func foldLiteral(typed: string): string =
+  ## What was typed, folded (and without blanks at the ends), as an SQL text.
+  "'" & foldText(typed.strip).replace("'", "''") & "'"
+
 func textSql*(column: string, typed, exact: seq[string]): string =
-  ## " and (a.name glob '*[tT]oyo*' or a.name = 'El Toyo and back')": the typed text found anywhere in the value, whatever
-  ## its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or an exact "")
+  ## " and (instr(fold(a.name), 'toyo') > 0 or a.name = 'El Toyo and back')": the typed text found anywhere in the value,
+  ## whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or an exact "")
   ## is no value: null or "".  Nothing if there is nothing to match.
   if typed.len == 0 and exact.len == 0:
     return ""
@@ -544,7 +549,7 @@ func textSql*(column: string, typed, exact: seq[string]): string =
     if t.toLowerAscii == "none":
       parts.add "(" & column & " is null or " & column & " = '')"
     else:
-      parts.add column & " glob '" & foldGlob(t).replace("'", "''") & "'"
+      parts.add "instr(fold(" & column & "), " & foldLiteral(t) & ") > 0"
   for e in exact:
     if e.len == 0:
       parts.add "(" & column & " is null or " & column & " = '')"
@@ -553,16 +558,16 @@ func textSql*(column: string, typed, exact: seq[string]): string =
   " and (" & parts.join(" or ") & ")"
 
 func pathSql*(paths: seq[string]): string =
-  ## " and (exists (select 1 from seen_file ...) or f.name glob ...)": the text found in any path the file was imported
+  ## " and (instr(fold(f.name), ...) > 0 or exists (select 1 from seen_file ...))": the text found in any path the file was imported
   ## from (a file can have been seen at several), or in the file's name; whatever its case and accents (see fold.nim).
   if paths.len == 0:
     return ""
   var parts: seq[string]
   for t in paths:
-    let g = "'" & foldGlob(t).replace("'", "''") & "'"
-    parts.add "(f.name glob " & g &
-      " or exists (select 1 from seen_file s where s.file_id = f.id and s.path glob " & g &
-      "))"
+    let g = foldLiteral(t)
+    parts.add "(instr(fold(f.name), " & g &
+      ") > 0 or exists (select 1 from seen_file s where s.file_id = f.id and instr(fold(s.path), " &
+      g & ") > 0))"
   " and (" & parts.join(" or ") & ")"
 
 func rangeSql*(column: string, r: NumRange): string =

@@ -12,7 +12,7 @@ import ../db/store
 import ../errors
 import ../fit/time
 import ../importer/describe
-import ../selection/fold
+import ../fold
 import std/unicode
 import ../ui/[palette, style, units]
 import ./[describe, display, report]

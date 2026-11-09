@@ -65,6 +65,11 @@ suite "nch climbs: names, and the list of all":
     check q(db, "select name from sector where id = 1") == "Old road"
     check q(db, "select manual from sector where id = 1") == "1"
     check shown(db) == @["Farellones", "Cuesta", "Old road"]
+  test "names that differ only in accents or capitals are one group, with the number kept":
+    let db = fresh("accents", [("Ñuñoa", 100.0), ("ñuñoa", 200.0), ("Nunoa", 300.0)])
+    check shown(db) == @["Nunoa₃", "ñuñoa₂", "Ñuñoa₁"]
+    check climbs(db, "--edit", "ÑUÑOA₂", "--rename", "Other") == exitOk
+    check q(db, "select name from sector where id = 2") == "Other"
   test "a shared name needs its number; a name that is not there is an error; nothing changes":
     let db = fresh("errors", [("Cuesta", 100.0), ("Cuesta", 200.0)])
     check climbs(db, "--edit", "Cuesta", "--rename", "X") == exitFailure

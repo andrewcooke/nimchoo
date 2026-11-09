@@ -6,6 +6,7 @@ import std/[algorithm, sequtils, strutils, tables]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
+import ../fold
 import ./[display, ordinal, report]
 
 {.push raises: [].}
@@ -14,12 +15,12 @@ proc findShown*(st: Store, shown: string): int64 {.raises: [StoreError].} =
   ## The climb with that name as shown (without regard to case); "Farellones₃", "Farellones 3" and "Farellones3" all
   ## mean the third climb called Farellones.  An error that says what to type if the name is shared and was given
   ## without its number, or if there is no such climb.
-  let wants = ordinalForms(shown).mapIt(it.toLower)
+  let wants = ordinalForms(shown).mapIt(foldText(it))
   let names = shownNames(st)
   var found: seq[int64]
   var sharing: seq[string]
   for id, text in names:
-    let t = text.toLower
+    let t = foldText(text)
     if t in wants:
       found.add id
     elif endsWithSubscript(text) and withoutSubscript(t) == wants[0]:

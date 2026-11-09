@@ -16,7 +16,8 @@ import ../importer/run as importRun
 import ../errors
 import ../fit/time
 import ../ui/[live, logfile, style, vocabulary]
-import ./[calendar, criteria, fold, table]
+import ../fold
+import ./[calendar, criteria, table]
 
 {.push raises: [].}
 

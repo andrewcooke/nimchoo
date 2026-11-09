@@ -15,8 +15,8 @@ proc assignNumber*(st: Store, id: int64) {.raises: [StoreError].} =
       sql"""update sector set name_n = coalesce((
         select max(s2.name_n) from sector s2
          where s2.id <> sector.id
-           and lower(trim(coalesce(nullif(trim(s2.name), ''), 'unnamed'))) =
-               lower(trim(coalesce(nullif(trim(sector.name), ''), 'unnamed')))), 0) + 1
+           and fold(trim(coalesce(nullif(trim(s2.name), ''), 'unnamed'))) =
+               fold(trim(coalesce(nullif(trim(sector.name), ''), 'unnamed')))), 0) + 1
       where id = ?""",
       id,
     )

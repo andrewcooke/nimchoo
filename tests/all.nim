@@ -5,6 +5,7 @@
 import ./support/env, ./support/timing
 import
   ./test_proquint,
+  ./test_fold,
   ./test_zipbytes,
   ./test_xlsx,
   ./test_errors,
@@ -45,7 +46,7 @@ import
   ]
 import
   ./selection/[
-    test_bits, test_fold, test_ranges, test_criteria, test_table, test_command,
+    test_bits, test_ranges, test_criteria, test_table, test_command,
     test_selection, test_calendar,
   ]
 import ./map/[test_params, test_lines, test_page, test_command, test_web]

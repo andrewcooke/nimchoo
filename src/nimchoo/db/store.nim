@@ -19,7 +19,7 @@ import db_connector/sqlite3 as lowlevel
 import ../errors
 import ../ids
 export ids
-import ./fragment
+import ./[fragment, functions]
 import ./statement
 export db_sqlite.DbConn, fragment
 
@@ -234,6 +234,7 @@ proc openStore*(
     result.path = path
   try:
     loadSpatialite(result.db)
+    registerFunctions(result.db)
     guard:
       # a new file: deleted rows give their space back (`reclaim`), instead of the file only ever growing.  This
       # must be said before the first table is made; a file made without it stays as it is.

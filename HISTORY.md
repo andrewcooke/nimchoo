@@ -2979,3 +2979,13 @@ Each was checked first; these were real.
 * Left as they are (documented): a cell near a border is decided by exact intersection with a generalised (1:50m)
   outline, so a neighbour can be missed by a few kilometres; the antimeridian is only half handled (cells wrap, outlines
   that cross it do not).
+* **Text compared in different ways (class I).**  SQLite's `lower()` and `like` know only ASCII letters, so
+  `--add ñuñoa` after `--add Ñuñoa` made a second landmark, `--delete` missed it, and the numbering of climbs of the same name
+  (SQL) could differ from the key of the display (nim).  Now one function, `foldText` (lower case, no accents), is also
+  registered in every connection as `fold()` (`db/functions.nim`); `fold.nim` moved from `selection/` to the top level
+  because the database layer uses it (which also ends the cycle `climbs` and `selection`).  Used by: landmarks (same name,
+  delete, order), the numbering of climbs (`ordinal.nim`) and its display key and `--edit`, the suggestions
+  (`instr(fold(name), ?)`, bound: no `like` escapes), and the criteria (`instr(fold(column), 'text') > 0`, replacing the
+  glob made of character classes, `foldGlob`, which is deleted).  A consequence: climbs called `Calan` and `Calán` are now
+  one group (numbered `Calan₁`, `Calán₂`).  The fragment `climbs/002-name-number.sql` still says `lower(trim(..))`: a
+  fragment is never edited, and it runs once on names that are then empty; the next squash drops it.

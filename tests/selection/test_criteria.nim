@@ -348,12 +348,12 @@ suite "list: --name and --start":
     )
   test "a name needs some text; it is a criterion ":
     check parseArgs(@["--name"], utcZone).problem.len > 0
-  test "the sql: a glob of the folded text, none for nothing, an exact value for what latest came to":
+  test "the sql: the folded text found in the column, none for nothing, an exact value for what latest came to":
     let c = parsed("--name", "toyo", "none", "--start", "o'higgins")
     let q = matchSql(@[UserId(1)], c, none((float, float)))
-    check q.contains("a.name glob '*[tT") and
+    check q.contains("instr(fold(a.name), 'toyo') > 0") and
       q.contains("(a.name is null or a.name = '')")
-    check q.contains("a.start_place glob '*") and q.contains("''")
+    check q.contains("instr(fold(a.start_place), 'o''higgins') > 0")
       # (the quote is doubled)
     var e = Criteria()
     e.namesExact = @["El Toyo and back", ""]
@@ -362,15 +362,15 @@ suite "list: --name and --start":
     check r.contains("a.name = 'El Toyo and back'") and
       r.contains("(a.name is null or a.name = '')")
     check r.contains("a.start_place = 'Providencia'")
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("glob")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("fold(")
 
 suite "list: --path":
   test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
     let c = parseArgs(@["--path", "bowman,run", "2026-10"], utcZone).criteria
     check c.paths == @["bowman", "run", "2026-10"]
     let q = matchSql(@[UserId(1)], c, none((float, float)))
-    check q.contains("f.name glob") and
-      q.contains("from seen_file s where s.file_id = f.id and s.path glob")
+    check q.contains("instr(fold(f.name), 'bowman') > 0") and
+      q.contains("from seen_file s where s.file_id = f.id and instr(fold(s.path), 'bowman') > 0")
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains(
       "seen_file"
     )
@@ -393,7 +393,7 @@ suite "list: --invert":
       parseArgs(@["--sport", "cycling", "--name", "toyo", "--invert"], utcZone).criteria
     let q = matchSql(@[UserId(1)], c, none((float, float)))
     check q.contains(
-      " and not coalesce((1 and (a.sport in ('cycling')) and (a.name glob "
+      " and not coalesce((1 and (a.sport in ('cycling')) and (instr(fold(a.name), 'toyo') > 0"
     )
     check q.endsWith("), 0)")
     let plain = matchSql(

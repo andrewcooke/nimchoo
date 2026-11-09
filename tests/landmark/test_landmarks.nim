@@ -40,6 +40,17 @@ suite "landmark: the landmarks":
     check s.removeLandmark("YERBA loca")
     check not s.removeLandmark("Yerba Loca")
     check s.listLandmarks().len == 1
+  test "names are the same without regard to accents or capitals, not only ASCII ones":
+    let s = fresh("accents")
+    defer:
+      s.close()
+    addLandmark(s, "Ñuñoa", -70.6, -33.45, 500.0)
+    expect StoreError:
+      addLandmark(s, "ñuñoa", -70.5, -33.4, 500.0)
+    expect StoreError:
+      addLandmark(s, "NUNOA", -70.5, -33.4, 500.0)
+    check s.removeLandmark("ñUÑOA")
+    check s.listLandmarks().len == 0
   test "the radius is a circle in metres: a position at 900 m is in, at 1,100 m is out":
     let s = fresh("circle")
     defer:
@@ -86,6 +97,8 @@ suite "landmark: suggestions":
     check found[2].cls == "H" and found[2].code == "STM" and
       abs(found[2].lon + 70.364) < 1e-9
     check s.searchByName("zzz").len == 0
+    s.feature(6, "Ñuñoa", "P", "PPL", -70.6, -33.45)
+    check s.searchByName("ñUÑOA").len == 1 and s.searchByName("nunoa").len == 1
     check s.searchByName("100%").len == 0 # (% and _ are not wildcards)
     s.feature(5, "100% Chile", "S", "HSE", -70.0, -33.0)
     check s.searchByName("100%").len == 1

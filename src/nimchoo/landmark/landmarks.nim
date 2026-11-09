@@ -24,7 +24,7 @@ proc listLandmarks*(st: Store): seq[Landmark] {.raises: [StoreError].} =
   ## All of them, by name.
   guard:
     for r in st.db.fastRows(
-      sql"select id, name, lon, lat, radius_m from landmark order by lower(name)"
+      sql"select id, name, lon, lat, radius_m from landmark order by fold(name)"
     ):
       try:
         result.add Landmark(
@@ -59,13 +59,13 @@ func problem*(name: string, lon, lat, radiusM: float): string =
 proc addLandmark*(
     st: Store, name: string, lon, lat, radiusM: float
 ) {.raises: [StoreError].} =
-  ## Make a landmark; the name must not be used already (without regard to case).
+  ## Make a landmark; the name must not be used already (without regard to case or accents).
   let why = problem(name, lon, lat, radiusM)
   if why.len > 0:
     raiseStore(why)
   guard:
     if st.db.getValue(
-      sql"select count(*) from landmark where lower(name) = lower(?)", name.strip
+      sql"select count(*) from landmark where fold(name) = fold(?)", name.strip
     ) != "0":
       raiseStore("there is a landmark called '" & name.strip & "' already")
     st.db.exec(
@@ -77,14 +77,14 @@ proc addLandmark*(
     )
 
 proc removeLandmark*(st: Store, name: string): bool {.raises: [StoreError].} =
-  ## Delete the landmark called `name` (without regard to case); whether there was one.
+  ## Delete the landmark called `name` (without regard to case or accents); whether there was one.
   guard:
     let n = st.db.getValue(
-      sql"select count(*) from landmark where lower(name) = lower(?)", name.strip
+      sql"select count(*) from landmark where fold(name) = fold(?)", name.strip
     )
     if n == "0":
       return false
-    st.db.exec(sql"delete from landmark where lower(name) = lower(?)", name.strip)
+    st.db.exec(sql"delete from landmark where fold(name) = fold(?)", name.strip)
   true
 
 proc landmarkAt*(

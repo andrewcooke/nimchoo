@@ -5,6 +5,7 @@ import std/[algorithm, math, strutils]
 import db_connector/db_sqlite
 import ../db/store
 import ../errors
+import ../fold
 import ../geo
 
 {.push raises: [].}
@@ -28,19 +29,15 @@ proc fromRow(r: seq[string]): Suggestion {.raises: [ValueError].} =
   )
 
 proc searchByName*(st: Store, text: string): seq[Suggestion] {.raises: [StoreError].} =
-  ## Features whose name holds `text` (without regard to case), the biggest places first.
-  let like =
-    "%" &
-    text.strip.toLower.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") &
-    "%"
+  ## Features whose name holds `text` (without regard to case or accents), the biggest places first.
   guard:
     for r in st.db.fastRows(
       sql(
         "select name, class, code, ST_X(geom), ST_Y(geom), coalesce(population, 0) from feature " &
-          "where lower(name) like ? escape '\\' order by population desc, name, id limit " &
+          "where instr(fold(name), ?) > 0 order by population desc, name, id limit " &
           $maxSuggestions
       ),
-      like,
+      foldText(text.strip),
     ):
       try:
         result.add fromRow(r)

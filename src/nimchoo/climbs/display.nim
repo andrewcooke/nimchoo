@@ -5,6 +5,7 @@
 ## "Farellones 3" or "Farellones3" (`ordinalForms`).
 
 import std/[strutils, tables, unicode]
+import ../fold
 
 {.push raises: [].}
 
@@ -22,7 +23,7 @@ func baseName(name: string): string =
   if name.strip.len == 0: unnamed else: name.strip
 
 func groupKey*(name: string): string =
-  baseName(name).toLower
+  foldText(baseName(name))
 
 func subscriptNumber*(n: int): string =
   ## 12 -> "₁₂".
