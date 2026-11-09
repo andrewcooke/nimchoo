@@ -96,12 +96,12 @@ proc decodeFile*(
     for a in result.activities:
       result.routes.add routeWkb(a)
 
+const knownFileSql* = "select id from file where user_id = ? and sha256 = ?"
+
 proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError].} =
   ## The `file` row of the user's that has this content (hash), if there is one.
   timed "known?":
-    result = s.db.queryOne(
-      FileId, "select id from file where user_id = ? and sha256 = ?", s.userId, digest
-    )
+    result = s.db.queryOne(FileId, knownFileSql, s.userId, digest)
 
 proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
   ## The hashes of the contents of all the user's files: a worker that sees one of them need not

@@ -644,9 +644,12 @@ func matchSql*(
     var values = Sql()
     for k, b in boxes(lat, lon, c.radiusKm):
       let n = "box" & $k
-      probes.add "a.id in (select ROWID from SpatialIndex where f_table_name = 'activity' and " &
-        "f_geometry_column = 'start' and search_frame = BuildMbr(:" & n & "_x0, :" & n &
-        "_y0, :" & n & "_x1, :" & n & "_y1))"
+      probes.add inBox(
+        "a.id",
+        "activity",
+        "start",
+        ":" & n & "_x0, :" & n & "_y0, :" & n & "_x1, :" & n & "_y1",
+      )
       values.args.add (n & "_x0", arg(b.minX))
       values.args.add (n & "_y0", arg(b.minY))
       values.args.add (n & "_x1", arg(b.maxX))

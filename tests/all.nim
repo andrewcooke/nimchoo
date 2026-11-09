@@ -25,8 +25,8 @@ import
 import ./profile/[test_load, test_load_errors]
 import
   ./db/[
-    test_statement, test_store, test_multirow, test_command, test_invariants,
-    test_schema,
+    test_statement, test_plans, test_store, test_multirow, test_command,
+    test_invariants, test_schema,
   ]
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]

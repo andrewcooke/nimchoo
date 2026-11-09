@@ -375,6 +375,12 @@ four kinds of things go wrong, and each has one mechanism:
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
   default.  no module-level mutable state (exceptions today: `profiling.nim`, and the stop flag of `db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
+* **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
+  once and a name in the braces is checked when the program is compiled; `&` and `$` pieced together are easy to get
+  wrong (a missing space, the wrong variable).  decided 2026-11-09.  the rule: **all new printing (messages, lines,
+  table cells, file text) uses `fmt`**; **a file that imports `strformat` has all its existing printing converted to it**
+  in the same commit (and, when the change is small, the other files of its module).  `&` stays for joining pieces that
+  are actually built up (a list of parts, a path, a loop).  sql text is not printed: use `?` or an `Sql` (above).
 
 ### output
 

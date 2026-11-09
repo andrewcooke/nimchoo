@@ -32,6 +32,9 @@ func suggestion(r: Row): Suggestion =
     population: r.population,
   )
 
+const featuresAroundSql* =
+  columns & "where " & inBox("id", "feature", "geom", fourMarks)
+
 proc searchByName*(st: Store, text: string): seq[Suggestion] {.raises: [StoreError].} =
   ## Features whose name holds `text` (without regard to case or accents), the biggest places first.
   for r in st.db.query(
@@ -49,14 +52,7 @@ proc featuresAround*(
   let dLat = radiusM / 111_000.0
   let dLon = dLat / max(cos(degToRad(min(89.0, abs(lat) + dLat))), 0.02)
   for r in st.db.query(
-    Row,
-    columns &
-      "where id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
-      "f_geometry_column = 'geom' and search_frame = BuildMbr(?, ?, ?, ?))",
-    lon - dLon,
-    lat - dLat,
-    lon + dLon,
-    lat + dLat,
+    Row, featuresAroundSql, lon - dLon, lat - dLat, lon + dLon, lat + dLat
   ):
     var s = suggestion(r)
     s.distanceM = haversine(lon, lat, s.lon, s.lat)

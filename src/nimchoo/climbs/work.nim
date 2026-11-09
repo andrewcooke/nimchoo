@@ -124,21 +124,20 @@ func climbPath(p: Profile, c: Climb): Path =
     result.lat.add p.lat[i]
     result.elev.add p.elev[i]
 
+const
+  sectorsInBoxSql* =
+    "select id from sector where " & inBox("id", "sector", "route", fourMarks)
+  ridesInBoxSql* =
+    "select activity_id from route where " &
+    inBox("activity_id", "route", "geom", fourMarks) &
+    " and activity_id in (select activity_id from climbs_done) order by activity_id"
+
 proc sectorsNear(
     st: Store, cache: var Sectors, box: Box
 ): seq[int64] {.raises: [StoreError].} =
   ## The ids of the sectors whose boxes meet the box; their routes are read into the cache.
   let w = wider(box)
-  let ids = st.db.query(
-    int64,
-    "select id from sector where id in (select ROWID from SpatialIndex " &
-      "where f_table_name = 'sector' and f_geometry_column = 'route' and " &
-      "search_frame = BuildMbr(?, ?, ?, ?))",
-    w.lon0,
-    w.lat0,
-    w.lon1,
-    w.lat1,
-  )
+  let ids = st.db.query(int64, sectorsInBoxSql, w.lon0, w.lat0, w.lon1, w.lat1)
   for id in ids:
     if id notin cache:
       let route = parseLineString(
@@ -158,17 +157,7 @@ proc sectorsNear(
 proc ridesNear(st: Store, box: Box): seq[ActivityId] {.raises: [StoreError].} =
   ## The activities already looked at whose routes meet the box.
   let w = wider(box)
-  st.db.query(
-    ActivityId,
-    "select activity_id from route where activity_id in " &
-      "(select ROWID from SpatialIndex where f_table_name = 'route' and f_geometry_column = 'geom' " &
-      "and search_frame = BuildMbr(?, ?, ?, ?)) " &
-      "and activity_id in (select activity_id from climbs_done) order by activity_id",
-    w.lon0,
-    w.lat0,
-    w.lon1,
-    w.lat1,
-  )
+  st.db.query(ActivityId, ridesInBoxSql, w.lon0, w.lat0, w.lon1, w.lat1)
 
 proc addEfforts(
     insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[Effort]

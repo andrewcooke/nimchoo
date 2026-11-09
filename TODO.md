@@ -13,14 +13,13 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
       (HISTORY.md, 2026-11-08).
 - [ ] 7. Typed database access, our own (decided: not `tiny_sqlite`).  Done: `query`/`queryOne`/`scalar`/`execute` in
   `db/statement.nim`; every module in `src/` uses them; a query built from pieces is an `Sql` (`db/sqltext.nim`: text
-  with `:names`, values by name), which `selection/criteria.nim` makes.  Left: the query-plan test (the spatial index
-  and the `selection` lookups are used, not scans); the 36 test files that read with `db_sqlite` directly can move to
-  the same calls.
-- [ ] 7a. Output text with `std/strformat` (`fmt"climb {id} has {n} efforts"`) instead of `&` and `$` (decided
-  2026-11-09: the same reasoning as named sql values, the whole sentence is seen at once and a name is checked at compile
-  time).  Add the rule to CLAUDE.md's style section; convert a module group at a time, one commit each, its tests
-  catching any change of spacing or padding: first the messages (`cli/`, the `command.nim` files, the `describe.nim`
-  files, `ui/`).  Sql text is not converted: `Sql` is the way for that.
+  with `:names`, values by name), which `selection/criteria.nim` makes; `tests/db/test_plans.nim` checks that the
+  queries of every file, ride and cell use an index.  Left: the 36 test files that read with `db_sqlite` directly can
+  move to the same calls.
+- [ ] 7a. Printing with `std/strformat` (the rule is in CLAUDE.md, style): new printing uses `fmt`; a file that
+  imports `strformat` has all its printing converted.  The existing `&`/`$` printing is converted by module group, one
+  commit each, its tests catching any change of spacing or padding: first the messages (`cli/`, the `command.nim`
+  files, the `describe.nim` files, `ui/`).
 - [ ] 8. Packages (REVIEW.md §6), in its six sub-steps (8.1, 8.3, 8.4, 8.6 mechanical); feature detail moves from CLAUDE.md to each package's doc.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).

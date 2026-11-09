@@ -167,6 +167,12 @@ func wrapCell*(cx: int): int =
   let width = 360 * cellsPerDegree
   ((cx + width div 2) mod width + width) mod width - width div 2
 
+const countriesInCellSql* =
+  "select iso from country where geom is not null and " &
+  inBox("rowid", "country", "geom", fourMarks) &
+  " and Intersects(geom, BuildMbr(?, ?, ?, ?, 4326)) = 1 order by iso"
+  ## (the index finds the outlines whose boxes meet the cell; the exact test is then made on those only)
+
 proc countriesOfCell*(
     n: Names, cx, cy: int
 ): seq[string] {.raises: [StoreError, DownloadError].} =
@@ -181,20 +187,7 @@ proc countriesOfCell*(
     int, "select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?",
     cx, cy,
   ) == 0:
-    for iso in n.st.db.query(
-      string,
-      "select iso from country where geom is not null and rowid in (select ROWID from " &
-        "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and " &
-        "search_frame = BuildMbr(?, ?, ?, ?)) and Intersects(geom, BuildMbr(?, ?, ?, ?, 4326)) = 1 order by iso",
-      x0,
-      y0,
-      x1,
-      y1,
-      x0,
-      y0,
-      x1,
-      y1,
-    ):
+    for iso in n.st.db.query(string, countriesInCellSql, x0, y0, x1, y1, x0, y0, x1, y1):
       n.st.db.execute(
         "insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)",
         cx, cy, iso,

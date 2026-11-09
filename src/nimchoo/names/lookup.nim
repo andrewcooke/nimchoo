@@ -101,6 +101,10 @@ proc prepare*(
       n.ensureCells(iso, box) # (a country the list of countries lacks has nothing)
   Prepared(status: rdReady)
 
+const featuresInBoxSql* =
+  "select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature where " &
+  inBox("id", "feature", "geom", fourMarks)
+
 proc featuresNear*(
     n: Names, lons, lats: openArray[float], marginM = defaultMarginM
 ): seq[Found] {.raises: [StoreError].} =
@@ -108,13 +112,4 @@ proc featuresNear*(
   if lons.len == 0:
     return
   let box = boxAround(lons, lats, marginM)
-  n.st.db.query(
-    Found,
-    "select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature " &
-      "where id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
-      "f_geometry_column = 'geom' and search_frame = BuildMbr(?, ?, ?, ?))",
-    box.lon0,
-    box.lat0,
-    box.lon1,
-    box.lat1,
-  )
+  n.st.db.query(Found, featuresInBoxSql, box.lon0, box.lat0, box.lon1, box.lat1)

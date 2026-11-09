@@ -90,6 +90,17 @@ func `&`*(a: Sql, b: string): Sql =
 func `&`*(a: string, b: Sql): Sql =
   Sql(text: a & b.text, args: b.args)
 
+const fourMarks* = "?, ?, ?, ?"
+  ## the corners of a box, for `inBox`, as positional values
+
+func inBox*(idColumn, table, geomColumn, corners: string): string =
+  ## "a.id in (select ROWID from SpatialIndex ...)": the rows of `table` whose `geomColumn` box meets the box with
+  ## these four corners (west, south, east, north: `fourMarks`, or four `:names`).  The one way a spatial index is
+  ## asked, so that it is always the index and never a scan (tests/db/test_plans.nim looks).
+  idColumn & " in (select ROWID from SpatialIndex where f_table_name = '" & table &
+    "' and f_geometry_column = '" & geomColumn & "' and search_frame = BuildMbr(" &
+    corners & "))"
+
 func jsonList*(ids: openArray[int64]): string =
   ## The numbers as a JSON array, for a list of any length to be bound as ONE value:
   ## `... in (select value from json_each(?))`.  (The sql text stays the same, whatever the list.)

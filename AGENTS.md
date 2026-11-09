@@ -143,7 +143,7 @@ had yet.
   `update`, ...).  watch for sqlite limits: it cannot drop a column that
   has a foreign key, or one that an index uses, without rebuilding the
   table.  fragments are plain ddl; data is inserted from nim (a fragment
-  may have a seed, `withSeed`, used by no module now).
+  may have a seed, `withSeed`: the model module puts in the default model).
 * tests build their databases from scratch, so they do not care how many
   fragments there are; `tests/db/test_store.nim` lists the fragment names
   and counts them, and must be updated whenever a fragment is added or removed.
@@ -330,6 +330,8 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   shared code is a package of its own, not part of the module that needed it first.
 * **let the database do database work.**  values are bound, never put into sql text; rows are read into typed
   tuples or objects; filtering, joining, ranking and spatial search are sql, not loops in nim.
+  short fixed queries use `?` with `query(db, T, text, values...)`; a query built from pieces is an `Sql`
+  (`db/sqltext.nim`: text with `:names`, values by name, pieces joined with `&`), so that no value can fall out of step.
 * **a failure is never stored as a result**: raise, or warn and leave the work undone.
 * **delete dead code and stale docs in the same commit** that makes them dead.
 
@@ -373,6 +375,12 @@ four kinds of things go wrong, and each has one mechanism:
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
   default.  no module-level mutable state (exceptions today: `profiling.nim`, and the stop flag of `db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
+* **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
+  once and a name in the braces is checked when the program is compiled; `&` and `$` pieced together are easy to get
+  wrong (a missing space, the wrong variable).  decided 2026-11-09.  the rule: **all new printing (messages, lines,
+  table cells, file text) uses `fmt`**; **a file that imports `strformat` has all its existing printing converted to it**
+  in the same commit (and, when the change is small, the other files of its module).  `&` stays for joining pieces that
+  are actually built up (a list of parts, a path, a loop).  sql text is not printed: use `?` or an `Sql` (above).
 
 ### output
 
