@@ -24,6 +24,28 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 14. Larger changes: the `sectors` package; per-second data as arrays per activity, with cleaning at import;
       a simplified `route`; the cache manifest.
 
+## Criteria from other packages (decided 2026-11-09, while splitting `selection`)
+
+`nch activities --climb TEXT` selects activities by the climbs they went up, so the search language has to know the
+`effort` table of `climbs`; and `climbs` reads the stored selection.  Until step 5 this is a recorded placeholder: the
+search language (`criteria`, `ranges`) lives with the `activities` command, which depends on `climbs`, and the
+stored selection (table, address bits) is a small package below both.  That is not extensible: a package added later
+(training load from fitness/fatigue, weather, sleep) could not add an option to `activities` without editing the
+command.  Two ways out, to be decided at step 5, after living with the packages:
+
+* **Tags**: an activity has any number of tags (arbitrary strings, many to many; the user adds them by hand for
+  equipment, "bike A"), and packages may add derived tags (climbs tags an activity with the climbs it went up; a load
+  package with "load>100").  The selection language selects on tags and nothing else needs to know who made them.  No
+  registry, and a feature in its own right.  Cost: derived tags duplicate what is stored elsewhere (`effort`), so they
+  have a source (so that recomputing replaces only its own) and have to be kept in step when a climb is renamed,
+  retired or renumbered (`climbs/work.nim` already runs once per activity and could write them in the same
+  transaction); and tags cover membership-style criteria, not numeric or spatial ones.
+* **A criteria extension point**: a package contributes an option (name, parse, a SQL predicate on `activity a`, help),
+  and the command assembles its options from the contributions (needs the generic store in `core` and a field in
+  `Globals`, as the import steps will).  Covers numeric criteria too.  Fits step 9 (options carry their help).
+
+Either replaces the direct dependency of `activities` on `climbs`.
+
 ## Open from before the review
 
 To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
