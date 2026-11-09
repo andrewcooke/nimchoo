@@ -6,7 +6,7 @@
 
 import std/tables
 import db_connector/db_sqlite
-import ../../core/errors
+import ../../core/[errors, extension]
 import ../../core/ids
 import ../fit/time
 
@@ -32,3 +32,6 @@ type
   ExtraCount* = object ## How much of what a step wrote.
     n*: int
     one*, many*: string
+
+const importStep* = ExtensionPoint[ImportStep](name: "importer/steps")
+  ## What other packages add to an import: `heartrate` contributes its step to this (PACKAGES.md).

@@ -3,7 +3,7 @@
 
 import std/[algorithm, strutils, tables]
 import ./errors
-import ./package
+import ./[extension, package]
 
 {.push raises: [].}
 
@@ -86,3 +86,29 @@ func commandList*(commands: seq[CommandDecl]): string =
   ## padded to a column.
   for c in commands:
     result.add "  " & c.name.alignLeft(11) & " " & c.summary & "\n"
+
+proc collectExtensions*(
+    packages: seq[Registered]
+): Extensions {.raises: [PackageError].} =
+  ## What the packages contribute, added in the order given (dependency order).  Raises `PackageError` when two
+  ## points of one name hold different types.
+  var typeOf: Table[string, (string, string)]
+    # point -> (type, the package that first used it)
+  for p in packages:
+    if p.package.contributes == nil:
+      continue
+    for c in p.package.contributes():
+      let known = typeOf.getOrDefault(c.point, ("", ""))
+      if known[0].len > 0 and known[0] != c.typeName:
+        raisePackage(
+          "extension point '" & c.point & "' is given a " & c.typeName & " by '" & p.name &
+            "' but a " & known[0] & " by '" & known[1] & "'"
+        )
+      typeOf[c.point] = (
+        c.typeName,
+        if known[0].len > 0:
+          known[1]
+        else:
+          p.name,
+      )
+      result.add c

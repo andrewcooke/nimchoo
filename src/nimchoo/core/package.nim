@@ -2,11 +2,13 @@
 ## type; the name of the package is the name of its directory, so it is not in the value (PACKAGES.md).
 ## This module imports no package: `core` is below all of them.
 
-import ./[fragment, globals]
+import ./[extension, fragment, globals]
 
 {.push raises: [].}
 
 type
+  ContributeProc* = proc(): seq[Contribution] {.nimcall, raises: [].}
+
   CommandProc* = proc(g: Globals, args: seq[string]): int {.nimcall, raises: [].}
     ## A command: given the options before its name and its own arguments, it returns the exit status.
 
@@ -20,6 +22,9 @@ type
     fragments*: seq[Fragment] ## its DDL, in order
     commands*: seq[CommandDecl]
       ## the commands it provides (only command packages have any)
+    contributes*: ContributeProc
+      ## what it offers to the extension points of packages below it; nil: nothing.  A proc, because the
+      ## values (a step with procs in it) are made at run time, while `package` is a constant
 
   Registered* = object ## a package with its name, as the generated registry lists them
     name*: string

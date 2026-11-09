@@ -11,6 +11,7 @@ import nimchoo/packages/model/calc
 import nimchoo/packages/model/impulses
 import nimchoo/packages/model/models
 import nimchoo/modules
+import nimchoo/packages/heartrate/step
 import nimchoo/packages/fit/load
 import nimchoo/packages/commands/userscmd/command as userCommand
 import nimchoo/packages/util/warnings/warnings
@@ -32,7 +33,7 @@ proc open(path: string, user = ""): Store =
 
 proc importRide(s: Store, name = "ride.fit"): ImportResult =
   var ws: seq[Warning]
-  s.importFile(p, name, readBytes(ride), ws, allImportSteps)
+  s.importFile(p, name, readBytes(ride), ws, @[heartrateStep])
 
 proc q(s: Store, sqlText: string, T: typedesc): T =
   s.db.scalar(T, sqlText)

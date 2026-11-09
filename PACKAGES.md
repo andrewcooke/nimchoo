@@ -75,12 +75,12 @@ const package* = Package(
   depends: @["sectors", "importer", "names"],
   fragments: @[fragment("001-schema.sql")],
   commands: @[climbsCommand],
-  contributes: @[],                 # see extension points
+  contributes: contributions,       # a proc returning what it offers to extension points; see below
 )
 ```
 
 (Built: `depends`, `fragments` and `commands` (a `CommandDecl`: name, summary, `run`; the registry's `commands` is what
-`nch` dispatches on and prints in its usage).  `contributes` comes with the first extension point.  `fragments` is still
+`nch` dispatches on and prints in its usage).  `contributes` (built 2026-11-09 with the first extension point, import steps) is a proc, because the values are made at run time and `package` is a constant.  `fragments` is still
 `@[]` in every package: the fragments are listed in each package's `ddl.nim` and joined by `modules.nim` (see "What is
 left").  The module `core/package` is imported `as corePackage`, because the constant is also called `package`.)
 
@@ -95,7 +95,7 @@ dependency, a duplicate package name or a duplicate command name.  A compile-tim
 a *new* directory, because Nim does not recompile a module whose files have not changed, hence the generator.  The
 generated file **is checked in** (decided 2026-11-09), with a test that makes it again and fails if it differs, so plain
 `nim c` works on a fresh clone and a stale registry cannot go unnoticed.  It replaced the dispatcher's table of
-commands and the usage list; it has not yet replaced `modules.nim` (fragments, import steps).
+commands and the usage list; it has not yet replaced `modules.nim` (fragments).  It also holds `extensions`, what the packages contribute to each other.
 
 ## Layers: libraries below, commands above
 
@@ -115,28 +115,41 @@ were found with a script that reads every `import`; SQL reads are not imports, s
 
 ## Extension points
 
-Where a *low* package must call code that it cannot know at run time.  Only two are real today:
+Where a *low* package must call code that it cannot know at run time.  **One is built** (2026-11-09):
 
-* **import steps** (heart rate): work for each activity as it is written;
-* **on-demand activity work**: "each activity not yet done by version N of my method" (climbs; impulses).
+* **import steps** (`importer/channel.nim`: `importStep`): work for each activity as it is written; `heartrate` contributes.
 
-The package that defines the point owns its type, in its own files (`importer` defines `ImportStep`; `heartrate`
-depends on `importer` anyway, so it sees it).  `core` has only a generic mechanism that knows no domain type:
+How it works (`core/extension.nim`, all in memory; nothing to do with the database):
 
 ```nim
-# core
-type ExtensionPoint*[T] = object  name*: string
-proc contribute*[T](point: ExtensionPoint[T], value: T, priority = 0): Contribution
-# registry: get(point): seq[T], in dependency order, then priority
+# importer/channel.nim: the package that defines the point owns its type
+const importStep* = ExtensionPoint[ImportStep](name: "importer/steps")
+
+# heartrate/package.nim
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[contribute(importStep, heartrateStep)]
+const package* = Package(depends: @["db", "fit", "importer"], contributes: contributions)
 ```
 
-A package lists `contributes: @[contribute(importStep, heartRateStep)]`.  The registry collects them; the library
-receives the list as an argument (`runImport(g, targets, steps = registry.get(importStep))`), so there is no global
-registry.  The type is checked when the list is read (type-erased store), and a test checks that every
-contribution finds its point.
+* `core` knows no domain type.  A `Contribution` holds its value type-erased (a boxed `T` under a common base); `get(point)`
+  gives the typed list back, by priority and then in dependency order.  The point is named by a constant, so a typo is a
+  compile error; two points that share a name but not a type are refused when the registry is made
+  (`collectExtensions`; tested).
+* The generated registry holds `extensions`, made when `nch` starts.  A command package cannot import the registry
+  (the registry imports its `package.nim`), so `nch.nim` copies it into `Globals.extensions` and a command reads
+  `g.extensions.get(importStep)`.  Libraries get the list as an argument (`ImportOptions.steps`): no global.
+* A test that builds a `Globals` gets no steps unless it passes them (`@[heartrateStep]`).
 
-Other would-be points (activity criteria, name sources, deletion lines, sector naming) are solved by layering:
-the command package depends on the libraries it joins.  A new point is added only when a second real case exists.
+**Deferred, until something needs them** (decided 2026-11-09):
+
+* **on-demand activity work** ("each activity not yet done by version N of my method"): two cases exist (`climbs/work`,
+  per activity; the impulses, per user, model and hour) and they differ in shape.  Commands call the library that owns
+  the work directly.  A point pays when some command must trigger work from a package it cannot depend on (`activities
+  --import` pre-computing, an `nch update`).
+* **activity criteria** (`--climb` for `activities`): decided at step 9, when options carry their help, because a
+  contribution would be one such option (name, parse, SQL predicate, help).  TODO.md has the alternative (tags).
+* name sources, deletion lines, sector naming: solved by layering (the command package depends on the libraries it
+  joins).  A new point is added only when a second real case exists.
 
 ## The database
 
@@ -223,10 +236,8 @@ Built on 2026-11-09, in this order:
 
 Left:
 
-5. **The extension points that remain**: import steps (heartrate adds work to every import; today
-   `activitiescmd` reads them from `modules.allImportSteps`) and on-demand work (`climbs/work`).  And the question of
-   how a later package adds criteria to `nch activities` (`--climb` is a direct dependency of `activities` on `climbs`
-   for now): tags, or an extension point; TODO.md has both.  Each is discussed first.
+5. **The extension points** (built 2026-11-09): the mechanism and the import steps; on-demand work and criteria are
+   deferred (see "Extension points").
 6. **The access model**: SQLite's authorizer, report-only first, then writes, then reads.  The text scan of the SQL
    done by hand on 2026-11-09 (what each package reads and writes, against what it declares) found, besides the
    declarations that were then added: commands that write library tables themselves (`userscmd`, `activitiescmd`),
@@ -234,8 +245,7 @@ Left:
    forces the owners to do their own writes.
 7. **The schema-by-several-orders test** and a `README.md` in each package (the feature detail now in CLAUDE.md).
    Together with it: the fragments to come from the registry (`Package.fragments`, in dependency order) instead of
-   `modules.nim`, which then goes; and `allowLegacy` in the import checker goes (nothing in a package imports an old
-   module any more except `activitiescmd` → `modules.nim`).
+   `modules.nim`, which then goes.
 
 After this, TODO steps 9 (options carry their help) and later follow, each command being rewritten once in its final
 home.
@@ -265,7 +275,7 @@ tables it owns is in its SQL.
   same name; and **a command is associated with one package**.
 * **`core` holds `Globals`, the log and the exit codes** (G1, L1, S1 in the discussion): pluggable logs are not needed
   (the point of the packages is to extend with FIT-related functionality, not to support another platform); the
-  import steps left `Globals`, and are read from `modules` until the extension point.  Commands name themselves with a
+  import steps left `Globals` and came back as `Globals.extensions` (the extension point).  Commands name themselves with a
   string (`commandName`), not an enum, because they cannot import the registry.
 * **`db`, not `store`**: the base fragment is recorded as `db/001-schema.sql`, and a package's fragments are named after
   its directory.

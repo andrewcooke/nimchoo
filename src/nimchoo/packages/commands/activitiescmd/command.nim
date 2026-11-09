@@ -9,13 +9,13 @@ import std/[options, sequtils, strutils, tables, terminal, times]
 import ./cmdname
 export cmdname
 import ../../../core/globals
-import ../../../modules
+import ../../../core/extension
 import ../../climbs/display
 import ../../climbs/report
 import ../../db/statement
 import ../../db/store
 import ./deleterun as deleteRun
-import ../../importer/batch
+import ../../importer/[batch, channel]
 import ./importrun as importRun
 import ../../../core/errors
 import ../../fit/time
@@ -509,7 +509,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g,
         c.importPaths,
         ImportOptions(
-          steps: allImportSteps,
+          steps: g.extensions.get(importStep),
           quiet: c.quiet,
           slow: c.slow,
           jobs: (if c.jobs > 0: c.jobs else: defaultJobs()),

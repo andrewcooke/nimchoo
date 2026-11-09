@@ -71,8 +71,12 @@ system can be extended with new fit-related functionality by adding a package, w
   `tests/core/test_ownership.nim` applies the fragments one at a time and checks that SQLite agrees).  a package should
   write only its own tables, and may read those of its dependencies (not enforced yet: the access model, step 8.6).
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in its `ddl.nim`;
-  `src/nimchoo/modules.nim` joins the lists (and the import steps) until the registry does it (TODO).
-* **extension points** are few: the import steps (heartrate adds work to every import) and, to come, on-demand work.
+  `src/nimchoo/modules.nim` joins the lists until the registry does it (TODO).
+* **extension points** are few, and there is one: the import steps (`core/extension.nim`; `importer/channel.nim` declares the
+  point `importStep`, and `heartrate/package.nim` contributes its step with `contributes:`).  the registry collects the
+  contributions in dependency order into `registry.extensions`, in memory; `nch.nim` puts them in `Globals.extensions`,
+  and a command reads them with `g.extensions.get(importStep)` (a command cannot import the registry).  the other
+  candidates are deferred until something needs them (PACKAGES.md "Extension points").
   how a later package adds criteria to `nch activities` is open (TODO.md, "Criteria from other packages").
 * **tests mirror the packages**: `tests/<group>/<package>/test_*.nim` (`tests/core/` mirrors `core/`), all imported by
   `tests/all.nim`; when a package moves, its tests move with it.

@@ -27,7 +27,7 @@ proc openDb(name: string): Store =
   store.openStore(path, allFragments)
 
 proc imp(s: Store, data: seq[byte], ws: var seq[Warning]): ImportResult =
-  s.importFile(p, "x.fit", data, ws, allImportSteps)
+  s.importFile(p, "x.fit", data, ws, @[heartrateStep])
 
 # records at base, base+1, base+2 (heart rate 100, none = 255 (invalid), 0), base+3 twice (last wins: 120, 130);
 # the third has a position, the rest do not
@@ -72,7 +72,7 @@ suite "heartrate: import":
     defer:
       s.close()
     var ws: seq[Warning]
-    let r = s.importFile(p, "ride.fit", readBytes(ride), ws, allImportSteps)
+    let r = s.importFile(p, "ride.fit", readBytes(ride), ws, @[heartrateStep])
     check r.coords == 2099
     check r.extras[0].n == 2099
     check s.db.scalar(int, "select count(*) from heartrate") == 2099

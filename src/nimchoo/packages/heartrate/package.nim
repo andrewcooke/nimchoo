@@ -1,3 +1,10 @@
-import ../../core/package as corePackage
+import ../../core/[extension, package as corePackage]
+import ../importer/channel
+import ./step
 
-const package* = Package(depends: @["db", "fit", "importer"], fragments: @[])
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[contribute(importStep, heartrateStep)]
+
+const package* = Package(
+  depends: @["db", "fit", "importer"], fragments: @[], contributes: contributions
+)

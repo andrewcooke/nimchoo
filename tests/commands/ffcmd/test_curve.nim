@@ -6,6 +6,7 @@ import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
+import nimchoo/packages/heartrate/step
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import nimchoo/packages/commands/ffcmd/curve
@@ -171,7 +172,7 @@ suite "nch ff":
       "r.fit",
       readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"),
       ws,
-      allImportSteps,
+      @[heartrateStep],
     )
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure
       # (no FTHR: refused, with a reason)
@@ -255,7 +256,7 @@ suite "nch ff: the key":
       "r.fit",
       readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"),
       ws,
-      allImportSteps,
+      @[heartrateStep],
     )
     s.db.execute(
       "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId

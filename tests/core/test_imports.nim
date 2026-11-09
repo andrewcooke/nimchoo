@@ -41,7 +41,7 @@ suite "the rule about packages":
       "packages/g/b/package.nim": "",
       "packages/g/b/three.nim": "import ../../a/one",
     }
-    check violations(t, depends, false).found == newSeq[string]()
+    check violations(t, depends).found == newSeq[string]()
 
   test "a package may not import one it does not depend on":
     let t = tree {
@@ -50,7 +50,7 @@ suite "the rule about packages":
       "packages/c/package.nim": "",
       "packages/c/four.nim": "",
     }
-    let v = violations(t, depends, false)
+    let v = violations(t, depends)
     check v.found == @["packages/a/one.nim -> packages/c/four.nim"]
     check "'a' does not declare a dependency on 'c'" in v[0].why
 
@@ -61,8 +61,9 @@ suite "the rule about packages":
       "packages/b/package.nim": "",
       "packages/b/three.nim": "",
     }
-    check violations(t, depends, false).found ==
-      @["packages/a/one.nim -> packages/b/three.nim"]
+    check violations(t, depends).found == @[
+      "packages/a/one.nim -> packages/b/three.nim"
+    ]
 
   test "core imports no package":
     let t = tree {
@@ -70,7 +71,7 @@ suite "the rule about packages":
       "packages/a/package.nim": "",
       "packages/a/one.nim": "",
     }
-    check violations(t, depends, false).found == @["core/x.nim -> packages/a/one.nim"]
+    check violations(t, depends).found == @["core/x.nim -> packages/a/one.nim"]
 
   test "a file in a subdirectory of a package belongs to the package":
     let t = tree {
@@ -78,9 +79,9 @@ suite "the rule about packages":
       "packages/a/sub/deep.nim": "import ../one",
       "packages/a/one.nim": "",
     }
-    check violations(t, depends, false).found == newSeq[string]()
+    check violations(t, depends).found == newSeq[string]()
 
-  test "a module outside the packages: allowed while the old layout remains, refused after":
+  test "a package may not import a module that is outside the packages":
     let t = tree {
       "packages/a/package.nim": "",
       "packages/a/one.nim": "import ../../errors",
@@ -89,8 +90,7 @@ suite "the rule about packages":
       "packages/c/package.nim": "",
       "packages/c/four.nim": "",
     }
-    check violations(t, depends, true).found == newSeq[string]()
-    check violations(t, depends, false).found == @["packages/a/one.nim -> errors.nim"]
+    check violations(t, depends).found == @["packages/a/one.nim -> errors.nim"]
 
 suite "the packages of nimchoo":
   test "every import in a package or in core follows the rule":
@@ -102,6 +102,6 @@ suite "the packages of nimchoo":
     var depends: Table[string, seq[string]]
     for p in generated.packages:
       depends[p.name] = p.package.depends
-    let bad = violations(t, depends, allowLegacy = true)
+    let bad = violations(t, depends)
     check bad.mapIt(it.file & " imports " & it.imports & ": " & it.why) ==
       newSeq[string]()

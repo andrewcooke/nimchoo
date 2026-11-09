@@ -13,11 +13,11 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
       (HISTORY.md, 2026-11-08).
 - [ ] 8. Packages: the design is PACKAGES.md.  Done on 2026-11-09 (8.1 to 8.4): the inventory, `core`, the generated
       registry, the import checker, inferred table ownership, every module a package, the four cycles broken, every
-      command a package.  Left: 8.5 the extension points that remain (import steps, on-demand work; and how a later
-      package adds criteria to `activities`, see below); 8.6 the access model (SQLite's authorizer: report-only, then
+      command a package.  Done on the same day, 8.5: the extension mechanism and the import steps (PACKAGES.md); on-demand
+      work and criteria wait (below).  Left: 8.6 the access model (SQLite's authorizer: report-only, then
       writes, then reads; the SQL-reads check that is a hand-run text scan now); 8.7 the schema-by-several-orders test, a
-      README in each package, the fragments from the registry instead of `modules.nim` (which then goes, with
-      `allowLegacy` in the import checker).  Your database must be made again (`nch db --delete -f`): the landmark
+      README in each package, the fragments from the registry instead of `modules.nim` (which then goes).
+      Your database must be made again (`nch db --delete -f`): the landmark
       fragment moved into `names`.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).
@@ -30,11 +30,11 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 ## Criteria from other packages (decided 2026-11-09, while splitting `selection`)
 
 `nch activities --climb TEXT` selects activities by the climbs they went up, so the search language has to know the
-`effort` table of `climbs`; and `climbs` reads the stored selection.  Until step 5 this is a recorded placeholder: the
+`effort` table of `climbs`; and `climbs` reads the stored selection.  Until step 9 this is a recorded placeholder: the
 search language (`criteria`, `ranges`) lives with the `activities` command, which depends on `climbs`, and the
 stored selection (table, address bits) is a small package below both.  That is not extensible: a package added later
 (training load from fitness/fatigue, weather, sleep) could not add an option to `activities` without editing the
-command.  Two ways out, to be decided at step 5, after living with the packages:
+command.  Two ways out, to be decided at step 9 (deferred from 8.5 on 2026-11-09, because the extension point's contribution is an option with its help):
 
 * **Tags**: an activity has any number of tags (arbitrary strings, many to many; the user adds them by hand for
   equipment, "bike A"), and packages may add derived tags (climbs tags an activity with the climbs it went up; a load
@@ -44,15 +44,15 @@ command.  Two ways out, to be decided at step 5, after living with the packages:
   retired or renumbered (`climbs/work.nim` already runs once per activity and could write them in the same
   transaction); and tags cover membership-style criteria, not numeric or spatial ones.
 * **A criteria extension point**: a package contributes an option (name, parse, a SQL predicate on `activity a`, help),
-  and the command assembles its options from the contributions (needs the generic store in `core` and a field in
-  `Globals`, as the import steps will).  Covers numeric criteria too.  Fits step 9 (options carry their help).
+  and the command assembles its options from the contributions (the mechanism is built: `core/extension.nim`, with `Globals.extensions`).  Covers numeric criteria too.  Fits step 9 (options carry their help).
 
 Either replaces the direct dependency of `activities` on `climbs`.
 
+**On-demand activity work** as an extension point is deferred too: build it when some command must trigger work from a
+package it cannot depend on (PACKAGES.md, "Extension points").
+
 ## Left over from the packages move (2026-11-09)
 
-* `activitiescmd` imports `modules.nim` for `allImportSteps` (an old module, allowed while `allowLegacy` is on);
-  step 5 (import steps as an extension point) removes it, and then `modules.nim` and `allowLegacy` go.
 * Commands that write tables of a library themselves, to move into the libraries when the access model is built
   (`nimble`-run report: `python3 sqlrefs.py`, in the session scratchpad; it is a text scan, step 6 makes it exact):
   `userscmd` (`user`, `user_profile`), `activitiescmd` (`selection`); and `delete` (`activity`, `file`: the deletion

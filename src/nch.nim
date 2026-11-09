@@ -60,6 +60,7 @@ proc main(): int {.raises: [].} =
     stdout.say versionString & "\n"
     return exitOk
   var g = head.g
+  g.extensions = registry.extensions
   if i >= args.len:
     stderr.say usage
     return exitUsage

@@ -106,14 +106,12 @@ func isCore(path: string): bool =
   path.startsWith("core/")
 
 func violations*(
-    sources: Table[string, string],
-    depends: Table[string, seq[string]],
-    allowLegacy: bool,
+    sources: Table[string, string], depends: Table[string, seq[string]]
 ): seq[Violation] =
   ## The imports that break the rules.  `sources` maps each file under `src/nimchoo` (relative path) to its
   ## text; `depends` maps a package name to the packages it declares.  A file in a package may import its own
   ## package, `core`, and the packages it depends on; a file in `core` imports no package.  Files in neither
-  ## are not checked, and with `allowLegacy` a package may still import them (until the last has moved).
+  ## are not checked, and a package may not import them.
   var files: HashSet[string]
   for path in sources.keys:
     files.incl path
@@ -127,10 +125,9 @@ func violations*(
         continue
       let other = packageOf(target, files)
       if other.len == 0:
-        if not allowLegacy:
-          result.add Violation(
-            file: path, imports: target, why: "is not in a package or in core"
-          )
+        result.add Violation(
+          file: path, imports: target, why: "is not in a package or in core"
+        )
       elif path.isCore:
         result.add Violation(
           file: path,

@@ -1,7 +1,8 @@
 ## The ordering of packages (core/registry.nim) and the generator of the registry (tools/genregistry.nim).
 
 import std/[algorithm, os, sequtils, strutils, unittest]
-import nimchoo/core/[globals, package, registry]
+import nimchoo/core/[extension, globals, package, registry]
+import nimchoo/packages/importer/channel
 import nimchoo/core/errors
 import nimchoo/registry as generated
 import ../../tools/genregistry
@@ -121,3 +122,37 @@ suite "the generated registry":
       removeDir root
     check findPackages(root) ==
       @[Found(name: "a", importPath: "packages/group/a/package")]
+
+suite "extension points":
+  const pointA = ExtensionPoint[int](name: "test/a")
+  const pointB = ExtensionPoint[string](name: "test/b")
+  const pointAString = ExtensionPoint[string](name: "test/a")
+
+  proc ints(): seq[Contribution] {.nimcall, raises: [].} =
+    @[contribute(pointA, 3, priority = 1), contribute(pointA, 1)]
+
+  proc moreInts(): seq[Contribution] {.nimcall, raises: [].} =
+    @[contribute(pointA, 2), contribute(pointB, "b")]
+
+  proc strings(): seq[Contribution] {.nimcall, raises: [].} =
+    @[contribute(pointAString, "oops")]
+
+  func with(name: string, c: ContributeProc, depends: varargs[string]): Registered =
+    Registered(name: name, package: Package(depends: @depends, contributes: c))
+
+  test "a point gives its values by priority, then in dependency order":
+    let e = collectExtensions(@[with("one", ints), with("two", moreInts, "one")])
+    check e.get(pointA) == @[1, 2, 3]
+    check e.get(pointB) == @["b"]
+
+  test "a point nobody contributed to is empty":
+    check collectExtensions(@[pkg("x")]).get(pointA).len == 0
+
+  test "two points of one name but different types are refused, naming the packages":
+    expect PackageError:
+      discard collectExtensions(@[with("one", ints), with("two", strings, "one")])
+
+  test "the real registry gives the importer the heart-rate step":
+    let steps = generated.extensions.get(importStep)
+    check steps.len == 1
+    check steps[0].channels == @["heart_rate"]
