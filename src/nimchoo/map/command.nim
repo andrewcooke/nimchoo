@@ -12,7 +12,8 @@
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
 import std/[options, os, tables]
-import ../[atomic, cache]
+import ../cache
+import ../packages/util/atomic/atomic
 import ../cli/common
 import ../climbs/[attempts, report, work]
 import ../db/[statement, store]

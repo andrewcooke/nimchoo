@@ -1,5 +1,5 @@
 import std/[options, unittest]
-import nimchoo/proquint
+import nimchoo/packages/text/proquint/proquint
 
 suite "proquint: numbers as pronounceable words":
   test "the specification's example: 127.0.0.1 is lusab-babad":

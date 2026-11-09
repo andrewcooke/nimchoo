@@ -5,7 +5,7 @@ import std/[algorithm, math, strutils]
 import ../db/[statement, store]
 import ../core/errors
 import ../packages/text/fold/fold
-import ../geo
+import ../packages/geo/geo
 
 {.push raises: [].}
 

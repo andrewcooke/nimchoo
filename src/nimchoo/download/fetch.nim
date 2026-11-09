@@ -10,8 +10,9 @@
 
 import std/[httpclient, options, os, strutils, tables]
 import ../core/errors
-import ../lookup
-import ../[atomic, zipbytes, zipchild]
+import ../packages/util/lookup/lookup
+import ../[zipbytes, zipchild]
+import ../packages/util/atomic/atomic
 import ./sources
 when defined(posix):
   import std/posix

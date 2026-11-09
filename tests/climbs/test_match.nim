@@ -1,6 +1,6 @@
 import std/[math, options, unittest]
 import nimchoo/climbs/match
-import nimchoo/geo
+import nimchoo/packages/geo/geo
 
 let pr = projection(0.0, 0.0)
 

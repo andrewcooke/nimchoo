@@ -7,7 +7,7 @@
 
 import std/[parsexml, streams, strutils, tables]
 import ./core/errors
-import ./lookup
+import ./packages/util/lookup/lookup
 import ./zipbytes
 export errors
 

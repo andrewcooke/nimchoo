@@ -9,10 +9,10 @@
 ## records must be decoded in file order (use `Reader`).
 ##
 ## Odd data does not raise: it adds to `warnings`.  (A broken internal
-## invariant is a bug and an AssertionDefect, see lookup.nim.)
+## invariant is a bug and an AssertionDefect, see packages/util/lookup.)
 
 import std/[options, tables]
-import ../lookup
+import ../packages/util/lookup/lookup
 import ../profile/model
 import ../warnings
 import ./basetype

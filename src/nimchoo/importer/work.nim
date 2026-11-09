@@ -5,7 +5,7 @@
 import std/[monotimes, times]
 import ../core/errors
 import ../fit/bytes
-import ../hashing
+import ../packages/util/hashing/hashing
 import ../profiling
 import ../warnings
 import ./failure

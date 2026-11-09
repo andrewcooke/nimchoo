@@ -13,7 +13,7 @@
 ## of the other (choochoo: less than half of each outside the other's hull).  Pure.
 
 import std/[algorithm, math, options, strutils]
-import ../geo
+import ../packages/geo/geo
 
 {.push raises: [].}
 

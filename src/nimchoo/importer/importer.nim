@@ -3,7 +3,7 @@
 ## content, same user) does nothing.
 
 import std/[options, sets, times]
-import ../hashing
+import ../packages/util/hashing/hashing
 import ../db/[channel, multirow, statement, store]
 import ../core/errors
 import ../profile/model

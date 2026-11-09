@@ -16,8 +16,9 @@
 ## cannot be used is never an error: the program's own copy is used.
 
 import std/[algorithm, options, os, strutils, tables]
-import ../[atomic, cache]
-import ../hashing
+import ../cache
+import ../packages/util/atomic/atomic
+import ../packages/util/hashing/hashing
 
 {.push raises: [].}
 

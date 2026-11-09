@@ -3,7 +3,7 @@
 ## accessors that go with them.
 
 import std/[options, tables]
-import ../lookup
+import ../packages/util/lookup/lookup
 import ../profile/model
 import ./basetype
 import ./time

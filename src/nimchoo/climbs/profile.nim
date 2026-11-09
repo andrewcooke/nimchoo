@@ -11,7 +11,7 @@
 
 import std/[math, options]
 import ../importer/extract
-import ../geo
+import ../packages/geo/geo
 
 {.push raises: [].}
 

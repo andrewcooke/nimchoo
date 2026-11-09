@@ -3,10 +3,20 @@
 
 import ./core/package as corePackage
 import ./core/registry as coreRegistry
+import ./packages/geo/package as pkgGeo
 import ./packages/text/fold/package as pkgFold
+import ./packages/text/proquint/package as pkgProquint
+import ./packages/util/atomic/package as pkgAtomic
+import ./packages/util/hashing/package as pkgHashing
+import ./packages/util/lookup/package as pkgLookup
 
 const packages*: seq[Registered] = inDependencyOrder(
   @[
+    Registered(name: "geo", package: pkgGeo.package),
     Registered(name: "fold", package: pkgFold.package),
+    Registered(name: "proquint", package: pkgProquint.package),
+    Registered(name: "atomic", package: pkgAtomic.package),
+    Registered(name: "hashing", package: pkgHashing.package),
+    Registered(name: "lookup", package: pkgLookup.package),
   ]
 )

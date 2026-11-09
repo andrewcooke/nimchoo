@@ -9,7 +9,7 @@ import std/[algorithm, options, strutils]
 import ../db/[statement, store]
 import ../core/errors
 import ../fit/time
-import ../hashing
+import ../packages/util/hashing/hashing
 import ./[calc, models]
 
 {.push raises: [].}

@@ -4,7 +4,6 @@
 {.push warning[UnusedImport]: off.}
 import ./support/env, ./support/timing
 import
-  ./test_proquint,
   ./core/test_registry,
   ./core/test_imports,
   ./core/test_ownership,
@@ -14,12 +13,13 @@ import
   ./core/test_errors,
   ./test_child,
   ./test_zipchild,
-  ./test_atomic,
   ./test_structure,
   ./test_cache,
-  ./test_geo,
   ./test_templating,
   ./test_version
+import ./text/proquint/test_proquint
+import ./util/atomic/test_atomic
+import ./geo/test_geo
 import
   ./fit/[
     test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,

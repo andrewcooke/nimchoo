@@ -1,5 +1,5 @@
 import std/[math, options, unittest]
-import nimchoo/geo
+import nimchoo/packages/geo/geo
 
 proc xy(x, y: float): XY =
   XY(x: x, y: y)

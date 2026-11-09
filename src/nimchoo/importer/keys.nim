@@ -1,7 +1,7 @@
 ## The key of the routes of activities, for a cached file that is made from them (see `cache.inputsKey`).
 
 import ../core/errors
-import ../hashing
+import ../packages/util/hashing/hashing
 import ../db/[statement, store]
 
 {.push raises: [].}

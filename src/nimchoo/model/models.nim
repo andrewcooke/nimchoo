@@ -2,7 +2,7 @@
 ## adding more.
 
 import std/options
-import ../hashing
+import ../packages/util/hashing/hashing
 import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../core/errors

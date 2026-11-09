@@ -7,7 +7,7 @@
 ## left over at the end of an activity) and kept until `release`.
 
 import std/[strutils, tables]
-import ../lookup
+import ../packages/util/lookup/lookup
 import db_connector/db_sqlite
 import ../core/errors
 import ./statement

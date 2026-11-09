@@ -25,7 +25,7 @@ import ../warnings
 import ../fit/reader
 import ../fit/records
 import ../fit/time
-import ../geo
+import ../packages/geo/geo
 import ./stretch
 
 {.push raises: [].}

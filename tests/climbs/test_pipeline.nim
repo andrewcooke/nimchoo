@@ -1,6 +1,6 @@
 import std/[math, options, unittest]
 import nimchoo/climbs/[detect, match, profile]
-import nimchoo/geo
+import nimchoo/packages/geo/geo
 import nimchoo/fit/time
 import nimchoo/importer/extract
 

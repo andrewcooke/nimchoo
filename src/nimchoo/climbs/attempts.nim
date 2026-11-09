@@ -11,7 +11,7 @@ import ../db/[statement, store]
 import ../core/errors
 import ../fit/time
 import ../importer/describe
-import ../lookup
+import ../packages/util/lookup/lookup
 import ../packages/text/fold/fold
 import std/unicode
 import ../ui/[palette, style, units]

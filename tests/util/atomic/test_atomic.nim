@@ -1,5 +1,5 @@
 import std/[os, strutils, unittest]
-import nimchoo/atomic
+import nimchoo/packages/util/atomic/atomic
 
 let dir = getTempDir() / "nch-test-atomic"
 

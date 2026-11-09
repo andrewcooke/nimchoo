@@ -270,7 +270,7 @@ later did a better data source turn up).  the rule:
 * **`--check` means check** (verification, never choice): in `ff` it is a hash of the data the curves are made from.
   `ff` is not about the selection: it always uses all the activities.
 * **Cache file names are not the address**: `map-lusab-babad-fuzoh.geojson` is the command and 48 bits of the hash of the
-  request as proquints (`proquint.nim`, `cache.nim` `requestStem`).  The request is written into the file (`nch.request`)
+  request as proquints (`packages/text/proquint`, `cache.nim` `requestStem`).  The request is written into the file (`nch.request`)
   and checked when the file is found, so a clash of names cannot show the wrong map.
   The key of everything else the file is made from (the data of the packages it reads, and the build) is written too
   (`nch.inputs`, `cache.inputsKey`); if it differs the file is made again, in place.
@@ -343,7 +343,7 @@ four kinds of things go wrong, and each has one mechanism:
 
 1. **bugs are Defects.**  a violated precondition or a "can't happen" case uses `doAssert`/`raiseAssert` (or the
    built-in bounds checks).  never caught, never turned into a warning.  a table lookup that must succeed uses
-   `must`/`mustMut` (`lookup.nim`), which asserts instead of raising `KeyError`.
+   `must`/`mustMut` (`packages/util/lookup`), which asserts instead of raising `KeyError`.
 2. **input we cannot use is an exception**: a corrupt FIT file, a bad profile, a file that is not an xlsx.  all are
    subtypes of `NchError` (`core/errors.nim`), raised with the `raiseFit` / `raiseProfile` / ... helpers and listed in
    `{.raises.}`.  corrupt input must never reach a Defect (a fuzzer is to check this for FIT files: TODO step 2).

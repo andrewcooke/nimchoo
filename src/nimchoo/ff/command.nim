@@ -9,7 +9,8 @@
 import std/[math, options, os, strutils, times]
 import db_connector/db_sqlite
 import ../cli/common
-import ../[atomic, cache]
+import ../cache
+import ../packages/util/atomic/atomic
 import ../db/[statement, store]
 import ../core/errors
 import ../model/[calc, impulses, models]

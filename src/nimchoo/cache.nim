@@ -12,7 +12,8 @@
 ## touched here.
 
 import std/[algorithm, options, os, parseutils, sequtils, strutils]
-import ./[hashing, proquint]
+import ./packages/util/hashing/hashing
+import ./packages/text/proquint/proquint
 
 {.push raises: [].}
 

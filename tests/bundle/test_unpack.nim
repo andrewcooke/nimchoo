@@ -2,7 +2,7 @@ import std/[options, os, strutils, tables, times, unittest]
 import nimchoo/bundle/unpack
 import ../support/env
 import nimchoo/cache
-import nimchoo/hashing
+import nimchoo/packages/util/hashing/hashing
 
 let dir = getTempDir() / "nch-test-bundle"
 

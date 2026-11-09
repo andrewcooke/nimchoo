@@ -22,7 +22,7 @@ import ../db/[statement, store]
 import ../core/errors
 import ../core/ids
 import ../importer/[extract, track]
-import ../lookup
+import ../packages/util/lookup/lookup
 import ../profiling
 import ./[detect, match, ordinal, profile]
 

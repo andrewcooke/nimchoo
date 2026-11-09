@@ -18,7 +18,7 @@
 
 import std/[math, options, strutils]
 import ../core/errors
-import ../geo
+import ../packages/geo/geo
 import ../landmark/landmarks
 import ./[countries, lookup, shape]
 

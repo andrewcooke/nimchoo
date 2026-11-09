@@ -6,7 +6,7 @@
 ## give the same key in any database, and a changed selection gives a new one.
 
 import std/[algorithm, sets]
-import ../hashing
+import ../packages/util/hashing/hashing
 import ../db/[statement, store]
 import ../core/errors
 
