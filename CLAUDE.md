@@ -68,18 +68,13 @@ nothing but the top level dispatcher imports a command (that's not
 enforced by the language, but is checked by a test).  tests mirror the
 source tree.
 
-**direction (decided 2026-11-08): packages.** the modules become
-packages that declare their dependencies; the build enforces a DAG; a
-third party adds a package by dropping a directory in and rebuilding.
-the framework is minimal (the `Package` type and registry, the
-database handle and fragments, the extension-point types); everything
-else is a package, small ones included.  an early package that must be
-extended offers an extension point; it does not import the later
-package, and no package alters another's tables.  per-second data is
-stored per activity, as arrays; by default other data refers to it by
-time (never by array index), and the arrays are never changed once
-written (an alternative needs a reason).  details and steps: REVIEW.md
-§6; until that work is done the layout above is what exists.
+**direction (decided 2026-11-09): packages, designed in PACKAGES.md.**  a package is a directory with a `package.nim`
+that declares its dependencies; the build enforces a DAG; its name is its directory's name; its tables are inferred from
+its sql; it may read the tables of its dependencies and write only its own (checked with SQLite's authorizer);
+libraries sit below, commands above; extension points are few and generic.  a third party adds a package by
+dropping a directory in and rebuilding.  per-second data is stored per activity, as arrays; by default other data
+refers to it by time (never by array index), and the arrays are never changed once written (an alternative needs a
+reason; REVIEW.md §6 "Samples").  until that work is done the layout above is what exists.
 
 ## display
 

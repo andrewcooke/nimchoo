@@ -302,7 +302,7 @@ elsewhere (4.2).  Otherwise the style is idiomatic Nim 2 (func/proc split, disti
 **SQLite.**  Used well at the schema level (§2), weak at the access level (4.3, 4.4) and in sample storage
 (4.5).  SpatiaLite's many tables are normal.
 
-## 6. Packages (agreed in discussion, 2026-11-08)
+## 6. Packages (agreed in discussion, 2026-11-08; **superseded by PACKAGES.md, 2026-11-09**: kept for the reasoning)
 
 The aim: packages declare their dependencies; the build enforces a DAG; a package sees a database that already
 has the tables of everything it depends on, and calls its dependencies' code directly.  A third party adds a
