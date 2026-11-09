@@ -5,6 +5,7 @@ import nimchoo/packages/ui/vocabulary
 import nimchoo/log/lines
 
 let dir = getTempDir() / "nch-test-log-command"
+let commands = @["activities", "map", "climbs", "fit"]
 
 proc logWith(name: string, lines: varargs[string]): string =
   removeDir(dir / name)
@@ -22,22 +23,27 @@ const
 
 suite "nch log: the command line":
   test "commands and events are told apart":
-    let p = parseArgs(@["activities", "failed", "map", "advisory", "--last", "-n", "5"])
+    let p = parseArgs(
+      @["activities", "failed", "map", "advisory", "--last", "-n", "5"], commands
+    )
     check p.problem == ""
     check p.filter.commands == @["activities", "map"]
     check p.filter.events == {leFailed, leAdvisory}
     check p.filter.last and p.filter.count == 5
   test "no arguments: no filter":
-    check parseArgs(@[]).filter == Filter()
+    check parseArgs(@[], commands).filter == Filter()
   test "problems":
-    check parseArgs(@["bogus"]).problem.contains("neither a command nor an event")
-    check parseArgs(@["bogus"]).problem.contains("advisory") # the known names are listed
-    check parseArgs(@["bogus"]).problem.contains("map")
-    check parseArgs(@["-n"]).problem.contains("needs a value")
-    check parseArgs(@["-n", "0"]).problem.contains("number of lines")
-    check parseArgs(@["-n", "x"]).problem.contains("number of lines")
-    check parseArgs(@["--bogus"]).problem.contains("unexpected option")
-    check parseArgs(@["-h"]).help
+    check parseArgs(@["bogus"], commands).problem.contains(
+      "neither a command nor an event"
+    )
+    check parseArgs(@["bogus"], commands).problem.contains("advisory")
+      # the known names are listed
+    check parseArgs(@["bogus"], commands).problem.contains("map")
+    check parseArgs(@["-n"], commands).problem.contains("needs a value")
+    check parseArgs(@["-n", "0"], commands).problem.contains("number of lines")
+    check parseArgs(@["-n", "x"], commands).problem.contains("number of lines")
+    check parseArgs(@["--bogus"], commands).problem.contains("unexpected option")
+    check parseArgs(@["-h"], commands).help
 
 suite "nch log: showing":
   test "the lines, plain without colour":

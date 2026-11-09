@@ -45,6 +45,7 @@ func registryText*(found: seq[Found]): string =
     result.add "    Registered(name: \"" & f.name & "\", package: pkg" &
       f.name.capitalizeAscii & ".package),\n"
   result.add "  ]\n)\n"
+  result.add "\nconst commands*: seq[CommandDecl] = collectCommands(packages)\n"
 
 when isMainModule:
   let source = currentSourcePath().parentDir.parentDir / "src" / "nimchoo"

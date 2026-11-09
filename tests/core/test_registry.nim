@@ -1,7 +1,7 @@
 ## The ordering of packages (core/registry.nim) and the generator of the registry (tools/genregistry.nim).
 
 import std/[algorithm, os, sequtils, strutils, unittest]
-import nimchoo/core/[package, registry]
+import nimchoo/core/[globals, package, registry]
 import nimchoo/core/errors
 import nimchoo/registry as generated
 import ../../tools/genregistry
@@ -11,6 +11,9 @@ func pkg(name: string, depends: varargs[string]): Registered =
 
 func names(ps: seq[Registered]): seq[string] =
   ps.mapIt(it.name)
+
+func names(cs: seq[CommandDecl]): seq[string] =
+  cs.mapIt(it.name)
 
 suite "the order of packages":
   test "each package comes after the packages it depends on":
@@ -48,6 +51,36 @@ suite "the order of packages":
   test "a name used twice is refused, even if the spellings differ":
     expect PackageError:
       discard inDependencyOrder(@[pkg("user_data"), pkg("userData")])
+
+func provides(name: string, commands: varargs[string]): Registered =
+  let run = proc(g: Globals, args: seq[string]): int {.nimcall, raises: [].} =
+    0
+  var p = Package()
+  for c in commands:
+    p.commands.add CommandDecl(name: c, summary: "does " & c, run: run)
+  Registered(name: name, package: p)
+
+suite "the commands of the packages":
+  test "all of them, by name":
+    check collectCommands(@[provides("a", "zed", "alpha"), provides("b", "mid")]).mapIt(
+      it.name
+    ) == @["alpha", "mid", "zed"]
+
+  test "a name two packages share is refused, naming both":
+    try:
+      discard collectCommands(@[provides("a", "x"), provides("b", "x")])
+      fail()
+    except PackageError as e:
+      check "'x'" in e.msg and "'a'" in e.msg and "'b'" in e.msg
+
+  test "the commands of nimchoo have names and summaries, and fit is there and runs":
+    let names = generated.commands.names
+    check names.len == names.deduplicate.len
+    for c in generated.commands:
+      check c.name.len > 0 and c.summary.len > 0 and c.run != nil
+    check "fit" in names
+    let fit = generated.commands.filterIt(it.name == "fit")[0]
+    check fit.run(Globals(), @["--help"]) == 0
 
 suite "the generated registry":
   let source = "src" / "nimchoo"

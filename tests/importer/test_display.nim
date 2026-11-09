@@ -87,7 +87,9 @@ suite "import display: the lines":
   test "what the hint says is a command line that `nch log` accepts":
     let hint = moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true)
     check hint.startsWith("more: nch log ")
-    let p = logCommand.parseArgs(hint["more: nch log ".len .. ^1].splitWhitespace)
+    let p = logCommand.parseArgs(
+      hint["more: nch log ".len .. ^1].splitWhitespace, @["activities", "map"]
+    )
     check p.problem == ""
     check p.filter.commands == @["activities"]
     check p.filter.events == {leFailed, leDuplicate, leAdvisory}

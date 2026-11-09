@@ -23,9 +23,10 @@ import ./util/atomic/test_atomic
 import ./geo/test_geo
 import
   ./fit/[
-    test_basetype, test_header, test_time, test_tokens, test_decode, test_command,
-    test_sdkcsv, test_fuzz,
+    test_basetype, test_header, test_time, test_tokens, test_decode, test_sdkcsv,
+    test_fuzz,
   ]
+import ./commands/fitcmd/test_command
 import ./util/bytes/test_bytes
 import ./fit/test_load_errors
 import ./fit/test_load

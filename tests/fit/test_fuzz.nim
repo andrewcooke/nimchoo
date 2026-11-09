@@ -8,7 +8,7 @@
 
 import std/[algorithm, os, random, strutils, tables, unittest]
 import nimchoo/core/errors
-import nimchoo/fit/command
+import nimchoo/packages/commands/fitcmd/command
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings

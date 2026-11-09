@@ -77,8 +77,9 @@ const package* = Package(
 )
 ```
 
-(Built so far: `depends` and `fragments` only; `commands` comes with the command packages, `contributes` with the
-first extension point.  The module `core/package` is imported `as corePackage`, because the constant is also
+(Built so far: `depends`, `fragments` and `commands` (a `CommandDecl`: name, summary, `run`; the first command package is
+`fitcmd`, 2026-11-09: the registry's `commands` is what `nch` dispatches on and prints in its usage, alongside the old
+`Command` enum until the last command has moved); `contributes` comes with the first extension point.  The module `core/package` is imported `as corePackage`, because the constant is also
 called `package`.)
 
 The registry (below) reads it.  A package's own documentation (the feature detail now in CLAUDE.md) goes in a

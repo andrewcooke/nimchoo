@@ -17,6 +17,8 @@ type Globals* = object ## Options given before the command name, for every comma
   offline*: bool
     ## do not use the network: the names service answers "nothing" everywhere
   fragments*: seq[Fragment] ## the schema: the fragments of all modules
+  commandNames*: seq[string]
+    ## the names of all the commands (what `nch log` accepts as a filter)
   log*: Log ## the log file; nil (disabled) unless `nch` opened it
 
 const

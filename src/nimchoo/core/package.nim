@@ -2,14 +2,24 @@
 ## type; the name of the package is the name of its directory, so it is not in the value (PACKAGES.md).
 ## This module imports no package: `core` is below all of them.
 
-import ./fragment
+import ./[fragment, globals]
 
 {.push raises: [].}
 
 type
+  CommandProc* = proc(g: Globals, args: seq[string]): int {.nimcall, raises: [].}
+    ## A command: given the options before its name and its own arguments, it returns the exit status.
+
+  CommandDecl* = object ## a command that a package provides
+    name*: string ## what the user types after `nch`
+    summary*: string ## one line, for the usage text
+    run*: CommandProc
+
   Package* = object
     depends*: seq[string] ## the packages whose code and tables it uses, by name
     fragments*: seq[Fragment] ## its DDL, in order
+    commands*: seq[CommandDecl]
+      ## the commands it provides (only command packages have any)
 
   Registered* = object ## a package with its name, as the generated registry lists them
     name*: string

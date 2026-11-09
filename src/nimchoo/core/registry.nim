@@ -64,3 +64,19 @@ func inDependencyOrder*(
   var path: seq[string]
   for p in packages.sortedByIt(it.name.normalised):
     visit(p.name, byName, state, path, result)
+
+func collectCommands*(
+    packages: seq[Registered]
+): seq[CommandDecl] {.raises: [PackageError].} =
+  ## The commands of all the packages, by name.  Raises `PackageError` for a name two commands share.
+  var seen: Table[string, string] # command -> the package that provides it
+  for p in packages:
+    for c in p.package.commands:
+      if c.name in seen:
+        raisePackage(
+          "command '" & c.name & "' is provided by both '" & seen.getOrDefault(c.name) &
+            "' and '" & p.name & "'"
+        )
+      seen[c.name] = p.name
+      result.add c
+  result = result.sortedByIt(it.name)

@@ -3,7 +3,7 @@
 ## against) this enum, so a command cannot be in one and missing from another.  Adding a command: a member here,
 ## its summary below, and a branch in `dispatch` (src/nch.nim), which the compiler demands.
 
-import std/[options, strutils]
+import std/[algorithm, options, strutils]
 
 {.push raises: [].}
 
@@ -15,7 +15,6 @@ type Command* = enum
   cmLandmarks = "landmarks"
   cmMap = "map"
   cmFf = "ff"
-  cmFit = "fit"
   cmLog = "log"
   cmCache = "cache"
   cmDb = "db"
@@ -28,7 +27,6 @@ const summaries*: array[Command, string] = [
   cmLandmarks: "places of your own, named: they come before every other name",
   cmMap: "the routes of the selected activities and their climbs, on a map",
   cmFf: "the fitness and fatigue curves, as CSV for plotting",
-  cmFit: "read a FIT file and print it",
   cmLog: "show the log, filtered, with the events coloured",
   cmCache:
     "the files outside the database (downloads, generated files): show them, delete them",
@@ -41,7 +39,15 @@ func parseCommand*(name: string): Option[Command] =
     if $c == name:
       return some(c)
 
-func commandList*(): string =
-  ## The lines of the usage text that name the commands.
+func commandList*(others: openArray[(string, string)]): string =
+  ## The lines of the usage text that name the commands, by name: these, and `others` (name, summary), the
+  ## commands that the registry provides.
+  var all: seq[(string, string)] = @others
   for c in Command:
-    result.add "  " & ($c).alignLeft(11) & " " & summaries[c] & "\n"
+    all.add (name: $c, summary: summaries[c])
+  all.sort(
+    proc(a, b: (string, string)): int =
+      cmp(a[0], b[0])
+  )
+  for (name, summary) in all:
+    result.add "  " & name.alignLeft(11) & " " & summary & "\n"

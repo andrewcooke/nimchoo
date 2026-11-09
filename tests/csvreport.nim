@@ -4,7 +4,7 @@
 import std/[algorithm, sequtils, sets, strutils, tables]
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
-import nimchoo/fit/command
+import nimchoo/packages/commands/fitcmd/command
 import nimchoo/packages/fit/load
 import nimchoo/packages/fit/tokens
 import ./support/csvcompare

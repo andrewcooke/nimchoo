@@ -2,13 +2,13 @@ import std/[os, tables, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/core/globals
-import nimchoo/fit/command as fitCommand
+import nimchoo/packages/commands/fitcmd/command as fitCommand
 import nimchoo/packages/fit/reader
 import nimchoo/packages/fit/records
 import nimchoo/packages/fit/default
 import nimchoo/packages/fit/load
 import nimchoo/packages/fit/tokens
-import ../support/fitbuilder
+import ../../support/fitbuilder
 
 const
   profilePath = "../choochoo/data/sdk/Profile.xlsx"

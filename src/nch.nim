@@ -4,7 +4,7 @@
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
-import std/[options, os, strutils]
+import std/[options, os, sequtils, strutils]
 import nimchoo/cli/catalog
 import nimchoo/core/globals
 import nimchoo/packages/util/args/args
@@ -18,8 +18,8 @@ import nimchoo/landmark/command as landmarkCommand
 import nimchoo/user/command as userCommand
 import nimchoo/model/command as modelCommand
 import nimchoo/ff/command as ffCommand
-import nimchoo/fit/command as fitCommand
 import nimchoo/modules
+import nimchoo/registry
 import nimchoo/core/logfile
 import nimchoo/packages/util/version/version
 import nimchoo/packages/util/zip/zipchild
@@ -37,15 +37,13 @@ const usage =
 
 commands:
 """ &
-  commandList() & """
+  commandList(registry.commands.mapIt((it.name, it.summary))) & """
 For more about a command: `nch COMMAND --help`.
 """
 
 proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: [].} =
   ## (no `else`: a command in `Command` that is not run here does not compile)
   case command
-  of cmFit:
-    fitCommand.run(g, rest)
   of cmActivities:
     activitiesCommand.run(g, rest)
   of cmMap:
@@ -104,19 +102,25 @@ proc main(): int {.raises: [].} =
   if args[i] == "help":
     stdout.say usage
     return exitOk
-  let parsed = parseCommand(args[i])
-  if parsed.isNone:
-    return usageError("nch", usage, "unknown command " & args[i])
-  let command = parsed.get
-  if command != cmLog: # (reading the log is not logged)
+  let name = args[i]
+  let provided = registry.commands.filterIt(it.name == name)
+  let parsed = parseCommand(name)
+  if provided.len == 0 and parsed.isNone:
+    return usageError("nch", usage, "unknown command " & name)
+  g.commandNames = registry.commands.mapIt(it.name) & toSeq(Command).mapIt($it)
+  if name != $cmLog: # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
         stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
-  g.log.log(lvInfo, $command, leRun, "[" & nchCommit & "] " & rest.join(" "))
-  result = dispatch(g, command, rest)
-  g.log.log(lvInfo, $command, leExit, $result)
+  g.log.log(lvInfo, name, leRun, "[" & nchCommit & "] " & rest.join(" "))
+  result =
+    if provided.len > 0:
+      provided[0].run(g, rest)
+    else:
+      dispatch(g, parsed.get, rest)
+  g.log.log(lvInfo, name, leExit, $result)
   g.log.close()
 
 when isMainModule:

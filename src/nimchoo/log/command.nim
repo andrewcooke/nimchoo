@@ -4,7 +4,6 @@
 ## knows them only by name (the log's command column).
 
 import std/[options, os, sequtils, strutils]
-import ../cli/catalog
 import ../core/globals
 import ../packages/util/args/args
 import ../core/logfile
@@ -32,32 +31,31 @@ On a terminal the event words have the colours they have in `nch activities --im
 """
 
 type Parsed* = object
+  known: seq[string] ## the names of the commands there are
   filter*: Filter
   help*: bool
   problem*: string
 
-proc names(): string =
-  var cs: seq[string]
-  for c in Command:
-    cs.add $c
+proc names(commands: seq[string]): string =
   var es: seq[string]
   for e in LogEvent:
     es.add $e
-  "commands: " & cs.join(" ") & "; events: " & es.join(" ")
+  "commands: " & commands.join(" ") & "; events: " & es.join(" ")
 
 proc takeLogName(p: var Parsed, arg: string): string {.nimcall, raises: [].} =
   ## A word that names an event or a command to show.
   let e = parseEvent(arg)
   if e.isSome:
     p.filter.events.incl e.get
-  elif parseCommand(arg).isSome:
+  elif arg in p.known:
     p.filter.commands.add arg
   else:
-    return "'" & arg & "' is neither a command nor an event (" & names() & ")"
+    return "'" & arg & "' is neither a command nor an event (" & names(p.known) & ")"
   ""
 
-proc parseArgs*(args: seq[string]): Parsed =
-  ## The options of `nch log`; `problem` says what is wrong with them, if anything.
+proc parseArgs*(args: seq[string], commands: seq[string]): Parsed =
+  ## The options of `nch log`; `problem` says what is wrong with them, if anything.  `commands` are the names
+  ## of the commands there are, which can be used as filters.
   let lastOption = custom(Parsed, ["--last"], false, (p.filter.last = true; ""))
   let countOption = custom(Parsed, ["-n"], true):
     var n = 0
@@ -69,6 +67,7 @@ proc parseArgs*(args: seq[string]): Parsed =
     opts: @[flag(Parsed, ["-h", "--help"], help), lastOption, countOption],
     positional: takeLogName,
   )
+  result.known = commands
   result.problem = parseOptions(args, spec, result)
 
 proc show*(
@@ -102,7 +101,7 @@ proc show*(
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch log ARGS`; returns the exit status.
-  let p = parseArgs(args)
+  let p = parseArgs(args, g.commandNames)
   if p.help:
     stdout.say usage
     return exitOk
