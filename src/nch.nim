@@ -1,11 +1,12 @@
 ## nch: the nimchoo command line tool.  A thin dispatcher: each command lives
 ## in its own module under nimchoo/<module>/command.nim and exposes `run(globals, args):
-## int` (see cli/common.nim for the exit codes).  Options that every
+## int` (see core/globals.nim for the exit codes).  Options that every
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
 import std/[options, os, strutils]
-import nimchoo/cli/[catalog, common]
+import nimchoo/cli/catalog
+import nimchoo/core/globals
 import nimchoo/packages/util/args/args
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/cache/command as cacheCommand
@@ -75,7 +76,7 @@ proc main(): int {.raises: [].} =
   if args.len > 0 and args[0] == inflateFlag:
     # (a child of the downloads: see zipchild.nim)
     return inflateChildMain(args[1 ..^ 1])
-  var head = Head(g: Globals(fragments: allFragments, importSteps: allImportSteps))
+  var head = Head(g: Globals(fragments: allFragments))
   let spec = Spec[Head](
     opts: @[
       flag(Head, ["-h", "--help"], help),

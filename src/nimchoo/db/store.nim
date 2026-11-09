@@ -19,6 +19,7 @@ import db_connector/sqlite3 as lowlevel
 import ../core/errors
 import ../core/ids
 export ids
+import ../core/globals
 import ../core/fragment as coreFragment
 import ./[fragment, functions]
 import ./statement
@@ -233,3 +234,7 @@ proc rollback*(s: Store) {.raises: [].} =
     s.db.execScript("rollback")
   except StoreError:
     discard
+
+proc openStore*(g: Globals): Store {.raises: [StoreError].} =
+  ## The database the global options point at.
+  openStore(resolveDbPath(g.dbPath), g.fragments, g.user)

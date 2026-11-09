@@ -6,7 +6,7 @@ import std/[os, strutils, times, unittest]
 import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/core/errors
 import nimchoo/modules

@@ -328,7 +328,7 @@ A command package holds the command (`run`, its options, its output) and nothing
 
 ### Changes this makes to today's code (the cycle table, made specific)
 
-* `cli/common` splits: `Globals` and the exit codes go to core; nothing in core imports `ui` or `db`.
+* `cli/common` is `core/globals.nim` (**done, 2026-11-09**): `Globals` (`dbPath`, `user`, `offline`, `fragments`, `log`), the exit codes, `say`, `usageError`, `failure`; `openStore(g)` is in `db/store.nim`; nothing in core imports `ui` or `db`.  `importSteps` left `Globals`; `selection/command` reads `modules.allImportSteps` until the extension point (step 5).
 * `ui/logfile` stops importing `cli/catalog`: **done**; the log is `core/logfile.nim` (decided 2026-11-09: whole log code in `core`, pluggable logs are not needed; `Globals` in `core` too; `importSteps` leave `Globals`, and `selection/command` reads `modules.allImportSteps` until the extension point).
 * `db/channel` (which imports `fit/time`) moves to `importer`, so `store` does not depend on `fit`.
 * `user/wipe` splits in three: words and countdown (`confirm`), user lookup and removal (`user`), counting activities

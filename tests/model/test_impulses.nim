@@ -1,7 +1,7 @@
 import nimchoo/db/statement
 import std/[os, options, unittest]
 import ../support/shims
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
@@ -43,7 +43,7 @@ proc setFthr(s: Store, fthr: int) =
   )
 
 proc globals(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments, importSteps: allImportSteps)
+  Globals(dbPath: db, user: user, fragments: allFragments)
 
 suite "model: the models in the database":
   test "a new database has the default model, as the program defines it":

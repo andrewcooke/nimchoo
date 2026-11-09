@@ -1,5 +1,5 @@
 import std/[os, unittest]
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/cache/command as cacheCommand
 import ../support/userdata
 

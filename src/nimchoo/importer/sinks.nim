@@ -9,7 +9,7 @@
 ## noticed in a file that was imported anyway).
 
 import std/[strutils, tables]
-import ../cli/common
+import ../core/globals
 import ../packages/util/warnings/warnings
 import ./events
 import ../ui/vocabulary

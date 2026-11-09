@@ -10,7 +10,7 @@
 
 import std/[options, os]
 import db_connector/db_sqlite
-import ../cli/common
+import ../core/globals
 import ../db/[statement, store]
 import ../core/errors
 import ../ui/[live, style]

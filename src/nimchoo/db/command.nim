@@ -3,8 +3,9 @@
 ## -f; on a terminal it then counts down, in red, so there is time to press Ctrl-C.
 
 import std/[os, strutils]
+import ../cli/catalog
 import db_connector/db_sqlite
-import ../cli/common
+import ../core/globals
 import ../packages/util/args/args
 import ../download/fetch
 import ../core/errors

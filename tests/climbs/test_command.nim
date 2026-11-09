@@ -1,6 +1,6 @@
 import nimchoo/db/statement
 import std/[unittest]
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/db/store
 import nimchoo/core/ids

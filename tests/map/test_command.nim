@@ -1,7 +1,7 @@
 import nimchoo/db/statement
 import ../support/env
 import std/[json, options, os, strutils, times, unittest]
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/map/command as mapCommand
 import nimchoo/cache

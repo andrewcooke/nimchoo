@@ -3,7 +3,7 @@
 import std/[options, strutils, times]
 import ../packages/util/bytes/bytes
 import ./time
-import ../cli/common
+import ../core/globals
 import ../packages/util/args/args
 import ./csvout
 import ./reader

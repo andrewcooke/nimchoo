@@ -1,7 +1,7 @@
 import nimchoo/db/statement
 import std/[os, unittest]
 import db_connector/db_sqlite
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/landmark/command as landmarkCommand
 import nimchoo/modules

@@ -2,7 +2,7 @@ import nimchoo/db/statement
 import ../support/shims
 import ../support/env
 import std/[math, options, os, strutils, times, unittest]
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
@@ -161,7 +161,7 @@ suite "nch ff":
     removeFile(path)
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
-    let g = Globals(dbPath: path, fragments: allFragments, importSteps: allImportSteps)
+    let g = Globals(dbPath: path, fragments: allFragments)
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure # nothing yet
     let s = store.openStore(path, allFragments)
     var ws: seq[Warning]
@@ -246,7 +246,7 @@ suite "nch ff: the key":
     removeFile(path)
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
-    let g = Globals(dbPath: path, fragments: allFragments, importSteps: allImportSteps)
+    let g = Globals(dbPath: path, fragments: allFragments)
     let s = store.openStore(path, allFragments)
     var ws: seq[Warning]
     discard s.importFile(

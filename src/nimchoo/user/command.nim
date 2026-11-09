@@ -6,7 +6,8 @@
 ## whether they have impulses.
 
 import std/[options, strutils]
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
 import ../db/[statement, store]
 import ../core/errors
 import ../core/logfile

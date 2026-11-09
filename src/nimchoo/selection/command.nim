@@ -6,7 +6,9 @@
 ## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
 import std/[options, sequtils, strutils, tables, terminal, times]
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
+import ../modules
 import ../climbs/[display, report]
 import ../db/[statement, store]
 import ../delete/run as deleteRun
@@ -501,7 +503,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g,
         c.importPaths,
         ImportOptions(
-          steps: g.importSteps,
+          steps: allImportSteps,
           quiet: c.quiet,
           slow: c.slow,
           jobs: (if c.jobs > 0: c.jobs else: defaultJobs()),

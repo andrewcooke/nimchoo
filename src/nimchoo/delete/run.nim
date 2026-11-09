@@ -4,7 +4,8 @@
 ## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
 
 import std/strutils
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
 import ../db/store
 import ../core/errors
 import ../core/logfile

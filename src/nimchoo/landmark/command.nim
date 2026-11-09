@@ -3,7 +3,8 @@
 ## features of GeoNames by part of their name or by nearness to a position, and pick one to make a landmark of.
 
 import std/[options, strutils]
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
 import ../climbs/report
 import ../ui/units
 import ../db/store

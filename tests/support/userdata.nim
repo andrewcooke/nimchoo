@@ -3,7 +3,7 @@
 
 import nimchoo/db/statement
 import db_connector/db_sqlite
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/modules
 

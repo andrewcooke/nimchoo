@@ -3,7 +3,8 @@
 ## model are worked out when they are wanted (see `nch ff`), not when the model is added.
 ##
 import std/[options, strutils]
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
 import ../db/store
 import ../core/errors
 import ../core/logfile

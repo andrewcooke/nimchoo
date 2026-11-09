@@ -7,8 +7,9 @@
 ## This module is newer than `model`: it works out the impulses that are lacking, and reads them.
 
 import std/[math, options, os, strutils, times]
+import ../cli/catalog
 import db_connector/db_sqlite
-import ../cli/common
+import ../core/globals
 import ../cache
 import ../packages/util/atomic/atomic
 import ../db/[statement, store]

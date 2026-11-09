@@ -2,7 +2,8 @@
 ## whose command line is the `activities` command's; the module is not called `import` because that is a Nim keyword).
 
 import std/[cpuinfo, options, strutils]
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
 import ../db/[statement, store]
 import ../download/fetch
 import ../core/errors

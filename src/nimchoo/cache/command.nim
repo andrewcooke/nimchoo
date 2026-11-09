@@ -3,8 +3,9 @@
 ## is fetched, unpacked or made again when needed, so deleting needs no -f.
 
 import std/[options, strutils]
+import ../cli/catalog
 import ../cache
-import ../cli/common
+import ../core/globals
 import ../packages/util/args/args
 import ../download/fetch
 import ../core/logfile

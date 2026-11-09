@@ -4,8 +4,9 @@
 ## request, which finds them again (see handler.nim).  Shared by the commands that have pages.
 
 import std/[os, osproc]
+import ../cli/catalog
 import ../cache
-import ../cli/common
+import ../core/globals
 import ../db/store
 import ../core/logfile
 import ../ui/[interrupt, vocabulary]

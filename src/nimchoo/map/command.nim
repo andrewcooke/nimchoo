@@ -12,9 +12,10 @@
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
 import std/[options, os, tables]
+import ../cli/catalog
 import ../cache
 import ../packages/util/atomic/atomic
-import ../cli/common
+import ../core/globals
 import ../climbs/[attempts, report, work]
 import ../db/[statement, store]
 import ../core/errors

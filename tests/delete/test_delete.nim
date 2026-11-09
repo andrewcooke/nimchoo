@@ -1,6 +1,6 @@
 import nimchoo/db/statement
 import std/[os, unittest]
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/delete/[remove, run]
 import nimchoo/selection/command as activitiesCommand

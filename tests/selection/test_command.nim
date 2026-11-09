@@ -1,5 +1,5 @@
 import std/[algorithm, os, sequtils, strutils, times, unittest]
-import nimchoo/cli/common
+import nimchoo/core/globals
 import nimchoo/climbs/ordinal
 import nimchoo/db/[statement, store]
 import nimchoo/core/ids

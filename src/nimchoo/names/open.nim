@@ -3,8 +3,9 @@
 ## downloads or sinks.
 
 import std/options
+import ../cli/catalog
 import ../cache
-import ../cli/common
+import ../core/globals
 import ../db/store
 import ../download/[fetch, sinks]
 import ../ui/live

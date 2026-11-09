@@ -4,7 +4,8 @@
 ## that have not been looked at, and keeps them (see work.nim).  The climbs are shared by all users.
 
 import std/[options, strutils, times]
-import ../cli/common
+import ../cli/catalog
+import ../core/globals
 import ../db/store
 import ../core/errors
 import ../names/open
