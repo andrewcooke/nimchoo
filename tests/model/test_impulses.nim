@@ -29,7 +29,7 @@ proc fresh(name: string): string =
   removeFile(result)
 
 proc open(path: string, user = ""): Store =
-  store.openStore(path, allFragments, user)
+  store.openStore(path, allFragments, user, access = allAccess)
 
 proc importRide(s: Store, name = "ride.fit"): ImportResult =
   var ws: seq[Warning]
@@ -47,7 +47,7 @@ proc setFthr(s: Store, fthr: int) =
   )
 
 proc globals(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments)
+  Globals(dbPath: db, user: user, fragments: allFragments, access: allAccess)
 
 suite "model: the models in the database":
   test "a new database has the default model, as the program defines it":

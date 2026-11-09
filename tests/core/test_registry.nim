@@ -1,7 +1,7 @@
 ## The ordering of packages (core/registry.nim) and the generator of the registry (tools/genregistry.nim).
 
 import std/[algorithm, os, sequtils, strutils, unittest]
-import nimchoo/core/[extension, globals, package, registry]
+import nimchoo/core/[extension, globals, manifest, registry]
 import nimchoo/packages/importer/channel
 import nimchoo/core/errors
 import nimchoo/registry as generated

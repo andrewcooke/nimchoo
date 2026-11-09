@@ -22,7 +22,7 @@ func altitude*(x: float): float =
 
 proc fresh*(name: string): Store =
   removeDir(dir / name)
-  openStore(dir / name / "x.db", allFragments)
+  openStore(dir / name / "x.db", allFragments, access = allAccess)
 
 proc addRide*(
     s: Store,

@@ -12,7 +12,7 @@ proc fresh(name: string): string =
   removeDir(dir / name)
   createDir(dir / name)
   let db = dir / name / "x.db"
-  let s = openStore(db, allFragments)
+  let s = openStore(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.execute("insert into country(iso, name, geoname_id) values ('CL', 'Chile', 1)")
@@ -33,11 +33,12 @@ proc fresh(name: string): string =
 
 proc landmark(db: string, args: varargs[string]): int =
   landmarkCommand.run(
-    Globals(dbPath: db, fragments: allFragments, offline: true), @args
+    Globals(dbPath: db, fragments: allFragments, access: allAccess, offline: true),
+    @args,
   )
 
 proc q(db, sqlText: string, T: typedesc): T =
-  let s = openStore(db, allFragments)
+  let s = openStore(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.scalar(T, sqlText)
@@ -86,5 +87,6 @@ suite "nch landmarks":
     check landmark(db, "--add", "X") == exitUsage
     check landmark(db, "--pick", "1") == exitUsage
     check landmarkCommand.run(
-      Globals(dbPath: db, user: "default", fragments: allFragments), @[]
+      Globals(dbPath: db, user: "default", fragments: allFragments, access: allAccess),
+      @[],
     ) == exitUsage

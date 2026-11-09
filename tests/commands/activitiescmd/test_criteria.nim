@@ -358,15 +358,6 @@ suite "list: the box and the sql":
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "distance_m"
     )
-  test "saving wraps the same query":
-    let m = matchSql(
-      @[UserId(3)], Criteria(newest: 1), none((float, float)), sqlOf("a.id as id")
-    )
-    let saved = saveSql(UserId(7), m)
-    check saved.text ==
-      "insert into selection(user_id, activity_id) select :owner, id from (" & m.text &
-      ")"
-    check saved.value("owner") == arg(7) and saved.value("users") == arg("[3]")
 
 suite "list: --name and --start":
   proc parsed(args: varargs[string]): Criteria =

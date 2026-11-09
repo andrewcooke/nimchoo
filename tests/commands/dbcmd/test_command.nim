@@ -17,17 +17,17 @@ suite "nch db":
     let d = fresh("show")
     check dbCommand.run(globals(d), @[]) == exitOk
     check not fileExists(d)
-    openStore(d, allFragments).close()
+    openStore(d, allFragments, access = allAccess).close()
     check dbCommand.run(globals(d), @[]) == exitOk
     check fileExists(d)
   test "--delete without -f does nothing":
     let d = fresh("noforce")
-    openStore(d, allFragments).close()
+    openStore(d, allFragments, access = allAccess).close()
     check dbCommand.run(globals(d), @["--delete"]) == exitFailure
     check fileExists(d)
   test "--delete -f removes the file and its journal files":
     let d = fresh("force")
-    openStore(d, allFragments).close()
+    openStore(d, allFragments, access = allAccess).close()
     writeFile(d & "-journal", "")
     check dbCommand.run(globals(d), @["--delete", "-f"]) == exitOk
     check not fileExists(d) and not fileExists(d & "-journal")

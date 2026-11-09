@@ -73,7 +73,7 @@ proc envOf(net: Net): Env =
 proc fresh(name: string): tuple[st: Store, dir: string] =
   let top = getTempDir() / "nch-test-names" / name
   removeDir(top)
-  (openStore(top / "x.db", allFragments), top / "data")
+  (openStore(top / "x.db", allFragments, access = allAccess), top / "data")
 
 func cellOf(lon, lat: float): (int, int) =
   (int(floor(lon * cellsPerDegree.float)), int(floor(lat * cellsPerDegree.float)))

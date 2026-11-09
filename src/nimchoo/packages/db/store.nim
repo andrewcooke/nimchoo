@@ -21,7 +21,8 @@ import ../../core/ids
 export ids
 import ../../core/globals
 import ../../core/fragment as coreFragment
-import ./[fragment, functions]
+import ../../core/[access as coreAccess, ownership]
+import ./[access, fragment, functions]
 import ./statement
 export db_sqlite.DbConn, fragment, coreFragment
 
@@ -29,11 +30,14 @@ export db_sqlite.DbConn, fragment, coreFragment
 
 const
   defaultUser* = "default" ## the name of the user made in an empty database
-  baseFragments = @[fragment("001-schema.sql")]
+  baseFragments* =
+    @[fragment("001-schema.sql")] ## the database's own, applied first, always
 
 type
   ConnObj = object
     db: DbConn
+    access: Access
+      ## kept alive for as long as SQLite may ask it (the authorizer holds a pointer)
 
   Conn = ref ConnObj
     ## Owns the connection: it is closed when the last `Store` that points here goes, or earlier
@@ -107,7 +111,8 @@ proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   db.execScript("begin")
   var done = false
   try:
-    execScript(db, f.sql)
+    execScriptAs(db, f.sql, f.ownerName)
+      # (a fragment may touch only its own package's tables)
     if not f.seed.isNil:
       f.seed(db)
     record(db, f)
@@ -155,10 +160,11 @@ proc reclaim*(s: Store) {.raises: [StoreError].} =
   s.db.execScript("pragma incremental_vacuum")
 
 proc openStore*(
-    path: string, fragments: seq[Fragment], user = ""
+    path: string, fragments: seq[Fragment], user = "", access: Access = nil
 ): Store {.raises: [StoreError].} =
   ## Open the database at `path`, creating the file and applying the fragments
   ## it lacks, and find `user` ("": the default user, made if there are no users).
+  ## `access` says which package may touch which table (nil: nothing is checked).
   ## Raises StoreError if that cannot be done or the user does not exist.
   if path != ":memory:":
     try:
@@ -171,11 +177,12 @@ proc openStore*(
     result.db = open(path, "", "", "")
   except DbError as e:
     raiseStore(e.msg)
-  result.conn = Conn(db: result.db)
+  result.conn = Conn(db: result.db, access: access)
   result.path = path
   try:
     loadSpatialite(result.db)
     registerFunctions(result.db)
+    installAccess(result.db, access)
     block:
       # a new file: deleted rows give their space back (`reclaim`), instead of the file only ever growing.  This
       # must be said before the first table is made; a file made without it stays as it is.
@@ -237,4 +244,4 @@ proc rollback*(s: Store) {.raises: [].} =
 
 proc openStore*(g: Globals): Store {.raises: [StoreError].} =
   ## The database the global options point at.
-  openStore(resolveDbPath(g.dbPath), g.fragments, g.user)
+  openStore(resolveDbPath(g.dbPath), g.fragments, g.user, g.access)

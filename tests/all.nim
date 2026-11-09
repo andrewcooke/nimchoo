@@ -4,6 +4,8 @@
 {.push warning[UnusedImport]: off.}
 import ./support/env, ./support/timing
 import
+  ./core/test_access,
+  ./db/test_access,
   ./core/test_registry,
   ./core/test_imports,
   ./core/test_ownership,
@@ -45,7 +47,18 @@ import ./commands/ffcmd/test_stats
 import ./commands/activitiescmd/test_delete
 import ./cache/test_files
 import ./commands/cachecmd/test_command
-import ./importer/[test_extract, test_route, test_importer, test_batch, test_pool, test_events, test_stretch, test_naming as importerNaming, test_describe as importerDescribe]
+import
+  ./importer/[
+    test_extract,
+    test_route,
+    test_importer,
+    test_batch,
+    test_pool,
+    test_events,
+    test_stretch,
+    test_naming as importerNaming,
+    test_describe as importerDescribe,
+  ]
 import ./commands/activitiescmd/test_import
 import ./commands/activitiescmd/test_display
 import ./commands/activitiescmd/test_logsink

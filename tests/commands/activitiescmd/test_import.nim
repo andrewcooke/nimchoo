@@ -54,10 +54,12 @@ proc fresh(name: string): string =
   createDir(result)
 
 proc open(path: string): Store =
-  openStore(path, allFragments)
+  openStore(path, allFragments, access = allAccess)
 
-func globals(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments, offline: true)
+proc globals(db: string, user = ""): Globals =
+  Globals(
+    dbPath: db, user: user, fragments: allFragments, access: allAccess, offline: true
+  )
 
 suite "nch activities --import: finding files":
   test "directories are searched recursively, for .fit and .FIT only":

@@ -10,7 +10,7 @@ import std/[strutils, tables]
 import ../util/lookup/lookup
 import db_connector/db_sqlite
 import ../../core/errors
-import ./statement
+import ./[access, statement]
 
 {.push raises: [].}
 
@@ -18,15 +18,32 @@ const rowsPerStatement* = 128
 
 type MultiInsert* = object
   db: DbConn
+  package: string ## whose statements these are (the package that made it)
   head: string ## "insert into t(a, b) values "
   group: string ## "(?, ?)": one row
   stmts: Table[int, Stmt] ## by the number of rows
 
-proc initMultiInsert*(db: DbConn, head: string, columns: int): MultiInsert =
-  ## For inserts that start with `head` (ending in "values ") of rows of this many columns.
+proc initMultiInsertAs*(
+    db: DbConn, head: string, columns: int, package: string
+): MultiInsert =
   result.db = db
+  result.package = package
   result.head = head
   result.group = "(" & repeat("?, ", columns - 1) & "?)"
+
+template initMultiInsert*(db: DbConn, head: string, columns: int): MultiInsert =
+  ## For inserts that start with `head` (ending in "values ") of rows of this many columns.  The statements
+  ## are checked as the package of the file this is written in.
+  initMultiInsertAs(
+    db,
+    head,
+    columns,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
 proc statement*(m: var MultiInsert, rows: int): Stmt {.raises: [StoreError].} =
   ## The statement for exactly `rows` rows: its values are numbered row by row, so column `c`
@@ -37,5 +54,5 @@ proc statement*(m: var MultiInsert, rows: int): Stmt {.raises: [StoreError].} =
       if r > 0:
         sql.add ", "
       sql.add m.group
-    m.stmts[rows] = prepareStmt(m.db, sql)
+    m.stmts[rows] = prepareStmtAs(m.db, sql, m.package)
   m.stmts.must(rows)

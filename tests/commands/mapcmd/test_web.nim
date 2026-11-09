@@ -21,7 +21,7 @@ proc fixture(name: string, selected = true): tuple[db, cache: string] =
   ## A database with two activities that have routes, selected (or not).
   removeDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache")
-  let s = openStore(result.db, allFragments)
+  let s = openStore(result.db, allFragments, access = allAccess)
   defer:
     s.close()
   for (tag, route) in [

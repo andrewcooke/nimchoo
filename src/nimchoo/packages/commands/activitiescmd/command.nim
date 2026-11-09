@@ -13,6 +13,7 @@ import ../../../core/extension
 import ../../climbs/display
 import ../../climbs/report
 import ../../db/statement
+import ../../selection/selection
 import ../../db/store
 import ./deleterun as deleteRun
 import ../../importer/[batch, channel]
@@ -464,16 +465,7 @@ proc listActivities*(
     @[st.userId], c, r.centre, sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId)
   )
   if c.select:
-    st.begin()
-    var committed = false
-    try:
-      st.db.execute("delete from selection where user_id = :userId", userId = st.userId)
-      st.db.execute(saveSql(st.userId, match))
-      st.commit()
-      committed = true
-    finally:
-      if not committed:
-        st.rollback()
+    st.replaceSelection(st.db.query(int64, sqlOf("select id from (") & match & ")"))
   let rows =
     readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
   let total = st.db.scalar(

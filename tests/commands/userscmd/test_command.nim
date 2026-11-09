@@ -17,7 +17,9 @@ proc fresh(name: string): string =
 
 proc userAs(db, who: string, args: varargs[string]): int =
   ## nch --user WHO user ARGS (which the user command refuses: the user is named after it)
-  userCommand.run(Globals(dbPath: db, user: who, fragments: allFragments), @args)
+  userCommand.run(
+    Globals(dbPath: db, user: who, fragments: allFragments, access: allAccess), @args
+  )
 
 proc user(db: string, args: varargs[string]): int =
   userAs(db, "", @args)
@@ -27,13 +29,13 @@ proc edit(db, name: string, args: varargs[string]): int =
   user(db, @["--edit", name] & @args)
 
 proc q(db, sqlText: string, T: typedesc): T =
-  let s = openStore(db, allFragments)
+  let s = openStore(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.scalar(T, sqlText)
 
 proc lines(db: string): seq[string] =
-  let s = openStore(db, allFragments)
+  let s = openStore(db, allFragments, access = allAccess)
   defer:
     s.close()
   userLines(s)
@@ -151,7 +153,7 @@ suite "nch users":
   test "when the default user is destroyed, another becomes the default":
     let db = fresh("defaultgone")
     check user(db, "--add", "bob") == exitOk
-    let s = openStore(db, allFragments)
+    let s = openStore(db, allFragments, access = allAccess)
     s.db.execute("delete from user where name = 'default'")
     s.close()
     check q(db, "select name from user where is_default = 1", string) == "bob"
@@ -169,7 +171,7 @@ suite "nch users":
   test "the activities of each user are counted":
     let db = fresh("counts")
     check user(db, "--add", "bob") == exitOk
-    let s = openStore(db, allFragments)
+    let s = openStore(db, allFragments, access = allAccess)
     for i in 1 .. 1200:
       s.db.execute(
         "insert into file(user_id, name, sha256, imported_at) values ((select id from user where name = 'bob'), :name, :sha256, 0)",
@@ -190,7 +192,7 @@ suite "nch users":
   test "the profile goes with the user":
     let db = fresh("cascade")
     check user(db, "--add", "bob", "--fthr", "150") == exitOk
-    let s = openStore(db, allFragments)
+    let s = openStore(db, allFragments, access = allAccess)
     s.db.execute("delete from user where name = 'bob'")
     s.close()
     check q(db, "select count(*) from user_profile", int) == 0
@@ -198,7 +200,9 @@ suite "nch users":
   test "changes are logged (and not the listing)":
     let db = fresh("log")
     let path = dir / "log" / "nch.log"
-    let g = Globals(dbPath: db, fragments: allFragments, log: openLog(path))
+    let g = Globals(
+      dbPath: db, fragments: allFragments, access: allAccess, log: openLog(path)
+    )
     check userCommand.run(g, @["--add", "bob", "--fthr", "150"]) == exitOk
     check userCommand.run(g, @[]) == exitOk
     check userCommand.run(g, @["--edit", "default", "--fthr", "151"]) == exitOk
@@ -211,7 +215,7 @@ suite "nch users":
   test "other commands see a made user":
     let db = fresh("others")
     check user(db, "--add", "bob") == exitOk
-    let s = openStore(db, allFragments, "bob")
+    let s = openStore(db, allFragments, "bob", access = allAccess)
     defer:
       s.close()
     check s.userName == "bob"
@@ -220,7 +224,7 @@ suite "nch users --delete":
   test "without -f nothing is deleted; with -f the user and everything of theirs go":
     let db = fresh("remove")
     check user(db, "--add", "bob") == exitOk
-    let bob = openStore(db, allFragments, "bob")
+    let bob = openStore(db, allFragments, "bob", access = allAccess)
     fill(bob, "bobs")
     bob.close()
     check user(db, "--delete", "bob") == exitFailure

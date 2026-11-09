@@ -674,10 +674,3 @@ func matchSql*(
   if c.oldest > 0:
     result =
       result & sqlOf(" order by a.start_t asc limit :oldest").with("oldest", c.oldest)
-
-func saveSql*(owner: UserId, match: Sql): Sql =
-  ## The statement that makes the activities of the query `match` (which gives
-  ## a column `id` first) the selection of `owner`.
-  sqlOf("insert into selection(user_id, activity_id) select :owner, id from (").with(
-    "owner", owner
-  ) & match & ")"

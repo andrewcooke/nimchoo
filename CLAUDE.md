@@ -65,11 +65,15 @@ system can be extended with new fit-related functionality by adding a package, w
   command package, and only a `package.nim` imports a command (checked by a test).  the module that first introduces
   a concept owns it (eg `importer` owns activities) and later packages use its library files.
 * **imports** (`tests/core/test_imports.nim`): a file imports only its own package, `core`, standard and third-party
-  libraries, and the packages in its `depends`.  `depends` must also name the packages whose **tables** it reads in SQL;
-  that is not checked by a test yet (TODO step 8.6).
+  libraries, and the packages in its `depends`.  `depends` must also name the packages whose **tables** it reads in SQL
+  (checked when the statement is prepared: the access model, below).
 * **tables** belong to the package whose fragments make them (read from the `create table` / `rename to` in the sql;
-  `tests/core/test_ownership.nim` applies the fragments one at a time and checks that SQLite agrees).  a package should
-  write only its own tables, and may read those of its dependencies (not enforced yet: the access model, step 8.6).
+  `tests/core/test_ownership.nim` applies the fragments one at a time and checks that SQLite agrees).  a package may
+  write only its own tables, and read those of its `depends` and of `db` (the `user` table and spatialite's metadata);
+  **enforced** (`core/access.nim`, `packages/db/access.nim`; PACKAGES.md "The access model"): a statement is checked as
+  the package of the file it is written in, and a breach is a `StoreError` naming the package, the table and the sql.  a
+  query joining another package's tables must be run by a package that may read them.  a table is written by its owner's
+  functions (`selection/replaceSelection`, `db/users`, `user/profile`, `importer/remove`), so a command calls those.
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in its `ddl.nim`;
   `src/nimchoo/modules.nim` joins the lists until the registry does it (TODO).
 * **extension points** are few, and there is one: the import steps (`core/extension.nim`; `importer/channel.nim` declares the

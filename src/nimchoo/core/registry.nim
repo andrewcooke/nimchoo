@@ -3,15 +3,10 @@
 
 import std/[algorithm, strutils, tables]
 import ./errors
-import ./[extension, package]
+import ./[access, extension, fragment, names, ownership, manifest]
+export names
 
 {.push raises: [].}
-
-func normalised*(name: string): string =
-  ## A name as Nim compares them: ignoring case (after the first letter) and underscores.
-  if name.len == 0:
-    return ""
-  result = name[0 .. 0] & name[1 ..^ 1].toLowerAscii.replace("_", "")
 
 func visit(
     name: string,
@@ -112,3 +107,13 @@ proc collectExtensions*(
           p.name,
       )
       result.add c
+
+func accessOf*(
+    packages: seq[Registered], fragments: seq[Fragment], mode = amEnforce
+): Access {.raises: [PackageError].} =
+  ## The access rules for these packages (PACKAGES.md, "The access model"): who owns which table, from the
+  ## fragments, and what each package declares it uses.
+  var depends: Table[string, seq[string]]
+  for p in packages:
+    depends[p.name] = p.package.depends
+  newAccess(mode, tableOwners(fragments), depends, parentTables(fragments))

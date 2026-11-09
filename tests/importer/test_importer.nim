@@ -26,7 +26,7 @@ let p = loadProfile(profilePath)
 
 proc openStore(path: string, user = defaultUser): Store =
   ## The whole schema.
-  store.openStore(path, allFragments, user)
+  store.openStore(path, allFragments, user, access = allAccess)
 
 let dir = getTempDir() / "nch-test-import"
 

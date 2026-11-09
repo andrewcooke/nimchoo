@@ -54,7 +54,7 @@ suite "import events: a run":
     let d = fresh("order")
     bytesToFile(d / "a.fit", tiny(base + 1))
     bytesToFile(d / "b.fit", tiny(base + 2))
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let (evs, sum) = run(st, @[d])
@@ -76,7 +76,7 @@ suite "import events: a run":
     let d = fresh("outcomes")
     bytesToFile(d / "a.fit", tiny(base + 1))
     writeFile(d / "bad.fit", "junk")
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     discard run(st, @[d])
@@ -92,7 +92,7 @@ suite "import events: a run":
 
   test "a path that is not there is a failure with no start event":
     let d = fresh("missing")
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let (evs, sum) = run(st, @[d / "nonesuch"])
@@ -117,7 +117,7 @@ suite "import events: failures by kind":
         )
       ),
     )
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let (evs, sum) = run(st, @[d])
@@ -141,7 +141,7 @@ suite "import events: failures by kind":
       d / "2-nosession.fit",
       fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base)),
     )
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let (evs, sum) = run(st, @[d])
@@ -162,7 +162,7 @@ suite "import events: failures by kind":
     setFilePermissions(path, {})
     defer:
       setFilePermissions(path, {fpUserRead, fpUserWrite})
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let (evs, _) = run(st, @[d])
@@ -181,7 +181,7 @@ suite "import events: advisories":
           le32(base)
       ),
     )
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let (evs, sum) = run(st, @[d])

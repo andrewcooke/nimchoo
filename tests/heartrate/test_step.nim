@@ -24,7 +24,7 @@ proc openDb(name: string): Store =
   createDir(dir)
   let path = dir / name & ".db"
   removeFile(path)
-  store.openStore(path, allFragments)
+  store.openStore(path, allFragments, access = allAccess)
 
 proc imp(s: Store, data: seq[byte], ws: var seq[Warning]): ImportResult =
   s.importFile(p, "x.fit", data, ws, @[heartrateStep])

@@ -9,7 +9,7 @@ import nimchoo/modules
 proc fresh(name: string): Store =
   let top = getTempDir() / "nch-test-landmark" / name
   removeDir(top)
-  openStore(top / "x.db", allFragments)
+  openStore(top / "x.db", allFragments, access = allAccess)
 
 proc feature(s: Store, id: int, name, cls, code: string, lon, lat: float, pop = 0) =
   s.db.execute(

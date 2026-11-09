@@ -22,8 +22,8 @@ from db_connector/sqlite3 import
   column_bytes
 import ../../core/errors
 import ../../core/ids
-import ./sqltext
-export sqltext
+import ./[access, sqltext]
+export sqltext, access.packageOfFile
 
 {.push raises: [].}
 
@@ -44,12 +44,33 @@ proc `=destroy`(s: StmtObj) {.raises: [].} =
 proc fail(db: DbConn, what: string) {.noreturn, raises: [StoreError].} =
   raiseStore(what & ": " & $errmsg(db))
 
-proc prepareStmt*(db: DbConn, sql: string): Stmt {.raises: [StoreError].} =
-  ## Compile one statement; `?` marks the values to bind (numbered from 1).
+proc prepareStmtAs*(
+    db: DbConn, sql: string, package: string
+): Stmt {.raises: [StoreError].} =
+  ## Compile one statement written in `package` ("": not checked); `?` marks the values to bind (numbered
+  ## from 1).  The access rules (`access.nim`) are asked while it is compiled.
   var raw: PStmt
-  if prepare_v2(db, cstring(sql), cint(sql.len), raw, nil) != SQLITE_OK:
+  enter(package)
+  let rc = prepare_v2(db, cstring(sql), cint(sql.len), raw, nil)
+  let refused = leave()
+  if rc != SQLITE_OK:
+    if refused.len > 0:
+      raiseStore(refused & ": " & sql)
     fail(db, "cannot prepare '" & sql & "'")
   Stmt(raw: raw, db: db)
+
+template prepareStmt*(db: DbConn, sql: string): untyped =
+  ## Compile one statement; `?` marks the values to bind (numbered from 1).  It is checked as the package
+  ## of the file it is written in.
+  prepareStmtAs(
+    db,
+    sql,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
 proc bindInt*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
   ## Bind a whole number (or an id) to parameter `i` (counted from 1).
@@ -142,19 +163,39 @@ proc lastInsertId*(db: DbConn): int64 {.raises: [].} =
   ## The id of the row most recently inserted on this connection.
   last_insert_rowid(db)
 
-proc execScript*(db: DbConn, script: string) {.raises: [StoreError].} =
-  ## Run a script of several statements.  (If one fails the ones before it
+proc execScriptAs*(
+    db: DbConn, script: string, package: string
+) {.raises: [StoreError].} =
+  ## Run a script of several statements written in `package`.  (If one fails the ones before it
   ## have been done: run it inside a transaction.)
   var err: cstring
-  if exec(db, cstring(script), nil, nil, err) != SQLITE_OK:
+  enter(package)
+  let rc = exec(db, cstring(script), nil, nil, err)
+  let refused = leave()
+  if rc != SQLITE_OK:
     let message =
-      if err.isNil:
+      if refused.len > 0:
+        refused
+      elif err.isNil:
         $errmsg(db)
       else:
         $err
     if not err.isNil:
       free(err)
     raiseStore(message)
+
+template execScript*(db: DbConn, script: string) =
+  ## Run a script of several statements.  (If one fails the ones before it
+  ## have been done: run it inside a transaction.)  It is checked as the package of the file it is written in.
+  execScriptAs(
+    db,
+    script,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
 # --- typed reading -------------------------------------------------------------------------------------------
 
@@ -260,10 +301,10 @@ proc bindArg(s: Stmt, i: int, a: Arg) {.raises: [StoreError].} =
   of akText:
     s.bindText(i, a.s)
 
-proc prepareSql*(db: DbConn, q: Sql): Stmt {.raises: [StoreError].} =
+proc prepareSql*(db: DbConn, q: Sql, package: string): Stmt {.raises: [StoreError].} =
   ## Compile the query and bind its values by name.  A mark with no value, a value no mark uses, and a name given
   ## twice are errors (a mistake in building the query, told before it runs).
-  result = prepareStmt(db, q.text)
+  result = prepareStmtAs(db, q.text, package)
   var used = newSeq[bool](q.args.len)
   for i in 1 .. int(bind_parameter_count(result.raw)):
     let mark = bind_parameter_name(result.raw, int32(i))
@@ -284,30 +325,71 @@ proc prepareSql*(db: DbConn, q: Sql): Stmt {.raises: [StoreError].} =
     if not used[k]:
       raiseStore("the value :" & a.name & " is not used by the query: " & q.text)
 
-proc runQuery*(db: DbConn, T: typedesc, q: Sql): seq[T] {.raises: [StoreError].} =
-  fetchAll[T](prepareSql(db, q))
+proc runQuery*(
+    db: DbConn, T: typedesc, q: Sql, package: string
+): seq[T] {.raises: [StoreError].} =
+  fetchAll[T](prepareSql(db, q, package))
 
-proc runQueryOne*(db: DbConn, T: typedesc, q: Sql): Option[T] {.raises: [StoreError].} =
-  fetchOne[T](prepareSql(db, q))
+proc runQueryOne*(
+    db: DbConn, T: typedesc, q: Sql, package: string
+): Option[T] {.raises: [StoreError].} =
+  fetchOne[T](prepareSql(db, q, package))
 
-proc runScalar*(db: DbConn, T: typedesc, q: Sql): T {.raises: [StoreError].} =
-  theRow(fetchOne[T](prepareSql(db, q)), q.text)
+proc runScalar*(
+    db: DbConn, T: typedesc, q: Sql, package: string
+): T {.raises: [StoreError].} =
+  theRow(fetchOne[T](prepareSql(db, q, package)), q.text)
 
-proc runExecute*(db: DbConn, q: Sql) {.raises: [StoreError].} =
-  prepareSql(db, q).run()
+proc runExecute*(db: DbConn, q: Sql, package: string) {.raises: [StoreError].} =
+  prepareSql(db, q, package).run()
 
-proc query*(db: DbConn, T: typedesc, q: Sql): seq[T] {.raises: [StoreError].} =
+template query*(db: DbConn, T: typedesc, q: Sql): untyped =
   ## All the rows of a query built from pieces, as `T`s.
-  runQuery(db, T, q)
+  runQuery(
+    db,
+    T,
+    q,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
-proc queryOne*(db: DbConn, T: typedesc, q: Sql): Option[T] {.raises: [StoreError].} =
-  runQueryOne(db, T, q)
+template queryOne*(db: DbConn, T: typedesc, q: Sql): untyped =
+  runQueryOne(
+    db,
+    T,
+    q,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
-proc scalar*(db: DbConn, T: typedesc, q: Sql): T {.raises: [StoreError].} =
-  runScalar(db, T, q)
+template scalar*(db: DbConn, T: typedesc, q: Sql): untyped =
+  runScalar(
+    db,
+    T,
+    q,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
-proc execute*(db: DbConn, q: Sql) {.raises: [StoreError].} =
-  runExecute(db, q)
+template execute*(db: DbConn, q: Sql): untyped =
+  runExecute(
+    db,
+    q,
+    (
+      block:
+        const package = packageOfFile(instantiationInfo(-1, true).filename)
+        package
+    ),
+  )
 
 # --- the calls: the sql text with :names, and name = value for each --------------------------------------------
 
@@ -388,22 +470,26 @@ proc built(call, text: NimNode, args: seq[NimNode]): NimNode {.compileTime.} =
     if '?' in unquoted(literal.get):
       error("use :names in the sql, not ?", call)
 
+proc packageLit(at: NimNode): NimNode {.compileTime.} =
+  ## The package of the file the call is written in, as a literal.
+  newLit(packageOfFile(at.lineInfoObj.filename))
+
 macro query*(db: DbConn, T: typedesc, text: string, args: varargs[untyped]): untyped =
   ## All the rows of the query as `T`s (a tuple, an object, or one value for a one-column query).  The values are
   ## given by name, `query(db, Row, "select ... where id = :id", id = 3)`; each `:name` of the sql text needs its
   ## `name = value`, checked when the program is compiled if the text is a literal.
-  newCall(bindSym"runQuery", db, T, built(db, text, nodes(args)))
+  newCall(bindSym"runQuery", db, T, built(db, text, nodes(args)), packageLit(db))
 
 macro queryOne*(
     db: DbConn, T: typedesc, text: string, args: varargs[untyped]
 ): untyped =
   ## The first row, or `none` if there is none.
-  newCall(bindSym"runQueryOne", db, T, built(db, text, nodes(args)))
+  newCall(bindSym"runQueryOne", db, T, built(db, text, nodes(args)), packageLit(db))
 
 macro scalar*(db: DbConn, T: typedesc, text: string, args: varargs[untyped]): untyped =
   ## The one value a query is sure to give (`select count(*) ...`); no row at all is a `StoreError`.
-  newCall(bindSym"runScalar", db, T, built(db, text, nodes(args)))
+  newCall(bindSym"runScalar", db, T, built(db, text, nodes(args)), packageLit(db))
 
 macro execute*(db: DbConn, text: string, args: varargs[untyped]): untyped =
   ## Run an insert, update or delete.
-  newCall(bindSym"runExecute", db, built(db, text, nodes(args)))
+  newCall(bindSym"runExecute", db, built(db, text, nodes(args)), packageLit(db))

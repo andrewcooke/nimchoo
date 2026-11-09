@@ -115,7 +115,11 @@ suite "import log: the command":
     writeFile(d / "src" / "bad.fit", "junk")
     let path = d / "nch.log"
     let g = Globals(
-      dbPath: d / "x.db", fragments: allFragments, log: openLog(path), offline: true
+      dbPath: d / "x.db",
+      fragments: allFragments,
+      access: allAccess,
+      log: openLog(path),
+      offline: true,
     )
     check importCmd(g, @["-q", d / "src"]) == exitFailure
     g.log.close()
@@ -129,7 +133,9 @@ suite "import log: the command":
     let d = fresh("again")
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let path = d / "nch.log"
-    var g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
+    var g = Globals(
+      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+    )
     discard importCmd(g, @["-q", d / "src"])
     g.log = openLog(path)
     check importCmd(g, @["-q", d / "src"]) == exitOk
@@ -141,6 +147,8 @@ suite "import log: the command":
   test "no log, no file":
     let d = fresh("nolog")
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
-    let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
+    let g = Globals(
+      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+    )
     check importCmd(g, @["-q", d / "src"]) == exitOk
     check not fileExists(d / "nch.log")

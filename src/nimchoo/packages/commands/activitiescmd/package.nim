@@ -1,10 +1,10 @@
-import ../../../core/package as corePackage
+import ../../../core/manifest
 import ./command
 
 const package* = Package(
   depends: @[
-    "args", "climbs", "confirm", "db", "delete", "download", "fit", "fold", "importer",
-    "names", "ui", "warnings", "selection",
+    "args", "climbs", "confirm", "db", "download", "fit", "fold", "importer", "names",
+    "ui", "warnings", "selection",
   ],
   commands: @[
     CommandDecl(

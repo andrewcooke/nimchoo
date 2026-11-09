@@ -1,3 +1,3 @@
-import ../../core/package as corePackage
+import ../../core/manifest
 
 const package* = Package(depends: @["download", "hashing", "proquint"], fragments: @[])

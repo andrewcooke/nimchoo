@@ -2,7 +2,7 @@
 ## packages it depends on.  The checks of the dependencies are made when this is compiled.
 
 import ./core/extension
-import ./core/package as corePackage
+import ./core/manifest
 import ./core/registry as coreRegistry
 import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
@@ -20,7 +20,6 @@ import ./packages/commands/modelscmd/package as pkgModelscmd
 import ./packages/commands/userscmd/package as pkgUserscmd
 import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
-import ./packages/delete/package as pkgDelete
 import ./packages/download/package as pkgDownload
 import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
@@ -66,7 +65,6 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "userscmd", package: pkgUserscmd.package),
     Registered(name: "confirm", package: pkgConfirm.package),
     Registered(name: "db", package: pkgDb.package),
-    Registered(name: "delete", package: pkgDelete.package),
     Registered(name: "download", package: pkgDownload.package),
     Registered(name: "fit", package: pkgFit.package),
     Registered(name: "geo", package: pkgGeo.package),

@@ -14,8 +14,7 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 8. Packages: the design is PACKAGES.md.  Done on 2026-11-09 (8.1 to 8.4): the inventory, `core`, the generated
       registry, the import checker, inferred table ownership, every module a package, the four cycles broken, every
       command a package.  Done on the same day, 8.5: the extension mechanism and the import steps (PACKAGES.md); on-demand
-      work and criteria wait (below).  Left: 8.6 the access model (SQLite's authorizer: report-only, then
-      writes, then reads; the SQL-reads check that is a hand-run text scan now); 8.7 the schema-by-several-orders test, a
+      work and criteria wait (below).  Done, 8.6: the access model (PACKAGES.md).  Left: 8.7 the schema-by-several-orders test, a
       README in each package, the fragments from the registry instead of `modules.nim` (which then goes).
       Your database must be made again (`nch db --delete -f`): the landmark
       fragment moved into `names`.
@@ -50,15 +49,6 @@ Either replaces the direct dependency of `activities` on `climbs`.
 
 **On-demand activity work** as an extension point is deferred too: build it when some command must trigger work from a
 package it cannot depend on (PACKAGES.md, "Extension points").
-
-## Left over from the packages move (2026-11-09)
-
-* Commands that write tables of a library themselves, to move into the libraries when the access model is built
-  (`nimble`-run report: `python3 sqlrefs.py`, in the session scratchpad; it is a text scan, step 6 makes it exact):
-  `userscmd` (`user`, `user_profile`), `activitiescmd` (`selection`); and `delete` (`activity`, `file`: the deletion
-  of activities may belong in `importer`), `user` (`user`, which `db` owns).
-* A check that the SQL reads of a package match its `depends` is a text scan done by hand so far (a script in the
-  session scratchpad of 2026-11-09); make it a test, or let step 8.6 do it exactly.
 
 ## Open from before the review
 

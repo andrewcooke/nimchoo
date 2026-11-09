@@ -51,9 +51,10 @@ proc fill*(s: Store, tag: string) =
     activityId = a,
   )
 
-func globals*(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments, offline: true)
-    # (no test uses the network)
+proc globals*(db: string, user = ""): Globals =
+  Globals(
+    dbPath: db, user: user, fragments: allFragments, access: allAccess, offline: true
+  ) # (no test uses the network)
 
 proc addUser*(path, name: string) =
   ## Make a user by hand (the command that does it is not what is being tested).

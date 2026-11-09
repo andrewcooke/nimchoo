@@ -61,6 +61,7 @@ proc main(): int {.raises: [].} =
     return exitOk
   var g = head.g
   g.extensions = registry.extensions
+  g.access = allAccess
   if i >= args.len:
     stderr.say usage
     return exitUsage

@@ -12,7 +12,7 @@ import ../../../core/logfile
 import ../../ui/live
 import ../../ui/style
 import ../../confirm/confirm
-import ../../delete/remove
+import ../../importer/remove
 
 {.push raises: [].}
 

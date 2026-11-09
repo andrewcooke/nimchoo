@@ -15,7 +15,7 @@ proc tempDb(name: string): string =
 
 proc open(path: string, user = defaultUser): Store =
   ## The whole schema.
-  openStore(path, allFragments, user)
+  openStore(path, allFragments, user, access = allAccess)
 
 proc count(s: Store, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)

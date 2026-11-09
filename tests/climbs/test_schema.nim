@@ -9,7 +9,7 @@ let dir = getTempDir() / "nch-test-climbs-schema"
 
 proc fresh(name: string): Store =
   removeDir(dir / name)
-  openStore(dir / name / "x.db", allFragments)
+  openStore(dir / name / "x.db", allFragments, access = allAccess)
 
 suite "climbs: the tables":
   test "a sector has a route with altitude and a spatial index":

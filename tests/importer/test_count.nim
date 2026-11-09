@@ -17,7 +17,7 @@ proc fresh(name: string): string =
 suite "importer: counting activities":
   test "activities are counted straight from the file, whatever its layout":
     let d = fresh("count")
-    let a = openStore(d / "x.db", allFragments)
+    let a = openStore(d / "x.db", allFragments, access = allAccess)
     fill(a, "mine")
     a.close()
     check countActivities(d / "x.db", "") == some 1
@@ -30,7 +30,7 @@ suite "importer: counting activities":
     )
     c.close()
     expect StoreError:
-      openStore(d / "x.db", allFragments).close()
+      openStore(d / "x.db", allFragments, access = allAccess).close()
     check countActivities(d / "x.db", "") == some 1
 
   test "a file without an activity table is not counted":

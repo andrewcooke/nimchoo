@@ -34,7 +34,7 @@ func usesSpatialIndex(plan: seq[string]): bool =
     if "SpatialIndex" in line:
       return true
 
-let st = openStore(":memory:", allFragments)
+let st = openStore(":memory:", allFragments, access = allAccess)
 
 suite "query plans: no query reads a whole table":
   test "the check can fail: a column with no index is a scan":

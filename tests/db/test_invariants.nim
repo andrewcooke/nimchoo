@@ -14,7 +14,7 @@ proc fresh(name: string): Store =
   createDir(dir)
   let path = dir / name & ".db"
   removeFile(path)
-  result = openStore(path, allFragments)
+  result = openStore(path, allFragments, access = allAccess)
   let db = result.db
   db.execute(
     "insert into file(id, user_id, name, sha256, imported_at) values (1, :userId, 'a', 'x', 0)",

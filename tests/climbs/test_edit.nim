@@ -17,7 +17,7 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
   removeDir(dir / name)
   createDir(dir / name)
   result = dir / name / "x.db"
-  let s = openStore(result, allFragments)
+  let s = openStore(result, allFragments, access = allAccess)
   defer:
     s.close()
   for (n, gain) in climbs:
@@ -31,16 +31,19 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
       # (the number a climb gets when it is named: in the order made)
 
 proc climbs(db: string, args: varargs[string]): int =
-  command.run(Globals(dbPath: db, fragments: allFragments, offline: true), @args)
+  command.run(
+    Globals(dbPath: db, fragments: allFragments, access: allAccess, offline: true),
+    @args,
+  )
 
 proc q(db, sqlText: string, T: typedesc): T =
-  let s = openStore(db, allFragments)
+  let s = openStore(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.scalar(T, sqlText)
 
 proc shown(db: string): seq[string] =
-  let s = openStore(db, allFragments)
+  let s = openStore(db, allFragments, access = allAccess)
   defer:
     s.close()
   for r in allSectors(s):
@@ -54,7 +57,7 @@ suite "nch climbs: names, and the list of all":
       fresh("list", [("Farellones", 300.0), ("Cuesta", 100.0), ("cuesta", 200.0)])
     check climbs(db, "--all") == exitOk
     check shown(db) == @["Farellones", "cuesta₂", "Cuesta₁"]
-    let s = openStore(db, allFragments)
+    let s = openStore(db, allFragments, access = allAccess)
     defer:
       s.close()
     check sectorLines(allSectors(s))[0].startsWith("climb")
@@ -80,7 +83,7 @@ suite "nch climbs: names, and the list of all":
     check climbs(db, "--edit", "Cuesta", "--rename", "X") == exitFailure
     check climbs(db, "--edit", "Nowhere", "--rename", "X") == exitFailure
     check q(db, "select count(*) from sector where manual = 1", int) == 0
-    let s = openStore(db, allFragments)
+    let s = openStore(db, allFragments, access = allAccess)
     defer:
       s.close()
     expect StoreError:
@@ -102,11 +105,23 @@ suite "nch climbs: names, and the list of all":
   test "--user is allowed (it says whose selection and whose best time); the changes are shared":
     let db = fresh("user", [("Cuesta", 100.0)])
     check command.run(
-      Globals(dbPath: db, user: "default", fragments: allFragments, offline: true),
+      Globals(
+        dbPath: db,
+        user: "default",
+        fragments: allFragments,
+        access: allAccess,
+        offline: true,
+      ),
       @["--all"],
     ) == exitOk
     check command.run(
-      Globals(dbPath: db, user: "default", fragments: allFragments, offline: true),
+      Globals(
+        dbPath: db,
+        user: "default",
+        fragments: allFragments,
+        access: allAccess,
+        offline: true,
+      ),
       @["--edit", "Cuesta", "--rename", "Mine"],
     ) == exitOk
   test "a manual name survives the program's naming":
@@ -127,7 +142,7 @@ suite "nch climbs: retiring":
       @["Farellones", "Cuesta₃", "Cuesta₁"] # (the gap shows: no ₂)
     check q(db, "select retired from sector where id = 2", int) == 1
     check q(db, "select count(*) from sector", int) == 4 # nothing is deleted
-    let s = openStore(db, allFragments)
+    let s = openStore(db, allFragments, access = allAccess)
     defer:
       s.close()
     check allSectors(s, retired = true)[0].name == "Cuesta₂"

@@ -63,7 +63,7 @@ proc fresh(name: string): string =
   createDir(result)
 
 proc open(path: string): Store =
-  openStore(path, allFragments)
+  openStore(path, allFragments, access = allAccess)
 
 proc count(s: Store, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
@@ -237,7 +237,9 @@ suite "import: remembered failures":
   test "known failures do not make later runs fail":
     let d = fresh("status")
     writeFile(d / "bad.fit", "broken")
-    let g = Globals(dbPath: d / "x.db", fragments: allFragments, offline: true)
+    let g = Globals(
+      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+    )
     check importCmd(g, @["-q", d]) == exitFailure # new failure
     check importCmd(g, @["-q", d]) == exitOk # known now
     check importCmd(g, @["-q", "--slow", d]) == exitFailure

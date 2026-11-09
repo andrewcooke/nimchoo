@@ -15,7 +15,8 @@ import ../../ui/live
 import ../../importer/count
 import ../../confirm/confirm
 import ./params
-import ../../user/wipe
+import ../../db/users
+import ../../user/[profile, wipe]
 
 {.push raises: [].}
 
@@ -49,25 +50,6 @@ Names have 1 to 32 letters, digits and _ . - (not starting with -).
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0
-
-proc setFthr(st: Store, id: UserId, fthr: int) {.raises: [StoreError].} =
-  st.db.execute(
-    """insert into user_profile(user_id, fthr) values (:userId, :fthr)
-      on conflict(user_id) do update set fthr = excluded.fthr""",
-    userId = id,
-    fthr = fthr,
-  )
-
-proc setDefault(st: Store, id: UserId) {.raises: [StoreError].} =
-  ## Make `id` the default user (the old one stops being; both or neither).
-  st.begin()
-  try:
-    st.db.execute("update user set is_default = 0 where is_default = 1")
-    st.db.execute("update user set is_default = 1 where id = :id", id = id)
-    st.commit()
-  except StoreError:
-    st.rollback()
-    raise
 
 const deletedNote = " (the impulses worked out with the old one are deleted)"
 
@@ -156,18 +138,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
-      removeUser(st, id)
+      deleteUser(st, id)
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
       sayDeleted("deleted " & what)
       return exitOk
     if p.create:
       if exists(st, p.name):
         return failure("nch users", "there is a user called '" & p.name & "' already")
-      st.db.execute("insert into user(name) values (:name)", name = p.name)
+      addUser(st, p.name)
       let id = findUser(st, p.name)
       var said = "made the user " & p.name
       if p.makeDefault:
-        setDefault(st, id)
+        setDefaultUser(st, id)
         said.add ", the default"
       if p.fthr.isSome:
         said.add ", with an FTHR of " & $p.fthr.get
@@ -188,25 +170,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stdout.say said & "\n"
     if p.clearFthr:
       let had = hasImpulses(st, id)
-      st.db.execute(
-        "update user_profile set fthr = null where user_id = :userId", userId = id
-      )
+      clearFthr(st, id)
       let said =
         p.name & ": FTHR forgotten" &
         (if had: " (and the impulses worked out with it are deleted)" else: "")
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:
-      setDefault(st, id)
+      setDefaultUser(st, id)
       let said = p.name & " is now the default user"
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.rename.len > 0:
       if exists(st, p.rename):
         return failure("nch users", "there is a user called '" & p.rename & "' already")
-      st.db.execute(
-        "update user set name = :name where id = :id", name = p.rename, id = id
-      )
+      renameUser(st, id, p.rename)
       let said = p.name & " is now called " & p.rename
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"

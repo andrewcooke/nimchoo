@@ -5,6 +5,7 @@ import std/[cpuinfo, options, strutils]
 import ./cmdname
 import ../../../core/globals
 import ../../db/statement
+import ../../selection/selection
 import ../../db/store
 import ../../download/fetch
 import ../../../core/errors
@@ -41,22 +42,15 @@ proc selectNew(st: Store, after: int64): int {.raises: [StoreError].} =
   )
   if result == 0:
     return
-  st.begin()
-  var done = false
-  try:
-    st.db.execute("delete from selection where user_id = :userId", userId = st.userId)
-    st.db.execute(
-      """insert into selection(user_id, activity_id)
-                       select :userId, a.id from activity a join file f on f.id = a.file_id
-                        where a.id > :after and f.user_id = :userId""",
-      userId = st.userId,
+  st.replaceSelection(
+    st.db.query(
+      int64,
+      """select a.id from activity a join file f on f.id = a.file_id
+          where a.id > :after and f.user_id = :userId""",
       after = after,
+      userId = st.userId,
     )
-    st.commit()
-    done = true
-  finally:
-    if not done:
-      st.rollback()
+  )
 
 proc runImport*(
     g: Globals, targets: seq[string], opts: ImportOptions

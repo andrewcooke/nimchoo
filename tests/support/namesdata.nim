@@ -73,4 +73,4 @@ proc envOf*(net: Net): Env =
 proc fresh*(name: string): tuple[st: Store, dir: string] =
   let top = getTempDir() / "nch-test-features" / name
   removeDir(top)
-  (openStore(top / "x.db", allFragments), top / "data")
+  (openStore(top / "x.db", allFragments, access = allAccess), top / "data")

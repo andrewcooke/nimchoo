@@ -1,4 +1,4 @@
-import ../../core/[extension, package as corePackage]
+import ../../core/[extension, manifest]
 import ../importer/channel
 import ./step
 

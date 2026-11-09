@@ -11,10 +11,22 @@ import ./packages/model/ddl as modelDdl
 import ./packages/names/ddl as namesDdl
 import ./packages/selection/ddl as selectionDdl
 import ./packages/user/ddl as userDdl
-import ./core/fragment
+import ./core/[access, errors, fragment, registry as coreRegistry]
+import ./packages/db/store
+import ./registry
 
 {.push raises: [].}
 
 const allFragments*: seq[Fragment] =
   namesDdl.fragments & importerDdl.fragments & heartrateDdl.fragments &
   climbsDdl.fragments & selectionDdl.fragments & userDdl.fragments & modelDdl.fragments
+
+proc newAllAccess*(mode: AccessMode): Access =
+  ## The access rules for all the packages, in this `mode`.
+  try:
+    result = accessOf(registry.packages, baseFragments & allFragments, mode)
+  except PackageError as e:
+    raiseAssert e.msg
+
+let allAccess*: Access = newAllAccess(amEnforce)
+  ## the rules `nch` and the tests run under

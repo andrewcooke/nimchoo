@@ -39,7 +39,7 @@ suite "schema":
     createDir(dir)
     let path = dir / "fk.db"
     removeFile(path)
-    let s = openStore(path, allFragments)
+    let s = openStore(path, allFragments, access = allAccess)
     var missing: seq[string]
     for table in s.db.query(
       string, "select name from sqlite_master where type = 'table' order by name"

@@ -149,7 +149,7 @@ suite "import display: a run":
     )
 
   proc run(f: Fake, d: string, advanceBy: int64): Summary =
-    let st = openStore(d / "x.db", allFragments)
+    let st = openStore(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let ticker: Sink = proc(ev: ImportEvent) {.closure, raises: [].} =

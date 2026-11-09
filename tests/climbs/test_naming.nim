@@ -23,7 +23,7 @@ proc world(name: string): tuple[net: Net, names: Names, st: Store] =
   let net = Net(chile: @[santiago, sanCristobal, pass, barrio].join("\n") & "\n")
   let top = getTempDir() / "nch-test-climbs-naming" / name
   removeDir(top)
-  let st = openStore(top / "x.db", allFragments)
+  let st = openStore(top / "x.db", allFragments, access = allAccess)
   (net, newNames(st, top / "data", envOf(net), silent()), st)
 
 suite "climbs: naming the sectors":
@@ -48,7 +48,7 @@ suite "climbs: naming the sectors":
   test "without the network it is an error, and the sectors stay unnamed (null) for the next time":
     let top = getTempDir() / "nch-test-climbs-naming" / "offline"
     removeDir(top)
-    let st = openStore(top / "x.db", allFragments)
+    let st = openStore(top / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     var env = envOf(Net())

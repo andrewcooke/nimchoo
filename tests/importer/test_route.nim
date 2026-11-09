@@ -118,7 +118,7 @@ suite "route: in the database":
 
   proc store(name: string): Store =
     removeDir(dir / name)
-    openStore(dir / name / "x.db", allFragments)
+    openStore(dir / name / "x.db", allFragments, access = allAccess)
 
   test "SpatiaLite is there: a route can be stored and asked how far it is":
     let s = store("sp")

@@ -67,6 +67,37 @@ func tableEvents*(sql: string): seq[TableEvent] =
         kind: teRename, name: words[5].tableName, renamed: words[2].tableName
       )
 
+func parentTables*(fragments: seq[Fragment]): Table[string, seq[string]] =
+  ## Table -> the tables it refers to by `references` (a foreign key), read from `create table` and `alter table`
+  ## in the fragments.  A test compares it with what SQLite says (`pragma foreign_key_list`).
+  for f in fragments:
+    for statement in f.sql.withoutComments.split(';'):
+      let words =
+        statement.replace('(', ' ').replace(')', ' ').replace(',', ' ').splitWhitespace
+      var child = ""
+      if words.len >= 3 and words[0].toLowerAscii == "create":
+        var i = 1
+        if words[i].toLowerAscii == "virtual":
+          inc i
+        if i < words.len and words[i].toLowerAscii == "table":
+          inc i
+          if i + 2 < words.len and words[i].toLowerAscii == "if" and
+              words[i + 1].toLowerAscii == "not" and
+              words[i + 2].toLowerAscii == "exists":
+            i += 3
+          if i < words.len:
+            child = words[i].tableName
+      elif words.len >= 3 and words[0].toLowerAscii == "alter" and
+          words[1].toLowerAscii == "table":
+        child = words[2].tableName
+      if child.len == 0:
+        continue
+      for i in 0 ..< words.len - 1:
+        if words[i].toLowerAscii == "references":
+          let parent = words[i + 1].tableName
+          if parent notin result.getOrDefault(child):
+            result.mgetOrPut(child, @[]).add parent
+
 func ownerName*(f: Fragment): string =
   ## The package a fragment belongs to: the directory part of its name, `climbs` in `climbs/001-schema.sql`.
   f.name.split('/')[0]

@@ -163,9 +163,9 @@ suite "nch ff":
     removeFile(path)
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
-    let g = Globals(dbPath: path, fragments: allFragments)
+    let g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure # nothing yet
-    let s = store.openStore(path, allFragments)
+    let s = store.openStore(path, allFragments, access = allAccess)
     var ws: seq[Warning]
     discard s.importFile(
       loadProfile("../choochoo/data/sdk/Profile.xlsx"),
@@ -192,7 +192,7 @@ suite "nch ff":
       "--model-default--" in name and "--to-2018-09-05--" in name and "--tz-utc" in name
     let first = readFile(files[0])
     check first.startsWith("time,fitness,fatigue\n2018-08-27,")
-    let t = store.openStore(path, allFragments)
+    let t = store.openStore(path, allFragments, access = allAccess)
     check t.db.scalar(int, "select count(*) from impulse") == 2
       # (worked out by the command)
     t.db.execute("delete from impulse")
@@ -202,13 +202,13 @@ suite "nch ff":
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--worker"]) == exitOk
       # (a program: nothing more is done)
     check readFile(files[0]) == "marker"
-    let u = store.openStore(path, allFragments)
+    let u = store.openStore(path, allFragments, access = allAccess)
     check u.db.scalar(int, "select count(*) from impulse") == 0
     u.close()
     # at a terminal the latest values are worked out as well, which needs the impulses
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     check readFile(files[0]) == "marker" # (the file is still not made again)
-    let u2 = store.openStore(path, allFragments)
+    let u2 = store.openStore(path, allFragments, access = allAccess)
     check u2.db.scalar(int, "select count(*) from impulse") == 2
     u2.close()
     # other options, other files
@@ -222,7 +222,7 @@ suite "nch ff":
       inc n
     check n == 4
     # a different FTHR is different data: a new file
-    let v = store.openStore(path, allFragments)
+    let v = store.openStore(path, allFragments, access = allAccess)
     v.db.execute("update user_profile set fthr = 160")
     v.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
@@ -248,8 +248,8 @@ suite "nch ff: the key":
     removeFile(path)
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
-    let g = Globals(dbPath: path, fragments: allFragments)
-    let s = store.openStore(path, allFragments)
+    let g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
+    let s = store.openStore(path, allFragments, access = allAccess)
     var ws: seq[Warning]
     discard s.importFile(
       loadProfile("../choochoo/data/sdk/Profile.xlsx"),
@@ -276,7 +276,7 @@ suite "nch ff: the key":
       g, @["--to", "2018-09-05", "--utc", "--check", "ffffffffffff", "--stdout"]
     ) == exitFailure
     # a file that was made stays available under its key after the data change
-    let t = store.openStore(path, allFragments)
+    let t = store.openStore(path, allFragments, access = allAccess)
     t.db.execute("update user_profile set fthr = 160")
     t.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key]) == exitOk

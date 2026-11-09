@@ -82,7 +82,7 @@ const package* = Package(
 (Built: `depends`, `fragments` and `commands` (a `CommandDecl`: name, summary, `run`; the registry's `commands` is what
 `nch` dispatches on and prints in its usage).  `contributes` (built 2026-11-09 with the first extension point, import steps) is a proc, because the values are made at run time and `package` is a constant.  `fragments` is still
 `@[]` in every package: the fragments are listed in each package's `ddl.nim` and joined by `modules.nim` (see "What is
-left").  The module `core/package` is imported `as corePackage`, because the constant is also called `package`.)
+left").  The type is in `core/manifest.nim`; it is not called `package.nim`, because a `package.nim` is what makes a directory a package.)
 
 The registry (below) reads it.  A package's own documentation (the feature detail now in CLAUDE.md) goes in a
 `README.md` beside it.
@@ -176,21 +176,43 @@ function answers allow or deny.  Used as the Postgres model would be:
 | a role for each package | an access profile for each package |
 | `GRANT SELECT` on the tables of dependencies | may **read** tables owned by itself, by its `depends`, and by `core` |
 | only the owner writes | may **write** only tables it owns |
-| connect as the role | one shared connection; `query`, `scalar` and `execute` are macros that know the file they are called from, hence the package, and say so when the statement is prepared |
+| connect as the role | one shared connection; `query`, `scalar`, `execute`, `prepareStmt` and `execScript` know the file they are called from (worked out when the program is compiled: the nearest directory above it with a `package.nim`), hence the package, and say so when the statement is prepared |
 | the server refuses | a `StoreError` that names the package, the table and the statement |
 
 So declaring a dependency *is* the grant, and a join across packages is now a dependency like an import.  What
 remains true: the columns of a table are the API to everyone who reads it; changing them means touching the
 readers.  They are now visible, acyclic and few, and the typed readers and the tests find a broken one.
 
-Details: SQLite's own tables and functions are allowed to all; foreign-key cascades are not authorised statement by
-statement, so `on delete cascade` is unaffected; the check costs nothing per row (it runs when a statement is
-prepared); one connection stays because an import writes several packages' tables in one transaction (separate
+**Built (2026-11-09)**: the rule is `core/access.nim` (pure; `refusal`), made from the owners (`core/ownership.nim`), the
+`depends` and the foreign keys by `accessOf` in `core/registry.nim`; `packages/db/access.nim` is SQLite's authorizer and the
+file-to-package rule; `modules.nim` makes `allAccess`, which `nch.nim` puts in `Globals.access` and the tests give their
+stores.  A violation is a `StoreError` naming the package, the table and the statement.  What was settled on the way:
+
+* **The tables of `db`** (`user` and the metadata every table refers to) may be read by every package, written by `db` alone;
+  `db/users.nim` is how `nch users` changes the `user` table.
+* **Cascades are authorised by SQLite too** (the first sketch here said not): `delete from activity` reports a delete of
+  every table that refers to it.  What a cascade does to the tables that refer, directly or through others, to a table the
+  same statement writes (and the reading of the other parents of those tables) is the database's doing and is allowed
+  (`written` in `refusal`; the foreign keys come from the fragments, `parentTables`, and a test compares them with SQLite's).
+  So `delete from user` by `db` reaches everything, as the schema means it to.
+* **Triggers**: what a trigger does is the database's own business (not checked); making one is allowed on any table the
+  package may read (`model` has one on `user_profile`).  A fragment is checked as the package it belongs to, so it may
+  change the definition of its own tables only.
+* **A query is checked as the package whose file runs it, not the one that built it**: a query that joins another package's
+  tables must be run by a package that may read them (`replaceSelection` takes ids, not the command's query).
+* **The one piece of state**: a thread variable holds the package for the length of a `prepare` (the authorizer gets nothing
+  from SQLite but the connection's pointer, and the statement helpers get nothing but the connection).  It is cleared
+  after each.  Code outside the packages (`core`, tests, tools) is not checked.
+* A `prepare` that SQLite repeats by itself (the schema changed under a statement) is not checked again.
+
+Other details: SQLite's own tables and functions are allowed to all; the check costs nothing per row (it runs when a
+statement is prepared); one connection stays because an import writes several packages' tables in one transaction (separate
 connections or database files could not make that atomic, and foreign keys do not span files).
 
-**Introduced in stages**: report-only first (a list of violations, to see how many there are), then the writes,
-then the reads.  Tests run the program in-process, so the existing suite exercises it.  This is a check for
-mistakes, not a security boundary (see above).
+The stages planned (report-only first, then writes, then reads) were done in one go: a temporary report mode listed
+every violation of the whole suite at once (about ten kinds, all found by running the tests), they were fixed, and the
+mode was deleted.  Tests run the program in-process, so the suite exercises the rules.  This is a check for mistakes,
+not a security boundary (see above).
 
 **Later, not now:** stable views.  An owner would publish a view over a table and dependents would read only the
 view, so the owner could change the table.  The authorizer can allow "the base table, through a view of the same
@@ -238,11 +260,10 @@ Left:
 
 5. **The extension points** (built 2026-11-09): the mechanism and the import steps; on-demand work and criteria are
    deferred (see "Extension points").
-6. **The access model**: SQLite's authorizer, report-only first, then writes, then reads.  The text scan of the SQL
-   done by hand on 2026-11-09 (what each package reads and writes, against what it declares) found, besides the
-   declarations that were then added: commands that write library tables themselves (`userscmd`, `activitiescmd`),
-   `delete` writing `importer`'s tables, `user` writing the `user` table that `db` owns.  Step 6 makes this exact and
-   forces the owners to do their own writes.
+6. **The access model** (built 2026-11-09, see "The access model").  It made the owners do their own writes: the
+   selection is written by `selection` (`replaceSelection`), deleting activities moved from the package `delete` (which is
+   gone) into `importer` (`remove.nim`), the `user` table is written by `db` (`users.nim`) and `user_profile` by `user`
+   (`profile.nim`).
 7. **The schema-by-several-orders test** and a `README.md` in each package (the feature detail now in CLAUDE.md).
    Together with it: the fragments to come from the registry (`Package.fragments`, in dependency order) instead of
    `modules.nim`, which then goes.
@@ -264,7 +285,7 @@ tables it owns is in its SQL.
   `db` (SQL by name, statements, the `Store`, fragments; owns `user` and `fragment`); `cache`; `bundle` (files unpacked
   from the program); `download`; `fit` (FIT files and the profile); `names` (GeoNames features and the author's
   landmarks); `importer` (activities); `heartrate`; `model` (impulses); `user`; `climbs`; `selection` (the stored
-  selection and its address); `delete`; `web` (the server `map` and `ff` use).
+  selection and its address); `web` (the server `map` and `ff` use).
 * **`commands/`**: `activitiescmd`, `cachecmd`, `climbscmd`, `dbcmd`, `ffcmd`, `fitcmd`, `landmarkscmd`, `logcmd`,
   `mapcmd`, `modelscmd`, `userscmd`: one command each (`activitiescmd` joins the listing, `--select`, `--import` and
   `--delete`).
@@ -285,7 +306,7 @@ tables it owns is in its SQL.
   was considered and rejected until a second kind of own name exists.  The helper `columns` was a second accidental
   edge (`landmark/command` took it from `climbs/report`) and is `packages/ui/columns.nim`.
 * **The selection** is two things: the stored selection (a table, the address bits, the content key; package
-  `selection`, which `climbs`, `map` and `delete` use) and the search language of `nch activities` (`criteria`,
+  `selection`, which `climbs` and `map` use) and the search language of `nch activities` (`criteria`,
   `ranges`, which live with the command).  They were one package, and the pair made a loop: `climbs` reads the stored
   selection, and `--climb` reads `effort`.  `activities` now depends on `climbs` for `--climb`, which is not
   extensible; see TODO.md ("Criteria from other packages").

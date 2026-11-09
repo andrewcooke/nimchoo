@@ -5,7 +5,7 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
-import ./[extension, fragment]
+import ./[access, extension, fragment]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
 
@@ -20,6 +20,7 @@ type Globals* = object ## Options given before the command name, for every comma
   commandNames*: seq[string]
     ## the names of all the commands (what `nch log` accepts as a filter)
   log*: Log ## the log file; nil (disabled) unless `nch` opened it
+  access*: Access ## who may touch which table (`nch` fills it; nil: nothing is checked)
   extensions*: Extensions
     ## what the packages contribute to each other's extension points (`nch` fills it from the registry)
 

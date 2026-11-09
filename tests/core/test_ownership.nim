@@ -105,7 +105,7 @@ suite "the tables of nimchoo":
       s.close()
     for i in 1 .. allFragments.len:
       let f = allFragments[i - 1]
-      let s = openStore(path, allFragments[0 ..< i], "default")
+      let s = openStore(path, allFragments[0 ..< i], "default", access = allAccess)
       for t in s.db.query(
         string, "select lower(name) from sqlite_master where type = 'table'"
       ):

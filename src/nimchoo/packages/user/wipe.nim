@@ -1,5 +1,5 @@
-## Removing a user and what belongs to them (`nch users --delete`), and the words that say what goes.  The pause
-## before any delete (the countdown) is in `confirm`.
+## What goes when a user is removed (`nch users --delete`), and the words that say it.  The pause before any delete
+## (the countdown) is in `confirm`; deleting the row is `db/users`.
 ##
 ## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough to remove the
 ## user.  A later module that stores per-user data adds its table to `userTables`; a test checks that none is
@@ -37,10 +37,3 @@ proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   if id.isNone:
     raiseStore("no such user: " & name)
   id.get
-
-proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
-  ## Delete the user and everything they have.  (If it was the default user another
-  ## becomes the default, or if there is none a new empty one is made, the next time the
-  ## database is opened.)
-  st.db.execute("delete from user where id = :id", id = id)
-  st.reclaim()

@@ -8,7 +8,7 @@ let dir = getTempDir() / "nch-test-selection"
 
 proc fresh(name: string): Store =
   removeDir(dir / name)
-  openStore(dir / name / "x.db", allFragments)
+  openStore(dir / name / "x.db", allFragments, access = allAccess)
 
 proc add(s: Store, sha: string, session = 0) =
   ## An activity of file `sha`, in the selection.
@@ -93,7 +93,7 @@ suite "selection: of the database":
       s.close()
     s.add "aa"
     s.db.execute("insert into user(name) values ('bob')")
-    let bob = openStore(dir / "owner" / "x.db", allFragments, "bob")
+    let bob = openStore(dir / "owner" / "x.db", allFragments, "bob", access = allAccess)
     defer:
       bob.close()
     check selectionKey(bob) == keyOf(@[])
@@ -129,3 +129,17 @@ suite "selection: for an address (the ids, the check)":
     check c == checkOf(s, @[2'i64, 1])
     check c != checkOf(s, @[1'i64])
     check c == selectionKey(s)[0 ..< checkLength] # (the start of the selection's key)
+
+suite "selection: replacing it":
+  test "the new ids replace the old ones; an empty list empties it":
+    let s = fresh("replace")
+    s.add "a"
+    s.add "b"
+    s.add "c"
+    let all = selectedIds(s)
+    check all.len == 3
+    s.replaceSelection(all[1 .. 2])
+    check selectedIds(s) == all[1 .. 2]
+    s.replaceSelection(@[])
+    check selectedIds(s).len == 0
+    s.close()
