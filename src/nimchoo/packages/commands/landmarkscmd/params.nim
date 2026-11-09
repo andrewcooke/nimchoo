@@ -1,8 +1,8 @@
 ## The command line of `nch landmarks`, parsed.  Pure.
 
-import ../packages/util/args/args
+import ../../util/args/args
 import std/[options, strutils]
-import ../packages/names/landmarks
+import ../../names/landmarks
 
 {.push raises: [].}
 

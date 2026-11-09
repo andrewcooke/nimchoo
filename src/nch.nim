@@ -11,9 +11,6 @@ import nimchoo/packages/util/args/args
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/map/command as mapCommand
-import nimchoo/landmark/command as landmarkCommand
-import nimchoo/user/command as userCommand
-import nimchoo/model/command as modelCommand
 import nimchoo/ff/command as ffCommand
 import nimchoo/modules
 import nimchoo/registry
@@ -45,16 +42,10 @@ proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: []
     activitiesCommand.run(g, rest)
   of cmMap:
     mapCommand.run(g, rest)
-  of cmUsers:
-    userCommand.run(g, rest)
-  of cmModels:
-    modelCommand.run(g, rest)
   of cmFf:
     ffCommand.run(g, rest)
   of cmClimbs:
     climbsCommand.run(g, rest)
-  of cmLandmarks:
-    landmarkCommand.run(g, rest)
 
 type Head = object ## The options before the command name.
   g: Globals

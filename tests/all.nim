@@ -36,7 +36,8 @@ import
   ]
 import ./commands/dbcmd/test_command
 import ./heartrate/test_step
-import ./model/[test_calc, test_params, test_impulses]
+import ./model/[test_calc, test_impulses]
+import ./commands/modelscmd/test_params
 import ./ff/[test_curve, test_page, test_web, test_stats]
 import ./delete/test_delete
 import ./cache/test_files
@@ -82,7 +83,8 @@ import
     test_params as climbsParams,
     test_edit as climbsEdit,
   ]
-import ./landmark/[test_params as landmarkParams, test_command as landmarkCommand]
+import ./commands/landmarkscmd/test_params as landmarkParams
+import ./commands/landmarkscmd/test_command as landmarkCommand
 import ./download/test_fetch
 import
   ./names/[
@@ -92,7 +94,9 @@ import
 import
   ./serve/
     [test_request, test_token, test_handler, test_pages, test_libraries, test_workers]
-import ./user/[test_params, test_command, test_wipe]
+import ./user/test_wipe
+import ./commands/userscmd/test_params
+import ./commands/userscmd/test_command
 import ./confirm/test_confirm
 import ./importer/test_count
 import ./bundle/test_unpack

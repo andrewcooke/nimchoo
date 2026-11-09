@@ -1,5 +1,5 @@
 import std/[strutils, unittest]
-import nimchoo/model/params
+import nimchoo/packages/commands/modelscmd/params
 
 suite "model: the command line":
   test "no arguments: the list":

@@ -3,21 +3,22 @@
 ## features of GeoNames by part of their name or by nearness to a position, and pick one to make a landmark of.
 
 import std/[options, strutils]
-import ../packages/ui/columns
-import ../cli/catalog
-import ../core/globals
-import ../packages/ui/units
-import ../packages/db/store
-import ../core/errors
-import ../packages/names/lookup
-import ../packages/names/open
-import ../core/logfile
-import ../packages/confirm/confirm
+import ../../ui/columns
+import ../../../core/globals
+import ../../ui/units
+import ../../db/store
+import ../../../core/errors
+import ../../names/lookup
+import ../../names/open
+import ../../../core/logfile
+import ../../confirm/confirm
 import ./params
-import ../packages/names/landmarks
-import ../packages/names/suggest
+import ../../names/landmarks
+import ../../names/suggest
 
 {.push raises: [].}
+
+const commandName* = "landmarks" ## what the user types after `nch`
 
 const usage* = """usage: nch landmarks
        nch landmarks --search TEXT
@@ -91,7 +92,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if not removeLandmark(st, p.name):
         return failure("nch landmarks", "there is no landmark called '" & p.name & "'")
       let said = "deleted the landmark " & p.name
-      g.log.log(lvInfo, $cmLandmarks, leDeleted, said)
+      g.log.log(lvInfo, commandName, leDeleted, said)
       sayDeleted(said)
       return exitOk
     if p.add and p.at.isSome:
@@ -99,7 +100,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         "made the landmark " & p.name.strip & " at " &
         positionText(p.at.get.lon, p.at.get.lat)
-      g.log.log(lvInfo, $cmLandmarks, leSaved, said)
+      g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
       return exitOk
     if p.search.len > 0 or p.near.isSome:
@@ -111,7 +112,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let names = openNames(
           g,
           st,
-          $cmLandmarks,
+          commandName,
           proc(line: string) {.closure, raises: [].} =
             stderr.say line & "\n"
           ,
@@ -130,7 +131,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let said =
           "made the landmark " & p.name.strip & " at " & s.name & " (" &
           positionText(s.lon, s.lat) & ")"
-        g.log.log(lvInfo, $cmLandmarks, leSaved, said)
+        g.log.log(lvInfo, commandName, leSaved, said)
         stdout.say said & "\n"
         return exitOk
       if found.len == 0:

@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/landmark/params
+import nimchoo/packages/commands/landmarkscmd/params
 
 suite "landmark: the command line":
   test "no arguments lists":

@@ -5,8 +5,8 @@ import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/modules
 import nimchoo/core/logfile
-import nimchoo/user/command as userCommand
-import ../support/userdata
+import nimchoo/packages/commands/userscmd/command as userCommand
+import ../../support/userdata
 
 let dir = getTempDir() / "nch-test-user"
 

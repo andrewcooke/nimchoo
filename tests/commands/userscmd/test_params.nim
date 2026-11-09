@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/user/params
+import nimchoo/packages/commands/userscmd/params
 
 suite "user: names and FTHR":
   test "names: 1 to 32 of letters, digits and _ . -, not starting with -":

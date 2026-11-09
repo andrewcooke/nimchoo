@@ -1,8 +1,8 @@
 ## The command line of `nch models`, parsed.  Pure.
 
 import std/strutils
-import ../packages/util/args/args
-import ../packages/model/calc
+import ../../util/args/args
+import ../../model/calc
 
 {.push raises: [].}
 

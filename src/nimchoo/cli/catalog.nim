@@ -10,18 +10,12 @@ import std/[algorithm, options, strutils]
 type Command* = enum
   cmActivities = "activities"
   cmClimbs = "climbs"
-  cmUsers = "users"
-  cmModels = "models"
-  cmLandmarks = "landmarks"
   cmMap = "map"
   cmFf = "ff"
 
 const summaries*: array[Command, string] = [
   cmActivities: "the activities: show them, choose the ones other commands use",
   cmClimbs: "the climbs of the selected activities, with times and ranks",
-  cmUsers: "the users: make, rename, set the threshold heart rate",
-  cmModels: "the models: sets of variables for the training impulse",
-  cmLandmarks: "places of your own, named: they come before every other name",
   cmMap: "the routes of the selected activities and their climbs, on a map",
   cmFf: "the fitness and fatigue curves, as CSV for plotting",
 ]

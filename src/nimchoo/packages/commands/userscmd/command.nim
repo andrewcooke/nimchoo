@@ -6,19 +6,20 @@
 ## whether they have impulses.
 
 import std/[options, strutils]
-import ../cli/catalog
-import ../core/globals
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/importer/count
-import ../packages/confirm/confirm
+import ../../../core/globals
+import ../../db/statement
+import ../../db/store
+import ../../../core/errors
+import ../../../core/logfile
+import ../../ui/live
+import ../../importer/count
+import ../../confirm/confirm
 import ./params
-import ../packages/user/wipe
+import ../../user/wipe
 
 {.push raises: [].}
+
+const commandName* = "users" ## what the user types after `nch`
 
 const usage* = """usage: nch users
        nch users --add NAME [--fthr BPM] [--default]
@@ -156,7 +157,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if canLive():
         countdown(newTerminalLive(), what, waitSeconds, sleepMs)
       removeUser(st, id)
-      g.log.log(lvInfo, $cmUsers, leDeleted, what & " from " & st.path)
+      g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
       sayDeleted("deleted " & what)
       return exitOk
     if p.create:
@@ -171,7 +172,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if p.fthr.isSome:
         said.add ", with an FTHR of " & $p.fthr.get
         setFthr(st, id, p.fthr.get)
-      g.log.log(lvInfo, $cmUsers, leSaved, said)
+      g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
       return exitOk
     # --edit
@@ -183,7 +184,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         p.name & ": FTHR is " & $p.fthr.get &
         (if had and old.isSome and old.get != p.fthr.get: deletedNote else: "")
-      g.log.log(lvInfo, $cmUsers, leSaved, said)
+      g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.clearFthr:
       let had = hasImpulses(st, id)
@@ -193,12 +194,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         p.name & ": FTHR forgotten" &
         (if had: " (and the impulses worked out with it are deleted)" else: "")
-      g.log.log(lvInfo, $cmUsers, leSaved, said)
+      g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:
       setDefault(st, id)
       let said = p.name & " is now the default user"
-      g.log.log(lvInfo, $cmUsers, leSaved, said)
+      g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.rename.len > 0:
       if exists(st, p.rename):
@@ -207,7 +208,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         "update user set name = :name where id = :id", name = p.rename, id = id
       )
       let said = p.name & " is now called " & p.rename
-      g.log.log(lvInfo, $cmUsers, leSaved, said)
+      g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     exitOk
   except StoreError as e:

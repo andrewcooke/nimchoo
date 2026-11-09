@@ -3,7 +3,7 @@ import std/[os, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/landmark/command as landmarkCommand
+import nimchoo/packages/commands/landmarkscmd/command as landmarkCommand
 import nimchoo/modules
 
 let dir = getTempDir() / "nch-test-landmark-cmd"

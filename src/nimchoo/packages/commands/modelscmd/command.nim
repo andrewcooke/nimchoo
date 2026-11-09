@@ -3,16 +3,17 @@
 ## model are worked out when they are wanted (see `nch ff`), not when the model is added.
 ##
 import std/[options, strutils]
-import ../cli/catalog
-import ../core/globals
-import ../packages/db/store
-import ../core/errors
-import ../core/logfile
+import ../../../core/globals
+import ../../db/store
+import ../../../core/errors
+import ../../../core/logfile
 import ./params
-import ../packages/model/calc
-import ../packages/model/models
+import ../../model/calc
+import ../../model/models
 
 {.push raises: [].}
+
+const commandName* = "models" ## what the user types after `nch`
 
 const usage* = """usage: nch [--db PATH] models
        nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]
@@ -103,7 +104,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         failure("nch models", "there is a model called '" & p.model.name & "' already")
     insertModel(st.db, p.model)
     let said = "made the model " & p.model.name
-    g.log.log(lvInfo, $cmModels, leSaved, said)
+    g.log.log(lvInfo, commandName, leSaved, said)
     stdout.say said & "\n"
     exitOk
   except StoreError as e:
