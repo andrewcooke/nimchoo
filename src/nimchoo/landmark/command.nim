@@ -3,9 +3,9 @@
 ## features of GeoNames by part of their name or by nearness to a position, and pick one to make a landmark of.
 
 import std/[options, strutils]
+import ../packages/ui/columns
 import ../cli/catalog
 import ../core/globals
-import ../packages/climbs/report
 import ../packages/ui/units
 import ../packages/db/store
 import ../core/errors
@@ -14,8 +14,8 @@ import ../packages/names/open
 import ../core/logfile
 import ../packages/confirm/confirm
 import ./params
-import ../packages/landmark/landmarks
-import ../packages/landmark/suggest
+import ../packages/names/landmarks
+import ../packages/names/suggest
 
 {.push raises: [].}
 

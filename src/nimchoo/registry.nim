@@ -18,7 +18,6 @@ import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
 import ./packages/heartrate/package as pkgHeartrate
 import ./packages/importer/package as pkgImporter
-import ./packages/landmark/package as pkgLandmark
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
 import ./packages/selection/package as pkgSelection
@@ -57,7 +56,6 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "geo", package: pkgGeo.package),
     Registered(name: "heartrate", package: pkgHeartrate.package),
     Registered(name: "importer", package: pkgImporter.package),
-    Registered(name: "landmark", package: pkgLandmark.package),
     Registered(name: "model", package: pkgModel.package),
     Registered(name: "names", package: pkgNames.package),
     Registered(name: "selection", package: pkgSelection.package),

@@ -6,7 +6,7 @@
 import std/options
 import ../../core/errors
 import ../geo/geo
-import ../landmark/landmarks
+import ./landmarks
 import ./[climbpick, countries, lookup]
 
 {.push raises: [].}

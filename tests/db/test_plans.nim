@@ -6,7 +6,7 @@ import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/importer/importer
 import nimchoo/packages/importer/track
-import nimchoo/packages/landmark/suggest
+import nimchoo/packages/names/suggest
 import nimchoo/modules
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup

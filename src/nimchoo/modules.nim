@@ -8,7 +8,6 @@ import ./packages/climbs/ddl as climbsDdl
 import ./packages/heartrate/ddl as heartrateDdl
 import ./packages/heartrate/step as heartrateStep
 import ./packages/importer/ddl as importerDdl
-import ./packages/landmark/ddl as landmarkDdl
 import ./packages/model/ddl as modelDdl
 import ./packages/names/ddl as namesDdl
 import ./packages/selection/ddl as selectionDdl
@@ -20,7 +19,6 @@ import ./packages/importer/channel
 
 const allFragments*: seq[Fragment] =
   namesDdl.fragments & importerDdl.fragments & heartrateDdl.fragments &
-  climbsDdl.fragments & landmarkDdl.fragments & selectionDdl.fragments &
-  userDdl.fragments & modelDdl.fragments
+  climbsDdl.fragments & selectionDdl.fragments & userDdl.fragments & modelDdl.fragments
 
 let allImportSteps*: seq[ImportStep] = @[heartrateStep.heartrateStep]

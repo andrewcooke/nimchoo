@@ -280,7 +280,6 @@ layers.  "Today" says where the files are now.  Library packages never depend on
 | `bundle` | `bundle/unpack` | `cache`, `atomic`, `hashing` | |
 | `download` | `download/*` | `ui`, `zip`, `lookup`, `atomic` | |
 | `user` | `user/wipe` minus the words (`findUser`, `removeUser`, `userTables`), `user/ddl` | `store` | `user_profile` |
-| `landmark` | `landmark/` minus `command`: `landmarks`, `suggest`, `ddl` | `store`, `geo`, `fold` | `landmark` |
 | `model` | `model/` minus `command`, `params`: `calc`, `impulses`, `models` | `store`, `hashing`, `fit` | `ff_model`, `impulse` |
 | `web` | `serve/` minus the command: server, handler, workers, pages, request, token | `bundle`, `cache`, `childasync`, `templating`, `ui`, `store` | |
 
@@ -289,7 +288,7 @@ layers.  "Today" says where the files are now.  Library packages never depend on
 | package | today | depends | tables |
 |---|---|---|---|
 | `fit` | `fit/` minus `command`, plus `profile/` (it is part of `fit`, see the cycle table) | `bytes`, `xlsx`, `bundle`, `lookup`, `warnings` | |
-| `names` | `names/` | `landmark`, `download`, `cache`, `zip`, `geo`, `store` | `country`, `coverage`, `feature`, `country_cell*` |
+| `names` | `names/` and `landmark/` minus its command (merged 2026-11-09, see Decisions) | `download`, `cache`, `zip`, `geo`, `fold`, `db`, `ui` | `country`, `coverage`, `feature`, `country_cell*`, `landmark` |
 
 (`fit` is placed above `bundle` because the default profile is unpacked from the bundle.)
 
@@ -341,6 +340,16 @@ A command package holds the command (`run`, its options, its output) and nothing
 * `serve` splits into `web` (library) and `servecmd`, because `ff` and `map` are commands and may not depend on one.
 
 ### Decisions (the author, 2026-11-09)
+
+* **`landmark` is part of `names`** (later in the day, from the review of the cmd packages).  Landmarks are the author's
+  own names for places and come before GeoNames when something is named, so `names` read the `landmark` table, while
+  `landmark/suggest` read `names`' `feature` table through SQL: a cycle the imports did not show.  `names` is the
+  fundamental package; the table, `landmarks.nim`, `suggest.nim` and the fragment (now `names/004-landmark.sql`) moved
+  into it; `landmarkscmd` will depend on `names` only.  An extension point for "name sources" was considered and
+  rejected as not worth it until a second kind of own name exists.  The helper `columns` (table cells in columns) was a
+  second accidental edge (`landmark/command` imported it from `climbs/report`) and moved to `packages/ui/columns.nim`.
+  Lesson: separating a command from its library can hide a cycle; check what the command *needs* from the other
+  packages, and what the library reads by SQL.
 
 * `store` is a package; `core` holds only types.  `Globals` still holds a `Log` and `importSteps`: the steps go with the
   extension point (step 5); where the `Log` goes is open.

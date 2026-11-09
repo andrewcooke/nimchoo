@@ -19,7 +19,7 @@
 import std/[math, options, strutils]
 import ../../core/errors
 import ../geo/geo
-import ../landmark/landmarks
+import ./landmarks
 import ./[countries, lookup, shape]
 
 {.push raises: [].}

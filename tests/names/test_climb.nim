@@ -3,7 +3,7 @@ import ../support/shims
 import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/download/fetch
-import nimchoo/packages/landmark/landmarks
+import nimchoo/packages/names/landmarks
 import nimchoo/packages/names/climb
 import nimchoo/packages/names/climbpick
 import nimchoo/packages/names/countries
