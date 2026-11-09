@@ -10,8 +10,8 @@ import nimchoo/packages/names/suggest
 import nimchoo/modules
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup
-import nimchoo/packages/selection/criteria
-import nimchoo/packages/selection/ranges
+import nimchoo/selection/criteria
+import nimchoo/selection/ranges
 
 ## The queries that run for every file, every ride or every cell must find their rows through an index (a primary key,
 ## a unique key, or the spatial index), never by reading a whole table: one that does is correct on a test database and

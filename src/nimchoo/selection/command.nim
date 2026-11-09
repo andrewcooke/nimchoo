@@ -24,7 +24,7 @@ import ../packages/ui/style
 import ../packages/ui/vocabulary
 import ../packages/text/fold/fold
 import ./[calendar, table]
-import ../packages/selection/criteria
+import ./criteria
 
 {.push raises: [].}
 

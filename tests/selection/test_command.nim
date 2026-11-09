@@ -7,7 +7,7 @@ import nimchoo/core/ids
 import nimchoo/modules
 import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand
-import nimchoo/packages/selection/criteria
+import nimchoo/selection/criteria
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
 
