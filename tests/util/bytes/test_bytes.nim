@@ -1,6 +1,6 @@
 import std/unittest
-import nimchoo/fit/bytes
-import ../support/fitbuilder
+import nimchoo/packages/util/bytes/bytes
+import ../../support/fitbuilder
 
 suite "byte primitives":
   test "canRead":

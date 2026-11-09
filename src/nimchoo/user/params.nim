@@ -1,6 +1,6 @@
 ## The command line of `nch users`, parsed.  Pure.
 
-import ../cli/args
+import ../packages/util/args/args
 import std/[options, sequtils, strutils]
 
 {.push raises: [].}

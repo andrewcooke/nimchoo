@@ -4,7 +4,8 @@
 
 import std/[options, strutils]
 import ../cache
-import ../cli/[args, common]
+import ../cli/common
+import ../packages/util/args/args
 import ../download/fetch
 import ../ui/logfile
 import ../user/wipe

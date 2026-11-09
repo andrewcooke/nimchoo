@@ -2,7 +2,7 @@
 ## parsed and described in one place, so that the commands cannot differ.  Pure.
 
 import std/strutils
-import ../cli/args
+import ../packages/util/args/args
 import ./request
 
 {.push raises: [].}

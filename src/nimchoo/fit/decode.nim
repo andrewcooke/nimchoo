@@ -16,7 +16,7 @@ import ../packages/util/lookup/lookup
 import ../profile/model
 import ../packages/util/warnings/warnings
 import ./basetype
-import ./bytes
+import ../packages/util/bytes/bytes
 import ./records
 import ./tokens
 

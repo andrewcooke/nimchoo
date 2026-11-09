@@ -4,7 +4,7 @@
 
 import std/[math, options, strutils, times]
 import ../fit/time
-import ../cli/args
+import ../packages/util/args/args
 import ../db/sqltext
 import ../core/ids
 import ../packages/text/fold/fold

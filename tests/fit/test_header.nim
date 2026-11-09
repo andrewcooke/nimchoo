@@ -1,6 +1,7 @@
 import std/[options, sequtils, unittest]
 import nimchoo/core/errors
-import nimchoo/fit/[bytes, crc, header]
+import nimchoo/fit/[crc, header]
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 

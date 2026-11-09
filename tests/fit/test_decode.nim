@@ -1,5 +1,6 @@
 import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
-import nimchoo/fit/[bytes, time]
+import nimchoo/fit/time
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
 import nimchoo/packages/util/warnings/warnings

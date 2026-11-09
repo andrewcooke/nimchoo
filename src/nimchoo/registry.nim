@@ -7,7 +7,11 @@ import ./packages/geo/package as pkgGeo
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/proquint/package as pkgProquint
 import ./packages/text/templating/package as pkgTemplating
+import ./packages/util/args/package as pkgArgs
 import ./packages/util/atomic/package as pkgAtomic
+import ./packages/util/bytes/package as pkgBytes
+import ./packages/util/child/package as pkgChild
+import ./packages/util/childasync/package as pkgChildasync
 import ./packages/util/hashing/package as pkgHashing
 import ./packages/util/lookup/package as pkgLookup
 import ./packages/util/profiling/package as pkgProfiling
@@ -20,7 +24,11 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "fold", package: pkgFold.package),
     Registered(name: "proquint", package: pkgProquint.package),
     Registered(name: "templating", package: pkgTemplating.package),
+    Registered(name: "args", package: pkgArgs.package),
     Registered(name: "atomic", package: pkgAtomic.package),
+    Registered(name: "bytes", package: pkgBytes.package),
+    Registered(name: "child", package: pkgChild.package),
+    Registered(name: "childasync", package: pkgChildasync.package),
     Registered(name: "hashing", package: pkgHashing.package),
     Registered(name: "lookup", package: pkgLookup.package),
     Registered(name: "profiling", package: pkgProfiling.package),

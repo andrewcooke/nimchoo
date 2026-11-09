@@ -5,7 +5,7 @@
 ## value, an unknown base type number).
 
 import std/[options, strutils, unicode]
-import ./bytes
+import ../packages/util/bytes/bytes
 
 {.push raises: [].}
 

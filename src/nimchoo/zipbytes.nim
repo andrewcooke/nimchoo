@@ -9,7 +9,7 @@
 import std/tables
 import zippy
 import ./core/errors
-import ./fit/bytes
+import ./packages/util/bytes/bytes
 export errors
 
 {.push raises: [].}

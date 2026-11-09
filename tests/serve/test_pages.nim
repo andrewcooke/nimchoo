@@ -1,5 +1,5 @@
 import std/[os, strutils, unittest]
-import nimchoo/cli/args
+import nimchoo/packages/util/args/args
 import nimchoo/serve/[pages, request, webopts]
 
 let dir = getTempDir() / "nch-test-pages"

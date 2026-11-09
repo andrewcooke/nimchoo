@@ -9,7 +9,7 @@
 import std/[options, sets]
 import ../core/errors
 import ./basetype
-import ./bytes
+import ../packages/util/bytes/bytes
 import ./header
 import ./time
 import ../packages/util/warnings/warnings

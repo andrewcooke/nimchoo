@@ -5,7 +5,8 @@
 ## and are parsed here.
 
 import std/[options, os, strutils]
-import nimchoo/cli/[args, catalog, common]
+import nimchoo/cli/[catalog, common]
+import nimchoo/packages/util/args/args
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/cache/command as cacheCommand
 import nimchoo/db/command as dbCommand

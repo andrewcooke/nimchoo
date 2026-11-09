@@ -2,7 +2,7 @@
 
 import std/[options, strutils, times]
 import ../cache
-import ../cli/args
+import ../packages/util/args/args
 import ../serve/webopts
 
 {.push raises: [].}

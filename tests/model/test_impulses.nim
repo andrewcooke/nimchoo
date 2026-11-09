@@ -4,7 +4,7 @@ import ../support/shims
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/core/errors
-import nimchoo/fit/bytes
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/importer/importer
 import nimchoo/model/[calc, command, impulses, models]
 import nimchoo/modules

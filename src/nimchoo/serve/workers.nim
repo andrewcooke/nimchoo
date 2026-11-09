@@ -3,7 +3,7 @@
 ## their turn, and a worker that takes more than `workerTimeoutMs` is killed.  (Not `raises: []`: async code.)
 
 import std/[asyncdispatch, strutils, tables]
-import ../childasync
+import ../packages/util/childasync/childasync
 import ./handler
 
 const

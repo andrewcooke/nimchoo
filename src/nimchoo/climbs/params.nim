@@ -1,6 +1,6 @@
 ## The command line of `nch climbs`, parsed.  Pure.
 
-import ../cli/args
+import ../packages/util/args/args
 import ./display
 import std/[strutils, unicode]
 

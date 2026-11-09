@@ -1,6 +1,6 @@
 ## The command line of `nch landmarks`, parsed.  Pure.
 
-import ../cli/args
+import ../packages/util/args/args
 import std/[options, strutils]
 import ./landmarks
 

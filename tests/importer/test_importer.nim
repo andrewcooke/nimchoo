@@ -6,7 +6,7 @@ import std/tables
 import nimchoo/db/[channel, store]
 import nimchoo/packages/util/hashing/hashing
 import nimchoo/core/errors
-import nimchoo/fit/bytes
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/packages/util/warnings/warnings

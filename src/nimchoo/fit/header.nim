@@ -3,7 +3,7 @@
 import std/[options, strutils]
 import ../core/errors
 import ../packages/util/warnings/warnings
-import ./bytes
+import ../packages/util/bytes/bytes
 import ./crc
 
 {.push raises: [].}

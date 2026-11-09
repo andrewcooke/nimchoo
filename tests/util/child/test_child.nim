@@ -1,5 +1,6 @@
 import std/[asyncdispatch, monotimes, times, unittest]
-import nimchoo/[child, childasync]
+import nimchoo/packages/util/child/child
+import nimchoo/packages/util/childasync/childasync
 
 proc sh(script: string, ms = 5000): ChildResult =
   runChild("/bin/sh", @["-c", script], ms)

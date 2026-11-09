@@ -4,7 +4,8 @@
 
 import std/[os, strutils]
 import db_connector/db_sqlite
-import ../cli/[args, common]
+import ../cli/common
+import ../packages/util/args/args
 import ../download/fetch
 import ../core/errors
 import ../ui/[live, logfile]

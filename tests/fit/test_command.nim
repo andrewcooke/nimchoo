@@ -1,6 +1,6 @@
 import std/[os, tables, unittest]
 import nimchoo/core/errors
-import nimchoo/fit/bytes
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/cli/common
 import nimchoo/fit/command as fitCommand
 import nimchoo/fit/[reader, records]

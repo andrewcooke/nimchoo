@@ -4,7 +4,8 @@
 ## knows them only by name (the log's command column).
 
 import std/[options, os, sequtils, strutils]
-import ../cli/[args, common]
+import ../cli/common
+import ../packages/util/args/args
 import ../ui/[live, logfile, style, vocabulary]
 import ./lines
 

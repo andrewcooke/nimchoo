@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/cli/args
+import nimchoo/packages/util/args/args
 
 type P = object
   verbose: bool

@@ -11,10 +11,10 @@ import
   ./test_zipbytes,
   ./test_xlsx,
   ./core/test_errors,
-  ./test_child,
   ./test_zipchild,
   ./test_structure,
   ./test_cache
+import ./util/child/test_child
 import ./text/templating/test_templating
 import ./util/version/test_version
 import ./text/proquint/test_proquint
@@ -22,9 +22,10 @@ import ./util/atomic/test_atomic
 import ./geo/test_geo
 import
   ./fit/[
-    test_bytes, test_basetype, test_header, test_time, test_tokens, test_decode,
-    test_command, test_sdkcsv, test_fuzz,
+    test_basetype, test_header, test_time, test_tokens, test_decode, test_command,
+    test_sdkcsv, test_fuzz,
   ]
+import ./util/bytes/test_bytes
 import ./profile/[test_load, test_load_errors]
 import
   ./db/[
@@ -57,7 +58,8 @@ import
     test_calendar,
   ]
 import ./map/[test_params, test_lines, test_page, test_command, test_web]
-import ./cli/[test_args, test_catalog]
+import ./cli/test_catalog
+import ./util/args/test_args
 import
   ./climbs/[
     test_detect,

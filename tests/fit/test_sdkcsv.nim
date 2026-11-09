@@ -3,7 +3,7 @@
 ## must match exactly, apart from the rules in csvcompare.nim.
 
 import std/[sets, strutils, tables, unittest]
-import nimchoo/fit/bytes
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/fit/command
 import nimchoo/profile/load
 import nimchoo/fit/tokens

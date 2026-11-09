@@ -2,7 +2,7 @@
 ## child's pipes, so other requests are served meanwhile.  (Not in child.nim: async code is not `raises: []`.)
 
 import std/asyncdispatch
-import ./child
+import ../child/child
 
 const lookEveryMs = 15
 

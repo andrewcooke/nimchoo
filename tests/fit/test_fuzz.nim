@@ -8,7 +8,8 @@
 
 import std/[algorithm, os, random, strutils, tables, unittest]
 import nimchoo/core/errors
-import nimchoo/fit/[bytes, command]
+import nimchoo/fit/command
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/profile/load
 import nimchoo/packages/util/warnings/warnings
 import ../support/[csvcompare, fitmutate]

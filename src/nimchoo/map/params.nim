@@ -2,7 +2,7 @@
 ## for programs: the address a page has carries them (`bits=...&check=...`), and the server hands them to the worker.
 
 import std/sequtils
-import ../cli/args
+import ../packages/util/args/args
 import ../selection/bits
 import ../serve/webopts
 

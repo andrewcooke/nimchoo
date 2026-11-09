@@ -4,7 +4,7 @@ import ../support/env
 import std/[math, options, os, strutils, times, unittest]
 import nimchoo/cli/common
 import nimchoo/db/store
-import nimchoo/fit/bytes
+import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/packages/util/warnings/warnings
