@@ -3,7 +3,7 @@ import std/[os, options, unittest]
 import ../support/shims
 import nimchoo/cli/common
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/fit/bytes
 import nimchoo/importer/importer
 import nimchoo/model/[calc, command, impulses, models]

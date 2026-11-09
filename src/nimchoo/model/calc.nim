@@ -11,7 +11,7 @@
 
 import std/math
 import ../fit/time
-import ../ids
+import ../core/ids
 
 {.push raises: [].}
 

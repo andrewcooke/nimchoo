@@ -1,7 +1,7 @@
 ## Why a file could not be imported, in a few kinds: they are remembered in the
 ## database (so a known failure is not tried again) and counted on screen.
 
-import ../errors
+import ../core/errors
 
 {.push raises: [].}
 

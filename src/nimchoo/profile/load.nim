@@ -2,7 +2,7 @@
 ## of Profile.xlsx.
 
 import std/[math, options, sequtils, sets, strutils, tables]
-import ../errors
+import ../core/errors
 import ../fit/basetype
 import ../lookup
 import ../xlsx

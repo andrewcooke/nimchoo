@@ -1,7 +1,7 @@
 import nimchoo/db/statement
 import std/[options, os, unittest]
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/landmark/[landmarks, suggest]
 import nimchoo/modules
 

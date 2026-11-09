@@ -2,7 +2,7 @@ import nimchoo/db/statement
 import std/[strutils, unittest]
 import nimchoo/climbs/work
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import ../support/[climbdata, invariants, userdata]
 
 suite "climbs: working them out":

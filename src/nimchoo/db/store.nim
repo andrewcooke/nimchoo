@@ -16,8 +16,8 @@
 import std/[options, os, sequtils, times]
 import db_connector/db_sqlite
 import db_connector/sqlite3 as lowlevel
-import ../errors
-import ../ids
+import ../core/errors
+import ../core/ids
 export ids
 import ../core/fragment as coreFragment
 import ./[fragment, functions]

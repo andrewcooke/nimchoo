@@ -7,7 +7,7 @@
 ## Short queries with fixed text use `?` and `query(db, T, text, values...)` instead (`statement.nim`).
 
 import std/options
-import ../ids
+import ../core/ids
 
 {.push raises: [].}
 

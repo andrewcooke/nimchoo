@@ -6,7 +6,7 @@
 import std/strutils
 import ../cli/common
 import ../db/store
-import ../errors
+import ../core/errors
 import ../ui/[live, logfile, style]
 import ../user/wipe
 import ./remove

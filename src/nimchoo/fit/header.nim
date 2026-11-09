@@ -1,7 +1,7 @@
 ## The FIT file header, and checks of it and of the file's checksums.
 
 import std/[options, strutils]
-import ../errors
+import ../core/errors
 import ../warnings
 import ./bytes
 import ./crc

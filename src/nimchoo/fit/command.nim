@@ -8,7 +8,7 @@ import ./csvout
 import ./reader
 import ./records
 import ../profile/[default, load]
-import ../errors
+import ../core/errors
 import ../profile/model
 import ../warnings
 

@@ -17,7 +17,7 @@
 ## within 2 km of it and at least a third of the way out from the start.
 
 import std/[math, options, strutils]
-import ../errors
+import ../core/errors
 import ../geo
 import ../landmark/landmarks
 import ./[countries, lookup, shape]

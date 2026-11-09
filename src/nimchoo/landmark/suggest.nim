@@ -3,7 +3,7 @@
 
 import std/[algorithm, math, strutils]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../packages/text/fold/fold
 import ../geo
 

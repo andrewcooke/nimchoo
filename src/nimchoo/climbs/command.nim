@@ -6,7 +6,7 @@
 import std/[options, strutils, times]
 import ../cli/common
 import ../db/store
-import ../errors
+import ../core/errors
 import ../names/open
 import ../ui/[live, logfile, style]
 import ../user/wipe

@@ -4,7 +4,7 @@
 
 import db_connector/db_sqlite
 import db_connector/sqlite3 as lowlevel
-import ../errors
+import ../core/errors
 import ../packages/text/fold/fold
 
 {.push raises: [].}

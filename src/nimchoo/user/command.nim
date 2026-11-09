@@ -8,7 +8,7 @@
 import std/[options, strutils]
 import ../cli/common
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../ui/[live, logfile]
 import ./[params, wipe]
 

@@ -1,7 +1,7 @@
 import std/[options, strutils, unittest]
 import ../support/shims
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/download/fetch
 import nimchoo/landmark/landmarks
 import nimchoo/names/[climb, climbpick, countries]

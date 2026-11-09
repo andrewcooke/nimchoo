@@ -8,7 +8,7 @@
 
 import std/tables
 import zippy
-import ./errors
+import ./core/errors
 import ./fit/bytes
 export errors
 

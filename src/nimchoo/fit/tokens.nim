@@ -7,7 +7,7 @@
 ## everything else is recorded in `Tokenizer.warnings`.
 
 import std/[options, sets]
-import ../errors
+import ../core/errors
 import ./basetype
 import ./bytes
 import ./header

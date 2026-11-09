@@ -6,7 +6,7 @@
 ## that escapes is a bug and is left to crash with a trace.
 
 import ../db/[channel, store]
-import ../errors
+import ../core/errors
 import ../ui/logfile
 export logfile.Command, logfile.catalog
 

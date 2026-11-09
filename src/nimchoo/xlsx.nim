@@ -6,7 +6,7 @@
 ## converted, shared strings are resolved, formulas are not evaluated.
 
 import std/[parsexml, streams, strutils, tables]
-import ./errors
+import ./core/errors
 import ./lookup
 import ./zipbytes
 export errors

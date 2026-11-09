@@ -12,7 +12,7 @@ import std/[options, os]
 import db_connector/db_sqlite
 import ../cli/common
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../ui/[live, style]
 
 {.push raises: [].}

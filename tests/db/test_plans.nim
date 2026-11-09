@@ -2,7 +2,7 @@ import std/[options, strutils, unittest]
 import nimchoo/climbs/work
 import nimchoo/db/[statement, store]
 import nimchoo/fit/time
-import nimchoo/ids
+import nimchoo/core/ids
 import nimchoo/importer/[importer, track]
 import nimchoo/landmark/suggest
 import nimchoo/modules

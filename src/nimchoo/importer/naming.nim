@@ -4,7 +4,7 @@
 ## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.
 
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../names/[activity, countries, lookup]
 import ./route
 

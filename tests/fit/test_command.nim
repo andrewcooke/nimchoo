@@ -1,5 +1,5 @@
 import std/[os, tables, unittest]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/fit/bytes
 import nimchoo/cli/common
 import nimchoo/fit/command as fitCommand

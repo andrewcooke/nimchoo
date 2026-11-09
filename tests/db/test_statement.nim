@@ -1,8 +1,8 @@
 import std/[options, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/statement
-import nimchoo/errors
-import nimchoo/ids
+import nimchoo/core/errors
+import nimchoo/core/ids
 
 proc memory(): DbConn =
   result = open(":memory:", "", "", "")

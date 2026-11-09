@@ -6,7 +6,7 @@
 
 import std/[algorithm, strutils, tables, times]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 
 {.push raises: [].}
 

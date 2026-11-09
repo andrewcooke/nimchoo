@@ -6,7 +6,7 @@ import std/[os, strutils]
 import db_connector/db_sqlite
 import ../cli/[args, common]
 import ../download/fetch
-import ../errors
+import ../core/errors
 import ../ui/[live, logfile]
 import ../user/wipe
 import ./[statement, store]

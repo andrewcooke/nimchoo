@@ -6,9 +6,9 @@
 
 import std/options
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../fit/time
-import ../ids
+import ../core/ids
 import ./extract
 
 {.push raises: [].}

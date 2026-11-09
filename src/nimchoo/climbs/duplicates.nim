@@ -7,7 +7,7 @@
 
 import std/[algorithm, options, tables]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ./[describe, display, match, report]
 
 {.push raises: [].}

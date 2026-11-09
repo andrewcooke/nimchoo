@@ -4,8 +4,8 @@
 
 import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
 import ../db/[channel, checkpointer, store]
-import ../errors
-import ../ids
+import ../core/errors
+import ../core/ids
 import ../profile/default
 import ../profile/model
 import ../profiling

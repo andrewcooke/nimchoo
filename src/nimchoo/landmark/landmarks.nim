@@ -3,7 +3,7 @@
 
 import std/[options, strutils]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../geo
 
 {.push raises: [].}

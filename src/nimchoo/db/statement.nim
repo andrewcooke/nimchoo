@@ -20,8 +20,8 @@ from db_connector/sqlite3 import
   bind_blob, SQLITE_TRANSIENT, step, reset, clear_bindings, finalize, errmsg,
   last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE, SQLITE_ROW, column_blob,
   column_bytes
-import ../errors
-import ../ids
+import ../core/errors
+import ../core/ids
 import ./sqltext
 export sqltext
 

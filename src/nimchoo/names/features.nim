@@ -11,7 +11,7 @@
 import std/[math, options, os, strutils, tables, times]
 import ../db/[statement, store]
 import ../download/[fetch, sources]
-import ../errors
+import ../core/errors
 import ../zipbytes
 import ./countries
 

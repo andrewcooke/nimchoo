@@ -19,8 +19,8 @@
 
 import std/[math, options, strutils, tables]
 import ../db/[statement, store]
-import ../errors
-import ../ids
+import ../core/errors
+import ../core/ids
 import ../importer/[extract, track]
 import ../lookup
 import ../profiling

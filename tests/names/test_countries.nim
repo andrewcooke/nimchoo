@@ -3,7 +3,7 @@ import std/[math, options, os, sequtils, strutils, unittest]
 import ../support/shims
 import nimchoo/db/store
 import nimchoo/download/[fetch, sources]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 import nimchoo/names/countries
 import ../support/[shapefile, zips]

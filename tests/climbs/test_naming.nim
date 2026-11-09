@@ -4,7 +4,7 @@ import ../support/shims
 import nimchoo/climbs/naming
 import nimchoo/db/store
 import nimchoo/download/fetch
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 import nimchoo/names/countries
 import ../support/namesdata

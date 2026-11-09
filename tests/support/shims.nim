@@ -3,7 +3,7 @@
 
 import nimchoo/download/fetch
 import nimchoo/db/[channel, store]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/importer/[batch, events, importer, sinks]
 import nimchoo/profile/model
 import nimchoo/warnings

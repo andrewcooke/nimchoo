@@ -2,7 +2,7 @@ import nimchoo/db/statement
 import std/[sequtils, strutils, unittest]
 import nimchoo/climbs/[duplicates, work]
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import ../support/[climbdata, userdata]
 
 suite "climbs: duplicates":

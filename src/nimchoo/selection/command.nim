@@ -12,7 +12,7 @@ import ../db/[statement, store]
 import ../delete/run as deleteRun
 import ../importer/batch
 import ../importer/run as importRun
-import ../errors
+import ../core/errors
 import ../fit/time
 import ../ui/[live, logfile, style, vocabulary]
 import ../packages/text/fold/fold

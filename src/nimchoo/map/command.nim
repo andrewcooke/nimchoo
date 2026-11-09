@@ -16,11 +16,11 @@ import ../[atomic, cache]
 import ../cli/common
 import ../climbs/[attempts, report, work]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../importer/keys
 import ../version
 import ../fit/time
-import ../ids
+import ../core/ids
 import ../selection/[bits, selection]
 import ../serve/[launch, pages, webopts]
 import ./[lines, page, params]

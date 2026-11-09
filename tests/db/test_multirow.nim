@@ -1,7 +1,7 @@
 import std/[options, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/[multirow, statement]
-import nimchoo/errors
+import nimchoo/core/errors
 
 proc fill(db: DbConn, count: int) =
   ## Insert `count` rows (n, n * 2, a text for the odd ones, NULL for the even) with as few statements as the helper allows.

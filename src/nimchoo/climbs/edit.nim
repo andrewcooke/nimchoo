@@ -4,7 +4,7 @@
 
 import std/[algorithm, sequtils, strutils, tables]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../packages/text/fold/fold
 import ./[display, ordinal, report]
 

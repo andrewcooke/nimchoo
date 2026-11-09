@@ -2,7 +2,7 @@ import nimchoo/db/statement
 import std/[options, os, strutils, unittest]
 import ../support/shims
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/download/fetch
 import nimchoo/names/[countries, features]
 import ../support/[namesdata, zips]

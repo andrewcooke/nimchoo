@@ -8,7 +8,7 @@ import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 import nimchoo/profile/[default, model]
 import ../support/fitbuilder

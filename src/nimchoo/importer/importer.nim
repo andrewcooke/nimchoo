@@ -5,7 +5,7 @@
 import std/[options, sets, times]
 import ../hashing
 import ../db/[channel, multirow, statement, store]
-import ../errors
+import ../core/errors
 import ../profile/model
 import ../profiling
 import ../warnings

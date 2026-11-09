@@ -2,7 +2,7 @@
 ## made-up packages; the generated file calls it at compile time, where an error stops the build.
 
 import std/[algorithm, strutils, tables]
-import ../errors
+import ./errors
 import ./package
 
 {.push raises: [].}

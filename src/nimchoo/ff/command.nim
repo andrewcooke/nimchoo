@@ -11,7 +11,7 @@ import db_connector/db_sqlite
 import ../cli/common
 import ../[atomic, cache]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../model/[calc, impulses, models]
 import ../serve/[launch, pages, webopts]
 import ../ui/[live, style]

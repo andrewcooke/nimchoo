@@ -4,7 +4,7 @@
 import std/[options, os, sequtils, sets, tables, unittest]
 import nimchoo/core/ownership
 import nimchoo/db/[statement, store]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 
 func frag(name, sql: string): Fragment =

@@ -5,9 +5,9 @@
 import std/[math, tables]
 import db_connector/db_sqlite
 import ../db/[channel, multirow, statement]
-import ../errors
+import ../core/errors
 import ../fit/time
-import ../ids
+import ../core/ids
 
 {.push raises: [].}
 

@@ -10,7 +10,7 @@
 
 import std/os
 import db_connector/db_sqlite
-import ../errors
+import ./errors
 
 {.push raises: [].}
 

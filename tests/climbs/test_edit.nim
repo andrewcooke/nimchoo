@@ -3,7 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/climbs/[command, edit, ordinal, report]
 import nimchoo/db/[statement, store]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 
 let dir = getTempDir() / "nch-test-climbs-edit"

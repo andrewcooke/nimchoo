@@ -1,4 +1,4 @@
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/db/statement
 import std/[os, unittest]
 import nimchoo/db/store

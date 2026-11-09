@@ -5,7 +5,7 @@ import std/[cpuinfo, options, strutils]
 import ../cli/common
 import ../db/[statement, store]
 import ../download/fetch
-import ../errors
+import ../core/errors
 import ../names/open
 import ../ui/[live, logfile, style]
 import ./[batch, display, events, logsink, naming, sinks]

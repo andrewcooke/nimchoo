@@ -5,7 +5,7 @@ import std/options
 import ../hashing
 import db_connector/db_sqlite
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ./calc
 
 {.push raises: [].}

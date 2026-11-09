@@ -9,7 +9,7 @@
 ## passed in (`Env`), so tests serve made-up bytes and a made-up amount of room.
 
 import std/[httpclient, options, os, strutils, tables]
-import ../errors
+import ../core/errors
 import ../lookup
 import ../[atomic, zipbytes, zipchild]
 import ./sources

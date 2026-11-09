@@ -3,7 +3,7 @@
 ## (retired ones count), so numbers are not reused while the highest holder stays.  Pure SQL on the table.
 
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 
 {.push raises: [].}
 

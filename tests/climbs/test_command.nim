@@ -3,7 +3,7 @@ import std/[unittest]
 import nimchoo/cli/common
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/db/store
-import nimchoo/ids
+import nimchoo/core/ids
 import nimchoo/modules
 import ../support/[climbdata, userdata]
 

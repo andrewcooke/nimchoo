@@ -6,7 +6,7 @@ import std/[math, options, strutils, times]
 import ../fit/time
 import ../cli/args
 import ../db/sqltext
-import ../ids
+import ../core/ids
 import ../packages/text/fold/fold
 import ./ranges
 export ranges

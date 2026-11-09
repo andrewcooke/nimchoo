@@ -1,5 +1,5 @@
 import std/[options, os, sequtils, sets, strutils, unittest]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/fit/[bytes, crc, time]
 import nimchoo/profile/load
 import nimchoo/fit/tokens

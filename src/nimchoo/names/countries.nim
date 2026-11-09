@@ -9,7 +9,7 @@
 import std/[math, options, os, strutils]
 import ../db/[statement, store]
 import ../download/[fetch, sources]
-import ../errors
+import ../core/errors
 import ../zipbytes
 import ./countryinfo
 

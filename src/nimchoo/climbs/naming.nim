@@ -4,7 +4,7 @@
 
 import std/options
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../names/[climb, climbpick, countries]
 import ./[match, ordinal]
 

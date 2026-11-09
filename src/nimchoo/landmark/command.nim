@@ -7,7 +7,7 @@ import ../cli/common
 import ../climbs/report
 import ../ui/units
 import ../db/store
-import ../errors
+import ../core/errors
 import ../names/[lookup, open]
 import ../ui/logfile
 import ../user/wipe

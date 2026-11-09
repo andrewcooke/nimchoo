@@ -5,7 +5,7 @@
 
 import std/[options, tables]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 
 {.push raises: [].}
 

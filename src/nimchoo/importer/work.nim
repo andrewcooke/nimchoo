@@ -3,7 +3,7 @@
 ## thread and the result can be handed to the one that writes the database (pool.nim).
 
 import std/[monotimes, times]
-import ../errors
+import ../core/errors
 import ../fit/bytes
 import ../hashing
 import ../profiling

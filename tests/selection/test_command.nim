@@ -2,7 +2,7 @@ import std/[algorithm, os, sequtils, strutils, times, unittest]
 import nimchoo/cli/common
 import nimchoo/climbs/ordinal
 import nimchoo/db/[statement, store]
-import nimchoo/ids
+import nimchoo/core/ids
 import nimchoo/modules
 import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand

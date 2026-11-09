@@ -5,7 +5,7 @@
 import std/[options, strutils]
 import ../cli/common
 import ../db/store
-import ../errors
+import ../core/errors
 import ../ui/logfile
 import ./[calc, models, params]
 

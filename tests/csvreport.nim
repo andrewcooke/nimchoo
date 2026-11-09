@@ -2,7 +2,7 @@
 ## differences grouped by (message, field, kind).  Run with `nimble csvreport`.
 
 import std/[algorithm, sequtils, sets, strutils, tables]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/fit/bytes
 import nimchoo/fit/command
 import nimchoo/profile/load

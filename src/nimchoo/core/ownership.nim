@@ -5,7 +5,7 @@
 ## fragments to SQLite and compares (tests/core/test_ownership.nim).  Pure, so it can run at compile time.
 
 import std/[options, strutils, tables]
-import ../errors
+import ./errors
 import ./fragment
 
 {.push raises: [].}

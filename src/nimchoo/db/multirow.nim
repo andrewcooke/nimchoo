@@ -9,7 +9,7 @@
 import std/[strutils, tables]
 import ../lookup
 import db_connector/db_sqlite
-import ../errors
+import ../core/errors
 import ./statement
 
 {.push raises: [].}

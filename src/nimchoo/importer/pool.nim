@@ -7,7 +7,7 @@
 ## finished.  Each loads its own copy of the profile, so no object is shared between threads.
 
 import std/[options, sets, typedthreads]
-import ../errors
+import ../core/errors
 import ../profile/load
 import ../profiling
 import ./failure

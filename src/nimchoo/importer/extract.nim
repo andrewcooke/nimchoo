@@ -18,7 +18,7 @@
 
 import std/[algorithm, options, sequtils, strutils, tables]
 import ../db/channel
-import ../errors
+import ../core/errors
 import ../profile/model
 import ../profiling
 import ../warnings

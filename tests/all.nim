@@ -11,7 +11,7 @@ import
   ./text/fold/test_fold,
   ./test_zipbytes,
   ./test_xlsx,
-  ./test_errors,
+  ./core/test_errors,
   ./test_child,
   ./test_zipchild,
   ./test_atomic,

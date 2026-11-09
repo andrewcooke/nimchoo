@@ -1,7 +1,7 @@
 import std/[options, os, sets, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/[fragment, statement, store]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 
 let dir = getTempDir() / "nch-test-db"

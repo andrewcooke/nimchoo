@@ -4,7 +4,7 @@
 
 import std/[strutils, tables, unicode]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../ui/style
 import ./[describe, display, work]
 

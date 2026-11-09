@@ -8,7 +8,7 @@
 
 import std/[atomics, os, typedthreads]
 import db_connector/db_sqlite
-import ../errors
+import ../core/errors
 import ./statement
 
 {.push raises: [].}

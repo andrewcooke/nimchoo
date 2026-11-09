@@ -3,7 +3,7 @@ import std/[strutils, unittest]
 import ../support/shims
 import nimchoo/db/store
 import nimchoo/download/fetch
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/importer/naming
 import nimchoo/names/countries
 import ../support/namesdata

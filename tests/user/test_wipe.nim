@@ -2,7 +2,7 @@ import nimchoo/db/statement
 import std/[options, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/modules
 import nimchoo/ui/[live, style]
 import nimchoo/user/wipe

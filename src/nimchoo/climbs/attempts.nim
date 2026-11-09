@@ -8,7 +8,7 @@
 
 import std/[algorithm, options, sequtils, strutils, tables, times]
 import ../db/[statement, store]
-import ../errors
+import ../core/errors
 import ../fit/time
 import ../importer/describe
 import ../lookup

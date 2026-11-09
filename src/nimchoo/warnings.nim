@@ -1,7 +1,7 @@
 ## Warnings: oddities in a file that do not stop us reading it.  They are
 ## collected (never logged or printed by library code), each with a kind so
 ## that callers and tests can act on what happened rather than on its text.
-## Things that do stop us are errors (see errors.nim).
+## Things that do stop us are errors (see core/errors.nim).
 
 {.push raises: [].}
 

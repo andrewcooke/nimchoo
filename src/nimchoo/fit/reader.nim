@@ -3,7 +3,7 @@
 ## are described by earlier records), which the iterators guarantee.
 
 import std/[algorithm, options]
-import ../errors
+import ../core/errors
 import ../profile/model
 import ../warnings
 import ./decode

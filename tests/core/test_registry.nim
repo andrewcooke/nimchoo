@@ -2,7 +2,7 @@
 
 import std/[algorithm, os, sequtils, strutils, unittest]
 import nimchoo/core/[package, registry]
-import nimchoo/errors
+import nimchoo/core/errors
 import nimchoo/registry as generated
 import ../../tools/genregistry
 

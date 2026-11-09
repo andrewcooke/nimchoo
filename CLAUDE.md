@@ -345,7 +345,7 @@ four kinds of things go wrong, and each has one mechanism:
    built-in bounds checks).  never caught, never turned into a warning.  a table lookup that must succeed uses
    `must`/`mustMut` (`lookup.nim`), which asserts instead of raising `KeyError`.
 2. **input we cannot use is an exception**: a corrupt FIT file, a bad profile, a file that is not an xlsx.  all are
-   subtypes of `NchError` (`errors.nim`), raised with the `raiseFit` / `raiseProfile` / ... helpers and listed in
+   subtypes of `NchError` (`core/errors.nim`), raised with the `raiseFit` / `raiseProfile` / ... helpers and listed in
    `{.raises.}`.  corrupt input must never reach a Defect (a fuzzer is to check this for FIT files: TODO step 2).
 3. **ordinary absence is an `Option`**.  no sentinel values.
 4. **oddities we can recover from are warnings**, collected (`warnings.nim`, each with a `WarningKind`), never
