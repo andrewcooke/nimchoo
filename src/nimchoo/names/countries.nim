@@ -142,12 +142,13 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
   try:
     # a country is matched by its ISO code: Natural Earth's main field is -99 for a few (France, Norway), the real
     # one is in the second field
+    # (all the shapes with the code, joined: a country in several parts has a row for each)
     # (an upsert and not a replace: a replace would delete the row, and with it the places and cells read for the country)
     let insert = prepareStmt(
       n.st.db,
       "insert into country(iso, name, geoname_id, geom) " &
-        "values (?, ?, ?, (select CastToMultiPolygon(Geometry) from temp.ne_shapes " &
-        "where coalesce(nullif(ISO_A2_EH, '-99'), nullif(ISO_A2, '-99')) = ? limit 1)) " &
+        "values (?, ?, ?, (select CastToMultiPolygon(GUnion(Geometry)) from temp.ne_shapes " &
+        "where coalesce(nullif(ISO_A2_EH, '-99'), nullif(ISO_A2, '-99')) = ?)) " &
         "on conflict(iso) do update set name = excluded.name, geoname_id = excluded.geoname_id, geom = excluded.geom",
     )
     for c in countries:

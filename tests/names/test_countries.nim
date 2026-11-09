@@ -23,6 +23,9 @@ let shapes = [
   CountryShape(
     iso: "-99", isoEh: "FR", name: "France", rects: @[(-5.0, 43.0, 8.0, 51.0)]
   ),
+  CountryShape(
+    iso: "PT", isoEh: "PT", name: "Portugal (Azores)", rects: @[(-28.0, 38.4, -27.0, 39.0)]
+  ), # (a second shape with the same code: a country in two parts)
 ] # (the code is in the second field)
 
 proc infoLine(iso, name: string, id: int): string =
@@ -107,6 +110,14 @@ suite "names: which countries":
     check net.gets.len == 2 # no more fetching
     check not fileExists(dir / "naturalearth" / "work" / "ne_50m_admin_0_countries.shp")
       # (the unpacked files are removed)
+
+  test "a country in several shapes has all of them":
+    let (st, dir) = fresh("parts")
+    defer:
+      st.close()
+    let names = newNames(st, dir, envOf(Net()), silent())
+    check names.countries(-9.14, 38.72) == @["PT"] # the first shape
+    check names.countries(-27.5, 38.7) == @["PT"] # the second
 
   test "a cell on a border has both countries; a cell of open sea has none; the answers are kept":
     let net = Net()

@@ -2971,3 +2971,11 @@ Each was checked first; these were real.
 * **`</script>` in `map-style.json`** ended the script of the page.  The page writes `</` as `<\/` in the style (still
   JSON).
 * The comment on the hour bucket of the impulses said 0.03%; it is at most 0.6% (0.3% on average).
+* **A country in several shapes** (`ensureCountries` took `limit 1`): the shapes with one code are now joined (`GUnion`).
+  In Natural Earth 50m this is real: `AU` is three shapes (Australia, the Indian Ocean Territories, Ashmore and Cartier),
+  so Australia had one of them.  A database made before this keeps the old outlines; to make them again:
+  `update country set geom = null; delete from country_cell; delete from country_cell_done;` (or `nch db --delete -f`
+  and import again), and the next question about a country fetches nothing and reads them from the kept download.
+* Left as they are (documented): a cell near a border is decided by exact intersection with a generalised (1:50m)
+  outline, so a neighbour can be missed by a few kilometres; the antimeridian is only half handled (cells wrap, outlines
+  that cross it do not).
