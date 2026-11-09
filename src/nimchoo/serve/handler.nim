@@ -43,7 +43,8 @@ type
     of false:
       reply*: Reply
     of true:
-      args*: seq[string] ## the arguments of the worker (the same arguments give the same page)
+      args*: seq[string]
+        ## the arguments of the worker (the same arguments give the same page)
       route: Route
       target: Target
 
@@ -160,7 +161,8 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
       headers: @[
         (
           "Set-Cookie",
-          cookieName & "=" & cfg.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" & $cookieMaxAge,
+          cookieName & "=" & cfg.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" &
+            $cookieMaxAge,
         ),
         ("Location", t.withoutParam(tokenParam)),
       ],
@@ -206,7 +208,8 @@ proc begin*(cfg: ServerConfig, port: int, req: Incoming): Step =
 
 proc answered*(cfg: ServerConfig, req: Incoming, step: Step): Reply =
   ## The reply of a step that did not need a worker.
-  doAssert not step.needsWorker, "a step that needs a worker is finished with its result"
+  doAssert not step.needsWorker,
+    "a step that needs a worker is finished with its result"
   conclude(cfg, req, step.reply)
 
 proc finish*(cfg: ServerConfig, req: Incoming, step: Step, r: WorkerResult): Reply =

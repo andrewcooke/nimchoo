@@ -229,7 +229,8 @@ proc readData(
   if compressed:
     if t.timestamp.isNone:
       t.warnings.add wkCompressedNoBase,
-        pos, "compressed timestamp with no preceding timestamp (the message has no time)"
+        pos,
+        "compressed timestamp with no preceding timestamp (the message has no time)"
     else:
       let ts = int64(t.timestamp.get)
       let delta = int64(t.data[pos] and 0x1f)

@@ -100,7 +100,11 @@ suite "profile errors":
 
   test "a scale of 0 is refused: every value would be divided by it":
     expectError(
-      types(), record(@[field("3", "hr", "uint8", scale = "0")]), "Messages", 3, "bad scale 0"
+      types(),
+      record(@[field("3", "hr", "uint8", scale = "0")]),
+      "Messages",
+      3,
+      "bad scale 0",
     )
     expectError(
       types(),
@@ -111,7 +115,9 @@ suite "profile errors":
     )
     expectError(
       types(),
-      record(@[field("2", "alt", "uint16", components = "a,b", bits = "8,8", scale = "5,0")]),
+      record(
+        @[field("2", "alt", "uint16", components = "a,b", bits = "8,8", scale = "5,0")]
+      ),
       "Messages",
       3,
       "bad component scale 0",
@@ -119,7 +125,11 @@ suite "profile errors":
 
   test "a name or number defined twice is refused, not overwritten":
     expectError(
-      types(@[@["sport", "enum", "", "", ""]]), record(@[]), "Types", 8, "type sport is defined twice"
+      types(@[@["sport", "enum", "", "", ""]]),
+      record(@[]),
+      "Types",
+      8,
+      "type sport is defined twice",
     )
     expectError(
       types(@[@["", "", "running", "7", ""]]),

@@ -5,7 +5,6 @@ import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
 
-
 let dir = getTempDir() / "nch-test-schema"
 
 proc leading(db: DbConn, table: string): seq[seq[string]] =

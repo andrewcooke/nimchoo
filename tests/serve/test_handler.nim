@@ -37,10 +37,7 @@ proc setup(
     )
   )
   var cfg = ServerConfig(
-    token: token,
-    cacheDir: cache,
-    baseArgs: @["--db", "/x/y.db"],
-    logCommand: cmMap,
+    token: token, cacheDir: cache, baseArgs: @["--db", "/x/y.db"], logCommand: cmMap
   )
   if withLog:
     cfg.log = openLog(dir / name / "nch.log")
@@ -94,20 +91,19 @@ suite "serve handler: who may ask":
     check handle(s, port, get("//evil.example/x")).code == 400
   test "the token in the address: the cookie is set and the browser goes on without it":
     let s = setup("token")
-    let r = handle(
-      s, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = "")
-    )
+    let r =
+      handle(s, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = ""))
     check r.code == 302
     check r.header("Location") == "/map?bits=AB&check=ab12cd"
     let c = r.header("Set-Cookie")
-    check c == "nch=" & token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" & $cookieMaxAge
+    check c ==
+      "nch=" & token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" & $cookieMaxAge
     check s.fake.calls.len == 0 # (nothing run until the cookie is back)
     check r.body == ""
   test "the token alone":
     let s = setup("tokenonly")
-    check handle(s, port, get("/map?token=" & token, cookie = "")).header(
-      "Location"
-    ) == "/map"
+    check handle(s, port, get("/map?token=" & token, cookie = "")).header("Location") ==
+      "/map"
   test "a wrong token in the address: forbidden, no cookie":
     let s = setup("wrongtoken")
     let r = handle(s, port, get("/map?token=" & "0".repeat(32), cookie = ""))
@@ -250,9 +246,8 @@ suite "serve handler: every reply":
 suite "serve handler: the log":
   test "what was served and what was refused, never the token":
     let s = setup("log", withLog = true)
-    discard handle(
-      s, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = "")
-    )
+    discard
+      handle(s, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = ""))
     discard handle(s, port, get("/map?bits=AB&check=ab12cd"))
     discard handle(s, port, get("/map", cookie = ""))
     discard handle(s, port, get("/nope"))

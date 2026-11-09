@@ -63,7 +63,8 @@ type
     calories*: Option[int]
     coords*: seq[Coord] ## in time order, one per second at most
     samples*: Samples ## the other fields asked for (see `readActivities`), by name
-    segments*: seq[Segment] ## stretches of riding: disjoint, in time order, covering all coords
+    segments*: seq[Segment]
+      ## stretches of riding: disjoint, in time order, covering all coords
 
   RawCoord = object
     c: Coord
@@ -159,12 +160,9 @@ func merged(segs: seq[Segment]): seq[Segment] =
 func triggerOf(name: string): Trigger =
   ## The `timer_trigger` of a timer event, by its name ("" if the event has none).
   case name
-  of "auto":
-    trAuto
-  of "manual":
-    trManual
-  else:
-    trOther
+  of "auto": trAuto
+  of "manual": trManual
+  else: trOther
 
 func segmentsOf*(startT, endT: UnixTime, events: seq[TimerEvent]): seq[Segment] =
   ## The segments of a session lasting from `startT` to `endT`, given its timer
@@ -183,7 +181,9 @@ func segmentsOf*(startT, endT: UnixTime, events: seq[TimerEvent]): seq[Segment] 
       sinceBy = e.trigger
     elif not e.running and running:
       running = false
-      found.add Segment(startT: since, endT: e.t, startedBy: sinceBy, endedBy: e.trigger)
+      found.add Segment(
+        startT: since, endT: e.t, startedBy: sinceBy, endedBy: e.trigger
+      )
   if running:
     found.add Segment(startT: since, endT: endT, startedBy: sinceBy)
   for g in found.mitems:

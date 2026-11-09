@@ -128,8 +128,9 @@ proc runImport*(
           DownloadEvent(
             kind: deWorkDone,
             message:
-              "named " & what & ": " & $counts.named & " with a name, " & $counts.startOnly &
-              " with only a start place, " & $counts.nothing & " with neither" &
+              "named " & what & ": " & $counts.named & " with a name, " &
+              $counts.startOnly & " with only a start place, " & $counts.nothing &
+              " with neither" &
               (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: ""),
           )
         )

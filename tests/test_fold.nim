@@ -27,7 +27,10 @@ suite "folding: lower case, no accents":
     check foldText("") == ""
     check foldText("Москва") == "москва"
   test "in SQL, the same":
-    for text in ["El Arrayán", "ÑUÑOA (2/3)", "Zürich", "", "Москва", "Peñalolén", "a'b"]:
+    for text in [
+      "El Arrayán", "ÑUÑOA (2/3)", "Zürich", "", "Москва", "Peñalolén",
+      "a'b",
+    ]:
       check folded(text) == foldText(text)
   test "in SQL, null stays null":
     let db = open(":memory:", "", "", "")

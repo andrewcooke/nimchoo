@@ -11,7 +11,8 @@ import std/[monotimes, osproc, posix, times]
 
 const
   notStarted* = 127 ## the exit code when the program could not be run
-  timedOutCode* = 124 ## ... and when it was killed for taking too long (as `timeout(1)` says)
+  timedOutCode* = 124
+    ## ... and when it was killed for taking too long (as `timeout(1)` says)
 
 type
   ChildResult* = object
@@ -56,7 +57,9 @@ proc pump*(c: var Child, waitMs: int): bool =
   if left <= 0:
     c.collected.timedOut = true
     return true
-  if poll(addr c.fds[0], Tnfds(2), cint(max(0, min(min(left, int64(waitMs)), 1_000_000)))) > 0:
+  if poll(
+    addr c.fds[0], Tnfds(2), cint(max(0, min(min(left, int64(waitMs)), 1_000_000)))
+  ) > 0:
     var buf: array[16384, char]
     for i in 0 .. 1:
       if c.fds[i].fd >= 0 and (c.fds[i].revents and (POLLIN or POLLHUP or POLLERR)) != 0:

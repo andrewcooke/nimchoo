@@ -14,7 +14,9 @@ proc foldFunction(ctx: Pcontext, n: int32, args: PValueArg) {.cdecl.} =
     result_null(ctx)
     return
   let folded = foldText($value_text(args[0]))
-  result_text(ctx, folded.cstring, int32(folded.len), cast[Result_func](SQLITE_TRANSIENT))
+  result_text(
+    ctx, folded.cstring, int32(folded.len), cast[Result_func](SQLITE_TRANSIENT)
+  )
 
 proc registerFunctions*(db: DbConn) {.raises: [StoreError].} =
   ## Make `fold()` known to the connection.

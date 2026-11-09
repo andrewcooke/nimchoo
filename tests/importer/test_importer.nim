@@ -52,22 +52,23 @@ let tiny = fitFile(
 
 # three stretches of riding (the timer stopped and restarted by hand): 5, 4 and 3 coordinates,
 # paused for 6 s and 7 s between them
-let threeStretches =
-  block:
-    func rec(t, i: int): seq[byte] =
-      b(0) & le32(base + t) & le32(536870912 + 100 * i) & le32(-1073741824)
-    func timer(t, kind: int): seq[byte] =
-      b(5) & le32(base + t) & b(0, kind, 0)
-    var body = defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)])
-    body.add defn(5, 21, @[(253, 4, uint32T), (0, 1, enumT), (1, 1, enumT), (3, 1, enumT)])
-    for (from0, to0) in [(0, 4), (10, 13), (20, 22)]:
-      body.add timer(from0, 0)
-      for t in from0 .. to0:
-        body.add rec(t, t)
-      body.add timer(to0, 4)
-    body.add defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)])
-    body.add b(1) & le32(base + 22) & le32(base) & b(2)
-    fitFile(body)
+let threeStretches = block:
+  func rec(t, i: int): seq[byte] =
+    b(0) & le32(base + t) & le32(536870912 + 100 * i) & le32(-1073741824)
+  func timer(t, kind: int): seq[byte] =
+    b(5) & le32(base + t) & b(0, kind, 0)
+  var body = defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)])
+  body.add defn(
+    5, 21, @[(253, 4, uint32T), (0, 1, enumT), (1, 1, enumT), (3, 1, enumT)]
+  )
+  for (from0, to0) in [(0, 4), (10, 13), (20, 22)]:
+    body.add timer(from0, 0)
+    for t in from0 .. to0:
+      body.add rec(t, t)
+    body.add timer(to0, 4)
+  body.add defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)])
+  body.add b(1) & le32(base + 22) & le32(base) & b(2)
+  fitFile(body)
 
 suite "import: a real ride":
   test "one activity and all its coordinates":

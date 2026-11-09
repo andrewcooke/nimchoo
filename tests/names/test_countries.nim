@@ -24,7 +24,10 @@ let shapes = [
     iso: "-99", isoEh: "FR", name: "France", rects: @[(-5.0, 43.0, 8.0, 51.0)]
   ),
   CountryShape(
-    iso: "PT", isoEh: "PT", name: "Portugal (Azores)", rects: @[(-28.0, 38.4, -27.0, 39.0)]
+    iso: "PT",
+    isoEh: "PT",
+    name: "Portugal (Azores)",
+    rects: @[(-28.0, 38.4, -27.0, 39.0)],
   ), # (a second shape with the same code: a country in two parts)
 ] # (the code is in the second field)
 

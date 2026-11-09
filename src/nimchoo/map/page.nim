@@ -76,7 +76,8 @@ proc renderPage*(
             ("title", text(title)),
             ("data", text(dataName)),
             ("css", text(css)),
-            ("style", text(style.replace("</", "<\\/"))), # (in a script: the page ends at the first "</script")
+            ("style", text(style.replace("</", "<\\/"))),
+              # (in a script: the page ends at the first "</script")
           ]
       ),
     )

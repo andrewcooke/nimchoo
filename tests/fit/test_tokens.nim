@@ -124,16 +124,18 @@ suite "tokenizer: hand-built files":
 
   test "a timestamp of all ones (no time) or beyond 32 bits is ignored, with a warning":
     let body =
-      defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(1000) & b(0) & le32(0xFFFFFFFF'i64)
+      defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(1000) & b(0) & le32(
+        0xFFFFFFFF'i64
+      )
     let (t, toks) = tokenize(fitFile(body))
     check toks[2].timestamp == some(FitTime(1000))
     check toks[3].timestamp == some(FitTime(1000)) # (as it was)
     check t.warnings.mapIt(it.kind) == @[wkTimestampInvalid]
     # as the first time
-    let (t2, toks2) = tokenize(
-      fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(0xFFFFFFFF'i64))
-    )
-    check toks2[2].timestamp.isNone and t2.warnings.mapIt(it.kind) == @[wkTimestampInvalid]
+    let (t2, toks2) =
+      tokenize(fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(0xFFFFFFFF'i64)))
+    check toks2[2].timestamp.isNone and
+      t2.warnings.mapIt(it.kind) == @[wkTimestampInvalid]
     # a compressed timestamp that would pass the top of 32 bits
     let top = fitFile(
       defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(0xFFFFFFFE'i64) &

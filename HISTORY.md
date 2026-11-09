@@ -2999,3 +2999,4 @@ Each was checked first; these were real.
   atomic stop flag of `db/checkpointer.nim` is state like `profiling.nim`'s (and the importer has no thread-pool
   global); a test file may cover its neighbours.
 * 75 exported procs had no `##`; they have one now.  Borrowed operators of a distinct type are exempt.
+* The code was formatted with `nph` (52 files had drifted); keep running `nph src tests` before a commit.

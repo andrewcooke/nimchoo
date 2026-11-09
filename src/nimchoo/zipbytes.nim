@@ -57,7 +57,8 @@ func listEntries*(z: string): Table[string, ZipEntry] {.raises: [ZipError].} =
 
 const maxEntrySize* = 256 * 1024 * 1024 ## the default: larger declared sizes are refused
 
-type Inflater* = proc(raw: string, size, limit: int): string {.closure, raises: [ZipError].}
+type Inflater* =
+  proc(raw: string, size, limit: int): string {.closure, raises: [ZipError].}
   ## Inflates the deflated bytes `raw`, which should come to `size` bytes; ZipError if they come to more than `limit`
   ## or are damaged.
 

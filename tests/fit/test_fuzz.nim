@@ -69,8 +69,9 @@ suite "FIT fuzzing":
     var report: seq[string]
     for sig, saved in failures:
       report.add sig & "  (saved: " & saved & ")"
-    let stats = $runs & " mutations of " & $paths.len & " files: " & $ok &
-      " read (" & $noisy & " with warnings), " & $rejected & " refused"
+    let stats =
+      $runs & " mutations of " & $paths.len & " files: " & $ok & " read (" & $noisy &
+      " with warnings), " & $rejected & " refused"
     checkpoint stats
     if getEnv("NCH_FUZZ_STATS") != "":
       echo stats

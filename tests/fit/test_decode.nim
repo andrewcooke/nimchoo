@@ -41,15 +41,15 @@ func csd(speed, dist: int): seq[byte] =
 suite "decode: a bool is checked for the bad-value marker like every other type":
   # sdm_profile.enabled: a bool (profile base type uint8)
   proc enabled(values: seq[byte], base = 0x02): Record =
-    let (_, recs) =
-      decodeAll(defn(0, 5, @[(0, values.len, base)]) & b(0) & values)
+    let (_, recs) = decodeAll(defn(0, 5, @[(0, values.len, base)]) & b(0) & values)
     check recs.len == 1
     recs[0]
 
   test "0 and 1 are false and true":
     check enabled(b(0)).fv("enabled").ints == @[0'i64]
     check enabled(b(1)).fv("enabled").ints == @[1'i64]
-    check enabled(b(7)).fv("enabled").ints == @[1'i64] # (anything else that is not the marker)
+    check enabled(b(7)).fv("enabled").ints ==
+      @[1'i64] # (anything else that is not the marker)
 
   test "the marker (255) leaves the field out; it is not true":
     check enabled(b(0xff)).field("enabled").isNone
@@ -76,8 +76,9 @@ suite "decode: floats that are not finite":
     check r.warnings.len == 0
 
   test "a NaN (quiet or signalling) or an infinity leaves the field out, with a warning":
-    for bytes in [b(0, 0, 0xc0, 0x7f), b(1, 0, 0x80, 0x7f), b(0, 0, 0x80, 0x7f),
-                  b(0, 0, 0x80, 0xff)]:
+    for bytes in [
+      b(0, 0, 0xc0, 0x7f), b(1, 0, 0x80, 0x7f), b(0, 0, 0x80, 0x7f), b(0, 0, 0x80, 0xff)
+    ]:
       let (r, rec) = hrv(bytes)
       check rec.field("time").isNone
       check r.warnings.mapIt(it.kind) == @[wkNonFiniteFloat]

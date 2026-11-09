@@ -57,7 +57,8 @@ suite "nch fit rendering":
   test "a time field declared wider than 32 bits shows a number that cannot be a time as the number":
     # (the class: corrupt input never reaches a Defect; this was an overflow in fromUnix)
     for (lo, hi, shown) in [
-      (0xFFFFFFFE'i64, 0x7FFFFFFF'i64, "9223372036854775806"), # (the largest that is not the marker)
+      (0xFFFFFFFE'i64, 0x7FFFFFFF'i64, "9223372036854775806"),
+        # (the largest that is not the marker)
       (0'i64, 0x80000000'i64, "-9223372036854775808"),
       (0xFFFFFFFF'i64, 0'i64, "4294967295"),
     ]:

@@ -24,7 +24,8 @@ import nimchoo/zipchild
 
 {.push raises: [].}
 
-const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
+const usage =
+  """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
 
   --db PATH      the database file (default: $NCH_DB, else nch/nch.db in the
                  user's data directory)
@@ -33,7 +34,8 @@ const usage = """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
   --version      print the version and the git commit it was built from
 
 commands:
-""" & commandList() & """
+""" &
+  commandList() & """
 For more about a command: `nch COMMAND --help`.
 """
 
@@ -69,7 +71,8 @@ type Head = object ## The options before the command name.
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
-  if args.len > 0 and args[0] == inflateFlag: # (a child of the downloads: see zipchild.nim)
+  if args.len > 0 and args[0] == inflateFlag:
+    # (a child of the downloads: see zipchild.nim)
     return inflateChildMain(args[1 ..^ 1])
   var head = Head(g: Globals(fragments: allFragments, importSteps: allImportSteps))
   let spec = Spec[Head](

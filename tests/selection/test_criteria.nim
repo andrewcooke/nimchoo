@@ -370,7 +370,9 @@ suite "list: --path":
     check c.paths == @["bowman", "run", "2026-10"]
     let q = matchSql(@[UserId(1)], c, none((float, float)))
     check q.contains("instr(fold(f.name), 'bowman') > 0") and
-      q.contains("from seen_file s where s.file_id = f.id and instr(fold(s.path), 'bowman') > 0")
+      q.contains(
+        "from seen_file s where s.file_id = f.id and instr(fold(s.path), 'bowman') > 0"
+      )
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains(
       "seen_file"
     )

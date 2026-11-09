@@ -125,7 +125,8 @@ func baseTypeFromName*(name: string): Option[BaseType] {.raises: [].} =
 type ElementKind* = enum
   ekValue ## an ordinary value
   ekBad ## the type's "bad value" marker: the file says "no value"
-  ekNonFinite ## a float that is a NaN other than the marker, or an infinity: not a measurement
+  ekNonFinite
+    ## a float that is a NaN other than the marker, or an infinity: not a measurement
 
 func elementKind*(
     bt: BaseType, data: openArray[byte], i: int, endian: Endianness

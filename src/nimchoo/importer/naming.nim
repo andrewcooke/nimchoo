@@ -15,7 +15,8 @@ import ./route
 type
   GpsErrors* = object
     where*: string ## the file of the activity (else "activity N")
-    searches*: int ## how many searches for a place were not made, the positions being too far apart
+    searches*: int
+      ## how many searches for a place were not made, the positions being too far apart
 
   Named* = object
     total*: int ## activities that had no name

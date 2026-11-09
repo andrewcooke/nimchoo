@@ -56,5 +56,6 @@ suite "atomic writes":
     let path = dir / "kept.txt"
     writeAtomic(path, "old")
     expect CatchableError:
-      writeAtomic(path / "inside", "x") # (the directory cannot be made: kept.txt is a file)
+      writeAtomic(path / "inside", "x")
+        # (the directory cannot be made: kept.txt is a file)
     check readFile(path) == "old" and leftovers(dir).len == 0

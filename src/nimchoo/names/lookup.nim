@@ -25,12 +25,14 @@ type
     rdReady ## the names round the place are in the table
     rdNothing
       ## there is nothing to be had for this place (the sea, a country the list lacks, `--offline`)
-    rdTooWide ## the positions spread over more than `maxSpanDeg`: nothing is fetched for them
+    rdTooWide
+      ## the positions spread over more than `maxSpanDeg`: nothing is fetched for them
 
   Prepared* = object
     status*: Readiness
 
-  Part* = tuple[lons, lats: seq[float]] ## The positions of one stretch of riding, in order.
+  Part* = tuple[lons, lats: seq[float]]
+    ## The positions of one stretch of riding, in order.
 
   Found* = object
     ## A feature of the table, as it is: where it is and what it is called.

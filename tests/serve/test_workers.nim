@@ -19,7 +19,13 @@ suite "serve workers":
   test "different pages are made at the same time":
     let w = newWorkers("/bin/sh")
     let t0 = getMonoTime()
-    let rs = waitFor all(@[w.script("sleep 0.5; echo a"), w.script("sleep 0.5; echo b"), w.script("sleep 0.5; echo c")])
+    let rs = waitFor all(
+      @[
+        w.script("sleep 0.5; echo a"),
+        w.script("sleep 0.5; echo b"),
+        w.script("sleep 0.5; echo c"),
+      ]
+    )
     check rs[0].stdout == "a\n" and rs[1].stdout == "b\n" and rs[2].stdout == "c\n"
     check t0.ms < 1300
   test "requests for the same page share one run":
@@ -29,7 +35,8 @@ suite "serve workers":
     # (each run adds a line to a file)
     let s = "echo x >> " & (dir / "runs") & "; sleep 0.3; echo page"
     let rs = waitFor all(@[w.script(s), w.script(s), w.script(s)])
-    check rs[0].stdout == "page\n" and rs[1].stdout == "page\n" and rs[2].stdout == "page\n"
+    check rs[0].stdout == "page\n" and rs[1].stdout == "page\n" and
+      rs[2].stdout == "page\n"
     check readFile(dir / "runs").splitLines.len == 2 # one line and the end
     # and when it is over, a new request runs again
     discard waitFor w.script(s)
@@ -37,9 +44,14 @@ suite "serve workers":
   test "no more than the limit run at once; the others wait their turn":
     let w = newWorkers("/bin/sh", limit = 2)
     let t0 = getMonoTime()
-    let rs = waitFor all(@[
-      w.script("sleep 0.4; echo 1"), w.script("sleep 0.4; echo 2"),
-      w.script("sleep 0.4; echo 3"), w.script("sleep 0.4; echo 4")])
+    let rs = waitFor all(
+      @[
+        w.script("sleep 0.4; echo 1"),
+        w.script("sleep 0.4; echo 2"),
+        w.script("sleep 0.4; echo 3"),
+        w.script("sleep 0.4; echo 4"),
+      ]
+    )
     check rs[3].stdout == "4\n"
     check t0.ms >= 780 and t0.ms < 2500 # two rounds of 0.4 s
   test "a worker that takes too long is killed, and the page says so":

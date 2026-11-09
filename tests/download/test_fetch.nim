@@ -1,4 +1,8 @@
-import std/[atomics, monotimes, nativesockets, net, options, os, sets, strutils, tables, times, unittest]
+import
+  std/[
+    atomics, monotimes, nativesockets, net, options, os, sets, strutils, tables, times,
+    unittest,
+  ]
 import nimchoo/download/[fetch, sinks, sources, spinner]
 import nimchoo/ui/[live, logfile, palette, style]
 import ../support/zips
@@ -398,7 +402,8 @@ proc serveJunk(j: Junk) {.thread.} =
           break
         line.add c
       client.send(
-        "HTTP/1.1 200 OK\r\n" & (if j.announce: "Content-Length: " & $j.sent & "\r\n" else: "") &
+        "HTTP/1.1 200 OK\r\n" &
+          (if j.announce: "Content-Length: " & $j.sent & "\r\n" else: "") &
           "Connection: close\r\n\r\n"
       )
       # (paced: httpclient reports progress at most once a second, so a body that comes at once is not caught)
@@ -413,7 +418,9 @@ proc serveJunk(j: Junk) {.thread.} =
     except CatchableError:
       discard # (the client stopped reading: that is what is tested)
 
-proc fromJunk(sent: int, announce: bool, maxBytes: int64): tuple[r: FetchResult, ms: int64] =
+proc fromJunk(
+    sent: int, announce: bool, maxBytes: int64
+): tuple[r: FetchResult, ms: int64] =
   let server = newSocket()
   server.setSockOpt(OptReuseAddr, true)
   server.bindAddr(Port(0), "127.0.0.1")
@@ -423,9 +430,8 @@ proc fromJunk(sent: int, announce: bool, maxBytes: int64): tuple[r: FetchResult,
   var t: Thread[Junk]
   createThread(t, serveJunk, (int(server.getFd()), sent, announce))
   let t0 = getMonoTime()
-  result.r = realFetcher(5000).getTelling(
-    "http://127.0.0.1:" & $int(port) & "/x", nil, maxBytes
-  )
+  result.r =
+    realFetcher(5000).getTelling("http://127.0.0.1:" & $int(port) & "/x", nil, maxBytes)
   result.ms = (getMonoTime() - t0).inMilliseconds
   junkDone.store(true)
   joinThread(t)

@@ -35,7 +35,9 @@ proc ms(since: MonoTime): int64 =
 
 suite "child processes: without stopping the event loop":
   test "the same results as the blocking one":
-    let r = waitFor runChildAsync("/bin/sh", @["-c", "head -c 300000 /dev/zero >&2; echo out; exit 2"], 5000)
+    let r = waitFor runChildAsync(
+      "/bin/sh", @["-c", "head -c 300000 /dev/zero >&2; echo out; exit 2"], 5000
+    )
     check r.stderr.len == 300000 and r.stdout == "out\n" and r.code == 2
   test "three children that take 0.5 s each take about 0.5 s together":
     let t0 = getMonoTime()
@@ -54,6 +56,7 @@ suite "child processes: without stopping the event loop":
       for _ in 1 .. 10:
         await sleepAsync(20)
         inc ticks
+
     let child = runChildAsync("/bin/sh", @["-c", "sleep 0.6"], 5000)
     waitFor ticker() # (about 0.2 s)
     check ticks == 10 and not child.finished

@@ -46,7 +46,8 @@ type
   Rides = object
     ## The rides read recently (the same rides are wanted again for each new sector near them),
     ## kept while they hold fewer than `ridePointLimit` points in all.
-    paths: Table[int64, seq[Path]] ## a path for each stretch of the ride that has two positions
+    paths: Table[int64, seq[Path]]
+      ## a path for each stretch of the ride that has two positions
     points: int
 
 func boxOf(p: Path): Box =

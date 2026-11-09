@@ -158,7 +158,11 @@ proc interpret(
       case elementKind(sp.base, data, i, endian)
       of ekValue:
         let x = readFloat(sp.base, data, i, endian)
-        let y = if identity: some(x) else: scaled(x, sp.scale, sp.offset)
+        let y =
+          if identity:
+            some(x)
+          else:
+            scaled(x, sp.scale, sp.offset)
         if y.isSome:
           fv.floats[i] = y.get
         else:

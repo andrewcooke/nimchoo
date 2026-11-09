@@ -105,12 +105,14 @@ suite "database: opening and bringing the schema up to date":
       names.add row[0]
     check names ==
       @[
-        "climbs/001-schema.sql", "climbs/002-name-number.sql", "climbs/003-effort-index.sql",
-        "db/001-schema.sql", "heartrate/001-schema.sql", "importer/001-schema.sql",
-        "importer/002-seen-file-index.sql", "landmark/001-schema.sql", "model/001-schema.sql",
-        "model/002-impulse-index.sql", "names/001-schema.sql", "names/002-country-cells.sql",
-        "names/003-country-cell-index.sql", "selection/001-schema.sql",
-        "selection/002-activity-index.sql", "user/001-schema.sql",
+        "climbs/001-schema.sql", "climbs/002-name-number.sql",
+        "climbs/003-effort-index.sql", "db/001-schema.sql", "heartrate/001-schema.sql",
+        "importer/001-schema.sql", "importer/002-seen-file-index.sql",
+        "landmark/001-schema.sql", "model/001-schema.sql",
+        "model/002-impulse-index.sql", "names/001-schema.sql",
+        "names/002-country-cells.sql", "names/003-country-cell-index.sql",
+        "selection/001-schema.sql", "selection/002-activity-index.sql",
+        "user/001-schema.sql",
       ]
     s.close()
 

@@ -69,7 +69,10 @@ proc loadOutlines(
     except OSError:
       discard
   for ext in [".shp", ".shx", ".dbf"]:
-    writeFile(work / (neStem & ext), readEntry(zip, neStem & ext, 64 * 1024 * 1024, n.env.inflater))
+    writeFile(
+      work / (neStem & ext),
+      readEntry(zip, neStem & ext, 64 * 1024 * 1024, n.env.inflater),
+    )
   guard:
     n.st.db.exec(
       sql(

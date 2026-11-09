@@ -14,15 +14,15 @@ proc logWith(name: string, lines: varargs[string]): string =
 
 const
   run1 = "2026-11-02T10:00:00Z INFO  activities run        /a"
-  fail1 = "2026-11-02T10:00:01Z ERROR activities failed     /a/bad.fit  (bad format) why"
+  fail1 =
+    "2026-11-02T10:00:01Z ERROR activities failed     /a/bad.fit  (bad format) why"
   run2 = "2026-11-02T11:00:00Z INFO  activities run        /b"
   dup2 =
     "2026-11-02T11:00:01Z INFO  activities duplicate  /b/x.fit  same content as /b/y.fit"
 
 suite "nch log: the command line":
   test "commands and events are told apart":
-    let p =
-      parseArgs(@["activities", "failed", "map", "advisory", "--last", "-n", "5"])
+    let p = parseArgs(@["activities", "failed", "map", "advisory", "--last", "-n", "5"])
     check p.problem == ""
     check p.filter.commands == @["activities", "map"]
     check p.filter.events == {leFailed, leAdvisory}
@@ -49,8 +49,9 @@ suite "nch log: showing":
     let p = logWith("colour", fail1)
     let r = show(p, Filter(), true)
     check r.lines[0].contains("\e[31m\e[1mfailed\e[0m")
-    check r.lines[0].startsWith("2026-11-02T10:00:01Z \e[31m\e[1mERROR\e[0m activities ")
-      # (the level too)
+    check r.lines[0].startsWith(
+      "2026-11-02T10:00:01Z \e[31m\e[1mERROR\e[0m activities "
+    ) # (the level too)
   test "no log yet":
     check show(dir / "nonesuch" / "nch.log", Filter(), false).problem.contains("no log")
   test "no run to show, and why it may be":

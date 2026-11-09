@@ -10,7 +10,8 @@ import db_connector/db_sqlite
 
 type Invariant* = object
   name*: string
-  offenders*: string ## a query that gives one row per offender (first column: what to show)
+  offenders*: string
+    ## a query that gives one row per offender (first column: what to show)
 
 const allInvariants* = [
   Invariant(
@@ -73,8 +74,7 @@ const allInvariants* = [
   ),
   Invariant(
     name: "heart rates are plausible (1 to 250 bpm)",
-    offenders:
-      "select distinct activity_id from heartrate where bpm < 1 or bpm > 250",
+    offenders: "select distinct activity_id from heartrate where bpm < 1 or bpm > 250",
   ),
   Invariant(
     name: "no foreign key points at nothing",

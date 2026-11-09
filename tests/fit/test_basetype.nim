@@ -95,13 +95,18 @@ suite "floats that are not finite":
     check elementKind(btFloat32, b(0, 0, 0, 0), 0, littleEndian) == ekValue
     check elementKind(btFloat32, b(1, 0, 0, 0), 0, littleEndian) == ekValue # subnormal
     check elementKind(btFloat32, b(0xff, 0xff, 0xff, 0xff), 0, littleEndian) == ekBad
-    check elementKind(btFloat32, b(0, 0, 0xc0, 0x7f), 0, littleEndian) == ekNonFinite # quiet NaN
-    check elementKind(btFloat32, b(1, 0, 0x80, 0x7f), 0, littleEndian) == ekNonFinite # signalling NaN
-    check elementKind(btFloat32, b(0, 0, 0x80, 0x7f), 0, littleEndian) == ekNonFinite # +inf
-    check elementKind(btFloat32, b(0, 0, 0x80, 0xff), 0, littleEndian) == ekNonFinite # -inf
+    check elementKind(btFloat32, b(0, 0, 0xc0, 0x7f), 0, littleEndian) == ekNonFinite
+      # quiet NaN
+    check elementKind(btFloat32, b(1, 0, 0x80, 0x7f), 0, littleEndian) == ekNonFinite
+      # signalling NaN
+    check elementKind(btFloat32, b(0, 0, 0x80, 0x7f), 0, littleEndian) == ekNonFinite
+      # +inf
+    check elementKind(btFloat32, b(0, 0, 0x80, 0xff), 0, littleEndian) == ekNonFinite
+      # -inf
     check elementKind(btFloat32, b(0x7f, 0x80, 0, 0), 0, bigEndian) == ekNonFinite
   test "float64":
-    check elementKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), 0, littleEndian) == ekValue
+    check elementKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), 0, littleEndian) ==
+      ekValue
     check elementKind(btFloat64, b(1, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
       ekNonFinite
     check elementKind(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf0, 0x7f), 0, littleEndian) ==
@@ -130,7 +135,11 @@ suite "strings":
 suite "every base type, from its table of facts":
   func bytesOf(v: uint64, size: int, e: Endianness): seq[byte] =
     for i in 0 ..< size:
-      let shift = if e == littleEndian: 8 * i else: 8 * (size - 1 - i)
+      let shift =
+        if e == littleEndian:
+          8 * i
+        else:
+          8 * (size - 1 - i)
       result.add byte((v shr shift) and 0xff)
 
   test "the marker is bad, in both byte orders, and is the only bad value of its size":
@@ -150,8 +159,8 @@ suite "every base type, from its table of facts":
     for bt in BaseType:
       if bt in {btString, btFloat32, btFloat64}:
         continue
-      let data = bytesOf(1, bt.size, littleEndian) &
-        bytesOf(invalid(bt), bt.size, littleEndian)
+      let data =
+        bytesOf(1, bt.size, littleEndian) & bytesOf(invalid(bt), bt.size, littleEndian)
       check not isBad(bt, data, littleEndian)
       check bt.elementKind(data, 0, littleEndian) == ekValue
       check bt.elementKind(data, 1, littleEndian) == ekBad

@@ -176,14 +176,13 @@ suite "activities: refusing files":
       check e.kind == ifBadTime
 
   test "a session start declared wider than 32 bits and out of range is a bad time, not an overflow":
-    let wide = defn(
-      1, 18, @[(253, 4, uint32T), (2, 8, sint64T), (5, 1, enumT), (6, 1, enumT)]
-    )
+    let wide =
+      defn(1, 18, @[(253, 4, uint32T), (2, 8, sint64T), (5, 1, enumT), (6, 1, enumT)])
     for hi in [0x7FFFFFFF'i64, 0x80000000'i64]:
       try:
         discard activities(
-          recordDefn & at(base) & wide & b(1) & le32(base) & le32(0xFFFFFFFF'i64) & le32(hi) &
-            b(2, 0)
+          recordDefn & at(base) & wide & b(1) & le32(base) & le32(0xFFFFFFFF'i64) &
+            le32(hi) & b(2, 0)
         )
         check false
       except ImportError as e:
@@ -310,7 +309,6 @@ func timer(t: int, kind: int): seq[byte] =
   ## A timer event at FIT time `t`; kind 0 is a start, 1 a stop, 4 a stop_all.
   b(4) & le32(t) & b(0, kind)
 
-
 func ev(t: int64, running: bool, trigger: Trigger): TimerEvent =
   TimerEvent(t: UnixTime(t), running: running, trigger: trigger)
 
@@ -357,12 +355,26 @@ func coord(t: int64, metres: float): Coord =
 suite "segments: joining stretches":
   test "an auto-pause where the rider stayed is joined, a chain of them too":
     let segs = @[auto(0, 10), auto(40, 50), auto(90, 100)]
-    let coords = @[coord(0, 0), coord(10, 10), coord(40, 12), coord(50, 20), coord(90, 21), coord(100, 30)]
+    let coords = @[
+      coord(0, 0),
+      coord(10, 10),
+      coord(40, 12),
+      coord(50, 20),
+      coord(90, 21),
+      coord(100, 30),
+    ]
     check joinStretches(segs, coords).spans == @[seg(0, 100)]
 
   test "a gap that moved is kept, and the ones either side are judged on their own":
     let segs = @[auto(0, 10), auto(40, 50), auto(90, 100)]
-    let coords = @[coord(0, 0), coord(10, 10), coord(40, 12), coord(50, 20), coord(90, 5000), coord(100, 5010)]
+    let coords = @[
+      coord(0, 0),
+      coord(10, 10),
+      coord(40, 12),
+      coord(50, 20),
+      coord(90, 5000),
+      coord(100, 5010),
+    ]
     check joinStretches(segs, coords).spans == @[seg(0, 50), seg(90, 100)]
 
   test "a manual stop is kept apart however close":
@@ -386,7 +398,8 @@ suite "segments: joining stretches":
   test "the stretch ends the way its last segment ended":
     var segs = @[auto(0, 10), auto(40, 50)]
     segs[1].endedBy = trManual
-    let joined = joinStretches(segs, @[coord(0, 0), coord(10, 0), coord(40, 0), coord(50, 0)])
+    let joined =
+      joinStretches(segs, @[coord(0, 0), coord(10, 0), coord(40, 0), coord(50, 0)])
     check joined.len == 1
     check joined[0].endedBy == trManual
 
@@ -411,12 +424,14 @@ proc stretchesOf(body: seq[byte]): seq[Segment] =
 
 suite "segments: stretches in files":
   # two timer segments, [base, base+10] and [base+50, base+70], with a gap of 40 s
-  proc twoSegments(restartTrigger, metresMoved: int, gap = 40, stopTrigger = 1): seq[byte] =
+  proc twoSegments(
+      restartTrigger, metresMoved: int, gap = 40, stopTrigger = 1
+  ): seq[byte] =
     let t2 = base + 10 + gap
     recordDefn & pos(base, 0) & pos(base + 10, 10) & pos(t2 + 10, 10 + metresMoved) &
       pos(t2 + 20, 20 + metresMoved) & timerTDefn & timerT(base, 0, 1) &
-      timerT(base + 10, 4, stopTrigger) & timerT(t2, 0, restartTrigger) & timerT(t2 + 20, 4, 1) &
-      sessionDefn & session(base, t2 + 20)
+      timerT(base + 10, 4, stopTrigger) & timerT(t2, 0, restartTrigger) &
+      timerT(t2 + 20, 4, 1) & sessionDefn & session(base, t2 + 20)
 
   test "an auto-pause where the rider stayed is one stretch":
     check stretchesOf(twoSegments(1, 5)).spans == @[seg(unixBase, unixBase + 70)]
@@ -439,9 +454,9 @@ suite "segments: stretches in files":
 
   test "a trigger the file does not give: two stretches, as before":
     let body =
-      recordDefn & pos(base, 0) & pos(base + 10, 0) & pos(base + 60, 0) & pos(base + 70, 0) &
-      timerDefn & timer(base, 0) & timer(base + 10, 4) & timer(base + 50, 0) &
-      timer(base + 70, 4) & sessionDefn & session(base, base + 70)
+      recordDefn & pos(base, 0) & pos(base + 10, 0) & pos(base + 60, 0) &
+      pos(base + 70, 0) & timerDefn & timer(base, 0) & timer(base + 10, 4) &
+      timer(base + 50, 0) & timer(base + 70, 4) & sessionDefn & session(base, base + 70)
     check stretchesOf(body).len == 2
 
 suite "segments: in files":

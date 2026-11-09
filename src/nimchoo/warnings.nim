@@ -23,8 +23,10 @@ type
     wkTimestamp16Size ## timestamp_16 field is not 2 bytes
     wkTimestamp16NoBase ## timestamp_16 before any full timestamp
     wkTimestamp16Backwards ## timestamp_16 moved back in time
-    wkTimestampInvalid ## a timestamp that is the "no time" marker or beyond what 32 bits hold (ignored)
-    wkCompressedNoBase ## a compressed-timestamp header before any full timestamp (it gets no time)
+    wkTimestampInvalid
+      ## a timestamp that is the "no time" marker or beyond what 32 bits hold (ignored)
+    wkCompressedNoBase
+      ## a compressed-timestamp header before any full timestamp (it gets no time)
     # decoding
     wkCannotAccumulate ## an accumulated field has several values
     wkNestingTooDeep ## components nested too deeply
@@ -32,7 +34,8 @@ type
     wkCompositeTarget ## a composite component names a missing field
     wkFieldDescription ## a field_description record is unusable
     wkUndescribedDevField ## developer field with no field_description
-    wkNonFiniteFloat ## a float field that is NaN or infinite, or becomes so when scaled (dropped)
+    wkNonFiniteFloat
+      ## a float field that is NaN or infinite, or becomes so when scaled (dropped)
     # importing activities
     wkDuplicateTime ## several records in one second (the last is kept)
     wkInvalidTime ## a timestamp that is not a calendar time (dropped)

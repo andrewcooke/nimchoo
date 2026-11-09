@@ -80,7 +80,8 @@ proc seedTypes(): Table[string, FitType] =
 proc loadTypes*(rows: seq[Row]): Table[string, FitType] {.raises: [ProfileError].} =
   ## Columns: 0 type_name, 1 base_type, 2 value_name, 3 value.
   result = seedTypes()
-  var fromSheet: HashSet[string] # the types the sheet has defined (the program's own are not among them)
+  var fromSheet: HashSet[string]
+    # the types the sheet has defined (the program's own are not among them)
   var cur = "" # name of the mapping being filled, or "" if none
   for i, row in rows:
     let name = row.cell(0)
@@ -271,7 +272,12 @@ proc loadMessages*(
       if name in messages:
         fail("Messages", i, "message " & name & " is defined twice")
       if number in byNumber:
-        fail("Messages", i, "messages " & byNumber.must(number) & " and " & name & " have number " & $number)
+        fail(
+          "Messages",
+          i,
+          "messages " & byNumber.must(number) & " and " & name & " have number " &
+            $number,
+        )
       messages[name] = Message(name: name, number: number)
       byNumber[number] = name
       cur = name

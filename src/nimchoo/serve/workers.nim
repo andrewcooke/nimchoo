@@ -17,7 +17,9 @@ type Workers* = ref object
   running: int
   shared: Table[string, Future[WorkerResult]] ## the runs in progress, by their arguments
 
-proc newWorkers*(exe: string, timeoutMs = workerTimeoutMs, limit = maxWorkers): Workers =
+proc newWorkers*(
+    exe: string, timeoutMs = workerTimeoutMs, limit = maxWorkers
+): Workers =
   ## A pool that runs `exe` as workers, each within `timeoutMs`, `limit` at once.
   Workers(exe: exe, timeoutMs: timeoutMs, limit: limit)
 

@@ -4,8 +4,7 @@
 ## waiting for children does not stop the loop, so requests are answered while workers run.
 ## (How workers are run, shared and limited: workers.nim.)
 
-import
-  std/[asyncdispatch, asynchttpserver, httpcore, nativesockets, strutils]
+import std/[asyncdispatch, asynchttpserver, httpcore, nativesockets, strutils]
 import ./[handler, workers]
 
 {.push raises: [].}
@@ -13,7 +12,10 @@ import ./[handler, workers]
 {.pop.} # (the standard library's server and its async callbacks may raise anything)
 
 proc serveForever*(
-    cfg: ServerConfig, exe: string, port: int, ready: proc(port: int) {.closure, raises: [].}
+    cfg: ServerConfig,
+    exe: string,
+    port: int,
+    ready: proc(port: int) {.closure, raises: [].},
 ): string {.raises: [].} =
   ## Listen on 127.0.0.1:`port` (0: any free port; `ready` is told which) and answer until
   ## the process is stopped; pages are made by running `exe` (this program) as the worker.
@@ -32,7 +34,8 @@ proc serveForever*(
         cookie: $req.headers.getOrDefault("Cookie"),
       )
       var r: Reply
-      {.cast(gcsafe).}: # (one thread: nothing else touches the config, the log or the workers)
+      {.cast(gcsafe).}:
+        # (one thread: nothing else touches the config, the log or the workers)
         let step = begin(cfg, actual, incoming)
         if step.needsWorker:
           let done = await workers.run(step.args)

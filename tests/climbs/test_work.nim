@@ -247,6 +247,8 @@ suite "climbs: stretches of riding":
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[600])
     addRide(s, "default", "two", 2_000_000, 5.0, eastbound(5.0))
     discard ensureClimbs(s)
-    check s.db.getValue(sql"select count(*) from effort e join sector c on c.id = e.sector_id where c.length_m > 2500") == "1"
+    check s.db.getValue(
+      sql"select count(*) from effort e join sector c on c.id = e.sector_id where c.length_m > 2500"
+    ) == "1"
     for line in violations(s.db):
       check not line.startsWith("every effort lies within one stretch")
