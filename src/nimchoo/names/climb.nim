@@ -1,5 +1,5 @@
 ## Naming a climb (see TODO.md, task 13 and 15): from its route (positions in order, the last being the top) it finds
-## the country of the top, makes sure the names of that country are in the table (packages/util/lookup), looks at the features
+## the country of the top, makes sure the names of that country are in the table (names/lookup.nim), looks at the features
 ## near the route and picks a name by the rules of climbpick.nim; a landmark (landmark/) holding the top comes first.  A name, or none; or a DownloadError if the names
 ## were needed and could not be had.
 
