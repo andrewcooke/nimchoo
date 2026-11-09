@@ -203,7 +203,8 @@ The mechanism stays (CLAUDE.md), per package.  Added:
 
 ## Tests
 
-`tests/` mirrors the packages by name (`tests/<group>/<package>/test_*.nim`).  Tests never touch the network or the
+`tests/` mirrors the packages by name (`tests/<group>/<package>/test_*.nim`; `tests/core/` mirrors `core/`).  **When a
+package moves, its tests move with it, in the same commit**, and `tests/all.nim` is updated.  Tests never touch the network or the
 real cache.  A package's tests may import its internals.  Running only the tests of one package and of those that
 depend on it becomes possible (the DAG says which) and is worth a nimble task: the suite is 45 seconds.
 

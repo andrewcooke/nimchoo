@@ -6,6 +6,7 @@ import ./support/env, ./support/timing
 import
   ./test_proquint,
   ./core/test_registry,
+  ./core/test_imports,
   ./text/fold/test_fold,
   ./test_zipbytes,
   ./test_xlsx,
