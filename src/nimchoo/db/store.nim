@@ -13,7 +13,7 @@
 ## Errors from the database library (`DbError`) are turned into `StoreError`
 ## here, so nothing above this module sees them.
 
-import std/[os, sequtils, strutils, times]
+import std/[options, os, sequtils, times]
 import db_connector/db_sqlite
 import db_connector/sqlite3 as lowlevel
 import ../errors
@@ -59,13 +59,6 @@ type Store* = object
   userId*: UserId
   userName*: string
 
-template guard*(body: untyped) =
-  ## Run database code, turning a DbError into a StoreError.
-  try:
-    body
-  except DbError as e:
-    raiseStore(e.msg)
-
 proc resolveDbPath*(option: string): string =
   ## The database file: the `--db` option, else `$NCH_DB`, else
   ## `nch/nch.db` in the user's data directory.
@@ -91,57 +84,50 @@ proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
         "mod_spatialite installed?): " & (if err.isNil: "unknown error"
       else: $err)
     )
-  guard:
-    db.exec(sql"pragma trusted_schema = 1")
+  db.execScript("pragma trusted_schema = 1")
 
 const outOfDate = "; it cannot be updated: run `nch db --delete -f` and import again"
 
 proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
   ## The fragments the database says it has had, each with the checksum of its SQL.
-  guard:
-    for row in db.fastRows(sql"select name, sha256 from fragment order by name"):
-      result.add (row[0], row[1])
+  db.query((string, string), "select name, sha256 from fragment order by name")
 
 proc record(db: DbConn, f: Fragment) {.raises: [StoreError].} =
-  guard:
-    db.exec(
-      sql"insert into fragment(name, applied_at, sha256) values (?, ?, ?)",
-      f.name,
-      getTime().toUnix,
-      f.checksum,
-    )
+  db.execute(
+    "insert into fragment(name, applied_at, sha256) values (?, ?, ?)",
+    f.name,
+    getTime().toUnix,
+    f.checksum,
+  )
 
 proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   ## Run a fragment and record it, as one transaction.
-  guard:
-    db.exec(sql"begin")
+  db.execScript("begin")
   var done = false
   try:
     execScript(db, f.sql)
     if not f.seed.isNil:
       f.seed(db)
     record(db, f)
-    guard:
-      db.exec(sql"commit")
+    db.execScript("commit")
     done = true
   except StoreError as e:
     raiseStore("applying " & f.name & ": " & e.msg)
   finally:
     if not done:
       try:
-        discard db.tryExec(sql"rollback")
-      except DbError:
-        discard
+        db.execScript("rollback")
+      except StoreError:
+        discard # (nothing useful can be done)
 
 proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].} =
   let all = baseFragments & fragments
-  guard:
-    db.exec(
-      sql"""create table if not exists fragment (
+  db.execScript(
+    """create table if not exists fragment (
                     name text primary key,
                     applied_at integer not null,
                     sha256 text not null) strict, without rowid"""
-    )
+  )
   let have = recorded(db)
   for (name, sum) in have:
     let known = all.filterIt(it.name == name)
@@ -164,8 +150,7 @@ proc close*(s: Store) {.raises: [].} =
 proc reclaim*(s: Store) {.raises: [StoreError].} =
   ## Give the space of deleted rows back to the file system (the free pages are removed from the end of the file).
   ## Call it after a big delete, outside a transaction.  Does nothing to a file made without incremental vacuum.
-  guard:
-    s.db.exec(sql"pragma incremental_vacuum")
+  s.db.execScript("pragma incremental_vacuum")
 
 proc openStore*(
     path: string, fragments: seq[Fragment], user = ""
@@ -180,49 +165,46 @@ proc openStore*(
       raiseStore(
         "cannot create the directory for " & path & ": " & getCurrentExceptionMsg()
       )
-  guard:
+  try:
     result.db = open(path, "", "", "")
-    result.conn = Conn(db: result.db)
-    result.path = path
+  except DbError as e:
+    raiseStore(e.msg)
+  result.conn = Conn(db: result.db)
+  result.path = path
   try:
     loadSpatialite(result.db)
     registerFunctions(result.db)
-    guard:
+    block:
       # a new file: deleted rows give their space back (`reclaim`), instead of the file only ever growing.  This
       # must be said before the first table is made; a file made without it stays as it is.
-      if result.db.getValue(sql"pragma page_count") == "0":
-        result.db.exec(sql"pragma auto_vacuum = incremental")
-      result.db.exec(sql"pragma foreign_keys = on")
+      if result.db.scalar(int, "pragma page_count") == 0:
+        result.db.execScript("pragma auto_vacuum = incremental")
+      result.db.execScript("pragma foreign_keys = on")
       # write-ahead log: a commit does not wait for the disk (the log is synced when it is checkpointed),
       # and readers (the web server's workers) do not wait for a writer.  A power cut can lose the last
       # commits, never corrupt the database; a re-import repeats what was lost.
-      result.db.exec(sql"pragma journal_mode = wal")
-      result.db.exec(sql"pragma synchronous = normal")
+      result.db.execScript("pragma journal_mode = wal")
+      result.db.execScript("pragma synchronous = normal")
       # the log is copied back into the database every 20,000 pages (80 MB), not the default 1,000: a
       # big import then spends about half as long on checkpoints (measured), and the log stays small
-      result.db.exec(sql"pragma wal_autocheckpoint = 20000")
+      result.db.execScript("pragma wal_autocheckpoint = 20000")
     bringUpToDate(result.db, fragments)
-    guard:
-      if result.db.getValue(sql"select count(*) from user") == "0":
-        result.db.exec(
-          sql"insert into user(name, is_default) values (?, 1)", defaultUser
-        )
-      elif result.db.getValue(sql"select count(*) from user where is_default = 1") == "0":
-        result.db.exec(
-          sql"update user set is_default = 1 where id = (select min(id) from user)"
-        )
-      let id =
-        if user.len == 0:
-          result.db.getValue(sql"select id from user where is_default = 1")
-        else:
-          result.db.getValue(sql"select id from user where name = ?", user)
-      if id.len == 0:
-        raiseStore("no such user: " & user)
-      try:
-        result.userId = UserId(parseBiggestInt(id))
-      except ValueError:
-        raiseStore("bad user id " & id)
-      result.userName = result.db.getValue(sql"select name from user where id = ?", id)
+    if result.db.scalar(int, "select count(*) from user") == 0:
+      result.db.execute("insert into user(name, is_default) values (?, 1)", defaultUser)
+    elif result.db.scalar(int, "select count(*) from user where is_default = 1") == 0:
+      result.db.execute(
+        "update user set is_default = 1 where id = (select min(id) from user)"
+      )
+    let id =
+      if user.len == 0:
+        result.db.queryOne(UserId, "select id from user where is_default = 1")
+      else:
+        result.db.queryOne(UserId, "select id from user where name = ?", user)
+    if id.isNone:
+      raiseStore("no such user: " & user)
+    result.userId = id.get
+    result.userName =
+      result.db.scalar(string, "select name from user where id = ?", id.get)
   except StoreError:
     close(result)
     raise
@@ -230,22 +212,19 @@ proc openStore*(
 proc setAutoCheckpoint*(s: Store, pages: int) {.raises: [StoreError].} =
   ## Copy the log back into the database whenever it holds this many pages (0: never, leaving it to
   ## someone else, see checkpointer.nim; the last connection to close does it anyway).
-  guard:
-    s.db.exec(sql("pragma wal_autocheckpoint = " & $pages))
+  s.db.execScript("pragma wal_autocheckpoint = " & $pages)
 
 proc begin*(s: Store) {.raises: [StoreError].} =
   ## Start a transaction.
-  guard:
-    s.db.exec(sql"begin")
+  s.db.execScript("begin")
 
 proc commit*(s: Store) {.raises: [StoreError].} =
   ## End the transaction, keeping its changes.
-  guard:
-    s.db.exec(sql"commit")
+  s.db.execScript("commit")
 
 proc rollback*(s: Store) {.raises: [].} =
   ## Undo the open transaction; a failure here has nowhere useful to go.
   try:
-    discard s.db.tryExec(sql"rollback")
-  except DbError:
+    s.db.execScript("rollback")
+  except StoreError:
     discard

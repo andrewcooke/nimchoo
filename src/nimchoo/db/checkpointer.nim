@@ -8,6 +8,8 @@
 
 import std/[atomics, os, typedthreads]
 import db_connector/db_sqlite
+import ../errors
+import ./statement
 
 {.push raises: [].}
 
@@ -37,8 +39,8 @@ proc loop(path: string) {.thread.} =
       idle = 0
       try:
         if fileExists(path & "-wal") and getFileSize(path & "-wal") > logThreshold:
-          db.exec(sql"pragma wal_checkpoint(PASSIVE)")
-      except DbError, OSError:
+          db.execScript("pragma wal_checkpoint(PASSIVE)")
+      except StoreError, OSError:
         discard # (try again later)
   try:
     db.close()

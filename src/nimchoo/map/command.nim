@@ -11,12 +11,11 @@
 ##
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
-import std/[options, os, strutils, tables]
-import db_connector/db_sqlite
+import std/[options, os, tables]
 import ../[atomic, cache]
 import ../cli/common
 import ../climbs/[attempts, report, work]
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../importer/keys
 import ../version
@@ -50,41 +49,32 @@ const
   toleranceM = 5.0 ## routes are simplified so that they stray at most this far
   metresPerDegree = 111320.0
 
-proc idList(ids: seq[int64]): string =
-  for i, id in ids:
-    if i > 0:
-      result.add ","
-    result.add $id
-
 proc routesOf(st: Store, ids: seq[int64]): seq[Route] {.raises: [StoreError].} =
   ## The routes of the activities, oldest first.
   if ids.len == 0:
     return
-  let geometry =
-    "AsGeoJSON(SimplifyPreserveTopology(r.geom, " &
-    formatFloat(toleranceM / metresPerDegree, ffDecimal, 9) & "), 5)"
-  guard:
-    for row in st.db.fastRows(
-      sql(
-        "select a.id, a.start_t, coalesce(a.sport, ''), a.distance_m, " & geometry &
-          " from activity a join route r on r.activity_id = a.id where a.id in (" &
-          idList(ids) & ") order by a.start_t, a.id"
-      )
-    ):
-      try:
-        result.add Route(
-          id: ActivityId(parseBiggestInt(row[0])),
-          startT: UnixTime(parseBiggestInt(row[1])),
-          sport: row[2],
-          distanceM:
-            if row[3].len > 0:
-              some(parseFloat(row[3]))
-            else:
-              none(float),
-          geometry: row[4],
-        )
-      except ValueError:
-        raiseStore("bad number from the database")
+  for r in st.db.query(
+    tuple[
+      id: ActivityId,
+      startT: int64,
+      sport: string,
+      distanceM: Option[float],
+      geometry: string,
+    ],
+    "select a.id, a.start_t, coalesce(a.sport, ''), a.distance_m, " &
+      "AsGeoJSON(SimplifyPreserveTopology(r.geom, ?), 5) " &
+      "from activity a join route r on r.activity_id = a.id " &
+      "where a.id in (select value from json_each(?)) order by a.start_t, a.id",
+    toleranceM / metresPerDegree,
+    jsonList(ids),
+  ):
+    result.add Route(
+      id: r.id,
+      startT: UnixTime(r.startT),
+      sport: r.sport,
+      distanceM: r.distanceM,
+      geometry: r.geometry,
+    )
 
 proc climbsOf(st: Store, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
   ## The climbs the activities went up, the biggest first.
@@ -92,25 +82,22 @@ proc climbsOf(st: Store, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
   if sectors.len == 0:
     return
   let names = shownNames(st)
-  guard:
-    for id in sectors:
-      for row in st.db.fastRows(
-        sql"""select length_m, gain_m, gradient, coalesce(category, ''), AsGeoJSON(route, 5)
+  for id in sectors:
+    for r in st.db.query(
+      tuple[lengthM, gainM, gradient: float, category, geometry: string],
+      """select length_m, gain_m, gradient, coalesce(category, ''), AsGeoJSON(route, 5)
           from sector where id = ?""",
-        id,
-      ):
-        try:
-          result.add Climb(
-            id: id,
-            name: names.getOrDefault(id, "unnamed"),
-            category: row[3],
-            lengthM: parseFloat(row[0]),
-            gainM: parseFloat(row[1]),
-            gradient: parseFloat(row[2]),
-            geometry: row[4],
-          )
-        except ValueError:
-          raiseStore("bad number from the database")
+      id,
+    ):
+      result.add Climb(
+        id: id,
+        name: names.getOrDefault(id, "unnamed"),
+        category: r.category,
+        lengthM: r.lengthM,
+        gainM: r.gainM,
+        gradient: r.gradient,
+        geometry: r.geometry,
+      )
 
 type Prepared = object
   status: int ## 0 if the files are there; else the exit status (already reported)

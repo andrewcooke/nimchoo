@@ -1,10 +1,10 @@
 ## The models (sets of variables) in the database: the one the program carries, reading them,
 ## adding more.
 
-import std/[options, strutils]
+import std/options
 import ../hashing
 import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ./calc
 
@@ -26,56 +26,57 @@ const seedVersion* = sha256Hex(describe(defaultModel()))
 
 proc insertModel*(db: DbConn, m: Model) {.raises: [StoreError].} =
   ## Add a model (its id is ignored).  Raises StoreError if the name is taken or a value is bad.
-  guard:
-    db.exec(
-      sql(
-        "insert into ff_model(name, gamma, zero, one, max_secs, zone1, zone2, zone3, " &
-          "zone4, zone5, fitness_days, fatigue_days) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      ),
-      m.name,
-      m.gamma,
-      m.zero,
-      m.one,
-      m.maxSecs,
-      m.zones[0],
-      m.zones[1],
-      m.zones[2],
-      m.zones[3],
-      m.zones[4],
-      m.fitnessDays,
-      m.fatigueDays,
-    )
+  db.execute(
+    "insert into ff_model(name, gamma, zero, one, max_secs, zone1, zone2, zone3, " &
+      "zone4, zone5, fitness_days, fatigue_days) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    m.name,
+    m.gamma,
+    m.zero,
+    m.one,
+    m.maxSecs,
+    m.zones[0],
+    m.zones[1],
+    m.zones[2],
+    m.zones[3],
+    m.zones[4],
+    m.fitnessDays,
+    m.fatigueDays,
+  )
 
 proc seedDefaultModel*(db: DbConn) {.raises: [StoreError].} =
   ## The seed of the model fragment.
   insertModel(db, defaultModel())
 
-proc modelOf(r: Row): Model {.raises: [StoreError].} =
-  try:
-    result = Model(
-      id: ModelId(parseBiggestInt(r[0])),
-      name: r[1],
-      gamma: parseFloat(r[2]),
-      zero: parseFloat(r[3]),
-      one: parseFloat(r[4]),
-      maxSecs: parseInt(r[5]),
-      fitnessDays: parseFloat(r[11]),
-      fatigueDays: parseFloat(r[12]),
-    )
-    for i in 0 .. 4:
-      result.zones[i] = parseFloat(r[6 + i])
-  except ValueError:
-    raiseStore("a model in the database has a value that is not a number: " & r[1])
+type ModelRow =
+  tuple[
+    id: ModelId,
+    name: string,
+    gamma, zero, one: float,
+    maxSecs: int,
+    zone1, zone2, zone3, zone4, zone5, fitnessDays, fatigueDays: float,
+  ]
+
+func modelOf(r: ModelRow): Model =
+  Model(
+    id: r.id,
+    name: r.name,
+    gamma: r.gamma,
+    zero: r.zero,
+    one: r.one,
+    maxSecs: r.maxSecs,
+    zones: [r.zone1, r.zone2, r.zone3, r.zone4, r.zone5],
+    fitnessDays: r.fitnessDays,
+    fatigueDays: r.fatigueDays,
+  )
 
 proc loadModels*(db: DbConn): seq[Model] {.raises: [StoreError].} =
   ## All the models, oldest first.
-  guard:
-    for r in db.fastRows(sql("select " & columns & " from ff_model order by id")):
-      result.add modelOf(r)
+  for r in db.query(ModelRow, "select " & columns & " from ff_model order by id"):
+    result.add modelOf(r)
 
 proc findModel*(db: DbConn, name: string): Option[Model] {.raises: [StoreError].} =
   ## The model called `name`, if there is one.
-  guard:
-    let r = db.getRow(sql("select " & columns & " from ff_model where name = ?"), name)
-    if r[0].len > 0:
-      result = some(modelOf(r))
+  let r =
+    db.queryOne(ModelRow, "select " & columns & " from ff_model where name = ?", name)
+  if r.isSome:
+    result = some(modelOf(r.get))

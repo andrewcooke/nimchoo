@@ -8,10 +8,10 @@
 ## none is forgotten.  This module counts activities, and `describe` says so; a later module
 ## that stores data it wants mentioned adds a line there (it is deleted either way).
 
-import std/[options, os, strutils]
+import std/[options, os]
 import db_connector/db_sqlite
 import ../cli/common
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../ui/[live, style]
 
@@ -81,35 +81,32 @@ proc countActivities*(path, user: string): Option[int] =
     except DbError:
       discard
   try:
-    let n =
+    result =
       if user.len == 0:
-        db.getValue(sql"select count(*) from activity")
+        some(db.scalar(int, "select count(*) from activity"))
       else:
-        db.getValue(
-          sql"""select count(*) from activity a
+        some(
+          db.scalar(
+            int,
+            """select count(*) from activity a
                                 join file f on f.id = a.file_id
                                 where f.user_id = (select id from user where name = ?)""",
-          user,
+            user,
+          )
         )
-    result = some(parseInt(n))
-  except DbError, ValueError:
+  except StoreError:
     result = none(int)
 
 proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   ## The id of the user called `name`; an error if there is none.
-  guard:
-    let v = st.db.getValue(sql"select id from user where name = ?", name)
-    if v.len == 0:
-      raiseStore("no such user: " & name)
-    try:
-      result = UserId(parseBiggestInt(v))
-    except ValueError:
-      raiseStore("bad user id " & v)
+  let id = st.db.queryOne(UserId, "select id from user where name = ?", name)
+  if id.isNone:
+    raiseStore("no such user: " & name)
+  id.get
 
 proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Delete the user and everything they have.  (If it was the default user another
   ## becomes the default, or if there is none a new empty one is made, the next time the
   ## database is opened.)
-  guard:
-    st.db.exec(sql"delete from user where id = ?", id)
+  st.db.execute("delete from user where id = ?", id)
   st.reclaim()

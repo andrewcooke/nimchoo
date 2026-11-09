@@ -5,8 +5,7 @@
 ## activities back; a file that still holds other activities (a file can hold several) stays, and so does its memory.
 
 import std/[algorithm, strutils, tables, times]
-import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 
 {.push raises: [].}
@@ -25,36 +24,19 @@ type
     files*: int ## files forgotten (no activity left)
     kept*: int ## files kept: they hold other activities
 
-func list(ids: openArray[int64]): string =
-  ## "1, 2, 3": numbers, so safe to put in a statement.
-  for i, id in ids:
-    if i > 0:
-      result.add ", "
-    result.add $id
-
 proc planDelete*(st: Store, ids: seq[int64]): Plan {.raises: [StoreError].} =
   ## What deleting these activities (of the current user) would take: their files, the sports and the dates.
   var files: seq[int64]
   var sports = initTable[string, int]()
-  var at = 0
-  var rows: seq[(int64, int64, int64, string)] # id, file, start, sport
-  while at < ids.len:
-    let stop = min(at + 500, ids.len)
-    guard:
-      for r in st.db.fastRows(
-        sql(
-          "select a.id, a.file_id, a.start_t, coalesce(a.sport, '') from activity a " &
-            "join file f on f.id = a.file_id where f.user_id = " & $st.userId &
-            " and a.id in (" & list(ids[at ..< stop]) & ")"
-        )
-      ):
-        try:
-          rows.add (
-            parseBiggestInt(r[0]), parseBiggestInt(r[1]), parseBiggestInt(r[2]), r[3]
-          )
-        except ValueError:
-          raiseStore("a bad number in the activities")
-    at = stop
+  # id, file, start, sport
+  var rows = st.db.query(
+    (int64, int64, int64, string),
+    "select a.id, a.file_id, a.start_t, coalesce(a.sport, '') from activity a " &
+      "join file f on f.id = a.file_id where f.user_id = ? and " &
+      "a.id in (select value from json_each(?))",
+    st.userId,
+    jsonList(ids),
+  )
   rows.sort(
     proc(a, b: (int64, int64, int64, string)): int =
       result = cmp(a[2], b[2])
@@ -111,32 +93,27 @@ proc deleteActivities*(
     var at = 0
     while at < p.ids.len:
       let stop = min(at + chunk, p.ids.len)
-      guard:
-        st.db.exec(
-          sql("delete from activity where id in (" & list(p.ids[at ..< stop]) & ")")
-        )
+      st.db.execute(
+        "delete from activity where id in (select value from json_each(?))",
+        jsonList(p.ids[at ..< stop]),
+      )
       # the files of these activities that have none left (one that still has an activity in a later chunk is met again then)
       var files: seq[int64]
       for k in at ..< stop:
         if p.fileOf[k] notin files:
           files.add p.fileOf[k]
-      guard:
-        st.db.exec(
-          sql(
-            "delete from file where id in (" & list(files) &
-              ") and id not in (select file_id from activity)"
-          )
+      st.db.execute(
+        "delete from file where id in (select value from json_each(?)) " &
+          "and id not in (select file_id from activity)",
+        jsonList(files),
+      )
+      result.files +=
+        files.len -
+        st.db.scalar(
+          int,
+          "select count(*) from file where id in (select value from json_each(?))",
+          jsonList(files),
         )
-        try:
-          result.files +=
-            files.len -
-            parseInt(
-              st.db.getValue(
-                sql("select count(*) from file where id in (" & list(files) & ")")
-              )
-            )
-        except ValueError:
-          raiseStore("a bad count")
       at = stop
       if progress != nil:
         progress(at, p.ids.len, result.files)
@@ -146,20 +123,12 @@ proc deleteActivities*(
     var k = 0
     while k < p.fileIds.len:
       let stop = min(k + 500, p.fileIds.len)
-      guard:
-        try:
-          remaining +=
-            parseInt(
-              st.db.getValue(
-                sql(
-                  "select count(*) from file where id in (" & list(
-                    p.fileIds[k ..< stop]
-                  ) & ")"
-                )
-              )
-            )
-        except ValueError:
-          raiseStore("a bad count")
+      remaining +=
+        st.db.scalar(
+          int,
+          "select count(*) from file where id in (select value from json_each(?))",
+          jsonList(p.fileIds[k ..< stop]),
+        )
       k = stop
     result.kept = remaining
     result.files = p.fileIds.len - remaining

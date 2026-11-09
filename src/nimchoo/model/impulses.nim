@@ -6,7 +6,6 @@
 ## trigger in 001-schema.sql.)
 
 import std/[algorithm, options, strutils]
-import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../errors
 import ../fit/time
@@ -21,24 +20,21 @@ type Calculated* = object
 proc readings(
     db: DbConn, activityId: ActivityId
 ): seq[(UnixTime, int)] {.raises: [StoreError].} =
-  guard:
-    for r in db.fastRows(
-      sql"select t, bpm from heartrate where activity_id = ? order by t", activityId
-    ):
-      try:
-        result.add (UnixTime(parseBiggestInt(r[0])), parseInt(r[1]))
-      except ValueError:
-        raiseStore("bad heart rate row")
+  for r in db.query(
+    tuple[t: int64, bpm: int],
+    "select t, bpm from heartrate where activity_id = ? order by t",
+    activityId,
+  ):
+    result.add (UnixTime(r.t), r.bpm)
 
 proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   ## The user's threshold heart rate, if they have one.
-  guard:
-    let v = db.getValue(sql"select fthr from user_profile where user_id = ?", userId)
-    if v.len > 0:
-      try:
-        return some(parseInt(v))
-      except ValueError:
-        raiseStore("a bad threshold heart rate in the database: " & v)
+  let got =
+    db.queryOne(Option[int], "select fthr from user_profile where user_id = ?", userId)
+  if got.isSome:
+    got.get
+  else:
+    none(int)
 
 proc calculateActivity*(
     db: DbConn, activityId: ActivityId, fthr: int, m: Model
@@ -46,10 +42,9 @@ proc calculateActivity*(
   ## Work out and store one activity's impulses for a model (replacing any); returns the
   ## number of hours.
   let rows = hourlyImpulse(readings(db, activityId), fthr, m)
-  guard:
-    db.exec(
-      sql"delete from impulse where activity_id = ? and model_id = ?", activityId, m.id
-    )
+  db.execute(
+    "delete from impulse where activity_id = ? and model_id = ?", activityId, m.id
+  )
   if rows.len == 0:
     return 0
   let st = prepareStmt(
@@ -67,20 +62,15 @@ proc missing(
     db: DbConn, userId: UserId, modelId: ModelId
 ): seq[ActivityId] {.raises: [StoreError].} =
   ## The user's activities that have heart rate but no impulses for the model.
-  guard:
-    for r in db.fastRows(
-      sql"""select a.id from activity a join file f on f.id = a.file_id
+  db.query(
+    ActivityId,
+    """select a.id from activity a join file f on f.id = a.file_id
         where f.user_id = ?
           and exists (select 1 from heartrate h where h.activity_id = a.id)
           and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = ?)
         order by a.id""",
-      userId,
-      modelId,
-    ):
-      try:
-        result.add ActivityId(parseBiggestInt(r[0]))
-      except ValueError:
-        raiseStore("bad activity id")
+    userId, modelId,
+  )
 
 proc calculateMissing*(
     db: DbConn, userId: UserId, m: Model
@@ -106,13 +96,13 @@ proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreErr
   if fthr.isNone:
     return
   var entries: seq[string]
-  guard:
-    for r in db.fastRows(
-      sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
+  for r in db.query(
+    tuple[sha256: string, session: int],
+    """select f.sha256, a.session from activity a join file f on f.id = a.file_id
         where f.user_id = ? and exists (select 1 from heartrate h where h.activity_id = a.id)""",
-      userId,
-    ):
-      entries.add r[0] & ":" & r[1]
+    userId,
+  ):
+    entries.add r.sha256 & ":" & $r.session
   if entries.len == 0:
     return
   entries.sort

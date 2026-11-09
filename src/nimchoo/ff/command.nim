@@ -10,7 +10,7 @@ import std/[math, options, os, strutils, times]
 import db_connector/db_sqlite
 import ../cli/common
 import ../[atomic, cache]
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../model/[calc, impulses, models]
 import ../serve/[launch, pages, webopts]
@@ -60,18 +60,13 @@ proc hourlyImpulses(
     db: DbConn, userId: UserId, modelId: ModelId
 ): seq[Hourly] {.raises: [StoreError].} =
   ## The user's impulse in each hour, over all their activities.
-  guard:
-    for r in db.fastRows(
-      sql"""select i.hour_t, sum(i.value) from impulse i
+  db.query(
+    Hourly,
+    """select i.hour_t, sum(i.value) from impulse i
         join activity a on a.id = i.activity_id join file f on f.id = a.file_id
         where f.user_id = ? and i.model_id = ? group by i.hour_t order by i.hour_t""",
-      userId,
-      modelId,
-    ):
-      try:
-        result.add (parseBiggestInt(r[0]), parseFloat(r[1]))
-      except ValueError:
-        raiseStore("bad impulse row")
+    userId, modelId,
+  )
 
 proc civilOf(t: int64, tz: Timezone): int64 =
   ## The date at an instant in a timezone, as Unix seconds at its start in UTC (the form of

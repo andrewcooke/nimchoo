@@ -6,9 +6,10 @@ import std/[os, strutils]
 import db_connector/db_sqlite
 import ../cli/[args, common]
 import ../download/fetch
+import ../errors
 import ../ui/[live, logfile]
 import ../user/wipe
-import ./store
+import ./[statement, store]
 
 {.push raises: [].}
 
@@ -44,11 +45,10 @@ proc freeSpace(path: string): string =
     defer:
       db.close()
     let free =
-      parseBiggestInt(db.getValue(sql"pragma freelist_count")) *
-      parseBiggestInt(db.getValue(sql"pragma page_size"))
+      db.scalar(int64, "pragma freelist_count") * db.scalar(int64, "pragma page_size")
     if free > 0:
       result = ", " & humanBytes(free) & " free"
-  except DbError, ValueError:
+  except DbError, StoreError:
     discard
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =

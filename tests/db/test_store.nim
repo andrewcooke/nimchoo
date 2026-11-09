@@ -22,12 +22,10 @@ var seedRuns = 0
 
 proc putSeven(db: DbConn) {.raises: [StoreError].} =
   inc seedRuns
-  guard:
-    db.exec(sql"insert into t(x) values (7)")
+  db.execute("insert into t(x) values (7)")
 
 proc failingSeed(db: DbConn) {.raises: [StoreError].} =
-  guard:
-    db.exec(sql"insert into t(x) values (1)")
+  db.execute("insert into t(x) values (1)")
   raiseStore("the seed failed")
 
 func frag(name, sqlText: string): Fragment =

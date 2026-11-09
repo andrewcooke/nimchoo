@@ -11,9 +11,12 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
-- [ ] 7. Typed database access, our own (decided: not `tiny_sqlite`).  Stage 1 done: `query`/`queryOne`/`scalar`/`execute` in
-  `db/statement.nim`, proved on `landmark/`; `landmark/`, `names/`, `climbs/`, `importer/`, `selection/` moved too (the sql that `selection/criteria` builds still has its values in the text: a `Where` with bound arguments).  Stage 2, the rest: move every other `fastRows`/`getValue`/`exec`
-  to them (values bound, never in the text); then remove `db_sqlite` row reading; the query-plan test.
+- [ ] 7. Typed database access, our own (decided: not `tiny_sqlite`).  Done: `query`/`queryOne`/`scalar`/`execute` in
+  `db/statement.nim`, and every module in `src/` uses them (no `fastRows`/`getValue`/`exec` left).  Left: the sql that
+  `selection/criteria.nim` builds and `selection/command.nim` extends still has values in its text (user ids, id lists,
+  the criteria's numbers and texts): make it a `Where` (text plus bound arguments) and run it with `query`; the
+  query-plan test (the spatial index and `selection` lookups are used, not scans); the 36 test files that read with
+  `db_sqlite` directly can move to the same calls.
 - [ ] 8. Packages (REVIEW.md §6), in its six sub-steps (8.1, 8.3, 8.4, 8.6 mechanical); feature detail moves from CLAUDE.md to each package's doc.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).
