@@ -3,7 +3,7 @@
 ## lines, draw a live display, write a log.  A sink gets every event of every
 ## file, so it must be cheap and must not raise.
 
-import ../db/channel
+import ./channel
 import ../packages/util/warnings/warnings
 import ./failure
 

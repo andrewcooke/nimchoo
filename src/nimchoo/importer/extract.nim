@@ -17,7 +17,7 @@
 ##   order.  Every coordinate lies in one.
 
 import std/[algorithm, options, sequtils, strutils, tables]
-import ../db/channel
+import ./channel
 import ../core/errors
 import ../packages/fit/model
 import ../packages/util/profiling/profiling

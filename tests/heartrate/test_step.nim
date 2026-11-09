@@ -1,7 +1,8 @@
 import nimchoo/db/statement
 import std/[os, tables, unittest]
 import ../support/shims
-import nimchoo/db/[channel, store]
+import nimchoo/db/store
+import nimchoo/importer/channel
 import nimchoo/heartrate/step
 import nimchoo/importer/importer
 import nimchoo/packages/fit/time

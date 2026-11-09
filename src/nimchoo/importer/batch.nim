@@ -3,7 +3,8 @@
 ## happens is announced as an event (events.nim); nothing is printed here.
 
 import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
-import ../db/[channel, checkpointer, store]
+import ../db/[checkpointer, store]
+import ./channel
 import ../core/errors
 import ../core/ids
 import ../packages/fit/default

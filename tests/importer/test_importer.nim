@@ -3,7 +3,8 @@ import std/[options, os, unittest]
 import ../support/shims
 import nimchoo/importer/[extract, importer]
 import std/tables
-import nimchoo/db/[channel, store]
+import nimchoo/db/store
+import nimchoo/importer/channel
 import nimchoo/packages/util/hashing/hashing
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes

@@ -14,7 +14,7 @@ import ./names/ddl as namesDdl
 import ./selection/ddl as selectionDdl
 import ./user/ddl as userDdl
 import ./core/fragment
-import ./db/channel
+import ./importer/channel
 
 {.push raises: [].}
 
