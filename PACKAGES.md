@@ -101,6 +101,20 @@ never depends on a command package.  The commands of today:
 | `db` ↔ `user` | `nch db` (in `db/`) uses the delete countdown (`user/wipe`) | the countdown is its own package; the `db` command leaves the framework |
 | `climbs` ↔ `importer` ↔ `landmark` ↔ `names` | `landmark`'s command uses `climbs/report` and `names`; the importer's command names activities | libraries below (`landmark`, `names`, `importer`, `sectors`), commands above them |
 
+The imports that make the cycles (2026-11-09, from the code; a file importing a file):
+
+* `cli/common` → `ui/logfile`, and `ui/logfile` → `cli/catalog`.
+* `fit/decode`, `fit/reader`, `fit/records`, `fit/command` → `profile/model`; `profile/load`, `profile/model` →
+  `fit/basetype`; `profile/load` → `xlsx` → `zipbytes` → `fit/bytes`; `fit/decode`, `fit/records` → `lookup`;
+  `profile/default` → `bundle/unpack`.
+* `db/command` → `user/wipe` (and `download/fetch`, `cli`); `delete/run` → `user/wipe`; `user/ddl` → `db/fragment`;
+  `db/channel` → `fit/time`.
+* `landmark/command` → `climbs/report`; `names/activity`, `names/climb` → `landmark/landmarks`; `climbs/command`,
+  `importer/run` → `names/open`; `climbs/attempts` → `importer/describe`; `climbs/profile` → `importer/extract`.
+* Not a cycle, but upward: `selection/command` → `delete/run`.
+
+Recompute with the import graph of `src/nimchoo` (directories as nodes) when starting: the code will have moved.
+
 ## Extension points
 
 Where a *low* package must call code that it cannot know at run time.  Only two are real today:
