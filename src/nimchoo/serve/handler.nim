@@ -160,7 +160,7 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
       headers: @[
         (
           "Set-Cookie",
-          cookieName & "=" & cfg.token & "; HttpOnly; SameSite=Strict; Path=/",
+          cookieName & "=" & cfg.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" & $cookieMaxAge,
         ),
         ("Location", t.withoutParam(tokenParam)),
       ],

@@ -111,8 +111,8 @@ suite "nch map --web: a real server":
     let c = client()
     let r1 = c.request(w.url)
     check r1.code == Http302
-    check r1.headers["Set-Cookie"].contains(
-      "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/"
+    check ($r1.headers["Set-Cookie"]).startsWith(
+      "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
     )
     let pinned = $r1.headers["Location"]
     check pinned.startsWith("/map?bits=") and not pinned.contains("token")

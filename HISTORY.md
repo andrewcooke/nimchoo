@@ -2957,3 +2957,17 @@ Each case of the review was checked with a test before it was fixed.  Confirmed 
   these (checked).
 * Not confirmed as problems: the fuzzer (84,000 mutations) finds nothing more.  The SDK comparison is unchanged
   (26 of 26 files identical).
+
+### The other reported bugs (2026-11-08, REVIEW.md §3.2)
+
+Each was checked first; these were real.
+
+* **A model name with `--`** was allowed, but the name is a part of the `ff` file names, where `--` separates options, so
+  the server refused the file.  `validModelName` refuses it.
+* **Two spellings of one map request.**  `map --bits` used the text as typed; the request (and so the cache file) is now
+  made from the activities drawn (`encodeBits(mine)`), whatever the form of the address or the ids in it that are not
+  the user's.
+* **The cookie had no `Max-Age`**, so a bookmark worked only until the browser closed.  It is a year (`cookieMaxAge`).
+* **`</script>` in `map-style.json`** ended the script of the page.  The page writes `</` as `<\/` in the style (still
+  JSON).
+* The comment on the hour bucket of the impulses said 0.03%; it is at most 0.6% (0.3% on average).

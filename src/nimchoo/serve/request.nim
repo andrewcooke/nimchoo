@@ -41,6 +41,7 @@ type
 const
   maxTarget = 8000
   cookieName* = "nch"
+  cookieMaxAge* = 365 * 24 * 3600 ## seconds: a bookmark works for a year, not only until the browser is closed
   tokenParam* = "token"
   defaultPort* = 62466 ## the digits of "mchoo" on a phone keypad
   # the commands the server may run: read-only, safe to repeat; with their options

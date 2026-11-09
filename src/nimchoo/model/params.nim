@@ -17,8 +17,9 @@ type Params* = object
   problem*: string
 
 func validModelName*(s: string): bool =
-  ## 1 to 32 characters: letters, digits, `_`, `.` and `-` (not first).
-  if s.len == 0 or s.len > maxNameLength or s[0] == '-':
+  ## 1 to 32 characters: letters, digits, `_`, `.` and `-` (not first, and no `--`: the name is a part of the file
+  ## names `ff` makes, where `--` separates the options).
+  if s.len == 0 or s.len > maxNameLength or s[0] == '-' or "--" in s:
     return false
   for c in s:
     if c notin {'a' .. 'z', 'A' .. 'Z', '0' .. '9', '_', '.', '-'}:
@@ -46,7 +47,7 @@ proc parseArgs*(args: seq[string]): Params =
     if not validModelName(value):
       return
         "'" & value & "' is not a name for a model (1 to " & $maxNameLength &
-        " letters, digits, _ . -, not starting with -)"
+        " letters, digits, _ . -, not starting with - and without --)"
     p.model.name = value
     ""
   let maxSecsOption = custom(Params, ["--max-secs"], true):

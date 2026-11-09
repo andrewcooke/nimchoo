@@ -19,8 +19,8 @@ const
   bucketSeconds* = 3600'i64
     ## The impulses are kept by the hour.  Not a variable: changing it would leave every stored
     ## impulse on the wrong grid.  (A lump counts as at the end of its hour when the curves are
-    ## made, as in the original; the error against the true time is about hour / decay time of
-    ## the lump, 0.03% for the 7-day curve.)
+    ## made, as in the original; the error against the true time is at most hour / decay time of
+    ## the lump, 0.6% for the 7-day curve, 0.3% on average.)
   unitSeconds* = 10.0 ## the impulse is "per 10 seconds"
 
 type

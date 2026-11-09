@@ -107,6 +107,12 @@ suite "map page: the template and the libraries are files":
     )
     check page == some("T|" & data & "|1|a{}|{\"k\":1}")
     check renderPage("{{title}}", @[], "../x.geojson", "T").isNone
+  test "a closing script tag in the style cannot end the script of the page":
+    let page = renderPage(
+      "<script>const s = {{{style}}};</script>", @[], data, "T", "", "{\"k\":\"</script><b>\"}"
+    ).get
+    check page.count("</script") == 1
+    check page.contains("<\\/script><b>")
 
 suite "map page: the css and the style are files too":
   teardown:

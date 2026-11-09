@@ -138,7 +138,6 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
   try:
     # the activities: those of the address, else the selection
     var ids: seq[int64]
-    var bitsText = p.bits
     if p.bits.len > 0:
       let d = decodeBits(p.bits, maxActivityId(st))
       if d.problem.len > 0:
@@ -146,7 +145,6 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       ids = d.ids
     else:
       ids = selectedIds(st)
-      bitsText = encodeBits(ids)
     let mine = ownedIds(st, ids)
     let check = checkOf(st, mine)
     if p.check.len > 0 and p.check != check:
@@ -170,7 +168,8 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     if mine.len < ids.len:
       stderr.say "note: " & $(ids.len - mine.len) & " of the " & $ids.len &
         " activities of this address do not exist\n"
-    let request = "bits=" & bitsText & "&check=" & check
+    # (the request is the activities drawn, spelt one way: the address as typed may name others, or use the other form)
+    let request = "bits=" & encodeBits(mine) & "&check=" & check
     # what the file is made from: the data of each package it reads, and the version of the program
     let routeKey = routesKey(st, mine)
     if routeKey.count == 0:

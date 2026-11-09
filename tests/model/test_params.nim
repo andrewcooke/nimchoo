@@ -17,6 +17,9 @@ suite "model: the command line":
     check q.problem == "" and q.model.gamma == 1.5 and q.model.one == 5 and
       q.model.maxSecs == 30 and q.model.zones == [60.0, 70, 80, 90, 100] and
       q.model.fitnessDays == 50 and q.model.fatigueDays == 9
+  test "a name with -- is refused (it is a part of the file names of ff)":
+    check parseArgs(@["--add", "a--b"]).problem.contains("not a name")
+    check parseArgs(@["--add", "a-b"]).problem == ""
   test "the variables only with --add":
     check parseArgs(@["--gamma", "3"]).problem.contains("only with --add")
   test "problems":

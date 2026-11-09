@@ -1,5 +1,6 @@
 import std/[os, strutils, unittest]
 import nimchoo/serve/handler
+import nimchoo/serve/request
 import nimchoo/ui/logfile
 
 const
@@ -99,7 +100,7 @@ suite "serve handler: who may ask":
     check r.code == 302
     check r.header("Location") == "/map?bits=AB&check=ab12cd"
     let c = r.header("Set-Cookie")
-    check c == "nch=" & token & "; HttpOnly; SameSite=Strict; Path=/"
+    check c == "nch=" & token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" & $cookieMaxAge
     check s.fake.calls.len == 0 # (nothing run until the cookie is back)
     check r.body == ""
   test "the token alone":

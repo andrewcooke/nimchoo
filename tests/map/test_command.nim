@@ -224,6 +224,24 @@ suite "map: the command":
     let j = parseFile(w.cache / geojsons(w.cache)[0])
     check j["features"].len == 2 # (only the default user's)
 
+  test "two spellings of the same activities are one request and one file":
+    let w = world("spellings")
+    let a = addressOf(w.db)
+    let s = openStore(w.db, allFragments)
+    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
+    let bob = s.db.getValue(sql"select id from user where name = 'bob'")
+    s.db.exec(
+      sql"insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
+      bob,
+    )
+    s.db.exec(
+      sql"insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
+    )
+    s.close()
+    check map(w.db, "--bits", a.bits) == exitOk
+    check map(w.db, "--bits", encodeBits([1'i64, 2, 3, 4])) == exitOk # 4 is bob's
+    check geojsons(w.cache).len == 1
+
   test "a name already used by another request is not reused":
     let w = world("collision")
     let a = addressOf(w.db)
