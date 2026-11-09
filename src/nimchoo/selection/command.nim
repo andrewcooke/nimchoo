@@ -115,9 +115,6 @@ func radiusText(x: float): string =
   else:
     t
 
-proc number(st: Store, query: string): int {.raises: [StoreError].} =
-  st.db.scalar(int, query)
-
 proc startOf(
     st: Store, activityId: ActivityId
 ): Option[(float, float)] {.raises: [StoreError].} =
@@ -130,26 +127,25 @@ proc startOf(
   if c.lat.isSome and c.lon.isSome:
     result = some((c.lat.get, c.lon.get))
 
-proc present(
-    st: Store, column, idList: string
-): seq[(string, int)] {.raises: [StoreError].} =
-  ## The values of a column (sport or sub_sport) among the activities of these
-  ## users, with how many each has, most first; "none" for not recorded.
+proc present(st: Store, column: string): seq[(string, int)] {.raises: [StoreError].} =
+  ## The values of a column (sport or sub_sport: a name of ours, which cannot be bound) among the activities of
+  ## the user, with how many each has, most first; "none" for not recorded.
   st.db.query(
     (string, int),
     "select coalesce(a." & column & ", 'none'), count(*) " &
-      "from activity a join file f on f.id = a.file_id where f.user_id in (" & idList &
-      ") group by 1 order by 2 desc, 1",
+      "from activity a join file f on f.id = a.file_id where f.user_id = ? " &
+      "group by 1 order by 2 desc, 1",
+    st.userId,
   )
 
 proc checkNames(
-    st: Store, what, column, idList: string, wanted: seq[string]
+    st: Store, what, column: string, wanted: seq[string]
 ) {.raises: [StoreError].} =
   ## Refuse a sport (or sub-sport) the users' activities do not have, and say which
   ## they do have.
   if wanted.len == 0:
     return
-  let have = present(st, column, idList)
+  let have = present(st, column)
   for w in wanted:
     if have.allIt(it[0] != w):
       var shown: seq[string]
@@ -160,32 +156,35 @@ proc checkNames(
           (if shown.len > 0: shown.join(", ") else: "no activities") & ")"
       )
 
-func rowColumns(verbose: bool, userId: UserId): string =
+func rowColumns(verbose: bool, userId: UserId): Sql =
+  ## (it carries `:me`, the user whose selection says which are chosen)
   ## What a row of the listing is made of (see table.nim); not recorded: -1 and ''.
   ## The path of the file (for `verbose`) is where it was last seen, else its name.
-  "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
-    "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
-    "coalesce(a.timer_s, -1) as active, f.name as file, " &
-    "(select name from user where id = f.user_id) as user, " &
-    # whether the user has it in their selection
-    "a.id in (select activity_id from selection where user_id = " & $userId &
-    ") as chosen, " & (
-    if verbose:
-    "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, "
-    else: "f.name as path, "
-  ) &
-    # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
-    "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
-    # whether it has a start (said "no GPS" if not): -v only
-    if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon"
-    else: "null as slat, null as slon"
+  sqlOf(
+    "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
+      "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
+      "coalesce(a.timer_s, -1) as active, f.name as file, " &
+      "(select name from user where id = f.user_id) as user, " &
+      # whether the user has it in their selection
+      "a.id in (select activity_id from selection where user_id = :me) as chosen, " & (
+      if verbose:
+      "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, "
+      else: "f.name as path, "
+    ) &
+      # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
+      "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
+      # whether it has a start (said "no GPS" if not): -v only
+      if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon"
+      else: "null as slat, null as slon"
+    )
   )
+    .with("me", userId)
 
 const rowFields =
   "start_t, sport, sub, dist, active, file, user, chosen, path, pname, aname, slat, slon"
   ## the columns of a row, in the order `readRows` reads them
 
-proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
+proc readRows(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
   ## The rows a query gives (the columns `rowFields`), as listed.
   for r in st.db.query(
     tuple[
@@ -251,9 +250,8 @@ proc showSelection*(
   let rows = readRows(
     st,
     "select " & rowColumns(c.verbose, st.userId) &
-      " from selection s join activity a on " &
-      "a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " &
-      $st.userId & " order by a.start_t, a.id",
+      " from selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id " &
+      "where s.user_id = :owner order by a.start_t, a.id".sqlOf.with("owner", st.userId),
   )
   if rows.len == 0:
     return @[
@@ -265,7 +263,7 @@ proc showSelection*(
   result.add skippedWarning(rows, zone, c)
 
 proc latestAmong(
-    st: Store, match: string
+    st: Store, match: Sql
 ): Option[tuple[id: ActivityId, row: ListRow]] {.raises: [StoreError].} =
   ## The newest activity of those a query finds (one giving `id` and the row columns).
   let ordered = " from (" & match & ") order by start_t desc, id desc limit 1"
@@ -279,7 +277,8 @@ proc previousSelected(
 ): tuple[id: ActivityId, row: ListRow] {.raises: [StoreError].} =
   ## The one activity of the stored selection (what `previous` means).  An error unless
   ## there is exactly one.
-  let n = number(st, "select count(*) from selection where user_id = " & $st.userId)
+  let n =
+    st.db.scalar(int, "select count(*) from selection where user_id = ?", st.userId)
   if n != 1:
     raiseStore(
       "`previous` needs a selection of exactly one activity, and it has " & $n &
@@ -288,8 +287,9 @@ proc previousSelected(
   let rows = readRows(
     st,
     "select " & rowColumns(false, st.userId) & " from selection s join activity a " &
-      "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " &
-      $st.userId,
+      "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = :owner".sqlOf.with(
+        "owner", st.userId
+      ),
   )
   (
     id: st.db.scalar(
@@ -364,7 +364,6 @@ proc resolveCriteria(
   ## uses it is one of those among which `latest` is found.
   var c = criteria
   let userIds = @[st.userId]
-  let idList = $st.userId
   if c.climbs.len > 0:
     # the climbs whose name as shown ("Farellones₂", retired ones too) holds the text, whatever its case and accents
     # ("farellones 2" and "farellones2" mean "farellones₂" as well)
@@ -381,8 +380,8 @@ proc resolveCriteria(
         raiseStore(
           "no climb has '" & t & "' in its name (`nch climbs --all` lists them)"
         )
-  checkNames(st, "sport", "sport", idList, c.sports)
-  checkNames(st, "sub-sport", "sub_sport", idList, c.subSports)
+  checkNames(st, "sport", "sport", c.sports)
+  checkNames(st, "sub-sport", "sub_sport", c.subSports)
   var centre = none((float, float))
   var centreFrom = ""
   if usesPrevious(c):
@@ -397,7 +396,7 @@ proc resolveCriteria(
         userIds,
         base,
         none((float, float)),
-        "a.id as id, " & rowColumns(false, st.userId),
+        sqlOf("a.id as id, ") & rowColumns(false, st.userId),
       ),
     )
     if found.isNone:
@@ -423,14 +422,17 @@ proc matchingIds*(
 ): tuple[ids: seq[int64], notes: seq[Line]] {.raises: [StoreError].} =
   ## The ids of the current user's activities the criteria mean: the selection if there are no criteria and no `--all`,
   ## else the activities found among all of them.  (And the notes that say which activity `latest` or `previous` was.)
-  var query: string
+  var query: Sql
   if not (criteria.all or criteria.given):
-    query = "select activity_id from selection where user_id = " & $st.userId
+    query = sqlOf("select activity_id from selection where user_id = :owner").with(
+        "owner", st.userId
+      )
   else:
     let r = resolveCriteria(st, criteria, zone)
     result.notes = r.notes
     query =
-      "select id from (" & matchSql(@[st.userId], r.c, r.centre, "a.id as id") & ")"
+      "select id from (" & matchSql(@[st.userId], r.c, r.centre, sqlOf("a.id as id")) &
+      ")"
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
@@ -446,9 +448,8 @@ proc listActivities*(
   let r = resolveCriteria(st, criteria, zone)
   let c = r.c
   result.lines = r.notes
-  let idList = $st.userId
   let match = matchSql(
-    @[st.userId], c, r.centre, "a.id as id, " & rowColumns(c.verbose, st.userId)
+    @[st.userId], c, r.centre, sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId)
   )
   if c.select:
     st.begin()
@@ -463,10 +464,10 @@ proc listActivities*(
         st.rollback()
   let rows =
     readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
-  let total = number(
-    st,
-    "select count(*) from activity a join file f on f.id = a.file_id " &
-      "where f.user_id in (" & idList & ")",
+  let total = st.db.scalar(
+    int,
+    "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = ?",
+    st.userId,
   )
   result.lines.add listing(
     rows, zone, c, screen, some(total), (if c.select: some(rows.len)

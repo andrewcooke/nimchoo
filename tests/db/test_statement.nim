@@ -90,3 +90,76 @@ suite "statement: typed reading and binding":
       discard db.query((string,), "select name, x from t")
     expect StoreError:
       discard db.query((string, float, int), "select name, x from t")
+
+suite "statement: a query built from pieces, with named values":
+  test "the values go by name, in whatever order the pieces are joined":
+    let db = memory()
+    defer:
+      db.close()
+    let a = sqlOf("select name from t where n >= :low").with("low", 3)
+    let b = sqlOf(" and x < :high order by id").with("high", 2.0)
+    check db.query(string, a & b) == @["alpha"]
+    let flipped =
+      sqlOf("select name from t where x < :high").with("high", 9.0) &
+      sqlOf(" and n >= :low order by id").with("low", 3)
+    check db.query(string, flipped) == @["alpha", "beta"]
+  test "one name may stand twice; it is one value":
+    let db = memory()
+    defer:
+      db.close()
+    let q = sqlOf("select count(*) from t where n = :n or n + 1 = :n").with("n", 4)
+    check db.scalar(int, q) == 2
+  test "a value is data: a quote or a drop table does nothing":
+    let db = memory()
+    defer:
+      db.close()
+    let q = sqlOf("select count(*) from t where name = :who").with(
+        "who", "x'; drop table t; --"
+      )
+    check db.scalar(int, q) == 0
+    check db.scalar(int, "select count(*) from t") == 2
+  test "a list of any length is one value":
+    let db = memory()
+    defer:
+      db.close()
+    let q = sqlOf(
+        "select name from t where id in (select value from json_each(:ids)) order by id"
+      )
+      .with("ids", jsonList([2'i64, 1'i64, 99'i64]))
+    check db.query(string, q) == @["alpha", "beta"]
+  test "a name with no value, a value with no name, or a name given twice is an error that says which":
+    let db = memory()
+    defer:
+      db.close()
+    try:
+      discard db.query(string, sqlOf("select name from t where n = :n"))
+      fail()
+    except StoreError as e:
+      check ":n but no value" in e.msg
+    try:
+      discard db.query(string, sqlOf("select name from t").with("zz", 1))
+      fail()
+    except StoreError as e:
+      check ":zz is not used" in e.msg
+    try:
+      discard db.query(
+        string, sqlOf("select name from t where n = :n").with("n", 1).with("n", 2)
+      )
+      fail()
+    except StoreError as e:
+      check ":n is given twice" in e.msg
+    try:
+      discard db.query(string, sqlOf("select name from t where n = ?"))
+      fail()
+    except StoreError as e:
+      check "only :names" in e.msg
+  test "execute and an absent Option":
+    let db = memory()
+    defer:
+      db.close()
+    db.execute(
+      sqlOf("insert into t(name, note) values (:name, :note)")
+        .with("name", "gamma")
+        .with("note", none(string))
+    )
+    check db.scalar(int, "select count(*) from t where note is null") == 2

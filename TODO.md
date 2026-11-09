@@ -12,11 +12,15 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
 - [ ] 7. Typed database access, our own (decided: not `tiny_sqlite`).  Done: `query`/`queryOne`/`scalar`/`execute` in
-  `db/statement.nim`, and every module in `src/` uses them (no `fastRows`/`getValue`/`exec` left).  Left: the sql that
-  `selection/criteria.nim` builds and `selection/command.nim` extends still has values in its text (user ids, id lists,
-  the criteria's numbers and texts): make it a `Where` (text plus bound arguments) and run it with `query`; the
-  query-plan test (the spatial index and `selection` lookups are used, not scans); the 36 test files that read with
-  `db_sqlite` directly can move to the same calls.
+  `db/statement.nim`; every module in `src/` uses them; a query built from pieces is an `Sql` (`db/sqltext.nim`: text
+  with `:names`, values by name), which `selection/criteria.nim` makes.  Left: the query-plan test (the spatial index
+  and the `selection` lookups are used, not scans); the 36 test files that read with `db_sqlite` directly can move to
+  the same calls.
+- [ ] 7a. Output text with `std/strformat` (`fmt"climb {id} has {n} efforts"`) instead of `&` and `$` (decided
+  2026-11-09: the same reasoning as named sql values, the whole sentence is seen at once and a name is checked at compile
+  time).  Add the rule to CLAUDE.md's style section; convert a module group at a time, one commit each, its tests
+  catching any change of spacing or padding: first the messages (`cli/`, the `command.nim` files, the `describe.nim`
+  files, `ui/`).  Sql text is not converted: `Sql` is the way for that.
 - [ ] 8. Packages (REVIEW.md §6), in its six sub-steps (8.1, 8.3, 8.4, 8.6 mechanical); feature detail moves from CLAUDE.md to each package's doc.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).

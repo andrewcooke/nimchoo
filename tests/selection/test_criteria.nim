@@ -1,9 +1,22 @@
+import nimchoo/db/sqltext
 import std/[options, strutils, times, unittest]
 import nimchoo/fit/time
 import nimchoo/ids
 import nimchoo/selection/criteria
 
 let utcZone = utc()
+
+func value(q: Sql, name: string): Arg =
+  ## The value bound to `:name` (a test fails if there is none).
+  for a in q.args:
+    if a.name == name:
+      return a.value
+  raiseAssert "no value for :" & name
+
+func has(q: Sql, name: string): bool =
+  for a in q.args:
+    if a.name == name:
+      return true
 
 suite "list criteria: --calendar":
   test "--calendar is a display option: it is not a criterion, and it goes with -v":
@@ -230,15 +243,19 @@ suite "list: the box and the sql":
     check boxes(89.5, 10.0, 100.0).len == 1 # (over a pole: all longitudes in one)
     check boxes(0.0, 179.0, 1.0).len == 1 # (a small circle that does not cross)
   test "near means starts near: the index of the start points, and the distance from the start":
-    let m = matchSql(@[UserId(1)], Criteria(radiusKm: 5.0), some((38.7, -9.1)))
+    let q = matchSql(@[UserId(1)], Criteria(radiusKm: 5.0), some((38.7, -9.1)))
+    let m = q.text
     check m.contains("f_table_name = 'activity'") and
       m.contains("f_geometry_column = 'start'")
     check m.contains(
-      "ST_Distance(a.start, MakePoint(-9.1000000, 38.7000000, 4326), 1) <= 5000.0000000"
+      "ST_Distance(a.start, MakePoint(:near_lon, :near_lat, 4326), 1) <= :near_m"
     )
+    check q.value("near_lon") == arg(-9.1) and q.value("near_lat") == arg(38.7) and
+      q.value("near_m") == arg(5000.0)
     check not m.contains("route")
     let across = matchSql(@[UserId(1)], Criteria(radiusKm: 50.0), some((-17.0, 179.9)))
-    check across.count("SpatialIndex") == 2 and across.contains(" or ")
+    check across.text.count("SpatialIndex") == 2 and across.text.contains(" or ")
+    check across.has("box0_x0") and across.has("box1_y1")
   test "longitude widens away from the equator":
     check box(60.0, 0.0, 100.0).maxX > 1.5 * box(0.0, 0.0, 100.0).maxX
   test "over a pole: all longitudes":
@@ -255,79 +272,101 @@ suite "list: the box and the sql":
     check parseArgs(@["--no-gps", "--gps"], utcZone).problem.contains(
       "cannot be used together"
     )
-    let with = matchSql(@[UserId(1)], Criteria(gps: gfWith), none((float, float)))
+    let with = matchSql(@[UserId(1)], Criteria(gps: gfWith), none((float, float))).text
     check with.contains(
       " and exists (select 1 from coords k where k.activity_id = a.id)"
     )
-    let without = matchSql(@[UserId(1)], Criteria(gps: gfWithout), none((float, float)))
+    let without =
+      matchSql(@[UserId(1)], Criteria(gps: gfWithout), none((float, float))).text
     check without.contains(
       " and not exists (select 1 from coords k where k.activity_id = a.id)"
     )
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains(
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "coords"
     )
 
   test "the sql has what was asked for, and nothing else":
-    let plain = matchSql(@[UserId(1), UserId(2)], Criteria(), none((float, float)))
+    let q = matchSql(@[UserId(1), UserId(2)], Criteria(), none((float, float)))
+    let plain = q.text
     check plain ==
-      "select a.id from activity a join file f on f.id = a.file_id where f.user_id in (1, 2)"
+      "select a.id from activity a join file f on f.id = a.file_id where f.user_id in (select value from json_each(:users))"
+    check q.args.len == 1 and q.value("users") == arg("[1,2]")
     check not plain.contains("start_t") and not plain.contains("route") and
       not plain.contains("limit")
-    let full = matchSql(
+    let fullQ = matchSql(
       @[UserId(1)],
       Criteria(
         fromT: some(UnixTime(5)), toT: some(UnixTime(9)), newest: 2, radiusKm: 5.0
       ),
       some((38.7, -9.1)),
-      "a.id, a.start_t",
+      sqlOf("a.id, a.start_t"),
     )
+    let full = fullQ.text
     check full.startsWith("select a.id, a.start_t from activity a")
-    check full.contains("a.start_t >= 5") and full.contains("a.start_t < 9")
+    check full.contains("a.start_t >= :from_t") and full.contains("a.start_t < :to_t")
+    check fullQ.value("from_t") == arg(5) and fullQ.value("to_t") == arg(9)
     check full.contains("SpatialIndex") and
-      full.contains("MakePoint(-9.1000000, 38.7000000, 4326)")
-    check full.contains("<= 5000.0000000")
-    check full.endsWith("order by a.start_t desc limit 2")
-    check matchSql(@[UserId(1)], Criteria(oldest: 4), none((float, float))).endsWith(
-      "order by a.start_t asc limit 4"
+      full.contains("MakePoint(:near_lon, :near_lat, 4326)")
+    check fullQ.value("near_m") == arg(5000.0)
+    check full.endsWith("order by a.start_t desc limit :newest")
+    check fullQ.value("newest") == arg(2)
+    let oldest = matchSql(@[UserId(1)], Criteria(oldest: 4), none((float, float)))
+    check oldest.text.endsWith("order by a.start_t asc limit :oldest")
+    check oldest.value("oldest") == arg(4)
+  test "sports are bound values, none means NULL, nothing without values":
+    check inValues("a.sport", "sport", @[]).text == ""
+    let two = inValues("a.sport", "sport", @["cycling", "running"])
+    check two.text == " and (a.sport in (:sport0, :sport1))"
+    check two.value("sport0") == arg("cycling") and two.value("sport1") == arg(
+      "running"
     )
-  test "sports are quoted, none means NULL, nothing without values":
-    check inValues("a.sport", @[]) == ""
-    check inValues("a.sport", @["cycling", "running"]) ==
-      " and (a.sport in ('cycling', 'running'))"
-    check inValues("a.sub_sport", @["none"]) == " and (a.sub_sport is null)"
-    check inValues("a.sub_sport", @["road", "none"]) ==
-      " and (a.sub_sport in ('road') or a.sub_sport is null)"
-    check inValues("a.sport", @["x'; drop table user; --"]) ==
-      " and (a.sport in ('x''; drop table user; --'))"
+    let none1 = inValues("a.sub_sport", "sub_sport", @["none"])
+    check none1.text == " and (a.sub_sport is null)" and none1.args.len == 0
+    let mixed = inValues("a.sub_sport", "sub_sport", @["road", "none"])
+    check mixed.text == " and (a.sub_sport in (:sub_sport0) or a.sub_sport is null)"
+    let hostile = inValues("a.sport", "sport", @["x'; drop table user; --"])
+    check hostile.text == " and (a.sport in (:sport0))"
+    check hostile.value("sport0") == arg("x'; drop table user; --")
     let m = matchSql(
       @[UserId(1)],
       Criteria(sports: @["cycling"], subSports: @["none"]),
       none((float, float)),
     )
-    check m.contains("a.sport in ('cycling')") and m.contains("a.sub_sport is null")
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("sport")
+    check m.text.contains("a.sport in (:sport0)") and
+      m.text.contains("a.sub_sport is null")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
+      "sport"
+    )
   test "ranges become inclusive comparisons, only for the ends given":
-    check rangeSql("a.distance_m", NumRange()) == ""
-    check rangeSql("a.distance_m", NumRange(lo: some 40000.0)) ==
-      " and a.distance_m >= 40000.000"
-    check rangeSql("a.timer_s", NumRange(hi: some 3600.0)) ==
-      " and a.timer_s <= 3600.000"
-    check rangeSql("a.timer_s", NumRange(lo: some 60.0, hi: some 120.5)) ==
-      " and a.timer_s >= 60.000 and a.timer_s <= 120.500"
+    check rangeSql("a.distance_m", "distance", NumRange()).text == ""
+    let lo = rangeSql("a.distance_m", "distance", NumRange(lo: some 40000.0))
+    check lo.text == " and a.distance_m >= :distance_lo" and
+      lo.value("distance_lo") == arg(40000.0)
+    let hi = rangeSql("a.timer_s", "active", NumRange(hi: some 3600.0))
+    check hi.text == " and a.timer_s <= :active_hi" and
+      hi.value("active_hi") == arg(3600.0)
+    let both = rangeSql("a.timer_s", "active", NumRange(lo: some 60.0, hi: some 120.5))
+    check both.text == " and a.timer_s >= :active_lo and a.timer_s <= :active_hi"
+    check both.value("active_hi") == arg(120.5) # (exact: not rounded to 3 decimals)
     let m = matchSql(
       @[UserId(1)],
       Criteria(distanceM: NumRange(lo: some 1000.0), activeS: NumRange(hi: some 60.0)),
       none((float, float)),
     )
-    check m.contains("a.distance_m >= 1000.000") and m.contains("a.timer_s <= 60.000")
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains(
+    check m.text.contains("a.distance_m >= :distance_lo") and
+      m.text.contains("a.timer_s <= :active_hi")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "distance_m"
     )
   test "saving wraps the same query":
-    let m =
-      matchSql(@[UserId(3)], Criteria(newest: 1), none((float, float)), "a.id as id")
-    check saveSql(UserId(7), m) ==
-      "insert into selection(user_id, activity_id) select 7, id from (" & m & ")"
+    let m = matchSql(
+      @[UserId(3)], Criteria(newest: 1), none((float, float)), sqlOf("a.id as id")
+    )
+    let saved = saveSql(UserId(7), m)
+    check saved.text ==
+      "insert into selection(user_id, activity_id) select :owner, id from (" & m.text &
+      ")"
+    check saved.value("owner") == arg(7) and saved.value("users") == arg("[3]")
 
 suite "list: --name and --start":
   proc parsed(args: varargs[string]): Criteria =
@@ -350,30 +389,39 @@ suite "list: --name and --start":
     check parseArgs(@["--name"], utcZone).problem.len > 0
   test "the sql: the folded text found in the column, none for nothing, an exact value for what latest came to":
     let c = parsed("--name", "toyo", "none", "--start", "o'higgins")
-    let q = matchSql(@[UserId(1)], c, none((float, float)))
-    check q.contains("instr(fold(a.name), 'toyo') > 0") and
+    let m = matchSql(@[UserId(1)], c, none((float, float)))
+    let q = m.text
+    check q.contains("instr(fold(a.name), :name_t0) > 0") and
       q.contains("(a.name is null or a.name = '')")
-    check q.contains("instr(fold(a.start_place), 'o''higgins') > 0")
-      # (the quote is doubled)
+    check m.value("name_t0") == arg("toyo") # (folded)
+    check q.contains("instr(fold(a.start_place), :start_t0) > 0")
+    check m.value("start_t0") == arg("o'higgins") # (bound as it is: no quotes to double)
     var e = Criteria()
     e.namesExact = @["El Toyo and back", ""]
     e.startsExact = @["Providencia"]
-    let r = matchSql(@[UserId(1)], e, none((float, float)))
-    check r.contains("a.name = 'El Toyo and back'") and
+    let rq = matchSql(@[UserId(1)], e, none((float, float)))
+    let r = rq.text
+    check r.contains("a.name = :name_e0") and
       r.contains("(a.name is null or a.name = '')")
-    check r.contains("a.start_place = 'Providencia'")
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains("fold(")
+    check rq.value("name_e0") == arg("El Toyo and back")
+    check r.contains("a.start_place = :start_e0") and
+      rq.value("start_e0") == arg("Providencia")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
+      "fold("
+    )
 
 suite "list: --path":
   test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
     let c = parseArgs(@["--path", "bowman,run", "2026-10"], utcZone).criteria
     check c.paths == @["bowman", "run", "2026-10"]
-    let q = matchSql(@[UserId(1)], c, none((float, float)))
-    check q.contains("instr(fold(f.name), 'bowman') > 0") and
+    let m = matchSql(@[UserId(1)], c, none((float, float)))
+    let q = m.text
+    check q.contains("instr(fold(f.name), :path0) > 0") and
       q.contains(
-        "from seen_file s where s.file_id = f.id and instr(fold(s.path), 'bowman') > 0"
+        "from seen_file s where s.file_id = f.id and instr(fold(s.path), :path0) > 0"
       )
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains(
+    check m.value("path0") == arg("bowman") and m.has("path2")
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "seen_file"
     )
   test "latest is just text here; a path needs some text and is a criterion":
@@ -393,9 +441,9 @@ suite "list: --invert":
   test "the sql negates all of the criteria together, treating an unknown as no match":
     let c =
       parseArgs(@["--sport", "cycling", "--name", "toyo", "--invert"], utcZone).criteria
-    let q = matchSql(@[UserId(1)], c, none((float, float)))
+    let q = matchSql(@[UserId(1)], c, none((float, float))).text
     check q.contains(
-      " and not coalesce((1 and (a.sport in ('cycling')) and (instr(fold(a.name), 'toyo') > 0"
+      " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :name_t0) > 0"
     )
     check q.endsWith("), 0)")
     let plain = matchSql(
@@ -403,12 +451,12 @@ suite "list: --invert":
       parseArgs(@["--sport", "cycling"], utcZone).criteria,
       none((float, float)),
     )
-    check not plain.contains("coalesce")
+    check not plain.text.contains("coalesce")
   test "the limits come after the inverting, and latest is found before it":
     let c =
       parseArgs(@["--sport", "cycling", "--invert", "--newest", "2"], utcZone).criteria
-    check matchSql(@[UserId(1)], c, none((float, float))).endsWith(
-      " order by a.start_t desc limit 2"
+    check matchSql(@[UserId(1)], c, none((float, float))).text.endsWith(
+      " order by a.start_t desc limit :newest"
     )
     let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).criteria
     check r.usesLatest and not r.withoutLatest.invert and not r.withoutLatest.usesLatest
@@ -421,13 +469,14 @@ suite "list: --climb":
     var r = c
     r.climbIds = @[3'i64, 7'i64]
     let q = matchSql(@[UserId(1)], r, none((float, float)))
-    check q.contains(
-      "exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (3, 7))"
+    check q.text.contains(
+      "exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (select value from json_each(:climbs)))"
     )
+    check q.value("climbs") == arg("[3,7]")
     r.climbIds = @[]
-    check matchSql(@[UserId(1)], r, none((float, float))).contains(" and 0")
+    check matchSql(@[UserId(1)], r, none((float, float))).text.contains(" and 0")
       # no climb found: no activity
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).contains(
+    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "effort"
     )
   test "it is a criterion; it needs some text":

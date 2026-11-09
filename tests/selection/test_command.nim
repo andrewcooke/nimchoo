@@ -804,6 +804,26 @@ suite "list: --name and --start":
     named(db)
     discard save(db, "--name", "latest") # the newest is paris: no name
     check chosen(db) == @["paris"]
+  test "a quote in a name is a character: found, found whole by previous, and a hostile text is only text":
+    let db = world("quotes", true)
+    named(db)
+    let s = openStore(db, allFragments)
+    s.db.exec(
+      sql"""update activity set name = 'O''Higgins Park', start_place = 'Providencia'
+      where file_id in (select id from file where name = 'lisbon1')"""
+    )
+    s.close()
+    discard save(db, "--name", "o'higgins")
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--sport", "cycling", "--oldest", "1")
+    discard save(db, "--name", "previous") # the whole name, quote and all
+    check chosen(db) == @["lisbon1"]
+    discard save(db, "--name", "x'; drop table activity; --")
+    check chosen(db).len == 0
+    let after = openStore(db, allFragments)
+    defer:
+      after.close()
+    check after.db.scalar(int, "select count(*) from activity") == 3
   test "-v shows the start place and the name":
     let db = world("shownnames", true)
     named(db)

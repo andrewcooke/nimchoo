@@ -11,13 +11,16 @@
 import std/[macros, options]
 import db_connector/db_sqlite
 from db_connector/sqlite3 import
-  PStmt, column_count, column_double, column_int64, column_name, column_type,
-  SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_NULL, SQLITE_BLOB, prepare_v2,
-  bind_int64, bind_double, bind_null, bind_text, bind_blob, SQLITE_TRANSIENT, step,
-  reset, clear_bindings, finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK,
-  SQLITE_DONE, SQLITE_ROW, column_blob, column_bytes
+  PStmt, bind_parameter_count, bind_parameter_name, column_count, column_double,
+  column_int64, column_name, column_type, SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT,
+  SQLITE_NULL, SQLITE_BLOB, prepare_v2, bind_int64, bind_double, bind_null, bind_text,
+  bind_blob, SQLITE_TRANSIENT, step, reset, clear_bindings, finalize, errmsg,
+  last_insert_rowid, exec, free, SQLITE_OK, SQLITE_DONE, SQLITE_ROW, column_blob,
+  column_bytes
 import ../errors
 import ../ids
+import ./sqltext
+export sqltext
 
 {.push raises: [].}
 
@@ -183,16 +186,6 @@ macro bindArgs(s: Stmt, args: varargs[untyped]): untyped =
   for n, a in args:
     result.add newCall(bindSym"bindValue", s, newLit(n + 1), a)
 
-func jsonList*(ids: openArray[int64]): string =
-  ## The numbers as a JSON array, for a list of any length to be bound as ONE value:
-  ## `... in (select value from json_each(?))`.  (The sql text stays the same, whatever the list.)
-  result = "["
-  for i, id in ids:
-    if i > 0:
-      result.add ','
-    result.add $id
-  result.add ']'
-
 # --- typed reading -------------------------------------------------------------------------------------------
 
 proc typeName(t: int32): string =
@@ -318,3 +311,53 @@ template execute*(db: DbConn, sqlText: string, args: varargs[untyped]) =
     let stmt = prepareStmt(db, sqlText)
     bindArgs(stmt, args)
     stmt.run()
+
+# --- a query built from pieces (`sql.nim`) ------------------------------------------------------------------
+
+proc bindArg(s: Stmt, i: int, a: Arg) {.raises: [StoreError].} =
+  case a.kind
+  of akNull:
+    s.bindNull(i)
+  of akInt:
+    s.bindInt(i, a.i)
+  of akReal:
+    s.bindReal(i, a.r)
+  of akText:
+    s.bindText(i, a.s)
+
+proc prepareSql*(db: DbConn, q: Sql): Stmt {.raises: [StoreError].} =
+  ## Compile the query and bind its values by name.  A mark with no value, a value no mark uses, and a name given
+  ## twice are errors (a mistake in building the query, told before it runs).
+  result = prepareStmt(db, q.text)
+  var used = newSeq[bool](q.args.len)
+  for i in 1 .. int(bind_parameter_count(result.raw)):
+    let mark = bind_parameter_name(result.raw, int32(i))
+    if mark.isNil:
+      raiseStore("the query has a ? where only :names are allowed: " & q.text)
+    let name = ($mark)[1 ..^ 1]
+    var found = -1
+    for k, a in q.args:
+      if a.name == name:
+        if found >= 0:
+          raiseStore("the value :" & name & " is given twice")
+        found = k
+    if found < 0:
+      raiseStore("the query has :" & name & " but no value for it: " & q.text)
+    used[found] = true
+    result.bindArg(i, q.args[found].value)
+  for k, a in q.args:
+    if not used[k]:
+      raiseStore("the value :" & a.name & " is not used by the query: " & q.text)
+
+proc query*(db: DbConn, T: typedesc, q: Sql): seq[T] {.raises: [StoreError].} =
+  ## All the rows of the query, as `T`s.
+  fetchAll[T](prepareSql(db, q))
+
+proc queryOne*(db: DbConn, T: typedesc, q: Sql): Option[T] {.raises: [StoreError].} =
+  fetchOne[T](prepareSql(db, q))
+
+proc scalar*(db: DbConn, T: typedesc, q: Sql): T {.raises: [StoreError].} =
+  theRow(fetchOne[T](prepareSql(db, q)), q.text)
+
+proc execute*(db: DbConn, q: Sql) {.raises: [StoreError].} =
+  prepareSql(db, q).run()

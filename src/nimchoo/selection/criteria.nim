@@ -5,6 +5,7 @@
 import std/[math, options, strutils, times]
 import ../fit/time
 import ../cli/args
+import ../db/sqltext
 import ../ids
 import ../fold
 import ./ranges
@@ -477,9 +478,6 @@ func boxes*(lat, lon, radiusKm: float): seq[Box] =
   if lon + dLon > 180.0:
     result.add Box(minX: -180.0, maxX: lon + dLon - 360.0, minY: b.minY, maxY: b.maxY)
 
-func deg(x: float): string =
-  formatFloat(x, ffDecimal, 7)
-
 func refersTo*(c: Criteria, r: Reference): bool =
   ## Whether any criterion is measured against the activity `r` stands for.
   let near = if r == refLatest: nkLatest else: nkPrevious
@@ -518,132 +516,166 @@ func withoutLatest*(c: Criteria): Criteria =
   result.newest = 0
   result.oldest = 0
 
-func inValues*(column: string, values: seq[string]): string =
-  ## " and a.sport in ('cycling', 'running')": the values, quoted; "none" stands for
-  ## NULL (not recorded).  Nothing if there are no values.
+func inValues*(column, name: string, values: seq[string]): Sql =
+  ## " and (a.sport in (:sport0, :sport1))": the values, as `:name0`, `:name1` ...; "none" stands for NULL (not
+  ## recorded).  Nothing if there are no values.
   if values.len == 0:
-    return ""
-  var quoted, parts: seq[string]
+    return
+  var marks, parts: seq[string]
   var orNull = false
   for v in values:
     if v == "none":
       orNull = true
     else:
-      quoted.add "'" & v.replace("'", "''") & "'"
-  if quoted.len > 0:
-    parts.add column & " in (" & quoted.join(", ") & ")"
+      let n = name & $marks.len
+      marks.add ":" & n
+      result.args.add (n, arg(v))
+  if marks.len > 0:
+    parts.add column & " in (" & marks.join(", ") & ")"
   if orNull:
     parts.add column & " is null"
-  " and (" & parts.join(" or ") & ")"
+  result.text = " and (" & parts.join(" or ") & ")"
 
-func foldLiteral(typed: string): string =
-  ## What was typed, folded (and without blanks at the ends), as an SQL text.
-  "'" & foldText(typed.strip).replace("'", "''") & "'"
-
-func textSql*(column: string, typed, exact: seq[string]): string =
-  ## " and (instr(fold(a.name), 'toyo') > 0 or a.name = 'El Toyo and back')": the typed text found anywhere in the value,
-  ## whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or an exact "")
-  ## is no value: null or "".  Nothing if there is nothing to match.
+func textSql*(column, name: string, typed, exact: seq[string]): Sql =
+  ## " and (instr(fold(a.name), :name_t0) > 0 or a.name = :name_e0)": the typed text (folded) found anywhere in the
+  ## value, whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or
+  ## an exact "") is no value: null or "".  Nothing if there is nothing to match.
   if typed.len == 0 and exact.len == 0:
-    return ""
+    return
   var parts: seq[string]
-  for t in typed:
+  for i, t in typed:
     if t.toLowerAscii == "none":
       parts.add "(" & column & " is null or " & column & " = '')"
     else:
-      parts.add "instr(fold(" & column & "), " & foldLiteral(t) & ") > 0"
-  for e in exact:
+      let n = name & "_t" & $i
+      parts.add "instr(fold(" & column & "), :" & n & ") > 0"
+      result.args.add (n, arg(foldText(t.strip)))
+  for i, e in exact:
     if e.len == 0:
       parts.add "(" & column & " is null or " & column & " = '')"
     else:
-      parts.add column & " = '" & e.replace("'", "''") & "'"
-  " and (" & parts.join(" or ") & ")"
+      let n = name & "_e" & $i
+      parts.add column & " = :" & n
+      result.args.add (n, arg(e))
+  result.text = " and (" & parts.join(" or ") & ")"
 
-func pathSql*(paths: seq[string]): string =
-  ## " and (instr(fold(f.name), ...) > 0 or exists (select 1 from seen_file ...))": the text found in any path the file was imported
-  ## from (a file can have been seen at several), or in the file's name; whatever its case and accents (see fold.nim).
+func pathSql*(paths: seq[string]): Sql =
+  ## " and (instr(fold(f.name), :path0) > 0 or exists (select 1 from seen_file ...))": the text found in any path the
+  ## file was imported from (a file can have been seen at several), or in the file's name; whatever its case and
+  ## accents (see fold.nim).
   if paths.len == 0:
-    return ""
+    return
   var parts: seq[string]
-  for t in paths:
-    let g = foldLiteral(t)
-    parts.add "(instr(fold(f.name), " & g &
-      ") > 0 or exists (select 1 from seen_file s where s.file_id = f.id and instr(fold(s.path), " &
-      g & ") > 0))"
-  " and (" & parts.join(" or ") & ")"
+  for i, t in paths:
+    let n = "path" & $i
+    parts.add "(instr(fold(f.name), :" & n &
+      ") > 0 or exists (select 1 from seen_file s where s.file_id = f.id and instr(fold(s.path), :" &
+      n & ") > 0))"
+    result.args.add (n, arg(foldText(t.strip)))
+  result.text = " and (" & parts.join(" or ") & ")"
 
-func rangeSql*(column: string, r: NumRange): string =
-  ## " and a.distance_m >= 40000.000 and a.distance_m <= 50000.000": the ends that are
-  ## given, both inclusive.  (Not recorded, NULL, is never in a range.)
+func rangeSql*(column, name: string, r: NumRange): Sql =
+  ## " and a.distance_m >= :distance_lo and a.distance_m <= :distance_hi": the ends that are given, both inclusive.
+  ## (Not recorded, NULL, is never in a range.)
   if r.lo.isSome:
-    result.add " and " & column & " >= " & formatFloat(r.lo.get, ffDecimal, 3)
+    result.text.add " and " & column & " >= :" & name & "_lo"
+    result.args.add (name & "_lo", arg(r.lo.get))
   if r.hi.isSome:
-    result.add " and " & column & " <= " & formatFloat(r.hi.get, ffDecimal, 3)
+    result.text.add " and " & column & " <= :" & name & "_hi"
+    result.args.add (name & "_hi", arg(r.hi.get))
 
 func matchSql*(
-    userIds: seq[UserId], c: Criteria, centre: Option[(float, float)], columns = "a.id"
-): string =
+    userIds: seq[UserId],
+    c: Criteria,
+    centre: Option[(float, float)],
+    columns = sqlOf("a.id"),
+): Sql =
   ## A query for the activities of `userIds` that meet the criteria, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
   ## criteria become SQL, used to list them, to count them and to save them.
-  ## `centre` is the point `--near` means.  (Only numbers are put into the text;
-  ## names have been turned into ids.)
-  var ids: seq[string]
+  ## `centre` is the point `--near` means.  Every value is bound by name (`sqltext.nim`).
+  var ids: seq[int64]
   for id in userIds:
-    ids.add $id
+    ids.add int64(id)
   result =
     "select " & columns & " from activity a join file f on f.id = a.file_id " &
-    "where f.user_id in (" & ids.join(", ") & ")"
-  var filt = "" # the criteria, each as " and ...": with --invert, the whole is negated
-  filt.add inValues("a.sport", c.sports)
-  filt.add inValues("a.sub_sport", c.subSports)
-  filt.add textSql("a.name", c.names, c.namesExact)
-  filt.add textSql("a.start_place", c.starts, c.startsExact)
-  filt.add pathSql(c.paths)
+    "where f.user_id in (select value from json_each(:users))"
+  result = result.with("users", jsonList(ids))
+  var filt = Sql()
+    # the criteria, each as " and ...": with --invert, the whole is negated
+  filt = filt & inValues("a.sport", "sport", c.sports)
+  filt = filt & inValues("a.sub_sport", "sub_sport", c.subSports)
+  filt = filt & textSql("a.name", "name", c.names, c.namesExact)
+  filt = filt & textSql("a.start_place", "start", c.starts, c.startsExact)
+  filt = filt & pathSql(c.paths)
   if c.climbs.len > 0:
     # the activities that have an effort on one of the climbs (ids worked out from the names as shown, with no match: none)
-    var ids: seq[string]
+    var climbIds: seq[int64]
     for id in c.climbIds:
-      ids.add $id
-    filt.add (
-      if ids.len == 0: " and 0"
-      else:
-      " and exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (" &
-        ids.join(", ") & "))"
-    )
-  filt.add rangeSql("a.distance_m", c.distanceM)
-  filt.add rangeSql("a.timer_s", c.activeS)
+      climbIds.add id
+    filt =
+      filt & (
+        if climbIds.len == 0:
+          sqlOf(" and 0")
+        else:
+          sqlOf(
+            " and exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (select value from json_each(:climbs)))"
+          )
+            .with("climbs", jsonList(climbIds))
+      )
+  filt = filt & rangeSql("a.distance_m", "distance", c.distanceM)
+  filt = filt & rangeSql("a.timer_s", "active", c.activeS)
   case c.gps
   of gfWith:
-    filt.add " and exists (select 1 from coords k where k.activity_id = a.id)"
+    filt = filt & " and exists (select 1 from coords k where k.activity_id = a.id)"
   of gfWithout:
-    filt.add " and not exists (select 1 from coords k where k.activity_id = a.id)"
+    filt = filt & " and not exists (select 1 from coords k where k.activity_id = a.id)"
   of gfAny:
     discard
   if c.fromT.isSome:
-    filt.add " and a.start_t >= " & $c.fromT.get
+    filt = filt & sqlOf(" and a.start_t >= :from_t").with("from_t", int64(c.fromT.get))
   if c.toT.isSome:
-    filt.add " and a.start_t < " & $c.toT.get
+    filt = filt & sqlOf(" and a.start_t < :to_t").with("to_t", int64(c.toT.get))
   if centre.isSome:
     let (lat, lon) = centre.get
     # activities that START within the radius: the spatial index finds those in a box, and
     # the distance on the ground decides (an activity without a start is never near)
     var probes: seq[string]
-    for b in boxes(lat, lon, c.radiusKm):
+    var values = Sql()
+    for k, b in boxes(lat, lon, c.radiusKm):
+      let n = "box" & $k
       probes.add "a.id in (select ROWID from SpatialIndex where f_table_name = 'activity' and " &
-        "f_geometry_column = 'start' and search_frame = BuildMbr(" & deg(b.minX) & ", " &
-        deg(b.minY) & ", " & deg(b.maxX) & ", " & deg(b.maxY) & "))"
-    filt.add " and (" & probes.join(" or ") & ") and ST_Distance(a.start, MakePoint(" &
-      deg(lon) & ", " & deg(lat) & ", 4326), 1) <= " & deg(c.radiusKm * 1000)
+        "f_geometry_column = 'start' and search_frame = BuildMbr(:" & n & "_x0, :" & n &
+        "_y0, :" & n & "_x1, :" & n & "_y1))"
+      values.args.add (n & "_x0", arg(b.minX))
+      values.args.add (n & "_y0", arg(b.minY))
+      values.args.add (n & "_x1", arg(b.maxX))
+      values.args.add (n & "_y1", arg(b.maxY))
+    values.text =
+      " and (" & probes.join(" or ") &
+      ") and ST_Distance(a.start, MakePoint(:near_lon, :near_lat, 4326), 1) <= :near_m"
+    values = values.with("near_lon", lon).with("near_lat", lat).with(
+        "near_m", c.radiusKm * 1000
+      )
+    filt = filt & values
   # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
-  result.add (if c.invert: " and not coalesce((1" & filt & "), 0)" else: filt)
+  result =
+    result & (
+      if c.invert:
+        " and not coalesce((1" & filt & "), 0)"
+      else:
+        filt
+    )
   if c.newest > 0:
-    result.add " order by a.start_t desc limit " & $c.newest
+    result =
+      result & sqlOf(" order by a.start_t desc limit :newest").with("newest", c.newest)
   if c.oldest > 0:
-    result.add " order by a.start_t asc limit " & $c.oldest
+    result =
+      result & sqlOf(" order by a.start_t asc limit :oldest").with("oldest", c.oldest)
 
-func saveSql*(owner: UserId, match: string): string =
+func saveSql*(owner: UserId, match: Sql): Sql =
   ## The statement that makes the activities of the query `match` (which gives
   ## a column `id` first) the selection of `owner`.
-  "insert into selection(user_id, activity_id) select " & $owner & ", id from (" & match &
-    ")"
+  sqlOf("insert into selection(user_id, activity_id) select :owner, id from (").with(
+    "owner", owner
+  ) & match & ")"
