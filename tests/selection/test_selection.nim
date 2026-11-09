@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[os, sequtils, strutils, unittest]
-import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
 import nimchoo/selection/selection
@@ -12,20 +12,17 @@ proc fresh(name: string): Store =
 
 proc add(s: Store, sha: string, session = 0) =
   ## An activity of file `sha`, in the selection.
-  s.db.exec(
-    sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-    s.userId,
-    sha,
-    sha,
+  s.db.execute(
+    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
+    s.userId, sha, sha,
   )
-  let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(
-    sql"insert into activity(file_id, session, start_t, end_t) values (?, ?, 0, 1)",
-    f,
+  let f = s.db.scalar(int64, "select max(id) from file")
+  s.db.execute(
+    "insert into activity(file_id, session, start_t, end_t) values (?, ?, 0, 1)", f,
     session,
   )
-  s.db.exec(
-    sql"insert into selection(user_id, activity_id) select ?, max(id) from activity",
+  s.db.execute(
+    "insert into selection(user_id, activity_id) select ?, max(id) from activity",
     s.userId,
   )
 
@@ -63,7 +60,7 @@ suite "selection: of the database":
     s.add "bb"
     let two = selectionKey(s)
     check one != two
-    s.db.exec(sql"delete from selection where activity_id = 2")
+    s.db.execute("delete from selection where activity_id = 2")
     check selectionKey(s) == one
   test "it is the content that counts, not the ids or the database":
     let a = fresh("one")
@@ -92,7 +89,7 @@ suite "selection: of the database":
     defer:
       s.close()
     s.add "aa"
-    s.db.exec(sql"insert into user(name) values ('bob')")
+    s.db.execute("insert into user(name) values ('bob')")
     let bob = openStore(dir / "owner" / "x.db", allFragments, "bob")
     defer:
       bob.close()
@@ -110,12 +107,12 @@ suite "selection: for an address (the ids, the check)":
     s.add "c"
     check selectedIds(s) == @[1'i64, 2, 3] and maxActivityId(s) == 3
     check ownedIds(s, @[3'i64, 1, 9, 2]) == @[3'i64, 1, 2] # (9 is not an activity)
-    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) select id, 'x', 'x', 0 from user where name = 'bob'"
+    s.db.execute("insert into user(name, is_default) values ('bob', 0)")
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) select id, 'x', 'x', 0 from user where name = 'bob'"
     )
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file"
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file"
     )
     check ownedIds(s, @[1'i64, 4]) == @[1'i64] # (4 is bob's)
   test "the check is of the content, short, and the same however the ids are arranged":

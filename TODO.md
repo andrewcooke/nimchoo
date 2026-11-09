@@ -11,11 +11,6 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
-- [ ] 7. Typed database access, our own (decided: not `tiny_sqlite`).  Done: `query`/`queryOne`/`scalar`/`execute` in
-  `db/statement.nim`; every module in `src/` uses them; a query built from pieces is an `Sql` (`db/sqltext.nim`: text
-  with `:names`, values by name), which `selection/criteria.nim` makes; `tests/db/test_plans.nim` checks that the
-  queries of every file, ride and cell use an index.  Left: the 36 test files that read with `db_sqlite` directly can
-  move to the same calls.
 - [ ] 7a. Printing with `std/strformat` (the rule is in CLAUDE.md, style): new printing uses `fmt`; a file that
   imports `strformat` has all its printing converted.  The existing `&`/`$` printing is converted by module group, one
   commit each, its tests catching any change of spacing or padding: first the messages (`cli/`, the `command.nim`

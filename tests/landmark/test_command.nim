@@ -1,4 +1,5 @@
-import std/[os, strutils, unittest]
+import nimchoo/db/statement
+import std/[os, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
@@ -14,19 +15,14 @@ proc fresh(name: string): string =
   let s = openStore(db, allFragments)
   defer:
     s.close()
-  s.db.exec(sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 1)")
+  s.db.execute("insert into country(iso, name, geoname_id) values ('CL', 'Chile', 1)")
   for (id, name, cls, code, lon, lat) in [
     (1, "Estero de la Yerba Loca", "H", "STM", -70.364, -33.344),
     (2, "Cerro Yerba Loca", "T", "MT", -70.6, -29.7),
   ]:
-    s.db.exec(
-      sql"insert into feature(id, country, name, class, code, population, geom) values (?, 'CL', ?, ?, ?, 0, MakePoint(cast(? as real), cast(? as real), 4326))",
-      id,
-      name,
-      cls,
-      code,
-      lon,
-      lat,
+    s.db.execute(
+      "insert into feature(id, country, name, class, code, population, geom) values (?, 'CL', ?, ?, ?, 0, MakePoint(cast(? as real), cast(? as real), 4326))",
+      id, name, cls, code, lon, lat,
     )
   db
 
@@ -35,11 +31,11 @@ proc landmark(db: string, args: varargs[string]): int =
     Globals(dbPath: db, fragments: allFragments, offline: true), @args
   )
 
-proc q(db, sqlText: string): string =
+proc q(db, sqlText: string, T: typedesc): T =
   let s = openStore(db, allFragments)
   defer:
     s.close()
-  s.db.getValue(sql(sqlText))
+  s.db.scalar(T, sqlText)
 
 suite "nch landmarks":
   test "listing, with nothing and with something":
@@ -47,8 +43,8 @@ suite "nch landmarks":
     check landmark(db) == exitOk
     check landmark(db, "--add", "Casa", "--at", "-70.6,-33.4") == exitOk
     check landmark(db) == exitOk
-    check q(db, "select name from landmark") == "Casa"
-    check q(db, "select radius_m from landmark") == "1000.0"
+    check q(db, "select name from landmark", string) == "Casa"
+    check q(db, "select radius_m from landmark", float) == 1000.0
   test "a suggestion by name is picked by its number":
     let db = fresh("pick")
     check landmark(db, "--search", "yerba") == exitOk
@@ -56,30 +52,30 @@ suite "nch landmarks":
     check landmark(
       db, "--add", "Yerba Loca", "--search", "yerba", "--pick", "2", "--radius", "1500"
     ) == exitOk
-    check q(db, "select name from landmark") == "Yerba Loca"
-    check abs(parseFloat(q(db, "select lon from landmark")) + 70.364) < 1e-9
-    check q(db, "select radius_m from landmark") == "1500.0"
+    check q(db, "select name from landmark", string) == "Yerba Loca"
+    check abs(q(db, "select lon from landmark", float) + 70.364) < 1e-9
+    check q(db, "select radius_m from landmark", float) == 1500.0
   test "a number that is not among the suggestions, and a name used twice, are failures; nothing is made":
     let db = fresh("fail")
     check landmark(db, "--add", "X", "--search", "yerba", "--pick", "9") == exitFailure
     check landmark(db, "--add", "Casa", "--at", "1,1") == exitOk
     check landmark(db, "--add", "casa", "--at", "2,2") == exitFailure
-    check q(db, "select count(*) from landmark") == "1"
+    check q(db, "select count(*) from landmark", int) == 1
   test "suggestions round a position (offline: from the names already loaded)":
     let db = fresh("near")
     check landmark(db, "--near", "-70.364,-33.344") == exitOk
     check landmark(
       db, "--add", "Yerba Loca", "--near", "-70.364,-33.344", "--pick", "1"
     ) == exitOk
-    check q(db, "select count(*) from landmark") == "1"
+    check q(db, "select count(*) from landmark", int) == 1
   test "removing":
     let db = fresh("remove")
     check landmark(db, "--add", "Casa", "--at", "1,1") == exitOk
     check landmark(db, "--delete", "nothing", "-f") == exitFailure
     check landmark(db, "--delete", "casa") == exitFailure # (without -f nothing is done)
-    check q(db, "select count(*) from landmark") == "1"
+    check q(db, "select count(*) from landmark", int) == 1
     check landmark(db, "--delete", "casa", "-f") == exitOk
-    check q(db, "select count(*) from landmark") == "0"
+    check q(db, "select count(*) from landmark", int) == 0
   test "bad arguments are a usage error; --user before the command is refused":
     let db = fresh("usage")
     check landmark(db, "--add", "X") == exitUsage

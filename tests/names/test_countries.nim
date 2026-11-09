@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[math, options, os, sequtils, strutils, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/db/store
 import nimchoo/download/[fetch, sources]
@@ -96,18 +96,19 @@ suite "names: which countries":
         events.add ev
       ,
     )
-    check st.db.getValue(sql"select count(*) from country") == "0"
+    check st.db.scalar(int, "select count(*) from country") == 0
     check names.countries(-70.65, -33.45) == @["CL"] # Santiago
     check net.gets.len == 2 and
       events.filterIt(it.kind notin {deReading, deFinished}).len == 4
       # the outlines, and the list: each said, then done
-    check st.db.getValue(sql"select count(*) from country") == "5"
-    check st.db.getValue(sql"select name from country where iso = 'AR'") == "Argentina"
-    check st.db.getValue(sql"select count(*) from country where geom is null") == "1"
+    check st.db.scalar(int, "select count(*) from country") == 5
+    check st.db.scalar(string, "select name from country where iso = 'AR'") ==
+      "Argentina"
+    check st.db.scalar(int, "select count(*) from country where geom is null") == 1
       # Curacao: no outline
-    check st.db.getValue(
-      sql"select count(*) from country where iso = 'FR' and geom is not null"
-    ) == "1" # (found by the second code)
+    check st.db.scalar(
+      int, "select count(*) from country where iso = 'FR' and geom is not null"
+    ) == 1 # (found by the second code)
     check names.countries(-68.83, -32.89) == @["AR"] # Mendoza
     check names.countries(-9.14, 38.72) == @["PT"] # Lisbon
     check names.countries(2.35, 48.85) == @["FR"] # Paris
@@ -134,31 +135,31 @@ suite "names: which countries":
     check names.countries(-69.9, -40.0) == @["CL"] # a cell away from it
     check names.countries(-69.1, -40.0) == @["AR"]
     check names.countries(-120.0, -30.0).len == 0 # the Pacific
-    check st.db.getValue(sql"select count(*) from country_cell_done") == "4"
-    check st.db.getValue(sql"select count(*) from country_cell") == "4"
+    check st.db.scalar(int, "select count(*) from country_cell_done") == 4
+    check st.db.scalar(int, "select count(*) from country_cell") == 4
       # (two for the border cell, none for the sea)
     check names.countries(-120.0, -30.0).len == 0 and
       names.countries(-69.6, -40.0) == @["AR", "CL"]
-    check st.db.getValue(sql"select count(*) from country_cell_done") == "4"
+    check st.db.scalar(int, "select count(*) from country_cell_done") == 4
   test "a database with the old outlines forgotten (geom null) reads the new ones and keeps what hangs on a country":
     let net = Net()
     let (st, dir) = fresh("migrate")
     defer:
       st.close()
-    st.db.exec(
-      sql"insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)"
+    st.db.execute(
+      "insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)"
     )
-    st.db.exec(
-      sql"insert into coverage(country, cell_lon, cell_lat, loaded_at, features) values ('CL', -71, -34, 1, 1)"
+    st.db.execute(
+      "insert into coverage(country, cell_lon, cell_lat, loaded_at, features) values ('CL', -71, -34, 1, 1)"
     )
-    st.db.exec(
-      sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))"
+    st.db.execute(
+      "insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))"
     )
     let names = newNames(st, dir, envOf(net), silent())
     check names.countries(-70.65, -33.45) == @["CL"]
-    check st.db.getValue(sql"select count(*) from country") == "5"
-    check st.db.getValue(sql"select count(*) from coverage") == "1" and
-      st.db.getValue(sql"select count(*) from feature") == "1"
+    check st.db.scalar(int, "select count(*) from country") == 5
+    check st.db.scalar(int, "select count(*) from coverage") == 1 and
+      st.db.scalar(int, "select count(*) from feature") == 1
   test "cells wrap round the antimeridian":
     check wrapCell(-720) == -720 and wrapCell(719) == 719
     check wrapCell(720) == -720 and wrapCell(-721) == 719 and wrapCell(1440) == 0
@@ -182,13 +183,13 @@ suite "names: which countries":
       check false
     except DownloadError as e:
       check "cannot get the countries" in e.msg and "cannot reach" in e.msg
-    check st.db.getValue(sql"select count(*) from country") == "0"
+    check st.db.scalar(int, "select count(*) from country") == 0
     check events.len >= 2 and events[0].kind == deStarting and events[1].kind == deFailed and
       "cannot reach" in events[1].message
     # ... and when the network is back, the next call fills the table
     net.broken = false
     check names.countries(-68.83, -32.89) == @["AR"]
-    check st.db.getValue(sql"select count(*) from country") == "5"
+    check st.db.scalar(int, "select count(*) from country") == 5
 
   test "files that cannot be read are said, deleted, and fetched again next time":
     let net = Net()
@@ -216,4 +217,4 @@ suite "names: which countries":
       "cannot be read" in said[^1].message
     check not fileExists(dir / "naturalearth" / "ne_50m_admin_0_countries.zip")
     ensureCountries(names) # the good file is fetched
-    check st.db.getValue(sql"select count(*) from country") == "5"
+    check st.db.scalar(int, "select count(*) from country") == 5

@@ -2,8 +2,8 @@
 ## heatmap/test_web.nim for the general checks of the server: this is that it serves the chart).
 ## Needs a built ./nch-test (the `test` task builds it); without one these tests are skipped.
 
+import nimchoo/db/statement
 import std/[httpclient, os, osproc, sequtils, streams, strtabs, strutils, unittest]
-import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
 when defined(posix):
@@ -19,25 +19,23 @@ proc fixture(name: string): tuple[db, cache: string] =
   let s = openStore(result.db, allFragments)
   defer:
     s.close()
-  s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
-  s.db.exec(
-    sql"insert into file(user_id, name, sha256, imported_at) values (?, 'a', 'aa', 0)",
+  s.db.execute("insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
+  s.db.execute(
+    "insert into file(user_id, name, sha256, imported_at) values (?, 'a', 'aa', 0)",
     s.userId,
   )
-  let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(
-    sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 1535373814, 1535374414)",
+  let f = s.db.scalar(int64, "select max(id) from file")
+  s.db.execute(
+    "insert into activity(file_id, session, start_t, end_t) values (?, 0, 1535373814, 1535374414)",
     f,
   )
-  let a = s.db.getValue(sql"select max(id) from activity")
-  s.db.exec(sql"begin")
+  let a = s.db.scalar(int64, "select max(id) from activity")
+  s.db.execute("begin")
   for k in 0 ..< 600:
-    s.db.exec(
-      sql"insert into heartrate(activity_id, t, bpm) values (?, ?, 160)",
-      a,
-      1535373814 + k,
+    s.db.execute(
+      "insert into heartrate(activity_id, t, bpm) values (?, ?, 160)", a, 1535373814 + k
     )
-  s.db.exec(sql"commit")
+  s.db.execute("commit")
 
 proc environment(cache: string): StringTableRef =
   result = newStringTable()
@@ -89,7 +87,7 @@ suite "nch ff --worker":
       skip()
     let f = fixture("nofthr")
     let s = openStore(f.db, allFragments)
-    s.db.exec(sql"delete from user_profile")
+    s.db.execute("delete from user_profile")
     s.close()
     let (output, code) = worker(f.db, f.cache, @[])
     check code == 1 and output.contains("no FTHR")

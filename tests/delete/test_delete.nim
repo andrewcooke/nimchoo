@@ -1,5 +1,5 @@
-import std/[os, strutils, unittest]
-import db_connector/db_sqlite
+import nimchoo/db/statement
+import std/[os, unittest]
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/delete/[remove, run]
@@ -25,24 +25,23 @@ proc run(db: string, args: varargs[string]): int =
 
 proc selected(s: Store): seq[int64] =
   ## The ids of the user's selection.
-  for r in s.db.fastRows(
-    sql"select activity_id from selection where user_id = ? order by 1", s.userId
-  ):
-    result.add parseBiggestInt(r[0])
+  s.db.query(
+    int64, "select activity_id from selection where user_id = ? order by 1", s.userId
+  )
 
 proc extra(s: Store, tag: string, session, startT: int, sport = "") =
   ## A second activity (another session) in the file `tag`.
-  let f = s.db.getValue(sql"select id from file where name = ?", tag)
-  s.db.exec(
-    sql"insert into activity(file_id, session, start_t, end_t, sport) values (?, ?, ?, ?, nullif(?, ''))",
+  let f = s.db.scalar(int64, "select id from file where name = ?", tag)
+  s.db.execute(
+    "insert into activity(file_id, session, start_t, end_t, sport) values (?, ?, ?, ?, nullif(?, ''))",
     f,
     session,
     startT,
     startT + 10,
     sport,
   )
-  s.db.exec(
-    sql"insert into selection(user_id, activity_id) select ?, max(id) from activity",
+  s.db.execute(
+    "insert into selection(user_id, activity_id) select ?, max(id) from activity",
     s.userId,
   )
 
@@ -54,11 +53,11 @@ suite "delete: the plan":
       s.close()
     fill(s, "a")
     fill(s, "b")
-    s.db.exec(
-      sql"update activity set start_t = 1535371200, sport = 'cycling' where file_id = (select id from file where name = 'a')"
+    s.db.execute(
+      "update activity set start_t = 1535371200, sport = 'cycling' where file_id = (select id from file where name = 'a')"
     )
-    s.db.exec(
-      sql"update activity set start_t = 1535500000, sport = 'running' where file_id = (select id from file where name = 'b')"
+    s.db.execute(
+      "update activity set start_t = 1535500000, sport = 'running' where file_id = (select id from file where name = 'b')"
     )
     let p = planDelete(s, s.selected)
     check p.ids.len == 2 and p.fileIds.len == 2
@@ -86,7 +85,7 @@ suite "delete: the plan":
     defer:
       s.close()
     fill(s, "a")
-    s.db.exec(sql"update activity set start_t = 1535371200")
+    s.db.execute("update activity set start_t = 1535371200")
     check describe(planDelete(s, s.selected)) == "1 activity (no sport 1) on 2018-08-27"
 
 suite "delete: the command":
@@ -95,15 +94,15 @@ suite "delete: the command":
     let s = openStore(d, allFragments)
     fill(s, "a")
     fill(s, "b")
-    s.db.exec(
-      sql"insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')"
+    s.db.execute(
+      "insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')"
     )
-    s.db.exec(
-      sql"""insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+    s.db.execute(
+      """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
       select 1, id, 1, 61, 60, 0 from activity"""
     )
-    s.db.exec(
-      sql"insert into climbs_done(activity_id, version) select id, 1 from activity"
+    s.db.execute(
+      "insert into climbs_done(activity_id, version) select id, 1 from activity"
     )
     s.close()
     check run(d) == exitFailure
@@ -120,14 +119,14 @@ suite "delete: the command":
     ]:
       check after.count(t) == 0
     check after.count("sector") == 1 and
-      after.db.getValue(sql"select name from sector") == "Cerro"
+      after.db.scalar(string, "select name from sector") == "Cerro"
   test "only the selection is deleted":
     let d = fresh("only")
     let s = openStore(d, allFragments)
     fill(s, "a")
     fill(s, "b")
-    s.db.exec(
-      sql"delete from selection where activity_id = (select a.id from activity a join file f on f.id = a.file_id where f.name = 'b')"
+    s.db.execute(
+      "delete from selection where activity_id = (select a.id from activity a join file f on f.id = a.file_id where f.name = 'b')"
     )
     s.close()
     check run(d, "-f") == exitOk
@@ -135,7 +134,7 @@ suite "delete: the command":
     defer:
       after.close()
     check after.count("activity") == 1 and
-      after.db.getValue(sql"select name from file") == "b"
+      after.db.scalar(string, "select name from file") == "b"
     check after.count("seen_file") == 1 and after.count("coords") == 1
   test "only the user's own selection is looked at: --user":
     let d = fresh("user")
@@ -152,22 +151,22 @@ suite "delete: the command":
     defer:
       after.close()
     check after.count("activity") == 1 and
-      after.db.getValue(sql"select name from file") == "mine"
+      after.db.scalar(string, "select name from file") == "mine"
   test "a file that holds other activities is kept until the last goes":
     let d = fresh("sessions")
     let s = openStore(d, allFragments)
     fill(s, "tri")
     s.extra("tri", 1, 100, "swimming")
-    s.db.exec(
-      sql"delete from selection where activity_id = (select min(id) from activity)"
+    s.db.execute(
+      "delete from selection where activity_id = (select min(id) from activity)"
     ) # only the second is selected
     s.close()
     check run(d, "-f") == exitOk
     let mid = openStore(d, allFragments)
     check mid.count("activity") == 1 and mid.count("file") == 1 and
       mid.count("seen_file") == 1 # (the file stays)
-    mid.db.exec(
-      sql"insert into selection(user_id, activity_id) select ?, id from activity",
+    mid.db.execute(
+      "insert into selection(user_id, activity_id) select ?, id from activity",
       mid.userId,
     )
     mid.close()
@@ -181,7 +180,7 @@ suite "delete: the command":
     let d = fresh("none")
     let s = openStore(d, allFragments)
     fill(s, "a")
-    s.db.exec(sql"delete from selection")
+    s.db.execute("delete from selection")
     s.close()
     check run(d, "-f") == exitOk
     let again = openStore(d, allFragments)
@@ -194,13 +193,13 @@ suite "delete: the command":
     fill(s, "run")
     fill(s, "ride")
     fill(s, "ride2")
-    s.db.exec(
-      sql"update activity set sport = 'running' where file_id = (select id from file where name = 'run')"
+    s.db.execute(
+      "update activity set sport = 'running' where file_id = (select id from file where name = 'run')"
     )
-    s.db.exec(
-      sql"update activity set sport = 'cycling' where file_id <> (select id from file where name = 'run')"
+    s.db.execute(
+      "update activity set sport = 'cycling' where file_id <> (select id from file where name = 'run')"
     )
-    s.db.exec(sql"delete from selection")
+    s.db.execute("delete from selection")
     s.close()
     check run(d, "--sport", "cycling") == exitFailure # no -f: nothing done
     let before = openStore(d, allFragments)
@@ -211,7 +210,7 @@ suite "delete: the command":
     defer:
       after.close()
     check after.count("activity") == 1 and
-      after.db.getValue(sql"select sport from activity") == "running"
+      after.db.scalar(string, "select sport from activity") == "running"
   test "--all deletes every activity of the user, and not another user's":
     let d = fresh("all")
     openStore(d, allFragments).close()
@@ -222,14 +221,14 @@ suite "delete: the command":
     let bob = openStore(d, allFragments, "bob")
     fill(bob, "bobs")
     bob.close()
-    s.db.exec(sql"delete from selection")
+    s.db.execute("delete from selection")
     s.close()
     check run(d, "--all", "-f") == exitOk
     let after = openStore(d, allFragments)
     defer:
       after.close()
     check after.count("activity") == 1 and
-      after.db.getValue(sql"select name from file") == "bobs"
+      after.db.scalar(string, "select name from file") == "bobs"
     check after.count("user") == 2 # (the users stay)
   test "no activity meets the criteria: said, not an error":
     let d = fresh("nomatch")
@@ -285,7 +284,7 @@ suite "delete: progress":
       # activity 31: a second session of tri, in the second chunk
     fill(s, "keeper") # activity 32: its file will keep another activity
     s.extra("keeper", 1, 200, "running") # activity 33
-    s.db.exec(sql"delete from selection where activity_id = 33")
+    s.db.execute("delete from selection where activity_id = 33")
     var seen: seq[(int, int, int)]
     let done = deleteActivities(
       s,
@@ -300,7 +299,7 @@ suite "delete: progress":
     check done.activities == 32 and done.kept == 1 and done.files == 30
       # (tri and the 29 others; keeper stays)
     check s.count("activity") == 1 and
-      s.db.getValue(sql"select name from file") == "keeper"
+      s.db.scalar(string, "select name from file") == "keeper"
 
 suite "delete: the display":
   test "two lines, as the import's: the word in bold, then the counts in red joined by grey dots":

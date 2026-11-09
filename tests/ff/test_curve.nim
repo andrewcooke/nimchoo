@@ -1,7 +1,7 @@
+import nimchoo/db/statement
 import ../support/shims
 import ../support/env
 import std/[math, options, os, strutils, times, unittest]
-import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/fit/bytes
@@ -174,7 +174,7 @@ suite "nch ff":
     )
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure
       # (no FTHR: refused, with a reason)
-    s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
+    s.db.execute("insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
     s.close()
     check not dirExists(cache / "user")
       # (nothing made yet; the database has unpacked its list of places)
@@ -189,9 +189,9 @@ suite "nch ff":
     let first = readFile(files[0])
     check first.startsWith("time,fitness,fatigue\n2018-08-27,")
     let t = store.openStore(path, allFragments)
-    check t.db.getValue(sql"select count(*) from impulse") == "2"
+    check t.db.scalar(int, "select count(*) from impulse") == 2
       # (worked out by the command)
-    t.db.exec(sql"delete from impulse")
+    t.db.execute("delete from impulse")
     t.close()
     # the same request again finds the file, and does not work the impulses out again
     writeFile(files[0], "marker")
@@ -199,13 +199,13 @@ suite "nch ff":
       # (a program: nothing more is done)
     check readFile(files[0]) == "marker"
     let u = store.openStore(path, allFragments)
-    check u.db.getValue(sql"select count(*) from impulse") == "0"
+    check u.db.scalar(int, "select count(*) from impulse") == 0
     u.close()
     # at a terminal the latest values are worked out as well, which needs the impulses
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     check readFile(files[0]) == "marker" # (the file is still not made again)
     let u2 = store.openStore(path, allFragments)
-    check u2.db.getValue(sql"select count(*) from impulse") == "2"
+    check u2.db.scalar(int, "select count(*) from impulse") == 2
     u2.close()
     # other options, other files
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--hourly"]) == exitOk
@@ -219,7 +219,7 @@ suite "nch ff":
     check n == 4
     # a different FTHR is different data: a new file
     let v = store.openStore(path, allFragments)
-    v.db.exec(sql"update user_profile set fthr = 160")
+    v.db.execute("update user_profile set fthr = 160")
     v.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     n = 0
@@ -254,7 +254,7 @@ suite "nch ff: the key":
       ws,
       allImportSteps,
     )
-    s.db.exec(sql"insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
+    s.db.execute("insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
     s.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     var name = ""
@@ -271,7 +271,7 @@ suite "nch ff: the key":
     ) == exitFailure
     # a file that was made stays available under its key after the data change
     let t = store.openStore(path, allFragments)
-    t.db.exec(sql"update user_profile set fthr = 160")
+    t.db.execute("update user_profile set fthr = 160")
     t.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key]) == exitOk
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key, "--hourly"]) ==

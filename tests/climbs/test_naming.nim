@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[os, strutils, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/climbs/naming
 import nimchoo/db/store
@@ -14,8 +14,8 @@ proc sectorAt(s: Store, lons: openArray[float], lat: float) =
   var pts: seq[string]
   for i, lon in lons:
     pts.add $lon & " " & $lat & " " & $(100 + i * 10)
-  s.db.exec(
-    sql"insert into sector(length_m, gain_m, gradient, route) values (1000, 100, 5, GeomFromText(?, 4326))",
+  s.db.execute(
+    "insert into sector(length_m, gain_m, gradient, route) values (1000, 100, 5, GeomFromText(?, 4326))",
     "LINESTRING Z(" & pts.join(", ") & ")",
   )
 
@@ -36,11 +36,11 @@ suite "climbs: naming the sectors":
     sectorAt(w.st, [-71.0, -71.01], -40.0) # nothing near it
     let r = ensureSectorNames(w.st, w.names)
     check r == Named(named: 1, nothing: 1)
-    check w.st.db.getValue(sql"select name from sector where id = 1") ==
+    check w.st.db.scalar(string, "select name from sector where id = 1") ==
       "Paso Los Libertadores"
-    check w.st.db.getValue(sql"select name from sector where id = 2") == ""
+    check w.st.db.scalar(string, "select name from sector where id = 2") == ""
       # (looked at, nothing near)
-    check w.st.db.getValue(sql"select count(*) from sector where name is null") == "0"
+    check w.st.db.scalar(int, "select count(*) from sector where name is null") == 0
     let gets = w.net.gets.len
     check ensureSectorNames(w.st, w.names) == Named() # nothing left to look at
     check w.net.gets.len == gets
@@ -59,37 +59,37 @@ suite "climbs: naming the sectors":
     sectorAt(st, [-70.14, -70.12], -32.9)
     expect DownloadError:
       discard ensureSectorNames(st, names)
-    check st.db.getValue(sql"select count(*) from sector where name is null") == "2"
+    check st.db.scalar(int, "select count(*) from sector where name is null") == 2
     # the network back: the same sectors are named now
     let good = Net(chile: @[santiago, sanCristobal, pass, barrio].join("\n") & "\n")
     let r = ensureSectorNames(st, newNames(st, top / "data", envOf(good), silent()))
     check r.named + r.nothing == 2
-    check st.db.getValue(sql"select count(*) from sector where name is null") == "0"
+    check st.db.scalar(int, "select count(*) from sector where name is null") == 0
 
   test "a sector whose route cannot be read is not named, not marked as having no name near, and is said":
     # (the class: a failure is never stored as a result)
     let w = world("damaged")
     defer:
       w.st.close()
-    w.st.db.exec(
-      sql"insert into sector(length_m, gain_m, gradient) values (1000, 100, 5)"
+    w.st.db.execute(
+      "insert into sector(length_m, gain_m, gradient) values (1000, 100, 5)"
     ) # (no route)
     sectorAt(w.st, [-70.14, -70.135, -70.13, -70.125, -70.12], -32.83)
     let r = ensureSectorNames(w.st, w.names)
     check r.damaged == @[1'i64] and r.named == 1 and r.nothing == 0
-    check w.st.db.getValue(sql"select name is null from sector where id = 1") == "1"
+    check w.st.db.scalar(int, "select name is null from sector where id = 1") == 1
       # (still to do: not "")
-    check w.st.db.getValue(sql"select name from sector where id = 2") ==
+    check w.st.db.scalar(string, "select name from sector where id = 2") ==
       "Paso Los Libertadores"
     # said again while it is still damaged, and named once the route is there
     check ensureSectorNames(w.st, w.names).damaged == @[1'i64]
-    w.st.db.exec(
-      sql"update sector set route = GeomFromText(?, 4326) where id = 1",
+    w.st.db.execute(
+      "update sector set route = GeomFromText(?, 4326) where id = 1",
       "LINESTRING Z(-70.14 -32.83 100, -70.12 -32.83 120)",
     )
     let again = ensureSectorNames(w.st, w.names)
     check again.damaged.len == 0 and again.named + again.nothing == 1
-    check w.st.db.getValue(sql"select count(*) from sector where name is null") == "0"
+    check w.st.db.scalar(int, "select count(*) from sector where name is null") == 0
 
   test "a sector added later is named on the next pass":
     let w = world("later")
@@ -100,5 +100,5 @@ suite "climbs: naming the sectors":
     sectorAt(w.st, [-70.54, -70.52], -33.35)
     let r = ensureSectorNames(w.st, w.names)
     check r.named == 1
-    check w.st.db.getValue(sql"select name from sector where id = 2") == "Lo Barnechea"
-      # (it ends there)
+    check w.st.db.scalar(string, "select name from sector where id = 2") ==
+      "Lo Barnechea" # (it ends there)

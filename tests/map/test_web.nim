@@ -2,8 +2,8 @@
 ## on any free port, and asked for things over plain HTTP.  Needs a built ./nch-test (the
 ## `test` task builds it); without one these tests are skipped.
 
+import nimchoo/db/statement
 import std/[httpclient, json, os, osproc, streams, strtabs, strutils, unittest]
-import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
 when defined(posix):
@@ -28,26 +28,22 @@ proc fixture(name: string, selected = true): tuple[db, cache: string] =
     ("a", "MULTILINESTRING((-9.14 38.72, -9.10 38.75, -9.00 38.80))"),
     ("b", "MULTILINESTRING((2.35 48.85, 2.40 48.90))"),
   ]:
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-      s.userId,
-      tag,
-      tag,
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
+      s.userId, tag, tag,
     )
-    let f = s.db.getValue(sql"select max(id) from file")
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, 1000, 1100)",
+    let f = s.db.scalar(int64, "select max(id) from file")
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) values (?, 0, 1000, 1100)",
       f,
     )
-    let a = s.db.getValue(sql"select max(id) from activity")
-    s.db.exec(
-      sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
-      a,
-      route,
+    let a = s.db.scalar(int64, "select max(id) from activity")
+    s.db.execute(
+      "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, route
     )
     if selected:
-      s.db.exec(
-        sql"insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
+      s.db.execute(
+        "insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
       )
 
 proc environment(cache: string): StringTableRef =

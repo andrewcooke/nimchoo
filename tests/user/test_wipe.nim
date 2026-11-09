@@ -1,3 +1,4 @@
+import nimchoo/db/statement
 import std/[options, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/db/store
@@ -62,8 +63,8 @@ suite "wipe: counting":
     check countActivities(d / "x.db", "nobody") == some 0
     # an older layout, which openStore refuses
     let c = db_sqlite.open(d / "x.db", "", "", "")
-    c.exec(
-      sql"update fragment set name = 'activity/001-tables.sql' where name = 'importer/001-schema.sql'"
+    c.execute(
+      "update fragment set name = 'activity/001-tables.sql' where name = 'importer/001-schema.sql'"
     )
     c.close()
     expect StoreError:
@@ -73,7 +74,7 @@ suite "wipe: counting":
   test "a file without an activity table is not counted":
     let d = fresh("nocount")
     let c = db_sqlite.open(d / "x.db", "", "", "")
-    c.exec(sql"create table t(x)")
+    c.execute("create table t(x)")
     c.close()
     check countActivities(d / "x.db", "").isNone
 
@@ -84,10 +85,12 @@ suite "wipe: what belongs to a user":
     defer:
       s.close()
     var withUser: seq[string]
-    for r in s.db.fastRows(sql"select name from sqlite_master where type = 'table'"):
-      for c in s.db.fastRows(sql("select name from pragma_table_info('" & r[0] & "')")):
-        if c[0] == "user_id":
-          withUser.add r[0]
+    for table in s.db.query(
+      string, "select name from sqlite_master where type = 'table'"
+    ):
+      for column in s.db.query(string, "select name from pragma_table_info(?)", table):
+        if column == "user_id":
+          withUser.add table
     check "file" in withUser and "seen_file" in withUser # (the query finds the tables)
     for t in withUser:
       check t in userTables or t == "user_profile"
@@ -100,7 +103,7 @@ suite "wipe: what belongs to a user":
     let bob = openStore(d / "x.db", allFragments, "bob")
     fill(bob, "bobs")
     removeUser(bob, findUser(bob, "bob"))
-    check bob.db.getValue(sql"select count(*) from user where name = 'bob'") == "0"
+    check bob.db.scalar(int, "select count(*) from user where name = 'bob'") == 0
     for t in tables:
       check bob.count(t) == 0
     bob.close()

@@ -7,6 +7,7 @@
 
 import std/[strutils]
 import db_connector/db_sqlite
+import nimchoo/db/statement
 
 type Invariant* = object
   name*: string
@@ -43,42 +44,44 @@ const allInvariants* = [
   Invariant(
     name: "the positions of an activity lie within the activity",
     offenders:
-      "select a.id from activity a where exists (select 1 from coords c " &
+      "select cast(a.id as text) from activity a where exists (select 1 from coords c " &
       "where c.activity_id = a.id and (c.t < a.start_t or c.t > a.end_t))",
   ),
   Invariant(
     name: "an activity has a start point exactly when it has positions",
     offenders:
-      "select a.id from activity a where (a.start is null) = " &
+      "select cast(a.id as text) from activity a where (a.start is null) = " &
       "exists (select 1 from coords c where c.activity_id = a.id)",
   ),
   Invariant(
     name: "an activity with efforts has been looked at for climbs",
     offenders:
-      "select distinct e.activity_id from effort e " &
+      "select distinct cast(e.activity_id as text) from effort e " &
       "where e.activity_id not in (select activity_id from climbs_done)",
   ),
   Invariant(
     name: "every climb has a name decision (a name, or \"\")",
-    offenders: "select id from sector where name is null",
+    offenders: "select cast(id as text) from sector where name is null",
   ),
   Invariant(
     name: "every activity with positions has a naming decision",
     offenders:
-      "select id from activity where start_place is null and exists " &
+      "select cast(id as text) from activity where start_place is null and exists " &
       "(select 1 from coords c where c.activity_id = activity.id)",
   ),
   Invariant(
     name: "a climb has positive length and gain",
-    offenders: "select id from sector where length_m <= 0 or gain_m <= 0",
+    offenders: "select cast(id as text) from sector where length_m <= 0 or gain_m <= 0",
   ),
   Invariant(
     name: "heart rates are plausible (1 to 250 bpm)",
-    offenders: "select distinct activity_id from heartrate where bpm < 1 or bpm > 250",
+    offenders:
+      "select distinct cast(activity_id as text) from heartrate where bpm < 1 or bpm > 250",
   ),
   Invariant(
     name: "no foreign key points at nothing",
-    offenders: "select \"table\" || ' row ' || rowid from pragma_foreign_key_check",
+    offenders:
+      "select \"table\" || ' row ' || ifnull(rowid, '(no rowid)') from pragma_foreign_key_check",
   ),
 ]
 
@@ -86,10 +89,8 @@ proc violations*(db: DbConn): seq[string] =
   ## One line per invariant that does not hold: its name, how many offenders,
   ## and the first few.
   for inv in allInvariants:
-    let rows = db.getAllRows(sql(inv.offenders & " limit 6"))
+    let rows = db.query(string, inv.offenders & " limit 6")
     if rows.len > 0:
-      var shown: seq[string]
-      for r in rows[0 ..< min(rows.len, 5)]:
-        shown.add r[0]
-      let n = db.getValue(sql("select count(*) from (" & inv.offenders & ")"))
-      result.add inv.name & ": " & n & " (" & shown.join(", ") & ")"
+      let n = db.scalar(int, "select count(*) from (" & inv.offenders & ")")
+      result.add inv.name & ": " & $n & " (" & rows[0 ..< min(rows.len, 5)].join(", ") &
+        ")"

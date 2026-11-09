@@ -1,8 +1,8 @@
 ## `nch activities --import` remembers the paths it has seen: a path whose size and
 ## modification time are unchanged is skipped without being read.
 
+import nimchoo/db/statement
 import std/[os, strutils, times, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
@@ -65,7 +65,7 @@ proc open(path: string): Store =
   openStore(path, allFragments)
 
 proc count(s: Store, table: string): int =
-  parseInt(s.db.getValue(sql("select count(*) from " & table)))
+  s.db.scalar(int, "select count(*) from " & table)
 
 type Counted = ref object
   loads: int
@@ -150,7 +150,7 @@ suite "import: skipping what has not changed":
     defer:
       st.close()
     discard importReport(st, @[d])
-    st.db.exec(sql"delete from seen_file")
+    st.db.execute("delete from seen_file")
     check importReport(st, @[d]).lines[0].contains("duplicate")
     check st.count("seen_file") == 1
     check importReport(st, @[d]).lines[0].contains("unchanged")
@@ -196,7 +196,7 @@ suite "import: remembered failures":
     check second.known == 1
     check second.lines[0].startsWith("known")
     check second.lines[^1].contains("1 known failure (use --slow to retry)")
-    check st.db.getValue(sql"select failure from seen_file") == "bad_format"
+    check st.db.scalar(string, "select failure from seen_file") == "bad_format"
 
   test "the kinds of failure are remembered":
     let d = fresh("kinds")
@@ -206,7 +206,7 @@ suite "import: remembered failures":
     defer:
       st.close()
     discard importReport(st, @[d])
-    check st.db.getValue(sql"select failure from seen_file") == "no_activity"
+    check st.db.scalar(string, "select failure from seen_file") == "no_activity"
 
   test "a known failure is retried when the file changes":
     let d = fresh("fixed")
@@ -220,7 +220,7 @@ suite "import: remembered failures":
     let r = importReport(st, @[d])
     check r.imported == 1
     check r.known == 0
-    check st.db.getValue(sql"select failure is null from seen_file") == "1"
+    check st.db.scalar(int, "select failure is null from seen_file") == 1
 
   test "--slow retries the known failures":
     let d = fresh("retry")

@@ -1,5 +1,5 @@
-import std/[options, os, strutils, unittest]
-import db_connector/db_sqlite
+import nimchoo/db/statement
+import std/[options, os, unittest]
 import ../support/shims
 import nimchoo/importer/[extract, importer]
 import std/tables
@@ -34,7 +34,7 @@ proc tempDb(name: string): string =
   removeFile(result)
 
 proc count(s: Store, table: string): int =
-  parseInt(s.db.getValue(sql("select count(*) from " & table)))
+  s.db.scalar(int, "select count(*) from " & table)
 
 proc importPath(s: Store, path: string): (ImportResult, seq[Warning]) =
   var ws: seq[Warning]
@@ -86,14 +86,12 @@ suite "import: a real ride":
     check s.count("file") == 1
     check s.count("activity") == 1
     check s.count("coords") == 2099
-    check s.db.getValue(sql"select sport || '/' || sub_sport from activity") ==
+    check s.db.scalar(string, "select sport || '/' || sub_sport from activity") ==
       "cycling/generic"
-    check s.db.getValue(sql"select start_t from activity") == "1535373814"
-    check s.db.getValue(sql"select utc_offset_s from activity") == "-10800"
-    check abs(
-      parseFloat(s.db.getValue(sql"select distance_m from activity")) - 11978.11
-    ) < 1e-6
-    check s.db.getValue(sql"select count(*) from coords where alt is null") == "2099"
+    check s.db.scalar(int, "select start_t from activity") == 1535373814
+    check s.db.scalar(int, "select utc_offset_s from activity") == -10800
+    check abs(s.db.scalar(float, "select distance_m from activity") - 11978.11) < 1e-6
+    check s.db.scalar(int, "select count(*) from coords where alt is null") == 2099
 
   test "the route has a part for each segment, and is where the points are":
     let s = openStore(tempDb("ride-route"))
@@ -101,16 +99,16 @@ suite "import: a real ride":
       s.close()
     discard s.importPath(ride)
     check s.count("route") == 1
-    check s.db.getValue(sql"select NumGeometries(geom) from route") == "1"
-    check s.db.getValue(sql"select ST_NPoints(geom) from route") == "2099"
+    check s.db.scalar(int, "select NumGeometries(geom) from route") == 1
+    check s.db.scalar(int, "select ST_NPoints(geom) from route") == 2099
     # every point is within the route's bounding box (to the rounding of 7 decimals), and the route is about as long as the ride
-    check s.db.getValue(
-      sql"""select count(*) from coords c, route r where
+    check s.db.scalar(
+      int,
+      """select count(*) from coords c, route r where
       c.lon < MbrMinX(r.geom) - 1e-6 or c.lon > MbrMaxX(r.geom) + 1e-6 or
-      c.lat < MbrMinY(r.geom) - 1e-6 or c.lat > MbrMaxY(r.geom) + 1e-6"""
-    ) == "0"
-    let km =
-      parseFloat(s.db.getValue(sql"select GeodesicLength(geom) from route")) / 1000
+      c.lat < MbrMinY(r.geom) - 1e-6 or c.lat > MbrMaxY(r.geom) + 1e-6""",
+    ) == 0
+    let km = s.db.scalar(float, "select GeodesicLength(geom) from route") / 1000
     check km > 8 and km < 14 # (the device says 11.98 km)
 
   test "the coordinates are in degrees, at the right times":
@@ -118,12 +116,15 @@ suite "import: a real ride":
     defer:
       s.close()
     discard s.importPath(ride)
-    let first = s.db.getRow(sql"select t, lat, lon from coords order by t limit 1")
-    check first[0] == "1535373814"
-    check abs(parseFloat(first[1]) - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
-    check abs(parseFloat(first[2]) - (-842376459.0 * 180.0 / 2147483648.0)) < 1e-9
-    check s.db.getValue(sql"select min(t) = (select start_t from activity) from coords") ==
-      "1"
+    let first = s.db.scalar(
+      tuple[t: int64, lat, lon: float],
+      "select t, lat, lon from coords order by t limit 1",
+    )
+    check first.t == 1535373814
+    check abs(first.lat - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
+    check abs(first.lon - (-842376459.0 * 180.0 / 2147483648.0)) < 1e-9
+    check s.db.scalar(int, "select min(t) = (select start_t from activity) from coords") ==
+      1
 
   test "importing the same file again does nothing":
     let s = openStore(tempDb("twice"))
@@ -149,7 +150,7 @@ suite "import: a real ride":
   test "each user has their own copy":
     let path = tempDb("users")
     let a = openStore(path)
-    a.db.exec(sql"insert into user(name) values ('bob')")
+    a.db.execute("insert into user(name) values ('bob')")
     discard a.importPath(ride)
     a.close()
     let b = openStore(path, "bob")
@@ -159,9 +160,10 @@ suite "import: a real ride":
     check r.outcome == ioImported
     check b.count("file") == 2
     check b.count("activity") == 2
-    check b.db.getValue(
-      sql"select count(distinct f.user_id) from activity a join file f on f.id = a.file_id"
-    ) == "2"
+    check b.db.scalar(
+      int,
+      "select count(distinct f.user_id) from activity a join file f on f.id = a.file_id",
+    ) == 2
 
 suite "import: several sessions":
   test "a multisport file gives an activity per session":
@@ -173,17 +175,19 @@ suite "import: several sessions":
     check s.count("activity") == 7
     check s.count("coords") == r.coords
     check r.coords > 20000
-    check s.db.getValue(sql"select count(distinct session) from activity") == "7"
+    check s.db.scalar(int, "select count(distinct session) from activity") == 7
     # the time ranges follow one another
-    check s.db.getValue(
-      sql"""select count(*) from activity a join activity b
-      on b.start_t > a.start_t and b.start_t < a.end_t"""
-    ) == "0"
+    check s.db.scalar(
+      int,
+      """select count(*) from activity a join activity b
+      on b.start_t > a.start_t and b.start_t < a.end_t""",
+    ) == 0
     # every coordinate lies in the activity it belongs to (or before the first)
-    check s.db.getValue(
-      sql"""select count(*) from coords c join activity a
-      on a.id = c.activity_id where c.t > a.end_t + 1"""
-    ) == "0"
+    check s.db.scalar(
+      int,
+      """select count(*) from coords c join activity a
+      on a.id = c.activity_id where c.t > a.end_t + 1""",
+    ) == 0
 
 suite "import: files that cannot be imported":
   test "a small hand-built file":
@@ -193,7 +197,7 @@ suite "import: files that cannot be imported":
     var ws: seq[Warning]
     let r = s.importFile(p, "tiny.fit", tiny, ws)
     check r.coords == 3
-    check s.db.getValue(sql"select lat || ' ' || lon from coords limit 1") ==
+    check s.db.scalar(string, "select lat || ' ' || lon from coords limit 1") ==
       "45.0 -90.0"
 
   test "the start of an activity is its first position, as a point":
@@ -202,28 +206,28 @@ suite "import: files that cannot be imported":
       s.close()
     var ws: seq[Warning]
     discard s.importFile(p, "tiny.fit", tiny, ws)
-    check s.db.getValue(sql"select ST_Y(start) || ' ' || ST_X(start) from activity") ==
+    check s.db.scalar(string, "select ST_Y(start) || ' ' || ST_X(start) from activity") ==
       "45.0 -90.0"
-    check s.db.getValue(sql"select count(*) from idx_activity_start") == "1"
+    check s.db.scalar(int, "select count(*) from idx_activity_start") == 1
       # (and it is indexed)
     # a real ride: the same as the first row of its coordinates
     discard s.importPath(ride)
-    check s.db.getValue(
-      sql"""select count(*) from activity a where a.start is not null and
+    check s.db.scalar(
+      int,
+      """select count(*) from activity a where a.start is not null and
       ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
-      ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)"""
-    ) == "2"
+      ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""",
+    ) == 2
 
   test "the start is the first position; the start place and the name are not made at import (they are null until named)":
     let s = openStore(tempDb("placed"))
     defer:
       s.close()
     discard s.importPath(ride)
-    check s.db.getValue(sql"select count(*) from activity where start is not null") ==
-      "1"
-    check s.db.getValue(
-      sql"select count(*) from activity where start_place is null and name is null"
-    ) == "1"
+    check s.db.scalar(int, "select count(*) from activity where start is not null") == 1
+    check s.db.scalar(
+      int, "select count(*) from activity where start_place is null and name is null"
+    ) == 1
 
   test "no positions, no start":
     let s = openStore(tempDb("nostart"))
@@ -236,8 +240,8 @@ suite "import: files that cannot be imported":
     var ws: seq[Warning]
     let r = s.importFile(p, "nogps.fit", noGps, ws)
     check r.activities == 1 and r.coords == 0
-    check s.db.getValue(sql"select count(*) from activity where start is null") == "1"
-    check s.db.getValue(sql"select count(*) from idx_activity_start") == "0"
+    check s.db.scalar(int, "select count(*) from activity where start is null") == 1
+    check s.db.scalar(int, "select count(*) from idx_activity_start") == 0
 
   test "a file with no activity writes nothing":
     let s = openStore(tempDb("noact"))
@@ -265,21 +269,21 @@ suite "import: files that cannot be imported":
       s.close()
     var ws: seq[Warning]
     discard s.importFile(p, "three.fit", threeStretches, ws)
-    check s.db.getValue(sql"select NumGeometries(geom) from route") == "3"
-    check s.db.getValue(sql"select ST_NPoints(geom) from route") == "12"
+    check s.db.scalar(int, "select NumGeometries(geom) from route") == 3
+    check s.db.scalar(int, "select ST_NPoints(geom) from route") == 12
 
   test "a failure part way leaves no rows behind":
     let s = openStore(tempDb("rollback"))
     defer:
       s.close()
-    s.db.exec(sql"drop table coords") # the last insert will fail
+    s.db.execute("drop table coords") # the last insert will fail
     var ws: seq[Warning]
     expect StoreError:
       discard s.importFile(p, "tiny.fit", tiny, ws)
     check s.count("file") == 0
     check s.count("activity") == 0
     # and the connection is usable afterwards
-    s.db.exec(sql"create table coords(x)")
+    s.db.execute("create table coords(x)")
 
 suite "import: segments":
   test "the segments are stored in order, covering every coordinate":
@@ -288,43 +292,48 @@ suite "import: segments":
       s.close()
     var ws: seq[Warning]
     discard s.importFile(p, "three.fit", threeStretches, ws)
-    check s.db.getValue(sql"select min(n) || '-' || max(n) from segment") == "0-2"
-    check s.db.getValue(
-      sql"""select count(*) from segment a join segment b
+    check s.db.scalar(string, "select min(n) || '-' || max(n) from segment") == "0-2"
+    check s.db.scalar(
+      int,
+      """select count(*) from segment a join segment b
       on b.activity_id = a.activity_id and b.n = a.n + 1
-      where b.start_t <= a.end_t"""
-    ) == "0"
-    check s.db.getValue(
-      sql"""select count(*) from coords c where not exists (
+      where b.start_t <= a.end_t""",
+    ) == 0
+    check s.db.scalar(
+      int,
+      """select count(*) from coords c where not exists (
       select 1 from segment g where g.activity_id = c.activity_id
-        and c.t between g.start_t and g.end_t)"""
-    ) == "0"
+        and c.t between g.start_t and g.end_t)""",
+    ) == 0
     # the time between segments is the time paused
-    check s.db.getValue(
-      sql"""select sum(b.start_t - a.end_t) from segment a
-      join segment b on b.activity_id = a.activity_id and b.n = a.n + 1"""
-    ) == "13"
+    check s.db.scalar(
+      int,
+      """select sum(b.start_t - a.end_t) from segment a
+      join segment b on b.activity_id = a.activity_id and b.n = a.n + 1""",
+    ) == 13
 
   test "the real ride's auto-pauses are joined: one stretch from its first start to its last stop":
     let s = openStore(tempDb("ride-stretch"))
     defer:
       s.close()
     discard s.importPath(ride)
-    check s.db.getValue(sql"select min(n) || '-' || max(n) from segment") == "0-0"
-    check s.db.getValue(
-      sql"""select count(*) from coords c, segment g where c.t < g.start_t or c.t > g.end_t"""
-    ) == "0"
+    check s.db.scalar(string, "select min(n) || '-' || max(n) from segment") == "0-0"
+    check s.db.scalar(
+      int,
+      """select count(*) from coords c, segment g where c.t < g.start_t or c.t > g.end_t""",
+    ) == 0
 
   test "the coordinates of one segment are a range of the key":
     let s = openStore(tempDb("segrange"))
     defer:
       s.close()
     discard s.importPath(ride)
-    check s.db.getValue(
-      sql"""select sum(cnt) from (
+    check s.db.scalar(
+      int,
+      """select sum(cnt) from (
       select (select count(*) from coords c where c.activity_id = g.activity_id
-        and c.t between g.start_t and g.end_t) as cnt from segment g)"""
-    ) == "2099"
+        and c.t between g.start_t and g.end_t) as cnt from segment g)""",
+    ) == 2099
 
   test "a multisport file has segments for each activity":
     let s = openStore(tempDb("segmulti"))
@@ -332,7 +341,7 @@ suite "import: segments":
       s.close()
     let (r, _) = s.importPath(multisport)
     check r.segments == s.count("segment")
-    check s.db.getValue(sql"select count(distinct activity_id) from segment") == "7"
+    check s.db.scalar(int, "select count(distinct activity_id) from segment") == 7
 
 suite "import: decoding apart from writing":
   test "decodeFile needs no database: activities, their routes as bytes, and the warnings":
@@ -368,7 +377,7 @@ suite "import: decoding apart from writing":
   test "knownFile finds a file by its content, only for the user it was imported for":
     let path = tempDb("known")
     let a = openStore(path)
-    a.db.exec(sql"insert into user(name) values ('bob')")
+    a.db.execute("insert into user(name) values ('bob')")
     var ws: seq[Warning]
     let digest = sha256Hex(tiny)
     check knownFile(a, digest).isNone
@@ -395,13 +404,13 @@ suite "import: decoding apart from writing":
       viaParts.segments == viaFile.segments and viaParts.activities == viaFile.activities
     for table in ["file", "activity", "coords", "segment", "route"]:
       check one.count(table) == two.count(table)
-    check one.db.getValue(sql"select sum(lon) || ',' || sum(lat) from coords") ==
-      two.db.getValue(sql"select sum(lon) || ',' || sum(lat) from coords")
+    check one.db.scalar(string, "select sum(lon) || ',' || sum(lat) from coords") ==
+      two.db.scalar(string, "select sum(lon) || ',' || sum(lat) from coords")
     # and nothing is written if the writing fails part way
     let three = openStore(tempDb("write3"))
     defer:
       three.close()
-    three.db.exec(sql"drop table coords")
+    three.db.execute("drop table coords")
     expect StoreError:
       discard three.writeDecoded("r.fit", "x", d, @[])
     check three.count("file") == 0

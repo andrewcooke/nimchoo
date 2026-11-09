@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[algorithm, os, sequtils, strutils, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
@@ -125,7 +125,7 @@ suite "nch activities --import: a mixed run":
     check r.imported == 2
     check r.failed == 1
     check r.lines.anyIt(it.startsWith("failed    ") and it.contains("2-bad.fit"))
-    check st.db.getValue(sql"select count(*) from activity") == "2"
+    check st.db.scalar(int, "select count(*) from activity") == 2
 
   test "importing again skips what is already there":
     let d = fresh("again")
@@ -200,10 +200,11 @@ suite "nch activities --import: the command":
       let s = open(d / "x.db")
       defer:
         s.close()
-      for r in s.db.fastRows(
-        sql"select a.start_t from selection l join activity a on a.id = l.activity_id order by 1"
+      for t in s.db.query(
+        int64,
+        "select a.start_t from selection l join activity a on a.id = l.activity_id order by 1",
       ):
-        result.add r[0]
+        result.add $t
 
     check importCmd(g, @["-q", d / "first"]) == exitOk
     check selectedStarts() == @[$(base + 1 + 631_065_600)]

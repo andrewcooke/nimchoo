@@ -1,5 +1,4 @@
 import std/[algorithm, os, sequtils, strutils, times, unittest]
-import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/climbs/ordinal
 import nimchoo/db/[statement, store]
@@ -28,15 +27,13 @@ proc addActivity(
     lon = 0.0,
     lat = 0.0,
 ) =
-  s.db.exec(
-    sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-    userId,
-    tag,
-    tag,
+  s.db.execute(
+    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)", userId,
+    tag, tag,
   )
-  let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(
-    sql"""insert into activity(file_id, session, start_t, end_t, sport, sub_sport,
+  let f = s.db.scalar(int64, "select max(id) from file")
+  s.db.execute(
+    """insert into activity(file_id, session, start_t, end_t, sport, sub_sport,
                                        distance_m, timer_s)
                   values (?, 0, ?, ?, nullif(?, ''), nullif(?, ''), 12345.0, 3661.0)""",
     f,
@@ -45,15 +42,12 @@ proc addActivity(
     sport,
     subSport,
   )
-  let a = s.db.getValue(sql"select max(id) from activity")
-  s.db.exec(
-    sql(
-      "update activity set start = MakePoint(" & $lon & ", " & $lat &
-        ", 4326) where id = " & a
-    )
+  let a = s.db.scalar(int64, "select max(id) from activity")
+  s.db.execute(
+    "update activity set start = MakePoint(?, ?, 4326) where id = ?", lon, lat, a
   )
-  s.db.exec(
-    sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, wkt
+  s.db.execute(
+    "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, wkt
   )
 
 proc world(name: string, together = false): string =
@@ -65,9 +59,8 @@ proc world(name: string, together = false): string =
   let s = openStore(result, allFragments)
   defer:
     s.close()
-  s.db.exec(sql"insert into user(name) values ('bob')")
-  let bob =
-    UserId(parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'")))
+  s.db.execute("insert into user(name) values ('bob')")
+  let bob = UserId(s.db.scalar(int64, "select id from user where name = 'bob'"))
   addActivity(
     s, s.userId, "lisbon1", july1, "MULTILINESTRING((-9.14 38.72, -9.10 38.75))",
     "cycling", "road", -9.14, 38.72,
@@ -104,12 +97,12 @@ proc chosen(db: string): seq[string] =
   let s = openStore(db, allFragments)
   defer:
     s.close()
-  for row in s.db.fastRows(
-    sql"""select f.name from selection l join activity a
+  result = s.db.query(
+    string,
+    """select f.name from selection l join activity a
       on a.id = l.activity_id join file f on f.id = a.file_id where l.user_id = ?""",
     s.userId,
-  ):
-    result.add row[0]
+  )
   result.sort
 
 suite "list: the command":
@@ -134,8 +127,8 @@ suite "list: the command":
   test "--gps and --no-gps: with and without positions":
     let db = world("gps")
     let s = openStore(db, allFragments)
-    s.db.exec(
-      sql"""insert into coords(activity_id, t, lon, lat)
+    s.db.execute(
+      """insert into coords(activity_id, t, lon, lat)
                     select a.id, a.start_t, 1.0, 2.0 from activity a join file f on f.id = a.file_id
                     where f.name = 'lisbon1'"""
     )
@@ -173,9 +166,10 @@ suite "list: the command":
     let b = openStore(db, allFragments, "bob")
     defer:
       b.close()
-    check b.db.getValue(
-      sql"select count(*) from selection where user_id = (select id from user where name = 'bob')"
-    ) == "1"
+    check b.db.scalar(
+      int,
+      "select count(*) from selection where user_id = (select id from user where name = 'bob')",
+    ) == 1
 
   test "each run replaces the selection":
     let db = world("replace")
@@ -238,10 +232,10 @@ suite "list: the command":
     let st = openStore(db, allFragments)
     defer:
       st.close()
-    st.db.exec(
-      sql(
+    st.db.execute(
+      (
         "update activity set distance_m = " & distanceM & ", timer_s = " & timerS &
-          " where file_id = (select id from file where name = '" & tag & "')"
+        " where file_id = (select id from file where name = '" & tag & "')"
       )
     )
 
@@ -370,8 +364,8 @@ suite "list: the command":
     discard save(db, "--sport", "running") # paris
     check chosen(db) == @["paris"]
     let st = openStore(db, allFragments)
-    st.db.exec(
-      sql"update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
+    st.db.execute(
+      "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
     discard save(db, "--sub-sport", "none")
@@ -501,8 +495,8 @@ suite "list: the command":
     discard save(db, "--near", "latest", "--radius", "50")
     check chosen(db) == @["paris"] # (the latest is in Paris)
     let st = openStore(db, allFragments)
-    st.db.exec(
-      sql"update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
+    st.db.execute(
+      "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
     check save(db, "--sub-sport", "none", "--near", "latest") == exitFailure
@@ -531,7 +525,7 @@ suite "list: the command":
     discard save(db, "--all")
     check chosen(db).len == 3
     let s = openStore(db, allFragments)
-    s.db.exec(sql"delete from file where name = 'lisbon2'")
+    s.db.execute("delete from file where name = 'lisbon2'")
     s.close()
     check chosen(db) == @["lisbon1", "paris"]
 
@@ -615,8 +609,8 @@ suite "list: what is shown":
     let st = openStore(db, allFragments)
     defer:
       st.close()
-    st.db.exec(
-      sql"update activity set start_t = 1520640000 where id = (select min(id) from activity)"
+    st.db.execute(
+      "update activity set start_t = 1520640000 where id = (select min(id) from activity)"
     ) # 2018-03-10
     let lines = listActivities(
       st,
@@ -693,8 +687,8 @@ suite "list: what is shown":
   test "-v says where it started and what it is called: the stored text":
     let db = world("verbose-place")
     let st = openStore(db, allFragments)
-    st.db.exec(
-      sql"""update activity set start_place = 'Lisbon', name = 'Sintra and back'
+    st.db.execute(
+      """update activity set start_place = 'Lisbon', name = 'Sintra and back'
       where file_id in (select id from file where name = 'lisbon1')"""
     )
     st.close()
@@ -711,8 +705,8 @@ suite "list: what is shown":
   test "-v says no GPS where the place and name would be, for an activity with no start; the sub-sport follows the sport":
     let db = world("verbose-noplace")
     let st = openStore(db, allFragments)
-    st.db.exec(
-      sql"update activity set start = null where file_id in (select id from file where name = 'paris')"
+    st.db.execute(
+      "update activity set start = null where file_id in (select id from file where name = 'paris')"
     )
     st.close()
     let rows = shown(db, "-v", "--all").lines.texts
@@ -741,12 +735,12 @@ proc named(db: string) =
   let s = openStore(db, allFragments)
   defer:
     s.close()
-  s.db.exec(
-    sql"""update activity set name = 'São Pedro and back', start_place = 'Lisboa'
+  s.db.execute(
+    """update activity set name = 'São Pedro and back', start_place = 'Lisboa'
     where file_id in (select id from file where name = 'lisbon1')"""
   )
-  s.db.exec(
-    sql"""update activity set name = 'São Pedro and back', start_place = 'Almada'
+  s.db.execute(
+    """update activity set name = 'São Pedro and back', start_place = 'Almada'
     where file_id in (select id from file where name = 'lisbon2')"""
   )
 
@@ -785,7 +779,7 @@ suite "list: --name and --start":
     discard save(db, "--start", "none")
     check chosen(db) == @["paris"]
     let s = openStore(db, allFragments)
-    s.db.exec(sql"update activity set name = '' where name is null")
+    s.db.execute("update activity set name = '' where name is null")
     s.close()
     discard save(db, "--name", "none")
     check chosen(db) == @["paris"] # ('' counts too)
@@ -808,8 +802,8 @@ suite "list: --name and --start":
     let db = world("quotes", true)
     named(db)
     let s = openStore(db, allFragments)
-    s.db.exec(
-      sql"""update activity set name = 'O''Higgins Park', start_place = 'Providencia'
+    s.db.execute(
+      """update activity set name = 'O''Higgins Park', start_place = 'Providencia'
       where file_id in (select id from file where name = 'lisbon1')"""
     )
     s.close()
@@ -844,11 +838,10 @@ suite "list: --path":
     let s = openStore(db, allFragments)
     defer:
       s.close()
-    s.db.exec(
-      sql"""insert into seen_file(user_id, path, size, mtime, file_id)
+    s.db.execute(
+      """insert into seen_file(user_id, path, size, mtime, file_id)
       select f.user_id, ?, 1, 1, f.id from file f where f.name = ?""",
-      path,
-      tag,
+      path, tag,
     )
 
   test "the text is found in a path the file was seen at, or in its name; case and accents ignored; alternatives":
@@ -930,18 +923,16 @@ suite "list: --climb":
     defer:
       s.close()
     for (name, gain) in [("Sintra", 200.0), ("Sintra", 100.0), ("Cabo da Roca", 50.0)]:
-      s.db.exec(
-        sql"insert into sector(length_m, gain_m, gradient, name, route) values (1000, ?, 5, ?, GeomFromText('LINESTRING Z(0 0 0, 0.01 0 10)', 4326))",
-        gain,
-        name,
+      s.db.execute(
+        "insert into sector(length_m, gain_m, gradient, name, route) values (1000, ?, 5, ?, GeomFromText('LINESTRING Z(0 0 0, 0.01 0 10)', 4326))",
+        gain, name,
       )
       assignNumber(s, lastInsertId(s.db))
     for (tag, sector) in [("lisbon1", 1), ("lisbon1", 3), ("lisbon2", 2)]:
-      s.db.exec(
-        sql"""insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+      s.db.execute(
+        """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
         select ?, a.id, 1, 61, 60, 0 from activity a join file f on f.id = a.file_id where f.name = ?""",
-        sector,
-        tag,
+        sector, tag,
       )
 
   test "the activities that have an effort on a climb whose name has the text; case and accents ignored":
@@ -966,7 +957,7 @@ suite "list: --climb":
     let db = world("climbretired", true)
     climbs(db)
     let s = openStore(db, allFragments)
-    s.db.exec(sql"update sector set retired = 1 where id = 1")
+    s.db.execute("update sector set retired = 1 where id = 1")
     s.close()
     discard save(db, "--climb", "sintra₁")
     check chosen(db) == @["lisbon1"]

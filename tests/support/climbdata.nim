@@ -1,8 +1,8 @@
 ## Made-up rides for tests of the climbs: along one road on the equator (1 km flat, 3 km up at 4 %,
 ## then flat), a point a second, put into a database as an import would.
 
+import nimchoo/db/statement
 import std/[math, os, strutils]
-import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/modules
 
@@ -38,21 +38,19 @@ proc addRide*(
   ## A ride along the road: the places it passes in turn (metres east), a point a second, in one
   ## stretch of riding.  After the points whose index is in `breaksAfter` the timer is stopped
   ## for a minute (the rider is carried on to the next place): a new stretch.
-  let u = s.db.getValue(sql"select id from user where name = ?", user)
-  s.db.exec(
-    sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-    u,
-    tag,
+  let u = s.db.scalar(int64, "select id from user where name = ?", user)
+  s.db.execute(
+    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)", u, tag,
     tag,
   )
-  let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(
-    sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
+  let f = s.db.scalar(int64, "select max(id) from file")
+  s.db.execute(
+    "insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
     f,
     startT,
     startT + 10000,
   )
-  let a = s.db.getValue(sql"select max(id) from activity")
+  let a = s.db.scalar(int64, "select max(id) from activity")
   var wkt: seq[string]
   var t = startT
   var stretches: seq[(int, int)] # (start, end) times of each stretch
@@ -63,8 +61,8 @@ proc addRide*(
         $altitude(x)
       else:
         ""
-    s.db.exec(
-      sql"insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, nullif(?, ''))",
+    s.db.execute(
+      "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, nullif(?, ''))",
       a,
       t,
       x * metre,
@@ -81,15 +79,12 @@ proc addRide*(
       inc t
   stretches.add (since, t - 1)
   for n, (g0, g1) in stretches:
-    s.db.exec(
-      sql"insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)",
-      a,
-      n,
-      g0,
-      g1,
+    s.db.execute(
+      "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)", a, n,
+      g0, g1,
     )
-  s.db.exec(
-    sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
+  s.db.execute(
+    "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
     a,
     "MULTILINESTRING((" & wkt.join(", ") & "))",
   )

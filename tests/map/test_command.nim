@@ -1,6 +1,6 @@
+import nimchoo/db/statement
 import ../support/env
 import std/[json, options, os, strutils, times, unittest]
-import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/map/command as mapCommand
@@ -31,28 +31,25 @@ proc world(name: string): tuple[db, cache: string] =
     ("b", 2000, wkt(60, 2.35, 48.85)),
     ("c", 3000, ""),
   ]:
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-      s.userId,
-      tag,
-      tag,
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
+      s.userId, tag, tag,
     )
-    let f = s.db.getValue(sql"select max(id) from file")
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t, sport) values (?, 0, ?, ?, 'cycling')",
+    let f = s.db.scalar(int64, "select max(id) from file")
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t, sport) values (?, 0, ?, ?, 'cycling')",
       f,
       t,
       t + 10,
     )
-    let a = s.db.getValue(sql"select max(id) from activity")
+    let a = s.db.scalar(int64, "select max(id) from activity")
     if route.len > 0:
-      s.db.exec(
-        sql"insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))",
-        a,
+      s.db.execute(
+        "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a,
         route,
       )
-    s.db.exec(
-      sql"insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
+    s.db.execute(
+      "insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
     )
 
 proc map(db: string, args: varargs[string]): int =
@@ -81,12 +78,12 @@ proc withClimb(db: string) =
   let s = openStore(db, allFragments)
   defer:
     s.close()
-  s.db.exec(
-    sql"""insert into sector(length_m, gain_m, gradient, category, name, route)
+  s.db.execute(
+    """insert into sector(length_m, gain_m, gradient, category, name, route)
     values (1000, 90, 9, '4', 'Cerro', GeomFromText('LINESTRING Z(-9.14 38.72 10, -9.13 38.72 100)', 4326))"""
   )
-  s.db.exec(
-    sql"""insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+  s.db.execute(
+    """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
     values (1, 1, 1, 61, 60, 0)"""
   )
 
@@ -136,7 +133,7 @@ suite "map: the command":
     let path = w.cache / files(w.cache)[0]
     proc changeAndRemake(sql: string): string =
       let s = openStore(w.db, allFragments)
-      s.db.exec(sql(sql))
+      s.db.execute((sql))
       s.close()
       setLastModificationTime(path, fromUnix(1_000_000_000))
       check map(w.db) == exitOk
@@ -163,7 +160,7 @@ suite "map: the command":
     let w = world("content")
     check map(w.db) == exitOk
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"update file set sha256 = 'z' where name = 'a'")
+    s.db.execute("update file set sha256 = 'z' where name = 'a'")
     s.close()
     check map(w.db) == exitOk
     check files(w.cache).len == 2
@@ -174,7 +171,7 @@ suite "map: the command":
     check map(w.db) == exitOk
     let path = w.cache / files(w.cache)[0]
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
+    s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     s.close()
     setLastModificationTime(path, fromUnix(1_000_000_000))
     check map(w.db) == exitOk
@@ -185,7 +182,7 @@ suite "map: the command":
     check map(w.db) == exitOk
     let old = addressOf(w.db)
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"delete from selection where activity_id = 1")
+    s.db.execute("delete from selection where activity_id = 1")
     s.close()
     check addressOf(w.db) != old
     check map(w.db, "--bits", old.bits, "--check", old.check) == exitOk
@@ -200,24 +197,24 @@ suite "map: the command":
     let a = addressOf(w.db)
     check map(w.db, "--bits", a.bits, "--check", "000000") == exitFailure
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"delete from activity where id = 2") # the check no longer fits
+    s.db.execute("delete from activity where id = 2") # the check no longer fits
     s.close()
     check map(w.db, "--bits", a.bits, "--check", a.check) == exitFailure
 
   test "without a check, activities that are not there are skipped; another user's are never drawn":
     let w = world("others")
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
-    let bob = s.db.getValue(sql"select id from user where name = 'bob'")
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
+    s.db.execute("insert into user(name, is_default) values ('bob', 0)")
+    let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
       bob,
     )
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
     )
-    s.db.exec(
-      sql"insert into route(activity_id, geom) select max(id), GeomFromText('MULTILINESTRING((0 0, 1 1))', 4326) from activity"
+    s.db.execute(
+      "insert into route(activity_id, geom) select max(id), GeomFromText('MULTILINESTRING((0 0, 1 1))', 4326) from activity"
     )
     s.close()
     check map(w.db, "--bits", encodeBits([1'i64, 2, 4])) == exitOk # 4 is bob's
@@ -228,14 +225,14 @@ suite "map: the command":
     let w = world("spellings")
     let a = addressOf(w.db)
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"insert into user(name, is_default) values ('bob', 0)")
-    let bob = s.db.getValue(sql"select id from user where name = 'bob'")
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
+    s.db.execute("insert into user(name, is_default) values ('bob', 0)")
+    let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
       bob,
     )
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
     )
     s.close()
     check map(w.db, "--bits", a.bits) == exitOk
@@ -275,13 +272,13 @@ suite "map: the command":
   test "an empty selection, or none with a route, is an error and writes nothing":
     let w = world("empty")
     let s = openStore(w.db, allFragments)
-    s.db.exec(sql"delete from selection")
+    s.db.execute("delete from selection")
     s.close()
     check map(w.db) == exitFailure
     check map(w.db, "--worker") == exitFailure
     let s2 = openStore(w.db, allFragments)
-    s2.db.exec(
-      sql"insert into selection(user_id, activity_id) values (?, 3)", s2.userId
+    s2.db.execute(
+      "insert into selection(user_id, activity_id) values (?, 3)", s2.userId
     )
     s2.close()
     check map(w.db) == exitFailure # (activity 3 has no route)

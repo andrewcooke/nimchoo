@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[options, os, unittest]
-import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/errors
 import nimchoo/landmark/[landmarks, suggest]
@@ -11,18 +11,12 @@ proc fresh(name: string): Store =
   openStore(top / "x.db", allFragments)
 
 proc feature(s: Store, id: int, name, cls, code: string, lon, lat: float, pop = 0) =
-  s.db.exec(
-    sql"insert or ignore into country(iso, name, geoname_id) values ('CL', 'Chile', 1)"
+  s.db.execute(
+    "insert or ignore into country(iso, name, geoname_id) values ('CL', 'Chile', 1)"
   )
-  s.db.exec(
-    sql"insert into feature(id, country, name, class, code, population, geom) values (?, 'CL', ?, ?, ?, ?, MakePoint(cast(? as real), cast(? as real), 4326))",
-    id,
-    name,
-    cls,
-    code,
-    pop,
-    lon,
-    lat,
+  s.db.execute(
+    "insert into feature(id, country, name, class, code, population, geom) values (?, 'CL', ?, ?, ?, ?, MakePoint(cast(? as real), cast(? as real), 4326))",
+    id, name, cls, code, pop, lon, lat,
   )
 
 suite "landmark: the landmarks":

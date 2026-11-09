@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[strutils, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/db/store
 import nimchoo/download/fetch
@@ -15,29 +15,27 @@ proc addActivity(
     s: Store, tag: string, startT: int, points: openArray[(float, float)]
 ) =
   ## An activity along the points (lon, lat), a position about every 50 m.
-  let u = s.db.getValue(sql"select id from user where name = 'default'")
-  s.db.exec(
-    sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-    u,
-    tag,
+  let u = s.db.scalar(int64, "select id from user where name = 'default'")
+  s.db.execute(
+    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)", u, tag,
     tag,
   )
-  let f = s.db.getValue(sql"select max(id) from file")
-  s.db.exec(
-    sql"insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
+  let f = s.db.scalar(int64, "select max(id) from file")
+  s.db.execute(
+    "insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
     f,
     startT,
     startT + 10000,
   )
-  let a = s.db.getValue(sql"select max(id) from activity")
+  let a = s.db.scalar(int64, "select max(id) from activity")
   var t = startT
   for k in 0 ..< points.high:
     let (x0, y0) = points[k]
     let (x1, y1) = points[k + 1]
     let n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) / 0.0005))
     for i in 0 ..< n:
-      s.db.exec(
-        sql"insert into coords(activity_id, t, lon, lat) values (?, ?, ?, ?)",
+      s.db.execute(
+        "insert into coords(activity_id, t, lon, lat) values (?, ?, ?, ?)",
         a,
         t,
         x0 + (x1 - x0) * i.float / n.float,
@@ -68,11 +66,11 @@ suite "import: naming the activities":
     )
     check r == Named(total: 2, named: 2)
     check seen == @[1, 2]
-    check w.st.db.getValue(sql"select name from activity where id = 1") ==
+    check w.st.db.scalar(string, "select name from activity where id = 1") ==
       "Lo Barnechea and back"
-    check w.st.db.getValue(sql"select name from activity where id = 2") ==
+    check w.st.db.scalar(string, "select name from activity where id = 2") ==
       "to Lo Barnechea"
-    check w.st.db.getValue(sql"select start_place from activity where id = 2") ==
+    check w.st.db.scalar(string, "select start_place from activity where id = 2") ==
       "Santiago"
     check pending(w.st).len == 0
     let gets = w.net.gets.len
@@ -88,17 +86,19 @@ suite "import: naming the activities":
       # local: "at Santiago"
     let r = ensureActivityNames(w.st, w.names)
     check r == Named(total: 2, named: 1, nothing: 1)
-    check w.st.db.getValue(sql"select coalesce(name, '-') from activity where id = 1") ==
-      ""
-    check w.st.db.getValue(sql"select name from activity where id = 2") == "at Santiago"
+    check w.st.db.scalar(
+      string, "select coalesce(name, '-') from activity where id = 1"
+    ) == ""
+    check w.st.db.scalar(string, "select name from activity where id = 2") ==
+      "at Santiago"
   test "a stretch with a bad GPS fix is counted, with its file; the other stretch still names the ride":
     let w = world("gps errors")
     defer:
       w.st.close()
     w.st.addActivity("a", 1_000_000, [home, barnechea, home])
-    let u = w.st.db.getValue(sql"select id from user where name = 'default'")
-    w.st.db.exec(
-      sql"insert into seen_file(user_id, path, size, mtime, file_id) values (?, '/rides/a.fit', 1, 1, 1)",
+    let u = w.st.db.scalar(int64, "select id from user where name = 'default'")
+    w.st.db.execute(
+      "insert into seen_file(user_id, path, size, mtime, file_id) values (?, '/rides/a.fit', 1, 1, 1)",
       u,
     )
     # (the route: the loop, as one stretch, and a stretch with a fix on the other side of the world: it ends the route,
@@ -106,8 +106,8 @@ suite "import: naming the activities":
     var good = ""
     for k, (x, y) in [home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home]:
       good.add (if k > 0: ", " else: "") & $x & " " & $y
-    w.st.db.exec(
-      sql"insert into route(activity_id, geom) values (1, GeomFromText(?, 4326))",
+    w.st.db.execute(
+      "insert into route(activity_id, geom) values (1, GeomFromText(?, 4326))",
       "MULTILINESTRING((" & good & "), (-70.45 -33.40, 110 10))",
     )
     let r = ensureActivityNames(w.st, w.names)
@@ -117,16 +117,15 @@ suite "import: naming the activities":
     let w = world("nogps")
     defer:
       w.st.close()
-    let u = w.st.db.getValue(sql"select id from user where name = 'default'")
-    w.st.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (?, 'x', 'x', 0)",
-      u,
+    let u = w.st.db.scalar(int64, "select id from user where name = 'default'")
+    w.st.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, 'x', 'x', 0)", u
     )
-    w.st.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) values (1, 0, 1, 2)"
+    w.st.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 1, 2)"
     )
     check ensureActivityNames(w.st, w.names).nothing == 1
-    check w.st.db.getValue(sql"select coalesce(name, '-') from activity") == ""
+    check w.st.db.scalar(string, "select coalesce(name, '-') from activity") == ""
   test "offline: '' for all, no fetch, and they stay":
     let w = world("offline")
     defer:

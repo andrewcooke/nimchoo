@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[sequtils, strutils, times, unittest]
-import db_connector/db_sqlite
 import nimchoo/climbs/[attempts, display, work]
 import nimchoo/db/store
 import nimchoo/ui/[palette, style]
@@ -19,8 +19,8 @@ proc world(name: string): Store =
   addRide(s, "bob", "two", 2_000_000, 4.0, eastbound(4.0))
   addRide(s, "default", "three", 3_000_000, 6.0, eastbound(6.0))
   discard ensureClimbs(s)
-  s.db.exec(
-    sql"insert into selection(user_id, activity_id) select ?, id from activity where start_t = 1000000",
+  s.db.execute(
+    "insert into selection(user_id, activity_id) select ?, id from activity where start_t = 1000000",
     s.userId,
   )
   s
@@ -51,26 +51,25 @@ suite "attempts: from the tables":
     let s = world("attempts-none")
     defer:
       s.close()
-    s.db.exec(sql"delete from selection")
+    s.db.execute("delete from selection")
     check selectedClimbs(s).len == 0
-    s.db.exec(
-      sql"insert into selection(user_id, activity_id) select ?, id from activity",
-      s.userId,
+    s.db.execute(
+      "insert into selection(user_id, activity_id) select ?, id from activity", s.userId
     )
     check selectedClimbs(s).len == 1
-    s.db.exec(sql"update sector set retired = 1")
+    s.db.execute("update sector set retired = 1")
     check selectedClimbs(s).len == 0
     check namedClimbs(s, @["unnamed"]).len == 0
   test "--name: the climbs whose shown name holds the text, case and accents ignored":
     let s = world("attempts-name")
     defer:
       s.close()
-    s.db.exec(sql"update sector set name = 'Cuesta Chacabuco', manual = 1")
+    s.db.execute("update sector set name = 'Cuesta Chacabuco', manual = 1")
     check namedClimbs(s, @["chacabuco"]).len == 1
     check namedClimbs(s, @["CUESTA"]).len == 1
     check namedClimbs(s, @["nothing", "cuesta"]).len == 1
     check namedClimbs(s, @["farellones"]).len == 0
-    s.db.exec(sql"delete from selection") # (the selection is not looked at)
+    s.db.execute("delete from selection") # (the selection is not looked at)
     check namedClimbs(s, @["cuesta"]).len == 1
 
 func texts(ls: seq[Line]): seq[string] =
@@ -119,7 +118,7 @@ suite "attempts: the lines":
     let s = world("lines-none-selected")
     defer:
       s.close()
-    s.db.exec(sql"delete from selection")
+    s.db.execute("delete from selection")
     let table = summaryLines(
       summaries(s, namedClimbs(s, @["unnamed"])), false, false, utc()
     ).texts
@@ -139,7 +138,7 @@ suite "attempts: the lines":
     let s = world("lines-never")
     defer:
       s.close()
-    s.db.exec(sql"update file set user_id = (select id from user where name = 'bob')")
+    s.db.execute("update file set user_id = (select id from user where name = 'bob')")
     let table = summaryLines(summaries(s, selectedClimbs(s)), false, false, utc()).texts
     check table[1].endsWith("0") and
       table[1].splitWhitespace()[^4 .. ^2] == @["-", "-", "-"]
@@ -149,11 +148,9 @@ suite "attempts: the climbs of given activities":
     let s = world("of-activities")
     defer:
       s.close()
-    let all = s.db.getValue(sql"select group_concat(id) from activity").split(',').mapIt(
-        parseBiggestInt(it)
-      )
+    let all = s.db.query(int64, "select id from activity")
     check climbsOfActivities(s, all).len == 1
     check climbsOfActivities(s, @[]).len == 0
     check climbsOfActivities(s, @[99999'i64]).len == 0
-    s.db.exec(sql"update sector set retired = 1")
+    s.db.execute("update sector set retired = 1")
     check climbsOfActivities(s, all).len == 0 # (a retired climb is hidden)

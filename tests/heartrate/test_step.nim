@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[os, tables, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/db/[channel, store]
 import nimchoo/heartrate/step
@@ -60,8 +60,9 @@ suite "heartrate: import":
     let r = s.imp(hand, ws)
     check r.activities == 1
     check r.extras.len == 1 and r.extras[0].n == 2
-    check s.db.getValue(
-      sql"select group_concat((t - 1531065600) || ':' || bpm) from (select * from heartrate order by t)"
+    check s.db.scalar(
+      string,
+      "select group_concat((t - 1531065600) || ':' || bpm) from (select * from heartrate order by t)",
     ) == "0:100,3:130"
 
   test "a real ride: a reading for each coordinate":
@@ -72,14 +73,15 @@ suite "heartrate: import":
     let r = s.importFile(p, "ride.fit", readBytes(ride), ws, allImportSteps)
     check r.coords == 2099
     check r.extras[0].n == 2099
-    check s.db.getValue(sql"select count(*) from heartrate") == "2099"
-    check s.db.getValue(sql"select min(bpm) || '-' || max(bpm) from heartrate") ==
+    check s.db.scalar(int, "select count(*) from heartrate") == 2099
+    check s.db.scalar(string, "select min(bpm) || '-' || max(bpm) from heartrate") ==
       "84-156"
     # they lie in the activity's time range
-    check s.db.getValue(
-      sql"""select count(*) from heartrate h join activity a on a.id = h.activity_id
-      where h.t < a.start_t or h.t > a.end_t + 1"""
-    ) == "0"
+    check s.db.scalar(
+      int,
+      """select count(*) from heartrate h join activity a on a.id = h.activity_id
+      where h.t < a.start_t or h.t > a.end_t + 1""",
+    ) == 0
 
   test "without the step nothing is written; the table is empty":
     let s = openDb("nostep")
@@ -88,7 +90,7 @@ suite "heartrate: import":
     var ws: seq[Warning]
     let r = s.importFile(p, "ride.fit", readBytes(ride), ws)
     check r.extras.len == 0
-    check s.db.getValue(sql"select count(*) from heartrate") == "0"
+    check s.db.scalar(int, "select count(*) from heartrate") == 0
 
   test "a file with no heart rate writes none":
     let s = openDb("none")
@@ -107,5 +109,5 @@ suite "heartrate: import":
       s.close()
     var ws: seq[Warning]
     discard s.imp(hand, ws)
-    s.db.exec(sql"delete from activity")
-    check s.db.getValue(sql"select count(*) from heartrate") == "0"
+    s.db.execute("delete from activity")
+    check s.db.scalar(int, "select count(*) from heartrate") == 0

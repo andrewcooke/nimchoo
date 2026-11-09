@@ -1,5 +1,4 @@
-import std/[options, os, strutils, unittest]
-import db_connector/db_sqlite
+import std/[options, os, unittest]
 import nimchoo/db/[statement, store]
 import nimchoo/fit/time
 import nimchoo/importer/[extract, route]
@@ -123,21 +122,20 @@ suite "route: in the database":
     let s = store("sp")
     defer:
       s.close()
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
     )
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 10)"
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 10)"
     )
-    s.db.exec(
-      sql"""insert into route(activity_id, geom) values (1,
+    s.db.execute(
+      """insert into route(activity_id, geom) values (1,
       GeomFromText('MULTILINESTRING((-9.14 38.72, -9.10 38.75, -9.00 38.80))', 4326))"""
     )
-    let metres = parseFloat(
-      s.db.getValue(
-        sql"""select ST_Distance(geom,
-      MakePoint(-9.13, 38.73, 4326), 1) from route"""
-      )
+    let metres = s.db.scalar(
+      float,
+      """select ST_Distance(geom,
+      MakePoint(-9.13, 38.73, 4326), 1) from route""",
     )
     check metres > 150 and metres < 250 # (206 m)
 
@@ -158,11 +156,11 @@ suite "route: in the database":
         Segment(startT: UnixTime(10), endT: UnixTime(11)),
       ],
     )
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
     )
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 20)"
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 20)"
     )
     let st = prepareStmt(
       s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
@@ -170,34 +168,35 @@ suite "route: in the database":
     st.bindInt(1, 1)
     st.bindBlob(2, routeWkb(a).get)
     st.run()
-    check s.db.getValue(sql"select NumGeometries(geom) from route") == "2"
-    check s.db.getValue(sql"select ST_NPoints(geom) from route") == "5"
-    check s.db.getValue(sql"select SRID(geom) from route") == "4326"
-    check s.db.getValue(sql"select GeometryType(geom) from route") == "MULTILINESTRING"
-    check s.db.getValue(
-      sql"select ST_X(ST_PointN(ST_GeometryN(geom, 2), 2)) || ',' || ST_Y(ST_PointN(ST_GeometryN(geom, 2), 2)) from route"
+    check s.db.scalar(int, "select NumGeometries(geom) from route") == 2
+    check s.db.scalar(int, "select ST_NPoints(geom) from route") == 5
+    check s.db.scalar(int, "select SRID(geom) from route") == 4326
+    check s.db.scalar(string, "select GeometryType(geom) from route") ==
+      "MULTILINESTRING"
+    check s.db.scalar(
+      string,
+      "select ST_X(ST_PointN(ST_GeometryN(geom, 2), 2)) || ',' || ST_Y(ST_PointN(ST_GeometryN(geom, 2), 2)) from route",
     ) == "2.4,48.9"
-    check s.db.getValue(sql"select count(*) from idx_route_geom") == "1"
+    check s.db.scalar(int, "select count(*) from idx_route_geom") == 1
       # (and it is indexed)
-    let km =
-      parseFloat(s.db.getValue(sql"select GeodesicLength(geom) from route")) / 1000
+    let km = s.db.scalar(float, "select GeodesicLength(geom) from route") / 1000
     check km > 18 and km < 26 # about 15 km near Lisbon and 7 km in Paris
 
   test "deleting the user takes the route and its index entry too":
     let s = store("cascade")
     defer:
       s.close()
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
     )
-    s.db.exec(
-      sql"insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 10)"
+    s.db.execute(
+      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 10)"
     )
-    s.db.exec(
-      sql"""insert into route(activity_id, geom) values (1,
+    s.db.execute(
+      """insert into route(activity_id, geom) values (1,
       GeomFromText('MULTILINESTRING((-9.14 38.72, -9.10 38.75))', 4326))"""
     )
-    check s.db.getValue(sql"select count(*) from idx_route_geom") == "1"
-    s.db.exec(sql"delete from user where id = 1")
-    check s.db.getValue(sql"select count(*) from route") == "0"
-    check s.db.getValue(sql"select count(*) from idx_route_geom") == "0"
+    check s.db.scalar(int, "select count(*) from idx_route_geom") == 1
+    s.db.execute("delete from user where id = 1")
+    check s.db.scalar(int, "select count(*) from route") == 0
+    check s.db.scalar(int, "select count(*) from idx_route_geom") == 0

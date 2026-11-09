@@ -16,7 +16,7 @@ proc open(path: string, user = defaultUser): Store =
   openStore(path, allFragments, user)
 
 proc count(s: Store, table: string): int =
-  parseInt(s.db.getValue(sql("select count(*) from " & table)))
+  s.db.scalar(int, "select count(*) from " & table)
 
 var seedRuns = 0
 
@@ -38,10 +38,11 @@ suite "database: opening and bringing the schema up to date":
     check fileExists(path)
     check s.userName == defaultUser
     check int64(s.userId) > 0
-    check s.db.getValue(sql"select name from user where is_default = 1") == defaultUser
+    check s.db.scalar(string, "select name from user where is_default = 1") ==
+      defaultUser
     for table in ["user", "file", "activity", "coords", "segment", "fragment"]:
-      check s.db.getValue(sql"select count(*) from sqlite_master where name = ?", table) ==
-        "1"
+      check s.db.scalar(int, "select count(*) from sqlite_master where name = ?", table) ==
+        1
     s.close()
 
   test "every table is strict; a geometry column holds only its kind of geometry; deleted space can be given back":
@@ -54,26 +55,27 @@ suite "database: opening and bringing the schema up to date":
       "country", "coverage", "feature", "selection", "user_profile", "fragment",
     ]:
       checkpoint t
-      check s.db.getValue(
-        sql"select strict from pragma_table_list where schema = 'main' and name = ?", t
-      ) == "1"
-    expect DbError:
-      s.db.exec(
-        sql"insert into landmark(name, lon, lat, radius_m) values ('x', 'west', 1, 1)"
+      check s.db.scalar(
+        int, "select strict from pragma_table_list where schema = 'main' and name = ?",
+        t,
+      ) == 1
+    expect StoreError:
+      s.db.execute(
+        "insert into landmark(name, lon, lat, radius_m) values ('x', 'west', 1, 1)"
       )
-    s.db.exec(sql"insert into landmark(name, lon, lat, radius_m) values ('x', 1, 1, 1)")
-    expect DbError:
-      s.db.exec(
-        sql"insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'x', 'T', 'PK', MakePoint(1, 2, 4326))"
+    s.db.execute("insert into landmark(name, lon, lat, radius_m) values ('x', 1, 1, 1)")
+    expect StoreError:
+      s.db.execute(
+        "insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'x', 'T', 'PK', MakePoint(1, 2, 4326))"
       )
-    check s.db.getValue(sql"pragma auto_vacuum") == "2"
+    check s.db.scalar(int, "pragma auto_vacuum") == 2
     s.reclaim()
 
   test "a store is closed when it goes out of scope; closing by hand as well is fine":
     let path = tempDb("scope")
     block opened:
       let s = open(path)
-      s.db.exec(sql"create table scratch(x integer)")
+      s.db.execute("create table scratch(x integer)")
       check fileExists(path & "-wal") # (the write-ahead log exists while it is open)
     check not fileExists(path & "-wal")
       # (the last connection to close copies it back and removes it)
@@ -81,7 +83,7 @@ suite "database: opening and bringing the schema up to date":
     t.close()
     t.close() # (twice: nothing happens the second time)
     let u = open(path)
-    check u.db.getValue(sql"select count(*) from scratch") == "0"
+    check u.db.scalar(int, "select count(*) from scratch") == 0
 
   test "a statement is finalized when its last copy goes, so the database can close":
     let path = tempDb("stmt")
@@ -99,8 +101,7 @@ suite "database: opening and bringing the schema up to date":
   test "the fragments applied are recorded":
     let s = open(tempDb("recorded"))
     var names: seq[string]
-    for row in s.db.fastRows(sql"select name from fragment order by name"):
-      names.add row[0]
+    names = s.db.query(string, "select name from fragment order by name")
     check names ==
       @[
         "climbs/001-schema.sql", "climbs/002-name-number.sql",
@@ -121,7 +122,7 @@ suite "database: opening and bringing the schema up to date":
     let s = openStore(path, @[one])
     defer:
       s.close()
-    check s.db.getValue(sql"select sha256 from fragment where name = 'm/001.sql'") ==
+    check s.db.scalar(string, "select sha256 from fragment where name = 'm/001.sql'") ==
       one.checksum
     check one.checksum.len == 64
     check one.checksum != frag("m/001.sql", "create table t(x integer); ").checksum
@@ -200,7 +201,7 @@ suite "database: opening and bringing the schema up to date":
   test "another user":
     let path = tempDb("users")
     let a = open(path)
-    a.db.exec(sql"insert into user(name) values ('bob')")
+    a.db.execute("insert into user(name) values ('bob')")
     a.close()
     let b = open(path, "bob")
     check b.userName == "bob"
@@ -217,8 +218,8 @@ suite "database: opening and bringing the schema up to date":
   test "a database with a fragment this build does not have is refused":
     let path = tempDb("newer")
     let a = open(path)
-    a.db.exec(
-      sql"insert into fragment(name, applied_at, sha256) values ('future/001-x.sql', 0, 'x')"
+    a.db.execute(
+      "insert into fragment(name, applied_at, sha256) values ('future/001-x.sql', 0, 'x')"
     )
     a.close()
     expect StoreError:
@@ -242,7 +243,7 @@ suite "database: fragments":
       s.close()
     check seedRuns == 1
     check s.count("t") == 1
-    check s.db.getValue(sql"select x from t") == "7"
+    check s.db.scalar(int, "select x from t") == 7
 
   test "a seed that fails undoes its fragment":
     let path = tempDb("seedfail")
@@ -270,8 +271,7 @@ suite "database: fragments":
   test "a module's fragments can be used without the others":
     let s = openStore(":memory:", @[frag("m/001.sql", "create table t(x);")])
     check s.count("user") == 1 # the database's own
-    check s.db.getValue(sql"select count(*) from sqlite_master where name = 'file'") ==
-      "0"
+    check s.db.scalar(int, "select count(*) from sqlite_master where name = 'file'") == 0
     s.close()
 
   test "a fragment added later is applied to an existing database":
@@ -315,31 +315,31 @@ suite "database: cascades":
     let s = open(":memory:")
     defer:
       s.close()
-    s.db.exec(
-      sql"""insert into file(user_id, name, sha256, imported_at)
+    s.db.execute(
+      """insert into file(user_id, name, sha256, imported_at)
                     values (1, 'f', 'x', 0)"""
     )
-    s.db.exec(
-      sql"""insert into activity(file_id, session, start_t, end_t)
+    s.db.execute(
+      """insert into activity(file_id, session, start_t, end_t)
                     values (1, 0, 0, 10)"""
     )
-    s.db.exec(sql"insert into coords(activity_id, t, lon, lat) values (1, 5, 1.0, 2.0)")
-    s.db.exec(
-      sql"insert into segment(activity_id, n, start_t, end_t) values (1, 1, 0, 10)"
+    s.db.execute("insert into coords(activity_id, t, lon, lat) values (1, 5, 1.0, 2.0)")
+    s.db.execute(
+      "insert into segment(activity_id, n, start_t, end_t) values (1, 1, 0, 10)"
     )
-    s.db.exec(
-      sql"insert into seen_file(user_id, path, size, mtime, file_id) values (1, '/p', 1, 1, 1)"
+    s.db.execute(
+      "insert into seen_file(user_id, path, size, mtime, file_id) values (1, '/p', 1, 1, 1)"
     )
-    s.db.exec(sql"delete from user where id = 1")
+    s.db.execute("delete from user where id = 1")
     for t in ["file", "activity", "coords", "segment", "seen_file"]:
       check s.count(t) == 0
 
 suite "database: the schema":
   test "foreign keys are enforced":
     let s = open(":memory:")
-    expect DbError:
-      s.db.exec(
-        sql"""insert into file(user_id, name, sha256, imported_at)
+    expect StoreError:
+      s.db.execute(
+        """insert into file(user_id, name, sha256, imported_at)
                       values (999, 'f', 'x', 0)"""
       )
     s.close()
@@ -347,18 +347,18 @@ suite "database: the schema":
   test "coords and segment are WITHOUT ROWID, keyed by activity":
     let s = open(":memory:")
     for table in ["coords", "segment"]:
-      check s.db.getValue(sql"select wr from pragma_table_list where name = ?", table) ==
-        "1"
+      check s.db.scalar(int, "select wr from pragma_table_list where name = ?", table) ==
+        1
     s.close()
 
   test "a duplicate key is a StoreError":
     let s = open(":memory:")
-    s.db.exec(
-      sql"insert into file(user_id, name, sha256, imported_at) values (?, 'f', 'x', 0)",
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, 'f', 'x', 0)",
       s.userId,
     )
-    s.db.exec(
-      sql"""insert into activity(file_id, session, start_t, end_t)
+    s.db.execute(
+      """insert into activity(file_id, session, start_t, end_t)
                     values (1, 0, 0, 0)"""
     )
     let ins = prepareStmt(
@@ -382,7 +382,7 @@ suite "database: the schema":
 suite "database: prepared statements":
   test "a statement can be run again and again, with nulls":
     let s = open(":memory:")
-    s.db.exec(sql"create table t(a integer, b real, c text, d integer)")
+    s.db.execute("create table t(a integer, b real, c text, d integer)")
     let ins = prepareStmt(s.db, "insert into t values (?, ?, ?, ?)")
     for i in 1 .. 3:
       ins.bindInt(1, int64(i))
@@ -397,9 +397,9 @@ suite "database: prepared statements":
       ins.bindInt(4, none(int))
       ins.run()
     check s.count("t") == 3
-    check s.db.getValue(sql"select b from t where a = 3") == "1.5"
-    check s.db.getValue(sql"select count(*) from t where c is null") == "1"
-    check s.db.getValue(sql"select count(*) from t where d is null") == "3"
+    check s.db.scalar(float, "select b from t where a = 3") == 1.5
+    check s.db.scalar(int, "select count(*) from t where c is null") == 1
+    check s.db.scalar(int, "select count(*) from t where d is null") == 3
     s.close()
 
   test "a bad statement is a StoreError":
@@ -411,9 +411,9 @@ suite "database: prepared statements":
   test "a script of several statements":
     let s = open(":memory:")
     execScript(s.db, "create table a(x); create table b(y);")
-    check s.db.getValue(
-      sql"select count(*) from sqlite_master where name in ('a', 'b')"
-    ) == "2"
+    check s.db.scalar(
+      int, "select count(*) from sqlite_master where name in ('a', 'b')"
+    ) == 2
     expect StoreError:
       execScript(s.db, "create table c(x); create table c(y);")
     s.close()

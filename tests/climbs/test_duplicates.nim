@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[sequtils, strutils, unittest]
-import db_connector/db_sqlite
 import nimchoo/climbs/[duplicates, work]
 import nimchoo/db/store
 import nimchoo/errors
@@ -10,7 +10,7 @@ suite "climbs: duplicates":
     let s = fresh("dupsdamaged")
     defer:
       s.close()
-    s.db.exec(sql"insert into sector(length_m, gain_m, gradient) values (1000, 100, 5)")
+    s.db.execute("insert into sector(length_m, gain_m, gradient) values (1000, 100, 5)")
     expect StoreError:
       discard duplicateGroups(s)
 
@@ -55,7 +55,7 @@ suite "climbs: duplicates":
     addRide(s, "default", "long", 1_000_000, 5.0, eastbound(5.0))
     addRide(s, "default", "short", 2_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
     discard ensureClimbs(s)
-    s.db.exec(sql"update sector set retired = 1 where id = 1")
+    s.db.execute("update sector set retired = 1 where id = 1")
     let lines = duplicateLines(duplicateGroups(s))
     check lines.anyIt(it.contains("retired")) and
       not lines.anyIt(it.contains("--retire"))

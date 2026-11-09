@@ -1,8 +1,8 @@
 ## Importing with threads must give exactly what importing without them does: the same database
 ## (ids included), the same events in the same order.  The threads only read and decode.
 
-import std/[os, strutils, unittest]
-import db_connector/db_sqlite
+import nimchoo/db/statement
+import std/[options, os, strutils, unittest]
 import ../support/shims
 from ../support/env import useTestCache
 import nimchoo/importer/batch
@@ -49,7 +49,7 @@ proc removeDb(path: string) =
     removeFile(path & suffix)
 
 proc count(s: Store, table: string): int =
-  parseInt(s.db.getValue(sql("select count(*) from " & table)))
+  s.db.scalar(int, "select count(*) from " & table)
 
 proc snapshot(s: Store): string =
   ## Everything the import wrote, as one text (the ids too).
@@ -62,7 +62,7 @@ proc snapshot(s: Store): string =
     "select group_concat(activity_id || ':' || hex(geom), ';') from (select * from route order by activity_id)",
     "select group_concat(path || ':' || size || ':' || ifnull(file_id, '') || ':' || ifnull(failure, '') || ':' || ifnull(message, ''), ';') from (select * from seen_file order by path)",
   ]:
-    result.add s.db.getValue(sql(q)) & "\n"
+    result.add s.db.scalar(Option[string], q).get("") & "\n"
 
 type Run = tuple[lines: seq[string], snap: string, imported, duplicates, failed: int]
 

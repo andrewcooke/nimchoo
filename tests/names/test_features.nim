@@ -1,5 +1,5 @@
+import nimchoo/db/statement
 import std/[options, os, strutils, unittest]
-import db_connector/db_sqlite
 import ../support/shims
 import nimchoo/db/store
 import nimchoo/errors
@@ -81,19 +81,20 @@ suite "names: loading cells of a country":
     ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))
       # the cell -71, -34 and -71, -34 only
     # Santiago (-70.65, -33.46), the hill (-70.63, -33.42) are in cell (-71, -34); Lo Barnechea (-70.52, -33.35) too
-    check st.db.getValue(sql"select count(*) from feature") == "3"
-    check st.db.getValue(sql"select count(*) from coverage") == "1"
-    check st.db.getValue(
-      sql"select features from coverage where country = 'CL' and cell_lon = -71 and cell_lat = -34"
-    ) == "3"
+    check st.db.scalar(int, "select count(*) from feature") == 3
+    check st.db.scalar(int, "select count(*) from coverage") == 1
+    check st.db.scalar(
+      int,
+      "select features from coverage where country = 'CL' and cell_lon = -71 and cell_lat = -34",
+    ) == 3
     # the pass, the lake and the road are in cell (-71, -33): not read
-    check st.db.getValue(
-      sql"select count(*) from feature where name = 'Paso Los Libertadores'"
-    ) == "0"
+    check st.db.scalar(
+      int, "select count(*) from feature where name = 'Paso Los Libertadores'"
+    ) == 0
     let gets = net.gets.len
     ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))
     check net.gets.len == gets # nothing more fetched
-    check st.db.getValue(sql"select count(*) from feature") == "3"
+    check st.db.scalar(int, "select count(*) from feature") == 3
   test "another cell is read from the file already in the cache: no second fetch":
     let net = Net(chile: [santiago, pass, lake, road].join("\n") & "\n")
     let (st, dir) = fresh("second")
@@ -104,16 +105,17 @@ suite "names: loading cells of a country":
     let gets = net.gets.len
     ensureCells(names, "CL", box(-70.2, -32.9, -70.05, -32.7)) # cell -71, -33
     check net.gets.len == gets
-    check st.db.getValue(sql"select count(*) from coverage") == "2"
-    check st.db.getValue(sql"select name from feature where code = 'PASS'") ==
+    check st.db.scalar(int, "select count(*) from coverage") == 2
+    check st.db.scalar(string, "select name from feature where code = 'PASS'") ==
       "Paso Los Libertadores"
-    check st.db.getValue(sql"select count(*) from feature where name = 'Ruta 60'") == "1"
+    check st.db.scalar(int, "select count(*) from feature where name = 'Ruta 60'") == 1
       # every class is kept
     # the spatial index finds a feature by a box
-    check st.db.getValue(
-      sql"""select name from feature where id in (select ROWID from SpatialIndex
+    check st.db.scalar(
+      string,
+      """select name from feature where id in (select ROWID from SpatialIndex
         where f_table_name = 'feature' and f_geometry_column = 'geom' and
-              search_frame = BuildMbr(-70.13, -32.84, -70.11, -32.82))"""
+              search_frame = BuildMbr(-70.13, -32.84, -70.11, -32.82))""",
     ) == "Paso Los Libertadores"
   test "a cell with nothing in it is recorded too, so it is not read again":
     let net = Net(chile: santiago & "\n")
@@ -122,8 +124,8 @@ suite "names: loading cells of a country":
       st.close()
     let names = newNames(st, dir, envOf(net), silent())
     ensureCells(names, "CL", box(-60.5, -40.5, -60.2, -40.2))
-    check st.db.getValue(sql"select features from coverage") == "0"
-    check st.db.getValue(sql"select count(*) from feature") == "0"
+    check st.db.scalar(int, "select features from coverage") == 0
+    check st.db.scalar(int, "select count(*) from feature") == 0
   test "loading again after the table was emptied does not double anything":
     let net = Net(chile: santiago & "\n" & pass & "\n")
     let (st, dir) = fresh("again")
@@ -131,10 +133,10 @@ suite "names: loading cells of a country":
       st.close()
     let names = newNames(st, dir, envOf(net), silent())
     ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))
-    st.db.exec(sql"delete from coverage")
+    st.db.execute("delete from coverage")
     ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))
       # (the file is in the cache: no fetch)
-    check st.db.getValue(sql"select count(*) from feature") == "1"
+    check st.db.scalar(int, "select count(*) from feature") == 1
   test "a country that is not known, or that cannot be fetched, is an error and changes nothing":
     let net = Net(chile: santiago & "\n")
     let (st, dir) = fresh("unknown")
@@ -146,8 +148,8 @@ suite "names: loading cells of a country":
     expect DownloadError:
       ensureCells(names, "AR", box(-65.5, -35.5, -65.2, -35.2))
         # known, but the server has no file (404)
-    check st.db.getValue(sql"select count(*) from feature") == "0"
-    check st.db.getValue(sql"select count(*) from coverage") == "0"
+    check st.db.scalar(int, "select count(*) from feature") == 0
+    check st.db.scalar(int, "select count(*) from coverage") == 0
   test "a cached file that has no entry for the country is said, removed, and fetched again next time":
     let net = Net(chile: santiago & "\n")
     let (st, dir) = fresh("bad")
@@ -173,7 +175,7 @@ suite "names: loading cells of a country":
     check failed.len == 1 and "cannot be read" in failed[0].message
       # (the outlines were fetched too)
     check not fileExists(dir / "geonames" / "CL.zip")
-    check st.db.getValue(sql"select count(*) from coverage") == "0"
+    check st.db.scalar(int, "select count(*) from coverage") == 0
     ensureCells(names, "CL", box(-70.7, -33.5, -70.5, -33.3))
       # the good file is fetched now
-    check st.db.getValue(sql"select count(*) from feature") == "1"
+    check st.db.scalar(int, "select count(*) from feature") == 1

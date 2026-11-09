@@ -3017,3 +3017,28 @@ Found by listing the exported names used nowhere in `src` and by the compiler's 
   `VersionProc`), the legacy-checksum rewrite, the "made before checksums" check, and the `seed_version` column of the
   `fragment` table (nothing read it).  `withSeed` stays: the model module puts in the default model.
 * Stale text: the `heatmap` examples in `cache.nim`, "used by no module" in CLAUDE.md, `nch import` in test names.
+
+### Typed database access (2026-11-09, TODO step 7)
+
+`tiny_sqlite` was looked at and not taken: it would be one more dependency for what is a small layer over the C
+interface that `db/statement.nim` already wraps (and building it for the review was refused by the sandbox, rightly:
+it is code from outside).  Our own, in stages, each with the whole suite passing:
+
+* `db/statement.nim`: `query`, `queryOne`, `scalar`, `execute`.  A row is read into a tuple, an object or a single
+  value; each field's type is the column's type; a column of another type, a NULL for a field that is not an `Option`,
+  or a row of another width is a `StoreError` that names the column.  A whole number is read as a real (SQLite gives
+  `0` for `coalesce(x, 0)`); a bool is 0 or 1.  An `Option` is one value, not a two-field row.  Values are bound by
+  their types.  A list of ids of any length is bound as one JSON array (`jsonList`, `... in (select value from
+  json_each(?))`), so the sql text does not change with the list.
+* `db/sqltext.nim`, the `Sql` type: text with `:names` and the values by name, pieces joined with `&`.  Binding
+  refuses a name with no value, a value no name uses, a name given twice, and a `?`.  Chosen over positional `?`
+  because the criteria of a listing are many conditional pieces, and named values cannot fall out of step when the
+  pieces are joined in another order; and over named values in a table because the pieces each carry their own.
+  `selection/criteria.nim` makes one; ranges and `--near` are now bound exactly (they were rounded to 3 and 7 decimals).
+* Everything in `src/` moved (landmark, names, climbs, importer, selection, then db, user, model, delete, ff, map).
+  What it found: a route SpatiaLite cannot read has a NULL `AsText`, which only some readers noticed; the listing's
+  start position was a text that was a number or `''` (now two nullable reals); `foreign_key_check` gives a NULL
+  rowid for a table without one (the invariant now says so).  `guard` and the `DbError` handling above the store are gone.
+* The tests use the same calls (dogfooding), so every test also exercises the typed layer.  `tests/db/test_plans.nim`
+  asks SQLite how each query of a file, a ride or a cell will run and fails on a table read from start to end; the
+  spatial index is asked by one function, `inBox`, and these queries are consts the code and the test share.

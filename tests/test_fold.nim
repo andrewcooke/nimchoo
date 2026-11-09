@@ -1,6 +1,6 @@
 import std/[strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/functions
+import nimchoo/db/[functions, statement]
 import nimchoo/fold
 
 proc folded(value: string): string =
@@ -9,7 +9,7 @@ proc folded(value: string): string =
   defer:
     db.close()
   registerFunctions(db)
-  db.getValue(sql"select fold(?)", value)
+  db.scalar(string, "select fold(?)", value)
 
 proc found(typed, value: string): bool =
   ## How the commands look for text in a column
@@ -17,7 +17,7 @@ proc found(typed, value: string): bool =
   defer:
     db.close()
   registerFunctions(db)
-  db.getValue(sql"select instr(fold(?), ?) > 0", value, foldText(typed.strip)) == "1"
+  db.scalar(int, "select instr(fold(?), ?) > 0", value, foldText(typed.strip)) == 1
 
 suite "folding: lower case, no accents":
   test "in the program":
@@ -37,14 +37,14 @@ suite "folding: lower case, no accents":
     defer:
       db.close()
     registerFunctions(db)
-    check db.getValue(sql"select fold(null) is null") == "1"
+    check db.scalar(int, "select fold(null) is null") == 1
   test "SQLite's own lower() does not do it (why there is a function)":
     let db = open(":memory:", "", "", "")
     defer:
       db.close()
-    check db.getValue(sql"select lower('Ñuñoa') = 'ñuñoa'") == "0"
+    check db.scalar(int, "select lower('Ñuñoa') = 'ñuñoa'") == 0
     registerFunctions(db)
-    check db.getValue(sql"select fold('Ñuñoa') = fold('ñuñoa')") == "1"
+    check db.scalar(int, "select fold('Ñuñoa') = fold('ñuñoa')") == 1
 
 suite "folding: finding text without regard to case or accents":
   test "case does not matter, either way":

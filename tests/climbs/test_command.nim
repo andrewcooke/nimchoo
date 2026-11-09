@@ -1,5 +1,5 @@
-import std/[strutils, unittest]
-import db_connector/db_sqlite
+import nimchoo/db/statement
+import std/[unittest]
 import nimchoo/cli/common
 import nimchoo/climbs/command as climbsCommand
 import nimchoo/db/store
@@ -32,9 +32,8 @@ suite "nch climbs":
   test "the climbs of the selected activities":
     let s = fresh("command-selected")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
-    s.db.exec(
-      sql"insert into selection(user_id, activity_id) select ?, id from activity",
-      s.userId,
+    s.db.execute(
+      "insert into selection(user_id, activity_id) select ?, id from activity", s.userId
     )
     let path = s.path
     s.close()
@@ -79,9 +78,8 @@ suite "nch climbs":
   test "a selection with no climbs in it is not an error":
     let s = fresh("command-none")
     addRide(s, "default", "flat", 1_000_000, 5.0, @[0.0, 5.0, 10.0])
-    s.db.exec(
-      sql"insert into selection(user_id, activity_id) select ?, id from activity",
-      s.userId,
+    s.db.execute(
+      "insert into selection(user_id, activity_id) select ?, id from activity", s.userId
     )
     let path = s.path
     s.close()
@@ -97,11 +95,9 @@ suite "nch climbs":
     let s = fresh("command-user")
     addUser(s.path, "bob")
     addRide(s, "bob", "two", 2_000_000, 4.0, eastbound(4.0))
-    let bob = UserId(
-      parseBiggestInt(s.db.getValue(sql"select id from user where name = 'bob'"))
-    )
-    s.db.exec(
-      sql"insert into selection(user_id, activity_id) select ?, id from activity", bob
+    let bob = UserId(s.db.scalar(int64, "select id from user where name = 'bob'"))
+    s.db.execute(
+      "insert into selection(user_id, activity_id) select ?, id from activity", bob
     )
     let path = s.path
     s.close()
