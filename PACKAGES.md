@@ -232,9 +232,121 @@ final home.
 * What exactly `core` holds: `Package`, `ExtensionPoint`, the registry types, the database handle, `Sql`, fragments,
   `errors`, `ids`, and `Globals`/the command type (a command is `proc(g: Globals, args): int`).  Keep it small; each
   item needs a reason.
-* The draft package list (today's directories): libraries — `errors`, `ids`, `fold`, `proquint`, `hashing`,
-  `templating`, `geo`, `lookup`, `atomic`, `warnings`, `profiling`, `version`, `child`/`childasync`, `zipbytes`/`zipchild`/`xlsx`,
-  `fit` (with `profile`), `bundle`, `ui`, `download`, `cache`, `log`; data libraries — `db` pieces into `core`,
-  `user`, `importer`, `heartrate`, `model`, `names`, `landmark`, `climbs`→`sectors`+`climbs`, `selection`;
-  commands — `activities`, `climbs`, `users`, `models`, `landmarks`, `map`, `ff`, `fit`, `log`, `cache`, `db`, `delete`,
-  `serve`.  To be settled in step 1.
+* The package list: see "Inventory" below (a draft, 2026-11-09, to be settled in step 1).
+
+## Inventory (draft, 2026-11-09)
+
+Made from the file-level import graph of `src/nimchoo` on 2026-11-09 (a script that reads every `import`; the
+directory-level edges are in the "depends" column).  Layers run from the bottom: a package depends only on lower
+layers.  "Today" says where the files are now.  Library packages never depend on a command package.
+
+### Core (not a package)
+
+`errors`, `ids`; the types `Package`, `ExtensionPoint`, `Fragment`, the command type, `Globals` and the exit codes
+(`cli/common` without its imports of `db` and `ui`); the generated registry.  See question 1 for what else.
+
+### Layer 0: leaf libraries (depend on core only)
+
+| package | today | tables |
+|---|---|---|
+| `atomic`, `hashing`, `fold`, `lookup`, `proquint`, `geo`, `warnings`, `profiling`, `version`, `templating`, `child` | the loose modules of the same names | |
+| `bytes` | `fit/bytes` (and `fit/crc` if it is general) | |
+| `args` | `cli/args` (option parsing; rewritten by TODO step 9) | |
+| `ui` | `ui/*` except `logfile`'s use of the catalogue, which becomes an argument | |
+
+### Layer 1
+
+| package | today | depends | tables |
+|---|---|---|---|
+| `childasync` | `childasync` | `child` | |
+| `zip` | `zipbytes`, `zipchild` | `bytes`, `child` | |
+| `xlsx` | `xlsx` | `zip`, `lookup` | |
+| `cache` | `cache.nim`, `cache/files.nim` | `hashing`, `proquint`, `atomic` | |
+| `store` | `db/` except `command` and `channel`: `Sql`, statements, `Store`, fragments, functions, multirow, checkpointer | `fold`, `hashing`, `lookup` | `fragment`, `user`, SpatiaLite's (owned by core, see Ownership) |
+| `confirm` | the words and countdown of `user/wipe` (`describe`, `countdownLine`, `countdown`, `sayDeleted`) | `ui` | |
+
+### Layer 2
+
+| package | today | depends | tables |
+|---|---|---|---|
+| `bundle` | `bundle/unpack` | `cache`, `atomic`, `hashing` | |
+| `download` | `download/*` | `ui`, `zip`, `lookup`, `atomic` | |
+| `user` | `user/wipe` minus the words (`findUser`, `removeUser`, `userTables`), `user/ddl` | `store` | `user_profile` |
+| `landmark` | `landmark/` minus `command`: `landmarks`, `suggest`, `ddl` | `store`, `geo`, `fold` | `landmark` |
+| `model` | `model/` minus `command`, `params`: `calc`, `impulses`, `models` | `store`, `hashing`, `fit` | `ff_model`, `impulse` |
+| `web` | `serve/` minus the command: server, handler, workers, pages, request, token | `bundle`, `cache`, `childasync`, `templating`, `ui`, `store` | |
+
+### Layer 3
+
+| package | today | depends | tables |
+|---|---|---|---|
+| `fit` | `fit/` minus `command`, plus `profile/` (it is part of `fit`, see the cycle table) | `bytes`, `xlsx`, `bundle`, `lookup`, `warnings` | |
+| `names` | `names/` | `landmark`, `download`, `cache`, `zip`, `geo`, `store` | `country`, `coverage`, `feature`, `country_cell*` |
+
+(`fit` is placed above `bundle` because the default profile is unpacked from the bundle.)
+
+### Layer 4
+
+| package | today | depends | tables |
+|---|---|---|---|
+| `importer` | `importer/` minus `run`, `display`, `sinks`, `logsink`, plus `db/channel` (it defines `ImportStep`) | `fit`, `names`, `download`, `store`, `geo`, `hashing`, `warnings`, `profiling` | `file`, `activity`, `coords`, `segment`, `route`, `seen_file` |
+| `heartrate` | `heartrate/` | `importer`, `fit`, `store` | `heartrate` |
+
+### Layer 5
+
+| package | today | depends | tables |
+|---|---|---|---|
+| `climbs` | `climbs/` minus `command`, `params` (one package for now; the `sectors` split is TODO step 14) | `importer`, `names`, `fit`, `user`, `store`, `geo` | `sector`, `effort`, `climbs_done` |
+| `selection` | `selection/` minus `command`, `table`, `calendar` | `importer`, `climbs`, `fit`, `user`, `store` | `selection` |
+| `delete` | `delete/remove` (the removal of activities and what is made from them) | `store` (and, after step 6, every package that makes per-activity tables) | |
+
+### Layer 6: commands
+
+A command package holds the command (`run`, its options, its output) and nothing else.
+
+| package | command(s) | today | depends |
+|---|---|---|---|
+| `activitiescmd` | `activities` (list, `--select`, `--import`, `--delete`) | `selection/command`, `table`, `calendar`; `importer/run`, `display`, `sinks`, `logsink`; `delete/run` | `selection`, `importer`, `delete`, `confirm`, `args` |
+| `climbscmd` | `climbs` | `climbs/command`, `params` | `climbs`, `selection`, `names`, `args` |
+| `userscmd` | `users` | `user/command`, `params` | `user`, `confirm`, `args` |
+| `modelscmd` | `models` | `model/command`, `params` | `model`, `args` |
+| `landmarkscmd` | `landmarks` | `landmark/command`, `params` | `landmark`, `climbs`, `names`, `args` |
+| `mapcmd` | `map` | `map/` | `selection`, `climbs`, `importer`, `web`, `bundle`, `cache`, `templating` |
+| `ffcmd` | `ff` | `ff/` | `model`, `web`, `bundle`, `cache`, `templating` |
+| `fitcmd` | `fit` | `fit/command` | `fit` |
+| `logcmd` | `log` | `log/` | `ui` |
+| `cachecmd` | `cache` | `cache/command` | `cache`, `download`, `confirm` |
+| `dbcmd` | `db` | `db/command` | `store`, `download`, `confirm` |
+| `servecmd` | `serve` | `serve/launch` | `web`, `selection` |
+
+### Changes this makes to today's code (the cycle table, made specific)
+
+* `cli/common` splits: `Globals` and the exit codes go to core; nothing in core imports `ui` or `db`.
+* `ui/logfile` stops importing `cli/catalog`: the registry knows the commands, the log is given the names.
+* `db/channel` (which imports `fit/time`) moves to `importer`, so `store` does not depend on `fit`.
+* `user/wipe` splits in three: words and countdown (`confirm`), user lookup and removal (`user`), counting activities
+  (the `activities` command, which knows about activities).
+* `landmark/command` is the only thing that makes `landmark` depend on `climbs`: it moves to `landmarkscmd`.
+* `climbs/attempts` → `importer/describe` and `climbs/profile` → `importer/extract` stay: `climbs` depends on
+  `importer`, which is the right direction.
+* `selection/command` → `delete/run`: both are inside `activitiescmd`.
+* `serve` splits into `web` (library) and `servecmd`, because `ff` and `map` are commands and may not depend on one.
+
+### Decisions (the author, 2026-11-09)
+
+* `store` is a package; `core` holds only types.  `Globals` still holds a `Log` and `importSteps`: the steps go with the
+  extension point (step 5); where the `Log` goes is open.
+* Command packages end in `cmd`; the nch command name is in `package.nim`.
+* **A command is associated with one package**: `activities` (list, `--select`, `--import`, `--delete`) is one package,
+  `activitiescmd`.
+* `zip` (`zipbytes`, `zipchild`, 206 lines) and `xlsx` (322 lines) are small utility packages; `xlsx` has one user,
+  `fit`'s profile.  Kept apart because they are different formats; merging `xlsx` into `fit` is possible.
+* `climbs` stays one package in step 8; splitting it into `sectors` and `climbs` is part of TODO step 14.
+* Files placed by reading them: `selection/table`, `selection/calendar` (only `selection/command` uses them) and
+  `importer/sinks`, `logsink`, `display` (only `importer/run` uses them) are the presentation of `activities` and move to
+  `activitiescmd`.  `importer/events` and `failure` stay in `importer` (the library emits events; the command shows them).
+  `importer/naming` (names the activities at the end of an import, using `names`) and `climbs/work` (brings the climbs
+  up to date; called on demand by `climbs`, `landmarks` via `report`, and `map`) stay in their libraries.  `climbs/work`
+  is the on-demand work of the extension-point list.
+* `selection/calendar` goes to `activitiescmd` for now; the author expects to pull it out later (like the `sectors` split).
+* Still open: where the `Log` type goes (core, or out of `Globals`).
