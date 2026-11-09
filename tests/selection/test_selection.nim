@@ -13,17 +13,20 @@ proc fresh(name: string): Store =
 proc add(s: Store, sha: string, session = 0) =
   ## An activity of file `sha`, in the selection.
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-    s.userId, sha, sha,
+    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    userId = s.userId,
+    name = sha,
+    sha256 = sha,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (?, ?, 0, 1)", f,
-    session,
+    "insert into activity(file_id, session, start_t, end_t) values (:fileId, :session, 0, 1)",
+    fileId = f,
+    session = session,
   )
   s.db.execute(
-    "insert into selection(user_id, activity_id) select ?, max(id) from activity",
-    s.userId,
+    "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+    userId = s.userId,
   )
 
 suite "selection: the key":

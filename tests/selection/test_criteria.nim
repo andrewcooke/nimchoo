@@ -248,14 +248,14 @@ suite "list: the box and the sql":
     check m.contains("f_table_name = 'activity'") and
       m.contains("f_geometry_column = 'start'")
     check m.contains(
-      "ST_Distance(a.start, MakePoint(:near_lon, :near_lat, 4326), 1) <= :near_m"
+      "ST_Distance(a.start, MakePoint(:nearLon, :nearLat, 4326), 1) <= :nearM"
     )
-    check q.value("near_lon") == arg(-9.1) and q.value("near_lat") == arg(38.7) and
-      q.value("near_m") == arg(5000.0)
+    check q.value("nearLon") == arg(-9.1) and q.value("nearLat") == arg(38.7) and
+      q.value("nearM") == arg(5000.0)
     check not m.contains("route")
     let across = matchSql(@[UserId(1)], Criteria(radiusKm: 50.0), some((-17.0, 179.9)))
     check across.text.count("SpatialIndex") == 2 and across.text.contains(" or ")
-    check across.has("box0_x0") and across.has("box1_y1")
+    check across.has("box0West") and across.has("box1North")
   test "longitude widens away from the equator":
     check box(60.0, 0.0, 100.0).maxX > 1.5 * box(0.0, 0.0, 100.0).maxX
   test "over a pole: all longitudes":
@@ -303,11 +303,11 @@ suite "list: the box and the sql":
     )
     let full = fullQ.text
     check full.startsWith("select a.id, a.start_t from activity a")
-    check full.contains("a.start_t >= :from_t") and full.contains("a.start_t < :to_t")
-    check fullQ.value("from_t") == arg(5) and fullQ.value("to_t") == arg(9)
+    check full.contains("a.start_t >= :fromT") and full.contains("a.start_t < :toT")
+    check fullQ.value("fromT") == arg(5) and fullQ.value("toT") == arg(9)
     check full.contains("SpatialIndex") and
-      full.contains("MakePoint(:near_lon, :near_lat, 4326)")
-    check fullQ.value("near_m") == arg(5000.0)
+      full.contains("MakePoint(:nearLon, :nearLat, 4326)")
+    check fullQ.value("nearM") == arg(5000.0)
     check full.endsWith("order by a.start_t desc limit :newest")
     check fullQ.value("newest") == arg(2)
     let oldest = matchSql(@[UserId(1)], Criteria(oldest: 4), none((float, float)))
@@ -320,10 +320,10 @@ suite "list: the box and the sql":
     check two.value("sport0") == arg("cycling") and two.value("sport1") == arg(
       "running"
     )
-    let none1 = inValues("a.sub_sport", "sub_sport", @["none"])
+    let none1 = inValues("a.sub_sport", "subSport", @["none"])
     check none1.text == " and (a.sub_sport is null)" and none1.args.len == 0
-    let mixed = inValues("a.sub_sport", "sub_sport", @["road", "none"])
-    check mixed.text == " and (a.sub_sport in (:sub_sport0) or a.sub_sport is null)"
+    let mixed = inValues("a.sub_sport", "subSport", @["road", "none"])
+    check mixed.text == " and (a.sub_sport in (:subSport0) or a.sub_sport is null)"
     let hostile = inValues("a.sport", "sport", @["x'; drop table user; --"])
     check hostile.text == " and (a.sport in (:sport0))"
     check hostile.value("sport0") == arg("x'; drop table user; --")
@@ -340,21 +340,21 @@ suite "list: the box and the sql":
   test "ranges become inclusive comparisons, only for the ends given":
     check rangeSql("a.distance_m", "distance", NumRange()).text == ""
     let lo = rangeSql("a.distance_m", "distance", NumRange(lo: some 40000.0))
-    check lo.text == " and a.distance_m >= :distance_lo" and
-      lo.value("distance_lo") == arg(40000.0)
+    check lo.text == " and a.distance_m >= :distanceLo" and
+      lo.value("distanceLo") == arg(40000.0)
     let hi = rangeSql("a.timer_s", "active", NumRange(hi: some 3600.0))
-    check hi.text == " and a.timer_s <= :active_hi" and
-      hi.value("active_hi") == arg(3600.0)
+    check hi.text == " and a.timer_s <= :activeHi" and
+      hi.value("activeHi") == arg(3600.0)
     let both = rangeSql("a.timer_s", "active", NumRange(lo: some 60.0, hi: some 120.5))
-    check both.text == " and a.timer_s >= :active_lo and a.timer_s <= :active_hi"
-    check both.value("active_hi") == arg(120.5) # (exact: not rounded to 3 decimals)
+    check both.text == " and a.timer_s >= :activeLo and a.timer_s <= :activeHi"
+    check both.value("activeHi") == arg(120.5) # (exact: not rounded to 3 decimals)
     let m = matchSql(
       @[UserId(1)],
       Criteria(distanceM: NumRange(lo: some 1000.0), activeS: NumRange(hi: some 60.0)),
       none((float, float)),
     )
-    check m.text.contains("a.distance_m >= :distance_lo") and
-      m.text.contains("a.timer_s <= :active_hi")
+    check m.text.contains("a.distance_m >= :distanceLo") and
+      m.text.contains("a.timer_s <= :activeHi")
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "distance_m"
     )
@@ -391,21 +391,21 @@ suite "list: --name and --start":
     let c = parsed("--name", "toyo", "none", "--start", "o'higgins")
     let m = matchSql(@[UserId(1)], c, none((float, float)))
     let q = m.text
-    check q.contains("instr(fold(a.name), :name_t0) > 0") and
+    check q.contains("instr(fold(a.name), :nameT0) > 0") and
       q.contains("(a.name is null or a.name = '')")
-    check m.value("name_t0") == arg("toyo") # (folded)
-    check q.contains("instr(fold(a.start_place), :start_t0) > 0")
-    check m.value("start_t0") == arg("o'higgins") # (bound as it is: no quotes to double)
+    check m.value("nameT0") == arg("toyo") # (folded)
+    check q.contains("instr(fold(a.start_place), :startT0) > 0")
+    check m.value("startT0") == arg("o'higgins") # (bound as it is: no quotes to double)
     var e = Criteria()
     e.namesExact = @["El Toyo and back", ""]
     e.startsExact = @["Providencia"]
     let rq = matchSql(@[UserId(1)], e, none((float, float)))
     let r = rq.text
-    check r.contains("a.name = :name_e0") and
+    check r.contains("a.name = :nameE0") and
       r.contains("(a.name is null or a.name = '')")
-    check rq.value("name_e0") == arg("El Toyo and back")
-    check r.contains("a.start_place = :start_e0") and
-      rq.value("start_e0") == arg("Providencia")
+    check rq.value("nameE0") == arg("El Toyo and back")
+    check r.contains("a.start_place = :startE0") and
+      rq.value("startE0") == arg("Providencia")
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "fold("
     )
@@ -443,7 +443,7 @@ suite "list: --invert":
       parseArgs(@["--sport", "cycling", "--name", "toyo", "--invert"], utcZone).criteria
     let q = matchSql(@[UserId(1)], c, none((float, float))).text
     check q.contains(
-      " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :name_t0) > 0"
+      " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :nameT0) > 0"
     )
     check q.endsWith("), 0)")
     let plain = matchSql(

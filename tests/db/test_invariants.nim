@@ -17,8 +17,8 @@ proc fresh(name: string): Store =
   result = openStore(path, allFragments)
   let db = result.db
   db.execute(
-    "insert into file(id, user_id, name, sha256, imported_at) values (1, ?, 'a', 'x', 0)",
-    int64(result.userId),
+    "insert into file(id, user_id, name, sha256, imported_at) values (1, :userId, 'a', 'x', 0)",
+    userId = int64(result.userId),
   )
   db.execute(
     "insert into activity(id, file_id, session, start_t, end_t, start_place) values (1, 1, 0, 1000, 2000, '')"
@@ -31,7 +31,10 @@ proc fresh(name: string): Store =
 
 proc effort(db: DbConn, startT, finishT: int) =
   db.execute(
-    "insert into effort values (1, 1, ?, ?, ?, 0)", startT, finishT, finishT - startT
+    "insert into effort values (1, 1, :startT, :finishT, :elapsedS, 0)",
+    startT = startT,
+    finishT = finishT,
+    elapsedS = finishT - startT,
   )
 
 suite "invariants":

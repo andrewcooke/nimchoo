@@ -102,8 +102,10 @@ proc missingCells(n: Names, iso: string, box: Box): seq[Cell] {.raises: [StoreEr
   for c in cellsOf(box):
     if n.st.db.scalar(
       int,
-      "select count(*) from coverage where country = ? and cell_lon = ? and cell_lat = ?",
-      iso, c.lon, c.lat,
+      "select count(*) from coverage where country = :country and cell_lon = :cellLon and cell_lat = :cellLat",
+      country = iso,
+      cellLon = c.lon,
+      cellLat = c.lat,
     ) == 0:
       result.add c
 
@@ -145,8 +147,12 @@ proc readCells(
   let now = getTime().toUnix
   for c, k in counts:
     n.st.db.execute(
-      "insert or replace into coverage(country, cell_lon, cell_lat, loaded_at, features) values (?, ?, ?, ?, ?)",
-      iso, c.lon, c.lat, now, k,
+      "insert or replace into coverage(country, cell_lon, cell_lat, loaded_at, features) values (:country, :cellLon, :cellLat, :loadedAt, :features)",
+      country = iso,
+      cellLon = c.lon,
+      cellLat = c.lat,
+      loadedAt = now,
+      features = k,
     )
 
 proc ensureCells*(
@@ -158,7 +164,7 @@ proc ensureCells*(
   if missing.len == 0:
     return
   n.ensureCountries()
-  if n.st.db.scalar(int, "select count(*) from country where iso = ?", iso) == 0:
+  if n.st.db.scalar(int, "select count(*) from country where iso = :iso", iso = iso) == 0:
     raise n.couldNot("the names of " & iso & " (no such country)")
   let path = fetchSource(n.env, n.sink, n.dataDir, geonamesCountry, iso)
   if path.isNone:

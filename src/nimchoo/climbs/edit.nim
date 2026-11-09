@@ -44,15 +44,21 @@ proc shownName*(st: Store, id: int64): string {.raises: [StoreError].} =
 
 proc rename*(st: Store, id: int64, name: string) {.raises: [StoreError].} =
   ## Give the climb a name of the person's choosing: kept, and not looked at again by the program.
-  st.db.execute("update sector set name = ?, manual = 1 where id = ?", name.strip, id)
+  st.db.execute(
+    "update sector set name = :name, manual = 1 where id = :id",
+    name = name.strip,
+    id = id,
+  )
   assignNumber(st, id)
 
 proc setAuto*(st: Store, id: int64) {.raises: [StoreError].} =
   ## Forget the name (null): the command then names the climb again from the places near it (`ensureSectorNames`).
-  st.db.execute("update sector set name = null, manual = 0 where id = ?", id)
+  st.db.execute("update sector set name = null, manual = 0 where id = :id", id = id)
   assignNumber(st, id)
 
 proc setRetired*(st: Store, id: int64, retired: bool) {.raises: [StoreError].} =
   ## Hide the climb from the lists, or show it again.  Nothing else changes: it keeps its efforts, its place in the
   ## numbering of its name, and takes the efforts of new rides.
-  st.db.execute("update sector set retired = ? where id = ?", retired, id)
+  st.db.execute(
+    "update sector set retired = :retired where id = :id", retired = retired, id = id
+  )

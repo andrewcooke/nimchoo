@@ -330,8 +330,11 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   shared code is a package of its own, not part of the module that needed it first.
 * **let the database do database work.**  values are bound, never put into sql text; rows are read into typed
   tuples or objects; filtering, joining, ranking and spatial search are sql, not loops in nim.
-  short fixed queries use `?` with `query(db, T, text, values...)`; a query built from pieces is an `Sql`
-  (`db/sqltext.nim`: text with `:names`, values by name, pieces joined with `&`), so that no value can fall out of step.
+  values are given by **name**: `db.scalar(int, "select count(*) from sector where gain_m > :gain", gain = 100.0)`.  a `?` is
+  a compile error, and so are a `:name` with no value and a value with no `:name` (checked when the text is a
+  literal; at run time otherwise).  a query built from pieces is an `Sql` (`db/sqltext.nim`: text with `:names`,
+  values by name, pieces joined with `&`), so that no value can fall out of step.  the prepared statements that are
+  run many times (`prepareStmt`, the importer's inserts) bind by position: they are for loops over thousands of rows.
 * **a failure is never stored as a result**: raise, or warn and leave the work undone.
 * **delete dead code and stale docs in the same commit** that makes them dead.
 

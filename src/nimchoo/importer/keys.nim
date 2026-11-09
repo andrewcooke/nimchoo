@@ -17,8 +17,8 @@ proc routesKey*(
   for row in st.db.query(
     tuple[id: int64, bytes, points: int],
     "select activity_id, length(geom), NumPoints(geom) from route where activity_id in " &
-      "(select value from json_each(?)) order by activity_id",
-    jsonList(ids),
+      "(select value from json_each(:ids)) order by activity_id",
+    ids = jsonList(ids),
   ):
     text.add $row.id & ":" & $row.bytes & ":" & $row.points & "\n"
     inc result.count

@@ -172,12 +172,13 @@ suite "nch users":
     let s = openStore(db, allFragments)
     for i in 1 .. 1200:
       s.db.execute(
-        "insert into file(user_id, name, sha256, imported_at) values ((select id from user where name = 'bob'), ?, ?, 0)",
-        $i,
-        $i,
+        "insert into file(user_id, name, sha256, imported_at) values ((select id from user where name = 'bob'), :name, :sha256, 0)",
+        name = $i,
+        sha256 = $i,
       )
       s.db.execute(
-        "insert into activity(file_id, session, start_t, end_t) values (?, 0, 0, 1)", i
+        "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, 0, 1)",
+        fileId = i,
       )
     s.close()
     check lines(db) ==

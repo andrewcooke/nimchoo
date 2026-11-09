@@ -53,8 +53,8 @@ proc selectedClimbs*(st: Store): seq[int64] {.raises: [StoreError].} =
     int64,
     "select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
       "where e.sector_id = s.id and e.activity_id in " &
-      "(select activity_id from selection where user_id = ?)) order by s.gain_m desc, s.id",
-    st.userId,
+      "(select activity_id from selection where user_id = :userId)) order by s.gain_m desc, s.id",
+    userId = st.userId,
   )
 
 proc climbsOfActivities*(
@@ -66,9 +66,9 @@ proc climbsOfActivities*(
   st.db.query(
     int64,
     "select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
-      "where e.sector_id = s.id and e.activity_id in (select value from json_each(?))) " &
+      "where e.sector_id = s.id and e.activity_id in (select value from json_each(:ids))) " &
       "order by s.gain_m desc, s.id",
-    jsonList(activities),
+    ids = jsonList(activities),
   )
 
 proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreError].} =
@@ -110,8 +110,8 @@ proc summaries*(st: Store, ids: seq[int64]): seq[Summary] {.raises: [StoreError]
     var sum = Summary()
     for r in st.db.query(
       ClimbRow,
-      "select length_m, gain_m, gradient, coalesce(category, '') from sector where id = ?",
-      id,
+      "select length_m, gain_m, gradient, coalesce(category, '') from sector where id = :id",
+      id = id,
     ):
       sum.climb = climbOf(
         names.getOrDefault(id, unnamed), r.category, r.lengthM, r.gainM, r.gradient
@@ -121,10 +121,11 @@ proc summaries*(st: Store, ids: seq[int64]): seq[Summary] {.raises: [StoreError]
       AttemptRow,
       """select a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
                 coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
-                a.id in (select activity_id from selection where user_id = ?)
+                a.id in (select activity_id from selection where user_id = :userId)
            from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
-          where e.sector_id = ? and f.user_id = ? order by a.start_t, e.start_t""",
-      st.userId, id, st.userId,
+          where e.sector_id = :sectorId and f.user_id = :userId order by a.start_t, e.start_t""",
+      userId = st.userId,
+      sectorId = id,
     ):
       let info = ActivityInfo(
         startT: UnixTime(r.startT),
@@ -147,8 +148,8 @@ proc summaries*(st: Store, ids: seq[int64]): seq[Summary] {.raises: [StoreError]
       """select f.user_id, u.name, e.elapsed_s, a.start_t
            from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
            join user u on u.id = f.user_id
-          where e.sector_id = ?""",
-      id,
+          where e.sector_id = :sectorId""",
+      sectorId = id,
     ):
       if r.userId notin best or r.elapsed < best.must(r.userId).elapsed:
         best[r.userId] = Rider(

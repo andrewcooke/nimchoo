@@ -12,22 +12,22 @@ proc leading(db: DbConn, table: string): seq[seq[string]] =
   ## primary key (the rowid alias, or the key of a table without rowid).
   for idx in db.query(
     tuple[seq: int, name: string, unique: int, origin: string, partial: int],
-    "select * from pragma_index_list(?)",
-    table,
+    "select * from pragma_index_list(:table)",
+    table = table,
   ):
     var cols: seq[(int, string)]
     for c in db.query(
       tuple[seqno, cid: int, name: Option[string]],
-      "select * from pragma_index_info(?)",
-      idx.name,
+      "select * from pragma_index_info(:index)",
+      index = idx.name,
     ):
       cols.add (c.seqno, c.name.get(""))
     result.add cols.sorted.mapIt(it[1])
   var pk: seq[(int, string)]
   for c in db.query(
     tuple[cid: int, name, ctype: string, notNull: int, default: Option[string], pk: int],
-    "select * from pragma_table_info(?)",
-    table,
+    "select * from pragma_table_info(:table)",
+    table = table,
   ):
     if c.pk != 0:
       pk.add (c.pk, c.name)
@@ -52,8 +52,8 @@ suite "schema":
           toColumn: Option[string],
           onUpdate, onDelete, match: string,
         ],
-        "select * from pragma_foreign_key_list(?)",
-        table,
+        "select * from pragma_foreign_key_list(:table)",
+        table = table,
       ):
         keys.mgetOrPut(fk.id, @[]).add (fk.seq, fk.fromColumn)
       let indexes = leading(s.db, table)

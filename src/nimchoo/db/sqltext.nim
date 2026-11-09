@@ -90,12 +90,12 @@ func `&`*(a: Sql, b: string): Sql =
 func `&`*(a: string, b: Sql): Sql =
   Sql(text: a & b.text, args: b.args)
 
-const fourMarks* = "?, ?, ?, ?"
-  ## the corners of a box, for `inBox`, as positional values
+const cornerMarks* = ":west, :south, :east, :north"
+  ## the corners of a box as names, for `inBox`; give `west = ..., south = ..., east = ..., north = ...`
 
 func inBox*(idColumn, table, geomColumn, corners: string): string =
   ## "a.id in (select ROWID from SpatialIndex ...)": the rows of `table` whose `geomColumn` box meets the box with
-  ## these four corners (west, south, east, north: `fourMarks`, or four `:names`).  The one way a spatial index is
+  ## these four corners (west, south, east, north: `cornerMarks`, or four other `:names`).  The one way a spatial index is
   ## asked, so that it is always the index and never a scan (tests/db/test_plans.nim looks).
   idColumn & " in (select ROWID from SpatialIndex where f_table_name = '" & table &
     "' and f_geometry_column = '" & geomColumn & "' and search_frame = BuildMbr(" &

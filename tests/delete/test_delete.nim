@@ -26,23 +26,25 @@ proc run(db: string, args: varargs[string]): int =
 proc selected(s: Store): seq[int64] =
   ## The ids of the user's selection.
   s.db.query(
-    int64, "select activity_id from selection where user_id = ? order by 1", s.userId
+    int64,
+    "select activity_id from selection where user_id = :userId order by 1",
+    userId = s.userId,
   )
 
 proc extra(s: Store, tag: string, session, startT: int, sport = "") =
   ## A second activity (another session) in the file `tag`.
-  let f = s.db.scalar(int64, "select id from file where name = ?", tag)
+  let f = s.db.scalar(int64, "select id from file where name = :name", name = tag)
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t, sport) values (?, ?, ?, ?, nullif(?, ''))",
-    f,
-    session,
-    startT,
-    startT + 10,
-    sport,
+    "insert into activity(file_id, session, start_t, end_t, sport) values (:fileId, :session, :startT, :endT, nullif(:sport, ''))",
+    fileId = f,
+    session = session,
+    startT = startT,
+    endT = startT + 10,
+    sport = sport,
   )
   s.db.execute(
-    "insert into selection(user_id, activity_id) select ?, max(id) from activity",
-    s.userId,
+    "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+    userId = s.userId,
   )
 
 suite "delete: the plan":
@@ -166,8 +168,8 @@ suite "delete: the command":
     check mid.count("activity") == 1 and mid.count("file") == 1 and
       mid.count("seen_file") == 1 # (the file stays)
     mid.db.execute(
-      "insert into selection(user_id, activity_id) select ?, id from activity",
-      mid.userId,
+      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      userId = mid.userId,
     )
     mid.close()
     check run(d, "-f") == exitOk

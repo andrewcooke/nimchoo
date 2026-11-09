@@ -23,7 +23,9 @@ type SectorRow* = object
 
 proc selectedActivities*(st: Store): int {.raises: [StoreError].} =
   ## How many activities the user has selected.
-  st.db.scalar(int, "select count(*) from selection where user_id = ?", st.userId)
+  st.db.scalar(
+    int, "select count(*) from selection where user_id = :userId", userId = st.userId
+  )
 
 proc shownNames*(st: Store): Table[int64, string] {.raises: [StoreError].} =
   ## The name of every sector as it is shown, "name₃" where a name is shared (the number is kept: see ordinal.nim).
@@ -45,8 +47,8 @@ proc allSectors*(st: Store, retired = false): seq[SectorRow] {.raises: [StoreErr
     SectorRow,
     """select s.id, s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), '',
               (select count(*) from effort e where e.sector_id = s.id), s.manual, s.retired
-         from sector s where s.retired = ? order by s.gain_m desc, s.id""",
-    retired,
+         from sector s where s.retired = :retired order by s.gain_m desc, s.id""",
+    retired = retired,
   ):
     var row = r
     row.name = names.getOrDefault(r.id, unnamed)

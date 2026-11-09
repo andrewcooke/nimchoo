@@ -19,21 +19,25 @@ proc fixture(name: string): tuple[db, cache: string] =
   let s = openStore(result.db, allFragments)
   defer:
     s.close()
-  s.db.execute("insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (?, 'a', 'aa', 0)",
-    s.userId,
+    "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId
+  )
+  s.db.execute(
+    "insert into file(user_id, name, sha256, imported_at) values (:userId, 'a', 'aa', 0)",
+    userId = s.userId,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (?, 0, 1535373814, 1535374414)",
-    f,
+    "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, 1535373814, 1535374414)",
+    fileId = f,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   s.db.execute("begin")
   for k in 0 ..< 600:
     s.db.execute(
-      "insert into heartrate(activity_id, t, bpm) values (?, ?, 160)", a, 1535373814 + k
+      "insert into heartrate(activity_id, t, bpm) values (:activityId, :t, 160)",
+      activityId = a,
+      t = 1535373814 + k,
     )
   s.db.execute("commit")
 

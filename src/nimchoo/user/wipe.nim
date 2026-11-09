@@ -90,8 +90,8 @@ proc countActivities*(path, user: string): Option[int] =
             int,
             """select count(*) from activity a
                                 join file f on f.id = a.file_id
-                                where f.user_id = (select id from user where name = ?)""",
-            user,
+                                where f.user_id = (select id from user where name = :name)""",
+            name = user,
           )
         )
   except StoreError:
@@ -99,7 +99,7 @@ proc countActivities*(path, user: string): Option[int] =
 
 proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   ## The id of the user called `name`; an error if there is none.
-  let id = st.db.queryOne(UserId, "select id from user where name = ?", name)
+  let id = st.db.queryOne(UserId, "select id from user where name = :name", name = name)
   if id.isNone:
     raiseStore("no such user: " & name)
   id.get
@@ -108,5 +108,5 @@ proc removeUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Delete the user and everything they have.  (If it was the default user another
   ## becomes the default, or if there is none a new empty one is made, the next time the
   ## database is opened.)
-  st.db.execute("delete from user where id = ?", id)
+  st.db.execute("delete from user where id = :id", id = id)
   st.reclaim()

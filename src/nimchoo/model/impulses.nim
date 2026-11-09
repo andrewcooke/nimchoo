@@ -22,15 +22,18 @@ proc readings(
 ): seq[(UnixTime, int)] {.raises: [StoreError].} =
   for r in db.query(
     tuple[t: int64, bpm: int],
-    "select t, bpm from heartrate where activity_id = ? order by t",
-    activityId,
+    "select t, bpm from heartrate where activity_id = :activityId order by t",
+    activityId = activityId,
   ):
     result.add (UnixTime(r.t), r.bpm)
 
 proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   ## The user's threshold heart rate, if they have one.
-  let got =
-    db.queryOne(Option[int], "select fthr from user_profile where user_id = ?", userId)
+  let got = db.queryOne(
+    Option[int],
+    "select fthr from user_profile where user_id = :userId",
+    userId = userId,
+  )
   if got.isSome:
     got.get
   else:
@@ -43,7 +46,9 @@ proc calculateActivity*(
   ## number of hours.
   let rows = hourlyImpulse(readings(db, activityId), fthr, m)
   db.execute(
-    "delete from impulse where activity_id = ? and model_id = ?", activityId, m.id
+    "delete from impulse where activity_id = :activityId and model_id = :modelId",
+    activityId = activityId,
+    modelId = m.id,
   )
   if rows.len == 0:
     return 0
@@ -65,11 +70,12 @@ proc missing(
   db.query(
     ActivityId,
     """select a.id from activity a join file f on f.id = a.file_id
-        where f.user_id = ?
+        where f.user_id = :userId
           and exists (select 1 from heartrate h where h.activity_id = a.id)
-          and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = ?)
+          and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = :modelId)
         order by a.id""",
-    userId, modelId,
+    userId = userId,
+    modelId = modelId,
   )
 
 proc calculateMissing*(
@@ -99,8 +105,8 @@ proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreErr
   for r in db.query(
     tuple[sha256: string, session: int],
     """select f.sha256, a.session from activity a join file f on f.id = a.file_id
-        where f.user_id = ? and exists (select 1 from heartrate h where h.activity_id = a.id)""",
-    userId,
+        where f.user_id = :userId and exists (select 1 from heartrate h where h.activity_id = a.id)""",
+    userId = userId,
   ):
     entries.add r.sha256 & ":" & $r.session
   if entries.len == 0:

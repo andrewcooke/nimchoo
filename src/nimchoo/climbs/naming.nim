@@ -24,17 +24,21 @@ proc ensureSectorNames*(
   let todo = st.db.query(int64, "select id from sector where name is null order by id")
   for id in todo:
     let route = parseLineString(
-      st.db.scalar(Option[string], "select AsText(route) from sector where id = ?", id)
+      st.db.scalar(
+        Option[string], "select AsText(route) from sector where id = :id", id = id
+      )
     )
     if route.isNone:
       result.damaged.add id
       continue
     let pick = nameClimb(names, route.get.lon, route.get.lat)
     if pick.isSome:
-      st.db.execute("update sector set name = ? where id = ?", pick.get.name, id)
+      st.db.execute(
+        "update sector set name = :name where id = :id", name = pick.get.name, id = id
+      )
       assignNumber(st, id)
       inc result.named
     else:
-      st.db.execute("update sector set name = '' where id = ?", id)
+      st.db.execute("update sector set name = '' where id = :id", id = id)
       assignNumber(st, id)
       inc result.nothing

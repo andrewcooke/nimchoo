@@ -9,7 +9,7 @@ proc folded(value: string): string =
   defer:
     db.close()
   registerFunctions(db)
-  db.scalar(string, "select fold(?)", value)
+  db.scalar(string, "select fold(:value)", value = value)
 
 proc found(typed, value: string): bool =
   ## How the commands look for text in a column
@@ -17,7 +17,12 @@ proc found(typed, value: string): bool =
   defer:
     db.close()
   registerFunctions(db)
-  db.scalar(int, "select instr(fold(?), ?) > 0", value, foldText(typed.strip)) == 1
+  db.scalar(
+    int,
+    "select instr(fold(:value), :typed) > 0",
+    value = value,
+    typed = foldText(typed.strip),
+  ) == 1
 
 suite "folding: lower case, no accents":
   test "in the program":

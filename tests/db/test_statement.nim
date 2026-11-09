@@ -10,10 +10,18 @@ proc memory(): DbConn =
     "create table t(id integer primary key, name text, x real, n integer, note text, b blob)"
   )
   result.execute(
-    "insert into t(name, x, n, note) values (?, ?, ?, ?)", "alpha", 1.5, 3, some("hi")
+    "insert into t(name, x, n, note) values (:name, :x, :n, :note)",
+    name = "alpha",
+    x = 1.5,
+    n = 3,
+    note = some("hi"),
   )
   result.execute(
-    "insert into t(name, x, n, note) values (?, ?, ?, ?)", "beta", 2.0, 4, none(string)
+    "insert into t(name, x, n, note) values (:name, :x, :n, :note)",
+    name = "beta",
+    x = 2.0,
+    n = 4,
+    note = none(string),
   )
 
 suite "statement: typed reading and binding":
@@ -33,7 +41,7 @@ suite "statement: typed reading and binding":
     let db = memory()
     defer:
       db.close()
-    let rows = db.query(Row, "select id, name from t where n > ?", 3)
+    let rows = db.query(Row, "select id, name from t where n > :n", n = 3)
     check rows.len == 1 and rows[0].name == "beta" and int64(rows[0].id) == 2
   test "one column is read as one value; scalar and queryOne":
     let db = memory()
@@ -41,10 +49,10 @@ suite "statement: typed reading and binding":
       db.close()
     check db.query(string, "select name from t order by id") == @["alpha", "beta"]
     check db.scalar(int, "select count(*) from t") == 2
-    check db.queryOne(string, "select name from t where n = ?", 4).get == "beta"
-    check db.queryOne(string, "select name from t where n = ?", 99).isNone
+    check db.queryOne(string, "select name from t where n = :n", n = 4).get == "beta"
+    check db.queryOne(string, "select name from t where n = :n", n = 99).isNone
     expect StoreError:
-      discard db.scalar(int, "select n from t where n = ?", 99)
+      discard db.scalar(int, "select n from t where n = :n", n = 99)
   test "a single optional column is one value (NULL is none)":
     let db = memory()
     defer:
@@ -55,14 +63,17 @@ suite "statement: typed reading and binding":
     let db = memory()
     defer:
       db.close()
-    db.execute("insert into t(name) values (?)", "x'); drop table t; --")
-    check db.scalar(int, "select count(*) from t where name like ?", "x'%") == 1
+    db.execute("insert into t(name) values (:name)", name = "x'); drop table t; --")
+    check db.scalar(int, "select count(*) from t where name like :name", name = "x'%") ==
+      1
     check db.scalar(int, "select count(*) from t") == 3
   test "an empty string is text; an absent Option is NULL":
     let db = memory()
     defer:
       db.close()
-    db.execute("insert into t(name, note) values (?, ?)", "", none(string))
+    db.execute(
+      "insert into t(name, note) values (:name, :note)", name = "", note = none(string)
+    )
     check db.scalar(int, "select count(*) from t where name = ''") == 1
     check db.scalar(int, "select count(*) from t where note is null") == 2
   test "a whole number reads as a real, not the other way":
@@ -163,3 +174,25 @@ suite "statement: a query built from pieces, with named values":
         .with("note", none(string))
     )
     check db.scalar(int, "select count(*) from t where note is null") == 2
+
+suite "statement: only :names, and they are checked when the program is compiled":
+  test "a ? in the sql, a missing value, an unknown value, a value without a name: none compile":
+    let db = memory()
+    defer:
+      db.close()
+    check compiles(db.scalar(int, "select count(*) from t where n = :n", n = 3))
+    check not compiles(db.scalar(int, "select count(*) from t where n = ?", 3))
+    check not compiles(db.scalar(int, "select count(*) from t where n = ?", n = 3))
+    check not compiles(db.scalar(int, "select count(*) from t where n = :n"))
+    check not compiles(db.scalar(int, "select count(*) from t where n = :n", m = 3))
+    check not compiles(
+      db.scalar(int, "select count(*) from t where n = :n", n = 3, m = 4)
+    )
+    check not compiles(db.scalar(int, "select count(*) from t where n = :n", 3))
+    check not compiles(db.execute("delete from t where n = :n", n = 1, n = 2))
+  test "a ? in quoted text, and a :: or a : in quoted text, are text":
+    let db = memory()
+    defer:
+      db.close()
+    check db.scalar(int, "select '?' = :q", q = "?") == 1
+    check db.scalar(string, "select '12:30' || :t", t = "!") == "12:30!"

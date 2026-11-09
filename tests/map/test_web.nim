@@ -29,21 +29,27 @@ proc fixture(name: string, selected = true): tuple[db, cache: string] =
     ("b", "MULTILINESTRING((2.35 48.85, 2.40 48.90))"),
   ]:
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-      s.userId, tag, tag,
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+      userId = s.userId,
+      name = tag,
+      sha256 = tag,
     )
     let f = s.db.scalar(int64, "select max(id) from file")
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) values (?, 0, 1000, 1100)",
-      f,
+      "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, 1000, 1100)",
+      fileId = f,
     )
     let a = s.db.scalar(int64, "select max(id) from activity")
     s.db.execute(
-      "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, route
+      "insert into route(activity_id, geom) values (:activityId, GeomFromText(:wkt, 4326))",
+      activityId = a,
+      wkt = route,
     )
     if selected:
       s.db.execute(
-        "insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
+        "insert into selection(user_id, activity_id) values (:userId, :activityId)",
+        userId = s.userId,
+        activityId = a,
       )
 
 proc environment(cache: string): StringTableRef =

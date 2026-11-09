@@ -62,11 +62,11 @@ proc routesOf(st: Store, ids: seq[int64]): seq[Route] {.raises: [StoreError].} =
       geometry: string,
     ],
     "select a.id, a.start_t, coalesce(a.sport, ''), a.distance_m, " &
-      "AsGeoJSON(SimplifyPreserveTopology(r.geom, ?), 5) " &
+      "AsGeoJSON(SimplifyPreserveTopology(r.geom, :tolerance), 5) " &
       "from activity a join route r on r.activity_id = a.id " &
-      "where a.id in (select value from json_each(?)) order by a.start_t, a.id",
-    toleranceM / metresPerDegree,
-    jsonList(ids),
+      "where a.id in (select value from json_each(:ids)) order by a.start_t, a.id",
+    tolerance = toleranceM / metresPerDegree,
+    ids = jsonList(ids),
   ):
     result.add Route(
       id: r.id,
@@ -86,8 +86,8 @@ proc climbsOf(st: Store, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
     for r in st.db.query(
       tuple[lengthM, gainM, gradient: float, category, geometry: string],
       """select length_m, gain_m, gradient, coalesce(category, ''), AsGeoJSON(route, 5)
-          from sector where id = ?""",
-      id,
+          from sector where id = :id""",
+      id = id,
     ):
       result.add Climb(
         id: id,

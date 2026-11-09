@@ -169,8 +169,8 @@ func wrapCell*(cx: int): int =
 
 const countriesInCellSql* =
   "select iso from country where geom is not null and " &
-  inBox("rowid", "country", "geom", fourMarks) &
-  " and Intersects(geom, BuildMbr(?, ?, ?, ?, 4326)) = 1 order by iso"
+  inBox("rowid", "country", "geom", cornerMarks) &
+  " and Intersects(geom, BuildMbr(:west, :south, :east, :north, 4326)) = 1 order by iso"
   ## (the index finds the outlines whose boxes meet the cell; the exact test is then made on those only)
 
 proc countriesOfCell*(
@@ -184,20 +184,28 @@ proc countriesOfCell*(
   let x1 = x0 + 1.0 / cellsPerDegree.float
   let y1 = y0 + 1.0 / cellsPerDegree.float
   if n.st.db.scalar(
-    int, "select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?",
-    cx, cy,
+    int,
+    "select count(*) from country_cell_done where cell_lon = :cellLon and cell_lat = :cellLat",
+    cellLon = cx,
+    cellLat = cy,
   ) == 0:
-    for iso in n.st.db.query(string, countriesInCellSql, x0, y0, x1, y1, x0, y0, x1, y1):
+    for iso in n.st.db.query(
+      string, countriesInCellSql, west = x0, south = y0, east = x1, north = y1
+    ):
       n.st.db.execute(
-        "insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)",
-        cx, cy, iso,
+        "insert or ignore into country_cell(cell_lon, cell_lat, country) values (:cellLon, :cellLat, :country)",
+        cellLon = cx,
+        cellLat = cy,
+        country = iso,
       )
     n.st.db.execute(
-      "insert or ignore into country_cell_done(cell_lon, cell_lat) values (?, ?)", cx,
-      cy,
+      "insert or ignore into country_cell_done(cell_lon, cell_lat) values (:cellLon, :cellLat)",
+      cellLon = cx,
+      cellLat = cy,
     )
   result = n.st.db.query(
     string,
-    "select country from country_cell where cell_lon = ? and cell_lat = ? order by country",
-    cx, cy,
+    "select country from country_cell where cell_lon = :cellLon and cell_lat = :cellLat order by country",
+    cellLon = cx,
+    cellLat = cy,
   )

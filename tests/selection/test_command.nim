@@ -28,26 +28,33 @@ proc addActivity(
     lat = 0.0,
 ) =
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)", userId,
-    tag, tag,
+    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    userId = userId,
+    name = tag,
+    sha256 = tag,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
     """insert into activity(file_id, session, start_t, end_t, sport, sub_sport,
                                        distance_m, timer_s)
-                  values (?, 0, ?, ?, nullif(?, ''), nullif(?, ''), 12345.0, 3661.0)""",
-    f,
-    startT,
-    startT + 100,
-    sport,
-    subSport,
+                  values (:fileId, 0, :startT, :endT, nullif(:sport, ''), nullif(:subSport, ''), 12345.0, 3661.0)""",
+    fileId = f,
+    startT = startT,
+    endT = startT + 100,
+    sport = sport,
+    subSport = subSport,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   s.db.execute(
-    "update activity set start = MakePoint(?, ?, 4326) where id = ?", lon, lat, a
+    "update activity set start = MakePoint(:lon, :lat, 4326) where id = :id",
+    lon = lon,
+    lat = lat,
+    id = a,
   )
   s.db.execute(
-    "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a, wkt
+    "insert into route(activity_id, geom) values (:activityId, GeomFromText(:wkt, 4326))",
+    activityId = a,
+    wkt = wkt,
   )
 
 proc world(name: string, together = false): string =
@@ -100,8 +107,8 @@ proc chosen(db: string): seq[string] =
   result = s.db.query(
     string,
     """select f.name from selection l join activity a
-      on a.id = l.activity_id join file f on f.id = a.file_id where l.user_id = ?""",
-    s.userId,
+      on a.id = l.activity_id join file f on f.id = a.file_id where l.user_id = :userId""",
+    userId = s.userId,
   )
   result.sort
 
@@ -840,8 +847,9 @@ suite "list: --path":
       s.close()
     s.db.execute(
       """insert into seen_file(user_id, path, size, mtime, file_id)
-      select f.user_id, ?, 1, 1, f.id from file f where f.name = ?""",
-      path, tag,
+      select f.user_id, :path, 1, 1, f.id from file f where f.name = :name""",
+      path = path,
+      name = tag,
     )
 
   test "the text is found in a path the file was seen at, or in its name; case and accents ignored; alternatives":
@@ -924,15 +932,17 @@ suite "list: --climb":
       s.close()
     for (name, gain) in [("Sintra", 200.0), ("Sintra", 100.0), ("Cabo da Roca", 50.0)]:
       s.db.execute(
-        "insert into sector(length_m, gain_m, gradient, name, route) values (1000, ?, 5, ?, GeomFromText('LINESTRING Z(0 0 0, 0.01 0 10)', 4326))",
-        gain, name,
+        "insert into sector(length_m, gain_m, gradient, name, route) values (1000, :gainM, 5, :name, GeomFromText('LINESTRING Z(0 0 0, 0.01 0 10)', 4326))",
+        gainM = gain,
+        name = name,
       )
       assignNumber(s, lastInsertId(s.db))
     for (tag, sector) in [("lisbon1", 1), ("lisbon1", 3), ("lisbon2", 2)]:
       s.db.execute(
         """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
-        select ?, a.id, 1, 61, 60, 0 from activity a join file f on f.id = a.file_id where f.name = ?""",
-        sector, tag,
+        select :sectorId, a.id, 1, 61, 60, 0 from activity a join file f on f.id = a.file_id where f.name = :name""",
+        sectorId = sector,
+        name = tag,
       )
 
   test "the activities that have an effort on a climb whose name has the text; case and accents ignored":

@@ -15,8 +15,14 @@ proc feature(s: Store, id: int, name, cls, code: string, lon, lat: float, pop = 
     "insert or ignore into country(iso, name, geoname_id) values ('CL', 'Chile', 1)"
   )
   s.db.execute(
-    "insert into feature(id, country, name, class, code, population, geom) values (?, 'CL', ?, ?, ?, ?, MakePoint(cast(? as real), cast(? as real), 4326))",
-    id, name, cls, code, pop, lon, lat,
+    "insert into feature(id, country, name, class, code, population, geom) values (:id, 'CL', :name, :class, :code, :population, MakePoint(cast(:lon as real), cast(:lat as real), 4326))",
+    id = id,
+    name = name,
+    class = cls,
+    code = code,
+    population = pop,
+    lon = lon,
+    lat = lat,
   )
 
 suite "landmark: the landmarks":

@@ -174,7 +174,9 @@ suite "nch ff":
     )
     check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure
       # (no FTHR: refused, with a reason)
-    s.db.execute("insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
+    s.db.execute(
+      "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId
+    )
     s.close()
     check not dirExists(cache / "user")
       # (nothing made yet; the database has unpacked its list of places)
@@ -254,7 +256,9 @@ suite "nch ff: the key":
       ws,
       allImportSteps,
     )
-    s.db.execute("insert into user_profile(user_id, fthr) values (?, 154)", s.userId)
+    s.db.execute(
+      "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId
+    )
     s.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
     var name = ""

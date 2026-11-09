@@ -33,7 +33,8 @@ suite "nch climbs":
     let s = fresh("command-selected")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     s.db.execute(
-      "insert into selection(user_id, activity_id) select ?, id from activity", s.userId
+      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      userId = s.userId,
     )
     let path = s.path
     s.close()
@@ -79,7 +80,8 @@ suite "nch climbs":
     let s = fresh("command-none")
     addRide(s, "default", "flat", 1_000_000, 5.0, @[0.0, 5.0, 10.0])
     s.db.execute(
-      "insert into selection(user_id, activity_id) select ?, id from activity", s.userId
+      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      userId = s.userId,
     )
     let path = s.path
     s.close()
@@ -97,7 +99,8 @@ suite "nch climbs":
     addRide(s, "bob", "two", 2_000_000, 4.0, eastbound(4.0))
     let bob = UserId(s.db.scalar(int64, "select id from user where name = 'bob'"))
     s.db.execute(
-      "insert into selection(user_id, activity_id) select ?, id from activity", bob
+      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      userId = bob,
     )
     let path = s.path
     s.close()

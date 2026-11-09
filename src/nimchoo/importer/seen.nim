@@ -36,8 +36,8 @@ proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
     tuple[path: string, size, mtime, fileId: int64, failure, message: string],
     """select path, size, mtime, coalesce(file_id, 0),
         coalesce(failure, ''), coalesce(message, '') from seen_file
-        where user_id = ?""",
-    s.userId,
+        where user_id = :userId""",
+    userId = s.userId,
   ):
     result[row.path] = Seen(
       size: row.size,
@@ -57,14 +57,17 @@ proc pathOfFile*(s: Store, fileId: FileId): string =
   try:
     let path = s.db.queryOne(
       string,
-      "select path from seen_file where user_id = ? and file_id = ? order by path limit 1",
-      s.userId, fileId,
+      "select path from seen_file where user_id = :userId and file_id = :fileId order by path limit 1",
+      userId = s.userId,
+      fileId = fileId,
     )
     result =
       if path.isSome:
         path.get
       else:
-        s.db.queryOne(string, "select name from file where id = ?", fileId).get("")
+        s.db.queryOne(string, "select name from file where id = :id", id = fileId).get(
+          ""
+        )
   except StoreError:
     result = ""
 

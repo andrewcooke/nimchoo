@@ -20,8 +20,8 @@ proc world(name: string): Store =
   addRide(s, "default", "three", 3_000_000, 6.0, eastbound(6.0))
   discard ensureClimbs(s)
   s.db.execute(
-    "insert into selection(user_id, activity_id) select ?, id from activity where start_t = 1000000",
-    s.userId,
+    "insert into selection(user_id, activity_id) select :userId, id from activity where start_t = 1000000",
+    userId = s.userId,
   )
   s
 
@@ -54,7 +54,8 @@ suite "attempts: from the tables":
     s.db.execute("delete from selection")
     check selectedClimbs(s).len == 0
     s.db.execute(
-      "insert into selection(user_id, activity_id) select ?, id from activity", s.userId
+      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      userId = s.userId,
     )
     check selectedClimbs(s).len == 1
     s.db.execute("update sector set retired = 1")

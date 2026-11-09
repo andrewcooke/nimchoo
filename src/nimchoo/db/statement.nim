@@ -3,12 +3,15 @@
 ## because `db_sqlite`'s prepared statements are single-use.  Errors become
 ## `StoreError`.
 ##
-## On top of that, the typed way to use it (`query`, `queryOne`, `scalar`, `execute`): values are bound by their
-## Nim type, never put into the text of the sql, and a row is read into a tuple or an object whose field types say
-## what each column must be.  A column of another type than the field's, a NULL for a field that is not an
-## `Option`, or a row of another width than the tuple, is a `StoreError` that names the column.
+## On top of that, the typed way to use it (`query`, `queryOne`, `scalar`, `execute`): the values are given by name
+## (`:id` in the sql, `id = 3` in the call), bound by their Nim type and never put into the text; a `?` in the text is
+## an error.  A row is read into a tuple or an object whose field types say what each column must be.  A column of
+## another type than the field's, a NULL for a field that is not an `Option`, or a row of another width than the tuple,
+## is a `StoreError` that names the column.  (The prepared statements that are run many times, `prepareStmt`, bind by
+## position: they are for loops over thousands of rows.)
 
 import std/[macros, options]
+from std/strutils import IdentChars, IdentStartChars
 import db_connector/db_sqlite
 from db_connector/sqlite3 import
   PStmt, bind_parameter_count, bind_parameter_name, column_count, column_double,
@@ -153,39 +156,6 @@ proc execScript*(db: DbConn, script: string) {.raises: [StoreError].} =
       free(err)
     raiseStore(message)
 
-# --- typed binding -------------------------------------------------------------------------------------------
-
-proc bindValue*(s: Stmt, i: int, v: int) {.raises: [StoreError].} =
-  s.bindInt(i, int64(v))
-
-proc bindValue*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
-  s.bindInt(i, v)
-
-proc bindValue*(s: Stmt, i: int, v: AnyId) {.raises: [StoreError].} =
-  s.bindInt(i, int64(v))
-
-proc bindValue*(s: Stmt, i: int, v: bool) {.raises: [StoreError].} =
-  s.bindInt(i, int64(ord(v)))
-
-proc bindValue*(s: Stmt, i: int, v: float) {.raises: [StoreError].} =
-  s.bindReal(i, v)
-
-proc bindValue*(s: Stmt, i: int, v: string) {.raises: [StoreError].} =
-  ## (An empty string is empty text, not NULL: NULL is an absent `Option`.)
-  s.bindText(i, v)
-
-proc bindValue*[T](s: Stmt, i: int, v: Option[T]) {.raises: [StoreError].} =
-  if v.isSome:
-    s.bindValue(i, v.get)
-  else:
-    s.bindNull(i)
-
-macro bindArgs(s: Stmt, args: varargs[untyped]): untyped =
-  ## `bindValue` for each argument, numbered from 1.
-  result = newStmtList()
-  for n, a in args:
-    result.add newCall(bindSym"bindValue", s, newLit(n + 1), a)
-
 # --- typed reading -------------------------------------------------------------------------------------------
 
 proc typeName(t: int32): string =
@@ -272,45 +242,10 @@ proc fetchOne*[T](s: Stmt): Option[T] {.raises: [StoreError].} =
   if s.nextRow():
     result = some(readRow[T](s))
 
-template query*(
-    db: DbConn, T: typedesc, sqlText: string, args: varargs[untyped]
-): seq[T] =
-  ## All the rows of the query as `T`s (a tuple, an object, or one value for a one-column query); the `args` are
-  ## bound to the `?`s by their types.
-  block:
-    let stmt = prepareStmt(db, sqlText)
-    bindArgs(stmt, args)
-    fetchAll[T](stmt)
-
-template queryOne*(
-    db: DbConn, T: typedesc, sqlText: string, args: varargs[untyped]
-): Option[T] =
-  ## The first row, or `none` if there is none.
-  block:
-    let stmt = prepareStmt(db, sqlText)
-    bindArgs(stmt, args)
-    fetchOne[T](stmt)
-
 proc theRow[T](got: Option[T], sqlText: string): T {.raises: [StoreError].} =
   if got.isNone:
     raiseStore("the query gave no row: " & sqlText)
   got.get
-
-template scalar*(
-    db: DbConn, T: typedesc, sqlText: string, args: varargs[untyped]
-): untyped =
-  ## The one value a query is sure to give (`select count(*) ...`); no row at all is a `StoreError`.
-  block:
-    let stmt = prepareStmt(db, sqlText)
-    bindArgs(stmt, args)
-    theRow(fetchOne[T](stmt), sqlText)
-
-template execute*(db: DbConn, sqlText: string, args: varargs[untyped]) =
-  ## Run an insert, update or delete with the `args` bound.
-  block:
-    let stmt = prepareStmt(db, sqlText)
-    bindArgs(stmt, args)
-    stmt.run()
 
 # --- a query built from pieces (`sql.nim`) ------------------------------------------------------------------
 
@@ -349,15 +284,126 @@ proc prepareSql*(db: DbConn, q: Sql): Stmt {.raises: [StoreError].} =
     if not used[k]:
       raiseStore("the value :" & a.name & " is not used by the query: " & q.text)
 
-proc query*(db: DbConn, T: typedesc, q: Sql): seq[T] {.raises: [StoreError].} =
-  ## All the rows of the query, as `T`s.
+proc runQuery*(db: DbConn, T: typedesc, q: Sql): seq[T] {.raises: [StoreError].} =
   fetchAll[T](prepareSql(db, q))
 
-proc queryOne*(db: DbConn, T: typedesc, q: Sql): Option[T] {.raises: [StoreError].} =
+proc runQueryOne*(db: DbConn, T: typedesc, q: Sql): Option[T] {.raises: [StoreError].} =
   fetchOne[T](prepareSql(db, q))
 
-proc scalar*(db: DbConn, T: typedesc, q: Sql): T {.raises: [StoreError].} =
+proc runScalar*(db: DbConn, T: typedesc, q: Sql): T {.raises: [StoreError].} =
   theRow(fetchOne[T](prepareSql(db, q)), q.text)
 
-proc execute*(db: DbConn, q: Sql) {.raises: [StoreError].} =
+proc runExecute*(db: DbConn, q: Sql) {.raises: [StoreError].} =
   prepareSql(db, q).run()
+
+proc query*(db: DbConn, T: typedesc, q: Sql): seq[T] {.raises: [StoreError].} =
+  ## All the rows of a query built from pieces, as `T`s.
+  runQuery(db, T, q)
+
+proc queryOne*(db: DbConn, T: typedesc, q: Sql): Option[T] {.raises: [StoreError].} =
+  runQueryOne(db, T, q)
+
+proc scalar*(db: DbConn, T: typedesc, q: Sql): T {.raises: [StoreError].} =
+  runScalar(db, T, q)
+
+proc execute*(db: DbConn, q: Sql) {.raises: [StoreError].} =
+  runExecute(db, q)
+
+# --- the calls: the sql text with :names, and name = value for each --------------------------------------------
+
+proc literalText(n: NimNode): Option[string] {.compileTime.} =
+  ## The text of a string literal, or of literals joined with `&`; none if any part is something else.
+  case n.kind
+  of nnkStrLit, nnkTripleStrLit, nnkRStrLit:
+    some(n.strVal)
+  of nnkInfix:
+    if n[0].eqIdent("&"):
+      let a = literalText(n[1])
+      let b = literalText(n[2])
+      if a.isSome and b.isSome:
+        return some(a.get & b.get)
+    none(string)
+  of nnkPar:
+    if n.len == 1:
+      literalText(n[0])
+    else:
+      none(string)
+  else:
+    none(string)
+
+proc unquoted(text: string): string {.compileTime.} =
+  ## The sql without what is between single quotes (a ? there is text).
+  var quoted = false
+  for c in text:
+    if c == '\'':
+      quoted = not quoted
+    elif not quoted:
+      result.add c
+
+proc marksIn(text: string): seq[string] {.compileTime.} =
+  ## The `:names` in sql text (not in a quoted string, and not a `::`).
+  var i = 0
+  var quoted = false
+  while i < text.len:
+    let c = text[i]
+    if c == '\'':
+      quoted = not quoted
+    elif not quoted and c == ':' and i + 1 < text.len and text[i + 1] in IdentStartChars and
+        (i == 0 or text[i - 1] notin IdentChars + {':'}):
+      var k = i + 1
+      while k < text.len and text[k] in IdentChars:
+        inc k
+      let name = text[i + 1 ..< k]
+      if name notin result:
+        result.add name
+      i = k - 1
+    inc i
+
+proc nodes(args: NimNode): seq[NimNode] {.compileTime.} =
+  for a in args:
+    result.add a
+
+proc built(call, text: NimNode, args: seq[NimNode]): NimNode {.compileTime.} =
+  ## `sqlOf(text).with("a", x).with("b", y)` from `a = x, b = y`; when the text is a literal, the names in it and the
+  ## names given must be the same (a compile error otherwise).
+  result = newCall(bindSym"sqlOf", text)
+  var given: seq[string]
+  for a in args:
+    if a.kind != nnkExprEqExpr:
+      error("give each value as name = value (the sql has :names)", a)
+    let name = $a[0]
+    if name in given:
+      error("the value " & name & " is given twice", a)
+    given.add name
+    result = newCall(bindSym"with", result, newLit(name), a[1])
+  let literal = literalText(text)
+  if literal.isSome:
+    let wanted = marksIn(literal.get)
+    for w in wanted:
+      if w notin given:
+        error("the sql has :" & w & " but no value " & w & " = ... is given", call)
+    for g in given:
+      if g notin wanted:
+        error("the value " & g & " is given but the sql has no :" & g, call)
+    if '?' in unquoted(literal.get):
+      error("use :names in the sql, not ?", call)
+
+macro query*(db: DbConn, T: typedesc, text: string, args: varargs[untyped]): untyped =
+  ## All the rows of the query as `T`s (a tuple, an object, or one value for a one-column query).  The values are
+  ## given by name, `query(db, Row, "select ... where id = :id", id = 3)`; each `:name` of the sql text needs its
+  ## `name = value`, checked when the program is compiled if the text is a literal.
+  newCall(bindSym"runQuery", db, T, built(db, text, nodes(args)))
+
+macro queryOne*(
+    db: DbConn, T: typedesc, text: string, args: varargs[untyped]
+): untyped =
+  ## The first row, or `none` if there is none.
+  newCall(bindSym"runQueryOne", db, T, built(db, text, nodes(args)))
+
+macro scalar*(db: DbConn, T: typedesc, text: string, args: varargs[untyped]): untyped =
+  ## The one value a query is sure to give (`select count(*) ...`); no row at all is a `StoreError`.
+  newCall(bindSym"runScalar", db, T, built(db, text, nodes(args)))
+
+macro execute*(db: DbConn, text: string, args: varargs[untyped]): untyped =
+  ## Run an insert, update or delete.
+  newCall(bindSym"runExecute", db, built(db, text, nodes(args)))

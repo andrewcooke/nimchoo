@@ -121,8 +121,8 @@ proc startOf(
   ## Where an activity started (latitude, longitude); none if it has no positions.
   let c = st.db.scalar(
     tuple[lat, lon: Option[float]],
-    "select ST_Y(start), ST_X(start) from activity where id = ?",
-    activityId,
+    "select ST_Y(start), ST_X(start) from activity where id = :id",
+    id = activityId,
   )
   if c.lat.isSome and c.lon.isSome:
     result = some((c.lat.get, c.lon.get))
@@ -133,9 +133,9 @@ proc present(st: Store, column: string): seq[(string, int)] {.raises: [StoreErro
   st.db.query(
     (string, int),
     "select coalesce(a." & column & ", 'none'), count(*) " &
-      "from activity a join file f on f.id = a.file_id where f.user_id = ? " &
+      "from activity a join file f on f.id = a.file_id where f.user_id = :userId " &
       "group by 1 order by 2 desc, 1",
-    st.userId,
+    userId = st.userId,
   )
 
 proc checkNames(
@@ -277,8 +277,9 @@ proc previousSelected(
 ): tuple[id: ActivityId, row: ListRow] {.raises: [StoreError].} =
   ## The one activity of the stored selection (what `previous` means).  An error unless
   ## there is exactly one.
-  let n =
-    st.db.scalar(int, "select count(*) from selection where user_id = ?", st.userId)
+  let n = st.db.scalar(
+    int, "select count(*) from selection where user_id = :userId", userId = st.userId
+  )
   if n != 1:
     raiseStore(
       "`previous` needs a selection of exactly one activity, and it has " & $n &
@@ -293,7 +294,9 @@ proc previousSelected(
   )
   (
     id: st.db.scalar(
-      ActivityId, "select activity_id from selection where user_id = ?", st.userId
+      ActivityId,
+      "select activity_id from selection where user_id = :userId",
+      userId = st.userId,
     ),
     row: rows[0],
   )
@@ -319,8 +322,8 @@ proc resolve(
     # the name and the start place of that activity, whole (they are not in the row unless it was listed with -v)
     let r = st.db.scalar(
       tuple[name, start: string],
-      "select coalesce(name, ''), coalesce(start_place, '') from activity where id = ?",
-      id,
+      "select coalesce(name, ''), coalesce(start_place, '') from activity where id = :id",
+      id = id,
     )
     let name = r.name
     let start = r.start
@@ -455,7 +458,7 @@ proc listActivities*(
     st.begin()
     var committed = false
     try:
-      st.db.execute("delete from selection where user_id = ?", st.userId)
+      st.db.execute("delete from selection where user_id = :userId", userId = st.userId)
       st.db.execute(saveSql(st.userId, match))
       st.commit()
       committed = true
@@ -466,8 +469,8 @@ proc listActivities*(
     readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
   let total = st.db.scalar(
     int,
-    "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = ?",
-    st.userId,
+    "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :userId",
+    userId = st.userId,
   )
   result.lines.add listing(
     rows, zone, c, screen, some(total), (if c.select: some(rows.len)

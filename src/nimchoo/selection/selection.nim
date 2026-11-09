@@ -25,7 +25,9 @@ func keyOf*(entries: seq[string]): string =
 proc selectedIds*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
   st.db.query(
-    int64, "select activity_id from selection where user_id = ? order by 1", st.userId
+    int64,
+    "select activity_id from selection where user_id = :userId order by 1",
+    userId = st.userId,
   )
 
 proc maxActivityId*(st: Store): int64 {.raises: [StoreError].} =
@@ -38,8 +40,8 @@ proc ownedIds*(st: Store, ids: seq[int64]): seq[int64] {.raises: [StoreError].} 
   let mine = st.db.query(
     int64,
     """select a.id from activity a join file f on f.id = a.file_id
-        where f.user_id = ?""",
-    st.userId,
+        where f.user_id = :userId""",
+    userId = st.userId,
   ).toHashSet
   for id in ids:
     if id in mine:
@@ -55,8 +57,8 @@ proc contentKey*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
     for row in st.db.query(
       tuple[sha256: string, session: int],
       """select f.sha256, a.session from activity a join file f on f.id = a.file_id
-          where a.id = ?""",
-      id,
+          where a.id = :id""",
+      id = id,
     ):
       entries.add row.sha256 & ":" & $row.session
   keyOf(entries)

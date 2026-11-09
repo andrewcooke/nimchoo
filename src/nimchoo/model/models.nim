@@ -28,19 +28,19 @@ proc insertModel*(db: DbConn, m: Model) {.raises: [StoreError].} =
   ## Add a model (its id is ignored).  Raises StoreError if the name is taken or a value is bad.
   db.execute(
     "insert into ff_model(name, gamma, zero, one, max_secs, zone1, zone2, zone3, " &
-      "zone4, zone5, fitness_days, fatigue_days) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    m.name,
-    m.gamma,
-    m.zero,
-    m.one,
-    m.maxSecs,
-    m.zones[0],
-    m.zones[1],
-    m.zones[2],
-    m.zones[3],
-    m.zones[4],
-    m.fitnessDays,
-    m.fatigueDays,
+      "zone4, zone5, fitness_days, fatigue_days) values (:name, :gamma, :zero, :one, :maxSecs, :zone1, :zone2, :zone3, :zone4, :zone5, :fitnessDays, :fatigueDays)",
+    name = m.name,
+    gamma = m.gamma,
+    zero = m.zero,
+    one = m.one,
+    maxSecs = m.maxSecs,
+    zone1 = m.zones[0],
+    zone2 = m.zones[1],
+    zone3 = m.zones[2],
+    zone4 = m.zones[3],
+    zone5 = m.zones[4],
+    fitnessDays = m.fitnessDays,
+    fatigueDays = m.fatigueDays,
   )
 
 proc seedDefaultModel*(db: DbConn) {.raises: [StoreError].} =
@@ -76,7 +76,8 @@ proc loadModels*(db: DbConn): seq[Model] {.raises: [StoreError].} =
 
 proc findModel*(db: DbConn, name: string): Option[Model] {.raises: [StoreError].} =
   ## The model called `name`, if there is one.
-  let r =
-    db.queryOne(ModelRow, "select " & columns & " from ff_model where name = ?", name)
+  let r = db.queryOne(
+    ModelRow, "select " & columns & " from ff_model where name = :name", name = name
+  )
   if r.isSome:
     result = some(modelOf(r.get))

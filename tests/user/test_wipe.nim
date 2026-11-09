@@ -88,7 +88,9 @@ suite "wipe: what belongs to a user":
     for table in s.db.query(
       string, "select name from sqlite_master where type = 'table'"
     ):
-      for column in s.db.query(string, "select name from pragma_table_info(?)", table):
+      for column in s.db.query(
+        string, "select name from pragma_table_info(:table)", table = table
+      ):
         if column == "user_id":
           withUser.add table
     check "file" in withUser and "seen_file" in withUser # (the query finds the tables)

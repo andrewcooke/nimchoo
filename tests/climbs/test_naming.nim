@@ -15,8 +15,8 @@ proc sectorAt(s: Store, lons: openArray[float], lat: float) =
   for i, lon in lons:
     pts.add $lon & " " & $lat & " " & $(100 + i * 10)
   s.db.execute(
-    "insert into sector(length_m, gain_m, gradient, route) values (1000, 100, 5, GeomFromText(?, 4326))",
-    "LINESTRING Z(" & pts.join(", ") & ")",
+    "insert into sector(length_m, gain_m, gradient, route) values (1000, 100, 5, GeomFromText(:wkt, 4326))",
+    wkt = "LINESTRING Z(" & pts.join(", ") & ")",
   )
 
 proc world(name: string): tuple[net: Net, names: Names, st: Store] =
@@ -84,8 +84,8 @@ suite "climbs: naming the sectors":
     # said again while it is still damaged, and named once the route is there
     check ensureSectorNames(w.st, w.names).damaged == @[1'i64]
     w.st.db.execute(
-      "update sector set route = GeomFromText(?, 4326) where id = 1",
-      "LINESTRING Z(-70.14 -32.83 100, -70.12 -32.83 120)",
+      "update sector set route = GeomFromText(:wkt, 4326) where id = 1",
+      wkt = "LINESTRING Z(-70.14 -32.83 100, -70.12 -32.83 120)",
     )
     let again = ensureSectorNames(w.st, w.names)
     check again.damaged.len == 0 and again.named + again.nothing == 1

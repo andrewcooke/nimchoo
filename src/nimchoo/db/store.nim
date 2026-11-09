@@ -94,10 +94,10 @@ proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
 
 proc record(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   db.execute(
-    "insert into fragment(name, applied_at, sha256) values (?, ?, ?)",
-    f.name,
-    getTime().toUnix,
-    f.checksum,
+    "insert into fragment(name, applied_at, sha256) values (:name, :appliedAt, :sha256)",
+    name = f.name,
+    appliedAt = getTime().toUnix,
+    sha256 = f.checksum,
   )
 
 proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
@@ -190,7 +190,9 @@ proc openStore*(
       result.db.execScript("pragma wal_autocheckpoint = 20000")
     bringUpToDate(result.db, fragments)
     if result.db.scalar(int, "select count(*) from user") == 0:
-      result.db.execute("insert into user(name, is_default) values (?, 1)", defaultUser)
+      result.db.execute(
+        "insert into user(name, is_default) values (:name, 1)", name = defaultUser
+      )
     elif result.db.scalar(int, "select count(*) from user where is_default = 1") == 0:
       result.db.execute(
         "update user set is_default = 1 where id = (select min(id) from user)"
@@ -199,12 +201,14 @@ proc openStore*(
       if user.len == 0:
         result.db.queryOne(UserId, "select id from user where is_default = 1")
       else:
-        result.db.queryOne(UserId, "select id from user where name = ?", user)
+        result.db.queryOne(
+          UserId, "select id from user where name = :name", name = user
+        )
     if id.isNone:
       raiseStore("no such user: " & user)
     result.userId = id.get
     result.userName =
-      result.db.scalar(string, "select name from user where id = ?", id.get)
+      result.db.scalar(string, "select name from user where id = :id", id = id.get)
   except StoreError:
     close(result)
     raise

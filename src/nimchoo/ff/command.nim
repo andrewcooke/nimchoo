@@ -64,8 +64,9 @@ proc hourlyImpulses(
     Hourly,
     """select i.hour_t, sum(i.value) from impulse i
         join activity a on a.id = i.activity_id join file f on f.id = a.file_id
-        where f.user_id = ? and i.model_id = ? group by i.hour_t order by i.hour_t""",
-    userId, modelId,
+        where f.user_id = :userId and i.model_id = :modelId group by i.hour_t order by i.hour_t""",
+    userId = userId,
+    modelId = modelId,
   )
 
 proc civilOf(t: int64, tz: Timezone): int64 =

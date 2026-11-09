@@ -3028,7 +3028,9 @@ it is code from outside).  Our own, in stages, each with the whole suite passing
   value; each field's type is the column's type; a column of another type, a NULL for a field that is not an `Option`,
   or a row of another width is a `StoreError` that names the column.  A whole number is read as a real (SQLite gives
   `0` for `coalesce(x, 0)`); a bool is 0 or 1.  An `Option` is one value, not a two-field row.  Values are bound by
-  their types.  A list of ids of any length is bound as one JSON array (`jsonList`, `... in (select value from
+  their types, **by name** (`:id` in the text, `id = 3` in the call: a macro, which makes a `?`, a name with no value
+  and a value with no name compile errors when the text is a literal; decided 2026-11-09 after a first version with
+  `?` for the short queries, because a swapped pair of `lon, lat` would bind silently).  A list of ids of any length is bound as one JSON array (`jsonList`, `... in (select value from
   json_each(?))`), so the sql text does not change with the list.
 * `db/sqltext.nim`, the `Sql` type: text with `:names` and the values by name, pieces joined with `&`.  Binding
   refuses a name with no value, a value no name uses, a name given twice, and a `?`.  Chosen over positional `?`

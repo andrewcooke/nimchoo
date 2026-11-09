@@ -21,8 +21,13 @@ proc fresh(name: string): string =
     (2, "Cerro Yerba Loca", "T", "MT", -70.6, -29.7),
   ]:
     s.db.execute(
-      "insert into feature(id, country, name, class, code, population, geom) values (?, 'CL', ?, ?, ?, 0, MakePoint(cast(? as real), cast(? as real), 4326))",
-      id, name, cls, code, lon, lat,
+      "insert into feature(id, country, name, class, code, population, geom) values (:id, 'CL', :name, :class, :code, 0, MakePoint(cast(:lon as real), cast(:lat as real), 4326))",
+      id = id,
+      name = name,
+      class = cls,
+      code = code,
+      lon = lon,
+      lat = lat,
     )
   db
 

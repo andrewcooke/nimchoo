@@ -55,8 +55,8 @@ proc ensureActivityNames*(
       var lons, lats: seq[float]
       for r in st.db.query(
         tuple[lon, lat: float],
-        "select lon, lat from coords where activity_id = ? order by t",
-        id,
+        "select lon, lat from coords where activity_id = :activityId order by t",
+        activityId = id,
       ):
         lons.add r.lon
         lats.add r.lat
@@ -66,13 +66,15 @@ proc ensureActivityNames*(
       let where = st.db.scalar(
         string,
         """select ifnull((select path from seen_file where file_id = a.file_id limit 1),
-                              'activity ' || a.id) from activity a where a.id = ?""",
-        id,
+                              'activity ' || a.id) from activity a where a.id = :id""",
+        id = id,
       )
       result.gpsErrors.add GpsErrors(where: where, searches: got.gpsErrors)
     st.db.execute(
-      "update activity set start_place = ?, name = ? where id = ?", got.start, got.name,
-      id,
+      "update activity set start_place = :startPlace, name = :name where id = :id",
+      startPlace = got.start,
+      name = got.name,
+      id = id,
     )
     if got.name.len > 0:
       inc result.named

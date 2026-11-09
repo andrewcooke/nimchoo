@@ -114,11 +114,11 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     for m in g.members.mitems:
       m.unique = st.db.scalar(
         int,
-        "select count(*) from effort e where e.sector_id = ? and not exists " &
+        "select count(*) from effort e where e.sector_id = :sectorId and not exists " &
           "(select 1 from effort x where x.activity_id = e.activity_id and " &
-          "x.sector_id in (select value from json_each(?)))",
-        m.id,
-        jsonList(m.copies),
+          "x.sector_id in (select value from json_each(:ids)))",
+        sectorId = m.id,
+        ids = jsonList(m.copies),
       )
     result.add g
   result.sort(

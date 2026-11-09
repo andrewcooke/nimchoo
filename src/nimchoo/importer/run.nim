@@ -28,20 +28,22 @@ proc selectNew(st: Store, after: int64): int {.raises: [StoreError].} =
   result = st.db.scalar(
     int,
     """select count(*) from activity a join file f on f.id = a.file_id
-                                    where a.id > ? and f.user_id = ?""",
-    after, st.userId,
+                                    where a.id > :id and f.user_id = :userId""",
+    id = after,
+    userId = st.userId,
   )
   if result == 0:
     return
   st.begin()
   var done = false
   try:
-    st.db.execute("delete from selection where user_id = ?", st.userId)
+    st.db.execute("delete from selection where user_id = :userId", userId = st.userId)
     st.db.execute(
       """insert into selection(user_id, activity_id)
-                       select ?, a.id from activity a join file f on f.id = a.file_id
-                        where a.id > ? and f.user_id = ?""",
-      st.userId, after, st.userId,
+                       select :userId, a.id from activity a join file f on f.id = a.file_id
+                        where a.id > :after and f.user_id = :userId""",
+      userId = st.userId,
+      after = after,
     )
     st.commit()
     done = true

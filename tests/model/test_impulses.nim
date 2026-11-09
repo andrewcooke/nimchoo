@@ -36,9 +36,10 @@ proc q(s: Store, sqlText: string, T: typedesc): T =
 
 proc setFthr(s: Store, fthr: int) =
   s.db.execute(
-    """insert into user_profile(user_id, fthr) values (?, ?)
+    """insert into user_profile(user_id, fthr) values (:userId, :fthr)
     on conflict(user_id) do update set fthr = excluded.fthr""",
-    s.userId, fthr,
+    userId = s.userId,
+    fthr = fthr,
   )
 
 proc globals(db: string, user = ""): Globals =
@@ -142,7 +143,9 @@ suite "model: impulses, worked out when wanted":
       "select count(*) from impulse i join activity a on a.id = i.activity_id join file f on f.id = a.file_id join user u on u.id = f.user_id where u.name = 'default'",
       int,
     ) == 2
-    b.db.execute("update user_profile set fthr = null where user_id = ?", b.userId)
+    b.db.execute(
+      "update user_profile set fthr = null where user_id = :userId", userId = b.userId
+    )
     check b.q("select count(*) from impulse", int) == 2
   test "a higher FTHR means less impulse":
     let s = open(fresh("higher"))

@@ -41,8 +41,9 @@ suite "database: opening and bringing the schema up to date":
     check s.db.scalar(string, "select name from user where is_default = 1") ==
       defaultUser
     for table in ["user", "file", "activity", "coords", "segment", "fragment"]:
-      check s.db.scalar(int, "select count(*) from sqlite_master where name = ?", table) ==
-        1
+      check s.db.scalar(
+        int, "select count(*) from sqlite_master where name = :name", name = table
+      ) == 1
     s.close()
 
   test "every table is strict; a geometry column holds only its kind of geometry; deleted space can be given back":
@@ -56,8 +57,9 @@ suite "database: opening and bringing the schema up to date":
     ]:
       checkpoint t
       check s.db.scalar(
-        int, "select strict from pragma_table_list where schema = 'main' and name = ?",
-        t,
+        int,
+        "select strict from pragma_table_list where schema = 'main' and name = :name",
+        name = t,
       ) == 1
     expect StoreError:
       s.db.execute(
@@ -347,15 +349,16 @@ suite "database: the schema":
   test "coords and segment are WITHOUT ROWID, keyed by activity":
     let s = open(":memory:")
     for table in ["coords", "segment"]:
-      check s.db.scalar(int, "select wr from pragma_table_list where name = ?", table) ==
-        1
+      check s.db.scalar(
+        int, "select wr from pragma_table_list where name = :name", name = table
+      ) == 1
     s.close()
 
   test "a duplicate key is a StoreError":
     let s = open(":memory:")
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, 'f', 'x', 0)",
-      s.userId,
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'f', 'x', 0)",
+      userId = s.userId,
     )
     s.db.execute(
       """insert into activity(file_id, session, start_t, end_t)

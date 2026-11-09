@@ -52,21 +52,30 @@ proc addLandmark*(
   if why.len > 0:
     raiseStore(why)
   if st.db.scalar(
-    int, "select count(*) from landmark where fold(name) = fold(?)", name.strip
+    int,
+    "select count(*) from landmark where fold(name) = fold(:name)",
+    name = name.strip,
   ) != 0:
     raiseStore("there is a landmark called '" & name.strip & "' already")
   st.db.execute(
-    "insert into landmark(name, lon, lat, radius_m) values (?, ?, ?, ?)", name.strip,
-    lon, lat, radiusM,
+    "insert into landmark(name, lon, lat, radius_m) values (:name, :lon, :lat, :radiusM)",
+    name = name.strip,
+    lon = lon,
+    lat = lat,
+    radiusM = radiusM,
   )
 
 proc removeLandmark*(st: Store, name: string): bool {.raises: [StoreError].} =
   ## Delete the landmark called `name` (without regard to case or accents); whether there was one.
   if st.db.scalar(
-    int, "select count(*) from landmark where fold(name) = fold(?)", name.strip
+    int,
+    "select count(*) from landmark where fold(name) = fold(:name)",
+    name = name.strip,
   ) == 0:
     return false
-  st.db.execute("delete from landmark where fold(name) = fold(?)", name.strip)
+  st.db.execute(
+    "delete from landmark where fold(name) = fold(:name)", name = name.strip
+  )
   true
 
 proc landmarkAt*(

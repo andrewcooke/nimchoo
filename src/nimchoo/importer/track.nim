@@ -19,13 +19,15 @@ type Track* = seq[seq[Coord]]
 
 const trackSql* = """select s.n, c.t, c.lon, c.lat, c.alt from segment s
      join coords c on c.activity_id = s.activity_id and c.t between s.start_t and s.end_t
-     where s.activity_id = ? order by s.n, c.t"""
+     where s.activity_id = :activityId order by s.n, c.t"""
 
 proc readTrack*(db: DbConn, id: ActivityId): Track {.raises: [StoreError].} =
   ## The positions of an activity, by stretch.
   var current = -1 # the stretch the last row belonged to
   for r in db.query(
-    tuple[n: int, t: int64, lon, lat: float, alt: Option[float]], trackSql, id
+    tuple[n: int, t: int64, lon, lat: float, alt: Option[float]],
+    trackSql,
+    activityId = id,
   ):
     if r.n != current:
       current = r.n

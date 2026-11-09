@@ -537,7 +537,7 @@ func inValues*(column, name: string, values: seq[string]): Sql =
   result.text = " and (" & parts.join(" or ") & ")"
 
 func textSql*(column, name: string, typed, exact: seq[string]): Sql =
-  ## " and (instr(fold(a.name), :name_t0) > 0 or a.name = :name_e0)": the typed text (folded) found anywhere in the
+  ## " and (instr(fold(a.name), :nameT0) > 0 or a.name = :nameE0)": the typed text (folded) found anywhere in the
   ## value, whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or
   ## an exact "") is no value: null or "".  Nothing if there is nothing to match.
   if typed.len == 0 and exact.len == 0:
@@ -547,14 +547,14 @@ func textSql*(column, name: string, typed, exact: seq[string]): Sql =
     if t.toLowerAscii == "none":
       parts.add "(" & column & " is null or " & column & " = '')"
     else:
-      let n = name & "_t" & $i
+      let n = name & "T" & $i
       parts.add "instr(fold(" & column & "), :" & n & ") > 0"
       result.args.add (n, arg(foldText(t.strip)))
   for i, e in exact:
     if e.len == 0:
       parts.add "(" & column & " is null or " & column & " = '')"
     else:
-      let n = name & "_e" & $i
+      let n = name & "E" & $i
       parts.add column & " = :" & n
       result.args.add (n, arg(e))
   result.text = " and (" & parts.join(" or ") & ")"
@@ -575,14 +575,14 @@ func pathSql*(paths: seq[string]): Sql =
   result.text = " and (" & parts.join(" or ") & ")"
 
 func rangeSql*(column, name: string, r: NumRange): Sql =
-  ## " and a.distance_m >= :distance_lo and a.distance_m <= :distance_hi": the ends that are given, both inclusive.
+  ## " and a.distance_m >= :distanceLo and a.distance_m <= :distanceHi": the ends that are given, both inclusive.
   ## (Not recorded, NULL, is never in a range.)
   if r.lo.isSome:
-    result.text.add " and " & column & " >= :" & name & "_lo"
-    result.args.add (name & "_lo", arg(r.lo.get))
+    result.text.add " and " & column & " >= :" & name & "Lo"
+    result.args.add (name & "Lo", arg(r.lo.get))
   if r.hi.isSome:
-    result.text.add " and " & column & " <= :" & name & "_hi"
-    result.args.add (name & "_hi", arg(r.hi.get))
+    result.text.add " and " & column & " <= :" & name & "Hi"
+    result.args.add (name & "Hi", arg(r.hi.get))
 
 func matchSql*(
     userIds: seq[UserId],
@@ -604,7 +604,7 @@ func matchSql*(
   var filt = Sql()
     # the criteria, each as " and ...": with --invert, the whole is negated
   filt = filt & inValues("a.sport", "sport", c.sports)
-  filt = filt & inValues("a.sub_sport", "sub_sport", c.subSports)
+  filt = filt & inValues("a.sub_sport", "subSport", c.subSports)
   filt = filt & textSql("a.name", "name", c.names, c.namesExact)
   filt = filt & textSql("a.start_place", "start", c.starts, c.startsExact)
   filt = filt & pathSql(c.paths)
@@ -633,9 +633,9 @@ func matchSql*(
   of gfAny:
     discard
   if c.fromT.isSome:
-    filt = filt & sqlOf(" and a.start_t >= :from_t").with("from_t", int64(c.fromT.get))
+    filt = filt & sqlOf(" and a.start_t >= :fromT").with("fromT", int64(c.fromT.get))
   if c.toT.isSome:
-    filt = filt & sqlOf(" and a.start_t < :to_t").with("to_t", int64(c.toT.get))
+    filt = filt & sqlOf(" and a.start_t < :toT").with("toT", int64(c.toT.get))
   if centre.isSome:
     let (lat, lon) = centre.get
     # activities that START within the radius: the spatial index finds those in a box, and
@@ -648,18 +648,17 @@ func matchSql*(
         "a.id",
         "activity",
         "start",
-        ":" & n & "_x0, :" & n & "_y0, :" & n & "_x1, :" & n & "_y1",
+        ":" & n & "West, :" & n & "South, :" & n & "East, :" & n & "North",
       )
-      values.args.add (n & "_x0", arg(b.minX))
-      values.args.add (n & "_y0", arg(b.minY))
-      values.args.add (n & "_x1", arg(b.maxX))
-      values.args.add (n & "_y1", arg(b.maxY))
+      values.args.add (n & "West", arg(b.minX))
+      values.args.add (n & "South", arg(b.minY))
+      values.args.add (n & "East", arg(b.maxX))
+      values.args.add (n & "North", arg(b.maxY))
     values.text =
       " and (" & probes.join(" or ") &
-      ") and ST_Distance(a.start, MakePoint(:near_lon, :near_lat, 4326), 1) <= :near_m"
-    values = values.with("near_lon", lon).with("near_lat", lat).with(
-        "near_m", c.radiusKm * 1000
-      )
+      ") and ST_Distance(a.start, MakePoint(:nearLon, :nearLat, 4326), 1) <= :nearM"
+    values =
+      values.with("nearLon", lon).with("nearLat", lat).with("nearM", c.radiusKm * 1000)
     filt = filt & values
   # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
   result =

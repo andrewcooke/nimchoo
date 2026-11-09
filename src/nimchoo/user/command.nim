@@ -41,13 +41,14 @@ Names have 1 to 32 letters, digits and _ . - (not starting with -).
 """
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
-  st.db.scalar(int, "select count(*) from user where name = ?", name) != 0
+  st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0
 
 proc setFthr(st: Store, id: UserId, fthr: int) {.raises: [StoreError].} =
   st.db.execute(
-    """insert into user_profile(user_id, fthr) values (?, ?)
+    """insert into user_profile(user_id, fthr) values (:userId, :fthr)
       on conflict(user_id) do update set fthr = excluded.fthr""",
-    id, fthr,
+    userId = id,
+    fthr = fthr,
   )
 
 proc setDefault(st: Store, id: UserId) {.raises: [StoreError].} =
@@ -55,7 +56,7 @@ proc setDefault(st: Store, id: UserId) {.raises: [StoreError].} =
   st.begin()
   try:
     st.db.execute("update user set is_default = 0 where is_default = 1")
-    st.db.execute("update user set is_default = 1 where id = ?", id)
+    st.db.execute("update user set is_default = 1 where id = :id", id = id)
     st.commit()
   except StoreError:
     st.rollback()
@@ -64,8 +65,9 @@ proc setDefault(st: Store, id: UserId) {.raises: [StoreError].} =
 const deletedNote = " (the impulses worked out with the old one are deleted)"
 
 proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
-  let got =
-    st.db.queryOne(Option[int], "select fthr from user_profile where user_id = ?", id)
+  let got = st.db.queryOne(
+    Option[int], "select fthr from user_profile where user_id = :userId", userId = id
+  )
   if got.isSome:
     got.get
   else:
@@ -75,8 +77,8 @@ proc hasImpulses(st: Store, id: UserId): bool {.raises: [StoreError].} =
   st.db.scalar(
     int,
     """select count(*) from impulse i join activity a on a.id = i.activity_id
-      join file f on f.id = a.file_id where f.user_id = ?""",
-    id,
+      join file f on f.id = a.file_id where f.user_id = :userId""",
+    userId = id,
   ) != 0
 
 func commas(n: int): string =
@@ -154,7 +156,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.create:
       if exists(st, p.name):
         return failure("nch users", "there is a user called '" & p.name & "' already")
-      st.db.execute("insert into user(name) values (?)", p.name)
+      st.db.execute("insert into user(name) values (:name)", name = p.name)
       let id = findUser(st, p.name)
       var said = "made the user " & p.name
       if p.makeDefault:
@@ -179,7 +181,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stdout.say said & "\n"
     if p.clearFthr:
       let had = hasImpulses(st, id)
-      st.db.execute("update user_profile set fthr = null where user_id = ?", id)
+      st.db.execute(
+        "update user_profile set fthr = null where user_id = :userId", userId = id
+      )
       let said =
         p.name & ": FTHR forgotten" &
         (if had: " (and the impulses worked out with it are deleted)" else: "")
@@ -193,7 +197,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.rename.len > 0:
       if exists(st, p.rename):
         return failure("nch users", "there is a user called '" & p.rename & "' already")
-      st.db.execute("update user set name = ? where id = ?", p.rename, id)
+      st.db.execute(
+        "update user set name = :name where id = :id", name = p.rename, id = id
+      )
       let said = p.name & " is now called " & p.rename
       g.log.log(lvInfo, cmUsers, leSaved, said)
       stdout.say said & "\n"

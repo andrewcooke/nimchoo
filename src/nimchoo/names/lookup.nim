@@ -97,13 +97,14 @@ proc prepare*(
   if isos.len == 0:
     return Prepared(status: rdNothing)
   for iso in isos:
-    if n.st.db.scalar(int, "select count(*) from country where iso = ?", iso) != 0:
+    if n.st.db.scalar(int, "select count(*) from country where iso = :iso", iso = iso) !=
+        0:
       n.ensureCells(iso, box) # (a country the list of countries lacks has nothing)
   Prepared(status: rdReady)
 
 const featuresInBoxSql* =
   "select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature where " &
-  inBox("id", "feature", "geom", fourMarks)
+  inBox("id", "feature", "geom", cornerMarks)
 
 proc featuresNear*(
     n: Names, lons, lats: openArray[float], marginM = defaultMarginM
@@ -112,4 +113,11 @@ proc featuresNear*(
   if lons.len == 0:
     return
   let box = boxAround(lons, lats, marginM)
-  n.st.db.query(Found, featuresInBoxSql, box.lon0, box.lat0, box.lon1, box.lat1)
+  n.st.db.query(
+    Found,
+    featuresInBoxSql,
+    west = box.lon0,
+    south = box.lat0,
+    east = box.lon1,
+    north = box.lat1,
+  )

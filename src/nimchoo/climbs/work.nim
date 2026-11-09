@@ -126,10 +126,10 @@ func climbPath(p: Profile, c: Climb): Path =
 
 const
   sectorsInBoxSql* =
-    "select id from sector where " & inBox("id", "sector", "route", fourMarks)
+    "select id from sector where " & inBox("id", "sector", "route", cornerMarks)
   ridesInBoxSql* =
     "select activity_id from route where " &
-    inBox("activity_id", "route", "geom", fourMarks) &
+    inBox("activity_id", "route", "geom", cornerMarks) &
     " and activity_id in (select activity_id from climbs_done) order by activity_id"
 
 proc sectorsNear(
@@ -137,12 +137,14 @@ proc sectorsNear(
 ): seq[int64] {.raises: [StoreError].} =
   ## The ids of the sectors whose boxes meet the box; their routes are read into the cache.
   let w = wider(box)
-  let ids = st.db.query(int64, sectorsInBoxSql, w.lon0, w.lat0, w.lon1, w.lat1)
+  let ids = st.db.query(
+    int64, sectorsInBoxSql, west = w.lon0, south = w.lat0, east = w.lon1, north = w.lat1
+  )
   for id in ids:
     if id notin cache:
       let route = parseLineString(
         st.db.scalar(
-          Option[string], "select AsText(route) from sector where id = ?", id
+          Option[string], "select AsText(route) from sector where id = :id", id = id
         )
       )
       if route.isNone:
@@ -157,7 +159,14 @@ proc sectorsNear(
 proc ridesNear(st: Store, box: Box): seq[ActivityId] {.raises: [StoreError].} =
   ## The activities already looked at whose routes meet the box.
   let w = wider(box)
-  st.db.query(ActivityId, ridesInBoxSql, w.lon0, w.lat0, w.lon1, w.lat1)
+  st.db.query(
+    ActivityId,
+    ridesInBoxSql,
+    west = w.lon0,
+    south = w.lat0,
+    east = w.lon1,
+    north = w.lat1,
+  )
 
 proc addEfforts(
     insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[Effort]
@@ -204,7 +213,8 @@ proc workOn(
         if n > 0:
           matched.add sector
     # 2. its climbs, in each stretch of riding (a climb does not cross a break)
-    let foundAt = st.db.scalar(int64, "select start_t from activity where id = ?", id)
+    let foundAt =
+      st.db.scalar(int64, "select start_t from activity where id = :id", id = id)
     for coords in track:
       if coords.len < 2:
         continue
@@ -248,7 +258,9 @@ proc workOn(
               result.efforts +=
                 insertEffort.addEfforts(sector, other, overRide(route, otherRide))
   st.db.execute(
-    "insert into climbs_done(activity_id, version) values (?, ?)", id, algorithmVersion
+    "insert into climbs_done(activity_id, version) values (:activityId, :version)",
+    activityId = id,
+    version = algorithmVersion,
   )
 
 proc ensureClimbs*(
@@ -258,7 +270,9 @@ proc ensureClimbs*(
   ## Look at the activities that have not been looked at, and bring the sectors and efforts up to
   ## date.  An error if some were looked at by another version of the method.
   if st.db.scalar(
-    int, "select count(*) from climbs_done where version != ?", algorithmVersion
+    int,
+    "select count(*) from climbs_done where version != :version",
+    version = algorithmVersion,
   ) != 0:
     raiseStore(
       "the climbs were worked out by another version of the method: " &

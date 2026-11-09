@@ -72,10 +72,14 @@ suite "climbs: the tables":
     let a = s.db.scalar(int64, "select id from activity")
     for sector in [1, 2]:
       s.db.execute(
-        "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (?, ?, 10.5, 70.5, 60, 100)",
-        sector, a,
+        "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (:sectorId, :activityId, 10.5, 70.5, 60, 100)",
+        sectorId = sector,
+        activityId = a,
       )
-    s.db.execute("insert into climbs_done(activity_id, version) values (?, 1)", a)
+    s.db.execute(
+      "insert into climbs_done(activity_id, version) values (:activityId, 1)",
+      activityId = a,
+    )
     check s.count("effort") == 2 and s.count("climbs_done") == 1
     s.db.execute("delete from sector where id = 2")
     check s.count("effort") == 1 # the sector's efforts go with it
@@ -92,16 +96,16 @@ suite "climbs: the tables":
     s.db.execute("insert into sector(length_m, gain_m, gradient) values (1000, 50, 5)")
     let a = s.db.scalar(int64, "select id from activity")
     s.db.execute(
-      "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, ?, 10.5, 70.5, 60, 100)",
-      a,
+      "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, :activityId, 10.5, 70.5, 60, 100)",
+      activityId = a,
     )
     s.db.execute(
-      "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, ?, 900.5, 960.5, 60, 4100)",
-      a,
+      "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, :activityId, 900.5, 960.5, 60, 4100)",
+      activityId = a,
     )
     check s.count("effort") == 2
     expect StoreError:
       s.db.execute(
-        "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, ?, 10.5, 71, 60.5, 100)",
-        a,
+        "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, :activityId, 10.5, 71, 60.5, 100)",
+        activityId = a,
       )

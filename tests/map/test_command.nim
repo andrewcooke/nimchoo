@@ -32,24 +32,29 @@ proc world(name: string): tuple[db, cache: string] =
     ("c", 3000, ""),
   ]:
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)",
-      s.userId, tag, tag,
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+      userId = s.userId,
+      name = tag,
+      sha256 = tag,
     )
     let f = s.db.scalar(int64, "select max(id) from file")
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t, sport) values (?, 0, ?, ?, 'cycling')",
-      f,
-      t,
-      t + 10,
+      "insert into activity(file_id, session, start_t, end_t, sport) values (:fileId, 0, :startT, :endT, 'cycling')",
+      fileId = f,
+      startT = t,
+      endT = t + 10,
     )
     let a = s.db.scalar(int64, "select max(id) from activity")
     if route.len > 0:
       s.db.execute(
-        "insert into route(activity_id, geom) values (?, GeomFromText(?, 4326))", a,
-        route,
+        "insert into route(activity_id, geom) values (:activityId, GeomFromText(:wkt, 4326))",
+        activityId = a,
+        wkt = route,
       )
     s.db.execute(
-      "insert into selection(user_id, activity_id) values (?, ?)", s.userId, a
+      "insert into selection(user_id, activity_id) values (:userId, :activityId)",
+      userId = s.userId,
+      activityId = a,
     )
 
 proc map(db: string, args: varargs[string]): int =
@@ -207,8 +212,8 @@ suite "map: the command":
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
-      bob,
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'bobs', 'bobs', 0)",
+      userId = bob,
     )
     s.db.execute(
       "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
@@ -228,8 +233,8 @@ suite "map: the command":
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, 'bobs', 'bobs', 0)",
-      bob,
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'bobs', 'bobs', 0)",
+      userId = bob,
     )
     s.db.execute(
       "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
@@ -278,7 +283,8 @@ suite "map: the command":
     check map(w.db, "--worker") == exitFailure
     let s2 = openStore(w.db, allFragments)
     s2.db.execute(
-      "insert into selection(user_id, activity_id) values (?, 3)", s2.userId
+      "insert into selection(user_id, activity_id) values (:userId, 3)",
+      userId = s2.userId,
     )
     s2.close()
     check map(w.db) == exitFailure # (activity 3 has no route)

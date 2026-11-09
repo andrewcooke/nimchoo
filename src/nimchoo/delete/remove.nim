@@ -32,10 +32,10 @@ proc planDelete*(st: Store, ids: seq[int64]): Plan {.raises: [StoreError].} =
   var rows = st.db.query(
     (int64, int64, int64, string),
     "select a.id, a.file_id, a.start_t, coalesce(a.sport, '') from activity a " &
-      "join file f on f.id = a.file_id where f.user_id = ? and " &
-      "a.id in (select value from json_each(?))",
-    st.userId,
-    jsonList(ids),
+      "join file f on f.id = a.file_id where f.user_id = :userId and " &
+      "a.id in (select value from json_each(:ids))",
+    userId = st.userId,
+    ids = jsonList(ids),
   )
   rows.sort(
     proc(a, b: (int64, int64, int64, string)): int =
@@ -94,8 +94,8 @@ proc deleteActivities*(
     while at < p.ids.len:
       let stop = min(at + chunk, p.ids.len)
       st.db.execute(
-        "delete from activity where id in (select value from json_each(?))",
-        jsonList(p.ids[at ..< stop]),
+        "delete from activity where id in (select value from json_each(:ids))",
+        ids = jsonList(p.ids[at ..< stop]),
       )
       # the files of these activities that have none left (one that still has an activity in a later chunk is met again then)
       var files: seq[int64]
@@ -103,16 +103,16 @@ proc deleteActivities*(
         if p.fileOf[k] notin files:
           files.add p.fileOf[k]
       st.db.execute(
-        "delete from file where id in (select value from json_each(?)) " &
+        "delete from file where id in (select value from json_each(:ids)) " &
           "and id not in (select file_id from activity)",
-        jsonList(files),
+        ids = jsonList(files),
       )
       result.files +=
         files.len -
         st.db.scalar(
           int,
-          "select count(*) from file where id in (select value from json_each(?))",
-          jsonList(files),
+          "select count(*) from file where id in (select value from json_each(:ids))",
+          ids = jsonList(files),
         )
       at = stop
       if progress != nil:
@@ -126,8 +126,8 @@ proc deleteActivities*(
       remaining +=
         st.db.scalar(
           int,
-          "select count(*) from file where id in (select value from json_each(?))",
-          jsonList(p.fileIds[k ..< stop]),
+          "select count(*) from file where id in (select value from json_each(:ids))",
+          ids = jsonList(p.fileIds[k ..< stop]),
         )
       k = stop
     result.kept = remaining

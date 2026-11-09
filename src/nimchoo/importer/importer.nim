@@ -96,18 +96,18 @@ proc decodeFile*(
     for a in result.activities:
       result.routes.add routeWkb(a)
 
-const knownFileSql* = "select id from file where user_id = ? and sha256 = ?"
+const knownFileSql* = "select id from file where user_id = :userId and sha256 = :sha256"
 
 proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError].} =
   ## The `file` row of the user's that has this content (hash), if there is one.
   timed "known?":
-    result = s.db.queryOne(FileId, knownFileSql, s.userId, digest)
+    result = s.db.queryOne(FileId, knownFileSql, userId = s.userId, sha256 = digest)
 
 proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
   ## The hashes of the contents of all the user's files: a worker that sees one of them need not
   ## decode the file (the writer still checks, with `knownFile`, when it comes to write).
   for digest in s.db.query(
-    string, "select sha256 from file where user_id = ?", s.userId
+    string, "select sha256 from file where user_id = :userId", userId = s.userId
   ):
     result.incl digest
 
@@ -124,11 +124,11 @@ proc writeDecoded*(
       s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5
     )
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
-      s.userId,
-      name,
-      digest,
-      getTime().toUnix,
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, :importedAt)",
+      userId = s.userId,
+      name = name,
+      sha256 = digest,
+      importedAt = getTime().toUnix,
     )
     let fileId = FileId(lastInsertId(s.db))
     result.fileId = fileId

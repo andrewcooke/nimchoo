@@ -15,6 +15,6 @@ proc assignNumber*(st: Store, id: int64) {.raises: [StoreError].} =
          where s2.id <> sector.id
            and fold(trim(coalesce(nullif(trim(s2.name), ''), 'unnamed'))) =
                fold(trim(coalesce(nullif(trim(sector.name), ''), 'unnamed')))), 0) + 1
-      where id = ?""",
-    id,
+      where id = :id""",
+    id = id,
   )

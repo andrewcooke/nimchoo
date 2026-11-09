@@ -19,8 +19,9 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
   for (n, gain) in climbs:
     s.db.execute(
       """insert into sector(length_m, gain_m, gradient, name, route)
-      values (2000, ?, 5, ?, GeomFromText('LINESTRING Z(-70 -33 100, -70.01 -33 200)', 4326))""",
-      gain, n,
+      values (2000, :gainM, 5, :name, GeomFromText('LINESTRING Z(-70 -33 100, -70.01 -33 200)', 4326))""",
+      gainM = gain,
+      name = n,
     )
     assignNumber(s, lastInsertId(s.db))
       # (the number a climb gets when it is named: in the order made)

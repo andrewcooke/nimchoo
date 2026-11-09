@@ -17,15 +17,17 @@ proc addActivity(
   ## An activity along the points (lon, lat), a position about every 50 m.
   let u = s.db.scalar(int64, "select id from user where name = 'default'")
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, 0)", u, tag,
-    tag,
+    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    userId = u,
+    name = tag,
+    sha256 = tag,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (?, 0, ?, ?)",
-    f,
-    startT,
-    startT + 10000,
+    "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, :startT, :endT)",
+    fileId = f,
+    startT = startT,
+    endT = startT + 10000,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   var t = startT
@@ -35,11 +37,11 @@ proc addActivity(
     let n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) / 0.0005))
     for i in 0 ..< n:
       s.db.execute(
-        "insert into coords(activity_id, t, lon, lat) values (?, ?, ?, ?)",
-        a,
-        t,
-        x0 + (x1 - x0) * i.float / n.float,
-        y0 + (y1 - y0) * i.float / n.float,
+        "insert into coords(activity_id, t, lon, lat) values (:activityId, :t, :lon, :lat)",
+        activityId = a,
+        t = t,
+        lon = x0 + (x1 - x0) * i.float / n.float,
+        lat = y0 + (y1 - y0) * i.float / n.float,
       )
       inc t
 
@@ -98,8 +100,8 @@ suite "import: naming the activities":
     w.st.addActivity("a", 1_000_000, [home, barnechea, home])
     let u = w.st.db.scalar(int64, "select id from user where name = 'default'")
     w.st.db.execute(
-      "insert into seen_file(user_id, path, size, mtime, file_id) values (?, '/rides/a.fit', 1, 1, 1)",
-      u,
+      "insert into seen_file(user_id, path, size, mtime, file_id) values (:userId, '/rides/a.fit', 1, 1, 1)",
+      userId = u,
     )
     # (the route: the loop, as one stretch, and a stretch with a fix on the other side of the world: it ends the route,
     # so the ride is "one way" to it, and the search at the turning point is the one that cannot be made)
@@ -107,8 +109,8 @@ suite "import: naming the activities":
     for k, (x, y) in [home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home]:
       good.add (if k > 0: ", " else: "") & $x & " " & $y
     w.st.db.execute(
-      "insert into route(activity_id, geom) values (1, GeomFromText(?, 4326))",
-      "MULTILINESTRING((" & good & "), (-70.45 -33.40, 110 10))",
+      "insert into route(activity_id, geom) values (1, GeomFromText(:wkt, 4326))",
+      wkt = "MULTILINESTRING((" & good & "), (-70.45 -33.40, 110 10))",
     )
     let r = ensureActivityNames(w.st, w.names)
     check r.gpsErrors == @[GpsErrors(where: "/rides/a.fit", searches: 1)]
@@ -119,7 +121,8 @@ suite "import: naming the activities":
       w.st.close()
     let u = w.st.db.scalar(int64, "select id from user where name = 'default'")
     w.st.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (?, 'x', 'x', 0)", u
+      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'x', 'x', 0)",
+      userId = u,
     )
     w.st.db.execute(
       "insert into activity(file_id, session, start_t, end_t) values (1, 0, 1, 2)"
