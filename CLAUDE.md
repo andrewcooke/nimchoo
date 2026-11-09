@@ -122,7 +122,7 @@ had yet.
   joins the lists of all modules into `allFragments`.  the order of modules
   there matters: a module whose tables refer to another's comes after it.
   the sql is read at compile time, so it is inside the `nch` binary.
-  `db/001-schema.sql` (the `user` table and spatialite's metadata) is
+  `packages/db/001-schema.sql` (the `user` table and spatialite's metadata) is
   applied first, always.  the numbers only order the files within a module.
 * the database has a table `fragment` (name, applied_at, sha256 of the
   sql, seed_version).  on opening, for each fragment in the program: not
@@ -173,7 +173,7 @@ database (`nch db --delete -f`, then import again).  the cache survives
   `blob` in the table and registered with
   `RecoverGeometryColumn(table, column, 4326, 'POINT', 'XY')`: the
   same constraints and spatial index.  A new file is also made with
-  `auto_vacuum = incremental`; `reclaim` (in `db/store.nim`) gives the
+  `auto_vacuum = incremental`; `reclaim` (in `packages/db/store.nim`) gives the
   space back after a big delete.  Every new table must say `strict`.
 
 ### other decisions to remember (details in HISTORY.md)
@@ -327,7 +327,7 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   tuples or objects; filtering, joining, ranking and spatial search are sql, not loops in nim.
   values are given by **name**: `db.scalar(int, "select count(*) from sector where gain_m > :gain", gain = 100.0)`.  a `?` is
   a compile error, and so are a `:name` with no value and a value with no `:name` (checked when the text is a
-  literal; at run time otherwise).  a query built from pieces is an `Sql` (`db/sqltext.nim`: text with `:names`,
+  literal; at run time otherwise).  a query built from pieces is an `Sql` (`packages/db/sqltext.nim`: text with `:names`,
   values by name, pieces joined with `&`), so that no value can fall out of step.  the prepared statements that are
   run many times (`prepareStmt`, the importer's inserts) bind by position: they are for loops over thousands of rows.
 * **a failure is never stored as a result**: raise, or warn and leave the work undone.
@@ -371,7 +371,7 @@ four kinds of things go wrong, and each has one mechanism:
   modules: relative inside `src/`, `nimchoo/...` in tests.
 * `func` for pure functions, `proc` for anything with effects.  results are returned, not written to out
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
-  default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `db/checkpointer.nim`, an atomic).
+  default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `packages/db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
 * **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
   once and a name in the braces is checked when the program is compiled; `&` and `$` pieced together are easy to get

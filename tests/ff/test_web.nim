@@ -2,9 +2,9 @@
 ## heatmap/test_web.nim for the general checks of the server: this is that it serves the chart).
 ## Needs a built ./nch-test (the `test` task builds it); without one these tests are skipped.
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[httpclient, os, osproc, sequtils, streams, strtabs, strutils, unittest]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 when defined(posix):
   import std/posix

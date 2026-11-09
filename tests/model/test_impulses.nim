@@ -1,8 +1,8 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[os, options, unittest]
 import ../support/shims
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/importer/importer

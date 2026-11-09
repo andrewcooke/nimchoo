@@ -1,9 +1,9 @@
 ## Made-up rides for tests of the climbs: along one road on the equator (1 km flat, 3 km up at 4 %,
 ## then flat), a point a second, put into a database as an import would.
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[math, os, strutils]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 
 const metre* = 360.0 / (2.0 * PI * 6_371_008.8)

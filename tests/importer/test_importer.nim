@@ -1,9 +1,9 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[options, os, unittest]
 import ../support/shims
 import nimchoo/importer/[extract, importer]
 import std/tables
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/importer/channel
 import nimchoo/packages/util/hashing/hashing
 import nimchoo/core/errors

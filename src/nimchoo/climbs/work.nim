@@ -18,7 +18,8 @@
 ## `clearClimbs` (`nch climbs --all --delete`) starts again.
 
 import std/[math, options, strutils, tables]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../core/ids
 import ../importer/[extract, track]

@@ -17,7 +17,8 @@ import ../packages/cache/cache
 import ../packages/util/atomic/atomic
 import ../core/globals
 import ../climbs/[attempts, report, work]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../importer/keys
 import ../packages/util/version/version

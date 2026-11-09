@@ -1,13 +1,13 @@
 ## `nch activities --import` remembers the paths it has seen: a path whose size and
 ## modification time are unchanged is skipped without being read.
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[os, strutils, times, unittest]
 import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/modules
 import nimchoo/packages/fit/default

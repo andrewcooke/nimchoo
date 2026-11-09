@@ -16,11 +16,11 @@
 import std/[options, os, sequtils, times]
 import db_connector/db_sqlite
 import db_connector/sqlite3 as lowlevel
-import ../core/errors
-import ../core/ids
+import ../../core/errors
+import ../../core/ids
 export ids
-import ../core/globals
-import ../core/fragment as coreFragment
+import ../../core/globals
+import ../../core/fragment as coreFragment
 import ./[fragment, functions]
 import ./statement
 export db_sqlite.DbConn, fragment, coreFragment

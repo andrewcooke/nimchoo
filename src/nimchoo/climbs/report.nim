@@ -3,7 +3,8 @@
 ## gate, stops included.  The formatting is pure.
 
 import std/[strutils, tables, unicode]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../packages/ui/style
 import ./[describe, display, work]

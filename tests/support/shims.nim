@@ -2,7 +2,7 @@
 ## importer whose plain output is collected, and the import of one file with a profile already in hand.
 
 import nimchoo/packages/download/fetch
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/importer/channel
 import nimchoo/core/errors
 import nimchoo/importer/[batch, events, importer, sinks]

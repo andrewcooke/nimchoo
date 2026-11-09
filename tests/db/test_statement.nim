@@ -1,6 +1,6 @@
 import std/[options, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import nimchoo/core/errors
 import nimchoo/core/ids
 

@@ -1,10 +1,10 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[algorithm, os, sequtils, strutils, unittest]
 import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 import ../support/fitbuilder
 

@@ -5,8 +5,8 @@
 ##
 ## `fragment` reads `<file>` next to the file that calls it, when the program is compiled, and names the
 ## fragment `package/file` after the directory.  The database as a whole is made by applying the
-## fragments of all packages in dependency order (see db/store.nim).  The checksum of a fragment is in
-## db/fragment.nim (it needs `hashing`, which is a package and so may not be imported here).
+## fragments of all packages in dependency order (see packages/db/store.nim).  The checksum of a fragment is in
+## packages/db/fragment.nim (it needs `hashing`, which is a package and so may not be imported here).
 
 import std/os
 import db_connector/db_sqlite

@@ -1,5 +1,5 @@
 ## Comparing text without regard to case or accents.  One function does it everywhere: `foldText` in the program, and
-## `fold()` in SQL (db/functions.nim registers the same function in every connection), so a name compared in a query
+## `fold()` in SQL (packages/db/functions.nim registers the same function in every connection), so a name compared in a query
 ## and a name compared in the program are compared the same way.  SQLite's own `lower()` and `like` know only the ASCII
 ## letters.  "El Arrayán" -> "el arrayan".  Letters outside the table (other scripts) are lower-cased only.  Pure.
 ##

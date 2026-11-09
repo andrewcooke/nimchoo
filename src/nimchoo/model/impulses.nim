@@ -6,7 +6,8 @@
 ## trigger in 001-schema.sql.)
 
 import std/[algorithm, options, strutils]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../packages/fit/time
 import ../packages/util/hashing/hashing

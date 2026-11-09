@@ -7,7 +7,8 @@
 
 import std/[algorithm, sets]
 import ../packages/util/hashing/hashing
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 
 {.push raises: [].}

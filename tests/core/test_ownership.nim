@@ -3,7 +3,8 @@
 
 import std/[options, os, sequtils, sets, tables, unittest]
 import nimchoo/core/ownership
-import nimchoo/db/[statement, store]
+import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/modules
 

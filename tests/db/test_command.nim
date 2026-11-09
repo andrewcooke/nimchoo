@@ -1,6 +1,7 @@
 import std/[os, unittest]
 import nimchoo/core/globals
-import nimchoo/db/[command as dbCommand, store]
+import nimchoo/db/command as dbCommand
+import nimchoo/packages/db/store
 import nimchoo/modules
 import ../support/userdata
 

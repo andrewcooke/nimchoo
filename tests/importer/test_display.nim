@@ -1,6 +1,6 @@
 import std/[os, sequtils, strutils, unittest]
 import nimchoo/importer/[batch, display, events, failure, sinks]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/log/command as logCommand
 import nimchoo/modules
 import nimchoo/packages/ui/live

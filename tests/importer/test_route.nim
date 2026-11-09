@@ -1,5 +1,6 @@
 import std/[options, os, unittest]
-import nimchoo/db/[statement, store]
+import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import nimchoo/packages/fit/time
 import nimchoo/importer/[extract, route]
 import nimchoo/modules

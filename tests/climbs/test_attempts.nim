@@ -1,7 +1,7 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/climbs/[attempts, display, work]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/packages/ui/palette
 import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]

@@ -6,7 +6,7 @@
 import std/[options, strutils, times]
 import ../cli/catalog
 import ../core/globals
-import ../db/store
+import ../packages/db/store
 import ../core/errors
 import ../names/open
 import ../core/logfile

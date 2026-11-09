@@ -1,8 +1,8 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[os, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/landmark/command as landmarkCommand
 import nimchoo/modules
 

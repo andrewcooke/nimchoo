@@ -1,8 +1,8 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import ../support/env
 import std/[json, options, os, strutils, times, unittest]
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/map/command as mapCommand
 import nimchoo/packages/cache/cache
 import nimchoo/modules

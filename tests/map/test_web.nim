@@ -2,9 +2,9 @@
 ## on any free port, and asked for things over plain HTTP.  Needs a built ./nch-test (the
 ## `test` task builds it); without one these tests are skipped.
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[httpclient, json, os, osproc, streams, strtabs, strutils, unittest]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 when defined(posix):
   import std/posix

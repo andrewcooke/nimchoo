@@ -1,7 +1,7 @@
 ## The checksum of a fragment (the type and `fragment` are in core/fragment.nim).
 
-import ../core/fragment
-import ../packages/util/hashing/hashing
+import ../../core/fragment
+import ../util/hashing/hashing
 
 {.push raises: [].}
 

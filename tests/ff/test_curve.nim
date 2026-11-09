@@ -1,9 +1,9 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import ../support/shims
 import ../support/env
 import std/[math, options, os, strutils, times, unittest]
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules
 import nimchoo/packages/fit/load

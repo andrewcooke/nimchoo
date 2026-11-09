@@ -7,7 +7,7 @@ import std/[os, osproc]
 import ../cli/catalog
 import ../packages/cache/cache
 import ../core/globals
-import ../db/store
+import ../packages/db/store
 import ../core/logfile
 import ../packages/ui/interrupt
 import ../packages/ui/vocabulary

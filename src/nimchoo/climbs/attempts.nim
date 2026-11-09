@@ -7,7 +7,8 @@
 ## Whatever the climbs, all their attempts count, those of the selected rides and the others.
 
 import std/[algorithm, options, sequtils, strutils, tables, times]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../packages/fit/time
 import ../importer/describe

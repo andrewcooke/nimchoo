@@ -1,6 +1,7 @@
 import std/[strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/[functions, statement]
+import nimchoo/packages/db/functions
+import nimchoo/packages/db/statement
 import nimchoo/packages/text/fold/fold
 
 proc folded(value: string): string =

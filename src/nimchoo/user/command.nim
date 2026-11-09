@@ -8,7 +8,8 @@
 import std/[options, strutils]
 import ../cli/catalog
 import ../core/globals
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../core/logfile
 import ../packages/ui/live

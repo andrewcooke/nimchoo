@@ -2,7 +2,8 @@
 
 import ../core/errors
 import ../packages/util/hashing/hashing
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 
 {.push raises: [].}
 

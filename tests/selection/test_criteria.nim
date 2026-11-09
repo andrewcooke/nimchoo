@@ -1,4 +1,4 @@
-import nimchoo/db/sqltext
+import nimchoo/packages/db/sqltext
 import std/[options, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/core/ids

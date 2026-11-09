@@ -2,7 +2,8 @@
 ## code, used by the naming (a landmark comes before every other name) and by `nch landmarks`.
 
 import std/[options, strutils]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../packages/geo/geo
 

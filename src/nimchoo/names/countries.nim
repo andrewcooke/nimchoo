@@ -7,7 +7,8 @@
 ## the network and disk (a made-up one in tests) and where events are told.
 
 import std/[math, options, os, strutils]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../packages/download/fetch
 import ../packages/download/sources
 import ../core/errors

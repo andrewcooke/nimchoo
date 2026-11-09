@@ -5,7 +5,8 @@
 ## the positions on purpose.)
 
 import std/options
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../packages/fit/time
 import ../core/ids

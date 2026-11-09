@@ -1,4 +1,4 @@
-## The database tables of the names module (see db/fragment.nim).
+## The database tables of the names module (see core/fragment.nim).
 
 import ../core/fragment
 

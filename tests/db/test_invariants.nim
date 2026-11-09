@@ -1,10 +1,10 @@
 ## The invariants (tests/support/invariants.nim) hold of a good small database
 ## and are caught when broken.  (`nimble invariants` runs them over a real one.)
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 import ../support/invariants
 

@@ -4,7 +4,8 @@
 
 import std/[math, tables]
 import db_connector/db_sqlite
-import ../db/[multirow, statement]
+import ../packages/db/multirow
+import ../packages/db/statement
 import ../importer/channel
 import ../core/errors
 import ../packages/fit/time

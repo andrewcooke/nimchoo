@@ -2,7 +2,7 @@
 
 import std/options
 import db_connector/db_sqlite
-import ../db/statement
+import ../packages/db/statement
 import ../core/errors
 
 {.push raises: [].}

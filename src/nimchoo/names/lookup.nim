@@ -5,7 +5,8 @@
 ## made from these.
 
 import std/math
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ./[countries, features]
 

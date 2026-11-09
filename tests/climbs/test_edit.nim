@@ -2,7 +2,8 @@ import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/climbs/[command, edit, ordinal, report]
-import nimchoo/db/[statement, store]
+import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/modules
 

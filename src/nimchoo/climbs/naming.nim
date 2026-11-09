@@ -3,7 +3,8 @@
 ## names.  If the names cannot be had (no network) it is a DownloadError and the command stops.
 
 import std/options
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../names/[climb, climbpick, countries]
 import ./[match, ordinal]

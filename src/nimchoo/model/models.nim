@@ -4,7 +4,8 @@
 import std/options
 import ../packages/util/hashing/hashing
 import db_connector/db_sqlite
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ./calc
 

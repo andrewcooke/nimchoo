@@ -12,7 +12,8 @@ import ../core/errors
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/confirm/confirm
-import ./[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 
 {.push raises: [].}
 

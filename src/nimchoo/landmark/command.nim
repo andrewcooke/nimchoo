@@ -7,7 +7,7 @@ import ../cli/catalog
 import ../core/globals
 import ../climbs/report
 import ../packages/ui/units
-import ../db/store
+import ../packages/db/store
 import ../core/errors
 import ../names/[lookup, open]
 import ../core/logfile

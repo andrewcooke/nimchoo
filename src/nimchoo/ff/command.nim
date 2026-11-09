@@ -12,7 +12,8 @@ import db_connector/db_sqlite
 import ../core/globals
 import ../packages/cache/cache
 import ../packages/util/atomic/atomic
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../model/[calc, impulses, models]
 import ../serve/[launch, pages, webopts]

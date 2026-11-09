@@ -1,6 +1,6 @@
 import std/[os, sequtils, strutils, unittest]
 import nimchoo/importer/[batch, events, failure, sinks]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder

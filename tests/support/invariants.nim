@@ -7,7 +7,7 @@
 
 import std/[strutils]
 import db_connector/db_sqlite
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 
 type Invariant* = object
   name*: string

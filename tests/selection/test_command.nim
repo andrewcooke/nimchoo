@@ -1,7 +1,8 @@
 import std/[algorithm, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/climbs/ordinal
-import nimchoo/db/[statement, store]
+import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import nimchoo/core/ids
 import nimchoo/modules
 import nimchoo/selection/calendar

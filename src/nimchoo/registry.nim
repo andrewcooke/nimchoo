@@ -6,6 +6,7 @@ import ./core/registry as coreRegistry
 import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/confirm/package as pkgConfirm
+import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
 import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
@@ -31,6 +32,7 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "bundle", package: pkgBundle.package),
     Registered(name: "cache", package: pkgCache.package),
     Registered(name: "confirm", package: pkgConfirm.package),
+    Registered(name: "db", package: pkgDb.package),
     Registered(name: "download", package: pkgDownload.package),
     Registered(name: "fit", package: pkgFit.package),
     Registered(name: "geo", package: pkgGeo.package),

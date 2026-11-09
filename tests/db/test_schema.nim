@@ -2,7 +2,8 @@
 
 import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/[statement, store]
+import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import nimchoo/modules
 
 let dir = getTempDir() / "nch-test-schema"

@@ -1,12 +1,12 @@
 ## Importing with threads must give exactly what importing without them does: the same database
 ## (ids included), the same events in the same order.  The threads only read and decode.
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[options, os, strutils, unittest]
 import ../support/shims
 from ../support/env import useTestCache
 import nimchoo/importer/batch
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 import ../support/fitbuilder
 

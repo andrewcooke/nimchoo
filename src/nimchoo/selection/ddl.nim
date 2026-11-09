@@ -1,4 +1,4 @@
-## The database tables of the select module (see db/fragment.nim).
+## The database tables of the select module (see core/fragment.nim).
 
 import ../core/fragment
 

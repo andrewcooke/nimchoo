@@ -1,8 +1,8 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[unittest]
 import nimchoo/core/globals
 import nimchoo/climbs/command as climbsCommand
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/core/ids
 import nimchoo/modules
 import ../support/[climbdata, userdata]

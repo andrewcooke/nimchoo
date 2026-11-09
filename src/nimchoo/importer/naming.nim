@@ -3,7 +3,8 @@
 ## decided in the run that imports; the first time (or after a migration) it names every activity.  If the names are
 ## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.
 
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../names/[activity, countries, lookup]
 import ./route

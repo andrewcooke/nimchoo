@@ -1,7 +1,7 @@
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import std/[math, options, os, sequtils, strutils, unittest]
 import ../support/shims
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
 import nimchoo/core/errors

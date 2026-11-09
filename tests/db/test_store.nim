@@ -1,6 +1,8 @@
 import std/[options, os, sets, strutils, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/[fragment, statement, store]
+import nimchoo/packages/db/fragment
+import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/modules
 
@@ -305,8 +307,9 @@ suite "database: fragments":
 
   test "every sql file on disk is in the list of fragments, and the other way round":
     var onDisk: HashSet[string]
-    for path in walkFiles("src/nimchoo/*/*.sql"):
-      onDisk.incl path.parentDir.lastPathPart & "/" & path.extractFilename
+    for path in walkDirRec("src/nimchoo"):
+      if path.endsWith(".sql"):
+        onDisk.incl path.parentDir.lastPathPart & "/" & path.extractFilename
     var listed = toHashSet(["db/001-schema.sql"]) # the database's own
     for f in allFragments:
       listed.incl f.name

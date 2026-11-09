@@ -2,7 +2,7 @@
 ## countries, and a network that serves them.
 
 import std/[options, os, strutils]
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
 import nimchoo/modules

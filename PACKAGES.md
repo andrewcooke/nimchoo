@@ -269,7 +269,7 @@ layers.  "Today" says where the files are now.  Library packages never depend on
 | `zip` | `zipbytes`, `zipchild` | `bytes`, `child` | |
 | `xlsx` | `xlsx` | `zip`, `lookup` | |
 | `cache` | `cache.nim`, `cache/files.nim` | `hashing`, `proquint`, `atomic` | |
-| `store` | `db/` except `command` and `channel`: `Sql`, statements, `Store`, fragments, functions, multirow, checkpointer | `fold`, `hashing`, `lookup` | `fragment`, `user`, SpatiaLite's (owned by core, see Ownership) |
+| `db` (not `store`: the base fragment is recorded as `db/001-schema.sql`, and a package's fragments are named after its directory) | `db/` except `command` and `channel`: `Sql`, statements, `Store`, fragments, functions, multirow, checkpointer | `fold`, `hashing`, `lookup` | `fragment`, `user`, SpatiaLite's (owned by core, see Ownership) |
 | `confirm` | the words and countdown of `user/wipe` (`describe`, `countdownLine`, `countdown`, `sayDeleted`) | `ui` | |
 
 ### Layer 2

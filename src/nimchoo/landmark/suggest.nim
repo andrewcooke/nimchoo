@@ -2,7 +2,8 @@
 ## part of the name or by nearness to a position.  Only places whose cells have been read can be found.
 
 import std/[algorithm, math, strutils]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 import ../packages/text/fold/fold
 import ../packages/geo/geo

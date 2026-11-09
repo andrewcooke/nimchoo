@@ -4,7 +4,8 @@
 ## batches, so a run over thousands of files makes few transactions.
 
 import std/[options, tables]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../core/errors
 
 {.push raises: [].}

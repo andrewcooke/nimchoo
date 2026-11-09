@@ -1,10 +1,10 @@
 ## Helpers for tests that delete a user's data: fill a user with one of everything, count rows,
 ## make a second user.
 
-import nimchoo/db/statement
+import nimchoo/packages/db/statement
 import db_connector/db_sqlite
 import nimchoo/core/globals
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/modules
 
 proc count*(s: Store, table: string): int =

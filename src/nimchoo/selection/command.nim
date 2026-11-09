@@ -10,7 +10,8 @@ import ../cli/catalog
 import ../core/globals
 import ../modules
 import ../climbs/[display, report]
-import ../db/[statement, store]
+import ../packages/db/statement
+import ../packages/db/store
 import ../delete/run as deleteRun
 import ../importer/batch
 import ../importer/run as importRun

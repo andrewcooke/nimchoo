@@ -6,7 +6,7 @@ import std/options
 import ../cli/catalog
 import ../packages/cache/cache
 import ../core/globals
-import ../db/store
+import ../packages/db/store
 import ../packages/download/fetch
 import ../packages/download/sinks
 import ../packages/ui/live

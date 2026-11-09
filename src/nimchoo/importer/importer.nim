@@ -4,7 +4,9 @@
 
 import std/[options, sets, times]
 import ../packages/util/hashing/hashing
-import ../db/[multirow, statement, store]
+import ../packages/db/multirow
+import ../packages/db/statement
+import ../packages/db/store
 import ./channel
 import ../core/errors
 import ../packages/fit/model

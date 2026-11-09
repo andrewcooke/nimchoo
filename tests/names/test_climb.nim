@@ -1,6 +1,6 @@
 import std/[options, strutils, unittest]
 import ../support/shims
-import nimchoo/db/store
+import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/download/fetch
 import nimchoo/landmark/landmarks

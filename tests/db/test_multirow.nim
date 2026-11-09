@@ -1,6 +1,7 @@
 import std/[options, unittest]
 import db_connector/db_sqlite
-import nimchoo/db/[multirow, statement]
+import nimchoo/packages/db/multirow
+import nimchoo/packages/db/statement
 import nimchoo/core/errors
 
 proc fill(db: DbConn, count: int) =
