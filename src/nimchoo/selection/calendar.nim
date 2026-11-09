@@ -18,7 +18,7 @@
 
 import std/[algorithm, sequtils, strutils, tables, times]
 import ../fit/time
-import ../ui/style
+import ../packages/ui/style
 import ./table
 
 {.push raises: [].}

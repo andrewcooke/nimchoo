@@ -1,8 +1,8 @@
 import std/[strutils, unicode, unittest]
 import nimchoo/climbs/[report, work]
 import nimchoo/db/store
-import nimchoo/ui/units
-import nimchoo/ui/style
+import nimchoo/packages/ui/units
+import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]
 
 suite "climbs report: the words":

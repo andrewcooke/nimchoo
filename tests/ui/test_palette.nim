@@ -1,5 +1,6 @@
 import std/unittest
-import nimchoo/ui/[palette, style]
+import nimchoo/packages/ui/palette
+import nimchoo/packages/ui/style
 
 suite "palette: six colours, named in one place":
   test "there are six, in the order white, grey, red, green, yellow, blue":

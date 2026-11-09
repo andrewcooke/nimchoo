@@ -1,5 +1,6 @@
 import std/[strutils, unittest]
-import nimchoo/ui/[live, style]
+import nimchoo/packages/ui/live
+import nimchoo/packages/ui/style
 
 const
   hide = "\e[?25l"

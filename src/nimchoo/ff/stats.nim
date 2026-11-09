@@ -1,10 +1,10 @@
 ## What `nch ff` says about the latest values of the curves, in a line: each value, and the share
 ## of the earlier days on which it was higher ("top 1%" means only 1% of earlier days were higher:
 ## nearly the highest it has been).  Fitness is green and fatigue red, as in the chart.
-## Pure: lines of styled spans (see ui/style.nim), drawn with or without colour by the caller.
+## Pure: lines of styled spans (see packages/ui/style.nim), drawn with or without colour by the caller.
 
 import std/[options, strutils]
-import ../ui/style
+import ../packages/ui/style
 import ./curve
 
 {.push raises: [].}

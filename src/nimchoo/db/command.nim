@@ -10,7 +10,7 @@ import ../packages/util/args/args
 import ../download/fetch
 import ../core/errors
 import ../core/logfile
-import ../ui/live
+import ../packages/ui/live
 import ../user/wipe
 import ./[statement, store]
 

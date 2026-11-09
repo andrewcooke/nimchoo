@@ -14,7 +14,7 @@ import ../bundle/unpack
 import ../cache
 import ../serve/libraries
 import ../packages/text/templating/templating
-import ../ui/palette
+import ../packages/ui/palette
 
 {.push raises: [].}
 

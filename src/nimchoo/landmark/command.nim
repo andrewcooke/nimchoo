@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ../cli/catalog
 import ../core/globals
 import ../climbs/report
-import ../ui/units
+import ../packages/ui/units
 import ../db/store
 import ../core/errors
 import ../names/[lookup, open]

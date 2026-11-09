@@ -1,6 +1,7 @@
 import std/[options, unittest]
 import nimchoo/log/lines
-import nimchoo/ui/[style, vocabulary]
+import nimchoo/packages/ui/style
+import nimchoo/packages/ui/vocabulary
 
 const
   run1 = "2026-11-02T10:00:00Z INFO  import    run        /a"

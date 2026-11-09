@@ -1,5 +1,6 @@
 import std/[options, sets, unittest]
-import nimchoo/ui/[style, vocabulary]
+import nimchoo/packages/ui/style
+import nimchoo/packages/ui/vocabulary
 
 suite "vocabulary: the events":
   test "each has its own word, and the word finds it again":

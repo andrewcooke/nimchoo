@@ -1,7 +1,7 @@
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/fit/time
 import nimchoo/selection/[calendar, table]
-import nimchoo/ui/style
+import nimchoo/packages/ui/style
 import ../support/zones
 
 proc at(y: int, m: Month, d: int, h = 12, min = 0): int64 =

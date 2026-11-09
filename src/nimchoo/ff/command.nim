@@ -16,7 +16,8 @@ import ../db/[statement, store]
 import ../core/errors
 import ../model/[calc, impulses, models]
 import ../serve/[launch, pages, webopts]
-import ../ui/[live, style]
+import ../packages/ui/live
+import ../packages/ui/style
 import ./[curve, page, params, stats]
 
 {.push raises: [].}

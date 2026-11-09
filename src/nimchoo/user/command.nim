@@ -11,7 +11,7 @@ import ../core/globals
 import ../db/[statement, store]
 import ../core/errors
 import ../core/logfile
-import ../ui/live
+import ../packages/ui/live
 import ./[params, wipe]
 
 {.push raises: [].}

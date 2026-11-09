@@ -5,7 +5,7 @@ import nimchoo/serve/libraries
 import nimchoo/ff/[command, page, params]
 import nimchoo/serve/request
 import nimchoo/cache
-import nimchoo/ui/palette
+import nimchoo/packages/ui/palette
 
 const csv = "ff--check-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
 

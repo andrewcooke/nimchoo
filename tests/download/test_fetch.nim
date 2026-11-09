@@ -5,7 +5,9 @@ import
   ]
 import nimchoo/download/[fetch, sinks, sources, spinner]
 import nimchoo/core/logfile
-import nimchoo/ui/[live, palette, style]
+import nimchoo/packages/ui/live
+import nimchoo/packages/ui/palette
+import nimchoo/packages/ui/style
 import ../support/zips
 
 type Net = ref object

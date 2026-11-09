@@ -4,11 +4,12 @@
 ##
 ## taken apart (the event word is found, for colouring), filtered by command and
 ## event, cut to the latest run, and styled with the look of each event
-## (ui/vocabulary.nim).  Lines of other shapes (from older versions) are kept
+## (packages/ui/vocabulary.nim).  Lines of other shapes (from older versions) are kept
 ## but match no filter.  Pure: no files, no terminal.
 
 import std/[options, strutils]
-import ../ui/[style, vocabulary]
+import ../packages/ui/style
+import ../packages/ui/vocabulary
 
 {.push raises: [].}
 

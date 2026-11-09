@@ -4,7 +4,7 @@
 ##
 ## A distance is in kilometres, as a decimal number (`5`, `2.5`, `0.5`; no unit, and never
 ## `m`, which means minutes).  A time is
-## written as the program prints it (see ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`,
+## written as the program prints it (see packages/ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`,
 ## units d h m s, largest first, each at most once, with a unit on every number.
 ## Both ends of a range are inclusive, and either may be left out (not both).
 

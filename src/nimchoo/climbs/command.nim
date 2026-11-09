@@ -10,7 +10,8 @@ import ../db/store
 import ../core/errors
 import ../names/open
 import ../core/logfile
-import ../ui/[live, style]
+import ../packages/ui/live
+import ../packages/ui/style
 import ../user/wipe
 import ./[attempts, duplicates, edit, naming, params, report, work]
 

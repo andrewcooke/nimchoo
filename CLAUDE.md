@@ -196,8 +196,8 @@ commands, messages), like `__str__` in python.  **each module says its own thing
 the importer owns activities (`importer/describe.nim`: `activityLine` / `activityCells`), the climbs module owns
 climbs (`climbs/describe.nim`: `climbLine` / `climbCells`).  a new module that has things to show adds a
 `describe.nim` of its own; a command that shows an activity or a climb uses the owner's, and does not make its
-own format.  the number formats every one of them needs (`km`, the dash for not recorded) are in `ui/units.nim`
-(and the active time in `ui/interval.nim`).
+own format.  the number formats every one of them needs (`km`, the dash for not recorded) are in `packages/ui/units.nim`
+(and the active time in `packages/ui/interval.nim`).
 
 * an activity:  `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back`
   (start, sport, distance, active time, then the place it started and what it is called, joined by " / ").
@@ -384,10 +384,10 @@ four kinds of things go wrong, and each has one mechanism:
 
 * a table column carries its unit in its header; in a sentence the unit is attached with no space (`842.2km`,
   `4h41m`).  input never takes a unit for distance (decimal km), and `m` always means minutes.
-* intervals of time (`ui/interval.nim`): units `d h m s`, no leading zero unit, the first unpadded and later ones
+* intervals of time (`packages/ui/interval.nim`): units `d h m s`, no leading zero unit, the first unpadded and later ones
   two digits (`45s`, `22m05s`, `4h41m`, `2d03h07m`); seconds only under an hour, minutes from an hour; rounding
   carries.
-* the words and looks for what happened are in `ui/vocabulary.nim`; colour only where it means something, and the
+* the words and looks for what happened are in `packages/ui/vocabulary.nim`; colour only where it means something, and the
   status colours (green done, red failed or deleted, yellow advisory, blue the selection) for nothing else.
 
 ### tests

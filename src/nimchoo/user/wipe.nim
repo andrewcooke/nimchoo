@@ -13,7 +13,8 @@ import db_connector/db_sqlite
 import ../core/globals
 import ../db/[statement, store]
 import ../core/errors
-import ../ui/[live, style]
+import ../packages/ui/live
+import ../packages/ui/style
 
 {.push raises: [].}
 

@@ -8,7 +8,7 @@ import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand
 import nimchoo/selection/criteria
 import nimchoo/core/logfile
-import nimchoo/ui/style
+import nimchoo/packages/ui/style
 
 let dir = getTempDir() / "nch-test-select"
 

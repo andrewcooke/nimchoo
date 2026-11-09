@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/ui/interval
+import nimchoo/packages/ui/interval
 
 suite "interval: the one rule":
   test "under a minute: seconds":

@@ -6,7 +6,7 @@
 ##     time                 level command   event      text
 ##
 ## where the command is what the user ran (its name) and the event is one of the shared
-## words, `LogEvent` below (the looks they are shown in are in ui/vocabulary.nim).
+## words, `LogEvent` below (the looks they are shown in are in packages/ui/vocabulary.nim).
 ##
 ## Logging must never break the work: a log that cannot be opened is disabled
 ## (`problem` says why, for the caller to mention once), and a write that
@@ -17,7 +17,7 @@ import std/[options, os, strutils, times]
 {.push raises: [].}
 
 type LogEvent* = enum
-  ## the shared words of the log (their looks are in ui/vocabulary.nim)
+  ## the shared words of the log (their looks are in packages/ui/vocabulary.nim)
   leStart = "start" ## a command begins its work (the number of things)
   leRun = "run" ## the dispatcher: a command was run (with its arguments)
   leExit = "exit" ## ... and ended (with its exit status)

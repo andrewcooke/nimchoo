@@ -4,7 +4,7 @@ import nimchoo/core/globals
 import nimchoo/db/store
 import nimchoo/delete/[remove, run]
 import nimchoo/selection/command as activitiesCommand
-import nimchoo/ui/style
+import nimchoo/packages/ui/style
 import nimchoo/modules
 import ../support/userdata
 

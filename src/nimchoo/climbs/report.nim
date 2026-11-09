@@ -5,7 +5,7 @@
 import std/[strutils, tables, unicode]
 import ../db/[statement, store]
 import ../core/errors
-import ../ui/style
+import ../packages/ui/style
 import ./[describe, display, work]
 
 {.push raises: [].}

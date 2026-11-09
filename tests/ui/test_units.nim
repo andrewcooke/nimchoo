@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/ui/units
+import nimchoo/packages/ui/units
 
 suite "units: a number and its unit":
   test "distances in km, one decimal, commas from 1,000; the unit follows with no space":

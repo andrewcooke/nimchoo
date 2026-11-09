@@ -11,7 +11,8 @@
 
 import std/[options, times]
 import ../fit/time
-import ../ui/[interval, units]
+import ../packages/ui/interval
+import ../packages/ui/units
 
 {.push raises: [].}
 

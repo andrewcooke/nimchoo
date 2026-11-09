@@ -9,7 +9,8 @@ import ../cache
 import ../core/globals
 import ../db/store
 import ../core/logfile
-import ../ui/[interrupt, vocabulary]
+import ../packages/ui/interrupt
+import ../packages/ui/vocabulary
 import ./[handler, request, server, token]
 
 {.push raises: [].}

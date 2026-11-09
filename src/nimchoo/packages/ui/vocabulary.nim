@@ -7,7 +7,7 @@
 ## not compile.  A new event is one new value here (and its look).
 
 import std/options
-import ../core/logfile
+import ../../core/logfile
 export logfile.LogEvent
 import ./style
 

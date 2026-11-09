@@ -1,4 +1,4 @@
-## The live display of `nch activities --import` (see ui/live.nim): two lines that follow the
+## The live display of `nch activities --import` (see packages/ui/live.nim): two lines that follow the
 ## run and are left on screen, final numbers and all, when it ends.  Nothing is
 ## printed per file; failures are counted here and written in the log.
 ##
@@ -9,7 +9,9 @@
 ## terminal; the sink only keeps the counts and asks the Live when to draw.
 
 import std/[os, strutils]
-import ../ui/[live, style, vocabulary]
+import ../packages/ui/live
+import ../packages/ui/style
+import ../packages/ui/vocabulary
 import ./[events, sinks]
 
 {.push raises: [].}
@@ -33,7 +35,7 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
       second.add span(dot, grey)
     second.add sp
 
-  # the looks are those of the events of the same name (ui/vocabulary.nim)
+  # the looks are those of the events of the same name (packages/ui/vocabulary.nim)
   part span("imported " & commas(sum.imported), leImported)
   if sum.duplicates > 0:
     part span("duplicates " & commas(sum.duplicates), leDuplicate)

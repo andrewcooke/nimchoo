@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/ui/style
+import nimchoo/packages/ui/style
 
 suite "ui style: measuring and cutting":
   test "width counts characters, over all spans":

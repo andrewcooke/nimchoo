@@ -14,7 +14,9 @@ import ../importer/describe
 import ../packages/util/lookup/lookup
 import ../packages/text/fold/fold
 import std/unicode
-import ../ui/[palette, style, units]
+import ../packages/ui/palette
+import ../packages/ui/style
+import ../packages/ui/units
 import ./[describe, display, report]
 
 {.push raises: [].}

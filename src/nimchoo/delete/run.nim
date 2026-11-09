@@ -9,7 +9,8 @@ import ../core/globals
 import ../db/store
 import ../core/errors
 import ../core/logfile
-import ../ui/[live, style]
+import ../packages/ui/live
+import ../packages/ui/style
 import ../user/wipe
 import ./remove
 

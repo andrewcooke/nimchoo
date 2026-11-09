@@ -8,7 +8,9 @@ import ../cli/catalog
 import ../core/globals
 import ../packages/util/args/args
 import ../core/logfile
-import ../ui/[live, style, vocabulary]
+import ../packages/ui/live
+import ../packages/ui/style
+import ../packages/ui/vocabulary
 import ./lines
 
 {.push raises: [].}

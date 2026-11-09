@@ -2,7 +2,8 @@
 ## the screen (one line each, on stderr, so a pause for the network is explained).
 
 import ../core/logfile
-import ../ui/[live, style]
+import ../packages/ui/live
+import ../packages/ui/style
 import ./[fetch, spinner]
 
 {.push raises: [].}

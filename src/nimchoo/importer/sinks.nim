@@ -12,7 +12,7 @@ import std/[strutils, tables]
 import ../core/globals
 import ../packages/util/warnings/warnings
 import ./events
-import ../ui/vocabulary
+import ../packages/ui/vocabulary
 import ./failure
 
 {.push raises: [].}

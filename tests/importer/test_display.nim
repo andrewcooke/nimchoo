@@ -3,7 +3,9 @@ import nimchoo/importer/[batch, display, events, failure, sinks]
 import nimchoo/db/store
 import nimchoo/log/command as logCommand
 import nimchoo/modules
-import nimchoo/ui/[live, style, vocabulary]
+import nimchoo/packages/ui/live
+import nimchoo/packages/ui/style
+import nimchoo/packages/ui/vocabulary
 import ../support/fitbuilder
 
 const base = 900_000_000

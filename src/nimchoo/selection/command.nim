@@ -17,7 +17,9 @@ import ../importer/run as importRun
 import ../core/errors
 import ../fit/time
 import ../core/logfile
-import ../ui/[live, style, vocabulary]
+import ../packages/ui/live
+import ../packages/ui/style
+import ../packages/ui/vocabulary
 import ../packages/text/fold/fold
 import ./[calendar, criteria, table]
 

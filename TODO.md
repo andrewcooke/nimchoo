@@ -42,7 +42,7 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
 * **Blue for the selection in `nch climbs`** (candidates: the `-v` attempts of selected rides; the latest/rank
   cells when the latest attempt is of a selected ride).  The author also asked whether "the selection chooses
   the climbs, never the attempts" is right; it is built that way.
-* **The map**: labels, a legend, landmarks on the map, the page's palette from `ui/palette.nim`, style rules by
+* **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by
   property (colour by sport or year), a plot command.
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page.
 * **A calendar of fitness** (HISTORY.md, Task 14): the `activities --calendar` grid with the background showing

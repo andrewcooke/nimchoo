@@ -4,7 +4,8 @@ import db_connector/db_sqlite
 import nimchoo/db/store
 import nimchoo/core/errors
 import nimchoo/modules
-import nimchoo/ui/[live, style]
+import nimchoo/packages/ui/live
+import nimchoo/packages/ui/style
 import nimchoo/user/wipe
 import ../support/userdata
 

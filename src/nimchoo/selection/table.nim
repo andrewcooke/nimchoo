@@ -13,7 +13,9 @@
 import std/[algorithm, math, options, sequtils, strutils, tables, times, unicode]
 import ../fit/time
 import ../importer/describe
-import ../ui/[interval, style, units]
+import ../packages/ui/interval
+import ../packages/ui/style
+import ../packages/ui/units
 export describe, units
 
 {.push raises: [].}

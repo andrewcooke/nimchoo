@@ -8,7 +8,7 @@ import ../cache
 import ../core/globals
 import ../db/store
 import ../download/[fetch, sinks]
-import ../ui/live
+import ../packages/ui/live
 import ./countries
 
 {.push raises: [].}

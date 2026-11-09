@@ -9,7 +9,8 @@ import ../download/fetch
 import ../core/errors
 import ../names/open
 import ../core/logfile
-import ../ui/[live, style]
+import ../packages/ui/live
+import ../packages/ui/style
 import ./[batch, display, events, logsink, naming, sinks]
 
 {.push raises: [].}
