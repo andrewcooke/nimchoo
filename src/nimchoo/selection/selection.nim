@@ -5,10 +5,9 @@
 ## each one's file, and its session), not of database ids: the same activities
 ## give the same key in any database, and a changed selection gives a new one.
 
-import std/[algorithm, sets, strutils]
+import std/[algorithm, sets]
 import ../hashing
-import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 
 {.push raises: [].}
@@ -25,38 +24,23 @@ func keyOf*(entries: seq[string]): string =
 
 proc selectedIds*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
-  guard:
-    for row in st.db.fastRows(
-      sql"select activity_id from selection where user_id = ? order by 1", st.userId
-    ):
-      try:
-        result.add parseBiggestInt(row[0])
-      except ValueError:
-        raiseStore("a bad activity id")
+  st.db.query(
+    int64, "select activity_id from selection where user_id = ? order by 1", st.userId
+  )
 
 proc maxActivityId*(st: Store): int64 {.raises: [StoreError].} =
   ## The highest activity id there is (0 if there are none): the largest an address can name.
-  guard:
-    try:
-      result =
-        parseBiggestInt(st.db.getValue(sql"select coalesce(max(id), 0) from activity"))
-    except ValueError:
-      raiseStore("a bad activity id")
+  st.db.scalar(int64, "select coalesce(max(id), 0) from activity")
 
 proc ownedIds*(st: Store, ids: seq[int64]): seq[int64] {.raises: [StoreError].} =
   ## Of `ids` (in order), those that are activities of the store's user: an address may name any number, and only the
   ## user's own activities are ever drawn.
-  var mine = initHashSet[int64]()
-  guard:
-    for row in st.db.fastRows(
-      sql"""select a.id from activity a join file f on f.id = a.file_id
+  let mine = st.db.query(
+    int64,
+    """select a.id from activity a join file f on f.id = a.file_id
         where f.user_id = ?""",
-      st.userId,
-    ):
-      try:
-        mine.incl parseBiggestInt(row[0])
-      except ValueError:
-        raiseStore("a bad activity id")
+    st.userId,
+  ).toHashSet
   for id in ids:
     if id in mine:
       result.add id
@@ -67,14 +51,14 @@ proc contentKey*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
   ## The key of the *content* of the activities `ids`: of their files and sessions (the same kind of key as the
   ## selection key).
   var entries: seq[string]
-  guard:
-    for id in ids:
-      for row in st.db.fastRows(
-        sql"""select f.sha256, a.session from activity a join file f on f.id = a.file_id
+  for id in ids:
+    for row in st.db.query(
+      tuple[sha256: string, session: int],
+      """select f.sha256, a.session from activity a join file f on f.id = a.file_id
           where a.id = ?""",
-        id,
-      ):
-        entries.add row[0] & ":" & row[1]
+      id,
+    ):
+      entries.add row.sha256 & ":" & $row.session
   keyOf(entries)
 
 proc checkOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =

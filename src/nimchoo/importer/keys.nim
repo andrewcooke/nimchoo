@@ -1,9 +1,7 @@
 ## The key of the routes of activities, for a cached file that is made from them (see `cache.inputsKey`).
 
-import std/[sequtils, strutils]
-import db_connector/db_sqlite
 import ../[errors, hashing]
-import ../db/store
+import ../db/[statement, store]
 
 {.push raises: [].}
 
@@ -16,13 +14,12 @@ proc routesKey*(
   if ids.len == 0:
     return (sha256Hex("")[0 ..< 16], 0)
   var text = ""
-  guard:
-    for row in st.db.fastRows(
-      sql(
-        "select activity_id, length(geom), NumPoints(geom) from route where activity_id in (" &
-          ids.mapIt($it).join(",") & ") order by activity_id"
-      )
-    ):
-      text.add row[0] & ":" & row[1] & ":" & row[2] & "\n"
-      inc result.count
+  for row in st.db.query(
+    tuple[id: int64, bytes, points: int],
+    "select activity_id, length(geom), NumPoints(geom) from route where activity_id in " &
+      "(select value from json_each(?)) order by activity_id",
+    jsonList(ids),
+  ):
+    text.add $row.id & ":" & $row.bytes & ":" & $row.points & "\n"
+    inc result.count
   result.key = sha256Hex(text)[0 ..< 16]

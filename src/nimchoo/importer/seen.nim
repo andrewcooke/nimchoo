@@ -3,8 +3,7 @@
 ## skipped without reading it.  Rows are collected in a buffer and written in
 ## batches, so a run over thousands of files makes few transactions.
 
-import std/[strutils, tables]
-import db_connector/db_sqlite
+import std/[options, tables]
 import ../db/[statement, store]
 import ../errors
 
@@ -33,23 +32,20 @@ func failed*(row: Seen): bool =
 
 proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
   ## Everything known about the paths of the store's user.
-  guard:
-    for row in s.db.fastRows(
-      sql"""select path, size, mtime, coalesce(file_id, 0),
+  for row in s.db.query(
+    tuple[path: string, size, mtime, fileId: int64, failure, message: string],
+    """select path, size, mtime, coalesce(file_id, 0),
         coalesce(failure, ''), coalesce(message, '') from seen_file
         where user_id = ?""",
-      s.userId,
-    ):
-      try:
-        result[row[0]] = Seen(
-          size: parseBiggestInt(row[1]),
-          mtime: parseBiggestInt(row[2]),
-          fileId: FileId(parseBiggestInt(row[3])),
-          failure: row[4],
-          message: row[5],
-        )
-      except ValueError:
-        raiseStore("a bad row in seen_file for " & row[0])
+    s.userId,
+  ):
+    result[row.path] = Seen(
+      size: row.size,
+      mtime: row.mtime,
+      fileId: FileId(row.fileId),
+      failure: row.failure,
+      message: row.message,
+    )
 
 proc add*(b: var SeenBuffer, path: string, row: Seen) =
   ## Keep a row to be written.
@@ -59,14 +55,16 @@ proc pathOfFile*(s: Store, fileId: FileId): string =
   ## Where the file with this id was imported from, as last recorded (its name
   ## if no path was); "" if unknown.  Never fails: it is only for telling people.
   try:
-    guard:
-      result = s.db.getValue(
-        sql"select path from seen_file where user_id = ? and file_id = ? order by path limit 1",
-        s.userId,
-        fileId,
-      )
-      if result.len == 0:
-        result = s.db.getValue(sql"select name from file where id = ?", fileId)
+    let path = s.db.queryOne(
+      string,
+      "select path from seen_file where user_id = ? and file_id = ? order by path limit 1",
+      s.userId, fileId,
+    )
+    result =
+      if path.isSome:
+        path.get
+      else:
+        s.db.queryOne(string, "select name from file where id = ?", fileId).get("")
   except StoreError:
     result = ""
 

@@ -3,8 +3,6 @@
 ## decided in the run that imports; the first time (or after a migration) it names every activity.  If the names are
 ## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.
 
-import db_connector/db_sqlite
-import std/strutils
 import ../db/[statement, store]
 import ../errors
 import ../names/[activity, countries, lookup]
@@ -33,14 +31,7 @@ func gpsErrorCount*(n: Named): int =
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
-  guard:
-    for r in st.db.fastRows(
-      sql"select id from activity where name is null order by start_t, id"
-    ):
-      try:
-        result.add parseBiggestInt(r[0])
-      except ValueError:
-        raiseStore("a bad activity id")
+  st.db.query(int64, "select id from activity where name is null order by start_t, id")
 
 proc ensureActivityNames*(
     st: Store,
@@ -62,33 +53,27 @@ proc ensureActivityNames*(
     routeOf.rewind()
     if parts.len == 0:
       var lons, lats: seq[float]
-      guard:
-        for r in st.db.fastRows(
-          sql"select lon, lat from coords where activity_id = ? order by t", id
-        ):
-          try:
-            lons.add parseFloat(r[0])
-            lats.add parseFloat(r[1])
-          except ValueError:
-            raiseStore("a bad position")
+      for r in st.db.query(
+        tuple[lon, lat: float],
+        "select lon, lat from coords where activity_id = ? order by t",
+        id,
+      ):
+        lons.add r.lon
+        lats.add r.lat
       parts.add (lons, lats)
     let got = nameActivity(names, parts)
     if got.gpsErrors > 0:
-      var where = ""
-      guard:
-        where = st.db.getValue(
-          sql"""select ifnull((select path from seen_file where file_id = a.file_id limit 1),
+      let where = st.db.scalar(
+        string,
+        """select ifnull((select path from seen_file where file_id = a.file_id limit 1),
                               'activity ' || a.id) from activity a where a.id = ?""",
-          id,
-        )
-      result.gpsErrors.add GpsErrors(where: where, searches: got.gpsErrors)
-    guard:
-      st.db.exec(
-        sql"update activity set start_place = ?, name = ? where id = ?",
-        got.start,
-        got.name,
         id,
       )
+      result.gpsErrors.add GpsErrors(where: where, searches: got.gpsErrors)
+    st.db.execute(
+      "update activity set start_place = ?, name = ? where id = ?", got.start, got.name,
+      id,
+    )
     if got.name.len > 0:
       inc result.named
     elif got.start.len > 0:

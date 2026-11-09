@@ -6,10 +6,9 @@
 ## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
 import std/[options, sequtils, strutils, tables, terminal, times]
-import db_connector/db_sqlite
 import ../cli/common
 import ../climbs/[display, report]
-import ../db/store
+import ../db/[statement, store]
 import ../delete/run as deleteRun
 import ../importer/batch
 import ../importer/run as importRun
@@ -117,43 +116,31 @@ func radiusText(x: float): string =
     t
 
 proc number(st: Store, query: string): int {.raises: [StoreError].} =
-  guard:
-    try:
-      result = parseInt(st.db.getValue(sql(query)))
-    except ValueError:
-      raiseStore("bad number from the database")
+  st.db.scalar(int, query)
 
 proc startOf(
     st: Store, activityId: ActivityId
 ): Option[(float, float)] {.raises: [StoreError].} =
   ## Where an activity started (latitude, longitude); none if it has no positions.
-  guard:
-    let c = st.db.getRow(
-      sql"select ST_Y(start), ST_X(start) from activity where id = ?", activityId
-    )
-    try:
-      if c[0].len > 0:
-        result = some((parseFloat(c[0]), parseFloat(c[1])))
-    except ValueError:
-      raiseStore("a bad start position for activity " & $activityId)
+  let c = st.db.scalar(
+    tuple[lat, lon: Option[float]],
+    "select ST_Y(start), ST_X(start) from activity where id = ?",
+    activityId,
+  )
+  if c.lat.isSome and c.lon.isSome:
+    result = some((c.lat.get, c.lon.get))
 
 proc present(
     st: Store, column, idList: string
 ): seq[(string, int)] {.raises: [StoreError].} =
   ## The values of a column (sport or sub_sport) among the activities of these
   ## users, with how many each has, most first; "none" for not recorded.
-  guard:
-    for row in st.db.fastRows(
-      sql(
-        "select coalesce(a." & column & ", 'none'), count(*) " &
-          "from activity a join file f on f.id = a.file_id where f.user_id in (" & idList &
-          ") group by 1 order by 2 desc, 1"
-      )
-    ):
-      try:
-        result.add (row[0], parseInt(row[1]))
-      except ValueError:
-        raiseStore("bad number from the database")
+  st.db.query(
+    (string, int),
+    "select coalesce(a." & column & ", 'none'), count(*) " &
+      "from activity a join file f on f.id = a.file_id where f.user_id in (" & idList &
+      ") group by 1 order by 2 desc, 1",
+  )
 
 proc checkNames(
     st: Store, what, column, idList: string, wanted: seq[string]
@@ -190,9 +177,8 @@ func rowColumns(verbose: bool, userId: UserId): string =
     # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
     "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
     # whether it has a start (said "no GPS" if not): -v only
-    if verbose:
-    "coalesce(ST_Y(a.start), '') as slat, coalesce(ST_X(a.start), '') as slon"
-    else: "'' as slat, '' as slon"
+    if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon"
+    else: "null as slat, null as slon"
   )
 
 const rowFields =
@@ -201,35 +187,32 @@ const rowFields =
 
 proc readRows(st: Store, query: string): seq[ListRow] {.raises: [StoreError].} =
   ## The rows a query gives (the columns `rowFields`), as listed.
-  guard:
-    for r in st.db.fastRows(sql(query)):
-      try:
-        let dist = parseFloat(r[3])
-        let active = parseFloat(r[4])
-        result.add ListRow(
-          startT: UnixTime(parseBiggestInt(r[0])),
-          sport: r[1],
-          subSport: r[2],
-          distanceM:
-            if dist >= 0:
-              some(dist)
-            else:
-              none(float),
-          activeS:
-            if active >= 0:
-              some(active)
-            else:
-              none(float),
-          file: r[5],
-          user: r[6],
-          selected: r[7] == "1",
-          path: r[8],
-          place: r[9],
-          name: r[10],
-          position: positionText(r[11], r[12]),
-        )
-      except ValueError:
-        raiseStore("bad number from the database")
+  for r in st.db.query(
+    tuple[
+      startT: int64,
+      sport, subSport: string,
+      dist, active: float,
+      file, user: string,
+      chosen: bool,
+      path, place, name: string,
+      lat, lon: Option[float],
+    ],
+    query,
+  ):
+    result.add ListRow(
+      startT: UnixTime(r.startT),
+      sport: r.sport,
+      subSport: r.subSport,
+      distanceM: (if r.dist >= 0: some(r.dist) else: none(float)),
+      activeS: (if r.active >= 0: some(r.active) else: none(float)),
+      file: r.file,
+      user: r.user,
+      selected: r.chosen,
+      path: r.path,
+      place: r.place,
+      name: r.name,
+      position: positionText(r.lat, r.lon),
+    )
 
 proc listing(
     rows: seq[ListRow],
@@ -289,16 +272,7 @@ proc latestAmong(
   let rows = readRows(st, "select " & rowFields & ordered)
   if rows.len == 0:
     return none(tuple[id: ActivityId, row: ListRow])
-  guard:
-    try:
-      result = some(
-        (
-          id: ActivityId(parseBiggestInt(st.db.getValue(sql("select id" & ordered)))),
-          row: rows[0],
-        )
-      )
-    except ValueError:
-      raiseStore("bad number from the database")
+  some((id: st.db.scalar(ActivityId, "select id" & ordered), row: rows[0]))
 
 proc previousSelected(
     st: Store
@@ -317,20 +291,12 @@ proc previousSelected(
       "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = " &
       $st.userId,
   )
-  guard:
-    try:
-      result = (
-        id: ActivityId(
-          parseBiggestInt(
-            st.db.getValue(
-              sql"select activity_id from selection where user_id = ?", st.userId
-            )
-          )
-        ),
-        row: rows[0],
-      )
-    except ValueError:
-      raiseStore("bad number from the database")
+  (
+    id: st.db.scalar(
+      ActivityId, "select activity_id from selection where user_id = ?", st.userId
+    ),
+    row: rows[0],
+  )
 
 proc resolve(
     st: Store,
@@ -351,14 +317,13 @@ proc resolve(
     c.subSportRef = refNone
   if c.nameRef == which or c.startRef == which:
     # the name and the start place of that activity, whole (they are not in the row unless it was listed with -v)
-    var name, start: string
-    guard:
-      let r = st.db.getRow(
-        sql"select coalesce(name, ''), coalesce(start_place, '') from activity where id = ?",
-        id,
-      )
-      name = r[0]
-      start = r[1]
+    let r = st.db.scalar(
+      tuple[name, start: string],
+      "select coalesce(name, ''), coalesce(start_place, '') from activity where id = ?",
+      id,
+    )
+    let name = r.name
+    let start = r.start
     if c.nameRef == which:
       c.namesExact.add name
       c.nameRef = refNone
@@ -466,12 +431,7 @@ proc matchingIds*(
     result.notes = r.notes
     query =
       "select id from (" & matchSql(@[st.userId], r.c, r.centre, "a.id as id") & ")"
-  guard:
-    for row in st.db.fastRows(sql(query & " order by 1")):
-      try:
-        result.ids.add parseBiggestInt(row[0])
-      except ValueError:
-        raiseStore("a bad activity id")
+  result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
     st: Store, criteria: Criteria, zone: Timezone, screen = Screen(colour: true)
@@ -494,9 +454,8 @@ proc listActivities*(
     st.begin()
     var committed = false
     try:
-      guard:
-        st.db.exec(sql"delete from selection where user_id = ?", st.userId)
-        st.db.exec(sql(saveSql(st.userId, match)))
+      st.db.execute("delete from selection where user_id = ?", st.userId)
+      st.db.execute(saveSql(st.userId, match))
       st.commit()
       committed = true
     finally:

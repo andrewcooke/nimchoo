@@ -4,9 +4,8 @@
 ## is a line whose time is continuous, and the pieces are not.  (The type has no flat view of all
 ## the positions on purpose.)
 
-import std/[options, strutils]
-import db_connector/db_sqlite
-import ../db/store
+import std/options
+import ../db/[statement, store]
 import ../errors
 import ../fit/time
 import ../ids
@@ -21,27 +20,14 @@ type Track* = seq[seq[Coord]]
 proc readTrack*(db: DbConn, id: ActivityId): Track {.raises: [StoreError].} =
   ## The positions of an activity, by stretch.
   var current = -1 # the stretch the last row belonged to
-  guard:
-    for r in db.fastRows(
-      sql"""select s.n, c.t, c.lon, c.lat, c.alt from segment s
+  for r in db.query(
+    tuple[n: int, t: int64, lon, lat: float, alt: Option[float]],
+    """select s.n, c.t, c.lon, c.lat, c.alt from segment s
             join coords c on c.activity_id = s.activity_id and c.t between s.start_t and s.end_t
             where s.activity_id = ? order by s.n, c.t""",
-      id,
-    ):
-      try:
-        let n = parseInt(r[0])
-        if n != current:
-          current = n
-          result.add @[]
-        result[^1].add Coord(
-          t: UnixTime(parseBiggestInt(r[1])),
-          lon: parseFloat(r[2]),
-          lat: parseFloat(r[3]),
-          alt:
-            if r[4].len > 0:
-              some(parseFloat(r[4]))
-            else:
-              none(float),
-        )
-      except ValueError:
-        raiseStore("a bad coordinate in the database")
+    id,
+  ):
+    if r.n != current:
+      current = r.n
+      result.add @[]
+    result[^1].add Coord(t: UnixTime(r.t), lon: r.lon, lat: r.lat, alt: r.alt)

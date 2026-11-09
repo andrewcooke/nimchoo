@@ -220,11 +220,11 @@ suite "list table: the table":
 
 suite "list table: positions and padding":
   test "the start as coordinates: lat,lon, four decimals; no GPS if there is no start":
-    check positionText("-33.436213", "-70.608963") == "-33.4362,-70.6090"
-    check positionText("38.7", "-9.1") == "38.7000,-9.1000"
-    check positionText("0", "0") == "0.0000,0.0000"
-    check positionText("", "") == "no GPS" and positionText("-33.4", "") == "no GPS"
-    check positionText("x", "y") == "no GPS" # (not numbers)
+    check positionText(some(-33.436213), some(-70.608963)) == "-33.4362,-70.6090"
+    check positionText(some(38.7), some(-9.1)) == "38.7000,-9.1000"
+    check positionText(some(0.0), some(0.0)) == "0.0000,0.0000"
+    check positionText(none(float), none(float)) == "no GPS"
+    check positionText(some(-33.4), none(float)) == "no GPS"
   test "padding counts characters":
     check padRight("Zürich", 8) == "Zürich  "
     check padLeft("Zürich", 8) == "  Zürich"

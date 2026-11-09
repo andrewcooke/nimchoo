@@ -2,9 +2,8 @@
 ## whose command line is the `activities` command's; the module is not called `import` because that is a Nim keyword).
 
 import std/[cpuinfo, options, strutils]
-import db_connector/db_sqlite
 import ../cli/common
-import ../db/store
+import ../db/[statement, store]
 import ../download/fetch
 import ../errors
 import ../names/open
@@ -21,42 +20,29 @@ proc defaultJobs*(): int =
 
 proc newestActivity(st: Store): int64 {.raises: [StoreError].} =
   ## The highest activity id there is (0 if none): what is imported after it is new.
-  guard:
-    let v = st.db.getValue(sql"select coalesce(max(id), 0) from activity")
-    try:
-      result = parseBiggestInt(v)
-    except ValueError:
-      raiseStore("a bad id")
+  st.db.scalar(int64, "select coalesce(max(id), 0) from activity")
 
 proc selectNew(st: Store, after: int64): int {.raises: [StoreError].} =
   ## Make the user's selection the activities imported after `after` (their own, in the files of this user), so that the
   ## commands that work on the selection are ready to use on the ride just imported.  Nothing new: the selection stays.
-  guard:
-    let n = st.db.getValue(
-      sql"""select count(*) from activity a join file f on f.id = a.file_id
+  result = st.db.scalar(
+    int,
+    """select count(*) from activity a join file f on f.id = a.file_id
                                     where a.id > ? and f.user_id = ?""",
-      after,
-      st.userId,
-    )
-    try:
-      result = parseInt(n)
-    except ValueError:
-      raiseStore("a bad count")
+    after, st.userId,
+  )
   if result == 0:
     return
   st.begin()
   var done = false
   try:
-    guard:
-      st.db.exec(sql"delete from selection where user_id = ?", st.userId)
-      st.db.exec(
-        sql"""insert into selection(user_id, activity_id)
+    st.db.execute("delete from selection where user_id = ?", st.userId)
+    st.db.execute(
+      """insert into selection(user_id, activity_id)
                        select ?, a.id from activity a join file f on f.id = a.file_id
                         where a.id > ? and f.user_id = ?""",
-        st.userId,
-        after,
-        st.userId,
-      )
+      st.userId, after, st.userId,
+    )
     st.commit()
     done = true
   finally:

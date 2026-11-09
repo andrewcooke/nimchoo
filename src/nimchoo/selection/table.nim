@@ -29,16 +29,12 @@ type ListRow* = object
   position*: string ## its start as `positionText` (no GPS if it has none)
   selected*: bool ## it is in the selection (of the current user)
 
-func positionText*(lat, lon: string): string =
+func positionText*(lat, lon: Option[float]): string =
   ## The start as "-33.4362,-70.6090": latitude, longitude, four decimals (about 10 metres), as
-  ## Google Maps takes them; "no GPS" if there is no start (`lat` or `lon` empty, or not numbers).
-  if lat.len == 0 or lon.len == 0:
+  ## Google Maps takes them; "no GPS" if there is no start.
+  if lat.isNone or lon.isNone:
     return noGps
-  try:
-    formatFloat(parseFloat(lat), ffDecimal, 4) & "," &
-      formatFloat(parseFloat(lon), ffDecimal, 4)
-  except ValueError:
-    noGps
+  formatFloat(lat.get, ffDecimal, 4) & "," & formatFloat(lon.get, ffDecimal, 4)
 
 func padRight*(s: string, width: int): string =
   ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).

@@ -2,9 +2,8 @@
 ## coordinates, in one transaction.  Importing the same file again (same
 ## content, same user) does nothing.
 
-import std/[options, sets, strutils, times]
+import std/[options, sets, times]
 import ../hashing
-import db_connector/db_sqlite
 import ../db/[channel, multirow, statement, store]
 import ../errors
 import ../profile/model
@@ -99,24 +98,18 @@ proc decodeFile*(
 
 proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError].} =
   ## The `file` row of the user's that has this content (hash), if there is one.
-  guard:
-    var known = ""
-    timed "known?":
-      known = s.db.getValue(
-        sql"select id from file where user_id = ? and sha256 = ?", s.userId, digest
-      )
-    if known.len > 0:
-      try:
-        return some(FileId(parseBiggestInt(known)))
-      except ValueError:
-        raiseStore("bad file id " & known)
+  timed "known?":
+    result = s.db.queryOne(
+      FileId, "select id from file where user_id = ? and sha256 = ?", s.userId, digest
+    )
 
 proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
   ## The hashes of the contents of all the user's files: a worker that sees one of them need not
   ## decode the file (the writer still checks, with `knownFile`, when it comes to write).
-  guard:
-    for r in s.db.fastRows(sql"select sha256 from file where user_id = ?", s.userId):
-      result.incl r[0]
+  for digest in s.db.query(
+    string, "select sha256 from file where user_id = ?", s.userId
+  ):
+    result.incl digest
 
 proc writeDecoded*(
     s: Store, name, digest: string, d: Decoded, steps: seq[ImportStep]
@@ -130,14 +123,13 @@ proc writeDecoded*(
     var coordInsert = initMultiInsert(
       s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5
     )
-    guard:
-      s.db.exec(
-        sql"insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
-        s.userId,
-        name,
-        digest,
-        getTime().toUnix,
-      )
+    s.db.execute(
+      "insert into file(user_id, name, sha256, imported_at) values (?, ?, ?, ?)",
+      s.userId,
+      name,
+      digest,
+      getTime().toUnix,
+    )
     let fileId = FileId(lastInsertId(s.db))
     result.fileId = fileId
     let actStmt = prepareStmt(
