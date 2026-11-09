@@ -3,10 +3,8 @@
 ## gate, stops included.  The formatting is pure.
 
 import std/[strutils, tables, unicode]
-import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
-import ../ids
 import ../ui/style
 import ./[describe, display, work]
 
@@ -23,69 +21,36 @@ type SectorRow* = object
 
 # --- the rows
 
-func num(s: string): float {.raises: [ValueError].} =
-  parseFloat(s)
-
 proc selectedActivities*(st: Store): int {.raises: [StoreError].} =
   ## How many activities the user has selected.
-  guard:
-    try:
-      result = parseInt(
-        st.db.getValue(sql"select count(*) from selection where user_id = ?", st.userId)
-      )
-    except ValueError:
-      raiseStore("a bad count")
+  st.db.scalar(int, "select count(*) from selection where user_id = ?", st.userId)
 
 proc shownNames*(st: Store): Table[int64, string] {.raises: [StoreError].} =
   ## The name of every sector as it is shown, "name₃" where a name is shared (the number is kept: see ordinal.nim).
-  var climbs: seq[Shown]
-  guard:
-    for r in st.db.fastRows(
-      sql"select id, coalesce(name, ''), name_n from sector order by id"
-    ):
-      try:
-        climbs.add Shown(id: parseBiggestInt(r[0]), name: r[1], n: parseInt(r[2]))
-      except ValueError:
-        raiseStore("a bad number in the climbs")
+  let climbs =
+    st.db.query(Shown, "select id, coalesce(name, ''), name_n from sector order by id")
   let texts = displayNames(climbs)
   for i, c in climbs:
     result[c.id] = texts[i]
 
 proc countRetired*(st: Store): int {.raises: [StoreError].} =
   ## How many climbs are retired (hidden).
-  guard:
-    try:
-      result =
-        parseInt(st.db.getValue(sql"select count(*) from sector where retired = 1"))
-    except ValueError:
-      raiseStore("a bad count")
+  st.db.scalar(int, "select count(*) from sector where retired = 1")
 
 proc allSectors*(st: Store, retired = false): seq[SectorRow] {.raises: [StoreError].} =
   ## The sectors that are not retired (or, with `retired`, only those that are), the biggest climb first.  The names are
   ## numbered among all of them, retired ones too.
   let names = shownNames(st)
-  guard:
-    for r in st.db.fastRows(
-      sql"""
-        select s.id, s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''),
-               (select count(*) from effort e where e.sector_id = s.id), s.manual, s.retired
-          from sector s where s.retired = ? order by s.gain_m desc, s.id""",
-      (if retired: 1 else: 0),
-    ):
-      try:
-        result.add SectorRow(
-          id: parseBiggestInt(r[0]),
-          lengthM: num(r[1]),
-          gainM: num(r[2]),
-          gradient: num(r[3]),
-          category: r[4],
-          name: names.getOrDefault(parseBiggestInt(r[0]), unnamed),
-          efforts: parseInt(r[5]),
-          manual: r[6] == "1",
-          retired: r[7] == "1",
-        )
-      except ValueError:
-        raiseStore("a bad number in the climbs")
+  for r in st.db.query(
+    SectorRow,
+    """select s.id, s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), '',
+              (select count(*) from effort e where e.sector_id = s.id), s.manual, s.retired
+         from sector s where s.retired = ? order by s.gain_m desc, s.id""",
+    retired,
+  ):
+    var row = r
+    row.name = names.getOrDefault(r.id, unnamed)
+    result.add row
 
 # --- the lines
 

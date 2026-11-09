@@ -5,9 +5,8 @@
 ## ridden first, and offers to hide a climb only if it is a near copy of a more ridden one.  Retiring is by hand
 ## (`nch climbs --edit NAME --retire`).
 
-import std/[algorithm, options, strutils, tables]
-import db_connector/db_sqlite
-import ../db/store
+import std/[algorithm, options, tables]
+import ../db/[statement, store]
 import ../errors
 import ./[describe, display, match, report]
 
@@ -31,39 +30,46 @@ type
   Group* = object
     members*: seq[Member] ## the most ridden first
 
+type DuplicateRow =
+  tuple[
+    id: int64,
+    lengthM, gainM: float,
+    route: string,
+    retired: bool,
+    efforts: int,
+    category: string,
+    gradient: float,
+  ]
+
 proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   ## Groups of two or more sectors that are near copies of each other (a sector that is a near copy of one of a group
   ## joins it), retired ones too.
   let names = shownNames(st)
   var members: seq[Member]
   var paths: seq[Path]
-  guard:
-    for r in st.db.fastRows(
-      sql"""select s.id, s.length_m, s.gain_m, AsText(s.route), s.retired,
-        (select count(*) from effort e where e.sector_id = s.id), coalesce(s.category, ''), s.gradient
-        from sector s order by s.id"""
-    ):
-      try:
-        let id = parseBiggestInt(r[0])
-        members.add Member(
-          id: id,
-          name: names.getOrDefault(id, unnamed),
-          lengthM: parseFloat(r[1]),
-          gainM: parseFloat(r[2]),
-          efforts: parseInt(r[5]),
-          retired: r[4] == "1",
-          category: r[6],
-          gradient: parseFloat(r[7]),
-        )
-        let path = parseLineString(r[3])
-        if path.isNone:
-          raiseStore(
-            "climb " & r[0] & " has a route that cannot be read (damaged data): " &
-              "run `nch climbs --all --delete -f` and ask for the climbs again"
-          )
-        paths.add path.get
-      except ValueError:
-        raiseStore("a bad number in the climbs")
+  for r in st.db.query(
+    DuplicateRow,
+    """select s.id, s.length_m, s.gain_m, AsText(s.route), s.retired,
+         (select count(*) from effort e where e.sector_id = s.id), coalesce(s.category, ''), s.gradient
+         from sector s order by s.id""",
+  ):
+    members.add Member(
+      id: r.id,
+      name: names.getOrDefault(r.id, unnamed),
+      lengthM: r.lengthM,
+      gainM: r.gainM,
+      efforts: r.efforts,
+      retired: r.retired,
+      category: r.category,
+      gradient: r.gradient,
+    )
+    let path = parseLineString(r.route)
+    if path.isNone:
+      raiseStore(
+        "climb " & $r.id & " has a route that cannot be read (damaged data): " &
+          "run `nch climbs --all --delete -f` and ask for the climbs again"
+      )
+    paths.add path.get
   # groups by union: a climb that overlaps one in a group is in it
   var parent = newSeq[int](members.len)
   for i in 0 ..< parent.len:
@@ -106,23 +112,14 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     )
     # the efforts that are this climb's alone: the ride has no effort on any climb that is a near copy of it
     for m in g.members.mitems:
-      var others: seq[string]
-      for o in m.copies:
-        others.add $o
-      guard:
-        try:
-          m.unique = parseInt(
-            st.db.getValue(
-              sql(
-                "select count(*) from effort e where e.sector_id = ? and not exists " &
-                  "(select 1 from effort x where x.activity_id = e.activity_id and x.sector_id in (" &
-                  others.join(",") & "))"
-              ),
-              m.id,
-            )
-          )
-        except ValueError:
-          raiseStore("a bad count")
+      m.unique = st.db.scalar(
+        int,
+        "select count(*) from effort e where e.sector_id = ? and not exists " &
+          "(select 1 from effort x where x.activity_id = e.activity_id and " &
+          "x.sector_id in (select value from json_each(?)))",
+        m.id,
+        jsonList(m.copies),
+      )
     result.add g
   result.sort(
     proc(a, b: Group): int =

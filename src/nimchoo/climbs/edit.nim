@@ -3,8 +3,7 @@
 ## climb back, to be named again by the next `nch climbs`.
 
 import std/[algorithm, sequtils, strutils, tables]
-import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../fold
 import ./[display, ordinal, report]
@@ -45,20 +44,15 @@ proc shownName*(st: Store, id: int64): string {.raises: [StoreError].} =
 
 proc rename*(st: Store, id: int64, name: string) {.raises: [StoreError].} =
   ## Give the climb a name of the person's choosing: kept, and not looked at again by the program.
-  guard:
-    st.db.exec(sql"update sector set name = ?, manual = 1 where id = ?", name.strip, id)
+  st.db.execute("update sector set name = ?, manual = 1 where id = ?", name.strip, id)
   assignNumber(st, id)
 
 proc setAuto*(st: Store, id: int64) {.raises: [StoreError].} =
   ## Forget the name (null): the command then names the climb again from the places near it (`ensureSectorNames`).
-  guard:
-    st.db.exec(sql"update sector set name = null, manual = 0 where id = ?", id)
+  st.db.execute("update sector set name = null, manual = 0 where id = ?", id)
   assignNumber(st, id)
 
 proc setRetired*(st: Store, id: int64, retired: bool) {.raises: [StoreError].} =
   ## Hide the climb from the lists, or show it again.  Nothing else changes: it keeps its efforts, its place in the
   ## numbering of its name, and takes the efforts of new rides.
-  guard:
-    st.db.exec(
-      sql"update sector set retired = ? where id = ?", (if retired: 1 else: 0), id
-    )
+  st.db.execute("update sector set retired = ? where id = ?", retired, id)

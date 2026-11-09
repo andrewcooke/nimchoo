@@ -4,9 +4,8 @@
 ## What a name should be for a climb, an activity, ... is a rule of its own (climb.nim, and the others to come),
 ## made from these.
 
-import std/[math, strutils]
-import db_connector/db_sqlite
-import ../db/store
+import std/math
+import ../db/[statement, store]
 import ../errors
 import ./[countries, features]
 
@@ -98,11 +97,7 @@ proc prepare*(
   if isos.len == 0:
     return Prepared(status: rdNothing)
   for iso in isos:
-    var known = false
-    guard:
-      known =
-        n.st.db.getValue(sql"select count(*) from country where iso = ?", iso) != "0"
-    if known:
+    if n.st.db.scalar(int, "select count(*) from country where iso = ?", iso) != 0:
       n.ensureCells(iso, box) # (a country the list of countries lacks has nothing)
   Prepared(status: rdReady)
 
@@ -113,25 +108,13 @@ proc featuresNear*(
   if lons.len == 0:
     return
   let box = boxAround(lons, lats, marginM)
-  guard:
-    for r in n.st.db.fastRows(
-      sql(
-        "select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature " &
-          "where id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
-          "f_geometry_column = 'geom' and search_frame = BuildMbr(" &
-          formatFloat(box.lon0, ffDecimal, 6) & ", " &
-          formatFloat(box.lat0, ffDecimal, 6) & ", " &
-          formatFloat(box.lon1, ffDecimal, 6) & ", " &
-          formatFloat(box.lat1, ffDecimal, 6) & "))"
-      )
-    ):
-      try:
-        result.add Found(
-          name: r[0],
-          code: r[1],
-          isPlace: r[2] == "1",
-          lon: parseFloat(r[3]),
-          lat: parseFloat(r[4]),
-        )
-      except ValueError:
-        raiseStore("a bad number in the features")
+  n.st.db.query(
+    Found,
+    "select name, code, class = 'P', ST_X(geom), ST_Y(geom) from feature " &
+      "where id in (select ROWID from SpatialIndex where f_table_name = 'feature' and " &
+      "f_geometry_column = 'geom' and search_frame = BuildMbr(?, ?, ?, ?))",
+    box.lon0,
+    box.lat0,
+    box.lon1,
+    box.lat1,
+  )

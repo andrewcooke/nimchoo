@@ -75,6 +75,13 @@ func parseLineString*(text: string): Option[Path] =
   else:
     none(Path)
 
+func parseLineString*(text: Option[string]): Option[Path] =
+  ## (`AsText` of a route SpatiaLite cannot read is NULL: that is damaged data too.)
+  if text.isSome:
+    parseLineString(text.get)
+  else:
+    none(Path)
+
 func xy(p: Path, pr: Projection): seq[XY] =
   for i in 0 ..< p.len:
     result.add pr.project(p.lon[i], p.lat[i])

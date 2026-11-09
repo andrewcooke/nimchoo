@@ -7,11 +7,11 @@
 ## Whatever the climbs, all their attempts count, those of the selected rides and the others.
 
 import std/[algorithm, options, sequtils, strutils, tables, times]
-import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../fit/time
 import ../importer/describe
+import ../lookup
 import ../fold
 import std/unicode
 import ../ui/[palette, style, units]
@@ -49,40 +49,27 @@ func rankOf*(times: openArray[float], t: float): int =
 
 proc selectedClimbs*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The climbs (not retired) that the selected activities went up, the biggest first.
-  guard:
-    for r in st.db.fastRows(
-      sql"""
-        select s.id from sector s
-         where s.retired = 0 and exists (select 1 from effort e where e.sector_id = s.id
-               and e.activity_id in (select activity_id from selection where user_id = ?))
-         order by s.gain_m desc, s.id""",
-      st.userId,
-    ):
-      try:
-        result.add parseBiggestInt(r[0])
-      except ValueError:
-        raiseStore("a bad id")
+  st.db.query(
+    int64,
+    "select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
+      "where e.sector_id = s.id and e.activity_id in " &
+      "(select activity_id from selection where user_id = ?)) order by s.gain_m desc, s.id",
+    st.userId,
+  )
 
 proc climbsOfActivities*(
     st: Store, activities: seq[int64]
 ): seq[int64] {.raises: [StoreError].} =
-  ## The climbs (not retired) that the activities went up, the biggest first.  (The numbers are ids from the program,
-  ## written into the query.)
+  ## The climbs (not retired) that the activities went up, the biggest first.  (The list is bound as one value, see `jsonList`.)
   if activities.len == 0:
     return
-  let list = activities.mapIt($it).join(",")
-  guard:
-    for r in st.db.fastRows(
-      sql(
-        "select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
-          "where e.sector_id = s.id and e.activity_id in (" & list &
-          ")) order by s.gain_m desc, s.id"
-      )
-    ):
-      try:
-        result.add parseBiggestInt(r[0])
-      except ValueError:
-        raiseStore("a bad id")
+  st.db.query(
+    int64,
+    "select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
+      "where e.sector_id = s.id and e.activity_id in (select value from json_each(?))) " &
+      "order by s.gain_m desc, s.id",
+    jsonList(activities),
+  )
 
 proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreError].} =
   ## The climbs (not retired) whose name as shown ("Farellones₂") holds any of the texts, case and accents ignored, the
@@ -92,98 +79,95 @@ proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreErr
   for t in texts:
     for f in ordinalForms(t):
       wanted.add foldText(f)
-  guard:
-    for r in st.db.fastRows(
-      sql"select id from sector where retired = 0 order by gain_m desc, id"
-    ):
-      try:
-        let id = parseBiggestInt(r[0])
-        let shown = foldText(names.getOrDefault(id, ""))
-        for w in wanted:
-          if w in shown:
-            result.add id
-            break
-      except ValueError:
-        raiseStore("a bad id")
+  for id in st.db.query(
+    int64, "select id from sector where retired = 0 order by gain_m desc, id"
+  ):
+    let shown = foldText(names.getOrDefault(id, ""))
+    for w in wanted:
+      if w in shown:
+        result.add id
+        break
 
 # --- the rows
 
-func num(s: string): float {.raises: [ValueError].} =
-  parseFloat(s)
+type
+  ClimbRow = tuple[lengthM, gainM, gradient: float, category: string]
+  AttemptRow =
+    tuple[
+      startT: int64,
+      sport, subSport: string,
+      distanceM, activeS: Option[float],
+      place, name: string,
+      elapsed: float,
+      selected: bool,
+    ]
+  BestRow = tuple[userId: int64, user: string, elapsed: float, startT: int64]
 
 proc summaries*(st: Store, ids: seq[int64]): seq[Summary] {.raises: [StoreError].} =
   ## The climbs `ids`, in that order, with the user's attempts and everyone's best times.
   let names = shownNames(st)
-  guard:
-    for id in ids:
-      var sum = Summary()
-      try:
-        for r in st.db.fastRows(
-          sql"select length_m, gain_m, gradient, coalesce(category, '') from sector where id = ?",
-          id,
-        ):
-          sum.climb = climbOf(
-            names.getOrDefault(id, unnamed), r[3], num(r[0]), num(r[1]), num(r[2])
-          )
-        var times: seq[float]
-        for r in st.db.fastRows(
-          sql"""
-            select a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
-                   coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
-                   a.id in (select activity_id from selection where user_id = ?)
-              from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
-             where e.sector_id = ? and f.user_id = ? order by a.start_t, e.start_t""",
-          st.userId,
-          id,
-          st.userId,
-        ):
-          let info = ActivityInfo(
-            startT: UnixTime(parseBiggestInt(r[0])),
-            sport: r[1],
-            subSport: r[2],
-            distanceM: (if r[3].len > 0: some(num(r[3])) else: none(float)),
-            activeS: (if r[4].len > 0: some(num(r[4])) else: none(float)),
-            place: r[5],
-            name: r[6],
-          )
-          sum.attempts.add Attempt(
-            activity: info, elapsed: num(r[7]), selected: r[8] == "1"
-          )
-          times.add num(r[7])
-        for a in sum.attempts.mitems:
-          a.rank = rankOf(times, a.elapsed)
-          a.total = times.len
-        # each person's best
-        var best = initTable[string, Rider]()
-        for r in st.db.fastRows(
-          sql"""
-            select f.user_id, u.name, e.elapsed_s, a.start_t
-              from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
-              join user u on u.id = f.user_id
-             where e.sector_id = ?""",
-          id,
-        ):
-          let t = num(r[2])
-          if r[0] notin best or t < best[r[0]].elapsed:
-            best[r[0]] = Rider(
-              user: r[1],
-              elapsed: t,
-              startT: parseBiggestInt(r[3]),
-              me: r[0] == $int64(st.userId),
-            )
-        for rider in best.values:
-          sum.riders.add rider
-        sum.riders.sort(
-          proc(a, b: Rider): int =
-            cmp(a.elapsed, b.elapsed)
+  for id in ids:
+    var sum = Summary()
+    for r in st.db.query(
+      ClimbRow,
+      "select length_m, gain_m, gradient, coalesce(category, '') from sector where id = ?",
+      id,
+    ):
+      sum.climb = climbOf(
+        names.getOrDefault(id, unnamed), r.category, r.lengthM, r.gainM, r.gradient
+      )
+    var times: seq[float]
+    for r in st.db.query(
+      AttemptRow,
+      """select a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
+                coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
+                a.id in (select activity_id from selection where user_id = ?)
+           from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
+          where e.sector_id = ? and f.user_id = ? order by a.start_t, e.start_t""",
+      st.userId, id, st.userId,
+    ):
+      let info = ActivityInfo(
+        startT: UnixTime(r.startT),
+        sport: r.sport,
+        subSport: r.subSport,
+        distanceM: r.distanceM,
+        activeS: r.activeS,
+        place: r.place,
+        name: r.name,
+      )
+      sum.attempts.add Attempt(activity: info, elapsed: r.elapsed, selected: r.selected)
+      times.add r.elapsed
+    for a in sum.attempts.mitems:
+      a.rank = rankOf(times, a.elapsed)
+      a.total = times.len
+    # each person's best
+    var best = initTable[int64, Rider]()
+    for r in st.db.query(
+      BestRow,
+      """select f.user_id, u.name, e.elapsed_s, a.start_t
+           from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
+           join user u on u.id = f.user_id
+          where e.sector_id = ?""",
+      id,
+    ):
+      if r.userId notin best or r.elapsed < best.must(r.userId).elapsed:
+        best[r.userId] = Rider(
+          user: r.user,
+          elapsed: r.elapsed,
+          startT: r.startT,
+          me: r.userId == int64(st.userId),
         )
-        let bests = sum.riders.mapIt(it.elapsed)
-        for rider in sum.riders.mitems:
-          rider.rank = rankOf(bests, rider.elapsed)
-          rider.total = sum.riders.len
-      except ValueError:
-        raiseStore("a bad number in the climbs")
-      result.add sum
+    for rider in best.values:
+      sum.riders.add rider
+    sum.riders.sort(
+      proc(a, b: Rider): int =
+        cmp(a.elapsed, b.elapsed)
+    )
+    let bests = sum.riders.mapIt(it.elapsed)
+    for rider in sum.riders.mitems:
+      rider.rank = rankOf(bests, rider.elapsed)
+      rider.total = sum.riders.len
+    result.add sum
 
 # --- the lines
 

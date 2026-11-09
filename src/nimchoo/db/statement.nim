@@ -161,6 +161,9 @@ proc bindValue*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
 proc bindValue*(s: Stmt, i: int, v: AnyId) {.raises: [StoreError].} =
   s.bindInt(i, int64(v))
 
+proc bindValue*(s: Stmt, i: int, v: bool) {.raises: [StoreError].} =
+  s.bindInt(i, int64(ord(v)))
+
 proc bindValue*(s: Stmt, i: int, v: float) {.raises: [StoreError].} =
   s.bindReal(i, v)
 
@@ -179,6 +182,16 @@ macro bindArgs(s: Stmt, args: varargs[untyped]): untyped =
   result = newStmtList()
   for n, a in args:
     result.add newCall(bindSym"bindValue", s, newLit(n + 1), a)
+
+func jsonList*(ids: openArray[int64]): string =
+  ## The numbers as a JSON array, for a list of any length to be bound as ONE value:
+  ## `... in (select value from json_each(?))`.  (The sql text stays the same, whatever the list.)
+  result = "["
+  for i, id in ids:
+    if i > 0:
+      result.add ','
+    result.add $id
+  result.add ']'
 
 # --- typed reading -------------------------------------------------------------------------------------------
 
@@ -206,6 +219,14 @@ proc readCol*(s: Stmt, i: int, v: var int) {.raises: [StoreError].} =
   var w: int64
   s.readCol(i, w)
   v = int(w)
+
+proc readCol*(s: Stmt, i: int, v: var bool) {.raises: [StoreError].} =
+  ## (0 or 1: what SQLite makes of a comparison.)
+  var w: int64
+  s.readCol(i, w)
+  if w != 0 and w != 1:
+    wrong(s, i, "0 or 1")
+  v = w == 1
 
 proc readCol*(s: Stmt, i: int, v: var AnyId) {.raises: [StoreError].} =
   var w: int64
@@ -235,7 +256,7 @@ proc readCol*[T](s: Stmt, i: int, v: var Option[T]) {.raises: [StoreError].} =
 
 proc readRow[T](s: Stmt): T {.raises: [StoreError].} =
   ## The current row as a `T`: a tuple or object (one column for each field, in order), or a single value.
-  when T is tuple or T is object:
+  when (T is tuple or T is object) and T isnot Option:
     var want = 0
     for _ in fields(result):
       inc want

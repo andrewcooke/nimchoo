@@ -45,6 +45,12 @@ suite "statement: typed reading and binding":
     check db.queryOne(string, "select name from t where n = ?", 99).isNone
     expect StoreError:
       discard db.scalar(int, "select n from t where n = ?", 99)
+  test "a single optional column is one value (NULL is none)":
+    let db = memory()
+    defer:
+      db.close()
+    check db.query(Option[string], "select note from t order by id") ==
+      @[some("hi"), none(string)]
   test "bound values are values, not sql":
     let db = memory()
     defer:

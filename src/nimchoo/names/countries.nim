@@ -7,7 +7,6 @@
 ## the network and disk (a made-up one in tests) and where events are told.
 
 import std/[math, options, os, strutils]
-import db_connector/db_sqlite
 import ../db/[statement, store]
 import ../download/[fetch, sources]
 import ../errors
@@ -73,26 +72,23 @@ proc loadOutlines(
       work / (neStem & ext),
       readEntry(zip, neStem & ext, 64 * 1024 * 1024, n.env.inflater),
     )
-  guard:
-    n.st.db.exec(
-      sql(
-        "create virtual table temp.ne_shapes using VirtualShape('" &
-          (work / neStem).replace("'", "''") & "', 'UTF-8', 4326)"
-      )
-    )
+  # (a virtual table's arguments are part of the statement and cannot be bound)
+  n.st.db.execute(
+    "create virtual table temp.ne_shapes using VirtualShape('" &
+      (work / neStem).replace("'", "''") & "', 'UTF-8', 4326)"
+  )
 
 proc dropOutlines(n: Names) =
   try:
-    n.st.db.exec(sql"drop table if exists temp.ne_shapes")
-  except DbError:
+    n.st.db.execute("drop table if exists temp.ne_shapes")
+  except StoreError:
     discard
 
 proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
   ## The `country` table is filled: if it is not, fetch the outlines and the list of countries and fill it.
   ## A DownloadError (and the reason told to the sink) if that cannot be done.
-  guard:
-    if n.st.db.getValue(sql"select count(*) from country where geom is not null") != "0":
-      return
+  if n.st.db.scalar(int, "select count(*) from country where geom is not null") != 0:
+    return
   let outlinesPath = fetchSource(n.env, n.sink, n.dataDir, naturalEarthCountries)
   let infoPath = fetchSource(n.env, n.sink, n.dataDir, geonamesCountryInfo)
   if outlinesPath.isNone or infoPath.isNone:
@@ -166,9 +162,6 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
     if not done:
       n.st.rollback()
 
-func degrees(x: float): string =
-  formatFloat(x, ffDecimal, 7)
-
 func wrapCell*(cx: int): int =
   ## A cell's longitude put back into -180 .. 180 degrees (in cells).
   let width = 360 * cellsPerDegree
@@ -184,36 +177,34 @@ proc countriesOfCell*(
   let y0 = cy.float / cellsPerDegree.float
   let x1 = x0 + 1.0 / cellsPerDegree.float
   let y1 = y0 + 1.0 / cellsPerDegree.float
-  guard:
-    if n.st.db.getValue(
-      sql"select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?",
-      cx,
-      cy,
-    ) == "0":
-      let mbr =
-        "BuildMbr(" & degrees(x0) & ", " & degrees(y0) & ", " & degrees(x1) & ", " &
-        degrees(y1)
-      for r in n.st.db.fastRows(
-        sql(
-          "select iso from country where geom is not null and rowid in (select ROWID from " &
-            "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and search_frame = " &
-            mbr & ")) " & "and Intersects(geom, " & mbr & ", 4326)) = 1 order by iso"
-        )
-      ):
-        n.st.db.exec(
-          sql"insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)",
-          cx,
-          cy,
-          r[0],
-        )
-      n.st.db.exec(
-        sql"insert or ignore into country_cell_done(cell_lon, cell_lat) values (?, ?)",
-        cx,
-        cy,
-      )
-    for r in n.st.db.fastRows(
-      sql"select country from country_cell where cell_lon = ? and cell_lat = ? order by country",
-      cx,
-      cy,
+  if n.st.db.scalar(
+    int, "select count(*) from country_cell_done where cell_lon = ? and cell_lat = ?",
+    cx, cy,
+  ) == 0:
+    for iso in n.st.db.query(
+      string,
+      "select iso from country where geom is not null and rowid in (select ROWID from " &
+        "SpatialIndex where f_table_name = 'country' and f_geometry_column = 'geom' and " &
+        "search_frame = BuildMbr(?, ?, ?, ?)) and Intersects(geom, BuildMbr(?, ?, ?, ?, 4326)) = 1 order by iso",
+      x0,
+      y0,
+      x1,
+      y1,
+      x0,
+      y0,
+      x1,
+      y1,
     ):
-      result.add r[0]
+      n.st.db.execute(
+        "insert or ignore into country_cell(cell_lon, cell_lat, country) values (?, ?, ?)",
+        cx, cy, iso,
+      )
+    n.st.db.execute(
+      "insert or ignore into country_cell_done(cell_lon, cell_lat) values (?, ?)", cx,
+      cy,
+    )
+  result = n.st.db.query(
+    string,
+    "select country from country_cell where cell_lon = ? and cell_lat = ? order by country",
+    cx, cy,
+  )
