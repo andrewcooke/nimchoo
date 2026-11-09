@@ -42,6 +42,7 @@ import ./packages/util/version/package as pkgVersion
 import ./packages/util/warnings/package as pkgWarnings
 import ./packages/util/xlsx/package as pkgXlsx
 import ./packages/util/zip/package as pkgZip
+import ./packages/web/package as pkgWeb
 
 const packages*: seq[Registered] = inDependencyOrder(
   @[
@@ -84,6 +85,7 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "warnings", package: pkgWarnings.package),
     Registered(name: "xlsx", package: pkgXlsx.package),
     Registered(name: "zip", package: pkgZip.package),
+    Registered(name: "web", package: pkgWeb.package),
   ]
 )
 

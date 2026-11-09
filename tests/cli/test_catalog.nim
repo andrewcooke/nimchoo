@@ -1,6 +1,6 @@
 import std/[algorithm, options, strutils, unittest]
 import nimchoo/cli/catalog
-import nimchoo/serve/request
+import nimchoo/packages/web/request
 
 suite "commands: the one list":
   test "a name finds its command, and only a command's name does":

@@ -92,7 +92,7 @@ import
     test_lookup, test_shape, test_activity, test_landmarks,
   ]
 import
-  ./serve/
+  ./web/
     [test_request, test_token, test_handler, test_pages, test_libraries, test_workers]
 import ./user/test_wipe
 import ./commands/userscmd/test_params

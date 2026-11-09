@@ -1,5 +1,6 @@
 import std/[asyncdispatch, monotimes, os, strutils, times, unittest]
-import nimchoo/serve/[handler, workers]
+import nimchoo/packages/web/handler
+import nimchoo/packages/web/workers
 
 # (the program run is /bin/sh, and its "arguments" are `-c SCRIPT`: the workers do not care what the program is)
 

@@ -3,7 +3,7 @@ import ../support/env
 import nimchoo/packages/bundle/unpack
 import nimchoo/packages/cache/cache
 import nimchoo/map/page
-import nimchoo/serve/libraries
+import nimchoo/packages/web/libraries
 import nimchoo/packages/text/templating/templating
 
 let libs = parseLibraries(librariesBundle.data).toTable

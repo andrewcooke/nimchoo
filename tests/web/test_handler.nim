@@ -1,6 +1,6 @@
 import std/[os, strutils, unittest]
-import nimchoo/serve/handler
-import nimchoo/serve/request
+import nimchoo/packages/web/handler
+import nimchoo/packages/web/request
 import nimchoo/core/logfile
 
 const

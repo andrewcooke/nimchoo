@@ -4,7 +4,7 @@
 import std/sequtils
 import ../packages/util/args/args
 import ../packages/selection/bits
-import ../serve/webopts
+import ../packages/web/webopts
 
 {.push raises: [].}
 

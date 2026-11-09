@@ -28,7 +28,9 @@ import ../packages/fit/time
 import ../core/ids
 import ../packages/selection/bits
 import ../packages/selection/selection
-import ../serve/[launch, pages, webopts]
+import ../packages/web/launch
+import ../packages/web/pages
+import ../packages/web/webopts
 import ./[lines, page, params]
 
 {.push raises: [].}
@@ -259,7 +261,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # the address pins what was made: the activities, and the check of them
     return serveWeb(
       g,
-      cmMap,
+      $cmMap,
       WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
       dir.get,
       made.query,

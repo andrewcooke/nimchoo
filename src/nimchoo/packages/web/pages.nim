@@ -2,9 +2,9 @@
 ## and escaping text for a page (re-exported from packages/text/templating).
 
 import std/os
-import ../packages/bundle/unpack
-import ../packages/cache/cache
-import ../packages/text/templating/templating
+import ../bundle/unpack
+import ../cache/cache
+import ../text/templating/templating
 export templating.htmlEscape
 
 {.push raises: [].}

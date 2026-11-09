@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/serve/request
+import nimchoo/packages/web/request
 
 proc target(raw: string): Target =
   parseTarget(raw).get

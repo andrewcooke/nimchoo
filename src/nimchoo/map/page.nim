@@ -13,7 +13,7 @@
 import std/[json, options, strutils]
 import ../packages/bundle/unpack
 import ../packages/cache/cache
-import ../serve/libraries
+import ../packages/web/libraries
 import ../packages/text/templating/templating
 import ../packages/ui/palette
 

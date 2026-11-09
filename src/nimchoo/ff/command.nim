@@ -18,7 +18,9 @@ import ../core/errors
 import ../packages/model/calc
 import ../packages/model/impulses
 import ../packages/model/models
-import ../serve/[launch, pages, webopts]
+import ../packages/web/launch
+import ../packages/web/pages
+import ../packages/web/webopts
 import ../packages/ui/live
 import ../packages/ui/style
 import ./[curve, page, params, stats]
@@ -329,7 +331,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.web.enabled:
       return serveWeb(
         g,
-        cmFf,
+        $cmFf,
         WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
         dir.get,
         "check=" & key & (if query.len > 0: "&" & query else: ""),

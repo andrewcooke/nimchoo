@@ -1,9 +1,9 @@
 import std/[options, os, strutils, tables, unittest]
 import ../support/env
 import nimchoo/packages/bundle/unpack
-import nimchoo/serve/libraries
+import nimchoo/packages/web/libraries
 import nimchoo/ff/[command, page, params]
-import nimchoo/serve/request
+import nimchoo/packages/web/request
 import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette
 

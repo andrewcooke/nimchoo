@@ -1,5 +1,5 @@
 import std/[strutils, tables, unittest]
-import nimchoo/serve/libraries
+import nimchoo/packages/web/libraries
 import nimchoo/packages/text/templating/templating
 
 suite "libraries: the file of CDN libraries":

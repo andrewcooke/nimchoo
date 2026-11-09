@@ -1,5 +1,5 @@
 import std/[os, strutils, unittest]
-import nimchoo/serve/token
+import nimchoo/packages/web/token
 
 let dir = getTempDir() / "nch-test-token"
 

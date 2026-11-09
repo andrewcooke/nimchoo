@@ -4,13 +4,12 @@
 ## request, which finds them again (see handler.nim).  Shared by the commands that have pages.
 
 import std/[os, osproc]
-import ../cli/catalog
-import ../packages/cache/cache
-import ../core/globals
-import ../packages/db/store
-import ../core/logfile
-import ../packages/ui/interrupt
-import ../packages/ui/vocabulary
+import ../cache/cache
+import ../../core/globals
+import ../db/store
+import ../../core/logfile
+import ../ui/interrupt
+import ../ui/vocabulary
 import ./[handler, request, server, token]
 
 {.push raises: [].}
@@ -40,12 +39,12 @@ proc openBrowser(url: string): bool =
     false
 
 proc serveWeb*(
-    g: Globals, command: Command, o: WebOptions, cacheDir, query: string
+    g: Globals, command: string, o: WebOptions, cacheDir, query: string
 ): int =
   ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its
   ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
   ## pins the page in the address, e.g. "bits=AsBO&check=ab12cd".
-  let name = "nch " & $command
+  let name = "nch " & command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:
     return failure(name, t.problem)
@@ -54,7 +53,7 @@ proc serveWeb*(
     cacheDir: userDir(cacheDir),
     baseArgs: workerOptions(g),
     log: g.log,
-    logCommand: $command,
+    logCommand: command,
   )
   exitOnInterrupt()
   let problem = serveForever(
@@ -63,14 +62,14 @@ proc serveWeb*(
     o.port,
     proc(port: int) {.closure, raises: [].} =
       let url =
-        "http://localhost:" & $port & "/" & $command & "?" & query & "&token=" & t.token
+        "http://localhost:" & $port & "/" & command & "?" & query & "&token=" & t.token
       stdout.say url & "\n(Ctrl-C to stop)\n"
       try:
         stdout.flushFile()
       # (a program reading our output waits for this line)
       except IOError:
         discard
-      g.log.log(lvInfo, $command, leServed, "listening on 127.0.0.1:" & $port)
+      g.log.log(lvInfo, command, leServed, "listening on 127.0.0.1:" & $port)
       if not o.noOpen and not openBrowser(url):
         stderr.say "note: could not open a browser; open the address above\n"
     ,
