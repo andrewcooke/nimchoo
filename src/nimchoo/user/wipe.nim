@@ -38,10 +38,6 @@ func describe*(count: Option[int], user: string): string =
   else:
     items & " and user " & user
 
-func describeEmpty*(count: Option[int], user: string): string =
-  ## What is to go when a user is emptied: "74 activities of user bob" (the user stays).
-  (if count.isSome: activities(count.get) else: "all data") & " of user " & user
-
 func countdownLine*(what: string, seconds: int): Line =
   ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", in red.
   @[

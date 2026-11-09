@@ -1,10 +1,10 @@
+import ../support/shims
 import ../support/env
 import std/[math, options, os, strutils, times, unittest]
 import db_connector/db_sqlite
 import nimchoo/cli/common
 import nimchoo/db/store
 import nimchoo/fit/bytes
-import nimchoo/importer/importer
 import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/warnings

@@ -23,19 +23,6 @@ func keyOf*(entries: seq[string]): string =
     text.add e & "\n"
   sha256Hex(text)[0 ..< keyLength]
 
-proc selectionKey*(st: Store): string {.raises: [StoreError].} =
-  ## The key of the current selection of the store's user.
-  var entries: seq[string]
-  guard:
-    for row in st.db.fastRows(
-      sql"""select f.sha256, a.session
-        from selection s join activity a on a.id = s.activity_id
-        join file f on f.id = a.file_id where s.user_id = ?""",
-      st.userId,
-    ):
-      entries.add row[0] & ":" & row[1]
-  keyOf(entries)
-
 proc selectedIds*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
   guard:

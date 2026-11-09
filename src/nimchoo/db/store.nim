@@ -105,11 +105,10 @@ proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
 proc record(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   guard:
     db.exec(
-      sql"insert into fragment(name, applied_at, sha256, seed_version) values (?, ?, ?, ?)",
+      sql"insert into fragment(name, applied_at, sha256) values (?, ?, ?)",
       f.name,
       getTime().toUnix,
       f.checksum,
-      f.currentVersion,
     )
 
 proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
@@ -143,66 +142,19 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].
                     applied_at integer not null,
                     sha256 text not null) strict, without rowid"""
     )
-    # a database made before checksums were recorded has no such column
-    var columns: seq[string]
-    for row in db.fastRows(sql"pragma table_info(fragment)"):
-      columns.add row[1]
-    if "sha256" notin columns:
-      raiseStore("the database was made by an older version of nch" & outOfDate)
-    # which data a fragment's seed put in (for the fragments whose data can be replaced)
-    if "seed_version" notin columns:
-      db.exec(sql"alter table fragment add column seed_version text")
   let have = recorded(db)
   for (name, sum) in have:
     let known = all.filterIt(it.name == name)
     if known.len == 0:
       raiseStore("the database is from a newer version of nch (it has '" & name & "')")
     if known[0].checksum != sum:
-      if sum in known[0].legacySums: # recorded when the data were part of the checksum
-        guard:
-          db.exec(
-            sql"update fragment set sha256 = ?, seed_version = ? where name = ?",
-            known[0].checksum,
-            known[0].legacyVersion,
-            name,
-          )
-      else:
-        raiseStore(
-          "the database was made by a different version of nch (its '" & name &
-            "' is not the one this version has)" & outOfDate
-        )
+      raiseStore(
+        "the database was made by a different version of nch (its '" & name &
+          "' is not the one this version has)" & outOfDate
+      )
   for f in all:
     if have.allIt(it[0] != f.name):
       apply(db, f)
-  for f in all: # data that can be replaced: is it the version wanted?
-    if f.reseed.isNil:
-      continue
-    let want = f.currentVersion
-    var has = ""
-    guard:
-      has = db.getValue(
-        sql"select coalesce(seed_version, '') from fragment where name = ?", f.name
-      )
-    if has == want:
-      continue
-    guard:
-      db.exec(sql"begin")
-    var done = false
-    try:
-      f.reseed(db)
-      guard:
-        db.exec(sql"update fragment set seed_version = ? where name = ?", want, f.name)
-      guard:
-        db.exec(sql"commit")
-      done = true
-    except StoreError as e:
-      raiseStore("replacing the data of " & f.name & ": " & e.msg)
-    finally:
-      if not done:
-        try:
-          discard db.tryExec(sql"rollback")
-        except DbError:
-          discard
 
 proc close*(s: Store) {.raises: [].} =
   ## Close the database now (it is also closed when the last copy of the store goes, so this is

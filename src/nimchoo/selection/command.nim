@@ -116,16 +116,6 @@ func radiusText(x: float): string =
   else:
     t
 
-proc userIdOf(st: Store, name: string): UserId {.raises: [StoreError].} =
-  guard:
-    let v = st.db.getValue(sql"select id from user where name = ?", name)
-    if v.len == 0:
-      raiseStore("no such user: " & name)
-    try:
-      result = UserId(parseBiggestInt(v))
-    except ValueError:
-      raiseStore("bad user id " & v)
-
 proc number(st: Store, query: string): int {.raises: [StoreError].} =
   guard:
     try:

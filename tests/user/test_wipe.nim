@@ -19,8 +19,6 @@ suite "wipe: what is said":
     check describe(some 74, "") == "74 activities for all users"
     check describe(some 1, "bob") == "1 activity and user bob"
     check describe(none int, "") == "all data for all users"
-    check describeEmpty(some 74, "bob") == "74 activities of user bob"
-    check describeEmpty(none int, "bob") == "all data of user bob"
 
   test "the countdown line is red, with the number bold":
     let l = countdownLine("74 activities for all users", 4)

@@ -66,7 +66,7 @@ suite "climbs: the profile of a stretch of ride":
     check not p.elev[60].isNaN and not p.elev[100].isNaN # inside the gap: joined up
     check abs(p.elev[100] - 50.0) < 1.0 # (the same line, joined)
 
-  test "the altitude is used as recorded: a spike stays (a terrain model would be smoothed, see `smoothed`)":
+  test "the altitude is used as recorded: a spike stays":
     var coords = ride(
       5.0,
       200,
@@ -90,17 +90,3 @@ suite "climbs: the profile of a stretch of ride":
       @[1 ..< 3, 6 ..< 9] # (a single sample is not a stretch)
     check validRuns(newSeq[float]()).len == 0
     check validRuns(@[n, n]).len == 0
-
-  test "smoothing leaves a straight slope alone and softens a step":
-    var slope: seq[float]
-    for i in 0 ..< 50:
-      slope.add float(i)
-    let s = smoothed(slope)
-    for i in 10 ..< 40:
-      check abs(s[i] - slope[i]) < 1e-9
-      # (the ten samples at each end are a little off: two filters of five each side)
-    var stepped: seq[float]
-    for i in 0 ..< 40:
-      stepped.add (if i < 20: 0.0 else: 10.0)
-    let t = smoothed(stepped)
-    check t[5] == 0.0 and t[35] == 10.0

@@ -1,5 +1,6 @@
 import std/[algorithm, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
+import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
@@ -8,7 +9,7 @@ import nimchoo/modules
 import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
-  ## The old `nch import ARGS` as `nch activities --import ...` (the paths first, then the options)
+  ## `nch activities --import ARGS` (the paths first, then the options)
   var paths, flags: seq[string]
   var i = 0
   while i < args.len:
@@ -58,7 +59,7 @@ proc open(path: string): Store =
 func globals(db: string, user = ""): Globals =
   Globals(dbPath: db, user: user, fragments: allFragments, offline: true)
 
-suite "nch import: finding files":
+suite "nch activities --import: finding files":
   test "directories are searched recursively, for .fit and .FIT only":
     let d = fresh("tree")
     bytesToFile(d / "b.fit", tiny(base + 1))
@@ -111,7 +112,7 @@ suite "nch import: finding files":
     check r.lines[1].contains("no .fit files found")
     check r.lines[^1] == "read: 2 files, 0 imported, 2 failed (not found 2)"
 
-suite "nch import: a mixed run":
+suite "nch activities --import: a mixed run":
   test "a bad file does not stop the others, or undo them":
     let d = fresh("mixed")
     bytesToFile(d / "1-good.fit", tiny(base + 1))
@@ -174,7 +175,7 @@ suite "nch import: a mixed run":
     check r.stderr[0].contains("dup.fit")
     check r.stderr[0].contains("and 1 more like it")
 
-suite "nch import: the command":
+suite "nch activities --import: the command":
   test "exit codes":
     let d = fresh("run")
     bytesToFile(d / "a.fit", tiny(base + 1))

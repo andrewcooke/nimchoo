@@ -17,13 +17,8 @@ import ./failure
 
 {.push raises: [].}
 
-type
-  Lines* = object ## What one event prints.
-    stdout*, stderr*: seq[string]
-
-  Report* = ref object ## The plain output of a whole run, collected instead of printed.
-    lines*, stderr*: seq[string]
-    imported*, duplicates*, unchanged*, failed*, known*, advisories*: int
+type Lines* = object ## What one event prints.
+  stdout*, stderr*: seq[string]
 
 func extrasText*(c: Counts): string =
   ## ", 2,099 heart-rate readings" for what import steps wrote (nothing if they wrote none).
@@ -152,17 +147,3 @@ proc plainSink*(quiet: bool, logged = false): Sink =
         discard
     for l in lines.stderr:
       stderr.say l & "\n"
-
-proc reportSink*(report: Report, quiet: bool): Sink =
-  ## Collect the plain lines into `report`.
-  result = proc(ev: ImportEvent) {.closure, raises: [].} =
-    let lines = plainLines(ev, quiet)
-    report.lines.add lines.stdout
-    report.stderr.add lines.stderr
-    if ev.kind == evFinish:
-      report.imported = ev.summary.imported
-      report.duplicates = ev.summary.duplicates
-      report.unchanged = ev.summary.unchanged
-      report.failed = ev.summary.failed
-      report.known = ev.summary.known
-      report.advisories = ev.summary.advisories

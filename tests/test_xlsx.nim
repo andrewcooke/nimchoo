@@ -4,6 +4,9 @@ import ./support/xlsxbuilder
 
 const profile = "../choochoo/data/sdk/Profile.xlsx"
 
+proc readWorkbook(path: string): Workbook =
+  openWorkbook(readFile(path))
+
 suite "xlsx files":
   test "Types sheet: known value":
     let rows = readWorkbook(profile).rows("Types")
@@ -21,7 +24,6 @@ suite "xlsx files":
 
   test "from memory and from a file give the same rows":
     let wb = openWorkbook(readFile(profile))
-    check wb.sheetNames.len == 2
     check wb.rows("Messages") == readWorkbook(profile).rows("Messages")
 
 # --- small hand-made xlsx files (stored, not deflated, zips)

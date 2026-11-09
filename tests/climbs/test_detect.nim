@@ -104,7 +104,7 @@ suite "climbs: finding them":
 
   test "a little noise does not change what is found":
     let clean = shape([(0.0, 50.0), (1000.0, 50.0), (3000.0, 150.0), (4000.0, 150.0)])
-    let cs = findClimbs(smoothed(noisy(clean, 1.5)), step)
+    let cs = findClimbs(noisy(clean, 1.5), step)
     check cs.len == 1
     check abs(cs[0].gain - 99.0) < 6.0
 

@@ -135,9 +135,6 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   for i, row in cells:
     result.add line(row, some(rows[i]))
 
-func plural(n: int, one, many: string): string =
-  $n & " " & (if n == 1: one else: many)
-
 func footer*(rows: seq[ListRow], choices = none(int)): string =
   ## "42 of 310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many
   ## (of how many there are to choose from, if known), the total distance and active

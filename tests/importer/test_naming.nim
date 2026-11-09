@@ -1,5 +1,6 @@
 import std/[strutils, unittest]
 import db_connector/db_sqlite
+import ../support/shims
 import nimchoo/db/store
 import nimchoo/download/fetch
 import nimchoo/errors

@@ -16,7 +16,6 @@ import ./importer
 import ./pool
 import ./work
 import ./seen
-import ./sinks
 
 {.push raises: [].}
 
@@ -321,10 +320,3 @@ proc importPaths*(
   if profileNote.len > 0:
     result.notes.add profileNote
   emit ImportEvent(kind: evFinish, summary: result)
-
-proc importReport*(
-    st: Store, targets: seq[string], opts: ImportOptions = ImportOptions()
-): Report =
-  ## `importPaths`, with the plain output collected in a Report.
-  result = Report()
-  discard importPaths(st, targets, opts, reportSink(result, opts.quiet))

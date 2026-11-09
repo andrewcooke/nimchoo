@@ -1,6 +1,6 @@
 import std/[math, strutils, unittest]
+import ../support/shims
 import nimchoo/db/store
-import nimchoo/download/fetch
 import nimchoo/names/[countries, features, lookup]
 import ../support/[namesdata, userdata]
 

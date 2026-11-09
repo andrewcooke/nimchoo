@@ -1,7 +1,7 @@
 ## The profile of one stretch of a ride (a timer segment) as the climb detector wants it: the
 ## altitude at even steps of distance along the ground, as the device recorded it.  Nothing is smoothed: the altitude
 ## of a bike computer is barometric and clean (the old choochoo did not smooth it either: it smoothed only the heights
-## taken from a terrain model).  When there are terrain heights to use, `smoothed` is for them.
+## taken from a terrain model).
 ##
 ## The ride has a position and time at each second but no distance, so the distance is worked out
 ## from the positions (over the ground; the altitude is not part of it).  Samples are put every
@@ -9,19 +9,14 @@
 ## points that have one; where there is none it is not made up (NaN), and a climb never crosses
 ## such a gap.  Pure.
 
-import std/[algorithm, math, options]
+import std/[math, options]
 import ../importer/extract
 import ../geo
 
 {.push raises: [].}
 
-const
-  stepM* = 5.0
-    ## metres between samples: about the density of the recorded points of a bike ride
-  despikeWidth = int(50.0 / stepM)
-    ## samples in the median that removes spikes (50 m), in `smoothed`
-  smoothWidth = int(50.0 / stepM)
-    ## samples in the moving average that smooths what is left (50 m), in `smoothed`
+const stepM* = 5.0
+  ## metres between samples: about the density of the recorded points of a bike ride
 
 type Profile* = object
   step*: float ## metres between samples (`stepM`)
@@ -47,31 +42,6 @@ func validRuns*(elev: openArray[float]): seq[Slice[int]] =
       if i - start >= 2:
         result.add start ..< i
       start = -1
-
-func filtered(elev: seq[float], width: int, median: bool): seq[float] =
-  ## A median or a mean of `width` samples round each sample (fewer at the ends of a run without NaN).
-  result = elev
-  let half = width div 2
-  for run in validRuns(elev):
-    for i in run:
-      let lo = max(run.a, i - half)
-      let hi = min(run.b, i + half)
-      if median:
-        var window = newSeq[float](hi - lo + 1)
-        for k in lo .. hi:
-          window[k - lo] = elev[k]
-        window.sort
-        result[i] = window[window.len div 2]
-      else:
-        var sum = 0.0
-        for k in lo .. hi:
-          sum += elev[k]
-        result[i] = sum / float(hi - lo + 1)
-
-func smoothed*(elev: seq[float]): seq[float] =
-  ## Without spikes (a median) and smoothed (a moving average), over 50 m each.  For heights from a terrain model, which
-  ## are not applied yet: a profile is not smoothed.
-  filtered(filtered(elev, despikeWidth, median = true), smoothWidth, median = false)
 
 func buildProfile*(coords: openArray[Coord]): Profile =
   ## The profile of the points, which are in time order and belong to one timer segment.

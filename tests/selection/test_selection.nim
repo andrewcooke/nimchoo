@@ -44,6 +44,10 @@ suite "selection: the key":
   test "known value (the SHA-256 of nothing starts e3b0c44298fc)":
     check keyOf(@[]) == "e3b0c44298fc"
 
+proc selectionKey(st: Store): string =
+  ## The content key of the user's selection.
+  contentKey(st, selectedIds(st))
+
 suite "selection: of the database":
   test "an empty selection has the key of nothing":
     let s = fresh("empty")

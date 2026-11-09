@@ -9,38 +9,25 @@ import ./bytes
 
 {.push raises: [].}
 
-type
-  BaseType* = enum
-    ## Order follows the FIT base type numbers.
-    btEnum = "enum"
-    btSint8 = "sint8"
-    btUint8 = "uint8"
-    btSint16 = "sint16"
-    btUint16 = "uint16"
-    btSint32 = "sint32"
-    btUint32 = "uint32"
-    btString = "string"
-    btFloat32 = "float32"
-    btFloat64 = "float64"
-    btUint8z = "uint8z"
-    btUint16z = "uint16z"
-    btUint32z = "uint32z"
-    btByte = "byte"
-    btSint64 = "sint64"
-    btUint64 = "uint64"
-    btUint64z = "uint64z"
-
-  RawKind* = enum
-    rkInt
-    rkFloat
-    rkString
-
-  RawValues* = object ## Unscaled, unmapped values read from a field.
-    case kind*: RawKind
-    of rkInt: ints*: seq[int64]
-    ## uint64 values above int64.high are bit-cast
-    of rkFloat: floats*: seq[float]
-    of rkString: strings*: seq[string]
+type BaseType* = enum
+  ## Order follows the FIT base type numbers.
+  btEnum = "enum"
+  btSint8 = "sint8"
+  btUint8 = "uint8"
+  btSint16 = "sint16"
+  btUint16 = "uint16"
+  btSint32 = "sint32"
+  btUint32 = "uint32"
+  btString = "string"
+  btFloat32 = "float32"
+  btFloat64 = "float64"
+  btUint8z = "uint8z"
+  btUint16z = "uint16z"
+  btUint32z = "uint32z"
+  btByte = "byte"
+  btSint64 = "sint64"
+  btUint64 = "uint64"
+  btUint64z = "uint64z"
 
 type
   NumberKind = enum
@@ -206,37 +193,3 @@ func readFloat*(
     float(cast[float32](uint32(u)))
   else:
     cast[float64](u)
-
-func decode*(
-    bt: BaseType, data: openArray[byte], endian: Endianness, checkBad = true
-): Option[RawValues] {.raises: [].} =
-  ## All elements in `data`.  None if every element is bad (unless `checkBad`
-  ## is false).  Isolated bad elements in an array are returned raw (as the SDK
-  ## CSV does).
-  if bt == btString:
-    return some(RawValues(kind: rkString, strings: decodeString(data)))
-  if checkBad and isBad(bt, data, endian):
-    return none(RawValues)
-  let sz = bt.size
-  let n = data.len div sz
-  case bt
-  of btFloat32, btFloat64:
-    var xs = newSeq[float](n)
-    for i in 0 ..< n:
-      let u = getUint(data, i * sz, sz, endian)
-      xs[i] =
-        if sz == 4:
-          float(cast[float32](uint32(u)))
-        else:
-          cast[float64](u)
-    some(RawValues(kind: rkFloat, floats: xs))
-  else:
-    var xs = newSeq[int64](n)
-    let signed = bt.isSigned
-    for i in 0 ..< n:
-      xs[i] =
-        if signed:
-          getInt(data, i * sz, sz, endian)
-        else:
-          cast[int64](getUint(data, i * sz, sz, endian))
-    some(RawValues(kind: rkInt, ints: xs))

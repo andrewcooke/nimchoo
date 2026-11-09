@@ -1,5 +1,6 @@
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
+import ../support/shims
 import nimchoo/climbs/naming
 import nimchoo/db/store
 import nimchoo/download/fetch

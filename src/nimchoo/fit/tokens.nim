@@ -79,10 +79,6 @@ proc initTokenizer*(data: sink seq[byte], ts16: HashSet[(int, int)]): Tokenizer 
 proc fail(offset: int, msg: string) {.noreturn, raises: [FitError].} =
   raiseFit(offset, msg)
 
-func bytes*(t: Tokenizer, tok: Token): seq[byte] =
-  ## Copy of the bytes covered by `tok`.
-  t.data[tok.offset ..< tok.offset + tok.len]
-
 const fitTag = [byte('.'), byte('F'), byte('I'), byte('T')]
 
 func hasFitTag(t: Tokenizer, pos: int): bool =

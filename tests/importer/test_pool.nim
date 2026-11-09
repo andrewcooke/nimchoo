@@ -3,6 +3,7 @@
 
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
+import ../support/shims
 from ../support/env import useTestCache
 import nimchoo/importer/batch
 import nimchoo/db/store

@@ -145,23 +145,6 @@ suite "database: opening and bringing the schema up to date":
     # and the unchanged one is fine
     openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
 
-  test "a database made before checksums were recorded is refused the same way":
-    let path = tempDb("nochecksums")
-    let old = db_sqlite.open(path, "", "", "")
-    old.exec(
-      sql"create table fragment (name text primary key, applied_at integer not null) without rowid"
-    )
-    old.exec(
-      sql"insert into fragment(name, applied_at) values ('db/001-schema.sql', 0)"
-    )
-    old.close()
-    try:
-      openStore(path, allFragments).close()
-      check false
-    except StoreError as e:
-      check "older version of nch" in e.msg
-      check "nch db --delete -f" in e.msg
-
   test "the data a seed puts in is part of the checksum, when it is given a version":
     let plain = frag("m/001.sql", "create table t(x integer);")
     let v1 = plain.withSeed(putSeven, "list-1")
@@ -177,82 +160,6 @@ suite "database: opening and bringing the schema up to date":
       check false
     except StoreError as e:
       check "different version of nch" in e.msg and "nch db --delete -f" in e.msg
-
-  test "data that can be replaced: reseeded when its version changes, remembered, not refused":
-    let path = tempDb("reseed")
-      # (the version is kept in a file: a proc cannot capture a variable)
-    let marker = path & ".version"
-    writeFile(marker, "one")
-    proc fileVersion(): string {.nimcall, raises: [].} =
-      try:
-        readFile(getTempDir() / "nch-test-db" / "reseed.db.version")
-      except IOError:
-        ""
-
-    proc putData(db: DbConn) {.nimcall, raises: [StoreError].} =
-      guard:
-        db.exec(sql"delete from t")
-        db.exec(sql"insert into t(x) values (?)", fileVersion())
-
-    let f = frag("m/001.sql", "create table t(x text);").withSeed(putData).withReseed(
-        fileVersion, putData
-      )
-    let a = openStore(path, @[f])
-    check a.db.getValue(sql"select x from t") == "one"
-    check a.db.getValue(sql"select seed_version from fragment where name = 'm/001.sql'") ==
-      "one"
-    a.close()
-    writeFile(marker, "two") # the data now to be put in are other
-    let b = openStore(path, @[f])
-    check b.db.getValue(sql"select x from t") == "two" # replaced, not refused
-    check b.db.getValue(sql"select seed_version from fragment where name = 'm/001.sql'") ==
-      "two"
-    b.close()
-    # a reseed that fails undoes itself and refuses the database, with the reason
-    proc failing(db: DbConn) {.nimcall, raises: [StoreError].} =
-      guard:
-        db.exec(sql"delete from t")
-      raiseStore("no good list")
-
-    writeFile(marker, "three")
-    let bad =
-      frag("m/001.sql", "create table t(x text);").withReseed(fileVersion, failing)
-    try:
-      openStore(path, @[bad]).close()
-      check false
-    except StoreError as e:
-      check "replacing the data of m/001.sql" in e.msg and "no good list" in e.msg
-    writeFile(marker, "two")
-    let c = openStore(path, @[f])
-    check c.db.getValue(sql"select x from t") == "two" # (the failed one changed nothing)
-    c.close()
-
-  test "a database whose recorded checksum is a legacy one is accepted, and the record is brought up to date":
-    let path = tempDb("legacy")
-    let old =
-      frag("m/001.sql", "create table t(x integer);").withSeed(putSeven, "list-1")
-    openStore(path, @[old]).close() # recorded with the data in the checksum
-    seedRuns = 0
-    let now = frag("m/001.sql", "create table t(x integer);")
-      .withSeed(putSeven)
-      .withLegacy(@[old.checksum], "list-1")
-    check now.checksum != old.checksum
-    openStore(path, @[now]).close() # accepted
-    check seedRuns == 0
-    let s = openStore(path, @[now])
-    check s.db.getValue(sql"select sha256 from fragment where name = 'm/001.sql'") ==
-      now.checksum
-    check s.db.getValue(sql"select seed_version from fragment where name = 'm/001.sql'") ==
-      "list-1"
-    s.close()
-    # ... but not a checksum nobody ever recorded
-    let other = frag("m/001.sql", "create table t(x integer);")
-      .withSeed(putSeven)
-      .withLegacy(@["not-a-checksum"], "list-1")
-    let path2 = tempDb("legacy2")
-    openStore(path2, @[old]).close()
-    expect StoreError:
-      openStore(path2, @[other]).close()
 
   test "a changed fragment that has a seed is noticed too":
     let path = tempDb("changedseeded")

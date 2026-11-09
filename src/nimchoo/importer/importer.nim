@@ -212,22 +212,3 @@ proc importFileWith*(
     return ImportResult(outcome: ioDuplicate, fileId: known.get)
   let d = decodeFile(profile(), data, channelsOf(steps), ws)
   writeDecoded(s, name, digest, d, steps)
-
-proc importFile*(
-    s: Store,
-    p: Profile,
-    name: string,
-    data: seq[byte],
-    ws: var seq[Warning],
-    steps: seq[ImportStep] = @[],
-): ImportResult {.raises: [FitError, ImportError, StoreError].} =
-  ## `importFileWith` for a profile already in hand.
-  importFileWith(
-    s,
-    proc(): Profile {.closure, raises: [].} =
-      p,
-    name,
-    data,
-    ws,
-    steps,
-  )

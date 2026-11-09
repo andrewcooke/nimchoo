@@ -2,7 +2,7 @@
 ## them, and what such files are called.  A file is named after the command
 ## line that made it, so the same request finds the same files:
 ##
-##     heatmap--check-ab12cd--style-lines.geojson
+##     ff--check-ab12cd--style-lines.csv
 ##
 ## (the command, then each option as `--name-value`, in the order of the option
 ## names).  What may appear in a name is limited, and anything else is refused
@@ -26,7 +26,7 @@ func isValueChar(c: char): bool =
   c in {'a' .. 'z', 'A' .. 'Z', '0' .. '9', '.', '_', ',', '-'}
 
 func isCommandName*(s: string): bool =
-  ## "heatmap": lower case letters and digits, not empty.
+  ## "ff": lower case letters and digits, not empty.
   s.len > 0 and s.allIt(it.isNameChar)
 
 func isOptionName*(s: string): bool =
@@ -89,8 +89,8 @@ func isRequestStem(base: string): bool =
   dash > 0 and isCommandName(base[0 ..< dash]) and isProquint(base[dash + 1 .. ^1])
 
 func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
-  ## The inverse of `fileStem`: "heatmap--check-ab12--style-lines" is the command
-  ## "heatmap" and the options [("check", "ab12"), ("style", "lines")].  None if it is not
+  ## The inverse of `fileStem`: "ff--check-ab12--style-lines" is the command
+  ## "ff" and the options [("check", "ab12"), ("style", "lines")].  None if it is not
   ## a name `fileStem` would make.
   let parts = stem.split("--")
   if not isCommandName(parts[0]):

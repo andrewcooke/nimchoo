@@ -161,7 +161,7 @@ suite "download: fetching":
     net.free = none(int64)
     check fetchSource(envOf(net), sinkOf(net), fresh("unknown"), geonamesCountry, "CL").isSome
 
-  test "what the downloads take, and clearing them":
+  test "what the downloads take":
     let net = newNet()
     net.bodies[chile] = makeZip([("CL.txt", "x")])
     let dir = fresh("usage")
@@ -169,8 +169,6 @@ suite "download: fetching":
     discard fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL")
     check dataUsage(dir).files == 1 and
       dataUsage(dir).bytes == int64(net.bodies.getOrDefault(chile).len)
-    check clearData(dir).files == 1
-    check dataUsage(dir) == DataUsage() and not dirExists(dir)
     check humanBytes(1_400_000) == "1.4MB" and humanBytes(85_000) == "85kB" and
       humanBytes(12) == "12B"
 

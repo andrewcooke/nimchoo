@@ -36,8 +36,7 @@ type
 
   Effort* = object ## One pass of a ride over a sector.
     startT*, finishT*: float ## Unix seconds, at the gates
-    startDist*, finishDist*: float ## metres along the ride given
-    startElev*, finishElev*: float ## NaN if unknown
+    startDist*: float ## metres along the ride given, at the start gate
 
 func elapsed*(e: Effort): float =
   ## Seconds from the start of the effort to its finish.
@@ -192,12 +191,7 @@ func overPaths*(sector, ride: Path): seq[Effort] =
   )
   for p in taken:
     result.add Effort(
-      startT: ride.t.at(p.s.pos),
-      finishT: ride.t.at(p.f.pos),
-      startDist: p.s.dist,
-      finishDist: p.f.dist,
-      startElev: ride.elev.at(p.s.pos),
-      finishElev: ride.elev.at(p.f.pos),
+      startT: ride.t.at(p.s.pos), finishT: ride.t.at(p.f.pos), startDist: p.s.dist
     )
 
 func inHull(p: XY, route: openArray[XY]): bool =

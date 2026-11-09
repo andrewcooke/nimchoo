@@ -53,7 +53,6 @@ suite "climbs: from a ride to a stored climb and back":
     check es2.len == 1
     check abs(es2[0].elapsed - cs[0].length / 4.0) < 3.0
     check es2[0].startT > 2_000_000.0
-    check abs(es2[0].finishElev - es2[0].startElev - 119.0) < 4.0
     # and the climb found again in the second ride is the stored one
     let again = findClimbs(buildProfile(second))
     check again.len == 1

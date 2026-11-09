@@ -3000,3 +3000,20 @@ Each was checked first; these were real.
   global); a test file may cover its neighbours.
 * 75 exported procs had no `##`; they have one now.  Borrowed operators of a distinct type are exempt.
 * The code was formatted with `nph` (52 files had drifted); keep running `nph src tests` before a commit.
+
+### Dead code deleted (2026-11-08, TODO step 6)
+
+Found by listing the exported names used nowhere in `src` and by the compiler's unused hints; each was read first.
+
+* Unused: `selection/table.plural`, `selection/command.userIdOf`, `Tokenizer.bytes`.
+* Used only by tests: `fit/basetype.decode` with `RawValues` (the decoder of `fit/decode.nim` replaced it; the tests
+  for bad values now use `isBad`, `readInt`, `readFloat` and `decodeString`), `xlsx.readWorkbook` and `sheetNames`,
+  `selectionKey` (the test says `contentKey(st, selectedIds(st))`), `describeEmpty`, `clearData`.  The three test
+  conveniences that did real work (`silent()`, `importReport` with `Report`, `importFile`) moved to
+  `tests/support/shims.nim`.
+* `climbs/profile.smoothed` and `filtered`, with their widths: nothing used them but one noise test, which passes
+  without.  The idea is in this file; the code in git.  `Effort.finishDist`, `startElev`, `finishElev`: written, never read.
+* The fragment mechanism lost what no fragment used: `withReseed`, `withLegacy` (and their fields and the
+  `VersionProc`), the legacy-checksum rewrite, the "made before checksums" check, and the `seed_version` column of the
+  `fragment` table (nothing read it).  `withSeed` stays: the model module puts in the default model.
+* Stale text: the `heatmap` examples in `cache.nim`, "used by no module" in CLAUDE.md, `nch import` in test names.

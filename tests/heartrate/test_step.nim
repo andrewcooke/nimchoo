@@ -1,5 +1,6 @@
 import std/[os, tables, unittest]
 import db_connector/db_sqlite
+import ../support/shims
 import nimchoo/db/[channel, store]
 import nimchoo/heartrate/step
 import nimchoo/importer/importer

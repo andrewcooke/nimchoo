@@ -113,11 +113,6 @@ func describe*(ev: DownloadEvent): string =
   of deFailed:
     "cannot download " & shortUrl(ev.url) & ": " & ev.message
 
-proc silent*(): Sink =
-  ## A sink that ignores every event.
-  result = proc(ev: DownloadEvent) {.closure, raises: [].} =
-    discard
-
 # --- the real network and disk
 
 type TooBig* = object of CatchableError
@@ -320,14 +315,4 @@ proc dataUsage*(dataDir: string): DataUsage =
       inc result.files
       result.bytes += getFileSize(path)
   except OSError:
-    discard
-
-proc clearData*(dataDir: string): DataUsage =
-  ## Delete the downloaded files; returns what was there.
-  result = dataUsage(dataDir)
-  try:
-    removeDir(dataDir)
-  except OSError:
-    discard
-  except Exception: # (removeDir is declared to raise anything)
     discard

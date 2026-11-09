@@ -310,21 +310,12 @@ proc openWorkbook*(data: string): Workbook {.raises: [XlsxError].} =
     result.shared =
       parseSharedStrings(result.file("xl/sharedStrings.xml"), "xl/sharedStrings.xml")
 
-func sheetNames*(wb: Workbook): seq[string] =
-  ## The names of the sheets.
-  for name in wb.sheets.keys:
-    result.add name
-
 proc rows*(wb: Workbook, sheet: string): seq[Row] {.raises: [XlsxError].} =
   ## All rows of `sheet`, indexed by 0-based row number (empty rows are empty
   ## tables).  Raises XlsxError if there is no such sheet.
   if sheet notin wb.sheets:
     raiseXlsx("no sheet called " & sheet)
   parseSheet(wb.file(wb.sheets.must(sheet)), wb.sheets.must(sheet), wb.shared)
-
-proc readWorkbook*(path: string): Workbook {.raises: [XlsxError, IOError].} =
-  ## The xlsx file at `path`.
-  openWorkbook(readFile(path))
 
 func cell*(row: Row, col: int): string =
   ## Value in column `col` of a row, or "" if absent.

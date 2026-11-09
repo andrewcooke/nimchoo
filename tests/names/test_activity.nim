@@ -1,4 +1,5 @@
 import std/[math, options, strutils, unittest]
+import ../support/shims
 import nimchoo/db/store
 import nimchoo/download/fetch
 import nimchoo/errors

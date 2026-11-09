@@ -8,7 +8,7 @@ import nimchoo/warnings
 import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
-  ## The old `nch import ARGS` as `nch activities --import ...` (the paths first, then the options)
+  ## `nch activities --import ARGS` (the paths first, then the options)
   var paths, flags: seq[string]
   var i = 0
   while i < args.len:

@@ -1,8 +1,9 @@
-## `nch import` remembers the paths it has seen: a path whose size and
+## `nch activities --import` remembers the paths it has seen: a path whose size and
 ## modification time are unchanged is skipped without being read.
 
 import std/[os, strutils, times, unittest]
 import db_connector/db_sqlite
+import ../support/shims
 import nimchoo/importer/batch
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
@@ -13,7 +14,7 @@ import nimchoo/profile/[default, model]
 import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
-  ## The old `nch import ARGS` as `nch activities --import ...` (the paths first, then the options)
+  ## `nch activities --import ARGS` (the paths first, then the options)
   var paths, flags: seq[string]
   var i = 0
   while i < args.len:

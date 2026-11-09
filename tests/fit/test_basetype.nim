@@ -3,9 +3,13 @@ import nimchoo/fit/basetype
 import ../support/fitbuilder
 
 func ints(bt: BaseType, data: seq[byte], e = littleEndian): seq[int64] =
-  let r = decode(bt, data, e)
-  doAssert r.isSome
-  r.get.ints
+  ## The elements of an integer field.
+  for i in 0 ..< data.len div bt.size:
+    result.add readInt(bt, data, i, e)
+
+func floats(bt: BaseType, data: seq[byte], e: Endianness): seq[float] =
+  for i in 0 ..< data.len div bt.size:
+    result.add readFloat(bt, data, i, e)
 
 suite "base type byte":
   test "known":
@@ -42,29 +46,29 @@ suite "integers":
 
 suite "bad values":
   test "single bad values":
-    check decode(btUint8, b(0xff), littleEndian).isNone
-    check decode(btEnum, b(0xff), littleEndian).isNone
-    check decode(btByte, b(0xff), littleEndian).isNone
-    check decode(btSint8, b(0x7f), littleEndian).isNone
-    check decode(btUint16, b(0xff, 0xff), bigEndian).isNone
-    check decode(btSint16, b(0xff, 0x7f), littleEndian).isNone
-    check decode(btSint16, b(0x7f, 0xff), bigEndian).isNone
-    check decode(btUint32, b(0xff, 0xff, 0xff, 0xff), littleEndian).isNone
-    check decode(btSint32, b(0xff, 0xff, 0xff, 0x7f), littleEndian).isNone
-    check decode(
+    check isBad(btUint8, b(0xff), littleEndian)
+    check isBad(btEnum, b(0xff), littleEndian)
+    check isBad(btByte, b(0xff), littleEndian)
+    check isBad(btSint8, b(0x7f), littleEndian)
+    check isBad(btUint16, b(0xff, 0xff), bigEndian)
+    check isBad(btSint16, b(0xff, 0x7f), littleEndian)
+    check isBad(btSint16, b(0x7f, 0xff), bigEndian)
+    check isBad(btUint32, b(0xff, 0xff, 0xff, 0xff), littleEndian)
+    check isBad(btSint32, b(0xff, 0xff, 0xff, 0x7f), littleEndian)
+    check isBad(
       btUint64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), littleEndian
-    ).isNone
+    )
   test "zero is bad for z types only":
-    check decode(btUint8z, b(0), littleEndian).isNone
-    check decode(btUint16z, b(0, 0), littleEndian).isNone
-    check decode(btUint32z, b(0, 0, 0, 0), bigEndian).isNone
-    check decode(btUint8, b(0), littleEndian).isSome
+    check isBad(btUint8z, b(0), littleEndian)
+    check isBad(btUint16z, b(0, 0), littleEndian)
+    check isBad(btUint32z, b(0, 0, 0, 0), bigEndian)
+    check not isBad(btUint8, b(0), littleEndian)
     check ints(btUint8z, b(1)) == @[1'i64]
   test "neighbours of the marker are fine":
     check ints(btSint8, b(0x80)) == @[-128'i64]
     check ints(btUint8, b(0xfe)) == @[254'i64]
   test "arrays: all bad is none, isolated bad stays raw":
-    check decode(btUint8, b(0xff, 0xff), littleEndian).isNone
+    check isBad(btUint8, b(0xff, 0xff), littleEndian)
     check ints(btUint8, b(1, 0xff, 3)) == @[1'i64, 255, 3]
     check isBad(btUint8, b(0xff, 0xff), littleEndian)
     check not isBad(btUint8, b(1, 0xff), littleEndian)
@@ -75,18 +79,14 @@ suite "bad values":
 suite "floats":
   test "float32":
     # 1.5 = 0x3fc00000
-    check decode(btFloat32, b(0, 0, 0xc0, 0x3f), littleEndian).get.floats == @[1.5]
-    check decode(btFloat32, b(0x3f, 0xc0, 0, 0), bigEndian).get.floats == @[1.5]
+    check floats(btFloat32, b(0, 0, 0xc0, 0x3f), littleEndian) == @[1.5]
+    check floats(btFloat32, b(0x3f, 0xc0, 0, 0), bigEndian) == @[1.5]
   test "float64":
-    check decode(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), littleEndian).get.floats ==
-      @[1.5]
-    check decode(btFloat64, b(0x3f, 0xf8, 0, 0, 0, 0, 0, 0), bigEndian).get.floats ==
-      @[1.5]
+    check floats(btFloat64, b(0, 0, 0, 0, 0, 0, 0xf8, 0x3f), littleEndian) == @[1.5]
+    check floats(btFloat64, b(0x3f, 0xf8, 0, 0, 0, 0, 0, 0), bigEndian) == @[1.5]
   test "all ones is bad":
-    check decode(btFloat32, b(0xff, 0xff, 0xff, 0xff), littleEndian).isNone
-    check decode(
-      btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), bigEndian
-    ).isNone
+    check isBad(btFloat32, b(0xff, 0xff, 0xff, 0xff), littleEndian)
+    check isBad(btFloat64, b(0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff), bigEndian)
 
 suite "floats that are not finite":
   # judged from the bits, so that a NaN never meets arithmetic
@@ -120,7 +120,7 @@ suite "floats that are not finite":
 
 suite "strings":
   func strs(data: seq[byte]): seq[string] =
-    decode(btString, data, littleEndian).get.strings
+    decodeString(data)
   test "trailing nuls stripped":
     check strs(b(ord('a'), ord('b'), ord('c'), 0, 0)) == @["abc"]
   test "embedded nuls split":
@@ -150,7 +150,6 @@ suite "every base type, from its table of facts":
         let marker = bytesOf(invalid(bt), bt.size, e)
         check isBad(bt, marker, e)
         check bt.elementKind(marker, 0, e) == ekBad
-        check decode(bt, marker, e).isNone
         # a neighbour of the marker is a value (floats: some value; z types: 1 is not their marker)
         let other = bytesOf(if invalid(bt) == 1: 2 else: 1, bt.size, e)
         check not isBad(bt, other, e)
