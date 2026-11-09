@@ -11,10 +11,6 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
-- [ ] 7a. Printing with `std/strformat` (the rule is in CLAUDE.md, style): new printing uses `fmt`; a file that
-  imports `strformat` has all its printing converted.  The existing `&`/`$` printing is converted by module group, one
-  commit each, its tests catching any change of spacing or padding: first the messages (`cli/`, the `command.nim`
-  files, the `describe.nim` files, `ui/`).
 - [ ] 8. Packages (REVIEW.md §6), in its six sub-steps (8.1, 8.3, 8.4, 8.6 mechanical); feature detail moves from CLAUDE.md to each package's doc.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).
