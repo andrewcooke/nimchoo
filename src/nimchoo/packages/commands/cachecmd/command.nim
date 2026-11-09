@@ -3,16 +3,17 @@
 ## is fetched, unpacked or made again when needed, so deleting needs no -f.
 
 import std/[options, strutils]
-import ../cli/catalog
-import ../packages/cache/cache
-import ../core/globals
-import ../packages/util/args/args
-import ../packages/download/fetch
-import ../core/logfile
-import ../packages/confirm/confirm
-import ../packages/cache/files
+import ../../cache/cache
+import ../../../core/globals
+import ../../util/args/args
+import ../../download/fetch
+import ../../../core/logfile
+import ../../confirm/confirm
+import ../../cache/files
 
 {.push raises: [].}
+
+const commandName* = "cache" ## what the user types after `nch`
 
 const usage* = """usage: nch cache
        nch cache --delete KIND...
@@ -97,6 +98,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let u = deleteKind(dir.get, k)
     what.add $k & ": " & describe(u)
   let text = what.join("; ")
-  g.log.log(lvInfo, $cmCache, leDeleted, text & " from " & dir.get)
+  g.log.log(lvInfo, commandName, leDeleted, text & " from " & dir.get)
   sayDeleted("deleted " & text)
   exitOk

@@ -4,15 +4,17 @@
 ## knows them only by name (the log's command column).
 
 import std/[options, os, sequtils, strutils]
-import ../core/globals
-import ../packages/util/args/args
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/ui/style
-import ../packages/ui/vocabulary
+import ../../../core/globals
+import ../../util/args/args
+import ../../../core/logfile
+import ../../ui/live
+import ../../ui/style
+import ../../ui/vocabulary
 import ./lines
 
 {.push raises: [].}
+
+const commandName* = "log" ## what the user types after `nch`
 
 const usage* = """usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]
 

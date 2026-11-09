@@ -32,14 +32,15 @@ import ./fit/test_load_errors
 import ./fit/test_load
 import
   ./db/[
-    test_statement, test_plans, test_store, test_multirow, test_command,
-    test_invariants, test_schema,
+    test_statement, test_plans, test_store, test_multirow, test_invariants, test_schema
   ]
+import ./commands/dbcmd/test_command
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]
 import ./ff/[test_curve, test_page, test_web, test_stats]
 import ./delete/test_delete
-import ./cache/[test_command, test_files]
+import ./cache/test_files
+import ./commands/cachecmd/test_command
 import
   ./importer/[
     test_extract,
@@ -99,5 +100,6 @@ import ./importer/test_count
 import ./bundle/test_unpack
 import
   ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval, test_palette]
-import ./log/[test_lines, test_command]
+import ./commands/logcmd/test_lines
+import ./commands/logcmd/test_command
 {.pop.}

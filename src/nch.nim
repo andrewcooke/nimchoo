@@ -9,11 +9,8 @@ import nimchoo/cli/catalog
 import nimchoo/core/globals
 import nimchoo/packages/util/args/args
 import nimchoo/climbs/command as climbsCommand
-import nimchoo/cache/command as cacheCommand
-import nimchoo/db/command as dbCommand
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/map/command as mapCommand
-import nimchoo/log/command as logCommand
 import nimchoo/landmark/command as landmarkCommand
 import nimchoo/user/command as userCommand
 import nimchoo/model/command as modelCommand
@@ -48,18 +45,12 @@ proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: []
     activitiesCommand.run(g, rest)
   of cmMap:
     mapCommand.run(g, rest)
-  of cmLog:
-    logCommand.run(g, rest)
   of cmUsers:
     userCommand.run(g, rest)
   of cmModels:
     modelCommand.run(g, rest)
   of cmFf:
     ffCommand.run(g, rest)
-  of cmCache:
-    cacheCommand.run(g, rest)
-  of cmDb:
-    dbCommand.run(g, rest)
   of cmClimbs:
     climbsCommand.run(g, rest)
   of cmLandmarks:
@@ -108,7 +99,7 @@ proc main(): int {.raises: [].} =
   if provided.len == 0 and parsed.isNone:
     return usageError("nch", usage, "unknown command " & name)
   g.commandNames = registry.commands.mapIt(it.name) & toSeq(Command).mapIt($it)
-  if name != $cmLog: # (reading the log is not logged)
+  if name != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)

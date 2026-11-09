@@ -8,8 +8,8 @@
 ## but match no filter.  Pure: no files, no terminal.
 
 import std/[options, strutils]
-import ../packages/ui/style
-import ../packages/ui/vocabulary
+import ../../ui/style
+import ../../ui/vocabulary
 
 {.push raises: [].}
 

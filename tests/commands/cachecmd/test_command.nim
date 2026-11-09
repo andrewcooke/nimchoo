@@ -1,7 +1,7 @@
 import std/[os, unittest]
 import nimchoo/core/globals
-import nimchoo/cache/command as cacheCommand
-import ../support/userdata
+import nimchoo/packages/commands/cachecmd/command as cacheCommand
+import ../../support/userdata
 
 let dir = getTempDir() / "nch-test-cache"
 

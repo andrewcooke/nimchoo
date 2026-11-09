@@ -15,9 +15,6 @@ type Command* = enum
   cmLandmarks = "landmarks"
   cmMap = "map"
   cmFf = "ff"
-  cmLog = "log"
-  cmCache = "cache"
-  cmDb = "db"
 
 const summaries*: array[Command, string] = [
   cmActivities: "the activities: show them, choose the ones other commands use",
@@ -27,10 +24,6 @@ const summaries*: array[Command, string] = [
   cmLandmarks: "places of your own, named: they come before every other name",
   cmMap: "the routes of the selected activities and their climbs, on a map",
   cmFf: "the fitness and fatigue curves, as CSV for plotting",
-  cmLog: "show the log, filtered, with the events coloured",
-  cmCache:
-    "the files outside the database (downloads, generated files): show them, delete them",
-  cmDb: "the database file: where it is and how big, or delete it",
 ]
 
 func parseCommand*(name: string): Option[Command] =

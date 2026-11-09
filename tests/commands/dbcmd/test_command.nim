@@ -1,9 +1,9 @@
 import std/[os, unittest]
 import nimchoo/core/globals
-import nimchoo/db/command as dbCommand
+import nimchoo/packages/commands/dbcmd/command as dbCommand
 import nimchoo/packages/db/store
 import nimchoo/modules
-import ../support/userdata
+import ../../support/userdata
 
 let dir = getTempDir() / "nch-test-dbcommand"
 

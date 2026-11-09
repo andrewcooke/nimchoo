@@ -1,8 +1,8 @@
 import std/[os, strutils, unittest]
-import nimchoo/log/command as logCommand
+import nimchoo/packages/commands/logcmd/command as logCommand
 import nimchoo/core/logfile
 import nimchoo/packages/ui/vocabulary
-import nimchoo/log/lines
+import nimchoo/packages/commands/logcmd/lines
 
 let dir = getTempDir() / "nch-test-log-command"
 let commands = @["activities", "map", "climbs", "fit"]

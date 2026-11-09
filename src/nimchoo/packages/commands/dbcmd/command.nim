@@ -3,19 +3,20 @@
 ## -f; on a terminal it then counts down, in red, so there is time to press Ctrl-C.
 
 import std/[os, strutils]
-import ../cli/catalog
 import db_connector/db_sqlite
-import ../core/globals
-import ../packages/util/args/args
-import ../packages/download/fetch
-import ../core/errors
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/confirm/confirm
-import ../packages/db/statement
-import ../packages/db/store
+import ../../../core/globals
+import ../../util/args/args
+import ../../download/fetch
+import ../../../core/errors
+import ../../../core/logfile
+import ../../ui/live
+import ../../confirm/confirm
+import ../../db/statement
+import ../../db/store
 
 {.push raises: [].}
+
+const commandName* = "db" ## what the user types after `nch`
 
 const usage* = """usage: nch [--db PATH] db
        nch [--db PATH] db --delete -f
@@ -92,6 +93,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       removeFile path & suffix
   except OSError as e:
     return failure("nch db", "cannot delete " & path & ": " & e.msg)
-  g.log.log(lvInfo, $cmDb, leDeleted, "deleted " & what)
+  g.log.log(lvInfo, commandName, leDeleted, "deleted " & what)
   sayDeleted("deleted " & what)
   exitOk

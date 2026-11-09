@@ -1,5 +1,5 @@
 import std/[options, unittest]
-import nimchoo/log/lines
+import nimchoo/packages/commands/logcmd/lines
 import nimchoo/packages/ui/style
 import nimchoo/packages/ui/vocabulary
 
