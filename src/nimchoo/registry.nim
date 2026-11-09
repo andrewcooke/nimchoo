@@ -7,6 +7,7 @@ import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/climbs/package as pkgClimbs
 import ./packages/commands/cachecmd/package as pkgCachecmd
+import ./packages/commands/climbscmd/package as pkgClimbscmd
 import ./packages/commands/dbcmd/package as pkgDbcmd
 import ./packages/commands/fitcmd/package as pkgFitcmd
 import ./packages/commands/landmarkscmd/package as pkgLandmarkscmd
@@ -48,6 +49,7 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "cache", package: pkgCache.package),
     Registered(name: "climbs", package: pkgClimbs.package),
     Registered(name: "cachecmd", package: pkgCachecmd.package),
+    Registered(name: "climbscmd", package: pkgClimbscmd.package),
     Registered(name: "dbcmd", package: pkgDbcmd.package),
     Registered(name: "fitcmd", package: pkgFitcmd.package),
     Registered(name: "landmarkscmd", package: pkgLandmarkscmd.package),

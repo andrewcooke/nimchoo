@@ -75,14 +75,14 @@ import
     test_work,
     test_report,
     test_attempts,
-    test_command,
     test_naming,
     test_display,
     test_duplicates,
     test_describe as climbsDescribe,
-    test_params as climbsParams,
     test_edit as climbsEdit,
   ]
+import ./commands/climbscmd/test_command
+import ./commands/climbscmd/test_params as climbsParams
 import ./commands/landmarkscmd/test_params as landmarkParams
 import ./commands/landmarkscmd/test_command as landmarkCommand
 import ./download/test_fetch

@@ -1,5 +1,5 @@
 import std/[strutils, unittest]
-import nimchoo/climbs/params
+import nimchoo/packages/commands/climbscmd/params
 
 suite "climbs: the command line":
   test "no arguments: the climbs of the selected activities; --all: every climb":

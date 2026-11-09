@@ -1,11 +1,12 @@
 import nimchoo/packages/db/statement
 import std/[unittest]
 import nimchoo/core/globals
-import nimchoo/climbs/command as climbsCommand
+import nimchoo/packages/commands/climbscmd/command as climbsCommand
 import nimchoo/packages/db/store
 import nimchoo/core/ids
 import nimchoo/modules
-import ../support/[climbdata, userdata]
+import ../../support/climbdata
+import ../../support/userdata
 
 proc climbs(path: string, args: varargs[string], user = ""): int =
   climbsCommand.run(globals(path, user), @args)

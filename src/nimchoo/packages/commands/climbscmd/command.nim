@@ -4,24 +4,25 @@
 ## that have not been looked at, and keeps them (see work.nim).  The climbs are shared by all users.
 
 import std/[options, strutils, times]
-import ../cli/catalog
-import ../core/globals
-import ../packages/db/store
-import ../core/errors
-import ../packages/names/open
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/ui/style
-import ../packages/confirm/confirm
+import ../../../core/globals
+import ../../db/store
+import ../../../core/errors
+import ../../names/open
+import ../../../core/logfile
+import ../../ui/live
+import ../../ui/style
+import ../../confirm/confirm
 import ./params
-import ../packages/climbs/attempts
-import ../packages/climbs/duplicates
-import ../packages/climbs/edit
-import ../packages/climbs/naming
-import ../packages/climbs/report
-import ../packages/climbs/work
+import ../../climbs/attempts
+import ../../climbs/duplicates
+import ../../climbs/edit
+import ../../climbs/naming
+import ../../climbs/report
+import ../../climbs/work
 
 {.push raises: [].}
+
+const commandName* = "climbs" ## what the user types after `nch`
 
 const usage* = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
        nch [--db PATH] [--user NAME] climbs --name TEXT... [-v] [--everyone]
@@ -107,7 +108,7 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
     let names = openNames(
       g,
       st,
-      $cmClimbs,
+      commandName,
       proc(line: string) {.closure, raises: [].} =
         stderr.say line & "\n"
       ,
@@ -123,7 +124,7 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
   else:
     rename(st, id, p.rename)
     said = was & " is now called " & shownName(st, id)
-  g.log.log(lvInfo, $cmClimbs, leSaved, said)
+  g.log.log(lvInfo, commandName, leSaved, said)
   stdout.say said & "\n"
   exitOk
 
@@ -136,7 +137,7 @@ proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)
   clearClimbs(st)
   st.reclaim()
-  g.log.log(lvInfo, $cmClimbs, leDeleted, "deleted " & what & " from " & st.path)
+  g.log.log(lvInfo, commandName, leDeleted, "deleted " & what & " from " & st.path)
   sayDeleted("deleted " & what)
   exitOk
 
@@ -194,7 +195,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stderr.say doneLine(worked) & "\n"
       g.log.log(
         lvInfo,
-        $cmClimbs,
+        commandName,
         leDone,
         "worked out " & $worked.activities & " activities: " & $worked.sectors &
           " new climbs, " & $worked.efforts & " efforts",
@@ -203,7 +204,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let names = openNames(
       g,
       st,
-      $cmClimbs,
+      commandName,
       proc(line: string) {.closure, raises: [].} =
         stderr.say line & "\n"
       ,
@@ -212,11 +213,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let named = ensureSectorNames(st, names.get)
       if named.damaged.len > 0:
         stderr.say "warning: " & damagedText(named) & "\n"
-        g.log.log(lvWarn, $cmClimbs, leAdvisory, damagedText(named))
+        g.log.log(lvWarn, commandName, leAdvisory, damagedText(named))
       if named.named + named.nothing > 0:
         g.log.log(
           lvInfo,
-          $cmClimbs,
+          commandName,
           leDone,
           "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
         )

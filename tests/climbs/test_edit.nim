@@ -1,7 +1,7 @@
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
-import nimchoo/climbs/command
+import nimchoo/packages/commands/climbscmd/command
 import nimchoo/packages/climbs/edit
 import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/climbs/report

@@ -8,7 +8,6 @@ import std/[options, os, sequtils, strutils]
 import nimchoo/cli/catalog
 import nimchoo/core/globals
 import nimchoo/packages/util/args/args
-import nimchoo/climbs/command as climbsCommand
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/map/command as mapCommand
 import nimchoo/ff/command as ffCommand
@@ -44,8 +43,6 @@ proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: []
     mapCommand.run(g, rest)
   of cmFf:
     ffCommand.run(g, rest)
-  of cmClimbs:
-    climbsCommand.run(g, rest)
 
 type Head = object ## The options before the command name.
   g: Globals
