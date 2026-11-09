@@ -11,7 +11,9 @@ author sees and can be approved together (REVIEW.md §7).  Letters are the bug c
 - [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
       needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
       (HISTORY.md, 2026-11-08).
-- [ ] 7. Typed database access (evaluate `tiny_sqlite` first); the query-plan test.
+- [ ] 7. Typed database access, our own (decided: not `tiny_sqlite`).  Stage 1 done: `query`/`queryOne`/`scalar`/`execute` in
+  `db/statement.nim`, proved on `landmark/`.  Stage 2: move every other `fastRows`/`getValue`/`exec` and string-built sql
+  to them (values bound, never in the text); then remove `db_sqlite` row reading; the query-plan test.
 - [ ] 8. Packages (REVIEW.md §6), in its six sub-steps (8.1, 8.3, 8.4, 8.6 mechanical); feature detail moves from CLAUDE.md to each package's doc.
 - [ ] 9. Options carry their help; parse into variants.
 - [ ] 10. Tab completion (dynamic values from the database).

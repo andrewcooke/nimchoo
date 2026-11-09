@@ -23,7 +23,11 @@ import
     test_command, test_sdkcsv, test_fuzz,
   ]
 import ./profile/[test_load, test_load_errors]
-import ./db/[test_store, test_multirow, test_command, test_invariants, test_schema]
+import
+  ./db/[
+    test_statement, test_store, test_multirow, test_command, test_invariants,
+    test_schema,
+  ]
 import ./heartrate/test_step
 import ./model/[test_calc, test_params, test_impulses]
 import ./ff/[test_curve, test_page, test_web, test_stats]

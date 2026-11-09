@@ -2,13 +2,20 @@
 ## thousands of coordinates).  A thin typed layer over SQLite's C interface,
 ## because `db_sqlite`'s prepared statements are single-use.  Errors become
 ## `StoreError`.
+##
+## On top of that, the typed way to use it (`query`, `queryOne`, `scalar`, `execute`): values are bound by their
+## Nim type, never put into the text of the sql, and a row is read into a tuple or an object whose field types say
+## what each column must be.  A column of another type than the field's, a NULL for a field that is not an
+## `Option`, or a row of another width than the tuple, is a `StoreError` that names the column.
 
-import std/options
+import std/[macros, options]
 import db_connector/db_sqlite
 from db_connector/sqlite3 import
-  PStmt, prepare_v2, bind_int64, bind_double, bind_null, bind_text, bind_blob,
-  SQLITE_TRANSIENT, step, reset, clear_bindings, finalize, errmsg, last_insert_rowid,
-  exec, free, SQLITE_OK, SQLITE_DONE, SQLITE_ROW, column_blob, column_bytes
+  PStmt, column_count, column_double, column_int64, column_name, column_type,
+  SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_NULL, SQLITE_BLOB, prepare_v2,
+  bind_int64, bind_double, bind_null, bind_text, bind_blob, SQLITE_TRANSIENT, step,
+  reset, clear_bindings, finalize, errmsg, last_insert_rowid, exec, free, SQLITE_OK,
+  SQLITE_DONE, SQLITE_ROW, column_blob, column_bytes
 import ../errors
 import ../ids
 
@@ -142,3 +149,151 @@ proc execScript*(db: DbConn, script: string) {.raises: [StoreError].} =
     if not err.isNil:
       free(err)
     raiseStore(message)
+
+# --- typed binding -------------------------------------------------------------------------------------------
+
+proc bindValue*(s: Stmt, i: int, v: int) {.raises: [StoreError].} =
+  s.bindInt(i, int64(v))
+
+proc bindValue*(s: Stmt, i: int, v: int64) {.raises: [StoreError].} =
+  s.bindInt(i, v)
+
+proc bindValue*(s: Stmt, i: int, v: AnyId) {.raises: [StoreError].} =
+  s.bindInt(i, int64(v))
+
+proc bindValue*(s: Stmt, i: int, v: float) {.raises: [StoreError].} =
+  s.bindReal(i, v)
+
+proc bindValue*(s: Stmt, i: int, v: string) {.raises: [StoreError].} =
+  ## (An empty string is empty text, not NULL: NULL is an absent `Option`.)
+  s.bindText(i, v)
+
+proc bindValue*[T](s: Stmt, i: int, v: Option[T]) {.raises: [StoreError].} =
+  if v.isSome:
+    s.bindValue(i, v.get)
+  else:
+    s.bindNull(i)
+
+macro bindArgs(s: Stmt, args: varargs[untyped]): untyped =
+  ## `bindValue` for each argument, numbered from 1.
+  result = newStmtList()
+  for n, a in args:
+    result.add newCall(bindSym"bindValue", s, newLit(n + 1), a)
+
+# --- typed reading -------------------------------------------------------------------------------------------
+
+proc typeName(t: int32): string =
+  case t
+  of SQLITE_INTEGER: "an integer"
+  of SQLITE_FLOAT: "a real number"
+  of SQLITE_TEXT: "text"
+  of SQLITE_BLOB: "a blob"
+  of SQLITE_NULL: "null"
+  else: "something unknown"
+
+proc wrong(s: Stmt, i: int, want: string) {.noreturn, raises: [StoreError].} =
+  raiseStore(
+    "column " & $i & " (" & $column_name(s.raw, int32(i)) & ") is " &
+      typeName(column_type(s.raw, int32(i))) & ", not " & want
+  )
+
+proc readCol*(s: Stmt, i: int, v: var int64) {.raises: [StoreError].} =
+  if column_type(s.raw, int32(i)) != SQLITE_INTEGER:
+    wrong(s, i, "an integer")
+  v = column_int64(s.raw, int32(i))
+
+proc readCol*(s: Stmt, i: int, v: var int) {.raises: [StoreError].} =
+  var w: int64
+  s.readCol(i, w)
+  v = int(w)
+
+proc readCol*(s: Stmt, i: int, v: var AnyId) {.raises: [StoreError].} =
+  var w: int64
+  s.readCol(i, w)
+  v = typeof(v)(w)
+
+proc readCol*(s: Stmt, i: int, v: var float) {.raises: [StoreError].} =
+  ## (A whole number is read as a real number: SQLite gives `0` for `coalesce(x, 0)`.)
+  let t = column_type(s.raw, int32(i))
+  if t != SQLITE_FLOAT and t != SQLITE_INTEGER:
+    wrong(s, i, "a real number")
+  v = column_double(s.raw, int32(i))
+
+proc readCol*(s: Stmt, i: int, v: var string) {.raises: [StoreError].} =
+  if column_type(s.raw, int32(i)) != SQLITE_TEXT:
+    wrong(s, i, "text")
+  v = s.blobAt(i)
+
+proc readCol*[T](s: Stmt, i: int, v: var Option[T]) {.raises: [StoreError].} =
+  ## NULL is `none`; anything else must be a `T`.
+  if column_type(s.raw, int32(i)) == SQLITE_NULL:
+    v = none(T)
+  else:
+    var w: T
+    s.readCol(i, w)
+    v = some(w)
+
+proc readRow[T](s: Stmt): T {.raises: [StoreError].} =
+  ## The current row as a `T`: a tuple or object (one column for each field, in order), or a single value.
+  when T is tuple or T is object:
+    var want = 0
+    for _ in fields(result):
+      inc want
+    if int(column_count(s.raw)) != want:
+      raiseStore("the query has " & $column_count(s.raw) & " columns, not " & $want)
+    var n = 0
+    for f in fields(result):
+      s.readCol(n, f)
+      inc n
+  else:
+    if column_count(s.raw) != 1:
+      raiseStore("the query has " & $column_count(s.raw) & " columns, not 1")
+    s.readCol(0, result)
+
+proc fetchAll*[T](s: Stmt): seq[T] {.raises: [StoreError].} =
+  while s.nextRow():
+    result.add readRow[T](s)
+
+proc fetchOne*[T](s: Stmt): Option[T] {.raises: [StoreError].} =
+  if s.nextRow():
+    result = some(readRow[T](s))
+
+template query*(
+    db: DbConn, T: typedesc, sqlText: string, args: varargs[untyped]
+): seq[T] =
+  ## All the rows of the query as `T`s (a tuple, an object, or one value for a one-column query); the `args` are
+  ## bound to the `?`s by their types.
+  block:
+    let stmt = prepareStmt(db, sqlText)
+    bindArgs(stmt, args)
+    fetchAll[T](stmt)
+
+template queryOne*(
+    db: DbConn, T: typedesc, sqlText: string, args: varargs[untyped]
+): Option[T] =
+  ## The first row, or `none` if there is none.
+  block:
+    let stmt = prepareStmt(db, sqlText)
+    bindArgs(stmt, args)
+    fetchOne[T](stmt)
+
+proc theRow[T](got: Option[T], sqlText: string): T {.raises: [StoreError].} =
+  if got.isNone:
+    raiseStore("the query gave no row: " & sqlText)
+  got.get
+
+template scalar*(
+    db: DbConn, T: typedesc, sqlText: string, args: varargs[untyped]
+): untyped =
+  ## The one value a query is sure to give (`select count(*) ...`); no row at all is a `StoreError`.
+  block:
+    let stmt = prepareStmt(db, sqlText)
+    bindArgs(stmt, args)
+    theRow(fetchOne[T](stmt), sqlText)
+
+template execute*(db: DbConn, sqlText: string, args: varargs[untyped]) =
+  ## Run an insert, update or delete with the `args` bound.
+  block:
+    let stmt = prepareStmt(db, sqlText)
+    bindArgs(stmt, args)
+    stmt.run()

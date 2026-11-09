@@ -2,8 +2,7 @@
 ## code, used by the naming (a landmark comes before every other name) and by `nch landmarks`.
 
 import std/[options, strutils]
-import db_connector/db_sqlite
-import ../db/store
+import ../db/[statement, store]
 import ../errors
 import ../geo
 
@@ -22,20 +21,9 @@ type Landmark* = object
 
 proc listLandmarks*(st: Store): seq[Landmark] {.raises: [StoreError].} =
   ## All of them, by name.
-  guard:
-    for r in st.db.fastRows(
-      sql"select id, name, lon, lat, radius_m from landmark order by fold(name)"
-    ):
-      try:
-        result.add Landmark(
-          id: parseBiggestInt(r[0]),
-          name: r[1],
-          lon: parseFloat(r[2]),
-          lat: parseFloat(r[3]),
-          radiusM: parseFloat(r[4]),
-        )
-      except ValueError:
-        raiseStore("a bad number in the landmarks")
+  st.db.query(
+    Landmark, "select id, name, lon, lat, radius_m from landmark order by fold(name)"
+  )
 
 func problem*(name: string, lon, lat, radiusM: float): string =
   ## "" if these can be a landmark, else what is wrong.
@@ -63,28 +51,22 @@ proc addLandmark*(
   let why = problem(name, lon, lat, radiusM)
   if why.len > 0:
     raiseStore(why)
-  guard:
-    if st.db.getValue(
-      sql"select count(*) from landmark where fold(name) = fold(?)", name.strip
-    ) != "0":
-      raiseStore("there is a landmark called '" & name.strip & "' already")
-    st.db.exec(
-      sql"insert into landmark(name, lon, lat, radius_m) values (?, ?, ?, ?)",
-      name.strip,
-      lon,
-      lat,
-      radiusM,
-    )
+  if st.db.scalar(
+    int, "select count(*) from landmark where fold(name) = fold(?)", name.strip
+  ) != 0:
+    raiseStore("there is a landmark called '" & name.strip & "' already")
+  st.db.execute(
+    "insert into landmark(name, lon, lat, radius_m) values (?, ?, ?, ?)", name.strip,
+    lon, lat, radiusM,
+  )
 
 proc removeLandmark*(st: Store, name: string): bool {.raises: [StoreError].} =
   ## Delete the landmark called `name` (without regard to case or accents); whether there was one.
-  guard:
-    let n = st.db.getValue(
-      sql"select count(*) from landmark where fold(name) = fold(?)", name.strip
-    )
-    if n == "0":
-      return false
-    st.db.exec(sql"delete from landmark where fold(name) = fold(?)", name.strip)
+  if st.db.scalar(
+    int, "select count(*) from landmark where fold(name) = fold(?)", name.strip
+  ) == 0:
+    return false
+  st.db.execute("delete from landmark where fold(name) = fold(?)", name.strip)
   true
 
 proc landmarkAt*(
