@@ -1,8 +1,9 @@
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/packages/fit/time
-import nimchoo/selection/[calendar, table]
+import nimchoo/packages/commands/activitiescmd/calendar
+import nimchoo/packages/commands/activitiescmd/table
 import nimchoo/packages/ui/style
-import ../support/zones
+import ../../support/zones
 
 proc at(y: int, m: Month, d: int, h = 12, min = 0): int64 =
   dateTime(y, m, d, h, min, 0, 0, utc()).toTime.toUnix

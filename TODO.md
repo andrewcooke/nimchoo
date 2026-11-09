@@ -46,6 +46,17 @@ command.  Two ways out, to be decided at step 5, after living with the packages:
 
 Either replaces the direct dependency of `activities` on `climbs`.
 
+## Left over from the packages move (2026-11-09)
+
+* `activitiescmd` imports `modules.nim` for `allImportSteps` (an old module, allowed while `allowLegacy` is on);
+  step 5 (import steps as an extension point) removes it, and then `modules.nim` and `allowLegacy` go.
+* Commands that write tables of a library themselves, to move into the libraries when the access model is built
+  (`nimble`-run report: `python3 sqlrefs.py`, in the session scratchpad; it is a text scan, step 6 makes it exact):
+  `userscmd` (`user`, `user_profile`), `activitiescmd` (`selection`); and `delete` (`activity`, `file`: the deletion
+  of activities may belong in `importer`), `user` (`user`, which `db` owns).
+* The nimble tasks for tests do not yet run the package checks of this move on a schedule: a check that SQL reads match
+  `depends` is a text scan done by hand so far.
+
 ## Open from before the review
 
 To fit into the plan, or to do after it.  Details in HISTORY.md where noted.

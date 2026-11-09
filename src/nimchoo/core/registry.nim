@@ -80,3 +80,9 @@ func collectCommands*(
       seen[c.name] = p.name
       result.add c
   result = result.sortedByIt(it.name)
+
+func commandList*(commands: seq[CommandDecl]): string =
+  ## The lines of the usage text that name the commands (they are in the order given, by name), each name
+  ## padded to a column.
+  for c in commands:
+    result.add "  " & c.name.alignLeft(11) & " " & c.summary & "\n"

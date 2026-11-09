@@ -1,13 +1,13 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/importer/logsink
+import nimchoo/packages/commands/activitiescmd/logsink
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
-import nimchoo/selection/command as activitiesCommand
+import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
 import nimchoo/modules
 import nimchoo/core/logfile
 import nimchoo/packages/util/warnings/warnings
-import ../support/fitbuilder
+import ../../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
   ## `nch activities --import ARGS` (the paths first, then the options)

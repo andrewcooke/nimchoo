@@ -2,20 +2,20 @@
 ## whose command line is the `activities` command's; the module is not called `import` because that is a Nim keyword).
 
 import std/[cpuinfo, options, strutils]
-import ../cli/catalog
-import ../core/globals
-import ../packages/db/statement
-import ../packages/db/store
-import ../packages/download/fetch
-import ../core/errors
-import ../packages/names/open
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/ui/style
+import ./cmdname
+import ../../../core/globals
+import ../../db/statement
+import ../../db/store
+import ../../download/fetch
+import ../../../core/errors
+import ../../names/open
+import ../../../core/logfile
+import ../../ui/live
+import ../../ui/style
 import ./[display, logsink, sinks]
-import ../packages/importer/batch
-import ../packages/importer/events
-import ../packages/importer/naming
+import ../../importer/batch
+import ../../importer/events
+import ../../importer/naming
 
 {.push raises: [].}
 
@@ -101,7 +101,7 @@ proc runImport*(
       let names = openNames(
         g,
         st,
-        $cmActivities,
+        commandName,
         proc(line: string) {.closure, raises: [].} =
           stderr.say line & "\n"
         ,
@@ -132,14 +132,14 @@ proc runImport*(
         for e in counts.gpsErrors:
           g.log.log(
             lvWarn,
-            $cmActivities,
+            commandName,
             leAdvisory,
             e.where & "  " & plural(e.searches, "search", "searches") &
               " for a place not made: positions too far apart (GPS errors)",
           )
         g.log.log(
           lvInfo,
-          $cmActivities,
+          commandName,
           leDone,
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
@@ -159,7 +159,7 @@ proc runImport*(
     if n > 0:
       g.log.log(
         lvInfo,
-        $cmActivities,
+        commandName,
         leSaved,
         $n & (if n == 1: " activity" else: " activities") & " selected (imported)",
       )

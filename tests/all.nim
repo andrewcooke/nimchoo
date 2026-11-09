@@ -42,35 +42,24 @@ import ./commands/ffcmd/test_curve
 import ./commands/ffcmd/test_page
 import ./commands/ffcmd/test_web
 import ./commands/ffcmd/test_stats
-import ./delete/test_delete
+import ./commands/activitiescmd/test_delete
 import ./cache/test_files
 import ./commands/cachecmd/test_command
-import
-  ./importer/[
-    test_extract,
-    test_route,
-    test_importer,
-    test_command,
-    test_batch,
-    test_pool,
-    test_events,
-    test_display,
-    test_logsink,
-    test_stretch,
-    test_naming as importerNaming,
-    test_describe as importerDescribe,
-  ]
-import
-  ./selection/[
-    test_bits, test_ranges, test_criteria, test_table, test_command, test_selection,
-    test_calendar,
-  ]
+import ./importer/[test_extract, test_route, test_importer, test_batch, test_pool, test_events, test_stretch, test_naming as importerNaming, test_describe as importerDescribe]
+import ./commands/activitiescmd/test_import
+import ./commands/activitiescmd/test_display
+import ./commands/activitiescmd/test_logsink
+import ./selection/[test_bits, test_selection]
+import ./commands/activitiescmd/test_ranges
+import ./commands/activitiescmd/test_criteria
+import ./commands/activitiescmd/test_table
+import ./commands/activitiescmd/test_command
+import ./commands/activitiescmd/test_calendar
 import ./commands/mapcmd/test_params
 import ./commands/mapcmd/test_lines
 import ./commands/mapcmd/test_page
 import ./commands/mapcmd/test_command
 import ./commands/mapcmd/test_web
-import ./cli/test_catalog
 import ./util/args/test_args
 import
   ./climbs/[

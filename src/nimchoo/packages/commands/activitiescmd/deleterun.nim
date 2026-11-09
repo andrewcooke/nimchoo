@@ -4,15 +4,15 @@
 ## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
 
 import std/strutils
-import ../cli/catalog
-import ../core/globals
-import ../packages/db/store
-import ../core/errors
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/ui/style
-import ../packages/confirm/confirm
-import ../packages/delete/remove
+import ./cmdname
+import ../../../core/globals
+import ../../db/store
+import ../../../core/errors
+import ../../../core/logfile
+import ../../ui/live
+import ../../ui/style
+import ../../confirm/confirm
+import ../../delete/remove
 
 {.push raises: [].}
 
@@ -79,7 +79,7 @@ proc runDelete*(
     if done.kept > 0:
       said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
         " kept, with other activities in"
-    g.log.log(lvInfo, $cmActivities, leDeleted, said & " from " & st.path)
+    g.log.log(lvInfo, commandName, leDeleted, said & " from " & st.path)
     sayDeleted(said)
     exitOk
   except StoreError as e:

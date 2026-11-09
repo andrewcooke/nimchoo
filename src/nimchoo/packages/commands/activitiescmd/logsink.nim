@@ -6,9 +6,9 @@
 ## re-import of thousands would fill the log); the `done` line counts them.  `-q`
 ## affects the screen only; the log is always complete.
 
-import ../core/logfile
-import ../packages/importer/events
-import ../packages/importer/failure
+import ../../../core/logfile
+import ../../importer/events
+import ../../importer/failure
 import ./sinks
 
 {.push raises: [].}

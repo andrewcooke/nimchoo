@@ -1,5 +1,6 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/importer/[display, sinks]
+import nimchoo/packages/commands/activitiescmd/display
+import nimchoo/packages/commands/activitiescmd/sinks
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
@@ -9,7 +10,7 @@ import nimchoo/modules
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
 import nimchoo/packages/ui/vocabulary
-import ../support/fitbuilder
+import ../../support/fitbuilder
 
 const base = 900_000_000
 

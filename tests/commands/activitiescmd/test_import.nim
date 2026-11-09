@@ -1,12 +1,12 @@
 import nimchoo/packages/db/statement
 import std/[algorithm, os, sequtils, strutils, unittest]
-import ../support/shims
+import ../../support/shims
 import nimchoo/packages/importer/batch
-import nimchoo/selection/command as activitiesCommand
+import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/modules
-import ../support/fitbuilder
+import ../../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
   ## `nch activities --import ARGS` (the paths first, then the options)

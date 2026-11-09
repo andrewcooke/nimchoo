@@ -6,23 +6,24 @@
 ## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
 import std/[options, sequtils, strutils, tables, terminal, times]
-import ../cli/catalog
-import ../core/globals
-import ../modules
-import ../packages/climbs/display
-import ../packages/climbs/report
-import ../packages/db/statement
-import ../packages/db/store
-import ../delete/run as deleteRun
-import ../packages/importer/batch
-import ../importer/run as importRun
-import ../core/errors
-import ../packages/fit/time
-import ../core/logfile
-import ../packages/ui/live
-import ../packages/ui/style
-import ../packages/ui/vocabulary
-import ../packages/text/fold/fold
+import ./cmdname
+export cmdname
+import ../../../core/globals
+import ../../../modules
+import ../../climbs/display
+import ../../climbs/report
+import ../../db/statement
+import ../../db/store
+import ./deleterun as deleteRun
+import ../../importer/batch
+import ./importrun as importRun
+import ../../../core/errors
+import ../../fit/time
+import ../../../core/logfile
+import ../../ui/live
+import ../../ui/style
+import ../../ui/vocabulary
+import ../../text/fold/fold
 import ./[calendar, table]
 import ./criteria
 
@@ -542,7 +543,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if r.saved >= 0:
       g.log.log(
         lvInfo,
-        $cmActivities,
+        commandName,
         leSaved,
         $r.saved & (if r.saved == 1: " activity" else: " activities"),
       )

@@ -9,11 +9,11 @@
 ## terminal; the sink only keeps the counts and asks the Live when to draw.
 
 import std/[os, strutils]
-import ../packages/ui/live
-import ../packages/ui/style
-import ../packages/ui/vocabulary
+import ../../ui/live
+import ../../ui/style
+import ../../ui/vocabulary
 import ./sinks
-import ../packages/importer/events
+import ../../importer/events
 
 {.push raises: [].}
 

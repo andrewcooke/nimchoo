@@ -2,12 +2,12 @@ import nimchoo/packages/db/statement
 import std/[os, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/delete/run
+import nimchoo/packages/commands/activitiescmd/deleterun
 import nimchoo/packages/delete/remove
-import nimchoo/selection/command as activitiesCommand
+import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/packages/ui/style
 import nimchoo/modules
-import ../support/userdata
+import ../../support/userdata
 
 let dir = getTempDir() / "nch-test-delete"
 

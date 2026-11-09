@@ -73,6 +73,14 @@ suite "the commands of the packages":
     except PackageError as e:
       check "'x'" in e.msg and "'a'" in e.msg and "'b'" in e.msg
 
+  test "the usage list has a line for every command, in order, with its summary":
+    let text = commandList(
+      collectCommands(@[provides("a", "zed", "alpha"), provides("b", "mid")])
+    )
+    check text.splitLines[0 ..< ^1].len == 3
+    check text.contains("  alpha       does alpha\n")
+    check text.find("alpha") < text.find("mid") and text.find("mid") < text.find("zed")
+
   test "the commands of nimchoo have names and summaries, and fit is there and runs":
     let names = generated.commands.names
     check names.len == names.deduplicate.len

@@ -1,14 +1,12 @@
-## nch: the nimchoo command line tool.  A thin dispatcher: each command lives
-## in its own module under nimchoo/<module>/command.nim and exposes `run(globals, args):
-## int` (see core/globals.nim for the exit codes).  Options that every
+## nch: the nimchoo command line tool.  A thin dispatcher: each command is declared by a command package
+## (packages/commands/*cmd/package.nim: its name, a summary and `run(globals, args): int`; see core/globals.nim for
+## the exit codes), and the generated registry lists them all.  Options that every
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
 import std/[options, os, sequtils, strutils]
-import nimchoo/cli/catalog
-import nimchoo/core/globals
+import nimchoo/core/[globals, registry as packageRegistry]
 import nimchoo/packages/util/args/args
-import nimchoo/selection/command as activitiesCommand
 import nimchoo/modules
 import nimchoo/registry
 import nimchoo/core/logfile
@@ -28,15 +26,9 @@ const usage =
 
 commands:
 """ &
-  commandList(registry.commands.mapIt((it.name, it.summary))) & """
+  commandList(registry.commands) & """
 For more about a command: `nch COMMAND --help`.
 """
-
-proc dispatch(g: Globals, command: Command, rest: seq[string]): int {.raises: [].} =
-  ## (no `else`: a command in `Command` that is not run here does not compile)
-  case command
-  of cmActivities:
-    activitiesCommand.run(g, rest)
 
 type Head = object ## The options before the command name.
   g: Globals
@@ -77,10 +69,9 @@ proc main(): int {.raises: [].} =
     return exitOk
   let name = args[i]
   let provided = registry.commands.filterIt(it.name == name)
-  let parsed = parseCommand(name)
-  if provided.len == 0 and parsed.isNone:
+  if provided.len == 0:
     return usageError("nch", usage, "unknown command " & name)
-  g.commandNames = registry.commands.mapIt(it.name) & toSeq(Command).mapIt($it)
+  g.commandNames = registry.commands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
@@ -88,11 +79,7 @@ proc main(): int {.raises: [].} =
       if g.log.problem.len > 0:
         stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
   g.log.log(lvInfo, name, leRun, "[" & nchCommit & "] " & rest.join(" "))
-  result =
-    if provided.len > 0:
-      provided[0].run(g, rest)
-    else:
-      dispatch(g, parsed.get, rest)
+  result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)
   g.log.close()
 

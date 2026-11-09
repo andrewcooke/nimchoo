@@ -5,9 +5,9 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/ids
 import nimchoo/modules
-import nimchoo/selection/calendar
-import nimchoo/selection/command as listCommand
-import nimchoo/selection/criteria
+import nimchoo/packages/commands/activitiescmd/calendar
+import nimchoo/packages/commands/activitiescmd/command as listCommand
+import nimchoo/packages/commands/activitiescmd/criteria
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
 

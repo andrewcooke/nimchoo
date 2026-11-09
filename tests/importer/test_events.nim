@@ -1,5 +1,5 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/importer/sinks
+import nimchoo/packages/commands/activitiescmd/sinks
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure

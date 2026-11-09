@@ -9,11 +9,11 @@
 ## noticed in a file that was imported anyway).
 
 import std/[strutils, tables]
-import ../core/globals
-import ../packages/util/warnings/warnings
-import ../packages/importer/events
-import ../packages/ui/vocabulary
-import ../packages/importer/failure
+import ../../../core/globals
+import ../../util/warnings/warnings
+import ../../importer/events
+import ../../ui/vocabulary
+import ../../importer/failure
 
 {.push raises: [].}
 
