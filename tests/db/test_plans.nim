@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/climbs/work
+import nimchoo/packages/climbs/work
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/fit/time
@@ -10,8 +10,8 @@ import nimchoo/packages/landmark/suggest
 import nimchoo/modules
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup
-import nimchoo/selection/criteria
-import nimchoo/selection/ranges
+import nimchoo/packages/selection/criteria
+import nimchoo/packages/selection/ranges
 
 ## The queries that run for every file, every ride or every cell must find their rows through an index (a primary key,
 ## a unique key, or the spatial index), never by reading a whole table: one that does is correct on a test database and

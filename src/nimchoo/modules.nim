@@ -4,14 +4,14 @@
 ## everything refers to, belongs to the database code itself and is applied
 ## first, always.)  A new module with tables adds its `ddl` here.
 
-import ./climbs/ddl as climbsDdl
+import ./packages/climbs/ddl as climbsDdl
 import ./packages/heartrate/ddl as heartrateDdl
 import ./packages/heartrate/step as heartrateStep
 import ./packages/importer/ddl as importerDdl
 import ./packages/landmark/ddl as landmarkDdl
 import ./packages/model/ddl as modelDdl
 import ./packages/names/ddl as namesDdl
-import ./selection/ddl as selectionDdl
+import ./packages/selection/ddl as selectionDdl
 import ./packages/user/ddl as userDdl
 import ./core/fragment
 import ./packages/importer/channel

@@ -1,7 +1,7 @@
 import nimchoo/packages/db/statement
 import std/[os, strutils, unittest]
 import ../support/shims
-import nimchoo/climbs/naming
+import nimchoo/packages/climbs/naming
 import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/core/errors

@@ -1,13 +1,13 @@
 import std/[algorithm, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
-import nimchoo/climbs/ordinal
+import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/ids
 import nimchoo/modules
 import nimchoo/selection/calendar
 import nimchoo/selection/command as listCommand
-import nimchoo/selection/criteria
+import nimchoo/packages/selection/criteria
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
 

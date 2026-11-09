@@ -3,12 +3,12 @@
 ## names.  If the names cannot be had (no network) it is a DownloadError and the command stops.
 
 import std/options
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/names/climb
-import ../packages/names/climbpick
-import ../packages/names/countries
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../names/climb
+import ../names/climbpick
+import ../names/countries
 import ./[match, ordinal]
 
 {.push raises: [].}

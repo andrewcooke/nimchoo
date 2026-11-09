@@ -9,7 +9,8 @@ import std/[options, sequtils, strutils, tables, terminal, times]
 import ../cli/catalog
 import ../core/globals
 import ../modules
-import ../climbs/[display, report]
+import ../packages/climbs/display
+import ../packages/climbs/report
 import ../packages/db/statement
 import ../packages/db/store
 import ../delete/run as deleteRun
@@ -22,7 +23,8 @@ import ../packages/ui/live
 import ../packages/ui/style
 import ../packages/ui/vocabulary
 import ../packages/text/fold/fold
-import ./[calendar, criteria, table]
+import ./[calendar, table]
+import ../packages/selection/criteria
 
 {.push raises: [].}
 

@@ -3,10 +3,10 @@
 ## climb back, to be named again by the next `nch climbs`.
 
 import std/[algorithm, sequtils, strutils, tables]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/text/fold/fold
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../text/fold/fold
 import ./[display, ordinal, report]
 
 {.push raises: [].}

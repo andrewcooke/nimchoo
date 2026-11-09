@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/climbs/describe
+import nimchoo/packages/climbs/describe
 
 let san = ClimbInfo(
   name: "Cerro San Luis₄", category: "4", lengthM: 500.0, gainM: 89.4, gradient: 17.8

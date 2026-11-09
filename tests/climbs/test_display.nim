@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/climbs/display
+import nimchoo/packages/climbs/display
 
 func s(id: int64, name: string, n: int): Shown =
   Shown(id: id, name: name, n: n)

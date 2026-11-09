@@ -8,7 +8,7 @@
 ## `climbLine` one line.  Pure.
 
 import std/strutils
-import ../packages/ui/units
+import ../ui/units
 
 {.push raises: [].}
 

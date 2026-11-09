@@ -5,9 +5,9 @@
 ## activities back; a file that still holds other activities (a file can hold several) stays, and so does its memory.
 
 import std/[algorithm, strutils, tables, times]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../db/statement
+import ../db/store
+import ../../core/errors
 
 {.push raises: [].}
 

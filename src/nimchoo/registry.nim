@@ -5,8 +5,10 @@ import ./core/package as corePackage
 import ./core/registry as coreRegistry
 import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
+import ./packages/climbs/package as pkgClimbs
 import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
+import ./packages/delete/package as pkgDelete
 import ./packages/download/package as pkgDownload
 import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
@@ -15,6 +17,7 @@ import ./packages/importer/package as pkgImporter
 import ./packages/landmark/package as pkgLandmark
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
+import ./packages/selection/package as pkgSelection
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/proquint/package as pkgProquint
 import ./packages/text/templating/package as pkgTemplating
@@ -37,8 +40,10 @@ const packages*: seq[Registered] = inDependencyOrder(
   @[
     Registered(name: "bundle", package: pkgBundle.package),
     Registered(name: "cache", package: pkgCache.package),
+    Registered(name: "climbs", package: pkgClimbs.package),
     Registered(name: "confirm", package: pkgConfirm.package),
     Registered(name: "db", package: pkgDb.package),
+    Registered(name: "delete", package: pkgDelete.package),
     Registered(name: "download", package: pkgDownload.package),
     Registered(name: "fit", package: pkgFit.package),
     Registered(name: "geo", package: pkgGeo.package),
@@ -47,6 +52,7 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "landmark", package: pkgLandmark.package),
     Registered(name: "model", package: pkgModel.package),
     Registered(name: "names", package: pkgNames.package),
+    Registered(name: "selection", package: pkgSelection.package),
     Registered(name: "fold", package: pkgFold.package),
     Registered(name: "proquint", package: pkgProquint.package),
     Registered(name: "templating", package: pkgTemplating.package),

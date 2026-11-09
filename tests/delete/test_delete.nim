@@ -2,7 +2,8 @@ import nimchoo/packages/db/statement
 import std/[os, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/db/store
-import nimchoo/delete/[remove, run]
+import nimchoo/delete/run
+import nimchoo/packages/delete/remove
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/packages/ui/style
 import nimchoo/modules

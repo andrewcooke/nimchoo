@@ -1,5 +1,5 @@
 import std/[math, options, unittest]
-import nimchoo/climbs/profile
+import nimchoo/packages/climbs/profile
 import nimchoo/packages/geo/geo
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/extract

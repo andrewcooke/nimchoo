@@ -3,11 +3,11 @@
 ## zone is a parameter), so all of it is tested directly.
 
 import std/[math, options, strutils, times]
-import ../packages/fit/time
-import ../packages/util/args/args
-import ../packages/db/sqltext
-import ../core/ids
-import ../packages/text/fold/fold
+import ../fit/time
+import ../util/args/args
+import ../db/sqltext
+import ../../core/ids
+import ../text/fold/fold
 import ./ranges
 export ranges
 

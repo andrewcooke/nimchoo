@@ -3,10 +3,10 @@
 ## gate, stops included.  The formatting is pure.
 
 import std/[strutils, tables, unicode]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/ui/style
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../ui/style
 import ./[describe, display, work]
 
 {.push raises: [].}

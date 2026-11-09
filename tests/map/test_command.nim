@@ -6,7 +6,8 @@ import nimchoo/packages/db/store
 import nimchoo/map/command as mapCommand
 import nimchoo/packages/cache/cache
 import nimchoo/modules
-import nimchoo/selection/[bits, selection]
+import nimchoo/packages/selection/bits
+import nimchoo/packages/selection/selection
 
 let dir = getTempDir() / "nch-test-map"
 

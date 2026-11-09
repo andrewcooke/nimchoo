@@ -18,14 +18,14 @@
 ## `clearClimbs` (`nch climbs --all --delete`) starts again.
 
 import std/[math, options, strutils, tables]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../core/ids
-import ../packages/importer/extract
-import ../packages/importer/track
-import ../packages/util/lookup/lookup
-import ../packages/util/profiling/profiling
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../../core/ids
+import ../importer/extract
+import ../importer/track
+import ../util/lookup/lookup
+import ../util/profiling/profiling
 import ./[detect, match, ordinal, profile]
 
 {.push raises: [].}

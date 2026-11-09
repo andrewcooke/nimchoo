@@ -1,5 +1,6 @@
 import std/[strutils, unicode, unittest]
-import nimchoo/climbs/[report, work]
+import nimchoo/packages/climbs/report
+import nimchoo/packages/climbs/work
 import nimchoo/packages/db/store
 import nimchoo/packages/ui/units
 import nimchoo/packages/ui/style

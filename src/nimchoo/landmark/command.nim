@@ -5,7 +5,7 @@
 import std/[options, strutils]
 import ../cli/catalog
 import ../core/globals
-import ../climbs/report
+import ../packages/climbs/report
 import ../packages/ui/units
 import ../packages/db/store
 import ../core/errors

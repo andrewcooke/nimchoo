@@ -6,9 +6,9 @@
 ## (`nch climbs --edit NAME --retire`).
 
 import std/[algorithm, options, tables]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../db/statement
+import ../db/store
+import ../../core/errors
 import ./[describe, display, match, report]
 
 {.push raises: [].}

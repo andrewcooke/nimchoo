@@ -1,6 +1,8 @@
 import nimchoo/packages/db/statement
 import std/[sequtils, strutils, times, unittest]
-import nimchoo/climbs/[attempts, display, work]
+import nimchoo/packages/climbs/attempts
+import nimchoo/packages/climbs/display
+import nimchoo/packages/climbs/work
 import nimchoo/packages/db/store
 import nimchoo/packages/ui/palette
 import nimchoo/packages/ui/style

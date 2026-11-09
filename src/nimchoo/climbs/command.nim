@@ -13,7 +13,13 @@ import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
 import ../packages/confirm/confirm
-import ./[attempts, duplicates, edit, naming, params, report, work]
+import ./params
+import ../packages/climbs/attempts
+import ../packages/climbs/duplicates
+import ../packages/climbs/edit
+import ../packages/climbs/naming
+import ../packages/climbs/report
+import ../packages/climbs/work
 
 {.push raises: [].}
 

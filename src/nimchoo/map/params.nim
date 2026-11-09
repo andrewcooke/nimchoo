@@ -3,7 +3,7 @@
 
 import std/sequtils
 import ../packages/util/args/args
-import ../selection/bits
+import ../packages/selection/bits
 import ../serve/webopts
 
 {.push raises: [].}

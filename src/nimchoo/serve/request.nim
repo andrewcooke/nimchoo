@@ -9,7 +9,7 @@
 
 import std/[options, sequtils, strutils, uri]
 import ../packages/cache/cache
-import ../selection/bits
+import ../packages/selection/bits
 
 {.push raises: [].}
 

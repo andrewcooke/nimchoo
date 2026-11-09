@@ -7,17 +7,17 @@
 ## Whatever the climbs, all their attempts count, those of the selected rides and the others.
 
 import std/[algorithm, options, sequtils, strutils, tables, times]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/fit/time
-import ../packages/importer/describe
-import ../packages/util/lookup/lookup
-import ../packages/text/fold/fold
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../fit/time
+import ../importer/describe
+import ../util/lookup/lookup
+import ../text/fold/fold
 import std/unicode
-import ../packages/ui/palette
-import ../packages/ui/style
-import ../packages/ui/units
+import ../ui/palette
+import ../ui/style
+import ../ui/units
 import ./[describe, display, report]
 
 {.push raises: [].}

@@ -6,10 +6,10 @@
 ## give the same key in any database, and a changed selection gives a new one.
 
 import std/[algorithm, sets]
-import ../packages/util/hashing/hashing
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../util/hashing/hashing
+import ../db/statement
+import ../db/store
+import ../../core/errors
 
 {.push raises: [].}
 

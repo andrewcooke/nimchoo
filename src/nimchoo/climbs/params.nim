@@ -1,7 +1,7 @@
 ## The command line of `nch climbs`, parsed.  Pure.
 
 import ../packages/util/args/args
-import ./display
+import ../packages/climbs/display
 import std/[strutils, unicode]
 
 {.push raises: [].}

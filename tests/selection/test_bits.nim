@@ -1,5 +1,5 @@
 import std/[sequtils, strutils, unittest]
-import nimchoo/selection/bits
+import nimchoo/packages/selection/bits
 
 proc roundTrip(ids: seq[int64], maxId = 1112'i64): bool =
   let d = decodeBits(encodeBits(ids), maxId)

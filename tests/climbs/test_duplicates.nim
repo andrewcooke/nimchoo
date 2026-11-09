@@ -1,6 +1,7 @@
 import nimchoo/packages/db/statement
 import std/[sequtils, strutils, unittest]
-import nimchoo/climbs/[duplicates, work]
+import nimchoo/packages/climbs/duplicates
+import nimchoo/packages/climbs/work
 import nimchoo/packages/db/store
 import nimchoo/core/errors
 import ../support/[climbdata, userdata]

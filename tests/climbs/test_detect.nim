@@ -1,5 +1,6 @@
 import std/[math, unittest]
-import nimchoo/climbs/[detect, profile]
+import nimchoo/packages/climbs/detect
+import nimchoo/packages/climbs/profile
 
 const step = 10.0
 

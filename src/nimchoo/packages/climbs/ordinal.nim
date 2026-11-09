@@ -2,9 +2,9 @@
 ## when the climb gets its name and then kept: the next number after the highest one any other climb with that name has
 ## (retired ones count), so numbers are not reused while the highest holder stays.  Pure SQL on the table.
 
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../db/statement
+import ../db/store
+import ../../core/errors
 
 {.push raises: [].}
 

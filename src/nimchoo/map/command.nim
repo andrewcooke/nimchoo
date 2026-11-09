@@ -16,7 +16,9 @@ import ../cli/catalog
 import ../packages/cache/cache
 import ../packages/util/atomic/atomic
 import ../core/globals
-import ../climbs/[attempts, report, work]
+import ../packages/climbs/attempts
+import ../packages/climbs/report
+import ../packages/climbs/work
 import ../packages/db/statement
 import ../packages/db/store
 import ../core/errors
@@ -24,7 +26,8 @@ import ../packages/importer/keys
 import ../packages/util/version/version
 import ../packages/fit/time
 import ../core/ids
-import ../selection/[bits, selection]
+import ../packages/selection/bits
+import ../packages/selection/selection
 import ../serve/[launch, pages, webopts]
 import ./[lines, page, params]
 

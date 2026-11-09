@@ -12,7 +12,7 @@ import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
 import ../packages/confirm/confirm
-import ./remove
+import ../packages/delete/remove
 
 {.push raises: [].}
 
