@@ -7,7 +7,7 @@ import nimchoo/importer/importer
 import nimchoo/fit/[bytes, time]
 import nimchoo/modules
 import nimchoo/profile/load
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 
 const

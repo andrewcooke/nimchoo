@@ -36,13 +36,21 @@ func versionLine*(version, commit: string): string =
   ## "nch 0.1 (abc1234)".
   "nch " & version & " (" & commit & ")"
 
+proc repoRoot(start: string): string =
+  ## The directory above `start` that holds `nimchoo.nimble` (so that moving this package changes nothing).
+  result = start
+  while not fileExists(result / "nimchoo.nimble"):
+    let up = result.parentDir
+    doAssert up != result, "nimchoo.nimble not found above " & start
+    result = up
+
 const
   givenCommit {.strdefine: "nchCommit".} = ""
     ## from the build task: the short commit hash
   givenDirty {.booldefine: "nchDirty".} = false
     ## ... and whether there were uncommitted changes
   sourceDir = currentSourcePath().parentDir
-  repoDir = sourceDir.parentDir.parentDir
+  repoDir = repoRoot(sourceDir)
   nimbleText = staticRead(repoDir / "nimchoo.nimble")
   hashed = gorgeEx("git -C " & quoteShell(repoDir) & " rev-parse --short HEAD")
   changes = gorgeEx(

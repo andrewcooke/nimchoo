@@ -10,7 +10,7 @@ import ./records
 import ../profile/[default, load]
 import ../core/errors
 import ../profile/model
-import ../warnings
+import ../packages/util/warnings/warnings
 
 {.push raises: [].}
 

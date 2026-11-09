@@ -5,7 +5,7 @@
 import std/[algorithm, options]
 import ../core/errors
 import ../profile/model
-import ../warnings
+import ../packages/util/warnings/warnings
 import ./decode
 import ./records
 import ./tokens

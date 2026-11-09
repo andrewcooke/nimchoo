@@ -10,7 +10,7 @@ import nimchoo/model/[calc, command, impulses, models]
 import nimchoo/modules
 import nimchoo/profile/load
 import nimchoo/user/command as userCommand
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 
 const
   profilePath = "../choochoo/data/sdk/Profile.xlsx"

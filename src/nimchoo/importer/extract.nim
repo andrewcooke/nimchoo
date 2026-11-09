@@ -20,8 +20,8 @@ import std/[algorithm, options, sequtils, strutils, tables]
 import ../db/channel
 import ../core/errors
 import ../profile/model
-import ../profiling
-import ../warnings
+import ../packages/util/profiling/profiling
+import ../packages/util/warnings/warnings
 import ../fit/reader
 import ../fit/records
 import ../fit/time

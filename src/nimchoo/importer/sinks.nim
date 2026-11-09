@@ -10,7 +10,7 @@
 
 import std/[strutils, tables]
 import ../cli/common
-import ../warnings
+import ../packages/util/warnings/warnings
 import ./events
 import ../ui/vocabulary
 import ./failure

@@ -5,7 +5,7 @@
 
 import std/[strutils]
 import ../bundle/unpack
-import ../templating
+import ../packages/text/templating/templating
 
 {.push raises: [].}
 

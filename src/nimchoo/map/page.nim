@@ -14,7 +14,7 @@ import std/[json, options, strutils]
 import ../bundle/unpack
 import ../cache
 import ../serve/libraries
-import ../templating
+import ../packages/text/templating/templating
 import ../ui/palette
 
 {.push raises: [].}

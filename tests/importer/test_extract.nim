@@ -3,7 +3,7 @@ import nimchoo/core/errors
 import nimchoo/importer/[extract, stretch]
 import nimchoo/fit/[bytes, reader, records, time]
 import nimchoo/profile/load
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 
 const

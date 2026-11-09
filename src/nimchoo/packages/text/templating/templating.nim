@@ -21,7 +21,7 @@
 ## Pure: text and values in, text out.
 
 import std/[sequtils, strutils, tables]
-import ./core/errors
+import ../../../core/errors
 export errors
 
 {.push raises: [].}

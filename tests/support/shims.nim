@@ -6,7 +6,7 @@ import nimchoo/db/[channel, store]
 import nimchoo/core/errors
 import nimchoo/importer/[batch, events, importer, sinks]
 import nimchoo/profile/model
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 
 type Report* = ref object
   ## The plain output of a whole run, collected instead of printed.

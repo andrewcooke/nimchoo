@@ -6,17 +6,25 @@ import ./core/registry as coreRegistry
 import ./packages/geo/package as pkgGeo
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/proquint/package as pkgProquint
+import ./packages/text/templating/package as pkgTemplating
 import ./packages/util/atomic/package as pkgAtomic
 import ./packages/util/hashing/package as pkgHashing
 import ./packages/util/lookup/package as pkgLookup
+import ./packages/util/profiling/package as pkgProfiling
+import ./packages/util/version/package as pkgVersion
+import ./packages/util/warnings/package as pkgWarnings
 
 const packages*: seq[Registered] = inDependencyOrder(
   @[
     Registered(name: "geo", package: pkgGeo.package),
     Registered(name: "fold", package: pkgFold.package),
     Registered(name: "proquint", package: pkgProquint.package),
+    Registered(name: "templating", package: pkgTemplating.package),
     Registered(name: "atomic", package: pkgAtomic.package),
     Registered(name: "hashing", package: pkgHashing.package),
     Registered(name: "lookup", package: pkgLookup.package),
+    Registered(name: "profiling", package: pkgProfiling.package),
+    Registered(name: "version", package: pkgVersion.package),
+    Registered(name: "warnings", package: pkgWarnings.package),
   ]
 )

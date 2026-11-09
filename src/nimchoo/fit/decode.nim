@@ -14,7 +14,7 @@
 import std/[options, tables]
 import ../packages/util/lookup/lookup
 import ../profile/model
-import ../warnings
+import ../packages/util/warnings/warnings
 import ./basetype
 import ./bytes
 import ./records

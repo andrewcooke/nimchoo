@@ -12,7 +12,7 @@ import ./basetype
 import ./bytes
 import ./header
 import ./time
-import ../warnings
+import ../packages/util/warnings/warnings
 export warnings
 
 {.push raises: [].}

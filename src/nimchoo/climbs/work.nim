@@ -23,7 +23,7 @@ import ../core/errors
 import ../core/ids
 import ../importer/[extract, track]
 import ../packages/util/lookup/lookup
-import ../profiling
+import ../packages/util/profiling/profiling
 import ./[detect, match, ordinal, profile]
 
 {.push raises: [].}

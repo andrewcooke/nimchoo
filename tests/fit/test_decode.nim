@@ -2,7 +2,7 @@ import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
 import nimchoo/fit/[bytes, time]
 import nimchoo/fit/[reader, records]
 import nimchoo/profile/load
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 import nimchoo/fit/tokens
 import ../support/fitbuilder
 

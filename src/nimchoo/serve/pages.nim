@@ -1,10 +1,10 @@
 ## What the commands with web pages share for making their files: making the cache directories,
-## and escaping text for a page (re-exported from templating.nim).
+## and escaping text for a page (re-exported from packages/text/templating).
 
 import std/os
 import ../bundle/unpack
 import ../cache
-import ../templating
+import ../packages/text/templating/templating
 export templating.htmlEscape
 
 {.push raises: [].}

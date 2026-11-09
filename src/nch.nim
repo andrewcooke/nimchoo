@@ -19,7 +19,7 @@ import nimchoo/ff/command as ffCommand
 import nimchoo/fit/command as fitCommand
 import nimchoo/modules
 import nimchoo/ui/logfile
-import nimchoo/version
+import nimchoo/packages/util/version/version
 import nimchoo/zipchild
 
 {.push raises: [].}

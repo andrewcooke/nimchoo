@@ -6,8 +6,8 @@ import std/[monotimes, times]
 import ../core/errors
 import ../fit/bytes
 import ../packages/util/hashing/hashing
-import ../profiling
-import ../warnings
+import ../packages/util/profiling/profiling
+import ../packages/util/warnings/warnings
 import ./failure
 import ./importer
 

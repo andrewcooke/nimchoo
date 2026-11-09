@@ -8,8 +8,8 @@ import ../core/errors
 import ../core/ids
 import ../profile/default
 import ../profile/model
-import ../profiling
-import ../warnings
+import ../packages/util/profiling/profiling
+import ../packages/util/warnings/warnings
 import ./events
 import ./failure
 import ./importer

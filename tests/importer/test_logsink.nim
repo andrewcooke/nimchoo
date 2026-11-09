@@ -4,7 +4,7 @@ import nimchoo/selection/command as activitiesCommand
 import nimchoo/cli/common
 import nimchoo/modules
 import nimchoo/ui/logfile
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =

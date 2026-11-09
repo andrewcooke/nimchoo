@@ -7,8 +7,8 @@ import ../packages/util/hashing/hashing
 import ../db/[channel, multirow, statement, store]
 import ../core/errors
 import ../profile/model
-import ../profiling
-import ../warnings
+import ../packages/util/profiling/profiling
+import ../packages/util/warnings/warnings
 import ./[extract, route]
 
 {.push raises: [].}

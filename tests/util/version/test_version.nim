@@ -1,5 +1,5 @@
 import std/[strutils, unittest]
-import nimchoo/version
+import nimchoo/packages/util/version/version
 
 suite "version":
   test "the number is the one in the nimble file":

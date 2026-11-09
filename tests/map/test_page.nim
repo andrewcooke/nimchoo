@@ -4,7 +4,7 @@ import nimchoo/bundle/unpack
 import nimchoo/cache
 import nimchoo/map/page
 import nimchoo/serve/libraries
-import nimchoo/templating
+import nimchoo/packages/text/templating/templating
 
 let libs = parseLibraries(librariesBundle.data).toTable
 

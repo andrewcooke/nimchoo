@@ -14,9 +14,9 @@ import
   ./test_child,
   ./test_zipchild,
   ./test_structure,
-  ./test_cache,
-  ./test_templating,
-  ./test_version
+  ./test_cache
+import ./text/templating/test_templating
+import ./util/version/test_version
 import ./text/proquint/test_proquint
 import ./util/atomic/test_atomic
 import ./geo/test_geo

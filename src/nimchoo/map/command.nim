@@ -19,7 +19,7 @@ import ../climbs/[attempts, report, work]
 import ../db/[statement, store]
 import ../core/errors
 import ../importer/keys
-import ../version
+import ../packages/util/version/version
 import ../fit/time
 import ../core/ids
 import ../selection/[bits, selection]

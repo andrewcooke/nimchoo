@@ -28,7 +28,7 @@ task test,
 
 task prod,
   "Build ./nch for use: optimised (-d:release); this is the build the author runs":
-  # The git commit is handed to the compiler as a define, so that only src/nimchoo/version.nim changes between
+  # The git commit is handed to the compiler as a define, so that only src/nimchoo/packages/util/version/version.nim changes between
   # builds and the rest comes from Nim's cache (no --forceBuild: about 4 to 6 s for a typical edit, not 18).
   exec "nimble registry"
   let (hash, hashCode) = gorgeEx("git rev-parse --short HEAD")

@@ -1,6 +1,6 @@
 import std/[strutils, tables, unittest]
 import nimchoo/serve/libraries
-import nimchoo/templating
+import nimchoo/packages/text/templating/templating
 
 suite "libraries: the file of CDN libraries":
   test "name = value lines; comments, blank lines and lines that are not that are left out":

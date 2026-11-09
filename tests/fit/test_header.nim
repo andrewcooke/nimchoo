@@ -1,7 +1,7 @@
 import std/[options, sequtils, unittest]
 import nimchoo/core/errors
 import nimchoo/fit/[bytes, crc, header]
-import nimchoo/warnings
+import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
 
 const

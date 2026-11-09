@@ -348,7 +348,7 @@ four kinds of things go wrong, and each has one mechanism:
    subtypes of `NchError` (`core/errors.nim`), raised with the `raiseFit` / `raiseProfile` / ... helpers and listed in
    `{.raises.}`.  corrupt input must never reach a Defect (a fuzzer is to check this for FIT files: TODO step 2).
 3. **ordinary absence is an `Option`**.  no sentinel values.
-4. **oddities we can recover from are warnings**, collected (`warnings.nim`, each with a `WarningKind`), never
+4. **oddities we can recover from are warnings**, collected (`packages/util/warnings`, each with a `WarningKind`), never
    logged or printed by library code.
 
 * `try` only at boundaries: the commands, and where a third-party or `std` call is wrapped into one of our errors.
@@ -371,7 +371,7 @@ four kinds of things go wrong, and each has one mechanism:
   modules: relative inside `src/`, `nimchoo/...` in tests.
 * `func` for pure functions, `proc` for anything with effects.  results are returned, not written to out
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
-  default.  no module-level mutable state (exceptions today: `profiling.nim`, and the stop flag of `db/checkpointer.nim`, an atomic).
+  default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
 * **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
   once and a name in the braces is checked when the program is compiled; `&` and `$` pieced together are easy to get

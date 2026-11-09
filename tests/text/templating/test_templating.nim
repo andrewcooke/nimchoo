@@ -1,5 +1,5 @@
 import std/[strutils, unittest]
-import nimchoo/templating
+import nimchoo/packages/text/templating/templating
 
 proc r(source: string, values: openArray[(string, Value)] = []): string =
   render(source, context(values))

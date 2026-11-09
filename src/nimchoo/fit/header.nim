@@ -2,7 +2,7 @@
 
 import std/[options, strutils]
 import ../core/errors
-import ../warnings
+import ../packages/util/warnings/warnings
 import ./bytes
 import ./crc
 

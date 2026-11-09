@@ -4,7 +4,7 @@
 ## file, so it must be cheap and must not raise.
 
 import ../db/channel
-import ../warnings
+import ../packages/util/warnings/warnings
 import ./failure
 
 {.push raises: [].}
@@ -27,7 +27,7 @@ type
     total*: int ## files to look at
     done*: int ## files looked at
     imported*, duplicates*, unchanged*, failed*, known*, monitor*: int
-    advisories*: int ## things noticed in files (see warnings.nim), not files
+    advisories*: int ## things noticed in files (see packages/util/warnings), not files
     failures*: array[FailureKind, int] ## `failed`, by kind
     notes*: seq[string] ## things to say about the run itself
 
