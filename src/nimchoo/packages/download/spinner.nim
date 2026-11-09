@@ -9,8 +9,8 @@
 ## (nothing that needs a garbage collector), behind a lock.
 
 import std/[locks, monotimes, os, times, typedthreads]
-import ../packages/ui/live
-import ../packages/ui/style
+import ../ui/live
+import ../ui/style
 import ./fetch
 
 {.push raises: [].}

@@ -9,11 +9,11 @@
 ## passed in (`Env`), so tests serve made-up bytes and a made-up amount of room.
 
 import std/[httpclient, options, os, strutils, tables]
-import ../core/errors
-import ../packages/util/lookup/lookup
-import ../packages/util/zip/zipbytes
-import ../packages/util/zip/zipchild
-import ../packages/util/atomic/atomic
+import ../../core/errors
+import ../util/lookup/lookup
+import ../util/zip/zipbytes
+import ../util/zip/zipchild
+import ../util/atomic/atomic
 import ./sources
 when defined(posix):
   import std/posix

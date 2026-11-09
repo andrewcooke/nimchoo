@@ -5,7 +5,7 @@
 
 import std/[os, strutils]
 import ../cache
-import ../download/fetch
+import ../packages/download/fetch
 
 {.push raises: [].}
 

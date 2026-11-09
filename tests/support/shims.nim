@@ -1,7 +1,7 @@
 ## Small helpers that only tests need (they used to be in src/): a sink that ignores download events, a run of the
 ## importer whose plain output is collected, and the import of one file with a profile already in hand.
 
-import nimchoo/download/fetch
+import nimchoo/packages/download/fetch
 import nimchoo/db/[channel, store]
 import nimchoo/core/errors
 import nimchoo/importer/[batch, events, importer, sinks]

@@ -5,7 +5,7 @@ import std/[cpuinfo, options, strutils]
 import ../cli/catalog
 import ../core/globals
 import ../db/[statement, store]
-import ../download/fetch
+import ../packages/download/fetch
 import ../core/errors
 import ../names/open
 import ../core/logfile

@@ -7,7 +7,8 @@ import ../cli/catalog
 import ../cache
 import ../core/globals
 import ../db/store
-import ../download/[fetch, sinks]
+import ../packages/download/fetch
+import ../packages/download/sinks
 import ../packages/ui/live
 import ./countries
 

@@ -1,7 +1,7 @@
 import std/[math, options, strutils, unittest]
 import ../support/shims
 import nimchoo/db/store
-import nimchoo/download/fetch
+import nimchoo/packages/download/fetch
 import nimchoo/core/errors
 import nimchoo/landmark/landmarks
 import nimchoo/names/[activity, countries, lookup, shape]

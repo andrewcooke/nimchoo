@@ -7,7 +7,7 @@ import ../cli/catalog
 import ../cache
 import ../core/globals
 import ../packages/util/args/args
-import ../download/fetch
+import ../packages/download/fetch
 import ../core/logfile
 import ../user/wipe
 import ./files

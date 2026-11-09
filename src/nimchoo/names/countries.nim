@@ -8,7 +8,8 @@
 
 import std/[math, options, os, strutils]
 import ../db/[statement, store]
-import ../download/[fetch, sources]
+import ../packages/download/fetch
+import ../packages/download/sources
 import ../core/errors
 import ../packages/util/zip/zipbytes
 import ./countryinfo

@@ -3,7 +3,8 @@
 
 import std/[options, os, strutils]
 import nimchoo/db/store
-import nimchoo/download/[fetch, sources]
+import nimchoo/packages/download/fetch
+import nimchoo/packages/download/sources
 import nimchoo/modules
 import ./[shapefile, zips]
 

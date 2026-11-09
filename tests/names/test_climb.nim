@@ -2,7 +2,7 @@ import std/[options, strutils, unittest]
 import ../support/shims
 import nimchoo/db/store
 import nimchoo/core/errors
-import nimchoo/download/fetch
+import nimchoo/packages/download/fetch
 import nimchoo/landmark/landmarks
 import nimchoo/names/[climb, climbpick, countries]
 import ../support/[namesdata, userdata]

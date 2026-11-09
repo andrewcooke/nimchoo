@@ -3,7 +3,10 @@ import
     atomics, monotimes, nativesockets, net, options, os, sets, strutils, tables, times,
     unittest,
   ]
-import nimchoo/download/[fetch, sinks, sources, spinner]
+import nimchoo/packages/download/fetch
+import nimchoo/packages/download/sinks
+import nimchoo/packages/download/sources
+import nimchoo/packages/download/spinner
 import nimchoo/core/logfile
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/palette

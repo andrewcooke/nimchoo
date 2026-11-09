@@ -3,6 +3,7 @@
 
 import ./core/package as corePackage
 import ./core/registry as coreRegistry
+import ./packages/download/package as pkgDownload
 import ./packages/geo/package as pkgGeo
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/proquint/package as pkgProquint
@@ -23,6 +24,7 @@ import ./packages/util/zip/package as pkgZip
 
 const packages*: seq[Registered] = inDependencyOrder(
   @[
+    Registered(name: "download", package: pkgDownload.package),
     Registered(name: "geo", package: pkgGeo.package),
     Registered(name: "fold", package: pkgFold.package),
     Registered(name: "proquint", package: pkgProquint.package),

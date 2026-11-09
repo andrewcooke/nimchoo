@@ -7,7 +7,7 @@ import ../cli/catalog
 import db_connector/db_sqlite
 import ../core/globals
 import ../packages/util/args/args
-import ../download/fetch
+import ../packages/download/fetch
 import ../core/errors
 import ../core/logfile
 import ../packages/ui/live
