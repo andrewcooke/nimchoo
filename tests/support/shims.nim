@@ -3,9 +3,12 @@
 
 import nimchoo/packages/download/fetch
 import nimchoo/packages/db/store
-import nimchoo/importer/channel
+import nimchoo/packages/importer/channel
 import nimchoo/core/errors
-import nimchoo/importer/[batch, events, importer, sinks]
+import nimchoo/importer/sinks
+import nimchoo/packages/importer/batch
+import nimchoo/packages/importer/events
+import nimchoo/packages/importer/importer
 import nimchoo/packages/fit/model
 import nimchoo/packages/util/warnings/warnings
 

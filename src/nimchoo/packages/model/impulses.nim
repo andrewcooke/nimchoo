@@ -6,11 +6,11 @@
 ## trigger in 001-schema.sql.)
 
 import std/[algorithm, options, strutils]
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/fit/time
-import ../packages/util/hashing/hashing
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../fit/time
+import ../util/hashing/hashing
 import ./[calc, models]
 
 {.push raises: [].}

@@ -20,7 +20,7 @@ import ../climbs/[attempts, report, work]
 import ../packages/db/statement
 import ../packages/db/store
 import ../core/errors
-import ../importer/keys
+import ../packages/importer/keys
 import ../packages/util/version/version
 import ../packages/fit/time
 import ../core/ids

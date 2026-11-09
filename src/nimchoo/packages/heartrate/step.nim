@@ -4,12 +4,12 @@
 
 import std/[math, tables]
 import db_connector/db_sqlite
-import ../packages/db/multirow
-import ../packages/db/statement
+import ../db/multirow
+import ../db/statement
 import ../importer/channel
-import ../core/errors
-import ../packages/fit/time
-import ../core/ids
+import ../../core/errors
+import ../fit/time
+import ../../core/ids
 
 {.push raises: [].}
 

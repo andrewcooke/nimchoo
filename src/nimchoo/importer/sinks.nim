@@ -11,9 +11,9 @@
 import std/[strutils, tables]
 import ../core/globals
 import ../packages/util/warnings/warnings
-import ./events
+import ../packages/importer/events
 import ../packages/ui/vocabulary
-import ./failure
+import ../packages/importer/failure
 
 {.push raises: [].}
 

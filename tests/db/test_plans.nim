@@ -4,7 +4,8 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
-import nimchoo/importer/[importer, track]
+import nimchoo/packages/importer/importer
+import nimchoo/packages/importer/track
 import nimchoo/packages/landmark/suggest
 import nimchoo/modules
 import nimchoo/packages/names/countries

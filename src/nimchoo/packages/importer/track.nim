@@ -5,11 +5,11 @@
 ## the positions on purpose.)
 
 import std/options
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
-import ../packages/fit/time
-import ../core/ids
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../fit/time
+import ../../core/ids
 import ./extract
 
 {.push raises: [].}

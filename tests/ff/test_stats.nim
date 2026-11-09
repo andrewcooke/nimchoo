@@ -1,6 +1,6 @@
 import std/[math, options, times, unittest]
 import nimchoo/ff/[curve, stats]
-import nimchoo/model/calc
+import nimchoo/packages/model/calc
 import nimchoo/packages/ui/style
 
 proc near(a, b: float, eps = 1e-9): bool =

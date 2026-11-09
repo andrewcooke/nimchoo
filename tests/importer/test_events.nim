@@ -1,5 +1,8 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/importer/[batch, events, failure, sinks]
+import nimchoo/importer/sinks
+import nimchoo/packages/importer/batch
+import nimchoo/packages/importer/events
+import nimchoo/packages/importer/failure
 import nimchoo/packages/db/store
 import nimchoo/modules
 import nimchoo/packages/util/warnings/warnings

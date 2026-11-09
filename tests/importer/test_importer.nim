@@ -1,10 +1,11 @@
 import nimchoo/packages/db/statement
 import std/[options, os, unittest]
 import ../support/shims
-import nimchoo/importer/[extract, importer]
+import nimchoo/packages/importer/extract
+import nimchoo/packages/importer/importer
 import std/tables
 import nimchoo/packages/db/store
-import nimchoo/importer/channel
+import nimchoo/packages/importer/channel
 import nimchoo/packages/util/hashing/hashing
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes

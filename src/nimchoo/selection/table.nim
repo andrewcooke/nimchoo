@@ -12,7 +12,7 @@
 
 import std/[algorithm, math, options, sequtils, strutils, tables, times, unicode]
 import ../packages/fit/time
-import ../importer/describe
+import ../packages/importer/describe
 import ../packages/ui/interval
 import ../packages/ui/style
 import ../packages/ui/units

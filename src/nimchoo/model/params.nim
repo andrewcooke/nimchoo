@@ -2,7 +2,7 @@
 
 import std/strutils
 import ../packages/util/args/args
-import ./calc
+import ../packages/model/calc
 
 {.push raises: [].}
 

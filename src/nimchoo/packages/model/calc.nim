@@ -10,8 +10,8 @@
 ## sake of pandas; this integrates exactly, so an irregular recording interval has no effect.
 
 import std/math
-import ../packages/fit/time
-import ../core/ids
+import ../fit/time
+import ../../core/ids
 
 {.push raises: [].}
 

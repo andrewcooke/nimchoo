@@ -2,11 +2,11 @@
 ## adding more.
 
 import std/options
-import ../packages/util/hashing/hashing
+import ../util/hashing/hashing
 import db_connector/db_sqlite
-import ../packages/db/statement
-import ../packages/db/store
-import ../core/errors
+import ../db/statement
+import ../db/store
+import ../../core/errors
 import ./calc
 
 {.push raises: [].}

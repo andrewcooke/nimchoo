@@ -13,7 +13,7 @@ import ../climbs/[display, report]
 import ../packages/db/statement
 import ../packages/db/store
 import ../delete/run as deleteRun
-import ../importer/batch
+import ../packages/importer/batch
 import ../importer/run as importRun
 import ../core/errors
 import ../packages/fit/time

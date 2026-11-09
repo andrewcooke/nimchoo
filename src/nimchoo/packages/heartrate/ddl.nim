@@ -1,6 +1,6 @@
 ## The database tables of the heartrate module (see core/fragment.nim).
 
-import ../core/fragment
+import ../../core/fragment
 
 {.push raises: [].}
 

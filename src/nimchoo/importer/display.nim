@@ -12,7 +12,8 @@ import std/[os, strutils]
 import ../packages/ui/live
 import ../packages/ui/style
 import ../packages/ui/vocabulary
-import ./[events, sinks]
+import ./sinks
+import ../packages/importer/events
 
 {.push raises: [].}
 

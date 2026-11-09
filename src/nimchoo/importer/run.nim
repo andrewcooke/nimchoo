@@ -12,7 +12,10 @@ import ../packages/names/open
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
-import ./[batch, display, events, logsink, naming, sinks]
+import ./[display, logsink, sinks]
+import ../packages/importer/batch
+import ../packages/importer/events
+import ../packages/importer/naming
 
 {.push raises: [].}
 

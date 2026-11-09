@@ -3,15 +3,15 @@
 ## content, same user) does nothing.
 
 import std/[options, sets, times]
-import ../packages/util/hashing/hashing
-import ../packages/db/multirow
-import ../packages/db/statement
-import ../packages/db/store
+import ../util/hashing/hashing
+import ../db/multirow
+import ../db/statement
+import ../db/store
 import ./channel
-import ../core/errors
-import ../packages/fit/model
-import ../packages/util/profiling/profiling
-import ../packages/util/warnings/warnings
+import ../../core/errors
+import ../fit/model
+import ../util/profiling/profiling
+import ../util/warnings/warnings
 import ./[extract, route]
 
 {.push raises: [].}

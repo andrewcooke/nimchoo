@@ -1,5 +1,5 @@
 import std/unittest
-import nimchoo/importer/stretch
+import nimchoo/packages/importer/stretch
 
 func auto(seconds: int64, metres: float): Gap =
   Gap(seconds: seconds, metres: metres, stoppedBy: trAuto, restartedBy: trAuto)

@@ -7,9 +7,9 @@
 ## finished.  Each loads its own copy of the profile, so no object is shared between threads.
 
 import std/[options, sets, typedthreads]
-import ../core/errors
-import ../packages/fit/load
-import ../packages/util/profiling/profiling
+import ../../core/errors
+import ../fit/load
+import ../util/profiling/profiling
 import ./failure
 import ./importer
 import ./work

@@ -13,7 +13,7 @@ import ../packages/db/store
 import ../core/errors
 import ../core/logfile
 import ../packages/ui/live
-import ../importer/count
+import ../packages/importer/count
 import ../packages/confirm/confirm
 import ./params
 import ../packages/user/wipe

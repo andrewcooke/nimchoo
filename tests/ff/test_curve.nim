@@ -10,7 +10,7 @@ import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import nimchoo/ff/[curve, params]
 import nimchoo/ff/command as ffCommand
-import nimchoo/model/calc
+import nimchoo/packages/model/calc
 
 proc near(a, b: float, eps = 1e-9): bool =
   abs(a - b) <= eps

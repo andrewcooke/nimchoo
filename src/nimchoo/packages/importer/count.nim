@@ -2,8 +2,8 @@
 
 import std/options
 import db_connector/db_sqlite
-import ../packages/db/statement
-import ../core/errors
+import ../db/statement
+import ../../core/errors
 
 {.push raises: [].}
 

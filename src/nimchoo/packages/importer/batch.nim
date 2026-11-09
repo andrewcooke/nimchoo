@@ -3,15 +3,15 @@
 ## happens is announced as an event (events.nim); nothing is printed here.
 
 import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
-import ../packages/db/checkpointer
-import ../packages/db/store
+import ../db/checkpointer
+import ../db/store
 import ./channel
-import ../core/errors
-import ../core/ids
-import ../packages/fit/default
-import ../packages/fit/model
-import ../packages/util/profiling/profiling
-import ../packages/util/warnings/warnings
+import ../../core/errors
+import ../../core/ids
+import ../fit/default
+import ../fit/model
+import ../util/profiling/profiling
+import ../util/warnings/warnings
 import ./events
 import ./failure
 import ./importer

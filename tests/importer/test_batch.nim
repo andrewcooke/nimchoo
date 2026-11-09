@@ -4,7 +4,7 @@
 import nimchoo/packages/db/statement
 import std/[os, strutils, times, unittest]
 import ../support/shims
-import nimchoo/importer/batch
+import nimchoo/packages/importer/batch
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/core/globals
 import nimchoo/packages/db/store

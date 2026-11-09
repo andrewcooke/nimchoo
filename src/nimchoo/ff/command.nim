@@ -15,7 +15,9 @@ import ../packages/util/atomic/atomic
 import ../packages/db/statement
 import ../packages/db/store
 import ../core/errors
-import ../model/[calc, impulses, models]
+import ../packages/model/calc
+import ../packages/model/impulses
+import ../packages/model/models
 import ../serve/[launch, pages, webopts]
 import ../packages/ui/live
 import ../packages/ui/style

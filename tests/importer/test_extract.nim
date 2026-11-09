@@ -1,6 +1,7 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/core/errors
-import nimchoo/importer/[extract, stretch]
+import nimchoo/packages/importer/extract
+import nimchoo/packages/importer/stretch
 import nimchoo/packages/fit/reader
 import nimchoo/packages/fit/records
 import nimchoo/packages/fit/time

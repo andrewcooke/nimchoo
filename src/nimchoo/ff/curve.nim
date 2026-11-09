@@ -9,7 +9,7 @@
 ## (The hours are those of the clock in UTC; days are the timezone's.)
 
 import std/[math, options, times]
-import ../model/calc
+import ../packages/model/calc
 
 {.push raises: [].}
 

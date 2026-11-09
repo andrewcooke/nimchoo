@@ -5,16 +5,16 @@
 ## first, always.)  A new module with tables adds its `ddl` here.
 
 import ./climbs/ddl as climbsDdl
-import ./heartrate/ddl as heartrateDdl
-import ./heartrate/step as heartrateStep
-import ./importer/ddl as importerDdl
+import ./packages/heartrate/ddl as heartrateDdl
+import ./packages/heartrate/step as heartrateStep
+import ./packages/importer/ddl as importerDdl
 import ./packages/landmark/ddl as landmarkDdl
-import ./model/ddl as modelDdl
+import ./packages/model/ddl as modelDdl
 import ./packages/names/ddl as namesDdl
 import ./selection/ddl as selectionDdl
 import ./packages/user/ddl as userDdl
 import ./core/fragment
-import ./importer/channel
+import ./packages/importer/channel
 
 {.push raises: [].}
 

@@ -8,7 +8,9 @@ import ../core/globals
 import ../packages/db/store
 import ../core/errors
 import ../core/logfile
-import ./[calc, models, params]
+import ./params
+import ../packages/model/calc
+import ../packages/model/models
 
 {.push raises: [].}
 

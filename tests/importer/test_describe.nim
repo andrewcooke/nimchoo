@@ -1,6 +1,6 @@
 import std/[options, times, unittest]
 import nimchoo/packages/fit/time
-import nimchoo/importer/describe
+import nimchoo/packages/importer/describe
 
 let zone = utc()
 

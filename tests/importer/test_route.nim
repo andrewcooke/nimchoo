@@ -2,7 +2,8 @@ import std/[options, os, unittest]
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/fit/time
-import nimchoo/importer/[extract, route]
+import nimchoo/packages/importer/extract
+import nimchoo/packages/importer/route
 import nimchoo/modules
 
 func coord(t: int64, lon, lat: float): Coord =

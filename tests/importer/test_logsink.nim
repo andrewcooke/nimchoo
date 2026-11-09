@@ -1,5 +1,7 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/importer/[events, failure, logsink]
+import nimchoo/importer/logsink
+import nimchoo/packages/importer/events
+import nimchoo/packages/importer/failure
 import nimchoo/selection/command as activitiesCommand
 import nimchoo/core/globals
 import nimchoo/modules

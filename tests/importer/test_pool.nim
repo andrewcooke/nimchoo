@@ -5,7 +5,7 @@ import nimchoo/packages/db/statement
 import std/[options, os, strutils, unittest]
 import ../support/shims
 from ../support/env import useTestCache
-import nimchoo/importer/batch
+import nimchoo/packages/importer/batch
 import nimchoo/packages/db/store
 import nimchoo/modules
 import ../support/fitbuilder

@@ -18,14 +18,14 @@
 
 import std/[algorithm, options, sequtils, strutils, tables]
 import ./channel
-import ../core/errors
-import ../packages/fit/model
-import ../packages/util/profiling/profiling
-import ../packages/util/warnings/warnings
-import ../packages/fit/reader
-import ../packages/fit/records
-import ../packages/fit/time
-import ../packages/geo/geo
+import ../../core/errors
+import ../fit/model
+import ../util/profiling/profiling
+import ../util/warnings/warnings
+import ../fit/reader
+import ../fit/records
+import ../fit/time
+import ../geo/geo
 import ./stretch
 
 {.push raises: [].}

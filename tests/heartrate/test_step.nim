@@ -2,9 +2,9 @@ import nimchoo/packages/db/statement
 import std/[os, tables, unittest]
 import ../support/shims
 import nimchoo/packages/db/store
-import nimchoo/importer/channel
-import nimchoo/heartrate/step
-import nimchoo/importer/importer
+import nimchoo/packages/importer/channel
+import nimchoo/packages/heartrate/step
+import nimchoo/packages/importer/importer
 import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/modules

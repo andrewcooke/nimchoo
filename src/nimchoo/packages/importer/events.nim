@@ -4,7 +4,7 @@
 ## file, so it must be cheap and must not raise.
 
 import ./channel
-import ../packages/util/warnings/warnings
+import ../util/warnings/warnings
 import ./failure
 
 {.push raises: [].}

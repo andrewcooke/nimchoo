@@ -10,9 +10,9 @@
 ## Pure.
 
 import std/[options, times]
-import ../packages/fit/time
-import ../packages/ui/interval
-import ../packages/ui/units
+import ../fit/time
+import ../ui/interval
+import ../ui/units
 
 {.push raises: [].}
 

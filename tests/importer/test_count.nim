@@ -3,7 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/core/errors
-import nimchoo/importer/count
+import nimchoo/packages/importer/count
 import nimchoo/modules
 import ../support/userdata
 

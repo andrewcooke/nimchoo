@@ -22,7 +22,8 @@ import ../packages/db/statement
 import ../packages/db/store
 import ../core/errors
 import ../core/ids
-import ../importer/[extract, track]
+import ../packages/importer/extract
+import ../packages/importer/track
 import ../packages/util/lookup/lookup
 import ../packages/util/profiling/profiling
 import ./[detect, match, ordinal, profile]
