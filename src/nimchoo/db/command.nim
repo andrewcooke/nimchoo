@@ -11,7 +11,7 @@ import ../packages/download/fetch
 import ../core/errors
 import ../core/logfile
 import ../packages/ui/live
-import ../user/wipe
+import ../packages/confirm/confirm
 import ./[statement, store]
 
 {.push raises: [].}

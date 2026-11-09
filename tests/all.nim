@@ -93,6 +93,8 @@ import
   ./serve/
     [test_request, test_token, test_handler, test_pages, test_libraries, test_workers]
 import ./user/[test_params, test_command, test_wipe]
+import ./confirm/test_confirm
+import ./importer/test_count
 import ./bundle/test_unpack
 import
   ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval, test_palette]

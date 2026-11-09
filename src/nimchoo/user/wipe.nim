@@ -1,27 +1,18 @@
-## Deleting what belongs to a user: all of it but the user, or the user too
-## (`nch users --delete`), with the words and the countdown both use.  Nothing is deleted without
-## `--force`, and on a terminal there are then a few seconds in which to press Ctrl-C.
+## Removing a user and what belongs to them (`nch users --delete`), and the words that say what goes.  The pause
+## before any delete (the countdown) is in `confirm`.
 ##
-## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough
-## to remove the user.  A
-## later module that stores per-user data adds its table to `userTables`; a test checks that
-## none is forgotten.  This module counts activities, and `describe` says so; a later module
-## that stores data it wants mentioned adds a line there (it is deleted either way).
+## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough to remove the
+## user.  A later module that stores per-user data adds its table to `userTables`; a test checks that none is
+## forgotten.
 
-import std/[options, os]
-import db_connector/db_sqlite
-import ../core/globals
+import std/options
 import ../db/[statement, store]
 import ../core/errors
-import ../packages/ui/live
-import ../packages/ui/style
 
 {.push raises: [].}
 
-const
-  userTables* = ["file", "seen_file", "selection"]
-    ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
-  waitSeconds* = 5
+const userTables* = ["file", "seen_file", "selection"]
+  ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
 
 func activities(n: int): string =
   $n & (if n == 1: " activity" else: " activities")
@@ -38,65 +29,6 @@ func describe*(count: Option[int], user: string): string =
     items & " for all users"
   else:
     items & " and user " & user
-
-func countdownLine*(what: string, seconds: int): Line =
-  ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", in red.
-  @[
-    span("deleting " & what & " in ", red),
-    span($seconds, red, bold = true),
-    span(" s ... (Ctrl-C to cancel)", red),
-  ]
-
-proc countdown*(
-    l: Live, what: string, seconds: int, wait: proc(ms: int) {.closure, raises: [].}
-) =
-  ## Show the line once a second, from `seconds` down to 1, then take it away.
-  for s in countdown(seconds, 1):
-    l.show @[countdownLine(what, s)]
-    wait 1000
-  l.finish()
-
-proc sayDeleted*(text: string) =
-  ## The line that says what was deleted ("done: deleted ..."), in red on a terminal, so that it stands out.
-  stdout.say render(@[span("done: " & text, red)], canColourStdout()) & "\n"
-
-proc sleepMs*(ms: int) {.raises: [].} =
-  ## Wait for `ms` milliseconds.
-  try:
-    sleep(ms)
-  except OSError:
-    discard
-
-proc countActivities*(path, user: string): Option[int] =
-  ## How many activities there are (of `user`, if given), counted straight from
-  ## the file, so that it works whatever layout the database has (the one
-  ## thing it needs is a table called `activity`).  None if that fails.
-  var db: DbConn
-  try:
-    db = open(path, "", "", "")
-  except DbError:
-    return none(int)
-  defer:
-    try:
-      db.close()
-    except DbError:
-      discard
-  try:
-    result =
-      if user.len == 0:
-        some(db.scalar(int, "select count(*) from activity"))
-      else:
-        some(
-          db.scalar(
-            int,
-            """select count(*) from activity a
-                                join file f on f.id = a.file_id
-                                where f.user_id = (select id from user where name = :name)""",
-            name = user,
-          )
-        )
-  except StoreError:
-    result = none(int)
 
 proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   ## The id of the user called `name`; an error if there is none.

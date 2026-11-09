@@ -9,7 +9,7 @@ import ../core/globals
 import ../packages/util/args/args
 import ../packages/download/fetch
 import ../core/logfile
-import ../user/wipe
+import ../packages/confirm/confirm
 import ../packages/cache/files
 
 {.push raises: [].}

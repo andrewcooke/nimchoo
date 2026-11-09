@@ -11,7 +11,7 @@ import ../db/store
 import ../core/errors
 import ../names/[lookup, open]
 import ../core/logfile
-import ../user/wipe
+import ../packages/confirm/confirm
 import ./[landmarks, params, suggest]
 
 {.push raises: [].}

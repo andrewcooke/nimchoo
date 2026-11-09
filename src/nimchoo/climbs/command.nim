@@ -12,7 +12,7 @@ import ../names/open
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
-import ../user/wipe
+import ../packages/confirm/confirm
 import ./[attempts, duplicates, edit, naming, params, report, work]
 
 {.push raises: [].}

@@ -11,7 +11,7 @@ import ../core/errors
 import ../core/logfile
 import ../packages/ui/live
 import ../packages/ui/style
-import ../user/wipe
+import ../packages/confirm/confirm
 import ./remove
 
 {.push raises: [].}
