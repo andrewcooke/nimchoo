@@ -10,7 +10,7 @@
 ## is a `StoreError` that names the column.  (The prepared statements that are run many times, `prepareStmt`, bind by
 ## position: they are for loops over thousands of rows.)
 
-import std/[macros, options]
+import std/[macros, options, strformat]
 from std/strutils import IdentChars, IdentStartChars
 import db_connector/db_sqlite
 from db_connector/sqlite3 import
@@ -23,7 +23,7 @@ from db_connector/sqlite3 import
 import ../../core/errors
 import ../../core/ids
 import ./[access, sqltext]
-export sqltext, access.packageOfFile
+export sqltext, access.packageOfFile, db_sqlite.DbConn
 
 {.push raises: [].}
 
@@ -42,7 +42,22 @@ proc `=destroy`(s: StmtObj) {.raises: [].} =
     discard finalize(s.raw)
 
 proc fail(db: DbConn, what: string) {.noreturn, raises: [StoreError].} =
-  raiseStore(what & ": " & $errmsg(db))
+  raiseStore(fmt"{what}: {errmsg(db)}")
+
+proc openFile*(path: string): DbConn {.raises: [StoreError].} =
+  ## A plain connection to a database file: no fragments, no extensions, no user (`openStore` does those).  For
+  ## what must work whatever layout the file has.  Close it with `closeQuietly`.
+  try:
+    db_sqlite.open(path, "", "", "")
+  except DbError as e:
+    raiseStore(fmt"cannot open {path}: {e.msg}")
+
+proc closeQuietly*(db: DbConn) {.raises: [].} =
+  ## Close a connection, ignoring a failure (it is for cleaning up).
+  try:
+    db_sqlite.close(db)
+  except DbError:
+    discard
 
 proc prepareStmtAs*(
     db: DbConn, sql: string, package: string
@@ -55,8 +70,8 @@ proc prepareStmtAs*(
   let refused = leave()
   if rc != SQLITE_OK:
     if refused.len > 0:
-      raiseStore(refused & ": " & sql)
-    fail(db, "cannot prepare '" & sql & "'")
+      raiseStore(fmt"{refused}: {sql}")
+    fail(db, fmt"cannot prepare '{sql}'")
   Stmt(raw: raw, db: db)
 
 template prepareStmt*(db: DbConn, sql: string): untyped =
@@ -210,8 +225,7 @@ proc typeName(t: int32): string =
 
 proc wrong(s: Stmt, i: int, want: string) {.noreturn, raises: [StoreError].} =
   raiseStore(
-    "column " & $i & " (" & $column_name(s.raw, int32(i)) & ") is " &
-      typeName(column_type(s.raw, int32(i))) & ", not " & want
+    fmt"column {i} ({column_name(s.raw, int32(i))}) is {typeName(column_type(s.raw, int32(i)))}, not {want}"
   )
 
 proc readCol*(s: Stmt, i: int, v: var int64) {.raises: [StoreError].} =
@@ -264,15 +278,17 @@ proc readRow[T](s: Stmt): T {.raises: [StoreError].} =
     var want = 0
     for _ in fields(result):
       inc want
-    if int(column_count(s.raw)) != want:
-      raiseStore("the query has " & $column_count(s.raw) & " columns, not " & $want)
+    let have = int(column_count(s.raw))
+    if have != want:
+      raiseStore(fmt"the query has {have} columns, not {want}")
     var n = 0
     for f in fields(result):
       s.readCol(n, f)
       inc n
   else:
-    if column_count(s.raw) != 1:
-      raiseStore("the query has " & $column_count(s.raw) & " columns, not 1")
+    let have = int(column_count(s.raw))
+    if have != 1:
+      raiseStore(fmt"the query has {have} columns, not 1")
     s.readCol(0, result)
 
 proc fetchAll*[T](s: Stmt): seq[T] {.raises: [StoreError].} =
@@ -285,7 +301,7 @@ proc fetchOne*[T](s: Stmt): Option[T] {.raises: [StoreError].} =
 
 proc theRow[T](got: Option[T], sqlText: string): T {.raises: [StoreError].} =
   if got.isNone:
-    raiseStore("the query gave no row: " & sqlText)
+    raiseStore(fmt"the query gave no row: {sqlText}")
   got.get
 
 # --- a query built from pieces (`sql.nim`) ------------------------------------------------------------------
@@ -309,21 +325,21 @@ proc prepareSql*(db: DbConn, q: Sql, package: string): Stmt {.raises: [StoreErro
   for i in 1 .. int(bind_parameter_count(result.raw)):
     let mark = bind_parameter_name(result.raw, int32(i))
     if mark.isNil:
-      raiseStore("the query has a ? where only :names are allowed: " & q.text)
+      raiseStore(fmt"the query has a ? where only :names are allowed: {q.text}")
     let name = ($mark)[1 ..^ 1]
     var found = -1
     for k, a in q.args:
       if a.name == name:
         if found >= 0:
-          raiseStore("the value :" & name & " is given twice")
+          raiseStore(fmt"the value :{name} is given twice")
         found = k
     if found < 0:
-      raiseStore("the query has :" & name & " but no value for it: " & q.text)
+      raiseStore(fmt"the query has :{name} but no value for it: {q.text}")
     used[found] = true
     result.bindArg(i, q.args[found].value)
   for k, a in q.args:
     if not used[k]:
-      raiseStore("the value :" & a.name & " is not used by the query: " & q.text)
+      raiseStore(fmt"the value :{a.name} is not used by the query: {q.text}")
 
 proc runQuery*(
     db: DbConn, T: typedesc, q: Sql, package: string
@@ -455,7 +471,7 @@ proc built(call, text: NimNode, args: seq[NimNode]): NimNode {.compileTime.} =
       error("give each value as name = value (the sql has :names)", a)
     let name = $a[0]
     if name in given:
-      error("the value " & name & " is given twice", a)
+      error(fmt"the value {name} is given twice", a)
     given.add name
     result = newCall(bindSym"with", result, newLit(name), a[1])
   let literal = literalText(text)
@@ -463,10 +479,10 @@ proc built(call, text: NimNode, args: seq[NimNode]): NimNode {.compileTime.} =
     let wanted = marksIn(literal.get)
     for w in wanted:
       if w notin given:
-        error("the sql has :" & w & " but no value " & w & " = ... is given", call)
+        error(fmt"the sql has :{w} but no value {w} = ... is given", call)
     for g in given:
       if g notin wanted:
-        error("the value " & g & " is given but the sql has no :" & g, call)
+        error(fmt"the value {g} is given but the sql has no :{g}", call)
     if '?' in unquoted(literal.get):
       error("use :names in the sql, not ?", call)
 

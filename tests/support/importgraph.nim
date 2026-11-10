@@ -143,3 +143,13 @@ func violations*(
             "'" & own.lastPathPart & "' does not declare a dependency on '" &
             other.lastPathPart & "'",
         )
+
+func rawDatabaseImports*(sources: Table[string, string]): seq[string] =
+  ## The files that import the database library (`db_connector/...`) and are neither in the package `db` nor in
+  ## `core` (whose `Fragment` has to name the connection type): every statement is to go through the checked
+  ## helpers of `db` (REVIEW.md 4.2), and `db` re-exports the types it hands out.
+  for path in sorted(toSeq(sources.keys)):
+    if path.startsWith("packages/db/") or path.isCore:
+      continue
+    if importedNames(sources[path]).anyIt(it.startsWith("db_connector")):
+      result.add path

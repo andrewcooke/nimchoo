@@ -1,7 +1,6 @@
 ## Counting the activities in a database file, for the words that say what a delete would remove.
 
 import std/options
-import db_connector/db_sqlite
 import ../db/statement
 import ../../core/errors
 
@@ -13,14 +12,11 @@ proc countActivities*(path, user: string): Option[int] =
   ## thing it needs is a table called `activity`).  None if that fails.
   var db: DbConn
   try:
-    db = open(path, "", "", "")
-  except DbError:
+    db = openFile(path)
+  except StoreError:
     return none(int)
   defer:
-    try:
-      db.close()
-    except DbError:
-      discard
+    closeQuietly(db)
   try:
     result =
       if user.len == 0:

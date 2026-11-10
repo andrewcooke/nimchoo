@@ -5,9 +5,9 @@
 ## activity, calls the step's `write` with the values in time order.
 
 import std/tables
-import db_connector/db_sqlite
 import ../../core/[errors, extension]
 import ../../core/ids
+import ../db/statement
 import ../fit/time
 
 {.push raises: [].}

@@ -36,7 +36,7 @@ suite "the rule about packages":
     let t = tree {
       "core/x.nim": "import std/os",
       "packages/a/package.nim": "",
-      "packages/a/one.nim": "import ./two, ../../core/x, std/os, db_connector/db_sqlite",
+      "packages/a/one.nim": "import ./two, ../../core/x, std/os, std/strutils",
       "packages/a/two.nim": "",
       "packages/g/b/package.nim": "",
       "packages/g/b/three.nim": "import ../../a/one",
@@ -92,6 +92,19 @@ suite "the rule about packages":
     }
     check violations(t, depends).found == @["packages/a/one.nim -> errors.nim"]
 
+suite "the database library":
+  test "only db and core may import db_connector":
+    let t = tree {
+      "core/f.nim": "import db_connector/db_sqlite",
+      "packages/db/package.nim": "",
+      "packages/db/store.nim":
+        "import db_connector/db_sqlite\nfrom db_connector/sqlite3 import step",
+      "packages/a/package.nim": "",
+      "packages/a/one.nim": "import std/os, db_connector/db_sqlite",
+      "packages/a/two.nim": "import ../db/store",
+    }
+    check rawDatabaseImports(t) == @["packages/a/one.nim"]
+
 suite "the packages of nimchoo":
   test "every import in a package or in core follows the rule":
     var t: Table[string, string]
@@ -105,3 +118,11 @@ suite "the packages of nimchoo":
     let bad = violations(t, depends)
     check bad.mapIt(it.file & " imports " & it.imports & ": " & it.why) ==
       newSeq[string]()
+
+  test "no file outside db and core imports db_connector (db re-exports the types)":
+    var t: Table[string, string]
+    let root = "src" / "nimchoo"
+    for path in walkDirRec(root, relative = true):
+      if path.endsWith(".nim"):
+        t[path] = readFile(root / path)
+    check rawDatabaseImports(t) == newSeq[string]()

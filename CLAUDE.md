@@ -68,7 +68,7 @@ system can be extended with new fit-related functionality by adding a package, w
   their steps of TODO.md: `activitiescmd` (joins the listing, `--select`, `--import` and `--delete`) and `userscmd`, in `packages/commands/`.
   the module that first introduces a concept owns it (eg `importer` owns activities) and later packages use its library files.
 * **imports** (`tests/core/test_imports.nim`): a file imports only its own package, `core`, standard and third-party
-  libraries, and the packages in its `depends`.  `depends` must also name the packages whose **tables** it reads in SQL
+  libraries, and the packages in its `depends`.  `db_connector` is imported by `db` (and `core/fragment.nim`) only: `db` exports the types it hands out (`DbConn`).  `depends` must also name the packages whose **tables** it reads in SQL
   (checked when the statement is prepared: the access model, below).
 * **tables** belong to the package whose fragments make them (read from the `create table` / `rename to` in the sql;
   `tests/core/test_ownership.nim` applies the fragments one at a time and checks that SQLite agrees).  a package may

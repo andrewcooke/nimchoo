@@ -21,10 +21,11 @@ sees and can be approved together.
       `commands/` group and the `cmd` suffix go with `activitiescmd` and `userscmd` (steps 3 and 7); the import test's
       "a command module is imported only by its `package.nim`" still finds the module by its name, `command`: make it ask
       the registry (the module of `CommandDecl.run`).
-   2. An `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); a read is
-      allowed to the runner or any package of the set, a write or a change of definition to the runner alone; a test
-      prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).  `db_connector` imported in `db`
-      only; `db` re-exports the types it hands out (§4.2).
+   2. *(done 2026-11-10: `db_connector` is imported by `db` and `core/fragment.nim` only, checked by a test; `db` exports
+      `DbConn`, `openFile` and `closeQuietly`.)*  **Left, to be done just before 7**, when `--climb` is the first real
+      contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
+      table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
+      definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
    3. `user` owns the `user` table: `openStore` only opens and applies fragments; `user/openSession` finds or makes
       the user; commands use it; `importer` and `selection` depend on `user` (§4.3).  `nch users` goes into `user`,
       with the extension point "what a user has" (`importer` contributes the activity count; the FTHR-change note

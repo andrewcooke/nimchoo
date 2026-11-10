@@ -3,7 +3,6 @@
 ## calls `write` for each activity, inside the transaction that imports it.)
 
 import std/[math, tables]
-import db_connector/db_sqlite
 import ../db/multirow
 import ../db/statement
 import ../importer/channel

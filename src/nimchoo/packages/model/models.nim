@@ -3,7 +3,6 @@
 
 import std/options
 import ../util/hashing/hashing
-import db_connector/db_sqlite
 import ../db/statement
 import ../db/store
 import ../../core/errors
