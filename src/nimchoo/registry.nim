@@ -107,8 +107,10 @@ other views (`climbs`, `map`, `calendar`) take the selection.
     Registered(
       name: "bundle",
       package: pkgBundle.package,
-      summary: "Files built into the program that are also kept in the cache, for the author to edit.",
-      doc: """Files built into the program that are also kept in the cache, for the author to edit.
+      summary:
+        "Files built into the program that are also kept in the cache, for the author to edit.",
+      doc:
+        """Files built into the program that are also kept in the cache, for the author to edit.
 
 The FIT profile, the licence notice and the page templates are unpacked to the cache directory's `system/` part and never
 overwritten once changed; delete one to get the built-in version again.""",
@@ -116,8 +118,10 @@ overwritten once changed; delete one to get the built-in version again.""",
     Registered(
       name: "cache",
       package: pkgCache.package,
-      summary: "The cache directory: where files that commands make go, and what they are called.",
-      doc: """The cache directory: where files that commands make go, and what they are called.
+      summary:
+        "The cache directory: where files that commands make go, and what they are called.",
+      doc:
+        """The cache directory: where files that commands make go, and what they are called.
 
 A command with a graphical result makes its file here (a GeoJSON file and a page for the map, CSV for `ff`), named after the
 request: the command and 48 bits of the hash of the request as proquints.  The request is written into the file
@@ -172,8 +176,10 @@ Nothing is deleted without `--force`, and on a terminal there are then a few sec
     Registered(
       name: "db",
       package: pkgDb.package,
-      summary: "The database: opening it, its schema as fragments, and the statements that touch it.",
-      doc: """The database: opening it, its schema as fragments, and the statements that touch it.
+      summary:
+        "The database: opening it, its schema as fragments, and the statements that touch it.",
+      doc:
+        """The database: opening it, its schema as fragments, and the statements that touch it.
 
 * **Fragments (migrations).**  The structure is described by SQL files, `NNN-name.sql` in the directory of the package that
   owns the tables, listed in that package's `package.nim`; the registry joins them, each package after those it depends
@@ -206,8 +212,10 @@ Nothing is deleted without `--force`, and on a terminal there are then a few sec
     Registered(
       name: "download",
       package: pkgDownload.package,
-      summary: "Fetching what the program needs from the network, the only place it does so.",
-      doc: """Fetching what the program needs from the network, the only place it does so.
+      summary:
+        "Fetching what the program needs from the network, the only place it does so.",
+      doc:
+        """Fetching what the program needs from the network, the only place it does so.
 
 Everything it downloads is listed in `sources` (where from, what the file is, how big it may be).  Downloads are checked
 (size, free space, the zip inflated in a child) and announced as events, which go to the log and to the screen (a line
@@ -228,8 +236,10 @@ page to the server (`web/pages`).""",
     Registered(
       name: "fit",
       package: pkgFit.package,
-      summary: "FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.",
-      doc: """FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.
+      summary:
+        "FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.",
+      doc:
+        """FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.
 
 The decoder reads the records of a FIT file into messages and fields (`reader`, `decode`, `basetype`), checked against the
 SDK's own CSV output (`nimble csvreport`).  The profile, which the SDK ships as a spreadsheet (read by `xlsx`), is loaded
@@ -257,8 +267,10 @@ at most, in the table `heartrate`.  `model` works the training impulse out of it
     Registered(
       name: "importer",
       package: pkgImporter.package,
-      summary: "Putting the activities of FIT files into the database, and describing them.",
-      doc: """Putting the activities of FIT files into the database, and describing them.
+      summary:
+        "Putting the activities of FIT files into the database, and describing them.",
+      doc:
+        """Putting the activities of FIT files into the database, and describing them.
 
 This package owns the tables `file`, `activity`, `coords`, `segment`, `route` and `seen_file`.  Per-second data is kept per
 activity, as arrays; other data refers to it by time and never by array index, and the arrays are never changed once
@@ -294,8 +306,10 @@ latest run.  The words and their colours are in `ui/vocabulary`.""",
     Registered(
       name: "map",
       package: pkgMap.package,
-      summary: "The routes of the selected activities and the climbs they went up, on a map.",
-      doc: """The routes of the selected activities and the climbs they went up, on a map.
+      summary:
+        "The routes of the selected activities and the climbs they went up, on a map.",
+      doc:
+        """The routes of the selected activities and the climbs they went up, on a map.
 
 `nch map` makes everything itself: no layer commands, no layer index.  A GeoJSON file in the cache holds the routes and
 climbs (each feature says what it is, in `kind`: route or climb, and nothing about how it looks) and a page (Leaflet) decides
@@ -341,8 +355,10 @@ it.  Suggestions are found from the features and the rides.""",
     Registered(
       name: "selection",
       package: pkgSelection.package,
-      summary: "The selection (the activities commands use by default) and the addresses that name a set.",
-      doc: """The selection (the activities commands use by default) and the addresses that name a set.
+      summary:
+        "The selection (the activities commands use by default) and the addresses that name a set.",
+      doc:
+        """The selection (the activities commands use by default) and the addresses that name a set.
 
 * **The selection** is a scratchpad in the database (table `selection`): the activities that `climbs`, `map`, `calendar` and
   the like work on unless told otherwise.  It belongs to one user, and is replaced whenever `activities --select` is given
@@ -383,8 +399,10 @@ engine ends a comment at the first closing braces).""",
     Registered(
       name: "ui",
       package: pkgUi.package,
-      summary: "How the program looks: units, intervals, colours, tables and the live display.",
-      doc: """How the program looks: units, intervals, colours, tables and the live display.
+      summary:
+        "How the program looks: units, intervals, colours, tables and the live display.",
+      doc:
+        """How the program looks: units, intervals, colours, tables and the live display.
 
 * The number formats every listing needs (`units`): the unit follows the number with no space (`36.7km`, `+89m`, `17.8%`,
   `1h41m`), and a value that is not recorded is a dash.
@@ -419,15 +437,24 @@ if the default is deleted another becomes it.  Deleting a user deletes everythin
     Registered(
       name: "args",
       package: pkgArgs.package,
-      summary: "One command-line parser for all the commands, and the usage text made from the same descriptions.",
-      doc: """One command-line parser for all the commands, and the usage text made from the same descriptions.
+      summary:
+        "One command-line parser for all the commands, and the usage text made from the same descriptions.",
+      doc:
+        """One command-line parser for all the commands, and the usage text made from the same descriptions.
 
-A command describes its options as a list (`Opt`: the names, whether there is a value, what to do with it) and
-`parseOptions` does the walking.  An option also describes itself (`OptDoc`: names, the placeholder for its value, help,
-how many words it takes, what could complete it), added with `.documented`; the option list of a command's usage is made
-from the descriptions (`usage.nim`), wrapped to the width of the terminal (`ui/live.helpWidth`), so it cannot differ from
-what the parser accepts.  A package that offers an option to another command (the criteria of `activities`) hands over
-just the description.""",
+A command describes its options as a list (`Opt`s made with `flag`, `text`, `number`, `whole`, `custom` and
+`listOption`).  Each option carries its description, which the compiler requires: its names, the placeholder for its
+value, its help, whether it is indented under the option before it (`level`: `--rename` under `--edit`), and what could
+complete it (`OptDoc`).  The option list of a command's usage is made from the descriptions (`usage.nim`), wrapped to the
+width of the terminal (`ui/live.helpWidth`), so it cannot differ from what the parser accepts; only the synopsis, the
+introduction and the notes are written by hand.  A package that offers an option to another command (the criteria of
+`activities`) hands over just the description.
+
+`parseCommand` reads the options into a builder and the command's own `finish` turns it into the answer: a `Parsed[T]`,
+which is valid parameters (a variant on the action, so that a combination of options that means nothing cannot be
+represented), a request for help, or a problem (a sentence that does not name the option).  An option's `apply` returns
+`fine` or `refuse("...")`.  An option may also say it is allowed in an address of the local web server (`address`, with
+a check for its value); the server's list of what a page may be given is made from the options themselves.""",
     ),
     Registered(
       name: "atomic",
@@ -441,8 +468,10 @@ target.""",
     Registered(
       name: "bytes",
       package: pkgBytes.package,
-      summary: "Reading numbers out of bytes, and a whole file as bytes: the one place for it.",
-      doc: """Reading numbers out of bytes, and a whole file as bytes: the one place for it.""",
+      summary:
+        "Reading numbers out of bytes, and a whole file as bytes: the one place for it.",
+      doc:
+        """Reading numbers out of bytes, and a whole file as bytes: the one place for it.""",
     ),
     Registered(
       name: "child",
@@ -455,8 +484,10 @@ The one way the program does it (the web server runs its worker so).  `childasyn
     Registered(
       name: "childasync",
       package: pkgChildasync.package,
-      summary: "Running a child process from an event loop, so that other requests are served meanwhile.",
-      doc: """Running a child process from an event loop, so that other requests are served meanwhile.
+      summary:
+        "Running a child process from an event loop, so that other requests are served meanwhile.",
+      doc:
+        """Running a child process from an event loop, so that other requests are served meanwhile.
 
 The same steps as `child`, with `sleepAsync` between looks at the child's pipes.  It is a package of its own because async
 code is not `raises: []`.""",
@@ -464,7 +495,8 @@ code is not `raises: []`.""",
     Registered(
       name: "hashing",
       package: pkgHashing.package,
-      summary: "SHA-256 as the hex text used wherever something is named by its content.",
+      summary:
+        "SHA-256 as the hex text used wherever something is named by its content.",
       doc: """SHA-256 as the hex text used wherever something is named by its content.
 
 Files, fragments of the schema, selections, the data impulses are made from, bundled files.""",
@@ -489,8 +521,10 @@ holds the program's only module-level mutable state, apart from the stop flag of
     Registered(
       name: "version",
       package: pkgVersion.package,
-      summary: "What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.",
-      doc: """What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.
+      summary:
+        "What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.",
+      doc:
+        """What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.
 
 Both are found when the program is compiled.""",
     ),
@@ -516,8 +550,10 @@ not characters: Nim issue 26681), and it is fuzzed (HISTORY.md).""",
     Registered(
       name: "zip",
       package: pkgZip.package,
-      summary: "Reading zip files: the entries of a zip in memory, and inflating one in a child process.",
-      doc: """Reading zip files: the entries of a zip in memory, and inflating one in a child process.
+      summary:
+        "Reading zip files: the entries of a zip in memory, and inflating one in a child process.",
+      doc:
+        """Reading zip files: the entries of a zip in memory, and inflating one in a child process.
 
 `zipbytes` reads the central directory and inflates an entry from bytes (zippy only opens a path); `zipchild` inflates in a
 child process that cannot use much memory, because zippy cannot stop at a size and a hostile entry could fill the memory.
@@ -526,8 +562,10 @@ Used for xlsx files and for downloads.""",
     Registered(
       name: "web",
       package: pkgWeb.package,
-      summary: "The local web server: runs `nch` commands named in addresses and shows their pages.",
-      doc: """The local web server: runs `nch` commands named in addresses and shows their pages.
+      summary:
+        "The local web server: runs `nch` commands named in addresses and shows their pages.",
+      doc:
+        """The local web server: runs `nch` commands named in addresses and shows their pages.
 
 A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?bits=...`) and shows its page, or serves
 a file of the cache (`/files/NAME`).  Any web page open in the browser can send requests to localhost, so the rules are

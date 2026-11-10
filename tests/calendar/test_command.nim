@@ -46,14 +46,15 @@ let screen = Screen(colour: true)
 
 suite "nch calendar: the command line":
   test "--all and -v":
-    check parseArgs(@[]).all == false
+    check parseArgs(@[]).params.all == false
     let p = parseArgs(@["--all", "-v"])
-    check p.problem == "" and p.all and p.verbose
+    check p.problem == "" and p.params.all and p.params.verbose
   test "no criteria, no other options":
     check parseArgs(@["--sport", "cycling"]).problem.len > 0
     check parseArgs(@["x"]).problem.len > 0
   test "every option has help and is in the usage":
-    check calendarSpec().undocumented == newSeq[string]()
+    for d in calendarSpec().docs:
+      check d.help.len > 0
     let text = calendarCommand.usageText(80)
     for d in calendarSpec().docs:
       for n in d.names:
@@ -73,7 +74,7 @@ suite "nch calendar: what it shows":
     let s = world("selection")
     defer:
       s.close()
-    let ls = lines(s, parseArgs(@[]), utc(), screen)
+    let ls = lines(s, parseArgs(@[]).params, utc(), screen)
     check ls[0].text.startsWith("    Mo Tu We")
     check ls.texts.filterIt(it.startsWith("Jul ")).len == 1
     check ls.texts.filterIt(it.startsWith("Aug ")).len == 0
@@ -84,7 +85,7 @@ suite "nch calendar: what it shows":
     let s = world("all")
     defer:
       s.close()
-    let ls = lines(s, parseArgs(@["--all"]), utc(), screen)
+    let ls = lines(s, parseArgs(@["--all"]).params, utc(), screen)
     check ls.texts.filterIt(it.startsWith("Jul ")).len == 1 and
       ls.texts.filterIt(it.startsWith("Aug ")).len == 1
     check ls.texts[^1].startsWith("done: 2 of 2 activities, 1 match selected, ")
@@ -98,11 +99,11 @@ suite "nch calendar: what it shows":
     s.db.execute(
       "update activity set start_t = 1520640000 where id = (select min(id) from activity)"
     ) # 2018-03-10
-    let ls = lines(s, parseArgs(@["--all"]), utc(), screen)
+    let ls = lines(s, parseArgs(@["--all"]).params, utc(), screen)
     check ls.texts[^1] ==
       "warning: 4 months with no activity not shown, at the yellow month names; use --verbose to show them"
     check ls[^1][0].look.colour == yellow
-    let all = lines(s, parseArgs(@["--all", "-v"]), utc(), screen)
+    let all = lines(s, parseArgs(@["--all", "-v"]).params, utc(), screen)
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4
     check not all.texts[^1].startsWith("warning")
 
@@ -111,5 +112,5 @@ suite "nch calendar: what it shows":
     defer:
       s.close()
     s.db.execute("delete from selection")
-    let ls = lines(s, parseArgs(@[]), utc(), screen)
+    let ls = lines(s, parseArgs(@[]).params, utc(), screen)
     check ls.len == 1 and "nothing is selected" in ls[0].text and "--all" in ls[0].text

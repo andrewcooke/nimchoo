@@ -7,7 +7,8 @@
 import std/[algorithm, options, os, sequtils, strutils]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
 import nimchoo/introspect
-import nimchoo/packages/util/args/args
+import nimchoo/packages/ui/live
+import nimchoo/packages/util/args/[args, usage]
 import nimchoo/registry
 import nimchoo/core/logfile
 import nimchoo/packages/util/version/version
@@ -18,24 +19,55 @@ import nimchoo/packages/util/zip/zipchild
 const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
   ## the commands of the packages, and those `nch` provides itself
 
-const usage =
-  """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
-
-  --db PATH      the database file (default: $NCH_DB, else nch/nch.db in the
-                 user's data directory)
-  --user NAME    whose data to work with (default: the default user)
-  --offline      do not use the network (no names are looked up: climbs are "unnamed", and stay so)
-  --version      print the version and the git commit it was built from
-
-commands:
-""" &
-  commandList(allCommands) & """
-For more about a command: `nch COMMAND --help`.
-"""
-
 type Head = object ## The options before the command name.
   g: Globals
   help, version, offline: bool
+
+func headSpec(): Spec[Head] =
+  ## The options every command takes, given before its name.
+  Spec[Head](
+    opts: @[
+      custom(
+        Head,
+        ["--db"],
+        true,
+        "PATH",
+        "the database file (default: $NCH_DB, else nch/nch.db in the user's data directory)",
+        completion = Completion(kind: ckFile),
+        body = (p.g.dbPath = value; fine),
+      ),
+      custom(
+        Head,
+        ["--user"],
+        true,
+        "NAME",
+        "whose data to work with (default: the default user)",
+        completion = Completion(kind: ckDynamic, source: "user"),
+        body = (p.g.user = value; fine),
+      ),
+      custom(
+        Head,
+        ["--offline"],
+        false,
+        "",
+        "do not use the network (no names are looked up: climbs are \"unnamed\", and stay so)",
+        body = (p.g.offline = true; fine),
+      ),
+      flag(
+        Head,
+        ["--version"],
+        version,
+        "print the version and the git commit it was built from",
+      ),
+      helpFlag(Head),
+    ]
+  )
+
+proc usageText(width: int): string =
+  ## The usage: the options every command takes, and the commands.
+  "usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]\n\n" &
+    optionLines(headSpec().docs, width).join("\n") & "\n\ncommands:\n" &
+    commandList(allCommands) & "\nFor more about a command: `nch COMMAND --help`.\n"
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
@@ -43,21 +75,12 @@ proc main(): int {.raises: [].} =
     # (a child of the downloads: see zipchild.nim)
     return inflateChildMain(args[1 ..^ 1])
   var head = Head(g: Globals(fragments: allFragments))
-  let spec = Spec[Head](
-    opts: @[
-      flag(Head, ["-h", "--help"], help),
-      flag(Head, ["--version"], version),
-      custom(Head, ["--offline"], false, (p.g.offline = true; "")),
-      custom(Head, ["--db"], true, (p.g.dbPath = value; "")),
-      custom(Head, ["--user"], true, (p.g.user = value; "")),
-    ]
-  )
   var i = 0
-  let why = parseLeading(args, spec, head, i)
-  if why.len > 0:
-    return usageError("nch", usage, why)
+  let why = parseLeading(args, headSpec(), head, i)
+  if why.isSome:
+    return usageError("nch", usageText(helpWidth(stderr)), why.get)
   if head.help:
-    stdout.say usage
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
   if head.version:
     stdout.say versionString & "\n"
@@ -66,16 +89,16 @@ proc main(): int {.raises: [].} =
   g.extensions = registry.extensions
   g.access = allAccess
   if i >= args.len:
-    stderr.say usage
+    stderr.say usageText(helpWidth(stderr))
     return exitUsage
   let rest = args[i + 1 .. ^1]
   if args[i] == "help":
-    stdout.say usage
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
-    return usageError("nch", usage, "unknown command " & name)
+    return usageError("nch", usageText(helpWidth(stderr)), "unknown command " & name)
   g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()

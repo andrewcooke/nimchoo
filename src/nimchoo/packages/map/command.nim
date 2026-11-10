@@ -11,7 +11,7 @@
 ##
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
-import std/[options, os, tables]
+import std/[options, os, strutils, tables]
 import ../cache/cache
 import ../util/atomic/atomic
 import ../../core/globals
@@ -27,6 +27,8 @@ import ../fit/time
 import ../../core/ids
 import ../selection/bits
 import ../selection/selection
+import ../ui/live
+import ../util/args/[args, usage]
 import ../web/launch
 import ../web/pages
 import ../web/webopts
@@ -37,23 +39,23 @@ import ../user/session
 
 const commandName* = "map" ## what the user types after `nch`
 
-const usage* =
-  """usage: nch [--db PATH] [--user NAME] map [--web [--no-open] [--port N] [--new-token]]
-
-Show the routes of the selected activities (see `nch activities --select`) on a map, and the climbs they went up,
+const
+  synopsis =
+    "usage: nch [--db PATH] [--user NAME] map [--web [--no-open] [--port N] [--new-token]]"
+  intro =
+    """Show the routes of the selected activities (see `nch activities --select`) on a map, and the climbs they went up,
 drawn over them.  It makes a GeoJSON file in the cache directory and prints its path; with --web it also serves a page
 that draws it, and opens it in a browser.  Several rides over the same roads show as a heat map; a click on a route
 says which activity it is, a click on a climb says what it is.  The climbs not yet worked out are worked out first
-(the first time that can take a minute).  Asking again for the same thing finds the file already there.
+(the first time that can take a minute).  Asking again for the same thing finds the file already there."""
+  notes =
+    """The address of the page records which activities it shows, so a reload shows the same ones even if the selection
+has since changed.  It stops working when the database is rebuilt (the numbers then mean other activities)."""
 
-The address of the page records which activities it shows, so a reload shows the same ones even if the selection has
-since changed.  It stops working when the database is rebuilt (the numbers then mean other activities).
-""" &
-  webUsage("the map", "GeoJSON") &
-  """  --bits LIST      for programs: the activities to draw, as in the address (default: the current selection)
-  --check HASH     for programs, with --bits: a check that they are still the activities the address was made for
-  -h, --help       show this help
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) & "\n\n" &
+    optionLines(mapSpec().docs, width).join("\n") & "\n"
 
 const
   toleranceM = 5.0 ## routes are simplified so that they stray at most this far
@@ -135,16 +137,18 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
   try:
     # the activities: those of the address, else the selection
     var ids: seq[int64]
-    if p.bits.len > 0:
+    if p.target == tList:
       let d = decodeBits(p.bits, maxActivityId(st))
       if d.problem.len > 0:
-        return Prepared(status: usageError("nch map", usage, d.problem))
+        return Prepared(
+          status: usageError("nch map", usageText(helpWidth(stderr)), d.problem)
+        )
       ids = d.ids
     else:
       ids = selectedIds(st)
     let mine = ownedIds(st, ids)
     let check = checkOf(st, mine)
-    if p.check.len > 0 and p.check != check:
+    if p.target == tList and p.check.isSome and p.check.get != check:
       return Prepared(
         status: failure(
           "nch map",
@@ -156,7 +160,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       return Prepared(
         status: failure(
           "nch map",
-          if p.bits.len == 0:
+          if p.target == tSelection:
             "the selection is empty (see `nch activities --select`)"
           else:
             "none of the activities of this address exist",
@@ -242,12 +246,16 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch map ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch map", usage, p.problem)
+  of pkProblem:
+    return usageError("nch map", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   let dir = cacheDir()
   if dir.isNone:
     return failure("nch map", "no place for the cache: set NCH_CACHE or HOME")
@@ -256,10 +264,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except IOError, OSError:
     return
       failure("nch map", "cannot make " & dir.get & ": " & getCurrentExceptionMsg())
-  let made = prepare(g, p, userDir(dir.get), p.web.worker or p.web.enabled)
+  let made = prepare(g, p, userDir(dir.get), p.web.kind != wkNone)
   if made.status != 0:
     return made.status
-  if p.web.enabled:
+  case p.web.kind
+  of wkServe:
     # the address pins what was made: the activities, and the check of them
     return serveWeb(
       g,
@@ -268,8 +277,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       dir.get,
       made.query,
     )
-  if p.web.worker:
+  of wkWorker:
     stdout.say made.page & "\n" & made.geojson & "\n" & made.query & "\n"
-  else:
+  of wkNone:
     stdout.say made.geojson & "\n"
   exitOk

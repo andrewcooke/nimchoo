@@ -6,20 +6,62 @@ import ./landmarks
 
 {.push raises: [].}
 
-type Params* = object
-  list*: bool ## show the landmarks (nothing else asked)
-  add*: bool ## `--add NAME`
-  delete*: bool ## `--delete NAME`
-  force*: bool ## `-f`: really (with --delete)
-  name*: string
-  search*: string ## `--search TEXT`: suggest features by name
-  near*: Option[tuple[lon, lat: float]]
-    ## `--near LON,LAT`: suggest features round a position
-  at*: Option[tuple[lon, lat: float]] ## `--at LON,LAT`: the position of the new landmark
-  pick*: int ## `--pick N`: take suggestion N (1-based); 0: not given
-  radiusM*: float ## `--radius METRES`
-  help*: bool
-  problem*: string
+type
+  Position* = tuple[lon, lat: float] ## in degrees
+
+  LandmarkAction* = enum
+    laList ## show the landmarks
+    laSearch ## suggest features by name
+    laNear ## suggest features round a position
+    laAddPicked ## make a landmark at a suggestion
+    laAddAt ## make a landmark at a position
+    laDelete
+
+  SuggestKind* = enum
+    skSearch
+    skNear
+
+  Suggest* = object ## where the suggestions come from
+    case kind*: SuggestKind
+    of skSearch:
+      text*: string
+    of skNear:
+      near*: Position
+
+  PickedLandmark* = object ## `--add NAME` at suggestion `pick` of `from`
+    name*: string
+    suggestions*: Suggest
+    pick*: int ## 1-based
+    radiusM*: float
+
+  PlacedLandmark* = object ## `--add NAME --at LON,LAT`
+    name*: string
+    at*: Position
+    radiusM*: float
+
+  DeletedLandmark* = object
+    name*: string
+    force*: bool ## really do it
+
+  Params* = object
+    case action*: LandmarkAction
+    of laList:
+      discard
+    of laSearch, laNear:
+      suggest*: Suggest
+    of laAddPicked:
+      picked*: PickedLandmark
+    of laAddAt:
+      placed*: PlacedLandmark
+    of laDelete:
+      deleted*: DeletedLandmark
+
+  Raw = object ## what the options fill in
+    help, force, adding, deleting: bool
+    name, search: string
+    near, at: Option[Position]
+    pick: int
+    radiusM: float
 
 func parsePosition*(s: string): Option[tuple[lon, lat: float]] =
   ## "LON,LAT" in degrees.
@@ -35,99 +77,179 @@ func parsePosition*(s: string): Option[tuple[lon, lat: float]] =
   except ValueError:
     discard
 
-proc parseArgs*(args: seq[string]): Params =
-  ## `nch landmarks` (list), `--search TEXT`, `--near LON,LAT`, `--add NAME (--search TEXT | --near LON,LAT) --pick N`,
-  ## `--add NAME --at LON,LAT`, each with `--radius METRES`; `--delete NAME`.
-  result.radiusM = defaultRadiusM
-  let addOption = custom(Params, ["--add"], true):
-    p.add = true
-    p.name = value
-    ""
-  let removeOption = custom(Params, ["--delete"], true):
-    p.delete = true
-    p.name = value
-    ""
-  let nearOption = custom(Params, ["--near"], true):
-    p.near = parsePosition(value)
-    if p.near.isNone:
-      return "--near is a position as LON,LAT in degrees (not '" & value & "')"
-    ""
-  let atOption = custom(Params, ["--at"], true):
-    p.at = parsePosition(value)
-    if p.at.isNone:
-      return "--at is a position as LON,LAT in degrees (not '" & value & "')"
-    ""
-  let pickOption = custom(Params, ["--pick"], true):
-    try:
-      p.pick = parseInt(value)
-    except ValueError:
-      return "--pick is the number of a suggestion (not '" & value & "')"
-    if p.pick < 1:
-      return "--pick is the number of a suggestion, from 1"
-    ""
-  let radiusOption = custom(Params, ["--radius"], true):
-    try:
-      p.radiusM = parseFloat(value)
-    except ValueError:
-      return "--radius is metres (not '" & value & "')"
-    ""
-  let spec = Spec[Params](
+func landmarkSpec*(): Spec[Raw] =
+  ## The options of `nch landmarks`.
+  Spec[Raw](
     opts: @[
-      flag(Params, ["-h", "--help"], help),
-      flag(Params, ["-f", "--force"], force),
-      addOption,
-      removeOption,
-      nearOption,
-      atOption,
-      pickOption,
-      radiusOption,
-      text(Params, ["--search"], search),
+      text(
+        Raw,
+        ["--search"],
+        search,
+        "TEXT",
+        "suggest features of GeoNames whose name holds TEXT (any kind: streams, farms, parks ...), numbered; only places whose cells have been read can be found (the places you have ridden)",
+      ),
+      custom(
+        Raw,
+        ["--near"],
+        true,
+        "LON,LAT",
+        "suggest the features within 2 km of a position, nearest first, numbered (the names for that area are fetched if need be)",
+        body = (
+          block:
+            p.near = parsePosition(value)
+            if p.near.isNone:
+              return refuse(
+                "--near is a position as LON,LAT in degrees (not '" & value & "')"
+              )
+            fine
+        ),
+      ),
+      custom(
+        Raw,
+        ["--add"],
+        true,
+        "NAME",
+        "make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same --search or --near) or at a position you give (`--at LON,LAT`); its circle has the radius of --radius (100 to 20,000 metres; default 1,000)",
+        body = (p.adding = true; p.name = value; fine),
+      ),
+      custom(
+        Raw,
+        ["--pick"],
+        true,
+        "N",
+        "the number of the suggestion to make the landmark at",
+        level = 1,
+        body = (
+          block:
+            try:
+              p.pick = parseInt(value)
+            except ValueError:
+              return
+                refuse("--pick is the number of a suggestion (not '" & value & "')")
+            if p.pick < 1:
+              return refuse("--pick is the number of a suggestion, from 1")
+            fine
+        ),
+      ),
+      custom(
+        Raw,
+        ["--at"],
+        true,
+        "LON,LAT",
+        "the position of the landmark, if not at a suggestion",
+        level = 1,
+        body = (
+          block:
+            p.at = parsePosition(value)
+            if p.at.isNone:
+              return
+                refuse("--at is a position as LON,LAT in degrees (not '" & value & "')")
+            fine
+        ),
+      ),
+      custom(
+        Raw,
+        ["--radius"],
+        true,
+        "METRES",
+        "the radius of the landmark's circle",
+        level = 1,
+        body = (
+          block:
+            try:
+              p.radiusM = parseFloat(value)
+            except ValueError:
+              return refuse("--radius is metres (not '" & value & "')")
+            fine
+        ),
+      ),
+      custom(
+        Raw,
+        ["--delete"],
+        true,
+        "NAME",
+        "delete the landmark (needs -f)",
+        body = (p.deleting = true; p.name = value; fine),
+      ),
+      flag(Raw, ["-f", "--force"], force, "really do it", level = 1),
+      helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
       " (to find a place: --search " & arg & "; to make a landmark: --add " & arg &
         " ...)",
   )
-  template fail(msg: string) =
-    result.problem = msg
-    return
 
-  let why = parseOptions(args, spec, result)
-  if why.len > 0:
-    fail(why)
-  if result.help:
-    return
-  if result.force and not result.delete:
-    fail("-f goes with --delete")
-  if result.add and result.delete:
-    fail("--add and --delete cannot be used together")
+func finish(raw: Raw): Parsed[Params] =
+  func bad(why: string): Parsed[Params] =
+    problemWith[Params](why)
+
+  if raw.force and not raw.deleting:
+    return bad("-f goes with --delete")
+  if raw.adding and raw.deleting:
+    return bad("--add and --delete cannot be used together")
   let sources =
-    (if result.search.len > 0: 1 else: 0) + (if result.near.isSome: 1 else: 0) +
-    (if result.at.isSome: 1 else: 0)
-  if result.delete:
-    if sources > 0 or result.pick > 0:
-      fail("--delete goes with a name only")
-  elif result.add:
+    (if raw.search.len > 0: 1 else: 0) + (if raw.near.isSome: 1 else: 0) +
+    (if raw.at.isSome: 1 else: 0)
+  if raw.deleting:
+    if sources > 0 or raw.pick > 0:
+      return bad("--delete goes with a name only")
+    return parsedOk(
+      Params(
+        action: laDelete, deleted: DeletedLandmark(name: raw.name, force: raw.force)
+      )
+    )
+  if raw.adding:
     if sources != 1:
-      fail(
+      return bad(
         "--add needs one of: --search TEXT --pick N, --near LON,LAT --pick N, --at LON,LAT"
       )
-    if result.at.isNone and result.pick == 0:
-      fail(
+    if raw.at.isNone and raw.pick == 0:
+      return bad(
         "--add with --search or --near also needs --pick N (the number of the suggestion)"
       )
-    if result.at.isSome and result.pick > 0:
-      fail("--pick goes with --search or --near, not with --at")
-    let why = problem(result.name, 0.0, 0.0, result.radiusM)
+    if raw.at.isSome and raw.pick > 0:
+      return bad("--pick goes with --search or --near, not with --at")
+    let why = problem(raw.name, 0.0, 0.0, raw.radiusM)
     if why.len > 0:
-      fail(why)
+      return bad(why)
+    if raw.at.isSome:
+      return parsedOk(
+        Params(
+          action: laAddAt,
+          placed: PlacedLandmark(name: raw.name, at: raw.at.get, radiusM: raw.radiusM),
+        )
+      )
+    let source =
+      if raw.search.len > 0:
+        Suggest(kind: skSearch, text: raw.search)
+      else:
+        Suggest(kind: skNear, near: raw.near.get)
+    return parsedOk(
+      Params(
+        action: laAddPicked,
+        picked: PickedLandmark(
+          name: raw.name, suggestions: source, pick: raw.pick, radiusM: raw.radiusM
+        ),
+      )
+    )
+  if raw.pick > 0:
+    return bad("--pick goes with --add NAME")
+  if raw.at.isSome:
+    return bad("--at goes with --add NAME")
+  if sources > 1:
+    return bad("--search and --near cannot be used together")
+  if raw.radiusM != defaultRadiusM:
+    return bad("--radius goes with --add")
+  if raw.search.len > 0:
+    parsedOk(
+      Params(action: laSearch, suggest: Suggest(kind: skSearch, text: raw.search))
+    )
+  elif raw.near.isSome:
+    parsedOk(Params(action: laNear, suggest: Suggest(kind: skNear, near: raw.near.get)))
   else:
-    if result.pick > 0:
-      fail("--pick goes with --add NAME")
-    if result.at.isSome:
-      fail("--at goes with --add NAME")
-    if sources > 1:
-      fail("--search and --near cannot be used together")
-    if result.radiusM != defaultRadiusM:
-      fail("--radius goes with --add")
-  result.list =
-    not (result.add or result.delete or result.search.len > 0 or result.near.isSome)
+    parsedOk(Params(action: laList))
+
+proc parseArgs*(args: seq[string]): Parsed[Params] =
+  ## `nch landmarks` (list), `--search TEXT`, `--near LON,LAT`, `--add NAME (--search TEXT | --near LON,LAT) --pick N`,
+  ## `--add NAME --at LON,LAT`, each with `--radius METRES`; `--delete NAME`.
+  parseCommand(args, landmarkSpec(), Raw(radiusM: defaultRadiusM), finish)

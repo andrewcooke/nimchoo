@@ -8,6 +8,7 @@ import nimchoo/core/ids
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/packages/activities/command as listCommand
 import nimchoo/packages/activities/criteria
+import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
 
@@ -416,8 +417,7 @@ suite "list: the command":
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
-    let r =
-      listActivities(st, parseArgs(@["--sport", "previous"], utc()).criteria, utc())
+    let r = listActivities(st, parseArgs(@["--sport", "previous"], utc()).params, utc())
     check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00  running")
   test "newest is not part of finding latest":
     let db = numbered("latest4")
@@ -557,7 +557,7 @@ suite "list: what is shown":
       st.close()
     let p = parseArgs(@args, utc())
     doAssert p.problem == "", p.problem
-    listActivities(st, p.criteria, utc())
+    listActivities(st, p.params, utc())
 
   test "a table of the activities, oldest first, with a last line":
     let db = world("shown")
@@ -584,8 +584,7 @@ suite "list: what is shown":
     defer:
       st.close()
     let p = parseArgs(@[], utc())
-    check showSelection(st, p.criteria, utc()).blueRows ==
-      @[true] # the selection: all are
+    check showSelection(st, p.params, utc()).blueRows == @[true] # the selection: all are
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
     check shown(db, "--sport", "running").lines.blueRows == @[true]
@@ -777,7 +776,7 @@ suite "list: --name and --start":
     defer:
       st.close()
     let p = parseArgs(@["-v", "--all"], utc())
-    let rows = listActivities(st, p.criteria, utc()).lines.texts
+    let rows = listActivities(st, p.params, utc()).lines.texts
     check rows[0].contains("place / name") and rows[0].endsWith("path")
     check rows[1].contains("Lisboa") and rows[1].contains("São Pedro and back")
       # lisbon1
@@ -830,7 +829,7 @@ suite "list: --path":
     defer:
       st.close()
     let rows =
-      listActivities(st, parseArgs(@["-v", "--all"], utc()).criteria, utc()).lines.texts
+      listActivities(st, parseArgs(@["-v", "--all"], utc()).params, utc()).lines.texts
     check rows[0].endsWith("path") and rows[1].endsWith("/x/bike/a.fit")
 
 suite "list: --invert":

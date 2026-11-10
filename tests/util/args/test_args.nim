@@ -1,5 +1,9 @@
-import std/unittest
+import std/[options, unittest]
 import nimchoo/packages/util/args/args
+
+func `==`(p: Problem, said: string): bool =
+  ## (the tests say what a problem is, in words; no problem is "")
+  p.get("") == said
 
 type P = object
   verbose: bool
@@ -10,16 +14,16 @@ type P = object
 
 let spec = Spec[P](
   opts: @[
-    flag(P, ["-v", "--verbose"], verbose),
-    text(P, ["--name"], name),
-    whole(P, ["-n", "--count"], n, 1, 10, "a number of times, 1 to 10"),
-    number(P, ["--x"], x, 0.0, 1.0, "a fraction"),
+    flag(P, ["-v", "--verbose"], verbose, "more"),
+    text(P, ["--name"], name, "NAME", "the name"),
+    whole(P, ["-n", "--count"], n, 1, 10, "a number of times, 1 to 10", "N", "how many"),
+    number(P, ["--x"], x, 0.0, 1.0, "a fraction", "X", "a fraction"),
   ],
-  positional: proc(p: var P, arg: string): string {.nimcall, raises: [].} =
+  positional: proc(p: var P, arg: string): Problem {.nimcall, raises: [].} =
     if arg == "bad":
-      return "no 'bad' please"
+      return refuse("no 'bad' please")
     p.extra.add arg
-    "",
+    fine,
 )
 
 suite "cli args: one parser for the commands":
@@ -55,7 +59,7 @@ suite "cli args: one parser for the commands":
     check parseOptions(@["-"], spec, p) == ""
     check p.extra == @["-"]
   test "without positional arguments they are unexpected, with the hint if there is one":
-    let bare = Spec[P](opts: @[flag(P, ["-v"], verbose)])
+    let bare = Spec[P](opts: @[flag(P, ["-v"], verbose, "more")])
     var p = P()
     check parseOptions(@["x"], bare, p) == "unexpected argument x"
     let hinted = Spec[P](
@@ -94,13 +98,15 @@ suite "cli args: --name=value, leading options, options with many values":
           ["--names"],
           proc(
               p: var P, name: string, values: seq[string]
-          ): string {.nimcall, raises: [].} =
+          ): Problem {.nimcall, raises: [].} =
             if values.len == 0:
-              return name & " needs at least one name"
+              return refuse(name & " needs at least one name")
             p.extra.add values
-            "",
+            fine,
+          "NAME...",
+          "names",
         ),
-        flag(P, ["-v"], verbose),
+        flag(P, ["-v"], verbose, "more"),
       ]
     )
     var p = P()
@@ -120,3 +126,30 @@ suite "cli args: the options every command has":
       "unexpected option --db=x.db (it goes before the command: nch --db PATH COMMAND ...)"
     check parseOptions(@["--users"], spec, p) == "unexpected option --users"
       # (another option: no hint)
+
+suite "cli args: what a command line comes to":
+  type Q = object
+    help: bool
+    n: int
+
+  let qspec =
+    Spec[Q](opts: @[whole(Q, ["-n"], n, 1, 9, "a digit", "N", "a number"), helpFlag(Q)])
+  func finishQ(raw: Q): Parsed[int] =
+    if raw.n == 5:
+      return problemWith[int]("five is too many")
+    parsedOk(raw.n)
+
+  test "valid parameters, a request for help, or a problem":
+    let ok = parseCommand(@["-n", "3"], qspec, Q(), finishQ)
+    check ok.kind == pkOk and ok.params == 3 and ok.problem == "" and not ok.help
+    let help = parseCommand(@["-h"], qspec, Q(), finishQ)
+    check help.kind == pkHelp and help.help
+    let bad = parseCommand(@["-n", "x"], qspec, Q(), finishQ)
+    check bad.kind == pkProblem and bad.problem == "-n is a digit (not 'x')"
+    let combination = parseCommand(@["-n", "5"], qspec, Q(), finishQ)
+    check combination.problem == "five is too many"
+
+  test "an option has a level, and is allowed in an address if it says so":
+    let o = flag(Q, ["--deep"], help, "nested", level = 1, address = adFlag)
+    check o.level == 1 and o.address == adFlag and o.doc.level == 1
+    check flag(Q, ["--plain"], help, "no address").address == adNo

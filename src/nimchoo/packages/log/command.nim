@@ -5,72 +5,30 @@
 
 import std/[options, os, sequtils, strutils]
 import ../../core/globals
-import ../util/args/args
+import ../util/args/[args, usage]
 import ../../core/logfile
 import ../ui/live
 import ../ui/style
-import ../ui/vocabulary
-import ./lines
+import ./[lines, params]
 
 {.push raises: [].}
 
 const commandName* = "log" ## what the user types after `nch`
 
-const usage* = """usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]
+const
+  synopsis = "usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]"
+  intro =
+    """Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, activities, climbs, cache ...) shows the
+lines of those commands, an EVENT (failed, advisory, duplicate ...) shows those events; both together show the events
+of those commands.  Several of one kind mean "any of them".  With no names, everything."""
+  notes =
+    """On a terminal the event words have the colours they have in `nch import` (imported green, failed red, advisory
+yellow, duplicate grey)."""
 
-Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, activities, climbs,
-cache ...) shows the lines of those commands, an EVENT (failed, advisory,
-duplicate ...) shows those events; both together show the events of those
-commands.  Several of one kind mean "any of them".  With no names, everything.
-
-  --last       only the latest run of the commands (or of any command): from
-               its "run" line to the end
-  -n N         only the last N lines
-  -h, --help   show this help
-
-On a terminal the event words have the colours they have in `nch import`
-(imported green, failed red, advisory yellow, duplicate grey).
-"""
-
-type Parsed* = object
-  known: seq[string] ## the names of the commands there are
-  filter*: Filter
-  help*: bool
-  problem*: string
-
-proc names(commands: seq[string]): string =
-  var es: seq[string]
-  for e in LogEvent:
-    es.add $e
-  "commands: " & commands.join(" ") & "; events: " & es.join(" ")
-
-proc takeLogName(p: var Parsed, arg: string): string {.nimcall, raises: [].} =
-  ## A word that names an event or a command to show.
-  let e = parseEvent(arg)
-  if e.isSome:
-    p.filter.events.incl e.get
-  elif arg in p.known:
-    p.filter.commands.add arg
-  else:
-    return "'" & arg & "' is neither a command nor an event (" & names(p.known) & ")"
-  ""
-
-proc parseArgs*(args: seq[string], commands: seq[string]): Parsed =
-  ## The options of `nch log`; `problem` says what is wrong with them, if anything.  `commands` are the names
-  ## of the commands there are, which can be used as filters.
-  let lastOption = custom(Parsed, ["--last"], false, (p.filter.last = true; ""))
-  let countOption = custom(Parsed, ["-n"], true):
-    var n = 0
-    if not parseIntIn(value, 1, high(int), n):
-      return "-n needs a number of lines, 1 or more"
-    p.filter.count = n
-    ""
-  let spec = Spec[Parsed](
-    opts: @[flag(Parsed, ["-h", "--help"], help), lastOption, countOption],
-    positional: takeLogName,
-  )
-  result.known = commands
-  result.problem = parseOptions(args, spec, result)
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(logSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
 
 proc show*(
     path: string, f: Filter, colour: bool
@@ -103,12 +61,16 @@ proc show*(
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch log ARGS`; returns the exit status.
-  let p = parseArgs(args, g.commandNames)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args, g.commandNames)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch log", usage, p.problem)
+  of pkProblem:
+    return usageError("nch log", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   let path = envLogPath()
   if path.isNone:
     return failure(

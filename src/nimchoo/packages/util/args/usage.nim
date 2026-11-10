@@ -16,7 +16,8 @@ const
   minHelpWidth = 30
 
 func label(d: OptDoc): string =
-  result = d.names.join(", ")
+  ## The names and the value, indented two more for each level (an option that goes with the one before it).
+  result = " ".repeat(2 * d.level) & d.names.join(", ")
   if d.metavar.len > 0:
     result.add " " & d.metavar
 

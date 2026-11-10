@@ -5,8 +5,10 @@ import nimchoo/packages/web/libraries
 import nimchoo/packages/ff/command
 import nimchoo/packages/ff/page
 import nimchoo/packages/ff/params
+import nimchoo/packages/util/args/args
+import nimchoo/packages/web/webopts
 import nimchoo/packages/web/request
-import nimchoo/packages/ff/web
+import ../support/webpages
 import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette
 
@@ -82,13 +84,13 @@ suite "ff: the template is a file":
 suite "ff: --worker, --web and the address":
   test "options":
     let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
-    check p.problem == "" and p.web.enabled and p.web.noOpen and p.web.newToken and
-      p.web.port == 0
-    check parseArgs(@["--worker"]).web.worker
-    check parseArgs(@["--check", "ab12cd"]).check == "ab12cd"
+    check p.problem == "" and p.params.web.kind == wkServe and p.params.web.noOpen and
+      p.params.web.newToken and p.params.web.port == 0
+    check parseArgs(@["--worker"]).params.web.kind == wkWorker
+    check parseArgs(@["--check", "ab12cd"]).params.check == some("ab12cd")
     check parseArgs(@["--check", "a b"]).problem.contains("not a hash")
     check parseArgs(@["--check"]).problem.contains("needs a value")
-    check parseArgs(@[]).web.port == defaultPort
+    check parseArgs(@[]).params.web.kind == wkNone
   test "problems":
     check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")
     check parseArgs(@["--web", "--stdout"]).problem.contains("--stdout")
@@ -97,14 +99,14 @@ suite "ff: --worker, --web and the address":
     check parseArgs(@["--port", "1"]).problem.contains("go with --web")
     check parseArgs(@["--web", "--port", "70000"]).problem.contains("port number")
   test "the address says what was asked for, not the defaults":
-    check webQuery(parseArgs(@[])) == ""
+    check webQuery(parseArgs(@[]).params) == ""
     check webQuery(
       parseArgs(
         @[
           "--model", "flat", "--hourly", "--utc", "--from", "2018-08-01", "--to",
           "2018-08-31", "--fitness-scale", "2", "--fatigue-scale", "5.25",
         ]
-      )
+      ).params
     ) ==
       "model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5.25"
   test "every address the command makes is one the server accepts":
@@ -114,9 +116,9 @@ suite "ff: --worker, --web and the address":
       @["--to", "2018-08-31", "--from", "2018-08-01"],
       @["--fitness-scale", "0.5", "--fatigue-scale", "12"],
     ]:
-      let q = webQuery(parseArgs(args))
+      let q = webQuery(parseArgs(args).params)
       let t = parseTarget("/ff?" & q).get
-      let r = route(t, @[ffPage("ff")])
+      let r = route(t, @[ffPage])
       check r.isSome
       # and the worker, given those options, parses them to the same thing
-      check webQuery(parseArgs(r.get.args)) == q
+      check webQuery(parseArgs(r.get.args).params) == q

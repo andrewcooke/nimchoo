@@ -4,28 +4,37 @@ import ../util/args/args
 
 {.push raises: [].}
 
-type Params* = object
-  all*: bool ## `--all`: every activity, not only the selection
-  verbose*: bool ## `-v`: every month from the first to the last
-  help*: bool
-  problem*: string
+type
+  Params* = object
+    all*: bool ## `--all`: every activity, not only the selection
+    verbose*: bool ## `-v`: every month from the first to the last
 
-func calendarSpec*(): Spec[Params] =
-  ## The options of `nch calendar`, each with its help.
-  Spec[Params](
+  Raw = object ## what the options fill in
+    help, all, verbose: bool
+
+func calendarSpec*(): Spec[Raw] =
+  ## The options of `nch calendar`.
+  Spec[Raw](
     opts: @[
-      flag(Params, ["--all"], all).documented(
-        "",
+      flag(
+        Raw,
+        ["--all"],
+        all,
         "every activity, with those in the selection in blue; without it only the selection is shown",
       ),
-      flag(Params, ["-v", "--verbose"], verbose).documented(
-        "",
+      flag(
+        Raw,
+        ["-v", "--verbose"],
+        verbose,
         "every month from the first to the last, not only those with an activity (the months either side of a gap are marked otherwise)",
       ),
-      flag(Params, ["-h", "--help"], help).documented("", "show this help"),
+      helpFlag(Raw),
     ]
   )
 
-proc parseArgs*(args: seq[string]): Params =
+func finish(raw: Raw): Parsed[Params] =
+  parsedOk(Params(all: raw.all, verbose: raw.verbose))
+
+proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## `nch calendar [--all] [-v]`.
-  result.problem = parseOptions(args, calendarSpec(), result)
+  parseCommand(args, calendarSpec(), Raw(), finish)

@@ -5,7 +5,8 @@ import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
 import nimchoo/packages/user/session
-import nimchoo/packages/log/command as logCommand
+import nimchoo/packages/log/params as logParams
+import nimchoo/packages/util/args/args
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
@@ -88,13 +89,13 @@ suite "import display: the lines":
   test "what the hint says is a command line that `nch log` accepts":
     let hint = moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true)
     check hint.startsWith("more: nch log ")
-    let p = logCommand.parseArgs(
+    let p = logParams.parseArgs(
       hint["more: nch log ".len .. ^1].splitWhitespace, @["import", "map"]
     )
     check p.problem == ""
-    check p.filter.commands == @["import"]
-    check p.filter.events == {leFailed, leDuplicate, leAdvisory}
-    check p.filter.last
+    check p.params.filter.commands == @["import"]
+    check p.params.filter.events == {leFailed, leDuplicate, leAdvisory}
+    check p.params.filter.last
 
   test "imported is green even when it is 0":
     check renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0].look.colour == green

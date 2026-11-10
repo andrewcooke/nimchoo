@@ -1,5 +1,6 @@
 import std/[options, strutils, unittest]
 import nimchoo/packages/user/params
+import nimchoo/packages/util/args/args
 
 suite "user: names and FTHR":
   test "names: 1 to 32 of letters, digits and _ . -, not starting with -":
@@ -18,22 +19,27 @@ suite "user: names and FTHR":
 suite "user: the command line":
   test "no arguments: show the users":
     let p = parseArgs(@[])
-    check p.list and p.problem == ""
+    check p.params.action == uaList and p.problem == ""
   test "make a user, with or without an FTHR":
     let p = parseArgs(@["--add", "bob"])
-    check p.create and p.name == "bob" and p.fthr.isNone and not p.list
+    check p.params.action == uaAdd and p.params.add.name == "bob" and
+      p.params.add.fthr.isNone
     let q = parseArgs(@["--add", "bob", "--fthr", "150"])
-    check q.create and q.name == "bob" and q.fthr == some(150) and q.problem == ""
+    check q.problem == "" and q.params.add.name == "bob" and
+      q.params.add.fthr == some(150)
   test "edit: set, clear, rename, make the default":
     let p = parseArgs(@["--edit", "bob", "--fthr", "154"])
-    check p.edit and p.name == "bob" and p.fthr == some(154) and p.problem == "" and
-      not p.list
-    check parseArgs(@["--edit", "bob", "--clear-fthr"]).clearFthr
-    check parseArgs(@["--edit", "bob", "--rename", "robert"]).rename == "robert"
-    check parseArgs(@["--edit", "bob", "--default"]).makeDefault
+    check p.problem == "" and p.params.action == uaEdit and p.params.edit.name == "bob"
+    check p.params.edit.fthr.kind == fkSet and p.params.edit.fthr.bpm == 154
+    check parseArgs(@["--edit", "bob", "--clear-fthr"]).params.edit.fthr.kind == fkClear
+    check parseArgs(@["--edit", "bob", "--rename", "robert"]).params.edit.rename ==
+      some("robert")
+    check parseArgs(@["--edit", "bob", "--default"]).params.edit.makeDefault
+    check parseArgs(@["--edit", "bob", "--default"]).params.edit.fthr.kind == fkKeep
     let q = parseArgs(@["--edit", "bob", "--fthr", "150", "--rename", "x"])
       # several at once are fine
-    check q.fthr == some(150) and q.rename == "x" and q.problem == ""
+    check q.params.edit.fthr.bpm == 150 and q.params.edit.rename == some("x") and
+      q.problem == ""
   test "a bare name is not taken for a user, and the message says what to do":
     let p = parseArgs(@["bob", "--fthr", "150"])
     check p.problem.contains("unexpected argument bob") and
@@ -51,7 +57,7 @@ suite "user: the command line":
     check parseArgs(@["--edit", "bob"]).problem.contains("needs something to change")
   test "--default, alone with --edit or with --add":
     let p = parseArgs(@["--add", "bob", "--default"])
-    check p.makeDefault and p.create and p.problem == ""
+    check p.problem == "" and p.params.action == uaAdd and p.params.add.makeDefault
   test "only one of --add, --edit and --delete":
     check parseArgs(@["--add", "a", "--edit", "b", "--fthr", "150"]).problem.contains(
       "cannot be used together"
@@ -85,8 +91,9 @@ suite "user: the command line":
 suite "user params: --delete":
   test "--delete NAME, with -f":
     let p = parseArgs(@["--delete", "bob", "-f"])
-    check p.problem == "" and p.delete and p.name == "bob" and p.force and not p.list
-    check parseArgs(@["--delete", "bob"]).force == false
+    check p.problem == "" and p.params.action == uaDelete and
+      p.params.delete.name == "bob" and p.params.delete.force
+    check parseArgs(@["--delete", "bob"]).params.delete.force == false
     check parseArgs(@["--delete"]).problem.contains("needs a value")
   test "--delete stands alone, and -f goes with it":
     check parseArgs(@["--delete", "bob", "--fthr", "150", "-f"]).problem.contains(

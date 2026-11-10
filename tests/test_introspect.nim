@@ -11,19 +11,19 @@ from nimchoo/registry import allFragments
 
 suite "nch packages: the command line":
   test "no arguments is the list; a name is the detail":
-    check viewOf(parseArgs(@[])) == vList
+    check parseArgs(@[]).params.view == vList
     let p = parseArgs(@["importer"])
-    check p.problem == "" and p.name == "importer" and viewOf(p) == vDetail
+    check p.problem == "" and p.params.view == vDetail and p.params.package == "importer"
 
   test "the other views":
-    check viewOf(parseArgs(@["--points"])) == vPoints
-    check viewOf(parseArgs(@["--tables"])) == vTables
-    check viewOf(parseArgs(@["--dot"])) == vDot
-    check viewOf(parseArgs(@["--config"])) == vConfig
-    check viewOf(parseArgs(@["--graph"])) == vLayers
-    check viewOf(parseArgs(@["--graph", "db"])) == vTree
-    check viewOf(parseArgs(@["db", "--graph"])) == vTree
-    check parseArgs(@["--graph", "--reverse", "db"]).reverse
+    check parseArgs(@["--points"]).params.view == vPoints
+    check parseArgs(@["--tables"]).params.view == vTables
+    check parseArgs(@["--dot"]).params.view == vDot
+    check parseArgs(@["--config"]).params.view == vConfig
+    check parseArgs(@["--graph"]).params.view == vLayers
+    check parseArgs(@["--graph", "db"]).params.view == vTree
+    check parseArgs(@["db", "--graph"]).params.root == "db"
+    check parseArgs(@["--graph", "--reverse", "db"]).params.reverse
 
   test "combinations that mean nothing are refused":
     check parseArgs(@["--points", "--tables"]).problem.contains("choose one")

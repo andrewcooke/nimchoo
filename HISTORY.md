@@ -3158,3 +3158,14 @@ The second round of the packages (2026-11-10, REVIEW.md §4 and §5; TODO.md ste
   refuses a package without one, with a message that says what to write), writes the front page of the documentation, and
   `nch packages` shows it.  CLAUDE.md lost the feature detail that moved there (422 lines to 230).
 
+Options carry their help; commands parse into variants (2026-11-10, TODO step 4): every command's options are described
+(`flag`, `text`, `number`, `whole`, `custom` and `listOption` take the placeholder and the help, so an undocumented option does
+not compile), the usage's option list is made from them for every command, and `--help` wraps the introduction and the notes
+to the terminal as well.  Options nest (`level`).  `parseArgs` gives a `Parsed[T]` (valid parameters, help, or a problem); the
+parameters are variants on the action for `climbs`, `users`, `landmarks`, `models`, `db`, `cache`, `map` and `packages`, a record
+for `ff`, `fit`, `import` and `calendar` (one action), and `Criteria` for `activities`, whose filters and actions are one
+record because the query code shares it.  An option's `apply` returns a `Problem` (`fine` or `refuse`), not "".  The web options
+are one description (`webOptions`, giving a `WebMode`), and `map` and `ff` mark the options that may be given in an address
+(`address`, with a check for the value): the server's pages are made from their own parsers (`web/request.pageOf`), and
+`map/web.nim` and `ff/web.nim` are gone.  The global options are described too.
+

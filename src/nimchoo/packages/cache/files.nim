@@ -28,6 +28,12 @@ const kindHelp*: array[Kind, string] = [
   "maps made by commands", "tables made by commands", "web pages made by commands",
 ]
 
+func kindWords*(): seq[string] =
+  ## The names of the kinds, and `all`: what `--delete` takes.
+  for k in Kind:
+    result.add $k
+  result.add "all"
+
 func kindNames*(): string =
   ## "downloads, system, geojson, csv, html"
   for k in Kind:

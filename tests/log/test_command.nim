@@ -1,5 +1,7 @@
 import std/[os, strutils, unittest]
 import nimchoo/packages/log/command as logCommand
+import nimchoo/packages/log/params
+import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
 import nimchoo/packages/ui/vocabulary
 import nimchoo/packages/log/lines
@@ -27,11 +29,11 @@ suite "nch log: the command line":
       @["activities", "failed", "map", "advisory", "--last", "-n", "5"], commands
     )
     check p.problem == ""
-    check p.filter.commands == @["activities", "map"]
-    check p.filter.events == {leFailed, leAdvisory}
-    check p.filter.last and p.filter.count == 5
+    check p.params.filter.commands == @["activities", "map"]
+    check p.params.filter.events == {leFailed, leAdvisory}
+    check p.params.filter.last and p.params.filter.count == 5
   test "no arguments: no filter":
-    check parseArgs(@[], commands).filter == Filter()
+    check parseArgs(@[], commands).params.filter == Filter()
   test "problems":
     check parseArgs(@["bogus"], commands).problem.contains(
       "neither a command nor an event"

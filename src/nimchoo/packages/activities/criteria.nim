@@ -67,11 +67,6 @@ type
     refers*: Reference
     tol*: Tol
 
-  Parsed* = object
-    criteria*: Criteria
-    help*: bool
-    problem*: string ## "" if the command line was fine
-
   Box* = object
     minX*, minY*, maxX*, maxY*: float ## degrees
 
@@ -126,17 +121,18 @@ type ListState = object
   radiusGiven: bool ## --radius was given
   criteriaGiven: bool ## some option other than those that say what to display
 
-func takeCount(p: var ListState, name, value: string, oldest: bool): string =
+func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
   ## --newest N, -n N, --oldest N.
   var n = 0
   if not parseIntIn(value, 1, high(int), n):
-    return name & " needs a number of activities, 1 or more (not '" & value & "')"
+    return
+      refuse(name & " needs a number of activities, 1 or more (not '" & value & "')")
   p.criteriaGiven = true
   if oldest:
     p.c.oldest = n
   else:
     p.c.newest = n
-  ""
+  fine
 
 func splitNames(values: seq[string], lower: bool): seq[string] =
   ## Names, separated by spaces or commas.
@@ -147,35 +143,35 @@ func splitNames(values: seq[string], lower: bool): seq[string] =
 
 proc takeSports(
     p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
+): Problem {.nimcall.} =
   p.criteriaGiven = true
   let names = splitNames(values, true)
   if names.len == 0:
-    return name & " needs at least one name"
+    return refuse(name & " needs at least one name")
   for n in names:
     if parseReference(n) != refNone:
       if p.c.sportRef != refNone and p.c.sportRef != parseReference(n):
-        return "--sport: latest and previous cannot be used together"
+        return refuse("--sport: latest and previous cannot be used together")
       p.c.sportRef = parseReference(n)
     else:
       p.c.sports.add n
-  ""
+  fine
 
 proc takeSubSports(
     p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
+): Problem {.nimcall.} =
   p.criteriaGiven = true
   let names = splitNames(values, true)
   if names.len == 0:
-    return name & " needs at least one name"
+    return refuse(name & " needs at least one name")
   for n in names:
     if parseReference(n) != refNone:
       if p.c.subSportRef != refNone and p.c.subSportRef != parseReference(n):
-        return "--sub-sport: latest and previous cannot be used together"
+        return refuse("--sub-sport: latest and previous cannot be used together")
       p.c.subSportRef = parseReference(n)
     else:
       p.c.subSports.add n
-  ""
+  fine
 
 proc takeTexts(
     p: var ListState,
@@ -183,7 +179,7 @@ proc takeTexts(
     values: seq[string],
     texts: var seq[string],
     ref0: var Reference,
-): string =
+): Problem =
   p.criteriaGiven = true
   var found: seq[string]
   for v in values:
@@ -191,56 +187,56 @@ proc takeTexts(
       if part.strip.len > 0:
         found.add part.strip
   if found.len == 0:
-    return name & " needs some text"
+    return refuse(name & " needs some text")
   for t in found:
     if parseReference(t) != refNone:
       if ref0 != refNone and ref0 != parseReference(t):
-        return name & ": latest and previous cannot be used together"
+        return refuse(name & ": latest and previous cannot be used together")
       ref0 = parseReference(t)
     else:
       texts.add t
-  ""
+  fine
 
 proc takeNames(
     p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
+): Problem {.nimcall.} =
   takeTexts(p, name, values, p.c.names, p.c.nameRef)
 
 proc takeStarts(
     p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
+): Problem {.nimcall.} =
   takeTexts(p, name, values, p.c.starts, p.c.startRef)
 
 proc takePaths(
     p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
+): Problem {.nimcall.} =
   p.criteriaGiven = true
   for v in values:
     for part in v.split(','):
       if part.strip.len > 0:
         p.c.paths.add part.strip
   if p.c.paths.len == 0:
-    return name & " needs some text"
-  ""
+    return refuse(name & " needs some text")
+  fine
 
 proc takeContributed(
     p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
+): Problem {.nimcall.} =
   ## An option that another package offers: the words are kept for it to resolve.
   p.criteriaGiven = true
   for o in p.offered:
     if name in o.doc.names:
       if o.doc.arity == aList and values.len == 0:
-        return name & " needs at least one word"
+        return refuse(name & " needs at least one word")
       for c in p.c.contributed.mitems:
         if c.option == o.doc.names[0]:
           c.values.add values
-          return ""
+          return fine
       p.c.contributed.add Contributed(
         option: o.doc.names[0], values: values, resolve: o.resolve
       )
-      return ""
-  name & " is not an option" # (cannot happen: the spec has just these)
+      return fine
+  refuse(name & " is not an option") # (cannot happen: the spec has just these)
 
 func contributedOption(o: Criterion): Opt[ListState] =
   ## The option of an offered criterion, as the parser has them.
@@ -249,21 +245,24 @@ func contributedOption(o: Criterion): Opt[ListState] =
     takesList: o.doc.arity == aList,
     takesValue: o.doc.arity == aOne,
     applyList: takeContributed,
-    apply: proc(p: var ListState, name, value: string): string {.nimcall, raises: [].} =
+    apply: proc(
+        p: var ListState, name, value: string
+    ): Problem {.nimcall, raises: [].} =
       takeContributed(p, name, (if value.len > 0: @[value] else: @[])),
     metavar: o.doc.metavar,
     help: o.doc.help,
     completion: o.doc.completion,
   )
 
-proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
+proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
   p.criteriaGiven = true
   if '~' in v:
     let ar = parseAround(v, parseDistance)
     if ar.isNone:
-      return
+      return refuse(
         "cannot read the distance '" & v &
-        "' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)"
+          "' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)"
+      )
     if ar.get.centre.isSome:
       p.c.distanceM = around(ar.get.centre.get, ar.get.tol)
     else:
@@ -272,21 +271,23 @@ proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
     let r = parseRange(v, parseDistance)
     if r.isNone:
       if isBackwards(v, parseDistance):
-        return "the distance range '" & v & "' is backwards (smaller end first)"
-      return
+        return refuse("the distance range '" & v & "' is backwards (smaller end first)")
+      return refuse(
         "cannot read the distance range '" & v &
-        "' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)"
+          "' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)"
+      )
     p.c.distanceM = r.get
-  ""
+  fine
 
-proc takeActive(p: var ListState, name, v: string): string {.nimcall.} =
+proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
   p.criteriaGiven = true
   if '~' in v:
     let ar = parseAround(v, parseInterval)
     if ar.isNone:
-      return
+      return refuse(
         "cannot read the active time '" & v &
-        "' (use 2h~15m, latest~10% or previous~10%)"
+          "' (use 2h~15m, latest~10% or previous~10%)"
+      )
     if ar.get.centre.isSome:
       p.c.activeS = around(ar.get.centre.get, ar.get.tol)
     else:
@@ -295,34 +296,37 @@ proc takeActive(p: var ListState, name, v: string): string {.nimcall.} =
     let r = parseRange(v, parseInterval)
     if r.isNone:
       if isBackwards(v, parseInterval):
-        return "the active time range '" & v & "' is backwards (shorter end first)"
-      return
+        return
+          refuse("the active time range '" & v & "' is backwards (shorter end first)")
+      return refuse(
         "cannot read the active time range '" & v &
-        "' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
+          "' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
+      )
     p.c.activeS = r.get
-  ""
+  fine
 
-proc takeWhen(p: var ListState, v: string, isEnd: bool): string =
+proc takeWhen(p: var ListState, v: string, isEnd: bool): Problem =
   ## --from T (the start of what is named) and --to T (the end).
   p.criteriaGiven = true
   let t = parseWhen(v, p.zone, isEnd)
   if t.isNone:
-    return "cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)"
+    return
+      refuse("cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)")
   if isEnd:
     p.c.toT = t
   else:
     p.c.fromT = t
-  ""
+  fine
 
-func takeGps(p: var ListState, wanted: GpsFilter): string =
+func takeGps(p: var ListState, wanted: GpsFilter): Problem =
   ## --gps and --no-gps, which contradict each other.
   p.criteriaGiven = true
   if p.c.gps notin {gfAny, wanted}:
-    return "--gps and --no-gps cannot be used together"
+    return refuse("--gps and --no-gps cannot be used together")
   p.c.gps = wanted
-  ""
+  fine
 
-func takeNear(p: var ListState, v: string): string =
+func takeNear(p: var ListState, v: string): Problem =
   p.criteriaGiven = true
   if parseReference(v) == refLatest:
     p.c.near = nkLatest
@@ -331,22 +335,23 @@ func takeNear(p: var ListState, v: string): string =
   else:
     let pos = parseLatLon(v)
     if pos.isNone:
-      return
+      return refuse(
         "cannot read the position '" & v & "' (use 38.72,-9.14, latest or previous)"
+      )
     p.c.near = nkPoint
     (p.c.lat, p.c.lon) = pos.get
-  ""
+  fine
 
-func takeRadius(p: var ListState, v: string): string =
+func takeRadius(p: var ListState, v: string): Problem =
   p.criteriaGiven = true
   try:
     p.c.radiusKm = parseFloat(v)
   except ValueError:
-    return "cannot read the radius '" & v & "' (kilometres)"
+    return refuse("cannot read the radius '" & v & "' (kilometres)")
   if p.c.radiusKm <= 0:
-    return "the radius must be more than 0km"
+    return refuse("the radius must be more than 0km")
   p.radiusGiven = true
-  ""
+  fine
 
 func hasFilter*(c: Criteria): bool =
   ## Whether any criterion that picks activities is given (not the limits, the users or the display).
@@ -362,93 +367,175 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   ## packages offer come after the sports, names and paths.
   result = Spec[ListState](
     opts: @[
-      custom(ListState, ["--all"], false, (p.c.all = true; "")).documented(
-        "", "every activity, not just the selection"
+      custom(
+        ListState,
+        ["--all"],
+        false,
+        "",
+        "every activity, not just the selection",
+        body = (p.c.all = true; fine),
       ),
-      listOption[ListState](["--sport"], takeSports).documented(
+      listOption[ListState](
+        ["--sport"],
+        takeSports,
         "A B",
         "only these sports (cycling, running, swimming ...); \"none\" means not recorded; \"latest\" or \"previous\": that activity's sport",
-        Completion(kind: ckDynamic, source: "sport"),
+        completion = Completion(kind: ckDynamic, source: "sport"),
       ),
-      listOption[ListState](["--sub-sport"], takeSubSports).documented(
+      listOption[ListState](
+        ["--sub-sport"],
+        takeSubSports,
         "A B",
         "only these sub-sports (road, trail, open_water ...).  Many files say \"generic\" or nothing, so this misses some rides",
-        Completion(kind: ckDynamic, source: "sub-sport"),
+        completion = Completion(kind: ckDynamic, source: "sub-sport"),
       ),
-      listOption[ListState](["--name"], takeNames).documented(
+      listOption[ListState](
+        ["--name"],
+        takeNames,
         "TEXT",
         "activities whose name contains TEXT, whatever its case or accents: --name toyo finds \"El Toyo and back\"; several words are alternatives (--name toyo farellones); a name with spaces is quoted; \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
       ),
-      listOption[ListState](["--start"], takeStarts).documented(
+      listOption[ListState](
+        ["--start"],
+        takeStarts,
         "TEXT",
         "the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): --start providencia",
       ),
-      listOption[ListState](["--path"], takePaths).documented(
+      listOption[ListState](
+        ["--path"],
+        takePaths,
         "TEXT",
         "the same for the path of the file the activity was imported from (or any other path the same file was seen at): --path bowman, --path 2026-10",
       ),
-      custom(ListState, ["--distance"], true, takeDistance(p, name, value)).documented(
+      custom(
+        ListState,
+        ["--distance"],
+        true,
         "RANGE",
         "distance in km: 40- (40 or more), 10-50, -5 (up to 5); 0.5- for half a km; 42~2 (between 40 and 44), latest~10%, previous~10%",
+        body = takeDistance(p, name, value),
       ),
-      custom(ListState, ["--active"], true, takeActive(p, name, value)).documented(
+      custom(
+        ListState,
+        ["--active"],
+        true,
         "RANGE",
         "active time: 1h-, 30m-2h, -45m (units d h m s, as printed); 2h~15m, latest~10%, previous~10%",
+        body = takeActive(p, name, value),
       ),
-      custom(ListState, ["--from"], true, takeWhen(p, value, false)).documented(
-        "TIME", "activities that start at or after TIME"
+      custom(
+        ListState,
+        ["--from"],
+        true,
+        "TIME",
+        "activities that start at or after TIME",
+        body = takeWhen(p, value, false),
       ),
-      custom(ListState, ["--to"], true, takeWhen(p, value, true)).documented(
+      custom(
+        ListState,
+        ["--to"],
+        true,
         "TIME",
         "activities that start before the end of TIME\n(TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a --to date means the whole day)",
+        body = takeWhen(p, value, true),
       ),
-      custom(ListState, ["--gps"], false, takeGps(p, gfWith)).documented(
-        "", "only activities that have positions (a GPS track)"
+      custom(
+        ListState,
+        ["--gps"],
+        false,
+        "",
+        "only activities that have positions (a GPS track)",
+        body = takeGps(p, gfWith),
       ),
-      custom(ListState, ["--no-gps"], false, takeGps(p, gfWithout)).documented(
-        "", "only activities that have none (indoor rides, treadmill runs ...)"
+      custom(
+        ListState,
+        ["--no-gps"],
+        false,
+        "",
+        "only activities that have none (indoor rides, treadmill runs ...)",
+        body = takeGps(p, gfWithout),
       ),
-      custom(ListState, ["--near"], true, takeNear(p, value)).documented(
+      custom(
+        ListState,
+        ["--near"],
+        true,
         "LAT,LON",
         "activities that start within the radius of the point; --near latest: of where the latest activity started (or \"previous\")",
+        body = takeNear(p, value),
       ),
-      custom(ListState, ["--radius"], true, takeRadius(p, value)).documented(
+      custom(
+        ListState,
+        ["--radius"],
+        true,
         "KM",
         "radius for --near in kilometres (default: 100); on its own it means --near latest",
+        body = takeRadius(p, value),
       ),
       custom(
-        ListState, ["--invert"], false, (p.criteriaGiven = true; p.c.invert = true; "")
-      )
-        .documented(
-          "",
-          "the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; --newest and --oldest apply after.  Needs a criterion",
-        ),
-      custom(ListState, ["-n", "--newest"], true, takeCount(p, name, value, false))
-        .documented(
-          "N", "only the N newest of the activities that meet the other criteria"
-        ),
-      custom(ListState, ["--oldest"], true, takeCount(p, name, value, true)).documented(
-        "N", "only the N oldest of them"
+        ListState,
+        ["--invert"],
+        false,
+        "",
+        "the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; --newest and --oldest apply after.  Needs a criterion",
+        body = (p.criteriaGiven = true; p.c.invert = true; fine),
       ),
       custom(
-        ListState, ["--latest"], false, (p.criteriaGiven = true; p.c.newest = 1; "")
-      )
-        .documented("", "the same as --newest 1"),
-      custom(ListState, ["--select"], false, (p.c.select = true; "")).documented(
-        "", "make what is listed the selection (needs criteria or --all)"
+        ListState,
+        ["-n", "--newest"],
+        true,
+        "N",
+        "only the N newest of the activities that meet the other criteria",
+        body = takeCount(p, name, value, false),
       ),
-      custom(ListState, ["--delete"], false, (p.c.delete = true; "")).documented(
+      custom(
+        ListState,
+        ["--oldest"],
+        true,
+        "N",
+        "only the N oldest of them",
+        body = takeCount(p, name, value, true),
+      ),
+      custom(
+        ListState,
+        ["--latest"],
+        false,
+        "",
+        "the same as --newest 1",
+        body = (p.criteriaGiven = true; p.c.newest = 1; fine),
+      ),
+      custom(
+        ListState,
+        ["--select"],
+        false,
+        "",
+        "make what is listed the selection (needs criteria or --all)",
+        body = (p.c.select = true; fine),
+      ),
+      custom(
+        ListState,
+        ["--delete"],
+        false,
         "",
         "delete the activities (with no criteria and no --all, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without -f (it says what it would delete); on a terminal there are then 5 seconds in which to press Ctrl-C",
+        body = (p.c.delete = true; fine),
       ),
-      custom(ListState, ["-f", "--force"], false, (p.c.force = true; "")).documented(
-        "", "really do it (with --delete)"
+      custom(
+        ListState,
+        ["-f", "--force"],
+        false,
+        "",
+        "really do it (with --delete)",
+        body = (p.c.force = true; fine),
       ),
-      custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")).documented(
+      custom(
+        ListState,
+        ["-v", "--verbose"],
+        false,
         "",
         "show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), and the path of its file",
+        body = (p.c.verbose = true; fine),
       ),
-      flag(ListState, ["-h", "--help"], help).documented("", "show this help"),
+      helpFlag(ListState),
     ]
   )
   var at = 0
@@ -458,48 +545,49 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   for k, o in offered:
     result.opts.insert(contributedOption(o), at + k)
 
-proc parseArgs*(
-    args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
-): Parsed =
-  ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
-  ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
-  ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
-  ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
-  ## criterion and no `--all` it is the selection that is meant.
-  var st =
-    ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone, offered: offered)
-  let spec = criteriaSpec(offered)
-  template fail(msg: string) =
-    result.problem = msg
-    return
+func finish(st: ListState): Parsed[Criteria] =
+  ## What was read, if the options go together.
+  func bad(why: string): Parsed[Criteria] =
+    problemWith[Criteria](why)
 
-  let why = parseOptions(args, spec, st)
-  if why.len > 0:
-    fail(why)
-  result.help = st.help
   var c = st.c
   c.given = st.criteriaGiven
   if c.all and c.hasFilter:
-    fail(
+    return bad(
       "--all is every activity: it does not go with criteria (--newest and --oldest do)"
     )
   if c.force and not c.delete:
-    fail("-f goes with --delete")
+    return bad("-f goes with --delete")
   if c.delete and (c.select or c.verbose):
-    fail("--delete shows nothing: it does not go with --select or -v")
+    return bad("--delete shows nothing: it does not go with --select or -v")
   if c.select and not (c.given or c.all):
-    fail(
+    return bad(
       "--select keeps the activities listed as the selection, so it needs criteria or --all"
     )
   if st.radiusGiven and c.near == nkNone:
     c.near = nkLatest # --radius alone: around the latest
   if c.invert and not c.hasFilter:
-    fail("--invert needs a criterion to invert (--sport, --name, --distance ...)")
+    return bad("--invert needs a criterion to invert (--sport, --name, --distance ...)")
   if c.newest > 0 and c.oldest > 0:
-    fail("--newest and --oldest cannot be used together")
+    return bad("--newest and --oldest cannot be used together")
   if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
-    fail("--from is not before --to")
-  result.criteria = c
+    return bad("--from is not before --to")
+  parsedOk(c)
+
+proc parseArgs*(
+    args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
+): Parsed[Criteria] =
+  ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
+  ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
+  ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
+  ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
+  ## criterion and no `--all` it is the selection that is meant.
+  parseCommand(
+    args,
+    criteriaSpec(offered),
+    ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone, offered: offered),
+    finish,
+  )
 
 func box*(lat, lon, radiusKm: float): Box =
   ## A box in degrees that holds the circle of `radiusKm` around the point: for the

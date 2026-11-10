@@ -13,6 +13,7 @@ import ../../core/logfile
 import ../ui/live
 import ../ui/style
 import ../confirm/confirm
+import ../util/args/[args, usage]
 import ./params
 import ./attempts
 import ./duplicates
@@ -25,7 +26,8 @@ import ./work
 
 const commandName* = "climbs" ## what the user types after `nch`
 
-const usage* = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
+const
+  synopsis = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
        nch [--db PATH] [--user NAME] climbs --name TEXT... [-v] [--everyone]
        nch climbs --all
        nch climbs --all --delete -f
@@ -34,51 +36,24 @@ const usage* = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
        nch climbs --edit NAME --retire
        nch climbs --edit NAME --unretire
        nch climbs --retired
-       nch climbs --duplicates
-
-Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
+       nch climbs --duplicates"""
+  intro =
+    """Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
 category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time
 on the selected rides (blue) and when, where that one ranks among your own attempts, and how many times you rode it.
-All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the top, stops included.
+All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the
+top, stops included.
 
-The climbs are found in the rides, once: the first time it works out those of every activity
-that has not been looked at (about a minute for two thousand rides), and keeps them; after an
-import it only looks at the new ones.  A ride that goes over part of a climb but not all of it
-makes a climb of its own.
+The climbs are found in the rides, once: the first time it works out those of every activity that has not been looked at
+(about a minute for two thousand rides), and keeps them; after an import it only looks at the new ones.  A ride that goes
+over part of a climb but not all of it makes a climb of its own."""
+  notes =
+    "The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are \"yours\".)"
 
-  --name TEXT...  the climbs whose name holds the text (any of them; case and accents do not matter; the
-                  number counts: `--name farellones₂`, which `--name "farellones 2"` also means), among all the
-                  climbs, not those of the selected rides
-  -v, --verbose   list the attempts under each climb, the fastest first, each with its rank (those of the selected
-                  rides in blue)
-  --everyone      the people instead of your attempts: how many have ridden each climb, the fastest and who,
-                  and where your best time comes among everyone's best times ("4 of 6"); with -v each person's
-                  best.  (The personal rank and this one are never shown together.)
-  --all           just the climbs found, the biggest first: category, length, height gained and gradient, how
-                  many times it has been ridden, and "manual" against a name given by a person
-  --delete        (with --all) delete every climb found, with the efforts on them (of every user), and start again:
-                  the next `nch climbs` works them out again from the rides.  Names given by hand are lost
-                  (the message says how many).  Needs -f; on a terminal there are then 5 seconds in which to
-                  press Ctrl-C.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one
-  --edit NAME     change that climb, with one of the following.  NAME is a climb's name as `--all` shows
-                  it, its number included where several share a name: "Morro La Cabra₁" ("Morro La Cabra 1" and
-                  "Morro La Cabra1" do as well).  The number is kept: it never changes
-    --rename NEW    give it the name NEW (any words; at most 60 characters; not ending in a subscript
-                    number, which the program adds when climbs share a name).  The name is kept: the
-                    program never changes it.  Several climbs may have the same name
-    --auto          forget the name; it is named again at once from the places near it (or by the
-                    next `nch climbs` if the names cannot be had)
-    --retire        hide the climb from the lists, as a segment can be hidden on Strava.  Nothing is
-                    deleted: it keeps its efforts, still takes those of new rides, and keeps its number,
-                    so the gap shows
-    --unretire      show it again
-  --retired       list the retired climbs
-  --duplicates    list the climbs that largely overlap (more than half of each lies within 25 m of the
-                  other), the most ridden first, with the command to hide each of the others
-  -h, --help      show this help
-
-The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are "yours".)
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(climbSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
 
 func noteRetired(count: int): string =
   $count & (if count == 1: " climb is retired" else: " climbs are retired") &
@@ -90,20 +65,22 @@ func damagedText(n: Named): string =
     " a route that cannot be read (damaged data) and " &
     (if n.damaged.len == 1: "was" else: "were") & " not named: " & n.damaged.join(", ")
 
-proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
+proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   ## `--edit NAME` with one thing to change.
-  let id = findShown(st, p.name)
+  let id = findShown(st, e.climb)
   let was = shownName(st, id)
   var said: string
-  if p.retire or p.unretire:
-    setRetired(st, id, p.retire)
+  case e.change.kind
+  of ckRetire, ckUnretire:
+    let retiring = e.change.kind == ckRetire
+    setRetired(st, id, retiring)
     said =
       was & (
-        if p.retire:
+        if retiring:
         " is retired: hidden from the lists (`nch climbs --retired` shows it; --unretire brings it back)"
         else: " is shown again"
       )
-  elif p.auto:
+  of ckAuto:
     setAuto(st, id)
     said = was & ": the name is forgotten"
     let names = openNames(
@@ -122,8 +99,8 @@ proc editClimb(g: Globals, st: Store, p: Params): int {.raises: [StoreError].} =
           said.add " (" & damagedText(named) & ")"
       except DownloadError as e:
         said.add "; " & e.msg & " (the next `nch climbs` makes one)"
-  else:
-    rename(st, id, p.rename)
+  of ckRename:
+    rename(st, id, e.change.newName)
     said = was & " is now called " & shownName(st, id)
   g.log.log(lvInfo, commandName, leSaved, said)
   stdout.say said & "\n"
@@ -144,12 +121,16 @@ proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch climbs ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch climbs", usage, p.problem)
+  of pkProblem:
+    return usageError("nch climbs", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   var st: Session
   try:
     st = openSession(g)
@@ -157,11 +138,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch climbs", e.msg)
   try:
     # the lists for tidying, and the changes, need no working out of climbs
-    if p.duplicates:
+    case p.action
+    of caDuplicates:
       for l in duplicateLines(duplicateGroups(st)):
         stdout.say l & "\n"
       return exitOk
-    if p.retired:
+    of caRetired:
       let rows = allSectors(st, retired = true)
       if rows.len == 0:
         stdout.say "no climbs are retired\n"
@@ -169,10 +151,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         for l in sectorLines(rows):
           stdout.say l & "\n"
       return exitOk
-    if p.edit:
-      return editClimb(g, st, p)
-    if p.delete:
+    of caEdit:
+      return editClimb(g, st, p.edit)
+    of caDeleteAll:
       return deleteClimbs(g, st, p.force)
+    of caAll, caNamed, caSelected:
+      discard
     var worked: Worked
     if canLive():
       # two lines that follow the work and stay on the screen at the end (as the import's do)
@@ -222,7 +206,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           leDone,
           "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
         )
-    if p.all:
+    if p.action == caAll:
       let rows = allSectors(st)
       if rows.len == 0:
         stdout.say "no climbs found yet\n"
@@ -234,8 +218,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           stdout.say noteRetired(hidden)
       return exitOk
     var ids: seq[int64]
-    if p.names.len > 0:
-      ids = namedClimbs(st, p.names)
+    if p.action == caNamed:
+      ids = namedClimbs(st, p.named.names)
       if ids.len == 0:
         return failure(
           "nch climbs", "no climb has a name like that (`nch climbs --all` lists them)"
@@ -249,8 +233,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         stdout.say "no climbs in the " & $selectedActivities(st) &
           " selected activities\n"
         return exitOk
+    let attempts = if p.action == caNamed: p.named.attempts else: p.selected
     let colour = canColourStdout()
-    for l in summaryLines(summaries(st, ids), p.everyone, p.verbose, local()):
+    for l in summaryLines(
+      summaries(st, ids), attempts.everyone, attempts.verbose, local()
+    ):
       stdout.say render(l, colour) & "\n"
     exitOk
   except StoreError, DownloadError:

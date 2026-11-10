@@ -8,11 +8,10 @@
 ## NCH_FUZZ_ROUNDS (default 60) scales the length: 400 addresses per round.
 
 import std/[options, os, random, strformat, strutils, tables, unittest]
-import nimchoo/packages/ff/web
-import nimchoo/packages/map/web as mapWeb
+import ../support/webpages
 import nimchoo/packages/web/request
 import ../support/[fuzzcheck, fuzzfiles, fuzzsamples, textmutate]
-let pages = @[mapPage("map"), ffPage("ff")]
+let pages = testPages
 
 const pieces = [
   "%", "%0", "%00", "%0a", "%0d%0a", "%0D", "%2f", "%2F", "%2e%2e", "%25", "%zz", "%7f",

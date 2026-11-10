@@ -25,75 +25,100 @@ type
     vDot
     vConfig
 
-  Params* = object
-    points*, tables*, graph*, reverse*, dot*, config*, help*: bool
-    name*: string
-    problem*: string
+  Params* = object ## what `nch packages` is asked to show
+    case view*: View
+    of vDetail:
+      package*: string
+    of vTree:
+      root*: string
+      reverse*: bool ## what depends on `root`, not what it depends on
+    of vList, vPoints, vTables, vLayers, vDot, vConfig:
+      discard
 
-func packagesSpec*(): Spec[Params] =
+  Raw = object ## what the options fill in
+    help, points, tables, graph, reverse, dot, config: bool
+    name: string
+
+func packagesSpec*(): Spec[Raw] =
   ## The options of `nch packages`, each with its help.
-  Spec[Params](
+  Spec[Raw](
     opts: @[
-      flag(Params, ["--points"], points).documented(
-        "",
+      flag(
+        Raw,
+        ["--points"],
+        points,
         "the extension points: who defines each, and who contributes to it, in the order the contributions are used",
       ),
-      flag(Params, ["--tables"], tables).documented(
-        "", "the tables: who owns each, and which packages may read it"
+      flag(
+        Raw,
+        ["--tables"],
+        tables,
+        "the tables: who owns each, and which packages may read it",
       ),
-      flag(Params, ["--graph"], graph).documented(
-        "",
+      flag(
+        Raw,
+        ["--graph"],
+        graph,
         "the dependencies as a picture: with NAME, the tree of what that package depends on; without, all the packages by layer",
       ),
-      flag(Params, ["--reverse"], reverse).documented(
-        "", "(with --graph NAME) the tree of what depends on NAME instead"
+      flag(
+        Raw,
+        ["--reverse"],
+        reverse,
+        "(with --graph NAME) the tree of what depends on NAME instead",
+        level = 1,
       ),
-      flag(Params, ["--dot"], dot).documented(
-        "",
+      flag(
+        Raw,
+        ["--dot"],
+        dot,
         "the dependencies as a Graphviz graph: `nch packages --dot | dot -Tsvg > packages.svg`",
       ),
-      flag(Params, ["--config"], config).documented(
-        "",
+      flag(
+        Raw,
+        ["--config"],
+        config,
         "the settings in force: the database, the user, the log, the cache, the version, the environment, and whether the database was made by this version",
       ),
-      flag(Params, ["-h", "--help"], help).documented("", "show this help"),
+      helpFlag(Raw),
     ],
-    positional: proc(p: var Params, arg: string): string {.nimcall, raises: [].} =
+    positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
       if p.name.len > 0:
-        return "only one package can be asked about"
+        return refuse("only one package can be asked about")
       p.name = arg
-      "",
+      fine,
   )
 
-func viewOf*(p: Params): View =
-  if p.points:
-    vPoints
-  elif p.tables:
-    vTables
-  elif p.dot:
-    vDot
-  elif p.config:
-    vConfig
-  elif p.graph:
-    (if p.name.len > 0: vTree else: vLayers)
-  elif p.name.len > 0:
-    vDetail
-  else:
-    vList
-
-proc parseArgs*(args: seq[string]): Params =
-  ## `nch packages [NAME] [--points | --tables | --graph [--reverse] | --dot | --config]`.
-  result.problem = parseOptions(args, packagesSpec(), result)
-  if result.problem.len > 0 or result.help:
-    return
-  let chosen = [result.points, result.tables, result.graph, result.dot, result.config]
+func finish(raw: Raw): Parsed[Params] =
+  let chosen = [raw.points, raw.tables, raw.graph, raw.dot, raw.config]
   if chosen.countIt(it) > 1:
-    result.problem = "choose one of --points, --tables, --graph, --dot and --config"
-  elif result.name.len > 0 and
-      (result.points or result.tables or result.dot or result.config):
-    result.problem = "a package name goes with nothing but --graph"
-  elif result.reverse and not (result.graph and result.name.len > 0):
-    result.problem = "--reverse goes with --graph and a package name"
+    return problemWith[Params](
+      "choose one of --points, --tables, --graph, --dot and --config"
+    )
+  if raw.name.len > 0 and (raw.points or raw.tables or raw.dot or raw.config):
+    return problemWith[Params]("a package name goes with nothing but --graph")
+  if raw.reverse and not (raw.graph and raw.name.len > 0):
+    return problemWith[Params]("--reverse goes with --graph and a package name")
+  if raw.points:
+    parsedOk(Params(view: vPoints))
+  elif raw.tables:
+    parsedOk(Params(view: vTables))
+  elif raw.dot:
+    parsedOk(Params(view: vDot))
+  elif raw.config:
+    parsedOk(Params(view: vConfig))
+  elif raw.graph and raw.name.len > 0:
+    parsedOk(Params(view: vTree, root: raw.name, reverse: raw.reverse))
+  elif raw.graph:
+    parsedOk(Params(view: vLayers))
+  elif raw.name.len > 0:
+    parsedOk(Params(view: vDetail, package: raw.name))
+  else:
+    parsedOk(Params(view: vList))
+
+proc parseArgs*(args: seq[string]): Parsed[Params] =
+  ## `nch packages [NAME] [--points | --tables | --graph [--reverse] | --dot | --config]`.
+  parseCommand(args, packagesSpec(), Raw(), finish)
 
 const
   synopsis = """usage: nch packages
@@ -210,25 +235,33 @@ proc show(lines: seq[string]) =
 
 proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch packages ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
     stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch packages", usageText(helpWidth(stderr)), p.problem)
+  of pkProblem:
+    return usageError("nch packages", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   let inv = inventory()
   let width = helpWidth(stdout)
-  let view = viewOf(p)
-  if view in {vDetail, vTree} and inv.find(p.name) < 0:
+  let asked =
+    case p.view
+    of vDetail: p.package
+    of vTree: p.root
+    else: ""
+  if p.view in {vDetail, vTree} and inv.find(asked) < 0:
     return failure(
       "nch packages",
-      fmt"no package is called '{p.name}' (they are: {inv.packages.mapIt(it.name).sorted.join("" "")})",
+      fmt"no package is called '{asked}' (they are: {inv.packages.mapIt(it.name).sorted.join("" "")})",
     )
-  case view
+  case p.view
   of vList:
     show summaryLines(inv, width)
   of vDetail:
-    show detailLines(inv, p.name, width)
+    show detailLines(inv, p.package, width)
   of vPoints:
     show pointLines(inv, width)
   of vTables:
@@ -236,7 +269,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vLayers:
     show layerLines(inv, width)
   of vTree:
-    show treeLines(inv, p.name, p.reverse)
+    show treeLines(inv, p.root, p.reverse)
   of vDot:
     stdout.say dotText(inv)
   of vConfig:

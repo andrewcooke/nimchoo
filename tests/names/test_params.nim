@@ -1,29 +1,36 @@
 import std/[options, strutils, unittest]
 import nimchoo/packages/names/params
+import nimchoo/packages/util/args/args
 
 suite "landmark: the command line":
   test "no arguments lists":
     let p = parseArgs(@[])
-    check p.list and p.problem.len == 0
+    check p.params.action == laList and p.problem.len == 0
   test "searches and suggestions":
-    check parseArgs(@["--search", "yerba"]).search == "yerba"
-    check not parseArgs(@["--search", "yerba"]).list
-    let n = parseArgs(@["--near", "-70.364,-33.344"])
-    check n.near.isSome and abs(n.near.get.lon + 70.364) < 1e-9 and
-      abs(n.near.get.lat + 33.344) < 1e-9
+    let s = parseArgs(@["--search", "yerba"]).params
+    check s.action == laSearch and s.suggest.kind == skSearch and
+      s.suggest.text == "yerba"
+    let n = parseArgs(@["--near", "-70.364,-33.344"]).params
+    check n.action == laNear and n.suggest.kind == skNear
+    check abs(n.suggest.near.lon + 70.364) < 1e-9 and
+      abs(n.suggest.near.lat + 33.344) < 1e-9
   test "adding from a suggestion, or at a position":
     let a = parseArgs(
       @["--add", "Yerba Loca", "--search", "yerba", "--pick", "2", "--radius", "1500"]
     )
-    check a.problem.len == 0 and a.add and a.name == "Yerba Loca" and a.pick == 2 and
-      a.radiusM == 1500.0
+    check a.problem.len == 0 and a.params.action == laAddPicked
+    check a.params.picked.name == "Yerba Loca" and a.params.picked.pick == 2 and
+      a.params.picked.radiusM == 1500.0 and a.params.picked.suggestions.kind == skSearch
     let b = parseArgs(@["--add", "Casa", "--at", "-70.6,-33.4"])
-    check b.problem.len == 0 and b.add and b.at.isSome and b.radiusM == 1000.0
+    check b.problem.len == 0 and b.params.action == laAddAt and
+      b.params.placed.radiusM == 1000.0
     let c = parseArgs(@["--add", "Calán", "--near", "-70.6,-33.4", "--pick", "1"])
-    check c.problem.len == 0 and c.near.isSome and c.pick == 1
+    check c.problem.len == 0 and c.params.action == laAddPicked and
+      c.params.picked.suggestions.kind == skNear and c.params.picked.pick == 1
   test "removing":
     let r = parseArgs(@["--delete", "Casa"])
-    check r.problem.len == 0 and r.delete and r.name == "Casa"
+    check r.problem.len == 0 and r.params.action == laDelete and
+      r.params.deleted.name == "Casa" and not r.params.deleted.force
   test "mistakes":
     check parseArgs(@["--add", "X"]).problem.contains("needs one of")
     check parseArgs(@["--add", "X", "--search", "y"]).problem.contains("--pick")

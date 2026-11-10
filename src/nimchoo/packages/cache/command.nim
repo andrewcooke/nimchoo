@@ -5,77 +5,49 @@
 import std/[options, strutils]
 import ./cache
 import ../../core/globals
-import ../util/args/args
-import ../ui/units
+import ../util/args/[args, usage]
+import ../ui/[live, units]
 import ../../core/logfile
 import ../confirm/confirm
-import ./files
+import ./[files, params]
 
 {.push raises: [].}
 
 const commandName* = "cache" ## what the user types after `nch`
 
-const usage* = """usage: nch cache
-       nch cache --delete KIND...
+const
+  synopsis = """usage: nch cache
+       nch cache --delete KIND..."""
+  intro =
+    """Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made
+again when it is needed (so deleting it needs no -f, and nothing in the database changes)."""
 
-Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made
-again when it is needed (so deleting it needs no -f, and nothing in the database changes).
-
-  --delete KIND...   delete the files of those kinds (or `all`)
-  -h, --help         show this help
-
-The kinds:
-"""
-
-type CacheArgs = object
-  kinds: seq[Kind]
-  delete, all, help: bool
-
-proc takeKinds(
-    p: var CacheArgs, name: string, values: seq[string]
-): string {.nimcall.} =
-  p.delete = true
-  for v in values:
-    var k: Kind
-    if v.toLowerAscii == "all":
-      p.all = true
-    elif parseKind(v, k):
-      if k notin p.kinds:
-        p.kinds.add k
-    else:
-      return "no such kind of cache file: " & v & " (" & kindNames() & ", or all)"
-  if values.len == 0:
-    return name & " needs a kind: " & kindNames() & ", or all"
-  ""
-
-func fullUsage(): string =
-  ## The help, with the kinds and what each is.
-  result = usage
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.
+  result =
+    synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(cacheSpec().docs, width).join("\n") & "\n\nThe kinds:\n"
   for k in Kind:
     result.add "  " & alignLeft($k, 10) & kindHelp[k] & "\n"
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch cache ARGS`; returns the exit status.
-  var given = CacheArgs()
-  let spec = Spec[CacheArgs](
-    opts: @[
-      flag(CacheArgs, ["-h", "--help"], help),
-      listOption[CacheArgs](["--delete"], takeKinds),
-    ]
-  )
-  let help = fullUsage()
-  let why = parseOptions(args, spec, given)
-  if why.len > 0:
-    return usageError("nch cache", help, why)
-  if given.help:
-    stdout.say help
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
+  of pkProblem:
+    return usageError("nch cache", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   let dir = cacheDir()
   if dir.isNone:
     return failure(
       "nch cache", "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)"
     )
-  if not given.delete:
+  if p.action == caShow:
     stdout.say "the cache is in " & dir.get & "\n"
     var cells: seq[array[3, string]]
     for k in Kind:
@@ -88,13 +60,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     for c in cells:
       stdout.say alignLeft(c[0], 10) & align(c[1], 8) & "  " & align(c[2], 10) & "\n"
     return exitOk
-  let kinds =
-    if given.all:
-      @[ckDownloads, ckSystem, ckGeojson, ckCsv, ckHtml]
-    else:
-      given.kinds
   var what: seq[string]
-  for k in kinds:
+  for k in p.kinds:
     let u = deleteKind(dir.get, k)
     what.add $k & ": " & describe(u)
   let text = what.join("; ")

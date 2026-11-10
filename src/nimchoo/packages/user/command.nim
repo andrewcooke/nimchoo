@@ -13,6 +13,7 @@ import ../../core/errors
 import ../../core/logfile
 import ../ui/live
 import ../confirm/confirm
+import ../util/args/[args, usage]
 import ./[has, params]
 import ./users
 import ./[profile, wipe]
@@ -22,31 +23,20 @@ import ./session
 
 const commandName* = "users" ## what the user types after `nch`
 
-const usage* = """usage: nch users
+const
+  synopsis = """usage: nch users
        nch users --add NAME [--fthr BPM] [--default]
        nch users --edit NAME [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
-       nch users --delete NAME -f
+       nch users --delete NAME -f"""
+  intro =
+    """Without options, show the users.  One user is always the default: the first, until another is made so.  (The users
+are named after the command, not by --user before it.)"""
+  notes = "Names have 1 to 32 letters, digits and _ . - (not starting with -)."
 
-Without options, show the users.  One user is always the default: the first, until
-another is made so.  (The users are named after the command, not by --user before it.)
-
-  --add NAME      make the user NAME (users are never made by accident: it must be asked for)
-  --edit NAME     change the user NAME, with one or more of:
-    --fthr BPM      the user's functional threshold heart rate: the highest rate they can
-                    sustain for about an hour (80 to 230).  Heart-rate zones, and so training
-                    impulse, are worked out from it.
-    --clear-fthr    forget it
-    --rename NEW    change the user's name
-    --default       make the user the default: the one used when there is no --user
-  --delete NAME   delete the user and everything they have (files, activities, ...); if
-                  they were the default another user becomes it.  Needs -f; on a terminal
-                  there are then 5 seconds in which to press Ctrl-C.  (To keep the user
-                  and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)
-  -f, --force     really do it
-  -h, --help      show this help
-
-Names have 1 to 32 letters, digits and _ . - (not starting with -).
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(userSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0
@@ -102,16 +92,20 @@ proc userLines*(st: Store, has: seq[UserHas]): seq[string] {.raises: [StoreError
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch users ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch users", usage, p.problem)
+  of pkProblem:
+    return usageError("nch users", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   if g.user.len > 0:
     return usageError(
       "nch users",
-      usage,
+      usageText(helpWidth(stderr)),
       "--user goes after the command here: nch users --edit " & g.user &
         " ... (the users are named there)",
     )
@@ -121,17 +115,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch users", e.msg)
   try:
-    if p.list:
+    case p.action
+    of uaList:
       for l in userLines(st, g.extensions.get(userHas)):
         stdout.say l & "\n"
       return exitOk
-    if p.delete:
-      let id = findUser(st, p.name)
+    of uaDelete:
+      let id = findUser(st, p.delete.name)
       var has: seq[string]
       for h in g.extensions.get(userHas):
         has.add counted(h.count(st.db, id), h.one, h.heading)
-      let what = describe(has, p.name)
-      if not p.force:
+      let what = describe(has, p.delete.name)
+      if not p.delete.force:
         return failure(
           "nch users",
           "would delete " & what & " from " & st.path & "; use -f to confirm",
@@ -142,49 +137,57 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
       sayDeleted("deleted " & what)
       return exitOk
-    if p.create:
-      if exists(st, p.name):
-        return failure("nch users", "there is a user called '" & p.name & "' already")
-      addUser(st, p.name)
-      let id = findUser(st, p.name)
-      var said = "made the user " & p.name
-      if p.makeDefault:
+    of uaAdd:
+      let n = p.add
+      if exists(st, n.name):
+        return failure("nch users", "there is a user called '" & n.name & "' already")
+      addUser(st, n.name)
+      let id = findUser(st, n.name)
+      var said = "made the user " & n.name
+      if n.makeDefault:
         setDefaultUser(st, id)
         said.add ", the default"
-      if p.fthr.isSome:
-        said.add ", with an FTHR of " & $p.fthr.get
-        setFthr(st, id, p.fthr.get)
+      if n.fthr.isSome:
+        said.add ", with an FTHR of " & $n.fthr.get
+        setFthr(st, id, n.fthr.get)
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
       return exitOk
-    # --edit
-    let id = findUser(st, p.name)
-    if p.fthr.isSome:
-      let old = currentFthr(st, id)
-      setFthr(st, id, p.fthr.get)
-      let said =
-        fmt"{p.name}: FTHR is {p.fthr.get}" &
-        (if old.isSome and old.get != p.fthr.get: recalculated else: "")
-      g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
-    if p.clearFthr:
-      let old = currentFthr(st, id)
-      clearFthr(st, id)
-      let said = fmt"{p.name}: FTHR forgotten" & (if old.isSome: recalculated else: "")
-      g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
-    if p.makeDefault:
-      setDefaultUser(st, id)
-      let said = p.name & " is now the default user"
-      g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
-    if p.rename.len > 0:
-      if exists(st, p.rename):
-        return failure("nch users", "there is a user called '" & p.rename & "' already")
-      renameUser(st, id, p.rename)
-      let said = p.name & " is now called " & p.rename
-      g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
-    exitOk
+    of uaEdit:
+      let e = p.edit
+      let id = findUser(st, e.name)
+      case e.fthr.kind
+      of fkSet:
+        let old = currentFthr(st, id)
+        setFthr(st, id, e.fthr.bpm)
+        let said =
+          fmt"{e.name}: FTHR is {e.fthr.bpm}" &
+          (if old.isSome and old.get != e.fthr.bpm: recalculated else: "")
+        g.log.log(lvInfo, commandName, leSaved, said)
+        stdout.say said & "\n"
+      of fkClear:
+        let old = currentFthr(st, id)
+        clearFthr(st, id)
+        let said =
+          fmt"{e.name}: FTHR forgotten" & (if old.isSome: recalculated else: "")
+        g.log.log(lvInfo, commandName, leSaved, said)
+        stdout.say said & "\n"
+      of fkKeep:
+        discard
+      if e.makeDefault:
+        setDefaultUser(st, id)
+        let said = e.name & " is now the default user"
+        g.log.log(lvInfo, commandName, leSaved, said)
+        stdout.say said & "\n"
+      if e.rename.isSome:
+        if exists(st, e.rename.get):
+          return failure(
+            "nch users", "there is a user called '" & e.rename.get & "' already"
+          )
+        renameUser(st, id, e.rename.get)
+        let said = e.name & " is now called " & e.rename.get
+        g.log.log(lvInfo, commandName, leSaved, said)
+        stdout.say said & "\n"
+      return exitOk
   except StoreError as e:
     failure("nch users", e.msg)

@@ -8,30 +8,27 @@ import ../db/[statement, store]
 import ../download/fetch
 import ../names/open
 import ../ui/[live, style, vocabulary]
+import ../util/args/[args, usage]
 import ../user/session
 import ./cmdname
 export cmdname
 import ./[after, batch, channel, display, events, logsink, naming, params, sinks]
 
-const usage* =
-  """usage: nch [--db PATH] [--user NAME] import [-q] [--slow] [-j N] PATH...
-
-Put the activities in FIT files into the database.  Each PATH is a file, or a directory that is searched
+const
+  synopsis = "usage: nch [--db PATH] [--user NAME] import [-q] [--slow] [-j N] PATH..."
+  intro =
+    """Put the activities in FIT files into the database.  Each PATH is a file, or a directory that is searched
 (recursively) for *.fit files.  A file whose path, size and modification time are as when it was last looked at is
 skipped without being read (this includes files that could not be imported); a file that cannot be imported is
 reported and the others carry on.  What happened is written to the log (see `nch log --help`).  The new activities
 are then named, from the places they went through (the names are downloaded the first time they are needed).  The
 activities added become your selection, ready for `nch climbs` or `nch map` (if nothing was added the selection is
-left as it was).
+left as it was)."""
 
-  -q, --quiet    report only failures and the summary
-  --slow         read and check every file, even those unchanged since last time (finds files that were moved or
-                 copied; retries failures)
-  -j, --jobs N   use N threads to read and decode the files (the database is written by one thread, in the order of
-                 the files, so the result is the same); 1: no threads.  Default: the number of processors, but not
-                 more than 8
-  -h, --help     show this help
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(importSpec().docs, width).join("\n") & "\n"
 
 {.push raises: [].}
 
@@ -174,12 +171,16 @@ proc runImport(
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch import ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch import", usage, p.problem)
+  of pkProblem:
+    return usageError("nch import", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   runImport(
     g,
     p.paths,

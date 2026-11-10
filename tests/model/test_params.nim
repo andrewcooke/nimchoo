@@ -1,22 +1,23 @@
 import std/[strutils, unittest]
 import nimchoo/packages/model/params
+import nimchoo/packages/util/args/args
 
 suite "model: the command line":
   test "no arguments: the list":
-    check parseArgs(@[]).list
+    check parseArgs(@[]).params.action == maList
   test "--add with the defaults, and with variables":
     let p = parseArgs(@["--add", "flat"])
-    check p.add and not p.list and p.model.name == "flat" and p.model.gamma == 2 and
-      p.problem == ""
+    check p.problem == "" and p.params.action == maAdd and p.params.model.name == "flat" and
+      p.params.model.gamma == 2
     let q = parseArgs(
       @[
         "--add", "x", "--gamma", "1.5", "--zero", "1", "--one", "5", "--max-secs", "30",
         "--zones", "60,70,80,90,100", "--fitness-days", "50", "--fatigue-days", "9",
       ]
     )
-    check q.problem == "" and q.model.gamma == 1.5 and q.model.one == 5 and
-      q.model.maxSecs == 30 and q.model.zones == [60.0, 70, 80, 90, 100] and
-      q.model.fitnessDays == 50 and q.model.fatigueDays == 9
+    let m = q.params.model
+    check q.problem == "" and m.gamma == 1.5 and m.one == 5 and m.maxSecs == 30 and
+      m.zones == [60.0, 70, 80, 90, 100] and m.fitnessDays == 50 and m.fatigueDays == 9
   test "a name with -- is refused (it is a part of the file names of ff)":
     check parseArgs(@["--add", "a--b"]).problem.contains("not a name")
     check parseArgs(@["--add", "a-b"]).problem == ""

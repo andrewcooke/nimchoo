@@ -63,12 +63,16 @@ proc lines*(
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch calendar ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
     stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch calendar", usageText(helpWidth(stderr)), p.problem)
+  of pkProblem:
+    return usageError("nch calendar", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   var st: Session
   try:
     st = openSession(g)

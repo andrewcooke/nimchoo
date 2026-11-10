@@ -3,23 +3,29 @@
 import std/[options, strutils, times]
 import ../cache/cache
 import ../util/args/args
-import ../web/webopts
+import ../web/[request, webopts]
 
 {.push raises: [].}
 
-type Params* = object
-  check*: string
-    ## the hash of the data that must still be the current ones ("": no check)
-  model*: string ## "": the default model
-  fromDay*, toDay*: Option[int64]
-    ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
-  hourly*: bool
-  utc*: bool ## days and times in UTC, not the computer's timezone
-  fitnessScale*, fatigueScale*: float
-  stdout*: bool ## print the CSV, not write a file
-  web*: WebArgs ## --worker, --web and what goes with it
-  help*: bool
-  problem*: string
+type
+  Params* = object
+    check*: Option[string]
+      ## the hash of the data that must still be the current ones (none: no check)
+    model*: Option[string] ## none: the default model
+    fromDay*, toDay*: Option[int64]
+      ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
+    hourly*: bool
+    utc*: bool ## days and times in UTC, not the computer's timezone
+    fitnessScale*, fatigueScale*: float
+    stdout*: bool ## print the CSV, not write a file
+    web*: WebMode ## `--worker`, `--web` and what goes with it
+
+  Raw = object ## what the options fill in
+    help, hourly, utc, stdout: bool
+    check, model: string
+    fromDay, toDay: Option[int64]
+    fitnessScale, fatigueScale: float
+    web: WebArgs
 
 proc parseDay*(s: string): Option[int64] =
   ## `2018-08-27`, as the start of that UTC day.
@@ -30,62 +36,145 @@ proc parseDay*(s: string): Option[int64] =
   except TimeParseError, ValueError:
     discard
 
-func dayOption(names: openArray[string], toDay: bool): Opt[Params] =
-  ## --from and --to: a day, kept in `fromDay` or `toDay`.
-  if toDay:
-    custom(Params, names, true):
-      let d = parseDay(value)
-      if d.isNone:
-        return name & " is a day, like 2018-08-27 (not '" & value & "')"
-      p.toDay = d
-      ""
-  else:
-    custom(Params, names, true):
-      let d = parseDay(value)
-      if d.isNone:
-        return name & " is a day, like 2018-08-27 (not '" & value & "')"
-      p.fromDay = d
-      ""
+const
+  positive = 5.0e-324 # (the smallest number above 0)
+  scaleText = "a number above 0"
 
-proc parseArgs*(args: seq[string]): Params =
-  ## The options of `nch ff`; `problem` says what is wrong with them, if anything.
-  result.web = initWebArgs()
-  result.fitnessScale = 1
-  result.fatigueScale = 1
-  const positive = 5.0e-324 # (the smallest number above 0)
-  const scaleText = "a number above 0"
-  let checkOption = custom(Params, ["--check"], true):
-    if not isOptionValue(value):
-      return "'" & value & "' is not a hash of the data"
-    p.check = value
-    ""
-  let spec = Spec[Params](
+func ffSpec*(): Spec[Raw] =
+  ## The options of `nch ff`, with the web options.  The ones a page may be given in its address say so: the server's
+  ## list of them is made from here (`web/request.pageOf`).
+  Spec[Raw](
     opts:
       @[
-        flag(Params, ["-h", "--help"], help),
-        text(Params, ["--model"], model),
-        dayOption(["--from"], false),
-        dayOption(["--to"], true),
-        flag(Params, ["--hourly"], hourly),
-        flag(Params, ["--utc"], utc),
-        flag(Params, ["--stdout"], stdout),
-        checkOption,
-        number(Params, ["--fitness-scale"], fitnessScale, positive, 1.0e12, scaleText),
-        number(Params, ["--fatigue-scale"], fatigueScale, positive, 1.0e12, scaleText),
-      ] & webOptions(Params, web)
+        custom(
+          Raw,
+          ["--check"],
+          true,
+          "HASH",
+          "make sure the data are still those with this hash (the hash in the file name, `check-…`).  It chooses nothing: it is a safeguard, so that a file or address made earlier cannot show different data.  If the data have changed and that file is gone, the command stops and says so.  Leave it out to use the current data",
+          address = adValue,
+          valid = hexHash,
+          body = (
+            block:
+              if not isOptionValue(value):
+                return refuse("'" & value & "' is not a hash of the data")
+              p.check = value
+              fine
+          ),
+        ),
+        text(
+          Raw,
+          ["--model"],
+          model,
+          "NAME",
+          "the model to use (default: `default`)",
+          address = adValue,
+          valid = anyWord,
+        ),
+        custom(
+          Raw,
+          ["--from"],
+          true,
+          "DAY",
+          "the first day to show, like 2018-08-27 (default: the first with an impulse)",
+          address = adValue,
+          valid = day,
+          body = (
+            block:
+              let d = parseDay(value)
+              if d.isNone:
+                return refuse(name & " is a day, like 2018-08-27 (not '" & value & "')")
+              p.fromDay = d
+              fine
+          ),
+        ),
+        custom(
+          Raw,
+          ["--to"],
+          true,
+          "DAY",
+          "the last day to show (default: today)",
+          address = adValue,
+          valid = day,
+          body = (
+            block:
+              let d = parseDay(value)
+              if d.isNone:
+                return refuse(name & " is a day, like 2018-08-27 (not '" & value & "')")
+              p.toDay = d
+              fine
+          ),
+        ),
+        flag(
+          Raw,
+          ["--hourly"],
+          hourly,
+          "one row an hour instead, labelled by the end of the hour (with its offset from UTC: 2018-08-27T14:00:00-03:00)",
+          address = adFlag,
+        ),
+        flag(
+          Raw,
+          ["--utc"],
+          utc,
+          "days and times in UTC, not this computer's timezone",
+          address = adFlag,
+        ),
+        flag(Raw, ["--stdout"], stdout, "print the CSV instead of making a file"),
+      ] & webOptions(Raw, web, "the chart", "CSV") &
+      @[
+        number(
+          Raw,
+          ["--fitness-scale"],
+          fitnessScale,
+          positive,
+          1.0e12,
+          scaleText,
+          "S",
+          "multiply the fitness by S (default 1)",
+          address = adValue,
+          valid = plainNumber,
+        ),
+        number(
+          Raw,
+          ["--fatigue-scale"],
+          fatigueScale,
+          positive,
+          1.0e12,
+          scaleText,
+          "S",
+          "multiply the fatigue by S (default 1; the original program used 5, to make the two curves look alike)",
+          address = adValue,
+          valid = plainNumber,
+        ),
+        helpFlag(Raw),
+      ]
   )
-  template fail(msg: string) =
-    result.problem = msg
-    return
 
-  let why = parseOptions(args, spec, result)
-  if why.len > 0:
-    fail(why)
-  if result.fromDay.isSome and result.toDay.isSome and
-      result.fromDay.get > result.toDay.get:
-    fail("--from is after --to")
-  if (result.web.enabled or result.web.worker) and result.stdout:
-    fail("--stdout cannot be used with --web or --worker")
-  let combination = webProblem(result.web)
-  if combination.len > 0:
-    fail(combination)
+func finish(raw: Raw): Parsed[Params] =
+  if raw.fromDay.isSome and raw.toDay.isSome and raw.fromDay.get > raw.toDay.get:
+    return problemWith[Params]("--from is after --to")
+  if (raw.web.enabled or raw.web.worker) and raw.stdout:
+    return problemWith[Params]("--stdout cannot be used with --web or --worker")
+  let mode = webMode(raw.web)
+  if mode.kind == pkProblem:
+    return problemWith[Params](mode.problem)
+  parsedOk(
+    Params(
+      check: (if raw.check.len > 0: some(raw.check) else: none(string)),
+      model: (if raw.model.len > 0: some(raw.model) else: none(string)),
+      fromDay: raw.fromDay,
+      toDay: raw.toDay,
+      hourly: raw.hourly,
+      utc: raw.utc,
+      fitnessScale: raw.fitnessScale,
+      fatigueScale: raw.fatigueScale,
+      stdout: raw.stdout,
+      web: mode.params,
+    )
+  )
+
+proc parseArgs*(args: seq[string]): Parsed[Params] =
+  ## The options of `nch ff`.
+  parseCommand(
+    args, ffSpec(), Raw(web: initWebArgs(), fitnessScale: 1, fatigueScale: 1), finish
+  )

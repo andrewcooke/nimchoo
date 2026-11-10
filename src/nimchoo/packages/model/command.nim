@@ -5,6 +5,8 @@
 import std/[options, strutils]
 import ../../core/globals
 import ../db/store
+import ../ui/live
+import ../util/args/[args, usage]
 import ../../core/errors
 import ../../core/logfile
 import ./params
@@ -15,25 +17,19 @@ import ./models
 
 const commandName* = "models" ## what the user types after `nch`
 
-const usage* = """usage: nch [--db PATH] models
+const
+  synopsis = """usage: nch [--db PATH] models
        nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]
-                             [--zones A,B,C,D,E] [--fitness-days D] [--fatigue-days D]
+                             [--zones A,B,C,D,E] [--fitness-days D] [--fatigue-days D]"""
+  intro =
+    """Without options, show the models.  A model is a named set of the variables of the training impulse and of the
+fitness and fatigue curves made from it.  A model is never changed once it is made: add another.  Variables not given
+are those of the `default` model."""
 
-Without options, show the models.  A model is a named set of the variables of the training
-impulse and of the fitness and fatigue curves made from it.  A model is never changed once it
-is made: add another.  Variables not given are those of the `default` model.
-
-  --add NAME         make a model called NAME
-  --gamma G          the power in impulse = ((zone - ZERO) / (ONE - ZERO)) ^ G  (default 2)
-  --zero Z           the zone with no impulse (default 1)
-  --one O            the zone with an impulse of 1 per 10 seconds (default 6)
-  --max-secs S       the longest gap in heart rate that is bridged, in seconds (default 60)
-  --zones A,B,C,D,E  the upper limits of zones 1 to 5, as percentages of the user's
-                     threshold heart rate (default 68,83,94,105,121)
-  --fitness-days D   the decay time of the fitness curve (default 42)
-  --fatigue-days D   the decay time of the fatigue curve (default 7)
-  -h, --help         show this help
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(modelSpec().docs, width).join("\n") & "\n"
 
 func num(x: float): string =
   ## Without a pointless decimal part.
@@ -83,29 +79,36 @@ proc modelLines*(ms: seq[Model]): seq[string] =
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch models ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch models", usage, p.problem)
+  of pkProblem:
+    return usageError("nch models", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   var st: Store
   try:
     st = openStore(g)
   except StoreError as e:
     return failure("nch models", e.msg)
   try:
-    if p.list:
+    case p.action
+    of maList:
       for l in modelLines(loadModels(st.db)):
         stdout.say l & "\n"
-      return exitOk
-    if findModel(st.db, p.model.name).isSome:
-      return
-        failure("nch models", "there is a model called '" & p.model.name & "' already")
-    insertModel(st.db, p.model)
-    let said = "made the model " & p.model.name
-    g.log.log(lvInfo, commandName, leSaved, said)
-    stdout.say said & "\n"
-    exitOk
+      exitOk
+    of maAdd:
+      if findModel(st.db, p.model.name).isSome:
+        return failure(
+          "nch models", "there is a model called '" & p.model.name & "' already"
+        )
+      insertModel(st.db, p.model)
+      let said = "made the model " & p.model.name
+      g.log.log(lvInfo, commandName, leSaved, said)
+      stdout.say said & "\n"
+      exitOk
   except StoreError as e:
     failure("nch models", e.msg)

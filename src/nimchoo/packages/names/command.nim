@@ -12,6 +12,8 @@ import ./lookup
 import ./open
 import ../../core/logfile
 import ../confirm/confirm
+import ../ui/live
+import ../util/args/[args, usage]
 import ./params
 import ./landmarks
 import ./suggest
@@ -20,30 +22,25 @@ import ./suggest
 
 const commandName* = "landmarks" ## what the user types after `nch`
 
-const usage* = """usage: nch landmarks
+const
+  synopsis = """usage: nch landmarks
        nch landmarks --search TEXT
        nch landmarks --near LON,LAT
        nch landmarks --add NAME --search TEXT --pick N [--radius METRES]
        nch landmarks --add NAME --near LON,LAT --pick N [--radius METRES]
        nch landmarks --add NAME --at LON,LAT [--radius METRES]
-       nch landmarks --delete NAME -f
+       nch landmarks --delete NAME -f"""
+  intro =
+    """Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle
+holds the place comes before every name GeoNames has.  Without options, list the landmarks."""
+  notes =
+    "Landmarks are shared by all users (as the climbs are), so `--user` goes nowhere here."
 
-Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle holds
-the place comes before every name GeoNames has.  Without options, list the landmarks.
-
-  --search TEXT   suggest features of GeoNames whose name holds TEXT (any kind: streams, farms, parks ...), numbered;
-                  only places whose cells have been read can be found (the places you have ridden)
-  --near LON,LAT  suggest the features within 2 km of a position, nearest first, numbered (the names for that area are
-                  fetched if need be)
-  --add NAME      make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same --search or
-                  --near) or at a position you give (`--at LON,LAT`); its circle has the radius of --radius
-                  (100 to 20,000 metres; default 1,000)
-  --delete NAME   delete the landmark (needs -f)
-  -f, --force     really do it
-  -h, --help      show this help
-
-Landmarks are shared by all users (as the climbs are), so `--user` goes nowhere here.
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(landmarkSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) &
+    "\n"
 
 func positionText(lon, lat: float): string =
   formatFloat(lat, ffDecimal, 5) & ", " & formatFloat(lon, ffDecimal, 5)
@@ -68,15 +65,20 @@ proc landmarkLines(rows: seq[Landmark]): seq[string] =
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch landmarks ARGS`; returns the exit status.
-  let p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch landmarks", usage, p.problem)
+  of pkProblem:
+    return usageError("nch landmarks", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   if g.user.len > 0:
     return usageError(
-      "nch landmarks", usage,
+      "nch landmarks",
+      usageText(helpWidth(stderr)),
       "the landmarks are shared by all users: --user has no part in this command",
     )
   var st: Store
@@ -85,29 +87,33 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch landmarks", e.msg)
   try:
-    if p.delete and not p.force:
-      stderr.say "would delete the landmark " & p.name & ": add -f to do it\n"
-      return exitFailure
-    if p.delete:
-      if not removeLandmark(st, p.name):
-        return failure("nch landmarks", "there is no landmark called '" & p.name & "'")
-      let said = "deleted the landmark " & p.name
+    case p.action
+    of laDelete:
+      let d = p.deleted
+      if not d.force:
+        stderr.say "would delete the landmark " & d.name & ": add -f to do it\n"
+        return exitFailure
+      if not removeLandmark(st, d.name):
+        return failure("nch landmarks", "there is no landmark called '" & d.name & "'")
+      let said = "deleted the landmark " & d.name
       g.log.log(lvInfo, commandName, leDeleted, said)
       sayDeleted(said)
       return exitOk
-    if p.add and p.at.isSome:
-      addLandmark(st, p.name, p.at.get.lon, p.at.get.lat, p.radiusM)
+    of laAddAt:
+      let a = p.placed
+      addLandmark(st, a.name, a.at.lon, a.at.lat, a.radiusM)
       let said =
-        "made the landmark " & p.name.strip & " at " &
-        positionText(p.at.get.lon, p.at.get.lat)
+        "made the landmark " & a.name.strip & " at " & positionText(a.at.lon, a.at.lat)
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
       return exitOk
-    if p.search.len > 0 or p.near.isSome:
+    of laSearch, laNear, laAddPicked:
+      let suggest = if p.action == laAddPicked: p.picked.suggestions else: p.suggest
       var found: seq[Suggestion]
-      if p.search.len > 0:
-        found = searchByName(st, p.search)
-      else:
+      case suggest.kind
+      of skSearch:
+        found = searchByName(st, suggest.text)
+      of skNear:
         # the names round the position are read (and fetched) first
         let names = openNames(
           g,
@@ -118,38 +124,40 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           ,
         )
         if names.isSome:
-          discard names.get.prepare([p.near.get.lon], [p.near.get.lat], 2000.0)
-        found = featuresAround(st, p.near.get.lon, p.near.get.lat)
-      if p.add:
-        if p.pick > found.len:
+          discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
+        found = featuresAround(st, suggest.near.lon, suggest.near.lat)
+      if p.action == laAddPicked:
+        let a = p.picked
+        if a.pick > found.len:
           return failure(
             "nch landmarks",
-            "there is no suggestion " & $p.pick & " (" & $found.len & " found)",
+            "there is no suggestion " & $a.pick & " (" & $found.len & " found)",
           )
-        let s = found[p.pick - 1]
-        addLandmark(st, p.name, s.lon, s.lat, p.radiusM)
+        let s = found[a.pick - 1]
+        addLandmark(st, a.name, s.lon, s.lat, a.radiusM)
         let said =
-          "made the landmark " & p.name.strip & " at " & s.name & " (" &
+          "made the landmark " & a.name.strip & " at " & s.name & " (" &
           positionText(s.lon, s.lat) & ")"
         g.log.log(lvInfo, commandName, leSaved, said)
         stdout.say said & "\n"
         return exitOk
       if found.len == 0:
         stdout.say (
-          if p.search.len > 0:
+          if suggest.kind == skSearch:
           "nothing is called like that among the names loaded (the places you have ridden)\n"
           else: "no features within 2 km\n"
         )
         return exitOk
-      for l in suggestionLines(found, p.near.isSome):
+      for l in suggestionLines(found, suggest.kind == skNear):
         stdout.say l & "\n"
       return exitOk
-    let rows = listLandmarks(st)
-    if rows.len == 0:
-      stdout.say "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
-    else:
-      for l in landmarkLines(rows):
-        stdout.say l & "\n"
-    exitOk
+    of laList:
+      let rows = listLandmarks(st)
+      if rows.len == 0:
+        stdout.say "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
+      else:
+        for l in landmarkLines(rows):
+          stdout.say l & "\n"
+      return exitOk
   except StoreError, DownloadError:
     failure("nch landmarks", getCurrentExceptionMsg())

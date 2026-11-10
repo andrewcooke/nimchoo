@@ -16,6 +16,7 @@ import ../../core/errors
 import ../model/calc
 import ../model/impulses
 import ../model/models
+import ../util/args/[args, usage]
 import ../web/launch
 import ../web/pages
 import ../web/webopts
@@ -28,42 +29,26 @@ import ../user/session
 
 const commandName* = "ff" ## what the user types after `nch`
 
-const usage* =
-  """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
+const
+  synopsis =
+    """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
                                       [--hourly] [--utc] [--stdout | --worker | --web]
-                                      [--fitness-scale S] [--fatigue-scale S]
+                                      [--fitness-scale S] [--fatigue-scale S]"""
+  intro =
+    """Make a CSV file of the user's fitness and fatigue in the cache directory, and print its path, then the latest
+values of the two curves, each with the share of the earlier days on which it was higher ("top 1%" means the value is
+nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day,
+the value at the end of the day (in this computer's timezone; --utc for UTC).  They are made from the impulses of the
+user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start
+from 0 at the first activity with an impulse and run to --to (default: today), so they fade away after the last."""
+  notes =
+    """The file is named after the options and after the data it is made from, so if it is already there nothing is done:
+it cannot be out of date.  (A new --to, an import or a new FTHR means a new file; old ones are not deleted.)"""
 
-Make a CSV file of the user's fitness and fatigue in the cache directory, and print its path,
-then the latest values of the two curves, each with the share of the earlier days on which it
-was higher ("top 1%" means the value is nearly the highest it has been):
-2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%)
-One row a day, the value at the end of the day (in this computer's timezone; --utc for UTC).
-They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and
-`nch models`) with the decay times of the model.  They start from 0 at the first activity with
-an impulse and run to --to (default: today), so they fade away after the last.
-
-The file is named after the options and after the data it is made from, so if it is already
-there nothing is done: it cannot be out of date.  (A new --to, an import or a new FTHR means
-a new file; old ones are not deleted.)
-
-  --check HASH      make sure the data are still those with this hash (the hash in the file name, `check-…`).
-                    It chooses nothing: it is a safeguard, so that a file or address made earlier cannot show
-                    different data.  If the data have changed and that file is gone, the command stops and
-                    says so.  Leave it out to use the current data
-  --model NAME      the model to use (default: `default`)
-  --from DAY        the first day to show, like 2018-08-27 (default: the first with an impulse)
-  --to DAY          the last day to show (default: today)
-  --hourly          one row an hour instead, labelled by the end of the hour (with its offset
-                    from UTC: 2018-08-27T14:00:00-03:00)
-  --utc             days and times in UTC, not this computer's timezone
-  --stdout          print the CSV instead of making a file
-""" &
-  webUsage("the chart", "CSV", 20) &
-  """  --fitness-scale S multiply the fitness by S (default 1)
-  --fatigue-scale S multiply the fatigue by S (default 1; the original program used 5, to
-                    make the two curves look alike)
-  -h, --help        show this help
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction, the notes and the options, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) & "\n\n" &
+    optionLines(ffSpec().docs, width).join("\n") & "\n"
 
 proc hourlyImpulses(
     db: DbConn, userId: UserId, modelId: ModelId
@@ -225,8 +210,8 @@ proc webQuery*(p: Params): string =
   ## What the address of the chart says: the options given (before the defaults are filled in,
   ## so that a page asked for tomorrow is tomorrow's).  See serve/request.nim for the names.
   var q: seq[string]
-  if p.model.len > 0:
-    q.add "model=" & p.model
+  if p.model.isSome:
+    q.add "model=" & p.model.get
   if p.fromDay.isSome:
     q.add "from=" & localDate(p.fromDay.get, utc())
   if p.toDay.isSome:
@@ -243,12 +228,16 @@ proc webQuery*(p: Params): string =
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch ff ARGS`; returns the exit status.
-  var p = parseArgs(args)
-  if p.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if p.problem.len > 0:
-    return usageError("nch ff", usage, p.problem)
+  of pkProblem:
+    return usageError("nch ff", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  var p = parsed.params
   let query = webQuery(p)
   var st: Session
   try:
@@ -256,7 +245,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch ff", e.msg)
   try:
-    let name = if p.model.len > 0: p.model else: "default"
+    let name = p.model.get("default")
     let m = findModel(st.db, name)
     if m.isNone:
       return failure("nch ff", "no such model: " & name & " (see `nch models`)")
@@ -273,7 +262,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         "there are no impulses for " & st.userName &
           " (they need activities with heart rate: import some)",
       )
-    let key = if p.check.len > 0: p.check else: current
+    let key = p.check.get(current)
     let now = getTime().toUnix
     let tz =
       if p.utc:
@@ -310,7 +299,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         if key != current:
           return failure("nch ff", changed)
         writeAtomic(csvPath, makeCsv(st, m.get, p, now, tz))
-      if p.web.worker or p.web.enabled:
+      if p.web.kind != wkNone:
         # the page is rewritten each time (it is tiny, and may have changed since)
         let html = pageHtml(
           extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly
@@ -329,7 +318,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "system/templates/ff.html and the libraries are system/libraries.txt, in the cache directory; " &
           "delete one to have the built-in one again)",
       )
-    if p.web.enabled:
+    if p.web.kind == wkServe:
       return serveWeb(
         g,
         commandName,
@@ -337,7 +326,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         dir.get,
         "check=" & key & (if query.len > 0: "&" & query else: ""),
       )
-    if p.web.worker:
+    if p.web.kind == wkWorker:
       stdout.say pageFile.get & "\n" & csvPath & "\n"
       return exitOk
     stdout.say csvPath & "\n"

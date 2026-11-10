@@ -10,6 +10,7 @@
 import std/[options, sequtils, strutils, uri]
 import ../../core/extension
 import ../cache/cache
+import ../util/args/args
 
 {.push raises: [].}
 
@@ -29,9 +30,6 @@ type
       args*: seq[string] ## for `nch COMMAND --worker ARGS`
       pin*: string ## the option that fixes what the page shows ("": none)
 
-  Validator* = proc(value: string): bool {.noSideEffect, nimcall, raises: [].}
-    ## What a value may be: true if this one may.  (`anyWord` and the others below are the usual ones.)
-
   PageOption* = object
     name*: string ## `?name=value` becomes `--name value`
     valid*: Validator
@@ -46,6 +44,26 @@ type
       ## the key of the data: if a request lacks it, the address is
       ## sent on with the key the worker used (so that a reload
       ## shows the same data)
+
+func pageOf*[P](command: string, spec: Spec[P], pin: string): WebPage =
+  ## The page a command offers the server, made from its own options: those marked as allowed in an address, each with
+  ## its check, and the flags.  What the server will pass on is then what the command parses, and nothing else.
+  result = WebPage(command: command, pin: pin)
+  for o in spec.opts:
+    if o.address == adNo:
+      continue
+    let long = o.names.filterIt(it.startsWith("--"))
+    doAssert long.len > 0
+    let name = long[0][2 .. ^1]
+    case o.address
+    of adFlag:
+      result.flags.add name
+    of adValue:
+      doAssert o.valid != nil,
+        "an option allowed in an address needs a check for its value: " & name
+      result.options.add PageOption(name: name, valid: o.valid)
+    of adNo:
+      discard
 
 const webPage* = ExtensionPoint[WebPage](name: "web/pages")
   ## The pages the server may run, offered by the packages that have them (`map`, `ff`).

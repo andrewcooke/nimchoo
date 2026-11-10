@@ -334,36 +334,40 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let zone = local()
   let offered = g.extensions.get(activityCriterion)
   let parsed = parseArgs(args, zone, offered)
-  if parsed.help:
+  case parsed.kind
+  of pkHelp:
     stdout.say usageText(helpWidth(stdout), offered)
     return exitOk
-  if parsed.problem.len > 0:
+  of pkProblem:
     return usageError(
       "nch activities", usageText(helpWidth(stderr), offered), parsed.problem
     )
+  of pkOk:
+    discard
+  let criteria = parsed.params
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
     return failure("nch activities", e.msg)
   try:
-    if parsed.criteria.delete:
-      let m = matchingIds(st, parsed.criteria, zone)
+    if criteria.delete:
+      let m = matchingIds(st, criteria, zone)
       for l in m.notes:
         stdout.say l.text & "\n"
-      let searched = parsed.criteria.all or parsed.criteria.given
+      let searched = criteria.all or criteria.given
       return runDelete(
         g,
         st,
         m.ids,
-        parsed.criteria.force,
+        criteria.force,
         if searched:
           "no activity meets the criteria: nothing to delete"
         else:
           "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all",
       )
     let colour = canColourStdout()
-    let r = listActivities(st, parsed.criteria, zone)
+    let r = listActivities(st, criteria, zone)
     if r.saved >= 0:
       g.log.log(
         lvInfo,

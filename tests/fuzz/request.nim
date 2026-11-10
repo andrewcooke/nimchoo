@@ -2,10 +2,9 @@
 
 import ./harness
 import ../support/fuzzcheck
-import ../../src/nimchoo/packages/ff/web
-import ../../src/nimchoo/packages/map/web as mapWeb
+import ../support/webpages
 
-let pages = @[mapPage("map"), ffPage("ff")]
+let pages = testPages
 
 proc LLVMFuzzerTestOneInput(
     data: ptr UncheckedArray[byte], len: csize_t

@@ -16,11 +16,6 @@ sees and can be approved together.
       except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
-4. **Options carry their help; parse into variants** (A §7 step 9) for the other commands.  Built for `activities` (3.6, 2026-11-10:
-   `OptDoc`, `.documented`, `util/args/usage.nim`, `ui/live.helpWidth`; the completion kind is defined but only `activities` sets it
-   and nothing reads it yet).  Left: convert the other commands (climbs first, with the nested `--edit` options; then `help`
-   becomes required by the compiler, not by a test); the web options from the same spec; params as variants (an action
-   enum, not a bag of bools); errors as `Option`, not "".
 5. **Tab completion** (A step 10): `nch __complete` and a bash function; dynamic values from the database.
 6. *(mechanical)* **One owner per fact** (A §4.1).
 7. **Push work into SQL** (A §4.4), measured.

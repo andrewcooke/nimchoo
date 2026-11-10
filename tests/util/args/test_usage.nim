@@ -52,21 +52,21 @@ suite "usage: the option list":
       check l.len <= 40
 
 suite "usage: from a spec":
-  test "every option of a spec has a description, and none can be left out of the usage":
+  test "every option of a spec is in the usage, with its value and its help":
     type P = object
       yes: bool
       n: int
 
     let spec = Spec[P](
       opts: @[
-        flag(P, ["-y", "--yes"], yes).documented("", "say yes"),
-        whole(P, ["-n"], n, 1, 9, "a digit").documented("N", "a number"),
-        flag(P, ["--bare"], yes),
+        flag(P, ["-y", "--yes"], yes, "say yes"),
+        whole(P, ["-n"], n, 1, 9, "a digit", "N", "a number"),
+        flag(P, ["--deep"], yes, "goes with the one before", level = 1),
       ]
     )
-    check spec.undocumented == @["--bare"]
     let shown = optionLines(spec.docs, 80).join("\n")
-    check "-y, --yes" in shown and "-n N" in shown and "--bare" in shown
+    check "-y, --yes" in shown and "-n N" in shown and "say yes" in shown
+    check "\n    --deep" in shown # (indented under the one before it)
     check spec.docs[1].arity == aOne and spec.docs[0].arity == aFlag
 
 suite "usage: prose":

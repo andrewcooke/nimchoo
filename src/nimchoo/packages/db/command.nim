@@ -5,34 +5,28 @@
 import std/[os, strutils]
 import db_connector/db_sqlite
 import ../../core/globals
-import ../util/args/args
+import ../util/args/[args, usage]
 import ../ui/units
 import ../../core/errors
 import ../../core/logfile
 import ../ui/live
 import ../confirm/confirm
 import ./statement
-import ./store
+import ./[params, store]
 
 {.push raises: [].}
 
 const commandName* = "db" ## what the user types after `nch`
 
-const usage* = """usage: nch [--db PATH] db
-       nch [--db PATH] db --delete -f
+const
+  synopsis = """usage: nch [--db PATH] db
+       nch [--db PATH] db --delete -f"""
+  intro = "Without options, say where the database is and how big."
 
-Without options, say where the database is and how big.
-
-  --delete      delete the database file, and with it the users and all their data: files, activities,
-                climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete
-                less: `nch activities --all --delete -f` keeps the users, `nch climbs --all --delete -f`
-                keeps the activities.)  The next command that needs a database makes a new one.
-  -f, --force   really do it: on a terminal there are then 5 seconds in which to press Ctrl-C
-  -h, --help    show this help
-"""
-
-type DbArgs = object
-  delete, force, help: bool
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(dbSpec().docs, width).join("\n") & "\n"
 
 proc size(path: string): int64 =
   ## The database file with its journal files.
@@ -58,33 +52,27 @@ proc freeSpace(path: string): string =
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch db ARGS`; returns the exit status.
-  var given = DbArgs()
-  let spec = Spec[DbArgs](
-    opts: @[
-      flag(DbArgs, ["-h", "--help"], help),
-      flag(DbArgs, ["-f", "--force"], force),
-      flag(DbArgs, ["--delete"], delete),
-    ]
-  )
-  let why = parseOptions(args, spec, given)
-  if why.len > 0:
-    return usageError("nch db", usage, why)
-  if given.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  if given.force and not given.delete:
-    return usageError("nch db", usage, "-f goes with --delete")
+  of pkProblem:
+    return usageError("nch db", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let p = parsed.params
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
     stdout.say "no database at " & path & "\n"
     return exitOk
-  if not given.delete:
+  if p.action == daShow:
     stdout.say path & " (" & humanBytes(size(path)) & freeSpace(path) & ")\n"
     return exitOk
   let what =
     "the database " & path & " (" & humanBytes(size(path)) &
     ") with the data of every user"
-  if not given.force:
+  if not p.force:
     return failure("nch db", "would delete " & what & "; use -f to confirm")
   if canLive():
     countdown(newTerminalLive(), what, waitSeconds, sleepMs)

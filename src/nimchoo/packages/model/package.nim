@@ -11,7 +11,7 @@ import ./command
 import ./models
 
 const package* = Package(
-  depends: @["args", "db", "fit", "hashing", "heartrate", "importer", "user"],
+  depends: @["args", "db", "fit", "hashing", "heartrate", "importer", "ui", "user"],
   fragments: @[
     fragment("001-schema.sql").withSeed(seedDefaultModel, seedVersion),
     fragment("002-impulse-index.sql"), # ff_model (with `default`), impulse

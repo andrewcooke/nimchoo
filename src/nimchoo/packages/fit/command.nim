@@ -4,7 +4,9 @@ import std/[options, strutils, times]
 import ../util/bytes/bytes
 import ./time
 import ../../core/globals
-import ../util/args/args
+import ../util/args/[args, usage]
+import ../ui/live
+import ./params
 import ./csvout
 import ./reader
 import ./records
@@ -16,14 +18,14 @@ import ../util/warnings/warnings
 
 {.push raises: [].}
 
-const usage* = """usage: nch fit [--csv] [--profile PATH] FILE
+const
+  synopsis = "usage: nch fit [--csv] [--profile PATH] FILE"
+  intro = "Read a FIT file and print its messages."
 
-Read a FIT file and print its messages.
-
-  --csv           SDK-format CSV (including definitions) instead of text
-  --profile PATH  use this Profile.xlsx instead of the built-in one
-  -h, --help      show this help
-"""
+proc usageText*(width: int): string =
+  ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(fitSpec().docs, width).join("\n") & "\n"
 
 const isoFormat = "yyyy-MM-dd'T'HH:mm:ss"
 
@@ -90,34 +92,19 @@ proc renderInto*(
   finally:
     warnings.add r.warnings
 
-type FitArgs = object
-  csv, help: bool
-  profilePath: string
-  files: seq[string]
-
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch fit ARGS`; returns the exit status.  (It does not use
   ## the database, so ignores the global options.)
-  var given = FitArgs()
-  let spec = Spec[FitArgs](
-    opts: @[
-      flag(FitArgs, ["-h", "--help"], help),
-      flag(FitArgs, ["--csv"], csv),
-      text(FitArgs, ["--profile"], profilePath),
-    ],
-    positional: proc(p: var FitArgs, arg: string): string {.nimcall, raises: [].} =
-      p.files.add arg
-      "",
-  )
-  let why = parseOptions(args, spec, given)
-  if why.len > 0:
-    return usageError("nch fit", usage, why)
-  if given.help:
-    stdout.say usage
+  let parsed = parseArgs(args)
+  case parsed.kind
+  of pkHelp:
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
-  let (csv, profilePath, files) = (given.csv, given.profilePath, given.files)
-  if files.len != 1:
-    return usageError("nch fit", usage, "expected exactly one FILE")
+  of pkProblem:
+    return usageError("nch fit", usageText(helpWidth(stderr)), parsed.problem)
+  of pkOk:
+    discard
+  let (csv, files) = (parsed.params.csv, @[parsed.params.file])
   var
     lines: seq[string]
     warnings: seq[Warning]
@@ -125,8 +112,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     let p =
       try:
-        if profilePath.len > 0:
-          loadProfile(profilePath)
+        if parsed.params.profile.isSome:
+          loadProfile(parsed.params.profile.get)
         else:
           let d = defaultProfile()
           if d.note.len > 0:

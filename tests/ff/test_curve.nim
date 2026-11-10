@@ -11,6 +11,7 @@ import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import nimchoo/packages/ff/curve
 import nimchoo/packages/ff/params
+import nimchoo/packages/util/args/args
 import nimchoo/packages/ff/command as ffCommand
 import nimchoo/packages/model/calc
 
@@ -65,19 +66,20 @@ suite "ff: the decay":
 suite "ff: the command line":
   test "defaults, and everything given":
     let p = parseArgs(@[])
-    check p.problem == "" and p.model == "" and not p.hourly and p.fitnessScale == 1 and
-      p.fatigueScale == 1
+    check p.problem == "" and p.params.model.isNone and not p.params.hourly and
+      p.params.fitnessScale == 1 and p.params.fatigueScale == 1
     let q = parseArgs(
       @[
         "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly",
         "--fitness-scale", "2", "--fatigue-scale", "5",
       ]
     )
-    check q.problem == "" and q.model == "flat" and q.hourly and q.fitnessScale == 2 and
-      q.fatigueScale == 5
-    check q.fromDay == some(1533081600'i64) and q.toDay == some(1535673600'i64)
+    check q.problem == "" and q.params.model == some("flat") and q.params.hourly and
+      q.params.fitnessScale == 2 and q.params.fatigueScale == 5
+    check q.params.fromDay == some(1533081600'i64) and
+      q.params.toDay == some(1535673600'i64)
   test "--stdout":
-    check parseArgs(@["--stdout"]).stdout and not parseArgs(@[]).stdout
+    check parseArgs(@["--stdout"]).params.stdout and not parseArgs(@[]).params.stdout
   test "problems":
     check parseArgs(@["--from", "yesterday"]).problem.contains("is a day")
     check parseArgs(@["--to", "2018-13-01"]).problem.contains("is a day")

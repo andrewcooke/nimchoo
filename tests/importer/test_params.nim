@@ -1,14 +1,16 @@
 import std/[strutils, unittest]
 import nimchoo/packages/importer/params
+import nimchoo/packages/util/args/args
 
 suite "nch import: the command line":
   test "several paths, and the options that go with them":
     let p = parseArgs(@["a", "b", "-q", "--slow", "-j", "3"])
-    check p.problem == "" and p.paths == @["a", "b"] and p.quiet and p.slow and
-      p.jobs == 3
+    check p.problem == "" and p.params.paths == @["a", "b"] and p.params.quiet and
+      p.params.slow and p.params.jobs == 3
   test "the options may come first":
     let p = parseArgs(@["--quiet", "--jobs", "2", "a"])
-    check p.problem == "" and p.paths == @["a"] and p.quiet and p.jobs == 2
+    check p.problem == "" and p.params.paths == @["a"] and p.params.quiet and
+      p.params.jobs == 2
   test "it needs a path":
     check parseArgs(@[]).problem.contains("at least one path")
     check parseArgs(@["-q"]).problem.contains("at least one path")

@@ -104,6 +104,17 @@ func nimString(s: string): string =
   ## `s` as a Nim string literal on one line.
   "\"" & s.replace("\\", "\\\\").replace("\"", "\\\"") & "\""
 
+const maxLine = 88 ## nph breaks a line that is longer
+
+func field(name, value: string): string =
+  ## `      name: value,` as nph writes it: on the next line when the first line is too long (so that `nimble fmtcheck`
+  ## has nothing to say about the registry, which is checked in).
+  let first = value.splitLines[0]
+  if ("      " & name & ": " & first & ",").len > maxLine:
+    "      " & name & ":\n        " & value & ",\n"
+  else:
+    "      " & name & ": " & value & ",\n"
+
 func registryText*(found: seq[Found]): string =
   ## The text of `registry.nim` for these packages: the front page of the documentation (the `##` comment that
   ## `nim doc` makes the page of the registry from), then the list of the packages.
@@ -123,9 +134,10 @@ func registryText*(found: seq[Found]): string =
   result.add "\nconst packages*: seq[Registered] = inDependencyOrder(\n  @[\n"
   for f in found:
     result.add "    Registered(\n      name: \"" & f.name & "\",\n      package: pkg" &
-      f.name.capitalizeAscii & ".package,\n      summary: " & nimString(
-      summaryOf(f.doc)
-    ) & ",\n      doc: \"\"\"" & f.doc & "\"\"\",\n    ),\n"
+      f.name.capitalizeAscii & ".package,\n"
+    result.add field("summary", nimString(summaryOf(f.doc)))
+    result.add field("doc", "\"\"\"" & f.doc & "\"\"\"")
+    result.add "    ),\n"
   result.add "  ]\n)\n"
   result.add "\nconst commands*: seq[CommandDecl] = collectCommands(packages)\n"
   result.add "\nconst points*: seq[tuple[owner: string, point: PointDecl]] = collectPoints(packages)\n  ## the extension points the packages define\n"
