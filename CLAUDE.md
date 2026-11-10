@@ -51,19 +51,22 @@ system can be extended with new fit-related functionality by adding a package, w
 
 * a package is a directory under `src/nimchoo/packages/` that contains a `package.nim`; its **name is its directory's
   name** (unique; compared as nim compares names).  directories without a `package.nim` only group (`text/`, `util/`,
-  `commands/`).  `package.nim` has one constant, `package`, of type `Package`: `depends` (the packages it uses, by name),
+  and, until TODO step 3 is done, `commands/`).  `package.nim` has one constant, `package`, of type `Package`: `depends` (the packages it uses, by name),
   `fragments` (not used yet: see below) and `commands`.  inside the package the files are whatever they are called.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
   codes, the log, `ownership.nim` (which package owns which table) and `registry.nim` (the dependency order).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the
   packages found, in dependency order; it is checked in, and a test fails if it is stale.  a cycle, a missing
   dependency or a package or command name used twice stops the build.
-* **libraries below, commands above.**  a command package (name ends in `cmd`, in `packages/commands/`) holds one
-  command (`activitiescmd` joins the listing, `--select`, `--import` and `--delete`): `run`, its options, its output.
-  `package.nim` declares it (`commands: @[CommandDecl(name:, summary:, run:)]`); `nch.nim` looks the command up by
-  name in the registry and builds the usage text from it; there is no other list of commands.  no package depends on a
-  command package, and only a `package.nim` imports a command (checked by a test).  the module that first introduces
-  a concept owns it (eg `importer` owns activities) and later packages use its library files.
+* **commands are in their packages** (TODO step 3, REVIEW.md §5): a package may provide a command, in its `command.nim`
+  (`run`, its options, its output; `params.nim` and the like beside it).  a **plural** command (`climbs`, `models`) goes with the
+  package that owns its type; a **singular** one (`map`, `ff`, `log`) is a package of its own unless it is plainly one package's
+  interface (`fit`, `cache`, `db`).  `package.nim` declares it (`commands: @[CommandDecl(name:, summary:, run:)]`); `nch.nim`
+  looks the command up by name in the registry and builds the usage text from it; there is no other list of commands.
+  only a `package.nim` imports a `command.nim` (checked by a test).  **no command hides a cycle**: when a command would need
+  a package above its own, that package defines an extension point and the higher one contributes to it.  still apart, until
+  their steps of TODO.md: `activitiescmd` (joins the listing, `--select`, `--import` and `--delete`) and `userscmd`, in `packages/commands/`.
+  the module that first introduces a concept owns it (eg `importer` owns activities) and later packages use its library files.
 * **imports** (`tests/core/test_imports.nim`): a file imports only its own package, `core`, standard and third-party
   libraries, and the packages in its `depends`.  `depends` must also name the packages whose **tables** it reads in SQL
   (checked when the statement is prepared: the access model, below).

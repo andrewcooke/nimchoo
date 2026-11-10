@@ -6,7 +6,7 @@ import nimchoo/packages/db/store
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/importer/importer
-import nimchoo/packages/commands/modelscmd/command
+import nimchoo/packages/model/command
 import nimchoo/packages/model/calc
 import nimchoo/packages/model/impulses
 import nimchoo/packages/model/models

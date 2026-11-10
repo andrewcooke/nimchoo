@@ -8,23 +8,17 @@ import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/climbs/package as pkgClimbs
 import ./packages/commands/activitiescmd/package as pkgActivitiescmd
-import ./packages/commands/cachecmd/package as pkgCachecmd
-import ./packages/commands/climbscmd/package as pkgClimbscmd
-import ./packages/commands/dbcmd/package as pkgDbcmd
-import ./packages/commands/ffcmd/package as pkgFfcmd
-import ./packages/commands/fitcmd/package as pkgFitcmd
-import ./packages/commands/landmarkscmd/package as pkgLandmarkscmd
-import ./packages/commands/logcmd/package as pkgLogcmd
-import ./packages/commands/mapcmd/package as pkgMapcmd
-import ./packages/commands/modelscmd/package as pkgModelscmd
 import ./packages/commands/userscmd/package as pkgUserscmd
 import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
+import ./packages/ff/package as pkgFf
 import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
 import ./packages/heartrate/package as pkgHeartrate
 import ./packages/importer/package as pkgImporter
+import ./packages/log/package as pkgLog
+import ./packages/map/package as pkgMap
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
 import ./packages/selection/package as pkgSelection
@@ -53,23 +47,17 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "cache", package: pkgCache.package),
     Registered(name: "climbs", package: pkgClimbs.package),
     Registered(name: "activitiescmd", package: pkgActivitiescmd.package),
-    Registered(name: "cachecmd", package: pkgCachecmd.package),
-    Registered(name: "climbscmd", package: pkgClimbscmd.package),
-    Registered(name: "dbcmd", package: pkgDbcmd.package),
-    Registered(name: "ffcmd", package: pkgFfcmd.package),
-    Registered(name: "fitcmd", package: pkgFitcmd.package),
-    Registered(name: "landmarkscmd", package: pkgLandmarkscmd.package),
-    Registered(name: "logcmd", package: pkgLogcmd.package),
-    Registered(name: "mapcmd", package: pkgMapcmd.package),
-    Registered(name: "modelscmd", package: pkgModelscmd.package),
     Registered(name: "userscmd", package: pkgUserscmd.package),
     Registered(name: "confirm", package: pkgConfirm.package),
     Registered(name: "db", package: pkgDb.package),
     Registered(name: "download", package: pkgDownload.package),
+    Registered(name: "ff", package: pkgFf.package),
     Registered(name: "fit", package: pkgFit.package),
     Registered(name: "geo", package: pkgGeo.package),
     Registered(name: "heartrate", package: pkgHeartrate.package),
     Registered(name: "importer", package: pkgImporter.package),
+    Registered(name: "log", package: pkgLog.package),
+    Registered(name: "map", package: pkgMap.package),
     Registered(name: "model", package: pkgModel.package),
     Registered(name: "names", package: pkgNames.package),
     Registered(name: "selection", package: pkgSelection.package),

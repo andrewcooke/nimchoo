@@ -290,13 +290,12 @@ tables it owns is in its SQL.
   from the program); `download`; `fit` (FIT files and the profile); `names` (GeoNames features and the author's
   landmarks); `importer` (activities); `heartrate`; `model` (impulses); `user`; `climbs`; `selection` (the stored
   selection and its address); `web` (the server `map` and `ff` use).
-* **`commands/`**: `activitiescmd`, `cachecmd`, `climbscmd`, `dbcmd`, `ffcmd`, `fitcmd`, `landmarkscmd`, `logcmd`,
-  `mapcmd`, `modelscmd`, `userscmd`: one command each (`activitiescmd` joins the listing, `--select`, `--import` and
-  `--delete`).
+* **`commands/`** (until TODO step 3 ends): `activitiescmd` and `userscmd`.  The other commands moved into their packages
+  (2026-11-10): `fit`, `cache`, `db`, `climbs`, `names` (`landmarks`), `model` (`models`), and the packages `log`, `map` and `ff`.
 
 ## Decisions (the author, 2026-11-09)
 
-* **Command packages end in `cmd`** (the nch command name is in `package.nim`), since a library and its command had the
+* **Command packages ended in `cmd`** (until 2026-11-10; see REVIEW.md §5) (the nch command name is in `package.nim`), since a library and its command had the
   same name; and **a command is associated with one package**.
 * **`core` holds `Globals`, the log and the exit codes** (G1, L1, S1 in the discussion): pluggable logs are not needed
   (the point of the packages is to extend with FIT-related functionality, not to support another platform); the

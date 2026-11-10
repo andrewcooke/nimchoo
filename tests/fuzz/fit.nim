@@ -1,7 +1,7 @@
 ## libFuzzer target: the FIT reader as `nch fit` uses it, as text and as CSV.
 
 import nimchoo/core/errors
-import nimchoo/packages/commands/fitcmd/command
+import nimchoo/packages/fit/command
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import ./harness

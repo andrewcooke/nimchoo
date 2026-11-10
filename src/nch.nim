@@ -1,5 +1,5 @@
-## nch: the nimchoo command line tool.  A thin dispatcher: each command is declared by a command package
-## (`packages/commands/*cmd/package.nim`: its name, a summary and `run(globals, args): int`; see core/globals.nim for
+## nch: the nimchoo command line tool.  A thin dispatcher: each command is declared by the package that provides it
+## (in its `package.nim`: its name, a summary and `run(globals, args): int`; see core/globals.nim for
 ## the exit codes), and the generated registry lists them all.  Options that every
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
