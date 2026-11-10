@@ -22,17 +22,19 @@ const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
 type Head = object ## The options before the command name.
   g: Globals
   help, version, offline: bool
-  shell: Option[Shell] ## `--completion`: print the function for this shell
+  job: Option[Job] ## `--install-completion` or `--show-completion`
 
-func takeShell(p: var Head, value: string): Problem =
-  ## `--completion [SHELL]`.
-  p.shell = parseShell(value)
-  if p.shell.isNone:
-    refuse(
+func takeJob(p: var Head, action: Action, value: string): Problem =
+  ## `--install-completion [SHELL]`, `--show-completion [SHELL]`.
+  if p.job.isSome:
+    return refuse("only one of --install-completion and --show-completion may be given")
+  let shell = parseShell(value)
+  if shell.isNone:
+    return refuse(
       fmt"no completion for '{value}' (the shells are {shellNames().join("", "")})"
     )
-  else:
-    fine
+  p.job = some(Job(action: action, shell: shell.get))
+  fine
 
 func headSpec(): Spec[Head] =
   ## The options every command takes, given before its name.
@@ -66,11 +68,19 @@ func headSpec(): Spec[Head] =
       ),
       optionalValue(
         Head,
-        ["--completion"],
+        ["--install-completion"],
         "SHELL",
-        "print the function that makes the shell complete `nch` (default: bash): `eval \"$(nch --completion)\"` in ~/.bashrc",
+        "write the script that makes the shell complete `nch` (default: bash) where the shell finds it, so that new shells have it",
         completion = Completion(kind: ckWords, words: shellNames()),
-        body = takeShell(p, value),
+        body = takeJob(p, acInstall, value),
+      ),
+      optionalValue(
+        Head,
+        ["--show-completion"],
+        "SHELL",
+        "print that script instead of writing it (to read it, or `eval \"$(nch --show-completion)\"`)",
+        completion = Completion(kind: ckWords, words: shellNames()),
+        body = takeJob(p, acShow, value),
       ),
       flag(
         Head,
@@ -114,9 +124,13 @@ proc main(): int {.raises: [].} =
   if head.version:
     stdout.say versionString & "\n"
     return exitOk
-  if head.shell.isSome:
-    stdout.say shellFunction(head.shell.get)
-    return exitOk
+  if head.job.isSome:
+    let job = head.job.get
+    case job.action
+    of acInstall:
+      return installMain(job.shell)
+    of acShow:
+      return showMain(job.shell)
   var g = head.g
   g.extensions = registry.extensions
   g.access = allAccess

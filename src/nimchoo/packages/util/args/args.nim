@@ -60,7 +60,7 @@ type
     takesValue*: bool
     valueOptional*: bool
       ## (with `takesValue`) the value may be left out: the next word is it unless that is an option; `apply` is then
-      ## given "" (`nch --completion [SHELL]`)
+      ## given "" (`nch --install-completion [SHELL]`)
     apply*: Apply[P]
     takesList*: bool ## then `applyList` is used, not `apply`
     applyList*: ApplyList[P]
@@ -440,7 +440,7 @@ template optionalValue*(
     completion: Completion = Completion(),
     body: untyped,
 ): Opt[P] =
-  ## A described option whose value may be left out (`nch --completion [SHELL]`): `body` sees `p`, `name` and `value`
+  ## A described option whose value may be left out (`nch --install-completion [SHELL]`): `body` sees `p`, `name` and `value`
   ## ("" if it was left out) and gives the `Problem`, as for `custom`.
   described(
     Opt[P](

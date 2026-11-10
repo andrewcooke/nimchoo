@@ -22,7 +22,7 @@ sees and can be approved together.
    4.4 ms).
    * **Done (commit 1)**: `OptDoc`, `Completion` and `Arity` are in `core/optdoc.nim`; `CommandDecl.options` (each command's
      spec); `core/complete.nim` (the pure algorithm: commands, options, `ckWords` values, `ckFile`); `nch __complete` and
-     `nch completion bash` (`completion.nim`; now `nch --completion`).  Still to do: `Completion` as a variant (`ckNone | ckFile | ckWords(words) |
+     `nch --install-completion` and `--show-completion` (`completion.nim`).  Still to do: `Completion` as a variant (`ckNone | ckFile | ckWords(words) |
      ckDynamic(provide)`: a dynamic one cannot exist without its provider; `ckDynamic` still names a `source` and offers nothing).
    * **Providers**: `proc(g: Globals, prefix: string): seq[string] {.raises: [StoreError].}`, next to the option they
      complete (`--climb` beside `resolve` in `climbs/criterion.nim`, through `activities/criteria`; sports in `activities`;
@@ -37,9 +37,11 @@ sees and can be approved together.
      child process is started.  A read-only open of a WAL database still makes `-shm` and `-wal` beside it, and where the
      directory cannot be written the query fails (so: nothing offered).
    * **Commit still to do**: (3) the providers (`--edit/--delete NAME` included), the `Completion` variant, and `--db`/`--user` parsed for them.
-   * **Done (follow-up)**: `nch --completion [SHELL]` (default bash; zsh to come) replaces `nch completion bash`; the function
-     runs the program as typed (`${COMP_WORDS[0]}`), so `./nch` works where it is registered (`complete -F _nch_complete
-     ./nch`).  Still to do: the author to try it in their own shell (a test shell was used so far).
+   * **Done (follow-ups)**: `nch --install-completion [SHELL]` writes the script (full text, marked by its first line so only
+     our own file is overwritten) to bash-completion's user directory, where new shells find it on the first tab;
+     `nch --show-completion [SHELL]` prints it.  Default bash; zsh to come (its own path and mechanism).  The function runs the
+     program as typed (`${COMP_WORDS[0]}`), so `./nch` works where it is registered (`complete -F _nch_complete ./nch`).
+     Still to do: the author to try it in their own shell (a test shell, with bash-completion, was used so far).
    * **Quoting**: candidates (`Cerro San Luis₄`) are printed whole and bash quotes them (to check with the real list);
      `--climb TEXT...` takes several words: complete the word being typed.
 6. *(mechanical)* **One owner per fact** (A §4.1).

@@ -1,5 +1,5 @@
-## Tab completion for the shell: `nch --completion [SHELL]` prints the function that the shell calls (bash for now), and
-## `nch __complete WORDS...` (hidden from the usage: only the shell runs it) answers it.  Like `nch packages` it is built
+## Tab completion for the shell: `nch --install-completion [SHELL]` writes the completion script where the shell finds it,
+## `nch --show-completion [SHELL]` prints it (bash for now), and `nch __complete WORDS...` (hidden from the usage: only the shell runs it) answers it.  Like `nch packages` it is built
 ## into `nch` and not a package, because it needs the whole registry.  What is offered, and why, is `core/complete.nim`;
 ## this is the protocol with the shell and the functions.
 ##
@@ -8,8 +8,9 @@
 ## prints nothing and exits `exitFiles`: the shell offers file names itself.  It never says anything on stderr and never
 ## fails: the tab key must not break the command line being typed.
 
-import std/[options, strutils]
+import std/[options, os, strformat, strutils]
 import ./core/[complete, globals, manifest]
+import ./packages/util/atomic/atomic
 
 {.push raises: [].}
 
@@ -17,7 +18,13 @@ const
   completeFlag* = "__complete" ## the word after `nch` that asks for completions
   exitFiles* = 10 ## `__complete`'s answer when the shell should offer file names
 
-  bashTemplate = """_nch_complete() {
+  scriptMarker* = "# nch completion script"
+    ## the first words of the script: `install` overwrites a file that starts so (it is ours), and no other
+
+  bashTemplate =
+    scriptMarker &
+    """ (`nch --install-completion` writes it; it is overwritten each time)
+_nch_complete() {
     local out rc line cur=${COMP_WORDS[COMP_CWORD]}
     COMPREPLY=()
     out=$(command "${COMP_WORDS[0]}" COMPLETE_FLAG "${COMP_WORDS[@]:1:COMP_CWORD}" 2>/dev/null)
@@ -39,13 +46,15 @@ complete -F _nch_complete nch
 
   bashFunction* = bashTemplate.replace("COMPLETE_FLAG", completeFlag).replace(
       "EXIT_FILES", $exitFiles
-    ) ## what `nch --completion` prints for bash
+    )
+    ## what `nch --show-completion` prints for bash, and `nch --install-completion` writes
 
 type Shell* = enum
-  ## The shells there is a completion function for (`nch --completion [SHELL]`); the name is the word typed.
+  ## The shells there is a completion script for (`nch --install-completion [SHELL]`); the name is the word typed.
   shBash = "bash"
 
-const defaultShell* = shBash ## what `nch --completion` means
+const defaultShell* = shBash
+  ## what `--install-completion` and `--show-completion` mean with no shell
 
 func shellNames*(): seq[string] =
   ## The names of the shells, for the usage and for completing the option itself.
@@ -60,8 +69,17 @@ func parseShell*(word: string): Option[Shell] =
     if $s == word:
       return some(s)
 
-func shellFunction*(s: Shell): string =
-  ## The text to be run by the shell (`eval "$(nch --completion)"`): the function, and its registration.
+type
+  Action* = enum
+    acInstall ## write the script where the shell finds it
+    acShow ## print it
+
+  Job* = object ## what `--install-completion` or `--show-completion` asks for
+    action*: Action
+    shell*: Shell
+
+func shellScript*(s: Shell): string =
+  ## The text the shell runs: the function, and its registration.
   case s
   of shBash: bashFunction
 
@@ -77,3 +95,42 @@ proc completeMain*(
     if offer.words.len > 0:
       stdout.say offer.words.join("\n") & "\n"
     exitOk
+
+proc scriptPath*(s: Shell): string =
+  ## Where the shell finds the script of a command called `nch`, without being told: for bash, the user's directory of
+  ## bash-completion (`$BASH_COMPLETION_USER_DIR`, else `$XDG_DATA_HOME`, else `~/.local/share`, then `bash-completion`),
+  ## where a file named for a command is read the first time tab is pressed after it.
+  case s
+  of shBash:
+    let base = getEnv("BASH_COMPLETION_USER_DIR", getDataDir() / "bash-completion")
+    base / "completions" / "nch"
+
+proc install*(s: Shell, path: string): Option[string] =
+  ## Write the script of `s` at `path` (and the directories above it), over what is there if that is an earlier script of
+  ## ours.  Returns what went wrong, as a sentence, if anything did: a file there that is not ours is left alone.
+  try:
+    if fileExists(path):
+      let first = readFile(path).splitLines()[0]
+      if not first.startsWith(scriptMarker):
+        return some(
+          fmt"{path} exists and is not a completion script of nch's (it does not start with '{scriptMarker}'): it is left alone"
+        )
+    createDir(parentDir(path))
+    writeAtomic(path, shellScript(s))
+  except IOError, OSError:
+    return some(fmt"cannot write {path}: {getCurrentExceptionMsg()}")
+
+proc installMain*(s: Shell): int {.raises: [].} =
+  ## `nch --install-completion [SHELL]`: write the script, and say where and what is left to do.
+  let path = scriptPath(s)
+  let problem = install(s, path)
+  if problem.isSome:
+    return failure("nch", problem.get)
+  stdout.say fmt"wrote {path}: new {s} shells complete nch (this one: source {path})" &
+    "\n"
+  exitOk
+
+proc showMain*(s: Shell): int {.raises: [].} =
+  ## `nch --show-completion [SHELL]`: print the script.
+  stdout.say shellScript(s)
+  exitOk
