@@ -20,7 +20,7 @@ import std/[algorithm, sequtils, strutils, tables, times]
 import ../fit/time
 import ../ui/style
 import ../ui/vocabulary
-import ./table
+import ../activities/table
 
 {.push raises: [].}
 

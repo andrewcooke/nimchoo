@@ -24,16 +24,6 @@ func has(q: Sql, name: string): bool =
     if a.name == name:
       return true
 
-suite "list criteria: --calendar":
-  test "--calendar is a display option: it is not a criterion, and it goes with -v":
-    let p = parseArgs(@["--calendar"], utc())
-    check p.problem == "" and p.criteria.calendar
-    let q = parseArgs(@["--calendar", "-v"], utc())
-    check q.problem == "" and not q.criteria.given and q.criteria.calendar and
-      q.criteria.verbose
-    check parseArgs(@["--sport", "cycling", "--calendar"], utc()).criteria.calendar
-    check not parseArgs(@[], utc()).criteria.calendar
-
 suite "list: times":
   test "a date is a day in the given zone; as an end it is the day after":
     check parseWhen("2018-08-27", utcZone, false) == some(UnixTime(1535328000))
@@ -502,9 +492,6 @@ suite "list: --delete":
     check parseArgs(@["--all", "--delete", "-f"], utcZone).problem == ""
     check parseArgs(@["-f"], utcZone).problem.contains("goes with --delete")
     check parseArgs(@["--delete", "--select"], utcZone).problem.contains(
-      "shows nothing"
-    )
-    check parseArgs(@["--delete", "--calendar"], utcZone).problem.contains(
       "shows nothing"
     )
     check parseArgs(@["--delete", "-v"], utcZone).problem.contains("shows nothing")

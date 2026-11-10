@@ -291,7 +291,7 @@ tables it owns is in its SQL.
   from the program); `download`; `fit` (FIT files and the profile); `names` (GeoNames features and the author's
   landmarks); `importer` (activities); `heartrate`; `model` (impulses); `user`; `climbs`; `selection` (the stored
   selection and its address); `web` (the server `map` and `ff` use).
-* **Commands** are in their packages (2026-11-10; there is no `commands/` group): `users` in `user`, `import` in `importer`, `activities` in its own package,
+* **Commands** are in their packages (2026-11-10; there is no `commands/` group): `users` in `user`, `import` in `importer`, `activities` and `calendar` in packages of their own,
   and `fit`, `cache`, `db`, `climbs`, `names` (`landmarks`), `model` (`models`), and the packages `log`, `map` and `ff`.
 
 ## Decisions (the author, 2026-11-09)
@@ -312,11 +312,9 @@ tables it owns is in its SQL.
 * **The selection** is two things: the stored selection (a table, the address bits, the content key; package
   `selection`, which `climbs` and `map` use) and the search language of `nch activities` (`criteria`,
   `ranges`, which live with the command).  They were one package, and the pair made a loop: `climbs` reads the stored
-  selection, and `--climb` reads `effort`.  `activities` now depends on `climbs` for `--climb`, which is not
-  extensible; see TODO.md ("Criteria from other packages").
+  selection, and `--climb` reads `effort`.  `activities` no longer depends on `climbs`: `--climb` is a criterion that `climbs` offers through the point `activities/criteria` (2026-11-10).
 * `zip` and `xlsx` are small utility packages (`xlsx` has one user, `fit`'s profile; merging them is possible).
-* `climbs` stays one package; splitting it into `sectors` and `climbs` is in TODO.md (step 9, "Larger changes").  `selection/calendar` goes with
-  the command for now and may be pulled out later.
+* `climbs` stays one package; splitting it into `sectors` and `climbs` is in TODO.md (step 9, "Larger changes").  The calendar became the package `calendar` (2026-11-10), which uses the rows of `activities`.
 
 **Lessons.**  Separating a command from its library can hide a cycle: look at what the command *needs* from other
 packages and at what a library reads *by SQL*, not only at imports.  The import checker cannot see SQL; a text scan of

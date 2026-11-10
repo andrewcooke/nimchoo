@@ -17,10 +17,6 @@ sees and can be approved together.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
 3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
-   7. *(in progress)* The package `activities` exists and its criteria point is built (`activities/criterion.nim`; `climbs`
-      offers `--climb` and `activities` no longer depends on `climbs`).  Left: `calendar` (`nch calendar`: the selection, or
-      `--all` with the selection in blue; no criteria) as a package of its own that depends on `activities` for the rows
-      (`--calendar` goes from `activities`).  Two criteria with one option name are caught by a test, not by the registry.
    8. **`nch packages`**: a command built into `nch.nim` (a package cannot import the registry), its logic a pure
       function in `core` (`core/inventory.nim`, tested).  It shows the packages in dependency order with their
       `depends`, tables, fragments, commands, the extension points each defines and what each contributes (with the

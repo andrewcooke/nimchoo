@@ -34,7 +34,6 @@ type
     delete*: bool ## --delete: delete the activities (an action, not a criterion)
     force*: bool ## -f: really do it (with --delete)
     verbose*: bool ## -v: show more of each activity (a display option)
-    calendar*: bool ## --calendar: show the activities on a calendar (a display option)
     newest*, oldest*: int
       ## only the N newest (oldest) of those that meet the other
       ## criteria, by start time; 0: no limit
@@ -449,10 +448,6 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         "",
         "show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), and the path of its file",
       ),
-      custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")).documented(
-        "",
-        "show the activities on a calendar instead of a table: a row for each month that has one (with -v, every month from the first to the last), the days in columns by weekday (weeks start on Monday).  White: an activity that was listed; blue: one that is also in the selection; grey: none",
-      ),
       flag(ListState, ["-h", "--help"], help).documented("", "show this help"),
     ]
   )
@@ -469,7 +464,7 @@ proc parseArgs*(
   ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
   ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
-  ## (keep what is listed as the selection), and `-v`/`--verbose` and `--calendar` (what to display).  With no
+  ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
   var st =
     ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone, offered: offered)
@@ -490,8 +485,8 @@ proc parseArgs*(
     )
   if c.force and not c.delete:
     fail("-f goes with --delete")
-  if c.delete and (c.select or c.calendar or c.verbose):
-    fail("--delete shows nothing: it does not go with --select, --calendar or -v")
+  if c.delete and (c.select or c.verbose):
+    fail("--delete shows nothing: it does not go with --select or -v")
   if c.select and not (c.given or c.all):
     fail(
       "--select keeps the activities listed as the selection, so it needs criteria or --all"

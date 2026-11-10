@@ -74,7 +74,8 @@ import ./activities/test_ranges
 import ./activities/test_criteria
 import ./activities/test_table
 import ./activities/test_command
-import ./activities/test_calendar
+import ./calendar/test_calendar
+import ./calendar/test_command as calendarCommandTests
 import ./map/test_params
 import ./map/test_lines
 import ./map/test_page

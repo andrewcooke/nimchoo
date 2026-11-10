@@ -7,6 +7,7 @@ import ./packages/db/store as dbStore
 import ./packages/activities/package as pkgActivities
 import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
+import ./packages/calendar/package as pkgCalendar
 import ./packages/climbs/package as pkgClimbs
 import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
@@ -45,6 +46,7 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "activities", package: pkgActivities.package),
     Registered(name: "bundle", package: pkgBundle.package),
     Registered(name: "cache", package: pkgCache.package),
+    Registered(name: "calendar", package: pkgCalendar.package),
     Registered(name: "climbs", package: pkgClimbs.package),
     Registered(name: "confirm", package: pkgConfirm.package),
     Registered(name: "db", package: pkgDb.package),

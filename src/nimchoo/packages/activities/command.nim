@@ -5,7 +5,7 @@
 ##
 ## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
-import std/[options, sequtils, strutils, tables, terminal, times]
+import std/[options, sequtils, strutils, tables, times]
 import ./cmdname
 export cmdname
 import ../../core/[extension, globals]
@@ -14,13 +14,12 @@ import ../selection/selection
 import ../db/store
 import ./deleterun as deleteRun
 import ../../core/errors
-import ../fit/time
 import ../../core/logfile
 import ../ui/live
 import ../ui/style
 import ../ui/vocabulary
 import ../util/args/[args, usage]
-import ./[calendar, table]
+import ./[rows, table]
 import ./criteria
 import ../user/session
 
@@ -28,7 +27,7 @@ import ../user/session
 
 const
   usageHead =
-    """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v] [--calendar]
+    """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v]
        nch [--db PATH] [--user NAME] activities --all [--select]
        nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f
 
@@ -101,111 +100,29 @@ proc checkNames(
           (if shown.len > 0: shown.join(", ") else: "no activities") & ")"
       )
 
-func rowColumns(verbose: bool, userId: UserId): Sql =
-  ## (it carries `:me`, the user whose selection says which are chosen)
-  ## What a row of the listing is made of (see table.nim); not recorded: -1 and ''.
-  ## The path of the file (for `verbose`) is where it was last seen, else its name.
-  sqlOf(
-    "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
-      "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
-      "coalesce(a.timer_s, -1) as active, f.name as file, " &
-      "(select name from user where id = f.user_id) as user, " &
-      # whether the user has it in their selection
-      "a.id in (select activity_id from selection where user_id = :me) as chosen, " & (
-      if verbose:
-      "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, "
-      else: "f.name as path, "
-    ) &
-      # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
-      "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
-      # whether it has a start (said "no GPS" if not): -v only
-      if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon"
-      else: "null as slat, null as slon"
-    )
-  )
-    .with("me", userId)
-
-const rowFields =
-  "start_t, sport, sub, dist, active, file, user, chosen, path, pname, aname, slat, slon"
-  ## the columns of a row, in the order `readRows` reads them
-
-proc readRows(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
-  ## The rows a query gives (the columns `rowFields`), as listed.
-  for r in st.db.query(
-    tuple[
-      startT: int64,
-      sport, subSport: string,
-      dist, active: float,
-      file, user: string,
-      chosen: bool,
-      path, place, name: string,
-      lat, lon: Option[float],
-    ],
-    query,
-  ):
-    result.add ListRow(
-      startT: UnixTime(r.startT),
-      sport: r.sport,
-      subSport: r.subSport,
-      distanceM: (if r.dist >= 0: some(r.dist) else: none(float)),
-      activeS: (if r.active >= 0: some(r.active) else: none(float)),
-      file: r.file,
-      user: r.user,
-      selected: r.chosen,
-      path: r.path,
-      place: r.place,
-      name: r.name,
-      position: positionText(r.lat, r.lon),
-    )
-
 proc listing(
     rows: seq[ListRow],
     zone: Timezone,
     c: Criteria,
-    screen: Screen,
     choices: Option[int],
     saved = none(int),
 ): seq[Line] =
-  ## The table (or the calendar) and its last line.
-  result =
-    if c.calendar:
-      calendarLines(rows, zone, c.verbose, screen)
-    else:
-      table(rows, zone, c.verbose)
+  ## The table and its last line.
+  result = table(rows, zone, c.verbose)
   result.add footerLine(rows, choices, selectedColour, saved)
 
-proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] =
-  ## The last line of a calendar of the months with data, if it left some out.
-  if not c.calendar or c.verbose:
-    return
-  let n = skippedMonths(rows, zone)
-  if n > 0:
-    result.add @[
-      span(
-        "warning: " & $n & (if n == 1: " month" else: " months") &
-          " with no activity not shown, at the yellow month names; use --verbose to show them",
-        yellow,
-      )
-    ]
-
 proc showSelection*(
-    st: Session, c: Criteria, zone: Timezone, screen = Screen(colour: true)
+    st: Session, c: Criteria, zone: Timezone
 ): seq[Line] {.raises: [StoreError].} =
   ## The stored selection of the store's user, as a listing.
-  let rows = readRows(
-    st,
-    "select " & rowColumns(c.verbose, st.userId) &
-      " from selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id " &
-      "where s.user_id = :owner order by a.start_t, a.id".sqlOf.with("owner", st.userId),
-  )
+  let rows = selectionRows(st, c.verbose)
   if rows.len == 0:
     return @[
       plain(
         "nothing is selected: `nch activities --all` lists every activity; with criteria and --select some are chosen"
       )
     ]
-  result = listing(rows, zone, c, screen, none(int))
-  result.add skippedWarning(rows, zone, c)
+  result = listing(rows, zone, c, none(int))
 
 proc latestAmong(
     st: Store, match: Sql
@@ -379,13 +296,13 @@ proc matchingIds*(
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
-    st: Session, criteria: Criteria, zone: Timezone, screen = Screen(colour: true)
+    st: Session, criteria: Criteria, zone: Timezone
 ): tuple[lines: seq[Line], saved: int] {.raises: [StoreError].} =
   ## List the activities that meet the criteria, or the selection if there are none (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
   if not (criteria.all or criteria.given):
     # no criteria: the selection
-    result.lines = showSelection(st, criteria, zone, screen)
+    result.lines = showSelection(st, criteria, zone)
     result.saved = -1
     return
   let r = resolveCriteria(st, criteria, zone)
@@ -408,11 +325,9 @@ proc listActivities*(
     userId = st.userId,
   )
   result.lines.add listing(
-    rows, zone, c, screen, some(total), (if c.select: some(rows.len)
-    else: none(int))
+    rows, zone, c, some(total), (if c.select: some(rows.len) else: none(int))
   )
   result.saved = if c.select: rows.len else: -1
-  result.lines.add skippedWarning(rows, zone, c)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch activities ARGS`; returns the exit status.
@@ -448,15 +363,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all",
       )
     let colour = canColourStdout()
-    let screen = Screen(
-      colour: colour,
-      width:
-        if isatty(stdout):
-          terminalWidth()
-        else:
-          0,
-    )
-    let r = listActivities(st, parsed.criteria, zone, screen)
+    let r = listActivities(st, parsed.criteria, zone)
     if r.saved >= 0:
       g.log.log(
         lvInfo,

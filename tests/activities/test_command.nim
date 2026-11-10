@@ -6,7 +6,6 @@ import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 import nimchoo/core/ids
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
-import nimchoo/packages/activities/calendar
 import nimchoo/packages/activities/command as listCommand
 import nimchoo/packages/activities/criteria
 import nimchoo/core/logfile
@@ -590,81 +589,6 @@ suite "list: what is shown":
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
     check shown(db, "--sport", "running").lines.blueRows == @[true]
-
-  test "--calendar: a calendar in place of the table, with the same last line":
-    let db = world("calendar")
-    discard save(db, "--sport", "cycling")
-    let st = openSession(db, allFragments, access = allAccess)
-    defer:
-      st.close()
-    let p = parseArgs(@["--all", "--calendar"], utc())
-    let r = listActivities(st, p.criteria, utc(), Screen(colour: true))
-    check r.lines[0].text.startsWith("    Mo Tu We")
-    check r.lines.texts.filterIt(it.startsWith("Jul ")).len == 1 and
-      r.lines.texts.filterIt(it.startsWith("Aug ")).len == 1
-    check r.lines.texts[^1].startsWith("done: 2 of 2 activities, 1 match selected, ")
-      # (July and August: none left out)
-    check r.lines[^1].anyIt(it.look.colour == blue and it.text == ", 1 match selected")
-      # ... in the colour of the selected days
-    let jul = r.lines.filterIt(it.text.startsWith("Jul "))[0]
-    check jul.anyIt(it.look.colour == blue and it.text == "01 ")
-      # 1 July 2018: cycling, selected
-    let aug = r.lines.filterIt(it.text.startsWith("Aug "))[0]
-    check aug.anyIt(it.look.colour == white and it.text == "27 ")
-      # running, listed but not selected
-    # -v: every month between the first and the last
-    let v = listActivities(
-      st,
-      parseArgs(@["--all", "--calendar", "-v"], utc()).criteria,
-      utc(),
-      Screen(colour: true),
-    )
-    check v.lines.texts.filterIt(it[0 .. 2] in ["Jul", "Aug"]).len == 2
-    let shownCal = showSelection(
-      st, parseArgs(@["--calendar"], utc()).criteria, utc(), Screen(colour: true)
-    )
-    check shownCal.texts.filterIt(it.startsWith("Jul ")).len == 1 and
-      shownCal.texts.filterIt(it.startsWith("Aug ")).len == 0
-
-  test "--calendar: a last warning when months were left out, until -v shows them":
-    let db = world("calendarskip")
-    let st = openSession(db, allFragments, access = allAccess)
-    defer:
-      st.close()
-    st.db.execute(
-      "update activity set start_t = 1520640000 where id = (select min(id) from activity)"
-    ) # 2018-03-10
-    let lines = listActivities(
-      st,
-      parseArgs(@["--all", "--calendar"], utc()).criteria,
-      utc(),
-      Screen(colour: true),
-    ).lines
-    check lines.texts[^1] ==
-      "warning: 4 months with no activity not shown, at the yellow month names; use --verbose to show them"
-    check lines[^1][0].look.colour == yellow
-    let all = listActivities(
-      st,
-      parseArgs(@["--all", "--calendar", "-v"], utc()).criteria,
-      utc(),
-      Screen(colour: true),
-    ).lines
-    check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4
-      # (March to August: only August and March have any)
-    check not all.texts[^1].startsWith("warning")
-    let table = listActivities(
-      st, parseArgs(@["--all"], utc()).criteria, utc(), Screen(colour: true)
-    ).lines
-    check not table.texts[^1].startsWith("warning") # (only a calendar leaves months out)
-    # with --save the warning is still last
-    let saved = listActivities(
-      st,
-      parseArgs(@["--all", "--calendar", "--select"], utc()).criteria,
-      utc(),
-      Screen(colour: true),
-    ).lines
-    check saved.texts[^1].startsWith("warning: 4 months") and
-      "saved as the selection" in saved.texts[^2]
 
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")

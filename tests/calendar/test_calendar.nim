@@ -1,6 +1,6 @@
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/packages/fit/time
-import nimchoo/packages/activities/calendar
+import nimchoo/packages/calendar/calendar
 import nimchoo/packages/activities/table
 import nimchoo/packages/ui/style
 import ../support/zones
