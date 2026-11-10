@@ -82,17 +82,49 @@ func commandList*(commands: seq[CommandDecl]): string =
   for c in commands:
     result.add "  " & c.name.alignLeft(11) & " " & c.summary & "\n"
 
+func collectPoints*(
+    packages: seq[Registered]
+): seq[tuple[owner: string, point: PointDecl]] {.raises: [PackageError].} =
+  ## The extension points the packages define, with the package that defines each.  Raises `PackageError` for a point
+  ## whose name does not start with its package's ("importer/after") or that two packages define.
+  var seen: Table[string, string]
+  for p in packages:
+    for d in p.package.defines:
+      if not d.name.startsWith(p.name & "/"):
+        raisePackage(
+          "package '" & p.name & "' defines the point '" & d.name &
+            "', whose name must start with '" & p.name & "/'"
+        )
+      if d.name in seen:
+        raisePackage(
+          "the point '" & d.name & "' is defined by both '" & seen.getOrDefault(d.name) &
+            "' and '" & p.name & "'"
+        )
+      seen[d.name] = p.name
+      result.add (p.name, d)
+
 proc collectExtensions*(
     packages: seq[Registered]
 ): Extensions {.raises: [PackageError].} =
-  ## What the packages contribute, added in the order given (dependency order).  Raises `PackageError` when two
-  ## points of one name hold different types.
+  ## What the packages contribute, added in the order given (dependency order), each stamped with its package.
+  ## Raises `PackageError` when two points of one name hold different types, and for a contribution to a point that
+  ## no package defines.
   var typeOf: Table[string, (string, string)]
     # point -> (type, the package that first used it)
+  var defined: seq[string]
+  for p in packages:
+    for d in p.package.defines:
+      defined.add d.name
   for p in packages:
     if p.package.contributes == nil:
       continue
     for c in p.package.contributes():
+      if c.point notin defined:
+        raisePackage(
+          "package '" & p.name & "' contributes to the point '" & c.point &
+            "', which no package defines (`defines:` in its package.nim)"
+        )
+      c.source = p.name
       let known = typeOf.getOrDefault(c.point, ("", ""))
       if known[0].len > 0 and known[0] != c.typeName:
         raisePackage(

@@ -140,17 +140,82 @@ suite "extension points":
   func with(name: string, c: ContributeProc, depends: varargs[string]): Registered =
     Registered(name: name, package: Package(depends: @depends, contributes: c))
 
+  func defining(): Registered =
+    ## the package that defines the test points
+    Registered(
+      name: "test",
+      package: Package(
+        defines: @[
+          PointDecl(name: "test/a", summary: "a number"),
+          PointDecl(name: "test/b", summary: "a word"),
+        ]
+      ),
+    )
+
   test "a point gives its values by priority, then in dependency order":
-    let e = collectExtensions(@[with("one", ints), with("two", moreInts, "one")])
+    let e =
+      collectExtensions(@[defining(), with("one", ints), with("two", moreInts, "one")])
     check e.get(pointA) == @[1, 2, 3]
     check e.get(pointB) == @["b"]
 
   test "a point nobody contributed to is empty":
-    check collectExtensions(@[pkg("x")]).get(pointA).len == 0
+    check collectExtensions(@[defining(), pkg("x")]).get(pointA).len == 0
 
   test "two points of one name but different types are refused, naming the packages":
     expect PackageError:
-      discard collectExtensions(@[with("one", ints), with("two", strings, "one")])
+      discard
+        collectExtensions(@[defining(), with("one", ints), with("two", strings, "one")])
+
+  test "each contribution says which package made it":
+    let e =
+      collectExtensions(@[defining(), with("one", ints), with("two", moreInts, "one")])
+    check e.contributions("test/a").mapIt(it.source) == @["one", "two", "one"]
+    check e.contributions("test/b").mapIt(it.source) == @["two"]
+    check e.points == @["test/a", "test/b"]
+
+  test "a contribution to a point nobody defines is refused, naming the package and the point":
+    try:
+      discard collectExtensions(@[with("one", ints)])
+      check false
+    except PackageError as e:
+      check "'one'" in e.msg and "test/a" in e.msg and "no package defines" in e.msg
+
+  test "the points a package defines are listed with it; the name must start with the package's":
+    let ok = Registered(
+      name: "x", package: Package(defines: @[PointDecl(name: "x/after", summary: "s")])
+    )
+    check collectPoints(@[ok]).mapIt(it.owner & ":" & it.point.name) == @["x:x/after"]
+    expect PackageError:
+      discard collectPoints(
+        @[
+          Registered(
+            name: "x",
+            package: Package(defines: @[PointDecl(name: "y/after", summary: "s")]),
+          )
+        ]
+      )
+    expect PackageError:
+      discard collectPoints(
+        @[
+          ok,
+          Registered(
+            name: "x2",
+            package: Package(defines: @[PointDecl(name: "x/after", summary: "s")]),
+          ),
+        ]
+      )
+
+  test "the real registry defines five points, and every contribution is to one of them":
+    check generated.points.mapIt(it.point.name).sorted ==
+      @[
+        "activities/criteria", "importer/after", "importer/steps", "user/has",
+        "web/pages",
+      ]
+    for name in generated.extensions.points:
+      check name in generated.points.mapIt(it.point.name)
+      for c in generated.extensions.contributions(name):
+        check c.source.len > 0
+    check generated.extensions.contributions("importer/after")[0].source == "selection"
 
   test "the real registry gives the importer the heart-rate step":
     let steps = generated.extensions.get(importStep)

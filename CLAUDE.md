@@ -51,7 +51,8 @@ system can be extended with new fit-related functionality by adding a package, w
 
 * a package is a directory under `src/nimchoo/packages/` that contains a `package.nim`; its **name is its directory's
   name** (unique; compared as nim compares names).  directories without a `package.nim` only group (`text/`, `util/`).  `package.nim` has one constant, `package`, of type `Package`: `depends` (the packages it uses, by name),
-  `fragments` (not used yet: see below) and `commands`.  inside the package the files are whatever they are called.
+  `fragments`, `commands`, `defines` (the extension points it defines, each with a one-line summary: the registry refuses a
+  contribution to a point nobody defines, and a point whose name does not start with its package's) and `contributes`.  inside the package the files are whatever they are called.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
   codes, the log, `ownership.nim` (which package owns which table) and `registry.nim` (the dependency order).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the

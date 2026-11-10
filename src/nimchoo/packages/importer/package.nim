@@ -1,6 +1,6 @@
 import ../../core/[extension, manifest]
 import ../user/has
-import ./[command, count]
+import ./[after, channel, command, count]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[contribute(userHas, activityCount)]
@@ -20,6 +20,18 @@ const package* = Package(
       summary: "put the activities of FIT files into the database, and name them",
       run: command.run,
     )
+  ],
+  defines: @[
+    PointDecl(
+      name: importStep.name,
+      summary:
+        "what packages add to the reading of each FIT file (the heart rate): the fields they want and where they write",
+    ),
+    PointDecl(
+      name: afterImport.name,
+      summary:
+        "what packages do once an import has finished, with the new activities (the selection is made of them)",
+    ),
   ],
   contributes: contributions,
 )

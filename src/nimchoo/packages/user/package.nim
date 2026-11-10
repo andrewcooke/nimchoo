@@ -1,5 +1,5 @@
 import ../../core/manifest
-import ./command
+import ./[command, has]
 
 const package* = Package(
   depends: @["args", "confirm", "db", "ui"],
@@ -11,6 +11,13 @@ const package* = Package(
       name: command.commandName,
       summary: "the users: make, rename, set the threshold heart rate",
       run: command.run,
+    )
+  ],
+  defines: @[
+    PointDecl(
+      name: userHas.name,
+      summary:
+        "what packages say a user has, for `nch users`: a count with its name (the activities)",
     )
   ],
 )

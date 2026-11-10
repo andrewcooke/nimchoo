@@ -20,6 +20,7 @@ type
     point*: string
     typeName*: string ## `$T`, to notice two points that share a name but not a type
     priority*: int ## lower first; equal priorities keep dependency order
+    source*: string ## the package that made it (the registry puts it in)
 
   Boxed[T] = ref object of Contribution
     value: T
@@ -42,3 +43,13 @@ func get*[T](e: Extensions, point: ExtensionPoint[T]): seq[T] =
   for c in all.sortedByIt(it.priority): # (stable)
     doAssert c of Boxed[T], "extension point '" & point.name & "' holds a " & c.typeName
     result.add Boxed[T](c).value
+
+func points*(e: Extensions): seq[string] =
+  ## The names of the points that have contributions, in order.
+  for name in e.byPoint.keys:
+    result.add name
+  result.sort
+
+func contributions*(e: Extensions, point: string): seq[Contribution] =
+  ## What was contributed to the point, in the order `get` gives it: by priority, then in dependency order.
+  result = e.byPoint.getOrDefault(point).sortedByIt(it.priority) # (stable)

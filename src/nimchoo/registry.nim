@@ -84,6 +84,9 @@ const packages*: seq[Registered] = inDependencyOrder(
 
 const commands*: seq[CommandDecl] = collectCommands(packages)
 
+const points*: seq[tuple[owner: string, point: PointDecl]] = collectPoints(packages)
+  ## the extension points the packages define
+
 const allFragments*: seq[Fragment] = collectFragments(packages)
   ## the schema: every package's fragments, in dependency order (after the database's own, `db/001-schema.sql`)
 

@@ -18,11 +18,20 @@ type
     summary*: string ## one line, for the usage text
     run*: CommandProc
 
+  PointDecl* = object
+    ## An extension point a package defines (`core/extension.nim`), so that it can be listed even with no contributor.
+    name*: string
+      ## the point's name: `point.name`, which starts with the package's: "importer/after"
+    summary*: string ## one line: what packages may add through it
+
   Package* = object
     depends*: seq[string] ## the packages whose code and tables it uses, by name
     fragments*: seq[Fragment] ## its DDL, in order
     commands*: seq[CommandDecl]
       ## the commands it provides (only command packages have any)
+    defines*: seq[PointDecl]
+      ## the extension points it defines, which other packages contribute to (the registry refuses a contribution
+      ## to a point nobody defines)
     contributes*: ContributeProc
       ## what it offers to the extension points of packages below it; nil: nothing.  A proc, because the
       ## values (a step with procs in it) are made at run time, while `package` is a constant
