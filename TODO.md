@@ -14,9 +14,10 @@ sees and can be approved together.
    1. Failures saved under `tests/data/fuzz/<target>/` and replayed by a test: done for the importer
       (`tests/importer/test_fuzz.nim`), `bits`, `zip`, `xlsx` and the profile (they replay what is in the directory, which is empty
       except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
-   2. Level 2: libFuzzer harnesses in `tests/fuzz/`, `nimble fuzz TARGET [SECONDS]` (clang, `--panics:on`,
-      `-d:useMalloc`, `-fsanitize=fuzzer,address`, and `--gcc-install-dir` set to the GCC that has `libstdc++.so`:
-      clang chooses GCC 16, which lacks it).  One hour per target; fix what it finds (a test first), record the rest.
+   2. Level 2: the harnesses and `nimble fuzz TARGET [SECONDS]` are built (tests/fuzz/, tools/fuzz.nim; HISTORY.md,
+      2026-11-10).  Left: the long runs, one hour per target (fit, importer, bits, zip, xlsx, profile, request); fix what
+      each finds (a test first; the input libFuzzer writes to `tests/data/fuzz/TARGET/` is replayed by the level-1 test),
+      record the rest in HISTORY.md.  Then fuzzing is done, apart from a rerun after big changes to a reader.
 2. *(mechanical)* **Tools** (REVIEW.md §7).
    2. nim doc: `nimble doc` (to a git-ignored `doc/`, no warnings); the RST error in `nch.nim` and the two broken
       links fixed.

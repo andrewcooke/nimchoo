@@ -3117,3 +3117,10 @@ request with the right token redirects, so it was not reachable from a page in t
 same text.  Fixed: the path is written encoded segment by segment, and `parseTarget` refuses a decoded path that starts
 with `//`.  600,000 addresses are then clean.  The worker's argument parser takes the word after a value option as the
 value without looking at it (`--model -h` sets the model to "-h"), so a value that starts with a dash is not an option.
+
+Level 2 built (2026-11-10): a libFuzzer harness per reader in `tests/fuzz/` (fit, importer, bits, zip, xlsx, profile, request),
+`nimble fuzz TARGET [SECONDS]` (`tools/fuzz.nim`: builds with clang and `--panics:on`, finds the GCC that has `libstdc++.so`,
+starts `fuzz-corpus/TARGET/` from valid examples, writes a crash to `tests/data/fuzz/TARGET/`, where the level-1 test replays
+it).  Speeds in a 20 s smoke run: bits 15,000 runs a second, request 40,000, zip 35,000, xlsx 21,000, profile 5,500, fit and
+importer 500 (120 with the address sanitizer, which is therefore only on for zip, xlsx and profile: they go through zippy's
+unsafe inflate; the others have no pointers).
