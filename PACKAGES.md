@@ -247,9 +247,9 @@ A contributor puts `fred/` under `packages/`, and the packages in it are named w
 unique names; the build says when they are not).  A package's tables must be unique too.  The package list is
 whatever the registry finds; nothing else needs editing.
 
-## What is built and what is left (TODO.md step 8)
+## How it was built (2026-11-09)
 
-Built on 2026-11-09, in this order:
+In this order:
 
 1. **Inventory** of packages and layers (settled with the author; the decisions are below).
 2. **`core` and the registry**: `Package`, `CommandDecl`, the generated registry, the import checker
@@ -260,21 +260,20 @@ Built on 2026-11-09, in this order:
    `landmark`), `importer`, `climbs`, `selection` and the rest made packages; **every command is a package**
    (`packages/commands/*cmd`), and `nch.nim` dispatches on the registry; the `Command` enum and `cli/catalog` are gone.
 
-Left:
-
-5. **The extension points** (built 2026-11-09): the mechanism and the import steps; on-demand work and criteria are
+5. **The extension points**: the mechanism and the import steps; on-demand work and criteria are
    deferred (see "Extension points").
-6. **The access model** (built 2026-11-09, see "The access model").  It made the owners do their own writes: the
+6. **The access model** (see "The access model").  It made the owners do their own writes: the
    selection is written by `selection` (`replaceSelection`), deleting activities moved from the package `delete` (which is
    gone) into `importer` (`remove.nim`), the `user` table is written by `db` (`users.nim`) and `user_profile` by `user`
    (`profile.nim`).
-7. **Built 2026-11-09**: the fragments come from the registry (`Package.fragments`, in dependency order; the build refuses a
+7. **The fragments**: they come from the registry (`Package.fragments`, in dependency order; the build refuses a
    fragment in the wrong package and a `references` to a package not in `depends`), `modules.nim` and the `ddl.nim` files are
    gone, and `tests/db/test_orders.nim` builds the schema in other valid orders and from a database made before a
-   package's later fragments, and compares.  **Left** (to the next review, which will look at documentation tools): a `README.md` in each package, for the feature detail now in CLAUDE.md.
+   package's later fragments, and compares.
 
-After this, TODO steps 9 (options carry their help) and later follow, each command being rewritten once in its final
-home.
+What is left is in TODO.md: the second round of the packages (step 3), then options that carry their help (step 4) and
+later, each command being rewritten once in its final home.  A package's documentation is to be the `##` comment of its
+`package.nim`, which `nimble docs` renders (REVIEW.md §7); the feature detail now in CLAUDE.md moves there.
 
 ## The packages, as built
 
@@ -316,7 +315,7 @@ tables it owns is in its SQL.
   selection, and `--climb` reads `effort`.  `activities` now depends on `climbs` for `--climb`, which is not
   extensible; see TODO.md ("Criteria from other packages").
 * `zip` and `xlsx` are small utility packages (`xlsx` has one user, `fit`'s profile; merging them is possible).
-* `climbs` stays one package; splitting it into `sectors` and `climbs` is TODO step 14.  `selection/calendar` goes with
+* `climbs` stays one package; splitting it into `sectors` and `climbs` is in TODO.md (step 9, "Larger changes").  `selection/calendar` goes with
   the command for now and may be pulled out later.
 
 **Lessons.**  Separating a command from its library can hide a cycle: look at what the command *needs* from other

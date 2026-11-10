@@ -1,10 +1,11 @@
 ## A query that is built from pieces: its text, with `:name` marks where the values go, and the values by name.
 ## The values are never put into the text (`statement.nim` binds them), and the pieces can be joined in any order
-## with `&`: each carries its own values, so nothing can fall out of step as with `?`.  A name may stand more than
+## with `&`: each carries its own values, so nothing can fall out of step.  A name may stand more than
 ## once in the text; it is one value.  (A name with no value, a value no name uses, or one name given twice is a
 ## `StoreError` when the query is run.)
 ##
-## Short queries with fixed text use `?` and `query(db, T, text, values...)` instead (`statement.nim`).
+## Short queries with fixed text need no `Sql`: `query(db, T, "... where id = :id", id = 3)` takes the same `:names` and the
+## values by name (`statement.nim`); a `?` in the text is an error.
 
 import std/options
 import ../../core/ids

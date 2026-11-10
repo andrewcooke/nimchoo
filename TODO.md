@@ -16,9 +16,6 @@ sees and can be approved together.
       except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
-2. *(mechanical)* **Tools** (REVIEW.md §7).
-   2. Small drift: `cmdname.nim` without `{.push raises: [].}`; `db/sqltext.nim`'s header (the `?` text); PACKAGES.md
-      "What is built and what is left".
 3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
    1. *(mechanical)* `humanBytes` moves from `download/fetch` to `ui/units`.  Then the commands with no cycle go into
       their packages: `fit`, `climbs`, `landmarks` (into `names`), `models` (into `model`), `cache`, `db`; `log`, `map`
