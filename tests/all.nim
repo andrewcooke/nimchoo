@@ -106,8 +106,15 @@ import
     test_lookup, test_shape, test_activity, test_landmarks,
   ]
 import
-  ./web/
-    [test_request, test_token, test_handler, test_pages, test_libraries, test_workers]
+  ./web/[
+    test_request,
+    test_token,
+    test_handler,
+    test_pages,
+    test_libraries,
+    test_workers,
+    test_fuzz as webFuzz,
+  ]
 import ./user/test_wipe
 import ./commands/userscmd/test_params
 import ./commands/userscmd/test_command

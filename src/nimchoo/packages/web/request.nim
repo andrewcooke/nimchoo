@@ -58,8 +58,8 @@ const
 
 func parseTarget*(raw: string): Option[Target] =
   ## "/map?bits=AsBO&check=ab12cd" -> path "/map" and the query, percent-decoded.
-  ## None for anything that is not a plain path (no scheme or host, no spaces or control
-  ## characters, not too long).
+  ## None for anything that is not a plain path (no scheme or host, as written or as decoded,
+  ## no spaces or control characters, not too long).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):
     return none(Target)
   if raw.anyIt(it <= ' ' or it == '\x7f' or it == '\\'):
@@ -74,6 +74,9 @@ func parseTarget*(raw: string): Option[Target] =
       decodePlus = false,
     )
   )
+  if t.path.startsWith("//"):
+    return
+      none(Target) # (decoded from "/%2f...": as a redirect it would name another host)
   if q >= 0:
     for pair in raw[q + 1 .. ^1].split('&'):
       if pair.len == 0:
@@ -95,9 +98,14 @@ func queryValue*(q: Query, name: string): Option[string] =
       return some(v)
   none(string)
 
+func encodedPath(path: string): string =
+  ## A decoded path written as an address again: each segment encoded (so that a `%`, `?`, `#`, space or control
+  ## character in it is not read as something else, or as the end of the line in the log and the headers).
+  path.split('/').mapIt(encodeUrl(it, usePlus = false)).join("/")
+
 func withoutParam*(t: Target, name: string): string =
-  ## The target as a path and query again, without the parameter `name`.
-  result = t.path
+  ## The target as a path and query again, without the parameter `name`; it reads back as the same path and query.
+  result = encodedPath(t.path)
   var first = true
   for (k, v) in t.query:
     if k == name:

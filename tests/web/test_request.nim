@@ -20,6 +20,9 @@ suite "serve request: the target":
       "",
       "heatmap",
       "//evil.example/x",
+      "/%2fevil.example/x",
+        # (decoded it would be "//evil.example/x": a redirect to it goes to another host)
+      "/%2F%2Fevil.example",
       "http://x/y",
       "/a b",
       "/a\tb",
@@ -37,6 +40,22 @@ suite "serve request: the target":
     check target("/heatmap?token=T").withoutParam("token") == "/heatmap"
     check target("/heatmap").withoutParam("token") == "/heatmap"
     check target("/heatmap?check=a%20b").withoutParam("token") == "/heatmap?check=a%20b"
+
+suite "serve request: the address of a redirect":
+  test "the path is written encoded, so that it reads back as the same path":
+    # (the path was written as decoded: %255E came back as ^, %20 as a space that the parser refuses, %3F as a query)
+    for raw in [
+      "/files/a%255Eb", "/x=%20c", "/files/a%3Fb?token=T&c=d", "/a%0Ab", "/a%23b"
+    ]:
+      let t = target(raw)
+      let shown = t.withoutParam("token")
+      check shown.allIt(it > ' ' and it != '\x7f')
+      let again = parseTarget(shown)
+      check again.isSome
+      check again.get.path == t.path
+      check again.get.query == t.query.filterIt(it[0] != "token")
+    check target("/files/a%2Eb?token=T").withoutParam("token") == "/files/a.b"
+    check target("/files/a%255Eb").withoutParam("token") == "/files/a%255Eb"
 
 suite "serve request: who is asking":
   test "the Host header must be this server's own address":

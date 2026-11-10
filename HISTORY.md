@@ -3105,3 +3105,15 @@ over 2 s.  Cost in `nimble test`: about 2 s in all.
   on 2026-11-10).  Remove `checkCharRefs` when it is fixed.  The three inputs are in `tests/data/fuzz/xlsx/`.
 * **The profile loader**: nothing in 30,000 small profiles and 50 copies of the real one (a tenth of the loads succeed:
   the damage reaches the sheet readers).
+
+The server's request checks fuzzed (`tests/web/test_fuzz.nim`: `parseTarget`, `route`, `withoutParam`, `hostAllowed`,
+`cookieValue`, `sameToken`; damaged and random addresses and headers).  Besides "nothing raises", it checks what comes out:
+the address of a redirect has no control characters and reads back as the same path and query, and a route holds only
+the arguments of its command's rules.  It found one bug of one cause, at the first run: **`withoutParam` wrote the decoded
+path back as it was** (the query was encoded again, the path not), so that `/files/a%255Eb` was redirected to
+`/files/a^b` (decoded twice), a `%3F` made the rest of the path a query, a space or a control character went into the
+`Location` header and the log, and `/%2fhost/x` decoded to `//host/x`, which as a redirect names another host.  Only a
+request with the right token redirects, so it was not reachable from a page in the browser; but the log line had the
+same text.  Fixed: the path is written encoded segment by segment, and `parseTarget` refuses a decoded path that starts
+with `//`.  600,000 addresses are then clean.  The worker's argument parser takes the word after a value option as the
+value without looking at it (`--model -h` sets the model to "-h"), so a value that starts with a dash is not an option.

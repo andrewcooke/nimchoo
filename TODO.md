@@ -11,11 +11,10 @@ sees and can be approved together.
 
 1. **Fuzzing** (REVIEW.md §3; the author: before the packages).  Done so far: the FIT and importer fuzzers
    (HISTORY.md, 2026-11-10), and `decodeBits`.
-   1. Level-1 fuzzer for `parseTarget` (`decodeBits`, the zip and xlsx readers and the profile loader are done).
-   2. Failures saved under `tests/data/fuzz/<target>/` and replayed by a test: done for the importer
+   1. Failures saved under `tests/data/fuzz/<target>/` and replayed by a test: done for the importer
       (`tests/importer/test_fuzz.nim`), `bits`, `zip`, `xlsx` and the profile (they replay what is in the directory, which is empty
-      except for xlsx); the FIT target (`tests/data/fuzz/fit/`) needs the same.
-   3. Level 2: libFuzzer harnesses in `tests/fuzz/`, `nimble fuzz TARGET [SECONDS]` (clang, `--panics:on`,
+      except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
+   2. Level 2: libFuzzer harnesses in `tests/fuzz/`, `nimble fuzz TARGET [SECONDS]` (clang, `--panics:on`,
       `-d:useMalloc`, `-fsanitize=fuzzer,address`, and `--gcc-install-dir` set to the GCC that has `libstdc++.so`:
       clang chooses GCC 16, which lacks it).  One hour per target; fix what it finds (a test first), record the rest.
 2. *(mechanical)* **Tools** (REVIEW.md §7).

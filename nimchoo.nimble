@@ -79,6 +79,7 @@ task fuzzlong,
   exec "nim c -r -d:release --checks:on --hints:off tests/util/zip/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/util/xlsx/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/fit/test_profilefuzz.nim"
+  exec "nim c -r -d:release --checks:on --hints:off tests/web/test_fuzz.nim"
 
 task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)":
   exec "nim c -r -d:release --hints:off -o:tests/csvreport tests/csvreport.nim"
