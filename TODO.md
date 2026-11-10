@@ -21,11 +21,6 @@ sees and can be approved together.
       `commands/` group and the `cmd` suffix go with `activitiescmd` (step 7); the import test's
       "a command module is imported only by its `package.nim`" still finds the module by its name, `command`: make it ask
       the registry (the module of `CommandDecl.run`).
-   2. *(done 2026-11-10: `db_connector` is imported by `db` and `core/fragment.nim` only, checked by a test; `db` exports
-      `DbConn`.)*  **Left, to be done just before 7**, when `--climb` is the first real
-      contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
-      table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
-      definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
    7. `selection` becomes a library (no command) with the extension point "activity criteria" (an option and
       `resolve(store, user, values)` giving an `Sql` condition and notes, or an error); `climbs` contributes `--climb`.
       New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; "the new activities become the

@@ -75,7 +75,7 @@ system can be extended with new fit-related functionality by adding a package, w
   write only its own tables, and read those of its `depends` and of `db` (the `fragment` table and spatialite's metadata);
   **enforced** (`core/access.nim`, `packages/db/access.nim`; PACKAGES.md "The access model"): a statement is checked as
   the package of the file it is written in, and a breach is a `StoreError` naming the package, the table and the sql.  a
-  query joining another package's tables must be run by a package that may read them.  a table is written by its owner's
+  query joining another package's tables must be run by a package that may read them (unless another package wrote a piece of it: an `Sql` records the packages whose files wrote its pieces; a read is allowed if the runner or any of them may make it, a write to the runner only).  a table is written by its owner's
   functions (`selection/replaceSelection`, `user/users`, `user/profile`, `importer/remove`), so a command calls those.
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in `fragments:` of its
   `package.nim`; the registry joins the lists, in dependency order, into `allFragments`.
