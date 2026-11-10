@@ -9,7 +9,7 @@ import ../db/sqltext
 import ../text/fold/fold
 import ../user/session
 import ../util/args/args
-import ./[display, report]
+import ./[completion, display, report]
 
 {.push raises: [].}
 
@@ -54,7 +54,7 @@ let climbCriterion* = Criterion(
     help:
       "activities that have an effort on a climb whose name (as `nch climbs --all` shows it) contains TEXT: --climb farellones (all of them), --climb farellones₂ (or \"farellones 2\") (one); retired climbs too.  It is an error if no climb has the text",
     arity: aList,
-    completion: Completion(kind: ckDynamic, source: "climb"),
+    completion: completesFrom(completeClimbWords),
   ),
   resolve: resolveClimbs,
 ) ## the criterion `--climb`

@@ -1,8 +1,8 @@
 ## What the shell is offered (core/complete.nim): the commands, the options, the values of an option, from the
 ## descriptions of the options alone.
 
-import std/[sequtils, unittest]
-import nimchoo/core/[complete, globals, manifest, optdoc]
+import std/[sequtils, strutils, unittest]
+import nimchoo/core/[complete, errors, globals, manifest, optdoc]
 from nimchoo/registry import commands
 
 func opt(
@@ -10,10 +10,23 @@ func opt(
 ): OptDoc =
   OptDoc(names: @names, arity: arity, completion: completion, level: level)
 
+proc userProvider(
+    g: Globals, typed: string
+): seq[string] {.nimcall, raises: [StoreError].} =
+  ## Offers the users `bob` and `alice` that start with what is typed, and the database `g` points at, to see it is passed.
+  for u in ["bob", "alice", g.user, "bob"]:
+    if u.len > 0 and u.startsWith(typed):
+      result.add u
+
+proc failingProvider(
+    g: Globals, typed: string
+): seq[string] {.nimcall, raises: [StoreError].} =
+  raiseStore("the database is not there")
+
 proc headDocs(): seq[OptDoc] =
   @[
     opt(["--db"], aOne, Completion(kind: ckFile)),
-    opt(["--user"], aOne, Completion(kind: ckDynamic, source: "user")),
+    opt(["--user"], aOne, completesFrom(userProvider)),
     opt(["--offline"]),
     opt(["--shell"], aOptional, Completion(kind: ckWords, words: @["bash", "zsh"])),
     opt(["-h", "--help"]),
@@ -61,8 +74,8 @@ suite "tab completion: commands and the options before them":
     check offered("--offline", "") == @["map", "size", "sort", "undeclared"]
     check offered("--user", "bob", "s") == @["size", "sort"]
 
-  test "the value of a head option is not a command":
-    check offered("--user", "") == newSeq[string]()
+  test "the value of a head option is not a command, and a file option offers files":
+    check offered("--user", "") == @["bob", "alice"] # (what its provider says)
     check filesOffered("--db", "")
     check filesOffered("--offline", "--db", "x", "--db", "")
 
@@ -70,6 +83,34 @@ suite "tab completion: commands and the options before them":
     check offered("--nope", "") == newSeq[string]()
     check offered("nope", "") == newSeq[string]()
     check offered("undeclared", "") == newSeq[string]()
+
+suite "tab completion: values from the program's data":
+  test "the provider is asked, with what is typed, and what it says is offered, once each":
+    check offered("--user", "") == @["bob", "alice"]
+    check offered("--user", "a") == @["alice"]
+    check offered("--user", "z") == newSeq[string]()
+
+  test "the provider gets the Globals the caller made":
+    let o =
+      complete(headDocs(), sizeCommands(), Globals(user: "carol"), @["--user", "c"])
+    check o.words == @["carol"]
+
+  test "a provider that fails offers nothing, and nothing is raised":
+    let docs = @[opt(["--name"], aOne, completesFrom(failingProvider))]
+    let cmds = @[
+      CommandDecl(
+        name: "x",
+        options: (
+          proc(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+            @[opt(["--name"], aOne, completesFrom(failingProvider))]
+        ),
+      )
+    ]
+    check complete(docs, cmds, Globals(), @["x", "--name", ""]).words.len == 0
+
+  test "a dynamic completion cannot be made without its provider":
+    expect AssertionDefect:
+      discard completesFrom(nil)
 
 suite "tab completion: an option whose value may be left out":
   test "its value is offered, until an option or a command is typed":

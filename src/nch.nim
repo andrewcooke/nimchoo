@@ -8,6 +8,7 @@ import std/[algorithm, options, os, sequtils, strformat, strutils]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
 import nimchoo/[completion, introspect]
 import nimchoo/packages/ui/live
+import nimchoo/packages/user/completion as userCompletion
 import nimchoo/packages/util/args/[args, usage]
 import nimchoo/registry
 import nimchoo/core/logfile
@@ -55,7 +56,7 @@ func headSpec(): Spec[Head] =
         true,
         "NAME",
         "whose data to work with (default: the default user)",
-        completion = Completion(kind: ckDynamic, source: "user"),
+        completion = completesFrom(completeUsers),
         body = (p.g.user = value; fine),
       ),
       custom(
@@ -104,15 +105,19 @@ proc main(): int {.raises: [].} =
     # (a child of the downloads: see zipchild.nim)
     return inflateChildMain(args[1 ..^ 1])
   if args.len > 0 and args[0] == completeFlag:
-    # (the shell asking what may be typed next: offline, read-only, and all the packages' options are known: completion.nim)
-    let g = Globals(
-      fragments: allFragments,
-      extensions: registry.extensions,
-      access: allAccess,
-      offline: true,
-      readOnly: true,
-    )
-    return completeMain(headSpec().docs, allCommands, g, args[1 ..^ 1])
+    # (the shell asking what may be typed next.  The options before the command that are already typed say which database
+    # and user the values come from; if they are incomplete or wrong, what was read before the fault stands.  Offline and
+    # read-only, whatever was typed: completion changes nothing and uses no network.  See completion.nim)
+    let line = args[1 ..^ 1]
+    var before = Head(g: Globals(fragments: allFragments))
+    var next = 0
+    discard parseLeading(line[0 ..< max(0, line.high)], headSpec(), before, next)
+    var g = before.g
+    g.extensions = registry.extensions
+    g.access = allAccess
+    g.offline = true
+    g.readOnly = true
+    return completeMain(headSpec().docs, allCommands, g, line)
   var head = Head(g: Globals(fragments: allFragments))
   var i = 0
   let why = parseLeading(args, headSpec(), head, i)

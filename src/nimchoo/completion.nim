@@ -24,17 +24,33 @@ const
   bashTemplate =
     scriptMarker &
     """ (`nch --install-completion` writes it; it is overwritten each time)
+_nch_unquote() {
+    local w=$1
+    case $w in
+        \'*) w=${w#\'}; w=${w%\'} ;;
+        \"*) w=${w#\"}; w=${w%\"} ;;
+    esac
+    REPLY=${w//\\/}
+}
 _nch_complete() {
-    local out rc line cur=${COMP_WORDS[COMP_CWORD]}
+    local out rc line q i cur=${COMP_WORDS[COMP_CWORD]}
+    local -a words=()
     COMPREPLY=()
-    out=$(command "${COMP_WORDS[0]}" COMPLETE_FLAG "${COMP_WORDS[@]:1:COMP_CWORD}" 2>/dev/null)
+    for ((i = 1; i <= COMP_CWORD; i++)); do
+        _nch_unquote "${COMP_WORDS[i]}"
+        words+=("$REPLY")
+    done
+    out=$(command "${COMP_WORDS[0]}" COMPLETE_FLAG "${words[@]}" 2>/dev/null)
     rc=$?
     if [ "$rc" -eq EXIT_FILES ]; then
         [ "$cur" = "=" ] && cur=
         compopt -o filenames 2>/dev/null
         while IFS= read -r line; do COMPREPLY+=("$line"); done < <(compgen -f -- "$cur")
     elif [ "$rc" -eq 0 ] && [ -n "$out" ]; then
-        while IFS= read -r line; do COMPREPLY+=("$line"); done <<<"$out"
+        while IFS= read -r line; do
+            printf -v q '%q' "$line"
+            COMPREPLY+=("$q")
+        done <<<"$out"
     fi
 }
 complete -F _nch_complete nch
@@ -42,7 +58,10 @@ complete -F _nch_complete nch
     ## the function, with the two facts it shares with this module written as words (`bashFunction` fills them in).  It
     ## runs the program as it was typed (`./nch` completes against that build, not whichever `nch` is on the path).
     ## Bash gives `--sport=cyc` as three words (`=` is a word break); `complete.nim` knows.  stderr is thrown away: a
-    ## message there garbles the line being typed (the prompt is not redrawn).
+    ## message there garbles the line being typed (the prompt is not redrawn).  The words typed are unquoted (a leading quote
+    ## goes, and backslashes) before `__complete` sees them, and each candidate is quoted (`%q`), so a name with spaces is one
+    ## word on the command line.  `nch` offers what starts with the word whatever the case and
+    ## accents; bash replaces the word typed with the candidate (`f` becomes `Farellones`).
 
   bashFunction* = bashTemplate.replace("COMPLETE_FLAG", completeFlag).replace(
       "EXIT_FILES", $exitFiles

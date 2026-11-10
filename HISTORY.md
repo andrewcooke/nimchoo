@@ -4,6 +4,30 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Tab completion (done 2026-11-10; REVIEW.md step 10)
+
+`nch --install-completion [SHELL]` writes the script where bash-completion finds it (new shells have it on the first tab,
+nothing in `~/.bashrc`); `nch --show-completion` prints it; the hidden `nch __complete WORDS...` answers it.  Decisions and why:
+
+* **Options describe themselves; the registry reads them**: `OptDoc`, `Completion`, `Arity` live in `core/optdoc.nim` and each
+  command declares `options:` from the spec that parses it, so what the shell offers cannot differ from what is accepted.
+  `core/complete.nim` is the algorithm (commands, options, fixed words, files, a provider's values).
+* **A provider on the option, not a registry of sources** (the author asked why a new extension point; the answer was that there
+  was no good reason): `Completion` is a variant, `ckDynamic` carries `proc(g: Globals, typed): seq[string]`, written next to
+  the option (`--climb` rides on the existing `activities/criteria` contribution).  No names to keep in step.  A source below
+  its data would need an extension point then.
+* **Guards are structural, not conventions**: `__complete` makes its own `Globals`, `readOnly` and `offline`, so a provider
+  cannot create a file, migrate a database, write, or download (found: `openStore` on a missing path made a 577 KB database).
+  `openReadOnly` (`db/store.nim`) opens with `sqlite3_open_v2` because `db_connector` only binds `sqlite3_open` (no flags; URIs
+  are not enabled in the system SQLite).  Rejected: `tiny_sqlite` (has `dbRead`, last updated 2023, would replace the whole `db`
+  layer) and `sqlite3_abi` (bundles its own SQLite, which would meet SpatiaLite's).  Measured: a read-only session opens in
+  1.2 ms, a read-write one in 12 ms; `nch packages` starts in 4.4 ms.
+* **Silence**: nothing is written to stderr during completion (the prompt is not redrawn, so a message garbles the line); a
+  provider's `StoreError` (no database, another version) is no offer.
+* **Case and accents**: providers match whatever the case and accents, as `--climb` does; bash replaces the word typed with the
+  candidate (`f` becomes `Farellones`).  (A first test seemed to show it appending: the raw terminal bytes hid the backspaces.)
+* **`--climb` is offered the words of climb names, `climbs --edit` the whole names**, quoted by the function.
+
 ## Conventions
 
 * **No compiler warnings** (checked 2026-11-04 with Nim 2.4.0, building everything from scratch with `-f`: the

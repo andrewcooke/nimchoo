@@ -48,6 +48,7 @@ import ./db/test_command
 import ./heartrate/test_step
 import ./model/[test_calc, test_impulses]
 import ./model/test_params
+import ./model/test_completion as modelCompletion
 import ./ff/test_curve
 import ./ff/test_page
 import ./ff/test_web
@@ -76,6 +77,7 @@ import
   ./selection/[test_bits, test_imported, test_selection, test_fuzz as selectionFuzz]
 import ./activities/test_ranges
 import ./activities/test_criteria
+import ./activities/test_completion as sportCompletion
 import ./activities/test_table
 import ./activities/test_command
 import ./calendar/test_calendar
@@ -104,9 +106,11 @@ import
     test_edit as climbsEdit,
   ]
 import ./climbs/test_criterion
+import ./climbs/test_completion as climbCompletion
 import ./climbs/test_command
 import ./climbs/test_params as climbsParams
 import ./names/test_params as landmarkParams
+import ./names/test_completion as landmarkCompletion
 import ./names/test_command as landmarkCommand
 import ./download/test_fetch
 import
@@ -127,6 +131,7 @@ import
 import ./user/test_session
 import ./user/test_wipe
 import ./user/test_params
+import ./user/test_completion as userCompletion
 import ./user/test_command
 import ./confirm/test_confirm
 import ./importer/test_count

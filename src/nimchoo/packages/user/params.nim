@@ -1,6 +1,7 @@
 ## The command line of `nch users`, parsed.  Pure.
 
 import ../util/args/args
+import ./completion
 import std/[options, sequtils, strutils]
 
 {.push raises: [].}
@@ -101,6 +102,7 @@ func userSpec*(): Spec[Raw] =
         true,
         "NAME",
         "change the user NAME, with one or more of:",
+        completion = completesFrom(completeUsers),
         body = (p.editing = true; p.name = value; fine),
       ),
       custom(
@@ -153,6 +155,7 @@ func userSpec*(): Spec[Raw] =
         true,
         "NAME",
         "delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  Needs -f; on a terminal there are then 5 seconds in which to press Ctrl-C.  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
+        completion = completesFrom(completeUsers),
         body = (p.deleting = true; p.name = value; fine),
       ),
       flag(Raw, ["-f", "--force"], force, "really do it", level = 1),

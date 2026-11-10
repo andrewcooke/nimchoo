@@ -1,6 +1,7 @@
 ## The command line of `nch landmarks`, parsed.  Pure.
 
 import ../util/args/args
+import ./completion
 import std/[options, strutils]
 import ./landmarks
 
@@ -169,6 +170,7 @@ func landmarkSpec*(): Spec[Raw] =
         true,
         "NAME",
         "delete the landmark (needs -f)",
+        completion = completesFrom(completeLandmarks),
         body = (p.deleting = true; p.name = value; fine),
       ),
       flag(Raw, ["-f", "--force"], force, "really do it", level = 1),

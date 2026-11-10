@@ -16,34 +16,13 @@ sees and can be approved together.
       except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
-5. **Tab completion** (A step 10): `nch __complete` and a bash function; dynamic values from the database.  Design agreed
-   2026-11-10 (discussion, not yet built); several commits.  The tab key never prints an error, never creates or changes a
-   file, never uses the network, and is fast (budget: under 30 ms per press including the query; `nch packages` starts in
-   4.4 ms).
-   * **Done (commit 1)**: `OptDoc`, `Completion` and `Arity` are in `core/optdoc.nim`; `CommandDecl.options` (each command's
-     spec); `core/complete.nim` (the pure algorithm: commands, options, `ckWords` values, `ckFile`); `nch __complete` and
-     `nch --install-completion` and `--show-completion` (`completion.nim`).  Still to do: `Completion` as a variant (`ckNone | ckFile | ckWords(words) |
-     ckDynamic(provide)`: a dynamic one cannot exist without its provider; `ckDynamic` still names a `source` and offers nothing).
-   * **Providers**: `proc(g: Globals, prefix: string): seq[string] {.raises: [StoreError].}`, next to the option they
-     complete (`--climb` beside `resolve` in `climbs/criterion.nim`, through `activities/criteria`; sports in `activities`;
-     `--user` via `user`; `--edit/--delete NAME` in each package's params).  No registry of sources, no new extension point
-     (if an option ever sits below the data it completes, that package then defines a point).
-   * **`__complete`** still needs to parse `--db` and `--user` into the `Globals` it gives the providers (it passes none now).
-   * **Guards** (done in commit 2: `Globals.readOnly`, `openReadOnly` in `db/store.nim` with its own `sqlite3_open_v2`
-     declaration because `db_connector` binds only `sqlite3_open`; `openSession` honours it and makes no user; `nch __complete`
-     sets it, and `offline`; a read-only session opens in 1.2 ms, a read-write one in 12 ms, on an empty schema).  Still to do:
-     catch the `StoreError` of a provider in one place, printing nothing; check that the offline path writes no cache files.
-     Tests still to write with the providers: a provider that writes or looks a name up gives nothing and writes nothing; no
-     child process is started.  A read-only open of a WAL database still makes `-shm` and `-wal` beside it, and where the
-     directory cannot be written the query fails (so: nothing offered).
-   * **Commit still to do**: (3) the providers (`--edit/--delete NAME` included), the `Completion` variant, and `--db`/`--user` parsed for them.
-   * **Done (follow-ups)**: `nch --install-completion [SHELL]` writes the script (full text, marked by its first line so only
-     our own file is overwritten) to bash-completion's user directory, where new shells find it on the first tab;
-     `nch --show-completion [SHELL]` prints it.  Default bash; zsh to come (its own path and mechanism).  The function runs the
-     program as typed (`${COMP_WORDS[0]}`), so `./nch` works where it is registered (`complete -F _nch_complete ./nch`).
-     Still to do: the author to try it in their own shell (a test shell, with bash-completion, was used so far).
-   * **Quoting**: candidates (`Cerro San Luis₄`) are printed whole and bash quotes them (to check with the real list);
-     `--climb TEXT...` takes several words: complete the word being typed.
+5. **Tab completion** (A step 10): built and working (HISTORY.md, 2026-11-10); what is left:
+   * the **offline path** of `nch __complete` should be checked to write no cache files (it sets `offline` and `readOnly`, and
+     no provider uses the network, but nothing yet tests that no child process or cache file is made);
+   * **zsh** (`--install-completion zsh`: its own directory and mechanism), if wanted;
+   * **`--edit NAME`** for the other plural commands if they gain one; a **`--model`** of `map`, if it gets one;
+   * candidates that need quoting (`Cerro San Luis₄`) are quoted by the function (`%q`) and the words typed are unquoted; only
+     spaces, quotes and backslashes were tried.
 6. *(mechanical)* **One owner per fact** (A §4.1).
 7. **Push work into SQL** (A §4.4), measured.
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).

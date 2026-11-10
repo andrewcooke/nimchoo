@@ -3,6 +3,7 @@
 import std/[options, strutils, times]
 import ../cache/cache
 import ../util/args/args
+import ../model/completion
 import ../web/[request, webopts]
 
 {.push raises: [].}
@@ -68,6 +69,7 @@ func ffSpec*(): Spec[Raw] =
           model,
           "NAME",
           "the model to use (default: `default`)",
+          completion = completesFrom(completeModels),
           address = adValue,
           valid = anyWord,
         ),

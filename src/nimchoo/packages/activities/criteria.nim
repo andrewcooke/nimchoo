@@ -8,7 +8,7 @@ import ../util/args/args
 import ../db/sqltext
 import ../../core/ids
 import ../text/fold/fold
-import ./[criterion, ranges]
+import ./[completion, criterion, ranges]
 export ranges, criterion
 
 {.push raises: [].}
@@ -381,14 +381,14 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         takeSports,
         "A B",
         "only these sports (cycling, running, swimming ...); \"none\" means not recorded; \"latest\" or \"previous\": that activity's sport",
-        completion = Completion(kind: ckDynamic, source: "sport"),
+        completion = completesFrom(completeSports),
       ),
       listOption[ListState](
         ["--sub-sport"],
         takeSubSports,
         "A B",
         "only these sub-sports (road, trail, open_water ...).  Many files say \"generic\" or nothing, so this misses some rides",
-        completion = Completion(kind: ckDynamic, source: "sub-sport"),
+        completion = completesFrom(completeSubSports),
       ),
       listOption[ListState](
         ["--name"],

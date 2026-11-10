@@ -7,12 +7,13 @@
 ## of an option whose values are a fixed list, and file names for an option that takes a file (said to the shell, which
 ## knows files better than we do).  Nothing is offered where nothing is known (a positional word, an unknown option, an
 ## unknown command): the shell then has nothing to say, and that is not an error.  The values that come from the
-## database are not here yet.
+## database are the option's own (`Completion.provide`): it is asked, with the `Globals` the caller made (read-only), and
+## an error from it is no offer.
 ##
-## Pure: no database, no files, no printing (`completion.nim` is the command).
+## No printing and no files of its own (`completion.nim` is the command); the providers read the database.
 
 import std/[algorithm, sequtils, strutils]
-import ./[globals, manifest, optdoc]
+import ./[errors, globals, manifest, optdoc]
 
 {.push raises: [].}
 
@@ -45,11 +46,17 @@ func findDoc(docs: seq[OptDoc], name: string): int =
       return k
   -1
 
-func valueOffer(d: OptDoc, typed: string): Offer =
-  ## What may be the value of this option.
+proc valueOffer(d: OptDoc, g: Globals, typed: string): Offer =
+  ## What may be the value of this option.  A provider that cannot say (no database, a database of another version, a
+  ## lock) offers nothing: that is the one place the tab key turns an error into silence.
   case d.completion.kind
-  of ckNone, ckDynamic:
+  of ckNone:
     nothing()
+  of ckDynamic:
+    try:
+      Offer(kind: okWords, words: d.completion.provide(g, typed).deduplicate)
+    except StoreError:
+      nothing()
   of ckFile:
     Offer(kind: okFiles)
   of ckWords:
@@ -85,7 +92,7 @@ func normalise(words: seq[string]): seq[string] =
     else:
       result.add w
 
-func scan(docs: seq[OptDoc], done: seq[string], typed: string): Offer =
+proc scan(docs: seq[OptDoc], g: Globals, done: seq[string], typed: string): Offer =
   ## What the word being typed may be, after these words of a command: an option, or the value of the option before it.
   ## A word that is not an option is the value the option before it wants, else a positional (nothing is known about
   ## those) or one more value of a list option.
@@ -109,11 +116,11 @@ func scan(docs: seq[OptDoc], done: seq[string], typed: string): Offer =
         of aList:
           listing = k
   if waiting >= 0 and not (docs[waiting].arity == aOptional and typed.startsWith("-")):
-    docs[waiting].valueOffer(typed)
+    docs[waiting].valueOffer(g, typed)
   elif typed.startsWith("-"):
     docs.optionNames(typed)
   elif listing >= 0:
-    docs[listing].valueOffer(typed)
+    docs[listing].valueOffer(g, typed)
   else:
     docs.optionNames(typed)
 
@@ -149,11 +156,11 @@ proc complete*(
   if at >= done.len:
     # still among the options before the command
     if waiting >= 0 and not (head[waiting].arity == aOptional and typed.startsWith("-")):
-      return head[waiting].valueOffer(typed)
+      return head[waiting].valueOffer(g, typed)
     if typed.startsWith("-"):
       return head.optionNames(typed)
     return commands.mapIt(it.name).sorted.withPrefix(typed)
   let named = commands.filterIt(it.name == done[at])
   if named.len == 0 or named[0].options.isNil:
     return nothing()
-  named[0].options(g).scan(done[at + 1 .. ^1], typed)
+  named[0].options(g).scan(g, done[at + 1 .. ^1], typed)

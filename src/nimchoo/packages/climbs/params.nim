@@ -1,6 +1,7 @@
 ## The command line of `nch climbs`, parsed.  Pure.
 
 import ../util/args/args
+import ./completion
 import ./display
 import std/[strutils, unicode]
 
@@ -128,6 +129,7 @@ func climbSpec*(): Spec[Raw] =
         true,
         "NAME",
         "change that climb, with one of the following.  NAME is a climb's name as `--all` shows it, its number included where several share a name: \"Morro La Cabra₁\" (\"Morro La Cabra 1\" and \"Morro La Cabra1\" do as well).  The number is kept: it never changes",
+        completion = completesFrom(completeClimbNames),
         body = (p.editing = true; p.name = value; fine),
       ),
       custom(
