@@ -10,7 +10,7 @@
 
 import std/[locks, monotimes, os, times, typedthreads]
 import ../ui/live
-import ../ui/style
+import ../ui/[style, units]
 import ./fetch
 
 {.push raises: [].}

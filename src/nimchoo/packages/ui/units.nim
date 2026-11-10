@@ -15,3 +15,12 @@ func kmNumber*(metres: float): string =
 func km*(metres: float): string =
   ## "102.7km": the unit follows the number with no space.
   kmNumber(metres) & "km"
+
+func humanBytes*(n: int64): string =
+  ## "1.4MB", "85kB", "12B": no space before the unit.
+  if n >= 1_000_000:
+    formatFloat(float(n) / 1e6, ffDecimal, 1) & "MB"
+  elif n >= 1_000:
+    $(n div 1_000) & "kB"
+  else:
+    $n & "B"

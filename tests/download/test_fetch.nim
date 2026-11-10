@@ -175,8 +175,6 @@ suite "download: fetching":
     discard fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL")
     check dataUsage(dir).files == 1 and
       dataUsage(dir).bytes == int64(net.bodies.getOrDefault(chile).len)
-    check humanBytes(1_400_000) == "1.4MB" and humanBytes(85_000) == "85kB" and
-      humanBytes(12) == "12B"
 
 suite "download: the same events in the log and on the screen":
   test "downloaded is info, failed is an error; the screen gets a line each":

@@ -1,3 +1,3 @@
 import ../../core/manifest
 
-const package* = Package(depends: @["download", "hashing", "proquint"], fragments: @[])
+const package* = Package(depends: @["hashing", "proquint", "ui"], fragments: @[])

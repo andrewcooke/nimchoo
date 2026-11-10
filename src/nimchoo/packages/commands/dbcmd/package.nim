@@ -2,7 +2,7 @@ import ../../../core/manifest
 import ./command
 
 const package* = Package(
-  depends: @["args", "confirm", "db", "download", "ui"],
+  depends: @["args", "confirm", "db", "ui"],
   commands: @[
     CommandDecl(
       name: command.commandName,

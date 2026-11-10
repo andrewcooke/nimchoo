@@ -14,6 +14,7 @@ import ../util/lookup/lookup
 import ../util/zip/zipbytes
 import ../util/zip/zipchild
 import ../util/atomic/atomic
+import ../ui/units
 import ./sources
 when defined(posix):
   import std/posix
@@ -80,15 +81,6 @@ type
   DataUsage* = object
     files*: int
     bytes*: int64
-
-func humanBytes*(n: int64): string =
-  ## "1.4MB", "85kB", "12B": no space before the unit.
-  if n >= 1_000_000:
-    formatFloat(float(n) / 1e6, ffDecimal, 1) & "MB"
-  elif n >= 1_000:
-    $(n div 1_000) & "kB"
-  else:
-    $n & "B"
 
 func shortUrl*(url: string): string =
   ## The address without "https://" (or "http://"), for the screen.

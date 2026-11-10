@@ -3,7 +3,7 @@
 
 import ../../core/logfile
 import ../ui/live
-import ../ui/style
+import ../ui/[style, units]
 import ./[fetch, spinner]
 
 {.push raises: [].}

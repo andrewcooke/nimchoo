@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ../../cache/cache
 import ../../../core/globals
 import ../../util/args/args
-import ../../download/fetch
+import ../../ui/units
 import ../../../core/logfile
 import ../../confirm/confirm
 import ../../cache/files
