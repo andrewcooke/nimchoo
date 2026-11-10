@@ -4,7 +4,7 @@
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
-import std/[algorithm, options, os, sequtils, strutils]
+import std/[algorithm, options, os, sequtils, strformat, strutils]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
 import nimchoo/[completion, introspect]
 import nimchoo/packages/ui/live
@@ -16,13 +16,23 @@ import nimchoo/packages/util/zip/zipchild
 
 {.push raises: [].}
 
-const allCommands =
-  (registry.commands & @[packagesCommand, completionCommand]).sortedByIt(it.name)
+const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
   ## the commands of the packages, and those `nch` provides itself
 
 type Head = object ## The options before the command name.
   g: Globals
   help, version, offline: bool
+  shell: Option[Shell] ## `--completion`: print the function for this shell
+
+func takeShell(p: var Head, value: string): Problem =
+  ## `--completion [SHELL]`.
+  p.shell = parseShell(value)
+  if p.shell.isNone:
+    refuse(
+      fmt"no completion for '{value}' (the shells are {shellNames().join("", "")})"
+    )
+  else:
+    fine
 
 func headSpec(): Spec[Head] =
   ## The options every command takes, given before its name.
@@ -53,6 +63,14 @@ func headSpec(): Spec[Head] =
         "",
         "do not use the network (no names are looked up: climbs are \"unnamed\", and stay so)",
         body = (p.g.offline = true; fine),
+      ),
+      optionalValue(
+        Head,
+        ["--completion"],
+        "SHELL",
+        "print the function that makes the shell complete `nch` (default: bash): `eval \"$(nch --completion)\"` in ~/.bashrc",
+        completion = Completion(kind: ckWords, words: shellNames()),
+        body = takeShell(p, value),
       ),
       flag(
         Head,
@@ -96,6 +114,9 @@ proc main(): int {.raises: [].} =
   if head.version:
     stdout.say versionString & "\n"
     return exitOk
+  if head.shell.isSome:
+    stdout.say shellFunction(head.shell.get)
+    return exitOk
   var g = head.g
   g.extensions = registry.extensions
   g.access = allAccess
@@ -109,15 +130,15 @@ proc main(): int {.raises: [].} =
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
-    return usageError("nch", usageText(helpWidth(stderr)), "unknown command " & name)
+    return usageError("nch", usageText(helpWidth(stderr)), fmt"unknown command {name}")
   g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
-        stderr.say "warning: " & g.log.problem & " (continuing without a log)\n"
-  g.log.log(lvInfo, name, leRun, "[" & nchCommit & "] " & rest.join(" "))
+        stderr.say fmt"warning: {g.log.problem} (continuing without a log)\n"
+  g.log.log(lvInfo, name, leRun, fmt"[{nchCommit}] {rest.join("" "")}")
   result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)
   g.log.close()

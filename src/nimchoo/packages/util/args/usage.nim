@@ -19,7 +19,12 @@ func label(d: OptDoc): string =
   ## The names and the value, indented two more for each level (an option that goes with the one before it).
   result = " ".repeat(2 * d.level) & d.names.join(", ")
   if d.metavar.len > 0:
-    result.add " " & d.metavar
+    result.add(
+      if d.arity == aOptional:
+        " [" & d.metavar & "]"
+      else:
+        " " & d.metavar
+    )
 
 func optionLines*(docs: seq[OptDoc], width: int): seq[string] =
   ## The lines for the options: two spaces, the names and the value, the help in a column, wrapped to `width`.

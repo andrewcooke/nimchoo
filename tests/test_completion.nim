@@ -1,32 +1,32 @@
-## `nch completion` and `nch __complete` (src/nimchoo/completion.nim): the command line and the function bash is given.
+## `nch --completion` and `nch __complete` (src/nimchoo/completion.nim): the shells, and the function the shell is given.
 
-import std/[strutils, unittest]
+import std/[options, strutils, unittest]
 import nimchoo/completion
 import nimchoo/core/[globals, manifest]
-import nimchoo/packages/util/args/args
 
-suite "nch completion: the command line":
-  test "bash is the one shell":
-    let p = parseArgs(@["bash"])
-    check p.problem == "" and p.params.shell == shBash
+suite "nch --completion: the shell":
+  test "bash is the one shell, and the default":
+    check parseShell("bash") == some(shBash)
+    check parseShell("") == some(defaultShell)
+    check shellNames() == @["bash"]
 
-  test "no shell, two shells or another shell is a problem":
-    check parseArgs(@[]).problem.len > 0
-    check parseArgs(@["bash", "bash"]).problem.len > 0
-    check "zsh" in parseArgs(@["zsh"]).problem
+  test "another shell is not one":
+    check parseShell("zsh").isNone
+    check parseShell("Bash").isNone
 
-  test "help is asked for":
-    check parseArgs(@["--help"]).help
+  test "every shell has a function":
+    for s in Shell:
+      check shellFunction(s).len > 0
 
-suite "nch completion: the function":
+suite "nch --completion: the function":
   test "it calls the hidden command and says which status means files, as the program does":
-    check "command nch " & completeFlag in bashFunction
+    check "command \"${COMP_WORDS[0]}\" " & completeFlag in bashFunction
     check "-eq " & $exitFiles in bashFunction
     check "COMPLETE_FLAG" notin bashFunction and "EXIT_FILES" notin bashFunction
 
-  test "it throws away what the command says on stderr, and cannot call itself":
+  test "it throws away what the command says on stderr, and runs the program as typed, not itself":
     check "2>/dev/null" in bashFunction
-    check "command nch" in bashFunction
+    check "command \"${COMP_WORDS[0]}\"" in bashFunction
     check "complete -F" in bashFunction
 
 suite "nch __complete":

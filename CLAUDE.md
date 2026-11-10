@@ -75,7 +75,7 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
 * **commands are in their packages**: a package may provide a command, in its `command.nim` (`run`, its options, its
   output; `params.nim` beside it), declared in `commands:` of its `package.nim` with a `commandName` constant; `nch.nim`
   builds the usage from the registry.  a command declares its options (`options:`, from the same spec that parses them: tab
-  completion reads them); `nch` itself provides `packages` and `completion` (`introspect.nim`, `completion.nim`), which need the
+  completion reads them); `nch` itself provides `packages` (`introspect.nim`) and `--completion` (`completion.nim`), which need the
   whole registry.  a **plural** command goes with the package that owns its type; a **singular** one
   is a package of its own unless it is plainly one package's interface.  **no command hides a cycle**: when a command
   would need a package above its own, that package defines an extension point and the higher one contributes to it.

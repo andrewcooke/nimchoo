@@ -58,6 +58,9 @@ type
   Opt*[P] = object
     names*: seq[string] ## "-h", "--help"
     takesValue*: bool
+    valueOptional*: bool
+      ## (with `takesValue`) the value may be left out: the next word is it unless that is an option; `apply` is then
+      ## given "" (`nch --completion [SHELL]`)
     apply*: Apply[P]
     takesList*: bool ## then `applyList` is used, not `apply`
     applyList*: ApplyList[P]
@@ -149,6 +152,10 @@ proc walk[P](
       if o.takesValue:
         if eq > 0:
           v = a[eq + 1 .. ^1]
+        elif o.valueOptional:
+          if i + 1 < args.len and not args[i + 1].startsWith("-"):
+            inc i
+            v = args[i]
         else:
           inc i
           if i >= args.len:
@@ -206,6 +213,8 @@ func doc*[P](o: Opt[P]): OptDoc =
     arity:
       if o.takesList:
         aList
+      elif o.takesValue and o.valueOptional:
+        aOptional
       elif o.takesValue:
         aOne
       else:
@@ -421,6 +430,34 @@ template custom*(
     completion,
     address,
     valid,
+  )
+
+template optionalValue*(
+    P: typedesc,
+    nameList: openArray[string],
+    metavar, help: string,
+    level: int = 0,
+    completion: Completion = Completion(),
+    body: untyped,
+): Opt[P] =
+  ## A described option whose value may be left out (`nch --completion [SHELL]`): `body` sees `p`, `name` and `value`
+  ## ("" if it was left out) and gives the `Problem`, as for `custom`.
+  described(
+    Opt[P](
+      names: @nameList,
+      takesValue: true,
+      valueOptional: true,
+      apply: proc(
+          p {.inject.}: var P, name {.inject.}, value {.inject.}: string
+      ): Problem {.nimcall, raises: [].} =
+        body,
+    ),
+    metavar,
+    help,
+    level,
+    completion,
+    adNo,
+    nil,
   )
 
 template helpFlag*(B: typedesc): Opt[B] =

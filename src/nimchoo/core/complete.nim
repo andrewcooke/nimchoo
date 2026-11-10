@@ -55,6 +55,16 @@ func valueOffer(d: OptDoc, typed: string): Offer =
   of ckWords:
     d.completion.words.withPrefix(typed)
 
+func takesNext(d: OptDoc, word: string): bool =
+  ## Whether `word`, right after the option `d`, is its value.
+  case d.arity
+  of aFlag, aList:
+    false
+  of aOne:
+    true
+  of aOptional:
+    not word.isOption
+
 func optionNames(docs: seq[OptDoc], typed: string): Offer =
   ## The names of the options that start with `typed`.  Before anything is typed only the long ones are offered: the
   ## short ones are for people who know them.
@@ -83,8 +93,10 @@ func scan(docs: seq[OptDoc], done: seq[string], typed: string): Offer =
     waiting = -1 ## the option that must have its value next
     listing = -1 ## the option whose list of values we are in
   for w in done:
-    if waiting >= 0:
-      waiting = -1
+    let was = waiting
+    waiting = -1
+    if was >= 0 and docs[was].takesNext(w):
+      discard # (the value)
     elif w.isOption:
       listing = -1
       let k = docs.findDoc(w)
@@ -92,11 +104,11 @@ func scan(docs: seq[OptDoc], done: seq[string], typed: string): Offer =
         case docs[k].arity
         of aFlag:
           discard
-        of aOne:
+        of aOne, aOptional:
           waiting = k
         of aList:
           listing = k
-  if waiting >= 0:
+  if waiting >= 0 and not (docs[waiting].arity == aOptional and typed.startsWith("-")):
     docs[waiting].valueOffer(typed)
   elif typed.startsWith("-"):
     docs.optionNames(typed)
@@ -121,20 +133,22 @@ proc complete*(
     waiting = -1
   while at < done.len:
     let w = done[at]
-    if waiting >= 0:
-      waiting = -1
+    let was = waiting
+    waiting = -1
+    if was >= 0 and head[was].takesNext(w):
+      discard # (the value)
     elif w.isOption:
       let k = head.findDoc(w)
       if k < 0:
         return nothing()
-      if head[k].arity != aFlag:
+      if head[k].arity in {aOne, aOptional}:
         waiting = k
     else:
       break
     inc at
   if at >= done.len:
     # still among the options before the command
-    if waiting >= 0:
+    if waiting >= 0 and not (head[waiting].arity == aOptional and typed.startsWith("-")):
       return head[waiting].valueOffer(typed)
     if typed.startsWith("-"):
       return head.optionNames(typed)

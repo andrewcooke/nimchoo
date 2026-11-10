@@ -15,6 +15,7 @@ proc headDocs(): seq[OptDoc] =
     opt(["--db"], aOne, Completion(kind: ckFile)),
     opt(["--user"], aOne, Completion(kind: ckDynamic, source: "user")),
     opt(["--offline"]),
+    opt(["--shell"], aOptional, Completion(kind: ckWords, words: @["bash", "zsh"])),
     opt(["-h", "--help"]),
   ]
 
@@ -52,8 +53,8 @@ suite "tab completion: commands and the options before them":
     check offered("x") == newSeq[string]()
 
   test "an option before the command offers the head options; the short ones only when asked for":
-    check offered("--") == @["--db", "--user", "--offline", "--help"]
-    check offered("-") == @["--db", "--user", "--offline", "-h", "--help"]
+    check offered("--") == @["--db", "--user", "--offline", "--shell", "--help"]
+    check offered("-") == @["--db", "--user", "--offline", "--shell", "-h", "--help"]
     check offered("--o") == @["--offline"]
 
   test "after head options the commands are offered again":
@@ -69,6 +70,17 @@ suite "tab completion: commands and the options before them":
     check offered("--nope", "") == newSeq[string]()
     check offered("nope", "") == newSeq[string]()
     check offered("undeclared", "") == newSeq[string]()
+
+suite "tab completion: an option whose value may be left out":
+  test "its value is offered, until an option or a command is typed":
+    check offered("--shell", "") == @["bash", "zsh"]
+    check offered("--shell", "z") == @["zsh"]
+    check offered("--shell", "-") ==
+      @["--db", "--user", "--offline", "--shell", "-h", "--help"]
+
+  test "the word after it is its value if it is not an option, so the command is not offered":
+    check offered("--shell", "bash", "s") == @["size", "sort"]
+    check offered("--shell", "--offline", "s") == @["size", "sort"]
 
 suite "tab completion: the options of a command":
   test "an empty word after the command offers the long names, in the order they are declared":

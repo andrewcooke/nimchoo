@@ -243,7 +243,8 @@ func contributedOption(o: Criterion): Opt[ListState] =
   result = Opt[ListState](
     names: o.doc.names,
     takesList: o.doc.arity == aList,
-    takesValue: o.doc.arity == aOne,
+    takesValue: o.doc.arity in {aOne, aOptional},
+    valueOptional: o.doc.arity == aOptional,
     applyList: takeContributed,
     apply: proc(
         p: var ListState, name, value: string

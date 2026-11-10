@@ -20,6 +20,8 @@ type
   Arity* = enum
     aFlag ## no value
     aOne ## one value
+    aOptional
+      ## one value that may be left out: the next word is it unless that is an option
     aList ## any number of values (words up to the next option)
 
   OptDoc* = object

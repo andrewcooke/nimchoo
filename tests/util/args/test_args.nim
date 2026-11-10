@@ -153,3 +153,43 @@ suite "cli args: what a command line comes to":
     let o = flag(Q, ["--deep"], help, "nested", level = 1, address = adFlag)
     check o.level == 1 and o.address == adFlag and o.doc.level == 1
     check flag(Q, ["--plain"], help, "no address").address == adNo
+
+suite "cli args: an option whose value may be left out":
+  type O = object
+    help: bool
+    shell: string
+    verbose: bool
+
+  let ospec = Spec[O](
+    opts: @[
+      optionalValue(
+        O,
+        ["--shell"],
+        "SHELL",
+        "which shell",
+        body = (p.shell = (if value.len == 0: "bash" else: value); fine),
+      ),
+      flag(O, ["-v"], verbose, "talk"),
+      helpFlag(O),
+    ]
+  )
+
+  test "the next word is the value; with none, or an option next, it is left out":
+    var p = O()
+    check parseOptions(@["--shell", "zsh"], ospec, p) == fine and p.shell == "zsh"
+    p = O()
+    check parseOptions(@["--shell"], ospec, p) == fine and p.shell == "bash"
+    p = O()
+    check parseOptions(@["--shell", "-v"], ospec, p) == fine
+    check p.shell == "bash" and p.verbose
+    p = O()
+    check parseOptions(@["--shell=fish"], ospec, p) == fine and p.shell == "fish"
+
+  test "at the start of a command line the value is taken, and the rest is the command":
+    var p = O()
+    var next = 0
+    check parseLeading(@["--shell", "zsh", "climbs"], ospec, p, next) == fine
+    check p.shell == "zsh" and next == 2
+
+  test "it describes itself as optional":
+    check ospec.docs[0].arity == aOptional

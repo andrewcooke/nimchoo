@@ -17,6 +17,11 @@ suite "usage: wrapping":
     check wrap("end.  Next one", 5) == @["end.", "Next", "one"]
 
 suite "usage: the option list":
+  test "a value that may be left out is in brackets":
+    check optionLines(
+      @[OptDoc(names: @["--shell"], metavar: "SHELL", help: "which", arity: aOptional)],
+      80,
+    ) == @["  --shell [SHELL]  which"]
   test "names, the value, and the help in a column":
     check optionLines(
       @[
