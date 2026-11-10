@@ -50,8 +50,16 @@ sees and can be approved together.
       `resolve(store, user, values)` giving an `Sql` condition and notes, or an error); `climbs` contributes `--climb`.
       New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; contributes "the new
       activities become the selection" to "after import") and `calendar` (`nch calendar`: the selection or `--all`,
-      no criteria).  `activitiescmd` goes.
-   8. Each package's documentation is the `##` comment of its `package.nim`; the registry writes the front page (the
+      no criteria).  `activitiescmd` goes.  Two packages contributing one option name are refused when the registry
+      is made (as two commands of one name are).
+   8. **`nch packages`**: a command built into `nch.nim` (a package cannot import the registry), its logic a pure
+      function in `core` (`core/inventory.nim`, tested).  It shows the packages in dependency order with their
+      `depends`, tables, fragments, commands, the extension points each defines and what each contributes (with the
+      options a criterion adds); `--dot` writes the dependency graph for Graphviz.  Needs: the registry stamps each
+      contribution with the package that made it; a package declares the points it defines in `package.nim`
+      (`defines:`), and the registry refuses a contribution to a point nobody defines.  The registry's check for
+      duplicate command names knows this one.
+   9. Each package's documentation is the `##` comment of its `package.nim`; the registry writes the front page (the
       packages in order, with their first lines); the feature detail of CLAUDE.md moves into them; CLAUDE.md
       ("general structure", "the shape of the commands", the extension-point rule) and PACKAGES.md describe the result.
 4. **Options carry their help; parse into variants** (A §7 step 9) for the other commands.  `Opt` gets `help`,
