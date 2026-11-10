@@ -3124,3 +3124,9 @@ starts `fuzz-corpus/TARGET/` from valid examples, writes a crash to `tests/data/
 it).  Speeds in a 20 s smoke run: bits 15,000 runs a second, request 40,000, zip 35,000, xlsx 21,000, profile 5,500, fit and
 importer 500 (120 with the address sanitizer, which is therefore only on for zip, xlsx and profile: they go through zippy's
 unsafe inflate; the others have no pointers).
+
+Long runs (2026-11-10): one hour per target, in 5-minute segments, four targets at a time and then three (about 2 hours
+on this 1-core-ish VM).  **No failures** in any: no crash, oom or timeout, nothing slower than a second.  Runs, in millions:
+fit 1.8, importer 2.1, profile 30, bits 48, request 54, xlsx 86, zip 190.  Peak memory: 35 to 75 MB (fit, importer, bits, request),
+about 500 MB (profile, zip), 1.3 GB (xlsx: Nim's exception-chaining leak on failed opens, see above; not changed).
+Coverage had stopped growing in each by the end.  Rerun after a big change to a reader.
