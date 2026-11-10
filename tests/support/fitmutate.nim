@@ -154,6 +154,10 @@ type Kind = enum
   kValue
   kTimestamp
   kCompressed
+  kWiden
+  kCopyOver
+  kCopyInsert
+  kRotate
 
 const weights: array[Kind, int] = [
   kFlipBit: 3,
@@ -176,6 +180,10 @@ const weights: array[Kind, int] = [
   kValue: 6,
   kTimestamp: 5,
   kCompressed: 3,
+  kWiden: 4,
+  kCopyOver: 3,
+  kCopyInsert: 3,
+  kRotate: 3,
 ]
 
 proc pickKind(r: var Rand): Kind =
@@ -191,6 +199,22 @@ proc pickKind(r: var Rand): Kind =
 proc splice(d: seq[byte], cutFrom, cutTo: int, insert: seq[byte]): seq[byte] =
   d[0 ..< cutFrom] & insert & d[cutTo ..< d.len]
 
+proc fragment(r: var Rand, d: seq[byte], w: Walk): Slice[int] =
+  ## A piece of `d` to move: about a field, about a record or longer; its ends sometimes on record boundaries (so that
+  ## it is a valid piece) and sometimes not (so that it is not).
+  let n = r.sample([r.rand(1 .. 8), r.rand(1 .. 40), r.rand(1 .. 300)])
+  var a = r.rand(d.high)
+  if w.recs.len > 0 and r.rand(1) == 0:
+    a = r.sample(w.recs).start
+  result = a .. min(d.high, a + n - 1)
+
+proc place(r: var Rand, d: seq[byte], w: Walk): int =
+  ## Where to put it: sometimes at the start of a record, sometimes anywhere.
+  if w.recs.len > 0 and r.rand(1) == 0:
+    r.sample(w.recs).start
+  else:
+    r.rand(d.high)
+
 proc mutateOnce(r: var Rand, d: seq[byte], others: seq[seq[byte]]): seq[byte] =
   result = d
   let w = walk(d)
@@ -205,7 +229,7 @@ proc mutateOnce(r: var Rand, d: seq[byte], others: seq[seq[byte]]): seq[byte] =
   of kValue, kTimestamp, kCompressed:
     if datas.len == 0:
       kind = kFlipBit
-  of kRecordHeader, kDuplicate, kDelete, kSwap:
+  of kRecordHeader, kDuplicate, kDelete, kSwap, kWiden, kCopyOver, kCopyInsert, kRotate:
     if w.recs.len < 2:
       kind = kFlipBit
   else:
@@ -336,6 +360,60 @@ proc mutateOnce(r: var Rand, d: seq[byte], others: seq[seq[byte]]): seq[byte] =
     let rec = r.sample(datas)
     if rec.local <= 3:
       result[rec.start] = byte(0x80 or (rec.local shl 5) or r.rand(31))
+  of kCopyOver:
+    let src = r.fragment(d, w)
+    let dest = r.place(d, w)
+    for i in 0 ..< min(src.len, d.len - dest):
+      result[dest + i] = d[src.a + i]
+  of kCopyInsert:
+    let src = r.fragment(d, w)
+    let dest = r.place(d, w)
+    result = result.splice(dest, dest, d[src])
+  of kRotate:
+    # the same bytes, shifted against the structure that describes them
+    let sec = r.fragment(d, w)
+    let len = sec.len
+    if len > 1:
+      let k = r.rand(1 .. len - 1)
+      for i in 0 ..< len:
+        result[sec.a + (i + k) mod len] = d[sec.a + i]
+  of kWiden:
+    # a field of 4 bytes becomes one of 8 (a 64-bit base type) in the definition and in every data message of that
+    # type: a `date_time` (or any 32-bit number) that is wider than the 32 bits the decoder was written for.  The
+    # field and the data must change together, or the rest of the file is read out of step and the damage is lost.
+    let defRecs = w.recs.filterIt(it.isDef)
+    let def = r.sample(defRecs)
+    let own = int(d[def.countAt]) # (developer fields have no base type of their own)
+    let wide =
+      toSeq(0 ..< min(own, def.entries.len)).filterIt(def.entries[it].size == 4)
+    if wide.len > 0:
+      # (the timestamp, field 253, is the one everything does arithmetic with: half the time it is the one)
+      let stamps = wide.filterIt(def.entries[it].num == 253)
+      let idx =
+        if stamps.len > 0 and r.rand(1) == 0:
+          r.sample(stamps)
+        else:
+          r.sample(wide)
+      let entry = def.entries[idx]
+      var inserts: seq[(int, seq[byte])]
+        # offset in `d`, the 4 bytes that follow the original 4
+      var live = false
+      for rec in w.recs:
+        if rec.isDef and rec.local == def.local:
+          live = rec.start == def.start
+        elif live and not rec.isDef and rec.local == def.local and idx < rec.values.len:
+          var high = uint32(r.interesting())
+          if r.rand(2) == 0:
+            high = high or 0x80000000'u32 # the sign bit of a signed 64-bit number
+          let bytes =
+            @[byte(high), byte(high shr 8), byte(high shr 16), byte(high shr 24)]
+          # (the high half comes first in a big-endian file: architecture byte 1)
+          inserts.add (rec.values[idx].at + (if d[def.archAt] == 1: 0 else: 4), bytes)
+      for i in countdown(inserts.high, 0):
+        result = result.splice(inserts[i][0], inserts[i][0], inserts[i][1])
+      result[entry.at + 1] = 8
+      result[entry.at + 2] = byte(r.sample([0x8e, 0x8f, 0x90]))
+      # the sizes of the records in a compressed-timestamp stream and the header's length are repaired by `fixup`
 
 proc mutate*(r: var Rand, d: seq[byte], others: seq[seq[byte]]): seq[byte] =
   ## One to four mutations of `d`; usually the lengths and CRCs are repaired
