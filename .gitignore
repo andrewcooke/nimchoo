@@ -15,3 +15,6 @@ nimble.develop
 .zed
 /tests/invariants
 /tools/genregistry
+/tools/fuzz
+/fuzz-bin/
+/fuzz-corpus/

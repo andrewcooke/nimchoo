@@ -7,33 +7,13 @@
 import std/[monotimes, os, random, strutils, tables, times, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/util/zip/zipbytes
-import ../../support/[fuzzfiles, xlsxbuilder, zipmutate, zips]
-
-proc bases(): seq[string] =
-  ## Valid zip files to damage: deflated, stored, several entries, an empty one, a long name.
-  let text = repeat("the quick brown fox, 12345; ", 200)
-  let entries =
-    @[("a.txt", "hello"), ("dir/b.csv", text), ("empty", ""), ("c.txt", text[0 .. 99])]
-  @[
-    makeZip(entries, deflate = true),
-    makeZip(entries, deflate = false),
-    makeZip(@[(repeat("n", 300), "x")]),
-    makeZip(newSeq[(string, string)]()),
-    storedZip(entries),
-  ]
-
-proc useZip(z: string) {.raises: [ZipError].} =
-  ## Everything the program does with a zip file, with the limits it would use (smaller: the test is quick).
-  let entries = listEntries(z)
-  for name, e in entries:
-    discard extractEntry(z, e, 1_000_000)
-  discard readEntry(z, "a.txt", 1_000_000)
+import ../../support/[fuzzcheck, fuzzfiles, fuzzsamples, zipmutate]
 
 suite "zip fuzzing":
   let rounds = parseInt(getEnv("NCH_FUZZ_ROUNDS", "60"))
 
   test "damaged zip files end in success or a ZipError, and quickly":
-    let originals = bases()
+    let originals = zipBases()
     var r = initRand(20261113)
     var failures: Table[string, string] # what was wrong -> where the input was saved
     var runs, ok = 0

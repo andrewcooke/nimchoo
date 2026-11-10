@@ -6,13 +6,13 @@
 ## NCH_FUZZ_ROUNDS (mutations per file, default 60) lets a longer run be made by
 ## hand.
 
-import std/[algorithm, os, random, strutils, tables, unittest]
+import std/[os, random, strutils, tables, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/commands/fitcmd/command
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
-import ../support/[csvcompare, fitmutate, fuzzfiles]
+import ../support/[fitmutate, fuzzfiles]
 
 suite "FIT fuzzing":
   let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")
@@ -67,3 +67,13 @@ suite "FIT fuzzing":
     for l in report:
       checkpoint l
     check report.len == 0
+
+  test "files that once broke the reader end in success or a FitError":
+    for path in savedFailures("fit", ".fit"):
+      var lines: seq[string]
+      var warnings: seq[Warning]
+      for csv in [false, true]:
+        try:
+          renderInto(p, readBytes(path), csv, lines, warnings)
+        except FitError:
+          discard

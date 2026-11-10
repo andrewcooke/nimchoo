@@ -7,24 +7,15 @@
 ##
 ## NCH_FUZZ_ROUNDS (default 60) scales the length: 400 addresses per round.
 
-import std/[options, os, random, sequtils, strformat, strutils, tables, unittest]
-import nimchoo/packages/cache/cache
+import std/[options, os, random, strformat, strutils, tables, unittest]
 import nimchoo/packages/web/request
-import ../support/[fuzzfiles, textmutate]
-
-const
-  addresses = [
-    "/map?bits=AsBO&check=ab12cd&token=T0kEn", "/map?bits=AsBO",
-    "/ff?model=default&from=2020-01-02&to=2020-12-31&fitness-scale=1.5&fatigue-scale=2&hourly=1&utc=1",
-    "/ff?check=0a1b2c", "/files/map-lusab-babad-fuzoh.geojson",
-    "/files/ff--model-default.html", "/", "/map", "/files/a%2Eb", "/x?a=1&b=%20c&d",
-  ]
-  pieces = [
-    "%", "%0", "%00", "%0a", "%0d%0a", "%0D", "%2f", "%2F", "%2e%2e", "%25", "%zz",
-    "%7f", "%3f", "%23", "%26", "%3d", "+", "#", "?", "&", "=", "&&", "??", "/", "//",
-    "\\", "..", "/../", "-", "--", "--worker", "-h", "\x00", "\xff", "%ff", "%c0%af",
-    "%e2%80%ae", ":", "@", "http://x",
-  ]
+import ../support/[fuzzcheck, fuzzfiles, fuzzsamples, textmutate]
+const pieces = [
+  "%", "%0", "%00", "%0a", "%0d%0a", "%0D", "%2f", "%2F", "%2e%2e", "%25", "%zz", "%7f",
+  "%3f", "%23", "%26", "%3d", "+", "#", "?", "&", "=", "&&", "??", "/", "//", "\\",
+  "..", "/../", "-", "--", "--worker", "-h", "\x00", "\xff", "%ff", "%c0%af",
+  "%e2%80%ae", ":", "@", "http://x",
+]
 
 proc damageTarget(r: var Rand, s: string): string =
   ## The text damaged as text, with the pieces that mean something in an address put in.
@@ -45,62 +36,6 @@ proc randomTarget(r: var Rand): string =
         $char(r.rand(32 .. 126))
     )
 
-func hasControl(s: string): bool =
-  s.anyIt(it < ' ' or it == '\x7f')
-
-proc problemWith(raw: string): string =
-  ## What is wrong with what the request checks did with this address, if anything ("" if all is well).
-  let parsed = parseTarget(raw)
-  if parsed.isNone:
-    return ""
-  let t = parsed.get
-  if t.path.len == 0 or t.path[0] != '/':
-    return "a path that does not start with a slash"
-  # the address of a redirect (the Location header, the log)
-  let shown = t.withoutParam(tokenParam)
-  if shown.hasControl:
-    return "a control character in the address of a redirect"
-  let again = parseTarget(shown)
-  if again.isNone:
-    return "the address of a redirect cannot be read"
-  if again.get.path != t.path:
-    return "the address of a redirect has another path"
-  if again.get.query != t.query.filterIt(it[0] != tokenParam):
-    return "the address of a redirect has another query"
-  let route = route(t)
-  if route.isNone:
-    return ""
-  let rt = route.get
-  if rt.isFile:
-    if not isCacheFileName(rt.fileName) or '/' in rt.fileName or rt.fileName.hasControl:
-      return "a file route that is not a cache file name"
-    return ""
-  let rule = commandRules.filterIt(it.name == rt.command)
-  if rule.len != 1:
-    return "a command that is not on the list"
-  var i = 0
-  var seen: seq[string]
-  while i < rt.args.len:
-    let a = rt.args[i]
-    if not a.startsWith("--") or a == "--worker":
-      return "an argument that is not an option of the command"
-    let name = a[2 .. ^1]
-    if name in seen:
-      return "an option twice"
-    seen.add name
-    if name in rule[0].flags:
-      inc i
-    elif name in rule[0].options:
-      if i + 1 >= rt.args.len:
-        return "an option with no value"
-      let v = rt.args[i + 1]
-      if v.len == 0 or v.hasControl or v.anyIt(it == ' ') or "--" in v and name != "bits":
-        return "an option with a value that is not one"
-      i += 2
-    else:
-      return "an option the command does not have"
-  ""
-
 suite "web request fuzzing":
   let rounds = parseInt(getEnv("NCH_FUZZ_ROUNDS", "60"))
 
@@ -113,11 +48,11 @@ suite "web request fuzzing":
         if r.rand(3) == 0:
           r.randomTarget()
         else:
-          r.damageTarget(r.sample(addresses))
+          r.damageTarget(r.sample(requestAddresses))
       inc runs
       var what = ""
       try:
-        what = problemWith(raw)
+        what = requestProblem(raw)
         let t = parseTarget(raw)
         if t.isSome:
           inc accepted
@@ -161,4 +96,4 @@ suite "web request fuzzing":
 
   test "addresses that once broke the checks are refused or safe":
     for path in savedFailures("request", ".txt"):
-      check problemWith(readFile(path)) == ""
+      check requestProblem(readFile(path)) == ""

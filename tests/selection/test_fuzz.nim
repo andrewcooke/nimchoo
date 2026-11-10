@@ -4,9 +4,9 @@
 ##
 ## NCH_FUZZ_ROUNDS (default 60) scales the length: 400 strings per round.
 
-import std/[os, random, sequtils, strformat, strutils, tables, unittest]
+import std/[os, random, sequtils, strutils, tables, unittest]
 import nimchoo/packages/selection/bits
-import ../support/fuzzfiles
+import ../support/[fuzzcheck, fuzzfiles]
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
@@ -76,22 +76,6 @@ proc randomString(r: var Rand): string =
         r.sample(alphabet)
     )
 
-proc problemWith(s: string, maxId: int64): string =
-  ## What is wrong with the way `decodeBits` read `s`, if anything ("" if all is well).
-  let d = decodeBits(s, maxId)
-  if d.problem != "":
-    if d.ids.len > 0:
-      return "ids as well as a problem"
-    return ""
-  for i, id in d.ids:
-    if id < 1 or id > maxId:
-      return "id " & $id & " is outside 1.." & $maxId
-    if i > 0 and id <= d.ids[i - 1]:
-      return "ids not in order at " & $i
-  let again = decodeBits(encodeBits(d.ids), maxId)
-  if again.problem != "" or again.ids != d.ids:
-    return "the ids do not encode and decode to themselves"
-
 suite "bits fuzzing":
   let rounds = parseInt(getEnv("NCH_FUZZ_ROUNDS", "60"))
 
@@ -110,14 +94,13 @@ suite "bits fuzzing":
       inc runs
       var what = ""
       try:
-        what = problemWith(s, maxId)
+        what = bitsProblem(s, maxId)
         if decodeBits(s, maxId).problem == "":
           inc accepted
       except Exception as e: # the point of the test: nothing may be raised
         what = signatureOf(e)
       if what != "" and what notin failures:
-        failures[what] =
-          saveFailure("bits", "bits", round, bytesOf(fmt"{maxId}\n{s}"), ".txt")
+        failures[what] = saveFailure("bits", "bits", round, bytesOf(s), ".txt")
     let stats = $runs & " strings, " & $accepted & " read as a list"
     checkpoint stats
     if getEnv("NCH_FUZZ_STATS") != "":
@@ -130,7 +113,4 @@ suite "bits fuzzing":
 
   test "strings that once broke the reader are read without a Defect":
     for path in savedFailures("bits", ".txt"):
-      # (the first line is the maxId, the rest the string)
-      let text = readFile(path)
-      let parts = text.split('\n', 1)
-      check problemWith(parts[1], parseBiggestInt(parts[0])) == ""
+      check bitsProblemAny(readFile(path)) == ""

@@ -81,6 +81,17 @@ task fuzzlong,
   exec "nim c -r -d:release --checks:on --hints:off tests/fit/test_profilefuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/web/test_fuzz.nim"
 
+task fuzz,
+  "Level-2 fuzzing, coverage-guided (needs clang): nimble fuzz TARGET [SECONDS] (fit importer bits zip xlsx profile request); not part of nimble test":
+  var args: seq[string]
+  var seen = false
+  for i in 1 .. paramCount():
+    if seen:
+      args.add paramStr(i)
+    elif paramStr(i) == "fuzz":
+      seen = true
+  exec "nim c -r --hints:off -o:tools/fuzz tools/fuzz.nim " & args.join(" ")
+
 task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)":
   exec "nim c -r -d:release --hints:off -o:tests/csvreport tests/csvreport.nim"
 

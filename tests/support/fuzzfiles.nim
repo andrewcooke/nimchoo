@@ -28,9 +28,12 @@ proc saveFailure*(
   f.close()
 
 proc savedFailures*(target: string, ext = ".fit"): seq[string] =
-  ## The inputs that once broke `target` (kept in tests/data/fuzz/<target>/), so that a fixed bug stays fixed.
-  for path in walkFiles("tests/data/fuzz" / target / ("*" & ext)):
-    result.add path
+  ## The inputs that once broke `target` (kept in tests/data/fuzz/<target>/), so that a fixed bug stays fixed: those the
+  ## level-1 tests saved (named for their extension) and those libFuzzer wrote (`nimble fuzz`: crash-HASH, oom-HASH ...).
+  let dir = "tests/data/fuzz" / target
+  for pattern in ["*" & ext, "crash-*", "oom-*", "timeout-*", "leak-*"]:
+    for path in walkFiles(dir / pattern):
+      result.add path
   result.sort()
 
 func bytesOf*(s: string): seq[byte] =

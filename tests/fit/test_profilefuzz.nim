@@ -9,63 +9,7 @@
 import std/[monotimes, os, random, strutils, tables, times, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/fit/load
-import ../support/[fuzzfiles, xlsxbuilder, xlsxmutate]
-
-const
-  typesHeader = @["Type Name", "Base Type", "Value Name", "Value", "Comment"]
-  messagesHeader = @[
-    "Message Name", "Field Def #", "Field Name", "Field Type", "Array", "Components",
-    "Scale", "Offset", "Units", "Bits", "Accumulate", "Ref Field Name",
-    "Ref Field Value",
-  ]
-
-func field(
-    num, name, typ: string,
-    scale = "",
-    offset = "",
-    accumulate = "",
-    components = "",
-    bits = "",
-    refName = "",
-    refValue = "",
-): seq[string] =
-  @[
-    "", num, name, typ, "", components, scale, offset, "", bits, accumulate, refName,
-    refValue,
-  ]
-
-func smallProfile(): string =
-  ## A profile with a little of everything the loader reads: enums, a date type, scales and offsets, accumulated fields,
-  ## components, sub-fields (a reference field and its value).
-  let types = @[
-    typesHeader,
-    @["mesg_num", "enum", "", "", ""],
-    @["", "", "file_id", "0", ""],
-    @["", "", "record", "20", ""],
-    @["sport", "enum", "", "", ""],
-    @["", "", "running", "1", ""],
-    @["", "", "cycling", "2", ""],
-    @["date_time", "uint32", "", "", ""],
-    @["", "", "min", "268435456", ""],
-  ]
-  let messages = @[
-    messagesHeader,
-    @["record", "", "", "", "", "", "", "", "", "", "", "", ""],
-    field("253", "timestamp", "date_time"),
-    field("3", "heart_rate", "uint8", scale = "2", offset = "10"),
-    field("5", "distance", "uint32", scale = "100", accumulate = "1"),
-    field(
-      "6", "speed", "uint16", scale = "1000", components = "enhanced_speed", bits = "16"
-    ),
-    field("73", "enhanced_speed", "uint32", scale = "1000"),
-    field("7", "sport", "sport", refName = "heart_rate", refValue = "1"),
-    @["file_id", "", "", "", "", "", "", "", "", "", "", "", ""],
-    field("0", "type", "sport"),
-  ]
-  xlsxFile(@[("Types", types), ("Messages", messages)])
-
-proc loads(x: string) {.raises: [ProfileError, XlsxError].} =
-  discard loadProfileFromBytes(x)
+import ../support/[fuzzcheck, fuzzfiles, fuzzsamples, xlsxmutate]
 
 proc fuzz(
     originals: seq[(string, string)], count: int, seed: int64, target: string
