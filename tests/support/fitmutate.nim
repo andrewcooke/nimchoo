@@ -387,11 +387,12 @@ proc mutateOnce(r: var Rand, d: seq[byte], others: seq[seq[byte]]): seq[byte] =
     let wide =
       toSeq(0 ..< min(own, def.entries.len)).filterIt(def.entries[it].size == 4)
     if wide.len > 0:
-      # (the timestamp, field 253, is the one everything does arithmetic with: half the time it is the one)
-      let stamps = wide.filterIt(def.entries[it].num == 253)
+      # (half the time one of the fields that usually hold a time: 253 is the timestamp of every message, 2 the start
+      # time of a session or lap, 4 the creation time in `file_id`; the rest of the time any 4-byte field)
+      let times = wide.filterIt(def.entries[it].num in [253, 2, 4])
       let idx =
-        if stamps.len > 0 and r.rand(1) == 0:
-          r.sample(stamps)
+        if times.len > 0 and r.rand(1) == 0:
+          r.sample(times)
         else:
           r.sample(wide)
       let entry = def.entries[idx]

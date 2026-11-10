@@ -12,14 +12,7 @@ import nimchoo/packages/commands/fitcmd/command
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
-import ../support/[csvcompare, fitmutate]
-
-proc fitFiles(): seq[string] =
-  for dir in ["sdk", "other", "python-fitparse"]:
-    for path in walkFiles(testRoot & "source/" & dir & "/*"):
-      if path.toLowerAscii.endsWith(".fit") and getFileSize(path) <= 12_000:
-        result.add path
-  result.sort()
+import ../support/[csvcompare, fitmutate, fuzzfiles]
 
 suite "FIT fuzzing":
   let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")
@@ -28,14 +21,14 @@ suite "FIT fuzzing":
   test "the walker follows the records of most sample files to the end":
     # (if it did not, the structural damage would silently be blind damage)
     var whole = 0
-    let paths = fitFiles()
+    let paths = fitFiles(0, 12_000, ["sdk", "other", "python-fitparse"])
     for path in paths:
       if walk(readBytes(path)).complete:
         inc whole
     check whole * 10 >= paths.len * 8
 
   test "damaged files end in success or a FitError":
-    let paths = fitFiles()
+    let paths = fitFiles(0, 12_000, ["sdk", "other", "python-fitparse"])
     var originals: seq[seq[byte]]
     for path in paths:
       originals.add readBytes(path)
@@ -59,14 +52,9 @@ suite "FIT fuzzing":
             if csv:
               inc rejected
           except Exception as e: # the point of the test: anything else is a bug
-            let signature = $e.name & ": " & e.msg.splitLines()[0]
+            let signature = signatureOf(e)
             if signature notin failures:
-              let saved =
-                getTempDir() / ("fuzz-" & extractFilename(path) & "-" & $round & ".fit")
-              var f = open(saved, fmWrite)
-              discard f.writeBytes(data, 0, data.len)
-              f.close()
-              failures[signature] = saved
+              failures[signature] = saveFailure("fit", path, round, data)
     var report: seq[string]
     for sig, saved in failures:
       report.add sig & "  (saved: " & saved & ")"

@@ -59,6 +59,7 @@ import
     test_stretch,
     test_naming as importerNaming,
     test_describe as importerDescribe,
+    test_fuzz as importerFuzz,
   ]
 import ./commands/activitiescmd/test_import
 import ./commands/activitiescmd/test_display
