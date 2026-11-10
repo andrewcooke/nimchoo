@@ -17,11 +17,10 @@ sees and can be approved together.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
 3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
-   1. *(mechanical)* `humanBytes` moves from `download/fetch` to `ui/units`.  Then the commands with no cycle go into
-      their packages: `fit`, `climbs`, `landmarks` (into `names`), `models` (into `model`), `cache`, `db`; `log`, `map`
-      and `ff` become packages of their own.  The `commands/` group and the `cmd` suffix go; tests move with them; the
-      import test keeps "a command module (the module of `CommandDecl.run`, from the registry) is imported only by its
-      `package.nim`".
+   1. *(mechanical)* Done 2026-11-10 (`humanBytes` to `ui/units`; the eight commands into their packages).  Left of it: the
+      `commands/` group and the `cmd` suffix go with `activitiescmd` and `userscmd` (steps 3 and 7); the import test's
+      "a command module is imported only by its `package.nim`" still finds the module by its name, `command`: make it ask
+      the registry (the module of `CommandDecl.run`).
    2. An `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); a read is
       allowed to the runner or any package of the set, a write or a change of definition to the runner alone; a test
       prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).  `db_connector` imported in `db`
