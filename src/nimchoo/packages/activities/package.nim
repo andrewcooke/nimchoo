@@ -2,10 +2,8 @@ import ../../core/manifest
 import ./command
 
 const package* = Package(
-  depends: @[
-    "args", "climbs", "confirm", "db", "download", "fit", "fold", "importer", "names",
-    "ui", "user", "warnings", "selection",
-  ],
+  depends:
+    @["args", "confirm", "db", "fit", "fold", "importer", "selection", "ui", "user"],
   commands: @[
     CommandDecl(
       name: command.commandName,

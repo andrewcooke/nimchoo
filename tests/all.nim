@@ -98,6 +98,7 @@ import
     test_describe as climbsDescribe,
     test_edit as climbsEdit,
   ]
+import ./climbs/test_criterion
 import ./climbs/test_command
 import ./climbs/test_params as climbsParams
 import ./names/test_params as landmarkParams

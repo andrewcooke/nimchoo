@@ -8,9 +8,7 @@
 import std/[options, sequtils, strutils, tables, terminal, times]
 import ./cmdname
 export cmdname
-import ../../core/globals
-import ../climbs/display
-import ../climbs/report
+import ../../core/[extension, globals]
 import ../db/statement
 import ../selection/selection
 import ../db/store
@@ -22,7 +20,6 @@ import ../ui/live
 import ../ui/style
 import ../ui/vocabulary
 import ../util/args/[args, usage]
-import ../text/fold/fold
 import ./[calendar, table]
 import ./criteria
 import ../user/session
@@ -50,9 +47,10 @@ with --select, then  --sport previous --distance previous~10%  finds rides like 
 error unless exactly one activity is selected.
 """
 
-proc usageText*(width: int): string =
+proc usageText*(width: int, offered: seq[Criterion] = @[]): string =
   ## The usage: the synopsis and introduction, the options (made from their descriptions, wrapped to `width`), the rest.
-  usageHead & optionLines(criteriaSpec().docs, width).join("\n") & "\n\n" & usageTail
+  usageHead & optionLines(criteriaSpec(offered).docs, width).join("\n") & "\n\n" &
+    usageTail
 
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"
@@ -300,8 +298,10 @@ proc resolve(
     c.near = nkNone
 
 type Resolved = object
-  ## The criteria with `latest`, `previous` and the climbs worked out, and the notes that say which activities they came to.
+  ## The criteria with `latest` and `previous` worked out, the conditions of the criteria other packages offer, and the
+  ## notes that say which activities they came to.
   c: Criteria
+  extra: Sql ## the offered criteria, each " and (...)"
   centre: Option[(float, float)]
   notes: seq[Line]
 
@@ -314,22 +314,13 @@ proc resolveCriteria(
   ## uses it is one of those among which `latest` is found.
   var c = criteria
   let userIds = @[st.userId]
-  if c.climbs.len > 0:
-    # the climbs whose name as shown ("Farellones₂", retired ones too) holds the text, whatever its case and accents
-    # ("farellones 2" and "farellones2" mean "farellones₂" as well)
-    let shown = shownNames(st)
-    for t in c.climbs:
-      var found = false
-      for id, name in shown:
-        for form in ordinalForms(t):
-          if foldText(name).contains(foldText(form)):
-            found = true
-            if id notin c.climbIds:
-              c.climbIds.add id
-      if not found:
-        raiseStore(
-          "no climb has '" & t & "' in its name (`nch climbs --all` lists them)"
-        )
+  var extra = Sql()
+  for o in c.contributed:
+    let r = o.resolve(st, o.values)
+    extra = extra & sqlOf(" and (") & r.condition & sqlOf(")")
+    for n in r.notes:
+      if n.len > 0:
+        result.notes.add plain(n)
   checkNames(st, "sport", "sport", c.sports)
   checkNames(st, "sub-sport", "sub_sport", c.subSports)
   var centre = none((float, float))
@@ -347,6 +338,7 @@ proc resolveCriteria(
         base,
         none((float, float)),
         sqlOf("a.id as id, ") & rowColumns(false, st.userId),
+        extra,
       ),
     )
     if found.isNone:
@@ -365,6 +357,7 @@ proc resolveCriteria(
         radiusText(c.radiusKm) & "km"
     )
   result.c = c
+  result.extra = extra
   result.centre = centre
 
 proc matchingIds*(
@@ -381,8 +374,8 @@ proc matchingIds*(
     let r = resolveCriteria(st, criteria, zone)
     result.notes = r.notes
     query =
-      "select id from (" & matchSql(@[st.userId], r.c, r.centre, sqlOf("a.id as id")) &
-      ")"
+      "select id from (" &
+      matchSql(@[st.userId], r.c, r.centre, sqlOf("a.id as id"), r.extra) & ")"
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
@@ -399,7 +392,11 @@ proc listActivities*(
   let c = r.c
   result.lines = r.notes
   let match = matchSql(
-    @[st.userId], c, r.centre, sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId)
+    @[st.userId],
+    c,
+    r.centre,
+    sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId),
+    r.extra,
   )
   if c.select:
     st.replaceSelection(st.db.query(int64, sqlOf("select id from (") & match & ")"))
@@ -420,12 +417,15 @@ proc listActivities*(
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch activities ARGS`; returns the exit status.
   let zone = local()
-  let parsed = parseArgs(args, zone)
+  let offered = g.extensions.get(activityCriterion)
+  let parsed = parseArgs(args, zone, offered)
   if parsed.help:
-    stdout.say usageText(helpWidth(stdout))
+    stdout.say usageText(helpWidth(stdout), offered)
     return exitOk
   if parsed.problem.len > 0:
-    return usageError("nch activities", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(
+      "nch activities", usageText(helpWidth(stderr), offered), parsed.problem
+    )
   var st: Session
   try:
     st = openSession(g)

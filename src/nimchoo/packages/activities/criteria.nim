@@ -8,8 +8,8 @@ import ../util/args/args
 import ../db/sqltext
 import ../../core/ids
 import ../text/fold/fold
-import ./ranges
-export ranges
+import ./[criterion, ranges]
+export ranges, criterion
 
 {.push raises: [].}
 
@@ -52,10 +52,8 @@ type
       ## what `latest` / `previous` came to: the whole value ("" is none)
     paths*: seq[string]
       ## --path: text found in a path the file was imported from (or in its name)
-    climbs*: seq[string]
-      ## --climb: text found in the name of a climb the activity has an effort on
-    climbIds*: seq[int64]
-      ## ... which climbs those are (worked out when the command runs, from the names as shown)
+    contributed*: seq[Contributed]
+      ## the options that other packages offer (`--climb`), as given: they are resolved when the command runs
     fromT*: Option[UnixTime] ## start of the activity at or after
     toT*: Option[UnixTime] ## start of the activity before (exclusive)
     gps*: GpsFilter
@@ -125,6 +123,7 @@ type ListState = object
   c: Criteria
   help: bool
   zone: Timezone
+  offered: seq[Criterion] ## the criteria other packages offer
   radiusGiven: bool ## --radius was given
   criteriaGiven: bool ## some option other than those that say what to display
 
@@ -225,17 +224,38 @@ proc takePaths(
     return name & " needs some text"
   ""
 
-proc takeClimbs(
+proc takeContributed(
     p: var ListState, name: string, values: seq[string]
 ): string {.nimcall.} =
+  ## An option that another package offers: the words are kept for it to resolve.
   p.criteriaGiven = true
-  for v in values:
-    for part in v.split(','):
-      if part.strip.len > 0:
-        p.c.climbs.add part.strip
-  if p.c.climbs.len == 0:
-    return name & " needs some text"
-  ""
+  for o in p.offered:
+    if name in o.doc.names:
+      if o.doc.arity == aList and values.len == 0:
+        return name & " needs at least one word"
+      for c in p.c.contributed.mitems:
+        if c.option == o.doc.names[0]:
+          c.values.add values
+          return ""
+      p.c.contributed.add Contributed(
+        option: o.doc.names[0], values: values, resolve: o.resolve
+      )
+      return ""
+  name & " is not an option" # (cannot happen: the spec has just these)
+
+func contributedOption(o: Criterion): Opt[ListState] =
+  ## The option of an offered criterion, as the parser has them.
+  result = Opt[ListState](
+    names: o.doc.names,
+    takesList: o.doc.arity == aList,
+    takesValue: o.doc.arity == aOne,
+    applyList: takeContributed,
+    apply: proc(p: var ListState, name, value: string): string {.nimcall, raises: [].} =
+      takeContributed(p, name, (if value.len > 0: @[value] else: @[])),
+    metavar: o.doc.metavar,
+    help: o.doc.help,
+    completion: o.doc.completion,
+  )
 
 proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
   p.criteriaGiven = true
@@ -332,15 +352,16 @@ func takeRadius(p: var ListState, v: string): string =
 func hasFilter*(c: Criteria): bool =
   ## Whether any criterion that picks activities is given (not the limits, the users or the display).
   c.sports.len > 0 or c.subSports.len > 0 or c.names.len > 0 or c.starts.len > 0 or
-    c.paths.len > 0 or c.climbs.len > 0 or c.sportRef != refNone or
+    c.paths.len > 0 or c.contributed.len > 0 or c.sportRef != refNone or
     c.subSportRef != refNone or c.nameRef != refNone or c.startRef != refNone or
     c.distanceM.lo.isSome or c.distanceM.hi.isSome or c.activeS.lo.isSome or
     c.activeS.hi.isSome or c.distanceRel.isSome or c.activeRel.isSome or c.fromT.isSome or
     c.toT.isSome or c.gps != gfAny or c.near != nkNone
 
-proc criteriaSpec*(): Spec[ListState] =
-  ## The options of `nch activities`, in the order the usage lists them, each with its help.
-  Spec[ListState](
+proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
+  ## The options of `nch activities`, in the order the usage lists them, each with its help; the criteria that other
+  ## packages offer come after the sports, names and paths.
+  result = Spec[ListState](
     opts: @[
       custom(ListState, ["--all"], false, (p.c.all = true; "")).documented(
         "", "every activity, not just the selection"
@@ -366,11 +387,6 @@ proc criteriaSpec*(): Spec[ListState] =
       listOption[ListState](["--path"], takePaths).documented(
         "TEXT",
         "the same for the path of the file the activity was imported from (or any other path the same file was seen at): --path bowman, --path 2026-10",
-      ),
-      listOption[ListState](["--climb"], takeClimbs).documented(
-        "TEXT",
-        "activities that have an effort on a climb whose name (as `nch climbs --all` shows it) contains TEXT: --climb farellones (all of them), --climb farellones₂ (or \"farellones 2\") (one); retired climbs too.  It is an error if no climb has the text",
-        Completion(kind: ckDynamic, source: "climb"),
       ),
       custom(ListState, ["--distance"], true, takeDistance(p, name, value)).documented(
         "RANGE",
@@ -440,15 +456,24 @@ proc criteriaSpec*(): Spec[ListState] =
       flag(ListState, ["-h", "--help"], help).documented("", "show this help"),
     ]
   )
+  var at = 0
+    # (the offered ones go before --distance: with the criteria that say what an activity is called or where)
+  while at < result.opts.len and "--distance" notin result.opts[at].names:
+    inc at
+  for k, o in offered:
+    result.opts.insert(contributedOption(o), at + k)
 
-proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
+proc parseArgs*(
+    args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
+): Parsed =
   ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
   ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` and `--calendar` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
-  var st = ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone)
-  let spec = criteriaSpec()
+  var st =
+    ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone, offered: offered)
+  let spec = criteriaSpec(offered)
   template fail(msg: string) =
     result.problem = msg
     return
@@ -625,10 +650,12 @@ func matchSql*(
     c: Criteria,
     centre: Option[(float, float)],
     columns = sqlOf("a.id"),
+    extra = Sql(),
 ): Sql =
   ## A query for the activities of `userIds` that meet the criteria, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
   ## criteria become SQL, used to list them, to count them and to save them.
+  ## `extra` is the conditions of the criteria other packages offer, each " and (...)" (`resolveOffered`).
   ## `centre` is the point `--near` means.  Every value is bound by name (`sqltext.nim`).
   var ids: seq[int64]
   for id in userIds:
@@ -644,21 +671,7 @@ func matchSql*(
   filt = filt & textSql("a.name", "name", c.names, c.namesExact)
   filt = filt & textSql("a.start_place", "start", c.starts, c.startsExact)
   filt = filt & pathSql(c.paths)
-  if c.climbs.len > 0:
-    # the activities that have an effort on one of the climbs (ids worked out from the names as shown, with no match: none)
-    var climbIds: seq[int64]
-    for id in c.climbIds:
-      climbIds.add id
-    filt =
-      filt & (
-        if climbIds.len == 0:
-          sqlOf(" and 0")
-        else:
-          sqlOf(
-            " and exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (select value from json_each(:climbs)))"
-          )
-            .with("climbs", jsonList(climbIds))
-      )
+  filt = filt & extra
   filt = filt & rangeSql("a.distance_m", "distance", c.distanceM)
   filt = filt & rangeSql("a.timer_s", "active", c.activeS)
   case c.gps

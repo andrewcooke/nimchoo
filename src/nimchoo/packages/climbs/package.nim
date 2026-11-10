@@ -1,10 +1,14 @@
-import ../../core/manifest
-import ./command
+import ../../core/[extension, manifest]
+import ../activities/criterion
+import ./[command, criterion]
+
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[contribute(activityCriterion, climbCriterion)]
 
 const package* = Package(
   depends: @[
-    "args", "confirm", "db", "fit", "fold", "geo", "importer", "lookup", "names",
-    "profiling", "selection", "ui", "user",
+    "activities", "args", "confirm", "db", "fit", "fold", "geo", "importer", "lookup",
+    "names", "profiling", "selection", "ui", "user",
   ],
   fragments: @[
     fragment("001-schema.sql"), # sector (with retired), effort, climbs_done
@@ -18,4 +22,5 @@ const package* = Package(
       run: command.run,
     )
   ],
+  contributes: contributions,
 )

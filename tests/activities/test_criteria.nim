@@ -1,4 +1,8 @@
 import nimchoo/packages/db/sqltext
+import nimchoo/core/extension
+from nimchoo/registry import extensions
+import nimchoo/core/errors
+import nimchoo/packages/user/session
 import std/[options, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
@@ -454,27 +458,41 @@ suite "list: --invert":
     let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).criteria
     check r.usesLatest and not r.withoutLatest.invert and not r.withoutLatest.usesLatest
 
-suite "list: --climb":
-  test "the words are alternatives; the sql asks for an effort on the climbs found":
-    let c =
-      parseArgs(@["--climb", "farellones,corral quemado", "(2/9)"], utcZone).criteria
-    check c.climbs == @["farellones", "corral quemado", "(2/9)"]
-    var r = c
-    r.climbIds = @[3'i64, 7'i64]
-    let q = matchSql(@[UserId(1)], r, none((float, float)))
-    check q.text.contains(
-      "exists (select 1 from effort e where e.activity_id = a.id and e.sector_id in (select value from json_each(:climbs)))"
-    )
-    check q.value("climbs") == arg("[3,7]")
-    r.climbIds = @[]
-    check matchSql(@[UserId(1)], r, none((float, float))).text.contains(" and 0")
-      # no climb found: no activity
-    check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
-      "effort"
-    )
-  test "it is a criterion; it needs some text":
-    check parseArgs(@["--climb"], utcZone).problem.len > 0
-    check parseArgs(@["--invert", "--climb", "x"], utcZone).problem == ""
+suite "list: criteria that other packages offer":
+  func pick(st: Session, values: seq[string]): Resolution {.raises: [StoreError].} =
+    Resolution(condition: sqlOf("a.id = 7"))
+
+  let offered = Criterion(
+    doc: OptDoc(
+      names: @["--odd", "-o"],
+      metavar: "WORD...",
+      help: "an offered option",
+      arity: aList,
+    ),
+    resolve: pick,
+  )
+
+  test "an offered option is parsed with the others, and kept as given for its package to resolve":
+    let c = parseArgs(
+      @["--odd", "a", "b", "-o", "c", "--sport", "cycling"], utcZone, @[offered]
+    ).criteria
+    check c.contributed.len == 1 and c.contributed[0].option == "--odd"
+    check c.contributed[0].values == @["a", "b", "c"]
+    check c.sports == @["cycling"]
+  test "it is a criterion: it needs words, and it can be inverted":
+    check parseArgs(@["--odd"], utcZone, @[offered]).problem.len > 0
+    check parseArgs(@["--invert", "--odd", "x"], utcZone, @[offered]).problem == ""
+    check parseArgs(@["--all", "--odd", "x"], utcZone, @[offered]).problem.len > 0
+  test "without the package that offers it the option is unknown":
+    check parseArgs(@["--odd", "x"], utcZone).problem.contains("unexpected option")
+  test "it is in the usage":
+    check "--odd, -o WORD..." in
+      optionLines(criteriaSpec(@[offered]).docs, 100).join("\n")
+  test "the conditions are joined by the command, with and":
+    let c = Criteria()
+    let q =
+      matchSql(@[UserId(1)], c, none((float, float)), extra = sqlOf(" and (a.id = 7)"))
+    check q.text.contains(" and (a.id = 7)")
 
 suite "list: --delete":
   test "--delete is an action, not a criterion; -f goes with it":
@@ -508,3 +526,17 @@ suite "list: the usage":
       arity: aList,
     )
     check "--extra WORDS..." in optionLines(criteriaSpec().docs & extra, 100).join("\n")
+
+suite "list: the criteria of the packages":
+  test "no two offered criteria share a name, and none takes the name of an option of the command":
+    var names: seq[string]
+    for o in extensions.get(activityCriterion):
+      for n in o.doc.names:
+        check n notin names
+        names.add n
+    for d in criteriaSpec().docs:
+      for n in d.names:
+        check n notin names
+  test "the climbs offer --climb, and it shows in the usage":
+    check "--climb" in
+      activitiesCommand.usageText(100, extensions.get(activityCriterion))

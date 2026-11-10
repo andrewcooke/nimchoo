@@ -12,6 +12,7 @@ from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup
 import nimchoo/packages/activities/criteria
+import nimchoo/packages/climbs/criterion as climbsCriterion
 import nimchoo/packages/activities/ranges
 
 ## The queries that run for every file, every ride or every cell must find their rows through an index (a primary key,
@@ -82,8 +83,6 @@ suite "query plans: no query reads a whole table":
       namesExact: @["El Toyo"],
       starts: @["lisboa"],
       paths: @["bowman"],
-      climbs: @["farellones"],
-      climbIds: @[1'i64],
       distanceM: NumRange(lo: some 1.0, hi: some 2.0),
       activeS: NumRange(lo: some 1.0),
       fromT: some(UnixTime(1)),
@@ -96,7 +95,6 @@ suite "query plans: no query reads a whole table":
       ("sports", Criteria(sports: @["cycling"]), none),
       ("names", Criteria(names: @["toyo"]), none),
       ("paths", Criteria(paths: @["bowman"]), none),
-      ("climbs", Criteria(climbs: @["x"], climbIds: @[1'i64]), none),
       ("a range", Criteria(distanceM: NumRange(lo: some 1.0)), none),
       ("no gps", Criteria(gps: gfWithout), none),
       ("near", Criteria(radiusKm: 5.0), some((38.7, -9.1))),
@@ -107,6 +105,13 @@ suite "query plans: no query reads a whole table":
     var inverted = all
     inverted.invert = true
     each.add ("all, inverted", inverted, some((38.7, -9.1)))
+    # (a criterion that another package offers: the climbs; its condition is joined by `and`)
+    let climbs = sqlOf(" and (") & onClimbs(@[1'i64]) & sqlOf(")")
+    check scans(plan(st.db, matchSql(@[UserId(1)], all, none, extra = climbs).text)).len ==
+      0
+    check scans(
+      plan(st.db, matchSql(@[UserId(1)], Criteria(), none, extra = climbs).text)
+    ).len == 0
     for (what, c, centre) in each:
       let p = plan(st.db, matchSql(@[UserId(1)], c, centre).text)
       checkpoint what

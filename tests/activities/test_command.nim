@@ -5,7 +5,7 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 import nimchoo/core/ids
-from nimchoo/registry import allFragments, allAccess, newAllAccess
+from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/packages/activities/calendar
 import nimchoo/packages/activities/command as listCommand
 import nimchoo/packages/activities/criteria
@@ -97,7 +97,10 @@ func texts(ls: seq[Line]): seq[string] =
 
 proc list(db: string, args: varargs[string]): int =
   listCommand.run(
-    Globals(dbPath: db, fragments: allFragments, access: allAccess), @args
+    Globals(
+      dbPath: db, fragments: allFragments, access: allAccess, extensions: extensions
+    ),
+    @args,
   )
 
 proc save(db: string, args: varargs[string]): int =
@@ -173,7 +176,13 @@ suite "list: the command":
     check save(db, "--all") == exitOk
     check chosen(db) == @["lisbon1", "paris"] # (not bob's lisbon2)
     check listCommand.run(
-      Globals(dbPath: db, user: "bob", fragments: allFragments, access: allAccess),
+      Globals(
+        dbPath: db,
+        user: "bob",
+        fragments: allFragments,
+        access: allAccess,
+        extensions: extensions,
+      ),
       @["--all", "--select"],
     ) == exitOk
     let b = openSession(db, allFragments, "bob", access = allAccess)
@@ -737,7 +746,11 @@ suite "list: what is shown":
     let db = world("shownlog")
     let path = dir / "shownlog" / "nch.log"
     let g = Globals(
-      dbPath: db, fragments: allFragments, access: allAccess, log: openLog(path)
+      dbPath: db,
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+      log: openLog(path),
     )
     check listCommand.run(g, @["--newest", "1", "--select"]) == exitOk
     g.log.close()
