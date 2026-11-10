@@ -20,6 +20,7 @@ import ../ui/palette
 import ../ui/style
 import ../ui/units
 import ./[describe, display, report]
+import ../user/session
 
 {.push raises: [].}
 
@@ -51,7 +52,7 @@ func rankOf*(times: openArray[float], t: float): int =
 
 # --- which climbs
 
-proc selectedClimbs*(st: Store): seq[int64] {.raises: [StoreError].} =
+proc selectedClimbs*(st: Session): seq[int64] {.raises: [StoreError].} =
   ## The climbs (not retired) that the selected activities went up, the biggest first.
   st.db.query(
     int64,
@@ -107,7 +108,7 @@ type
     ]
   BestRow = tuple[userId: int64, user: string, elapsed: float, startT: int64]
 
-proc summaries*(st: Store, ids: seq[int64]): seq[Summary] {.raises: [StoreError].} =
+proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreError].} =
   ## The climbs `ids`, in that order, with the user's attempts and everyone's best times.
   let names = shownNames(st)
   for id in ids:

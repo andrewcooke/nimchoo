@@ -7,6 +7,7 @@ import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/climbs/report
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/errors
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
@@ -17,7 +18,7 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
   removeDir(dir / name)
   createDir(dir / name)
   result = dir / name / "x.db"
-  let s = openStore(result, allFragments, access = allAccess)
+  let s = openSession(result, allFragments, access = allAccess)
   defer:
     s.close()
   for (n, gain) in climbs:
@@ -37,13 +38,13 @@ proc climbs(db: string, args: varargs[string]): int =
   )
 
 proc q(db, sqlText: string, T: typedesc): T =
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.scalar(T, sqlText)
 
 proc shown(db: string): seq[string] =
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   for r in allSectors(s):
@@ -57,7 +58,7 @@ suite "nch climbs: names, and the list of all":
       fresh("list", [("Farellones", 300.0), ("Cuesta", 100.0), ("cuesta", 200.0)])
     check climbs(db, "--all") == exitOk
     check shown(db) == @["Farellones", "cuesta₂", "Cuesta₁"]
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     defer:
       s.close()
     check sectorLines(allSectors(s))[0].startsWith("climb")
@@ -83,7 +84,7 @@ suite "nch climbs: names, and the list of all":
     check climbs(db, "--edit", "Cuesta", "--rename", "X") == exitFailure
     check climbs(db, "--edit", "Nowhere", "--rename", "X") == exitFailure
     check q(db, "select count(*) from sector where manual = 1", int) == 0
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     defer:
       s.close()
     expect StoreError:
@@ -142,7 +143,7 @@ suite "nch climbs: retiring":
       @["Farellones", "Cuesta₃", "Cuesta₁"] # (the gap shows: no ₂)
     check q(db, "select retired from sector where id = 2", int) == 1
     check q(db, "select count(*) from sector", int) == 4 # nothing is deleted
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     defer:
       s.close()
     check allSectors(s, retired = true)[0].name == "Cuesta₂"

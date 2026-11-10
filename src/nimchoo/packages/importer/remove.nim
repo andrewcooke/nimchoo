@@ -8,6 +8,7 @@ import std/[algorithm, strutils, tables, times]
 import ../db/statement
 import ../db/store
 import ../../core/errors
+import ../user/session
 
 {.push raises: [].}
 
@@ -25,7 +26,7 @@ type
     files*: int ## files forgotten (no activity left)
     kept*: int ## files kept: they hold other activities
 
-proc planDelete*(st: Store, ids: seq[int64]): Plan {.raises: [StoreError].} =
+proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
   ## What deleting these activities (of the current user) would take: their files, the sports and the dates.
   var files: seq[int64]
   var sports = initTable[string, int]()

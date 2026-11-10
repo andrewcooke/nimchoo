@@ -6,7 +6,7 @@ import std/[options, os, strutils, unittest]
 import ../support/shims
 from ../support/env import useTestCache
 import nimchoo/packages/importer/batch
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/fitbuilder
 
@@ -48,10 +48,10 @@ proc removeDb(path: string) =
   for suffix in ["", "-wal", "-shm", "-journal"]:
     removeFile(path & suffix)
 
-proc count(s: Store, table: string): int =
+proc count(s: Session, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
 
-proc snapshot(s: Store): string =
+proc snapshot(s: Session): string =
   ## Everything the import wrote, as one text (the ids too).
   for q in [
     "select group_concat(id || ':' || name || ':' || sha256, ';') from (select * from file order by id)",
@@ -69,7 +69,7 @@ type Run = tuple[lines: seq[string], snap: string, imported, duplicates, failed:
 proc run(d: string, jobs: int, name: string): Run =
   ## Import everything under `d` into a database of its own, with this many threads.
   removeDb(dir / name & ".db")
-  let st = openStore(dir / name & ".db", allFragments, access = allAccess)
+  let st = openSession(dir / name & ".db", allFragments, access = allAccess)
   defer:
     st.close()
   let r = importReport(st, @[d], ImportOptions(quiet: false, jobs: jobs))
@@ -157,7 +157,7 @@ suite "import with threads: the same as without":
     for i in 0 ..< 20:
       fileFrom(d / ("f" & $i & ".fit"), tiny(base + i * 1000, 536870912 + i * 1500))
     removeDb(dir / "again.db")
-    let st = openStore(dir / "again.db", allFragments, access = allAccess)
+    let st = openSession(dir / "again.db", allFragments, access = allAccess)
     defer:
       st.close()
     check importReport(st, @[d], ImportOptions(jobs: 4)).imported == 20
@@ -173,7 +173,7 @@ suite "import with threads: the same as without":
       fileFrom(d / ("f" & $i & ".fit"), tiny(base + i * 1000, 536870912 + i * 2000))
     # (the same listing, then a missing file: the batch finds the files first, so remove one from the list's reach)
     removeDb(dir / "gone.db")
-    let st = openStore(dir / "gone.db", allFragments, access = allAccess)
+    let st = openSession(dir / "gone.db", allFragments, access = allAccess)
     defer:
       st.close()
     let r = importReport(

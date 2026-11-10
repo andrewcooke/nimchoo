@@ -3,6 +3,7 @@ import nimchoo/core/globals
 import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/ids
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/commands/activitiescmd/calendar
@@ -19,7 +20,7 @@ const
   aug27 = 1535371200 # 2018-08-27T12:00Z
 
 proc addActivity(
-    s: Store,
+    s: Session,
     userId: UserId,
     tag: string,
     startT: int,
@@ -65,7 +66,7 @@ proc world(name: string, together = false): string =
   ## running/trail), lisbon2 (bob, 15 Aug, cycling with no sub-sport).
   removeDir(dir / name)
   result = dir / name / "x.db"
-  let s = openStore(result, allFragments, access = allAccess)
+  let s = openSession(result, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.execute("insert into user(name) values ('bob')")
@@ -105,7 +106,7 @@ proc save(db: string, args: varargs[string]): int =
 
 proc chosen(db: string): seq[string] =
   ## The tags of the selected activities of the default user.
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   result = s.db.query(
@@ -137,7 +138,7 @@ suite "list: the command":
 
   test "--gps and --no-gps: with and without positions":
     let db = world("gps")
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute(
       """insert into coords(activity_id, t, lon, lat)
                     select a.id, a.start_t, 1.0, 2.0 from activity a join file f on f.id = a.file_id
@@ -175,7 +176,7 @@ suite "list: the command":
       Globals(dbPath: db, user: "bob", fragments: allFragments, access: allAccess),
       @["--all", "--select"],
     ) == exitOk
-    let b = openStore(db, allFragments, "bob", access = allAccess)
+    let b = openSession(db, allFragments, "bob", access = allAccess)
     defer:
       b.close()
     check b.db.scalar(
@@ -241,7 +242,7 @@ suite "list: the command":
 
   proc setNumbers(db, tag: string, distanceM, timerS: string) =
     ## Give the activity of the file `tag` its distance and timer time (NULL: "null").
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     st.db.execute(
@@ -375,7 +376,7 @@ suite "list: the command":
     check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--sport", "running") # paris
     check chosen(db) == @["paris"]
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
       "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
@@ -404,7 +405,7 @@ suite "list: the command":
   test "the line says which one it used":
     let db = numbered("previous7")
     discard save(db, "--newest", "1")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let r =
@@ -462,7 +463,7 @@ suite "list: the command":
 
   test "near across the date line":
     let db = world("dateline")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     addActivity(
       st,
       st.userId,
@@ -506,7 +507,7 @@ suite "list: the command":
     let db = world("latest", true)
     discard save(db, "--near", "latest", "--radius", "50")
     check chosen(db) == @["paris"] # (the latest is in Paris)
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
       "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
@@ -536,14 +537,14 @@ suite "list: the command":
     let db = world("cascade", true)
     discard save(db, "--all")
     check chosen(db).len == 3
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute("delete from file where name = 'lisbon2'")
     s.close()
     check chosen(db) == @["lisbon1", "paris"]
 
 suite "list: what is shown":
   proc shown(db: string, args: varargs[string]): tuple[lines: seq[Line], saved: int] =
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let p = parseArgs(@args, utc())
@@ -571,7 +572,7 @@ suite "list: what is shown":
     discard save(db, "--sport", "cycling") # the selection: the cycling one
     check shown(db, "--all").lines.blueRows == @[true, false]
     check shown(db, "--sport", "running").lines.blueRows == @[false]
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let p = parseArgs(@[], utc())
@@ -584,7 +585,7 @@ suite "list: what is shown":
   test "--calendar: a calendar in place of the table, with the same last line":
     let db = world("calendar")
     discard save(db, "--sport", "cycling")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let p = parseArgs(@["--all", "--calendar"], utc())
@@ -618,7 +619,7 @@ suite "list: what is shown":
 
   test "--calendar: a last warning when months were left out, until -v shows them":
     let db = world("calendarskip")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     st.db.execute(
@@ -672,7 +673,7 @@ suite "list: what is shown":
     check r.lines[^1].anyIt(
       it.look.colour == blue and it.text == ", 1 saved as the selection"
     )
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let again = showSelection(st, Criteria(), utc())
@@ -682,7 +683,7 @@ suite "list: what is shown":
 
   test "an empty selection, and a list with nothing in it":
     let db = world("shownempty")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     check showSelection(st, Criteria(), utc()).texts[0].startsWith(
@@ -698,7 +699,7 @@ suite "list: what is shown":
 
   test "-v says where it started and what it is called: the stored text":
     let db = world("verbose-place")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
       """update activity set start_place = 'Lisbon', name = 'Sintra and back'
       where file_id in (select id from file where name = 'lisbon1')"""
@@ -716,7 +717,7 @@ suite "list: what is shown":
 
   test "-v says no GPS where the place and name would be, for an activity with no start; the sub-sport follows the sport":
     let db = world("verbose-noplace")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
       "update activity set start = null where file_id in (select id from file where name = 'paris')"
     )
@@ -746,7 +747,7 @@ suite "list: what is shown":
 
 proc named(db: string) =
   ## lisbon1: "São Pedro and back" from Lisboa; lisbon2 (bob): "São Pedro and back" from Almada; paris: no name, no start.
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.execute(
@@ -792,7 +793,7 @@ suite "list: --name and --start":
     check chosen(db) == @["paris"]
     discard save(db, "--start", "none")
     check chosen(db) == @["paris"]
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute("update activity set name = '' where name is null")
     s.close()
     discard save(db, "--name", "none")
@@ -815,7 +816,7 @@ suite "list: --name and --start":
   test "a quote in a name is a character: found, found whole by previous, and a hostile text is only text":
     let db = world("quotes", true)
     named(db)
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute(
       """update activity set name = 'O''Higgins Park', start_place = 'Providencia'
       where file_id in (select id from file where name = 'lisbon1')"""
@@ -828,14 +829,14 @@ suite "list: --name and --start":
     check chosen(db) == @["lisbon1"]
     discard save(db, "--name", "x'; drop table activity; --")
     check chosen(db).len == 0
-    let after = openStore(db, allFragments, access = allAccess)
+    let after = openSession(db, allFragments, access = allAccess)
     defer:
       after.close()
     check after.db.scalar(int, "select count(*) from activity") == 3
   test "-v shows the start place and the name":
     let db = world("shownnames", true)
     named(db)
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let p = parseArgs(@["-v", "--all"], utc())
@@ -849,7 +850,7 @@ suite "list: --name and --start":
 
 suite "list: --path":
   proc seen(db, tag, path: string) =
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     defer:
       s.close()
     s.db.execute(
@@ -888,7 +889,7 @@ suite "list: --path":
   test "-v has a path column, last":
     let db = world("pathcolumn")
     seen(db, "lisbon1", "/x/bike/a.fit")
-    let st = openStore(db, allFragments, access = allAccess)
+    let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     let rows =
@@ -934,7 +935,7 @@ suite "list: --climb":
   proc climbs(db: string) =
     ## Two climbs called Sintra (200 m and 100 m) and one called Cabo da Roca; lisbon1 rode Sintra₁ and Cabo da Roca,
     ## lisbon2 (bob's) rode Sintra₂, paris rode nothing.
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     defer:
       s.close()
     for (name, gain) in [("Sintra", 200.0), ("Sintra", 100.0), ("Cabo da Roca", 50.0)]:
@@ -973,7 +974,7 @@ suite "list: --climb":
   test "retired climbs are found too; it combines with the others; --invert gives the rides that did not":
     let db = world("climbretired", true)
     climbs(db)
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute("update sector set retired = 1 where id = 1")
     s.close()
     discard save(db, "--climb", "sintra₁")

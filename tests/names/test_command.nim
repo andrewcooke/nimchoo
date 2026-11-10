@@ -3,6 +3,7 @@ import std/[os, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/names/command as landmarkCommand
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
@@ -12,7 +13,7 @@ proc fresh(name: string): string =
   removeDir(dir / name)
   createDir(dir / name)
   let db = dir / name / "x.db"
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.execute("insert into country(iso, name, geoname_id) values ('CL', 'Chile', 1)")
@@ -38,7 +39,7 @@ proc landmark(db: string, args: varargs[string]): int =
   )
 
 proc q(db, sqlText: string, T: typedesc): T =
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.scalar(T, sqlText)

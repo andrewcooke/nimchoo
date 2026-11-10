@@ -26,10 +26,11 @@ sees and can be approved together.
       contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
       table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
       definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
-   3. `user` owns the `user` table: `openStore` only opens and applies fragments; `user/openSession` finds or makes
-      the user; commands use it; `importer` and `selection` depend on `user` (§4.3).  `nch users` goes into `user`,
-      with the extension point "what a user has" (`importer` contributes the activity count; the FTHR-change note
-      becomes generic and `model` contributes nothing).
+   3. *(done 2026-11-10: `user` owns the `user` table; `openStore` only opens and applies fragments, `user/openSession` finds
+      or makes the user and gives a `Session`; `importer`, `selection` and the commands that have a user depend on `user`.)*
+      Left: `nch users` goes into `user`, with the extension point "what a user has" (`importer` contributes the
+      activity count); the FTHR-change note becomes generic ("what is worked out from the FTHR is worked out again":
+      the author, 2026-11-10) and `model` contributes nothing (§4.3).
    4. The extension point "pages the server may run" in `web`; `map` and `ff` contribute; `commandRules` goes.
    5. `nch import PATH...` is a command of `importer` (this reverses CLAUDE.md's "no import command": update "the
       shape of the commands"), with the extension point "after import" (once per import, after the commit; a failure

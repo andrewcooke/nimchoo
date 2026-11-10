@@ -1,6 +1,6 @@
 import std/[options, os, unittest]
 import nimchoo/packages/db/statement
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/extract
 import nimchoo/packages/importer/route
@@ -116,9 +116,9 @@ suite "route: the geometry bytes":
 suite "route: in the database":
   let dir = getTempDir() / "nch-test-route"
 
-  proc store(name: string): Store =
+  proc store(name: string): Session =
     removeDir(dir / name)
-    openStore(dir / name / "x.db", allFragments, access = allAccess)
+    openSession(dir / name / "x.db", allFragments, access = allAccess)
 
   test "SpatiaLite is there: a route can be stored and asked how far it is":
     let s = store("sp")

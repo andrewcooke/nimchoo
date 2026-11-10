@@ -1,8 +1,8 @@
 ## Small helpers that only tests need (they used to be in src/): a sink that ignores download events, a run of the
 ## importer whose plain output is collected, and the import of one file with a profile already in hand.
 
+import nimchoo/packages/user/session
 import nimchoo/packages/download/fetch
-import nimchoo/packages/db/store
 import nimchoo/packages/importer/channel
 import nimchoo/core/errors
 import nimchoo/packages/commands/activitiescmd/sinks
@@ -37,14 +37,14 @@ proc reportSink(report: Report, quiet: bool): events.Sink =
       report.advisories = ev.summary.advisories
 
 proc importReport*(
-    st: Store, targets: seq[string], opts: ImportOptions = ImportOptions()
+    st: Session, targets: seq[string], opts: ImportOptions = ImportOptions()
 ): Report =
   ## `importPaths`, with the plain output collected in a Report.
   result = Report()
   discard importPaths(st, targets, opts, reportSink(result, opts.quiet))
 
 proc importFile*(
-    s: Store,
+    s: Session,
     p: Profile,
     name: string,
     data: seq[byte],

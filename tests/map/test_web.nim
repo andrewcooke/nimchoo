@@ -4,7 +4,7 @@
 
 import nimchoo/packages/db/statement
 import std/[httpclient, json, os, osproc, streams, strtabs, strutils, unittest]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 when defined(posix):
   import std/posix
@@ -21,7 +21,7 @@ proc fixture(name: string, selected = true): tuple[db, cache: string] =
   ## A database with two activities that have routes, selected (or not).
   removeDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache")
-  let s = openStore(result.db, allFragments, access = allAccess)
+  let s = openSession(result.db, allFragments, access = allAccess)
   defer:
     s.close()
   for (tag, route) in [

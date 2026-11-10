@@ -97,7 +97,7 @@ suite "the tables of nimchoo":
     var made = initHashSet[string]() # what SQLite has made by the fragments so far
     # (the database's own fragment, and SpatiaLite's tables, are core's: they are there before the first)
     block:
-      let s = openStore(path, @[], "default")
+      let s = openStore(path, @[])
       for t in s.db.query(
         string, "select lower(name) from sqlite_master where type = 'table'"
       ):
@@ -105,7 +105,7 @@ suite "the tables of nimchoo":
       s.close()
     for i in 1 .. allFragments.len:
       let f = allFragments[i - 1]
-      let s = openStore(path, allFragments[0 ..< i], "default", access = allAccess)
+      let s = openStore(path, allFragments[0 ..< i], access = allAccess)
       for t in s.db.query(
         string, "select lower(name) from sqlite_master where type = 'table'"
       ):

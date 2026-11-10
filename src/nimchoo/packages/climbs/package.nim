@@ -4,7 +4,7 @@ import ./command
 const package* = Package(
   depends: @[
     "args", "confirm", "db", "fit", "fold", "geo", "importer", "lookup", "names",
-    "profiling", "selection", "ui",
+    "profiling", "selection", "ui", "user",
   ],
   fragments: @[
     fragment("001-schema.sql"), # sector (with retired), effort, climbs_done

@@ -3,7 +3,7 @@
 
 import nimchoo/packages/db/statement
 import std/[math, os, strutils]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 const metre* = 360.0 / (2.0 * PI * 6_371_008.8)
@@ -20,12 +20,12 @@ func altitude*(x: float): float =
   else:
     220.0
 
-proc fresh*(name: string): Store =
+proc fresh*(name: string): Session =
   removeDir(dir / name)
-  openStore(dir / name / "x.db", allFragments, access = allAccess)
+  openSession(dir / name / "x.db", allFragments, access = allAccess)
 
 proc addRide*(
-    s: Store,
+    s: Session,
     user: string,
     tag: string,
     startT: int,

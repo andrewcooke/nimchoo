@@ -192,8 +192,9 @@ readers.  They are now visible, acyclic and few, and the typed readers and the t
 file-to-package rule; the registry makes `allAccess`, which `nch.nim` puts in `Globals.access` and the tests give their
 stores.  A violation is a `StoreError` naming the package, the table and the statement.  What was settled on the way:
 
-* **The tables of `db`** (`user` and the metadata every table refers to) may be read by every package, written by `db` alone;
-  `db/users.nim` is how `nch users` changes the `user` table.
+* **The tables of `db`** (`fragment` and SpatiaLite's metadata) may be read by every package, written by `db` alone.
+  The `user` table is the `user` package's (since 2026-11-10): the packages whose tables refer to it declare `user`;
+  `user/users.nim` is how `nch users` changes it, and `user/session.nim` (`openSession`) finds the user a command works for.
 * **Cascades are authorised by SQLite too** (the first sketch here said not): `delete from activity` reports a delete of
   every table that refers to it.  What a cascade does to the tables that refer, directly or through others, to a table the
   same statement writes (and the reading of the other parents of those tables) is the database's doing and is allowed
@@ -264,7 +265,7 @@ In this order:
    deferred (see "Extension points").
 6. **The access model** (see "The access model").  It made the owners do their own writes: the
    selection is written by `selection` (`replaceSelection`), deleting activities moved from the package `delete` (which is
-   gone) into `importer` (`remove.nim`), the `user` table is written by `db` (`users.nim`) and `user_profile` by `user`
+   gone) into `importer` (`remove.nim`), the `user` table and `user_profile` are written by `user` (`users.nim`, `profile.nim`)
    (`profile.nim`).
 7. **The fragments**: they come from the registry (`Package.fragments`, in dependency order; the build refuses a
    fragment in the wrong package and a `references` to a package not in `depends`), `modules.nim` and the `ddl.nim` files are
@@ -286,7 +287,7 @@ tables it owns is in its SQL.
   `childasync` (child processes), `hashing`, `lookup` (`must`), `profiling`, `version`, `warnings`, `xlsx`, `zip`.
 * **`text/`**: `fold` (text compared without case or accents), `proquint`, `templating`.
 * **others**: `geo`; `ui` (looks, units, intervals, the live display, `columns`); `confirm` (the pause before a delete);
-  `db` (SQL by name, statements, the `Store`, fragments; owns `user` and `fragment`); `cache`; `bundle` (files unpacked
+  `db` (SQL by name, statements, the `Store`, fragments; owns `fragment`); `cache`; `bundle` (files unpacked
   from the program); `download`; `fit` (FIT files and the profile); `names` (GeoNames features and the author's
   landmarks); `importer` (activities); `heartrate`; `model` (impulses); `user`; `climbs`; `selection` (the stored
   selection and its address); `web` (the server `map` and `ff` use).

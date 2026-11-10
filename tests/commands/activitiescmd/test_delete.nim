@@ -1,7 +1,7 @@
 import nimchoo/packages/db/statement
 import std/[os, unittest]
 import nimchoo/core/globals
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/commands/activitiescmd/deleterun
 import nimchoo/packages/importer/remove
 import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
@@ -24,7 +24,7 @@ proc run(db: string, args: varargs[string]): int =
   ## nch activities --delete ARGS
   runAs(db, "", @args)
 
-proc selected(s: Store): seq[int64] =
+proc selected(s: Session): seq[int64] =
   ## The ids of the user's selection.
   s.db.query(
     int64,
@@ -32,7 +32,7 @@ proc selected(s: Store): seq[int64] =
     userId = s.userId,
   )
 
-proc extra(s: Store, tag: string, session, startT: int, sport = "") =
+proc extra(s: Session, tag: string, session, startT: int, sport = "") =
   ## A second activity (another session) in the file `tag`.
   let f = s.db.scalar(int64, "select id from file where name = :name", name = tag)
   s.db.execute(
@@ -51,7 +51,7 @@ proc extra(s: Store, tag: string, session, startT: int, sport = "") =
 suite "delete: the plan":
   test "the activities, their files, the sports and the dates":
     let d = fresh("plan")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     defer:
       s.close()
     fill(s, "a")
@@ -70,13 +70,13 @@ suite "delete: the plan":
     check describe(Plan()) == "0 activities"
   test "only the user's own activities are planned, whatever ids are given":
     let d = fresh("planown")
-    openStore(d, allFragments, access = allAccess).close()
+    openSession(d, allFragments, access = allAccess).close()
     addUser(d, "bob")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     defer:
       s.close()
     fill(s, "mine")
-    let bob = openStore(d, allFragments, "bob", access = allAccess)
+    let bob = openSession(d, allFragments, "bob", access = allAccess)
     defer:
       bob.close()
     fill(bob, "bobs")
@@ -84,7 +84,7 @@ suite "delete: the plan":
     check p.ids == @[1'i64]
   test "one activity, one day; no sport recorded":
     let d = fresh("one")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     defer:
       s.close()
     fill(s, "a")
@@ -94,7 +94,7 @@ suite "delete: the plan":
 suite "delete: the command":
   test "without -f nothing is deleted; with -f the activities and what was made from them go, the climbs stay":
     let d = fresh("basic")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     fill(s, "b")
     s.db.execute(
@@ -109,11 +109,11 @@ suite "delete: the command":
     )
     s.close()
     check run(d) == exitFailure
-    let before = openStore(d, allFragments, access = allAccess)
+    let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 2 and before.count("effort") == 2
     before.close()
     check run(d, "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     for t in [
@@ -125,7 +125,7 @@ suite "delete: the command":
       after.db.scalar(string, "select name from sector") == "Cerro"
   test "only the selection is deleted":
     let d = fresh("only")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     fill(s, "b")
     s.db.execute(
@@ -133,7 +133,7 @@ suite "delete: the command":
     )
     s.close()
     check run(d, "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     check after.count("activity") == 1 and
@@ -141,24 +141,24 @@ suite "delete: the command":
     check after.count("seen_file") == 1 and after.count("coords") == 1
   test "only the user's own selection is looked at: --user":
     let d = fresh("user")
-    openStore(d, allFragments, access = allAccess).close()
+    openSession(d, allFragments, access = allAccess).close()
       # (the database, so that a user can be added)
     addUser(d, "bob")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "mine")
-    let bob = openStore(d, allFragments, "bob", access = allAccess)
+    let bob = openSession(d, allFragments, "bob", access = allAccess)
     fill(bob, "bobs")
     bob.close()
     s.close()
     check runAs(d, "bob", "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     check after.count("activity") == 1 and
       after.db.scalar(string, "select name from file") == "mine"
   test "a file that holds other activities is kept until the last goes":
     let d = fresh("sessions")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "tri")
     s.extra("tri", 1, 100, "swimming")
     s.db.execute(
@@ -166,7 +166,7 @@ suite "delete: the command":
     ) # only the second is selected
     s.close()
     check run(d, "-f") == exitOk
-    let mid = openStore(d, allFragments, access = allAccess)
+    let mid = openSession(d, allFragments, access = allAccess)
     check mid.count("activity") == 1 and mid.count("file") == 1 and
       mid.count("seen_file") == 1 # (the file stays)
     mid.db.execute(
@@ -175,25 +175,25 @@ suite "delete: the command":
     )
     mid.close()
     check run(d, "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     check after.count("activity") == 0 and after.count("file") == 0 and
       after.count("seen_file") == 0
   test "nothing selected: said, and not an error":
     let d = fresh("none")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     s.db.execute("delete from selection")
     s.close()
     check run(d, "-f") == exitOk
-    let again = openStore(d, allFragments, access = allAccess)
+    let again = openSession(d, allFragments, access = allAccess)
     defer:
       again.close()
     check again.count("activity") == 1
   test "criteria pick the activities, with no need of a selection":
     let d = fresh("criteria")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "run")
     fill(s, "ride")
     fill(s, "ride2")
@@ -206,29 +206,29 @@ suite "delete: the command":
     s.db.execute("delete from selection")
     s.close()
     check run(d, "--sport", "cycling") == exitFailure # no -f: nothing done
-    let before = openStore(d, allFragments, access = allAccess)
+    let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 3
     before.close()
     check run(d, "--sport", "cycling", "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     check after.count("activity") == 1 and
       after.db.scalar(string, "select sport from activity") == "running"
   test "--all deletes every activity of the user, and not another user's":
     let d = fresh("all")
-    openStore(d, allFragments, access = allAccess).close()
+    openSession(d, allFragments, access = allAccess).close()
     addUser(d, "bob")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     fill(s, "b")
-    let bob = openStore(d, allFragments, "bob", access = allAccess)
+    let bob = openSession(d, allFragments, "bob", access = allAccess)
     fill(bob, "bobs")
     bob.close()
     s.db.execute("delete from selection")
     s.close()
     check run(d, "--all", "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     check after.count("activity") == 1 and
@@ -236,13 +236,13 @@ suite "delete: the command":
     check after.count("user") == 2 # (the users stay)
   test "no activity meets the criteria: said, not an error":
     let d = fresh("nomatch")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     s.close()
     check run(d, "--sport", "swimming", "-f") == exitFailure
       # (nobody has the sport: refused, as for any listing)
     check run(d, "--from", "2030-01-01", "-f") == exitOk
-    let after = openStore(d, allFragments, access = allAccess)
+    let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
     check after.count("activity") == 1
@@ -260,7 +260,7 @@ suite "delete: the command":
 suite "delete: progress":
   test "the report comes after each chunk: how many activities are gone and how many files are forgotten":
     let d = fresh("progress")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     defer:
       s.close()
     for i in 1 .. 60:
@@ -278,7 +278,7 @@ suite "delete: progress":
     check s.count("activity") == 0 and s.count("file") == 0
   test "a file with activities in two chunks is forgotten when the later one goes; one that keeps an activity stays":
     let d = fresh("progressfiles")
-    let s = openStore(d, allFragments, access = allAccess)
+    let s = openSession(d, allFragments, access = allAccess)
     defer:
       s.close()
     fill(s, "tri") # activity 1, file tri

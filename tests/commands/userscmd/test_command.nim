@@ -3,6 +3,7 @@ import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/core/logfile
 import nimchoo/packages/commands/userscmd/command as userCommand
@@ -29,13 +30,13 @@ proc edit(db, name: string, args: varargs[string]): int =
   user(db, @["--edit", name] & @args)
 
 proc q(db, sqlText: string, T: typedesc): T =
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.scalar(T, sqlText)
 
 proc lines(db: string): seq[string] =
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   userLines(s)
@@ -153,7 +154,7 @@ suite "nch users":
   test "when the default user is destroyed, another becomes the default":
     let db = fresh("defaultgone")
     check user(db, "--add", "bob") == exitOk
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute("delete from user where name = 'default'")
     s.close()
     check q(db, "select name from user where is_default = 1", string) == "bob"
@@ -171,7 +172,7 @@ suite "nch users":
   test "the activities of each user are counted":
     let db = fresh("counts")
     check user(db, "--add", "bob") == exitOk
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     for i in 1 .. 1200:
       s.db.execute(
         "insert into file(user_id, name, sha256, imported_at) values ((select id from user where name = 'bob'), :name, :sha256, 0)",
@@ -192,7 +193,7 @@ suite "nch users":
   test "the profile goes with the user":
     let db = fresh("cascade")
     check user(db, "--add", "bob", "--fthr", "150") == exitOk
-    let s = openStore(db, allFragments, access = allAccess)
+    let s = openSession(db, allFragments, access = allAccess)
     s.db.execute("delete from user where name = 'bob'")
     s.close()
     check q(db, "select count(*) from user_profile", int) == 0
@@ -215,7 +216,7 @@ suite "nch users":
   test "other commands see a made user":
     let db = fresh("others")
     check user(db, "--add", "bob") == exitOk
-    let s = openStore(db, allFragments, "bob", access = allAccess)
+    let s = openSession(db, allFragments, "bob", access = allAccess)
     defer:
       s.close()
     check s.userName == "bob"
@@ -224,7 +225,7 @@ suite "nch users --delete":
   test "without -f nothing is deleted; with -f the user and everything of theirs go":
     let db = fresh("remove")
     check user(db, "--add", "bob") == exitOk
-    let bob = openStore(db, allFragments, "bob", access = allAccess)
+    let bob = openSession(db, allFragments, "bob", access = allAccess)
     fill(bob, "bobs")
     bob.close()
     check user(db, "--delete", "bob") == exitFailure

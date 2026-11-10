@@ -1,7 +1,7 @@
 import nimchoo/packages/db/statement
 import std/[os, tables, unittest]
 import ../support/shims
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/importer/channel
 import nimchoo/packages/heartrate/step
 import nimchoo/packages/importer/importer
@@ -20,13 +20,13 @@ const
 let p = loadProfile(profilePath)
 let dir = getTempDir() / "nch-test-heartrate"
 
-proc openDb(name: string): Store =
+proc openDb(name: string): Session =
   createDir(dir)
   let path = dir / name & ".db"
   removeFile(path)
-  store.openStore(path, allFragments, access = allAccess)
+  openSession(path, allFragments, access = allAccess)
 
-proc imp(s: Store, data: seq[byte], ws: var seq[Warning]): ImportResult =
+proc imp(s: Session, data: seq[byte], ws: var seq[Warning]): ImportResult =
   s.importFile(p, "x.fit", data, ws, @[heartrateStep])
 
 # records at base, base+1, base+2 (heart rate 100, none = 255 (invalid), 0), base+3 twice (last wins: 120, 130);

@@ -4,7 +4,7 @@
 
 import nimchoo/packages/db/statement
 import std/[httpclient, os, osproc, sequtils, streams, strtabs, strutils, unittest]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 when defined(posix):
   import std/posix
@@ -16,7 +16,7 @@ proc fixture(name: string): tuple[db, cache: string] =
   ## A user with an FTHR and one activity with ten minutes of hard heart rate.
   removeDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache")
-  let s = openStore(result.db, allFragments, access = allAccess)
+  let s = openSession(result.db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.execute(
@@ -90,7 +90,7 @@ suite "nch ff --worker":
     if not built():
       skip()
     let f = fixture("nofthr")
-    let s = openStore(f.db, allFragments, access = allAccess)
+    let s = openSession(f.db, allFragments, access = allAccess)
     s.db.execute("delete from user_profile")
     s.close()
     let (output, code) = worker(f.db, f.cache, @[])

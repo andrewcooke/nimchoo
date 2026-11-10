@@ -1,9 +1,9 @@
+import nimchoo/packages/user/session
 import nimchoo/packages/db/statement
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/packages/climbs/attempts
 import nimchoo/packages/climbs/display
 import nimchoo/packages/climbs/work
-import nimchoo/packages/db/store
 import nimchoo/packages/ui/palette
 import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]
@@ -14,7 +14,7 @@ suite "attempts: the ranks":
     check rankOf([500.0, 500.0, 520.0], 500.0) == 1
     check rankOf([500.0], 500.0) == 1
 
-proc world(name: string): Store =
+proc world(name: string): Session =
   ## The default user rode at 5 and at 6 m/s, bob at 4 m/s; only the slowest-but-one ride is selected.
   let s = fresh(name)
   addUser(s.path, "bob")

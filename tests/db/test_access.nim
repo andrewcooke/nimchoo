@@ -5,17 +5,18 @@ import std/[os, strutils, unittest]
 import std/[algorithm, sequtils, tables]
 import nimchoo/core/[access, errors, ownership]
 import nimchoo/packages/db/[access, statement, store]
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-access"
 
-proc open(name: string): Store =
+proc open(name: string): Session =
   createDir(dir)
   let path = dir / name & ".db"
   removeFile(path)
-  openStore(path, allFragments, access = newAllAccess(amEnforce))
+  openSession(path, allFragments, access = newAllAccess(amEnforce))
 
-proc refusal(s: Store, package, sql: string): string =
+proc refusal(s: Session, package, sql: string): string =
   ## What preparing `sql` as `package` says, "" if it is allowed.
   try:
     discard prepareStmtAs(s.db, sql, package)
@@ -42,7 +43,8 @@ suite "access: statements":
   test "a package may not read the table of one it does not depend on":
     let s = open("read")
     check s.refusal("heartrate", "select count(*) from effort") != ""
-    check s.refusal("heartrate", "select count(*) from user") == ""
+    check s.refusal("heartrate", "select count(*) from user") != ""
+    check s.refusal("heartrate", "select count(*) from fragment") == ""
     s.close()
 
   test "code outside the packages is not checked":

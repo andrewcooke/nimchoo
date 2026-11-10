@@ -4,7 +4,7 @@ import ../../support/shims
 import nimchoo/packages/importer/batch
 import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../../support/fitbuilder
 
@@ -53,8 +53,8 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-proc open(path: string): Store =
-  openStore(path, allFragments, access = allAccess)
+proc open(path: string): Session =
+  openSession(path, allFragments, access = allAccess)
 
 proc globals(db: string, user = ""): Globals =
   Globals(

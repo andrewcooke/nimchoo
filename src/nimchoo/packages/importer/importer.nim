@@ -13,6 +13,7 @@ import ../fit/model
 import ../util/profiling/profiling
 import ../util/warnings/warnings
 import ./[extract, route]
+import ../user/session
 
 {.push raises: [].}
 
@@ -101,12 +102,12 @@ proc decodeFile*(
 
 const knownFileSql* = "select id from file where user_id = :userId and sha256 = :sha256"
 
-proc knownFile*(s: Store, digest: string): Option[FileId] {.raises: [StoreError].} =
+proc knownFile*(s: Session, digest: string): Option[FileId] {.raises: [StoreError].} =
   ## The `file` row of the user's that has this content (hash), if there is one.
   timed "known?":
     result = s.db.queryOne(FileId, knownFileSql, userId = s.userId, sha256 = digest)
 
-proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
+proc knownDigests*(s: Session): HashSet[string] {.raises: [StoreError].} =
   ## The hashes of the contents of all the user's files: a worker that sees one of them need not
   ## decode the file (the writer still checks, with `knownFile`, when it comes to write).
   for digest in s.db.query(
@@ -115,7 +116,7 @@ proc knownDigests*(s: Store): HashSet[string] {.raises: [StoreError].} =
     result.incl digest
 
 proc writeDecoded*(
-    s: Store, name, digest: string, d: Decoded, steps: seq[ImportStep]
+    s: Session, name, digest: string, d: Decoded, steps: seq[ImportStep]
 ): ImportResult {.raises: [StoreError].} =
   ## Write a decoded file (called `name` in the database, with this content hash) for the
   ## store's user, in one transaction: nothing is written unless all of it is.  The import
@@ -188,7 +189,7 @@ proc writeDecoded*(
       s.rollback()
 
 proc importFileWith*(
-    s: Store,
+    s: Session,
     profile: ProfileSource,
     name: string,
     data: seq[byte],

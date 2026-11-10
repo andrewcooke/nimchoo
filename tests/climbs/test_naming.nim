@@ -2,14 +2,14 @@ import nimchoo/packages/db/statement
 import std/[os, strutils, unittest]
 import ../support/shims
 import nimchoo/packages/climbs/naming
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/download/fetch
 import nimchoo/core/errors
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import ../support/namesdata
 
-proc sectorAt(s: Store, lons: openArray[float], lat: float) =
+proc sectorAt(s: Session, lons: openArray[float], lat: float) =
   ## A sector along a line of latitude, with altitudes that rise.
   var pts: seq[string]
   for i, lon in lons:
@@ -19,11 +19,11 @@ proc sectorAt(s: Store, lons: openArray[float], lat: float) =
     wkt = "LINESTRING Z(" & pts.join(", ") & ")",
   )
 
-proc world(name: string): tuple[net: Net, names: Names, st: Store] =
+proc world(name: string): tuple[net: Net, names: Names, st: Session] =
   let net = Net(chile: @[santiago, sanCristobal, pass, barrio].join("\n") & "\n")
   let top = getTempDir() / "nch-test-climbs-naming" / name
   removeDir(top)
-  let st = openStore(top / "x.db", allFragments, access = allAccess)
+  let st = openSession(top / "x.db", allFragments, access = allAccess)
   (net, newNames(st, top / "data", envOf(net), silent()), st)
 
 suite "climbs: naming the sectors":
@@ -48,7 +48,7 @@ suite "climbs: naming the sectors":
   test "without the network it is an error, and the sectors stay unnamed (null) for the next time":
     let top = getTempDir() / "nch-test-climbs-naming" / "offline"
     removeDir(top)
-    let st = openStore(top / "x.db", allFragments, access = allAccess)
+    let st = openSession(top / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     var env = envOf(Net())

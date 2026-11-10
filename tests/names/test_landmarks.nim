@@ -1,17 +1,17 @@
 import nimchoo/packages/db/statement
 import std/[options, os, unittest]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/errors
 import nimchoo/packages/names/landmarks
 import nimchoo/packages/names/suggest
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
-proc fresh(name: string): Store =
+proc fresh(name: string): Session =
   let top = getTempDir() / "nch-test-landmark" / name
   removeDir(top)
-  openStore(top / "x.db", allFragments, access = allAccess)
+  openSession(top / "x.db", allFragments, access = allAccess)
 
-proc feature(s: Store, id: int, name, cls, code: string, lon, lat: float, pop = 0) =
+proc feature(s: Session, id: int, name, cls, code: string, lon, lat: float, pop = 0) =
   s.db.execute(
     "insert or ignore into country(iso, name, geoname_id) values ('CL', 'Chile', 1)"
   )

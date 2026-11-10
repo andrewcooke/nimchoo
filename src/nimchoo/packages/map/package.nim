@@ -4,7 +4,7 @@ import ./command
 const package* = Package(
   depends: @[
     "args", "atomic", "bundle", "cache", "climbs", "db", "fit", "hashing", "importer",
-    "selection", "templating", "ui", "version", "web",
+    "selection", "templating", "ui", "user", "version", "web",
   ],
   commands: @[
     CommandDecl(

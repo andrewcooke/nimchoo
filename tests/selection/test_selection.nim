@@ -1,16 +1,16 @@
 import nimchoo/packages/db/statement
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/selection/selection
 
 let dir = getTempDir() / "nch-test-selection"
 
-proc fresh(name: string): Store =
+proc fresh(name: string): Session =
   removeDir(dir / name)
-  openStore(dir / name / "x.db", allFragments, access = allAccess)
+  openSession(dir / name / "x.db", allFragments, access = allAccess)
 
-proc add(s: Store, sha: string, session = 0) =
+proc add(s: Session, sha: string, session = 0) =
   ## An activity of file `sha`, in the selection.
   s.db.execute(
     "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
@@ -44,7 +44,7 @@ suite "selection: the key":
   test "known value (the SHA-256 of nothing starts e3b0c44298fc)":
     check keyOf(@[]) == "e3b0c44298fc"
 
-proc selectionKey(st: Store): string =
+proc selectionKey(st: Session): string =
   ## The content key of the user's selection.
   contentKey(st, selectedIds(st))
 
@@ -93,7 +93,8 @@ suite "selection: of the database":
       s.close()
     s.add "aa"
     s.db.execute("insert into user(name) values ('bob')")
-    let bob = openStore(dir / "owner" / "x.db", allFragments, "bob", access = allAccess)
+    let bob =
+      openSession(dir / "owner" / "x.db", allFragments, "bob", access = allAccess)
     defer:
       bob.close()
     check selectionKey(bob) == keyOf(@[])

@@ -1,10 +1,6 @@
 ## The database: where it lives, opening it (creating it and bringing its
-## schema up to date on first use), and the user whose data we work with.
-## Every command that uses the database starts with `openStore`.
-##
-## One user is the default (`user.is_default`): the one used when none is asked for.
-## A database with no users gets one, called `default`; if the default user has gone
-## but others remain, the oldest of them becomes the default.
+## schema up to date on first use).  Which user's data we work with is not known here: that is the `user`
+## package's (`openSession`), which every command that has a user starts with.
 ##
 ## The schema is made of fragments (fragment.nim): the database's own, then
 ## those of the modules, in the order given.  The database remembers which it
@@ -28,10 +24,8 @@ export db_sqlite.DbConn, fragment, coreFragment
 
 {.push raises: [].}
 
-const
-  defaultUser* = "default" ## the name of the user made in an empty database
-  baseFragments* =
-    @[fragment("001-schema.sql")] ## the database's own, applied first, always
+const baseFragments* =
+  @[fragment("001-schema.sql")] ## the database's own, applied first, always
 
 type
   ConnObj = object
@@ -62,8 +56,6 @@ type Store* = object
   db*: DbConn
   conn: Conn
   path*: string ## the database file (":memory:" for one in memory)
-  userId*: UserId
-  userName*: string
 
 proc resolveDbPath*(option: string): string =
   ## The database file: the `--db` option, else `$NCH_DB`, else
@@ -160,12 +152,11 @@ proc reclaim*(s: Store) {.raises: [StoreError].} =
   s.db.execScript("pragma incremental_vacuum")
 
 proc openStore*(
-    path: string, fragments: seq[Fragment], user = "", access: Access = nil
+    path: string, fragments: seq[Fragment], access: Access = nil
 ): Store {.raises: [StoreError].} =
   ## Open the database at `path`, creating the file and applying the fragments
-  ## it lacks, and find `user` ("": the default user, made if there are no users).
-  ## `access` says which package may touch which table (nil: nothing is checked).
-  ## Raises StoreError if that cannot be done or the user does not exist.
+  ## it lacks.  `access` says which package may touch which table (nil: nothing is checked).
+  ## Raises StoreError if that cannot be done.
   if path != ":memory:":
     try:
       createDir(parentDir(path))
@@ -198,26 +189,6 @@ proc openStore*(
       # big import then spends about half as long on checkpoints (measured), and the log stays small
       result.db.execScript("pragma wal_autocheckpoint = 20000")
     bringUpToDate(result.db, fragments)
-    if result.db.scalar(int, "select count(*) from user") == 0:
-      result.db.execute(
-        "insert into user(name, is_default) values (:name, 1)", name = defaultUser
-      )
-    elif result.db.scalar(int, "select count(*) from user where is_default = 1") == 0:
-      result.db.execute(
-        "update user set is_default = 1 where id = (select min(id) from user)"
-      )
-    let id =
-      if user.len == 0:
-        result.db.queryOne(UserId, "select id from user where is_default = 1")
-      else:
-        result.db.queryOne(
-          UserId, "select id from user where name = :name", name = user
-        )
-    if id.isNone:
-      raiseStore("no such user: " & user)
-    result.userId = id.get
-    result.userName =
-      result.db.scalar(string, "select name from user where id = :id", id = id.get)
   except StoreError:
     close(result)
     raise
@@ -244,4 +215,4 @@ proc rollback*(s: Store) {.raises: [].} =
 
 proc openStore*(g: Globals): Store {.raises: [StoreError].} =
   ## The database the global options point at.
-  openStore(resolveDbPath(g.dbPath), g.fragments, g.user, g.access)
+  openStore(resolveDbPath(g.dbPath), g.fragments, g.access)

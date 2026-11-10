@@ -3,6 +3,7 @@ import std/[os, options, unittest]
 import ../support/shims
 import nimchoo/core/globals
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/importer/importer
@@ -28,17 +29,17 @@ proc fresh(name: string): string =
   result = dir / name & ".db"
   removeFile(result)
 
-proc open(path: string, user = ""): Store =
-  store.openStore(path, allFragments, user, access = allAccess)
+proc open(path: string, user = ""): Session =
+  openSession(path, allFragments, user, access = allAccess)
 
-proc importRide(s: Store, name = "ride.fit"): ImportResult =
+proc importRide(s: Session, name = "ride.fit"): ImportResult =
   var ws: seq[Warning]
   s.importFile(p, name, readBytes(ride), ws, @[heartrateStep])
 
-proc q(s: Store, sqlText: string, T: typedesc): T =
+proc q(s: Session, sqlText: string, T: typedesc): T =
   s.db.scalar(T, sqlText)
 
-proc setFthr(s: Store, fthr: int) =
+proc setFthr(s: Session, fthr: int) =
   s.db.execute(
     """insert into user_profile(user_id, fthr) values (:userId, :fthr)
     on conflict(user_id) do update set fthr = excluded.fthr""",
@@ -82,7 +83,7 @@ suite "model: the models in the database":
       insertModel(s.db, m)
     check loadModels(s.db).len == 2
 
-proc defaultM(s: Store): Model =
+proc defaultM(s: Session): Model =
   findModel(s.db, "default").get
 
 suite "model: impulses, worked out when wanted":

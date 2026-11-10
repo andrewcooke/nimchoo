@@ -115,6 +115,7 @@ import
     test_workers,
     test_fuzz as webFuzz,
   ]
+import ./user/test_session
 import ./user/test_wipe
 import ./commands/userscmd/test_params
 import ./commands/userscmd/test_command

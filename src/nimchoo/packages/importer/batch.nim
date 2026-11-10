@@ -5,6 +5,7 @@
 import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
 import ../db/checkpointer
 import ../db/store
+import ../user/session
 import ./channel
 import ../../core/errors
 import ../../core/ids
@@ -87,7 +88,7 @@ proc collect(args: seq[string]): Found =
     cmp(a.path, b.path)
 
 proc importPaths*(
-    st: Store, targets: seq[string], opts: ImportOptions, emit: Sink
+    st: Session, targets: seq[string], opts: ImportOptions, emit: Sink
 ): Summary =
   ## Import the files in `targets` (files and directories), one transaction
   ## per file; a file that fails is reported and the others carry on.  Files

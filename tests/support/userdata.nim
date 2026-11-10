@@ -1,6 +1,7 @@
 ## Helpers for tests that delete a user's data: fill a user with one of everything, count rows,
 ## make a second user.
 
+import nimchoo/packages/user/session
 import nimchoo/packages/db/statement
 import db_connector/db_sqlite
 import nimchoo/core/globals
@@ -10,7 +11,7 @@ from nimchoo/registry import allFragments, allAccess, newAllAccess
 proc count*(s: Store, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
 
-proc fill*(s: Store, tag: string) =
+proc fill*(s: Session, tag: string) =
   ## One of everything, for the user of `s`.
   let u = s.userId
   s.db.execute(

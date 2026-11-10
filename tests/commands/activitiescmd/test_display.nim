@@ -4,7 +4,7 @@ import nimchoo/packages/commands/activitiescmd/sinks
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/log/command as logCommand
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/ui/live
@@ -149,7 +149,7 @@ suite "import display: a run":
     )
 
   proc run(f: Fake, d: string, advanceBy: int64): Summary =
-    let st = openStore(d / "x.db", allFragments, access = allAccess)
+    let st = openSession(d / "x.db", allFragments, access = allAccess)
     defer:
       st.close()
     let ticker: Sink = proc(ev: ImportEvent) {.closure, raises: [].} =

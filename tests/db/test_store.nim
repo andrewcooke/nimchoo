@@ -3,6 +3,7 @@ import db_connector/db_sqlite
 import nimchoo/packages/db/fragment
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/errors
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
@@ -13,9 +14,9 @@ proc tempDb(name: string): string =
   result = dir / name & ".db"
   removeFile(result)
 
-proc open(path: string, user = defaultUser): Store =
+proc open(path: string, user = defaultUser): Session =
   ## The whole schema.
-  openStore(path, allFragments, user, access = allAccess)
+  openSession(path, allFragments, user, access = allAccess)
 
 proc count(s: Store, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
@@ -34,20 +35,6 @@ func frag(name, sqlText: string): Fragment =
   Fragment(name: name, sql: sqlText)
 
 suite "database: opening and bringing the schema up to date":
-  test "a new database has the schema and the default user, flagged as such":
-    let path = tempDb("new")
-    let s = open(path)
-    check fileExists(path)
-    check s.userName == defaultUser
-    check int64(s.userId) > 0
-    check s.db.scalar(string, "select name from user where is_default = 1") ==
-      defaultUser
-    for table in ["user", "file", "activity", "coords", "segment", "fragment"]:
-      check s.db.scalar(
-        int, "select count(*) from sqlite_master where name = :name", name = table
-      ) == 1
-    s.close()
-
   test "every table is strict; a geometry column holds only its kind of geometry; deleted space can be given back":
     let s = open(tempDb("strict"))
     defer:
@@ -201,23 +188,6 @@ suite "database: opening and bringing the schema up to date":
     check s.count("user") == 1
     s.close()
 
-  test "another user":
-    let path = tempDb("users")
-    let a = open(path)
-    a.db.execute("insert into user(name) values ('bob')")
-    a.close()
-    let b = open(path, "bob")
-    check b.userName == "bob"
-    check int64(b.userId) > 1
-    b.close()
-
-  test "an unknown user is an error, and leaves the database usable":
-    let path = tempDb("nouser")
-    open(path).close()
-    expect StoreError:
-      discard open(path, "nobody")
-    open(path).close()
-
   test "a database with a fragment this build does not have is refused":
     let path = tempDb("newer")
     let a = open(path)
@@ -273,7 +243,8 @@ suite "database: fragments":
 
   test "a module's fragments can be used without the others":
     let s = openStore(":memory:", @[frag("m/001.sql", "create table t(x);")])
-    check s.count("user") == 1 # the database's own
+    check s.count("spatial_ref_sys") > 0 # the database's own
+    check s.db.scalar(int, "select count(*) from sqlite_master where name = 'user'") == 0
     check s.db.scalar(int, "select count(*) from sqlite_master where name = 'file'") == 0
     s.close()
 

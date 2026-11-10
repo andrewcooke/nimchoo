@@ -3,6 +3,7 @@ import std/[unittest]
 import nimchoo/core/globals
 import nimchoo/packages/climbs/command as climbsCommand
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/ids
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/climbdata
@@ -25,7 +26,7 @@ suite "nch climbs":
     check climbs(path) == exitOk
     # ... and the catalogue is there to list, and the climbs were worked out on the way
     check climbs(path, "--all") == exitOk
-    let again = openStore(path, allFragments, access = allAccess)
+    let again = openSession(path, allFragments, access = allAccess)
     defer:
       again.close()
     check again.count("sector") == 1 and again.count("climbs_done") == 1
@@ -61,17 +62,17 @@ suite "nch climbs":
     s.close()
     check climbs(path, "--all") == exitOk # (works the climbs out)
     check climbs(path, "--all", "--delete") == exitFailure
-    let before = openStore(path, allFragments, access = allAccess)
+    let before = openSession(path, allFragments, access = allAccess)
     check before.count("sector") == 1
     before.close()
     check climbsCommand.run(globals(path), @["--all", "--delete", "-f"]) == exitOk
-    let after = openStore(path, allFragments, access = allAccess)
+    let after = openSession(path, allFragments, access = allAccess)
     check after.count("sector") == 0 and after.count("effort") == 0 and
       after.count("climbs_done") == 0
     check after.count("activity") == 1
     after.close()
     check climbs(path, "--all") == exitOk # (and they are worked out again)
-    let again = openStore(path, allFragments, access = allAccess)
+    let again = openSession(path, allFragments, access = allAccess)
     defer:
       again.close()
     check again.count("sector") == 1

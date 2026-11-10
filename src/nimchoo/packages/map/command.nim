@@ -31,6 +31,7 @@ import ../web/launch
 import ../web/pages
 import ../web/webopts
 import ./[lines, page, params]
+import ../user/session
 
 {.push raises: [].}
 
@@ -126,9 +127,9 @@ proc startsWithFile(path, prefix: string): bool =
 
 proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
   ## Make the GeoJSON file (if it is not there) and, if asked, the page.  Reports problems.
-  var st: Store
+  var st: Session
   try:
-    st = openStore(g)
+    st = openSession(g)
   except StoreError as e:
     return Prepared(status: failure("nch map", e.msg))
   try:

@@ -72,11 +72,11 @@ system can be extended with new fit-related functionality by adding a package, w
   (checked when the statement is prepared: the access model, below).
 * **tables** belong to the package whose fragments make them (read from the `create table` / `rename to` in the sql;
   `tests/core/test_ownership.nim` applies the fragments one at a time and checks that SQLite agrees).  a package may
-  write only its own tables, and read those of its `depends` and of `db` (the `user` table and spatialite's metadata);
+  write only its own tables, and read those of its `depends` and of `db` (the `fragment` table and spatialite's metadata);
   **enforced** (`core/access.nim`, `packages/db/access.nim`; PACKAGES.md "The access model"): a statement is checked as
   the package of the file it is written in, and a breach is a `StoreError` naming the package, the table and the sql.  a
   query joining another package's tables must be run by a package that may read them.  a table is written by its owner's
-  functions (`selection/replaceSelection`, `db/users`, `user/profile`, `importer/remove`), so a command calls those.
+  functions (`selection/replaceSelection`, `user/users`, `user/profile`, `importer/remove`), so a command calls those.
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in `fragments:` of its
   `package.nim`; the registry joins the lists, in dependency order, into `allFragments`.
 * **extension points** are few, and there is one: the import steps (`core/extension.nim`; `importer/channel.nim` declares the
@@ -140,7 +140,7 @@ had yet.
   table of a package it does not depend on stops the build).  a test builds the schema in several valid orders, and from a database made before a
   package's later fragments, and compares them.
   the sql is read at compile time, so it is inside the `nch` binary.
-  `packages/db/001-schema.sql` (the `user` table and spatialite's metadata) is
+  `packages/db/001-schema.sql` (spatialite's metadata; the `user` table is the `user` package's) is
   applied first, always.  the numbers only order the files within a module.
 * the database has a table `fragment` (name, applied_at, sha256 of the
   sql, seed_version).  on opening, for each fragment in the program: not

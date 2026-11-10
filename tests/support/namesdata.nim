@@ -2,7 +2,7 @@
 ## countries, and a network that serves them.
 
 import std/[options, os, strutils]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
 from nimchoo/registry import allFragments, allAccess, newAllAccess
@@ -70,7 +70,7 @@ proc envOf*(net: Net): Env =
   result.freeBytes = proc(dir: string): Option[int64] {.closure, raises: [].} =
     none(int64)
 
-proc fresh*(name: string): tuple[st: Store, dir: string] =
+proc fresh*(name: string): tuple[st: Session, dir: string] =
   let top = getTempDir() / "nch-test-features" / name
   removeDir(top)
-  (openStore(top / "x.db", allFragments, access = allAccess), top / "data")
+  (openSession(top / "x.db", allFragments, access = allAccess), top / "data")

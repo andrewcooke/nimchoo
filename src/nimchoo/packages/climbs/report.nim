@@ -9,6 +9,7 @@ import ../db/store
 import ../../core/errors
 import ../ui/style
 import ./[describe, display, work]
+import ../user/session
 
 {.push raises: [].}
 
@@ -23,7 +24,7 @@ type SectorRow* = object
 
 # --- the rows
 
-proc selectedActivities*(st: Store): int {.raises: [StoreError].} =
+proc selectedActivities*(st: Session): int {.raises: [StoreError].} =
   ## How many activities the user has selected.
   st.db.scalar(
     int, "select count(*) from selection where user_id = :userId", userId = st.userId

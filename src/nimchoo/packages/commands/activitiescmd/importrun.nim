@@ -17,6 +17,7 @@ import ./[display, logsink, sinks]
 import ../../importer/batch
 import ../../importer/events
 import ../../importer/naming
+import ../../user/session
 
 {.push raises: [].}
 
@@ -30,7 +31,7 @@ proc newestActivity(st: Store): int64 {.raises: [StoreError].} =
   ## The highest activity id there is (0 if none): what is imported after it is new.
   st.db.scalar(int64, "select coalesce(max(id), 0) from activity")
 
-proc selectNew(st: Store, after: int64): int {.raises: [StoreError].} =
+proc selectNew(st: Session, after: int64): int {.raises: [StoreError].} =
   ## Make the user's selection the activities imported after `after` (their own, in the files of this user), so that the
   ## commands that work on the selection are ready to use on the ride just imported.  Nothing new: the selection stays.
   result = st.db.scalar(
@@ -57,9 +58,9 @@ proc runImport*(
 ): int {.raises: [].} =
   ## `nch activities --import PATH...`: put the activities of the FIT files into the database, then name the ones that
   ## have no name; returns the exit status.
-  var st: Store
+  var st: Session
   try:
-    st = openStore(g)
+    st = openSession(g)
   except StoreError as e:
     return failure("nch activities", e.msg)
   let logged = g.log.enabled

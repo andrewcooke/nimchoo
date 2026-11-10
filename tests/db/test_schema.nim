@@ -4,6 +4,7 @@ import std/[algorithm, options, os, sequtils, strutils, tables, unittest]
 import db_connector/db_sqlite
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-schema"
@@ -39,7 +40,7 @@ suite "schema":
     createDir(dir)
     let path = dir / "fk.db"
     removeFile(path)
-    let s = openStore(path, allFragments, access = allAccess)
+    let s = openSession(path, allFragments, access = allAccess)
     var missing: seq[string]
     for table in s.db.query(
       string, "select name from sqlite_master where type = 'table' order by name"

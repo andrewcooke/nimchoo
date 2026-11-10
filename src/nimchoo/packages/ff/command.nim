@@ -22,6 +22,7 @@ import ../web/webopts
 import ../ui/live
 import ../ui/style
 import ./[curve, page, params, stats]
+import ../user/session
 
 {.push raises: [].}
 
@@ -146,7 +147,7 @@ proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): 
   for l in rows(impulses, m, p, now, tz):
     result.add l & "\n"
 
-proc ensureImpulses(st: Store, m: Model) {.raises: [StoreError].} =
+proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
   ## Work out the impulses that are lacking (in one transaction).
   st.begin()
   var committed = false
@@ -159,14 +160,14 @@ proc ensureImpulses(st: Store, m: Model) {.raises: [StoreError].} =
       st.rollback()
 
 proc makeCsv(
-    st: Store, m: Model, p: Params, now: int64, tz: Timezone
+    st: Session, m: Model, p: Params, now: int64, tz: Timezone
 ): string {.raises: [StoreError].} =
   ## The CSV, after working out the impulses that are lacking.
   ensureImpulses(st, m)
   csv(hourlyImpulses(st.db, st.userId, m.id), m, p, now, tz)
 
 proc latestStats(
-    st: Store, m: Model, p: Params, now: int64, tz: Timezone
+    st: Session, m: Model, p: Params, now: int64, tz: Timezone
 ): Line {.raises: [StoreError].} =
   ## The line about the latest values (see stats.nim): for today, as of the last whole hour (the
   ## label is the date and time); for an earlier last day (`--to`), at the end of it (the date).
@@ -249,9 +250,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if p.problem.len > 0:
     return usageError("nch ff", usage, p.problem)
   let query = webQuery(p)
-  var st: Store
+  var st: Session
   try:
-    st = openStore(g)
+    st = openSession(g)
   except StoreError as e:
     return failure("nch ff", e.msg)
   try:

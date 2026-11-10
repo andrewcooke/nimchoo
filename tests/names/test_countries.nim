@@ -1,7 +1,7 @@
 import nimchoo/packages/db/statement
 import std/[math, options, os, sequtils, strutils, unittest]
 import ../support/shims
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sources
 import nimchoo/core/errors
@@ -70,10 +70,10 @@ proc envOf(net: Net): Env =
   result.freeBytes = proc(dir: string): Option[int64] {.closure, raises: [].} =
     none(int64)
 
-proc fresh(name: string): tuple[st: Store, dir: string] =
+proc fresh(name: string): tuple[st: Session, dir: string] =
   let top = getTempDir() / "nch-test-names" / name
   removeDir(top)
-  (openStore(top / "x.db", allFragments, access = allAccess), top / "data")
+  (openSession(top / "x.db", allFragments, access = allAccess), top / "data")
 
 func cellOf(lon, lat: float): (int, int) =
   (int(floor(lon * cellsPerDegree.float)), int(floor(lat * cellsPerDegree.float)))

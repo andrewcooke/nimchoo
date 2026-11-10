@@ -1,7 +1,7 @@
-## Writing the `user` table, which `db` owns (every table refers to it, and opening a database makes the first user):
-## the packages that manage users (`nch users`) ask for these and do not write the table themselves.
+## Writing the `user` table, which this package owns (every package's per-user table refers to it): the code that
+## manages users (`nch users`) asks for these and does not write the table itself.
 
-import ./[statement, store]
+import ../db/[statement, store]
 import ../../core/errors
 
 {.push raises: [].}

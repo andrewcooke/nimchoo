@@ -27,6 +27,7 @@ import ../../ui/vocabulary
 import ../../text/fold/fold
 import ./[calendar, table]
 import ./criteria
+import ../../user/session
 
 {.push raises: [].}
 
@@ -137,7 +138,7 @@ proc startOf(
   if c.lat.isSome and c.lon.isSome:
     result = some((c.lat.get, c.lon.get))
 
-proc present(st: Store, column: string): seq[(string, int)] {.raises: [StoreError].} =
+proc present(st: Session, column: string): seq[(string, int)] {.raises: [StoreError].} =
   ## The values of a column (sport or sub_sport: a name of ours, which cannot be bound) among the activities of
   ## the user, with how many each has, most first; "none" for not recorded.
   st.db.query(
@@ -149,7 +150,7 @@ proc present(st: Store, column: string): seq[(string, int)] {.raises: [StoreErro
   )
 
 proc checkNames(
-    st: Store, what, column: string, wanted: seq[string]
+    st: Session, what, column: string, wanted: seq[string]
 ) {.raises: [StoreError].} =
   ## Refuse a sport (or sub-sport) the users' activities do not have, and say which
   ## they do have.
@@ -254,7 +255,7 @@ proc skippedWarning(rows: seq[ListRow], zone: Timezone, c: Criteria): seq[Line] 
     ]
 
 proc showSelection*(
-    st: Store, c: Criteria, zone: Timezone, screen = Screen(colour: true)
+    st: Session, c: Criteria, zone: Timezone, screen = Screen(colour: true)
 ): seq[Line] {.raises: [StoreError].} =
   ## The stored selection of the store's user, as a listing.
   let rows = readRows(
@@ -283,7 +284,7 @@ proc latestAmong(
   some((id: st.db.scalar(ActivityId, "select id" & ordered), row: rows[0]))
 
 proc previousSelected(
-    st: Store
+    st: Session
 ): tuple[id: ActivityId, row: ListRow] {.raises: [StoreError].} =
   ## The one activity of the stored selection (what `previous` means).  An error unless
   ## there is exactly one.
@@ -369,7 +370,7 @@ type Resolved = object
   notes: seq[Line]
 
 proc resolveCriteria(
-    st: Store, criteria: Criteria, zone: Timezone
+    st: Session, criteria: Criteria, zone: Timezone
 ): Resolved {.raises: [StoreError].} =
   ## `previous` (in --near, --distance, --active, --sport, --sub-sport) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
@@ -431,7 +432,7 @@ proc resolveCriteria(
   result.centre = centre
 
 proc matchingIds*(
-    st: Store, criteria: Criteria, zone: Timezone
+    st: Session, criteria: Criteria, zone: Timezone
 ): tuple[ids: seq[int64], notes: seq[Line]] {.raises: [StoreError].} =
   ## The ids of the current user's activities the criteria mean: the selection if there are no criteria and no `--all`,
   ## else the activities found among all of them.  (And the notes that say which activity `latest` or `previous` was.)
@@ -449,7 +450,7 @@ proc matchingIds*(
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
-    st: Store, criteria: Criteria, zone: Timezone, screen = Screen(colour: true)
+    st: Session, criteria: Criteria, zone: Timezone, screen = Screen(colour: true)
 ): tuple[lines: seq[Line], saved: int] {.raises: [StoreError].} =
   ## List the activities that meet the criteria, or the selection if there are none (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
@@ -489,9 +490,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   if parsed.problem.len > 0:
     return usageError("nch activities", usage, parsed.problem)
-  var st: Store
+  var st: Session
   try:
-    st = openStore(g)
+    st = openSession(g)
   except StoreError as e:
     return failure("nch activities", e.msg)
   try:

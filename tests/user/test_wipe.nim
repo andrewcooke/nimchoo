@@ -1,8 +1,8 @@
 import std/[options, os, unittest]
 import nimchoo/packages/db/statement
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
-import nimchoo/packages/db/users
+import nimchoo/packages/user/users
 import nimchoo/packages/user/wipe
 import ../support/userdata
 
@@ -22,7 +22,7 @@ suite "wipe: what is said":
 suite "wipe: what belongs to a user":
   test "every table that names a user is emptied or goes with the user, so none is forgotten":
     let d = fresh("tables")
-    let s = openStore(d / "x.db", allFragments, access = allAccess)
+    let s = openSession(d / "x.db", allFragments, access = allAccess)
     defer:
       s.close()
     var withUser: seq[string]
@@ -41,9 +41,9 @@ suite "wipe: what belongs to a user":
 
   test "removing takes the user and everything under them":
     let d = fresh("remove")
-    openStore(d / "x.db", allFragments, access = allAccess).close()
+    openSession(d / "x.db", allFragments, access = allAccess).close()
     addUser(d / "x.db", "bob")
-    let bob = openStore(d / "x.db", allFragments, "bob", access = allAccess)
+    let bob = openSession(d / "x.db", allFragments, "bob", access = allAccess)
     fill(bob, "bobs")
     deleteUser(bob, findUser(bob, "bob"))
     check bob.db.scalar(int, "select count(*) from user where name = 'bob'") == 0

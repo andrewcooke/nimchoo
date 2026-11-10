@@ -1,15 +1,15 @@
 import nimchoo/core/errors
 import nimchoo/packages/db/statement
 import std/[os, unittest]
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/userdata
 
 let dir = getTempDir() / "nch-test-climbs-schema"
 
-proc fresh(name: string): Store =
+proc fresh(name: string): Session =
   removeDir(dir / name)
-  openStore(dir / name / "x.db", allFragments, access = allAccess)
+  openSession(dir / name / "x.db", allFragments, access = allAccess)
 
 suite "climbs: the tables":
   test "a sector has a route with altitude and a spatial index":

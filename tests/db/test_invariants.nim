@@ -5,16 +5,17 @@ import nimchoo/packages/db/statement
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/invariants
 
 let dir = getTempDir() / "nch-test-invariants"
 
-proc fresh(name: string): Store =
+proc fresh(name: string): Session =
   createDir(dir)
   let path = dir / name & ".db"
   removeFile(path)
-  result = openStore(path, allFragments, access = allAccess)
+  result = openSession(path, allFragments, access = allAccess)
   let db = result.db
   db.execute(
     "insert into file(id, user_id, name, sha256, imported_at) values (1, :userId, 'a', 'x', 0)",

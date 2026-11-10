@@ -7,6 +7,7 @@ import std/[options, tables]
 import ../db/statement
 import ../db/store
 import ../../core/errors
+import ../user/session
 
 {.push raises: [].}
 
@@ -31,7 +32,7 @@ func failed*(row: Seen): bool =
   ## Whether the file failed when it was seen.
   row.failure.len > 0
 
-proc loadSeen*(s: Store): SeenTable {.raises: [StoreError].} =
+proc loadSeen*(s: Session): SeenTable {.raises: [StoreError].} =
   ## Everything known about the paths of the store's user.
   for row in s.db.query(
     tuple[path: string, size, mtime, fileId: int64, failure, message: string],
@@ -52,7 +53,7 @@ proc add*(b: var SeenBuffer, path: string, row: Seen) =
   ## Keep a row to be written.
   b.rows.add (path, row)
 
-proc pathOfFile*(s: Store, fileId: FileId): string =
+proc pathOfFile*(s: Session, fileId: FileId): string =
   ## Where the file with this id was imported from, as last recorded (its name
   ## if no path was); "" if unknown.  Never fails: it is only for telling people.
   try:
@@ -76,7 +77,7 @@ func full*(b: SeenBuffer): bool =
   ## Whether it is time to write the rows.
   b.rows.len >= batchSize
 
-proc flush*(s: Store, b: var SeenBuffer) {.raises: [StoreError].} =
+proc flush*(s: Session, b: var SeenBuffer) {.raises: [StoreError].} =
   ## Write the buffered rows, as one transaction.  Not to be called inside
   ## another transaction.
   if b.rows.len == 0:

@@ -10,6 +10,7 @@ import ../util/hashing/hashing
 import ../db/statement
 import ../db/store
 import ../../core/errors
+import ../user/session
 
 {.push raises: [].}
 
@@ -23,7 +24,7 @@ func keyOf*(entries: seq[string]): string =
     text.add e & "\n"
   sha256Hex(text)[0 ..< keyLength]
 
-proc replaceSelection*(st: Store, ids: seq[int64]) {.raises: [StoreError].} =
+proc replaceSelection*(st: Session, ids: seq[int64]) {.raises: [StoreError].} =
   ## Make the activities `ids` the selection of the store's user, in place of the one there was: all or nothing.
   ## (The caller says which: a query that joins other packages' tables is its own to run.)
   st.begin()
@@ -42,7 +43,7 @@ proc replaceSelection*(st: Store, ids: seq[int64]) {.raises: [StoreError].} =
     if not done:
       st.rollback()
 
-proc selectedIds*(st: Store): seq[int64] {.raises: [StoreError].} =
+proc selectedIds*(st: Session): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
   st.db.query(
     int64,
@@ -54,7 +55,7 @@ proc maxActivityId*(st: Store): int64 {.raises: [StoreError].} =
   ## The highest activity id there is (0 if there are none): the largest an address can name.
   st.db.scalar(int64, "select coalesce(max(id), 0) from activity")
 
-proc ownedIds*(st: Store, ids: seq[int64]): seq[int64] {.raises: [StoreError].} =
+proc ownedIds*(st: Session, ids: seq[int64]): seq[int64] {.raises: [StoreError].} =
   ## Of `ids` (in order), those that are activities of the store's user: an address may name any number, and only the
   ## user's own activities are ever drawn.
   let mine = st.db.query(

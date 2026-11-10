@@ -2,6 +2,7 @@ import std/[options, strutils, unittest]
 import nimchoo/packages/climbs/work
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/importer/importer
@@ -34,7 +35,7 @@ func usesSpatialIndex(plan: seq[string]): bool =
     if "SpatialIndex" in line:
       return true
 
-let st = openStore(":memory:", allFragments, access = allAccess)
+let st = openSession(":memory:", allFragments, access = allAccess)
 
 suite "query plans: no query reads a whole table":
   test "the check can fail: a column with no index is a scan":

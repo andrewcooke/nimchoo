@@ -13,6 +13,7 @@ import ../../ui/live
 import ../../ui/style
 import ../../confirm/confirm
 import ../../importer/remove
+import ../../user/session
 
 {.push raises: [].}
 
@@ -38,7 +39,7 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ]
 
 proc runDelete*(
-    g: Globals, st: Store, ids: seq[int64], force: bool, nothing: string
+    g: Globals, st: Session, ids: seq[int64], force: bool, nothing: string
 ): int {.raises: [].} =
   ## Delete the activities `ids` (all of the current user's).  `nothing` is what to say if there are none.
   try:

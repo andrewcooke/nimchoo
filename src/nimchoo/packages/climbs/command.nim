@@ -6,6 +6,7 @@
 import std/[options, strutils, times]
 import ../../core/globals
 import ../db/store
+import ../user/session
 import ../../core/errors
 import ../names/open
 import ../../core/logfile
@@ -149,9 +150,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   if p.problem.len > 0:
     return usageError("nch climbs", usage, p.problem)
-  var st: Store
+  var st: Session
   try:
-    st = openStore(g)
+    st = openSession(g)
   except StoreError as e:
     return failure("nch climbs", e.msg)
   try:

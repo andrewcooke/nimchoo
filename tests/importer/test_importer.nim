@@ -5,6 +5,7 @@ import nimchoo/packages/importer/extract
 import nimchoo/packages/importer/importer
 import std/tables
 import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/importer/channel
 import nimchoo/packages/util/hashing/hashing
 import nimchoo/core/errors
@@ -24,9 +25,9 @@ const
 
 let p = loadProfile(profilePath)
 
-proc openStore(path: string, user = defaultUser): Store =
+proc openAll(path: string, user = defaultUser): Session =
   ## The whole schema.
-  store.openStore(path, allFragments, user, access = allAccess)
+  openSession(path, allFragments, user, access = allAccess)
 
 let dir = getTempDir() / "nch-test-import"
 
@@ -35,10 +36,10 @@ proc tempDb(name: string): string =
   result = dir / name & ".db"
   removeFile(result)
 
-proc count(s: Store, table: string): int =
+proc count(s: Session, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
 
-proc importPath(s: Store, path: string): (ImportResult, seq[Warning]) =
+proc importPath(s: Session, path: string): (ImportResult, seq[Warning]) =
   var ws: seq[Warning]
   let r = s.importFile(p, extractFilename(path), readBytes(path), ws)
   (r, ws)
@@ -75,7 +76,7 @@ let threeStretches = block:
 
 suite "import: a real ride":
   test "one activity and all its coordinates":
-    let s = openStore(tempDb("ride"))
+    let s = openAll(tempDb("ride"))
     defer:
       s.close()
     let (r, ws) = s.importPath(ride)
@@ -96,7 +97,7 @@ suite "import: a real ride":
     check s.db.scalar(int, "select count(*) from coords where alt is null") == 2099
 
   test "the route has a part for each segment, and is where the points are":
-    let s = openStore(tempDb("ride-route"))
+    let s = openAll(tempDb("ride-route"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -114,7 +115,7 @@ suite "import: a real ride":
     check km > 8 and km < 14 # (the device says 11.98 km)
 
   test "the coordinates are in degrees, at the right times":
-    let s = openStore(tempDb("ride-coords"))
+    let s = openAll(tempDb("ride-coords"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -129,7 +130,7 @@ suite "import: a real ride":
       1
 
   test "importing the same file again does nothing":
-    let s = openStore(tempDb("twice"))
+    let s = openAll(tempDb("twice"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -141,7 +142,7 @@ suite "import: a real ride":
     check s.count("coords") == 2099
 
   test "the same content under another name is the same file":
-    let s = openStore(tempDb("renamed"))
+    let s = openAll(tempDb("renamed"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -151,11 +152,11 @@ suite "import: a real ride":
 
   test "each user has their own copy":
     let path = tempDb("users")
-    let a = openStore(path)
+    let a = openAll(path)
     a.db.execute("insert into user(name) values ('bob')")
     discard a.importPath(ride)
     a.close()
-    let b = openStore(path, "bob")
+    let b = openAll(path, "bob")
     defer:
       b.close()
     let (r, _) = b.importPath(ride)
@@ -169,7 +170,7 @@ suite "import: a real ride":
 
 suite "import: several sessions":
   test "a multisport file gives an activity per session":
-    let s = openStore(tempDb("multi"))
+    let s = openAll(tempDb("multi"))
     defer:
       s.close()
     let (r, _) = s.importPath(multisport)
@@ -193,7 +194,7 @@ suite "import: several sessions":
 
 suite "import: files that cannot be imported":
   test "a small hand-built file":
-    let s = openStore(tempDb("tiny"))
+    let s = openAll(tempDb("tiny"))
     defer:
       s.close()
     var ws: seq[Warning]
@@ -203,7 +204,7 @@ suite "import: files that cannot be imported":
       "45.0 -90.0"
 
   test "the start of an activity is its first position, as a point":
-    let s = openStore(tempDb("start"))
+    let s = openAll(tempDb("start"))
     defer:
       s.close()
     var ws: seq[Warning]
@@ -222,7 +223,7 @@ suite "import: files that cannot be imported":
     ) == 2
 
   test "the start is the first position; the start place and the name are not made at import (they are null until named)":
-    let s = openStore(tempDb("placed"))
+    let s = openAll(tempDb("placed"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -232,7 +233,7 @@ suite "import: files that cannot be imported":
     ) == 1
 
   test "no positions, no start":
-    let s = openStore(tempDb("nostart"))
+    let s = openAll(tempDb("nostart"))
     defer:
       s.close()
     let noGps = fitFile(
@@ -246,7 +247,7 @@ suite "import: files that cannot be imported":
     check s.db.scalar(int, "select count(*) from idx_activity_start") == 0
 
   test "a file with no activity writes nothing":
-    let s = openStore(tempDb("noact"))
+    let s = openAll(tempDb("noact"))
     defer:
       s.close()
     let noSession = fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base))
@@ -257,7 +258,7 @@ suite "import: files that cannot be imported":
     check s.count("activity") == 0
 
   test "a file that is not a FIT file writes nothing":
-    let s = openStore(tempDb("junk"))
+    let s = openAll(tempDb("junk"))
     defer:
       s.close()
     var ws: seq[Warning]
@@ -266,7 +267,7 @@ suite "import: files that cannot be imported":
     check s.count("file") == 0
 
   test "a route has a part for each stretch, with every point in some part":
-    let s = openStore(tempDb("route-parts"))
+    let s = openAll(tempDb("route-parts"))
     defer:
       s.close()
     var ws: seq[Warning]
@@ -275,7 +276,7 @@ suite "import: files that cannot be imported":
     check s.db.scalar(int, "select ST_NPoints(geom) from route") == 12
 
   test "a failure part way leaves no rows behind":
-    let s = openStore(tempDb("rollback"))
+    let s = openAll(tempDb("rollback"))
     defer:
       s.close()
     s.db.execute("drop table coords") # the last insert will fail
@@ -289,7 +290,7 @@ suite "import: files that cannot be imported":
 
 suite "import: segments":
   test "the segments are stored in order, covering every coordinate":
-    let s = openStore(tempDb("segments"))
+    let s = openAll(tempDb("segments"))
     defer:
       s.close()
     var ws: seq[Warning]
@@ -315,7 +316,7 @@ suite "import: segments":
     ) == 13
 
   test "the real ride's auto-pauses are joined: one stretch from its first start to its last stop":
-    let s = openStore(tempDb("ride-stretch"))
+    let s = openAll(tempDb("ride-stretch"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -326,7 +327,7 @@ suite "import: segments":
     ) == 0
 
   test "the coordinates of one segment are a range of the key":
-    let s = openStore(tempDb("segrange"))
+    let s = openAll(tempDb("segrange"))
     defer:
       s.close()
     discard s.importPath(ride)
@@ -338,7 +339,7 @@ suite "import: segments":
     ) == 2099
 
   test "a multisport file has segments for each activity":
-    let s = openStore(tempDb("segmulti"))
+    let s = openAll(tempDb("segmulti"))
     defer:
       s.close()
     let (r, _) = s.importPath(multisport)
@@ -378,7 +379,7 @@ suite "import: decoding apart from writing":
 
   test "knownFile finds a file by its content, only for the user it was imported for":
     let path = tempDb("known")
-    let a = openStore(path)
+    let a = openAll(path)
     a.db.execute("insert into user(name) values ('bob')")
     var ws: seq[Warning]
     let digest = sha256Hex(tiny)
@@ -386,14 +387,14 @@ suite "import: decoding apart from writing":
     let r = a.importFile(p, "tiny.fit", tiny, ws)
     check knownFile(a, digest) == some(r.fileId)
     a.close()
-    let b2 = openStore(path, "bob")
+    let b2 = openAll(path, "bob")
     defer:
       b2.close()
     check knownFile(b2, digest).isNone
 
   test "writeDecoded writes what importFile does, and only that":
-    let one = openStore(tempDb("write1"))
-    let two = openStore(tempDb("write2"))
+    let one = openAll(tempDb("write1"))
+    let two = openAll(tempDb("write2"))
     defer:
       one.close()
       two.close()
@@ -409,7 +410,7 @@ suite "import: decoding apart from writing":
     check one.db.scalar(string, "select sum(lon) || ',' || sum(lat) from coords") ==
       two.db.scalar(string, "select sum(lon) || ',' || sum(lat) from coords")
     # and nothing is written if the writing fails part way
-    let three = openStore(tempDb("write3"))
+    let three = openAll(tempDb("write3"))
     defer:
       three.close()
     three.db.execute("drop table coords")

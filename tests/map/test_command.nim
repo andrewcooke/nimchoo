@@ -2,7 +2,7 @@ import nimchoo/packages/db/statement
 import ../support/env
 import std/[json, options, os, strutils, times, unittest]
 import nimchoo/core/globals
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/packages/map/command as mapCommand
 import nimchoo/packages/cache/cache
 from nimchoo/registry import allFragments, allAccess, newAllAccess
@@ -24,7 +24,7 @@ proc world(name: string): tuple[db, cache: string] =
   removeDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache" / "user") # (where the files go)
   putEnv("NCH_CACHE", dir / name / "cache")
-  let s = openStore(result.db, allFragments, access = allAccess)
+  let s = openSession(result.db, allFragments, access = allAccess)
   defer:
     s.close()
   for (tag, t, route) in [
@@ -73,7 +73,7 @@ proc geojsons(cache: string): seq[string] =
 
 proc addressOf(db: string): tuple[bits, check: string] =
   ## What the address of the map of the current selection carries.
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   let ids = selectedIds(s)
@@ -81,7 +81,7 @@ proc addressOf(db: string): tuple[bits, check: string] =
 
 proc withClimb(db: string) =
   ## A climb ridden by activity 1.
-  let s = openStore(db, allFragments, access = allAccess)
+  let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   s.db.execute(
@@ -138,7 +138,7 @@ suite "map: the command":
     check map(w.db) == exitOk
     let path = w.cache / files(w.cache)[0]
     proc changeAndRemake(sql: string): string =
-      let s = openStore(w.db, allFragments, access = allAccess)
+      let s = openSession(w.db, allFragments, access = allAccess)
       s.db.execute((sql))
       s.close()
       setLastModificationTime(path, fromUnix(1_000_000_000))
@@ -165,7 +165,7 @@ suite "map: the command":
   test "the content of an activity changes the request: a file of its own":
     let w = world("content")
     check map(w.db) == exitOk
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("update file set sha256 = 'z' where name = 'a'")
     s.close()
     check map(w.db) == exitOk
@@ -176,7 +176,7 @@ suite "map: the command":
     withClimb(w.db)
     check map(w.db) == exitOk
     let path = w.cache / files(w.cache)[0]
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     s.close()
     setLastModificationTime(path, fromUnix(1_000_000_000))
@@ -187,7 +187,7 @@ suite "map: the command":
     let w = world("pinned")
     check map(w.db) == exitOk
     let old = addressOf(w.db)
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("delete from selection where activity_id = 1")
     s.close()
     check addressOf(w.db) != old
@@ -202,14 +202,14 @@ suite "map: the command":
     check map(w.db) == exitOk
     let a = addressOf(w.db)
     check map(w.db, "--bits", a.bits, "--check", "000000") == exitFailure
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("delete from activity where id = 2") # the check no longer fits
     s.close()
     check map(w.db, "--bits", a.bits, "--check", a.check) == exitFailure
 
   test "without a check, activities that are not there are skipped; another user's are never drawn":
     let w = world("others")
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
     s.db.execute(
@@ -230,7 +230,7 @@ suite "map: the command":
   test "two spellings of the same activities are one request and one file":
     let w = world("spellings")
     let a = addressOf(w.db)
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
     s.db.execute(
@@ -277,12 +277,12 @@ suite "map: the command":
 
   test "an empty selection, or none with a route, is an error and writes nothing":
     let w = world("empty")
-    let s = openStore(w.db, allFragments, access = allAccess)
+    let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("delete from selection")
     s.close()
     check map(w.db) == exitFailure
     check map(w.db, "--worker") == exitFailure
-    let s2 = openStore(w.db, allFragments, access = allAccess)
+    let s2 = openSession(w.db, allFragments, access = allAccess)
     s2.db.execute(
       "insert into selection(user_id, activity_id) values (:userId, 3)",
       userId = s2.userId,

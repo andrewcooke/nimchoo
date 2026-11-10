@@ -15,8 +15,9 @@ import ../../ui/live
 import ../../importer/count
 import ../../confirm/confirm
 import ./params
-import ../../db/users
+import ../../user/users
 import ../../user/[profile, wipe]
+import ../../user/session
 
 {.push raises: [].}
 
@@ -118,9 +119,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       "--user goes after the command here: nch users --edit " & g.user &
         " ... (the users are named there)",
     )
-  var st: Store
+  var st: Session
   try:
-    st = openStore(g)
+    st = openSession(g)
   except StoreError as e:
     return failure("nch users", e.msg)
   try:

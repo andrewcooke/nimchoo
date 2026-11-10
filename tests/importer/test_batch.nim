@@ -7,7 +7,7 @@ import ../support/shims
 import nimchoo/packages/importer/batch
 import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
 import nimchoo/core/globals
-import nimchoo/packages/db/store
+import nimchoo/packages/user/session
 import nimchoo/core/errors
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/fit/default
@@ -62,10 +62,10 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-proc open(path: string): Store =
-  openStore(path, allFragments, access = allAccess)
+proc open(path: string): Session =
+  openSession(path, allFragments, access = allAccess)
 
-proc count(s: Store, table: string): int =
+proc count(s: Session, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
 
 type Counted = ref object
