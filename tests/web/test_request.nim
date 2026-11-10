@@ -57,6 +57,16 @@ suite "serve request: the address of a redirect":
     check target("/files/a%2Eb?token=T").withoutParam("token") == "/files/a.b"
     check target("/files/a%255Eb").withoutParam("token") == "/files/a%255Eb"
 
+suite "serve request: how long an address may be":
+  test "the limit is on the address as it is written back, where every byte may be three characters":
+    # (found by libFuzzer: 3.3 KB of high bytes was read, and its redirect was 9.9 KB, which the next request refused)
+    check parseTarget("/x?k=" & "\xff".repeat(1000)).isSome # 3,000 as %FF
+    check parseTarget("/x?k=" & "\xff".repeat(2700)).isNone # 8,100
+    let plain = "/x?k=" & "a".repeat(7900)
+    check parseTarget(plain).isSome # (and plain text is not made longer)
+    let t = parseTarget("/x?k=" & "\xff".repeat(2600)).get # 7,800
+    check parseTarget(t.withoutParam("token")).isSome
+
 suite "serve request: who is asking":
   test "the Host header must be this server's own address":
     check hostAllowed("127.0.0.1:62466", 62466)

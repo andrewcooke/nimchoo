@@ -56,10 +56,30 @@ const
     ),
   ]
 
+func encodedPath(path: string): string =
+  ## A decoded path written as an address again: each segment encoded (so that a `%`, `?`, `#`, space or control
+  ## character in it is not read as something else, or as the end of the line in the log and the headers).
+  path.split('/').mapIt(encodeUrl(it, usePlus = false)).join("/")
+
+func render(t: Target, skip: string, skipping: bool): string =
+  ## The target as a path and query again, canonically encoded, without the parameter `skip` if `skipping`.
+  result = encodedPath(t.path)
+  var first = true
+  for (k, v) in t.query:
+    if skipping and k == skip:
+      continue
+    result.add (if first: "?" else: "&")
+    first = false
+    result.add encodeUrl(k, usePlus = false) & "=" & encodeUrl(v, usePlus = false)
+
+func withoutParam*(t: Target, name: string): string =
+  ## The target as a path and query again, without the parameter `name`; it reads back as the same path and query.
+  render(t, name, true)
+
 func parseTarget*(raw: string): Option[Target] =
   ## "/map?bits=AsBO&check=ab12cd" -> path "/map" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, as written or as decoded,
-  ## no spaces or control characters, not too long).
+  ## no spaces or control characters, not too long as written or as written back).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):
     return none(Target)
   if raw.anyIt(it <= ' ' or it == '\x7f' or it == '\\'):
@@ -89,6 +109,9 @@ func parseTarget*(raw: string): Option[Target] =
           decodeUrl(pair[0 ..< eq], decodePlus = false),
           decodeUrl(pair[eq + 1 .. ^1], decodePlus = false),
         )
+  if render(t, "", false).len > maxTarget:
+    return none(Target)
+      # (the address as it is written back is longer than the raw one: each byte may be %XX)
   some(t)
 
 func queryValue*(q: Query, name: string): Option[string] =
@@ -97,22 +120,6 @@ func queryValue*(q: Query, name: string): Option[string] =
     if k == name:
       return some(v)
   none(string)
-
-func encodedPath(path: string): string =
-  ## A decoded path written as an address again: each segment encoded (so that a `%`, `?`, `#`, space or control
-  ## character in it is not read as something else, or as the end of the line in the log and the headers).
-  path.split('/').mapIt(encodeUrl(it, usePlus = false)).join("/")
-
-func withoutParam*(t: Target, name: string): string =
-  ## The target as a path and query again, without the parameter `name`; it reads back as the same path and query.
-  result = encodedPath(t.path)
-  var first = true
-  for (k, v) in t.query:
-    if k == name:
-      continue
-    result.add (if first: "?" else: "&")
-    first = false
-    result.add encodeUrl(k, usePlus = false) & "=" & encodeUrl(v, usePlus = false)
 
 func hostAllowed*(host: string, port: int): bool =
   ## The Host header must be this server's own address: "127.0.0.1:PORT" or

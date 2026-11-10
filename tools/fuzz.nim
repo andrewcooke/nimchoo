@@ -20,6 +20,7 @@ const
   targets = ["fit", "importer", "bits", "zip", "xlsx", "profile", "request"]
   fitDirs = ["sdk", "other", "python-fitparse"]
   withAddressSanitizer = ["zip", "xlsx", "profile"]
+  maxSegmentSeconds = 300
 
 func maxLen(target: string): int =
   ## The longest input libFuzzer makes: a little over what the reader accepts, where it limits the input.
@@ -122,11 +123,23 @@ proc main(): int =
     seed(target, corpus)
   let crashes = "tests/data/fuzz" / target
   createDir(crashes)
-  let run =
-    fmt"{bin} -max_total_time={seconds} -max_len={maxLen(target)} -timeout=10 -rss_limit_mb=2048 " &
-    fmt"-print_final_stats=1 -artifact_prefix={crashes}/ {corpus}"
-  echo run
-  let code = execCmd(run)
+  if asan:
+    # (the sanitizer holds freed memory in a quarantine, 256 MB by default; an exception per bad input fills it)
+    putEnv("ASAN_OPTIONS", getEnv("ASAN_OPTIONS", "quarantine_size_mb=16"))
+  # The harness is run in segments, each started from the corpus the last one saved: an exception raised from a proc
+  # that is called in an `except` section is never freed by Nim's ARC/ORC (nim-lang/Nim#25037, #26583, fix in #26585
+  # not yet merged), a reader that turns one error into another leaks about 200 bytes per bad input, and an hour of the
+  # xlsx target would reach 17 GB.  A segment of 5 minutes is 1.4 GB there.  Remove the segments when Nim is fixed.
+  var code = 0
+  var left = seconds
+  while left > 0 and code == 0:
+    let segment = min(left, maxSegmentSeconds)
+    let run =
+      fmt"{bin} -max_total_time={segment} -max_len={maxLen(target)} -timeout=10 -rss_limit_mb=2048 " &
+      fmt"-print_final_stats=1 -artifact_prefix={crashes}/ {corpus}"
+    echo run
+    code = execCmd(run)
+    left -= segment
   if code != 0:
     echo fmt"""
 the harness stopped with status {code}: the input is in {crashes}/ (crash-, oom- or timeout-).  Fix the bug (write a test
