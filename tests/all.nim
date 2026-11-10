@@ -64,7 +64,7 @@ import
 import ./commands/activitiescmd/test_import
 import ./commands/activitiescmd/test_display
 import ./commands/activitiescmd/test_logsink
-import ./selection/[test_bits, test_selection]
+import ./selection/[test_bits, test_selection, test_fuzz as selectionFuzz]
 import ./commands/activitiescmd/test_ranges
 import ./commands/activitiescmd/test_criteria
 import ./commands/activitiescmd/test_table

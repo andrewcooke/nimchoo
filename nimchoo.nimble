@@ -68,13 +68,14 @@ task testdebug, "Run all tests as a debug build (slower; for tracking down a fai
   exec "nim c -r -d:ssl --hints:off tests/all.nim"
 
 task fuzzlong,
-  "Long fuzz run of the FIT readers (NCH_FUZZ_ROUNDS mutations per file, default 1500: a few minutes); not part of nimble test":
+  "Long fuzz run of the readers of outside input (NCH_FUZZ_ROUNDS mutations per file, default 1500: a few minutes); not part of nimble test":
   # (the quick run in nimble test is 60 rounds; this is where rare bugs are found, and what it finds is saved
   # under tests/data/fuzz/ so that the quick run replays it)
   if getEnv("NCH_FUZZ_ROUNDS") == "":
     putEnv("NCH_FUZZ_ROUNDS", "1500")
   exec "nim c -r -d:release --checks:on --hints:off tests/fit/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/importer/test_fuzz.nim"
+  exec "nim c -r -d:release --checks:on --hints:off tests/selection/test_fuzz.nim"
 
 task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)":
   exec "nim c -r -d:release --hints:off -o:tests/csvreport tests/csvreport.nim"

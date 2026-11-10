@@ -3081,3 +3081,9 @@ importer's `readActivities` fuzzed with and without `heart_rate`, small files an
 the rounds).  Cost in `nimble test`: about 5 s at 60 rounds (FIT 1.5 s, importer 3.7 s); 600 rounds would be about 39 s,
 so the quick run stays at 60 and `nimble fuzzlong` (NCH_FUZZ_ROUNDS, default 1500) is for the long one.  The author's
 decision: extended, slow checks are fine, but not inside `nimble test`.
+
+`decodeBits` (the list of activities in a map address) fuzzed the same day (`tests/selection/test_fuzz.nim`): random
+strings and damaged valid ones; it must not raise, and what it accepts must be ids in order within 1..maxId that encode and
+decode to themselves.  Nothing found in 600,000 strings.  Checked against broken decoders: with the upper bound removed
+it runs out of memory (caught); with the check for bits left over removed nothing is noticed, because such a string is
+still a valid list (it is only a second spelling of one: the properties cannot see that).  1.2 s in `nimble test`.
