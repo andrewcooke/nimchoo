@@ -65,7 +65,7 @@ system can be extended with new fit-related functionality by adding a package, w
   looks the command up by name in the registry and builds the usage text from it; there is no other list of commands.
   only a `package.nim` imports a `command.nim` (checked by a test).  **no command hides a cycle**: when a command would need
   a package above its own, that package defines an extension point and the higher one contributes to it.  still apart, until
-  its step of TODO.md: `activitiescmd` (joins the listing, `--select`, `--import` and `--delete`), in `packages/commands/`.
+  its step of TODO.md: `activitiescmd` (joins the listing, `--select` and `--delete`), in `packages/commands/`.
   the module that first introduces a concept owns it (eg `importer` owns activities) and later packages use its library files.
 * **imports** (`tests/core/test_imports.nim`): a file imports only its own package, `core`, standard and third-party
   libraries, and the packages in its `depends`.  `db_connector` is imported by `db` (and `core/fragment.nim`) only: `db` exports the types it hands out (`DbConn`).  `depends` must also name the packages whose **tables** it reads in SQL
@@ -79,7 +79,7 @@ system can be extended with new fit-related functionality by adding a package, w
   functions (`selection/replaceSelection`, `user/users`, `user/profile`, `importer/remove`), so a command calls those.
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in `fragments:` of its
   `package.nim`; the registry joins the lists, in dependency order, into `allFragments`.
-* **extension points** are few, and there are three: "pages the server may run" (`web/request.nim`: `map` and `ff` contribute the command and the options a request may give it, with a check for each value), "what a user has" (`user/has.nim`: `importer` contributes the activity count, which `nch users` shows and says before deleting a user) and the import steps (`core/extension.nim`; `importer/channel.nim` declares the
+* **extension points** are few, and there are four: "after import" (`importer/after.nim`: `selection` makes the new activities the selection), "pages the server may run" (`web/request.nim`: `map` and `ff` contribute the command and the options a request may give it, with a check for each value), "what a user has" (`user/has.nim`: `importer` contributes the activity count, which `nch users` shows and says before deleting a user) and the import steps (`core/extension.nim`; `importer/channel.nim` declares the
   point `importStep`, and `heartrate/package.nim` contributes its step with `contributes:`).  the registry collects the
   contributions in dependency order into `registry.extensions`, in memory; `nch.nim` puts them in `Globals.extensions`,
   and a command reads them with `g.extensions.get(importStep)` (a command cannot import the registry).  the other
@@ -239,7 +239,7 @@ a theory of the commands, to keep the interface consistent.  the work of getting
 * **a type that lives in the database has a plural command that manages the collection**: `activities`, `climbs`,
   `users`, `models`, `landmarks`.  the plural is a reminder that it works on a collection of instances.  the grammar
   is the same for all: `TYPE [which ones] [action]`, with the actions `--add NAME`, `--edit NAME ...`, `--delete NAME`
-  (and `--import PATH...` for activities, `--retire` / `--unretire` for climbs).  every `--delete` is confirmed with
+  (and `--retire` / `--unretire` for climbs).  every `--delete` is confirmed with
   `-f` (with the countdown and the "would delete ..." message).  the parameters both say what to do and pick the
   instances it is done to.
 * **which ones**: a named type takes a NAME (`users --edit NAME`).  activities, which are what everything is about and
@@ -253,8 +253,8 @@ a theory of the commands, to keep the interface consistent.  the work of getting
   wait).  `cache` (the files outside: downloads, generated files; with no arguments it says what is there and how big,
   `cache --delete KIND` deletes) and `db` (the database file: no arguments says where and how big, `db --delete`
   deletes it) are of this kind too.
-* so there is no `list`, `import`, `delete`, `empty`, `sector`, `user`, `model` or `landmark` command: they are
-  `activities` (with `--select`, `--import`, `--delete`), `climbs`, `users`, `models`, `landmarks`, `cache` and `db`.
+* so there is no `list`, `delete`, `empty`, `sector`, `user`, `model` or `landmark` command: they are
+  `import` (a command of `importer`: the FIT files into the database; decided 2026-11-10, reversing "no `import` command"), `activities` (with `--select`, `--delete`), `climbs`, `users`, `models`, `landmarks`, `cache` and `db`.
   `empty --user NAME` is `activities --all --delete` for that user; `user --remove` is `users --delete NAME`;
   `empty --sectors` is `climbs --delete --all` (a reset: climbs are retired, never deleted one at a time);
   `empty --all` is `db --delete -f`; `empty --downloads` / `--cache` are `cache --delete downloads` / `geojson csv html` (also `system`, or `all`; no -f: the cache is made again).

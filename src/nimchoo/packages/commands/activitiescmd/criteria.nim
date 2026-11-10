@@ -33,10 +33,6 @@ type
     select*: bool ## --select: keep what is listed as the selection
     delete*: bool ## --delete: delete the activities (an action, not a criterion)
     force*: bool ## -f: really do it (with --delete)
-    importPaths*: seq[string]
-      ## --import: the files and folders to import (an action, not a criterion)
-    quiet*, slow*: bool ## -q, --slow: how to import
-    jobs*: int ## -j: threads to import with (0: the default)
     verbose*: bool ## -v: show more of each activity (a display option)
     calendar*: bool ## --calendar: show the activities on a calendar (a display option)
     newest*, oldest*: int
@@ -241,21 +237,6 @@ proc takeClimbs(
     return name & " needs some text"
   ""
 
-proc takeJobs(p: var ListState, name, value: string): string =
-  var n = 0
-  if not parseIntIn(value, 1, 256, n):
-    return valueIs(name, "a number of threads, 1 to 256", value)
-  p.c.jobs = n
-  ""
-
-proc takeImport(
-    p: var ListState, name: string, values: seq[string]
-): string {.nimcall.} =
-  p.c.importPaths.add values
-  if p.c.importPaths.len == 0:
-    return name & " needs at least one path"
-  ""
-
 proc takeDistance(p: var ListState, name, v: string): string {.nimcall.} =
   p.criteriaGiven = true
   if '~' in v:
@@ -377,10 +358,6 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
       custom(ListState, ["--all"], false, (p.c.all = true; "")),
       custom(ListState, ["--delete"], false, (p.c.delete = true; "")),
       custom(ListState, ["-f", "--force"], false, (p.c.force = true; "")),
-      listOption[ListState](["--import"], takeImport),
-      custom(ListState, ["-q", "--quiet"], false, (p.c.quiet = true; "")),
-      custom(ListState, ["--slow"], false, (p.c.slow = true; "")),
-      custom(ListState, ["-j", "--jobs"], true, takeJobs(p, name, value)),
       custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")),
       custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")),
       custom(
@@ -419,14 +396,6 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
     fail(
       "--all is every activity: it does not go with criteria (--newest and --oldest do)"
     )
-  if c.importPaths.len > 0:
-    if c.given or c.all or c.select or c.delete or c.force or c.calendar or c.verbose or
-        c.invert:
-      fail(
-        "--import takes only -q, --slow and -j: it does not go with criteria, --all, --select, --delete, -v or --calendar"
-      )
-  elif c.quiet or c.slow or c.jobs > 0:
-    fail("-q, --slow and -j go with --import")
   if c.force and not c.delete:
     fail("-f goes with --delete")
   if c.delete and (c.select or c.calendar or c.verbose):

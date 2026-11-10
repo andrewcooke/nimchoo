@@ -1,4 +1,4 @@
-## What a module needs to add its own data to what `nch activities --import` reads from a FIT file,
+## What a module needs to add its own data to what `nch import` reads from a FIT file,
 ## without the importer knowing about it: the importer is older than such modules, so
 ## they hand it an `ImportStep`.  A step names the `record` fields it wants (say
 ## `heart_rate`); the importer collects them in the one pass over the file and, for each

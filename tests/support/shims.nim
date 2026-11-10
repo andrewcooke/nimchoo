@@ -5,7 +5,7 @@ import nimchoo/packages/user/session
 import nimchoo/packages/download/fetch
 import nimchoo/packages/importer/channel
 import nimchoo/core/errors
-import nimchoo/packages/commands/activitiescmd/sinks
+import nimchoo/packages/importer/sinks
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/importer

@@ -1,5 +1,5 @@
-## Sinks for the events of `nch activities --import` (events.nim): what to do with them.
-## The plain sink prints the lines `nch activities --import` prints when its output is not a
+## Sinks for the events of `nch import` (events.nim): what to do with them.
+## The plain sink prints the lines `nch import` prints when its output is not a
 ## terminal; the pure function behind it is `plainLines`, so tests can check the
 ## text without a terminal.  (The live display and the log are in other modules.)
 ##
@@ -9,11 +9,12 @@
 ## noticed in a file that was imported anyway).
 
 import std/[strutils, tables]
-import ../../../core/globals
-import ../../util/warnings/warnings
-import ../../importer/events
-import ../../ui/vocabulary
-import ../../importer/failure
+import ../../core/globals
+import ../util/warnings/warnings
+import ./events
+import ./cmdname
+import ../ui/vocabulary
+import ./failure
 
 {.push raises: [].}
 
@@ -75,7 +76,7 @@ func summaryLine*(s: Summary): string =
 
 func moreHint*(s: Summary, logged: bool): string =
   ## How to see more: `nch log` with the words of what happened, such as
-  ## "more: nch log activities failed duplicate --last" (the latest import only).  ""
+  ## "more: nch log import failed duplicate --last" (the latest import only).  ""
   ## if there is nothing to look into or no log.
   if not logged:
     return ""
@@ -88,7 +89,7 @@ func moreHint*(s: Summary, logged: bool): string =
     words.add $leAdvisory
   if words.len == 0:
     return ""
-  "more: nch log activities " & words.join(" ") & " --last"
+  "more: nch log " & commandName & " " & words.join(" ") & " --last"
 
 func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   ## The lines to print for an event.  Failures, advisories and the summary are

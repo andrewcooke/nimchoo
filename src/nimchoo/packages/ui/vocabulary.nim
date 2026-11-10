@@ -13,6 +13,10 @@ import ./style
 
 {.push raises: [].}
 
+const selectedColour* = blue
+  ## the colour of what is in the selection (a row of the table, a day of the calendar, a ride of the climbs): the
+  ## palette's blue, used for nothing else
+
 func look*(e: LogEvent): Look =
   ## How an event is shown: imported green, failed red and bold, advisory yellow,
   ## duplicate and unchanged dim (grey), the bookkeeping words dim.

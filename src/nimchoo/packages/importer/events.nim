@@ -1,4 +1,4 @@
-## What happens during `nch activities --import`, as events.  The importer announces them
+## What happens during `nch import`, as events.  The importer announces them
 ## and prints nothing; sinks (sinks.nim) decide what to do with them: print
 ## lines, draw a live display, write a log.  A sink gets every event of every
 ## file, so it must be cheap and must not raise.

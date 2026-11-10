@@ -1,30 +1,16 @@
 import nimchoo/packages/db/statement
 import std/[algorithm, os, sequtils, strutils, unittest]
-import ../../support/shims
+import ../support/shims
 import nimchoo/packages/importer/batch
-import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
+import nimchoo/packages/importer/command as importCommand
 import nimchoo/core/globals
 import nimchoo/packages/user/session
-from nimchoo/registry import allFragments, allAccess, newAllAccess
-import ../../support/fitbuilder
+from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
+import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
-  ## `nch activities --import ARGS` (the paths first, then the options)
-  var paths, flags: seq[string]
-  var i = 0
-  while i < args.len:
-    if args[i] in ["-q", "--quiet", "--slow"]:
-      flags.add args[i]
-    elif args[i] in ["-j", "--jobs"]:
-      flags.add args[i]
-      flags.add args[i + 1]
-      inc i
-    elif args[i].startsWith("-"):
-      flags.add args[i]
-    else:
-      paths.add args[i]
-    inc i
-  activitiesCommand.run(g, @["--import"] & paths & flags)
+  ## `nch import ARGS`
+  importCommand.run(g, args)
 
 const ride = "../choochoo/data/test/source/personal/2018-08-27-rec.fit"
 const base = 900_000_000
@@ -58,10 +44,15 @@ proc open(path: string): Session =
 
 proc globals(db: string, user = ""): Globals =
   Globals(
-    dbPath: db, user: user, fragments: allFragments, access: allAccess, offline: true
+    dbPath: db,
+    user: user,
+    fragments: allFragments,
+    access: allAccess,
+    extensions: extensions,
+    offline: true,
   )
 
-suite "nch activities --import: finding files":
+suite "nch import: finding files":
   test "directories are searched recursively, for .fit and .FIT only":
     let d = fresh("tree")
     bytesToFile(d / "b.fit", tiny(base + 1))
@@ -114,7 +105,7 @@ suite "nch activities --import: finding files":
     check r.lines[1].contains("no .fit files found")
     check r.lines[^1] == "read: 2 files, 0 imported, 2 failed (not found 2)"
 
-suite "nch activities --import: a mixed run":
+suite "nch import: a mixed run":
   test "a bad file does not stop the others, or undo them":
     let d = fresh("mixed")
     bytesToFile(d / "1-good.fit", tiny(base + 1))
@@ -177,14 +168,14 @@ suite "nch activities --import: a mixed run":
     check r.stderr[0].contains("dup.fit")
     check r.stderr[0].contains("and 1 more like it")
 
-suite "nch activities --import: the command":
+suite "nch import: the command":
   test "exit codes":
     let d = fresh("run")
     bytesToFile(d / "a.fit", tiny(base + 1))
     let g = globals(d / "x.db")
-    check activitiesCommand.run(g, @["--help"]) == exitOk
-    check activitiesCommand.run(g, @["--import"]) == exitUsage
-    check activitiesCommand.run(g, @["--import", d, "--nonesuch"]) == exitUsage
+    check importCommand.run(g, @["--help"]) == exitOk
+    check importCommand.run(g, @[]) == exitUsage
+    check importCommand.run(g, @[d, "--nonesuch"]) == exitUsage
     check importCmd(g, @["-q", d]) == exitOk
     check importCmd(g, @["-q", d]) == exitOk # skipped is not a failure
     check importCmd(g, @["-q", d / "nonesuch"]) == exitFailure

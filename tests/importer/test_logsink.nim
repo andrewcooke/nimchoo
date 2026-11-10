@@ -1,31 +1,17 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/packages/commands/activitiescmd/logsink
+import nimchoo/packages/importer/logsink
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
-import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
+import nimchoo/packages/importer/command as importCommand
 import nimchoo/core/globals
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/core/logfile
 import nimchoo/packages/util/warnings/warnings
-import ../../support/fitbuilder
+import ../support/fitbuilder
 
 proc importCmd(g: Globals, args: seq[string]): int =
-  ## `nch activities --import ARGS` (the paths first, then the options)
-  var paths, flags: seq[string]
-  var i = 0
-  while i < args.len:
-    if args[i] in ["-q", "--quiet", "--slow"]:
-      flags.add args[i]
-    elif args[i] in ["-j", "--jobs"]:
-      flags.add args[i]
-      flags.add args[i + 1]
-      inc i
-    elif args[i].startsWith("-"):
-      flags.add args[i]
-    else:
-      paths.add args[i]
-    inc i
-  activitiesCommand.run(g, @["--import"] & paths & flags)
+  ## `nch import ARGS`
+  importCommand.run(g, args)
 
 const base = 900_000_000
 

@@ -18,7 +18,7 @@ const commandName* = "log" ## what the user types after `nch`
 
 const usage* = """usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]
 
-Show the log (see NCH_LOG).  Names say what to show: a COMMAND (activities, climbs,
+Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, activities, climbs,
 cache ...) shows the lines of those commands, an EVENT (failed, advisory,
 duplicate ...) shows those events; both together show the events of those
 commands.  Several of one kind mean "any of them".  With no names, everything.
@@ -28,7 +28,7 @@ commands.  Several of one kind mean "any of them".  With no names, everything.
   -n N         only the last N lines
   -h, --help   show this help
 
-On a terminal the event words have the colours they have in `nch activities --import`
+On a terminal the event words have the colours they have in `nch import`
 (imported green, failed red, advisory yellow, duplicate grey).
 """
 

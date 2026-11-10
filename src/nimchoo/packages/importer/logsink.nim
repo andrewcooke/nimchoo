@@ -1,14 +1,14 @@
-## The log of `nch activities --import`: what changed or went wrong, in full.  Each line is
-## one of the shared events (packages/ui/vocabulary.nim), so `nch log activities advisory` finds
+## The log of `nch import`: what changed or went wrong, in full.  Each line is
+## one of the shared events (packages/ui/vocabulary.nim), so `nch log import advisory` finds
 ## one kind: `start`, `imported`, `duplicate`, `failed`, `advisory` (something
 ## noticed in a file that was imported anyway), `note` (about the run), `done`.
 ## Files that were unchanged or known failures are not logged one by one (a
 ## re-import of thousands would fill the log); the `done` line counts them.  `-q`
 ## affects the screen only; the log is always complete.
 
-import ../../../core/logfile
-import ../../importer/events
-import ../../importer/failure
+import ../../core/logfile
+import ./events
+import ./failure
 import ./sinks
 
 {.push raises: [].}

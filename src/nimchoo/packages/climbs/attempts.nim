@@ -19,6 +19,7 @@ import std/unicode
 import ../ui/palette
 import ../ui/style
 import ../ui/units
+import ../ui/vocabulary
 import ./[describe, display, report]
 import ../user/session
 
@@ -213,7 +214,9 @@ func alignedLines(
           pad & cell
         else:
           cell & pad
-      line.add span(text, (if c <= 31 and c in selectedCols: blue else: white))
+      line.add span(
+        text, (if c <= 31 and c in selectedCols: selectedColour else: white)
+      )
     if line.len > 0:
       line[^1].text = line[^1].text.strip(leading = false) # (no trailing blanks)
     result.add line
@@ -308,4 +311,4 @@ proc summaryLines*(
         chosen.add a.selected
     let aligned = columns(inner, {0, 1})
     for j, l in aligned:
-      result.add @[span("    " & l, (if chosen[j]: blue else: white))]
+      result.add @[span("    " & l, (if chosen[j]: selectedColour else: white))]

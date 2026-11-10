@@ -26,9 +26,6 @@ sees and can be approved together.
       contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
       table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
       definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
-   5. `nch import PATH...` is a command of `importer` (this reverses CLAUDE.md's "no import command": update "the
-      shape of the commands"), with the extension point "after import" (once per import, after the commit; a failure
-      is a warning).
    6. Step 4's option type, for the criteria first (an option carries its help, value name and the words it takes;
       usage is generated): needed by the criteria point.
    7. `selection` becomes a library (no command) with the extension point "activity criteria" (an option and

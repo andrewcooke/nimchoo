@@ -64,10 +64,12 @@ import
     test_describe as importerDescribe,
     test_fuzz as importerFuzz,
   ]
-import ./commands/activitiescmd/test_import
-import ./commands/activitiescmd/test_display
-import ./commands/activitiescmd/test_logsink
-import ./selection/[test_bits, test_selection, test_fuzz as selectionFuzz]
+import ./importer/test_command as importCommandTests
+import ./importer/test_params
+import ./importer/test_display
+import ./importer/test_logsink
+import
+  ./selection/[test_bits, test_imported, test_selection, test_fuzz as selectionFuzz]
 import ./commands/activitiescmd/test_ranges
 import ./commands/activitiescmd/test_criteria
 import ./commands/activitiescmd/test_table

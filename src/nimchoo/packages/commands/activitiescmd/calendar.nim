@@ -19,6 +19,7 @@
 import std/[algorithm, sequtils, strutils, tables, times]
 import ../../fit/time
 import ../../ui/style
+import ../../ui/vocabulary
 import ./table
 
 {.push raises: [].}
@@ -29,7 +30,6 @@ type Screen* = object
 
 const
   dataColour* = white ## a day with a listed activity
-  selectedColour* = blue ## ... and one of them is in the selection
   monthNames =
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   weekdayNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]

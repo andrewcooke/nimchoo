@@ -16,6 +16,7 @@ import ../../importer/describe
 import ../../ui/interval
 import ../../ui/style
 import ../../ui/units
+import ../../ui/vocabulary
 export describe, units
 
 {.push raises: [].}
@@ -120,7 +121,7 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
         if r.get.isTransition:
           look.colour = grey
         elif r.get.selected:
-          look.colour = blue # the whole row: it is in the selection
+          look.colour = selectedColour # the whole row: it is in the selection
         elif row[c] == notRecorded or row[c] == noGps:
           look.colour = grey
         elif (c == first and r.get.zeroDistance) or (
@@ -165,7 +166,7 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     result.add " (" & text.join(", ") & ")"
 
 func footerLine*(
-    rows: seq[ListRow], choices = none(int), selectedColour = blue, saved = none(int)
+    rows: seq[ListRow], choices = none(int), colour = selectedColour, saved = none(int)
 ): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
   ## the activities are in the selection, ", 35 match selected" follows the count, in the colour
@@ -188,6 +189,6 @@ func footerLine*(
       ", " & $saved.get & " saved as the selection"
     else:
       ", " & $selected & " match selected"
-  result = @[span("done: " & head), span(said, selectedColour)]
+  result = @[span("done: " & head), span(said, colour)]
   if split >= 0:
     result.add span(text[split .. ^1])
