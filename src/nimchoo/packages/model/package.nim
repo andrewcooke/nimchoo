@@ -21,6 +21,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the models: sets of variables for the training impulse",
       run: command.run,
+      options: command.options,
     )
   ],
 )

@@ -39,6 +39,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the database file: where it is and how big, or delete it",
       run: command.run,
+      options: command.options,
     )
   ],
 )

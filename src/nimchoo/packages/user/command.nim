@@ -23,6 +23,10 @@ import ./session
 
 const commandName* = "users" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch users`, described (for tab completion).
+  userSpec().docs
+
 const
   synopsis = """usage: nch users
        nch users --add NAME [--fthr BPM] [--default]

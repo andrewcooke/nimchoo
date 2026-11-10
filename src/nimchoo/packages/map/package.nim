@@ -30,6 +30,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the routes of the selected activities and their climbs, on a map",
       run: command.run,
+      options: command.options,
     )
   ],
   contributes: contributions,

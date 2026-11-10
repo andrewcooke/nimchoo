@@ -14,27 +14,12 @@
 ## what a page may be given is made from the same options, so it cannot differ from what the command parses.  Pure.
 
 import std/[math, options, strutils]
+import ../../../core/optdoc
+export optdoc
 
 {.push raises: [].}
 
 type
-  CompletionKind* = enum
-    ckNone ## nothing is offered
-    ckFile ## a file or a directory
-    ckWords ## one of `Completion.words`
-    ckDynamic
-      ## from the program's data, by the name in `Completion.source` ("sport", "climb")
-
-  Completion* = object ## what a shell may offer for the value of an option
-    kind*: CompletionKind
-    words*: seq[string]
-    source*: string
-
-  Arity* = enum
-    aFlag ## no value
-    aOne ## one value
-    aList ## any number of values (words up to the next option)
-
   Problem* = Option[string]
     ## what is wrong with an option or a command line; none if nothing
 
@@ -61,17 +46,6 @@ type
       discard
     of pkProblem:
       why*: string ## what is wrong, as a sentence
-
-  OptDoc* = object
-    ## what an option is, for people (the usage) and for the shell (completion)
-    names*: seq[string] ## "-n", "--newest"
-    metavar*: string
-      ## the value, as the usage shows it: "N", "TEXT...", "LAT,LON" ("" for a flag)
-    help*: string ## prose, wrapped by the usage; a "\n" starts a new paragraph of it
-    arity*: Arity
-    completion*: Completion
-    level*: int
-      ## 0, or 1 for an option that goes with the one before it (`--rename` under `--edit`): indented
 
   Apply*[P] = proc(p: var P, name, value: string): Problem {.nimcall, raises: [].}
     ## Take an option (`name` is the way it was spelt); `value` is "" for a flag.

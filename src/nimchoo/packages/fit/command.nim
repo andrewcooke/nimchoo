@@ -22,6 +22,10 @@ const
   synopsis = "usage: nch fit [--csv] [--profile PATH] FILE"
   intro = "Read a FIT file and print its messages."
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch fit`, described (for tab completion).
+  fitSpec().docs
+
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
   synopsis & "\n\n" & prose(intro, width) & "\n\n" &

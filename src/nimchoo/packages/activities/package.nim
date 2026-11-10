@@ -25,6 +25,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the activities: show them, choose the ones other commands use",
       run: command.run,
+      options: command.options,
     )
   ],
   defines: @[

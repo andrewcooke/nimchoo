@@ -18,6 +18,10 @@ import ./[params, store]
 
 const commandName* = "db" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch db`, described (for tab completion).
+  dbSpec().docs
+
 const
   synopsis = """usage: nch [--db PATH] db
        nch [--db PATH] db --delete -f"""

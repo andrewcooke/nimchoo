@@ -22,6 +22,10 @@ import ./suggest
 
 const commandName* = "landmarks" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch landmarks`, described (for tab completion).
+  landmarkSpec().docs
+
 const
   synopsis = """usage: nch landmarks
        nch landmarks --search TEXT

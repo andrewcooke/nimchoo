@@ -6,7 +6,7 @@
 
 import std/[algorithm, options, os, sequtils, strutils]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
-import nimchoo/introspect
+import nimchoo/[completion, introspect]
 import nimchoo/packages/ui/live
 import nimchoo/packages/util/args/[args, usage]
 import nimchoo/registry
@@ -16,7 +16,8 @@ import nimchoo/packages/util/zip/zipchild
 
 {.push raises: [].}
 
-const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
+const allCommands =
+  (registry.commands & @[packagesCommand, completionCommand]).sortedByIt(it.name)
   ## the commands of the packages, and those `nch` provides itself
 
 type Head = object ## The options before the command name.
@@ -74,6 +75,15 @@ proc main(): int {.raises: [].} =
   if args.len > 0 and args[0] == inflateFlag:
     # (a child of the downloads: see zipchild.nim)
     return inflateChildMain(args[1 ..^ 1])
+  if args.len > 0 and args[0] == completeFlag:
+    # (the shell asking what may be typed next: offline, and all the packages' options are known: completion.nim)
+    let g = Globals(
+      fragments: allFragments,
+      extensions: registry.extensions,
+      access: allAccess,
+      offline: true,
+    )
+    return completeMain(headSpec().docs, allCommands, g, args[1 ..^ 1])
   var head = Head(g: Globals(fragments: allFragments))
   var i = 0
   let why = parseLeading(args, headSpec(), head, i)

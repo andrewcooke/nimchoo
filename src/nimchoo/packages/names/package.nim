@@ -26,6 +26,7 @@ const package* = Package(
       name: command.commandName,
       summary: "places of your own, named: they come before every other name",
       run: command.run,
+      options: command.options,
     )
   ],
 )

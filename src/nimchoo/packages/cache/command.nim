@@ -15,6 +15,10 @@ import ./[files, params]
 
 const commandName* = "cache" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch cache`, described (for tab completion).
+  cacheSpec().docs
+
 const
   synopsis = """usage: nch cache
        nch cache --delete KIND..."""

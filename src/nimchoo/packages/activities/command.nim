@@ -44,6 +44,10 @@ the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 with --select, then  --sport previous --distance previous~10%  finds rides like it.  It is an
 error unless exactly one activity is selected."""
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch activities`, described (for tab completion).
+  criteriaSpec(g.extensions.get(activityCriterion)).docs
+
 proc usageText*(width: int, offered: seq[Criterion] = @[]): string =
   ## The usage: the synopsis, the introduction, the options (made from their descriptions) and the notes, all wrapped to
   ## `width` (the synopsis lines are not).

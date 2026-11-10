@@ -39,6 +39,10 @@ import ../user/session
 
 const commandName* = "map" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch map`, described (for tab completion).
+  mapSpec().docs
+
 const
   synopsis =
     "usage: nch [--db PATH] [--user NAME] map [--web [--no-open] [--port N] [--new-token]]"

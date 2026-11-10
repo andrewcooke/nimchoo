@@ -15,6 +15,10 @@ import ./[lines, params]
 
 const commandName* = "log" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch log`, described (for tab completion).
+  logSpec().docs
+
 const
   synopsis = "usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]"
   intro =

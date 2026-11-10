@@ -41,6 +41,7 @@ const package* = Package(
       name: command.commandName,
       summary: "put the activities of FIT files into the database, and name them",
       run: command.run,
+      options: command.options,
     )
   ],
   defines: @[

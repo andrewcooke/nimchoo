@@ -29,6 +29,10 @@ import ../user/session
 
 const commandName* = "ff" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch ff`, described (for tab completion).
+  ffSpec().docs
+
 const
   synopsis =
     """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]

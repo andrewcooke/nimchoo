@@ -2,7 +2,8 @@
 ## type; the name of the package is the name of its directory, so it is not in the value (PACKAGES.md).
 ## This module imports no package: `core` is below all of them.
 
-import ./[extension, fragment, globals]
+import ./[extension, fragment, globals, optdoc]
+export optdoc
 export fragment
 
 {.push raises: [].}
@@ -13,10 +14,16 @@ type
   CommandProc* = proc(g: Globals, args: seq[string]): int {.nimcall, raises: [].}
     ## A command: given the options before its name and its own arguments, it returns the exit status.
 
+  OptionsProc* = proc(g: Globals): seq[OptDoc] {.nimcall, raises: [].}
+    ## The options a command takes, described.  It is given `g` because some options are offered by other packages
+    ## (`nch activities` takes the criteria that `g.extensions` holds).
+
   CommandDecl* = object ## a command that a package provides
     name*: string ## what the user types after `nch`
     summary*: string ## one line, for the usage text
     run*: CommandProc
+    options*: OptionsProc
+      ## its options, for tab completion (`nch __complete`); they come from the same specification that parses them
 
   PointDecl* = object
     ## An extension point a package defines (`core/extension.nim`), so that it can be listed even with no contributor.

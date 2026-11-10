@@ -16,6 +16,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the activities of the selection on a calendar",
       run: command.run,
+      options: command.options,
     )
   ],
 )

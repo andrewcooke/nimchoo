@@ -15,6 +15,7 @@ const package* = Package(
       name: command.commandName,
       summary: "show the log, filtered, with the events coloured",
       run: command.run,
+      options: command.options,
     )
   ],
 )

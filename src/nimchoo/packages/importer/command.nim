@@ -25,6 +25,10 @@ are then named, from the places they went through (the names are downloaded the 
 activities added become your selection, ready for `nch climbs` or `nch map` (if nothing was added the selection is
 left as it was)."""
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch import`, described (for tab completion).
+  importSpec().docs
+
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
   synopsis & "\n\n" & prose(intro, width) & "\n\n" &

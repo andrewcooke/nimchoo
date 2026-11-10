@@ -27,6 +27,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the users: make, rename, set the threshold heart rate",
       run: command.run,
+      options: command.options,
     )
   ],
   defines: @[

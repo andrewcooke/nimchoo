@@ -276,9 +276,14 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     show configLines(g)
   exitOk
 
+proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch packages`, described (for tab completion).
+  packagesSpec().docs
+
 const packagesCommand* = CommandDecl(
   name: "packages",
   summary:
     "the packages, their dependencies, tables and extension points; the settings in force",
   run: packagesMain,
+  options: packagesOptions,
 )

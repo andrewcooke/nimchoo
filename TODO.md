@@ -16,7 +16,35 @@ sees and can be approved together.
       except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
-5. **Tab completion** (A step 10): `nch __complete` and a bash function; dynamic values from the database.
+5. **Tab completion** (A step 10): `nch __complete` and a bash function; dynamic values from the database.  Design agreed
+   2026-11-10 (discussion, not yet built); several commits.  The tab key never prints an error, never creates or changes a
+   file, never uses the network, and is fast (budget: under 30 ms per press including the query; `nch packages` starts in
+   4.4 ms).
+   * **Done (commit 1)**: `OptDoc`, `Completion` and `Arity` are in `core/optdoc.nim`; `CommandDecl.options` (each command's
+     spec); `core/complete.nim` (the pure algorithm: commands, options, `ckWords` values, `ckFile`); `nch __complete` and
+     `nch completion bash` (`completion.nim`).  Still to do: `Completion` as a variant (`ckNone | ckFile | ckWords(words) |
+     ckDynamic(provide)`: a dynamic one cannot exist without its provider; `ckDynamic` still names a `source` and offers nothing).
+   * **Providers**: `proc(g: Globals, prefix: string): seq[string] {.raises: [StoreError].}`, next to the option they
+     complete (`--climb` beside `resolve` in `climbs/criterion.nim`, through `activities/criteria`; sports in `activities`;
+     `--user` via `user`; `--edit/--delete NAME` in each package's params).  No registry of sources, no new extension point
+     (if an option ever sits below the data it completes, that package then defines a point).
+   * **`__complete`** still needs to parse `--db` and `--user` into the `Globals` it gives the providers (it passes none now).
+   * **Guards, structural** (every provider gets the `Globals` `__complete` built): `readOnly` in `Globals`, honoured by
+     `openStore(g)`: no create, no WAL, no fragments, no SpatiaLite; a missing file, a lock or a database of another
+     version is a `StoreError`, caught in one place, printing nothing.  `offline = true` (check that the offline path writes
+     no cache files).  `access` kept, so the table authorizer stays on.  Tests: a missing database path creates nothing; a
+     database of another version gives nothing and exit 0; a provider that writes or looks a name up gives nothing and
+     writes nothing; no child process is started.
+   * **Read-only open**: `db_connector` only binds `sqlite3_open` (no flags, no read-only; URIs are not enabled in the
+     system SQLite), so `db` declares `sqlite3_open_v2` itself (`importc`, on `db_connector`'s `DbConn`), about ten lines.
+     Alternatives looked at and rejected: `tiny_sqlite` (has `dbRead`, but last updated 2023 and would replace the whole
+     `db` layer), `sqlite3_abi` (raw API, but bundles its own SQLite, which would meet SpatiaLite's).  Spike (scratch
+     program, the real 472 MB database): a missing file gives rc 14 and creates nothing; open plus the sector query is
+     2.5 ms; a write is refused; on a WAL database it still makes `-shm` and `-wal` beside it, and in a directory that
+     cannot be written the query fails (so: nothing offered).
+   * **Commits still to do**: (2) the read-only open and `readOnly`; (3) the providers (`--edit/--delete NAME` included).
+   * **Quoting**: candidates (`Cerro San Luis₄`) are printed whole and bash quotes them (to check with the real list);
+     `--climb TEXT...` takes several words: complete the word being typed.
 6. *(mechanical)* **One owner per fact** (A §4.1).
 7. **Push work into SQL** (A §4.4), measured.
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).

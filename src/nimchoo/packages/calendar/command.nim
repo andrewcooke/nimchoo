@@ -14,6 +14,10 @@ import ./[calendar, params]
 
 const commandName* = "calendar" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch calendar`, described (for tab completion).
+  calendarSpec().docs
+
 const
   synopsis = "usage: nch [--db PATH] [--user NAME] calendar [--all] [-v]"
   intro =

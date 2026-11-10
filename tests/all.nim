@@ -15,7 +15,9 @@ import
   ./text/fold/test_fold,
   ./core/test_errors,
   ./test_structure,
-  ./test_introspect
+  ./core/test_complete,
+  ./test_introspect,
+  ./test_completion
 import ./cache/test_cache
 import ./util/zip/test_zipbytes
 import ./util/zip/test_fuzz as zipFuzz

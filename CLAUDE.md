@@ -58,7 +58,8 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
   generator refuses a package without one and says what to write) and has one constant, `package`, of type `Package`:
   `depends`, `fragments`, `commands`, `defines` (its extension points, each with a summary) and `contributes`.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
-  codes, the log, `ownership.nim`, `registry.nim` (the dependency order) and `inventory.nim` (what `nch packages` shows).
+  codes, the log, `ownership.nim`, `registry.nim` (the dependency order), `inventory.nim` (what `nch packages` shows),
+  `optdoc.nim` (`OptDoc`, what an option is) and `complete.nim` (what tab completion offers, from the options' descriptions).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the packages
   found, in dependency order, with their documentation; it is checked in, and a test fails if it is stale.  a cycle, a
   missing dependency, a package or command name used twice, or a contribution to a point nobody defines stops the build.
@@ -73,7 +74,9 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
   file), squashing, `Sql`, the access model.
 * **commands are in their packages**: a package may provide a command, in its `command.nim` (`run`, its options, its
   output; `params.nim` beside it), declared in `commands:` of its `package.nim` with a `commandName` constant; `nch.nim`
-  builds the usage from the registry.  a **plural** command goes with the package that owns its type; a **singular** one
+  builds the usage from the registry.  a command declares its options (`options:`, from the same spec that parses them: tab
+  completion reads them); `nch` itself provides `packages` and `completion` (`introspect.nim`, `completion.nim`), which need the
+  whole registry.  a **plural** command goes with the package that owns its type; a **singular** one
   is a package of its own unless it is plainly one package's interface.  **no command hides a cycle**: when a command
   would need a package above its own, that package defines an extension point and the higher one contributes to it.
 * **extension points** (`core/extension.nim`) are for exactly that, and each package documents the ones it defines

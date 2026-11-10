@@ -17,6 +17,10 @@ import ./models
 
 const commandName* = "models" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch models`, described (for tab completion).
+  modelSpec().docs
+
 const
   synopsis = """usage: nch [--db PATH] models
        nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]

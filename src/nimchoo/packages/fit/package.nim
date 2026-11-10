@@ -12,6 +12,11 @@ const package* = Package(
   depends: @["args", "bundle", "bytes", "lookup", "ui", "warnings", "xlsx"],
   fragments: @[],
   commands: @[
-    CommandDecl(name: "fit", summary: "read a FIT file and print it", run: command.run)
+    CommandDecl(
+      name: "fit",
+      summary: "read a FIT file and print it",
+      run: command.run,
+      options: command.options,
+    )
   ],
 )

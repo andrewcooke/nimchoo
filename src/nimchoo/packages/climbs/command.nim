@@ -26,6 +26,10 @@ import ./work
 
 const commandName* = "climbs" ## what the user types after `nch`
 
+proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
+  ## The options of `nch climbs`, described (for tab completion).
+  climbSpec().docs
+
 const
   synopsis = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
        nch [--db PATH] [--user NAME] climbs --name TEXT... [-v] [--everyone]

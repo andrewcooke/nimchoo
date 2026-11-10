@@ -23,6 +23,7 @@ const package* = Package(
       name: command.commandName,
       summary: "the fitness and fatigue curves, as CSV for plotting",
       run: command.run,
+      options: command.options,
     )
   ],
   contributes: contributions,
