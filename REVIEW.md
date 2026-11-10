@@ -185,6 +185,7 @@ load, weather) could not add a criterion to `activities` or a line to `users` wi
   `activities` alone; the other views take the selection or `--all` (CLAUDE.md, "activity selection").
 * "After import" (**decided**): `importer` calls the contributions once per import, after the commit, with the store,
   the user and the new activity ids.  If one fails the import stands and a warning says the selection was not changed.
+  Why (the author): in daily use the latest import is the main use, so it should be selected with no extra command.
   (The alternative was a "last import" criterion and no point.)
 
 ### The extension points
