@@ -32,13 +32,24 @@ proc close*(s: Session) {.raises: [].} =
   close(s.store)
 
 proc openSession*(
-    path: string, fragments: seq[Fragment], user = "", access: Access = nil
+    path: string,
+    fragments: seq[Fragment],
+    user = "",
+    access: Access = nil,
+    readOnly = false,
 ): Session {.raises: [StoreError].} =
   ## Open the database at `path` (as `openStore`) and find `user` ("": the default user, made if there are no
-  ## users).  Raises StoreError if that cannot be done or the user does not exist.
-  let st = openStore(path, fragments, access)
+  ## users).  Raises StoreError if that cannot be done or the user does not exist.  With `readOnly` (as
+  ## `openReadOnly`) nothing is made or changed: a database with no users, or no default, is an error.
+  let st =
+    if readOnly:
+      openReadOnly(path, fragments, access)
+    else:
+      openStore(path, fragments, access)
   try:
-    if st.db.scalar(int, "select count(*) from user") == 0:
+    if readOnly:
+      discard # (the users are as they are)
+    elif st.db.scalar(int, "select count(*) from user") == 0:
       st.db.execute(
         "insert into user(name, is_default) values (:name, 1)", name = defaultUser
       )
@@ -52,7 +63,12 @@ proc openSession*(
       else:
         st.db.queryOne(UserId, "select id from user where name = :name", name = user)
     if id.isNone:
-      raiseStore("no such user: " & user)
+      raiseStore(
+        if user.len == 0:
+          "the database has no default user"
+        else:
+          "no such user: " & user
+      )
     result = Session(
       store: st,
       db: st.db,
@@ -66,5 +82,5 @@ proc openSession*(
     raise
 
 proc openSession*(g: Globals): Session {.raises: [StoreError].} =
-  ## The database and the user the global options point at.
-  openSession(resolveDbPath(g.dbPath), g.fragments, g.user, g.access)
+  ## The database and the user the global options point at (read-only if they say so).
+  openSession(resolveDbPath(g.dbPath), g.fragments, g.user, g.access, g.readOnly)

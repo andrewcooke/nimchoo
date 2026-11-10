@@ -4,7 +4,7 @@ import nimchoo/packages/db/fragment
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
-import nimchoo/core/errors
+import nimchoo/core/[errors, globals]
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-db"
@@ -203,6 +203,108 @@ suite "database: opening and bringing the schema up to date":
     writeFile(path, "this is not an sqlite database, not at all.")
     expect StoreError:
       discard open(path)
+
+suite "database: opening read-only":
+  test "a database that is there can be read, and nothing can be written":
+    let path = tempDb("readonly")
+    let w = open(path)
+    w.db.execute("insert into landmark(name, lon, lat, radius_m) values ('x', 1, 1, 1)")
+    w.close()
+    let s = openReadOnly(path, allFragments, allAccess)
+    defer:
+      s.close()
+    check s.count("landmark") == 1
+    check s.count("user") == 1
+    expect StoreError:
+      s.db.execute(
+        "insert into landmark(name, lon, lat, radius_m) values ('y', 1, 1, 1)"
+      )
+    expect StoreError:
+      s.db.execScript("create table zz(x)")
+    check s.count("landmark") == 1
+
+  test "a file that is not there is an error, and is not made, nor its directory":
+    let path = dir / "not-made" / "x.db"
+    removeDir(dir / "not-made")
+    expect StoreError:
+      discard openReadOnly(path, allFragments, allAccess)
+    check not fileExists(path)
+    check not dirExists(dir / "not-made")
+    expect StoreError:
+      discard openReadOnly(":memory:", allFragments, allAccess)
+
+  test "a database that has not had all the fragments is not brought up to date":
+    let path = tempDb("behind")
+    openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
+    let more = @[
+      frag("m/001.sql", "create table t(x integer);"),
+      frag("m/002.sql", "create table u(x integer);"),
+    ]
+    try:
+      discard openReadOnly(path, more)
+      check false
+    except StoreError as e:
+      check "m/002.sql" in e.msg
+    let a = openReadOnly(path, more[0 .. 0])
+    a.close()
+    # (nothing was applied: a read-write open still has the second one to do)
+    let b = openStore(path, more)
+    check b.db.scalar(int, "select count(*) from fragment where name = 'm/002.sql'") == 1
+    b.close()
+
+  test "a database made from different SQL, or from a newer version, is refused":
+    let path = tempDb("other")
+    openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
+    try:
+      discard openReadOnly(
+        path, @[frag("m/001.sql", "create table t(x integer, y integer);")]
+      )
+      check false
+    except StoreError as e:
+      check "different version of nch" in e.msg
+    try:
+      discard openReadOnly(path, @[])
+      check false
+    except StoreError as e:
+      check "newer version of nch" in e.msg
+
+  test "a file that is not a database, or not one of ours, is a StoreError":
+    let junk = tempDb("junk-ro")
+    writeFile(junk, "this is not an sqlite database, not at all.")
+    expect StoreError:
+      discard openReadOnly(junk, allFragments)
+    let foreign = tempDb("foreign")
+    let f = db_sqlite.open(foreign, "", "", "")
+    f.exec(sql"create table t(x)")
+    f.close()
+    expect StoreError:
+      discard openReadOnly(foreign, allFragments)
+
+  test "our SQL functions are there, though SpatiaLite is not loaded":
+    let path = tempDb("functions")
+    open(path).close()
+    let s = openReadOnly(path, allFragments, allAccess)
+    defer:
+      s.close()
+    check s.db.scalar(int, "select fold('É') = 'e'") == 1
+
+  test "Globals.readOnly makes openStore and openSession read-only":
+    let path = tempDb("globals")
+    open(path).close()
+    var g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
+    g.readOnly = true
+    let s = openStore(g)
+    expect StoreError:
+      s.db.execute("insert into user(name) values ('new')")
+    s.close()
+    let t = openSession(g)
+    check t.userName == defaultUser
+    t.close()
+    expect StoreError:
+      discard openSession(
+        Globals(dbPath: dir / "missing-g.db", fragments: allFragments, readOnly: true)
+      )
+    check not fileExists(dir / "missing-g.db")
 
 suite "database: fragments":
   test "a seed runs right after its fragment's SQL, once":

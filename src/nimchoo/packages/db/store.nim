@@ -122,15 +122,11 @@ proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
       except StoreError:
         discard # (nothing useful can be done)
 
-proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].} =
-  let all = baseFragments & fragments
-  db.execScript(
-    """create table if not exists fragment (
-                    name text primary key,
-                    applied_at integer not null,
-                    sha256 text not null) strict, without rowid"""
-  )
-  let have = recorded(db)
+proc missingFragments(
+    have: seq[(string, string)], all: seq[Fragment]
+): seq[Fragment] {.raises: [StoreError].} =
+  ## The fragments the database has not had yet.  Raises `StoreError` if it has had one this version does not have, or
+  ## one made from different SQL: it is of another version, and cannot be brought up to date.
   for (name, sum) in have:
     let known = all.filterIt(it.name == name)
     if known.len == 0:
@@ -141,7 +137,17 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].
       )
   for f in all:
     if have.allIt(it[0] != f.name):
-      apply(db, f)
+      result.add f
+
+proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].} =
+  db.execScript(
+    """create table if not exists fragment (
+                    name text primary key,
+                    applied_at integer not null,
+                    sha256 text not null) strict, without rowid"""
+  )
+  for f in missingFragments(recorded(db), baseFragments & fragments):
+    apply(db, f)
 
 proc appliedFragments*(path: string): seq[(string, string)] {.raises: [StoreError].} =
   ## The fragments (name, checksum) the database file at `path` says it has had, read as they are: nothing is applied,
@@ -234,6 +240,59 @@ proc rollback*(s: Store) {.raises: [].} =
   except StoreError:
     discard
 
+const sqliteOpenReadOnly = 1'i32 ## SQLITE_OPEN_READONLY, of sqlite3.h
+
+when defined(macosx):
+  const sqliteLib = "libsqlite3(|.0).dylib"
+else:
+  const sqliteLib = "libsqlite3.so(|.0)"
+  ## the library as `db_connector` loads it (its own name for it is not exported)
+
+proc sqliteOpenV2(
+  filename: cstring, ppDb: var PSqlite3, flags: int32, zVfs: cstring
+): int32 {.cdecl, dynlib: sqliteLib, importc: "sqlite3_open_v2".}
+  ## `db_connector` binds only `sqlite3_open`, which takes no flags: it creates a missing file and always opens for
+  ## writing.  This is the call that can open read-only.
+
+proc openReadOnly*(
+    path: string, fragments: seq[Fragment], access: Access = nil
+): Store {.raises: [StoreError].} =
+  ## Open the database at `path` and change nothing, for the reading that must have no effect (tab completion): a missing
+  ## file is an error and is not created; no pragma is set; the schema is not brought up to date (a database that lacks
+  ## a fragment, or has one of another version, is a `StoreError`, as a read-write open would refuse or change it); and
+  ## nothing can be written.  SpatiaLite is not loaded, so what is read must not need it.  SQLite may still make the
+  ## `-shm` and `-wal` files beside a database in write-ahead mode (it needs them to read one).
+  if path == ":memory:" or not fileExists(path):
+    raiseStore(fmt"there is no database at {path}")
+  var handle: PSqlite3
+  if sqliteOpenV2(path, handle, sqliteOpenReadOnly, nil) != SQLITE_OK:
+    let why =
+      if handle.isNil:
+        "out of memory"
+      else:
+        $lowlevel.errmsg(handle)
+    if not handle.isNil:
+      discard lowlevel.close(handle)
+    raiseStore(fmt"cannot open {path} for reading: {why}")
+  result.db = handle
+  result.conn = Conn(db: result.db, access: access)
+  result.path = path
+  try:
+    registerFunctions(result.db)
+    installAccess(result.db, access)
+    let all = baseFragments & fragments
+    let todo = missingFragments(recorded(result.db), all)
+    if todo.len > 0:
+      raiseStore(
+        fmt"the database has not had {todo[0].name} yet (any other nch command brings it up to date)"
+      )
+  except StoreError:
+    close(result)
+    raise
+
 proc openStore*(g: Globals): Store {.raises: [StoreError].} =
-  ## The database the global options point at.
-  openStore(resolveDbPath(g.dbPath), g.fragments, g.access)
+  ## The database the global options point at (read-only if they say so: `openReadOnly`).
+  if g.readOnly:
+    openReadOnly(resolveDbPath(g.dbPath), g.fragments, g.access)
+  else:
+    openStore(resolveDbPath(g.dbPath), g.fragments, g.access)

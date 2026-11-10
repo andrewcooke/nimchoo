@@ -1,5 +1,5 @@
 import std/[os, unittest]
-import nimchoo/packages/db/statement
+import nimchoo/packages/db/[statement, store]
 import nimchoo/packages/user/session
 import nimchoo/core/errors
 from nimchoo/registry import allFragments, allAccess
@@ -54,3 +54,27 @@ suite "session: the user a command works for":
     a.db.execute("delete from user where is_default = 1")
     a.close()
     check openSession(path, allFragments, access = allAccess).userName == "bob"
+
+suite "session: read-only":
+  test "a database with no users is not given one":
+    let path = tempDb("ro-empty")
+    openStore(path, allFragments, allAccess).close()
+    expect StoreError:
+      discard openSession(path, allFragments, access = allAccess, readOnly = true)
+    let s = openStore(path, allFragments, allAccess)
+    check s.db.scalar(int, "select count(*) from user") == 0
+    s.close()
+
+  test "the default user, or one asked for, is found as usual; a user that is not there is an error":
+    let path = tempDb("ro-users")
+    let w = open(path)
+    w.db.execute("insert into user(name) values ('bob')")
+    w.close()
+    let s = openSession(path, allFragments, access = allAccess, readOnly = true)
+    check s.userName == defaultUser
+    s.close()
+    let b = openSession(path, allFragments, "bob", allAccess, readOnly = true)
+    check b.userName == "bob"
+    b.close()
+    expect StoreError:
+      discard openSession(path, allFragments, "carol", allAccess, readOnly = true)

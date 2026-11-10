@@ -29,20 +29,18 @@ sees and can be approved together.
      `--user` via `user`; `--edit/--delete NAME` in each package's params).  No registry of sources, no new extension point
      (if an option ever sits below the data it completes, that package then defines a point).
    * **`__complete`** still needs to parse `--db` and `--user` into the `Globals` it gives the providers (it passes none now).
-   * **Guards, structural** (every provider gets the `Globals` `__complete` built): `readOnly` in `Globals`, honoured by
-     `openStore(g)`: no create, no WAL, no fragments, no SpatiaLite; a missing file, a lock or a database of another
-     version is a `StoreError`, caught in one place, printing nothing.  `offline = true` (check that the offline path writes
-     no cache files).  `access` kept, so the table authorizer stays on.  Tests: a missing database path creates nothing; a
-     database of another version gives nothing and exit 0; a provider that writes or looks a name up gives nothing and
-     writes nothing; no child process is started.
-   * **Read-only open**: `db_connector` only binds `sqlite3_open` (no flags, no read-only; URIs are not enabled in the
-     system SQLite), so `db` declares `sqlite3_open_v2` itself (`importc`, on `db_connector`'s `DbConn`), about ten lines.
-     Alternatives looked at and rejected: `tiny_sqlite` (has `dbRead`, but last updated 2023 and would replace the whole
-     `db` layer), `sqlite3_abi` (raw API, but bundles its own SQLite, which would meet SpatiaLite's).  Spike (scratch
-     program, the real 472 MB database): a missing file gives rc 14 and creates nothing; open plus the sector query is
-     2.5 ms; a write is refused; on a WAL database it still makes `-shm` and `-wal` beside it, and in a directory that
-     cannot be written the query fails (so: nothing offered).
-   * **Commits still to do**: (2) the read-only open and `readOnly`; (3) the providers (`--edit/--delete NAME` included).
+   * **Guards** (done in commit 2: `Globals.readOnly`, `openReadOnly` in `db/store.nim` with its own `sqlite3_open_v2`
+     declaration because `db_connector` binds only `sqlite3_open`; `openSession` honours it and makes no user; `nch __complete`
+     sets it, and `offline`; a read-only session opens in 1.2 ms, a read-write one in 12 ms, on an empty schema).  Still to do:
+     catch the `StoreError` of a provider in one place, printing nothing; check that the offline path writes no cache files.
+     Tests still to write with the providers: a provider that writes or looks a name up gives nothing and writes nothing; no
+     child process is started.  A read-only open of a WAL database still makes `-shm` and `-wal` beside it, and where the
+     directory cannot be written the query fails (so: nothing offered).
+   * **Commit still to do**: (3) the providers (`--edit/--delete NAME` included), the `Completion` variant, and `--db`/`--user` parsed for them.
+   * **Open, decided with the author next session**: the bash function calls `command nch`, so it needs `nch` on `PATH` and is
+     registered for the word `nch` only (`./nch` gets files).  Proposed: call `${COMP_WORDS[0]}` (the binary typed), and let
+     `nch completion bash [NAME...]` register more names.  Also: try the function in the author's own shell (a test shell
+     was used so far).
    * **Quoting**: candidates (`Cerro San Luis₄`) are printed whole and bash quotes them (to check with the real list);
      `--climb TEXT...` takes several words: complete the word being typed.
 6. *(mechanical)* **One owner per fact** (A §4.1).

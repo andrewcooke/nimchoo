@@ -76,12 +76,13 @@ proc main(): int {.raises: [].} =
     # (a child of the downloads: see zipchild.nim)
     return inflateChildMain(args[1 ..^ 1])
   if args.len > 0 and args[0] == completeFlag:
-    # (the shell asking what may be typed next: offline, and all the packages' options are known: completion.nim)
+    # (the shell asking what may be typed next: offline, read-only, and all the packages' options are known: completion.nim)
     let g = Globals(
       fragments: allFragments,
       extensions: registry.extensions,
       access: allAccess,
       offline: true,
+      readOnly: true,
     )
     return completeMain(headSpec().docs, allCommands, g, args[1 ..^ 1])
   var head = Head(g: Globals(fragments: allFragments))

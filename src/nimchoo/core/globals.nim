@@ -16,6 +16,10 @@ type Globals* = object ## Options given before the command name, for every comma
   user*: string ## whose data to work with; "" for the default user
   offline*: bool
     ## do not use the network: the names service answers "nothing" everywhere
+  readOnly*: bool
+    ## open the database read-only: nothing is created, nothing applied, nothing written (`openStore`, `openSession`); a
+    ## database that is missing, or made by another version, is a `StoreError`.  For tab completion (`nch __complete`),
+    ## which must change nothing.
   fragments*: seq[Fragment] ## the schema: the fragments of all modules
   commandNames*: seq[string]
     ## the names of all the commands (what `nch log` accepts as a filter)
