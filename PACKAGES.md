@@ -291,8 +291,8 @@ tables it owns is in its SQL.
   from the program); `download`; `fit` (FIT files and the profile); `names` (GeoNames features and the author's
   landmarks); `importer` (activities); `heartrate`; `model` (impulses); `user`; `climbs`; `selection` (the stored
   selection and its address); `web` (the server `map` and `ff` use).
-* **`commands/`** (until TODO step 3 ends): `activitiescmd`; `users` is a command of `user` (2026-11-10).  The other commands moved into their packages
-  (2026-11-10): `fit`, `cache`, `db`, `climbs`, `names` (`landmarks`), `model` (`models`), and the packages `log`, `map` and `ff`.
+* **Commands** are in their packages (2026-11-10; there is no `commands/` group): `users` in `user`, `import` in `importer`, `activities` in its own package,
+  and `fit`, `cache`, `db`, `climbs`, `names` (`landmarks`), `model` (`models`), and the packages `log`, `map` and `ff`.
 
 ## Decisions (the author, 2026-11-09)
 

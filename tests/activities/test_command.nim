@@ -6,9 +6,9 @@ import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 import nimchoo/core/ids
 from nimchoo/registry import allFragments, allAccess, newAllAccess
-import nimchoo/packages/commands/activitiescmd/calendar
-import nimchoo/packages/commands/activitiescmd/command as listCommand
-import nimchoo/packages/commands/activitiescmd/criteria
+import nimchoo/packages/activities/calendar
+import nimchoo/packages/activities/command as listCommand
+import nimchoo/packages/activities/criteria
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
 

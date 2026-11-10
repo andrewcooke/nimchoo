@@ -48,7 +48,7 @@ import ./ff/test_curve
 import ./ff/test_page
 import ./ff/test_web
 import ./ff/test_stats
-import ./commands/activitiescmd/test_delete
+import ./activities/test_delete
 import ./cache/test_files
 import ./cache/test_command
 import
@@ -70,11 +70,11 @@ import ./importer/test_display
 import ./importer/test_logsink
 import
   ./selection/[test_bits, test_imported, test_selection, test_fuzz as selectionFuzz]
-import ./commands/activitiescmd/test_ranges
-import ./commands/activitiescmd/test_criteria
-import ./commands/activitiescmd/test_table
-import ./commands/activitiescmd/test_command
-import ./commands/activitiescmd/test_calendar
+import ./activities/test_ranges
+import ./activities/test_criteria
+import ./activities/test_table
+import ./activities/test_command
+import ./activities/test_calendar
 import ./map/test_params
 import ./map/test_lines
 import ./map/test_page

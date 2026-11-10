@@ -5,15 +5,15 @@
 
 import std/strutils
 import ./cmdname
-import ../../../core/globals
-import ../../db/store
-import ../../../core/errors
-import ../../../core/logfile
-import ../../ui/live
-import ../../ui/style
-import ../../confirm/confirm
-import ../../importer/remove
-import ../../user/session
+import ../../core/globals
+import ../db/store
+import ../../core/errors
+import ../../core/logfile
+import ../ui/live
+import ../ui/style
+import ../confirm/confirm
+import ../importer/remove
+import ../user/session
 
 {.push raises: [].}
 

@@ -17,16 +17,13 @@ sees and can be approved together.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
 3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
-   1. *(mechanical)* Done 2026-11-10 (`humanBytes` to `ui/units`; the eight commands into their packages).  Left of it: the
-      `commands/` group and the `cmd` suffix go with `activitiescmd` (step 7); the import test's
-      "a command module is imported only by its `package.nim`" still finds the module by its name, `command`: make it ask
-      the registry (the module of `CommandDecl.run`).
-   7. `selection` becomes a library (no command) with the extension point "activity criteria" (an option and
-      `resolve(store, user, values)` giving an `Sql` condition and notes, or an error); `climbs` contributes `--climb`.
-      New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; "the new activities become the
-      selection" after an import is `selection`'s, since it owns the table) and `calendar` (`nch calendar`: the selection or `--all`,
-      no criteria).  `activitiescmd` goes.  Two packages contributing one option name are refused when the registry
-      is made (as two commands of one name are).
+   7. *(in progress; decided with the author 2026-11-10)* The package `activities` exists (was `activitiescmd`).  Left:
+      the extension point "activity criteria", **defined by `activities`** (`activities/criterion.nim`: an option
+      description and `resolve(session, values)` giving an `Sql` condition on `activity a` and notes, or an error; joined
+      with `and` before `--invert`), and `climbs` depends on `activities` and contributes `--climb` (so `activities` no
+      longer depends on `climbs`); a test prepares the contributed piece as `climbs` alone.  Two packages contributing one
+      option name are refused when the registry is made.  Then `calendar` (`nch calendar`: the selection, or `--all` with
+      the selection in blue; no criteria) as a package of its own that depends on `activities` for the rows.
    8. **`nch packages`**: a command built into `nch.nim` (a package cannot import the registry), its logic a pure
       function in `core` (`core/inventory.nim`, tested).  It shows the packages in dependency order with their
       `depends`, tables, fragments, commands, the extension points each defines and what each contributes (with the

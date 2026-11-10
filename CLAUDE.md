@@ -50,8 +50,7 @@ nimchoo is a set of **packages** (built 2026-11-09; the design and its reasons a
 system can be extended with new fit-related functionality by adding a package, without editing the others.
 
 * a package is a directory under `src/nimchoo/packages/` that contains a `package.nim`; its **name is its directory's
-  name** (unique; compared as nim compares names).  directories without a `package.nim` only group (`text/`, `util/`,
-  and, until TODO step 3 is done, `commands/`).  `package.nim` has one constant, `package`, of type `Package`: `depends` (the packages it uses, by name),
+  name** (unique; compared as nim compares names).  directories without a `package.nim` only group (`text/`, `util/`).  `package.nim` has one constant, `package`, of type `Package`: `depends` (the packages it uses, by name),
   `fragments` (not used yet: see below) and `commands`.  inside the package the files are whatever they are called.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
   codes, the log, `ownership.nim` (which package owns which table) and `registry.nim` (the dependency order).
@@ -63,9 +62,8 @@ system can be extended with new fit-related functionality by adding a package, w
   package that owns its type; a **singular** one (`map`, `ff`, `log`) is a package of its own unless it is plainly one package's
   interface (`fit`, `cache`, `db`).  `package.nim` declares it (`commands: @[CommandDecl(name:, summary:, run:)]`); `nch.nim`
   looks the command up by name in the registry and builds the usage text from it; there is no other list of commands.
-  only a `package.nim` imports a `command.nim` (checked by a test).  **no command hides a cycle**: when a command would need
-  a package above its own, that package defines an extension point and the higher one contributes to it.  still apart, until
-  its step of TODO.md: `activitiescmd` (joins the listing, `--select` and `--delete`), in `packages/commands/`.
+  only a `package.nim` imports a package's `command.nim` (checked by a test); its other files are libraries that any package which lists it in `depends` may use.  **no command hides a cycle**: when a command would need
+  a package above its own, that package defines an extension point and the higher one contributes to it.
   the module that first introduces a concept owns it (eg `importer` owns activities) and later packages use its library files.
 * **imports** (`tests/core/test_imports.nim`): a file imports only its own package, `core`, standard and third-party
   libraries, and the packages in its `depends`.  `db_connector` is imported by `db` (and `core/fragment.nim`) only: `db` exports the types it hands out (`DbConn`).  `depends` must also name the packages whose **tables** it reads in SQL

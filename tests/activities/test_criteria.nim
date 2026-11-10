@@ -2,8 +2,8 @@ import nimchoo/packages/db/sqltext
 import std/[options, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
-import nimchoo/packages/commands/activitiescmd/criteria
-import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
+import nimchoo/packages/activities/criteria
+import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
 
 let utcZone = utc()

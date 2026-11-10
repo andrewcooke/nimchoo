@@ -1,4 +1,4 @@
-import ../../../core/manifest
+import ../../core/manifest
 import ./command
 
 const package* = Package(

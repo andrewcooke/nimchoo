@@ -4,10 +4,10 @@
 import ./core/[access, errors, extension, fragment, manifest]
 import ./core/registry as coreRegistry
 import ./packages/db/store as dbStore
+import ./packages/activities/package as pkgActivities
 import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/climbs/package as pkgClimbs
-import ./packages/commands/activitiescmd/package as pkgActivitiescmd
 import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
@@ -42,10 +42,10 @@ import ./packages/web/package as pkgWeb
 
 const packages*: seq[Registered] = inDependencyOrder(
   @[
+    Registered(name: "activities", package: pkgActivities.package),
     Registered(name: "bundle", package: pkgBundle.package),
     Registered(name: "cache", package: pkgCache.package),
     Registered(name: "climbs", package: pkgClimbs.package),
-    Registered(name: "activitiescmd", package: pkgActivitiescmd.package),
     Registered(name: "confirm", package: pkgConfirm.package),
     Registered(name: "db", package: pkgDb.package),
     Registered(name: "download", package: pkgDownload.package),

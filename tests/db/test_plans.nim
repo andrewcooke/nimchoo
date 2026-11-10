@@ -11,8 +11,8 @@ import nimchoo/packages/names/suggest
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup
-import nimchoo/packages/commands/activitiescmd/criteria
-import nimchoo/packages/commands/activitiescmd/ranges
+import nimchoo/packages/activities/criteria
+import nimchoo/packages/activities/ranges
 
 ## The queries that run for every file, every ride or every cell must find their rows through an index (a primary key,
 ## a unique key, or the spatial index), never by reading a whole table: one that does is correct on a test database and

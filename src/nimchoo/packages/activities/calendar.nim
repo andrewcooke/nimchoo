@@ -17,9 +17,9 @@
 ## with data `"  12 "`, a selected day `" [34]"`, a day with none `"  -- "`.
 
 import std/[algorithm, sequtils, strutils, tables, times]
-import ../../fit/time
-import ../../ui/style
-import ../../ui/vocabulary
+import ../fit/time
+import ../ui/style
+import ../ui/vocabulary
 import ./table
 
 {.push raises: [].}

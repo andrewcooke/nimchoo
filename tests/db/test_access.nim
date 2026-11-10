@@ -56,14 +56,14 @@ suite "access: statements":
     const
       inPackage = packageOfFile(
         currentSourcePath().parentDir.parentDir.parentDir / "src" / "nimchoo" /
-          "packages" / "commands" / "activitiescmd" / "command.nim"
+          "packages" / "activities" / "command.nim"
       )
       inCore = packageOfFile(
         currentSourcePath().parentDir.parentDir.parentDir / "src" / "nimchoo" / "core" /
           "x.nim"
       )
       inTests = packageOfFile(currentSourcePath())
-    check inPackage == "activitiescmd"
+    check inPackage == "activities"
     check inCore == ""
     check inTests == ""
 

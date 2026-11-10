@@ -1,5 +1,5 @@
 import std/[options, unittest]
-import nimchoo/packages/commands/activitiescmd/ranges
+import nimchoo/packages/activities/ranges
 
 suite "ranges: distances":
   test "always kilometres, a decimal number, no unit":

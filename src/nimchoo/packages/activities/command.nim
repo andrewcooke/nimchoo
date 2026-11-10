@@ -8,24 +8,24 @@
 import std/[options, sequtils, strutils, tables, terminal, times]
 import ./cmdname
 export cmdname
-import ../../../core/globals
-import ../../climbs/display
-import ../../climbs/report
-import ../../db/statement
-import ../../selection/selection
-import ../../db/store
+import ../../core/globals
+import ../climbs/display
+import ../climbs/report
+import ../db/statement
+import ../selection/selection
+import ../db/store
 import ./deleterun as deleteRun
-import ../../../core/errors
-import ../../fit/time
-import ../../../core/logfile
-import ../../ui/live
-import ../../ui/style
-import ../../ui/vocabulary
-import ../../util/args/[args, usage]
-import ../../text/fold/fold
+import ../../core/errors
+import ../fit/time
+import ../../core/logfile
+import ../ui/live
+import ../ui/style
+import ../ui/vocabulary
+import ../util/args/[args, usage]
+import ../text/fold/fold
 import ./[calendar, table]
 import ./criteria
-import ../../user/session
+import ../user/session
 
 {.push raises: [].}
 
