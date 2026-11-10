@@ -55,6 +55,7 @@ system can be extended with new fit-related functionality by adding a package, w
   contribution to a point nobody defines, and a point whose name does not start with its package's) and `contributes`.  inside the package the files are whatever they are called.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
   codes, the log, `ownership.nim` (which package owns which table) and `registry.nim` (the dependency order).
+* **`nch packages`** (built into `nch.nim`, which can see the registry; the logic is `core/inventory.nim`, the command `introspect.nim`) is the program describing itself, for debugging: the packages in dependency order (`nch packages`), one package (`nch packages NAME`), the extension points and who contributes to each in the order used (`--points`), the tables and who may read them (`--tables`), the dependencies as a tree (`--graph NAME`, `--reverse`) or by layer (`--graph`) or for Graphviz (`--dot`), and the settings in force with the fragments of the database against the program's (`--config`).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the
   packages found, in dependency order; it is checked in, and a test fails if it is stale.  a cycle, a missing
   dependency or a package or command name used twice stops the build.

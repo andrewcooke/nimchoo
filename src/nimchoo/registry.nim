@@ -90,6 +90,9 @@ const points*: seq[tuple[owner: string, point: PointDecl]] = collectPoints(packa
 const allFragments*: seq[Fragment] = collectFragments(packages)
   ## the schema: every package's fragments, in dependency order (after the database's own, `db/001-schema.sql`)
 
+const schema*: seq[Fragment] = baseFragments & allFragments
+  ## every fragment, the database's own first
+
 proc newAllAccess*(mode: AccessMode): Access =
   ## The access rules for all the packages, in this `mode`.
   try:

@@ -3,7 +3,9 @@
 ## this list, then any closing prose.  Pure: the width to wrap to is given.
 
 import std/strutils
+import ../../../core/wrap
 import ./args
+export wrap
 
 {.push raises: [].}
 
@@ -17,29 +19,6 @@ func label(d: OptDoc): string =
   result = d.names.join(", ")
   if d.metavar.len > 0:
     result.add " " & d.metavar
-
-func wrap*(text: string, width: int): seq[string] =
-  ## `text` broken into lines of at most `width` characters at spaces (a longer word has a line of its own).  A
-  ## newline in the text starts a new line.  Two spaces after a full stop stay two, unless the line ends there.
-  for paragraph in text.split('\n'):
-    var line = ""
-    for word in paragraph.split(' '):
-      if line.len == 0:
-        line = word
-      elif line.len + 1 + word.len <= width:
-        line.add " " & word
-      else:
-        result.add line.strip(leading = false)
-        line = word
-    result.add line.strip(leading = false)
-
-func prose*(text: string, width: int): string =
-  ## Paragraphs of text wrapped to `width`: the paragraphs are separated by a blank line, and a line break inside one is
-  ## only where the source was broken, so it becomes a space.  (For the introduction and the notes of a usage.)
-  var paragraphs: seq[string]
-  for p in text.strip(chars = {'\n'}).split("\n\n"):
-    paragraphs.add wrap(p.replace('\n', ' '), width).join("\n")
-  paragraphs.join("\n\n")
 
 func optionLines*(docs: seq[OptDoc], width: int): seq[string] =
   ## The lines for the options: two spaces, the names and the value, the help in a column, wrapped to `width`.

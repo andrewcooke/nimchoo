@@ -17,13 +17,6 @@ sees and can be approved together.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
 3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
-   8. **`nch packages`**: a command built into `nch.nim` (a package cannot import the registry), its logic a pure
-      function in `core` (`core/inventory.nim`, tested).  It shows the packages in dependency order with their
-      `depends`, tables, fragments, commands, the extension points each defines and what each contributes (with the
-      options a criterion adds); `--dot` writes the dependency graph for Graphviz.  Needs: the registry stamps each
-      contribution with the package that made it; a package declares the points it defines in `package.nim`
-      (`defines:`), and the registry refuses a contribution to a point nobody defines.  The registry's check for
-      duplicate command names knows this one.
    9. Each package's documentation is the `##` comment of its `package.nim`; the registry writes the front page (the
       packages in order, with their first lines); the feature detail of CLAUDE.md moves into them; CLAUDE.md
       ("general structure", "the shape of the commands", the extension-point rule) and PACKAGES.md describe the result.

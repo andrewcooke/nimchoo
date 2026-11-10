@@ -8,12 +8,14 @@ import
   ./db/test_access,
   ./db/test_orders,
   ./core/test_registry,
+  ./core/test_inventory,
   ./core/test_imports,
   ./core/test_ownership,
   ./core/test_logfile,
   ./text/fold/test_fold,
   ./core/test_errors,
-  ./test_structure
+  ./test_structure,
+  ./test_introspect
 import ./cache/test_cache
 import ./util/zip/test_zipbytes
 import ./util/zip/test_fuzz as zipFuzz

@@ -60,6 +60,9 @@ func inDependencyOrder*(
   for p in packages.sortedByIt(it.name.normalised):
     visit(p.name, byName, state, path, result)
 
+const builtinCommands* = ["packages"]
+  ## commands `nch` provides itself (a package cannot, for they need the registry); no package may take these names
+
 func collectCommands*(
     packages: seq[Registered]
 ): seq[CommandDecl] {.raises: [PackageError].} =
@@ -67,6 +70,11 @@ func collectCommands*(
   var seen: Table[string, string] # command -> the package that provides it
   for p in packages:
     for c in p.package.commands:
+      if c.name in builtinCommands:
+        raisePackage(
+          "package '" & p.name & "' provides the command '" & c.name &
+            "', which `nch` provides itself"
+        )
       if c.name in seen:
         raisePackage(
           "command '" & c.name & "' is provided by both '" & seen.getOrDefault(c.name) &

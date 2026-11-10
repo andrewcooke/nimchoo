@@ -9,7 +9,7 @@
 ## Errors from the database library (`DbError`) are turned into `StoreError`
 ## here, so nothing above this module sees them.
 
-import std/[options, os, sequtils, times]
+import std/[options, os, sequtils, strformat, times]
 import db_connector/db_sqlite
 import db_connector/sqlite3 as lowlevel
 import ../../core/errors
@@ -77,10 +77,13 @@ proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
   let rc = load_extension(db, "mod_spatialite", nil, addr err)
   discard enable_load_extension(db, 0)
   if rc != SQLITE_OK:
+    let why =
+      if err.isNil:
+        "unknown error"
+      else:
+        $err
     raiseStore(
-      "cannot load SpatiaLite (is the package that provides " &
-        "mod_spatialite installed?): " & (if err.isNil: "unknown error"
-      else: $err)
+      fmt"cannot load SpatiaLite (is the package that provides mod_spatialite installed?): {why}"
     )
   db.execScript("pragma trusted_schema = 1")
 
@@ -111,7 +114,7 @@ proc apply(db: DbConn, f: Fragment) {.raises: [StoreError].} =
     db.execScript("commit")
     done = true
   except StoreError as e:
-    raiseStore("applying " & f.name & ": " & e.msg)
+    raiseStore(fmt"applying {f.name}: {e.msg}")
   finally:
     if not done:
       try:
@@ -131,15 +134,33 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].
   for (name, sum) in have:
     let known = all.filterIt(it.name == name)
     if known.len == 0:
-      raiseStore("the database is from a newer version of nch (it has '" & name & "')")
+      raiseStore(fmt"the database is from a newer version of nch (it has '{name}')")
     if known[0].checksum != sum:
       raiseStore(
-        "the database was made by a different version of nch (its '" & name &
-          "' is not the one this version has)" & outOfDate
+        fmt"the database was made by a different version of nch (its '{name}' is not the one this version has){outOfDate}"
       )
   for f in all:
     if have.allIt(it[0] != f.name):
       apply(db, f)
+
+proc appliedFragments*(path: string): seq[(string, string)] {.raises: [StoreError].} =
+  ## The fragments (name, checksum) the database file at `path` says it has had, read as they are: nothing is applied,
+  ## so this is safe to ask of a database of another version.  Raises `StoreError` if there is no such file, or it is
+  ## not one of ours.
+  if not fileExists(path):
+    raiseStore(fmt"there is no database at {path}")
+  var db: DbConn
+  try:
+    db = db_sqlite.open(path, "", "", "")
+  except DbError as e:
+    raiseStore(e.msg)
+  try:
+    result = recorded(db)
+  finally:
+    try:
+      db_sqlite.close(db)
+    except DbError:
+      discard # (nothing useful can be done)
 
 proc close*(s: Store) {.raises: [].} =
   ## Close the database now (it is also closed when the last copy of the store goes, so this is
@@ -162,7 +183,7 @@ proc openStore*(
       createDir(parentDir(path))
     except OSError, IOError:
       raiseStore(
-        "cannot create the directory for " & path & ": " & getCurrentExceptionMsg()
+        fmt"cannot create the directory for {path}: {getCurrentExceptionMsg()}"
       )
   try:
     result.db = open(path, "", "", "")
@@ -196,7 +217,7 @@ proc openStore*(
 proc setAutoCheckpoint*(s: Store, pages: int) {.raises: [StoreError].} =
   ## Copy the log back into the database whenever it holds this many pages (0: never, leaving it to
   ## someone else, see checkpointer.nim; the last connection to close does it anyway).
-  s.db.execScript("pragma wal_autocheckpoint = " & $pages)
+  s.db.execScript(fmt"pragma wal_autocheckpoint = {pages}")
 
 proc begin*(s: Store) {.raises: [StoreError].} =
   ## Start a transaction.

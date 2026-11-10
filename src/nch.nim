@@ -4,8 +4,9 @@
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
-import std/[options, os, sequtils, strutils]
-import nimchoo/core/[globals, registry as packageRegistry]
+import std/[algorithm, options, os, sequtils, strutils]
+import nimchoo/core/[globals, manifest, registry as packageRegistry]
+import nimchoo/introspect
 import nimchoo/packages/util/args/args
 import nimchoo/registry
 import nimchoo/core/logfile
@@ -13,6 +14,9 @@ import nimchoo/packages/util/version/version
 import nimchoo/packages/util/zip/zipchild
 
 {.push raises: [].}
+
+const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
+  ## the commands of the packages, and those `nch` provides itself
 
 const usage =
   """usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]
@@ -25,7 +29,7 @@ const usage =
 
 commands:
 """ &
-  commandList(registry.commands) & """
+  commandList(allCommands) & """
 For more about a command: `nch COMMAND --help`.
 """
 
@@ -69,10 +73,10 @@ proc main(): int {.raises: [].} =
     stdout.say usage
     return exitOk
   let name = args[i]
-  let provided = registry.commands.filterIt(it.name == name)
+  let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
     return usageError("nch", usage, "unknown command " & name)
-  g.commandNames = registry.commands.mapIt(it.name)
+  g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:

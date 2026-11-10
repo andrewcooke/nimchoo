@@ -48,6 +48,7 @@ func registryText*(found: seq[Found]): string =
   result.add "\nconst commands*: seq[CommandDecl] = collectCommands(packages)\n"
   result.add "\nconst points*: seq[tuple[owner: string, point: PointDecl]] = collectPoints(packages)\n  ## the extension points the packages define\n"
   result.add "\nconst allFragments*: seq[Fragment] = collectFragments(packages)\n  ## the schema: every package's fragments, in dependency order (after the database's own, `db/001-schema.sql`)\n"
+  result.add "\nconst schema*: seq[Fragment] = baseFragments & allFragments\n  ## every fragment, the database's own first\n"
   result.add "\nproc newAllAccess*(mode: AccessMode): Access =\n  ## The access rules for all the packages, in this `mode`.\n  try:\n    result = accessOf(packages, baseFragments & allFragments, mode)\n  except PackageError as e:\n    raiseAssert e.msg\n\nlet allAccess*: Access = newAllAccess(amEnforce)\n  ## the rules `nch` and the tests run under\n"
   result.add "\nlet extensions*: Extensions = collectExtensions(packages)\n  ## what the packages contribute to each other (made when `nch` starts)\n"
 
