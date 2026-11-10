@@ -16,10 +16,6 @@ sees and can be approved together.
       except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
    2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
       big changes to a reader.
-3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
-   9. Each package's documentation is the `##` comment of its `package.nim`; the registry writes the front page (the
-      packages in order, with their first lines); the feature detail of CLAUDE.md moves into them; CLAUDE.md
-      ("general structure", "the shape of the commands", the extension-point rule) and PACKAGES.md describe the result.
 4. **Options carry their help; parse into variants** (A §7 step 9) for the other commands.  Built for `activities` (3.6, 2026-11-10:
    `OptDoc`, `.documented`, `util/args/usage.nim`, `ui/live.helpWidth`; the completion kind is defined but only `activities` sets it
    and nothing reads it yet).  Left: convert the other commands (climbs first, with the nested `--edit` options; then `help`

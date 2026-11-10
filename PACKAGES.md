@@ -6,7 +6,7 @@ checker, inferred table ownership, every module a package, every command a packa
 built and what is left".  The text that describes how it works now is in CLAUDE.md ("general structure"); this file
 keeps the design and the reasons.
 
-**Revised by the second review (REVIEW.md §4, §5, 2026-11-09; TODO.md step 3; not built yet)**: the layer of command
+**Revised by the second review (REVIEW.md §4, §5, 2026-11-09; built 2026-11-10)**: the layer of command
 packages goes (commands live in the package that owns what they manage, and a cycle becomes an extension point); the
 `user` table moves from `db` to `user`; an `Sql` records the packages that wrote it.  Where this file says otherwise,
 REVIEW.md is the newer decision.
@@ -272,27 +272,20 @@ In this order:
    gone, and `tests/db/test_orders.nim` builds the schema in other valid orders and from a database made before a
    package's later fragments, and compares.
 
-What is left is in TODO.md: the second round of the packages (step 3), then options that carry their help (step 4) and
-later, each command being rewritten once in its final home.  A package's documentation is to be the `##` comment of its
-`package.nim`, which `nimble docs` renders (REVIEW.md §7); the feature detail now in CLAUDE.md moves there.
+The second round (2026-11-10, REVIEW.md §4 and §5) built the rest: the commands went into their packages (there is no
+`commands/` group and no `cmd` suffix), `user` owns the `user` table (`Session`, `openSession`), `db_connector` is imported by
+`db` only, an `Sql` records the packages that wrote its pieces, and the extension points that break the cycles were made
+(after import, what a user has, pages the server may run, activity criteria).  `nch packages` shows the result, and each
+package documents itself.
 
 ## The packages, as built
 
-What each is for; what it depends on is in its `package.nim` (not repeated here, so that it cannot differ), and what
-tables it owns is in its SQL.
-
-* **`core/`** (not a package): `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
-  codes, the log (`Log`, `Level`, `LogEvent`), table ownership, the dependency order and the usage list.
-* **`util/`**: `args` (option parsing), `atomic` (files written whole), `bytes` (numbers out of bytes), `child` and
-  `childasync` (child processes), `hashing`, `lookup` (`must`), `profiling`, `version`, `warnings`, `xlsx`, `zip`.
-* **`text/`**: `fold` (text compared without case or accents), `proquint`, `templating`.
-* **others**: `geo`; `ui` (looks, units, intervals, the live display, `columns`); `confirm` (the pause before a delete);
-  `db` (SQL by name, statements, the `Store`, fragments; owns `fragment`); `cache`; `bundle` (files unpacked
-  from the program); `download`; `fit` (FIT files and the profile); `names` (GeoNames features and the author's
-  landmarks); `importer` (activities); `heartrate`; `model` (impulses); `user`; `climbs`; `selection` (the stored
-  selection and its address); `web` (the server `map` and `ff` use).
-* **Commands** are in their packages (2026-11-10; there is no `commands/` group): `users` in `user`, `import` in `importer`, `activities` and `calendar` in packages of their own,
-  and `fit`, `cache`, `db`, `climbs`, `names` (`landmarks`), `model` (`models`), and the packages `log`, `map` and `ff`.
+**What each package is for, what it owns and its rules are in the `##` comment at the top of its `package.nim`**, which is
+its page on the documentation site (`nimble docs`; the front page lists them all), and which `nch packages NAME` prints.
+What it depends on is in its `package.nim` and what tables it owns is in its SQL, not repeated here, so that they cannot
+differ; `nch packages`, `--tables`, `--points` and `--graph` show them.  `core/` is not a package: `errors`, `ids`, the
+`Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit codes, the log, table ownership, the dependency order
+and the inventory.
 
 ## Decisions (the author, 2026-11-09)
 

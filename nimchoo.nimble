@@ -18,6 +18,8 @@ requires "checksums"
 # reports the string below; `nimble fmt` and the check in `nimble test` refuse any other.
 const nphVersion = "prerelease-0-g2cacf6c-dirty"
 const formatted = "src tests tools"
+const formatExclude = "--extend-exclude:\"src/nimchoo/registry\\.nim\" "
+  ## the registry is written by tools/genregistry.nim and is not formatted: a test compares it with the generator's text
 
 proc requireNph() =
   let (found, code) = gorgeEx("nph --version")
@@ -28,11 +30,11 @@ proc requireNph() =
 
 task fmt, "Format the sources with nph":
   requireNph()
-  exec "nph " & formatted
+  exec "nph " & formatExclude & formatted
 
 task fmtcheck, "Stop if a file is not in nph's format (nimble test runs this first)":
   requireNph()
-  exec "nph --check " & formatted
+  exec "nph --check " & formatExclude & formatted
 
 task registry,
   "Write src/nimchoo/registry.nim: the packages found under src/nimchoo/packages (the other tasks run this first)":

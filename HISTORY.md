@@ -3130,3 +3130,31 @@ on this 1-core-ish VM).  **No failures** in any: no crash, oom or timeout, nothi
 fit 1.8, importer 2.1, profile 30, bits 48, request 54, xlsx 86, zip 190.  Peak memory: 35 to 75 MB (fit, importer, bits, request),
 about 500 MB (profile, zip), 1.3 GB (xlsx: Nim's exception-chaining leak on failed opens, see above; not changed).
 Coverage had stopped growing in each by the end.  Rerun after a big change to a reader.
+
+The second round of the packages (2026-11-10, REVIEW.md §4 and §5; TODO.md step 3): done, in this order.
+
+* `humanBytes` moved to `ui/units` (a low package had grown upward); the commands with no cycle went into their packages
+  (`fit`, `cache`, `db`, `climbs`, `names`, `model`; `log`, `map` and `ff` became packages), and the `commands/` group and the
+  `cmd` suffix went with the last two.  The rule "only a `package.nim` imports a command" is about `command.nim` alone: a
+  package's other files are libraries for the packages that depend on it (the author pointed out that the old rule came from
+  the time when a command package was a layer nothing could depend on).
+* `db_connector` is imported by `db` only (and `core/fragment.nim`).  An `Sql` records the packages whose files wrote its
+  pieces: a read is allowed if the runner or any of them may make it, a write only to the runner.
+* `user` owns the `user` table; `openStore` only opens, `openSession` finds the user (a `Session`).  `nch users` is a command
+  of `user` with the point "what a user has"; the FTHR note became generic (what is worked out from the FTHR is worked out
+  again) so `model` needs no part in it.  The database had to be rebuilt.
+* The point "pages the server may run" replaced `commandRules`.  `nch import` became a command of `importer`, with the point
+  "after import" (the author chose to keep the blue of the selection, named by meaning: `selectedColour`; `selection`
+  contributes, as the owner of the table).  Options describe themselves (`OptDoc`), and the usage is made from them, wrapped
+  to the terminal's width (120 when piped).
+* The point "activity criteria" is **defined by `activities`**, not by `selection` as REVIEW.md had it: once commands live in
+  their packages `climbs` may depend on `activities`, and the point follows the pattern of the others (the package that runs
+  the contributions defines it).  `climbs` offers `--climb`, and `activities` no longer depends on `climbs`.  `calendar` is
+  a package of its own (the selection, or `--all`; no criteria).
+* `nch packages`: the program describing itself (packages, one package with its documentation, `--points`, `--tables`,
+  `--graph` as a tree or by layer, `--dot`, `--config`).  Points are declared (`defines:`), and contributions say which
+  package made them.
+* Each package documents itself in the `##` comment at the top of its `package.nim`; the registry generator reads it (and
+  refuses a package without one, with a message that says what to write), writes the front page of the documentation, and
+  `nch packages` shows it.  CLAUDE.md lost the feature detail that moved there (422 lines to 230).
+
