@@ -17,7 +17,7 @@ func quint16(x: uint16): string =
     $consonants[int(x) and 15]
 
 func proquint*(bytes: openArray[byte]): string =
-  ## The bytes (an even number of them) as groups of five letters: [0x7f, 0, 0, 1] -> "lusab-babad".
+  ## The bytes (an even number of them) as groups of five letters: `[0x7f, 0, 0, 1]` -> "lusab-babad".
   for i in countup(0, bytes.high - 1, 2):
     if result.len > 0:
       result.add '-'

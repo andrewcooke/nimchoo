@@ -18,3 +18,4 @@ nimble.develop
 /tools/fuzz
 /fuzz-bin/
 /fuzz-corpus/
+/doc/

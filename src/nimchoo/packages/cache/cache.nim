@@ -91,7 +91,7 @@ func isRequestStem(base: string): bool =
 
 func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
   ## The inverse of `fileStem`: "ff--check-ab12--style-lines" is the command
-  ## "ff" and the options [("check", "ab12"), ("style", "lines")].  None if it is not
+  ## "ff" and the options `[("check", "ab12"), ("style", "lines")]`.  None if it is not
   ## a name `fileStem` would make.
   let parts = stem.split("--")
   if not isCommandName(parts[0]):

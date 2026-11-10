@@ -73,7 +73,7 @@ proc resolveDbPath*(option: string): string =
   let env = getEnv("NCH_DB")
   if env.len > 0:
     return env
-  string(getDataDir()) / "nch" / "nch.db"
+  getDataDir() / "nch" / "nch.db"
 
 proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
   ## Load the SpatiaLite extension (geometry types and functions).  It is needed

@@ -38,6 +38,10 @@ task registry,
   "Write src/nimchoo/registry.nim: the packages found under src/nimchoo/packages (the other tasks run this first)":
   exec "nim c -r --hints:off -o:tools/genregistry tools/genregistry.nim"
 
+task docs, "Write the generated documentation to doc/ (git-ignored); it must end without warnings":
+  exec "nimble registry"
+  exec "nim doc --project --index:on --hints:off --warningAsError:BrokenLink:on --outdir:doc src/nch.nim"
+
 task test,
   "Run all tests (optimised, with run-time checks on: about 5x faster than a debug build)":
   # (some tests run a program: built like the tests, and kept apart from ./nch so that a test build never
