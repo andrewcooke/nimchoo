@@ -119,6 +119,28 @@ suite "xlsx reader: bad input":
         "</row></sheetData></worksheet>"
     ) != "no error"
 
+  test "a character reference that is not a character is an error, not a Defect":
+    # (std/parsexml turns the number into a Rune without a check: a Defect at 19 digits, or past 32 bits)
+    for badRef in [
+      "&#99999999999;", "&#1114112;", "&#x110000;", "&#xFFFFFFFFFFFFFFFFFF;",
+      "&#99999999999999999999999;", "&#000000000000000000000001114112;",
+    ]:
+      let msg = sheetError(
+        "<worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>" & badRef &
+          "</t></is></c></row></sheetData></worksheet>"
+      )
+      check "s1.xml" in msg
+      check "character reference" in msg
+
+  test "character references that are characters are read":
+    let wb = openWorkbook(
+      xlsxWithSheetXml(
+        "<worksheet><sheetData><row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>" &
+          "&#65;&#x42;&#x10FFFF;&#0000067;&amp;</t></is></c></row></sheetData></worksheet>"
+      )
+    )
+    check wb.rows("One")[0].cell(0) == "AB\u{10FFFF}C&"
+
   test "malformed workbook xml":
     let z = storedZip(
       @[

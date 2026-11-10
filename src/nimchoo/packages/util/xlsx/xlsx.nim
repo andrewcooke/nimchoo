@@ -5,7 +5,7 @@
 ## Cell values are returned as the text in the file: numbers are not
 ## converted, shared strings are resolved, formulas are not evaluated.
 
-import std/[parsexml, streams, strutils, tables]
+import std/[parsexml, streams, strformat, strutils, tables]
 import ../../../core/errors
 import ../lookup/lookup
 import ../zip/zipbytes
@@ -38,13 +38,45 @@ proc extract(z: string, e: ZipEntry): string {.raises: [XlsxError].} =
 
 proc file(wb: Workbook, path: string): string {.raises: [XlsxError].} =
   if path notin wb.entries:
-    raiseXlsx("no " & path & " in the xlsx file")
+    raiseXlsx(fmt"no {path} in the xlsx file")
   extract(wb.data, wb.entries.must(path))
 
 # --- xml
 
+const maxCodePoint = 0x10FFFF
+
+func digitValue(c: char): int =
+  ## The value of a hexadecimal digit (the caller has checked that it is one).
+  case c
+  of '0' .. '9':
+    ord(c) - ord('0')
+  of 'a' .. 'f':
+    ord(c) - ord('a') + 10
+  else:
+    ord(c) - ord('A') + 10
+
+proc checkCharRefs(xml, path: string) {.raises: [XlsxError].} =
+  ## Refuses a character reference (`&#123;`, `&#x7B;`) whose number is not a Unicode code point.  `std/parsexml` makes a
+  ## character of the number without looking at it, and a huge one is a Defect there (RangeDefect past 32 bits,
+  ## OverflowDefect at about 19 digits), not an error; found by the fuzzer (tests/util/xlsx/test_fuzz.nim).  Remove this
+  ## when Nim does the check (https://github.com/nim-lang/Nim/issues/26681).  It also refuses such a text in a comment or CDATA, which Excel never writes.
+  var i = xml.find("&#")
+  while i >= 0:
+    var p = i + 2
+    let hex = p < xml.len and xml[p] == 'x'
+    if hex:
+      inc p
+    var value = 0
+    while p < xml.len and (if hex: xml[p] in HexDigits else: xml[p] in Digits):
+      value = value * (if hex: 16 else: 10) + digitValue(xml[p])
+      if value > maxCodePoint:
+        raiseXlsx(fmt"{path}: character reference is not a character (past U+10FFFF)")
+      inc p
+    i = xml.find("&#", p)
+
 proc openXml(xml, path: string): XmlParser {.raises: [XlsxError].} =
   ## `path` (the name in the zip) appears in error messages.
+  checkCharRefs(xml, path)
   const bom = "\xEF\xBB\xBF"
   let text =
     if xml.startsWith(bom):
@@ -54,14 +86,14 @@ proc openXml(xml, path: string): XmlParser {.raises: [XlsxError].} =
   try:
     result.open(newStringStream(text), path, {reportWhitespace})
   except IOError, OSError:
-    raiseXlsx(path & ": " & getCurrentExceptionMsg())
+    raiseXlsx(fmt"{path}: {getCurrentExceptionMsg()}")
 
 proc nextEvent(x: var XmlParser) {.raises: [XlsxError].} =
   ## `x.next()`.  (parsexml can raise ValueError for a bad character reference.)
   try:
     x.next()
   except ValueError, IOError, OSError:
-    raiseXlsx("malformed xml: " & getCurrentExceptionMsg())
+    raiseXlsx(fmt"malformed xml: {getCurrentExceptionMsg()}")
 
 proc xmlProblem(x: XmlParser): string {.raises: [].} =
   ## The parser's description of what is wrong, with file, line and column.
@@ -213,11 +245,11 @@ func cellPosition(r: string): (int, int) {.raises: [XlsxError].} =
     of '0' .. '9':
       row = row * 10 + (ord(c) - ord('0'))
     else:
-      raiseXlsx("bad cell reference " & r)
+      raiseXlsx(fmt"bad cell reference {r}")
     if col > maxCols or row > maxRows:
-      raiseXlsx("cell reference out of range: " & r)
+      raiseXlsx(fmt"cell reference out of range: {r}")
   if letters == 0 or row == 0:
-    raiseXlsx("bad cell reference " & r)
+    raiseXlsx(fmt"bad cell reference {r}")
   (row - 1, col - 1)
 
 proc parseSheet(
@@ -277,7 +309,7 @@ proc parseSheet(
               except ValueError:
                 -1
             if i < 0 or i >= shared.len:
-              raiseXlsx("bad shared string " & text)
+              raiseXlsx(fmt"bad shared string {text}")
             value = shared[i]
           while result.len <= row:
             result.add Row()
@@ -314,7 +346,7 @@ proc rows*(wb: Workbook, sheet: string): seq[Row] {.raises: [XlsxError].} =
   ## All rows of `sheet`, indexed by 0-based row number (empty rows are empty
   ## tables).  Raises XlsxError if there is no such sheet.
   if sheet notin wb.sheets:
-    raiseXlsx("no sheet called " & sheet)
+    raiseXlsx(fmt"no sheet called {sheet}")
   parseSheet(wb.file(wb.sheets.must(sheet)), wb.sheets.must(sheet), wb.shared)
 
 func cell*(row: Row, col: int): string =
