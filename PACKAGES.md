@@ -6,6 +6,11 @@ checker, inferred table ownership, every module a package, every command a packa
 built and what is left".  The text that describes how it works now is in CLAUDE.md ("general structure"); this file
 keeps the design and the reasons.
 
+**Revised by the second review (REVIEW.md §4, §5, 2026-11-09; TODO.md step 3; not built yet)**: the layer of command
+packages goes (commands live in the package that owns what they manage, and a cycle becomes an extension point); the
+`user` table moves from `db` to `user`; an `Sql` records the packages that wrote it.  Where this file says otherwise,
+REVIEW.md is the newer decision.
+
 ## What a package is, and what it is not
 
 Nim has **modules** (one `.nim` file) and nothing larger.  A directory means nothing to the language; "package" in

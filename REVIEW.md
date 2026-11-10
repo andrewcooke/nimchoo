@@ -1,4 +1,268 @@
-# nimchoo: code review (2026-11-08)
+# nimchoo: code review (second, 2026-11-09)
+
+Scope.  The state of the plan of the first review (appendix A), with the author's questions: is fuzzing done; is the
+access model right; are the command packages a way round the DAG; and tools (a formatter in the build, generated
+documentation).  Read: TODO.md, PACKAGES.md, HISTORY.md (the entries since 2026-11-08), every `package.nim`, the fuzzer
+(`tests/fit/test_fuzz.nim`, `tests/support/fitmutate.nim`), `core/access.nim`, `core/extension.nim`, `core/manifest.nim`,
+`packages/db/access.nim`, `packages/db/sqltext.nim`, `packages/db/store.nim`, the imports of every command package.
+Run: `nimble test` (1348 tests, all pass, 50 s, no warnings), `nph --check`, `nim doc --project`, a libFuzzer harness.
+Sections 3 to 7 were discussed with the author, and the decisions are theirs (marked **decided**).
+
+## 1. Summary
+
+The first review's plan has gone well.  Steps 1 to 7 (bugs, conventions, dead code, typed database access with named
+values) are done and hold up; the package framework (step 8) is built, with a registry, an import checker, inferred
+table ownership and, beyond the plan, an access model that SQLite enforces.  Two things are not right yet:
+
+* **Fuzzing** is half done: the FIT fuzzer is good but has never been shown to find a bug, and it fuzzes the reader of
+  `nch fit`, not the importer.  The other readers and coverage-guided fuzzing are not started (§3).
+* **Command packages** (`packages/commands/*cmd`) are, in two cases out of eleven, a way round the DAG rather than a
+  layer: merged back with the packages they manage they would make cycles.  The `cmd` layer goes; commands go back
+  into their packages; the cycles become extension points (§5).
+
+The access model is sound and stays, with one addition so that extension points can contribute SQL (§4).
+
+## 2. The plan of the first review: where it stands
+
+| Step | State |
+|---|---|
+| 1 housekeeping, 2 tests that find bugs | done |
+| 3 the bug classes A–L | done, except the fuzzers (§3) |
+| 4 the reported bugs, 5 conventions, 6 dead code | done |
+| 7 typed database access, values by name, `Sql` | done |
+| 8 packages | built (PACKAGES.md); the command layer is revised here (§5); package READMEs wait for the doc tool (§7) |
+| 9 options carry their help | not started; part of it is needed earlier now (§5, criteria) |
+| 10–14 completion, one owner per fact, SQL, shrink, larger changes | not started |
+
+Small drift found (each is a TODO item):
+
+* 6 files no longer in nph's format (`user/package.nim`, `tests/core/test_registry.nim`, ...): nothing checks it (§7).
+* `activitiescmd/cmdname.nim` has no `{.push raises: [].}`.
+* `db/sqltext.nim`'s header says short queries use `?`, which is now a compile error.
+* PACKAGES.md lists built work under "Left"; TODO.md's step 8 is history.
+* `nch.nim`'s doc comment is not valid RST (`*cmd/` opens emphasis), so `nim doc` stops; two broken-link warnings.
+* CLAUDE.md is 418 lines, much of it feature detail (the first review's §9.5): it moves to the packages' docs (§7).
+* `web/request.nim` `commandRules` names `map` and `ff` and their options: a fact of two higher packages, written
+  in a lower one (§5).
+
+## 3. Fuzzing
+
+**What was built is good**: `fitmutate.nim` walks the records and damages what the decoder trusts (field sizes, base
+types, counts, record headers, compressed timestamps), then repairs the CRCs so that the damage reaches the decoder;
+fixed seed; failing inputs saved.  A run of 84,000 mutations found nothing.  Why it looked unproductive:
+
+* **It has never been shown to find a bug.**  The class L bugs were found by reading and confirmed with tests; the
+  fuzzer ran after they were fixed.  Finding nothing means little until it is shown that it would have found them.
+* **It fuzzes the wrong consumer.**  It runs `renderInto` (`nch fit`).  The importer's `readActivities`
+  (`importer/extract.nim`) is pure and runs on every file imported, and it does the arithmetic on times and positions
+  (sessions, timer segments, stretches).  (The first review said "the FIT decoder": its wording.)
+* **The other inputs are not fuzzed**: `decodeBits` (from a URL: the most exposed), the xlsx and zip readers, the
+  server's `parseTarget`.
+
+### Level 1 (an ordinary test, in `nimble test`)
+
+1. **Show that it finds a bug**: remove one guard that was added for class L (`isFitTime` before `fitToTime`) in a
+   scratch copy, run the fuzzer with its default rounds; it must report the `OverflowDefect`.  Record the result in
+   HISTORY.md.  If it does not, improve the mutator (values in `date_time` fields wider than 32 bits) before going on.
+2. **The importer**: every mutated file also goes through `readActivities`, with and without the `heart_rate`
+   channel; ends in success, a `FitError` or an `ImportError`.  Add one or two large real files (developer fields,
+   many message types) with fewer rounds: the 12 KB limit leaves them out.
+3. **`decodeBits`**: random strings over the URL-safe alphabet, and damaged valid encodings (bit flips, truncation,
+   appended characters, huge run lengths); the result is an error or ids in 1..`maxId`, never a Defect.
+4. **xlsx and zip**: damage `Profile.xlsx` in the container (local header sizes, compression method, CRC, central
+   directory) and in the inflated XML; the result is a `ProfileError` (or the zip's error).  The GeoNames reader goes
+   through the same zip code.
+5. **`parseTarget`** (the request path and query, percent-decoded): random and damaged addresses.
+6. Every failure found (here or at level 2) is saved under `tests/data/fuzz/<target>/` and a test replays the
+   directory, so a fixed bug stays fixed.
+
+### Level 2 (libFuzzer: coverage-guided, run by hand, not in the tests)
+
+Checked on this machine (2026-11-09): clang 21 works, but it chooses GCC 16, which has no `libstdc++.so` (the
+installed `libstdc++-devel` is GCC 15's), so linking fails with `cannot find -lstdc++`.  Passing
+`--gcc-install-dir=/usr/lib64/gcc/x86_64-suse-linux/15` to both compile and link fixes it; nothing to install.  A toy
+Nim harness then found its planted `IndexDefect` in seconds.
+
+* **A harness per target** in `tests/fuzz/` (`fit_decode`, `fit_import`, `bits`, `xlsx`, `request`): a Nim proc
+  `LLVMFuzzerTestOneInput(data: ptr UncheckedArray[byte], len: int): cint {.exportc, cdecl.}` that calls the target and
+  treats the expected exceptions as success.  The profile is loaded once (a module-level `let`, which is allowed in a
+  test tool), not per input.
+* **Build**: `nim c --cc:clang --noMain -d:release --checks:on --panics:on -d:useMalloc` with
+  `--passC/--passL:"-fsanitize=fuzzer,address --gcc-install-dir=..."`.  `--panics:on` makes a Defect abort, which
+  libFuzzer records as a crash; `-d:useMalloc` lets the address sanitizer see Nim's memory.
+* **`nimble fuzz`**: `nimble fuzz TARGET [SECONDS]` builds and runs one harness, corpus in a git-ignored
+  `fuzz-corpus/<target>/` seeded from the test files (FIT) or from valid examples (bits, request); crashes are written
+  to `tests/data/fuzz/<target>/` (level 1 replays them).  The GCC directory is found by the task (the newest
+  `gcc/x86_64-suse-linux/*` that has `libstdc++.so`), not written in.
+* **Time box**: one hour per target.  What it finds is fixed (a test first); if nothing, record it in HISTORY.md and
+  stop.  Fuzzing is then done, apart from a rerun after big changes to a reader.
+
+## 4. The access model
+
+**Sound; it stays.**  SQLite's authorizer is the database's own mechanism; it checks exact tables, not a scan of text;
+it costs nothing per row; the grant is the `depends` that is already declared (one fact); it found about ten real
+violations and made the owners do their own writes.  The cascade rule (a cascade's reach is the database's doing) is
+subtle but correct and is tested against SQLite.  Three changes:
+
+1. **SQL built by more than one package** (**decided**: option (a)).  A statement is checked as the package of the
+   file that runs it.  An extension point that contributes SQL breaks this: `climbs` contributes a `--climb` condition
+   on `effort`, and the package that runs the query may not read `effort`.  (`replaceSelection` taking ids rather than
+   a query is the same problem met earlier.)  The fix: an `Sql` records the packages whose files wrote its pieces, as
+   the helpers already do (`instantiationInfo` and `packageOfFile`, when the program is compiled; nobody writes a
+   package's name by hand).  `sqlOf` and the `&` that joins a plain string become templates; `&` of two `Sql` joins
+   their sets.  The rule (after `/oppose`):
+   * **a read** is allowed if the runner (the file that executes the statement, known as today) or any package of the
+     set may make it.  The runner is added explicitly: an `Sql` handed on unchanged does not contain it;
+   * **a write or a change of definition** is allowed to the runner alone.  Otherwise a contributed piece in
+     `insert into selection select ... where <piece>` would let the runner write the contributor's tables.
+
+   The cost, accepted: in a mixed statement the runner's own pieces could read the contributor's tables unnoticed (a
+   mistake-catcher, not a wall).  It is covered on the contributor's side by a test: each contributed criterion, wrapped
+   as `select a.id from activity a where <piece>`, is prepared as the contributor alone and must pass.  The alternatives
+   were a temporary table of ids written by the contributor, and lists of ids.
+2. **Nothing confines the raw library.**  Every statement goes through the checked helpers today (checked by grep), but
+   six files outside `db` import `db_connector/db_sqlite` (for `DbConn`).  `db` re-exports the types it hands out, and
+   the import checker allows `db_connector` in `db` only.
+3. **`db` owns the `user` table** (**decided**: move it).  The reason, from the history: every per-user table hangs off
+   `user`, and `openStore` (`db/store.nim`) resolves the current user when it opens the database (it makes the
+   `default` user in an empty database, applies `--user`, and keeps the id and name in the `Store`).  The way round:
+   `openStore` opens the file and applies fragments, nothing else; the `user` package owns `user` and `user_profile`
+   and has `openSession(g): Session` (the store and the user), which does today's lookup; commands call it.  Three
+   packages' tables refer to `user` (importer, selection, user) and add it to `depends`.  `db` then knows no domain.
+
+## 5. Commands back into their packages (**decided**, revised after `/oppose`)
+
+### Diagnosis
+
+The test (the author's): merge each command package with the package whose things it manages and see where a cycle
+appears.
+
+| Command | Goes into | Cycle? |
+|---|---|---|
+| `fit`, `climbs`, `landmarks`, `models`, `cache` | `fit`, `climbs`, `names`, `model`, `cache` | no |
+| `db` | `db` | no, once `humanBytes` (a number format, the only thing `nch db` takes from `download`) moves to `ui/units`; then `db` gains only `args`, `confirm` and `ui` |
+| `log`, `map`, `ff` | packages of their own: `log`, `map`, `ff` | no: features that own no tables |
+| **`activities`** | `importer` | **yes**: needs `selection` and `climbs`, which are above `importer` |
+| **`users`** | `user` | **yes**: needs `importer` (counts) and `model` (impulses), above `user` |
+| (hidden) | `web/request.nim` | names `map` and `ff` and their options, from below them |
+
+Eight of the eleven were only naming; two (and the server's list) hid a cycle.  The layer "commands above libraries"
+let a command know everything above its concept, which is the opposite of extensibility: a later package (training
+load, weather) could not add a criterion to `activities` or a line to `users` without editing them.
+
+### The rules
+
+* **A package may provide commands.**  A **plural** command (`activities`, `climbs`, `users` ...: CLAUDE.md, "the shape
+  of the commands") goes with the package that owns its type.  A **singular** command (`map`, `ff`, `log`, `calendar`)
+  is a package of its own, unless it is plainly one package's interface (`fit`, `cache`, `db`, `import`).
+* **No command hides a cycle.**  When a command would need a package above the one it belongs to, that package
+  defines an extension point and the higher package contributes to it.
+* **An extension point is made whenever the alternative is a cycle**, even with one contributor.  This replaces
+  PACKAGES.md's "a new point is added only when a second real case exists" (that rule guarded against speculative
+  design; the aim of adding a package without editing others is the reason now).
+* **A low package that grows upward is a smell even without a cycle**: move the misplaced function (as `humanBytes`)
+  rather than add the dependency.
+* The `commands/` group and the `cmd` suffix go.  Kept: a command module is imported only by its `package.nim`
+  (commands are not libraries).  The command module is the one that `CommandDecl.run` comes from, which the registry
+  generator knows; the test asks it, not a file-naming convention.
+
+### Activities: a library and several commands (**decided**)
+
+`activitiescmd` (2,300 lines: criteria and ranges 850, the command 550, table and display 290, live display and log
+220, import 175, calendar 145, delete 85) is taken apart by layer:
+
+| Package | What | Depends on (new) |
+|---|---|---|
+| `importer` | the activity tables; **`nch import PATH...`**; the extension point "after import" | `user` |
+| `selection` | **a library, no command**: the stored selection, the map address, the criteria language with the extension point "activity criteria"; turns criteria or the stored selection into activity ids | `importer`, `user` |
+| `activities` (new) | `nch activities [CRITERIA] [--select] [--delete] [-v]`: the table, saving the selection, deleting through `importer/remove`; contributes "the new activities become the selection" to "after import" | `selection`, `importer` |
+| `calendar` (new) | `nch calendar` (was `activities --calendar`): the selection, or `--all`; no criteria, like `climbs` and `map`.  Later the fitness background (TODO.md) is a direct dependency on `model`, with no point | `selection`, `importer` |
+| `climbs`, `map` | as now; contribute `--climb` (`climbs`) | `selection` |
+
+* **`nch import` reverses a rule of CLAUDE.md** ("the shape of the commands": there is no `import`, it is
+  `activities --import`); the author chose it.  It also ends the oddity of the log naming `import` (A §3.1 F).
+* `--select` and `--delete` stay on `activities` (the grammar of the plural commands).  Criteria belong to
+  `activities` alone; the other views take the selection or `--all` (CLAUDE.md, "activity selection").
+* "After import" (**decided**): `importer` calls the contributions once per import, after the commit, with the store,
+  the user and the new activity ids.  If one fails the import stands and a warning says the selection was not changed.
+  (The alternative was a "last import" criterion and no point.)
+
+### The extension points
+
+| Point | Defined by | Contributed by | Value |
+|---|---|---|---|
+| activity criteria | `selection` | `climbs` (`--climb`) | see below |
+| after import | `importer` | `activities` | a proc (store, user, new ids) |
+| what a user has | `user` | `importer` (activities) | a column for `nch users`: a heading and a count for a user |
+| pages the server may run | `web` | `map`, `ff` | today's `CommandRule` (name, options, flags, the pinned option) |
+
+* **A criterion** is more than an option and an `Sql`.  `--climb` takes the words up to the next option, resolves them
+  against the database ("no climb has 'x' in its name" is an error) and adds notes on what matched.  So a contribution
+  is: the option (step 9's `Opt`: name, value name, help, how many words it takes), and `resolve(store, user, values)`
+  giving the `Sql` condition on `activity a` (§4.1) and its notes, or an error message.  The completion source is added
+  at the completion step.  Contributed conditions are joined with `and`, like the built-in ones.
+* **What a user has**: only the activity count comes from above `user`.  The FTHR-change note ("the impulses worked out
+  with the old one are deleted") is the doing of `model`'s own trigger, so `nch users` says it generically ("what is
+  worked out from the FTHR is worked out again") and `model` contributes nothing.
+* Tags (TODO.md) are not needed: if wanted, a package that contributes a `--tag` criterion.
+
+### Order
+
+1. *(mechanical)* `humanBytes` to `ui/units`; then the commands with no cycle into their packages (the eight of the
+   table); the `commands/` group goes; tests move with them; the import test's command rule asks the registry.
+2. §4.1 (`Sql` records its packages; reads by the union and the runner, writes by the runner) with the contributor
+   test, and §4.2 (`db_connector` in `db` only).
+3. `user` owns `user` (§4.3); `users` goes into `user` with "what a user has".
+4. "Pages the server may run"; `commandRules` goes.
+5. `nch import` in `importer`, with "after import".
+6. Step 9's option type (an option carries its help, value name and the words it takes; usage generated), for the
+   criteria first.
+7. `selection` becomes the library with "activity criteria"; `climbs` contributes `--climb`; the packages
+   `activities` and `calendar`; `activitiescmd` goes.
+8. Documentation of each package (§7); CLAUDE.md ("general structure", "the shape of the commands") and PACKAGES.md
+   describe the result.
+
+## 6. `/oppose` (done 2026-11-09)
+
+Run on §5 and §4.1.  Taken in: the write rule and the contributor test (§4.1); the rule change for extension points
+stated; `humanBytes` and the smell of a low package growing upward; singular and plural commands placed by rule; the
+command module identified by the registry; the shape of a criterion; `model` out of "what a user has".  The largest
+finding, that `selection` would become a misnamed giant holding the whole `activities` command (and the future
+fitness calendar would pull `model` into it), led to the split into a library and several commands.  The "after
+import" point was kept over a "last import" criterion.
+
+## 7. Tools
+
+### nph (the formatter)
+
+* `nimble fmt`: `nph src tests tools`.
+* `nimble test` runs `nph --check src tests tools` first and stops if a file would change (so drift cannot pass the
+  tests; it is quick).
+* A Claude Code hook (`.claude/settings.json`, PostToolUse on Edit and Write of a `.nim` file) runs `nph` on the
+  file, so that AI-written code is formatted as it is written and the check never fires for that reason.
+* **The version is part of the format**: nph's output changes between releases, and the installed one reports
+  `prerelease-0-g2cacf6c-dirty`.  Install a tagged release (it has to be built with a matching Nim), write the
+  version in `nimchoo.nimble`, and have `nimble fmt` refuse a different one.
+
+### nim doc (generated documentation)
+
+`nim doc --project --index:on --outdir:doc src/nch.nim` works with this layout: 200 pages in 3 s, the directory tree
+of the packages, an index of every exported name.  It stopped on one error (§2) and warned twice.  The least work:
+
+* **A package's documentation is the `##` comment of its `package.nim`** (no separate README): what the package is
+  for, what it owns, its rules (the feature detail now in CLAUDE.md moves there).  `nim doc` renders it.
+* `nimble doc` writes `doc/` (git-ignored).  The registry generator also writes, as the `##` comment of
+  `registry.nim`, the list of packages in dependency order, each with the first line of its comment and a link: the
+  front page.
+* Doc comments are RST (with Markdown extensions): `*`, `_` and `[...]` in prose need backquotes.  `nimble doc` must
+  end without warnings (the warning-free rule), so a broken comment is found when the docs are made; `nimble test`
+  could run it too (3 s).
+
+---
+
+# Appendix A: the first review (2026-11-08)
+
+Its plan is TODO.md's history; what it describes as wrong is mostly fixed (§2 above).  Kept for the reasoning.  Section numbers inside it (§3, §7 ...) are its own.
 
 Scope.  First pass, by hand: the dispatcher, the CLI parser, the db layer and every SQL fragment, climbs
 (command, params, detect), the activities command and its criteria, the importer pool, the server handler, a
@@ -9,7 +273,7 @@ marked "reported".  ~18k lines of source; 1159 tests, all passing (`nimble test`
 
 Section 6 (packages) was agreed in discussion with the author afterwards.
 
-## 1. Summary
+### 1. Summary
 
 The code is **competent and careful, but "locally good, globally drifting"**.  Individual functions are clear,
 pure where they can be, well commented and well tested; the error discipline (`{.push raises: [].}` everywhere,
@@ -19,7 +283,7 @@ modules do, the database layer stops halfway (typed writes, string reads), work 
 Nim, and some parts are built bigger than they need to be.  These are the typical results of many small
 AI-written increments, each correct, none revisiting the whole.  There are also real bugs (§3), each an instance of a missing abstraction.
 
-## 2. Good
+### 2. Good
 
 * **Error handling**: four kinds of failure, one mechanism each; `raises` is compiler-checked; commands return
   exit codes and never leak traces for expected errors.
@@ -38,14 +302,14 @@ AI-written increments, each correct, none revisiting the whole.  There are also 
 * **Tests**: real databases in temp dirs, error paths tested, `offline: true` enforced, a structure test.
 * **Dependencies**: few and sensible (zippy, db_connector, checksums).
 
-## 3. Bugs, and the missing abstractions behind them
+### 3. Bugs, and the missing abstractions behind them
 
 These were found by reading part of the code; there will be more of the same kinds.  Each bug is an instance of
 a class, and the class is a missing abstraction (a common idea with no single home).  So the fix is the
 abstraction, plus a test that would catch the next instance; the known bugs are its first cases.  The classes
 are lettered so that the plan (§7) can refer to them.
 
-### 3.1 Checked (confirmed in the code)
+#### 3.1 Checked (confirmed in the code)
 
 **A. The structure of an activity's track is left to each consumer.**  `climbs/work.nim:204-233` builds one
 profile from every point, though `buildProfile` (profile.nim:76) says its input is one timer segment: a ride
@@ -86,7 +350,7 @@ the invalid check applied to every type before it is interpreted.
 size, inflates everything, and compares afterwards.  Low risk (GeoNames, the profile).  *Fix:* the rule that a
 limit applies to what is actually read; here, cap the inflated output.
 
-### 3.2 Reported, not yet checked (confirm each with a test before fixing)
+#### 3.2 Reported, not yet checked (confirm each with a test before fixing)
 
 * **I. Text compared in different ways.**  SQL `lower()`/`trim()` are ASCII-only (ordinal.nim, landmarks.nim,
   suggest.nim) and `findShown` uses ASCII `toLower`, while `--name` uses `foldText`: `--name ñuñoa` and `--edit
@@ -113,7 +377,7 @@ limit applies to what is actually read; here, cap the inflated output.
   say otherwise); `{{{style}}}` is raw JSON inside `<script>` (a `</script>` in the edited style breaks the
   page); `model/calc.nim:20-23`'s comment understates the hour-bucket error about 10x (0.3%, not 0.03%).
 
-### 3.3 Finding more
+#### 3.3 Finding more
 
 * **Fuzz the FIT decoder**: mutate real FIT files at random; the result must be success or a `FitError`,
   never a Defect.  Cheap, and it tests L directly.  Two levels:
@@ -133,9 +397,9 @@ limit applies to what is actually read; here, cap the inflated output.
   within one timer segment; every activity's samples are in time order; every climb has a name decision; and so on.
 * **Schema tests** (C): an index for every foreign key; no scans of big tables in the program's queries.
 
-## 4. Problems, by pattern
+### 4. Problems, by pattern
 
-### 4.1 One fact, several copies
+#### 4.1 One fact, several copies
 
 The pattern behind the author's enum question.  Nothing keeps the copies in step, and some have drifted.
 
@@ -157,7 +421,7 @@ The pattern behind the author's enum question.  Nothing keeps the copies in step
   two near-identical Ctrl-C handlers (`ui/live`, `ui/interrupt`).
 * Messages that hard-code the constants they describe ("80%", "25 m" in `duplicateLines`).
 
-### 4.2 Illegal states are representable
+#### 4.2 Illegal states are representable
 
 **Bags of booleans.**  `climbs/params.nim`: 14 bools, ~40 lines ruling out combinations by hand, then `run`
 re-discovers the action with an `if` chain.  Ten commands have this shape (a `Params` with `problem: string`);
@@ -189,7 +453,7 @@ unknown FIT names; `-1` for "no number" (`FieldValue.number`, `timestampField`);
 a stored start place whose `"near "` prefix is both text and state (`nameFor` tests `startsWith("near ")`).
 Use `Option`, enums, or a small `Result`.
 
-### 4.3 The database layer stops halfway
+#### 4.3 The database layer stops halfway
 
 * `db_connector` returns every value as a string: ~120 `parseInt`/`parseFloat` calls on database values, each
   with its own error handling (many `try/except` exist only for this); NULL arrives as `""`.
@@ -206,7 +470,7 @@ Use `Option`, enums, or a small `Result`.
   (`sqlite3_create_function`, `fold(name) like ?`) is simpler, bindable, and fixes the folding bug in §3.2.
 * `InitSpatialMetadata(0, 'WGS84_ONLY')` would load the one coordinate system used, not all WGS84 ones.
 
-### 4.4 Work that SQL should do
+#### 4.4 Work that SQL should do
 
 * `climbs/duplicates.nim duplicateGroups` compares every pair of climbs in Nim; the spatial index should give
   the candidate pairs.
@@ -218,7 +482,7 @@ Use `Option`, enums, or a small `Result`.
 * `ensureCells` unzips and parses the whole country file again for each new 1-degree cell.
 * `missingCells` and `prepare` run a `count(*)` per cell or per country.
 
-### 4.5 Sample storage
+#### 4.5 Sample storage
 
 474 MB for 1112 activities: `coords` 263 MB (6.2 M rows), `route` 101 MB, `heartrate` 100 MB (6.1 M rows).
 
@@ -233,7 +497,7 @@ Use `Option`, enums, or a small `Result`.
 * `route` is a second full copy of the positions.  It is needed for the spatial index but may not need every
   point: `ST_Simplify` at ~2-5 m could shrink it a lot without changing a "passes near" answer.  Measure.
 
-### 4.6 Module boundaries have drifted
+#### 4.6 Module boundaries have drifted
 
 * Directories do not match commands: `activities` is in `selection/`, `users` in `user/`.
 * Shared code lives in whichever module needed it first: the delete countdown in `user/wipe.nim` (used by
@@ -247,7 +511,7 @@ Use `Option`, enums, or a small `Result`.
 
 The fix is the package design (§6): declared dependencies, checked, and extension points instead of cycles.
 
-### 4.7 Built bigger than needed
+#### 4.7 Built bigger than needed
 
 * `templating.nim` implements Mustache sections, inverted sections, lists and scopes; no template uses them.
   About 60 lines would do (a runtime engine is justified: the templates are edited in the cache).
@@ -262,7 +526,7 @@ The fix is the package design (§6): declared dependencies, checked, and extensi
 * Legacy steps in fragments, for the next squash: `names/002-country-cells.sql`'s `update country set geom =
   null`, the back-fill in `climbs/002-name-number.sql`.  Stale comments (`nch sector`, "(n/m)", heatmap).
 
-### 4.8 Housekeeping
+#### 4.8 Housekeeping
 
 * A compiled binary is tracked: `tests/delete/test_delete` (the `.gitignore` pattern `/tests/test_*` only
   matches the top level).  `tests/sector/` is an empty leftover.
@@ -270,7 +534,7 @@ The fix is the package design (§6): declared dependencies, checked, and extensi
   exist (`import`, `list`, `destroy`, `heatmap`) and "one third-party dependency".  Sonnet reads it as current.
 * Long, branchy `run` procs (follows from 4.2).
 
-## 5. The author's questions
+### 5. The author's questions
 
 **Hand-written CLI parsing.**  Common in Nim, and 224 lines is not the problem; the problem is 4.1/4.2.
 `std/parseopt` only tokenises; `cligen` builds the CLI from a proc signature, which fights the "one action per
@@ -302,7 +566,7 @@ elsewhere (4.2).  Otherwise the style is idiomatic Nim 2 (func/proc split, disti
 **SQLite.**  Used well at the schema level (§2), weak at the access level (4.3, 4.4) and in sample storage
 (4.5).  SpatiaLite's many tables are normal.
 
-## 6. Packages (agreed in discussion, 2026-11-08; **superseded by PACKAGES.md, 2026-11-09**: kept for the reasoning)
+### 6. Packages (agreed in discussion, 2026-11-08; **superseded by PACKAGES.md, 2026-11-09**: kept for the reasoning)
 
 The aim: packages declare their dependencies; the build enforces a DAG; a package sees a database that already
 has the tables of everything it depends on, and calls its dependencies' code directly.  A third party adds a
@@ -310,7 +574,7 @@ package by dropping a directory in and rebuilding (source drop-in, as Caddy does
 libraries at run time (Nim has no stable ABI: fragile, and needs a rebuild anyway) and packages as separate
 programs (more complex and slower; no function calls between packages).
 
-### Framework and packages
+#### Framework and packages
 
 * **The framework is minimal**: the `Package` type and the registry, the database handle and the fragment
   mechanism, and the types of the extension points.  Nothing else.  It is the interface packages are written
@@ -335,7 +599,7 @@ const package* = Package(
 * Tests: a package imports only from itself, the framework and its declared dependencies; the tables named in
   its SQL strings belong to the same set (approximate: table names from the fragments, matched in the code).
 
-### Extension points
+#### Extension points
 
 An early package defines an extension point; later packages fill it.  This is how cycles are avoided without
 merging packages that should be separate.  Known so far:
@@ -349,7 +613,7 @@ merging packages that should be separate.  Known so far:
 * **sector naming**: the package that made a sector says how it is named;
 * **what will be deleted**: each package adds its line to the deletion message.
 
-### Sectors
+#### Sectors
 
 `sectors` becomes a package: the `sector` and `effort` tables, matching rides against sectors (most of
 `match.nim`), retiring, duplicates, the kept numbering of shared names.  `climbs` depends on it: it detects
@@ -357,7 +621,7 @@ climbs, inserts them as sectors, and keeps `climb(sector_id, gain_m, gradient, c
 package that finds sectors by overlapping activities does the same with its own table.  No package alters
 another's table.
 
-### Samples
+#### Samples
 
 Per-second data is stored **per activity, as arrays**: one row per activity in a table per channel (or group of
 channels), not one row per second.  Under this rule a table per package costs almost nothing, so pluggability
@@ -384,13 +648,13 @@ create table heartrate (
     segment...), run over the author's database too.  Storing a row of arrays per timer segment, rather than per
     activity, would also let a trigger check that an effort lies inside one: to decide at that step.
 
-### Cache
+#### Cache
 
 A package near the bottom, not framework: packages write to it, the loader does not.  It grows the manifest
 `bundle/unpack.nim` keeps today into one for every file (detect and warn of edited files), with an area per
 package.
 
-### Database versions (fragments) with packages
+#### Database versions (fragments) with packages
 
 The current mechanism stays, per package (`package/NNN-name.sql`, as recorded now).  Added rules:
 
@@ -408,7 +672,7 @@ The current mechanism stays, per package (`package/NNN-name.sql`, as recorded no
   squashed `001` for new databases, the old fragments kept for existing ones, the schema test proving both give
   the same result).  Not built now.
 
-## 7. Plan (for Sonnet; each step one or more commits, tests passing, discuss before starting)
+### 7. Plan (for Sonnet; each step one or more commits, tests passing, discuss before starting)
 
 Cheap and safe first; each later step is easier because of the earlier ones.  Letters refer to the classes of §3.
 
@@ -469,7 +733,7 @@ home.  Nothing new for the author to use appears until about step 10; open featu
     `route`); the
     cache manifest.
 
-## 8. Proposed additions to CLAUDE.md
+### 8. Proposed additions to CLAUDE.md
 
 (Added to CLAUDE.md on 2026-11-08, with changes: "revisit, don't pile on" and "before finishing a step" became
 working practice; "a missing abstraction is the bug" and "a failure is never stored as a result" were added.
@@ -496,7 +760,7 @@ CLAUDE.md is the current text.)
   docs, tests.
 ```
 
-## 9. For the author
+### 9. For the author
 
 From the record the work left (CLAUDE.md, TODO.md, the commits, the code), not from the conversations.
 

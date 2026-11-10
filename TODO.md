@@ -1,68 +1,80 @@
 # TODO
 
-Open work only.  Finished work is in git and in HISTORY.md (with the reasoning behind decisions); the review of
-2026-11-08 and its plan are in REVIEW.md.  When something here is done, delete it (in the same commit).
+Open work only.  Finished work is in git and in HISTORY.md (with the reasoning behind decisions).  The plan below is
+from the second review (REVIEW.md, 2026-11-09); the first review (2026-11-08) is its appendix A, and "A §3" etc. refer
+to that.  When something here is done, delete it (in the same commit).
 
-## Now: the review plan (REVIEW.md §7)
+Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the author
+sees and can be approved together.
 
-Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the
-author sees and can be approved together (REVIEW.md §7).  Letters are the bug classes of REVIEW.md §3.
+## Now: the plan of the second review
 
-- [ ] 3. What is left of the bug classes (REVIEW.md §3): the fuzzers of 3.3 (the FIT fuzzer's level 2 with libFuzzer, which
-      needs clang; fuzzers for the xlsx and zip readers and the `bits` decoder).  Classes A to L are done
-      (HISTORY.md, 2026-11-08).
-- [ ] 8. Packages: the design is PACKAGES.md.  Done on 2026-11-09 (8.1 to 8.4): the inventory, `core`, the generated
-      registry, the import checker, inferred table ownership, every module a package, the four cycles broken, every
-      command a package.  Done on the same day, 8.5: the extension mechanism and the import steps (PACKAGES.md); on-demand
-      work and criteria wait (below).  Done, 8.6: the access model (PACKAGES.md).  Done, 8.7: the
-      fragments from the registry (`modules.nim` is gone) and the schema-by-several-orders test.  Left: a README in each
-      package, which the author left for the next review (it will look at documentation tools).
-      Your database must be made again (`nch db --delete -f`): the landmark
-      fragment moved into `names`.
-- [ ] 9. Options carry their help; parse into variants.
-- [ ] 10. Tab completion (dynamic values from the database).
-- [ ] 11. *(mechanical)* One owner per fact (REVIEW.md 4.1).
-- [ ] 12. Push work into SQL (REVIEW.md 4.4), measured.
-- [ ] 13. Shrink (REVIEW.md 4.7) (mechanical, except one cache naming scheme).
-- [ ] 14. Larger changes: the `sectors` package; per-second data as arrays per activity, with cleaning at import;
-      a simplified `route`; the cache manifest.
-
-## Criteria from other packages (decided 2026-11-09, while splitting `selection`)
-
-`nch activities --climb TEXT` selects activities by the climbs they went up, so the search language has to know the
-`effort` table of `climbs`; and `climbs` reads the stored selection.  Until step 9 this is a recorded placeholder: the
-search language (`criteria`, `ranges`) lives with the `activities` command, which depends on `climbs`, and the
-stored selection (table, address bits) is a small package below both.  That is not extensible: a package added later
-(training load from fitness/fatigue, weather, sleep) could not add an option to `activities` without editing the
-command.  Two ways out, to be decided at step 9 (deferred from 8.5 on 2026-11-09, because the extension point's contribution is an option with its help):
-
-* **Tags**: an activity has any number of tags (arbitrary strings, many to many; the user adds them by hand for
-  equipment, "bike A"), and packages may add derived tags (climbs tags an activity with the climbs it went up; a load
-  package with "load>100").  The selection language selects on tags and nothing else needs to know who made them.  No
-  registry, and a feature in its own right.  Cost: derived tags duplicate what is stored elsewhere (`effort`), so they
-  have a source (so that recomputing replaces only its own) and have to be kept in step when a climb is renamed,
-  retired or renumbered (`climbs/work.nim` already runs once per activity and could write them in the same
-  transaction); and tags cover membership-style criteria, not numeric or spatial ones.
-* **A criteria extension point**: a package contributes an option (name, parse, a SQL predicate on `activity a`, help),
-  and the command assembles its options from the contributions (the mechanism is built: `core/extension.nim`, with `Globals.extensions`).  Covers numeric criteria too.  Fits step 9 (options carry their help).
-
-Either replaces the direct dependency of `activities` on `climbs`.
-
-**On-demand activity work** as an extension point is deferred too: build it when some command must trigger work from a
-package it cannot depend on (PACKAGES.md, "Extension points").
+1. **Fuzzing** (REVIEW.md §3; the author: before the packages).
+   1. Show that the FIT fuzzer finds a bug: a guard of class L removed in a scratch copy must be found with the default
+      rounds; record the result in HISTORY.md.  If not, improve the mutator first.
+   2. The importer's `readActivities` fuzzed with the same mutations (with and without `heart_rate`); one or two large
+      real files with fewer rounds.
+   3. Level-1 fuzzers for `decodeBits`, the xlsx and zip readers (damaged `Profile.xlsx`), and `parseTarget`.
+   4. Failures saved under `tests/data/fuzz/<target>/`, replayed by a test.
+   5. Level 2: libFuzzer harnesses in `tests/fuzz/`, `nimble fuzz TARGET [SECONDS]` (clang, `--panics:on`,
+      `-d:useMalloc`, `-fsanitize=fuzzer,address`, and `--gcc-install-dir` set to the GCC that has `libstdc++.so`:
+      clang chooses GCC 16, which lacks it).  One hour per target; fix what it finds (a test first), record the rest.
+2. *(mechanical)* **Tools** (REVIEW.md §7).
+   1. nph: a tagged release installed, its version in `nimchoo.nimble`; `nimble fmt`; `nimble test` runs
+      `nph --check` first; the 6 drifted files formatted; a Claude Code hook that formats a `.nim` file after each edit.
+   2. nim doc: `nimble doc` (to a git-ignored `doc/`, no warnings); the RST error in `nch.nim` and the two broken
+      links fixed.
+   3. Small drift: `cmdname.nim` without `{.push raises: [].}`; `db/sqltext.nim`'s header (the `?` text); PACKAGES.md
+      "What is built and what is left".
+3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
+   1. *(mechanical)* `humanBytes` moves from `download/fetch` to `ui/units`.  Then the commands with no cycle go into
+      their packages: `fit`, `climbs`, `landmarks` (into `names`), `models` (into `model`), `cache`, `db`; `log`, `map`
+      and `ff` become packages of their own.  The `commands/` group and the `cmd` suffix go; tests move with them; the
+      import test keeps "a command module (the module of `CommandDecl.run`, from the registry) is imported only by its
+      `package.nim`".
+   2. An `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); a read is
+      allowed to the runner or any package of the set, a write or a change of definition to the runner alone; a test
+      prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).  `db_connector` imported in `db`
+      only; `db` re-exports the types it hands out (§4.2).
+   3. `user` owns the `user` table: `openStore` only opens and applies fragments; `user/openSession` finds or makes
+      the user; commands use it; `importer` and `selection` depend on `user` (§4.3).  `nch users` goes into `user`,
+      with the extension point "what a user has" (`importer` contributes the activity count; the FTHR-change note
+      becomes generic and `model` contributes nothing).
+   4. The extension point "pages the server may run" in `web`; `map` and `ff` contribute; `commandRules` goes.
+   5. `nch import PATH...` is a command of `importer` (this reverses CLAUDE.md's "no import command": update "the
+      shape of the commands"), with the extension point "after import" (once per import, after the commit; a failure
+      is a warning).
+   6. Step 4's option type, for the criteria first (an option carries its help, value name and the words it takes;
+      usage is generated): needed by the criteria point.
+   7. `selection` becomes a library (no command) with the extension point "activity criteria" (an option and
+      `resolve(store, user, values)` giving an `Sql` condition and notes, or an error); `climbs` contributes `--climb`.
+      New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; contributes "the new
+      activities become the selection" to "after import") and `calendar` (`nch calendar`: the selection or `--all`,
+      no criteria).  `activitiescmd` goes.
+   8. Each package's documentation is the `##` comment of its `package.nim`; the registry writes the front page (the
+      packages in order, with their first lines); the feature detail of CLAUDE.md moves into them; CLAUDE.md
+      ("general structure", "the shape of the commands", the extension-point rule) and PACKAGES.md describe the result.
+4. **Options carry their help; parse into variants** (A §7 step 9) for the other commands.  `Opt` gets `help`,
+   `metavar` and a completion kind; usage generated; the web options from the same spec; errors as `Option`, not "".
+5. **Tab completion** (A step 10): `nch __complete` and a bash function; dynamic values from the database.
+6. *(mechanical)* **One owner per fact** (A §4.1).
+7. **Push work into SQL** (A §4.4), measured.
+8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
+9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
+   simplified `route`; the cache manifest.
 
 ## Open from before the review
 
 To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
 
-* **Cleaning bad positions at import** (REVIEW.md class B, the part not done): drop or flag impossible fixes (a jump faster
+* **Cleaning bad positions at import** (A §3 class B, the part not done): drop or flag impossible fixes (a jump faster
   than any rider, a point far from its neighbours) once, at import, so that every consumer sees clean data.  Needs its own
   design (threshold, drop or flag, effect on stretches, climbs and efforts); it changes stored data.  Until then a stretch
   that spreads over more than 5 degrees is not searched for names (HISTORY.md, 2026-11-08).
-
 * **Naming is slow** (11 s for 1,112 activities: 4.6 s reading 6.2 M `coords` rows as text, 6.2 s in
   `nameActivity`, not broken down; nothing shown meanwhile).  The author wants to go through how naming works
-  first.  Steps 7 and 14 (typed reads, arrays) take most of the reading time away.
+  first.  The arrays (step 9) take most of the reading time away.
+* **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
 * **Features for later**: the elevation profile of a climb, the lead/lag comparison, the near-miss report,
   `exclude`, a way to retire many climbs (auto-retire of duplicates was tried and dropped: it retired long climbs
   into shorter near copies).  The "climbs vs sectors" question is answered by the `sectors` package.
@@ -72,7 +84,7 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
 * **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by
   property (colour by sport or year), a plot command.
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page.
-* **A calendar of fitness** (HISTORY.md, Task 14): the `activities --calendar` grid with the background showing
+* **A calendar of fitness** (HISTORY.md, Task 14): the `nch calendar` grid (step 3.7) with the background showing
   fitness, fatigue or form, each day in thirds.
 * **A terrain model (SRTM)**: if added, smooth its heights (`climbs/profile.smoothed` is there for that).
 * **Climb numbers**: a name renamed away from and then reused by a new climb can reuse the highest number.

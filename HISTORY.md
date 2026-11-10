@@ -3044,3 +3044,13 @@ it is code from outside).  Our own, in stages, each with the whole suite passing
 * The tests use the same calls (dogfooding), so every test also exercises the typed layer.  `tests/db/test_plans.nim`
   asks SQLite how each query of a file, a ride or a cell will run and fails on a table read from start to end; the
   spatial index is asked by one function, `inBox`, and these queries are consts the code and the test share.
+
+### Packages, first round (2026-11-09, TODO step 8 of the first review)
+
+Built as PACKAGES.md describes: `core`, the generated registry, the import checker, table ownership inferred from the
+fragments, every module a package, the four directory cycles broken, every command a package (`packages/commands/*cmd`),
+the extension mechanism with the import steps, the access model (SQLite's authorizer), and the fragments from the
+registry with the schema-by-several-orders test.  Databases had to be made again (the landmark fragment moved into
+`names`).  The second review (REVIEW.md, 2026-11-09) found that two command packages (`activities`, `users`) and the
+server's list of commands hid cycles, and replaced the command layer with commands in their packages plus extension
+points (TODO.md step 3).
