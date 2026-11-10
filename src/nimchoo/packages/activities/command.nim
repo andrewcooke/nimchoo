@@ -26,30 +26,30 @@ import ../user/session
 {.push raises: [].}
 
 const
-  usageHead =
+  synopsis =
     """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v]
        nch [--db PATH] [--user NAME] activities --all [--select]
-       nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f
-
-Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are
+       nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f"""
+  # (the prose is wrapped to the window by `prose`: its line breaks are the source's only)
+  intro =
+    """Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are
 told otherwise.  With criteria (or --all) all the activities are searched instead, those that meet the criteria
-(combined with "and") are shown, and with --select they become the selection (replacing the last one).
-
-"""
-  usageTail = """
-"latest" is the newest activity among those that meet the criteria that do not use
+(combined with "and") are shown, and with --select they become the selection (replacing the last one)."""
+  notes =
+    """"latest" is the newest activity among those that meet the criteria that do not use
 "latest": so  --sport cycling --distance latest~10%  is cycling rides within 10% of
 the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 
 "previous" is the one activity that was selected before (`nch activities` shows it): select it
 with --select, then  --sport previous --distance previous~10%  finds rides like it.  It is an
-error unless exactly one activity is selected.
-"""
+error unless exactly one activity is selected."""
 
 proc usageText*(width: int, offered: seq[Criterion] = @[]): string =
-  ## The usage: the synopsis and introduction, the options (made from their descriptions, wrapped to `width`), the rest.
-  usageHead & optionLines(criteriaSpec(offered).docs, width).join("\n") & "\n\n" &
-    usageTail
+  ## The usage: the synopsis, the introduction, the options (made from their descriptions) and the notes, all wrapped to
+  ## `width` (the synopsis lines are not).
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(criteriaSpec(offered).docs, width).join("\n") & "\n\n" &
+    prose(notes, width) & "\n"
 
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"

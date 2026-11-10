@@ -68,3 +68,10 @@ suite "usage: from a spec":
     let shown = optionLines(spec.docs, 80).join("\n")
     check "-y, --yes" in shown and "-n N" in shown and "--bare" in shown
     check spec.docs[1].arity == aOne and spec.docs[0].arity == aFlag
+
+suite "usage: prose":
+  test "paragraphs are wrapped, a line break inside one is a space, a blank line separates them":
+    check prose("one two\nthree four\n\nfive six", 9) ==
+      "one two\nthree\nfour\n\nfive six"
+  test "nothing is left over at the ends":
+    check prose("\none two\n", 80) == "one two"

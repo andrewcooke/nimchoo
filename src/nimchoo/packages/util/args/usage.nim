@@ -33,6 +33,14 @@ func wrap*(text: string, width: int): seq[string] =
         line = word
     result.add line.strip(leading = false)
 
+func prose*(text: string, width: int): string =
+  ## Paragraphs of text wrapped to `width`: the paragraphs are separated by a blank line, and a line break inside one is
+  ## only where the source was broken, so it becomes a space.  (For the introduction and the notes of a usage.)
+  var paragraphs: seq[string]
+  for p in text.strip(chars = {'\n'}).split("\n\n"):
+    paragraphs.add wrap(p.replace('\n', ' '), width).join("\n")
+  paragraphs.join("\n\n")
+
 func optionLines*(docs: seq[OptDoc], width: int): seq[string] =
   ## The lines for the options: two spaces, the names and the value, the help in a column, wrapped to `width`.
   var labelWidth = 0

@@ -505,6 +505,11 @@ suite "list: the usage":
       for d in criteriaSpec().docs:
         for n in d.names:
           check n in text
+  test "the whole usage fits the width, except the synopsis lines":
+    for width in [50, 80, 120]:
+      for l in activitiesCommand.usageText(width).splitLines:
+        if not (l.startsWith("usage: ") or l.startsWith("       nch ")):
+          check l.len <= width
   test "an option of another package would be listed and parsed from its description":
     let extra = OptDoc(
       names: @["--extra"],

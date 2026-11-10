@@ -58,6 +58,11 @@ suite "nch calendar: the command line":
     for d in calendarSpec().docs:
       for n in d.names:
         check n in text
+  test "the whole usage fits the width, except the synopsis":
+    for width in [50, 80]:
+      for l in calendarCommand.usageText(width).splitLines:
+        if not l.startsWith("usage: "):
+          check l.len <= width
   test "exit codes":
     let g = Globals(fragments: allFragments, access: allAccess)
     check calendarCommand.run(g, @["--help"]) == exitOk

@@ -14,18 +14,18 @@ import ./[calendar, params]
 
 const commandName* = "calendar" ## what the user types after `nch`
 
-const usageHead = """usage: nch [--db PATH] [--user NAME] calendar [--all] [-v]
-
-The activities of the selection (see `nch activities --select`) on a calendar: a row for each month that has one,
+const
+  synopsis = "usage: nch [--db PATH] [--user NAME] calendar [--all] [-v]"
+  intro =
+    """The activities of the selection (see `nch activities --select`) on a calendar: a row for each month that has one,
 the days in columns by weekday (weeks start on Monday).  White: a day with an activity; blue: a day with one in the
 selection; grey: none.  The months either side of a gap are marked (a yellow name, or a * without colour), as are the
-months that were left out.
-
-"""
+months that were left out."""
 
 proc usageText*(width: int): string =
   ## The usage: the introduction and the options, wrapped to `width`.
-  usageHead & optionLines(calendarSpec().docs, width).join("\n") & "\n"
+  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    optionLines(calendarSpec().docs, width).join("\n") & "\n"
 
 proc skippedWarning(rows: seq[ListRow], zone: Timezone): seq[Line] =
   ## The last line of a calendar of the months with data, if it left some out.
