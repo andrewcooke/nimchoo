@@ -101,9 +101,10 @@ const
        nch packages --points | --tables | --dot | --config
        nch packages --graph [--reverse] [NAME]"""
   intro =
-    """The program describing itself: its packages in dependency order, with their layer (0 for a package that depends on
-nothing), how many packages they use and are used by, their tables, and what they provide: commands, extension points
-they define, and the points they add to.  With the name of a package, everything about that one."""
+    """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
+package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it
+provides: commands, extension points it defines, and the points it adds to.  With the name of a package, its documentation
+and everything else about it."""
 
 proc usageText*(width: int): string =
   synopsis & "\n\n" & prose(intro, width) & "\n\n" &
@@ -225,7 +226,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     )
   case view
   of vList:
-    show summaryLines(inv)
+    show summaryLines(inv, width)
   of vDetail:
     show detailLines(inv, p.name, width)
   of vPoints:

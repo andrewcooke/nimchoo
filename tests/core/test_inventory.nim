@@ -15,10 +15,12 @@ func frag(name, sql: string): Fragment =
 proc world(): Inventory {.raises: [].} =
   ## db <- a <- b <- c, with c also naming a (which b implies); b defines a point that c contributes to.
   let packages = @[
-    Registered(name: "db", package: Package()),
-    Registered(name: "a", package: Package(depends: @["db"])),
+    Registered(name: "db", package: Package(), summary: "Package db is the base."),
+    Registered(name: "a", package: Package(depends: @["db"]), summary: "Package a."),
     Registered(
       name: "b",
+      summary: "Package b is for b things.",
+      doc: "Package b is for b things.\n\nIt has a paragraph more.",
       package: Package(
         depends: @["a", "db"],
         defines: @[PointDecl(name: "b/p", summary: "a number")],
@@ -70,15 +72,18 @@ suite "the inventory of packages":
       inv.packages[inv.find("c")].contributes.len == 2
 
 suite "the views":
-  test "the summary has a line for each package, with what it provides":
-    let lines = summaryLines(world())
-    check lines.len == 5 and lines[0].startsWith("package")
-    check "command bee" in lines[3] and "defines b/p" in lines[3]
-    check "adds to b/p" in lines[4]
+  test "the summary has a line for each package with what it is for, and under it what it provides":
+    let lines = summaryLines(world(), 80)
+    check lines[0].startsWith("package") and "what it is for" in lines[0]
+    check lines.anyIt(it.startsWith("b ") and it.endsWith("Package b is for b things."))
+    check lines.anyIt("command bee" in it and "defines b/p" in it)
+    check lines.anyIt("adds to b/p" in it)
+    check lines.anyIt(it.startsWith("db ") and it.endsWith("Package db is the base."))
 
   test "the detail of a package":
     let text = detailLines(world(), "b", 80).join("\n")
     check "package b  (layer 2)" in text
+    check "It has a paragraph more." in text
     check "depends on" in text and "a db" in text
     check "used by" in text and "tb" in text
     check "ta (a)" in text # (it may read the tables of a)

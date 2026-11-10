@@ -41,6 +41,8 @@ task registry,
 task docs, "Write the generated documentation to doc/ (git-ignored); it must end without warnings":
   exec "nimble registry"
   exec "nim doc --project --index:on --hints:off --warningAsError:BrokenLink:on --outdir:doc src/nch.nim"
+  # the front page is the list of packages, which the registry generator writes
+  writeFile "doc/index.html", "<meta http-equiv=\"refresh\" content=\"0; url=nimchoo/registry.html\">\n"
 
 task test,
   "Run all tests (optimised, with run-time checks on: about 5x faster than a debug build)":

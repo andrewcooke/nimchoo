@@ -75,3 +75,9 @@ suite "usage: prose":
       "one two\nthree\nfour\n\nfive six"
   test "nothing is left over at the ends":
     check prose("\none two\n", 80) == "one two"
+
+suite "wrap: documentation":
+  test "paragraphs and lists keep their shape":
+    check rst(
+      "one two three\nfour\n\n* item one is long\n  and goes on\n* item two", 14
+    ) == "one two three\nfour\n\n* item one is\n  long and\n  goes on\n* item two"

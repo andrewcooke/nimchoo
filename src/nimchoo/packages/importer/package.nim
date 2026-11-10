@@ -1,3 +1,25 @@
+## Putting the activities of FIT files into the database, and describing them.
+##
+## This package owns the tables `file`, `activity`, `coords`, `segment`, `route` and `seen_file`.  Per-second data is kept per
+## activity, as arrays; other data refers to it by time and never by array index, and the arrays are never changed once
+## written.
+##
+## * **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files.  A file whose path, size and
+##   modification time are as when it was last seen is skipped unread (`--slow` reads everything); a file with content already
+##   imported is a duplicate; a file that cannot be read is reported and the others carry on.  One transaction per file, files
+##   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the
+##   screen as two lines that follow the run.  The new activities are then named (`names`), and last the packages that asked
+##   do their part.
+## * **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`heartrate` writes the
+##   heart rate), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
+##   with the new activities (`selection` makes them the selection).
+## * **Describing an activity** (decided 2026-11-05): an activity is said the same way wherever it appears, like `__str__`, by
+##   `describe.nim`: `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back` (start, sport, distance,
+##   active time, then where it started and what it is called, joined by " / "); verbose adds the sub-sport and the path of
+##   the file.  In a table the parts are cells, headed `start`, `sport`, `distance`, `active`, `place / name`; not recorded
+##   is `-`, and an activity with no positions says `no GPS`.
+## * Deleting activities is `remove.nim`; `activities --delete` calls it.
+
 import ../../core/[extension, manifest]
 import ../user/has
 import ./[after, channel, command, count]

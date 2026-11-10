@@ -29,8 +29,6 @@ jobs:
         run: nimble setup -y
       - name: Generate the documentation (stops on a warning)
         run: nimble docs
-      - name: Front page
-        run: echo '<meta http-equiv="refresh" content="0; url=nch.html">' > doc/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

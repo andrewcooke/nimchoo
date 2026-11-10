@@ -106,8 +106,8 @@ suite "the generated registry":
     let root = getTempDir() / "nch-test-genregistry"
     removeDir root
     createDir root / "a" / "b"
-    writeFile(root / "a" / "package.nim", "")
-    writeFile(root / "a" / "b" / "package.nim", "")
+    writeFile(root / "a" / "package.nim", "## A.\n")
+    writeFile(root / "a" / "b" / "package.nim", "## B.\n")
     defer:
       removeDir root
     expect ValueError:
@@ -117,11 +117,79 @@ suite "the generated registry":
     let root = getTempDir() / "nch-test-genregistry2"
     removeDir root
     createDir root / "group" / "a"
-    writeFile(root / "group" / "a" / "package.nim", "")
+    writeFile(
+      root / "group" / "a" / "package.nim",
+      "## Package a.\n##\n## More.\n\nconst x = 1\n",
+    )
     defer:
       removeDir root
     check findPackages(root) ==
-      @[Found(name: "a", importPath: "packages/group/a/package")]
+      @[
+        Found(
+          name: "a", importPath: "packages/group/a/package", doc: "Package a.\n\nMore."
+        )
+      ]
+
+  test "the documentation of a package is the ## comment at the top of its package.nim":
+    check docOf("## One.\n##\n## Two.\nimport x\n## not this\n") == "One.\n\nTwo."
+    check docOf("\n\n## After blank lines.\n") == "After blank lines."
+    check docOf("##no space\n##  two spaces\n") == "no space\n two spaces"
+    check docOf("import x\n## not at the top\n") == ""
+    check docOf("") == ""
+    check summaryOf("First.\n\nRest.") == "First."
+
+  test "a package without documentation is refused, with what to write and an example":
+    let root = getTempDir() / "nch-test-genregistry3"
+    removeDir root
+    createDir root / "fresh"
+    writeFile(root / "fresh" / "package.nim", "import x\nconst package* = 1\n")
+    defer:
+      removeDir root
+    try:
+      discard findPackages(root)
+      check false
+    except ValueError as e:
+      let m = e.msg
+      check "package 'fresh' has no documentation" in m
+      check "fresh/package.nim" in m
+      check "must start with a `##` comment" in m
+      check "one-line summary" in m and "For example" in m and
+        "    ## What `fresh` is for" in m
+      check "text/fold/package.nim" in m # (a model to look at)
+
+  test "a first line too long to be a summary is refused, and the message says how to fix it":
+    let root = getTempDir() / "nch-test-genregistry4"
+    removeDir root
+    createDir root / "wordy"
+    writeFile(root / "wordy" / "package.nim", "## " & repeat("long ", 30) & "\n")
+    defer:
+      removeDir root
+    try:
+      discard findPackages(root)
+      check false
+    except ValueError as e:
+      check "package 'wordy'" in e.msg and "at most 100" in e.msg
+      check "blank `##` line" in e.msg
+
+  test "the registry text has the front page and carries each package's documentation":
+    let text = registryText(
+      @[
+        Found(
+          name: "bee",
+          importPath: "packages/bee/package",
+          doc: "Bees.\n\nMore about bees.",
+        ),
+        Found(name: "ant", importPath: "packages/util/ant/package", doc: "Ants."),
+      ]
+    )
+    check "## * `ant <packages/util/ant/package.html>`_ - Ants." in text
+    check text.find("`ant ") < text.find("`bee ") # (the front page is by name)
+    check "summary: \"Bees.\"" in text and "More about bees." in text
+
+  test "every package of the real registry has a summary and documentation":
+    for p in generated.packages:
+      check p.summary.len > 0 and p.summary.len <= 100
+      check p.doc.startsWith(p.summary)
 
 suite "extension points":
   const pointA = ExtensionPoint[int](name: "test/a")

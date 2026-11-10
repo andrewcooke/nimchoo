@@ -1,3 +1,11 @@
+## The training impulse: models, and the impulses worked out with them.
+##
+## A model is a named set of variables (`nch models`); models belong to no user, and the program carries a default.  The
+## impulse of an activity is worked out from its heart rate, hour by hour, with a model and the user's FTHR (`calc` is the
+## arithmetic, pure; `impulses` stores them in `impulse`, with `ff_model`, the tables this package owns).  They are worked out
+## when `ff` needs them, and deleted when the FTHR they were worked out with changes (a trigger of the table), so they are
+## worked out again.
+
 import ../../core/manifest
 import ./command
 import ./models

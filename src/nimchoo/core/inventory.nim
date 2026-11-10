@@ -13,6 +13,8 @@ type
 
   PackageInfo* = object
     name*: string
+    summary*, doc*: string
+      ## what the package is for: its `##` documentation, and the first line of it
     layer*: int
       ## 0 for a package that depends on nothing, else one more than the highest of those it depends on
     depends*, dependents*: seq[string]
@@ -64,6 +66,8 @@ func inventoryOf*(
   for p in packages:
     var info = PackageInfo(
       name: p.name,
+      summary: p.summary,
+      doc: p.doc,
       layer: layer.getOrDefault(p.name.normalised),
       depends: p.package.depends.sortedByIt(it.normalised),
       dependents: dependents.getOrDefault(p.name.normalised).sortedByIt(it.normalised),
@@ -117,25 +121,36 @@ func listOf(items: seq[string]): string =
 func countOf(items: seq[string]): string =
   $items.len
 
-func summaryLines*(inv: Inventory): seq[string] =
-  ## One line for each package, in dependency order.
-  var width = "package".len
+func summaryLines*(inv: Inventory, width: int): seq[string] =
+  ## One line for each package, in dependency order: its layer, how many packages it uses and is used by, how many
+  ## tables it owns, and what it is for; and under that, what it provides.
+  var nameWidth = "package".len
   for p in inv.packages:
-    width = max(width, p.name.len)
-  result.add ("package".alignLeft(width) & "  layer  uses  used by  tables  what")
+    nameWidth = max(nameWidth, p.name.len)
+  let head = nameWidth + 2 + 5 + 2 + 4 + 2 + 7 + 2 + 6 + 2
+    # (the columns before the text)
+  result.add (
+    "package".alignLeft(nameWidth) & "  layer  uses  used by  tables  what it is for"
+  )
   for p in inv.packages:
-    var what: seq[string]
-    for c in p.commands:
-      what.add "command " & c.name
-    for d in p.defines:
-      what.add "defines " & d.name
-    for c in p.contributes:
-      what.add "adds to " & c.point
+    let what = wrap(p.summary, max(30, width - head))
     result.add (
-      p.name.alignLeft(width) & "  " & align($p.layer, 5) & "  " &
+      p.name.alignLeft(nameWidth) & "  " & align($p.layer, 5) & "  " &
       align($p.depends.len, 4) & "  " & align($p.dependents.len, 7) & "  " &
-      align($p.tables.len, 6) & "  " & what.join(", ")
+      align($p.tables.len, 6) & "  " & what[0]
     ).strip(leading = false)
+    for l in what[1 ..^ 1]:
+      result.add " ".repeat(head) & l
+    var provides: seq[string]
+    for c in p.commands:
+      provides.add "command " & c.name
+    for d in p.defines:
+      provides.add "defines " & d.name
+    for c in p.contributes:
+      provides.add "adds to " & c.point
+    if provides.len > 0:
+      for l in wrap(provides.join(", "), max(30, width - head)):
+        result.add " ".repeat(head) & l
 
 func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
   ## Everything about one package.  `name` must be that of a package.
@@ -147,6 +162,10 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
     for i, l in lines:
       result.add (if i == 0: label.alignLeft(14) & "  " else: " ".repeat(16)) & l
   result.add fmt"package {p.name}  (layer {p.layer})"
+  if p.doc.len > 0:
+    result.add ""
+    result.add rst(p.doc, width)
+    result.add ""
   result.add field("depends on", listOf(p.depends))
   result.add field("used by", listOf(p.dependents))
   result.add field("fragments", listOf(p.fragments))

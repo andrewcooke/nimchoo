@@ -39,3 +39,6 @@ type
   Registered* = object ## a package with its name, as the generated registry lists them
     name*: string
     package*: Package
+    summary*: string ## the first line of the `##` comment of its package.nim
+    doc*: string
+      ## the whole `##` comment: what the package is for (the generator reads it from the file)
