@@ -3087,3 +3087,21 @@ strings and damaged valid ones; it must not raise, and what it accepts must be i
 decode to themselves.  Nothing found in 600,000 strings.  Checked against broken decoders: with the upper bound removed
 it runs out of memory (caught); with the check for bits left over removed nothing is noticed, because such a string is
 still a valid list (it is only a second spelling of one: the properties cannot see that).  1.2 s in `nimble test`.
+
+The zip reader, the xlsx reader and the profile loader fuzzed the next day (`tests/util/zip/test_fuzz.nim`,
+`tests/util/xlsx/test_fuzz.nim`, `tests/fit/test_profilefuzz.nim`; damage in `tests/support/{textmutate,zipmutate,xlsxmutate}.nim`:
+blind byte changes, the numbers a zip reader trusts, and xml changes of numbers, entities, markup and quoted values; the xml of
+one part is damaged and put back in a whole container so that it reaches the xml reader).  Also flagged: an input that takes
+over 2 s.  Cost in `nimble test`: about 2 s in all.
+
+* **Zip**: nothing in 60,000 files.  Checked against three broken readers (no check that the data is inside the file, none of
+  the name length, none of the bounds of the integers): each found within 60 rounds.
+* **A bug in Nim's `std/parsexml`** (found by the xlsx fuzz at 60 rounds, 3 failures in 2,400): `parseEntity` makes a
+  character of the number in `&#...;` without bounding it, so a number past 32 bits is a `RangeDefect` and one past 19
+  digits an `OverflowDefect` (nothing at all with `-d:danger`: a garbage character).  A damaged `Profile.xlsx` could crash
+  `nch` with a trace.  The author chose (2026-11-10) to refuse such a reference before the parser sees it
+  (`checkCharRefs` in `xlsx.nim`, any `&#` number above U+10FFFF is an `XlsxError`), over writing our own xml parser, a
+  patched copy of `parsexml.nim` or another library; reported to Nim as nim-lang/Nim#26681 (still present on `devel`
+  on 2026-11-10).  Remove `checkCharRefs` when it is fixed.  The three inputs are in `tests/data/fuzz/xlsx/`.
+* **The profile loader**: nothing in 30,000 small profiles and 50 copies of the real one (a tenth of the loads succeed:
+  the damage reaches the sheet readers).

@@ -10,11 +10,6 @@ import ../support/fuzzfiles
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
-func bytesOf(s: string): seq[byte] =
-  result = newSeq[byte](s.len)
-  for i, c in s:
-    result[i] = byte(c)
-
 proc randomIds(r: var Rand, maxId: int64): seq[int64] =
   ## A set of activities of one of the usual shapes.
   case r.rand(4)

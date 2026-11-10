@@ -32,3 +32,9 @@ proc savedFailures*(target: string, ext = ".fit"): seq[string] =
   for path in walkFiles("tests/data/fuzz" / target / ("*" & ext)):
     result.add path
   result.sort()
+
+func bytesOf*(s: string): seq[byte] =
+  ## The bytes of a string (for saving an input that is text).
+  result = newSeq[byte](s.len)
+  for i, c in s:
+    result[i] = byte(c)

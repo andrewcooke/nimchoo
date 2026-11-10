@@ -16,7 +16,9 @@ import
   ./test_structure
 import ./cache/test_cache
 import ./util/zip/test_zipbytes
+import ./util/zip/test_fuzz as zipFuzz
 import ./util/xlsx/test_xlsx
+import ./util/xlsx/test_fuzz as xlsxFuzz
 import ./util/zip/test_zipchild
 import ./util/child/test_child
 import ./text/templating/test_templating
@@ -32,6 +34,7 @@ import
 import ./commands/fitcmd/test_command
 import ./util/bytes/test_bytes
 import ./fit/test_load_errors
+import ./fit/test_profilefuzz
 import ./fit/test_load
 import
   ./db/[
