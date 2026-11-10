@@ -4,7 +4,7 @@
 import std/[os, strutils, unittest]
 import std/[algorithm, sequtils, tables]
 import nimchoo/core/[access, errors, ownership]
-import nimchoo/packages/db/[access, statement, store]
+import nimchoo/packages/db/[access, sqltext, statement, store]
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
@@ -66,6 +66,39 @@ suite "access: statements":
     check inPackage == "activitiescmd"
     check inCore == ""
     check inTests == ""
+
+proc refusalSql(s: Session, runner: string, q: Sql): string =
+  ## What preparing the query as `runner` says (the packages that wrote its pieces are in the query), "" if allowed.
+  try:
+    discard prepareSql(s.db, q, runner)
+  except StoreError as e:
+    return e.msg
+
+suite "access: pieces written by several packages":
+  test "the packages that wrote the pieces are recorded, once each, in order":
+    let q = sqlFrom("a", "x") & sqlFrom("b", "y") & sqlFrom("c", "x") & "d"
+    check q.text == "abcd"
+    check q.packages == @["x", "y"]
+    check sqlOf("x").packages.len == 0 # (this file is not in a package)
+
+  test "a read of the table of a package that wrote a piece is allowed, and not without it":
+    let s = open("pieces")
+    let whole =
+      sqlFrom("select count(*) from activity a where ", "heartrate") &
+      sqlFrom("a.id in (select activity_id from effort)", "climbs")
+    check s.refusalSql("heartrate", whole) == ""
+    let alone =
+      sqlFrom("select count(*) from activity a where ", "heartrate") &
+      sqlFrom("a.id in (select activity_id from effort)", "heartrate")
+    check s.refusalSql("heartrate", alone) != ""
+    s.close()
+
+  test "a piece cannot make the runner write the contributor's tables":
+    let s = open("piecewrite")
+    let q =
+      sqlFrom("delete from effort where ", "heartrate") & sqlFrom("1 = 1", "climbs")
+    check "writes table 'effort'" in s.refusalSql("heartrate", q)
+    s.close()
 
 suite "access: the foreign keys that carry a cascade":
   test "the scan of the fragments finds the foreign keys SQLite has":

@@ -63,3 +63,25 @@ suite "access: the rule":
     check a.refusal("importer", acWrite, "effort", written = @["note"]).isSome
       # (a child is not a parent)
     check a.refusal("other", acRead, "idx_effort_geom", written = @["activity"]).isNone
+
+suite "access: pieces written by other packages":
+  test "a read is allowed if a package that wrote a piece may make it":
+    check rules().refusal("other", acRead, "effort").isSome
+    check rules().refusal("other", acRead, "effort", contributors = @["climbs"]).isNone
+    check rules()
+      .refusal("other", acRead, "effort", contributors = @["importer"]).isSome
+      # (a contributor that may not read it either)
+
+  test "a write or a change of definition is the caller's alone":
+    check rules().refusal("other", acWrite, "effort", contributors = @["climbs"]).isSome
+    check rules()
+      .refusal("other", acDefine, "effort", contributors = @["climbs"]).isSome
+    check rules()
+      .refusal("climbs", acWrite, "activity", contributors = @["importer"]).isSome
+
+  test "the refusal names the packages that wrote pieces":
+    let why = rules().refusal("other", acRead, "effort", contributors = @["importer"])
+    check "importer" in why.get
+
+  test "the caller counts as itself, whatever the contributors say":
+    check rules().refusal("climbs", acRead, "effort", contributors = @["other"]).isNone

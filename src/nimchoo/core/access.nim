@@ -83,14 +83,27 @@ func isLookedUpBy(a: Access, table: string, written: seq[string]): bool =
       return true
 
 func refusal*(
-    a: Access, caller: string, action: Action, table: string, written: seq[string] = @[]
+    a: Access,
+    caller: string,
+    action: Action,
+    table: string,
+    written: seq[string] = @[],
+    contributors: seq[string] = @[],
 ): Option[string] =
   ## Why `caller` (a package; "": code outside the packages, which is not checked) may not do `action` to
   ## `table`; none if it may.  `written`: the tables the same statement writes directly, whose foreign keys carry
   ## it further: what a cascade does to the tables that refer to them (and the reading of their other parents) is
-  ## the database's doing, not the caller's.
+  ## the database's doing, not the caller's.  `contributors`: the other packages that wrote pieces of the statement
+  ## (an activity criterion that another package offers): a read is allowed if any of them may make it; a write
+  ## or a change of definition is the caller's alone, so that a contributed piece cannot make the caller write the
+  ## tables of the contributor.
   if caller.len == 0:
     return none(string)
+  if action == acRead:
+    for c in contributors:
+      if c.normalised != caller.normalised and
+          a.refusal(c, acRead, table, written).isNone:
+        return none(string)
   let owner = a.ownerOf(table)
   if owner.isNone or owner.get.normalised == caller.normalised:
     return none(string)
@@ -106,7 +119,12 @@ func refusal*(
       return none(string)
     some(
       "package '" & caller & "' reads table '" & table & "' of '" & theirs &
-        "', which it does not depend on"
+        "', which it does not depend on" & (
+        if contributors.len > 0:
+        " (nor do the packages that wrote pieces of the statement: " &
+          contributors.join(", ") & ")"
+        else: ""
+      )
     )
   of acWrite:
     some("package '" & caller & "' writes table '" & table & "' of '" & theirs & "'")

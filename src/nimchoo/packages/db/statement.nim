@@ -45,12 +45,12 @@ proc fail(db: DbConn, what: string) {.noreturn, raises: [StoreError].} =
   raiseStore(fmt"{what}: {errmsg(db)}")
 
 proc prepareStmtAs*(
-    db: DbConn, sql: string, package: string
+    db: DbConn, sql: string, package: string, contributors: seq[string] = @[]
 ): Stmt {.raises: [StoreError].} =
   ## Compile one statement written in `package` ("": not checked); `?` marks the values to bind (numbered
   ## from 1).  The access rules (`access.nim`) are asked while it is compiled.
   var raw: PStmt
-  enter(package)
+  enter(package, contributors)
   let rc = prepare_v2(db, cstring(sql), cint(sql.len), raw, nil)
   let refused = leave()
   if rc != SQLITE_OK:
@@ -305,7 +305,7 @@ proc bindArg(s: Stmt, i: int, a: Arg) {.raises: [StoreError].} =
 proc prepareSql*(db: DbConn, q: Sql, package: string): Stmt {.raises: [StoreError].} =
   ## Compile the query and bind its values by name.  A mark with no value, a value no mark uses, and a name given
   ## twice are errors (a mistake in building the query, told before it runs).
-  result = prepareStmtAs(db, q.text, package)
+  result = prepareStmtAs(db, q.text, package, q.packages)
   var used = newSeq[bool](q.args.len)
   for i in 1 .. int(bind_parameter_count(result.raw)):
     let mark = bind_parameter_name(result.raw, int32(i))

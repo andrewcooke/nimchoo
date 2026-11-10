@@ -33,6 +33,8 @@ const
 var
   caller {.threadvar.}: string
     ## the package whose statement is being prepared; "": not checked
+  others {.threadvar.}: seq[string]
+    ## the other packages that wrote pieces of the statement being prepared (reads are allowed to any of them)
   denial {.threadvar.}: string ## why the authorizer refused the last one
   written {.threadvar.}: seq[string]
     ## the tables the statement being prepared writes directly
@@ -80,7 +82,7 @@ proc authorize(
     return sqliteOk
   if table.isNil:
     return sqliteOk
-  let why = rules.refusal(caller, what, $table, written)
+  let why = rules.refusal(caller, what, $table, written, others)
   if why.isNone:
     return sqliteOk
   case rules.mode
@@ -96,9 +98,10 @@ proc installAccess*(db: DbConn, rules: Access) {.raises: [].} =
   if rules != nil and rules.mode != amOff:
     discard set_authorizer(db, authorize, cast[pointer](rules))
 
-proc enter*(package: string) {.raises: [].} =
-  ## A statement of `package` is about to be prepared.
+proc enter*(package: string, contributors: seq[string] = @[]) {.raises: [].} =
+  ## A statement of `package` is about to be prepared; `contributors` wrote pieces of it.
   caller = package
+  others = contributors
   denial = ""
   written.setLen 0
 
