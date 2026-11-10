@@ -1,10 +1,17 @@
 import std/sequtils
 import std/[options, strutils, unittest]
 import nimchoo/packages/web/request
+import nimchoo/core/extension
 import nimchoo/registry
 
 proc target(raw: string): Target =
   parseTarget(raw).get
+
+let pages = registry.extensions.get(webPage)
+
+proc route(t: Target): Option[Route] =
+  ## (with the pages the packages offer)
+  request.route(t, pages)
 
 suite "serve request: the target":
   test "a path and a decoded query":
@@ -168,5 +175,8 @@ suite "serve request: what is asked for":
 suite "web: the commands it may run":
   test "are commands the registry has":
     let names = registry.commands.mapIt(it.name)
-    for rule in commandRules:
-      check rule.name in names
+    check pages.len == 2
+    for page in pages:
+      check page.command in names
+  test "no two pages have one command name":
+    check pages.mapIt(it.command).deduplicate.len == pages.len

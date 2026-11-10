@@ -79,7 +79,7 @@ system can be extended with new fit-related functionality by adding a package, w
   functions (`selection/replaceSelection`, `user/users`, `user/profile`, `importer/remove`), so a command calls those.
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in `fragments:` of its
   `package.nim`; the registry joins the lists, in dependency order, into `allFragments`.
-* **extension points** are few, and there are two: "what a user has" (`user/has.nim`: `importer` contributes the activity count, which `nch users` shows and says before deleting a user) and the import steps (`core/extension.nim`; `importer/channel.nim` declares the
+* **extension points** are few, and there are three: "pages the server may run" (`web/request.nim`: `map` and `ff` contribute the command and the options a request may give it, with a check for each value), "what a user has" (`user/has.nim`: `importer` contributes the activity count, which `nch users` shows and says before deleting a user) and the import steps (`core/extension.nim`; `importer/channel.nim` declares the
   point `importStep`, and `heartrate/package.nim` contributes its step with `contributes:`).  the registry collects the
   contributions in dependency order into `registry.extensions`, in memory; `nch.nim` puts them in `Globals.extensions`,
   and a command reads them with `g.extensions.get(importStep)` (a command cannot import the registry).  the other

@@ -6,6 +6,7 @@ import nimchoo/packages/ff/command
 import nimchoo/packages/ff/page
 import nimchoo/packages/ff/params
 import nimchoo/packages/web/request
+import nimchoo/packages/ff/web
 import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette
 
@@ -115,7 +116,7 @@ suite "ff: --worker, --web and the address":
     ]:
       let q = webQuery(parseArgs(args))
       let t = parseTarget("/ff?" & q).get
-      let r = route(t)
+      let r = route(t, @[ffPage("ff")])
       check r.isSome
       # and the worker, given those options, parses them to the same thing
       check webQuery(parseArgs(r.get.args)) == q

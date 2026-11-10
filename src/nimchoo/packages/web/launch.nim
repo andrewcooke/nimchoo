@@ -5,7 +5,7 @@
 
 import std/[os, osproc]
 import ../cache/cache
-import ../../core/globals
+import ../../core/[extension, globals]
 import ../db/store
 import ../../core/logfile
 import ../ui/interrupt
@@ -51,6 +51,7 @@ proc serveWeb*(
   let cfg = ServerConfig(
     token: t.token,
     cacheDir: userDir(cacheDir),
+    pages: g.extensions.get(webPage),
     baseArgs: workerOptions(g),
     log: g.log,
     logCommand: command,

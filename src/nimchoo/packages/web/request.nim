@@ -3,13 +3,13 @@
 ##
 ## The server runs `nch` commands named in URLs, and any web page open in the browser
 ## can send requests to localhost, so the rules are strict: the Host header must be
-## ours (against DNS rebinding), the token must be right, only the commands in
-## `commandRules` may be run, with only their options, and the values must be of the
-## kind a cache file name can hold.
+## ours (against DNS rebinding), the token must be right, only the commands that
+## packages have offered as pages (`webPage`) may be run, with only their options, and the
+## values must be of the kind a cache file name can hold.
 
 import std/[options, sequtils, strutils, uri]
+import ../../core/extension
 import ../cache/cache
-import ../selection/bits
 
 {.push raises: [].}
 
@@ -29,14 +29,26 @@ type
       args*: seq[string] ## for `nch COMMAND --worker ARGS`
       pin*: string ## the option that fixes what the page shows ("": none)
 
-  CommandRule* = object
-    name*: string
-    options*: seq[string] ## `?name=value` becomes `--name value`
+  Validator* = proc(value: string): bool {.noSideEffect, nimcall, raises: [].}
+    ## What a value may be: true if this one may.  (`anyWord` and the others below are the usual ones.)
+
+  PageOption* = object
+    name*: string ## `?name=value` becomes `--name value`
+    valid*: Validator
+
+  WebPage* = object
+    ## A command the server may run for a page, as a package offers it (the point `webPage`): the command
+    ## and the options it may be given.
+    command*: string
+    options*: seq[PageOption]
     flags*: seq[string] ## `?name=1` becomes `--name`
     pin*: string
       ## the key of the data: if a request lacks it, the address is
       ## sent on with the key the worker used (so that a reload
       ## shows the same data)
+
+const webPage* = ExtensionPoint[WebPage](name: "web/pages")
+  ## The pages the server may run, offered by the packages that have them (`map`, `ff`).
 
 const
   maxTarget = 8000
@@ -45,16 +57,6 @@ const
     ## seconds: a bookmark works for a year, not only until the browser is closed
   tokenParam* = "token"
   defaultPort* = 62466 ## the digits of "mchoo" on a phone keypad
-  # the commands the server may run: read-only, safe to repeat; with their options
-  commandRules* = [
-    CommandRule(name: "map", options: @["bits", "check"], pin: "bits"),
-    CommandRule(
-      name: "ff",
-      options: @["check", "model", "from", "to", "fitness-scale", "fatigue-scale"],
-      flags: @["hourly", "utc"],
-      pin: "check",
-    ),
-  ]
 
 func encodedPath(path: string): string =
   ## A decoded path written as an address again: each segment encoded (so that a `%`, `?`, `#`, space or control
@@ -144,38 +146,27 @@ func sameToken*(a, b: string): bool =
     diff = diff or (ord(a[i]) xor ord(b[i]))
   diff == 0
 
-func isPlainNumber(value: string): bool =
-  ## digits and at most one dot, not starting or ending with it
-  value.len in 1 .. 8 and value.allIt(it in {'0' .. '9', '.'}) and value.count('.') <= 1 and
-    value[0] != '.' and value[^1] != '.'
+func anyWord*(value: string): bool =
+  ## Anything a cache file name can hold (see `isOptionValue`).
+  isOptionValue(value)
 
-func isDay(value: string): bool =
-  value.len == 10 and value[4] == '-' and value[7] == '-' and
+func hexHash*(value: string): bool =
+  ## A hash: hex digits.
+  isOptionValue(value) and value.allIt(it in {'0' .. '9', 'a' .. 'f'})
+
+func plainNumber*(value: string): bool =
+  ## Digits and at most one dot, not starting or ending with it, up to 8 characters.
+  isOptionValue(value) and value.len in 1 .. 8 and value.allIt(it in {'0' .. '9', '.'}) and
+    value.count('.') <= 1 and value[0] != '.' and value[^1] != '.'
+
+func day*(value: string): bool =
+  ## A day, "2018-08-31".
+  isOptionValue(value) and value.len == 10 and value[4] == '-' and value[7] == '-' and
     value.allIt(it in {'0' .. '9', '-'})
 
-func validValue(command, option, value: string): bool =
-  ## What an option of a command may be set to.
-  if option == "bits":
-    return
-      value.len > 0 and isBitsString(value)
-        # (a list of activities may have two dashes in a row)
-  if not isOptionValue(value):
-    return false
-  case option
-  of "check":
-    value.allIt(it in {'0' .. '9', 'a' .. 'f'})
-  # (a hash)
-  of "fitness-scale", "fatigue-scale":
-    isPlainNumber(value)
-  # (a multiplier)
-  of "from", "to":
-    isDay(value)
-  else:
-    true
-
-func route*(t: Target): Option[Route] =
+func route*(t: Target, pages: seq[WebPage]): Option[Route] =
   ## What a request is for: a file of the cache directory (`/files/NAME`), or a command
-  ## (`/COMMAND?option=value...`) that is on the list, with only its options, each once.
+  ## (`/COMMAND?option=value...`) that a page offers, with only its options, each once.
   let segments = t.path.split('/') # "/a/b" -> ["", "a", "b"]
   if segments.len == 3 and segments[0] == "" and segments[1] == "files":
     if t.query.len == 0 and isCacheFileName(segments[2]):
@@ -183,8 +174,8 @@ func route*(t: Target): Option[Route] =
     return none(Route)
   if segments.len != 2 or segments[0] != "":
     return none(Route)
-  for rule in commandRules:
-    if segments[1] != rule.name:
+  for page in pages:
+    if segments[1] != page.command:
       continue
     var args: seq[string]
     var seen: seq[string]
@@ -194,14 +185,15 @@ func route*(t: Target): Option[Route] =
       if k in seen:
         return none(Route)
       seen.add k
-      if k in rule.flags:
+      if k in page.flags:
         if v != "1":
           return none(Route)
         args.add "--" & k
-      elif k in rule.options and validValue(rule.name, k, v):
+      else:
+        let option = page.options.filterIt(it.name == k)
+        if option.len == 0 or not option[0].valid(v):
+          return none(Route)
         args.add "--" & k
         args.add v
-      else:
-        return none(Route)
-    return some(Route(isFile: false, command: rule.name, args: args, pin: rule.pin))
+    return some(Route(isFile: false, command: page.command, args: args, pin: page.pin))
   none(Route)

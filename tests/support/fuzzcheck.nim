@@ -58,8 +58,9 @@ proc bitsProblemAny*(s: string): string =
 func hasControl(s: string): bool =
   s.anyIt(it < ' ' or it == '\x7f')
 
-proc requestProblem*(raw: string): string =
-  ## What is wrong with what the request checks did with this address, if anything ("" if all is well).
+proc requestProblem*(raw: string, pages: seq[WebPage]): string =
+  ## What is wrong with what the request checks did with this address, if anything ("" if all is well), given the
+  ## pages the server may run.
   let parsed = parseTarget(raw)
   if parsed.isNone:
     return ""
@@ -77,7 +78,7 @@ proc requestProblem*(raw: string): string =
     return "the address of a redirect has another path"
   if again.get.query != t.query.filterIt(it[0] != tokenParam):
     return "the address of a redirect has another query"
-  let route = route(t)
+  let route = route(t, pages)
   if route.isNone:
     return ""
   let rt = route.get
@@ -85,7 +86,7 @@ proc requestProblem*(raw: string): string =
     if not isCacheFileName(rt.fileName) or '/' in rt.fileName or rt.fileName.hasControl:
       return "a file route that is not a cache file name"
     return ""
-  let rule = commandRules.filterIt(it.name == rt.command)
+  let rule = pages.filterIt(it.command == rt.command)
   if rule.len != 1:
     return "a command that is not on the list"
   var i = 0
@@ -100,7 +101,7 @@ proc requestProblem*(raw: string): string =
     seen.add name
     if name in rule[0].flags:
       inc i
-    elif name in rule[0].options:
+    elif rule[0].options.anyIt(it.name == name):
       if i + 1 >= rt.args.len:
         return "an option with no value"
       let v = rt.args[i + 1]

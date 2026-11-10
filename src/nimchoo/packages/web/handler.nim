@@ -30,6 +30,8 @@ type
   ServerConfig* = object
     token*: string
     cacheDir*: string
+    pages*: seq[WebPage]
+      ## the commands it may run for a page (the packages offer them: `webPage`)
     baseArgs*: seq[string] ## the options before the command (--db ..., --user ...)
     log*: Log
     logCommand*: string
@@ -172,7 +174,7 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
       403,
       "forbidden: open the address that `nch " & $cfg.logCommand & " --web` printed\n",
     )
-  let route = route(t)
+  let route = route(t, cfg.pages)
   if route.isNone:
     return reply(404, "not found")
   if route.get.isFile:

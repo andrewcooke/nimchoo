@@ -2,6 +2,8 @@ import std/[os, strutils, unittest]
 import nimchoo/packages/web/handler
 import nimchoo/packages/web/request
 import nimchoo/core/logfile
+import nimchoo/packages/ff/web
+import nimchoo/packages/map/web as mapWeb
 
 const
   token = "0123456789abcdef0123456789abcdef"
@@ -37,7 +39,11 @@ proc setup(
     )
   )
   var cfg = ServerConfig(
-    token: token, cacheDir: cache, baseArgs: @["--db", "/x/y.db"], logCommand: "map"
+    token: token,
+    cacheDir: cache,
+    pages: @[mapPage("map"), ffPage("ff")],
+    baseArgs: @["--db", "/x/y.db"],
+    logCommand: "map",
   )
   if withLog:
     cfg.log = openLog(dir / name / "nch.log")

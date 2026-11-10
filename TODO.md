@@ -26,7 +26,6 @@ sees and can be approved together.
       contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
       table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
       definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
-   4. The extension point "pages the server may run" in `web`; `map` and `ff` contribute; `commandRules` goes.
    5. `nch import PATH...` is a command of `importer` (this reverses CLAUDE.md's "no import command": update "the
       shape of the commands"), with the extension point "after import" (once per import, after the commit; a failure
       is a warning).

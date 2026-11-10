@@ -8,8 +8,12 @@
 ## NCH_FUZZ_ROUNDS (default 60) scales the length: 400 addresses per round.
 
 import std/[options, os, random, strformat, strutils, tables, unittest]
+import nimchoo/packages/ff/web
+import nimchoo/packages/map/web as mapWeb
 import nimchoo/packages/web/request
 import ../support/[fuzzcheck, fuzzfiles, fuzzsamples, textmutate]
+let pages = @[mapPage("map"), ffPage("ff")]
+
 const pieces = [
   "%", "%0", "%00", "%0a", "%0d%0a", "%0D", "%2f", "%2F", "%2e%2e", "%25", "%zz", "%7f",
   "%3f", "%23", "%26", "%3d", "+", "#", "?", "&", "=", "&&", "??", "/", "//", "\\",
@@ -52,11 +56,11 @@ suite "web request fuzzing":
       inc runs
       var what = ""
       try:
-        what = requestProblem(raw)
+        what = requestProblem(raw, pages)
         let t = parseTarget(raw)
         if t.isSome:
           inc accepted
-          if t.get.route.isSome:
+          if route(t.get, pages).isSome:
             inc routed
       except Exception as e: # the point of the test: nothing may be raised
         what = signatureOf(e)
@@ -96,4 +100,4 @@ suite "web request fuzzing":
 
   test "addresses that once broke the checks are refused or safe":
     for path in savedFailures("request", ".txt"):
-      check requestProblem(readFile(path)) == ""
+      check requestProblem(readFile(path), pages) == ""

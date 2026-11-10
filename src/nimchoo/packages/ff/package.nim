@@ -1,5 +1,9 @@
-import ../../core/manifest
-import ./command
+import ../../core/[extension, manifest]
+import ../web/request
+import ./[command, web]
+
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[contribute(webPage, ffPage(command.commandName))]
 
 const package* = Package(
   depends: @[
@@ -13,4 +17,5 @@ const package* = Package(
       run: command.run,
     )
   ],
+  contributes: contributions,
 )
