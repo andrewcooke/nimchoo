@@ -3054,3 +3054,30 @@ registry with the schema-by-several-orders test.  Databases had to be made again
 `names`).  The second review (REVIEW.md, 2026-11-09) found that two command packages (`activities`, `users`) and the
 server's list of commands hid cycles, and replaced the command layer with commands in their packages plus extension
 points (TODO.md step 3).
+
+### Fuzzing, level 1: the fuzzer shown to find a bug (2026-11-10, TODO step 1.1 to 1.3 in part)
+
+The second review asked whether the FIT fuzzer would have found the class L bugs.  The test planned (remove a guard
+in a scratch copy and see whether the default rounds report it) **cannot answer that**, for two reasons found by doing it:
+
+* **Layered guards.**  A time is checked in the tokenizer (`setTimestamp`), in the printer (`fitText`) and in `fitToTime`'s
+  assert; removing one changes nothing anyone sees.  And a field declared wider than 32 bits is printed as a plain number,
+  so `fitText`'s guard is not reached by it at all.  In the importer, `extract.nim`'s `isFitTime(start)` matters only for a
+  start within about 630 million seconds of `int64` max.  No variant of the removal was found in 42,000 mutations.
+* **A copy of the tree compiles the real source**: `nimble.paths` holds the absolute `--path` of `src`.  The first
+  experiments therefore tested the unmodified code.  (A scratch copy needs that path rewritten.)
+
+What showed that the fuzzer works was a real bug it found in code nobody had touched: at 1,500 rounds (not at the default
+60) `readActivities` died with an `OverflowDefect` at `local_timestamp - timestamp` of the `activity` message, when the
+field was declared 64 bits wide (`extract.nim`).  Fixed: both must be times, and an offset of more than a day from UTC is
+not a time zone; either gives `wkInvalidTime` and no offset.  The input is kept as
+`tests/data/fuzz/importer/local-timestamp-overflow.fit` and replayed by `tests/importer/test_fuzz.nim`; it fails
+without the fix.
+
+What was added: the mutations `kWiden` (a 4-byte field becomes 8 bytes with a 64-bit base type, in the definition and in
+every data message of the type; the high half comes first in a big-endian file; half the time it is a field that usually
+holds a time: 253, 2 or 4), `kCopyOver`, `kCopyInsert` (a piece of the file copied within it) and `kRotate`; the
+importer's `readActivities` fuzzed with and without `heart_rate`, small files and large ones (12 KB to 160 KB, a tenth of
+the rounds).  Cost in `nimble test`: about 5 s at 60 rounds (FIT 1.5 s, importer 3.7 s); 600 rounds would be about 39 s,
+so the quick run stays at 60 and `nimble fuzzlong` (NCH_FUZZ_ROUNDS, default 1500) is for the long one.  The author's
+decision: extended, slow checks are fine, but not inside `nimble test`.

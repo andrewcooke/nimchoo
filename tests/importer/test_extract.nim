@@ -111,6 +111,22 @@ suite "activities: a session and its coordinates":
       activityMsg(base, base - 10_800)
     check activities(body)[0][0].utcOffsetS == some(-10_800)
 
+  test "a local time that is not a time, or an offset no zone has, is ignored, with a warning":
+    # (a field the file declares as 64 bits can hold anything: the subtraction once overflowed, a Defect)
+    func activityWide(t: int, localLow, localHigh: int64): seq[byte] =
+      b(2) & le32(t) & le32(localLow) & le32(localHigh)
+
+    let wideDefn = defn(2, 34, @[(253, 4, uint32T), (5, 8, sint64T)])
+    let prefix = recordDefn & at(base) & sessionDefn & session(base, base)
+    for (low, high) in [(0'i64, 0x80000000'i64), (0xfffffff0'i64, 0x7fffffff'i64)]:
+      let (a, ws) = activities(prefix & wideDefn & activityWide(base, low, high))
+      check a[0].utcOffsetS.isNone
+      check ws.kinds == @[wkInvalidTime]
+    # a time, but a day and a bit from UTC
+    let (a, ws) = activities(prefix & activityDefn & activityMsg(base, base + 90_000))
+    check a[0].utcOffsetS.isNone
+    check ws.kinds == @[wkInvalidTime]
+
 suite "activities: times":
   test "records in the same second keep the last, with a warning":
     let body =

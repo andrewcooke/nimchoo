@@ -16,7 +16,7 @@
 ##   activity's segments are stretches of riding: disjoint intervals in time
 ##   order.  Every coordinate lies in one.
 
-import std/[algorithm, options, sequtils, strutils, tables]
+import std/[algorithm, options, sequtils, strformat, strutils, tables]
 import ./channel
 import ../../core/errors
 import ../fit/model
@@ -33,6 +33,7 @@ import ./stretch
 const
   minCalendarFit* = FitTime(0x10000000) ## 1998-07-03; earlier times are not UTC
   semicircleDegrees = 180.0 / 2147483648.0 ## degrees per FIT semicircle
+  maxUtcOffsetS = 86_400 ## a local time more than a day from UTC is not a time zone
 
 type
   Coord* = object
@@ -111,7 +112,7 @@ func sessionOf(
   let start = r.firstInt("start_time")
   if start.isNone or not isFitTime(FitTime(start.get)) or
       FitTime(start.get) < minCalendarFit:
-    raiseImport(ifBadTime, "session " & $index & " has no valid start time")
+    raiseImport(ifBadTime, fmt"session {index} has no valid start time")
   let startFit = FitTime(start.get)
   result.startT = fitToUnix(startFit)
   let finish = if r.timestamp.isSome: r.timestamp.get else: startFit
@@ -221,8 +222,7 @@ proc cover(segs: var seq[Segment], coords: seq[Coord], ws: var seq[Warning]) =
       segs[j].endT = c.t
     ws.add wkOutsideSegment,
       0,
-      "a coordinate at " & $c.t &
-        " is outside the timer segments; the nearest segment is extended"
+      fmt"a coordinate at {c.t} is outside the timer segments; the nearest segment is extended"
   segs = merged(segs)
 
 func joinStretches*(segs: seq[Segment], coords: seq[Coord]): seq[Segment] =
@@ -263,7 +263,7 @@ proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
   for i, rc in raw:
     if result.len > 0 and result[^1].t == rc.c.t:
       ws.add wkDuplicateTime,
-        rc.offset, "several records at second " & $rc.c.t & "; the last is kept"
+        rc.offset, fmt"several records at second {rc.c.t}; the last is kept"
       result[^1] = rc.c
     else:
       result.add rc.c
@@ -344,7 +344,19 @@ proc readActivities*(
         of "activity":
           let local = rec.firstInt("local_timestamp")
           if offsetS.isNone and local.isSome and rec.timestamp.isSome:
-            offsetS = some(int(local.get - int64(rec.timestamp.get)))
+            # (the field may be declared wider than 32 bits and hold anything: subtract only two real times)
+            if not isFitTime(FitTime(local.get)):
+              ws.add wkInvalidTime,
+                ev.offset,
+                fmt"activity: local_timestamp {local.get} is not a time (ignored)"
+            else:
+              let diff = int(local.get - int64(rec.timestamp.get))
+              if abs(diff) <= maxUtcOffsetS:
+                offsetS = some(diff)
+              else:
+                ws.add wkInvalidTime,
+                  ev.offset,
+                  fmt"activity: local time {diff} s from UTC is not a time zone (ignored)"
         else:
           discard
   finally:

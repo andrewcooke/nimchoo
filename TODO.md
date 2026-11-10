@@ -9,14 +9,12 @@ sees and can be approved together.
 
 ## Now: the plan of the second review
 
-1. **Fuzzing** (REVIEW.md §3; the author: before the packages).
-   1. Show that the FIT fuzzer finds a bug: a guard of class L removed in a scratch copy must be found with the default
-      rounds; record the result in HISTORY.md.  If not, improve the mutator first.
-   2. The importer's `readActivities` fuzzed with the same mutations (with and without `heart_rate`); one or two large
-      real files with fewer rounds.
-   3. Level-1 fuzzers for `decodeBits`, the xlsx and zip readers (damaged `Profile.xlsx`), and `parseTarget`.
-   4. Failures saved under `tests/data/fuzz/<target>/`, replayed by a test.
-   5. Level 2: libFuzzer harnesses in `tests/fuzz/`, `nimble fuzz TARGET [SECONDS]` (clang, `--panics:on`,
+1. **Fuzzing** (REVIEW.md §3; the author: before the packages).  Done so far: the FIT and importer fuzzers
+   (HISTORY.md, 2026-11-10).
+   1. Level-1 fuzzers for `decodeBits`, the xlsx and zip readers (damaged `Profile.xlsx`), and `parseTarget`.
+   2. Failures saved under `tests/data/fuzz/<target>/` and replayed by a test: done for the importer
+      (`tests/importer/test_fuzz.nim`); the FIT target (`tests/data/fuzz/fit/`) and the new ones need the same.
+   3. Level 2: libFuzzer harnesses in `tests/fuzz/`, `nimble fuzz TARGET [SECONDS]` (clang, `--panics:on`,
       `-d:useMalloc`, `-fsanitize=fuzzer,address`, and `--gcc-install-dir` set to the GCC that has `libstdc++.so`:
       clang chooses GCC 16, which lacks it).  One hour per target; fix what it finds (a test first), record the rest.
 2. *(mechanical)* **Tools** (REVIEW.md §7).

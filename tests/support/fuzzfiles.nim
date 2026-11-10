@@ -24,3 +24,9 @@ proc saveFailure*(target, source: string, round: int, data: seq[byte]): string =
   var f = open(result, fmWrite)
   discard f.writeBytes(data, 0, data.len)
   f.close()
+
+proc savedFailures*(target: string): seq[string] =
+  ## The inputs that once broke `target` (kept in tests/data/fuzz/<target>/), so that a fixed bug stays fixed.
+  for path in walkFiles("tests/data/fuzz" / target / "*.fit"):
+    result.add path
+  result.sort()

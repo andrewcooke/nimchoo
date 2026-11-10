@@ -69,3 +69,14 @@ suite "importer fuzzing":
     for l in report:
       checkpoint l
     check report.len == 0
+
+  test "inputs that once broke the reader are read without a Defect":
+    let paths = savedFailures("importer")
+    check paths.len >= 1
+    for path in paths:
+      for channels in [@[], @["heart_rate"]]:
+        var ws: seq[Warning]
+        try:
+          discard readActivities(p, readBytes(path), ws, channels)
+        except FitError, ImportError:
+          discard
