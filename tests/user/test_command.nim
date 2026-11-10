@@ -4,10 +4,11 @@ import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
-from nimchoo/registry import allFragments, allAccess, newAllAccess
+from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/core/logfile
-import nimchoo/packages/commands/userscmd/command as userCommand
-import ../../support/userdata
+import nimchoo/core/extension
+import nimchoo/packages/user/[command as userCommand, has]
+import ../support/userdata
 
 let dir = getTempDir() / "nch-test-user"
 
@@ -19,7 +20,14 @@ proc fresh(name: string): string =
 proc userAs(db, who: string, args: varargs[string]): int =
   ## nch --user WHO user ARGS (which the user command refuses: the user is named after it)
   userCommand.run(
-    Globals(dbPath: db, user: who, fragments: allFragments, access: allAccess), @args
+    Globals(
+      dbPath: db,
+      user: who,
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+    ),
+    @args,
   )
 
 proc user(db: string, args: varargs[string]): int =
@@ -39,7 +47,7 @@ proc lines(db: string): seq[string] =
   let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
-  userLines(s)
+  userLines(s, extensions.get(userHas))
 
 suite "nch users":
   test "a new database has the default user, with no FTHR and no activities":

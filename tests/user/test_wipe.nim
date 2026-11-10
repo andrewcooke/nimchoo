@@ -1,4 +1,4 @@
-import std/[options, os, unittest]
+import std/[os, unittest]
 import nimchoo/packages/db/statement
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
@@ -15,9 +15,14 @@ proc fresh(name: string): string =
 
 suite "wipe: what is said":
   test "what is to go":
-    check describe(some 74, "") == "74 activities for all users"
-    check describe(some 1, "bob") == "1 activity and user bob"
-    check describe(none int, "") == "all data for all users"
+    check describe(@[counted(74, "activity", "activities")], "bob") ==
+      "74 activities and user bob"
+    check describe(@[counted(1, "activity", "activities")], "bob") ==
+      "1 activity and user bob"
+    check describe(
+      @[counted(3, "activity", "activities"), counted(2, "note", "notes")], "bob"
+    ) == "3 activities, 2 notes and user bob"
+    check describe(@[], "bob") == "user bob"
 
 suite "wipe: what belongs to a user":
   test "every table that names a user is emptied or goes with the user, so none is forgotten":

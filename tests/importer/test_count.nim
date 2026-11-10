@@ -1,9 +1,6 @@
-import std/[options, os, unittest]
-import db_connector/db_sqlite
-import nimchoo/packages/db/statement
-import nimchoo/packages/user/session
-import nimchoo/core/errors
+import std/[os, unittest]
 import nimchoo/packages/importer/count
+import nimchoo/packages/user/[session, users, wipe]
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/userdata
 
@@ -14,28 +11,16 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-suite "importer: counting activities":
-  test "activities are counted straight from the file, whatever its layout":
+suite "importer: counting a user's activities":
+  test "each user's own are counted":
     let d = fresh("count")
     let a = openSession(d / "x.db", allFragments, access = allAccess)
+    check activityCount.count(a.db, a.userId) == 0
     fill(a, "mine")
+    check activityCount.count(a.db, a.userId) == 1
+    addUser(a, "bob")
+    check activityCount.count(a.db, findUser(a, "bob")) == 0
     a.close()
-    check countActivities(d / "x.db", "") == some 1
-    check countActivities(d / "x.db", defaultUser) == some 1
-    check countActivities(d / "x.db", "nobody") == some 0
-    # an older layout, which openStore refuses
-    let c = db_sqlite.open(d / "x.db", "", "", "")
-    c.execute(
-      "update fragment set name = 'activity/001-tables.sql' where name = 'importer/001-schema.sql'"
-    )
-    c.close()
-    expect StoreError:
-      openSession(d / "x.db", allFragments, access = allAccess).close()
-    check countActivities(d / "x.db", "") == some 1
 
-  test "a file without an activity table is not counted":
-    let d = fresh("nocount")
-    let c = db_sqlite.open(d / "x.db", "", "", "")
-    c.execute("create table t(x)")
-    c.close()
-    check countActivities(d / "x.db", "").isNone
+  test "it is said as activities, and the one as activity":
+    check activityCount.heading == "activities" and activityCount.one == "activity"

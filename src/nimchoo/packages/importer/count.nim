@@ -1,35 +1,19 @@
-## Counting the activities in a database file, for the words that say what a delete would remove.
+## What `nch users` says of the activities a user has: how many.  Contributed to `user/has` (see package.nim).
 
-import std/options
+import ../../core/[errors, ids]
 import ../db/statement
-import ../../core/errors
+import ../user/has
 
 {.push raises: [].}
 
-proc countActivities*(path, user: string): Option[int] =
-  ## How many activities there are (of `user`, if given), counted straight from
-  ## the file, so that it works whatever layout the database has (the one
-  ## thing it needs is a table called `activity`).  None if that fails.
-  var db: DbConn
-  try:
-    db = openFile(path)
-  except StoreError:
-    return none(int)
-  defer:
-    closeQuietly(db)
-  try:
-    result =
-      if user.len == 0:
-        some(db.scalar(int, "select count(*) from activity"))
-      else:
-        some(
-          db.scalar(
-            int,
-            """select count(*) from activity a
-                                join file f on f.id = a.file_id
-                                where f.user_id = (select id from user where name = :name)""",
-            name = user,
-          )
-        )
-  except StoreError:
-    result = none(int)
+proc activitiesOf(db: DbConn, user: UserId): int {.raises: [StoreError].} =
+  db.scalar(
+    int,
+    """select count(*) from activity a join file f on f.id = a.file_id
+      where f.user_id = :userId""",
+    userId = user,
+  )
+
+let activityCount* =
+  UserHas(heading: "activities", one: "activity", count: activitiesOf)
+  ## the activities of a user

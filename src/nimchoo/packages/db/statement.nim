@@ -44,21 +44,6 @@ proc `=destroy`(s: StmtObj) {.raises: [].} =
 proc fail(db: DbConn, what: string) {.noreturn, raises: [StoreError].} =
   raiseStore(fmt"{what}: {errmsg(db)}")
 
-proc openFile*(path: string): DbConn {.raises: [StoreError].} =
-  ## A plain connection to a database file: no fragments, no extensions, no user (`openStore` does those).  For
-  ## what must work whatever layout the file has.  Close it with `closeQuietly`.
-  try:
-    db_sqlite.open(path, "", "", "")
-  except DbError as e:
-    raiseStore(fmt"cannot open {path}: {e.msg}")
-
-proc closeQuietly*(db: DbConn) {.raises: [].} =
-  ## Close a connection, ignoring a failure (it is for cleaning up).
-  try:
-    db_sqlite.close(db)
-  except DbError:
-    discard
-
 proc prepareStmtAs*(
     db: DbConn, sql: string, package: string
 ): Stmt {.raises: [StoreError].} =

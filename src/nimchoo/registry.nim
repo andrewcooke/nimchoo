@@ -8,7 +8,6 @@ import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/climbs/package as pkgClimbs
 import ./packages/commands/activitiescmd/package as pkgActivitiescmd
-import ./packages/commands/userscmd/package as pkgUserscmd
 import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
@@ -47,7 +46,6 @@ const packages*: seq[Registered] = inDependencyOrder(
     Registered(name: "cache", package: pkgCache.package),
     Registered(name: "climbs", package: pkgClimbs.package),
     Registered(name: "activitiescmd", package: pkgActivitiescmd.package),
-    Registered(name: "userscmd", package: pkgUserscmd.package),
     Registered(name: "confirm", package: pkgConfirm.package),
     Registered(name: "db", package: pkgDb.package),
     Registered(name: "download", package: pkgDownload.package),

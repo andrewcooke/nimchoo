@@ -1,11 +1,12 @@
 ## What goes when a user is removed (`nch users --delete`), and the words that say it.  The pause before any delete
-## (the countdown) is in `confirm`; deleting the row is `db/users`.
+## (the countdown) is in `confirm`; deleting the row is `users`.
 ##
 ## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough to remove the
 ## user.  A later module that stores per-user data adds its table to `userTables`; a test checks that none is
 ## forgotten.
 
-import std/options
+import std/[options, strformat]
+import std/strutils
 import ../db/statement
 import ../db/store
 import ../../core/errors
@@ -15,21 +16,17 @@ import ../../core/errors
 const userTables* = ["file", "seen_file", "selection"]
   ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
 
-func activities(n: int): string =
-  $n & (if n == 1: " activity" else: " activities")
+func counted*(n: int, one, many: string): string =
+  ## "1 activity", "74 activities".
+  fmt"{n} {(if n == 1: one else: many)}"
 
-func describe*(count: Option[int], user: string): string =
-  ## What is to go when a user, or everything, is removed: "74 activities for all users",
-  ## "74 activities and user bob"; "all data" if the count is not known.
-  let items =
-    if count.isSome:
-      activities(count.get)
-    else:
-      "all data"
-  if user.len == 0:
-    items & " for all users"
+func describe*(parts: seq[string], user: string): string =
+  ## What is to go when a user is removed: "74 activities and user bob", "3 activities, 2 notes and user bob" (the
+  ## parts are what the packages say the user has: `user/has`), "user bob" if they say nothing.
+  if parts.len == 0:
+    fmt"user {user}"
   else:
-    items & " and user " & user
+    fmt"""{parts.join(", ")} and user {user}"""
 
 proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   ## The id of the user called `name`; an error if there is none.

@@ -65,7 +65,7 @@ system can be extended with new fit-related functionality by adding a package, w
   looks the command up by name in the registry and builds the usage text from it; there is no other list of commands.
   only a `package.nim` imports a `command.nim` (checked by a test).  **no command hides a cycle**: when a command would need
   a package above its own, that package defines an extension point and the higher one contributes to it.  still apart, until
-  their steps of TODO.md: `activitiescmd` (joins the listing, `--select`, `--import` and `--delete`) and `userscmd`, in `packages/commands/`.
+  its step of TODO.md: `activitiescmd` (joins the listing, `--select`, `--import` and `--delete`), in `packages/commands/`.
   the module that first introduces a concept owns it (eg `importer` owns activities) and later packages use its library files.
 * **imports** (`tests/core/test_imports.nim`): a file imports only its own package, `core`, standard and third-party
   libraries, and the packages in its `depends`.  `db_connector` is imported by `db` (and `core/fragment.nim`) only: `db` exports the types it hands out (`DbConn`).  `depends` must also name the packages whose **tables** it reads in SQL
@@ -79,7 +79,7 @@ system can be extended with new fit-related functionality by adding a package, w
   functions (`selection/replaceSelection`, `user/users`, `user/profile`, `importer/remove`), so a command calls those.
 * **fragments** (see below): each package with tables keeps its sql in its own directory, listed in `fragments:` of its
   `package.nim`; the registry joins the lists, in dependency order, into `allFragments`.
-* **extension points** are few, and there is one: the import steps (`core/extension.nim`; `importer/channel.nim` declares the
+* **extension points** are few, and there are two: "what a user has" (`user/has.nim`: `importer` contributes the activity count, which `nch users` shows and says before deleting a user) and the import steps (`core/extension.nim`; `importer/channel.nim` declares the
   point `importStep`, and `heartrate/package.nim` contributes its step with `contributes:`).  the registry collects the
   contributions in dependency order into `registry.extensions`, in memory; `nch.nim` puts them in `Globals.extensions`,
   and a command reads them with `g.extensions.get(importStep)` (a command cannot import the registry).  the other

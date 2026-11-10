@@ -14,7 +14,7 @@ import nimchoo/packages/model/models
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/heartrate/step
 import nimchoo/packages/fit/load
-import nimchoo/packages/commands/userscmd/command as userCommand
+import nimchoo/packages/user/command as userCommand
 import nimchoo/packages/util/warnings/warnings
 
 const

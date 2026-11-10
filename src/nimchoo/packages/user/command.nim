@@ -2,22 +2,21 @@
 ## functional threshold heart rate).  A user's name is the key for `--user`; `nch users`
 ## makes users (never implicitly, so a typo cannot), renames them and sets their FTHR.
 ##
-## This module is newer than `importer` and `model`: it counts each user's activities and sees
-## whether they have impulses.
+## What else a user has (the activities, say) is said by the packages above this one, through the extension point
+## `user/has`: each is a column of the list and a part of what a delete says it will remove.
 
-import std/[options, strutils]
-import ../../../core/globals
-import ../../db/statement
-import ../../db/store
-import ../../../core/errors
-import ../../../core/logfile
-import ../../ui/live
-import ../../importer/count
-import ../../confirm/confirm
-import ./params
-import ../../user/users
-import ../../user/[profile, wipe]
-import ../../user/session
+import std/[options, strformat, strutils]
+import ../../core/[extension, globals]
+import ../db/statement
+import ../db/store
+import ../../core/errors
+import ../../core/logfile
+import ../ui/live
+import ../confirm/confirm
+import ./[has, params]
+import ./users
+import ./[profile, wipe]
+import ./session
 
 {.push raises: [].}
 
@@ -52,7 +51,8 @@ Names have 1 to 32 letters, digits and _ . - (not starting with -).
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0
 
-const deletedNote = " (the impulses worked out with the old one are deleted)"
+const recalculated = " (what is worked out from the FTHR is worked out again)"
+  ## said when the FTHR changes: the packages that work things out from it (`model`) do it again, by themselves
 
 proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
   let got = st.db.queryOne(
@@ -63,46 +63,42 @@ proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
   else:
     none(int)
 
-proc hasImpulses(st: Store, id: UserId): bool {.raises: [StoreError].} =
-  st.db.scalar(
-    int,
-    """select count(*) from impulse i join activity a on a.id = i.activity_id
-      join file f on f.id = a.file_id where f.user_id = :userId""",
-    userId = id,
-  ) != 0
-
 func commas(n: int): string =
   insertSep($n, ',')
 
-proc userLines*(st: Store): seq[string] {.raises: [StoreError].} =
-  ## The users, one to a line: name, FTHR ("-" if not set), how many activities they have, and
-  ## "yes" for the default user.
-  var rows: seq[array[4, string]]
+proc userLines*(st: Store, has: seq[UserHas]): seq[string] {.raises: [StoreError].} =
+  ## The users, one to a line: name, FTHR ("-" if not set), what the other packages say they have (`has`: how many
+  ## activities, say), and "yes" for the default user.
+  var header = @["user", "fthr"]
+  for h in has:
+    header.add h.heading
+  var rows: seq[seq[string]]
   for r in st.db.query(
-    tuple[name: string, fthr: Option[int], activities: int, isDefault: bool],
-    """select u.name, p.fthr, (select count(*) from activity a
-        join file f on f.id = a.file_id where f.user_id = u.id), u.is_default
-        from user u left join user_profile p on p.user_id = u.id order by u.name""",
+    tuple[id: int64, name: string, fthr: Option[int], isDefault: bool],
+    """select u.id, u.name, p.fthr, u.is_default
+      from user u left join user_profile p on p.user_id = u.id order by u.name""",
   ):
-    rows.add [
-      r.name,
-      (if r.fthr.isSome: $r.fthr.get else: "-"),
-      commas(r.activities),
-      (if r.isDefault: "yes" else: ""),
-    ]
-  var w = [4, 4, 10]
-  for r in rows:
-    for c in 0 .. 2:
+    var row = @[r.name, (if r.fthr.isSome: $r.fthr.get else: "-")]
+    for h in has:
+      row.add commas(h.count(st.db, UserId(r.id)))
+    row.add (if r.isDefault: "yes" else: "")
+    rows.add row
+  let last = header.len # (the flag column has the heading below, and is not aligned)
+  var w = newSeq[int](last)
+  for c in 0 ..< last:
+    w[c] = header[c].len
+    for r in rows:
       w[c] = max(w[c], r[c].len)
-  result.add (
-    "user".alignLeft(w[0]) & "  " & "fthr".align(w[1]) & "  " & "activities".align(w[2]) &
-    "  default"
-  ).strip(leading = false)
+  proc line(cells: seq[string], flag: string): string =
+    var parts = @[cells[0].alignLeft(w[0])]
+    for c in 1 ..< last:
+      parts.add cells[c].align(w[c])
+    parts.add flag
+    parts.join("  ").strip(leading = false)
+
+  result.add line(header, "default")
   for r in rows:
-    result.add (
-      r[0].alignLeft(w[0]) & "  " & r[1].align(w[1]) & "  " & r[2].align(w[2]) & "  " &
-      r[3]
-    ).strip(leading = false)
+    result.add line(r, r[last])
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch users ARGS`; returns the exit status.
@@ -126,12 +122,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return failure("nch users", e.msg)
   try:
     if p.list:
-      for l in userLines(st):
+      for l in userLines(st, g.extensions.get(userHas)):
         stdout.say l & "\n"
       return exitOk
     if p.delete:
       let id = findUser(st, p.name)
-      let what = describe(countActivities(st.path, p.name), p.name)
+      var has: seq[string]
+      for h in g.extensions.get(userHas):
+        has.add counted(h.count(st.db, id), h.one, h.heading)
+      let what = describe(has, p.name)
       if not p.force:
         return failure(
           "nch users",
@@ -161,20 +160,17 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # --edit
     let id = findUser(st, p.name)
     if p.fthr.isSome:
-      let had = hasImpulses(st, id)
       let old = currentFthr(st, id)
       setFthr(st, id, p.fthr.get)
       let said =
-        p.name & ": FTHR is " & $p.fthr.get &
-        (if had and old.isSome and old.get != p.fthr.get: deletedNote else: "")
+        fmt"{p.name}: FTHR is {p.fthr.get}" &
+        (if old.isSome and old.get != p.fthr.get: recalculated else: "")
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.clearFthr:
-      let had = hasImpulses(st, id)
+      let old = currentFthr(st, id)
       clearFthr(st, id)
-      let said =
-        p.name & ": FTHR forgotten" &
-        (if had: " (and the impulses worked out with it are deleted)" else: "")
+      let said = fmt"{p.name}: FTHR forgotten" & (if old.isSome: recalculated else: "")
       g.log.log(lvInfo, commandName, leSaved, said)
       stdout.say said & "\n"
     if p.makeDefault:

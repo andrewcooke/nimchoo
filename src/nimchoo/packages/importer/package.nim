@@ -1,4 +1,9 @@
-import ../../core/manifest
+import ../../core/[extension, manifest]
+import ../user/has
+import ./count
+
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[contribute(userHas, activityCount)]
 
 const package* = Package(
   depends: @[
@@ -9,4 +14,5 @@ const package* = Package(
     fragment("001-schema.sql"), # file, activity, coords, segment, route, seen_file
     fragment("002-seen-file-index.sql"),
   ],
+  contributes: contributions,
 )

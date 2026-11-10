@@ -18,19 +18,18 @@ sees and can be approved together.
       big changes to a reader.
 3. **Packages, second round** (REVIEW.md §5 and §4.1, decided by the author and through `/oppose`).
    1. *(mechanical)* Done 2026-11-10 (`humanBytes` to `ui/units`; the eight commands into their packages).  Left of it: the
-      `commands/` group and the `cmd` suffix go with `activitiescmd` and `userscmd` (steps 3 and 7); the import test's
+      `commands/` group and the `cmd` suffix go with `activitiescmd` (step 7); the import test's
       "a command module is imported only by its `package.nim`" still finds the module by its name, `command`: make it ask
       the registry (the module of `CommandDecl.run`).
    2. *(done 2026-11-10: `db_connector` is imported by `db` and `core/fragment.nim` only, checked by a test; `db` exports
-      `DbConn`, `openFile` and `closeQuietly`.)*  **Left, to be done just before 7**, when `--climb` is the first real
+      `DbConn`.)*  **Left, to be done just before 7**, when `--climb` is the first real
       contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
       table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
       definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
    3. *(done 2026-11-10: `user` owns the `user` table; `openStore` only opens and applies fragments, `user/openSession` finds
       or makes the user and gives a `Session`; `importer`, `selection` and the commands that have a user depend on `user`.)*
-      Left: `nch users` goes into `user`, with the extension point "what a user has" (`importer` contributes the
-      activity count); the FTHR-change note becomes generic ("what is worked out from the FTHR is worked out again":
-      the author, 2026-11-10) and `model` contributes nothing (§4.3).
+      `nch users` is a command of `user`, with the extension point "what a user has" (`user/has.nim`; `importer`
+      contributes the activity count); the FTHR-change note is generic and `model` contributes nothing.)*
    4. The extension point "pages the server may run" in `web`; `map` and `ff` contribute; `commandRules` goes.
    5. `nch import PATH...` is a command of `importer` (this reverses CLAUDE.md's "no import command": update "the
       shape of the commands"), with the extension point "after import" (once per import, after the commit; a failure
