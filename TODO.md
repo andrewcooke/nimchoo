@@ -30,8 +30,8 @@ sees and can be approved together.
       usage is generated): needed by the criteria point.
    7. `selection` becomes a library (no command) with the extension point "activity criteria" (an option and
       `resolve(store, user, values)` giving an `Sql` condition and notes, or an error); `climbs` contributes `--climb`.
-      New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; contributes "the new
-      activities become the selection" to "after import") and `calendar` (`nch calendar`: the selection or `--all`,
+      New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; "the new activities become the
+      selection" after an import is `selection`'s, since it owns the table) and `calendar` (`nch calendar`: the selection or `--all`,
       no criteria).  `activitiescmd` goes.  Two packages contributing one option name are refused when the registry
       is made (as two commands of one name are).
    8. **`nch packages`**: a command built into `nch.nim` (a package cannot import the registry), its logic a pure
