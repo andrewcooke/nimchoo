@@ -20,8 +20,9 @@ sees and can be approved together.
       `-d:useMalloc`, `-fsanitize=fuzzer,address`, and `--gcc-install-dir` set to the GCC that has `libstdc++.so`:
       clang chooses GCC 16, which lacks it).  One hour per target; fix what it finds (a test first), record the rest.
 2. *(mechanical)* **Tools** (REVIEW.md §7).
-   1. nph: a tagged release installed, its version in `nimchoo.nimble`; `nimble fmt`; `nimble test` runs
-      `nph --check` first; the 6 drifted files formatted; a Claude Code hook that formats a `.nim` file after each edit.
+   1. nph: a Claude Code hook that formats a `.nim` file after each edit (`.claude/settings.json`, PostToolUse on Edit
+      and Write; the script would be `tools/fmt-hook.sh`, reading the file from the hook's JSON with `jq`).  Blocked
+      2026-11-10: the permission classifier refuses me editing my own hooks; the author adds it.
    2. nim doc: `nimble doc` (to a git-ignored `doc/`, no warnings); the RST error in `nch.nim` and the two broken
       links fixed.
    3. Small drift: `cmdname.nim` without `{.push raises: [].}`; `db/sqltext.nim`'s header (the `?` text); PACKAGES.md

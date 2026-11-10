@@ -158,13 +158,21 @@ suite "extension points":
     check steps[0].channels == @["heart_rate"]
 
 suite "fragments":
-  func withFragments(name: string, fragments: seq[Fragment], depends: varargs[string]): Registered =
+  func withFragments(
+      name: string, fragments: seq[Fragment], depends: varargs[string]
+  ): Registered =
     Registered(name: name, package: Package(depends: @depends, fragments: fragments))
 
   test "the fragments come in the order of the packages, each package's in its own order":
     let fs = collectFragments(
       @[
-        withFragments("a", @[Fragment(name: "a/001-x.sql", sql: "create table ta (x)"), Fragment(name: "a/002-y.sql", sql: "create table tb (x)")]),
+        withFragments(
+          "a",
+          @[
+            Fragment(name: "a/001-x.sql", sql: "create table ta (x)"),
+            Fragment(name: "a/002-y.sql", sql: "create table tb (x)"),
+          ],
+        ),
         withFragments("b", @[Fragment(name: "b/001-z.sql", sql: "create table tc (x)")]),
       ]
     )
@@ -173,12 +181,21 @@ suite "fragments":
   test "a fragment in the wrong package is refused":
     expect PackageError:
       discard collectFragments(
-        @[withFragments("a", @[Fragment(name: "b/001-x.sql", sql: "create table ta (x)")])]
+        @[
+          withFragments(
+            "a", @[Fragment(name: "b/001-x.sql", sql: "create table ta (x)")]
+          )
+        ]
       )
 
   test "a table that refers to a table of a package it does not depend on is refused":
-    let a = withFragments("a", @[Fragment(name: "a/001-x.sql", sql: "create table ta (id integer primary key)")])
-    let b = Fragment(name: "b/001-x.sql", sql: "create table tb (a integer references ta(id))")
+    let a = withFragments(
+      "a",
+      @[Fragment(name: "a/001-x.sql", sql: "create table ta (id integer primary key)")],
+    )
+    let b = Fragment(
+      name: "b/001-x.sql", sql: "create table tb (a integer references ta(id))"
+    )
     check collectFragments(@[a, withFragments("b", @[b], "a")]).len == 2
     expect PackageError:
       discard collectFragments(@[a, withFragments("b", @[b])])

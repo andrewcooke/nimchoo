@@ -14,6 +14,26 @@ requires "zippy >= 0.10.4"
 requires "db_connector"
 requires "checksums"
 
+# The version of nph is part of the format (its output changes between releases): this is the tag v0.7.0, which
+# reports the string below; `nimble fmt` and the check in `nimble test` refuse any other.
+const nphVersion = "prerelease-0-g2cacf6c-dirty"
+const formatted = "src tests tools"
+
+proc requireNph() =
+  let (found, code) = gorgeEx("nph --version")
+  if code != 0:
+    quit "nph is not installed (nimble install nph@0.7.0)"
+  if found.strip != nphVersion:
+    quit "nph is '" & found.strip & "' but the format is that of '" & nphVersion & "' (v0.7.0)"
+
+task fmt, "Format the sources with nph":
+  requireNph()
+  exec "nph " & formatted
+
+task fmtcheck, "Stop if a file is not in nph's format (nimble test runs this first)":
+  requireNph()
+  exec "nph --check " & formatted
+
 task registry,
   "Write src/nimchoo/registry.nim: the packages found under src/nimchoo/packages (the other tasks run this first)":
   exec "nim c -r --hints:off -o:tools/genregistry tools/genregistry.nim"
@@ -22,6 +42,7 @@ task test,
   "Run all tests (optimised, with run-time checks on: about 5x faster than a debug build)":
   # (some tests run a program: built like the tests, and kept apart from ./nch so that a test build never
   # replaces the one you use)
+  exec "nimble fmtcheck"
   exec "nimble registry"
   exec "nim c -d:release -d:ssl --checks:on --hints:off -o:nch-test src/nch.nim"
   exec "nim c -r -d:release -d:ssl --checks:on --hints:off tests/all.nim"
