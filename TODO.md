@@ -26,8 +26,6 @@ sees and can be approved together.
       contributor: an `Sql` records the packages that wrote its pieces (templates, as the helpers' `packageOfFile`); each
       table access of a read is allowed if the runner or any package of the set may make it, a write or a change of
       definition to the runner alone; a test prepares each contributed criterion as its contributor alone (REVIEW.md §4.1).
-   6. Step 4's option type, for the criteria first (an option carries its help, value name and the words it takes;
-      usage is generated): needed by the criteria point.
    7. `selection` becomes a library (no command) with the extension point "activity criteria" (an option and
       `resolve(store, user, values)` giving an `Sql` condition and notes, or an error); `climbs` contributes `--climb`.
       New packages: `activities` (`nch activities [CRITERIA] [--select] [--delete] [-v]`; "the new activities become the
@@ -44,8 +42,11 @@ sees and can be approved together.
    9. Each package's documentation is the `##` comment of its `package.nim`; the registry writes the front page (the
       packages in order, with their first lines); the feature detail of CLAUDE.md moves into them; CLAUDE.md
       ("general structure", "the shape of the commands", the extension-point rule) and PACKAGES.md describe the result.
-4. **Options carry their help; parse into variants** (A §7 step 9) for the other commands.  `Opt` gets `help`,
-   `metavar` and a completion kind; usage generated; the web options from the same spec; errors as `Option`, not "".
+4. **Options carry their help; parse into variants** (A §7 step 9) for the other commands.  Built for `activities` (3.6, 2026-11-10:
+   `OptDoc`, `.documented`, `util/args/usage.nim`, `ui/live.helpWidth`; the completion kind is defined but only `activities` sets it
+   and nothing reads it yet).  Left: convert the other commands (climbs first, with the nested `--edit` options; then `help`
+   becomes required by the compiler, not by a test); the web options from the same spec; params as variants (an action
+   enum, not a bag of bools); errors as `Option`, not "".
 5. **Tab completion** (A step 10): `nch __complete` and a bash function; dynamic values from the database.
 6. *(mechanical)* **One owner per fact** (A §4.1).
 7. **Push work into SQL** (A §4.4), measured.

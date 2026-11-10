@@ -391,6 +391,7 @@ four kinds of things go wrong, and each has one mechanism:
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
   default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `packages/db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
+* **options describe themselves** (`util/args`: `.documented(metavar, help, completion)`; `OptDoc`), and the option list of a command's usage is made from the descriptions (`util/args/usage.nim`, wrapped to the terminal's width, `ui/live.helpWidth`: 120 when piped), so it cannot differ from what the parser accepts.  A test checks that every option has help.  Converted so far: `activities`; the other commands are TODO step 4.
 * **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
   once and a name in the braces is checked when the program is compiled; `&` and `$` pieced together are easy to get
   wrong (a missing space, the wrong variable).  decided 2026-11-09.  the rule: **all new printing (messages, lines,

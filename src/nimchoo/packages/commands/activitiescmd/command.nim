@@ -21,6 +21,7 @@ import ../../../core/logfile
 import ../../ui/live
 import ../../ui/style
 import ../../ui/vocabulary
+import ../../util/args/[args, usage]
 import ../../text/fold/fold
 import ./[calendar, table]
 import ./criteria
@@ -28,8 +29,9 @@ import ../../user/session
 
 {.push raises: [].}
 
-const usage* =
-  """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v] [--calendar]
+const
+  usageHead =
+    """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v] [--calendar]
        nch [--db PATH] [--user NAME] activities --all [--select]
        nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f
 
@@ -37,60 +39,8 @@ Show the activities of the selection: the ones that other commands (climbs, map 
 told otherwise.  With criteria (or --all) all the activities are searched instead, those that meet the criteria
 (combined with "and") are shown, and with --select they become the selection (replacing the last one).
 
-  --all              every activity, not just the selection
-  --sport A B        only these sports (cycling, running, swimming ...); "none"
-                     means not recorded; "latest" or "previous": that activity's sport
-  --sub-sport A B    only these sub-sports (road, trail, open_water ...).  Many
-                     files say "generic" or nothing, so this misses some rides
-  --name TEXT        activities whose name contains TEXT, whatever its case or accents:
-                     --name toyo finds "El Toyo and back"; several words are alternatives
-                     (--name toyo farellones); a name with spaces is quoted; "none": no name;
-                     "latest" or "previous": the same name as that activity
-  --start TEXT       the same for the place the activity started ("Providencia", "near Lo
-                     Barnechea"): --start providencia
-  --path TEXT        the same for the path of the file the activity was imported from (or any
-                     other path the same file was seen at): --path bowman, --path 2026-10
-  --climb TEXT       activities that have an effort on a climb whose name (as `nch climbs --all` shows
-                     it) contains TEXT: --climb farellones (all of them), --climb farellones₂ (or "farellones 2")
-                     (one); retired climbs too.  It is an error if no climb has the text
-  --distance RANGE   distance in km: 40- (40 or more), 10-50, -5 (up to 5);
-                     0.5- for half a km; 42~2 (between 40 and 44), latest~10%,
-                     previous~10%
-  --active RANGE     active time: 1h-, 30m-2h, -45m (units d h m s, as printed);
-                     2h~15m, latest~10%, previous~10%
-  --from TIME        activities that start at or after TIME
-  --to TIME          activities that start before the end of TIME
-                     (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or
-                     with seconds; a --to date means the whole day)
-  --gps              only activities that have positions (a GPS track)
-  --no-gps           only activities that have none (indoor rides, treadmill runs ...)
-  --near LAT,LON     activities that start within the radius of the point
-  --near latest      ... of where the latest activity started (or "previous")
-  --radius KM        radius for --near in kilometres (default: 100); on its own it
-                     means --near latest
-  --invert           the activities that do NOT meet the criteria (all of them taken together):
-                     everything that fails to match, including those that have nothing
-                     recorded for a criterion.  "latest" and "previous" are found before
-                     inverting; --newest and --oldest apply after.  Needs a criterion
-  -n, --newest N     only the N newest of the activities that meet the other criteria
-  --oldest N         only the N oldest of them
-  --latest           the same as --newest 1
-  --select           make what is listed the selection (needs criteria or --all)
-  --delete           delete the activities (with no criteria and no --all, those of the selection) and everything
-                     made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in
-                     them stay (they are shared), and so do the names on those.  The file of an activity is forgotten
-                     as well: importing its folder again would bring the activity back.  Nothing is deleted without
-                     -f (it says what it would delete); on a terminal there are then 5 seconds in which to press Ctrl-C
-  -f, --force        really do it (with --delete)
-  -v, --verbose      show more of each activity: where it started (its coordinates, or
-                     "no GPS" if the file has no positions), the place it started and its name
-                     (made when it was imported), and the path of its file
-  --calendar         show the activities on a calendar instead of a table: a row for each month
-                     that has one (with -v, every month from the first to the last), the days
-                     in columns by weekday (weeks start on Monday).  White: an activity that was
-                     listed; blue: one that is also in the selection; grey: none
-  -h, --help         show this help
-
+"""
+  usageTail = """
 "latest" is the newest activity among those that meet the criteria that do not use
 "latest": so  --sport cycling --distance latest~10%  is cycling rides within 10% of
 the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
@@ -99,6 +49,10 @@ the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 with --select, then  --sport previous --distance previous~10%  finds rides like it.  It is an
 error unless exactly one activity is selected.
 """
+
+proc usageText*(width: int): string =
+  ## The usage: the synopsis and introduction, the options (made from their descriptions, wrapped to `width`), the rest.
+  usageHead & optionLines(criteriaSpec().docs, width).join("\n") & "\n\n" & usageTail
 
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"
@@ -468,10 +422,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let zone = local()
   let parsed = parseArgs(args, zone)
   if parsed.help:
-    stdout.say usage
+    stdout.say usageText(helpWidth(stdout))
     return exitOk
   if parsed.problem.len > 0:
-    return usageError("nch activities", usage, parsed.problem)
+    return usageError("nch activities", usageText(helpWidth(stderr)), parsed.problem)
   var st: Session
   try:
     st = openSession(g)

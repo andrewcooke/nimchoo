@@ -81,6 +81,7 @@ import ./map/test_page
 import ./map/test_command
 import ./map/test_web
 import ./util/args/test_args
+import ./util/args/test_usage
 import
   ./climbs/[
     test_detect,

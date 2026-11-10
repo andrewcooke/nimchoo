@@ -3,6 +3,8 @@ import std/[options, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/commands/activitiescmd/criteria
+import nimchoo/packages/commands/activitiescmd/command as activitiesCommand
+import nimchoo/packages/util/args/[args, usage]
 
 let utcZone = utc()
 
@@ -488,3 +490,21 @@ suite "list: --delete":
       "shows nothing"
     )
     check parseArgs(@["--delete", "-v"], utcZone).problem.contains("shows nothing")
+
+suite "list: the usage":
+  test "every option has a description":
+    check criteriaSpec().undocumented == newSeq[string]()
+  test "the usage lists every option, at any width":
+    for width in [60, 80, 120]:
+      let text = activitiesCommand.usageText(width)
+      for d in criteriaSpec().docs:
+        for n in d.names:
+          check n in text
+  test "an option of another package would be listed and parsed from its description":
+    let extra = OptDoc(
+      names: @["--extra"],
+      metavar: "WORDS...",
+      help: "something offered by another package",
+      arity: aList,
+    )
+    check "--extra WORDS..." in optionLines(criteriaSpec().docs & extra, 100).join("\n")

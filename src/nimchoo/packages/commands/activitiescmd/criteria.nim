@@ -338,6 +338,109 @@ func hasFilter*(c: Criteria): bool =
     c.activeS.hi.isSome or c.distanceRel.isSome or c.activeRel.isSome or c.fromT.isSome or
     c.toT.isSome or c.gps != gfAny or c.near != nkNone
 
+proc criteriaSpec*(): Spec[ListState] =
+  ## The options of `nch activities`, in the order the usage lists them, each with its help.
+  Spec[ListState](
+    opts: @[
+      custom(ListState, ["--all"], false, (p.c.all = true; "")).documented(
+        "", "every activity, not just the selection"
+      ),
+      listOption[ListState](["--sport"], takeSports).documented(
+        "A B",
+        "only these sports (cycling, running, swimming ...); \"none\" means not recorded; \"latest\" or \"previous\": that activity's sport",
+        Completion(kind: ckDynamic, source: "sport"),
+      ),
+      listOption[ListState](["--sub-sport"], takeSubSports).documented(
+        "A B",
+        "only these sub-sports (road, trail, open_water ...).  Many files say \"generic\" or nothing, so this misses some rides",
+        Completion(kind: ckDynamic, source: "sub-sport"),
+      ),
+      listOption[ListState](["--name"], takeNames).documented(
+        "TEXT",
+        "activities whose name contains TEXT, whatever its case or accents: --name toyo finds \"El Toyo and back\"; several words are alternatives (--name toyo farellones); a name with spaces is quoted; \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
+      ),
+      listOption[ListState](["--start"], takeStarts).documented(
+        "TEXT",
+        "the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): --start providencia",
+      ),
+      listOption[ListState](["--path"], takePaths).documented(
+        "TEXT",
+        "the same for the path of the file the activity was imported from (or any other path the same file was seen at): --path bowman, --path 2026-10",
+      ),
+      listOption[ListState](["--climb"], takeClimbs).documented(
+        "TEXT",
+        "activities that have an effort on a climb whose name (as `nch climbs --all` shows it) contains TEXT: --climb farellones (all of them), --climb farellones₂ (or \"farellones 2\") (one); retired climbs too.  It is an error if no climb has the text",
+        Completion(kind: ckDynamic, source: "climb"),
+      ),
+      custom(ListState, ["--distance"], true, takeDistance(p, name, value)).documented(
+        "RANGE",
+        "distance in km: 40- (40 or more), 10-50, -5 (up to 5); 0.5- for half a km; 42~2 (between 40 and 44), latest~10%, previous~10%",
+      ),
+      custom(ListState, ["--active"], true, takeActive(p, name, value)).documented(
+        "RANGE",
+        "active time: 1h-, 30m-2h, -45m (units d h m s, as printed); 2h~15m, latest~10%, previous~10%",
+      ),
+      custom(ListState, ["--from"], true, takeWhen(p, value, false)).documented(
+        "TIME", "activities that start at or after TIME"
+      ),
+      custom(ListState, ["--to"], true, takeWhen(p, value, true)).documented(
+        "TIME",
+        "activities that start before the end of TIME\n(TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a --to date means the whole day)",
+      ),
+      custom(ListState, ["--gps"], false, takeGps(p, gfWith)).documented(
+        "", "only activities that have positions (a GPS track)"
+      ),
+      custom(ListState, ["--no-gps"], false, takeGps(p, gfWithout)).documented(
+        "", "only activities that have none (indoor rides, treadmill runs ...)"
+      ),
+      custom(ListState, ["--near"], true, takeNear(p, value)).documented(
+        "LAT,LON",
+        "activities that start within the radius of the point; --near latest: of where the latest activity started (or \"previous\")",
+      ),
+      custom(ListState, ["--radius"], true, takeRadius(p, value)).documented(
+        "KM",
+        "radius for --near in kilometres (default: 100); on its own it means --near latest",
+      ),
+      custom(
+        ListState, ["--invert"], false, (p.criteriaGiven = true; p.c.invert = true; "")
+      )
+        .documented(
+          "",
+          "the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; --newest and --oldest apply after.  Needs a criterion",
+        ),
+      custom(ListState, ["-n", "--newest"], true, takeCount(p, name, value, false))
+        .documented(
+          "N", "only the N newest of the activities that meet the other criteria"
+        ),
+      custom(ListState, ["--oldest"], true, takeCount(p, name, value, true)).documented(
+        "N", "only the N oldest of them"
+      ),
+      custom(
+        ListState, ["--latest"], false, (p.criteriaGiven = true; p.c.newest = 1; "")
+      )
+        .documented("", "the same as --newest 1"),
+      custom(ListState, ["--select"], false, (p.c.select = true; "")).documented(
+        "", "make what is listed the selection (needs criteria or --all)"
+      ),
+      custom(ListState, ["--delete"], false, (p.c.delete = true; "")).documented(
+        "",
+        "delete the activities (with no criteria and no --all, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without -f (it says what it would delete); on a terminal there are then 5 seconds in which to press Ctrl-C",
+      ),
+      custom(ListState, ["-f", "--force"], false, (p.c.force = true; "")).documented(
+        "", "really do it (with --delete)"
+      ),
+      custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")).documented(
+        "",
+        "show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), and the path of its file",
+      ),
+      custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")).documented(
+        "",
+        "show the activities on a calendar instead of a table: a row for each month that has one (with -v, every month from the first to the last), the days in columns by weekday (weeks start on Monday).  White: an activity that was listed; blue: one that is also in the selection; grey: none",
+      ),
+      flag(ListState, ["-h", "--help"], help).documented("", "show this help"),
+    ]
+  )
+
 proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
   ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
@@ -345,43 +448,7 @@ proc parseArgs*(args: seq[string], zone: Timezone): Parsed =
   ## (keep what is listed as the selection), and `-v`/`--verbose` and `--calendar` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
   var st = ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone)
-  let newestOption =
-    custom(ListState, ["--newest", "-n"], true, takeCount(p, name, value, false))
-  let oldestOption =
-    custom(ListState, ["--oldest"], true, takeCount(p, name, value, true))
-  let latestOption =
-    custom(ListState, ["--latest"], false, (p.criteriaGiven = true; p.c.newest = 1; ""))
-  let spec = Spec[ListState](
-    opts: @[
-      flag(ListState, ["-h", "--help"], help),
-      custom(ListState, ["--select"], false, (p.c.select = true; "")),
-      custom(ListState, ["--all"], false, (p.c.all = true; "")),
-      custom(ListState, ["--delete"], false, (p.c.delete = true; "")),
-      custom(ListState, ["-f", "--force"], false, (p.c.force = true; "")),
-      custom(ListState, ["-v", "--verbose"], false, (p.c.verbose = true; "")),
-      custom(ListState, ["--calendar"], false, (p.c.calendar = true; "")),
-      custom(
-        ListState, ["--invert"], false, (p.criteriaGiven = true; p.c.invert = true; "")
-      ),
-      latestOption,
-      newestOption,
-      oldestOption,
-      listOption[ListState](["--sport"], takeSports),
-      listOption[ListState](["--sub-sport"], takeSubSports),
-      listOption[ListState](["--name"], takeNames),
-      listOption[ListState](["--start"], takeStarts),
-      listOption[ListState](["--path"], takePaths),
-      listOption[ListState](["--climb"], takeClimbs),
-      custom(ListState, ["--distance"], true, takeDistance(p, name, value)),
-      custom(ListState, ["--active"], true, takeActive(p, name, value)),
-      custom(ListState, ["--from"], true, takeWhen(p, value, false)),
-      custom(ListState, ["--to"], true, takeWhen(p, value, true)),
-      custom(ListState, ["--gps"], false, takeGps(p, gfWith)),
-      custom(ListState, ["--no-gps"], false, takeGps(p, gfWithout)),
-      custom(ListState, ["--near"], true, takeNear(p, value)),
-      custom(ListState, ["--radius"], true, takeRadius(p, value)),
-    ]
-  )
+  let spec = criteriaSpec()
   template fail(msg: string) =
     result.problem = msg
     return

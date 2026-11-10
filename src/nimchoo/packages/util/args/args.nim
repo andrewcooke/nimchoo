@@ -3,6 +3,10 @@
 ## walking: the value that is missing, the option that is unknown, the arguments that are not
 ## options.  What a value means stays with the command, in the small procs it hands over.
 ##
+## An option also describes itself (`OptDoc`: names, the placeholder for its value, its help, what could complete it),
+## and the usage text is made from the descriptions (`usage.nim`), so the option list is written once.  A package that
+## offers an option to another's command (an activity criterion) hands over just the description.
+##
 ## An option's `apply` returns "" if all is well, else what is wrong (a sentence that does not
 ## name the option: the parser adds `--name is ...` where it can, see `valueIs`).  Pure.
 
@@ -11,6 +15,32 @@ import std/[math, strutils]
 {.push raises: [].}
 
 type
+  CompletionKind* = enum
+    ckNone ## nothing is offered
+    ckFile ## a file or a directory
+    ckWords ## one of `Completion.words`
+    ckDynamic
+      ## from the program's data, by the name in `Completion.source` ("sport", "climb")
+
+  Completion* = object ## what a shell may offer for the value of an option
+    kind*: CompletionKind
+    words*: seq[string]
+    source*: string
+
+  Arity* = enum
+    aFlag ## no value
+    aOne ## one value
+    aList ## any number of values (words up to the next option)
+
+  OptDoc* = object
+    ## what an option is, for people (the usage) and for the shell (completion)
+    names*: seq[string] ## "-n", "--newest"
+    metavar*: string
+      ## the value, as the usage shows it: "N", "TEXT...", "LAT,LON" ("" for a flag)
+    help*: string ## prose, wrapped by the usage; a "\n" starts a new paragraph of it
+    arity*: Arity
+    completion*: Completion
+
   Apply*[P] = proc(p: var P, name, value: string): string {.nimcall, raises: [].}
     ## Take an option (`name` is the way it was spelt); `value` is "" for a flag.
 
@@ -25,6 +55,9 @@ type
     apply*: Apply[P]
     takesList*: bool ## then `applyList` is used, not `apply`
     applyList*: ApplyList[P]
+    metavar*: string
+    help*: string
+    completion*: Completion
 
   Positional*[P] = proc(p: var P, arg: string): string {.nimcall, raises: [].}
 
@@ -127,6 +160,42 @@ proc parseLeading*[P](
   ## there is none.  Returns the first problem found, "" if there is none.
   next = args.len
   walk(args, spec, p, true, next)
+
+func documented*[P](
+    o: Opt[P], metavar, help: string, completion = Completion()
+): Opt[P] =
+  ## The option with its description: `metavar` is how the usage shows its value ("N"), `help` says what it does.
+  result = o
+  result.metavar = metavar
+  result.help = help
+  result.completion = completion
+
+func doc*[P](o: Opt[P]): OptDoc =
+  ## The description of the option.
+  OptDoc(
+    names: o.names,
+    metavar: o.metavar,
+    help: o.help,
+    arity:
+      if o.takesList:
+        aList
+      elif o.takesValue:
+        aOne
+      else:
+        aFlag,
+    completion: o.completion,
+  )
+
+func docs*[P](spec: Spec[P]): seq[OptDoc] =
+  ## The descriptions of the options, in order.
+  for o in spec.opts:
+    result.add o.doc
+
+func undocumented*[P](spec: Spec[P]): seq[string] =
+  ## The first name of each option that has no help (for a test: every option is to say what it does).
+  for o in spec.opts:
+    if o.help.len == 0:
+      result.add o.names[0]
 
 func listOption*[P](nameList: openArray[string], apply: ApplyList[P]): Opt[P] =
   ## An option with any number of values.
