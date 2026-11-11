@@ -19,6 +19,7 @@
 import std/[math, options, strutils]
 import ../../core/errors
 import ../geo/geo
+import ../util/profiling/profiling
 import ./landmarks
 import ./[codes, countries, lookup, shape]
 
@@ -133,8 +134,11 @@ proc nameActivity*(
     lats.add part.lats
   if lons.len == 0:
     return
-  result.start = startText(n.around(lons[0], lats[0], startFarM, result.gpsErrors))
-  let sh = shapeOf(lons, lats)
+  timed "naming: start place":
+    result.start = startText(n.around(lons[0], lats[0], startFarM, result.gpsErrors))
+  var sh: Shape
+  timed "naming: shape":
+    sh = shapeOf(lons, lats)
   result.shape = sh.kind
   if sh.kind == skLocal:
     result.name = nameFor(sh.kind, result.start, "", "")
@@ -144,22 +148,23 @@ proc nameActivity*(
   case sh.kind
   of skOutAndBack, skOneWay:
     let turn = pr.unproject(sh.points[sh.turn])
-    let own = landmarkAt(n.st, turn.lon, turn.lat)
     var destination = ""
-    if own.isSome:
-      destination = own.get.landmark.name
-    else:
-      let radius = max(sh.farM / 2.0, minReachM)
-      let found = n.around(turn.lon, turn.lat, radius, result.gpsErrors)
-      var close: seq[(Found, float)]
-      for (f, d) in found:
-        if d <= closeM:
-          close.add (f, d)
-      var pick = choose(close)
-      if pick.isNone:
-        pick = choose(found)
-      if pick.isSome:
-        destination = pick.get.name
+    timed "naming: destination":
+      let own = landmarkAt(n.st, turn.lon, turn.lat)
+      if own.isSome:
+        destination = own.get.landmark.name
+      else:
+        let radius = max(sh.farM / 2.0, minReachM)
+        let found = n.around(turn.lon, turn.lat, radius, result.gpsErrors)
+        var close: seq[(Found, float)]
+        for (f, d) in found:
+          if d <= closeM:
+            close.add (f, d)
+        var pick = choose(close)
+        if pick.isNone:
+          pick = choose(found)
+        if pick.isSome:
+          destination = pick.get.name
     result.name = nameFor(sh.kind, result.start, destination, "")
   of skLoop, skMixed:
     # a landmark along the route, well away from the start, else a feature there.  (The features are measured to the
@@ -168,30 +173,37 @@ proc nameActivity*(
     # "Overlap of climbs in SQL".  Do not move it without measuring again.)
     var via = ""
     var bestD = viaRouteM + 1.0
-    for l in n.st.listLandmarks():
-      let xy = pr.project(l.lon, l.lat)
-      let d = pointLineDistance(xy, sh.points)
-      if dist(xy, origin) >= sh.farM / 3.0 and d <= l.radiusM and d < bestD:
-        via = l.name
-        bestD = d
+    timed "naming: via (landmarks)":
+      for l in n.st.listLandmarks():
+        let xy = pr.project(l.lon, l.lat)
+        let d = pointLineDistance(xy, sh.points)
+        if dist(xy, origin) >= sh.farM / 3.0 and d <= l.radiusM and d < bestD:
+          via = l.name
+          bestD = d
     if via.len == 0:
       var cands: seq[(Found, float)]
-      let grid = newRouteGrid(sh.points, viaGridM)
+      var grid: RouteGrid
+      timed "naming: via (route grid)":
+        grid = newRouteGrid(sh.points, viaGridM)
         # (so that a feature is measured only to the route near it)
       for part in parts:
-        case n.prepare(part.lons, part.lats, viaRouteM).status
+        var status: Readiness
+        timed "naming: via (prepare)":
+          status = n.prepare(part.lons, part.lats, viaRouteM).status
+        case status
         of rdTooWide:
           inc result.gpsErrors
         of rdNothing:
           discard
         of rdReady:
-          for f in n.featuresNear(part.lons, part.lats, viaRouteM):
-            let xy = pr.project(f.lon, f.lat)
-            if dist(xy, origin) < sh.farM / 3.0:
-              continue
-            let d = grid.distanceWithin(xy, viaRouteM)
-            if d.isSome:
-              cands.add (f, d.get)
+          timed "naming: via (features near, measure)":
+            for f in n.featuresNear(part.lons, part.lats, viaRouteM):
+              let xy = pr.project(f.lon, f.lat)
+              if dist(xy, origin) < sh.farM / 3.0:
+                continue
+              let d = grid.distanceWithin(xy, viaRouteM)
+              if d.isSome:
+                cands.add (f, d.get)
       let pick = choose(cands)
       if pick.isSome:
         via = pick.get.name

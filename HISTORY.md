@@ -95,6 +95,15 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Cells step 5, the baseline (2026-11-12)**: naming all 1,112 activities of the author's database again (names cleared on a copy; online but with
+  nothing to download; `NCH_PROFILE=1`; the 1,112 names come out identical to the stored ones: 1,056 with a name, 52 with only a start place, 4 with
+  neither) takes **2.9 s**.  By phase: start place 1.30 s (45%, 1,108 calls of 1.2 ms: the features within the radius of the first point);
+  the features along a loop's or mixed ride's route 0.54 s (732 calls) + making the names available (`prepare`) 0.12 s; the shape 0.35 s; reading the route
+  0.24 s; the destination at the turning point 0.20 s; writing 0.07 s; the route grid 0.016 s; the author's landmarks 0.013 s.  So the "11 s" in TODO was out of
+  date (reading `coords` as text is gone and the shape is fast), and the part the cells would replace (the via search over features: route grid, measuring,
+  prepare: 0.68 s) is the same as the review's SQL prototype (0.16 s + 0.52 s).  SQL would be no faster; what it would give is deleting about 90
+  lines of Nim (`RouteGrid`, the via block) at the cost of per-batch place tables.  The start place (the largest part) is a one-point lookup that stays.
+  Timers for each phase are in `names/activity.nim` and `importer/naming.nim` (free when profiling is off).
 * **Cells step 4 built: the candidates of the climb matching (2026-11-12)**: the box queries `sectorsNear` and `ridesNear` (a ride's box covers a city, so
   about 30 sectors a ride) are replaced by the cells.  `sector_gate_cell(sector_id, which, cell)` (`climbs/004`, a trigger on `sector` fills it for
   every writer; `005` fills it for a database made before) holds the cells within 100 m of each climb's first and last point (15 a gate at

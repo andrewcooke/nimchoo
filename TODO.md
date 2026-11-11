@@ -23,8 +23,9 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    60° and mutation-checked: the review's ±1 coarse cell misses a 2 km radius above 55°N, and the Yorkshire rides are at 54°), and
    registered in SQLite (`db/functions.nim`: `cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`);
    (2) done: `route_cell` (importer fragments 003 and 004, `importer/visits.nim`), backfilled and written at import; (3) done: the heat map, `nch map --layers heat` (the first consumer; no Nim code to replace);
-   (4) done: climb candidates by cells (`sector_gate_cell`, `climbs/work.nim`): the same 4,493 efforts and 183 climbs, 32.7 s down to 17.4 s; (5) the via search and naming in SQL, then what it
-   made dead is deleted.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
+   (4) done: climb candidates by cells (`sector_gate_cell`, `climbs/work.nim`): the same 4,493 efforts and 183 climbs, 32.7 s down to 17.4 s; (5) the via search and naming in SQL: **measured, see HISTORY.md (2026-11-12) before doing it**: the via part is 0.7 s of
+   2.9 s in Nim and the SQL prototype took the same, so it would be no faster, only simpler (about 90 lines go: `RouteGrid`, the via
+   loop); the author decides; and where naming lives (REVIEW.md §5.1) is a separate question.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
 1b. **BUG: the gates of a climb have no direction** (found 2026-11-12, measuring the baseline for cells step 4; the author had the same
    trouble with the old Python code on S-shaped roads).  A gate is a 50 m line across the road (`gateRadius` 25 m each side) at the
    climb's first and last point (`climbs/match.nim`: `gates`, `crossings`, `overPaths`).  A crossing counts in either direction, and
@@ -105,9 +106,10 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
   than any rider, a point far from its neighbours) once, at import, so that every consumer sees clean data.  Needs its own
   design (threshold, drop or flag, effect on stretches, climbs and efforts); it changes stored data.  Until then a stretch
   that spreads over more than 5 degrees is not searched for names (HISTORY.md, 2026-11-08).
-* **Naming is slow** (11 s for 1,112 activities: 4.6 s reading 6.2 M `coords` rows as text, 6.2 s in
-  `nameActivity`, not broken down; nothing shown meanwhile).  The author wants to go through how naming works
-  first.  The arrays (step 9) take most of the reading time away.
+* **Naming is not slow any more** (measured 2026-11-12, HISTORY.md; the old 11 s for 1,112 activities was 4.6 s reading `coords` as text and
+  6.2 s in `nameActivity`): all 1,112 activities are named in **2.9 s** (`NCH_PROFILE=1`).  Start place 1.30 s (45%), the features along
+  a loop's route 0.54 s plus 0.12 s to make the names available (23%), the shape 0.35 s, reading the route 0.24 s, the destination 0.20 s,
+  writing 0.07 s.  Nothing to do for speed.
 * **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
   turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
   would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, HISTORY.md, 2026-11-11).

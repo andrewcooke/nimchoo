@@ -14,7 +14,10 @@ import ../../core/manifest
 import ./command
 
 const package* = Package(
-  depends: @["args", "cache", "confirm", "db", "download", "fold", "geo", "ui", "zip"],
+  depends: @[
+    "args", "cache", "confirm", "db", "download", "fold", "geo", "profiling", "ui",
+    "zip",
+  ],
   fragments: @[
     fragment("001-schema.sql"), # country, coverage, feature
     fragment("002-country-cells.sql"), # country_cell, country_cell_done

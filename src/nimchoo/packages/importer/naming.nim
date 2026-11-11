@@ -9,6 +9,7 @@ import ../../core/errors
 import ../names/activity
 import ../names/countries
 import ../names/lookup
+import ../util/profiling/profiling
 import ./route
 
 {.push raises: [].}
@@ -50,10 +51,11 @@ proc ensureActivityNames*(
     prepareStmt(st.db, "select AsBinary(geom) from route where activity_id = ?")
   for k, id in todo:
     var parts: seq[Part]
-    routeOf.bindInt(1, id)
-    if routeOf.nextRow():
-      parts = routeParts(routeOf.blobAt(0))
-    routeOf.rewind()
+    timed "naming: read the route":
+      routeOf.bindInt(1, id)
+      if routeOf.nextRow():
+        parts = routeParts(routeOf.blobAt(0))
+      routeOf.rewind()
     if parts.len == 0:
       var lons, lats: seq[float]
       for r in st.db.query(
@@ -73,12 +75,13 @@ proc ensureActivityNames*(
         id = id,
       )
       result.gpsErrors.add GpsErrors(where: where, searches: got.gpsErrors)
-    st.db.execute(
-      "update activity set start_place = :startPlace, name = :name where id = :id",
-      startPlace = got.start,
-      name = got.name,
-      id = id,
-    )
+    timed "naming: write the name":
+      st.db.execute(
+        "update activity set start_place = :startPlace, name = :name where id = :id",
+        startPlace = got.start,
+        name = got.name,
+        id = id,
+      )
     if got.name.len > 0:
       inc result.named
     elif got.start.len > 0:
