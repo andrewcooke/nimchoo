@@ -25,19 +25,12 @@ sees and can be approved together.
      spaces, quotes and backslashes were tried.
 8. **Shrink** (A §4.7): done 2026-11-11 are the templating engine (292 to 182 lines), the dispatch of `decode` written once
    (`emitSlot`), plan building written once; the dead code and the housekeeping of §4.7 and §4.8 were already gone.  Left:
-   * **one cache naming scheme**: step 8a;
    * (**`bundle/`** stays: the review proposed a plain `--profile PATH` instead, but the page templates in the system
      cache, editable and made again if deleted, are the same mechanism; see "Addresses, state and the cache".)
    * `fit/decode.nim`: `emitPlain` and `decodeField` take 12 parameters (a context object); mechanical but wide, with the
      SDK comparison (`nimble csvreport`) to check it;
    * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
      `climbs/002-name-number.sql`): at the next squash.
-8a. **`map` and `ff` made consistent** (agreed 2026-11-12; the design is "Addresses, state and the cache" below).  In commits that
-   each keep the tests passing, `ff` first (it has no climbs question), then `map`.  Done (2026-11-12): the names `--selection`
-   (was `--bits`) and `--state` (was `--check`) in both commands and in addresses, "for urls" in their help.  Decided: `--worker` stays; no collision check anywhere (a name is the hash alone).
-   Done (2026-11-12): `cache` names are the command and a hash of the whole request (`fileStem` and `parseStem` are gone), and
-   `ff` names its files so, prints the pinned query as the third line of `--worker`, and the server redirects to it; `map` too (its state is one fingerprint of the activities' content, their routes and the climbs, without the program's version; a pinned address whose file is there is served without working anything out, one whose file is gone is made again only if the state is the same; the collision loop, the request in the file, the in-place rebuild and `nch.inputs` are gone).  Left:
-   Left: a test per command that changes each table it reads and checks that the fingerprint changes (`map` has one; `ff` does not).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
@@ -64,7 +57,7 @@ at import, where shape and naming work happens) would give a simpler and faster 
 (the design, what it replaces, a measurement or a prototype of the hardest part, the cost).  If not, to say why the
 current shape is right.  "Each step measured fine" is not an answer to this.
 
-## Addresses, state and the cache: agreed 2026-11-12, not built (step 8a)
+## Addresses, state and the cache: agreed 2026-11-12; `map` and `ff` built (HISTORY.md), the rest not
 
 The author's requirements: a bookmark brings back **that plot**, not one remade; if the cache has been cleaned it is remade
 only if it can be remade exactly, else it is an error; an address is also an invocation of a command, and one without a
@@ -104,9 +97,10 @@ general plot command that will replace `ff`).
 * **Risks and their guards**: a fingerprint that misses an input gives a wrong "exact" remake with no sign of it, so each
   command gets a **test that changes each table it reads and checks that the fingerprint changes** (the class of bug, not the
   instance); 
-* **Order of work**: the fingerprint function and its test for `map` (with the climbs question settled first); the name by
-  hash and the server's flow (live, pinned, remade, error); `--state`; `ff` onto it; then the general plot command declares
-  its series through an extension point, each package giving the key of its data.
+* **Still to do**: the wrapper and the templates in the system cache (the data file is pinned and the look is live; `style=NAME`);
+  the climbs as a layer; the general plot command, which declares its series through an extension point, each package giving
+  the key of its data.  Built already: explicit parameters, `--state`, names by hash, the server's flow (live, pinned, remade,
+  error).
 
 ## Open from before the review
 

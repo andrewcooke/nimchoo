@@ -79,6 +79,22 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   are gone, and a flag is text (`true`, `false`): 292 lines to 182, its tests with it.  `fit/decode.nim`: the fast and the
   dynamic paths of `decode` shared the unknown/plain/other dispatch, now `emitSlot`; plan building (`ensurePlan`, `addSlot`)
   likewise; the CSV is identical to the SDK's on 26 of 26 files.
+* **`map` and `ff` made consistent (2026-11-12, TODO step 8a)**: one convention for every command with a page.  The options
+  allowed in an address are explicit (`--selection` was `--bits`), and `--state` (was `--check`) is the fingerprint of the
+  data a plot is made from; both say "for urls" in their help.  A file is named by the command and 48 bits of a hash (proquint
+  words) of the whole pinned address, because a selection is explicit and too long for a name; it is one way, which is enough
+  since the address is always at hand.  `ff` spells its defaults out (the model, the last day) in the pinned address, and the
+  computer's zone goes into the hash though not into the address.  `map`'s state is one fingerprint of the activities'
+  content, their routes and the climbs, without the program's version (a plot remade after a new build is the same data and
+  parameters); the climbs go when they become a layer.  A pinned address whose file is there is served without working
+  anything out; if the file is gone it is made again only when the state is the same, else an error that gives the live
+  address.  `--worker` stays (a live address has no state yet, so the server needs the command to say what the current one is:
+  its third line is the pinned query, which the server redirects to); the author wants it for later plans.  No collision
+  check anywhere (the author, "we aren't going to have 17 million plots in cache"): the loop, the request and the key of the
+  inputs written into the GeoJSON, and the in-place rebuild are gone, and so are `fileStem`, `parseStem`, `cache.inputsKey`
+  (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
+  of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
+  in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 
