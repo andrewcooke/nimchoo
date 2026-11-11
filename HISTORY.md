@@ -100,7 +100,8 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   took 16 to 60 s (and a coarse-line or buffer prefilter did not help: `ST_Intersects` does not use prepared geometries); the review's cell
   version took the same as Nim, and only because it measures to the centres of the cells the route visits (about 70 m off; 13 names change), with a place table
   to keep.  The author's reading: Nim wins because it can use a good enough approximation that avoids the slow exact GIS calculation, and doing that
-  approximation in SQL means serious arithmetic there.  Revisit if the feature set grows a lot (a place table per cell is shared by all rides).
+  approximation in SQL means serious arithmetic there.  Revisit only if routes run through much denser places (the cost is the features in a route's box: local density, not the size of the country or of the
+  data, which only the loading of cells depends on); a place table per cell is shared by all rides.
   The rest of the cells plan is done (cell functions, `route_cell`, the heat map, the climb candidates).
 * **Cells step 5, the baseline (2026-11-12)**: naming all 1,112 activities of the author's database again (names cleared on a copy; online but with
   nothing to download; `NCH_PROFILE=1`; the 1,112 names come out identical to the stored ones: 1,056 with a name, 52 with only a start place, 4 with
