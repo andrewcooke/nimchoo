@@ -95,6 +95,18 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **The scale of the grid, measured (2026-11-12)**, on the author's 6.2 M samples of 1,112 rides, to see whether 1/1024 degree (109 m by 91 m at Santiago) is the right
+  stored size.  Visit rows written at import (distinct cells; samples that jump over a cell, which the visits-at-samples definition would miss):
+  435 m 181 k (4.7 k; 16), 217 m 353 k (10.7 k; 34), **109 m 685 k (23 k; 65)**, 54 m 1.25 M (50 k; 47,434), 27 m 2.10 M (106 k; 310,377), 14 m 3.50 M (231 k;
+  448,671): the rows roughly double as the cell halves; below about 100 m samples start to skip cells and the visits would need the cells a straight
+  segment crosses filled in.  The overlap that matters (how much of one ride's cells another ride on the same climb shares, median over 25 rides of the three
+  most ridden climbs): 109 m 88 to 93%; 54 m 62 to 85%; 27 m 33 to 82%; 14 m 15 to 63% (the narrow El Arrayán drops fastest, the wide Cerro San Cristóbal
+  least): cells have to be bigger than the noise and the rider's wander across the road, so about 50 to 100 m is the floor for "the same road".  The climb
+  candidates at coarser cells (3 by 3 blocks, from the stored visits): all 4,217 pairs of ride and climb with a stored effort found at every size from 109 m to
+  1.7 km; the precision falls from 54% (7,879 pairs) to 9% (48,029 pairs) and the search from 0.8 s to 7.5 s.  The cost at import at 109 m: writing the cells took
+  0.44 s of 3.9 s for 150 files (88,485 rows against 813,632 coordinates), about 4.9 us a row, 5 to 8 times a coordinate row because the cell index is written in
+  random order.  Conclusion: 1/1024 degree stays, the sweet spot of overlap, size and the gaps between samples.  For a finer heat map the way is on the drawing side
+  (smooth the counts, soft circles), or a finer level computed from the coordinates for the window in view (about 7 s over the whole library).
 * **Cells step 5 not done (2026-11-12, the author and the assistant)**: moving the via search of loop and mixed rides to SQL on cells was dropped.  Nim measures each
   feature to the route resampled every 50 m (segments, a grid to skip the far ones) in 0.7 s for the 560 rides; SpatiaLite measuring to the true line
   took 16 to 60 s (and a coarse-line or buffer prefilter did not help: `ST_Intersects` does not use prepared geometries); the review's cell

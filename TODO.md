@@ -34,8 +34,8 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    climb's first and last point (`climbs/match.nim`: `gates`, `crossings`, `overPaths`).  A crossing counts in either direction, and
    where the road folds back within 25 m (a hairpin above or below the gate) the ride crosses the gate line again, going the other
    way.  `overPaths` takes the *shortest* pair of crossings that covers the climb's length within 5%, so it can pick the fold's
-   crossing, and the effort starts or finishes late or early.  Measured on the author's 4,493 stored efforts (scratch program, not in
-   the repo): 4,483 analysed; in 79 the start crossing and in 298 the finish crossing goes against the route's direction (cos below 0),
+   crossing, and the effort starts or finishes late or early.  Measured on the author's 4,493 stored efforts (`tools/gatecheck.nim`, run on a copy of the database before and
+   after a fix): 4,483 analysed; in 79 the start crossing and in 298 the finish crossing goes against the route's direction (cos below 0),
    and in **200 (4.5%) it is nearly opposite (more than 154 degrees off)**.  Of those 200, 118 have another pair of crossings in the
    right direction, and the time then differs by a median of +41 s (stored times too short), up to +753 s; 82 have no pair in the right
    direction.  Examples (stored against right direction): activity 66 on sector 144 (2.8 km) 1003 s against 1059 s; activity 2 on sector
