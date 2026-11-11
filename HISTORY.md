@@ -95,6 +95,13 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Small items closed (2026-11-12)**: the FIT target's replay of saved failures was already there (`tests/fit/test_fuzz.nim`; the
+  directory is empty because nothing has been saved), so step 1 was done; a fuzz run of the FIT target after the `decode.nim` changes
+  of step 8 was clean.  Tab completion: a test that every option's values, for every command, make no cache file and leave the
+  database as it was (offline and read-only); a test that runs the bash function in a real bash against a stub with awkward
+  names (spaces, quotes, `$`, `;`, `&`, brackets, `*`, `~`, `!`, `` ` ``, accents, backslashes), as candidates and as typed.  It
+  found one bug: the words typed were unquoted by removing every backslash (a name with a backslash never matched); `_nch_unquote`
+  now reads the quoting as bash does.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 

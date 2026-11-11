@@ -1,8 +1,12 @@
 ## `nch --install-completion`, `--show-completion` and `nch __complete` (src/nimchoo/completion.nim): the shells, the script and where it goes.
 
-import std/[options, os, strutils, unittest]
+import std/[options, os, osproc, strutils, unittest]
+import ./support/env
 import nimchoo/completion
-import nimchoo/core/[globals, manifest]
+import nimchoo/core/[globals, manifest, optdoc]
+import nimchoo/packages/db/store
+import nimchoo/packages/user/session
+from nimchoo/registry import allAccess, allFragments, commands, extensions
 
 suite "nch --install-completion: the shell":
   test "bash is the one shell, and the default":
@@ -89,3 +93,87 @@ suite "nch __complete":
     ]
     check completeMain(head, @[], Globals(), @["--db", ""]) == exitFiles
     check completeMain(head, @[], Globals(), @[]) == exitOk
+
+suite "nch __complete: it changes nothing":
+  teardown:
+    useTestCache()
+  test "every option's values, for every command, make no cache file and leave the database as it was":
+    let top = getTempDir() / "nch-test-complete"
+    removeDir top
+    createDir top
+    let cache = top / "cache"
+    putEnv("NCH_CACHE", cache)
+    let db = top / "x.db"
+    openSession(db, allFragments, access = allAccess).close()
+    let before = readFile(db)
+    let g = Globals(
+      dbPath: db,
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+      offline: true,
+      readOnly: true,
+    )
+    var asked = 0
+    for c in commands:
+      for o in c.options(g):
+        if o.arity == aOne:
+          discard completeMain(@[], commands, g, @[c.name, o.names[^1], ""])
+          inc asked
+    check asked > 20 # (the providers of the whole program were asked)
+    check not dirExists(cache) # (no cache file, not even the directory)
+    check readFile(db) == before
+
+suite "nch __complete: the bash function with awkward names":
+  # (run in a real bash, against a stub that answers with these names and records the last word it was given)
+  const names = [
+    "Cerro San Luis₄", "it's", "say \"hi\"", "a\\b", "$HOME", "a;b", "a&b", "(x)",
+    "*", "?x", "[a]", "{a,b}", "#c", "!h", "~u", "a|b", "<a>", "é", "a  b", "x=y",
+    "`ls`", "$(ls)", "back\\", "'", "\"",
+  ]
+  test "each candidate is one word that reads back as itself, and as typed it is read as itself":
+    let top = getTempDir() / "nch-test-bash"
+    removeDir top
+    createDir top
+    writeFile(top / "names", names.join("\n") & "\n")
+    writeFile(
+      top / "stub",
+      "#!/bin/bash\nprintf '%s' \"${@: -1}\" > " & top / "last" & "\ncat " &
+        top / "names\n",
+    )
+    setFilePermissions(top / "stub", {fpUserRead, fpUserWrite, fpUserExec})
+    writeFile(top / "fn.sh", bashFunction)
+    writeFile(
+      top / "run.sh",
+      "source " & top / "fn.sh" & "\n" &
+        """
+mapfile -t names < NAMES
+stub=STUB
+COMP_WORDS=("$stub" ""); COMP_CWORD=1
+_nch_complete
+[ ${#COMPREPLY[@]} -eq ${#names[@]} ] || echo "count ${#COMPREPLY[@]}"
+for i in "${!names[@]}"; do
+  eval "set -- ${COMPREPLY[i]}"
+  [ $# -eq 1 ] && [ "$1" = "${names[i]}" ] || echo "candidate ${names[i]}: ${COMPREPLY[i]}"
+done
+for n in "${names[@]}"; do
+  printf -v q '%q' "$n"
+  COMP_WORDS=("$stub" "$q"); COMP_CWORD=1
+  _nch_complete
+  [ "$(cat LAST)" = "$n" ] || echo "typed ${n}: got $(cat LAST)"
+done
+typed=("'a b'" '"a b"' '"a\"b"' 'a\ b' '"a\\b"' '"a\xb"' "a'b c'd")
+want=("a b" "a b" 'a"b' "a b" 'a\b' 'a\xb' "ab cd")
+for i in "${!typed[@]}"; do
+  COMP_WORDS=("$stub" "${typed[i]}"); COMP_CWORD=1
+  _nch_complete
+  [ "$(cat LAST)" = "${want[i]}" ] || echo "typed ${typed[i]}: got $(cat LAST), wanted ${want[i]}"
+done
+"""
+        .replace("NAMES", top / "names")
+        .replace("STUB", top / "stub")
+        .replace("LAST", top / "last"),
+    )
+    let (output, code) = execCmdEx("bash " & top / "run.sh")
+    check output == ""
+    check code == 0

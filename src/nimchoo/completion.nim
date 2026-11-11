@@ -25,12 +25,26 @@ const
     scriptMarker &
     """ (`nch --install-completion` writes it; it is overwritten each time)
 _nch_unquote() {
-    local w=$1
-    case $w in
-        \'*) w=${w#\'}; w=${w%\'} ;;
-        \"*) w=${w#\"}; w=${w%\"} ;;
-    esac
-    REPLY=${w//\\/}
+    local w=$1 c i q=
+    REPLY=
+    for ((i = 0; i < ${#w}; i++)); do
+        c=${w:i:1}
+        if [ "$q" = "'" ]; then
+            if [ "$c" = "'" ]; then q=; else REPLY+=$c; fi
+        elif [ "$c" = '\' ]; then
+            i=$((i + 1))
+            c=${w:i:1}
+            # (inside double quotes a backslash only escapes $ " ` and itself)
+            if [ "$q" = '"' ] && [[ $c != [\$\"\`\\] ]]; then REPLY+='\'; fi
+            REPLY+=$c
+        elif [ -n "$q" ]; then
+            if [ "$c" = "$q" ]; then q=; else REPLY+=$c; fi
+        elif [ "$c" = "'" ] || [ "$c" = '"' ]; then
+            q=$c
+        else
+            REPLY+=$c
+        fi
+    done
 }
 _nch_complete() {
     local out rc line q i cur=${COMP_WORDS[COMP_CWORD]}

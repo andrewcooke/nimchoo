@@ -9,28 +9,8 @@ sees and can be approved together.
 
 ## Now: the plan of the second review
 
-1. **Fuzzing** (REVIEW.md §3; the author: before the packages).  Done so far: the FIT and importer fuzzers
-   (HISTORY.md, 2026-11-10), and `decodeBits`.
-   1. Failures saved under `tests/data/fuzz/<target>/` and replayed by a test: done for the importer
-      (`tests/importer/test_fuzz.nim`), `bits`, `zip`, `xlsx` and the profile (they replay what is in the directory, which is empty
-      except for xlsx; `request` has no saved case: its bugs were fixed with ordinary tests); the FIT target (`tests/data/fuzz/fit/`) needs the same.
-   2. Level 2 is built and the one-hour runs were clean (HISTORY.md, 2026-11-10).  Fuzzing is done, apart from a rerun after
-      big changes to a reader.
-5. **Tab completion** (A step 10): built and working (HISTORY.md, 2026-11-10); what is left:
-   * the **offline path** of `nch __complete` should be checked to write no cache files (it sets `offline` and `readOnly`, and
-     no provider uses the network, but nothing yet tests that no child process or cache file is made);
-   * **zsh** (`--install-completion zsh`: its own directory and mechanism), if wanted;
-   * **`--edit NAME`** for the other plural commands if they gain one; a **`--model`** of `map`, if it gets one;
-   * candidates that need quoting (`Cerro San Luis₄`) are quoted by the function (`%q`) and the words typed are unquoted; only
-     spaces, quotes and backslashes were tried.
-8. **Shrink** (A §4.7): done 2026-11-11 are the templating engine (292 to 182 lines), the dispatch of `decode` written once
-   (`emitSlot`), plan building written once; the dead code and the housekeeping of §4.7 and §4.8 were already gone.  Left:
-   * (**`bundle/`** stays: the review proposed a plain `--profile PATH` instead, but the page templates in the system
-     cache, editable and made again if deleted, are the same mechanism; see "Addresses, state and the cache".)
-   * `fit/decode.nim`: `emitPlain` and `decodeField` take 12 parameters (a context object); mechanical but wide, with the
-     SDK comparison (`nimble csvreport`) to check it;
-   * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
-     `climbs/002-name-number.sql`): at the next squash.
+Steps 1 to 8 are done (HISTORY.md); what was left of them is under "Open from before the review".
+
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
@@ -57,50 +37,30 @@ at import, where shape and naming work happens) would give a simpler and faster 
 (the design, what it replaces, a measurement or a prototype of the hardest part, the cost).  If not, to say why the
 current shape is right.  "Each step measured fine" is not an answer to this.
 
-## Addresses, state and the cache: agreed 2026-11-12; `map` and `ff` built (HISTORY.md), the rest not
+## Addresses, state and the cache: agreed 2026-11-12; `map` and `ff` are built (HISTORY.md), the rest is not
 
 The author's requirements: a bookmark brings back **that plot**, not one remade; if the cache has been cleaned it is remade
 only if it can be remade exactly, else it is an error; an address is also an invocation of a command, and one without a
-pin shows the current database and is bookmarkable.  One convention for every command that has a page (`map`, `ff`, the
-general plot command that will replace `ff`).
+`state` shows the current database and is bookmarkable.  One convention for every command that has a page (`map`, `ff`, the
+general plot command that will replace `ff`).  What is built is in HISTORY.md (2026-11-12): explicit parameters, `--state`,
+names by hash, and the server's flow (live, pinned, remade, error).  What is left of the design:
 
-* **Every such command declares** (1) its **explicit parameters** (the options allowed in an address, as now) and (2) a
-  **state fingerprint**: a hash of the data the plot is made from, including the content behind the explicit parameters (the
-  activities `bits` names) and what the command reads that the address does not spell out.  Each package supplies the key of
-  its own data (as `cache.inputsKey` does now, without the code part).  The parameter is called **`state`** (it replaces
-  `check` and `--check`, and the `pin` of the web page: `--state HASH` means "only if the data are still those").
-* **An address** is `/COMMAND?parameters` (live) or `/COMMAND?parameters&state=HASH` (pinned).  A live address is run on the
-  current data; whatever it depended on that the address does not say (the selection, today's date, the zone) is resolved
-  into explicit parameters, and the server redirects to the pinned form.  A pinned address whose files exist is served as
-  they are (the fingerprint is not even worked out); if they are gone, the fingerprint is worked out now, and if it equals
-  `state` the plot is remade and stored, else it is an error that says the data have changed and gives the live address.
-  A new plot is a live address with other parameters.
-* **File names are not addresses** (too long: a selection is explicit): the name is the command and a hash of the whole
-  pinned address (proquint words, 48 bits as now), one-way, which is enough because the address is always at hand.  The
-  name has no collision check (decided 2026-11-12: 48 bits is plenty for a cache).  A changed state is a new file; the old one stays (it is the old plot) until `nch cache` clears it.
-  The in-place rebuild and `nch.inputs` of `map` go, and so do `ff`'s readable names.
 * **The data file is pinned; the look is not.**  The wrapper page (user cache, same name, `.html`) is rewritten from the
   templates in the system cache (`templates/*.html`, `.css`, style JSON, and `libraries.txt`) each time it is served, so an
   edit of the templates changes the look of every bookmark.  The templates are edited by hand and made again if deleted.  If
   different looks are wanted, a `style=NAME` parameter picks a named style file in the system cache.
-* **The program's version is not part of the state.**  A plot remade after a new build is the same data and parameters, not
-  necessarily the same bytes.
-* **Activities are identified by `bits`** (ids in order, compressed).  Additions do not touch a selection; the fingerprint
-  covers the content of the selected activities, so deleting one of them, or a rebuild that gives those ids other rides,
-  makes the pinned address an error; a rebuild that gives the same activities under the same ids does not.
 * **Climbs become a layer** (the author, 2026-11-12): they are in the map's data file now, which was under development when
   the package work interrupted it.  As a layer of their own they have their own data and fingerprint, so a change to the
   climbs does not make an old map's bookmark an error.  Until then, and for any plot that does include them, the
   fingerprint includes them.
-* **Limits that stay**: the basemap tiles come from the web when the page is viewed (the libraries are pinned by integrity
-  hashes, the tiles are not).
-* **Risks and their guards**: a fingerprint that misses an input gives a wrong "exact" remake with no sign of it, so each
-  command gets a **test that changes each table it reads and checks that the fingerprint changes** (the class of bug, not the
-  instance); 
-* **Still to do**: the wrapper and the templates in the system cache (the data file is pinned and the look is live; `style=NAME`);
-  the climbs as a layer; the general plot command, which declares its series through an extension point, each package giving
-  the key of its data.  Built already: explicit parameters, `--state`, names by hash, the server's flow (live, pinned, remade,
-  error).
+* **The general plot command** replaces `ff`: it declares its series through an extension point, each package giving the key
+  of its data (its part of the state).
+* **The rules that stay** (for every command with a page): the program's version is not part of the state; activities are
+  identified by `selection` (ids in order, compressed), additions do not touch a selection, and the state covers the content of
+  the selected activities, so deleting one of them, or a rebuild that gives those ids other rides, makes the pinned address an
+  error; the basemap tiles come from the web when the page is viewed (the libraries are pinned by integrity hashes, the tiles
+  are not); each command has a **test that changes each table it reads and checks that the state changes** (`map` has one; for
+  `ff` the key is `model/impulses.inputKey`, tested there).
 
 ## Open from before the review
 
@@ -126,6 +86,14 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
   written to the cache, each read of a cell splitting its file into four around the cell and keeping the smaller files
   (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
   Time the largest country first.
+* **Low priority leftovers of the review's steps**:
+  * `fit/decode.nim`: `emitPlain` and `decodeField` take 12 parameters.  A context object holds the number, base type, endian
+    and `fromBits`, but not `data` (an `openArray` cannot be in an object), so they would still take 8 to 10; mechanical but
+    wide, in the hottest functions, to be checked with `nimble csvreport` and a timing;
+  * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
+    `climbs/002-name-number.sql`): at the next squash;
+  * tab completion for **zsh** (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for
+    the other plural commands, and a `--model` of `map`, if they gain them (completion follows the specs).
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
 * **Features for later**: the elevation profile of a climb, the lead/lag comparison, the near-miss report,
   `exclude`, a way to retire many climbs (auto-retire of duplicates was tried and dropped: it retired long climbs
