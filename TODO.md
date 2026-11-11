@@ -7,6 +7,26 @@ to that.  When something here is done, delete it (in the same commit).
 Design steps are discussed with the author before they start; steps marked *(mechanical)* change nothing the author
 sees and can be approved together.
 
+## Proposed order of everything open (2026-11-12; the author is reordering it, then TODO.md is rewritten as one list)
+
+The sections below are in historical groups; this is the flat list the author asked for.  Decide-first items change what the rest
+should be.  Cleaning TODO.md then means moving finished material to HISTORY.md ("steps 1 to 8 are done", the built parts of
+the address design, "climbs vs sectors is answered", the step-7 note once item 1 has its own entry).
+
+1. The data-representation question (section below).  The author also remembers a conclusion from the step-7 work, "it would
+   be more efficient if the data were in a column, but it was in a column"; I could not find it in HISTORY.md (candidates: the
+   single-part route as a stored column, item 4; one blob per activity instead of 6.2 M rows, item 2).  Ask the author.
+2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
+   as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
+7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.
+   10. The general plot command that replaces `ff`.  11. The cache manifest.
+12. Climb numbers (a renamed-away name reused).  13. The log (level filtering; the `saved` word).  14. Terminal themes.
+15. The map (labels, legend, landmarks, palette, colour by sport or year).  16. `ff` (form column, days/hours switch; superseded
+   if 10 comes first).  17. Blue for the selection in `nch climbs`.  18. Tags.  19. A calendar of fitness.  20. More climb
+   features.  21. Per-sport threshold heart rate and models.  22. A terrain model (SRTM).  23. Versions.
+24. `ensureCells` for very large countries.  25. `decode.nim`'s 12-parameter functions.  26. Legacy steps in fragments (next
+   squash).  27. zsh completion, `--edit` and `--model` completion for commands that gain them.
+
 ## Now: the plan of the second review
 
 Steps 1 to 8 are done (HISTORY.md); what was left of them is under "Open from before the review".
