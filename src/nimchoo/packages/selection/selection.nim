@@ -68,8 +68,6 @@ proc ownedIds*(st: Session, ids: seq[int64]): seq[int64] {.raises: [StoreError].
     if id in mine:
       result.add id
 
-const checkLength* = 6
-
 proc contentKey*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
   ## The key of the *content* of the activities `ids`: of their files and sessions (the same kind of key as the
   ## selection key).
@@ -83,10 +81,3 @@ proc contentKey*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
     ):
       entries.add row.sha256 & ":" & $row.session
   keyOf(entries)
-
-proc stateOf*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
-  ## A short state (hash) of the content of the activities `ids` (the first 6 hex digits of `contentKey`).  An address carries
-  ## it with its list of activities, so that after the database has been rebuilt (and the ids mean other activities) or
-  ## activities deleted, the address is refused and not wrong.  (It checks the address; it is not the key of a cached
-  ## file's inputs: that is the whole of `contentKey` and more, see `cache.inputsKey`.)
-  contentKey(st, ids)[0 ..< checkLength]

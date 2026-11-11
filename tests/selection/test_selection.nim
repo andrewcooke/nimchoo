@@ -119,17 +119,16 @@ suite "selection: for an address (the ids, the check)":
       "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file"
     )
     check ownedIds(s, @[1'i64, 4]) == @[1'i64] # (4 is bob's)
-  test "the check is of the content, short, and the same however the ids are arranged":
+  test "the key of the content is the same however the ids are arranged":
     let s = fresh("check")
     defer:
       s.close()
     s.add "a"
     s.add "b"
-    let c = stateOf(s, @[1'i64, 2])
-    check c.len == checkLength and c.allIt(it in HexDigits and it notin {'A' .. 'F'})
-    check c == stateOf(s, @[2'i64, 1])
-    check c != stateOf(s, @[1'i64])
-    check c == selectionKey(s)[0 ..< checkLength] # (the start of the selection's key)
+    let c = contentKey(s, @[1'i64, 2])
+    check c == contentKey(s, @[2'i64, 1])
+    check c != contentKey(s, @[1'i64])
+    check c == selectionKey(s)
 
 suite "selection: replacing it":
   test "the new ids replace the old ones; an empty list empties it":

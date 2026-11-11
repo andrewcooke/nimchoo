@@ -71,14 +71,13 @@ suite "cache: names made from a request":
     check requestStem("Map", "x").isNone and requestStem("", "x").isNone and
       requestStem("a-b", "x").isNone
 
-suite "cache: the key of the inputs":
-  test "the same inputs give the same key; any change of the code or of an input changes it":
-    let k = inputsKey("v1", [("importer", "aa"), ("climbs", "bb")])
-    check k == inputsKey("v1", [("importer", "aa"), ("climbs", "bb")])
+suite "cache: the state of the inputs":
+  test "the same inputs give the same state; any change of an input changes it":
+    let k = stateKey([("importer", "aa"), ("climbs", "bb")])
+    check k == stateKey([("importer", "aa"), ("climbs", "bb")])
     check k.len == 16
-    check k != inputsKey("v2", [("importer", "aa"), ("climbs", "bb")])
-    check k != inputsKey("v1", [("importer", "aa"), ("climbs", "bc")])
-    check k != inputsKey("v1", [("importer", "aa")]) # (an input dropped)
-    check k != inputsKey("v1", [("importer", "aa"), ("climbs", "bb"), ("speed", "cc")])
-  test "the owner is part of the key: the same value from another owner is another input":
-    check inputsKey("v", [("a", "x")]) != inputsKey("v", [("b", "x")])
+    check k != stateKey([("importer", "aa"), ("climbs", "bc")])
+    check k != stateKey([("importer", "aa")]) # (an input dropped)
+    check k != stateKey([("importer", "aa"), ("climbs", "bb"), ("speed", "cc")])
+  test "the owner is part of the state: the same value from another owner is another input":
+    check stateKey([("a", "x")]) != stateKey([("b", "x")])

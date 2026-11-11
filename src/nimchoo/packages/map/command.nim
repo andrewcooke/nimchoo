@@ -2,12 +2,13 @@
 ## directory holds them (every feature says what it is, in `kind`, and nothing about how it looks), and a page, drawn by
 ## Leaflet in the browser (`--web`), decides the look.
 ##
-## Which activities are drawn is carried by the address of the page: `selection=...` is the list of them (selection/bits.nim)
-## and `state=...` a short hash of their content, so that an address made before the database was rebuilt (when the
-## ids mean other activities) or before activities were deleted is refused and not wrong.  The files are named by a
-## hash of that request, in pronounceable words (`map-lusab-babad-fuzoh.geojson`), so asking again for the same thing
-## finds the file already there, if the data it was made from are unchanged (the header records a key of them; if it
-## differs the file is made again).
+## Which activities are drawn is carried by the address of the page: `selection=...` is the list of them
+## (selection/bits.nim) and `state=...` a hash of everything the map is made from (the content of the activities, their routes
+## and the climbs), so that an address made before the database was rebuilt, or before something it shows changed, is refused
+## and not wrong.  The files are named by a hash of the whole address, in pronounceable words
+## (`map-lusab-babad-fuzoh.geojson`).  An address with a state whose file is there is served as it is; if the file is gone
+## it is made again, but only if the state is still the same.  An address without a state is made from the data as they are,
+## and the address that names exactly that is what the command reports.
 ##
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
@@ -22,7 +23,6 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../importer/keys
-import ../util/version/version
 import ../fit/time
 import ../../core/ids
 import ../selection/bits
@@ -117,19 +117,34 @@ proc climbsOf(st: Store, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
 
 type Prepared = object
   status: int ## 0 if the files are there; else the exit status (already reported)
-  stem, query: string ## the name of the files, and what pins the page in an address
+  stem, query: string
+    ## the name of the files, and the address that names the map exactly
   geojson, page: string ## paths (page: only if asked for)
 
-proc startsWithFile(path, prefix: string): bool =
-  ## Whether the file begins with `prefix`.
-  try:
-    let f = open(path)
-    defer:
-      f.close()
-    var head = newString(prefix.len)
-    result = f.readBuffer(addr head[0], prefix.len) == prefix.len and head == prefix
-  except IOError:
-    result = false
+type Inputs = object
+  state: string ## the key of everything the map is made from
+  routes: int ## how many of the activities have a route
+  climbs: seq[Climb]
+  worked: Worked ## the climbs that had to be worked out first
+
+proc inputsOf(st: Session, ids: seq[int64]): Inputs {.raises: [StoreError].} =
+  ## What the map of the activities is made from, and the state that stands for it: the content of the activities, their
+  ## routes and, while they are in the file, the climbs (which are worked out first if they are not).
+  let routeKey = routesKey(st, ids)
+  result.routes = routeKey.count
+  result.worked = ensureClimbs(st)
+  result.climbs = climbsOf(st, ids)
+  result.state = stateKey(
+    [
+      ("activities", contentKey(st, ids)),
+      ("routes", routeKey.key),
+      ("climbs", climbsKey(result.climbs)),
+    ]
+  )
+
+proc stateOf*(st: Session, ids: seq[int64]): string {.raises: [StoreError].} =
+  ## The state of the map of these activities (which must be the user's: `ownedIds`), as an address carries it.
+  inputsOf(st, ids).state
 
 proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
   ## Make the GeoJSON file (if it is not there) and, if asked, the page.  Reports problems.
@@ -151,15 +166,6 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     else:
       ids = selectedIds(st)
     let mine = ownedIds(st, ids)
-    let state = stateOf(st, mine)
-    if p.target == tList and p.state.isSome and p.state.get != state:
-      return Prepared(
-        status: failure(
-          "nch map",
-          "the activities of this address are not the ones it was made for " &
-            "(the database has been rebuilt, or activities were deleted): run `nch map` again",
-        )
-      )
     if mine.len == 0:
       return Prepared(
         status: failure(
@@ -174,54 +180,54 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       stderr.say "note: " & $(ids.len - mine.len) & " of the " & $ids.len &
         " activities of this address do not exist\n"
     # (the request is the activities drawn, spelt one way: the address as typed may name others, or use the other form)
-    let request = "selection=" & encodeBits(mine) & "&state=" & state
-    # what the file is made from: the data of each package it reads, and the version of the program
-    let routeKey = routesKey(st, mine)
-    if routeKey.count == 0:
-      return Prepared(
-        status: failure(
-          "nch map",
-          "none of the " & $mine.len &
-            " activities has a route (no positions in the files)",
-        )
-      )
-    let worked = ensureClimbs(st)
-    if worked.activities > 0:
-      stderr.say "worked out the climbs of " & $worked.activities & " activities: " &
-        $worked.sectors & " new climbs\n"
-    let climbs = climbsOf(st, mine)
-    let inputs = inputsKey(
-      "map " & nchCommit & " tolerance " & $toleranceM,
-      [
-        ("activities", contentKey(st, mine)),
-        ("routes", routeKey.key),
-        ("climbs", climbsKey(climbs)),
-      ],
-    )
-    # the files are named by a hash of the request; if the name is found to be another request's, the next is tried
-    var stem = ""
-    var path = ""
-    for attempt in 0 .. 5:
-      let s = requestStem(
-        "map",
-        if attempt == 0:
-          request
-        else:
-          request & "#" & $attempt,
-      )
+    let selection = encodeBits(mine)
+    var request, stem, path: string
+    var found = false
+    proc name(state: string): bool =
+      ## Whether the files of the map of these activities in this state can be named; sets them.
+      request = "selection=" & selection & "&state=" & state
+      let s = requestStem("map", request)
       if s.isNone:
-        return Prepared(status: failure("nch map", "cannot name a file"))
+        return false
       stem = s.get
       path = cacheFile(dir, stem, "geojson").get
-      if not fileExists(path) or startsWithFile(path, requestPrefixFor(request)):
-        break
-    if not startsWithFile(path, filePrefixFor(request, inputs)):
-      # not there, or made from other inputs: made again, in place
-      let routes = routesOf(st, mine)
-      if routes.len < mine.len:
-        stderr.say "note: " & $(mine.len - routes.len) & " of the " & $mine.len &
-          " activities have no route (no positions in the files)\n"
-      writeAtomic(path, featureCollection(routes, climbs, request, inputs))
+      true
+
+    if p.target == tList and p.state.isSome:
+      # a pinned address: if its file is there it is what was asked for, and nothing needs working out
+      if not name(p.state.get):
+        return Prepared(status: failure("nch map", "cannot name a file"))
+      found = fileExists(path)
+    if not found:
+      let inputs = inputsOf(st, mine)
+      if inputs.worked.activities > 0:
+        stderr.say "worked out the climbs of " & $inputs.worked.activities &
+          " activities: " & $inputs.worked.sectors & " new climbs\n"
+      if inputs.routes == 0:
+        return Prepared(
+          status: failure(
+            "nch map",
+            "none of the " & $mine.len &
+              " activities has a route (no positions in the files)",
+          )
+        )
+      if p.target == tList and p.state.isSome and p.state.get != inputs.state:
+        return Prepared(
+          status: failure(
+            "nch map",
+            "the data of this address have changed since it was made (the database was rebuilt, or activities, " &
+              "routes or climbs changed), and its files are gone; the map of these activities as they are now is " &
+              "/map?selection=" & selection,
+          )
+        )
+      if not name(inputs.state):
+        return Prepared(status: failure("nch map", "cannot name a file"))
+      if not fileExists(path):
+        let routes = routesOf(st, mine)
+        if routes.len < mine.len:
+          stderr.say "note: " & $(mine.len - routes.len) & " of the " & $mine.len &
+            " activities have no route (no positions in the files)\n"
+        writeAtomic(path, featureCollection(routes, inputs.climbs))
     result = Prepared(stem: stem, query: request, geojson: path)
     if withPage:
       # the page is rewritten each time (it is tiny, and may have changed since)

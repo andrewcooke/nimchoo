@@ -48,13 +48,12 @@ func requestStem*(command, request: string): Option[string] =
     bytes.add byte(v)
   some(command & "-" & proquint(bytes))
 
-func inputsKey*(code: string, inputs: openArray[(string, string)]): string =
-  ## The key of everything a cached file was made from, besides the request that names it: `code` says the version of
-  ## the program and of the method (a change of either makes every file stale), and each input is the key its owner
-  ## gives to the data it supplied, as (owner, key).  The file records this key; a file whose key differs from the
-  ## one worked out now is made again, in place.  Declaring the inputs here, with the owner's name in the key, is what
-  ## stops a new input from being forgotten: a file is fresh only if every declared input is unchanged.
-  var text = "code=" & code & "\n"
+func stateKey*(inputs: openArray[(string, string)]): string =
+  ## The state of everything a plot is made from, besides the parameters that name it: each input is the key its owner
+  ## gives to the data it supplied, as (owner, key).  An address carries it (`state=`) so that a plot is remade only from
+  ## the same data.  The program's version is not part of it: a plot remade by a newer build is the same data and
+  ## parameters.  The owner's name is in the key, which stops a new input from being forgotten: it is a different state.
+  var text = ""
   for (owner, key) in inputs:
     text.add owner & "=" & key & "\n"
   sha256Hex(text)[0 ..< 16]

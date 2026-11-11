@@ -124,9 +124,9 @@ overwritten once changed; delete one to get the built-in version again.""",
         """The cache directory: where files that commands make go, and what they are called.
 
 A command with a graphical result makes its file here (a GeoJSON file and a page for the map, CSV for `ff`), named after the
-request: the command and 48 bits of the hash of the request as proquints.  The request is written into the file
-(`nch.request`) and checked when the file is found, so a clash of names cannot show the wrong file; the key of everything
-else the file is made from is written too (`nch.inputs`), and if it differs the file is made again, in place.  The server
+request: the command and 48 bits of the hash of the whole pinned address (its parameters and the state of the data) as
+proquints.  A name has no collision check: 48 bits is plenty for a cache.  A changed state is a new file; the old one is the
+old plot, and stays until it is deleted.  The server
 (`web`) serves these files.  `nch cache` says what is there, by kind, and how big; `nch cache --delete KIND` deletes (no
 `-f`: everything in it can be made again).""",
     ),
@@ -363,11 +363,11 @@ it.  Suggestions are found from the features and the rides.""",
 * **The selection** is a scratchpad in the database (table `selection`): the activities that `climbs`, `map`, `calendar` and
   the like work on unless told otherwise.  It belongs to one user, and is replaced whenever `activities --select` is given
   or an import adds activities.  This is implicit state, which conflicts with the caching of files made by commands, so the
-  key of the selection (a hash of the content of its activities) goes into the names of the files made from it.
+  state of the activities selected goes into the address of the plot made from them, and the plot is named by a hash of that.
 * **The address** (`selection`): a set of activity ids as a short string (runs or a bitmap, bit-level codes, URL-safe base64: one
-  ride is 5 characters, a date range 5 to 8), so `/map?selection=LIST&state=HASH` names its activities.  `HASH` is the first 6
-  hex digits of the content key of those activities (`stateOf`): after a database rebuild the ids mean other activities,
-  and the state refuses the old address.  **`--state` means check**: verification, never choice.
+  ride is 5 characters, a date range 5 to 8), so `/map?selection=LIST&state=HASH` names its activities.  `HASH` is the state of the data
+  the plot is made from, which includes the content key of those activities (`contentKey`): after a database rebuild the ids
+  mean other activities, and the state refuses the old address.  **`--state` means check**: verification, never choice.
 * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).""",
     ),
     Registered(

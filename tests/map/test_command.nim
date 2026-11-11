@@ -108,7 +108,6 @@ suite "map: the command":
     check files(w.cache) == @[name]
     check name.startsWith("map-") and isCacheFileName(name)
     let j = parseFile(w.cache / name)
-    check j["nch"]["request"].getStr == "selection=" & a.selection & "&state=" & a.state
     check j["features"].len == 2 # (the third has no route)
     check j["features"][0]["properties"]["start"].getStr == "1970-01-01T00:16:40Z"
     check kinds(j) == @["route", "route"]
@@ -132,36 +131,26 @@ suite "map: the command":
     check getLastModificationTime(path).toUnix == 1_000_000_000
     check files(w.cache).len == 1
 
-  test "every input of the file is part of its key: a change of any of them makes the file again, in place":
+  test "every input of the map is part of its state: a change of any of them is another state":
     # (the class of bug: a cached file kept after something it is made from changed)
     let w = world("inputs")
     withClimb(w.db)
     check map(w.db) == exitOk
-    let path = w.cache / files(w.cache)[0]
-    proc changeAndRemake(sql: string): string =
+    var seen = @[addressOf(w.db).state]
+    for sql in [
+      "update sector set name = 'Renamed'", # the name of a climb
+      "update sector set category = 'HC'", # its category
+      "update sector set retired = 1", # its retiring
+      "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72))', 4326) where activity_id = 1",
+    ]:
       let s = openSession(w.db, allFragments, access = allAccess)
-      s.db.execute((sql))
+      s.db.execute(sql)
       s.close()
-      setLastModificationTime(path, fromUnix(1_000_000_000))
-      check map(w.db) == exitOk
-      check files(w.cache).len == 1 # (in place: no second file)
-      readFile(path)
-
-    check readFile(path).contains("\"name\":\"Cerro\"")
-    # the name of a climb
-    check changeAndRemake("update sector set name = 'Renamed'").contains("Renamed")
-    # its category, and its retiring
-    check changeAndRemake("update sector set category = 'HC'").contains("\"HC\"")
-    check not changeAndRemake("update sector set retired = 1").contains(
-      "\"kind\":\"climb\""
-    )
-    discard changeAndRemake("update sector set retired = 0")
-    # the route of an activity
-    let before = readFile(path)
-    check changeAndRemake(
-      "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72))', 4326) where activity_id = 1"
-    ) != before
-    # (the content of an activity is in the request, through `state`: another file, see below)
+      let state = addressOf(w.db).state
+      check state notin seen
+      seen.add state
+    check map(w.db) == exitOk
+    check files(w.cache).len == 2 # (the first map is still there: it is the old plot)
 
   test "the content of an activity changes the request: a file of its own":
     let w = world("content")
@@ -246,16 +235,20 @@ suite "map: the command":
     check map(w.db, "--selection", encodeBits([1'i64, 2, 3, 4])) == exitOk # 4 is bob's
     check geojsons(w.cache).len == 1
 
-  test "a name already used by another request is not reused":
-    let w = world("collision")
-    let a = addressOf(w.db)
-    let request = "selection=" & a.selection & "&state=" & a.state
-    createDir(w.cache)
-    let taken = w.cache / (requestStem("map", request).get & ".geojson")
-    writeFile(taken, "{\"not\":\"ours\"}")
+  test "a pinned address whose file is gone is made again if the state is the same, else refused":
+    let w = world("remade")
     check map(w.db) == exitOk
-    check geojsons(w.cache).len == 2
-    check readFile(taken) == "{\"not\":\"ours\"}" # (left as it was)
+    let a = addressOf(w.db)
+    let path = w.cache / files(w.cache)[0]
+    removeFile(path)
+    check map(w.db, "--selection", a.selection, "--state", a.state) == exitOk
+    check fileExists(path) # (the same name: the plot of that address)
+    removeFile(path)
+    let s = openSession(w.db, allFragments, access = allAccess)
+    s.db.execute("update file set sha256 = 'z' where name = 'a'")
+    s.close()
+    check map(w.db, "--selection", a.selection, "--state", a.state) == exitFailure
+    check files(w.cache).len == 0
 
   test "--worker makes the page too; the data is not remade, the page is":
     let w = world("worker")
