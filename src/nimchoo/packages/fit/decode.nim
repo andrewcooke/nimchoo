@@ -622,48 +622,49 @@ proc decode*(
       ints: @[int64(tok.timestamp.get)],
     )
 
+  template emitSlot(i: int, into: var seq[FieldValue]) =
+    ## One field of the definition, whichever kind it is (a template, not a proc: it uses `d`, a `var` parameter).
+    let fd = d.plans[idx].slots[i].def
+    if not d.plans[idx].slots[i].known:
+      if fd.base.isSome:
+        d.interpret(unknown(d.plans[idx].slots[i]), slotData(i), endian, ctx, into)
+    elif d.plans[idx].slots[i].kind == fkPlain:
+      d.emitPlain(
+        d.plans[idx].slots[i].meta,
+        d.plans[idx].slots[i].scale,
+        d.plans[idx].slots[i].offset,
+        d.plans[idx].slots[i].accumulate,
+        fd.number,
+        fd.base,
+        slotData(i),
+        endian,
+        ctx,
+        Override(),
+        false,
+        into,
+      )
+    else:
+      d.decodeField(
+        p,
+        d.plans[idx],
+        p.messages.must(d.plans[idx].msgName).fields.must(
+          d.plans[idx].slots[i].fieldName
+        ),
+        d.plans[idx].slots[i].meta,
+        fd.number,
+        fd.base,
+        slotData(i),
+        endian,
+        ctx,
+        Override(),
+        false,
+        into,
+      )
+
   if not d.plans[idx].hasDynamic:
     # the usual case: the values come out in the order of the definition
     for i in 0 ..< n:
-      let fd = d.plans[idx].slots[i].def
-      if not d.plans[idx].slots[i].known:
-        if fd.base.isNone:
-          continue
-        d.interpret(
-          unknown(d.plans[idx].slots[i]), slotData(i), endian, ctx, result.fields
-        )
-      elif d.plans[idx].slots[i].kind == fkPlain:
-        d.emitPlain(
-          d.plans[idx].slots[i].meta,
-          d.plans[idx].slots[i].scale,
-          d.plans[idx].slots[i].offset,
-          d.plans[idx].slots[i].accumulate,
-          fd.number,
-          fd.base,
-          slotData(i),
-          endian,
-          ctx,
-          Override(),
-          false,
-          result.fields,
-        )
-      else:
-        d.decodeField(
-          p,
-          d.plans[idx],
-          p.messages.must(d.plans[idx].msgName).fields.must(
-            d.plans[idx].slots[i].fieldName
-          ),
-          d.plans[idx].slots[i].meta,
-          fd.number,
-          fd.base,
-          slotData(i),
-          endian,
-          ctx,
-          Override(),
-          false,
-          result.fields,
-        )
+      emitSlot(i, result.fields)
   else:
     # a dynamic field depends on the values of others (which may come after it): the plain and
     # unknown fields first, then composites, then dynamic ones; the values keep the definition's order
@@ -674,47 +675,15 @@ proc decode*(
           ctx.refs[v.meta.name] = v.ints[0]
 
     for i in 0 ..< n:
-      let fd = d.plans[idx].slots[i].def
       if not d.plans[idx].slots[i].known:
-        if fd.base.isNone:
-          continue
-        d.interpret(unknown(d.plans[idx].slots[i]), slotData(i), endian, ctx, groups[i])
+        emitSlot(i, groups[i])
       elif d.plans[idx].slots[i].kind == fkPlain:
-        d.emitPlain(
-          d.plans[idx].slots[i].meta,
-          d.plans[idx].slots[i].scale,
-          d.plans[idx].slots[i].offset,
-          d.plans[idx].slots[i].accumulate,
-          fd.number,
-          fd.base,
-          slotData(i),
-          endian,
-          ctx,
-          Override(),
-          false,
-          groups[i],
-        )
+        emitSlot(i, groups[i])
         noteRefs(groups[i])
     for pass in [fkComposite, fkDynamic]:
       for i in 0 ..< n:
         if d.plans[idx].slots[i].known and d.plans[idx].slots[i].kind == pass:
-          let fd = d.plans[idx].slots[i].def
-          d.decodeField(
-            p,
-            d.plans[idx],
-            p.messages.must(d.plans[idx].msgName).fields.must(
-              d.plans[idx].slots[i].fieldName
-            ),
-            d.plans[idx].slots[i].meta,
-            fd.number,
-            fd.base,
-            slotData(i),
-            endian,
-            ctx,
-            Override(),
-            false,
-            groups[i],
-          )
+          emitSlot(i, groups[i])
           noteRefs(groups[i])
     for g in groups.mitems:
       for v in g.mitems:
