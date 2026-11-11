@@ -19,8 +19,9 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    ones computed, by a function), cell thresholds with names left to fall where they fall (revisit with experience), the heat
    map counts visits, and the arrays (item 2) are decoupled: `route_cell` is a derived table, backfilled from `coords` and
    then written at import.  Open: where naming lives (REVIEW.md §5.1), asked when naming comes up.  Order: (1) the cell
-   functions in `geo` (id, coarsen, centre, a neighbourhood in **metres at the cell's latitude**: the review's ±1 coarse cell
-   misses a 2 km radius above 55°N, and your Yorkshire rides are at 54°), tested at 60° too, and registered in SQLite;
+   functions: done in `geo/cells.nim` (2026-11-12: id, coarsen, centre, `reach` in **metres at the cell's latitude**, tested at
+   60° and mutation-checked: the review's ±1 coarse cell misses a 2 km radius above 55°N, and the Yorkshire rides are at 54°);
+   left of it, registering them in SQLite (`db/functions.nim`);
    (2) `route_cell`, backfilled and written at import; (3) the heat map, the first consumer (no Nim code to replace);
    (4) climb candidates by cells, with a baseline measured before; (5) the via search and naming in SQL, then what it
    made dead is deleted.  It replaces items 4, 5 and 6 below; item 2 follows on its own.

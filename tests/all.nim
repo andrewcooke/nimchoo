@@ -29,7 +29,7 @@ import ./text/templating/test_templating
 import ./util/version/test_version
 import ./text/proquint/test_proquint
 import ./util/atomic/test_atomic
-import ./geo/test_geo
+import ./geo/[test_geo, test_cells]
 import
   ./fit/[
     test_basetype, test_header, test_time, test_tokens, test_decode, test_sdkcsv,
