@@ -27,9 +27,9 @@ sees and can be approved together.
    right after data leaves the database or just before it enters goes to SpatiaLite; data that starts outside and stays
    outside does not.  Left, each to be prototyped and compared with the Nim result first:
    * `haversine` in `names/landmarks.nim` and `names/suggest.nim` (not yet looked at);
-   * not spatial, on the review's list: `attempts.summaries` (3 queries per climb, the ranking in Nim), `map climbsOf`
-     (may already be one query), `countriesOfCell` (row-by-row inserts), `ensureCells` (unzips the country file per cell)
-     and `missingCells` (a count per cell): measure before deciding.
+   * not spatial, on the review's list: `attempts.summaries` (3 queries per climb, the ranking in Nim) and `map climbsOf`
+     (may already be one query): measure before deciding.  (`countriesOfCell`, `ensureCells` and `missingCells` were
+     measured on 2026-11-11: negligible, see the note on large countries below.)
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
@@ -51,6 +51,15 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
   turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
   would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, HISTORY.md, 2026-11-11).
   Not designed: check first what the naming needs and whether the stored name is enough.
+* **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
+  unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
+  per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is
+  batches times file size, so it would only matter for a large file (US about 2 M rows, Russia) with rides scattered over
+  many areas; not timed yet.  If it ever does: (a) split the file once per country into one indexed file, rows grouped by
+  cell with a table of offsets (recommended; one pass, no partial states); or (b) the author's idea, a quadrant tree
+  written to the cache, each read of a cell splitting its file into four around the cell and keeping the smaller files
+  (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
+  Time the largest country first.
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
 * **Features for later**: the elevation profile of a climb, the lead/lag comparison, the near-miss report,
   `exclude`, a way to retire many climbs (auto-retire of duplicates was tried and dropped: it retired long climbs

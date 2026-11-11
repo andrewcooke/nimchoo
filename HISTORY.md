@@ -49,6 +49,14 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   1,112 activities, shape and everything else included).  A route covers thousands of features in its box and each costs a
   point-to-line distance on a line of hundreds of vertices; prefiltering by the coarse line or a buffer did not help
   (SpatiaLite's `ST_Intersects` does not use prepared geometries).  The Nim grid looks a feature up in constant time.
+* **Cells of names stay as they are** (`names/features.nim`, `names/countries.nim`; measured 2026-11-11 on Chile, with copies of
+  the real cached files and a fresh database).  `missingCells` (a count per cell) is under 1 ms for 20 cells; `countriesOfCell`
+  (row-by-row inserts) is 0.15 ms per new cell (400 in 60 ms); `ensureCells` is 75 ms for a first new cell, 138 ms for another
+  (the file is unzipped and parsed again for each batch of missing cells), 561 ms for a 5x5 box, 1.96 s for the whole country
+  (38,480 features); `ensureCountries` is 1.8 s, once per database.  A cell already loaded is never read again (`coverage`).
+  Nothing worth moving into SQL.  The author's idea, writing the rest of the file back in four quadrants around each cell read
+  (a spatial tree built lazily on disk), and my simpler one, one indexed file per country, would only matter for a large
+  country (US, Russia) with rides scattered over many areas, not timed; kept as a low-priority note in TODO.md.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 
