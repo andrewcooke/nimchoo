@@ -32,7 +32,9 @@ sees and can be approved together.
      and `missingCells` (a count per cell): measure before deciding.
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
-   simplified `route`; the cache manifest.
+   simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
+   uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
+   them; HISTORY.md, 2026-11-11); the cache manifest.
 
 ## Open from before the review
 
@@ -45,6 +47,10 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
 * **Naming is slow** (11 s for 1,112 activities: 4.6 s reading 6.2 M `coords` rows as text, 6.2 s in
   `nameActivity`, not broken down; nothing shown meanwhile).  The author wants to go through how naming works
   first.  The arrays (step 9) take most of the reading time away.
+* **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
+  turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
+  would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, HISTORY.md, 2026-11-11).
+  Not designed: check first what the naming needs and whether the stored name is enough.
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
 * **Features for later**: the elevation profile of a climb, the lead/lag comparison, the near-miss report,
   `exclude`, a way to retire many climbs (auto-retire of duplicates was tried and dropped: it retired long climbs
