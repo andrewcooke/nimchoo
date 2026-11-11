@@ -40,6 +40,15 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   distance; I cut the circle out of the line with `ST_Difference` and located its centroid, a workaround).  The naming code
   also still needs the points and the turn in Nim afterwards.  So: not worth it.  The single-part route is still a good
   idea for the other consumers (TODO step 7, features along the route; step 9, a simplified `route`).
+* **Features along the route stay in Nim** (`names/activity.nim`, the "via" of loops and mixed rides; prototyped 2026-11-11).
+  SQL, on a single-part route made by joining the parts: features in the box of the route, kept if within 2 km of the line
+  (`ST_Distance` with the ellipsoid) and not within a third of the furthest distance of the start, then the same ranking by
+  kind and distance.  The answer: for the 560 loop and mixed rides it names the same place as the stored activity name for
+  553 (98.75%; the 7 others pick another town, probably at the 2 km edge, where Nim measures to points every 50 m and SQL
+  to the line, not looked at further), but it takes 16 to 60 s against a few seconds for all of naming in Nim (6.2 s for the
+  1,112 activities, shape and everything else included).  A route covers thousands of features in its box and each costs a
+  point-to-line distance on a line of hundreds of vertices; prefiltering by the coarse line or a buffer did not help
+  (SpatiaLite's `ST_Intersects` does not use prepared geometries).  The Nim grid looks a feature up in constant time.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 
