@@ -25,13 +25,23 @@ sees and can be approved together.
      spaces, quotes and backslashes were tried.
 8. **Shrink** (A §4.7): done 2026-11-11 are the templating engine (292 to 182 lines), the dispatch of `decode` written once
    (`emitSlot`), plan building written once; the dead code and the housekeeping of §4.7 and §4.8 were already gone.  Left:
-   * **one cache naming scheme**: settled by "Addresses, state and the cache" below (built with it, not before);
+   * **one cache naming scheme**: step 8a;
    * (**`bundle/`** stays: the review proposed a plain `--profile PATH` instead, but the page templates in the system
      cache, editable and made again if deleted, are the same mechanism; see "Addresses, state and the cache".)
    * `fit/decode.nim`: `emitPlain` and `decodeField` take 12 parameters (a context object); mechanical but wide, with the
      SDK comparison (`nimble csvreport`) to check it;
    * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
      `climbs/002-name-number.sql`): at the next squash.
+8a. **`map` and `ff` made consistent** (agreed 2026-11-12; the design is "Addresses, state and the cache" below).  In commits that
+   each keep the tests passing, `ff` first (it has no climbs question), then `map`:
+   1. `cache`: the file name from the whole pinned address (the command and a hash of it), in place of `requestStem` and
+      `fileStem`; the stored request stays, to catch a collision;
+   2. `ff`: `--check` becomes `--state`, the file names are the hash, and a pinned address whose files are gone is remade only
+      if the state is the same, else an error with the live address;
+   3. `map`: the same (`state` covers the selected activities' content, their routes and, until they are a layer, the climbs);
+      the in-place rebuild and `nch.inputs` go;
+   4. the web handler: one `state` pin for every command, and the redirect from a live address;
+   5. a test per command that changes each table it reads and checks that the fingerprint changes.
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
@@ -58,7 +68,7 @@ at import, where shape and naming work happens) would give a simpler and faster 
 (the design, what it replaces, a measurement or a prototype of the hardest part, the cost).  If not, to say why the
 current shape is right.  "Each step measured fine" is not an answer to this.
 
-## Addresses, state and the cache: agreed 2026-11-12, not built
+## Addresses, state and the cache: agreed 2026-11-12, not built (step 8a)
 
 The author's requirements: a bookmark brings back **that plot**, not one remade; if the cache has been cleaned it is remade
 only if it can be remade exactly, else it is an error; an address is also an invocation of a command, and one without a
