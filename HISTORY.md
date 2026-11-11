@@ -4,6 +4,30 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Overlap of climbs in SQL (done 2026-11-11; REVIEW.md step 12, first part)
+
+`climbs/overlap.nim` asks SpatiaLite whether a climb found is a stored one (`isRepeat`) and which stored climbs are near
+copies (`nearCopies`, for `nch climbs --duplicates`); `inHull`, `insideShare`, `overlapsBothWays` and the n-squared loop
+in `duplicateGroups` are gone.  The rule the author gave for choosing: spatial work right after data leaves the
+database (or just before it enters) goes to SpatiaLite; data that starts outside, is processed and stays outside does not,
+and we do not rewrite spatial algorithms the library has.  Decisions and why:
+
+* **Measured on the author's database (183 climbs)**: the Nim code found 28 near-copy pairs in 3.4 s, and 78 repeat pairs;
+  the SQL found the same pairs both times.  `nch climbs --duplicates` printed identical output, 3.49 s before and 0.50 s
+  after.  Speed came from the spatial index (463 candidate pairs instead of 16,653) and from `ST_Simplify` at 2 m, which
+  changed no answer (1 m, 2 m and 5 m gave the same pairs; buffers with 4, 8 or 30 segments the same).
+* **Metres**: each pair is projected to the UTM zone of the first (`ST_Transform`), where a 25 m buffer is 25 m.  Both
+  climbs go into that one zone, not each into its own, so a pair that straddles a zone line is still found (own-zone
+  was 0.52 s, this is 0.79 s for the whole table).  The buffer has round ends where the Nim hull had flat ones; no pair
+  changed.
+* **Gate crossings stay in Nim** (`match.overPaths`).  A prototype found the same crossing times as the stored efforts (24 of
+  24 and 229 of 229 within 0.5 s) but had to build 2.4 to 3.9 million per-second segments from `coords` for one sector (3.5
+  to 5.5 s, then 1 to 1.7 s to test them), left the length test, the shortest-first choice and the stretches still to do, and
+  would stop working when the per-second data becomes arrays (TODO step 9): the ride is data that starts outside the
+  database as a series, which is the author's rule for leaving it.
+* A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
+* The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
+
 ## Tab completion (done 2026-11-10; REVIEW.md step 10)
 
 `nch --install-completion [SHELL]` writes the script where bash-completion finds it (new shells have it on the first tab,

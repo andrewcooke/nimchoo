@@ -17,7 +17,7 @@
 ## found), with the version of the method.  If the method changes the version does, and
 ## `clearClimbs` (`nch climbs --all --delete`) starts again.
 
-import std/[math, options, strutils, tables]
+import std/[math, options, tables]
 import ../db/statement
 import ../db/store
 import ../../core/errors
@@ -26,7 +26,7 @@ import ../importer/extract
 import ../importer/track
 import ../util/lookup/lookup
 import ../util/profiling/profiling
-import ./[detect, match, ordinal, profile]
+import ./[detect, match, ordinal, overlap, profile]
 
 {.push raises: [].}
 
@@ -59,20 +59,9 @@ func boxOf(p: Path): Box =
     result.lon1 = max(result.lon1, p.lon[i])
     result.lat1 = max(result.lat1, p.lat[i])
 
-func degrees(x: float): string =
-  formatFloat(x, ffDecimal, 7)
-
 func wider(b: Box): Box =
   ## The box a little wider, for the spatial indexes to be asked with.
   (b.lon0 - margin, b.lat0 - margin, b.lon1 + margin, b.lat1 + margin)
-
-func lineStringText(p: Path): string =
-  ## "LINESTRING Z(lon lat alt, ...)" for a route that has altitudes.
-  var points: seq[string]
-  for i in 0 ..< p.len:
-    points.add degrees(p.lon[i]) & " " & degrees(p.lat[i]) & " " &
-      formatFloat(p.elev[i], ffDecimal, 1)
-  "LINESTRING Z(" & points.join(", ") & ")"
 
 func ridePaths(track: Track): seq[Path] =
   ## The positions and times of each stretch of a ride as a path (a stretch of fewer than two
@@ -227,14 +216,9 @@ proc workOn(
         climbs = findClimbs(prof)
       for climb in climbs:
         let route = climbPath(prof, climb)
-        var again = false
-        for sector in st.sectorsNear(cache, boxOf(route)):
-          # the same climb again only if the ride went over that sector: a climb that overlaps a stored one but stops
-          # short of its finish (or starts after its start) earned no effort on it, and is a climb of its own
-          if sector in matched and isRepeat(cache.must(sector), route):
-            again = true
-            break
-        if again:
+        # the same climb again only if the ride went over that sector: a climb that overlaps a stored one but stops
+        # short of its finish (or starts after its start) earned no effort on it, and is a climb of its own
+        if st.isRepeat(route, matched):
           continue
         insertSector.bindReal(1, climb.length)
         insertSector.bindReal(2, climb.gain)

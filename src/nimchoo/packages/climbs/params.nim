@@ -168,7 +168,7 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--duplicates"],
         duplicates,
-        fmt"list the climbs that largely overlap (more than half of each lies within {gateRadius:.0f} m of the other), the most ridden first, with the command to hide each of the others",
+        fmt"list the climbs that largely overlap (more than half of each lies within {int(gateRadius)} m of the other), the most ridden first, with the command to hide each of the others",
       ),
       helpFlag(Raw),
     ],

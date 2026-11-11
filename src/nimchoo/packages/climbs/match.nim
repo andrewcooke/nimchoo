@@ -9,10 +9,10 @@
 ## may go over a sector more than once (laps): each pass is an effort, and of crossings that
 ## overlap the shortest is taken.
 ##
-## A climb found on a ride is the same as a stored one if more than half of each lies within 25 m
-## of the other (choochoo: less than half of each outside the other's hull).  Pure.
+## Whether a climb found on a ride is a stored one again, and which stored climbs are near copies of each other, is asked
+## of SpatiaLite (`overlap.nim`).  Pure.
 
-import std/[algorithm, math, options, strutils]
+import std/[algorithm, math, options, strformat, strutils]
 import ../geo/geo
 
 {.push raises: [].}
@@ -22,10 +22,6 @@ const
     ## metres each side of the route, for the gates and for "the same place"
   lengthTolerance = 0.05
     ## the ground covered may differ from the sector's length by this
-  repeatLimit* = 0.5 ## a repeat if less than this fraction of each is outside the other
-  nearCopyLimit* = 0.2
-    ## a near copy (the duplicates report) if less than this fraction of each is outside the other
-  sampleStep = 5.0 ## metres between the points taken along a route to compare it
 
 type
   Path* = object
@@ -81,6 +77,19 @@ func parseLineString*(text: Option[string]): Option[Path] =
     parseLineString(text.get)
   else:
     none(Path)
+
+func lineStringText*(p: Path): string =
+  ## "LINESTRING Z(lon lat alt, ...)" for a route that has altitudes (the writer of a stored route; `parseLineString`
+  ## reads it).  A route with none has them as 0.
+  var points: seq[string]
+  for i in 0 ..< p.len:
+    let alt =
+      if p.elev.len == p.len:
+        p.elev[i]
+      else:
+        0.0
+    points.add fmt"{p.lon[i]:.7f} {p.lat[i]:.7f} {alt:.1f}"
+  "LINESTRING Z(" & points.join(", ") & ")"
 
 func xy(p: Path, pr: Projection): seq[XY] =
   for i in 0 ..< p.len:
@@ -200,58 +209,3 @@ func overPaths*(sector, ride: Path): seq[Effort] =
     result.add Effort(
       startT: ride.t.at(p.s.pos), finishT: ride.t.at(p.f.pos), startDist: p.s.dist
     )
-
-func inHull(p: XY, route: openArray[XY]): bool =
-  ## Whether the point is within `gateRadius` of the route, not counting the ground beyond its
-  ## ends (choochoo's hull is the route widened by 25 m with flat ends).
-  for i in 0 ..< route.high:
-    let a = route[i]
-    let b = route[i + 1]
-    let dx = b.x - a.x
-    let dy = b.y - a.y
-    let len2 = dx * dx + dy * dy
-    if len2 == 0:
-      continue
-    var u = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2
-    if (i == 0 and u < 0) or (i == route.high - 1 and u > 1):
-      continue
-    u = max(0.0, min(1.0, u))
-    if dist(p, XY(x: a.x + u * dx, y: a.y + u * dy)) <= gateRadius:
-      return true
-
-func insideShare(line: openArray[XY], other: openArray[XY]): float =
-  ## The share of the length of `line` that is inside the hull of `other`.
-  let pts = line.along(sampleStep)
-  var inside, total = 0.0
-  for i in 0 ..< pts.high:
-    let piece = dist(pts[i], pts[i + 1])
-    let middle = XY(x: (pts[i].x + pts[i + 1].x) / 2, y: (pts[i].y + pts[i + 1].y) / 2)
-    total += piece
-    if inHull(middle, other):
-      inside += piece
-  if total > 0:
-    inside / total
-  else:
-    0.0
-
-func overlapsBothWays(older, newer: Path, limit: float): bool =
-  ## Whether less than `limit` of each path is outside the other (within the gate radius).
-  if older.len < 2 or newer.len < 2:
-    return false
-  let pr = projection(older.lon[0], older.lat[0])
-  let a = older.xy(pr)
-  let b = newer.xy(pr)
-  if bounds(a).apart(bounds(b), gateRadius):
-    return false
-  let outsideA = 1.0 - insideShare(a, b)
-  let outsideB = 1.0 - insideShare(b, a)
-  outsideA < limit and outsideB < limit
-
-func isRepeat*(older, newer: Path): bool =
-  ## Whether `newer` (a climb just found) is `older` (a stored one) again: less than half of each is outside the other.
-  overlapsBothWays(older, newer, repeatLimit)
-
-func isNearCopy*(a, b: Path): bool =
-  ## Whether two climbs are nearly the same one, for the duplicates report: less than a fifth of each is outside the
-  ## other (so a short climb inside a long one is not, and a chain of climbs that each overlap the next is not).
-  overlapsBothWays(a, b, nearCopyLimit)

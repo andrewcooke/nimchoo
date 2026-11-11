@@ -1,16 +1,17 @@
 ## Climbs that are nearly the same: sectors of which at least four fifths of each lies within 25 m of the other
-## (`match.isNearCopy`; the looser `isRepeat`, half of each, is for deciding whether a newly found climb is one that is
+## (`overlap.nearCopies`; the looser `isRepeat`, half of each, is for deciding whether a newly found climb is one that is
 ## stored already, and would join a whole road of nested climbs into one group).  A ride that stops a little short of a
 ## climb's finish makes a climb of its own (see work.nim), so these happen.  The report puts them in groups, the most
 ## ridden first, and offers to hide a climb only if it is a near copy of a more ridden one.  Retiring is by hand
 ## (`nch climbs --edit NAME --retire`).
 
-import std/[algorithm, options, strformat, tables]
+import std/[algorithm, math, options, strformat, tables]
 import ../ui/columns
 import ../db/statement
+import ../util/lookup/lookup
 import ../db/store
 import ../../core/errors
-import ./[describe, display, match, report]
+import ./[describe, display, match, overlap, report]
 
 {.push raises: [].}
 
@@ -36,7 +37,6 @@ type DuplicateRow =
   tuple[
     id: int64,
     lengthM, gainM: float,
-    route: string,
     retired: bool,
     efforts: int,
     category: string,
@@ -48,13 +48,14 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   ## joins it), retired ones too.
   let names = shownNames(st)
   var members: seq[Member]
-  var paths: seq[Path]
+  var at = initTable[int64, int]() # the place in `members` of a climb
   for r in st.db.query(
     DuplicateRow,
-    """select s.id, s.length_m, s.gain_m, AsText(s.route), s.retired,
+    """select s.id, s.length_m, s.gain_m, s.retired,
          (select count(*) from effort e where e.sector_id = s.id), coalesce(s.category, ''), s.gradient
          from sector s order by s.id""",
   ):
+    at[r.id] = members.len
     members.add Member(
       id: r.id,
       name: names.getOrDefault(r.id, unnamed),
@@ -65,12 +66,6 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
       category: r.category,
       gradient: r.gradient,
     )
-    let path = parseLineString(r.route)
-    if path.isNone:
-      raiseStore(
-        fmt"climb {r.id} has a route that cannot be read (damaged data): run `nch climbs --all --delete -f` and ask for the climbs again"
-      )
-    paths.add path.get
   # groups by union: a climb that overlaps one in a group is in it
   var parent = newSeq[int](members.len)
   for i in 0 ..< parent.len:
@@ -83,19 +78,19 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
       k = parent[k]
     k
 
-  for i in 0 ..< members.len:
-    for j in i + 1 ..< members.len:
-      if isNearCopy(paths[i], paths[j]):
-        copies[i].add members[j].id
-        copies[j].add members[i].id
-        let a = root(i)
-        let b = root(j)
-        if a != b:
-          parent[b] = a
-        if members[j].efforts > members[i].efforts:
-          hideable[i] = true
-        if members[i].efforts > members[j].efforts:
-          hideable[j] = true
+  for (idI, idJ) in st.nearCopies:
+    let i = at.must(idI)
+    let j = at.must(idJ)
+    copies[i].add idJ
+    copies[j].add idI
+    let a = root(i)
+    let b = root(j)
+    if a != b:
+      parent[b] = a
+    if members[j].efforts > members[i].efforts:
+      hideable[i] = true
+    if members[i].efforts > members[j].efforts:
+      hideable[j] = true
   var byRoot = initOrderedTable[int, seq[Member]]()
   for i in 0 ..< members.len:
     members[i].hideable = hideable[i]
@@ -138,7 +133,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
   ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0:
     return @["no climbs overlap: nothing to tidy"]
-  result.add fmt"climbs that are nearly the same (at least {(1.0 - nearCopyLimit) * 100.0:.0f}% of each is within {gateRadius:.0f} m of the other), the most ridden first:"
+  result.add fmt"climbs that are nearly the same (at least {int(round((1.0 - nearCopyLimit) * 100.0))}% of each is within {int(gateRadius)} m of the other), the most ridden first:"
   var anyToHide = false
   for g in groups:
     result.add ""

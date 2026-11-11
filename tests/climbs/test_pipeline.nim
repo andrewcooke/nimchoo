@@ -55,10 +55,7 @@ suite "climbs: from a ride to a stored climb and back":
     check es2.len == 1
     check abs(es2[0].elapsed - cs[0].length / 4.0) < 3.0
     check es2[0].startT > 2_000_000.0
-    # and the climb found again in the second ride is the stored one
-    let again = findClimbs(buildProfile(second))
-    check again.len == 1
-    check isRepeat(sector, climbPath(buildProfile(second), again[0]))
+    # (that the climb found again in the second ride is the stored one is test_overlap.nim and test_work.nim)
 
   test "a flat ride finds nothing, and matches nothing":
     var flat: seq[Coord]

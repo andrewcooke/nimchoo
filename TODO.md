@@ -23,7 +23,15 @@ sees and can be approved together.
    * **`--edit NAME`** for the other plural commands if they gain one; a **`--model`** of `map`, if it gets one;
    * candidates that need quoting (`Cerro San Luis₄`) are quoted by the function (`%q`) and the words typed are unquoted; only
      spaces, quotes and backslashes were tried.
-7. **Push work into SQL** (A §4.4), measured.
+7. **Push work into SQL** (A §4.4): the overlap of climbs is done (HISTORY.md, 2026-11-11).  The author's rule: spatial work
+   right after data leaves the database or just before it enters goes to SpatiaLite; data that starts outside and stays
+   outside does not.  Left, each to be prototyped and compared with the Nim result first:
+   * the **route shape** (`names/shape.nim`: how much of the way back retraces the way out; `RouteGrid`, `pointLineDistance`);
+   * **features along the route** (`names/activity.nim`, `viaRouteM`, `viaGridM`: a grid in Nim, one query per part);
+   * `haversine` in `names/landmarks.nim` and `names/suggest.nim` (not yet looked at);
+   * not spatial, on the review's list: `attempts.summaries` (3 queries per climb, the ranking in Nim), `map climbsOf`
+     (may already be one query), `countriesOfCell` (row-by-row inserts), `ensureCells` (unzips the country file per cell)
+     and `missingCells` (a count per cell): measure before deciding.
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route`; the cache manifest.

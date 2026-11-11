@@ -94,6 +94,7 @@ import
     test_detect,
     test_profile,
     test_match,
+    test_overlap,
     test_pipeline,
     test_schema,
     test_work,
