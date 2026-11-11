@@ -95,6 +95,21 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Third review (cells): `/oppose`, and the decisions (2026-11-12).**  The objections: the speed claim is about a rebuild (a full
+  import is about 150 s, the climbs 56 s once, naming 11 s; a new ride costs tens of milliseconds), and reading `coords` was most
+  of that, which the arrays remove on their own; the "35 MB against 363 MB" row leaves out that the arrays are needed anyway; the
+  climb row has no baseline; the place tables bake in the naming rules (a rule or GeoNames change needs a version key); the prototype's
+  ±1 coarse cell (1/32 degree) misses a 2 km radius above about 55°N (3.48 km times cos of the latitude is 2.0 km at 55°); "a
+  coarser cell is a shift" is false for the packed id (the two halves are shifted apart); dropping `route` would move the map's
+  SimplifyPreserveTopology into Nim.  Checked and not a problem: gaps between samples that skip cells (146 jumps over 100 m in 6.2 M
+  pairs) and visits at a cell boundary (1.49 visits per cell, at most 4.2).  The author's answer: the case for cells is the same
+  speed with less Nim, and the heat map, which is wanted soon, so cells are a gain even where they are no faster.  The 13 of 560
+  vias that differ from the stored names were looked at one by one: five rides of one loop (San Luis against Puente Alto, Pirque,
+  El Peñón: the author finds the SQL names clearly better), five near La Florida (a 50 m gap; one by 12 m on the cutoff), three at 54°N
+  (1 to 6 m ties); all are ties between places the ride passes, which the cell error (about 70 m) decides, so the same loop can
+  get different names on different days.  The author's decision: accept (names are what the cells give; revisit with experience;
+  the alternatives were an exact tie-break in Nim among candidates within the cell error, or a rule nearer the turning point).
+  The heat map counts visits (rides per cell is close enough if cheaper), not time.
 * **Small items closed (2026-11-12)**: the FIT target's replay of saved failures was already there (`tests/fit/test_fuzz.nim`; the
   directory is empty because nothing has been saved), so step 1 was done; a fuzz run of the FIT target after the `decode.nim` changes
   of step 8 was clean.  Tab completion: a test that every option's values, for every command, make no cache file and leave the

@@ -13,11 +13,17 @@ The sections below are in historical groups; this is the flat list the author as
 should be.  Cleaning TODO.md then means moving finished material to HISTORY.md ("steps 1 to 8 are done", the built parts of
 the address design, "climbs vs sectors is answered", the step-7 note once item 1 has its own entry).
 
-1. **Spatial data as cells** (REVIEW.md, third review, 2026-11-11: the answer to the data-representation question).  Where
-   a ride went is stored as the grid cells it passed through, so that questions about places are SQL joins on integers;
-   series work (shape, climb detection, gate crossings) stays in Nim at import, on the arrays.  Its plan (REVIEW.md §6)
-   replaces items 2, 4, 5 and 6 below: first the decisions of its §5 (where naming lives; one level; thresholds in cell
-   terms; one rebuild with the arrays) and `/oppose`.
+1. **Spatial data as cells** (REVIEW.md, third review, 2026-11-11; `/oppose` done and the decisions made 2026-11-12, HISTORY.md).
+   Where a ride went is stored as the grid cells it passed through, so that questions about places are SQL joins on integers;
+   series work (shape, climb detection, gate crossings) stays in Nim.  Decided: the plain lat/lon grid, one stored level (coarser
+   ones computed, by a function), cell thresholds with names left to fall where they fall (revisit with experience), the heat
+   map counts visits, and the arrays (item 2) are decoupled: `route_cell` is a derived table, backfilled from `coords` and
+   then written at import.  Open: where naming lives (REVIEW.md §5.1), asked when naming comes up.  Order: (1) the cell
+   functions in `geo` (id, coarsen, centre, a neighbourhood in **metres at the cell's latitude**: the review's ±1 coarse cell
+   misses a 2 km radius above 55°N, and your Yorkshire rides are at 54°), tested at 60° too, and registered in SQLite;
+   (2) `route_cell`, backfilled and written at import; (3) the heat map, the first consumer (no Nim code to replace);
+   (4) climb candidates by cells, with a baseline measured before; (5) the via search and naming in SQL, then what it
+   made dead is deleted.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
 2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
    as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
 7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.
