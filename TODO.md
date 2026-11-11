@@ -26,7 +26,6 @@ sees and can be approved together.
 7. **Push work into SQL** (A §4.4): the overlap of climbs is done (HISTORY.md, 2026-11-11).  The author's rule: spatial work
    right after data leaves the database or just before it enters goes to SpatiaLite; data that starts outside and stays
    outside does not.  Left, each to be prototyped and compared with the Nim result first:
-   * `haversine` in `names/landmarks.nim` and `names/suggest.nim` (not yet looked at);
    * not spatial, on the review's list: `attempts.summaries` (3 queries per climb, the ranking in Nim) and `map climbsOf`
      (may already be one query): measure before deciding.  (`countriesOfCell`, `ensureCells` and `missingCells` were
      measured on 2026-11-11: negligible, see the note on large countries below.)
@@ -35,6 +34,27 @@ sees and can be approved together.
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
    them; HISTORY.md, 2026-11-11); the cache manifest.
+
+## For the next whole-system review: a question about the design, not a task
+
+Step 7 (push work into SQL) keeps ending the same way: prototype in SQL, measure, Nim wins (overlap excepted; HISTORY.md,
+2026-11-11: route shape, features along the route, gate crossings, cells of names, `haversine` in `landmarkAt` and
+`featuresAround`).  Each answer is right locally.  The author's worry is that they share a cause, and that the design is in a
+**local minimum** that is hard to leave one step at a time:
+
+* The per-second data is **rows of `coords`** (6.2 M, read as text) that Nim reads and turns into points, shapes and
+  grids, and TODO step 9 plans to make it **arrays per activity**, which are opaque to SQL.  Both are early choices of data
+  representation, and the code since has been written round them (a shape computed in Nim from the points, in flat
+  metres; SpatiaLite's geometry functions used one call at a time, where they lose).
+* The SQL prototypes so far used SpatiaLite's geometry functions on a query per call.  Untried: set-based SQL over the
+  rows (window functions: running distance, the maximum distance from the start and where it is, for all rides in one
+  query).  Whether it would win is unknown; it would be undone by step 9 as planned.
+* The author does not know the code well enough to judge this, and the assistant that wrote it is too close to it.
+
+**The reviewer's job** is to say whether a larger redesign of how the data are represented (rows or arrays, what is stored
+at import, where shape and naming work happens) would give a simpler and faster whole, and if so to **make the case for it**
+(the design, what it replaces, a measurement or a prototype of the hardest part, the cost).  If not, to say why the
+current shape is right.  "Each step measured fine" is not an answer to this.
 
 ## Open from before the review
 

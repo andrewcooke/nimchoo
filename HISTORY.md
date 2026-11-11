@@ -57,6 +57,15 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   Nothing worth moving into SQL.  The author's idea, writing the rest of the file back in four quadrants around each cell read
   (a spatial tree built lazily on disk), and my simpler one, one indexed file per country, would only matter for a large
   country (US, Russia) with rides scattered over many areas, not timed; kept as a low-priority note in TODO.md.
+* **`haversine` in `landmarkAt` and `featuresAround` stays in Nim** (`names/landmarks.nim`, `names/suggest.nim`; measured
+  2026-11-11 on 14,203 Chile features, with `ST_Distance(..., 1)`, the ellipsoid, in a query per call).  `landmarkAt`: 5
+  landmarks, 500 calls, 7 ms in Nim against 21 ms in SQL; 1,000 landmarks 0.8 s against 2.3 s.  `featuresAround` (box by
+  the index, then distance, sort and limit 30): 300 calls, 20 ms against about 95 ms; the same rows in all but 7 of 300 (the
+  distances differ by about 0.2%, ellipsoid against sphere; the 7 not looked at, probably features at the radius edge).  A
+  query per call costs more than the arithmetic it replaces.  The data does start in the database, so this is not the
+  author's rule against it; set-based SQL over many positions was not tried.  The loop that measures landmarks to the route
+  (`names/activity.nim`, "via") was not prototyped: the route is a Nim value (the sampled shape in flat metres).
+  See "For the next whole-system review" in TODO.md.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 
