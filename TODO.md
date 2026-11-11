@@ -26,8 +26,8 @@ sees and can be approved together.
 8. **Shrink** (A §4.7): done 2026-11-11 are the templating engine (292 to 182 lines), the dispatch of `decode` written once
    (`emitSlot`), plan building written once; the dead code and the housekeeping of §4.7 and §4.8 were already gone.  Left:
    * **one cache naming scheme**: settled by "Addresses, state and the cache" below (built with it, not before);
-   * **`bundle/`** (manifest, hash detection of the author's copy, NOTICE) costs more than the xlsx reader it serves; a plain
-     `--profile PATH` might do (it is also the seed of the cache manifest, step 9): also the author's;
+   * (**`bundle/`** stays: the review proposed a plain `--profile PATH` instead, but the page templates in the system
+     cache, editable and made again if deleted, are the same mechanism; see "Addresses, state and the cache".)
    * `fit/decode.nim`: `emitPlain` and `decodeField` take 12 parameters (a context object); mechanical but wide, with the
      SDK comparison (`nimble csvreport`) to check it;
    * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
@@ -90,9 +90,10 @@ general plot command that will replace `ff`).
 * **Activities are identified by `bits`** (ids in order, compressed).  Additions do not touch a selection; the fingerprint
   covers the content of the selected activities, so deleting one of them, or a rebuild that gives those ids other rides,
   makes the pinned address an error; a rebuild that gives the same activities under the same ids does not.
-* **Open: are climbs in the map?**  They are now (code under development).  If they are, the fingerprint includes them and a
-  change to the climbs (found, renamed, retired) makes old map bookmarks errors once their files are gone.  To decide when
-  the climbs on the map are settled; one way out is to keep them out of the plot's data file (a layer of their own).
+* **Climbs become a layer** (the author, 2026-11-12): they are in the map's data file now, which was under development when
+  the package work interrupted it.  As a layer of their own they have their own data and fingerprint, so a change to the
+  climbs does not make an old map's bookmark an error.  Until then, and for any plot that does include them, the
+  fingerprint includes them.
 * **Limits that stay**: the basemap tiles come from the web when the page is viewed (the libraries are pinned by integrity
   hashes, the tiles are not).
 * **Risks and their guards**: a fingerprint that misses an input gives a wrong "exact" remake with no sign of it, so each
