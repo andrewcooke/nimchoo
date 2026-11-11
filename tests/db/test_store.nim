@@ -98,6 +98,7 @@ suite "database: opening and bringing the schema up to date":
         "climbs/001-schema.sql", "climbs/002-name-number.sql",
         "climbs/003-effort-index.sql", "db/001-schema.sql", "heartrate/001-schema.sql",
         "importer/001-schema.sql", "importer/002-seen-file-index.sql",
+        "importer/003-route-cell.sql", "importer/004-route-cell-fill.sql",
         "model/001-schema.sql", "model/002-impulse-index.sql", "names/001-schema.sql",
         "names/002-country-cells.sql", "names/003-country-cell-index.sql",
         "names/004-landmark.sql", "selection/001-schema.sql",
@@ -173,7 +174,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 16
+    check b.count("fragment") == 18
     b.close()
 
   test "the directory is created":

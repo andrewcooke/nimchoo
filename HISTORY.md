@@ -95,6 +95,19 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Cells, steps 1 and 2 built (2026-11-12, TODO "Spatial data as cells")**.  `geo/cells.nim` (pure: the cell id, `coarsen`, `centre`,
+  `reach`, sizes in metres) and the SQL functions of `db/functions.nim` (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`,
+  `cell_dy`; null in, null out; a level outside 0 to 16 or a negative radius is an error of the statement).  A property test (random
+  points and bearings at ten latitudes) holds `reach` to metres at every latitude and fails if the reach is made fixed; it also
+  found that `iy` shifted arithmetically (a grid number of 2^31 or more came out negative).  `route_cell(activity_id, cell, t_in,
+  t_out)`, one row for each visit (a run of consecutive samples in one cell), is written by the importer in the same transaction as
+  the samples (`importer/visits.nim` is the definition; samples off the Earth are skipped and the run goes on across them), and
+  `importer/004-route-cell-fill.sql` fills it from `coords` for a database made before it (a legacy step like the others: delete at
+  the next squash).  On a copy of the author's database the first open after the change took 13.6 s and the file grew from 472 to
+  510 MB; the rows are the prototype's exactly (684,856 visits, 1,108 activities, 23,445 cells).  Three invariants hold over it
+  (visits in order and disjoint; each starts at a sample in its cell; an activity has visits exactly when it has positions), and
+  `nimble invariants [PATH]` now opens the database as the program does (it has the SQL functions) and passes the path on, which it
+  did not.  A test holds the importer's rows to the shipped SQL's on a real ride.
 * **Third review (cells): `/oppose`, and the decisions (2026-11-12).**  The objections: the speed claim is about a rebuild (a full
   import is about 150 s, the climbs 56 s once, naming 11 s; a new ride costs tens of milliseconds), and reading `coords` was most
   of that, which the arrays remove on their own; the "35 MB against 363 MB" row leaves out that the arrays are needed anyway; the

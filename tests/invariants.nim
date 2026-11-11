@@ -1,9 +1,9 @@
 ## Check the invariants of tests/support/invariants.nim over a real database,
 ## read only: `nimble invariants [PATH]` (default: the author's database).
 
-import nimchoo/packages/db/statement
+import nimchoo/packages/db/store
 import std/[os]
-import db_connector/db_sqlite
+from nimchoo/registry import allAccess, allFragments
 import ./support/invariants
 
 proc main() =
@@ -12,10 +12,11 @@ proc main() =
       paramStr(1)
     else:
       getEnv("HOME") / ".local/share/nch/nch.db"
-  let db = open(path, "", "", "")
-  db.execute("pragma query_only = on")
-  let bad = violations(db)
-  db.close()
+  # (opened as the program opens it, read only, so that its SQL functions are there; a database made by another version
+  # is refused, as everywhere)
+  let st = openReadOnly(path, allFragments, allAccess)
+  let bad = violations(st.db)
+  st.close()
   for line in bad:
     echo line
   if bad.len == 0:

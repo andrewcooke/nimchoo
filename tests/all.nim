@@ -62,6 +62,7 @@ import
     test_extract,
     test_route,
     test_importer,
+    test_visits,
     test_batch,
     test_pool,
     test_events,

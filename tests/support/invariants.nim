@@ -54,6 +54,26 @@ const allInvariants* = [
       "exists (select 1 from coords c where c.activity_id = a.id)",
   ),
   Invariant(
+    name: "the visits of an activity to cells are in order and disjoint",
+    offenders:
+      "select a.activity_id || ' at ' || a.t_in from route_cell a " &
+      "where a.t_out < a.t_in or exists (select 1 from route_cell b where b.activity_id = a.activity_id " &
+      "and b.t_in > a.t_in and b.t_in <= a.t_out)",
+  ),
+  Invariant(
+    name: "every visit starts at a sample that is in its cell",
+    offenders:
+      "select r.activity_id || ' at ' || r.t_in from route_cell r " &
+      "left join coords c on c.activity_id = r.activity_id and c.t = r.t_in " &
+      "where c.t is null or cell(c.lon, c.lat) is not r.cell",
+  ),
+  Invariant(
+    name: "an activity has visits to cells exactly when it has positions",
+    offenders:
+      "select cast(a.id as text) from activity a where exists (select 1 from coords c " &
+      "where c.activity_id = a.id) != exists (select 1 from route_cell r where r.activity_id = a.id)",
+  ),
+  Invariant(
     name: "an activity with efforts has been looked at for climbs",
     offenders:
       "select distinct cast(e.activity_id as text) from effort e " &

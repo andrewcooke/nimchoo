@@ -1,6 +1,6 @@
 ## Putting the activities of FIT files into the database, and describing them.
 ##
-## This package owns the tables `file`, `activity`, `coords`, `segment`, `route` and `seen_file`.  Per-second data is kept per
+## This package owns the tables `file`, `activity`, `coords`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
 ## activity, as arrays; other data refers to it by time and never by array index, and the arrays are never changed once
 ## written.
 ##
@@ -18,6 +18,9 @@
 ##   active time, then where it started and what it is called, joined by " / "); verbose adds the sub-sport and the path of
 ##   the file.  In a table the parts are cells, headed `start`, `sport`, `distance`, `active`, `place / name`; not recorded
 ##   is `-`, and an activity with no positions says `no GPS`.
+## * **Where an activity went** (`route_cell`, decided 2026-11-12, REVIEW.md "spatial data as cells"): one row for each visit
+##   to a cell of the grid in `geo/cells.nim` (a run of consecutive samples in one cell, with its first and last time), so that
+##   questions about places are joins on integers; `visits.nim` is the definition, written with the samples at import.
 ## * Deleting activities is `remove.nim`; `activities --delete` calls it.
 
 import ../../core/[extension, manifest]
@@ -35,6 +38,10 @@ const package* = Package(
   fragments: @[
     fragment("001-schema.sql"), # file, activity, coords, segment, route, seen_file
     fragment("002-seen-file-index.sql"),
+    fragment("003-route-cell.sql"),
+      # route_cell: the cells of the grid each activity went through
+    fragment("004-route-cell-fill.sql"),
+      # (legacy: its rows for a database made before it)
   ],
   commands: @[
     CommandDecl(

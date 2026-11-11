@@ -102,4 +102,12 @@ task csvreport, "Compare our CSV output with the SDK CSVs (differences by group)
   exec "nim c -r -d:release --hints:off -o:tests/csvreport tests/csvreport.nim"
 
 task invariants, "Check the invariants over the author's database (or the path given), read only":
-  exec "nim c -r -d:release --hints:off -o:tests/invariants tests/invariants.nim"
+  var args: seq[string]
+  var seen = false
+  for i in 1 .. paramCount():
+    if seen:
+      args.add paramStr(i)
+    elif paramStr(i) == "invariants":
+      seen = true
+  exec "nim c -r -d:release --hints:off -o:tests/invariants tests/invariants.nim " &
+    args.join(" ")

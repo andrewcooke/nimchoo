@@ -7,6 +7,7 @@ import db_connector/db_sqlite
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
+import nimchoo/packages/geo/cells
 import ../support/invariants
 
 let dir = getTempDir() / "nch-test-invariants"
@@ -65,4 +66,21 @@ suite "invariants":
     check "stretches of an activity are in order" in v
     check "every climb has a name decision" in v
     check "no foreign key points at nothing" in v
+    s.close()
+
+  test "visits that overlap, one not at a sample of its cell, and positions with no visits are found":
+    let s = fresh("cells")
+    let c = int64(cell(111974, 57907))
+    s.db.execute("insert into coords values (1, 1000, -70.65, -33.45, null)")
+    s.db.execute(
+      "update activity set start = MakePoint(-70.65, -33.45, 4326) where id = 1"
+    )
+    check violations(s.db).join("\n").contains("exactly when it has positions")
+    s.db.execute("insert into route_cell values (1, :c, 1000, 1500)", c = c)
+    check violations(s.db) == newSeq[string]()
+    s.db.execute("insert into route_cell values (1, :c, 1400, 1600)", c = c)
+      # (overlaps, and no sample at 1400)
+    let v = violations(s.db).join("\n")
+    check "visits of an activity to cells are in order and disjoint" in v
+    check "every visit starts at a sample that is in its cell" in v
     s.close()

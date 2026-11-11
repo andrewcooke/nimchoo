@@ -12,7 +12,7 @@ import ../../core/errors
 import ../fit/model
 import ../util/profiling/profiling
 import ../util/warnings/warnings
-import ./[extract, route]
+import ./[extract, route, visits]
 import ../user/session
 
 {.push raises: [].}
@@ -72,6 +72,24 @@ proc insertCoords(
     st.run()
     i += n
 
+proc insertVisits(
+    m: var MultiInsert, activityId: ActivityId, visits: seq[Visit]
+) {.raises: [StoreError].} =
+  ## The visits of an activity to the cells, many rows to a statement.
+  var i = 0
+  while i < visits.len:
+    let n = min(rowsPerStatement, visits.len - i)
+    let st = m.statement(n)
+    for r in 0 ..< n:
+      let v = visits[i + r]
+      let b = 4 * r
+      st.bindInt(b + 1, activityId)
+      st.bindInt(b + 2, int64(v.cell))
+      st.bindInt(b + 3, int64(v.tIn))
+      st.bindInt(b + 4, int64(v.tOut))
+    st.run()
+    i += n
+
 type ProfileSource* = proc(): Profile {.closure, raises: [].}
   ## Gives the profile; called only when a file has to be decoded.
 
@@ -127,6 +145,9 @@ proc writeDecoded*(
     var coordInsert = initMultiInsert(
       s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5
     )
+    var visitInsert = initMultiInsert(
+      s.db, "insert into route_cell(activity_id, cell, t_in, t_out) values ", 4
+    )
     s.db.execute(
       "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, :importedAt)",
       userId = s.userId,
@@ -164,6 +185,8 @@ proc writeDecoded*(
           insertSegment(segStmt, activityId, n, g)
       timed "insert coords":
         insertCoords(coordInsert, activityId, a.coords)
+      timed "insert cells":
+        insertVisits(visitInsert, activityId, visitsOf(a.coords))
       if a.coords.len > 0: # where it started: the first position
         startStmt.bindReal(1, a.coords[0].lon)
         startStmt.bindReal(2, a.coords[0].lat)

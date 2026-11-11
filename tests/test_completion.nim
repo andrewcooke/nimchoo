@@ -4,7 +4,6 @@ import std/[options, os, osproc, strutils, unittest]
 import ./support/env
 import nimchoo/completion
 import nimchoo/core/[globals, manifest, optdoc]
-import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 from nimchoo/registry import allAccess, allFragments, commands, extensions
 
