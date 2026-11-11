@@ -5,7 +5,7 @@
 ## ridden first, and offers to hide a climb only if it is a near copy of a more ridden one.  Retiring is by hand
 ## (`nch climbs --edit NAME --retire`).
 
-import std/[algorithm, options, tables]
+import std/[algorithm, options, strformat, tables]
 import ../ui/columns
 import ../db/statement
 import ../db/store
@@ -68,8 +68,7 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
     let path = parseLineString(r.route)
     if path.isNone:
       raiseStore(
-        "climb " & $r.id & " has a route that cannot be read (damaged data): " &
-          "run `nch climbs --all --delete -f` and ask for the climbs again"
+        fmt"climb {r.id} has a route that cannot be read (damaged data): run `nch climbs --all --delete -f` and ask for the climbs again"
       )
     paths.add path.get
   # groups by union: a climb that overlaps one in a group is in it
@@ -139,7 +138,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
   ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0:
     return @["no climbs overlap: nothing to tidy"]
-  result.add "climbs that are nearly the same (at least 80% of each is within 25 m of the other), the most ridden first:"
+  result.add fmt"climbs that are nearly the same (at least {(1.0 - nearCopyLimit) * 100.0:.0f}% of each is within {gateRadius:.0f} m of the other), the most ridden first:"
   var anyToHide = false
   for g in groups:
     result.add ""
@@ -155,7 +154,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
         )
       ) &
         @[
-          $m.unique & "/" & $m.efforts &
+          fmt"{m.unique}/{m.efforts}" &
             (if m.efforts == 1: " effort unique" else: " efforts unique"),
           (if m.retired: "retired" else: ""),
         ]

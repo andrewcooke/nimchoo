@@ -16,6 +16,12 @@ func km*(metres: float): string =
   ## "102.7km": the unit follows the number with no space.
   kmNumber(metres) & "km"
 
+func plainNumber*(x: float): string =
+  ## Without a pointless decimal part (to four places): 5.0 -> "5", 1.25 -> "1.25".
+  formatFloat(x, ffDecimal, 4).strip(leading = false, chars = {'0'}).strip(
+    leading = false, chars = {'.'}
+  )
+
 func humanBytes*(n: int64): string =
   ## "1.4MB", "85kB", "12B": no space before the unit.
   if n >= 1_000_000:

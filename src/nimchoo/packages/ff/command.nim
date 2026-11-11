@@ -21,7 +21,7 @@ import ../web/launch
 import ../web/pages
 import ../web/webopts
 import ../ui/live
-import ../ui/style
+import ../ui/[style, units]
 import ./[curve, page, params, stats]
 import ../user/session
 
@@ -205,11 +205,6 @@ proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
     options.add ("from", localDate(p.fromDay.get, utc()))
   fileStem("ff", options)
 
-func queryNumber(x: float): string =
-  ## A multiplier for an address: 5.0 -> "5", 1.25 -> "1.25".
-  let s = formatFloat(x, ffDecimal, 4)
-  s.strip(leading = false, chars = {'0'}).strip(leading = false, chars = {'.'})
-
 proc webQuery*(p: Params): string =
   ## What the address of the chart says: the options given (before the defaults are filled in,
   ## so that a page asked for tomorrow is tomorrow's).  See serve/request.nim for the names.
@@ -225,9 +220,9 @@ proc webQuery*(p: Params): string =
   if p.utc:
     q.add "utc=1"
   if p.fitnessScale != 1:
-    q.add "fitness-scale=" & queryNumber(p.fitnessScale)
+    q.add "fitness-scale=" & plainNumber(p.fitnessScale)
   if p.fatigueScale != 1:
-    q.add "fatigue-scale=" & queryNumber(p.fatigueScale)
+    q.add "fatigue-scale=" & plainNumber(p.fatigueScale)
   q.join("&")
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =

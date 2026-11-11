@@ -10,6 +10,7 @@
 ## places are never used.  They are labels, not facts: the nearest named hill is often not what the climb is called.
 
 import std/options
+import ./codes
 
 {.push raises: [].}
 
@@ -43,17 +44,15 @@ type
       ## the distance that decided (from the end in tier 1, from the middle otherwise)
 
 func kindOf(c: Candidate): Option[PickKind] =
-  case c.code
-  of "PASS", "SDL":
+  if c.code in ["PASS", "SDL"]:
     some(pkPass)
-  of "PK", "PKS", "MT", "MTS":
+  elif c.code in ["PK", "PKS", "MT", "MTS"]:
     some(pkPeak)
-  of "HLL", "HLLS", "RDGE", "SPUR", "VAL", "CNYN":
+  elif c.code in ["HLL", "HLLS", "RDGE", "SPUR", "VAL", "CNYN"]:
     some(pkHill)
-  of "PPLQ", "PPLW", "PPLH":
+  elif c.code.isInactivePlace:
     none(PickKind)
-  # abandoned, destroyed, historical
-  of "PPLX":
+  elif c.code == neighbourhoodCode:
     some(pkNeighbourhood)
   else:
     (if c.isPlace: some(pkTown) else: none(PickKind))

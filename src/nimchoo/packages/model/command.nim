@@ -5,7 +5,7 @@
 import std/[options, strutils]
 import ../../core/globals
 import ../db/store
-import ../ui/live
+import ../ui/[live, units]
 import ../util/args/[args, usage]
 import ../../core/errors
 import ../../core/logfile
@@ -35,16 +35,11 @@ proc usageText*(width: int): string =
   synopsis & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(modelSpec().docs, width).join("\n") & "\n"
 
-func num(x: float): string =
-  ## Without a pointless decimal part.
-  let s = formatFloat(x, ffDecimal, 4)
-  result = s.strip(leading = false, chars = {'0'}).strip(leading = false, chars = {'.'})
-
 func zones(m: Model): string =
   for i, z in m.zones:
     if i > 0:
       result.add '/'
-    result.add num(z)
+    result.add plainNumber(z)
 
 proc modelLines*(ms: seq[Model]): seq[string] =
   ## The models, one to a line.
@@ -54,13 +49,13 @@ proc modelLines*(ms: seq[Model]): seq[string] =
   for m in ms:
     rows.add [
       m.name,
-      num(m.gamma),
-      num(m.zero),
-      num(m.one),
+      plainNumber(m.gamma),
+      plainNumber(m.zero),
+      plainNumber(m.one),
       $m.maxSecs,
       zones(m),
-      num(m.fitnessDays),
-      num(m.fatigueDays),
+      plainNumber(m.fitnessDays),
+      plainNumber(m.fatigueDays),
     ]
   var w: array[8, int]
   for c in 0 .. 7:

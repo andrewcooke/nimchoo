@@ -15,3 +15,6 @@ suite "units: a number and its unit":
       humanBytes(12) == "12B"
   test "not recorded is a dash":
     check notRecorded == "-"
+  test "a number without a pointless decimal part":
+    check plainNumber(5.0) == "5" and plainNumber(1.25) == "1.25" and
+      plainNumber(0.5) == "0.5" and plainNumber(100.0) == "100"

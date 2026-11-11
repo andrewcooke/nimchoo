@@ -20,7 +20,7 @@ import std/[math, options, strutils]
 import ../../core/errors
 import ../geo/geo
 import ./landmarks
-import ./[countries, lookup, shape]
+import ./[codes, countries, lookup, shape]
 
 {.push raises: [].}
 
@@ -45,9 +45,9 @@ func destKind*(f: Found): int =
   ## How a feature ranks as a destination: 1 town, 2 section of a town, 3 park or reserve, 4 lake, 5 range / valley / other
   ## area, 6 farm or bridge; 0 not wanted (abandoned places, and everything else).
   if f.isPlace:
-    if f.code in ["PPLQ", "PPLW", "PPLH"]:
+    if f.code.isInactivePlace:
       return 0
-    return if f.code == "PPLX": 2 else: 1
+    return if f.code == neighbourhoodCode: 2 else: 1
   case f.code
   of "PRK", "RES", "RESA", "RESF", "RESH", "RESN", "RESV", "RESW": 3
   of "LK", "LKS", "RSV": 4
@@ -74,7 +74,7 @@ func startText*(found: openArray[(Found, float)]): string =
   var bestD = startFarM + 1.0
   var name = ""
   for (f, d) in found:
-    if f.isPlace and f.code notin ["PPLQ", "PPLW", "PPLH"] and d < bestD:
+    if f.isPlace and not f.code.isInactivePlace and d < bestD:
       bestD = d
       name = f.name
   if name.len == 0 or bestD > startFarM:

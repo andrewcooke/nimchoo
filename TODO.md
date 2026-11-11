@@ -23,7 +23,6 @@ sees and can be approved together.
    * **`--edit NAME`** for the other plural commands if they gain one; a **`--model`** of `map`, if it gets one;
    * candidates that need quoting (`Cerro San Luis₄`) are quoted by the function (`%q`) and the words typed are unquoted; only
      spaces, quotes and backslashes were tried.
-6. *(mechanical)* **One owner per fact** (A §4.1).
 7. **Push work into SQL** (A §4.4), measured.
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a

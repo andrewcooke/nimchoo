@@ -2,8 +2,8 @@
 
 import ../util/args/args
 import ./completion
-import ./display
-import std/[strutils, unicode]
+import ./[display, match]
+import std/[strformat, strutils, unicode]
 
 {.push raises: [].}
 
@@ -69,7 +69,7 @@ func nameProblem*(s: string): string =
   if t.len == 0:
     return "a name cannot be empty"
   if t.runeLen > maxNameLength:
-    return "a name has at most " & $maxNameLength & " characters"
+    return fmt"a name has at most {maxNameLength} characters"
   for c in t:
     if c < ' ' or c == '\x7f':
       return "a name cannot hold control characters"
@@ -81,10 +81,10 @@ func nameProblem*(s: string): string =
 proc takeNames(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   for v in values:
     if v.strip.len == 0:
-      return refuse(name & " needs some text")
+      return refuse(fmt"{name} needs some text")
     p.names.add v.strip
   if values.len == 0:
-    return refuse(name & " needs some text")
+    return refuse(fmt"{name} needs some text")
   fine
 
 func climbSpec*(): Spec[Raw] =
@@ -168,13 +168,12 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--duplicates"],
         duplicates,
-        "list the climbs that largely overlap (more than half of each lies within 25 m of the other), the most ridden first, with the command to hide each of the others",
+        fmt"list the climbs that largely overlap (more than half of each lies within {gateRadius:.0f} m of the other), the most ridden first, with the command to hide each of the others",
       ),
       helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to change a climb: --edit " & arg &
-        " --rename NEW, --auto, --retire or --unretire)",
+      fmt" (to change a climb: --edit {arg} --rename NEW, --auto, --retire or --unretire)",
   )
 
 func finish(raw: Raw): Parsed[Params] =

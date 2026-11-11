@@ -22,8 +22,8 @@ const
     ## metres each side of the route, for the gates and for "the same place"
   lengthTolerance = 0.05
     ## the ground covered may differ from the sector's length by this
-  repeatLimit = 0.5 ## a repeat if less than this fraction of each is outside the other
-  nearCopyLimit = 0.2
+  repeatLimit* = 0.5 ## a repeat if less than this fraction of each is outside the other
+  nearCopyLimit* = 0.2
     ## a near copy (the duplicates report) if less than this fraction of each is outside the other
   sampleStep = 5.0 ## metres between the points taken along a route to compare it
 
