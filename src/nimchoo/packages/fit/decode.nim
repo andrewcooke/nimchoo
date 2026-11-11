@@ -447,6 +447,16 @@ proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
   result.msgNum = def.globalNum
   let mname = p.byNumber.getOrDefault(def.globalNum, "")
   var numbers: seq[int]
+  template addSlot(slot: Slot) =
+    ## A field with no description is read by its base type alone; a number met twice may repeat a name.
+    var s = slot
+    if not s.known and s.def.base.isSome:
+      s.meta = newMeta("", "", $s.def.base.get, tkBase, s.def.base.get)
+    if s.def.number in numbers:
+      result.mayDup = true
+    numbers.add s.def.number
+    result.slots.add s
+
   p.messages.withValue( # (the message is looked at where it is, not copied)
     mname, msg
   ):
@@ -475,21 +485,17 @@ proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
                 result.hasDynamic = true
           of fkPlain:
             discard
-      if not s.known and fd.base.isSome:
-        s.meta = newMeta("", "", $fd.base.get, tkBase, fd.base.get)
-      if fd.number in numbers:
-        result.mayDup = true
-      numbers.add fd.number
-      result.slots.add s
+      addSlot(s)
   do:
     for fd in def.fields: # an unknown message: all fields unknown
-      var s = Slot(def: fd)
-      if fd.base.isSome:
-        s.meta = newMeta("", "", $fd.base.get, tkBase, fd.base.get)
-      if fd.number in numbers:
-        result.mayDup = true
-      numbers.add fd.number
-      result.slots.add s
+      addSlot(Slot(def: fd))
+
+proc ensurePlan(d: var Decoder, p: Profile, t: Tokenizer, idx: int) =
+  ## The plan for definition `idx` is made the first time a message of it is met.
+  if d.plans.len <= idx:
+    d.plans.setLen(idx + 1)
+  if not d.plans[idx].ready:
+    d.plans[idx] = d.buildPlan(p, t.defs[idx])
 
 # --- developer fields
 
@@ -577,10 +583,7 @@ proc decode*(
   if tok.kind != tokData:
     return
   let idx = tok.defn
-  if d.plans.len <= idx:
-    d.plans.setLen(idx + 1)
-  if not d.plans[idx].ready:
-    d.plans[idx] = d.buildPlan(p, t.defs[idx])
+  d.ensurePlan(p, t, idx)
   let globalNum = t.defs[idx].globalNum
   let endian = t.defs[idx].endian
   result = Record(
@@ -725,10 +728,7 @@ proc definitionEvent*(
   ## Event for a definition token.  Developer field names are those described
   ## so far, so this must be called in file order.
   let idx = tok.defn
-  if d.plans.len <= idx:
-    d.plans.setLen(idx + 1)
-  if not d.plans[idx].ready:
-    d.plans[idx] = d.buildPlan(p, t.defs[idx])
+  d.ensurePlan(p, t, idx)
   result = Event(
     kind: evDefinition,
     offset: tok.offset,

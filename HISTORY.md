@@ -74,6 +74,11 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   choice; the old code took whichever came first), and riders with equal bests are ordered by that ride, then by user.
   `climbsOf` (one query per climb) is 50 ms against 53 ms for one query for all: the time is `AsGeoJSON` writing 2.7 MB of
   geometry, not the number of queries.
+* **Shrink, first part (2026-11-11, TODO step 8)**: `text/templating` keeps `{{name}}`, `{{{name}}}`, `{{&name}}` and comments
+  (the pages use nothing else; `page.css` and `page-style.json` have comments); sections, inverted sections, lists and scopes
+  are gone, and a flag is text (`true`, `false`): 292 lines to 182, its tests with it.  `fit/decode.nim`: the fast and the
+  dynamic paths of `decode` shared the unknown/plain/other dispatch, now `emitSlot`; plan building (`ensurePlan`, `addSlot`)
+  likewise; the CSV is identical to the SDK's on 26 of 26 files.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 

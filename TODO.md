@@ -23,7 +23,16 @@ sees and can be approved together.
    * **`--edit NAME`** for the other plural commands if they gain one; a **`--model`** of `map`, if it gets one;
    * candidates that need quoting (`Cerro San Luis₄`) are quoted by the function (`%q`) and the words typed are unquoted; only
      spaces, quotes and backslashes were tried.
-8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
+8. **Shrink** (A §4.7): done 2026-11-11 are the templating engine (292 to 182 lines), the dispatch of `decode` written once
+   (`emitSlot`), plan building written once; the dead code and the housekeeping of §4.7 and §4.8 were already gone.  Left:
+   * **one cache naming scheme** (`ff` readable, `map` proquint; the collision loop and the request stored in the file are
+     more than 48 bits need): a design question for the author;
+   * **`bundle/`** (manifest, hash detection of the author's copy, NOTICE) costs more than the xlsx reader it serves; a plain
+     `--profile PATH` might do (it is also the seed of the cache manifest, step 9): also the author's;
+   * `fit/decode.nim`: `emitPlain` and `decodeField` take 12 parameters (a context object); mechanical but wide, with the
+     SDK comparison (`nimble csvreport`) to check it;
+   * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
+     `climbs/002-name-number.sql`): at the next squash.
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
