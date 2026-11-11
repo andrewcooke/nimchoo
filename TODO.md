@@ -49,7 +49,7 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
 7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.
    10. The general plot command that replaces `ff`.  11. The cache manifest.
-12. Climb numbers (a renamed-away name reused).  12b. The import does not follow symbolic links (below).  13. The log (level filtering; the `saved` word).  14. Terminal themes.
+12. Climb numbers (a renamed-away name reused).  12b. The import does not follow symbolic links (below).  12c. BUG: `--offline` names nothing, and stores that as the name (below).  13. The log (level filtering; the `saved` word).  14. Terminal themes.
 15. The map (labels, legend, landmarks, palette, colour by sport or year).  16. `ff` (form column, days/hours switch; superseded
    if 10 comes first).  17. Blue for the selection in `nch climbs`.  18. Tags.  19. A calendar of fitness.  20. More climb
    features.  21. Per-sport threshold heart rate and models.  22. A terrain model (SRTM).  23. Versions.
@@ -131,6 +131,17 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
     `climbs/002-name-number.sql`): at the next squash;
   * tab completion for **zsh** (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for
     the other plural commands, and a `--model` of `map`, if they gain them (completion follows the specs).
+* **BUG: `--offline` gives no names at all, and the empty result is kept** (found 2026-11-12, benchmarking naming: `offline: true` named all
+  1,112 activities "with nothing" although every place was already in the database).  Two faults.  (1) `names/lookup.prepare` returns
+  `rdNothing` whenever `n.offline`, so offline does not use the places already loaded (`coverage`, `feature`) or the country files in
+  the cache: it should mean "no network", and a cell that is loaded should be used.  (2) What offline finds, nothing, is **stored as the
+  result**: an activity gets `start_place = ''` and `name = ''` (`importer/001-schema.sql`: `""` means "looked at, nothing to say (or made with
+  --offline)"), so it is never named again (`pending` is `name is null`); a climb the same (`climbs/001-schema.sql`: `sector.name = ''`).  That
+  is a failure stored as a result, which the rules forbid.  To do: offline uses what is loaded; for a place whose cells are not loaded and
+  cannot be fetched, the name stays null (pending) and the command says how many were left (so that the next online run names them); the
+  same for climbs; the schema comments say it.  Tests: an offline import with the data loaded names the activity; an offline import without
+  them leaves it null, and a later online run names it; the same for a climb.  Repair for databases already damaged: `update activity set
+  name = null where name = '' and start_place = ''` is a start (it also frees the 4 genuinely nameless ones to be tried again, harmlessly).
 * **The import does not follow symbolic links** (found 2026-11-12, the importer given a directory of links to `.fit` files said "no
   .fit files found").  `importer/batch.nim` walks a directory with `walkDirRec(arg)`, whose defaults yield only regular files and
   descend only into real directories, so a link to a file or to a directory is skipped without a word.  Follow both
