@@ -72,11 +72,11 @@ suite "ff: the template is a file":
     check readFile(systemDir(top) / "templates" / "ff.html") == pageTemplate
     writeFile(
       systemDir(top) / "templates" / "ff.html",
-      "{{title}} {{{hourly}}} {{{green}}} {{{red}}} {{plot-js}} {{#hourly}}by the hour{{/hourly}}{{^hourly}}by the day{{/hourly}}\n",
+      "{{title}} {{{hourly}}} {{{green}}} {{{red}}} {{plot-js}}\n",
     )
     check pageHtml(csv, "T", true).get ==
-      "T true " & hex(green) & " " & hex(red) & " " & libs["plot-js"] & " by the hour\n"
-    check pageHtml(csv, "T", false).get.endsWith("by the day\n")
+      "T true " & hex(green) & " " & hex(red) & " " & libs["plot-js"] & "\n"
+    check pageHtml(csv, "T", false).get.startsWith("T false ")
   test "the pure form":
     check renderPage("{{data}}", @[], csv, "t", false) == some(csv)
     check renderPage("{{data}}", @[], "x.geojson", "t", false).isNone
