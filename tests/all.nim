@@ -102,6 +102,7 @@ import
     test_work,
     test_report,
     test_attempts,
+    test_imported as climbsImported,
     test_naming,
     test_display,
     test_duplicates,

@@ -148,8 +148,8 @@ lost.  The rows come from `activities`.""",
       summary: "Climbs: found in the rides, named, and ranked.",
       doc: """Climbs: found in the rides, named, and ranked.
 
-The climbs are found in the rides once (the first time `nch climbs` runs it works out those of every activity not yet looked
-at, about a minute for two thousand rides) and kept in `sector`, `effort` and `climbs_done`, the tables this package owns.
+The climbs are found in the rides once (after an import, which works out those of every activity not yet looked at, about a
+minute for two thousand rides; `nch climbs` and `nch map` do any that are still lacking) and kept in `sector`, `effort` and `climbs_done`, the tables this package owns.
 A ride that goes over part of a climb but not all of it makes a climb of its own.  Climbs are shared by all users; a climb
 is never deleted one at a time (`--edit NAME --retire` hides one), only all together (`climbs --all --delete -f`).
 
@@ -162,7 +162,7 @@ shown together, are worked out when asked for and never stored.  `-v` lists the 
 never the attempts.
 
 Offers `--climb TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
-climb whose name holds the text.""",
+climb whose name holds the text.  Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.""",
     ),
     Registered(
       name: "confirm",

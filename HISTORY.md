@@ -95,6 +95,12 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **The climbs are worked out by an import (2026-11-12)**: `climbs` contributes to `importer/after` (`climbs/imported.nim`), so that the wait is
+  at the import, which already names the activities, and not at the first `nch climbs` or `nch map`.  It works out every activity not
+  yet in `climbs_done` (so a re-import catches up) and says "worked out the climbs of N activities: M new climbs"; one that fails does not
+  undo the import.  `nch climbs` and `nch map` still work out what is lacking (idempotent), for an old database or a failed step.  There is no
+  live progress while it runs (the hook has no channel for it).  One flaky test seen once under load, the download spinner's
+  thread (`tests/download/test_fetch.nim`), passes alone and on a rerun.
 * **The heat map, cells step 3 (2026-11-12)**: `nch map --layers routes,climbs,heat` (default routes,climbs; the layers are a set of
   the address, `layers=`, and of the file's name).  The cells of `route_cell` of the selected activities are counted at three levels
   (`cell_coarse`: about 100 m, 870 m, 7 km) into polygons with `visits` (rows) and `rides` (distinct activities); the page shows the

@@ -27,7 +27,8 @@ proc addActivity(s: Session, sha: string): int64 =
 
 suite "selection: after an import":
   test "the point has the contribution":
-    check extensions.get(afterImport).len == 1
+    check extensions.get(afterImport).len == 2
+      # (the climbs are worked out too: climbs/test_imported.nim)
 
   test "the new activities replace the selection, and the report is in the colour of the selection":
     let s = fresh("replace")

@@ -211,6 +211,17 @@ suite "nch import: the command":
     check importCmd(g, @["-q", d]) == exitOk # (both are known now)
     check selectedStarts() == @[$(base + 5000 + 631_065_600)]
 
+  test "an import leaves the climbs of the new activities worked out":
+    let d = fresh("climbs")
+    bytesToFile(d / "a.fit", tiny(base + 1))
+    let g = globals(d / "x.db")
+    check importCmd(g, @["-q", d]) == exitOk
+    let s = open(d / "x.db")
+    defer:
+      s.close()
+    check s.db.scalar(int, "select count(*) from climbs_done") == 1
+    check s.db.scalar(int, "select count(*) from activity") == 1
+
   test "an unknown user is a failure":
     let d = fresh("user")
     bytesToFile(d / "a.fit", tiny(base + 1))

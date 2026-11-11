@@ -52,8 +52,8 @@ const
 went up, drawn over them; --layers chooses what is drawn, and `heat` shows how often each place was visited, in cells
 (about 100 m, coarser as you zoom out).  It makes a GeoJSON file in the cache directory and prints its path; with --web it
 also serves a page that draws it, and opens it in a browser.  Several rides over the same roads show as a glow; a click on a
-route says which activity it is, a click on a climb says what it is, a click on a cell says how often it was visited.  The climbs not yet worked out are worked out first
-(the first time that can take a minute).  Asking again for the same thing finds the file already there."""
+route says which activity it is, a click on a climb says what it is, a click on a cell says how often it was visited.  The climbs not yet worked out (an import does that) are
+worked out first.  Asking again for the same thing finds the file already there."""
   notes =
     """The address of the page records which activities it shows, so a reload shows the same ones even if the selection
 has since changed.  It stops working when the database is rebuilt (the numbers then mean other activities)."""

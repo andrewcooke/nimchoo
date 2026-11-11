@@ -1,7 +1,7 @@
 ## `nch climbs`: the climbs.  With no arguments the climbs of the selected activities, with the time of each and where
 ## it ranks; `--all` every climb found; `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and
-## `--duplicates` are lists for tidying.  The first time (and after an import) it works out the climbs of the activities
-## that have not been looked at, and keeps them (see work.nim).  The climbs are shared by all users.
+## `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
+## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
 import std/[options, strutils, times]
 import ../../core/globals
@@ -48,8 +48,8 @@ on the selected rides (blue) and when, where that one ranks among your own attem
 All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the
 top, stops included.
 
-The climbs are found in the rides, once: the first time it works out those of every activity that has not been looked at
-(about a minute for two thousand rides), and keeps them; after an import it only looks at the new ones.  A ride that goes
+The climbs are found in the rides, once: an import works out those of every activity that has not been looked at (about
+a minute for two thousand rides), and keeps them; this command works out any that are still lacking.  A ride that goes
 over part of a climb but not all of it makes a climb of its own."""
   notes =
     "The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are \"yours\".)"
