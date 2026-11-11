@@ -94,8 +94,8 @@ func smallProfile*(): string =
   xlsxFile(@[("Types", types), ("Messages", messages)])
 
 const requestAddresses* = [
-  "/map?bits=AsBO&check=ab12cd&token=T0kEn", "/map?bits=AsBO",
+  "/map?selection=AsBO&state=ab12cd&token=T0kEn", "/map?selection=AsBO",
   "/ff?model=default&from=2020-01-02&to=2020-12-31&fitness-scale=1.5&fatigue-scale=2&hourly=1&utc=1",
-  "/ff?check=0a1b2c", "/files/map-lusab-babad-fuzoh.geojson",
+  "/ff?state=0a1b2c", "/files/map-lusab-babad-fuzoh.geojson",
   "/files/ff--model-default.html", "/", "/map", "/files/a%2Eb", "/x?a=1&b=%20c&d",
 ]

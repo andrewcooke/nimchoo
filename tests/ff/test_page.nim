@@ -12,7 +12,7 @@ import ../support/webpages
 import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette
 
-const csv = "ff--check-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
+const csv = "ff--state-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
@@ -52,7 +52,7 @@ suite "ff: the page":
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")
   test "only a CSV of the cache can be named":
     for bad in [
-      "../x.csv", "x.geojson", "ff--check-a.html", "a/b.csv", "ff--check-a.csv.exe", ""
+      "../x.csv", "x.geojson", "ff--state-a.html", "a/b.csv", "ff--state-a.csv.exe", ""
     ]:
       check pageHtml(bad, "t", false).isNone
   test "the page loads only from places the server's policy allows":
@@ -87,9 +87,9 @@ suite "ff: --worker, --web and the address":
     check p.problem == "" and p.params.web.kind == wkServe and p.params.web.noOpen and
       p.params.web.newToken and p.params.web.port == 0
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
-    check parseArgs(@["--check", "ab12cd"]).params.check == some("ab12cd")
-    check parseArgs(@["--check", "a b"]).problem.contains("not a hash")
-    check parseArgs(@["--check"]).problem.contains("needs a value")
+    check parseArgs(@["--state", "ab12cd"]).params.state == some("ab12cd")
+    check parseArgs(@["--state", "a b"]).problem.contains("not a hash")
+    check parseArgs(@["--state"]).problem.contains("needs a value")
     check parseArgs(@[]).params.web.kind == wkNone
   test "problems":
     check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")

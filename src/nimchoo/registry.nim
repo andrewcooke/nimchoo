@@ -230,7 +230,7 @@ that turns while the program waits).  Tests never use the network: every `Global
 `nch ff` adds up the hourly impulses of the user (`model`), each effort fading away exponentially, into one row per day (or
 hour) of fitness and fatigue, as CSV in the cache for plotting elsewhere or on standard output; `--web` serves a page that
 draws it (Observable Plot and d3, loaded from a CDN with the integrity hashes of the exact files).  `ff` is not about the
-selection: it always uses all the activities, and its `--check` is a hash of the data the curves are made from.  Offers its
+selection: it always uses all the activities, and its `--state` is a hash of the data the curves are made from.  Offers its
 page to the server (`web/pages`).""",
     ),
     Registered(
@@ -313,7 +313,7 @@ latest run.  The words and their colours are in `ui/vocabulary`.""",
 
 `nch map` makes everything itself: no layer commands, no layer index.  A GeoJSON file in the cache holds the routes and
 climbs (each feature says what it is, in `kind`: route or climb, and nothing about how it looks) and a page (Leaflet) decides
-the look.  `--web` serves the page on localhost (`web`); the address carries the activities: `/map?bits=LIST&check=HASH`
+the look.  `--web` serves the page on localhost (`web`); the address carries the activities: `/map?selection=LIST&state=HASH`
 (see `selection`).
 
 **The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
@@ -364,10 +364,10 @@ it.  Suggestions are found from the features and the rides.""",
   the like work on unless told otherwise.  It belongs to one user, and is replaced whenever `activities --select` is given
   or an import adds activities.  This is implicit state, which conflicts with the caching of files made by commands, so the
   key of the selection (a hash of the content of its activities) goes into the names of the files made from it.
-* **The address** (`bits`): a set of activity ids as a short string (runs or a bitmap, bit-level codes, URL-safe base64: one
-  ride is 5 characters, a date range 5 to 8), so `/map?bits=LIST&check=HASH` names its activities.  `HASH` is the first 6
-  hex digits of the content key of those activities (`checkOf`): after a database rebuild the ids mean other activities,
-  and the check refuses the old address.  **`--check` means check**: verification, never choice.
+* **The address** (`selection`): a set of activity ids as a short string (runs or a bitmap, bit-level codes, URL-safe base64: one
+  ride is 5 characters, a date range 5 to 8), so `/map?selection=LIST&state=HASH` names its activities.  `HASH` is the first 6
+  hex digits of the content key of those activities (`stateOf`): after a database rebuild the ids mean other activities,
+  and the state refuses the old address.  **`--state` means check**: verification, never choice.
 * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).""",
     ),
     Registered(
@@ -567,7 +567,7 @@ Used for xlsx files and for downloads.""",
       doc:
         """The local web server: runs `nch` commands named in addresses and shows their pages.
 
-A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?bits=...`) and shows its page, or serves
+A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?selection=...`) and shows its page, or serves
 a file of the cache (`/files/NAME`).  Any web page open in the browser can send requests to localhost, so the rules are
 strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DNS rebinding) and the token, in a cookie or
 once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each

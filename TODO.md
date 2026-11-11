@@ -33,10 +33,13 @@ sees and can be approved together.
    * the legacy steps in fragments (`names/002-country-cells.sql`'s `update country set geom = null`, the back-fill in
      `climbs/002-name-number.sql`): at the next squash.
 8a. **`map` and `ff` made consistent** (agreed 2026-11-12; the design is "Addresses, state and the cache" below).  In commits that
-   each keep the tests passing, `ff` first (it has no climbs question), then `map`:
+   each keep the tests passing, `ff` first (it has no climbs question), then `map`.  Done (2026-11-12): the names `--selection`
+   (was `--bits`) and `--state` (was `--check`) in both commands and in addresses, "for urls" in their help.  Open: whether
+   `--worker` can go (a live address has no `--state` yet, so the server still needs machine-readable output), and whether `ff`
+   (a CSV that cannot hold the request) keeps the collision check:
    1. `cache`: the file name from the whole pinned address (the command and a hash of it), in place of `requestStem` and
       `fileStem`; the stored request stays, to catch a collision;
-   2. `ff`: `--check` becomes `--state`, the file names are the hash, and a pinned address whose files are gone is remade only
+   2. `ff`: the file names are the hash, and a pinned address whose files are gone is remade only
       if the state is the same, else an error with the live address;
    3. `map`: the same (`state` covers the selected activities' content, their routes and, until they are a layer, the climbs);
       the in-place rebuild and `nch.inputs` go;

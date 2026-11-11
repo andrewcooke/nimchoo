@@ -125,10 +125,10 @@ suite "selection: for an address (the ids, the check)":
       s.close()
     s.add "a"
     s.add "b"
-    let c = checkOf(s, @[1'i64, 2])
+    let c = stateOf(s, @[1'i64, 2])
     check c.len == checkLength and c.allIt(it in HexDigits and it notin {'A' .. 'F'})
-    check c == checkOf(s, @[2'i64, 1])
-    check c != checkOf(s, @[1'i64])
+    check c == stateOf(s, @[2'i64, 1])
+    check c != stateOf(s, @[1'i64])
     check c == selectionKey(s)[0 ..< checkLength] # (the start of the selection's key)
 
 suite "selection: replacing it":

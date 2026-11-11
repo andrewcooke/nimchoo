@@ -75,26 +75,27 @@ suite "map: GeoJSON":
         Route(id: ActivityId(2), startT: UnixTime(5), geometry: line),
       ],
       @[Climb(id: 9, name: "A", lengthM: 1, gainM: 1, gradient: 1, geometry: line)],
-      "bits=AB&check=ab12cd",
+      "selection=AB&state=ab12cd",
       "k1",
     )
     let j = parseJson(text)
     check j["type"].getStr == "FeatureCollection"
-    check j["nch"]["request"].getStr == "bits=AB&check=ab12cd"
+    check j["nch"]["request"].getStr == "selection=AB&state=ab12cd"
     check j["nch"]["inputs"].getStr == "k1"
     check j["features"].len == 3
     check j["features"][1]["properties"]["id"].getInt == 2 and
       j["features"][2]["properties"]["kind"].getStr == "climb"
     check text.countLines == 6 # { , 3 features, ]} (and the end)
   test "the start of a file says which request it is for, and from which inputs":
-    let text = featureCollection(@[], @[], "bits=AB&check=ab12cd", "k1")
-    check text.startsWith(filePrefixFor("bits=AB&check=ab12cd", "k1"))
-    check not text.startsWith(filePrefixFor("bits=AB&check=ab12ce", "k1"))
-    check not text.startsWith(filePrefixFor("bits=AB&check=ab12cd", "k2"))
-    check text.startsWith(requestPrefixFor("bits=AB&check=ab12cd"))
-    check not text.startsWith(requestPrefixFor("bits=AB&check=ab12ce"))
-    check not requestPrefixFor("bits=AB").startsWith(requestPrefixFor("bits=ABC"))
-      # (a longer request is not a start of a shorter)
+    let text = featureCollection(@[], @[], "selection=AB&state=ab12cd", "k1")
+    check text.startsWith(filePrefixFor("selection=AB&state=ab12cd", "k1"))
+    check not text.startsWith(filePrefixFor("selection=AB&state=ab12ce", "k1"))
+    check not text.startsWith(filePrefixFor("selection=AB&state=ab12cd", "k2"))
+    check text.startsWith(requestPrefixFor("selection=AB&state=ab12cd"))
+    check not text.startsWith(requestPrefixFor("selection=AB&state=ab12ce"))
+    check not requestPrefixFor("selection=AB").startsWith(
+      requestPrefixFor("selection=ABC")
+    ) # (a longer request is not a start of a shorter)
   test "the key of the climbs follows everything that is shown of them":
     let c = Climb(id: 9, name: "A", lengthM: 1, gainM: 1, gradient: 1, geometry: line)
     check climbsKey(@[c]) == climbsKey(@[c])

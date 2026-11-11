@@ -43,7 +43,7 @@ proc serveWeb*(
 ): int =
   ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its
   ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
-  ## pins the page in the address, e.g. "bits=AsBO&check=ab12cd".
+  ## pins the page in the address, e.g. "selection=AsBO&state=ab12cd".
   let name = "nch " & command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:

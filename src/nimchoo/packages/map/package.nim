@@ -2,7 +2,7 @@
 ##
 ## `nch map` makes everything itself: no layer commands, no layer index.  A GeoJSON file in the cache holds the routes and
 ## climbs (each feature says what it is, in `kind`: route or climb, and nothing about how it looks) and a page (Leaflet) decides
-## the look.  `--web` serves the page on localhost (`web`); the address carries the activities: `/map?bits=LIST&check=HASH`
+## the look.  `--web` serves the page on localhost (`web`); the address carries the activities: `/map?selection=LIST&state=HASH`
 ## (see `selection`).
 ##
 ## **The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
@@ -18,7 +18,7 @@ import ../web/request
 import ./[command, params]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[contribute(webPage, pageOf(command.commandName, mapSpec(), "bits"))]
+  @[contribute(webPage, pageOf(command.commandName, mapSpec(), "selection"))]
 
 const package* = Package(
   depends: @[

@@ -10,17 +10,20 @@ suite "map: the command line":
     let p = parseArgs(@[])
     check p.problem == "" and p.params.target == tSelection and
       p.params.web.kind == wkNone
-  test "--bits and --check":
-    let p = parseArgs(@["--bits", "AWAnLmgGhgZI6JjZom", "--check", "c3eef5"])
+  test "--selection and --state":
+    let p = parseArgs(@["--selection", "AWAnLmgGhgZI6JjZom", "--state", "c3eef5"])
     check p.problem == "" and p.params.target == tList
-    check p.params.bits == "AWAnLmgGhgZI6JjZom" and p.params.check == some("c3eef5")
-    check parseArgs(@["--bits", "AWAnLmgGhgZI6JjZom"]).params.check.isNone
+    check p.params.selection == "AWAnLmgGhgZI6JjZom" and p.params.state == some(
+      "c3eef5"
+    )
+    check parseArgs(@["--selection", "AWAnLmgGhgZI6JjZom"]).params.state.isNone
       # the check is optional
-    check parseArgs(@["--bits", "A--B_"]).problem == ""
+    check parseArgs(@["--selection", "A--B_"]).problem == ""
       # (two dashes in a row are allowed in a list)
   test "--worker":
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
-    check parseArgs(@["--worker", "--bits", "AWAn", "--check", "ab12"]).problem == ""
+    check parseArgs(@["--worker", "--selection", "AWAn", "--state", "ab12"]).problem ==
+      ""
   test "--web and its options":
     let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
     check p.problem == "" and p.params.web.kind == wkServe
@@ -34,13 +37,17 @@ suite "map: the command line":
     for bad in ["x", "-1", "65536", "1.5", ""]:
       check parseArgs(@["--web", "--port", bad]).problem.contains("port number")
   test "problems":
-    check parseArgs(@["--bits"]).problem.contains("needs a value")
-    check parseArgs(@["--bits", "a b"]).problem.contains("not a list of activities")
-    check parseArgs(@["--bits", "a+b"]).problem.contains("not a list of activities")
-    check parseArgs(@["--bits", "AWAn", "--check", "XYZ"]).problem.contains(
-      "not a check"
+    check parseArgs(@["--selection"]).problem.contains("needs a value")
+    check parseArgs(@["--selection", "a b"]).problem.contains(
+      "not a list of activities"
     )
-    check parseArgs(@["--check", "ab12"]).problem.contains("goes with --bits")
+    check parseArgs(@["--selection", "a+b"]).problem.contains(
+      "not a list of activities"
+    )
+    check parseArgs(@["--selection", "AWAn", "--state", "XYZ"]).problem.contains(
+      "not a state of activities"
+    )
+    check parseArgs(@["--state", "ab12"]).problem.contains("goes with --selection")
     check parseArgs(@["--style", "lines"]).problem.contains("unexpected")
       # (the old options are gone)
     check parseArgs(@["--tolerance", "5"]).problem.contains("unexpected")
@@ -49,8 +56,8 @@ suite "map: the command line":
 
 suite "map: the page the server may run":
   test "it is made from the options marked as allowed in an address":
-    check mapPage.command == "map" and mapPage.pin == "bits"
-    check mapPage.options.mapIt(it.name) == @["bits", "check"]
+    check mapPage.command == "map" and mapPage.pin == "selection"
+    check mapPage.options.mapIt(it.name) == @["selection", "state"]
     check mapPage.flags.len == 0
   test "what it accepts in an address is what the options accept":
     let bits = mapPage.options[0].valid

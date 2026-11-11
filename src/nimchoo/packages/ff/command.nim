@@ -193,7 +193,7 @@ proc latestStats(
 proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
   ## The name (without extension) of the files for the options and the data, if one can be made.
   var options = @[
-    ("check", key),
+    ("state", key),
     ("model", name),
     ("res", if p.hourly: "hour" else: "day"),
     ("to", localDate(p.toDay.get, utc())),
@@ -261,7 +261,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         "there are no impulses for " & st.userName &
           " (they need activities with heart rate: import some)",
       )
-    let key = p.check.get(current)
+    let key = p.state.get(current)
     let now = getTime().toUnix
     let tz =
       if p.utc:
@@ -272,7 +272,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       p.toDay = some(civilOf(now, tz)) # (so that the name says which day)
     let changed =
       "the data have changed since that was made (the key was " & key & ", it is now " &
-      current & "); leave out --check to use the current data"
+      current & "); leave out --state to use the current data"
     if p.stdout:
       if key != current:
         return failure("nch ff", changed)
@@ -323,7 +323,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         commandName,
         WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
         dir.get,
-        "check=" & key & (if query.len > 0: "&" & query else: ""),
+        "state=" & key & (if query.len > 0: "&" & query else: ""),
       )
     if p.web.kind == wkWorker:
       stdout.say pageFile.get & "\n" & csvPath & "\n"

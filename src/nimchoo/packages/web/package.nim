@@ -1,6 +1,6 @@
 ## The local web server: runs `nch` commands named in addresses and shows their pages.
 ##
-## A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?bits=...`) and shows its page, or serves
+## A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?selection=...`) and shows its page, or serves
 ## a file of the cache (`/files/NAME`).  Any web page open in the browser can send requests to localhost, so the rules are
 ## strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DNS rebinding) and the token, in a cookie or
 ## once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each

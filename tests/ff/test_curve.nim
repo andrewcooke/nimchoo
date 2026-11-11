@@ -244,7 +244,7 @@ suite "nch ff":
     useTestCache()
 
 suite "nch ff: the key":
-  test "--key asks for a file by the key of its data; an old key can not be made again":
+  test "--state asks for a file by the state of its data; an old key can not be made again":
     let path = getTempDir() / "nch-test-ff-key.db"
     let cache = getTempDir() / "nch-test-ff-key-cache"
     removeFile(path)
@@ -268,20 +268,20 @@ suite "nch ff: the key":
     var name = ""
     for f in walkFiles(cache / "user" / "*.csv"):
       name = extractFilename(f)
-    let key = name.split("--check-")[1].split("--")[0]
+    let key = name.split("--state-")[1].split("--")[0]
     check key.len == 12
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key]) == exitOk
       # the current data
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", "ffffffffffff"]) ==
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", "ffffffffffff"]) ==
       exitFailure # not made, not current
     check ffCommand.run(
-      g, @["--to", "2018-09-05", "--utc", "--check", "ffffffffffff", "--stdout"]
+      g, @["--to", "2018-09-05", "--utc", "--state", "ffffffffffff", "--stdout"]
     ) == exitFailure
     # a file that was made stays available under its key after the data change
     let t = openSession(path, allFragments, access = allAccess)
     t.db.execute("update user_profile set fthr = 160")
     t.close()
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key]) == exitOk
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--check", key, "--hourly"]) ==
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key, "--hourly"]) ==
       exitFailure # (that one was never made)
     useTestCache()

@@ -10,7 +10,7 @@ import ../web/[request, webopts]
 
 type
   Params* = object
-    check*: Option[string]
+    state*: Option[string]
       ## the hash of the data that must still be the current ones (none: no check)
     model*: Option[string] ## none: the default model
     fromDay*, toDay*: Option[int64]
@@ -23,7 +23,7 @@ type
 
   Raw = object ## what the options fill in
     help, hourly, utc, stdout: bool
-    check, model: string
+    state, model: string
     fromDay, toDay: Option[int64]
     fitnessScale, fatigueScale: float
     web: WebArgs
@@ -49,17 +49,17 @@ func ffSpec*(): Spec[Raw] =
       @[
         custom(
           Raw,
-          ["--check"],
+          ["--state"],
           true,
           "HASH",
-          "make sure the data are still those with this hash (the hash in the file name, `check-…`).  It chooses nothing: it is a safeguard, so that a file or address made earlier cannot show different data.  If the data have changed and that file is gone, the command stops and says so.  Leave it out to use the current data",
+          "for urls: make sure the data are still those with this hash (`state=` in the address).  It chooses nothing: it is a safeguard, so that a file or address made earlier cannot show different data.  If the data have changed and that file is gone, the command stops and says so.  Leave it out to use the current data",
           address = adValue,
           valid = hexHash,
           body = (
             block:
               if not isOptionValue(value):
                 return refuse("'" & value & "' is not a hash of the data")
-              p.check = value
+              p.state = value
               fine
           ),
         ),
@@ -162,7 +162,7 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params](mode.problem)
   parsedOk(
     Params(
-      check: (if raw.check.len > 0: some(raw.check) else: none(string)),
+      state: (if raw.state.len > 0: some(raw.state) else: none(string)),
       model: (if raw.model.len > 0: some(raw.model) else: none(string)),
       fromDay: raw.fromDay,
       toDay: raw.toDay,

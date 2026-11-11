@@ -105,7 +105,8 @@ proc requestProblem*(raw: string, pages: seq[WebPage]): string =
       if i + 1 >= rt.args.len:
         return "an option with no value"
       let v = rt.args[i + 1]
-      if v.len == 0 or v.hasControl or v.anyIt(it == ' ') or "--" in v and name != "bits":
+      if v.len == 0 or v.hasControl or v.anyIt(it == ' ') or
+          "--" in v and name != "selection":
         return "an option with a value that is not one"
       i += 2
     else:

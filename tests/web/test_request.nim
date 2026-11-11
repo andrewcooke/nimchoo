@@ -111,30 +111,30 @@ suite "serve request: what is asked for":
     ]:
       check route(target(bad)).isNone
   test "the command on the list, with its options, each once":
-    let r = route(target("/map?bits=AWAnLmgGhgZI6JjZom&check=c3eef5")).get
+    let r = route(target("/map?selection=AWAnLmgGhgZI6JjZom&state=c3eef5")).get
     check not r.isFile and r.command == "map"
-    check r.args == @["--bits", "AWAnLmgGhgZI6JjZom", "--check", "c3eef5"]
+    check r.args == @["--selection", "AWAnLmgGhgZI6JjZom", "--state", "c3eef5"]
     check route(target("/map")).get.args.len == 0
-    check route(target("/map?token=T&bits=AB")).get.args ==
-      @["--bits", "AB"] # (the token is not an option)
-    check route(target("/map?bits=A--B_-")).isSome
+    check route(target("/map?token=T&selection=AB")).get.args ==
+      @["--selection", "AB"] # (the token is not an option)
+    check route(target("/map?selection=A--B_-")).isSome
       # (a list may have two dashes in a row)
-    check route(target("/map?bits=" & "A".repeat(7000))).isSome # (and be long)
+    check route(target("/map?selection=" & "A".repeat(7000))).isSome # (and be long)
   test "ff: options, and flags that are given as 1":
     let r = route(
       target(
-        "/ff?check=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
+        "/ff?state=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
       )
     ).get
-    check r.command == "ff" and r.pin == "check"
+    check r.command == "ff" and r.pin == "state"
     check r.args ==
       @[
-        "--check", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to",
+        "--state", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to",
         "2018-08-31", "--hourly", "--utc", "--fitness-scale", "2", "--fatigue-scale",
         "5",
       ]
     check route(target("/ff")).get.args.len == 0
-    check route(target("/map")).get.pin == "bits"
+    check route(target("/map")).get.pin == "selection"
   test "ff: no other option or value":
     for bad in [
       "/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1",
@@ -158,17 +158,17 @@ suite "serve request: what is asked for":
       "/Map",
       "/map?worker=1",
       "/map?save",
-      "/map?bits=a&bits=b",
-      "/map?bits=a%20b",
-      "/map?bits=a;b",
-      "/map?bits=a+b",
-      "/map?bits=../x",
-      "/map?bits=",
-      "/map?check=zz",
+      "/map?selection=a&selection=b",
+      "/map?selection=a%20b",
+      "/map?selection=a;b",
+      "/map?selection=a+b",
+      "/map?selection=../x",
+      "/map?selection=",
+      "/map?state=zz",
       "/map?style=lines",
       "/map?tolerance=5",
       "/map?db=/etc/x",
-      "/map?bits=" & "+".repeat(10),
+      "/map?selection=" & "+".repeat(10),
     ]:
       check route(target(bad)).isNone
 

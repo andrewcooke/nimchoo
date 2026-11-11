@@ -97,7 +97,7 @@ func withoutParam*(t: Target, name: string): string =
   render(t, name, true)
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/map?bits=AsBO&check=ab12cd" -> path "/map" and the query, percent-decoded.
+  ## "/map?selection=AsBO&state=ab12cd" -> path "/map" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, as written or as decoded,
   ## no spaces or control characters, not too long as written or as written back).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):

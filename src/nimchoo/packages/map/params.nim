@@ -1,5 +1,5 @@
 ## The command line of `nch map`, parsed.  Pure.  There are only the two options that say what is drawn, and they are
-## for programs: the address a page has carries them (`bits=...&check=...`), and the server hands them to the worker.  Those
+## for urls: the address a page has carries them (`selection=...&state=...`), and the server hands them to the worker.  Those
 ## options are marked as allowed in an address, so the list of what a page may be given is made from here
 ## (`web/request.pageOf`).
 
@@ -21,13 +21,13 @@ type
     of tSelection:
       discard
     of tList:
-      bits*: string ## the activities to draw, as in an address (selection/bits.nim)
-      check*: Option[string]
+      selection*: string ## the activities to draw, as in an address (selection/bits.nim)
+      state*: Option[string]
         ## a short hash of the content of those activities, which they must still have
 
   Raw = object ## what the options fill in
     help: bool
-    bits, check: string
+    selection, state: string
     web: WebArgs
 
 func bitsValue(value: string): bool =
@@ -41,33 +41,33 @@ func mapSpec*(): Spec[Raw] =
       @[
         custom(
           Raw,
-          ["--bits"],
+          ["--selection"],
           true,
           "LIST",
-          "for programs: the activities to draw, as in the address (default: the current selection)",
+          "for urls: the activities to draw, as in the address (default: the current selection)",
           address = adValue,
           valid = bitsValue,
           body = (
             block:
               if not bitsValue(value):
                 return refuse("'" & value & "' is not a list of activities")
-              p.bits = value
+              p.selection = value
               fine
           ),
         ),
         custom(
           Raw,
-          ["--check"],
+          ["--state"],
           true,
           "HASH",
-          "for programs, with --bits: a check that they are still the activities the address was made for",
+          "for urls, with --selection: a check that they are still the activities the address was made for",
           address = adValue,
           valid = hexHash,
           body = (
             block:
               if value.len > 64 or not hexHash(value):
-                return refuse("'" & value & "' is not a check of activities")
-              p.check = value
+                return refuse("'" & value & "' is not a state of activities")
+              p.state = value
               fine
           ),
         ),
@@ -78,20 +78,20 @@ func finish(raw: Raw): Parsed[Params] =
   let mode = webMode(raw.web)
   if mode.kind == pkProblem:
     return problemWith[Params](mode.problem)
-  if raw.check.len > 0 and raw.bits.len == 0:
-    return problemWith[Params]("--check goes with --bits")
-  if raw.bits.len == 0:
+  if raw.state.len > 0 and raw.selection.len == 0:
+    return problemWith[Params]("--state goes with --selection")
+  if raw.selection.len == 0:
     parsedOk(Params(target: tSelection, web: mode.params))
   else:
     parsedOk(
       Params(
         target: tList,
         web: mode.params,
-        bits: raw.bits,
-        check: (if raw.check.len > 0: some(raw.check) else: none(string)),
+        selection: raw.selection,
+        state: (if raw.state.len > 0: some(raw.state) else: none(string)),
       )
     )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `--bits STRING`, `--check HASH`, `--worker`, `--web` (with `--no-open`, `--port N`, `--new-token`), `-h`.
+  ## `--selection STRING`, `--state HASH`, `--worker`, `--web` (with `--no-open`, `--port N`, `--new-token`), `-h`.
   parseCommand(args, mapSpec(), Raw(web: initWebArgs()), finish)

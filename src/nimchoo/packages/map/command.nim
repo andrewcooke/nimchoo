@@ -2,8 +2,8 @@
 ## directory holds them (every feature says what it is, in `kind`, and nothing about how it looks), and a page, drawn by
 ## Leaflet in the browser (`--web`), decides the look.
 ##
-## Which activities are drawn is carried by the address of the page: `bits=...` is the list of them (selection/bits.nim)
-## and `check=...` a short hash of their content, so that an address made before the database was rebuilt (when the
+## Which activities are drawn is carried by the address of the page: `selection=...` is the list of them (selection/bits.nim)
+## and `state=...` a short hash of their content, so that an address made before the database was rebuilt (when the
 ## ids mean other activities) or before activities were deleted is refused and not wrong.  The files are named by a
 ## hash of that request, in pronounceable words (`map-lusab-babad-fuzoh.geojson`), so asking again for the same thing
 ## finds the file already there, if the data it was made from are unchanged (the header records a key of them; if it
@@ -142,7 +142,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     # the activities: those of the address, else the selection
     var ids: seq[int64]
     if p.target == tList:
-      let d = decodeBits(p.bits, maxActivityId(st))
+      let d = decodeBits(p.selection, maxActivityId(st))
       if d.problem.len > 0:
         return Prepared(
           status: usageError("nch map", usageText(helpWidth(stderr)), d.problem)
@@ -151,8 +151,8 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     else:
       ids = selectedIds(st)
     let mine = ownedIds(st, ids)
-    let check = checkOf(st, mine)
-    if p.target == tList and p.check.isSome and p.check.get != check:
+    let state = stateOf(st, mine)
+    if p.target == tList and p.state.isSome and p.state.get != state:
       return Prepared(
         status: failure(
           "nch map",
@@ -174,7 +174,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       stderr.say "note: " & $(ids.len - mine.len) & " of the " & $ids.len &
         " activities of this address do not exist\n"
     # (the request is the activities drawn, spelt one way: the address as typed may name others, or use the other form)
-    let request = "bits=" & encodeBits(mine) & "&check=" & check
+    let request = "selection=" & encodeBits(mine) & "&state=" & state
     # what the file is made from: the data of each package it reads, and the version of the program
     let routeKey = routesKey(st, mine)
     if routeKey.count == 0:
@@ -273,7 +273,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return made.status
   case p.web.kind
   of wkServe:
-    # the address pins what was made: the activities, and the check of them
+    # the address pins what was made: the activities, and the state of them
     return serveWeb(
       g,
       commandName,

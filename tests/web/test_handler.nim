@@ -34,7 +34,7 @@ proc setup(
     result: WorkerResult(
       stdout:
         cache / (stem & ".html") & "\n" & cache / (stem & ".geojson") & "\n" &
-        "bits=AB&check=ab12cd\n"
+        "selection=AB&state=ab12cd\n"
     )
   )
   var cfg = ServerConfig(
@@ -96,10 +96,11 @@ suite "serve handler: who may ask":
     check handle(s, port, get("//evil.example/x")).code == 400
   test "the token in the address: the cookie is set and the browser goes on without it":
     let s = setup("token")
-    let r =
-      handle(s, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = ""))
+    let r = handle(
+      s, port, get("/map?token=" & token & "&selection=AB&state=ab12cd", cookie = "")
+    )
     check r.code == 302
-    check r.header("Location") == "/map?bits=AB&check=ab12cd"
+    check r.header("Location") == "/map?selection=AB&state=ab12cd"
     let c = r.header("Set-Cookie")
     check c ==
       "nch=" & token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" & $cookieMaxAge
@@ -118,29 +119,33 @@ suite "serve handler: who may ask":
 suite "serve handler: pages":
   test "the worker is asked, with the base options, and the page it makes is sent":
     let s = setup("page")
-    let r = handle(s, port, get("/map?bits=AB&check=ab12cd"))
+    let r = handle(s, port, get("/map?selection=AB&state=ab12cd"))
     check r.code == 200
     check r.body == "<html>the page</html>"
     check r.header("Content-Type") == "text/html; charset=utf-8"
     check s.fake.calls ==
-      @[@["--db", "/x/y.db", "map", "--worker", "--bits", "AB", "--check", "ab12cd"]]
+      @[
+        @[
+          "--db", "/x/y.db", "map", "--worker", "--selection", "AB", "--state", "ab12cd"
+        ]
+      ]
   test "no list of activities: the current selection is pinned in the address, as the worker says":
     let s = setup("pin")
     let r = handle(s, port, get("/map"))
     check r.code == 302
-    check r.header("Location") == "/map?bits=AB&check=ab12cd"
+    check r.header("Location") == "/map?selection=AB&state=ab12cd"
     check s.fake.calls == @[@["--db", "/x/y.db", "map", "--worker"]]
   test "the worker failing: its message, as text, not markup":
     let s = setup("fails")
     s.fake.result = WorkerResult(
       code: 1, stderr: "nch map: the selection is empty <script>x</script>\n"
     )
-    let r = handle(s, port, get("/map?bits=AB&check=ab12cd"))
+    let r = handle(s, port, get("/map?selection=AB&state=ab12cd"))
     check r.code == 500
     check r.body.contains("the selection is empty &lt;script&gt;x&lt;/script&gt;")
     check not r.body.contains("<script>")
     s.fake.result = WorkerResult(code: 1)
-    check handle(s, port, get("/map?bits=AB&check=ab12cd")).body.contains(
+    check handle(s, port, get("/map?selection=AB&state=ab12cd")).body.contains(
       "nch map failed"
     )
   test "a worker that names something else than a page of the cache is not believed":
@@ -154,16 +159,16 @@ suite "serve handler: pages":
       s.cache / ".." / stem & ".html\n",
     ]:
       s.fake.result = WorkerResult(stdout: named)
-      check handle(s, port, get("/map?bits=AB&check=ab12cd")).code == 500
+      check handle(s, port, get("/map?selection=AB&state=ab12cd")).code == 500
   test "a page that is not there is not found":
     let s = setup("gone")
     removeFile(s.cache / (stem & ".html"))
-    check handle(s, port, get("/map?bits=AB&check=ab12cd")).code == 404
+    check handle(s, port, get("/map?selection=AB&state=ab12cd")).code == 404
   test "no other command is run, and no other option":
     let s = setup("allow")
     for bad in [
       "/", "/import", "/destroy?x=1", "/list?save=1", "/map?worker=1", "/map?db=/etc/x",
-      "/map?bits=a;b", "/map?style=cells", "/map/x", "/Map", "/heatmap", "/log",
+      "/map?selection=a;b", "/map?style=cells", "/map/x", "/Map", "/heatmap", "/log",
     ]:
       check handle(s, port, get(bad)).code == 404
     check s.fake.calls.len == 0
@@ -171,7 +176,7 @@ suite "serve handler: pages":
 suite "serve handler: the second command":
   test "ff: pinned like the heat map, and its CSV is served as text/csv":
     let s = setup("ff")
-    let ffStem = "ff--check-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc"
+    let ffStem = "ff--state-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc"
     writeFile(s.cache / (ffStem & ".html"), "<html>the chart</html>")
     writeFile(s.cache / (ffStem & ".csv"), "time,fitness,fatigue\n")
     s.fake.result = WorkerResult(
@@ -180,12 +185,12 @@ suite "serve handler: the second command":
     # without a key the data are "the current ones": the address is pinned to their key
     let p = handle(s, port, get("/ff?to=2018-09-05&hourly=1"))
     check p.code == 302 and
-      p.header("Location") == "/ff?check=ab12cd34ef56&to=2018-09-05&hourly=1"
+      p.header("Location") == "/ff?state=ab12cd34ef56&to=2018-09-05&hourly=1"
     let r = handle(s, port, get(p.header("Location")))
     check r.code == 200 and r.body == "<html>the chart</html>"
     check s.fake.calls[^1] ==
       @[
-        "--db", "/x/y.db", "ff", "--worker", "--check", "ab12cd34ef56", "--to",
+        "--db", "/x/y.db", "ff", "--worker", "--state", "ab12cd34ef56", "--to",
         "2018-09-05", "--hourly",
       ]
     let c = handle(s, port, get("/files/" & ffStem & ".csv"))
@@ -227,7 +232,7 @@ suite "serve handler: every reply":
   test "carries the security headers, whatever it is":
     let s = setup("headers")
     for req in [
-      get("/map?bits=AB&check=ab12cd"),
+      get("/map?selection=AB&state=ab12cd"),
       get("/map", cookie = ""),
       get("/nope"),
       get("/files/" & stem & ".geojson"),
@@ -251,16 +256,17 @@ suite "serve handler: every reply":
 suite "serve handler: the log":
   test "what was served and what was refused, never the token":
     let s = setup("log", withLog = true)
-    discard
-      handle(s, port, get("/map?token=" & token & "&bits=AB&check=ab12cd", cookie = ""))
-    discard handle(s, port, get("/map?bits=AB&check=ab12cd"))
+    discard handle(
+      s, port, get("/map?token=" & token & "&selection=AB&state=ab12cd", cookie = "")
+    )
+    discard handle(s, port, get("/map?selection=AB&state=ab12cd"))
     discard handle(s, port, get("/map", cookie = ""))
     discard handle(s, port, get("/nope"))
     s.cfg.log.close()
     let text = readFile(s.cache.parentDir / "nch.log")
-    check text.contains("map       served     GET /map?bits=AB&check=ab12cd 302")
+    check text.contains("map       served     GET /map?selection=AB&state=ab12cd 302")
       # the token step
-    check text.contains("served     GET /map?bits=AB&check=ab12cd 200")
+    check text.contains("served     GET /map?selection=AB&state=ab12cd 200")
     check text.contains("WARN  map       denied     GET /map 403")
     check text.contains("served     GET /nope 404")
     check not text.contains(token)

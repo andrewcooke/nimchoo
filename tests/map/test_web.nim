@@ -107,7 +107,7 @@ suite "nch map --web: a real server":
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
     check output.contains("http://localhost:")
-    check w.url.contains("/map?bits=") and w.url.contains("&check=")
+    check w.url.contains("/map?selection=") and w.url.contains("&state=")
     check w.token.len == 32
     # the printed address: the token is traded for a cookie
     let c = client()
@@ -117,7 +117,7 @@ suite "nch map --web: a real server":
       "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
     )
     let pinned = $r1.headers["Location"]
-    check pinned.startsWith("/map?bits=") and not pinned.contains("token")
+    check pinned.startsWith("/map?selection=") and not pinned.contains("token")
     # with the cookie: the page, which asks for the data
     let withCookie = client(w.token)
     let page = withCookie.request(w.base & pinned)

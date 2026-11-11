@@ -71,13 +71,13 @@ proc geojsons(cache: string): seq[string] =
     if f.endsWith(".geojson"):
       result.add f
 
-proc addressOf(db: string): tuple[bits, check: string] =
+proc addressOf(db: string): tuple[selection, state: string] =
   ## What the address of the map of the current selection carries.
   let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
   let ids = selectedIds(s)
-  (encodeBits(ids), checkOf(s, ownedIds(s, ids)))
+  (encodeBits(ids), stateOf(s, ownedIds(s, ids)))
 
 proc withClimb(db: string) =
   ## A climb ridden by activity 1.
@@ -103,11 +103,12 @@ suite "map: the command":
     check map(w.db) == exitOk
     let a = addressOf(w.db)
     let name =
-      requestStem("map", "bits=" & a.bits & "&check=" & a.check).get & ".geojson"
+      requestStem("map", "selection=" & a.selection & "&state=" & a.state).get &
+      ".geojson"
     check files(w.cache) == @[name]
     check name.startsWith("map-") and isCacheFileName(name)
     let j = parseFile(w.cache / name)
-    check j["nch"]["request"].getStr == "bits=" & a.bits & "&check=" & a.check
+    check j["nch"]["request"].getStr == "selection=" & a.selection & "&state=" & a.state
     check j["features"].len == 2 # (the third has no route)
     check j["features"][0]["properties"]["start"].getStr == "1970-01-01T00:16:40Z"
     check kinds(j) == @["route", "route"]
@@ -160,7 +161,7 @@ suite "map: the command":
     check changeAndRemake(
       "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72))', 4326) where activity_id = 1"
     ) != before
-    # (the content of an activity is in the request, through `check`: another file, see below)
+    # (the content of an activity is in the request, through `state`: another file, see below)
 
   test "the content of an activity changes the request: a file of its own":
     let w = world("content")
@@ -191,23 +192,23 @@ suite "map: the command":
     s.db.execute("delete from selection where activity_id = 1")
     s.close()
     check addressOf(w.db) != old
-    check map(w.db, "--bits", old.bits, "--check", old.check) == exitOk
+    check map(w.db, "--selection", old.selection, "--state", old.state) == exitOk
       # the file is there, the old activities
     check files(w.cache).len == 1
     check map(w.db) == exitOk # the new selection: a file of its own
     check files(w.cache).len == 2
 
-  test "an address whose activities have changed is refused: a wrong check, or activities deleted":
+  test "an address whose activities have changed is refused: a wrong state, or activities deleted":
     let w = world("changed")
     check map(w.db) == exitOk
     let a = addressOf(w.db)
-    check map(w.db, "--bits", a.bits, "--check", "000000") == exitFailure
+    check map(w.db, "--selection", a.selection, "--state", "000000") == exitFailure
     let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("delete from activity where id = 2") # the check no longer fits
     s.close()
-    check map(w.db, "--bits", a.bits, "--check", a.check) == exitFailure
+    check map(w.db, "--selection", a.selection, "--state", a.state) == exitFailure
 
-  test "without a check, activities that are not there are skipped; another user's are never drawn":
+  test "without a state, activities that are not there are skipped; another user's are never drawn":
     let w = world("others")
     let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
@@ -223,7 +224,7 @@ suite "map: the command":
       "insert into route(activity_id, geom) select max(id), GeomFromText('MULTILINESTRING((0 0, 1 1))', 4326) from activity"
     )
     s.close()
-    check map(w.db, "--bits", encodeBits([1'i64, 2, 4])) == exitOk # 4 is bob's
+    check map(w.db, "--selection", encodeBits([1'i64, 2, 4])) == exitOk # 4 is bob's
     let j = parseFile(w.cache / geojsons(w.cache)[0])
     check j["features"].len == 2 # (only the default user's)
 
@@ -241,14 +242,14 @@ suite "map: the command":
       "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
     )
     s.close()
-    check map(w.db, "--bits", a.bits) == exitOk
-    check map(w.db, "--bits", encodeBits([1'i64, 2, 3, 4])) == exitOk # 4 is bob's
+    check map(w.db, "--selection", a.selection) == exitOk
+    check map(w.db, "--selection", encodeBits([1'i64, 2, 3, 4])) == exitOk # 4 is bob's
     check geojsons(w.cache).len == 1
 
   test "a name already used by another request is not reused":
     let w = world("collision")
     let a = addressOf(w.db)
-    let request = "bits=" & a.bits & "&check=" & a.check
+    let request = "selection=" & a.selection & "&state=" & a.state
     createDir(w.cache)
     let taken = w.cache / (requestStem("map", request).get & ".geojson")
     writeFile(taken, "{\"not\":\"ours\"}")
@@ -293,12 +294,12 @@ suite "map: the command":
 
   test "bad options are a usage error":
     let w = world("usage")
-    check map(w.db, "--bits", "a b") == exitUsage
-    check map(w.db, "--bits", "A") == exitUsage # (too short to read)
-    check map(w.db, "--bits", encodeBits([9999'i64])) == exitUsage
+    check map(w.db, "--selection", "a b") == exitUsage
+    check map(w.db, "--selection", "A") == exitUsage # (too short to read)
+    check map(w.db, "--selection", encodeBits([9999'i64])) == exitUsage
       # (beyond the last activity)
     check map(w.db, "--style", "lines") == exitUsage
-    check map(w.db, "--check", "ab12cd") == exitUsage
+    check map(w.db, "--state", "ab12cd") == exitUsage
     check map(w.db, "--help") == exitOk
     check files(w.cache).len == 0
 
