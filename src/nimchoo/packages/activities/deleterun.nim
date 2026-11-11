@@ -39,7 +39,7 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ]
 
 proc runDelete*(
-    g: Globals, st: Session, ids: seq[int64], force: bool, nothing: string
+    g: Globals, st: Session, ids: seq[int64], force: Force, nothing: string
 ): int {.raises: [].} =
   ## Delete the activities `ids` (all of the current user's).  `nothing` is what to say if there are none.
   try:
@@ -48,10 +48,9 @@ proc runDelete*(
       stdout.say nothing & "\n"
       return exitOk
     let what = describe(plan)
-    if not force:
+    if force == fNo:
       return failure("nch activities", "would delete " & what & "; use -f to confirm")
-    if canLive():
-      countdown(newTerminalLive(), what, waitSeconds, sleepMs)
+    pause(what, force)
     # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
     var shown = false
     var live = Live()

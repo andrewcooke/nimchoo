@@ -1,5 +1,6 @@
-import std/[options, os, unittest]
+import std/[os, unittest]
 import nimchoo/core/extension
+import nimchoo/core/globals
 import nimchoo/packages/db/statement
 import nimchoo/packages/importer/after
 import nimchoo/packages/selection/imported
@@ -37,9 +38,10 @@ suite "selection: after an import":
     let a = s.addActivity("a")
     let b = s.addActivity("b")
     let c = s.addActivity("c")
-    let first = selectNewActivities.run(s, @[a], noShow)
-    check first.get.text == "selected the new activity"
-    check first.get.look.colour == selectedColour
-    let second = selectNewActivities.run(s, @[b, c], noShow)
-    check second.get.text == "selected the 2 new activities"
+    let ctx = quietContext(Globals(offline: true))
+    let first = selectNewActivities.run(s, @[a], ctx)
+    check first.len == 1 and first[0].text == "selected the new activity"
+    check first[0].look.colour == selectedColour
+    let second = selectNewActivities.run(s, @[b, c], ctx)
+    check second.len == 1 and second[0].text == "selected the 2 new activities"
     check s.db.query(int64, "select activity_id from selection order by 1") == @[b, c]

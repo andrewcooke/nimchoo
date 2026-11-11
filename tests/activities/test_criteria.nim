@@ -7,6 +7,7 @@ import std/[options, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/activities/criteria
+import nimchoo/packages/confirm/confirm
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
 
@@ -487,7 +488,8 @@ suite "list: criteria that other packages offer":
 suite "list: --delete":
   test "--delete is an action, not a criterion; -f goes with it":
     let c = parseArgs(@["--delete", "-f"], utcZone).params
-    check c.delete and c.force and not c.given and not c.all
+    check c.delete and c.force == fYes and not c.given and not c.all
+    check parseArgs(@["--delete", "-f", "-f"], utcZone).params.force == fNow
     check parseArgs(@["--sport", "cycling", "--delete"], utcZone).params.given
     check parseArgs(@["--all", "--delete", "-f"], utcZone).problem == ""
     check parseArgs(@["-f"], utcZone).problem.contains("goes with --delete")

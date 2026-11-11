@@ -1,5 +1,6 @@
 ## The command line of `nch db`, parsed.  Pure.
 
+import ../confirm/confirm
 import ../util/args/args
 
 {.push raises: [].}
@@ -14,10 +15,11 @@ type
     of daShow:
       discard
     of daDelete:
-      force*: bool ## really do it
+      force*: Force ## really do it
 
   Raw = object ## what the options fill in
-    help, delete, force: bool
+    help, delete: bool
+    force: Force
 
 func dbSpec*(): Spec[Raw] =
   ## The options of `nch db`.
@@ -29,19 +31,13 @@ func dbSpec*(): Spec[Raw] =
         delete,
         "delete the database file, and with it the users and all their data: files, activities, climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete less: `nch activities --all --delete -f` keeps the users, `nch climbs --all --delete -f` keeps the activities.)  The next command that needs a database makes a new one.",
       ),
-      flag(
-        Raw,
-        ["-f", "--force"],
-        force,
-        "really do it: on a terminal there are then 5 seconds in which to press Ctrl-C",
-        level = 1,
-      ),
+      forceOption(Raw, force, 1),
       helpFlag(Raw),
     ]
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  if raw.force and not raw.delete:
+  if raw.force != fNo and not raw.delete:
     return problemWith[Params]("-f goes with --delete")
   if raw.delete:
     parsedOk(Params(action: daDelete, force: raw.force))

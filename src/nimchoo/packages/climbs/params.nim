@@ -1,5 +1,6 @@
 ## The command line of `nch climbs`, parsed.  Pure.
 
+import ../confirm/confirm
 import ../util/args/args
 import ./completion
 import ./[display, match]
@@ -53,12 +54,13 @@ type
     of caEdit:
       edit*: Edit
     of caDeleteAll:
-      force*: bool ## really do it
+      force*: Force ## really do it
     of caAll, caRetired, caDuplicates:
       discard
 
   Raw = object ## what the options fill in
-    help, all, editing, auto, retire, unretire, retired, duplicates, delete, force: bool
+    help, all, editing, auto, retire, unretire, retired, duplicates, delete: bool
+    force: Force
     verbose, everyone: bool
     name, rename: string
     names: seq[string]
@@ -119,10 +121,10 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--delete"],
         delete,
-        "(with --all) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  Needs -f; on a terminal there are then 5 seconds in which to press Ctrl-C.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
+        "(with --all) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  Needs -f.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
         level = 1,
       ),
-      flag(Raw, ["-f", "--force"], force, "really do it", level = 2),
+      forceOption(Raw, force, 2),
       custom(
         Raw,
         ["--edit"],
@@ -200,7 +202,7 @@ func finish(raw: Raw): Parsed[Params] =
   if (if raw.retired: 1 else: 0) + (if raw.duplicates: 1 else: 0) +
       (if raw.all: 1 else: 0) > 1:
     return bad("--all, --retired and --duplicates cannot be used together")
-  if raw.force and not raw.delete:
+  if raw.force != fNo and not raw.delete:
     return bad("-f goes with --delete")
   if raw.delete:
     if not raw.all:

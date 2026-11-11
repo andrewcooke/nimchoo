@@ -175,19 +175,25 @@ proc runImport(
             drawn = true
             live.get.show(lines)
         try:
-          let said = step.run(st, ids, show)
-          if said.isSome:
-            g.log.log(lvInfo, commandName, leSaved, said.get.text)
+          let ctx = AfterContext(
+            g: g,
+            show: show,
+            say: proc(line: string) {.closure, raises: [].} =
+              stderr.say line & "\n"
+            ,
+          )
+          for said in step.run(st, ids, ctx):
+            g.log.log(lvInfo, commandName, leSaved, said.text)
             if not opts.quiet:
               stderr.say render(
-                @[Span(text: "done: " & said.get.text, look: said.get.look)],
-                canColour(),
+                @[Span(text: "done: " & said.text, look: said.look)], canColour()
               ) & "\n"
-        except StoreError as e:
+        except StoreError, DownloadError:
           if live.isSome:
             live.get.finish() # (the display of a step that stopped)
           discard failure(
-            "nch import", step.failed & " (the activities are imported): " & e.msg
+            "nch import",
+            step.failed & " (the activities are imported): " & getCurrentExceptionMsg(),
           )
   except StoreError as e:
     discard failure("nch import", "the new activities could not be listed: " & e.msg)

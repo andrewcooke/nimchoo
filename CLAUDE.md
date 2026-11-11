@@ -95,7 +95,7 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
 
 * **a type that lives in the database has a plural command that manages the collection** (`activities`, `climbs`,
   `users`, `models`, `landmarks`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`.
-  every `--delete` is confirmed with `-f` (with the countdown and the "would delete ..." message).  a named type takes a
+  every `--delete` is confirmed with `-f` (with the countdown and the "would delete ..." message; `-f -f` skips the countdown).  a named type takes a
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.

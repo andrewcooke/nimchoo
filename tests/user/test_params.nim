@@ -1,4 +1,5 @@
 import std/[options, strutils, unittest]
+import nimchoo/packages/confirm/confirm
 import nimchoo/packages/user/params
 import nimchoo/packages/util/args/args
 
@@ -92,8 +93,9 @@ suite "user params: --delete":
   test "--delete NAME, with -f":
     let p = parseArgs(@["--delete", "bob", "-f"])
     check p.problem == "" and p.params.action == uaDelete and
-      p.params.delete.name == "bob" and p.params.delete.force
-    check parseArgs(@["--delete", "bob"]).params.delete.force == false
+      p.params.delete.name == "bob" and p.params.delete.force == fYes
+    check parseArgs(@["--delete", "bob"]).params.delete.force == fNo
+    check parseArgs(@["--delete", "bob", "-f", "-f"]).params.delete.force == fNow
     check parseArgs(@["--delete"]).problem.contains("needs a value")
   test "--delete stands alone, and -f goes with it":
     check parseArgs(@["--delete", "bob", "--fthr", "150", "-f"]).problem.contains(

@@ -1,6 +1,8 @@
 import std/[os, unittest]
 import nimchoo/core/globals
+import nimchoo/packages/confirm/confirm
 import nimchoo/packages/db/command as dbCommand
+import nimchoo/packages/db/params
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/userdata
@@ -31,6 +33,14 @@ suite "nch db":
     writeFile(d & "-journal", "")
     check dbCommand.run(globals(d), @["--delete", "-f"]) == exitOk
     check not fileExists(d) and not fileExists(d & "-journal")
+  test "-f once is the pause, twice is none; the file goes either way":
+    check parseArgs(@["--delete", "-f"]).params.force == fYes
+    check parseArgs(@["--delete", "-f", "-f"]).params.force == fNow
+    check parseArgs(@["--delete"]).params.force == fNo
+    let d = fresh("twice")
+    openSession(d, allFragments, access = allAccess).close()
+    check dbCommand.run(globals(d), @["--delete", "-f", "-f"]) == exitOk
+    check not fileExists(d)
   test "no database: nothing to delete, and nothing is made":
     let d = fresh("none")
     check dbCommand.run(globals(d), @["--delete", "-f"]) == exitOk

@@ -1,5 +1,6 @@
 ## The command line of `nch users`, parsed.  Pure.
 
+import ../confirm/confirm
 import ../util/args/args
 import ./completion
 import std/[options, sequtils, strutils]
@@ -43,7 +44,7 @@ type
 
   DeleteUser* = object
     name*: string
-    force*: bool ## really do it
+    force*: Force ## really do it
 
   Params* = object
     case action*: UserAction
@@ -57,7 +58,8 @@ type
       delete*: DeleteUser
 
   Raw = object ## what the options fill in
-    help, makeDefault, clearFthr, force: bool
+    help, makeDefault, clearFthr: bool
+    force: Force
     adding, editing, deleting: bool
     name, rename: string
     fthr: Option[int]
@@ -154,11 +156,11 @@ func userSpec*(): Spec[Raw] =
         ["--delete"],
         true,
         "NAME",
-        "delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  Needs -f; on a terminal there are then 5 seconds in which to press Ctrl-C.  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
+        "delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  Needs -f.  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
         completion = completesFrom(completeUsers),
         body = (p.deleting = true; p.name = value; fine),
       ),
-      flag(Raw, ["-f", "--force"], force, "really do it", level = 1),
+      forceOption(Raw, force, 1),
       helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
@@ -192,7 +194,7 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params](
       "--fthr, --clear-fthr, --rename and --default go with --add NAME or --edit NAME"
     )
-  if raw.force and not raw.deleting:
+  if raw.force != fNo and not raw.deleting:
     return problemWith[Params]("-f goes with --delete")
   if raw.adding:
     parsedOk(

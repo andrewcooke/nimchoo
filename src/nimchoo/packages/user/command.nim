@@ -130,13 +130,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       for h in g.extensions.get(userHas):
         has.add counted(h.count(st.db, id), h.one, h.heading)
       let what = describe(has, p.delete.name)
-      if not p.delete.force:
+      if p.delete.force == fNo:
         return failure(
           "nch users",
           "would delete " & what & " from " & st.path & "; use -f to confirm",
         )
-      if canLive():
-        countdown(newTerminalLive(), what, waitSeconds, sleepMs)
+      pause(what, p.delete.force)
       deleteUser(st, id)
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
       sayDeleted("deleted " & what)

@@ -4,6 +4,7 @@
 
 import std/[math, options, strutils, times]
 import ../fit/time
+import ../confirm/confirm
 import ../util/args/args
 import ../db/sqltext
 import ../../core/ids
@@ -32,7 +33,7 @@ type
       ## some criterion or limit was given: the activities are searched for, not the selection
     select*: bool ## --select: keep what is listed as the selection
     delete*: bool ## --delete: delete the activities (an action, not a criterion)
-    force*: bool ## -f: really do it (with --delete)
+    force*: Force ## -f: really do it (with --delete)
     verbose*: bool ## -v: show more of each activity (a display option)
     newest*, oldest*: int
       ## only the N newest (oldest) of those that meet the other
@@ -517,17 +518,10 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--delete"],
         false,
         "",
-        "delete the activities (with no criteria and no --all, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without -f (it says what it would delete); on a terminal there are then 5 seconds in which to press Ctrl-C",
+        "delete the activities (with no criteria and no --all, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without -f (it says what it would delete)",
         body = (p.c.delete = true; fine),
       ),
-      custom(
-        ListState,
-        ["-f", "--force"],
-        false,
-        "",
-        "really do it (with --delete)",
-        body = (p.c.force = true; fine),
-      ),
+      forceOptionIn(ListState, c, force),
       custom(
         ListState,
         ["-v", "--verbose"],
@@ -557,7 +551,7 @@ func finish(st: ListState): Parsed[Criteria] =
     return bad(
       "--all is every activity: it does not go with criteria (--newest and --oldest do)"
     )
-  if c.force and not c.delete:
+  if c.force != fNo and not c.delete:
     return bad("-f goes with --delete")
   if c.delete and (c.select or c.verbose):
     return bad("--delete shows nothing: it does not go with --select or -v")

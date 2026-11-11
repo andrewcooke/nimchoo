@@ -95,6 +95,13 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Climbs are named at import, and `-f -f` (2026-11-12)**: the author found that after an import `nch activities --climb farell` said no climb
+  had that name: the import found the climbs but only `nch climbs` named them (two steps).  The hook now does both, through one function
+  (`climbs/naming.nameClimbs`, which `nch climbs` calls too), and says a second line ("named N climbs: ...").  `importer/after` gives a contribution an
+  `AfterContext` (the run's `Globals`, the `Show` of the live lines, a `Say` for a line, as the downloads use) and a contribution
+  returns the lines it has to say, and may raise a `DownloadError` (a warning, as for the activities' names).  `-f -f` skips the five-second pause of
+  every delete: `confirm` has the one `forceOption` (a `Force`: no, yes, now) and `pause`, replacing four copies of the flag and of the countdown
+  (`activities`, `users`, `db`, `climbs`; `landmarks --delete` has no pause and keeps a plain `-f`).
 * **The climbs are worked out by an import (2026-11-12)**: `climbs` contributes to `importer/after` (`climbs/imported.nim`), so that the wait is
   at the import, which already names the activities, and not at the first `nch climbs` or `nch map`.  It works out every activity not
   yet in `climbs_done` (so a re-import catches up) and says "done: climbs for N activities: M new climbs, K efforts"; one that fails does not

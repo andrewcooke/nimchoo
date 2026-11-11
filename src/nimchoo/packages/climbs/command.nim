@@ -63,12 +63,6 @@ func noteRetired(count: int): string =
   $count & (if count == 1: " climb is retired" else: " climbs are retired") &
     " (hidden; `nch climbs --retired` shows them): the numbers in the names include them\n"
 
-func damagedText(n: Named): string =
-  ## What to say about climbs that were not named because their route cannot be read.
-  $n.damaged.len & (if n.damaged.len == 1: " climb has" else: " climbs have") &
-    " a route that cannot be read (damaged data) and " &
-    (if n.damaged.len == 1: "was" else: "were") & " not named: " & n.damaged.join(", ")
-
 proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   ## `--edit NAME` with one thing to change.
   let id = findShown(st, e.climb)
@@ -110,13 +104,12 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   stdout.say said & "\n"
   exitOk
 
-proc deleteClimbs(g: Globals, st: Store, force: bool): int {.raises: [StoreError].} =
+proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreError].} =
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
-  if not force:
+  if force == fNo:
     return failure("nch climbs", "would delete " & what & "; use -f to confirm")
-  if canLive():
-    countdown(newTerminalLive(), what, waitSeconds, sleepMs)
+  pause(what, force)
   clearClimbs(st)
   st.reclaim()
   g.log.log(lvInfo, commandName, leDeleted, "deleted " & what & " from " & st.path)
@@ -190,7 +183,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           " new climbs, " & $worked.efforts & " efforts",
       )
     # names for the climbs that have none yet: from the places near them, fetched the first time
-    let names = openNames(
+    discard nameClimbs(
       g,
       st,
       commandName,
@@ -198,18 +191,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         stderr.say line & "\n"
       ,
     )
-    if names.isSome:
-      let named = ensureSectorNames(st, names.get)
-      if named.damaged.len > 0:
-        stderr.say "warning: " & damagedText(named) & "\n"
-        g.log.log(lvWarn, commandName, leAdvisory, damagedText(named))
-      if named.named + named.nothing > 0:
-        g.log.log(
-          lvInfo,
-          commandName,
-          leDone,
-          "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
-        )
     if p.action == caAll:
       let rows = allSectors(st)
       if rows.len == 0:
