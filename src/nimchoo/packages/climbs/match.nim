@@ -162,6 +162,10 @@ func at(values: openArray[float], pos: float): float =
 func overPaths*(sector, ride: Path): seq[Effort] =
   ## The passes of `ride` (one stretch of a ride, so that the time is continuous) over `sector`, in
   ## order.  Empty if it does not go over it.
+  ##
+  ## Nim and not SpatiaLite (measured 2026-11-11, HISTORY.md "Overlap of climbs in SQL"): the same times came out, but the
+  ## crossings of one sector took 4.5 to 7 s, because a segment is built for every second of every ride near it, and it could
+  ## not read the arrays of TODO step 9.  Do not move it without measuring again.
   if sector.len < 2 or ride.len < 2:
     return
   let pr = projection(sector.lon[0], sector.lat[0])
