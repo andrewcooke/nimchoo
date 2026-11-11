@@ -95,6 +95,13 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Cells step 5 not done (2026-11-12, the author and the assistant)**: moving the via search of loop and mixed rides to SQL on cells was dropped.  Nim measures each
+  feature to the route resampled every 50 m (segments, a grid to skip the far ones) in 0.7 s for the 560 rides; SpatiaLite measuring to the true line
+  took 16 to 60 s (and a coarse-line or buffer prefilter did not help: `ST_Intersects` does not use prepared geometries); the review's cell
+  version took the same as Nim, and only because it measures to the centres of the cells the route visits (about 70 m off; 13 names change), with a place table
+  to keep.  The author's reading: Nim wins because it can use a good enough approximation that avoids the slow exact GIS calculation, and doing that
+  approximation in SQL means serious arithmetic there.  Revisit if the feature set grows a lot (a place table per cell is shared by all rides).
+  The rest of the cells plan is done (cell functions, `route_cell`, the heat map, the climb candidates).
 * **Cells step 5, the baseline (2026-11-12)**: naming all 1,112 activities of the author's database again (names cleared on a copy; online but with
   nothing to download; `NCH_PROFILE=1`; the 1,112 names come out identical to the stored ones: 1,056 with a name, 52 with only a start place, 4 with
   neither) takes **2.9 s**.  By phase: start place 1.30 s (45%, 1,108 calls of 1.2 ms: the features within the radius of the first point);
