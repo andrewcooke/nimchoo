@@ -26,7 +26,6 @@ sees and can be approved together.
 7. **Push work into SQL** (A §4.4): the overlap of climbs is done (HISTORY.md, 2026-11-11).  The author's rule: spatial work
    right after data leaves the database or just before it enters goes to SpatiaLite; data that starts outside and stays
    outside does not.  Left, each to be prototyped and compared with the Nim result first:
-   * the **route shape** (`names/shape.nim`: how much of the way back retraces the way out; `RouteGrid`, `pointLineDistance`);
    * **features along the route** (`names/activity.nim`, `viaRouteM`, `viaGridM`: a grid in Nim, one query per part);
    * `haversine` in `names/landmarks.nim` and `names/suggest.nim` (not yet looked at);
    * not spatial, on the review's list: `attempts.summaries` (3 queries per climb, the ranking in Nim), `map climbsOf`

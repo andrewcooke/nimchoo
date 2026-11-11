@@ -25,6 +25,14 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   to 5.5 s, then 1 to 1.7 s to test them), left the length test, the shortest-first choice and the stretches still to do, and
   would stop working when the per-second data becomes arrays (TODO step 9): the ride is data that starts outside the
   database as a series, which is the author's rule for leaving it.
+* **Route shape stays in Nim** (`names/shape.nim`; looked at 2026-11-11, not built).  Nim: `shapeOf` over all 1,108 routes of
+  the author's database is 274 ms (0.25 ms a ride; reading the positions is the cost, 1.2 s).  SQL: SpatiaLite resamples a
+  route every 50 m (`ST_Line_Interpolate_Equidistant_Points`) but (1) returns NULL for a route in several parts, which is
+  236 of the 1,108 (a ride with pauses), so those would need the parts joined by a workaround; (2) the rule is about the
+  order of points (the turning point's index, the first third of the way back), which SpatiaLite cannot index: taking the
+  points out one by one is quadratic (187 points 6 ms, 546 points 46 ms; a 97 km ride would be about 0.6 s, the whole
+  database minutes); (3) the naming code still needs the points and the turn in Nim afterwards.  Against Nim's 274 ms
+  there is nothing to gain.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 
