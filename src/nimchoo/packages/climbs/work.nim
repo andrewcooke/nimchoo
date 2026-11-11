@@ -101,7 +101,8 @@ proc rideOf(
   let key = int64(id)
   if key in rides.paths:
     return rides.paths.getOrDefault(key)
-  result = ridePaths(readTrack(st.db, id))
+  timed "climbs: read an earlier ride":
+    result = ridePaths(readTrack(st.db, id))
   if rides.points + result.pointCount > ridePointLimit:
     rides.paths.clear()
     rides.points = 0
@@ -128,9 +129,16 @@ proc sectorsNear(
 ): seq[int64] {.raises: [StoreError].} =
   ## The ids of the sectors whose boxes meet the box; their routes are read into the cache.
   let w = wider(box)
-  let ids = st.db.query(
-    int64, sectorsInBoxSql, west = w.lon0, south = w.lat0, east = w.lon1, north = w.lat1
-  )
+  var ids: seq[int64]
+  timed "climbs: sectors near (query)":
+    ids = st.db.query(
+      int64,
+      sectorsInBoxSql,
+      west = w.lon0,
+      south = w.lat0,
+      east = w.lon1,
+      north = w.lat1,
+    )
   for id in ids:
     if id notin cache:
       let route = parseLineString(
@@ -150,14 +158,15 @@ proc sectorsNear(
 proc ridesNear(st: Store, box: Box): seq[ActivityId] {.raises: [StoreError].} =
   ## The activities already looked at whose routes meet the box.
   let w = wider(box)
-  st.db.query(
-    ActivityId,
-    ridesInBoxSql,
-    west = w.lon0,
-    south = w.lat0,
-    east = w.lon1,
-    north = w.lat1,
-  )
+  timed "climbs: rides near (query)":
+    result = st.db.query(
+      ActivityId,
+      ridesInBoxSql,
+      west = w.lon0,
+      south = w.lat0,
+      east = w.lon1,
+      north = w.lat1,
+    )
 
 proc addEfforts(
     insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[Effort]
@@ -186,8 +195,12 @@ proc workOn(
     "insert into sector(length_m, gain_m, gradient, category, " &
       "found_at, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))",
   )
-  let track = readTrack(st.db, id)
-  let ride = ridePaths(track)
+  var track: Track
+  timed "climbs: read the ride":
+    track = readTrack(st.db, id)
+  var ride: seq[Path]
+  timed "climbs: ride as paths":
+    ride = ridePaths(track)
   if ride.len > 0:
     let rideBox = boxOf(ride)
     if rides.points + ride.pointCount > ridePointLimit:
@@ -218,7 +231,10 @@ proc workOn(
         let route = climbPath(prof, climb)
         # the same climb again only if the ride went over that sector: a climb that overlaps a stored one but stops
         # short of its finish (or starts after its start) earned no effort on it, and is a climb of its own
-        if st.isRepeat(route, matched):
+        var repeat = false
+        timed "climbs: is it a repeat":
+          repeat = st.isRepeat(route, matched)
+        if repeat:
           continue
         insertSector.bindReal(1, climb.length)
         insertSector.bindReal(2, climb.gain)

@@ -95,6 +95,14 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Cells step 4, the baseline (2026-11-12)**: `ensureClimbs` on a copy of the author's database with the climbs cleared (1,112 rides, 183
+  climbs, 4,493 efforts; `NCH_PROFILE=1`, two runs, 32.7 s each).  Matching each ride to each sector whose *box* meets the ride's: 13.1 s
+  (40%; 33,548 calls, 30 sectors a ride, 390 us each); the overlap test "is it a repeat" (SpatiaLite buffer and intersection of a new climb
+  against the stored ones the ride earned an effort on): 7.9 s (24%; 1,219 calls, 6.5 ms each); profile and detect: 4.7 s (14%); reading
+  rides: 4.1 s (13%: 1.8 s the ride itself, 2.3 s earlier rides for a new sector); a new sector against earlier rides: 2.0 s (6%; 10,908
+  calls); the box queries `sectorsNear` and `ridesNear`: 0.2 s (under 1%).  So the box queries are cheap; what costs is the number of exact
+  tests that find nothing (the prototype's candidate passes by cells were 8,723 for every ride and sector, against 33,548 matches here).
+  Timers for these phases are in `work.nim` (free when profiling is off).
 * **Climbs are named at import, and `-f -f` (2026-11-12)**: the author found that after an import `nch activities --climb farell` said no climb
   had that name: the import found the climbs but only `nch climbs` named them (two steps).  The hook now does both, through one function
   (`climbs/naming.nameClimbs`, which `nch climbs` calls too), and says a second line ("named N climbs: ...").  `importer/after` gives a contribution an
