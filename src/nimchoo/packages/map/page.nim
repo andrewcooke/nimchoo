@@ -1,12 +1,13 @@
 ## The web page that shows the map: Leaflet (from a CDN, with the integrity hashes of the exact files, so a changed
-## file is refused by the browser) drawing the routes and climbs of a GeoJSON file that the server gives it.  The page is
+## file is refused by the browser) drawing the routes, climbs and heat of a GeoJSON file that the server gives it.  The page is
 ## made of three templates, each built in and kept in the cache's `system/templates/` (see bundle/unpack.nim), where
 ## the author can change them: `map.html` (the page and its script), `map.css` (the look of the page) and
-## `map-style.json` (how routes and climbs are drawn: colours, widths, offsets).  The CSS and the style are filled in
+## `map-style.json` (how routes, climbs and the heat are drawn: colours, widths, offsets, which size of cell from which zoom).  The CSS and the style are filled in
 ## first, with the palette's colours (`{{blue}}`...), then put into the page, which also gets the title, the name of the
 ## data and the libraries (serve/libraries.nim).
 ##
-## The routes and the climbs are told apart by their `kind` property in the file; the climbs are drawn thick and coloured by
+## The routes, the climbs and the heat are told apart by their `kind` property in the file; the heat is squares under the lines,
+## the size that suits the zoom, shaded by how often the place was visited; the climbs are drawn thick and coloured by
 ## category, and the routes as thin, mostly transparent lines, so where many rides share a road
 ## the lines add up and glow.  A click on a line says which activity it is.
 
@@ -35,6 +36,11 @@ const requiredStyle = [
   ("climbs", "opacity"),
   ("climbs", "gap_px"),
   ("climbs", "lane_px"),
+  ("heat", "low"),
+  ("heat", "high"),
+  ("heat", "opacity_low"),
+  ("heat", "opacity_high"),
+  ("heat", "levels"),
 ]
 
 func paletteValues*(): seq[(string, Value)] =

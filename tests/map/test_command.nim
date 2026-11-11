@@ -1,6 +1,6 @@
 import nimchoo/packages/db/statement
 import ../support/env
-import std/[json, options, os, strutils, times, unittest]
+import std/[json, options, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/user/session
 import nimchoo/packages/map/command as mapCommand
@@ -8,6 +8,7 @@ import nimchoo/packages/cache/cache
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/selection/bits
 import nimchoo/packages/selection/selection
+import nimchoo/packages/map/params
 
 let dir = getTempDir() / "nch-test-map"
 
@@ -93,6 +94,17 @@ proc withClimb(db: string) =
     values (1, 1, 1, 61, 60, 0)"""
   )
 
+proc withCells(db: string) =
+  ## Where the two rides went: ride 1 two cells, one of them twice, ride 2 one cell.
+  let s = openSession(db, allFragments, access = allAccess)
+  defer:
+    s.close()
+  s.db.execute(
+    """insert into route_cell(activity_id, cell, t_in, t_out) values
+      (1, cell(-9.14, 38.72), 1000, 1002), (1, cell(-9.13, 38.72), 1003, 1005),
+      (1, cell(-9.14, 38.72), 1006, 1008), (2, cell(2.35, 48.85), 2000, 2004)"""
+  )
+
 proc kinds(j: JsonNode): seq[string] =
   for f in j["features"]:
     result.add f["properties"]["kind"].getStr
@@ -103,8 +115,9 @@ suite "map: the command":
     check map(w.db) == exitOk
     let a = addressOf(w.db)
     let name =
-      requestStem("map", "selection=" & a.selection & "&state=" & a.state).get &
-      ".geojson"
+      requestStem(
+        "map", "selection=" & a.selection & "&layers=routes,climbs&state=" & a.state
+      ).get & ".geojson"
     check files(w.cache) == @[name]
     check name.startsWith("map-") and isCacheFileName(name)
     let j = parseFile(w.cache / name)
@@ -302,3 +315,102 @@ suite "map: the command":
     putEnv("NCH_CACHE", dir / "blocked" / "file" / "cache")
     check map(w.db) == exitFailure
     useTestCache()
+
+suite "map: layers":
+  test "heat alone: only cells, at each level, and the climbs are not even worked out":
+    let w = world("heat")
+    withCells(w.db)
+    check map(w.db, "--layers", "heat") == exitOk
+    let j = parseFile(w.cache / geojsons(w.cache)[0])
+    check kinds(j) == newSeq[string](j["features"].len).mapIt("heat")
+    var perLevel: array[3, tuple[cells, visits: int]]
+    for f in j["features"]:
+      let p = f["properties"]
+      let k = heatLevels.find(p["level"].getInt)
+      check k >= 0
+      inc perLevel[k].cells
+      perLevel[k].visits += p["visits"].getInt
+    check perLevel[0] == (3, 4)
+      # (every visit is in the finest level, three different cells)
+    check perLevel[1].visits == 4 and perLevel[2].visits == 4 # (and in the coarser ones)
+    check perLevel[1].cells <= 3 and perLevel[2].cells <= perLevel[1].cells
+    let s = openSession(w.db, allFragments, access = allAccess)
+    check s.db.scalar(int, "select count(*) from climbs_done") == 0
+    s.close()
+  test "a cell says how many different activities visited it":
+    let w = world("rides")
+    withCells(w.db)
+    check map(w.db, "--layers", "heat") == exitOk
+    let j = parseFile(w.cache / geojsons(w.cache)[0])
+    var lisbon = 0
+    for f in j["features"]:
+      let p = f["properties"]
+      if p["level"].getInt == 0 and p["visits"].getInt == 2:
+        lisbon = p["rides"].getInt # (ride 1 went through that cell twice)
+    check lisbon == 1
+  test "the layers are chosen: routes alone has no climbs, with heat it has the cells too":
+    let w = world("choose")
+    withClimb(w.db)
+    withCells(w.db)
+    check map(w.db, "--layers", "routes") == exitOk
+    check "climb" notin kinds(parseFile(w.cache / geojsons(w.cache)[0]))
+    check map(w.db, "--layers", "routes,climbs,heat") == exitOk
+    check geojsons(w.cache).len == 2 # (another request: another file)
+    var all: seq[string]
+    for g in geojsons(w.cache):
+      let ks = kinds(parseFile(w.cache / g))
+      if "heat" in ks:
+        all = ks
+    check "route" in all and "climb" in all and "heat" in all
+    check all.find("heat") < all.find("route") # (the heat is under the routes)
+  test "the default is routes and climbs, and says the same as asking for them":
+    let w = world("default")
+    check map(w.db) == exitOk
+    check map(w.db, "--layers", "climbs,routes") == exitOk
+    check geojsons(w.cache).len == 1
+  test "the state of a heat map does not depend on the climbs, but the default's does":
+    let w = world("state")
+    withCells(w.db)
+    let s = openSession(w.db, allFragments, access = allAccess)
+    let ids = ownedIds(s, selectedIds(s))
+    let heat = stateOf(s, ids, {lyHeat})
+    let routes = stateOf(s, ids, {lyRoutes, lyClimbs})
+    s.db.execute(
+      """insert into sector(length_m, gain_m, gradient, category, name, route)
+      values (1000, 90, 9, '4', 'Cerro', GeomFromText('LINESTRING Z(-9.14 38.72 10, -9.13 38.72 100)', 4326))"""
+    )
+    s.db.execute(
+      "insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m) values (1, 1, 1, 61, 60, 0)"
+    )
+    check stateOf(s, ids, {lyHeat}) == heat
+    check stateOf(s, ids, {lyRoutes, lyClimbs}) != routes
+    s.db.execute("update file set sha256 = 'z' where name = 'a'")
+    check stateOf(s, ids, {lyHeat}) != heat # (the activities themselves)
+    s.close()
+  test "a heat map of activities that went through no cell is an error, and writes nothing":
+    let w = world("nocells")
+    check map(w.db, "--layers", "heat") == exitFailure
+    check geojsons(w.cache).len == 0
+  test "a route in several parts (a ride with pauses) can be drawn":
+    # (the key of the routes counted their points with NumPoints, which is null for more than one part)
+    let w = world("parts")
+    let s = openSession(w.db, allFragments, access = allAccess)
+    s.db.execute(
+      "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72), (-9.12 38.72, -9.11 38.72))', 4326) where activity_id = 1"
+    )
+    s.close()
+    check map(w.db) == exitOk
+    check parseFile(w.cache / geojsons(w.cache)[0])["features"].len == 2
+  test "an address with layers is pinned with them, and an old address without is the default":
+    let w = world("pin")
+    withCells(w.db)
+    check map(w.db, "--layers", "heat") == exitOk
+    let a = addressOf(w.db)
+    let s = openSession(w.db, allFragments, access = allAccess)
+    let heat = stateOf(s, ownedIds(s, selectedIds(s)), {lyHeat})
+    s.close()
+    check map(w.db, "--layers", "heat", "--selection", a.selection, "--state", heat) ==
+      exitOk
+    check geojsons(w.cache).len == 1 # (the file is there: nothing was made)
+    check map(w.db, "--layers", "heat", "--selection", a.selection, "--state", "000000") ==
+      exitFailure # (a state that is not the heat's, and the file is not there)

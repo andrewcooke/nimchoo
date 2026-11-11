@@ -1,9 +1,8 @@
-## The command line of `nch map`, parsed.  Pure.  There are only the two options that say what is drawn, and they are
-## for urls: the address a page has carries them (`selection=...&state=...`), and the server hands them to the worker.  Those
-## options are marked as allowed in an address, so the list of what a page may be given is made from here
-## (`web/request.pageOf`).
+## The command line of `nch map`, parsed.  Pure.  `--layers` says what is drawn; `--selection` and `--state` are for urls: the
+## address a page has carries them (`selection=...&state=...`), and the server hands them to the worker.  The options are
+## marked as allowed in an address, so the list of what a page may be given is made from here (`web/request.pageOf`).
 
-import std/options
+import std/[options, strutils]
 import ../selection/bits
 import ../util/args/args
 import ../web/[request, webopts]
@@ -11,12 +10,20 @@ import ../web/[request, webopts]
 {.push raises: [].}
 
 type
+  Layer* = enum
+    ## What a map can show; each is a set of features of the file with its own `kind`, and the page decides the look.
+    lyRoutes = "routes" ## the route of each activity
+    lyClimbs = "climbs" ## the climbs they went up
+    lyHeat = "heat"
+      ## how often each place was visited, as cells of the grid (geo/cells.nim)
+
   Target* = enum
     tSelection ## the current selection
     tList ## the activities of an address
 
   Params* = object
     web*: WebMode ## `--worker`, `--web` and what goes with it
+    layers*: set[Layer] ## what to draw (never empty)
     case target*: Target
     of tSelection:
       discard
@@ -27,8 +34,39 @@ type
 
   Raw = object ## what the options fill in
     help: bool
-    selection, state: string
+    selection, state, layers: string
     web: WebArgs
+
+const defaultLayers* = {lyRoutes, lyClimbs} ## what a map shows when it is not told
+
+func parseLayers*(text: string): Option[set[Layer]] =
+  ## The layers a list names ("routes,heat"); none if it names one that is not there or none at all.
+  var layers: set[Layer]
+  for word in text.split(','):
+    var found = false
+    for l in Layer:
+      if $l == word:
+        layers.incl l
+        found = true
+    if not found:
+      return none(set[Layer])
+  some(layers)
+
+func layersText*(layers: set[Layer]): string =
+  ## The list of layers in its one spelling (in the order of the layers), as an address carries it.
+  var names: seq[string]
+  for l in Layer:
+    if l in layers:
+      names.add $l
+  names.join(",")
+
+func layerNames*(): seq[string] =
+  ## The names of the layers, for completing the option.
+  for l in Layer:
+    result.add $l
+
+func layersValue(value: string): bool =
+  parseLayers(value).isSome
 
 func bitsValue(value: string): bool =
   ## A list of activities: it may have two dashes in a row, and be long.
@@ -39,6 +77,26 @@ func mapSpec*(): Spec[Raw] =
   Spec[Raw](
     opts:
       @[
+        custom(
+          Raw,
+          ["--layers"],
+          true,
+          "LIST",
+          "what to draw, separated by commas: routes (the route of each activity), climbs (the climbs they went up), heat (how often each place was visited, in cells of about 100 m, coarser when zoomed out); default: routes,climbs",
+          completion = Completion(kind: ckWords, words: layerNames()),
+          address = adValue,
+          valid = layersValue,
+          body = (
+            block:
+              if not layersValue(value):
+                return refuse(
+                  "'" & value & "' is not a list of layers (" & layerNames().join(", ") &
+                    ")"
+                )
+              p.layers = value
+              fine
+          ),
+        ),
         custom(
           Raw,
           ["--selection"],
@@ -80,18 +138,24 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params](mode.problem)
   if raw.state.len > 0 and raw.selection.len == 0:
     return problemWith[Params]("--state goes with --selection")
+  let layers =
+    if raw.layers.len == 0:
+      defaultLayers
+    else:
+      parseLayers(raw.layers).get # (`layersValue` has seen it)
   if raw.selection.len == 0:
-    parsedOk(Params(target: tSelection, web: mode.params))
+    parsedOk(Params(target: tSelection, web: mode.params, layers: layers))
   else:
     parsedOk(
       Params(
         target: tList,
         web: mode.params,
+        layers: layers,
         selection: raw.selection,
         state: (if raw.state.len > 0: some(raw.state) else: none(string)),
       )
     )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `--selection STRING`, `--state HASH`, `--worker`, `--web` (with `--no-open`, `--port N`, `--new-token`), `-h`.
+  ## `--layers LIST`, `--selection STRING`, `--state HASH`, `--worker`, `--web` (with `--no-open`, `--port N`, `--new-token`), `-h`.
   parseCommand(args, mapSpec(), Raw(web: initWebArgs()), finish)

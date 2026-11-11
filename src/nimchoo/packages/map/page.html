@@ -192,6 +192,40 @@
       const ofKind = (kind) => (f) => (f.properties || {}).kind === kind;
       spreadRoutes(data.features);
       const lanes = lanesOfClimbs(data.features);
+      // --- the heat: how often each place was visited, as squares of the grid at several sizes (`level`; the file has each).
+      // The size that suits the zoom is shown (the style says from which zoom), under the routes, coloured on a log scale so
+      // that a few busy places do not wash out the rest.
+      map.createPane('heat').style.zIndex = 350;
+      const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      const mix = (a, b, t) => '#' + a.map((x, i) => Math.round(x + (b[i] - x) * t).toString(16).padStart(2, '0')).join('');
+      const heatLayers = new Map();
+      const heatFeatures = data.features.filter(ofKind('heat'));
+      for (const level of new Set(heatFeatures.map((f) => f.properties.level))) {
+        const cells = heatFeatures.filter((f) => f.properties.level === level);
+        const most = Math.max(...cells.map((f) => f.properties.visits));
+        const at = (f) => Math.log(1 + f.properties.visits) / Math.log(1 + most);
+        heatLayers.set(level, L.geoJSON({ type: 'FeatureCollection', features: cells }, {
+          pane: 'heat',
+          style: (f) => ({ stroke: false, fillColor: mix(rgb(style.heat.low), rgb(style.heat.high), at(f)),
+                           fillOpacity: style.heat.opacity_low + (style.heat.opacity_high - style.heat.opacity_low) * at(f) }),
+          onEachFeature: (f, l) => {
+            const p = f.properties;
+            l.bindPopup(p.rides + (p.rides === 1 ? ' ride' : ' rides') + ', ' + p.visits + (p.visits === 1 ? ' visit' : ' visits'));
+          }
+        }));
+      }
+      let heatShown = null;
+      const showHeat = () => {
+        if (heatLayers.size === 0) return;
+        const zoom = map.getZoom();
+        let level = null;                                         // the finest level the zoom allows (the coarsest if none)
+        for (const l of style.heat.levels) if (heatLayers.has(l.level) && zoom >= l.min_zoom && (level === null || l.level < level)) level = l.level;
+        if (level === null) level = Math.max(...heatLayers.keys());
+        if (level === heatShown) return;
+        if (heatShown !== null) map.removeLayer(heatLayers.get(heatShown));
+        heatLayers.get(level).addTo(map);
+        heatShown = level;
+      };
       // the climbs first, so that the routes are drawn over them; they are moved to their lanes once the zoom is known
       const climbLayers = [];
       L.geoJSON(data, {
@@ -216,8 +250,11 @@
                       (p.distance_m ? (p.distance_m / 1000).toFixed(1) + 'km' : ''));
         }
       }).addTo(map);
-      const bounds = routes.getBounds();
+      let bounds = routes.getBounds();
+      if (!bounds.isValid() && heatLayers.size) bounds = heatLayers.get(Math.max(...heatLayers.keys())).getBounds();
       if (bounds.isValid()) map.fitBounds(bounds); else map.setView([0, 0], 2);
+      showHeat();
+      map.on('zoomend', showHeat);
       const placeClimbs = () => {
         const mPerPx = metresPerPixel(map.getZoom(), map.getCenter().lat);
         climbLayers.forEach(([f, l]) => {
@@ -230,8 +267,11 @@
       map.on('zoomend', placeClimbs);
       const n = data.features.filter(ofKind('route')).length;
       const m = data.features.filter(ofKind('climb')).length;
-      caption.textContent = n + ' routes' + (n > 1 && spreadM ? ' (each moved up to ' + spreadM + ' m to the side)' : '') +
-                            (m ? ', ' + m + ' climbs (grey, beside the road, to either side)' : '');
+      const parts = [];
+      if (n) parts.push(n + ' routes' + (n > 1 && spreadM ? ' (each moved up to ' + spreadM + ' m to the side)' : ''));
+      if (m) parts.push(m + ' climbs (grey, beside the road, to either side)');
+      if (heatLayers.size) parts.push('heat: how often each place was visited (more is stronger; the cells grow as you zoom out)');
+      caption.textContent = parts.join(', ');
     })
     .catch((e) => { caption.textContent = 'could not load the routes: ' + e; });
 </script>

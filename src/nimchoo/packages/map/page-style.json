@@ -4,10 +4,17 @@
     beside the road, marking sections of it: gap_px from the threads and lane_px between lanes, in pixels (so they stay
     clear of the road at any zoom); climbs on the same stretch of road go in different lanes, alternately on each side.
     smooth_rounds is the corner cutting: 0 none, 1 or 2 smooth.  Other Leaflet line options (dashArray, lineCap ...)
-    can be added by changing the page template.  A colour can be a tag for one of the terminal's colours (red, green,
+    can be added by changing the page template.  The heat is the squares of how often each place was visited: coloured from
+    `low` (a place visited once) to `high` (the busiest), more opaque as it is busier, and each size of square (`level`: 0
+    is about 100 m, 3 about 870 m, 6 about 7 km) is used from the zoom `min_zoom` (the finest that is allowed, else the
+    coarsest).  A colour can be a tag for one of the terminal's colours (red, green,
     blue, yellow, grey, as in the routes line below) or any #rrggbb. }}
 {
   "routes": { "color": "{{{red}}}", "weight": 1, "opacity": 0.85, "spread_m": 4 },
   "climbs": { "color": "#868e96", "weight": 8, "opacity": 0.35, "gap_px": 14, "lane_px": 11 },
+  "heat": {
+    "low": "#ffd43b", "high": "{{{red}}}", "opacity_low": 0.25, "opacity_high": 0.8,
+    "levels": [ { "level": 0, "min_zoom": 14 }, { "level": 3, "min_zoom": 11 }, { "level": 6, "min_zoom": 0 } ]
+  },
   "smooth_rounds": 2
 }

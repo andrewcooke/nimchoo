@@ -95,6 +95,19 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **The heat map, cells step 3 (2026-11-12)**: `nch map --layers routes,climbs,heat` (default routes,climbs; the layers are a set of
+  the address, `layers=`, and of the file's name).  The cells of `route_cell` of the selected activities are counted at three levels
+  (`cell_coarse`: about 100 m, 870 m, 7 km) into polygons with `visits` (rows) and `rides` (distinct activities); the page shows the
+  level that suits the zoom (the style file says from which: 14 and 11), under the routes, shaded on a log scale, with a popup.  Only what is drawn
+  is an input of the state: a heat map has the content of the activities only, so a change to the climbs does not touch it and it does
+  not work the climbs out.  On the author's library (a copy): heat alone 0.84 s and 6.3 MB (23,445 + 1,980 + 115 cells), the default
+  5.3 s and 18.8 MB.  The page script was run against a stub of Leaflet in node (the level chosen at each zoom, 16 to 5, with no
+  flicker); it has not been looked at in a browser.  Found and fixed on the way: **`nch map` failed on any selection with a ride that
+  has pauses** ("NumPoints(geom) is null"): `routesKey` counted points with `NumPoints`, which is null for a route in more than one
+  part (236 of 1,108), and every test used single-part routes; it is `ST_NPoints` now, with a test.  And the server now redirects to
+  one spelling of an address (a comma in a value was written raw by the command and percent-encoded by the server).  The heat is
+  visits, not time (the author); colour along a route by speed is a way of drawing the routes layer, not a layer, and needs the
+  samples (after the arrays).
 * **Cells, steps 1 and 2 built (2026-11-12, TODO "Spatial data as cells")**.  `geo/cells.nim` (pure: the cell id, `coarsen`, `centre`,
   `reach`, sizes in metres) and the SQL functions of `db/functions.nim` (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`,
   `cell_dy`; null in, null out; a level outside 0 to 16 or a negative radius is an error of the statement).  A property test (random

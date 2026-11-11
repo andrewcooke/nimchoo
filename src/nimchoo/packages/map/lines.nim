@@ -1,12 +1,13 @@
-## The routes of activities and the climbs on them as GeoJSON: a FeatureCollection with a feature for each activity and
-## a feature for each climb.  Every feature says what it is in a property `kind` ("route" or "climb") and carries only
-## facts, never colours or widths: the page decides how things look.  Pure: the geometry arrives as GeoJSON text from the
+## The routes of activities, the climbs on them and how often each place was visited, as GeoJSON: a FeatureCollection with a
+## feature for each activity, for each climb and for each cell of the heat.  Every feature says what it is in a property
+## `kind` ("route", "climb" or "heat") and carries only facts, never colours or widths: the page decides how things look.  Pure: the geometry arrives as GeoJSON text from the
 ## database, the rest is put round it here.
 
 import std/[json, options, strutils, times]
 import ../../core/ids
 import ../util/hashing/hashing
 import ../fit/time
+import ../geo/cells
 
 {.push raises: [].}
 
@@ -16,6 +17,13 @@ type Route* = object
   sport*: string ## "" if unknown
   distanceM*: Option[float]
   geometry*: string ## GeoJSON text of the route (a LineString or MultiLineString)
+
+type HeatCell* = object
+  ## A cell of the grid at a level (`bits`, see geo/cells.nim), with how often it was visited.
+  cell*: Cell ## of the level
+  bits*: int
+  visits*: int ## the visits of the activities (`route_cell` rows) to the cells it holds
+  rides*: int ## how many different activities visited it
 
 type Climb* = object
   id*: int64
@@ -50,6 +58,24 @@ proc climbFeature*(c: Climb): string =
     $int(c.gainM + 0.5) & ",\"gradient\":" & formatFloat(c.gradient, ffDecimal, 1)
   "{\"type\":\"Feature\",\"properties\":{" & props & "},\"geometry\":" & c.geometry & "}"
 
+proc heatFeature*(h: HeatCell): string =
+  ## One feature, on one line: the cell as a square (a Polygon).  Properties: kind ("heat"), level (the `bits` of its cells: 0 is
+  ## the finest, each more is twice as wide), visits, rides.
+  let b = bounds(h.cell, h.bits)
+  proc pt(lon, lat: float): string =
+    "[" & formatFloat(lon, ffDecimal, 6) & "," & formatFloat(lat, ffDecimal, 6) & "]"
+
+  let ring = [
+    pt(b.west, b.south),
+    pt(b.east, b.south),
+    pt(b.east, b.north),
+    pt(b.west, b.north),
+    pt(b.west, b.south),
+  ].join(",")
+  "{\"type\":\"Feature\",\"properties\":{\"kind\":\"heat\",\"level\":" & $h.bits &
+    ",\"visits\":" & $h.visits & ",\"rides\":" & $h.rides &
+    "},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[" & ring & "]]}}"
+
 func climbsKey*(climbs: seq[Climb]): string =
   ## The key of the climbs as they are read (what goes into the file, so nothing that is shown can be left out).
   var text = ""
@@ -57,9 +83,14 @@ func climbsKey*(climbs: seq[Climb]): string =
     text.add climbFeature(c) & "\n"
   sha256Hex(text)[0 ..< 16]
 
-proc featureCollection*(routes: seq[Route], climbs: seq[Climb]): string =
-  ## The whole file: valid JSON, a feature to a line, the routes and then the climbs (so they are drawn on top).
+proc featureCollection*(
+    routes: seq[Route], climbs: seq[Climb], heat: seq[HeatCell] = @[]
+): string =
+  ## The whole file: valid JSON, a feature to a line, the heat, then the routes and then the climbs (so that each is drawn on
+  ## top of the one before).
   var fs: seq[string]
+  for h in heat:
+    fs.add heatFeature(h)
   for r in routes:
     fs.add feature(r)
   for c in climbs:

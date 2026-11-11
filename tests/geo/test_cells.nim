@@ -42,6 +42,24 @@ suite "cells: the grid":
     check abs((m.lon + 180.0) * 1024.0 - float(c.ix) - 0.5) < 1e-6
     check abs((m.lat + 90.0) * 1024.0 - float(c.iy) - 0.5) < 1e-6
 
+suite "cells: the edges":
+  test "a cell is between its edges, and its middle is half way":
+    let c = cellAt(-70.65, -33.45)
+    for bits in [0, 3, 6]:
+      let k = coarsen(c, bits)
+      let b = bounds(k, bits)
+      let m = centre(k, bits)
+      check b.west < -70.65 and -70.65 < b.east and b.south < -33.45 and -33.45 < b.north
+      check abs((b.west + b.east) / 2 - m.lon) < 1e-9 and
+        abs((b.south + b.north) / 2 - m.lat) < 1e-9
+      check abs((b.east - b.west) - float(1 shl bits) / 1024.0) < 1e-9
+  test "neighbours share the edge exactly, so a drawing has no gaps":
+    let c = cell(111974, 57907)
+    check bounds(shifted(c, 1, 0).get).west == bounds(c).east
+    check bounds(shifted(c, 0, 1).get).south == bounds(c).north
+    let k = coarsen(c, 5)
+    check bounds(shifted(k, 1, 0).get, 5).west == bounds(k, 5).east
+
 suite "cells: coarser cells":
   test "coarsening shifts the two numbers, each by itself":
     let c = cellAt(-70.65, -33.45)

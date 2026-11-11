@@ -1,4 +1,5 @@
-## The key of the routes of activities, for a cached file that is made from them (see `cache.inputsKey`).
+## The key of the routes of activities, for a cached file that is made from them (see `cache.stateKey`).  A route is in
+## parts (a ride with pauses): the number of points is `ST_NPoints`, since `NumPoints` is null for more than one part.
 
 import ../../core/errors
 import ../util/hashing/hashing
@@ -18,7 +19,7 @@ proc routesKey*(
   var text = ""
   for row in st.db.query(
     tuple[id: int64, bytes, points: int],
-    "select activity_id, length(geom), NumPoints(geom) from route where activity_id in " &
+    "select activity_id, length(geom), ST_NPoints(geom) from route where activity_id in " &
       "(select value from json_each(:ids)) order by activity_id",
     ids = jsonList(ids),
   ):

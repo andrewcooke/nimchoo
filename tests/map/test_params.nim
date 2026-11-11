@@ -20,6 +20,24 @@ suite "map: the command line":
       # the check is optional
     check parseArgs(@["--selection", "A--B_"]).problem == ""
       # (two dashes in a row are allowed in a list)
+  test "--layers: what is drawn, routes and climbs if it is not said":
+    check parseArgs(@[]).params.layers == {lyRoutes, lyClimbs}
+    check parseArgs(@["--layers", "heat"]).params.layers == {lyHeat}
+    check parseArgs(@["--layers", "heat,routes"]).params.layers == {lyRoutes, lyHeat}
+    check parseArgs(@["--layers", "routes,climbs,heat,heat"]).params.layers ==
+      {lyRoutes, lyClimbs, lyHeat}
+    check parseArgs(@["--layers", "heat", "--selection", "AWAn"]).params.layers ==
+      {lyHeat}
+  test "--layers problems: a name that is not a layer, or none":
+    for bad in ["", "routs", "routes,", ",heat", "heat routes", "Heat"]:
+      check parseArgs(@["--layers", bad]).problem.contains("not a list of layers")
+    check parseArgs(@["--layers"]).problem.contains("needs a value")
+  test "the layers have one spelling, and parse back":
+    check layersText({lyHeat, lyRoutes}) == "routes,heat"
+    check layersText(defaultLayers) == "routes,climbs"
+    for layers in [{lyRoutes}, {lyHeat}, {lyRoutes, lyClimbs, lyHeat}]:
+      check parseLayers(layersText(layers)) == some(layers)
+    check layerNames() == @["routes", "climbs", "heat"]
   test "--worker":
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
     check parseArgs(@["--worker", "--selection", "AWAn", "--state", "ab12"]).problem ==
@@ -57,11 +75,14 @@ suite "map: the command line":
 suite "map: the page the server may run":
   test "it is made from the options marked as allowed in an address":
     check mapPage.command == "map"
-    check mapPage.options.mapIt(it.name) == @["selection", "state"]
+    check mapPage.options.mapIt(it.name) == @["layers", "selection", "state"]
     check mapPage.flags.len == 0
   test "what it accepts in an address is what the options accept":
-    let bits = mapPage.options[0].valid
+    let layers = mapPage.options[0].valid
+    check layers("routes") and layers("heat,routes") and not layers("") and
+      not layers("routs")
+    let bits = mapPage.options[1].valid
     check bits("AWAnLmgGhgZI6JjZom") and bits("A--B_") and not bits("") and
       not bits("a b")
-    let hex = mapPage.options[1].valid
+    let hex = mapPage.options[2].valid
     check hex("c3eef5") and not hex("XYZ") and not hex("")

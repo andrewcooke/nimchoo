@@ -24,6 +24,7 @@ import ../db/store
 import ../../core/errors
 import ../importer/keys
 import ../fit/time
+import ../geo/cells
 import ../../core/ids
 import ../selection/bits
 import ../selection/selection
@@ -45,12 +46,13 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis =
-    "usage: nch [--db PATH] [--user NAME] map [--web [--no-open] [--port N] [--new-token]]"
+    "usage: nch [--db PATH] [--user NAME] map [--layers LIST] [--web [--no-open] [--port N] [--new-token]]"
   intro =
-    """Show the routes of the selected activities (see `nch activities --select`) on a map, and the climbs they went up,
-drawn over them.  It makes a GeoJSON file in the cache directory and prints its path; with --web it also serves a page
-that draws it, and opens it in a browser.  Several rides over the same roads show as a heat map; a click on a route
-says which activity it is, a click on a climb says what it is.  The climbs not yet worked out are worked out first
+    """Show the selected activities (see `nch activities --select`) on a map: by default their routes and the climbs they
+went up, drawn over them; --layers chooses what is drawn, and `heat` shows how often each place was visited, in cells
+(about 100 m, coarser as you zoom out).  It makes a GeoJSON file in the cache directory and prints its path; with --web it
+also serves a page that draws it, and opens it in a browser.  Several rides over the same roads show as a glow; a click on a
+route says which activity it is, a click on a climb says what it is, a click on a cell says how often it was visited.  The climbs not yet worked out are worked out first
 (the first time that can take a minute).  Asking again for the same thing finds the file already there."""
   notes =
     """The address of the page records which activities it shows, so a reload shows the same ones even if the selection
@@ -92,6 +94,24 @@ proc routesOf(st: Store, ids: seq[int64]): seq[Route] {.raises: [StoreError].} =
       geometry: r.geometry,
     )
 
+const heatLevels* = [0, 3, 6]
+  ## the levels of cells the heat is given at, finest first: cells of about 100 m, 870 m and 7 km (the page shows the one that
+  ## suits its zoom)
+
+proc heatOf(st: Store, ids: seq[int64]): seq[HeatCell] {.raises: [StoreError].} =
+  ## How often the activities visited each cell, at each level of `heatLevels`.
+  for bits in heatLevels:
+    for r in st.db.query(
+      tuple[cell: int64, visits, rides: int],
+      """select cell_coarse(cell, :bits), count(*), count(distinct activity_id) from route_cell
+          where activity_id in (select value from json_each(:ids)) group by 1 order by 1""",
+      bits = bits,
+      ids = jsonList(ids),
+    ):
+      result.add HeatCell(
+        cell: Cell(r.cell), bits: bits, visits: r.visits, rides: r.rides
+      )
+
 proc climbsOf(st: Store, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
   ## The climbs the activities went up, the biggest first.
   let sectors = climbsOfActivities(st, ids)
@@ -127,24 +147,29 @@ type Inputs = object
   climbs: seq[Climb]
   worked: Worked ## the climbs that had to be worked out first
 
-proc inputsOf(st: Session, ids: seq[int64]): Inputs {.raises: [StoreError].} =
-  ## What the map of the activities is made from, and the state that stands for it: the content of the activities, their
-  ## routes and, while they are in the file, the climbs (which are worked out first if they are not).
+proc inputsOf(
+    st: Session, ids: seq[int64], layers: set[Layer]
+): Inputs {.raises: [StoreError].} =
+  ## What the map of the activities is made from, and the state that stands for it: the content of the activities (which the
+  ## cells of the heat are a function of) and, for the layers that have them, their routes and the climbs (which are worked
+  ## out first if they are not).  A layer that is not drawn is not an input: a change to the climbs does not touch a heat map.
   let routeKey = routesKey(st, ids)
   result.routes = routeKey.count
-  result.worked = ensureClimbs(st)
-  result.climbs = climbsOf(st, ids)
-  result.state = stateKey(
-    [
-      ("activities", contentKey(st, ids)),
-      ("routes", routeKey.key),
-      ("climbs", climbsKey(result.climbs)),
-    ]
-  )
+  var inputs = @[("activities", contentKey(st, ids))]
+  if lyRoutes in layers:
+    inputs.add ("routes", routeKey.key)
+  if lyClimbs in layers:
+    result.worked = ensureClimbs(st)
+    result.climbs = climbsOf(st, ids)
+    inputs.add ("climbs", climbsKey(result.climbs))
+  result.state = stateKey(inputs)
 
-proc stateOf*(st: Session, ids: seq[int64]): string {.raises: [StoreError].} =
-  ## The state of the map of these activities (which must be the user's: `ownedIds`), as an address carries it.
-  inputsOf(st, ids).state
+proc stateOf*(
+    st: Session, ids: seq[int64], layers: set[Layer] = defaultLayers
+): string {.raises: [StoreError].} =
+  ## The state of the map of these activities (which must be the user's: `ownedIds`) with these layers, as an address
+  ## carries it.
+  inputsOf(st, ids, layers).state
 
 proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
   ## Make the GeoJSON file (if it is not there) and, if asked, the page.  Reports problems.
@@ -184,8 +209,9 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
     var request, stem, path: string
     var found = false
     proc name(state: string): bool =
-      ## Whether the files of the map of these activities in this state can be named; sets them.
-      request = "selection=" & selection & "&state=" & state
+      ## Whether the files of the map of these activities, with these layers, in this state can be named; sets them.
+      request =
+        "selection=" & selection & "&layers=" & layersText(p.layers) & "&state=" & state
       let s = requestStem("map", request)
       if s.isNone:
         return false
@@ -199,7 +225,7 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
         return Prepared(status: failure("nch map", "cannot name a file"))
       found = fileExists(path)
     if not found:
-      let inputs = inputsOf(st, mine)
+      let inputs = inputsOf(st, mine, p.layers)
       if inputs.worked.activities > 0:
         stderr.say "worked out the climbs of " & $inputs.worked.activities &
           " activities: " & $inputs.worked.sectors & " new climbs\n"
@@ -217,17 +243,34 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
             "nch map",
             "the data of this address have changed since it was made (the database was rebuilt, or activities, " &
               "routes or climbs changed), and its files are gone; the map of these activities as they are now is " &
-              "/map?selection=" & selection,
+              "/map?selection=" & selection & "&layers=" & layersText(p.layers),
           )
         )
       if not name(inputs.state):
         return Prepared(status: failure("nch map", "cannot name a file"))
       if not fileExists(path):
-        let routes = routesOf(st, mine)
-        if routes.len < mine.len:
+        let routes =
+          if lyRoutes in p.layers:
+            routesOf(st, mine)
+          else:
+            @[]
+        if lyRoutes in p.layers and routes.len < mine.len:
           stderr.say "note: " & $(mine.len - routes.len) & " of the " & $mine.len &
             " activities have no route (no positions in the files)\n"
-        writeAtomic(path, featureCollection(routes, inputs.climbs))
+        let heat =
+          if lyHeat in p.layers:
+            heatOf(st, mine)
+          else:
+            @[]
+        if lyHeat in p.layers and lyRoutes notin p.layers and heat.len == 0:
+          return Prepared(
+            status: failure(
+              "nch map",
+              "none of the " & $mine.len &
+                " activities has been through a cell (no positions in the files)",
+            )
+          )
+        writeAtomic(path, featureCollection(routes, inputs.climbs, heat))
     result = Prepared(stem: stem, query: request, geojson: path)
     if withPage:
       # the page is rewritten each time (it is tiny, and may have changed since)

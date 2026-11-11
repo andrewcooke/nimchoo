@@ -61,6 +61,17 @@ func centre*(c: Cell, bits = 0): tuple[lon, lat: float] =
   let n = float(cellsPerDegree) / float(1 shl bits) # of these cells to a degree
   ((float(c.ix) + 0.5) / n - 180.0, (float(c.iy) + 0.5) / n - 90.0)
 
+func bounds*(c: Cell, bits = 0): tuple[west, south, east, north: float] =
+  ## The edges of a cell (or of a coarsened one, of `bits`), in degrees.  Neighbours get the same number for the edge they
+  ## share, so a drawing has no gaps.
+  let n = float(cellsPerDegree) / float(1 shl bits)
+  (
+    float(c.ix) / n - 180.0,
+    float(c.iy) / n - 90.0,
+    float(c.ix + 1) / n - 180.0,
+    float(c.iy + 1) / n - 90.0,
+  )
+
 func shifted*(c: Cell, dx, dy: int): Option[Cell] =
   ## The cell `dx` east and `dy` north of `c` (of the same level), if that is on the grid.
   let x = c.ix + dx

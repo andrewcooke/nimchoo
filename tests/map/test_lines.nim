@@ -1,6 +1,7 @@
 import std/[json, options, strutils, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/packages/map/lines
+import nimchoo/packages/geo/cells
 import nimchoo/core/ids
 
 const line = """{"type":"LineString","coordinates":[[1,2],[3,4]]}"""
@@ -96,3 +97,35 @@ suite "map: GeoJSON":
     check climbsKey(@[d]) != climbsKey(@[c])
   test "no routes: still valid":
     check parseJson(featureCollection(@[], @[]))["features"].len == 0
+
+suite "map lines: the heat":
+  test "a cell is a square polygon that closes, with its counts":
+    let c = cellOf(-70.65, -33.45).get
+    let j = parseJson(heatFeature(HeatCell(cell: c, bits: 0, visits: 7, rides: 3)))
+    check j["type"].getStr == "Feature"
+    let p = j["properties"]
+    check p["kind"].getStr == "heat" and p["level"].getInt == 0 and
+      p["visits"].getInt == 7 and p["rides"].getInt == 3
+    check p.len == 4
+    let ring = j["geometry"]["coordinates"][0]
+    check j["geometry"]["type"].getStr == "Polygon" and ring.len == 5 and
+      ring[0] == ring[4]
+    let b = bounds(c)
+    check abs(ring[0][0].getFloat - b.west) < 1e-6 and
+      abs(ring[2][1].getFloat - b.north) < 1e-6
+  test "a coarser level is a bigger square":
+    let c = coarsen(cellOf(-70.65, -33.45).get, 3)
+    let ring = parseJson(heatFeature(HeatCell(cell: c, bits: 3, visits: 1, rides: 1)))[
+      "geometry"
+    ]["coordinates"][0]
+    check abs((ring[1][0].getFloat - ring[0][0].getFloat) - 8.0 / 1024.0) < 1e-5
+  test "the heat is in the file, under the routes and the climbs, a line each":
+    let text = featureCollection(
+      @[Route(id: ActivityId(1), startT: UnixTime(0), geometry: line)],
+      @[],
+      @[HeatCell(cell: cell(5, 6), bits: 0, visits: 1, rides: 1)],
+    )
+    let j = parseJson(text)
+    check j["features"].len == 2
+    check j["features"][0]["properties"]["kind"].getStr == "heat"
+    check j["features"][1]["properties"]["kind"].getStr == "route"

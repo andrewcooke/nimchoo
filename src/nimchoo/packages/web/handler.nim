@@ -121,8 +121,21 @@ proc page(cfg: ServerConfig, route: Route, t: Target, r: WorkerResult): Reply =
   if t.query.queryValue(stateParam).isNone and lines.len > 2:
     # the address was for "the current data": the worker's third line is the address that names exactly what it made, and
     # a reload of that shows the same plot
-    return
-      Reply(code: 302, headers: @[("Location", "/" & route.command & "?" & lines[2])])
+    # (in the one spelling the server writes every address in: a comma in a value, say, is the same address either way)
+    let address = "/" & route.command & "?" & lines[2]
+    let canonical = parseTarget(address)
+    return Reply(
+      code: 302,
+      headers: @[
+        (
+          "Location",
+          if canonical.isSome:
+            canonical.get.withoutParam(tokenParam)
+          else:
+            address,
+        )
+      ],
+    )
   let body = readCacheFile(cfg, name)
   if body.isNone:
     return reply(404, "not found")

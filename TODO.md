@@ -22,7 +22,7 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    functions in `geo/cells.nim` (2026-11-12: id, coarsen, centre, `reach` in **metres at the cell's latitude**, tested at
    60° and mutation-checked: the review's ±1 coarse cell misses a 2 km radius above 55°N, and the Yorkshire rides are at 54°), and
    registered in SQLite (`db/functions.nim`: `cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`);
-   (2) done: `route_cell` (importer fragments 003 and 004, `importer/visits.nim`), backfilled and written at import; (3) the heat map, the first consumer (no Nim code to replace);
+   (2) done: `route_cell` (importer fragments 003 and 004, `importer/visits.nim`), backfilled and written at import; (3) done: the heat map, `nch map --layers heat` (the first consumer; no Nim code to replace);
    (4) climb candidates by cells, with a baseline measured before; (5) the via search and naming in SQL, then what it
    made dead is deleted.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
 2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
