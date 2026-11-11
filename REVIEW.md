@@ -1,4 +1,217 @@
-# nimchoo: code review (second, 2026-11-09)
+# nimchoo: spatial data as cells (third review, 2026-11-11)
+
+Scope.  The question TODO.md left for the next whole-system review: step 7 (push work into SQL) kept ending "prototype in
+SQL, measure, Nim wins" (HISTORY.md, 2026-11-11), and the author suspected a local minimum, a better design that needs a
+larger change than one step at a time.  Read: HISTORY.md (the step-7 measurements), the schemas of `importer`, `names` and
+`climbs`, `names/shape.nim`, `names/activity.nim`, `climbs/match.nim`, `climbs/work.nim`, `geo/geo.nim`.  Prototyped in plain
+SQL on a copy of the author's database (1,112 activities, 6.2 M `coords` rows, 15,298 GeoNames features, 183 climbs, 4,493
+efforts).  **Nothing in the program has changed**; this is a proposal, with the measurements that support it.
+
+## 1. Summary
+
+There is a better design, and it is not "more SpatiaLite".  **Where a ride went is stored as the cells of a grid it passed
+through**, so that spatial questions about places (what is near a route, which rides pass a climb) are joins on integers,
+which SQLite does well.  Work that follows the order of a ride in time (its shape, climb detection, the exact gate
+crossings) stays in Nim, done once at import on the per-activity arrays, and its results are stored.  This also removes the
+conflict in TODO step 9: arrays are opaque to SQL, and with cells SQL no longer needs the samples.
+
+## 2. Why step 7 kept losing
+
+Every fast Nim path is a grid: `shapeOf` puts the route into 50 m cells, the via search uses `RouteGrid` with 2.5 km cells,
+the GeoNames features are loaded by 1-degree cells.  Every SQL prototype used SpatiaLite's geometry functions pair by pair
+(point-to-line distances, buffers, a query per call; `ST_Intersects` does not use prepared geometries).  So each
+measurement compared Nim *with* a grid to SQL *without* one: the grid won, not Nim.  No step tried putting the grid itself
+in the database, because each step was the conversion of one function, not a change of what is stored.  That is the local
+minimum.
+
+## 3. The prototypes (measured 2026-11-11)
+
+The grid: latitude and longitude, cells 1/1024 of a degree (about 109 m × 91 m at Santiago); a cell is one integer,
+`(iy << 32) | ix` with `ix = floor((lon + 180) × 1024)`, `iy = floor((lat + 90) × 1024)`.  Each level halves the cell, so a
+coarser cell is a shift of a finer one.  Plain SQLite (SpatiaLite only to read the existing points).
+
+| | Today | With cells |
+|---|---|---|
+| where the rides went | `coords` 263 MB + `route` 100 MB | `route_cell` (each visit to a cell, with entry and exit times; 685,000 rows) **35 MB** with its index |
+| distinct places | | **23,445 cells for all 1,112 rides** (the same roads, again and again) |
+| features near each place | worked out for each ride, every time | **once per cell**: 0.59 s for every cell visited, 7 MB; 47,000 rows when only the kinds the rules can choose are kept |
+| the via feature of the 560 loop and mixed rides | Nim (part of 6.2 s of naming, after 4.6 s reading `coords`); SpatiaLite 16 to 60 s | **0.68 s in SQL**; the same place as the stored name for 547; the other 13 are near ties (both candidates tens of metres from the route, inside the cell's error of about 70 m) |
+| rides over each climb | the box of the climb, then each ride's points read | **0.61 s for all 183 climbs and all rides; every one of the 4,493 stored efforts is inside a candidate pass** (8,723 candidates: the others are rides the other way or with a detour, which the exact test refuses as now), each with the few seconds of the ride to test |
+| the shape (loop, out and back ...) | Nim 0.27 s | SQL (cells of 1/2048°, about 50 m) 6.7 s, the same kind for 988 of 1,056 (93.6%; the rest at the out-and-back / mixed line): **SQL loses** |
+
+The last row matters as much as the others: it shows where the line is.  A rule about the order of points (the turning
+point, the first third of the way back) is a series algorithm; a rule about places (near, through, shared) is a relation.
+
+Not measured, and no reason to change: the lookups round one point (the start place within 20 km, the destination round the
+turning point), which are one indexed query each; Sonnet measured them (HISTORY.md: `featuresAround`, `landmarkAt`).
+
+The queries are in §8, so that the numbers can be made again.
+
+## 4. The design
+
+**Two kinds of work, each where it suits:**
+
+1. **Series** (the order in time matters): the shape and its turning point, climb detection from the elevation, the exact
+   gate crossings, the impulses from heart rate.  **Nim, once, at import**, on the per-activity arrays (TODO step 9).  The
+   results are stored as facts (the shape's kind, the turning point and its time, the furthest distance, the retraced
+   shares), so that nothing reads the samples again to name a ride.
+2. **Relations over places** (near, through, shared): the features along a route, the rides over a climb, `--near`, the
+   author's landmarks, and later the heat map.  **SQL, on cells.**
+
+**Tables** (names to settle):
+
+* `route_cell(activity_id, cell, t_in, t_out)`, one row per visit (a visit is a run of samples in one cell), `without rowid`,
+  with an index on `(cell, activity_id)`; written by Nim at import from the arrays (cheap per ride; the 13 s above is SQL
+  over all 6.2 M rows at once).  Owned by `importer`.
+* per-cell place tables, made when a cell first appears (or when the names of its region are downloaded): the features
+  within 2 km of the cell, with their kind and distance; the landmarks whose radius covers it.  Owned by `names`; they
+  refer to cells, not rides.
+* the stored shape facts, owned by whoever names activities (§5).
+* `route` loses its job as a spatial index; it may become a simplified line for drawing (TODO item 4) or go, the map's
+  GeoJSON being made from the arrays.  The climbs keep their geometry (small) and their SpatiaLite overlap tests, which
+  already win (HISTORY.md, "Overlap of climbs in SQL").
+* the cell id is one function, written once in Nim (`geo`, pure, tested) and registered in SQLite (`db/functions.nim`, as
+  `fold` is), so that SQL and Nim cannot compute it differently.
+
+**What it replaces**: reading `coords` to name rides; `RouteGrid`, the via loop over `featuresNear`, `ridesNear` by box,
+much of `prepare` and the per-ride feature loading; `coords` itself (by the arrays).
+
+**What it makes cheap** (features, not part of the change): a heat map by cell; "rides through here" as a criterion;
+new roads (cells never visited before); explorer squares; **grouping rides by the cells they share** ("your usual loop",
+the same name for the same route), a way of classifying rides that the current design has no handle on.
+
+**The grid** (**decided**: plain latitude and longitude; the author: nobody rides near the poles).  The alternatives were H3
+or S2, which need a C library loaded into SQLite.  Known limits of the plain grid, accepted: cells narrow towards the poles,
+and cells either side of ±180° are not neighbours by arithmetic.
+
+## 5. Decisions to make before building
+
+1. **Where naming lives.**  Today `importer` names each activity (`importer/naming.nim` calls `names/activity.nim`), so
+   `importer` depends on `names`.  The via query joins `route_cell` (importer's) with the place tables (names'), so the package
+   that runs it must read both.
+   * **(a)** Naming moves above `importer`: `names` (or a new package `naming`) depends on `importer`, contributes to "after
+     import", and owns the names of activities in a table of its own (`activity` is `importer`'s; today its `name` and
+     `start_place` columns are written by `importer` on `names`' behalf).  `names`' place tables stay keyed by cell, so the
+     GeoNames part does not need `importer`.
+   * **(b)** Naming stays in `importer`, which already depends on `names` and so may read its tables; the query is written in
+     `importer`.  Smaller, but the naming rules stay in the package that reads FIT files.
+   * **Recommended: (a)**, with the GeoNames library (`names`) and the naming of activities as two packages, so that each
+     is one thing.
+2. **Levels.**  One level (1/1024°) for everything measured above, coarser ones by shift.  The 50 m tolerance of the
+   shape rule is not needed in SQL (the shape stays in Nim).  Recommended: one stored level; add another only for a
+   measured reason.
+3. **The thresholds in cell terms.**  "Within 2 km of the route" becomes "within 2 km of the centre of a cell the ride
+   visited" (an error of about 70 m).  There is no ground truth: judge by the rides that change (13 of 560 for the via).
+4. **One rebuild, together with step 9.**  The arrays and `route_cell` are both written at import; doing them together means
+   one change of the importer and one rebuild.
+
+## 6. Plan (replaces TODO items 2, 4, 5, 6 of the proposed order; each a discussion first, then steps)
+
+1. The decisions of §5, with the author; `/oppose` on this section.
+2. The cell id in `geo` (pure, tested: neighbours, shift to a coarser level, the centre) and registered in SQLite.
+3. The per-activity arrays (step 9) and `route_cell`, written at import; `coords` goes.  Measure: size, import time.
+4. The shape facts at import (Nim) and stored.
+5. The place tables per cell (`names`); naming by SQL on cells, placed as §5.1 decides; `RouteGrid`, the via loop and the
+   per-ride feature loading go.  Measure: naming of every ride (today 6.2 s plus 4.6 s reading); list the rides whose name
+   changes.
+6. Climbs: candidate passes by cells, the exact gate test on the window of the arrays the visits give.  Measure the climbs of
+   every ride before and after; the efforts must be the same (or each difference explained).
+7. `route`: a simplified line for drawing, or gone; `--near` by cells; the map from the arrays or the simplified line.
+8. Then the features of §4 as the author wants them (heat map, new roads, grouping rides).
+
+## 7. What stays as it is
+
+The climbs' geometry and their overlap tests in SpatiaLite; the lookups round one point (start place, destination,
+landmarks at a point); the GeoNames loading by 1-degree cells (`coverage`) with the countries; the series algorithms in Nim.
+
+## 8. The prototype queries (SQLite 3.53 with math functions; SpatiaLite loaded to read `X()`, `Y()`)
+
+```sql
+-- the visits of every ride to cells of 1/1024 degree (13 s over 6.2 M rows; at import, Nim does it per ride)
+create table route_cell (activity_id integer not null, cell integer not null, t_in integer not null, t_out integer not null,
+  primary key (activity_id, t_in)) strict, without rowid;
+insert into route_cell
+with c as (select activity_id, t,
+             (cast(floor((lat+90)*1024) as integer) << 32) | cast(floor((lon+180)*1024) as integer) as cell from coords),
+r as (select activity_id, t, cell, row_number() over (partition by activity_id order by t)
+           - row_number() over (partition by activity_id, cell order by t) as grp from c)
+select activity_id, cell, min(t), max(t) from r group by activity_id, cell, grp;
+create index route_cell_cell on route_cell(cell, activity_id);
+create table ride_cell (activity_id integer not null, cell integer not null, primary key (activity_id, cell)) strict, without rowid;
+insert into ride_cell select distinct activity_id, cell from route_cell;
+
+-- features with a coarse cell (1/32 degree, 5 bits up) and the kind the naming rules give them (0: never chosen)
+create table feat (id integer primary key, name text, class text, code text, lon real, lat real, coarse integer, kind integer) strict;
+insert into feat select id, name, class, code, X(geom), Y(geom),
+  (cast(floor((Y(geom)+90)*32) as integer) << 32) | cast(floor((X(geom)+180)*32) as integer), null from feature where geom is not null;
+update feat set kind = case when class = 'P' then case when code in ('PPLQ','PPLW','PPLH') then 0 when code = 'PPLX' then 2 else 1 end
+  when code in ('PRK','RES','RESA','RESF','RESH','RESN','RESV','RESW') then 3 when code in ('LK','LKS','RSV') then 4
+  when code in ('MTS','VAL','VALS','CNYN','HLLS','PLAT','PLN','VLC','DSRT','GRGE') then 5
+  when code in ('FRM','FRMS','BDG') then 6 else 0 end;
+create index feat_coarse on feat(coarse);
+
+-- every cell visited, with its centre; the useful features within 2 km of it (0.59 s for all, with every kind)
+create table cell (cell integer primary key, lon real, lat real, cx integer, cy integer) strict;
+insert into cell select cell, ((cell & 0xffffffff) + 0.5)/1024.0 - 180, ((cell >> 32) + 0.5)/1024.0 - 90,
+  (cell & 0xffffffff) >> 5, (cell >> 32) >> 5 from (select distinct cell from route_cell);
+create table cell_via (cell integer not null, kind integer not null, dist_m real not null, feature integer not null,
+  primary key (cell, feature)) strict, without rowid;
+insert into cell_via select cell, kind, d, fid from (
+  select c.cell, f.id as fid, f.kind,
+    111320.0 * sqrt(power(f.lat - c.lat, 2) + power((f.lon - c.lon) * cos(radians(c.lat)), 2)) as d
+  from cell c join (select -1 as dx union all select 0 union all select 1)
+  join (select -1 as dy union all select 0 union all select 1)
+  join feat f on f.coarse = ((c.cy + dy) << 32) | (c.cx + dx) where f.kind > 0) where d <= 2000;
+
+-- the via of the loop and mixed rides (0.16 s + 0.52 s): within 2 km of the route, a third of the furthest distance
+-- from the start or more, the first kind that has anything, then the closest
+create temp table want as select id, X(start) as slon, Y(start) as slat from activity
+  where name like 'loop via %' or name like 'around %';
+create temp table far as select w.id, max(111320.0 * sqrt(power(c.lat - w.slat, 2)
+    + power((c.lon - w.slon) * cos(radians(w.slat)), 2))) as far_m
+  from want w join ride_cell r on r.activity_id = w.id join cell c on c.cell = r.cell group by w.id;
+select id, name from (
+  select x.id, f.name, row_number() over (partition by x.id order by x.kind, x.d) as n
+  from (select r.activity_id as id, cv.feature, cv.kind, min(cv.dist_m) as d
+        from want w join ride_cell r on r.activity_id = w.id join cell_via cv on cv.cell = r.cell
+        group by r.activity_id, cv.feature) x
+  join feat f on f.id = x.feature join want w on w.id = x.id join far on far.id = x.id
+  where 111320.0 * sqrt(power(f.lat - w.slat, 2) + power((f.lon - w.slon) * cos(radians(w.slat)), 2)) >= far.far_m / 3)
+where n = 1;
+
+-- candidate passes over every climb (0.61 s): visits to the 3 x 3 cells round each gate, consecutive visits near one gate
+-- joined, a pass is a start island followed by a finish island
+create temp table gate as select id as sector_id,
+  (cast(floor((Y(StartPoint(route))+90)*1024) as integer) << 32) | cast(floor((X(StartPoint(route))+180)*1024) as integer) as s,
+  (cast(floor((Y(EndPoint(route))+90)*1024) as integer) << 32) | cast(floor((X(EndPoint(route))+180)*1024) as integer) as f
+  from sector;
+create temp table near as
+  select g.sector_id, 0 as which, ((g.s >> 32) + dy) << 32 | ((g.s & 0xffffffff) + dx) as cell from gate g,
+    (select -1 as dx union all select 0 union all select 1), (select -1 as dy union all select 0 union all select 1)
+  union all
+  select g.sector_id, 1, ((g.f >> 32) + dy) << 32 | ((g.f & 0xffffffff) + dx) from gate g,
+    (select -1 as dx union all select 0 union all select 1), (select -1 as dy union all select 0 union all select 1);
+create index near_cell on near(cell);
+create temp table pass as
+with v as (select n.sector_id, r.activity_id, n.which, r.t_in, r.t_out,
+    row_number() over (partition by n.sector_id, r.activity_id order by r.t_in)
+  - row_number() over (partition by n.sector_id, r.activity_id, n.which order by r.t_in) as grp
+  from near n join route_cell r on r.cell = n.cell),
+island as (select sector_id, activity_id, which, min(t_in) as t_in, max(t_out) as t_out
+  from v group by sector_id, activity_id, which, grp),
+seq as (select *, lead(which) over w as next_which, lead(t_out) over w as next_out
+  from island window w as (partition by sector_id, activity_id order by t_in))
+select sector_id, activity_id, t_in as from_t, next_out as to_t from seq where which = 0 and next_which = 1;
+```
+
+(The shape prototype, which lost, is not kept: it computed the turning point and the retraced shares from cells of
+1/2048 degree with window functions and a table of the way out's cells.)
+
+---
+
+# Appendix B: the second review (2026-11-09)
+
+Its plan is done (HISTORY.md), except what TODO.md still lists.  Section numbers inside it are its own.
 
 Scope.  The state of the plan of the first review (appendix A), with the author's questions: is fuzzing done; is the
 access model right; are the command packages a way round the DAG; and tools (a formatter in the build, generated
@@ -8,7 +221,7 @@ documentation).  Read: TODO.md, PACKAGES.md, HISTORY.md (the entries since 2026-
 Run: `nimble test` (1348 tests, all pass, 50 s, no warnings), `nph --check`, `nim doc --project`, a libFuzzer harness.
 Sections 3 to 7 were discussed with the author, and the decisions are theirs (marked **decided**).
 
-## 1. Summary
+### 1. Summary
 
 The first review's plan has gone well.  Steps 1 to 7 (bugs, conventions, dead code, typed database access with named
 values) are done and hold up; the package framework (step 8) is built, with a registry, an import checker, inferred
@@ -22,7 +235,7 @@ table ownership and, beyond the plan, an access model that SQLite enforces.  Two
 
 The access model is sound and stays, with one addition so that extension points can contribute SQL (§4).
 
-## 2. The plan of the first review: where it stands
+### 2. The plan of the first review: where it stands
 
 | Step | State |
 |---|---|
@@ -45,7 +258,7 @@ Small drift found (each is a TODO item):
 * `web/request.nim` `commandRules` names `map` and `ff` and their options: a fact of two higher packages, written
   in a lower one (§5).
 
-## 3. Fuzzing
+### 3. Fuzzing
 
 **What was built is good**: `fitmutate.nim` walks the records and damages what the decoder trusts (field sizes, base
 types, counts, record headers, compressed timestamps), then repairs the CRCs so that the damage reaches the decoder;
@@ -59,7 +272,7 @@ fixed seed; failing inputs saved.  A run of 84,000 mutations found nothing.  Why
 * **The other inputs are not fuzzed**: `decodeBits` (from a URL: the most exposed), the xlsx and zip readers, the
   server's `parseTarget`.
 
-### Level 1 (an ordinary test, in `nimble test`)
+#### Level 1 (an ordinary test, in `nimble test`)
 
 1. **Show that it finds a bug**: remove one guard that was added for class L (`isFitTime` before `fitToTime`) in a
    scratch copy, run the fuzzer with its default rounds; it must report the `OverflowDefect`.  Record the result in
@@ -76,7 +289,7 @@ fixed seed; failing inputs saved.  A run of 84,000 mutations found nothing.  Why
 6. Every failure found (here or at level 2) is saved under `tests/data/fuzz/<target>/` and a test replays the
    directory, so a fixed bug stays fixed.
 
-### Level 2 (libFuzzer: coverage-guided, run by hand, not in the tests)
+#### Level 2 (libFuzzer: coverage-guided, run by hand, not in the tests)
 
 Checked on this machine (2026-11-09): clang 21 works, but it chooses GCC 16, which has no `libstdc++.so` (the
 installed `libstdc++-devel` is GCC 15's), so linking fails with `cannot find -lstdc++`.  Passing
@@ -97,7 +310,7 @@ Nim harness then found its planted `IndexDefect` in seconds.
 * **Time box**: one hour per target.  What it finds is fixed (a test first); if nothing, record it in HISTORY.md and
   stop.  Fuzzing is then done, apart from a rerun after big changes to a reader.
 
-## 4. The access model
+### 4. The access model
 
 **Sound; it stays.**  SQLite's authorizer is the database's own mechanism; it checks exact tables, not a scan of text;
 it costs nothing per row; the grant is the `depends` that is already declared (one fact); it found about ten real
@@ -130,9 +343,9 @@ subtle but correct and is tested against SQLite.  Three changes:
    and has `openSession(g): Session` (the store and the user), which does today's lookup; commands call it.  Three
    packages' tables refer to `user` (importer, selection, user) and add it to `depends`.  `db` then knows no domain.
 
-## 5. Commands back into their packages (**decided**, revised after `/oppose`)
+### 5. Commands back into their packages (**decided**, revised after `/oppose`)
 
-### Diagnosis
+#### Diagnosis
 
 The test (the author's): merge each command package with the package whose things it manages and see where a cycle
 appears.
@@ -150,7 +363,7 @@ Eight of the eleven were only naming; two (and the server's list) hid a cycle.  
 let a command know everything above its concept, which is the opposite of extensibility: a later package (training
 load, weather) could not add a criterion to `activities` or a line to `users` without editing them.
 
-### The rules
+#### The rules
 
 * **A package may provide commands.**  A **plural** command (`activities`, `climbs`, `users` ...: CLAUDE.md, "the shape
   of the commands") goes with the package that owns its type.  A **singular** command (`map`, `ff`, `log`, `calendar`)
@@ -166,7 +379,7 @@ load, weather) could not add a criterion to `activities` or a line to `users` wi
   (commands are not libraries).  The command module is the one that `CommandDecl.run` comes from, which the registry
   generator knows; the test asks it, not a file-naming convention.
 
-### Activities: a library and several commands (**decided**)
+#### Activities: a library and several commands (**decided**)
 
 `activitiescmd` (2,300 lines: criteria and ranges 850, the command 550, table and display 290, live display and log
 220, import 175, calendar 145, delete 85) is taken apart by layer:
@@ -188,7 +401,7 @@ load, weather) could not add a criterion to `activities` or a line to `users` wi
   Why (the author): in daily use the latest import is the main use, so it should be selected with no extra command.
   (The alternative was a "last import" criterion and no point.)
 
-### The extension points
+#### The extension points
 
 | Point | Defined by | Contributed by | Value |
 |---|---|---|---|
@@ -207,7 +420,7 @@ load, weather) could not add a criterion to `activities` or a line to `users` wi
   worked out from the FTHR is worked out again") and `model` contributes nothing.
 * Tags (TODO.md) are not needed: if wanted, a package that contributes a `--tag` criterion.
 
-### Order
+#### Order
 
 1. *(mechanical)* `humanBytes` to `ui/units`; then the commands with no cycle into their packages (the eight of the
    table); the `commands/` group goes; tests move with them; the import test's command rule asks the registry.
@@ -223,7 +436,7 @@ load, weather) could not add a criterion to `activities` or a line to `users` wi
 8. Documentation of each package (§7); CLAUDE.md ("general structure", "the shape of the commands") and PACKAGES.md
    describe the result.
 
-## 6. `/oppose` (done 2026-11-09)
+### 6. `/oppose` (done 2026-11-09)
 
 Run on §5 and §4.1.  Taken in: the write rule and the contributor test (§4.1); the rule change for extension points
 stated; `humanBytes` and the smell of a low package growing upward; singular and plural commands placed by rule; the
@@ -232,9 +445,9 @@ finding, that `selection` would become a misnamed giant holding the whole `activ
 fitness calendar would pull `model` into it), led to the split into a library and several commands.  The "after
 import" point was kept over a "last import" criterion.
 
-## 7. Tools
+### 7. Tools
 
-### nph (the formatter)
+#### nph (the formatter)
 
 * `nimble fmt`: `nph src tests tools`.
 * `nimble test` runs `nph --check src tests tools` first and stops if a file would change (so drift cannot pass the
@@ -245,7 +458,7 @@ import" point was kept over a "last import" criterion.
   `prerelease-0-g2cacf6c-dirty`.  Install a tagged release (it has to be built with a matching Nim), write the
   version in `nimchoo.nimble`, and have `nimble fmt` refuse a different one.
 
-### nim doc (generated documentation)
+#### nim doc (generated documentation)
 
 `nim doc --project --index:on --outdir:doc src/nch.nim` works with this layout: 200 pages in 3 s, the directory tree
 of the packages, an index of every exported name.  It stopped on one error (§2) and warned twice.  The least work:

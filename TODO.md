@@ -13,9 +13,11 @@ The sections below are in historical groups; this is the flat list the author as
 should be.  Cleaning TODO.md then means moving finished material to HISTORY.md ("steps 1 to 8 are done", the built parts of
 the address design, "climbs vs sectors is answered", the step-7 note once item 1 has its own entry).
 
-1. The data-representation question (section below).  The author also remembers a conclusion from the step-7 work, "it would
-   be more efficient if the data were in a column, but it was in a column"; I could not find it in HISTORY.md (candidates: the
-   single-part route as a stored column, item 4; one blob per activity instead of 6.2 M rows, item 2).  Ask the author.
+1. **Spatial data as cells** (REVIEW.md, third review, 2026-11-11: the answer to the data-representation question).  Where
+   a ride went is stored as the grid cells it passed through, so that questions about places are SQL joins on integers;
+   series work (shape, climb detection, gate crossings) stays in Nim at import, on the arrays.  Its plan (REVIEW.md §6)
+   replaces items 2, 4, 5 and 6 below: first the decisions of its §5 (where naming lives; one level; thresholds in cell
+   terms; one rebuild with the arrays) and `/oppose`.
 2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
    as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
 7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.
@@ -36,26 +38,13 @@ Steps 1 to 8 are done (HISTORY.md); what was left of them is under "Open from be
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for
    them; HISTORY.md, 2026-11-11); the cache manifest.
 
-## For the next whole-system review: a question about the design, not a task
+## The data-representation question: answered (REVIEW.md, third review, 2026-11-11)
 
-Step 7 (push work into SQL) keeps ending the same way: prototype in SQL, measure, Nim wins (overlap excepted; HISTORY.md,
-2026-11-11: route shape, features along the route, gate crossings, cells of names, `haversine` in `landmarkAt` and
-`featuresAround`).  Each answer is right locally.  The author's worry is that they share a cause, and that the design is in a
-**local minimum** that is hard to leave one step at a time:
-
-* The per-second data is **rows of `coords`** (6.2 M, read as text) that Nim reads and turns into points, shapes and
-  grids, and TODO step 9 plans to make it **arrays per activity**, which are opaque to SQL.  Both are early choices of data
-  representation, and the code since has been written round them (a shape computed in Nim from the points, in flat
-  metres; SpatiaLite's geometry functions used one call at a time, where they lose).
-* The SQL prototypes so far used SpatiaLite's geometry functions on a query per call.  Untried: set-based SQL over the
-  rows (window functions: running distance, the maximum distance from the start and where it is, for all rides in one
-  query).  Whether it would win is unknown; it would be undone by step 9 as planned.
-* The author does not know the code well enough to judge this, and the assistant that wrote it is too close to it.
-
-**The reviewer's job** is to say whether a larger redesign of how the data are represented (rows or arrays, what is stored
-at import, where shape and naming work happens) would give a simpler and faster whole, and if so to **make the case for it**
-(the design, what it replaces, a measurement or a prototype of the hardest part, the cost).  If not, to say why the
-current shape is right.  "Each step measured fine" is not an answer to this.
+Step 7 kept losing because every SQL prototype used SpatiaLite's geometry functions pair by pair, against Nim code that
+uses a grid: the grid won, not Nim.  The proposal is to store the grid (cells per ride, and per-cell place tables), measured
+on a copy of the author's database: the via of 560 rides in 0.68 s (547 the same, the rest near ties), every stored effort
+found among candidate passes over all climbs in 0.61 s, 35 MB against 363 MB; the shape stays in Nim (SQL lost there too).
+Item 1 above is the work.
 
 ## Addresses, state and the cache: agreed 2026-11-12; `map` and `ff` are built (HISTORY.md), the rest is not
 
