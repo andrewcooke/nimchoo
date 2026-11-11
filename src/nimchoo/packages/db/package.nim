@@ -25,6 +25,9 @@
 ##   written in may touch each table (`access`): a package may write only its own tables and read those of the packages it
 ##   depends on; a breach is a `StoreError` naming the package, the table and the SQL.  A piece contributed by another
 ##   package may be read, but cannot make the runner write.
+## * **Functions of our own in SQL** (`functions.nim`, registered in every connection, also a read-only one): `fold(text)` and
+##   the grid of cells (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
+##   so that SQL and Nim cannot compute a cell differently.  Deterministic, so they may be used in an index.
 ## * The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
 ##   where the database is and how big; `nch db --delete -f` deletes it.
 
@@ -32,7 +35,7 @@ import ../../core/manifest
 import ./command
 
 const package* = Package(
-  depends: @["args", "confirm", "fold", "hashing", "lookup", "ui"],
+  depends: @["args", "confirm", "fold", "geo", "hashing", "lookup", "ui"],
   fragments: @[],
   commands: @[
     CommandDecl(

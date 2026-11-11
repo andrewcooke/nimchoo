@@ -42,7 +42,8 @@ import ./fit/test_profilefuzz
 import ./fit/test_load
 import
   ./db/[
-    test_statement, test_plans, test_store, test_multirow, test_invariants, test_schema
+    test_statement, test_plans, test_functions, test_store, test_multirow,
+    test_invariants, test_schema,
   ]
 import ./db/test_command
 import ./heartrate/test_step
