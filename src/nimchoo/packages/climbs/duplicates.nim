@@ -133,7 +133,7 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
   ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0:
     return @["no climbs overlap: nothing to tidy"]
-  result.add fmt"climbs that are nearly the same (at least {int(round((1.0 - nearCopyLimit) * 100.0))}% of each is within {int(gateRadius)} m of the other), the most ridden first:"
+  result.add fmt"climbs that are nearly the same (at least {int(round((1.0 - nearCopyLimit) * 100.0))}% of each is within {int(gateRadius)}m of the other), the most ridden first:"
   var anyToHide = false
   for g in groups:
     result.add ""
