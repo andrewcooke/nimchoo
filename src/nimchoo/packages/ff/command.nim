@@ -1,8 +1,8 @@
 ## `nch ff`: the fitness and fatigue curves of the current user (see curve.nim), as CSV on
 ## in the cache directory for plotting elsewhere (or on standard output): one row per day (the
 ## value at the end of the day, in the computer's timezone), or per hour.  The file is named
-## after the options and a key made of everything the curves depend on (the FTHR, the model, the
-## activities with heart rate), so a file that exists is current and is not made again.
+## by a hash of the request: the options, with the defaults spelt out, and the state of everything the curves depend on (the
+## FTHR, the model, the activities with heart rate), so a file that exists is current and is not made again.
 ##
 ## This module is newer than `model`: it works out the impulses that are lacking, and reads them.
 
@@ -46,7 +46,7 @@ the value at the end of the day (in this computer's timezone; --utc for UTC).  T
 user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start
 from 0 at the first activity with an impulse and run to --to (default: today), so they fade away after the last."""
   notes =
-    """The file is named after the options and after the data it is made from, so if it is already there nothing is done:
+    """The file is named by a hash of the options and of the data it is made from, so if it is already there nothing is done:
 it cannot be out of date.  (A new --to, an import or a new FTHR means a new file; old ones are not deleted.)"""
 
 proc usageText*(width: int): string =
@@ -190,21 +190,6 @@ proc latestStats(
     p.fatigueScale,
   )
 
-proc cacheStem(p: Params, name, key: string, tz: Timezone): Option[string] =
-  ## The name (without extension) of the files for the options and the data, if one can be made.
-  var options = @[
-    ("state", key),
-    ("model", name),
-    ("res", if p.hourly: "hour" else: "day"),
-    ("to", localDate(p.toDay.get, utc())),
-    ("tz", zoneName(tz, p, p.toDay.get, p.utc)),
-    ("fitscale", scaleText(p.fitnessScale)),
-    ("fatscale", scaleText(p.fatigueScale)),
-  ]
-  if p.fromDay.isSome:
-    options.add ("from", localDate(p.fromDay.get, utc()))
-  fileStem("ff", options)
-
 proc webQuery*(p: Params): string =
   ## What the address of the chart says: the options given (before the defaults are filled in,
   ## so that a page asked for tomorrow is tomorrow's).  See serve/request.nim for the names.
@@ -225,6 +210,28 @@ proc webQuery*(p: Params): string =
     q.add "fatigue-scale=" & plainNumber(p.fatigueScale)
   q.join("&")
 
+proc pinnedQuery(p: Params, name, state: string): string =
+  ## The address that names this chart exactly: every parameter that was left to a default is spelt out (the model, the
+  ## last day), and the state of the data is added.  `p.toDay` is set.
+  var q = @["state=" & state, "model=" & name]
+  if p.fromDay.isSome:
+    q.add "from=" & localDate(p.fromDay.get, utc())
+  q.add "to=" & localDate(p.toDay.get, utc())
+  if p.hourly:
+    q.add "hourly=1"
+  if p.utc:
+    q.add "utc=1"
+  if p.fitnessScale != 1:
+    q.add "fitness-scale=" & plainNumber(p.fitnessScale)
+  if p.fatigueScale != 1:
+    q.add "fatigue-scale=" & plainNumber(p.fatigueScale)
+  q.join("&")
+
+proc requestOf(p: Params, name, state: string, tz: Timezone): string =
+  ## What the files are named after: the pinned address, and the zone it was worked out in (a computer's zone is not in
+  ## the address, and a chart in another zone is another chart).
+  pinnedQuery(p, name, state) & "&zone=" & zoneName(tz, p, p.toDay.get, p.utc)
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch ff ARGS`; returns the exit status.
   let parsed = parseArgs(args)
@@ -237,7 +244,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   of pkOk:
     discard
   var p = parsed.params
-  let query = webQuery(p)
   var st: Session
   try:
     st = openSession(g)
@@ -279,7 +285,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stdout.say makeCsv(st, m.get, p, now, tz)
       return exitOk
     let dir = cacheDir()
-    let stem = cacheStem(p, name, key, tz)
+    let stem = requestStem(commandName, requestOf(p, name, key, tz))
     if dir.isNone or stem.isNone:
       return failure(
         "nch ff",
@@ -323,10 +329,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         commandName,
         WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
         dir.get,
-        "state=" & key & (if query.len > 0: "&" & query else: ""),
+        pinnedQuery(p, name, key),
       )
     if p.web.kind == wkWorker:
-      stdout.say pageFile.get & "\n" & csvPath & "\n"
+      stdout.say pageFile.get & "\n" & csvPath & "\n" & pinnedQuery(p, name, key) & "\n"
       return exitOk
     stdout.say csvPath & "\n"
     if key == current: # (the latest values are of the current data)

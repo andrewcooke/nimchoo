@@ -50,8 +50,8 @@ suite "map page: the text":
       "heatmap--check-a.geojson.exe",
     ]:
       check pageHtml(bad, "t").isNone
-    check pageHtml("heatmap.geojson", "t").isSome
-    check pageHtml("x.geojson", "t").isSome # (a name the cache could hold)
+    check pageHtml("map-lusab-babad-fuzoh.geojson", "t").isSome
+      # (a name the cache could hold)
 
 suite "map page: the template and the libraries are files":
   teardown:

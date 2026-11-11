@@ -101,8 +101,8 @@ suite "serve request: who is asking":
 
 suite "serve request: what is asked for":
   test "a file of the cache":
-    let r = route(target("/files/heatmap--check-ab--style-lines.geojson")).get
-    check r.isFile and r.fileName == "heatmap--check-ab--style-lines.geojson"
+    let r = route(target("/files/map-lusab-babad-fuzoh.geojson")).get
+    check r.isFile and r.fileName == "map-lusab-babad-fuzoh.geojson"
   test "files: only plain cache names, no query":
     for bad in [
       "/files/", "/files", "/files/x", "/files/x.exe", "/files/../x.geojson",

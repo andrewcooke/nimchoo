@@ -13,7 +13,7 @@ import nimchoo/packages/ff/curve
 import nimchoo/packages/ff/params
 import nimchoo/packages/util/args/args
 import nimchoo/packages/ff/command as ffCommand
-import nimchoo/packages/model/calc
+import nimchoo/packages/model/[calc, impulses, models]
 
 proc near(a, b: float, eps = 1e-9): bool =
   abs(a - b) <= eps
@@ -190,8 +190,7 @@ suite "nch ff":
       files.add f
     check files.len == 1
     let name = extractFilename(files[0])
-    check name.startsWith("ff--") and name.endsWith(".csv") and
-      "--model-default--" in name and "--to-2018-09-05--" in name and "--tz-utc" in name
+    check name.startsWith("ff-") and name.endsWith(".csv")
     let first = readFile(files[0])
     check first.startsWith("time,fitness,fatigue\n2018-08-27,")
     let t = openSession(path, allFragments, access = allAccess)
@@ -265,10 +264,9 @@ suite "nch ff: the key":
     )
     s.close()
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
-    var name = ""
-    for f in walkFiles(cache / "user" / "*.csv"):
-      name = extractFilename(f)
-    let key = name.split("--state-")[1].split("--")[0]
+    let u = openSession(path, allFragments, access = allAccess)
+    let key = inputKey(u.db, u.userId, findModel(u.db, "default").get)
+    u.close()
     check key.len == 12
     check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key]) == exitOk
       # the current data

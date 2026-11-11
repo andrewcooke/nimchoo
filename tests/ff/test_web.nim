@@ -68,18 +68,20 @@ proc worker(db, cache: string, extra: seq[string]): tuple[output: string, code: 
   p.close()
 
 suite "nch ff --worker":
-  test "the page, then the CSV, in the cache; nothing else printed":
+  test "the page, then the CSV, in the cache, then the address that names them":
     if not built():
       skip()
     let f = fixture("worker")
     let (output, code) = worker(f.db, f.cache, @[])
     check code == 0
     let lines = output.strip.splitLines
-    check lines.len == 2
+    check lines.len == 3
     check lines[0].startsWith(f.cache) and lines[0].endsWith(".html")
     check lines[1].startsWith(f.cache) and lines[1].endsWith(".csv")
-    check lines[0].startsWith(f.cache / "user" / "ff--") and
-      lines[1].startsWith(f.cache / "user" / "ff--")
+    check lines[2].startsWith("state=") and
+      lines[2].contains("&model=default&to=2018-09-05")
+    check lines[0].startsWith(f.cache / "user" / "ff-") and
+      lines[1].startsWith(f.cache / "user" / "ff-")
     check dirExists(f.cache / "system") # (the other part is made too)
     check readFile(lines[0]).contains("plot.umd.min.js")
     let csv = readFile(lines[1]).splitLines
@@ -140,7 +142,7 @@ suite "nch ff --web: a real server":
     let unpinned = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
     check unpinned.code == Http302 and
       $unpinned.headers["Location"] ==
-      "/ff?state=" & keyOf(url) & "&to=2018-09-05&utc=1&hourly=1"
+      "/ff?state=" & keyOf(url) & "&model=default&to=2018-09-05&hourly=1&utc=1"
     let hourly = withCookie.request(base & $unpinned.headers["Location"])
     check hourly.code == Http200 and hourly.body.contains("const hourly = true;")
     check withCookie.request(base & "/ff?to=2018-09-05&bogus=1").code == Http404

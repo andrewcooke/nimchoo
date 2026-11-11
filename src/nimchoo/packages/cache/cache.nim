@@ -1,17 +1,16 @@
 ## The cache directory, where commands that make files (maps, exports) put
-## them, and what such files are called.  A file is named after the command
-## line that made it, so the same request finds the same files:
+## them, and what such files are called.  A file is named after the request that
+## made it, so the same request finds the same files: the command and a hash of
+## the request (the whole pinned address, which is always at hand, so the name does
+## not need to say what it holds):
 ##
-##     ff--check-ab12cd--style-lines.csv
+##     ff-lusab-babad-fuzoh.csv
 ##
-## (the command, then each option as `--name-value`, in the order of the option
-## names).  What may appear in a name is limited, and anything else is refused
-## rather than escaped, so a name is always a plain file name that can be put in
-## a URL.  The cache directory has two parts, `user/` (made by commands) and `system/` (unpacked
+## A name is always a plain file name that can be put in a URL.  The cache directory has two parts, `user/` (made by commands) and `system/` (unpacked
 ## from the program), and keeps the server's token at its top.  Pure functions: no files are
 ## touched here.
 
-import std/[algorithm, options, os, parseutils, sequtils, strutils]
+import std/[options, os, parseutils, sequtils, strutils]
 import ../util/hashing/hashing
 import ../text/proquint/proquint
 
@@ -30,34 +29,10 @@ func isCommandName*(s: string): bool =
   ## "ff": lower case letters and digits, not empty.
   s.len > 0 and s.allIt(it.isNameChar)
 
-func isOptionName*(s: string): bool =
-  ## The name of an option in a cache file name (the same rule as a command's).
-  isCommandName(s)
-
 func isOptionValue*(s: string): bool =
-  ## "ab12cd", "lines", "5.5": letters, digits and . _ , -, not empty, and no "--"
-  ## (which would end the value).
+  ## "ab12cd", "lines", "5.5": letters, digits and . _ , -, not empty, and no "--": what a value in an address may be
+  ## (a name of a model, a day, a number, a hash).
   s.len > 0 and s.allIt(it.isValueChar) and "--" notin s
-
-func fileStem*(command: string, options: openArray[(string, string)]): Option[string] =
-  ## The name, without extension, for a command and its options; none if any of
-  ## them is not allowed, an option is repeated, or the name would be too long.
-  if not isCommandName(command):
-    return none(string)
-  var sorted = @options
-  sorted.sort do(a, b: (string, string)) -> int:
-    cmp(a[0], b[0])
-  var name = command
-  var last = ""
-  for (k, v) in sorted:
-    if not isOptionName(k) or not isOptionValue(v) or k == last:
-      return none(string)
-    last = k
-    name.add "--" & k & "-" & v
-  if name.len > maxNameLength:
-    none(string)
-  else:
-    some(name)
 
 func requestStem*(command, request: string): Option[string] =
   ## The name, without extension, for what `command` makes for a `request` (the text that says exactly what is wanted):
@@ -88,22 +63,6 @@ func isRequestStem(base: string): bool =
   ## "map-lusab-babad-fuzoh": a command name, a hyphen, and a proquint.
   let dash = base.find('-')
   dash > 0 and isCommandName(base[0 ..< dash]) and isProquint(base[dash + 1 .. ^1])
-
-func parseStem*(stem: string): Option[(string, seq[(string, string)])] =
-  ## The inverse of `fileStem`: "ff--check-ab12--style-lines" is the command
-  ## "ff" and the options `[("check", "ab12"), ("style", "lines")]`.  None if it is not
-  ## a name `fileStem` would make.
-  let parts = stem.split("--")
-  if not isCommandName(parts[0]):
-    return none((string, seq[(string, string)]))
-  var options: seq[(string, string)]
-  for p in parts[1 .. ^1]:
-    let dash = p.find('-')
-    if dash < 1 or not isOptionName(p[0 ..< dash]) or
-        not isOptionValue(p[dash + 1 .. ^1]):
-      return none((string, seq[(string, string)]))
-    options.add (p[0 ..< dash], p[dash + 1 .. ^1])
-  some((parts[0], options))
 
 func userDir*(dir: string): string =
   ## Where commands put what they make (maps, charts, pages): a part of the cache directory `dir`.
@@ -138,17 +97,7 @@ func isCacheFileName*(name: string): bool =
     return false
   if name.len > maxNameLength + 8:
     return false
-  if isRequestStem(base):
-    return true
-  let parts = base.split("--")
-  if not isCommandName(parts[0]):
-    return false
-  for p in parts[1 .. ^1]:
-    let dash = p.find('-')
-    if dash < 1 or not isOptionName(p[0 ..< dash]) or
-        not isOptionValue(p[dash + 1 .. ^1]):
-      return false
-  true
+  isRequestStem(base)
 
 func cachePath*(nchCache, xdgCache, home: Option[string]): Option[string] =
   ## The cache directory, given $NCH_CACHE, $XDG_CACHE_HOME and the home

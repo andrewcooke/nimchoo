@@ -12,7 +12,7 @@ import ../support/webpages
 import nimchoo/packages/cache/cache
 import nimchoo/packages/ui/palette
 
-const csv = "ff--state-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc.csv"
+const csv = "ff-lusab-babad-fuzoh.csv"
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
@@ -52,7 +52,8 @@ suite "ff: the page":
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")
   test "only a CSV of the cache can be named":
     for bad in [
-      "../x.csv", "x.geojson", "ff--state-a.html", "a/b.csv", "ff--state-a.csv.exe", ""
+      "../x.csv", "x.geojson", "ff-lusab-babad-fuzoh.html", "a/b.csv",
+      "ff-lusab-babad-fuzoh.csv.exe", "",
     ]:
       check pageHtml(bad, "t", false).isNone
   test "the page loads only from places the server's policy allows":

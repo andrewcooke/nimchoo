@@ -176,22 +176,25 @@ suite "serve handler: pages":
 suite "serve handler: the second command":
   test "ff: pinned like the heat map, and its CSV is served as text/csv":
     let s = setup("ff")
-    let ffStem = "ff--state-ab12cd34ef56--model-default--res-day--to-2018-09-05--tz-utc"
+    let ffStem = "ff-lusab-babad-fuzoh"
     writeFile(s.cache / (ffStem & ".html"), "<html>the chart</html>")
     writeFile(s.cache / (ffStem & ".csv"), "time,fitness,fatigue\n")
     s.fake.result = WorkerResult(
-      stdout: s.cache / (ffStem & ".html") & "\n" & s.cache / (ffStem & ".csv") & "\n"
+      stdout:
+        s.cache / (ffStem & ".html") & "\n" & s.cache / (ffStem & ".csv") & "\n" &
+        "state=ab12cd34ef56&model=default&to=2018-09-05&hourly=1\n"
     )
     # without a key the data are "the current ones": the address is pinned to their key
     let p = handle(s, port, get("/ff?to=2018-09-05&hourly=1"))
     check p.code == 302 and
-      p.header("Location") == "/ff?state=ab12cd34ef56&to=2018-09-05&hourly=1"
+      p.header("Location") ==
+      "/ff?state=ab12cd34ef56&model=default&to=2018-09-05&hourly=1"
     let r = handle(s, port, get(p.header("Location")))
     check r.code == 200 and r.body == "<html>the chart</html>"
     check s.fake.calls[^1] ==
       @[
-        "--db", "/x/y.db", "ff", "--worker", "--state", "ab12cd34ef56", "--to",
-        "2018-09-05", "--hourly",
+        "--db", "/x/y.db", "ff", "--worker", "--state", "ab12cd34ef56", "--model",
+        "default", "--to", "2018-09-05", "--hourly",
       ]
     let c = handle(s, port, get("/files/" & ffStem & ".csv"))
     check c.code == 200 and c.header("Content-Type") == "text/csv; charset=utf-8"

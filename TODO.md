@@ -34,15 +34,11 @@ sees and can be approved together.
      `climbs/002-name-number.sql`): at the next squash.
 8a. **`map` and `ff` made consistent** (agreed 2026-11-12; the design is "Addresses, state and the cache" below).  In commits that
    each keep the tests passing, `ff` first (it has no climbs question), then `map`.  Done (2026-11-12): the names `--selection`
-   (was `--bits`) and `--state` (was `--check`) in both commands and in addresses, "for urls" in their help.  Open: whether
-   `--worker` can go (a live address has no `--state` yet, so the server still needs machine-readable output), and whether `ff`
-   (a CSV that cannot hold the request) keeps the collision check:
-   1. `cache`: the file name from the whole pinned address (the command and a hash of it), in place of `requestStem` and
-      `fileStem`; the stored request stays, to catch a collision;
-   2. `ff`: the file names are the hash, and a pinned address whose files are gone is remade only
-      if the state is the same, else an error with the live address;
-   3. `map`: the same (`state` covers the selected activities' content, their routes and, until they are a layer, the climbs);
-      the in-place rebuild and `nch.inputs` go;
+   (was `--bits`) and `--state` (was `--check`) in both commands and in addresses, "for urls" in their help.  Decided: `--worker` stays; no collision check anywhere (a name is the hash alone).
+   Done (2026-11-12): `cache` names are the command and a hash of the whole request (`fileStem` and `parseStem` are gone), and
+   `ff` names its files so, prints the pinned query as the third line of `--worker`, and the server redirects to it.  Left:
+   3. `map`: the same, and the collision loop, the request in the file, the in-place rebuild and `nch.inputs` go (`state` covers
+      the selected activities' content, their routes and, until they are a layer, the climbs);
    4. the web handler: one `state` pin for every command, and the redirect from a live address;
    5. a test per command that changes each table it reads and checks that the fingerprint changes.
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
@@ -91,8 +87,7 @@ general plot command that will replace `ff`).
   A new plot is a live address with other parameters.
 * **File names are not addresses** (too long: a selection is explicit): the name is the command and a hash of the whole
   pinned address (proquint words, 48 bits as now), one-way, which is enough because the address is always at hand.  The
-  request is stored in the data file (`nch.request`) and compared when the file is found, so a collision gives another
-  name, not other data.  A changed state is a new file; the old one stays (it is the old plot) until `nch cache` clears it.
+  name has no collision check (decided 2026-11-12: 48 bits is plenty for a cache).  A changed state is a new file; the old one stays (it is the old plot) until `nch cache` clears it.
   The in-place rebuild and `nch.inputs` of `map` go, and so do `ff`'s readable names.
 * **The data file is pinned; the look is not.**  The wrapper page (user cache, same name, `.html`) is rewritten from the
   templates in the system cache (`templates/*.html`, `.css`, style JSON, and `libraries.txt`) each time it is served, so an
@@ -111,7 +106,7 @@ general plot command that will replace `ff`).
   hashes, the tiles are not).
 * **Risks and their guards**: a fingerprint that misses an input gives a wrong "exact" remake with no sign of it, so each
   command gets a **test that changes each table it reads and checks that the fingerprint changes** (the class of bug, not the
-  instance); hash collisions: the stored request, above.
+  instance); 
 * **Order of work**: the fingerprint function and its test for `map` (with the climbs question settled first); the name by
   hash and the server's flow (live, pinned, remade, error); `--state`; `ff` onto it; then the general plot command declares
   its series through an extension point, each package giving the key of its data.

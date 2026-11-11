@@ -118,27 +118,11 @@ proc page(cfg: ServerConfig, route: Route, t: Target, r: WorkerResult): Reply =
   let name = extractFilename(lines[0])
   if parentDir(lines[0]) != cfg.cacheDir or not name.endsWith(".html"):
     return reply(500, "nch " & route.command & " named a page that is not in the cache")
-  if route.pin.len > 0 and t.query.queryValue(route.pin).isNone:
-    # the data were "the current ones": pin their key in the address, so that a reload shows
-    # the same data (the other options of the request stay as they were)
-    # (a worker that names the request, as its third line, says what to pin; one that does not has it in the file name)
-    if lines.len > 2:
-      return
-        Reply(code: 302, headers: @[("Location", "/" & route.command & "?" & lines[2])])
-    let stem = parseStem(name[0 ..< name.len - ".html".len])
-    let key =
-      if stem.isSome:
-        stem.get[1].queryValue(route.pin)
-      else:
-        none(string)
-    if key.isSome:
-      var q = @[route.pin & "=" & key.get]
-      for (k, v) in t.query:
-        if k != tokenParam:
-          q.add k & "=" & v
-      return Reply(
-        code: 302, headers: @[("Location", "/" & route.command & "?" & q.join("&"))]
-      )
+  if route.pin.len > 0 and t.query.queryValue(route.pin).isNone and lines.len > 2:
+    # the address was for "the current data": the worker's third line is the address that names exactly what it made, and
+    # a reload of that shows the same plot
+    return
+      Reply(code: 302, headers: @[("Location", "/" & route.command & "?" & lines[2])])
   let body = readCacheFile(cfg, name)
   if body.isNone:
     return reply(404, "not found")
