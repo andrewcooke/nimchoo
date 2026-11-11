@@ -74,6 +74,13 @@ const allInvariants* = [
       "where c.activity_id = a.id) != exists (select 1 from route_cell r where r.activity_id = a.id)",
   ),
   Invariant(
+    name: "every climb with a route has the cells round both its gates",
+    offenders:
+      "select cast(s.id as text) from sector s where s.route is not null and (" &
+      "not exists (select 1 from sector_gate_cell g where g.sector_id = s.id and g.which = 0) or " &
+      "not exists (select 1 from sector_gate_cell g where g.sector_id = s.id and g.which = 1))",
+  ),
+  Invariant(
     name: "an activity with efforts has been looked at for climbs",
     offenders:
       "select distinct cast(e.activity_id as text) from effort e " &

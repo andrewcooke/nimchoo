@@ -4,10 +4,10 @@
 ## rides.  Done when a command wants the climbs (as `ff` does for impulses), and kept.
 ##
 ## For an activity:
-##   1. the sectors near its route: its passes over them are efforts (this needs only positions and
+##   1. the sectors it may have gone over (its visits to the cells round their gates, `route_cell`): its passes over them are efforts (this needs only positions and
 ##      times, so a ride with no altitude gets efforts on known climbs);
 ##   2. its climbs (from the altitude): one that is not a stored sector again becomes a sector;
-##   3. a new sector is matched against the ride it came from and every earlier ride near it.
+##   3. a new sector is matched against the ride it came from and every earlier ride that may have gone over it.
 ## A ride is read as its stretches of riding (importer/track.nim) and everything above is done in each
 ## stretch, never across a break: a pause the device made by itself is inside a stretch, and a stop by
 ## hand or a jump (a car, a train) is between two, so an effort or a climb cannot include road the rider
@@ -33,14 +33,11 @@ import ./[detect, match, ordinal, overlap, profile]
 const
   algorithmVersion* = 4
     ## 4: a ride is read as its stretches of riding (importer/stretch.nim), and a climb or an effort never crosses a break.  3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
-  margin = 0.001 ## degrees (about 100 m) added to a box that is looked for
   ridePointLimit = 3_000_000 ## about 70 MB
 
 type
   Worked* = object
     activities*, sectors*, efforts*: int
-
-  Box = tuple[lon0, lat0, lon1, lat1: float]
 
   Sectors = Table[int64, Path] ## the routes of the sectors read so far, by id
 
@@ -50,18 +47,6 @@ type
     paths: Table[int64, seq[Path]]
       ## a path for each stretch of the ride that has two positions
     points: int
-
-func boxOf(p: Path): Box =
-  result = (Inf, Inf, -Inf, -Inf)
-  for i in 0 ..< p.len:
-    result.lon0 = min(result.lon0, p.lon[i])
-    result.lat0 = min(result.lat0, p.lat[i])
-    result.lon1 = max(result.lon1, p.lon[i])
-    result.lat1 = max(result.lat1, p.lat[i])
-
-func wider(b: Box): Box =
-  ## The box a little wider, for the spatial indexes to be asked with.
-  (b.lon0 - margin, b.lat0 - margin, b.lon1 + margin, b.lat1 + margin)
 
 func ridePaths(track: Track): seq[Path] =
   ## The positions and times of each stretch of a ride as a path (a stretch of fewer than two
@@ -79,15 +64,6 @@ func ridePaths(track: Track): seq[Path] =
 func pointCount(ride: seq[Path]): int =
   for p in ride:
     result += p.len
-
-func boxOf(ride: seq[Path]): Box =
-  result = (Inf, Inf, -Inf, -Inf)
-  for p in ride:
-    let b = boxOf(p)
-    result.lon0 = min(result.lon0, b.lon0)
-    result.lat0 = min(result.lat0, b.lat0)
-    result.lon1 = max(result.lon1, b.lon1)
-    result.lat1 = max(result.lat1, b.lat1)
 
 func overRide(sector: Path, ride: seq[Path]): seq[Effort] =
   ## The passes of a ride over a sector: those of each stretch (a pass lies within one).
@@ -117,28 +93,39 @@ func climbPath(p: Profile, c: Climb): Path =
     result.elev.add p.elev[i]
 
 const
-  sectorsInBoxSql* =
-    "select id from sector where " & inBox("id", "sector", "route", cornerMarks)
-  ridesInBoxSql* =
-    "select activity_id from route where " &
-    inBox("activity_id", "route", "geom", cornerMarks) &
-    " and activity_id in (select activity_id from climbs_done) order by activity_id"
+  sectorsThroughSql* = """select st.sector_id from
+      (select g.sector_id, min(v.t_in) as t from route_cell v
+        join sector_gate_cell g on g.cell = v.cell and g.which = 0
+        where v.activity_id = :ride group by g.sector_id) st
+      join
+      (select g.sector_id, max(v.t_out) as t from route_cell v
+        join sector_gate_cell g on g.cell = v.cell and g.which = 1
+        where v.activity_id = :ride group by g.sector_id) fi
+      on fi.sector_id = st.sector_id where st.t < fi.t order by st.sector_id"""
+    ## The sectors a ride may have gone over: it has a visit to the cells round the sector's first point and, after it (the
+    ## first visit to the start block begins before the last visit to the finish block ends), one to the cells round its
+    ## last.  The gates are across the route at those two points, so a ride that crosses both has been through the cells round
+    ## them (`sector_gate_cell`, made by a trigger when a sector is); the exact test (`overPaths`) says whether it really did.
+  ridesThroughSql* = """select st.activity_id from
+      (select v.activity_id, min(v.t_in) as t from sector_gate_cell g
+        join route_cell v on v.cell = g.cell
+        where g.sector_id = :sector and g.which = 0 and v.activity_id in (select activity_id from climbs_done)
+        group by v.activity_id) st
+      join
+      (select v.activity_id, max(v.t_out) as t from sector_gate_cell g
+        join route_cell v on v.cell = g.cell
+        where g.sector_id = :sector and g.which = 1 and v.activity_id in (select activity_id from climbs_done)
+        group by v.activity_id) fi
+      on fi.activity_id = st.activity_id where st.t < fi.t order by st.activity_id"""
+    ## the rides already looked at that may have gone over a sector (the same, the other way round)
 
-proc sectorsNear(
-    st: Store, cache: var Sectors, box: Box
+proc sectorsThrough(
+    st: Store, cache: var Sectors, ride: ActivityId
 ): seq[int64] {.raises: [StoreError].} =
-  ## The ids of the sectors whose boxes meet the box; their routes are read into the cache.
-  let w = wider(box)
+  ## The ids of the sectors the ride may have gone over; their routes are read into the cache.
   var ids: seq[int64]
-  timed "climbs: sectors near (query)":
-    ids = st.db.query(
-      int64,
-      sectorsInBoxSql,
-      west = w.lon0,
-      south = w.lat0,
-      east = w.lon1,
-      north = w.lat1,
-    )
+  timed "climbs: sectors through (query)":
+    ids = st.db.query(int64, sectorsThroughSql, ride = ride)
   for id in ids:
     if id notin cache:
       let route = parseLineString(
@@ -155,18 +142,10 @@ proc sectorsNear(
       cache[id] = route.get
     result.add id
 
-proc ridesNear(st: Store, box: Box): seq[ActivityId] {.raises: [StoreError].} =
-  ## The activities already looked at whose routes meet the box.
-  let w = wider(box)
-  timed "climbs: rides near (query)":
-    result = st.db.query(
-      ActivityId,
-      ridesInBoxSql,
-      west = w.lon0,
-      south = w.lat0,
-      east = w.lon1,
-      north = w.lat1,
-    )
+proc ridesThrough(st: Store, sector: int64): seq[ActivityId] {.raises: [StoreError].} =
+  ## The activities already looked at that may have gone over the sector.
+  timed "climbs: rides through (query)":
+    result = st.db.query(ActivityId, ridesThroughSql, sector = sector)
 
 proc addEfforts(
     insert: Stmt, sector: int64, activity: ActivityId, efforts: seq[Effort]
@@ -202,7 +181,6 @@ proc workOn(
   timed "climbs: ride as paths":
     ride = ridePaths(track)
   if ride.len > 0:
-    let rideBox = boxOf(ride)
     if rides.points + ride.pointCount > ridePointLimit:
       rides.paths.clear()
       rides.points = 0
@@ -210,7 +188,7 @@ proc workOn(
     rides.points += ride.pointCount
     # 1. the sectors that exist
     var matched: seq[int64] # the sectors this ride earned an effort on
-    for sector in st.sectorsNear(cache, rideBox):
+    for sector in st.sectorsThrough(cache, id):
       timed "climbs: match a ride to a sector":
         let n = insertEffort.addEfforts(sector, id, overRide(cache.must(sector), ride))
         result.efforts += n
@@ -253,7 +231,7 @@ proc workOn(
         if own > 0:
           matched.add sector
           # (so that a later lap over the same climb is this sector again)
-        for other in st.ridesNear(boxOf(route)):
+        for other in st.ridesThrough(sector):
           if other != id:
             let otherRide = st.rideOf(rides, other)
             timed "climbs: match a new sector to an earlier ride":

@@ -84,3 +84,15 @@ suite "invariants":
     check "visits of an activity to cells are in order and disjoint" in v
     check "every visit starts at a sample that is in its cell" in v
     s.close()
+
+  test "a climb with a route and no cells round its gates is found":
+    let s = fresh("gates")
+    s.db.execute(
+      "insert into sector(id, length_m, gain_m, gradient, name, route) values (7, 500, 40, 8, 'y', GeomFromText('LINESTRING Z(-70.6 -33.4 10, -70.59 -33.39 50)', 4326))"
+    )
+    check violations(s.db) == newSeq[string]()
+    s.db.execute("delete from sector_gate_cell where sector_id = 7 and which = 1")
+    check violations(s.db).join("\n").contains(
+      "every climb with a route has the cells round both its gates"
+    )
+    s.close()

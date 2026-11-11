@@ -6,7 +6,8 @@
 ##   position that is not on the Earth; `cell_coarse(cell, bits)`, the cell `2^bits` finer ones across that holds it (0 to
 ##   16); `cell_lon(cell, bits)` and `cell_lat(cell, bits)`, the middle of a cell of that level in degrees; and
 ##   `cell_dx(cell, bits, radius_m)` and `cell_dy(cell, bits, radius_m)`, how many cells of the level to step east-west and
-##   north-south to cover that many metres (`reach`).  A level outside 0 to 16, or a negative radius, is an error of the
+##   north-south to cover that many metres (`reach`); and `cell_shift(cell, dx, dy)`, the cell that many steps east and north
+##   (null if that is off the grid), so that SQL does not need to know how a cell is made of its two numbers.  A level outside 0 to 16, or a negative radius, is an error of the
 ##   statement, not a null.
 
 import std/options
@@ -97,6 +98,16 @@ proc reachOf(ctx: Pcontext, args: PValueArg, east: bool) =
   let steps = reach(asCell(args, 0), bits, radius)
   result_int64(ctx, int64(if east: steps.dx else: steps.dy))
 
+proc cellShiftFunction(ctx: Pcontext, n: int32, args: PValueArg) {.cdecl.} =
+  if anyNull(args, 3):
+    result_null(ctx)
+    return
+  let c = shifted(asCell(args, 0), int(value_int64(args[1])), int(value_int64(args[2])))
+  if c.isSome:
+    result_int64(ctx, int64(c.get))
+  else:
+    result_null(ctx)
+
 proc cellDxFunction(ctx: Pcontext, n: int32, args: PValueArg) {.cdecl.} =
   reachOf(ctx, args, true)
 
@@ -112,6 +123,7 @@ proc registerFunctions*(db: DbConn) {.raises: [StoreError].} =
     ("cell_coarse", 2'i32, Fn(cellCoarseFunction)),
     ("cell_lon", 2'i32, Fn(cellLonFunction)),
     ("cell_lat", 2'i32, Fn(cellLatFunction)),
+    ("cell_shift", 3'i32, Fn(cellShiftFunction)),
     ("cell_dx", 3'i32, Fn(cellDxFunction)),
     ("cell_dy", 3'i32, Fn(cellDyFunction)),
   ]:

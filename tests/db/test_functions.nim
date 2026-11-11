@@ -78,6 +78,17 @@ suite "sql functions: the grid of cells":
     check s.db.scalar(
       int, "select cell_dx(cell_coarse(cell(-1.6, 60.0), 5), 5, 2000.0)"
     ) == 2
+  test "cell_shift steps east and north, and is null off the grid":
+    var r = initRand(5)
+    for i in 0 ..< 100:
+      let c = cellOf(r.rand(300.0) - 150.0, r.rand(160.0) - 80.0).get
+      let dx = r.rand(-8 .. 8)
+      let dy = r.rand(-8 .. 8)
+      check s.db.scalar(
+        int64, "select cell_shift(:c, :dx, :dy)", c = int64(c), dx = dx, dy = dy
+      ) == int64(shifted(c, dx, dy).get)
+    check s.db.scalar(int, "select cell_shift(cell(-180.0, 0.0), -1, 0) is null") == 1
+    check s.db.scalar(int, "select cell_shift(null, 1, 1) is null") == 1
   test "a null gives null":
     check s.db.scalar(int, "select cell_coarse(null, 5) is null") == 1
     check s.db.scalar(int, "select cell_lon(5, null) is null") == 1

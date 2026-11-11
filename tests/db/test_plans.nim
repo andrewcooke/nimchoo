@@ -1,4 +1,4 @@
-import std/[options, strutils, unittest]
+import std/[options, sequtils, strutils, unittest]
 import nimchoo/packages/climbs/work
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
@@ -26,9 +26,16 @@ proc plan(db: DbConn, text: string): seq[string] =
     result.add r.detail
 
 func scans(plan: seq[string]): seq[string] =
-  ## The lines of the plan that read a table through, which are not the spatial index or a list of ids.
+  ## The lines of the plan that read a table through, which are not the spatial index, a list of ids, or the rows of a subquery
+  ## that the plan has made (a `CO-ROUTINE` or `MATERIALIZE` of the same name).
+  var made: seq[string]
   for line in plan:
-    if line.startsWith("SCAN ") and "SpatialIndex" notin line and "json_each" notin line:
+    for head in ["CO-ROUTINE ", "MATERIALIZE "]:
+      if line.startsWith(head):
+        made.add line[head.len .. ^1]
+  for line in plan:
+    if line.startsWith("SCAN ") and "SpatialIndex" notin line and "json_each" notin line and
+        line[5 .. ^1] notin made:
       result.add line
 
 func usesSpatialIndex(plan: seq[string]): bool =
@@ -46,13 +53,24 @@ suite "query plans: no query reads a whole table":
       ("features in a box", featuresInBoxSql),
       ("features around a point", featuresAroundSql),
       ("the countries of a cell", countriesInCellSql),
-      ("the sectors near a ride", sectorsInBoxSql),
-      ("the rides near a sector", ridesInBoxSql),
     ]:
       let p = plan(st.db, text)
       checkpoint what
       check usesSpatialIndex(p)
       check scans(p).len == 0
+  test "the climbs a ride may have gone over, and the rides over a climb, are found through the cell index":
+    for (what, text) in [
+      ("the sectors a ride may have gone over", sectorsThroughSql),
+      ("the rides that may have gone over a sector", ridesThroughSql),
+    ]:
+      let p = plan(st.db, text)
+      checkpoint what
+      check scans(p).len == 0
+      check p.anyIt(
+        "USING COVERING INDEX sector_gate_cell_cell" in it or
+          "USING INDEX route_cell_cell" in it or
+          "USING COVERING INDEX route_cell_cell" in it
+      )
   test "what runs for each file or activity finds its rows by key":
     for (what, text) in [
       ("is the file known", knownFileSql),

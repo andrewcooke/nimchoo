@@ -95,6 +95,19 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Cells step 4 built: the candidates of the climb matching (2026-11-12)**: the box queries `sectorsNear` and `ridesNear` (a ride's box covers a city, so
+  about 30 sectors a ride) are replaced by the cells.  `sector_gate_cell(sector_id, which, cell)` (`climbs/004`, a trigger on `sector` fills it for
+  every writer; `005` fills it for a database made before) holds the cells within 100 m of each climb's first and last point (15 a gate at
+  Santiago, more where a cell is narrower: `cell_dx`, `cell_dy`); a ride may have gone over a climb if it has a visit to the start block and, later, one to
+  the finish block (`sectorsThroughSql`, `ridesThroughSql`).  The exact test `overPaths` is as before.  On the author's database (climbs cleared,
+  1,112 rides) the **same 4,493 efforts and 183 climbs, byte for byte, in 17.4 s against 32.7 s**: the exact matching 13.1 s to 1.8 s (33,548 calls to 5,675), a new
+  sector against earlier rides 2.0 s to 0.4 s, reading earlier rides 2.3 s to 0.5 s; the candidates query 0.3 s.  It remains: the repeat test 7.5 s, detection
+  4.5 s, reading the rides 1.7 s.  Two lessons: the first version computed the gate blocks inside the query and SQLite scanned the ride's visits for
+  every cell of every block (300 ms a ride, minutes in all): a table of the cells, indexed by cell, is what the join needs; and the author's earlier idea, that
+  a stored footprint could go stale, is answered by the trigger.  A limit, accepted: a ride whose samples are more than 150 m apart where it
+  crosses a gate (a GPS dropout) is not a candidate (146 of the 6.2 million gaps are over 100 m; none cost an effort on this data).  The test of the plan
+  (`tests/db/test_plans.nim`) now says a `SCAN` of a subquery the plan made is not a table read.  The gates have no direction (TODO 1b): not changed here, so that
+  this step could be checked against the efforts as they were.
 * **Cells step 4, the baseline (2026-11-12)**: `ensureClimbs` on a copy of the author's database with the climbs cleared (1,112 rides, 183
   climbs, 4,493 efforts; `NCH_PROFILE=1`, two runs, 32.7 s each).  Matching each ride to each sector whose *box* meets the ride's: 13.1 s
   (40%; 33,548 calls, 30 sectors a ride, 390 us each); the overlap test "is it a repeat" (SpatiaLite buffer and intersection of a new climb

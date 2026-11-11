@@ -1,8 +1,11 @@
 ## Made-up rides for tests of the climbs: along one road on the equator (1 km flat, 3 km up at 4 %,
-## then flat), a point a second, put into a database as an import would.
+## then flat), a point a second, put into a database as an import would (the coordinates, the stretches, the route and the cells
+## the ride went through: a ride without its cells is not found by the climbs, as with the importer).
 
 import nimchoo/packages/db/statement
-import std/[math, os, strutils]
+import std/[math, options, os, strutils]
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/[extract, visits]
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
@@ -54,6 +57,7 @@ proc addRide*(
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   var wkt: seq[string]
+  var coords: seq[Coord]
   var t = startT
   var stretches: seq[(int, int)] # (start, end) times of each stretch
   var since = startT
@@ -71,6 +75,9 @@ proc addRide*(
       lat = northM * metre,
       alt = alt,
     )
+    coords.add Coord(
+      t: UnixTime(t), lon: x * metre, lat: northM * metre, alt: none(float)
+    )
     wkt.add formatFloat(x * metre, ffDecimal, 9) & " " &
       formatFloat(northM * metre, ffDecimal, 9)
     if i in breaksAfter:
@@ -80,6 +87,14 @@ proc addRide*(
     else:
       inc t
   stretches.add (since, t - 1)
+  for v in visitsOf(coords):
+    s.db.execute(
+      "insert into route_cell(activity_id, cell, t_in, t_out) values (:activityId, :cell, :tIn, :tOut)",
+      activityId = a,
+      cell = int64(v.cell),
+      tIn = int64(v.tIn),
+      tOut = int64(v.tOut),
+    )
   for n, (g0, g1) in stretches:
     s.db.execute(
       "insert into segment(activity_id, n, start_t, end_t) values (:activityId, :n, :startT, :endT)",

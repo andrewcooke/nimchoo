@@ -23,7 +23,7 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    60° and mutation-checked: the review's ±1 coarse cell misses a 2 km radius above 55°N, and the Yorkshire rides are at 54°), and
    registered in SQLite (`db/functions.nim`: `cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`);
    (2) done: `route_cell` (importer fragments 003 and 004, `importer/visits.nim`), backfilled and written at import; (3) done: the heat map, `nch map --layers heat` (the first consumer; no Nim code to replace);
-   (4) climb candidates by cells, with a baseline measured before; (5) the via search and naming in SQL, then what it
+   (4) done: climb candidates by cells (`sector_gate_cell`, `climbs/work.nim`): the same 4,493 efforts and 183 climbs, 32.7 s down to 17.4 s; (5) the via search and naming in SQL, then what it
    made dead is deleted.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
 1b. **BUG: the gates of a climb have no direction** (found 2026-11-12, measuring the baseline for cells step 4; the author had the same
    trouble with the old Python code on S-shaped roads).  A gate is a 50 m line across the road (`gateRadius` 25 m each side) at the
