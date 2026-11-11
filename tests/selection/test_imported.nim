@@ -37,9 +37,9 @@ suite "selection: after an import":
     let a = s.addActivity("a")
     let b = s.addActivity("b")
     let c = s.addActivity("c")
-    let first = selectNewActivities.run(s, @[a])
+    let first = selectNewActivities.run(s, @[a], noShow)
     check first.get.text == "selected the new activity"
     check first.get.look.colour == selectedColour
-    let second = selectNewActivities.run(s, @[b, c])
+    let second = selectNewActivities.run(s, @[b, c], noShow)
     check second.get.text == "selected the 2 new activities"
     check s.db.query(int64, "select activity_id from selection order by 1") == @[b, c]

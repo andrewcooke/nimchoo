@@ -11,7 +11,7 @@ import ./selection
 {.push raises: [].}
 
 proc selectImported(
-    st: Session, ids: seq[int64]
+    st: Session, ids: seq[int64], show: Show
 ): Option[ImportReport] {.raises: [StoreError].} =
   st.replaceSelection(ids)
   let what =

@@ -97,9 +97,11 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
 * **The climbs are worked out by an import (2026-11-12)**: `climbs` contributes to `importer/after` (`climbs/imported.nim`), so that the wait is
   at the import, which already names the activities, and not at the first `nch climbs` or `nch map`.  It works out every activity not
-  yet in `climbs_done` (so a re-import catches up) and says "worked out the climbs of N activities: M new climbs"; one that fails does not
-  undo the import.  `nch climbs` and `nch map` still work out what is lacking (idempotent), for an old database or a failed step.  There is no
-  live progress while it runs (the hook has no channel for it).  One flaky test seen once under load, the download spinner's
+  yet in `climbs_done` (so a re-import catches up) and says "done: climbs for N activities: M new climbs, K efforts"; one that fails does not
+  undo the import.  `nch climbs` and `nch map` still work out what is lacking (idempotent), for an old database or a failed step.  The import shows the same two live lines as `nch climbs` while it works ("climbing 120 / 1,112 activities", then the climbs and
+  efforts), through a `Show` channel the importer gives each `importer/after` contribution (library code does not print; on a terminal the
+  importer draws it, throttled, and leaves the last frame only if something was drawn; otherwise nothing).  Tried in a pseudo-terminal on a
+  copy of the real database with the climbs cleared: the whole library 27 s.  One flaky test seen once under load, the download spinner's
   thread (`tests/download/test_fetch.nim`), passes alone and on a rerun.
 * **The heat map, cells step 3 (2026-11-12)**: `nch map --layers routes,climbs,heat` (default routes,climbs; the layers are a set of
   the address, `layers=`, and of the file's name).  The cells of `route_cell` of the selected activities are counted at three levels

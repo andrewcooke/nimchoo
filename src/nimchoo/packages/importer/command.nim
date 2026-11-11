@@ -156,8 +156,26 @@ proc runImport(
     let ids = newActivities(st, before)
     if ids.len > 0:
       for step in g.extensions.get(afterImport):
+        # what follows the work of a step that takes a while: two live lines on a terminal, nothing otherwise.  The display is
+        # made when the first frame is wanted; if it is never drawn (a short run) nothing stays.
+        var live: Option[Live]
+        var drawn = false
+        let show = proc(lines: seq[Line], final: bool) {.closure, raises: [].} =
+          if opts.quiet or not canLive():
+            return
+          if live.isNone:
+            live = some(newTerminalLive())
+          if final:
+            if drawn:
+              live.get.keep(lines)
+            else:
+              live.get.finish()
+            live = none(Live)
+          elif live.get.due():
+            drawn = true
+            live.get.show(lines)
         try:
-          let said = step.run(st, ids)
+          let said = step.run(st, ids, show)
           if said.isSome:
             g.log.log(lvInfo, commandName, leSaved, said.get.text)
             if not opts.quiet:
@@ -166,6 +184,8 @@ proc runImport(
                 canColour(),
               ) & "\n"
         except StoreError as e:
+          if live.isSome:
+            live.get.finish() # (the display of a step that stopped)
           discard failure(
             "nch import", step.failed & " (the activities are imported): " & e.msg
           )

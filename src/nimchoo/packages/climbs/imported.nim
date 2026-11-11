@@ -5,27 +5,26 @@
 
 import std/options
 import ../../core/errors
-import ../importer/[after, sinks]
+import ../importer/after
 import ../user/session
-import ./work
+import ./[report, work]
 
 {.push raises: [].}
 
 proc workOutClimbs(
-    st: Session, ids: seq[int64]
+    st: Session, ids: seq[int64], show: Show
 ): Option[ImportReport] {.raises: [StoreError].} =
-  ## Every activity not yet looked at, not only `ids`: a re-import catches up too.
-  let worked = ensureClimbs(st)
+  ## Every activity not yet looked at, not only `ids`: a re-import catches up too.  The two lines of `nch climbs` follow it
+  ## (`climbingLines`), as they do there.
+  let worked = ensureClimbs(
+    st,
+    proc(done, total: int, soFar: Worked) {.closure, raises: [].} =
+      show(climbingLines(done, total, soFar), false),
+  )
   if worked.activities == 0:
     return none(ImportReport)
-  some(
-    ImportReport(
-      text:
-        "worked out the climbs of " & plural(
-          worked.activities, "activity", "activities"
-        ) & ": " & plural(worked.sectors, "new climb", "new climbs")
-    )
-  )
+  show(climbingLines(worked.activities, worked.activities, worked), true)
+  some(ImportReport(text: "climbs for " & workedText(worked)))
 
 let workNewClimbs* = AfterImport(
   run: workOutClimbs,

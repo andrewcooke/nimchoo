@@ -17,11 +17,20 @@ type
     text*: string
     look*: Look
 
+  Show* = proc(lines: seq[Line], final: bool) {.closure, raises: [].}
+    ## How a contribution shows work that takes a while: the lines that follow it, as often as it likes (the importer decides how
+    ## often they are drawn, and whether at all: only on a terminal); `final` is the last frame, which stays on the screen.
+    ## Library code does not print, so this is how the import's two live lines are drawn for it.
+
   AfterImport* = object
-    run*: proc(st: Session, ids: seq[int64]): Option[ImportReport] {.
+    run*: proc(st: Session, ids: seq[int64], show: Show): Option[ImportReport] {.
       nimcall, raises: [StoreError]
-    .} ## do it; `none`: nothing to say
+    .} ## do it, showing how far it has got; `none`: nothing to say
     failed*: string ## said when it raised: "the new activities could not be selected"
+
+proc noShow*(lines: seq[Line], final: bool) {.raises: [].} =
+  ## A `Show` that shows nothing (for a contribution that is run where there is no display, as in a test).
+  discard
 
 const afterImport* = ExtensionPoint[AfterImport](name: "importer/after")
   ## What is done after an import (PACKAGES.md, "Extension points").
