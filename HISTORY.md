@@ -66,6 +66,14 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   author's rule against it; set-based SQL over many positions was not tried.  The loop that measures landmarks to the route
   (`names/activity.nim`, "via") was not prototyped: the route is a Nim value (the sampled shape in flat metres).
   See "For the next whole-system review" in TODO.md.
+* **`attempts.summaries` is SQL now; `map climbsOf` stays** (`climbs/attempts.nim`, `map/command.nim`; measured 2026-11-11 on a
+  copy of the author's database: 183 climbs, 4,493 efforts).  `summaries` was three queries per climb with the ranks in Nim:
+  46 ms; the same as two queries for all the climbs (the attempts with `rank()` and `count() over`, each person's best with
+  `row_number()` then `rank()`): about 11 ms.  Nobody notices 35 ms; the reason was the code it deletes (`rankOf`, `BestRow`'s
+  table, both ranking loops, `sequtils`).  A person's best is the fastest ride, the earlier of two equal ones (the author's
+  choice; the old code took whichever came first), and riders with equal bests are ordered by that ride, then by user.
+  `climbsOf` (one query per climb) is 50 ms against 53 ms for one query for all: the time is `AsGeoJSON` writing 2.7 MB of
+  geometry, not the number of queries.
 * A climb whose route cannot be read is still an error in the duplicates report (the sql would otherwise skip it).
 * The "80.%" and "25. m" in the report and the `--duplicates` help (`:.0f` keeps the point) are fixed.
 

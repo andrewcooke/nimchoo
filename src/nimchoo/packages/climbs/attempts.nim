@@ -6,7 +6,7 @@
 ## Which climbs are shown is not decided here: the selected rides' climbs, or those whose name holds some text.
 ## Whatever the climbs, all their attempts count, those of the selected rides and the others.
 
-import std/[algorithm, options, sequtils, strutils, tables, times]
+import std/[algorithm, options, strutils, tables, times]
 import ../ui/columns
 import ../db/statement
 import ../db/store
@@ -43,13 +43,6 @@ type
     climb*: ClimbInfo
     attempts*: seq[Attempt] ## the user's, oldest first
     riders*: seq[Rider] ## each person's best, the fastest first
-
-func rankOf*(times: openArray[float], t: float): int =
-  ## 1 plus the number of times that are shorter: equal times share a rank.
-  result = 1
-  for x in times:
-    if x < t:
-      inc result
 
 # --- which climbs
 
@@ -97,84 +90,101 @@ proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreErr
 # --- the rows
 
 type
-  ClimbRow = tuple[lengthM, gainM, gradient: float, category: string]
+  ClimbRow = tuple[id: int64, lengthM, gainM, gradient: float, category: string]
   AttemptRow =
     tuple[
-      startT: int64,
+      sectorId, startT: int64,
       sport, subSport: string,
       distanceM, activeS: Option[float],
       place, name: string,
       elapsed: float,
       selected: bool,
+      rank, total: int,
     ]
-  BestRow = tuple[userId: int64, user: string, elapsed: float, startT: int64]
+  BestRow =
+    tuple[
+      sectorId, userId: int64,
+      user: string,
+      elapsed: float,
+      startT: int64,
+      rank, total: int,
+    ]
 
 proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreError].} =
-  ## The climbs `ids`, in that order, with the user's attempts and everyone's best times.
+  ## The climbs `ids`, in that order, with the user's attempts and everyone's best times.  Three queries for all of them
+  ## (not three for each): the ranks are the database's (`rank()`: equal times share a rank, the next is one plus the
+  ## number of faster times).
+  if ids.len == 0:
+    return
   let names = shownNames(st)
+  let wanted = jsonList(ids)
+  var sums = initTable[int64, Summary]()
   for id in ids:
-    var sum = Summary()
-    for r in st.db.query(
-      ClimbRow,
-      "select length_m, gain_m, gradient, coalesce(category, '') from sector where id = :id",
-      id = id,
-    ):
-      sum.climb = climbOf(
-        names.getOrDefault(id, unnamed), r.category, r.lengthM, r.gainM, r.gradient
-      )
-    var times: seq[float]
-    for r in st.db.query(
-      AttemptRow,
-      """select a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
-                coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
-                a.id in (select activity_id from selection where user_id = :userId)
-           from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
-          where e.sector_id = :sectorId and f.user_id = :userId order by a.start_t, e.start_t""",
-      userId = st.userId,
-      sectorId = id,
-    ):
-      let info = ActivityInfo(
-        startT: UnixTime(r.startT),
-        sport: r.sport,
-        subSport: r.subSport,
-        distanceM: r.distanceM,
-        activeS: r.activeS,
-        place: r.place,
-        name: r.name,
-      )
-      sum.attempts.add Attempt(activity: info, elapsed: r.elapsed, selected: r.selected)
-      times.add r.elapsed
-    for a in sum.attempts.mitems:
-      a.rank = rankOf(times, a.elapsed)
-      a.total = times.len
-    # each person's best
-    var best = initTable[int64, Rider]()
-    for r in st.db.query(
-      BestRow,
-      """select f.user_id, u.name, e.elapsed_s, a.start_t
+    sums[id] = Summary()
+  for r in st.db.query(
+    ClimbRow,
+    "select id, length_m, gain_m, gradient, coalesce(category, '') from sector " &
+      "where id in (select value from json_each(:ids))",
+    ids = wanted,
+  ):
+    sums.mustMut(r.id).climb = climbOf(
+      names.getOrDefault(r.id, unnamed), r.category, r.lengthM, r.gainM, r.gradient
+    )
+  for r in st.db.query(
+    AttemptRow,
+    """select e.sector_id, a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
+              coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
+              a.id in (select activity_id from selection where user_id = :userId),
+              rank() over (partition by e.sector_id order by e.elapsed_s),
+              count(*) over (partition by e.sector_id)
+         from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
+        where e.sector_id in (select value from json_each(:ids)) and f.user_id = :userId
+        order by e.sector_id, a.start_t, e.start_t""",
+    userId = st.userId,
+    ids = wanted,
+  ):
+    let info = ActivityInfo(
+      startT: UnixTime(r.startT),
+      sport: r.sport,
+      subSport: r.subSport,
+      distanceM: r.distanceM,
+      activeS: r.activeS,
+      place: r.place,
+      name: r.name,
+    )
+    sums.mustMut(r.sectorId).attempts.add Attempt(
+      activity: info,
+      elapsed: r.elapsed,
+      selected: r.selected,
+      rank: r.rank,
+      total: r.total,
+    )
+  # each person's best: the fastest time, the earlier ride if two are equal; then the people ranked by it
+  for r in st.db.query(
+    BestRow,
+    """with each as (
+         select e.sector_id, f.user_id, u.name, e.elapsed_s, a.start_t,
+                row_number() over (partition by e.sector_id, f.user_id order by e.elapsed_s, a.start_t) as n
            from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
            join user u on u.id = f.user_id
-          where e.sector_id = :sectorId""",
-      sectorId = id,
-    ):
-      if r.userId notin best or r.elapsed < best.must(r.userId).elapsed:
-        best[r.userId] = Rider(
-          user: r.user,
-          elapsed: r.elapsed,
-          startT: r.startT,
-          me: r.userId == int64(st.userId),
-        )
-    for rider in best.values:
-      sum.riders.add rider
-    sum.riders.sort(
-      proc(a, b: Rider): int =
-        cmp(a.elapsed, b.elapsed)
+          where e.sector_id in (select value from json_each(:ids))),
+       best as (select * from each where n = 1)
+       select sector_id, user_id, name, elapsed_s, start_t,
+              rank() over (partition by sector_id order by elapsed_s),
+              count(*) over (partition by sector_id)
+         from best order by sector_id, elapsed_s, start_t, user_id""",
+    ids = wanted,
+  ):
+    sums.mustMut(r.sectorId).riders.add Rider(
+      user: r.user,
+      elapsed: r.elapsed,
+      startT: r.startT,
+      rank: r.rank,
+      total: r.total,
+      me: r.userId == int64(st.userId),
     )
-    let bests = sum.riders.mapIt(it.elapsed)
-    for rider in sum.riders.mitems:
-      rider.rank = rankOf(bests, rider.elapsed)
-      rider.total = sum.riders.len
-    result.add sum
+  for id in ids:
+    result.add sums.must(id)
 
 # --- the lines
 

@@ -8,12 +8,6 @@ import nimchoo/packages/ui/palette
 import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]
 
-suite "attempts: the ranks":
-  test "one plus the number that are faster; equal times share a rank":
-    check rankOf([500.0, 480.0, 520.0], 500.0) == 2
-    check rankOf([500.0, 500.0, 520.0], 500.0) == 1
-    check rankOf([500.0], 500.0) == 1
-
 proc world(name: string): Session =
   ## The default user rode at 5 and at 6 m/s, bob at 4 m/s; only the slowest-but-one ride is selected.
   let s = fresh(name)
@@ -50,6 +44,28 @@ suite "attempts: from the tables":
     check r[0].user == "default" and r[0].rank == 1 and r[0].me and r[0].total == 2
       # (the 6 m/s ride)
     check r[1].user == "bob" and r[1].rank == 2 and not r[1].me
+  test "equal times share a rank, and a person's best is the earlier of two equal rides":
+    let s = fresh("attempts-ties")
+    defer:
+      s.close()
+    addUser(s.path, "bob")
+    addRide(s, "default", "late", 4_000_000, 5.0, eastbound(5.0))
+    addRide(s, "default", "early", 1_000_000, 5.0, eastbound(5.0))
+    addRide(s, "default", "slow", 2_000_000, 4.0, eastbound(4.0))
+    addRide(s, "bob", "same", 3_000_000, 5.0, eastbound(5.0))
+    discard ensureClimbs(s)
+    s.db.execute(
+      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      userId = s.userId,
+    )
+    let sum = summaries(s, selectedClimbs(s))[0]
+    check sum.attempts.len == 3
+    check sum.attempts[0].rank == 1 and sum.attempts[1].rank == 3 and
+      sum.attempts[2].rank == 1 # (oldest first: early, slow, late)
+    check sum.attempts[0].total == 3
+    check sum.riders.len == 2 and sum.riders[0].rank == 1 and sum.riders[1].rank == 1
+    check sum.riders[0].user == "default" and sum.riders[0].startT == 1_000_000
+      # (equal best times: the earlier ride is the best, and the earlier rider is first)
   test "nothing is selected: no climbs; a retired climb is hidden":
     let s = world("attempts-none")
     defer:

@@ -23,12 +23,6 @@ sees and can be approved together.
    * **`--edit NAME`** for the other plural commands if they gain one; a **`--model`** of `map`, if it gets one;
    * candidates that need quoting (`Cerro San Luis₄`) are quoted by the function (`%q`) and the words typed are unquoted; only
      spaces, quotes and backslashes were tried.
-7. **Push work into SQL** (A §4.4): the overlap of climbs is done (HISTORY.md, 2026-11-11).  The author's rule: spatial work
-   right after data leaves the database or just before it enters goes to SpatiaLite; data that starts outside and stays
-   outside does not.  Left, each to be prototyped and compared with the Nim result first:
-   * not spatial, on the review's list: `attempts.summaries` (3 queries per climb, the ranking in Nim) and `map climbsOf`
-     (may already be one query): measure before deciding.  (`countriesOfCell`, `ensureCells` and `missingCells` were
-     measured on 2026-11-11: negligible, see the note on large countries below.)
 8. **Shrink** (A §4.7) (mechanical, except one cache naming scheme).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
