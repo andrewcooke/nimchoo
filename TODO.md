@@ -48,7 +48,7 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
 7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.
    10. The general plot command that replaces `ff`.  11. The cache manifest.
-12. Climb numbers (a renamed-away name reused).  13. The log (level filtering; the `saved` word).  14. Terminal themes.
+12. Climb numbers (a renamed-away name reused).  12b. The import does not follow symbolic links (below).  13. The log (level filtering; the `saved` word).  14. Terminal themes.
 15. The map (labels, legend, landmarks, palette, colour by sport or year).  16. `ff` (form column, days/hours switch; superseded
    if 10 comes first).  17. Blue for the selection in `nch climbs`.  18. Tags.  19. A calendar of fitness.  20. More climb
    features.  21. Per-sport threshold heart rate and models.  22. A terrain model (SRTM).  23. Versions.
@@ -129,6 +129,13 @@ To fit into the plan, or to do after it.  Details in HISTORY.md where noted.
     `climbs/002-name-number.sql`): at the next squash;
   * tab completion for **zsh** (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for
     the other plural commands, and a `--model` of `map`, if they gain them (completion follows the specs).
+* **The import does not follow symbolic links** (found 2026-11-12, the importer given a directory of links to `.fit` files said "no
+  .fit files found").  `importer/batch.nim` walks a directory with `walkDirRec(arg)`, whose defaults yield only regular files and
+  descend only into real directories, so a link to a file or to a directory is skipped without a word.  Follow both
+  (`yieldFilter = {pcFile, pcLinkToFile}`, `followFilter = {pcDir, pcLinkToDir}`), with a guard against a loop (a link to a parent
+  directory: remember the real path of each directory entered) and the rule that a file reached twice is read once (it is imported
+  once anyway: same content, same hash).  A test with a link to a file, a link to a directory and a loop; a broken link is a
+  failure that says so, not a silent skip.
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
 * **Features for later**: the elevation profile of a climb, the lead/lag comparison, the near-miss report,
   `exclude`, a way to retire many climbs (auto-retire of duplicates was tried and dropped: it retired long climbs
