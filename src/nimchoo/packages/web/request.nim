@@ -28,7 +28,6 @@ type
     of false:
       command*: string
       args*: seq[string] ## for `nch COMMAND --worker ARGS`
-      pin*: string ## the option that fixes what the page shows ("": none)
 
   PageOption* = object
     name*: string ## `?name=value` becomes `--name value`
@@ -40,15 +39,11 @@ type
     command*: string
     options*: seq[PageOption]
     flags*: seq[string] ## `?name=1` becomes `--name`
-    pin*: string
-      ## the key of the data: if a request lacks it, the address is
-      ## sent on with the key the worker used (so that a reload
-      ## shows the same data)
 
-func pageOf*[P](command: string, spec: Spec[P], pin: string): WebPage =
+func pageOf*[P](command: string, spec: Spec[P]): WebPage =
   ## The page a command offers the server, made from its own options: those marked as allowed in an address, each with
   ## its check, and the flags.  What the server will pass on is then what the command parses, and nothing else.
-  result = WebPage(command: command, pin: pin)
+  result = WebPage(command: command)
   for o in spec.opts:
     if o.address == adNo:
       continue
@@ -74,6 +69,9 @@ const
   cookieMaxAge* = 365 * 24 * 3600
     ## seconds: a bookmark works for a year, not only until the browser is closed
   tokenParam* = "token"
+  stateParam* = "state"
+    ## the parameter that pins a page to the data it was made from: an address without it is for the current data, and is
+    ## sent on to the one that names exactly what the worker made
   defaultPort* = 62466 ## the digits of "mchoo" on a phone keypad
 
 func encodedPath(path: string): string =
@@ -213,5 +211,5 @@ func route*(t: Target, pages: seq[WebPage]): Option[Route] =
           return none(Route)
         args.add "--" & k
         args.add v
-    return some(Route(isFile: false, command: page.command, args: args, pin: page.pin))
+    return some(Route(isFile: false, command: page.command, args: args))
   none(Route)

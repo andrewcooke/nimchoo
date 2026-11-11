@@ -37,8 +37,7 @@ sees and can be approved together.
    (was `--bits`) and `--state` (was `--check`) in both commands and in addresses, "for urls" in their help.  Decided: `--worker` stays; no collision check anywhere (a name is the hash alone).
    Done (2026-11-12): `cache` names are the command and a hash of the whole request (`fileStem` and `parseStem` are gone), and
    `ff` names its files so, prints the pinned query as the third line of `--worker`, and the server redirects to it; `map` too (its state is one fingerprint of the activities' content, their routes and the climbs, without the program's version; a pinned address whose file is there is served without working anything out, one whose file is gone is made again only if the state is the same; the collision loop, the request in the file, the in-place rebuild and `nch.inputs` are gone).  Left:
-   4. the web handler: one `state` pin for every command, and the redirect from a live address;
-   5. a test per command that changes each table it reads and checks that the fingerprint changes.
+   Left: a test per command that changes each table it reads and checks that the fingerprint changes (`map` has one; `ff` does not).
 9. **Larger changes**: the `sectors` package; per-second data as arrays per activity, with cleaning at import; a
    simplified `route` (the author's idea: also stored as a **single connected line**, beside the multi-part one, for the
    uses where segmentation does not matter: 21% of routes have several parts and SpatiaLite's resampling returns NULL for

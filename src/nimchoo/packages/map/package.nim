@@ -18,7 +18,7 @@ import ../web/request
 import ./[command, params]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[contribute(webPage, pageOf(command.commandName, mapSpec(), "selection"))]
+  @[contribute(webPage, pageOf(command.commandName, mapSpec()))]
 
 const package* = Package(
   depends: @[

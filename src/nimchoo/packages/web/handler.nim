@@ -118,7 +118,7 @@ proc page(cfg: ServerConfig, route: Route, t: Target, r: WorkerResult): Reply =
   let name = extractFilename(lines[0])
   if parentDir(lines[0]) != cfg.cacheDir or not name.endsWith(".html"):
     return reply(500, "nch " & route.command & " named a page that is not in the cache")
-  if route.pin.len > 0 and t.query.queryValue(route.pin).isNone and lines.len > 2:
+  if t.query.queryValue(stateParam).isNone and lines.len > 2:
     # the address was for "the current data": the worker's third line is the address that names exactly what it made, and
     # a reload of that shows the same plot
     return

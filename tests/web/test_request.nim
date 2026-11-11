@@ -126,7 +126,7 @@ suite "serve request: what is asked for":
         "/ff?state=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
       )
     ).get
-    check r.command == "ff" and r.pin == "state"
+    check r.command == "ff"
     check r.args ==
       @[
         "--state", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to",
@@ -134,7 +134,6 @@ suite "serve request: what is asked for":
         "5",
       ]
     check route(target("/ff")).get.args.len == 0
-    check route(target("/map")).get.pin == "selection"
   test "ff: no other option or value":
     for bad in [
       "/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1",

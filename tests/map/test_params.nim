@@ -56,7 +56,7 @@ suite "map: the command line":
 
 suite "map: the page the server may run":
   test "it is made from the options marked as allowed in an address":
-    check mapPage.command == "map" and mapPage.pin == "selection"
+    check mapPage.command == "map"
     check mapPage.options.mapIt(it.name) == @["selection", "state"]
     check mapPage.flags.len == 0
   test "what it accepts in an address is what the options accept":
