@@ -47,6 +47,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Features and ideas, unordered
 
+* **Investigate: "Cerro San Cristóbal" and "Parque Metropolitano" are not used to label rides** (the author, 2026-11-13).  Rides on
+  that hill are named after other places.  Find out why: which GeoNames features are there and with what feature codes
+  (`names/codes.nim` says which codes count and how they rank), whether they are within the search radii for the start, the
+  turning point and the places along the route (`names/activity.nim`), and whether a landmark of the author's own (`nch landmarks`)
+  would be the answer.  Look at a few of the rides with `nch activities --names` and `nch map` before changing any rule.
 * **Climb numbers**: a name renamed away from and then reused by a new climb can reuse the highest number.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **Light and dark terminal backgrounds** (`NCH_THEME`, else `COLORFGBG`; dim and yellow are poor on white).
