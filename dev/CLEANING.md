@@ -95,3 +95,11 @@ advisory per kind and activity.  Changed from the design while testing against t
 splits the stretch only at 100 m or more (27 of 35 first splits were under 100 m; a split would have broken a climb across it), and the
 device's speed counts only for steps of 5 s or less.  Result: 18,125 stale positions in 477 activities, 387 spike or burst positions in
 73, 6 poor first fixes, 3 splits.  Not built: the survey tool (the import log gives the counts); the arrays (TODO.md).
+
+## Changed after looking at the splits (2026-11-13)
+
+The poor-first-fix window was 15 s, from the survey (jumps within 1 to 15 s, none to a minute).  Two of the three splits left on the
+author's bike files were poor first fixes too, at 75 s (`2026-07-22-fun.fit`: 64 slow positions, then a jump of 103 m) and 106 s
+(`2016-11-20-sur.fit`: 16 positions, then 366 m).  The window is now 5 minutes (`firstFixS` = 300), and the part before the jump must
+be shorter than the rest of the recording (so a ride that goes wrong late does not lose its beginning).  9 activities have a poor
+first fix instead of 6; the only split left is `2018-03-11-atr.fit`, a jump of 304 m in 3 s, 46 minutes in, which stays a split.

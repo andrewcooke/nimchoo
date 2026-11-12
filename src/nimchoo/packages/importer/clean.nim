@@ -11,8 +11,9 @@
 ## 2. **Spikes and bursts**: a position the ride cannot have reached from the last good one in the time (`leewayM` plus the
 ##    fastest a bicycle goes, or, when the device measured its speed, twice that speed and a little more), while a later
 ##    position within `burstS` seconds is again reachable: those between are dropped.
-## 3. **A jump that does not return**: no later position is reachable from the last good one.  Within `firstFixS` of
-##    the start of the recording, the positions before the jump were a poor first fix: they are dropped.  Later, the
+## 3. **A jump that does not return**: no later position is reachable from the last good one.  Within `firstFixS` (5 minutes)
+##    of the start of the recording, and if what came before is shorter than what follows, the positions before the jump
+##    were a poor first fix: they are dropped.  Later, the
 ##    stretch is split there if the jump is `splitM` (100 m) or more (a shorter one is a position corrected: kept) (nothing measures distance, a climb or an effort across it: there is no telling which side is
 ##    wrong).
 ##
@@ -48,7 +49,8 @@ type
     leewayM*: float ## the error of a position that is not a fault
     fastestMps*: float ## faster than any bicycle goes
     burstS*: int ## how long a run of wrong positions may be
-    firstFixS*: int ## how soon after the start a jump is a poor first fix
+    firstFixS*: int
+      ## how soon after the start a jump is a poor first fix (the part before it must also be shorter than the rest)
     splitM*: float
       ## a jump that does not return splits the stretch only if it is this long; a shorter one is the position being
       ## corrected (a fix found again after a pause), and a split there would break a climb that crosses it
@@ -62,7 +64,7 @@ func tuning*(): Tuning =
     leewayM: 30.0,
     fastestMps: 30.0,
     burstS: 30,
-    firstFixS: 15,
+    firstFixS: 300,
     splitM: 100.0,
     speedWithinS: 5,
   )
@@ -148,7 +150,9 @@ func cleanCoords*(coords: seq[Coord], tune = tuning()): Cleaned =
         back = m
         break
       inc m
-    let early = int64(coords[at].t) - int64(coords[live[0]].t) <= tune.firstFixS
+    let before = int64(coords[at].t) - int64(coords[live[0]].t)
+    let early =
+      before <= tune.firstFixS and before < int64(coords[^1].t) - int64(coords[at].t)
     if back >= 0 and not (early and back - k > kept.len):
       for j in k ..< back:
         result.dropped.add Dropped(t: coords[live[j]].t, fault: fSpike)

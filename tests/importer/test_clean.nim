@@ -80,6 +80,21 @@ suite "import: cleaning the positions":
     check r.dropped.allIt(it.fault == fFirstFix)
     check r.kept == c[6 ..^ 1] and r.splits.len == 0
 
+  test "a poor first fix lasting a minute or two is dropped too, if it is shorter than the rest":
+    var c = ride(1000)
+    for i in 0 ..< 90: # slow drift 300 m from the track, then the jump to it
+      c[i] = at(t0 + i, float(i) * 1.5, 300.0 + float(i))
+    let r = cleanCoords(c)
+    check r.dropped.times == toSeq(0 ..< 90) and r.splits.len == 0
+    check r.dropped.allIt(it.fault == fFirstFix)
+
+  test "the same jump late in a ride splits it: the part before is not a poor first fix":
+    var c = ride(1000)
+    for i in 600 ..< 1000:
+      c[i].lat += 0.005
+    let r = cleanCoords(c)
+    check r.splits == @[UnixTime(t0 + 600)] and r.dropped.len == 0
+
   test "a jump that does not return splits the stretch, and drops nothing":
     var c = ride(200)
     for i in 100 ..< 200:
