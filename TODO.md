@@ -47,6 +47,13 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Features and ideas, unordered
 
+* **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
+  (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
+  A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for
+  the `enhanced_speed` / `speed` channel and writes it to a table of its own (on its own times: a second can have a speed and no
+  position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Storing it
+  has to be decided before the rebuild at the end of the arrays work, because what is not stored then is not there until the
+  next re-import.
 * **`map` criteria of its own** (the author, 2026-11-13): extra arguments to `nch map` (the criteria `nch activities` takes, say
   `--from`, `--names`, `--climbs`), so that a simple plot does not need `nch activities ... --select` first.  Design questions:
   the same criteria options from one description (`activities/criteria.nim` offers them), what the address carries (the
