@@ -47,6 +47,10 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Features and ideas, unordered
 
+* **`map` criteria of its own** (the author, 2026-11-13): extra arguments to `nch map` (the criteria `nch activities` takes, say
+  `--from`, `--names`, `--climbs`), so that a simple plot does not need `nch activities ... --select` first.  Design questions:
+  the same criteria options from one description (`activities/criteria.nim` offers them), what the address carries (the
+  criteria, or the resolved `selection` it already has), and what the state fingerprints.
 * **Investigate: "Cerro San Cristóbal" and "Parque Metropolitano" are not used to label rides** (the author, 2026-11-13).  Rides on
   that hill are named after other places.  Find out why: which GeoNames features are there and with what feature codes
   (`names/codes.nim` says which codes count and how they rank), whether they are within the search radii for the start, the

@@ -40,6 +40,8 @@ type
     t*: UnixTime
     lon*, lat*: float ## degrees
     alt*: Option[float] ## metres
+    speed*: Option[float]
+      ## metres a second, as the device measured it (from the Doppler shift, so reflections disturb it less than the position)
 
   Segment* = object
     ## A stretch of riding (a closed interval): a stretch during which the timer ran,
@@ -135,6 +137,9 @@ func coordOf(r: Record, t: UnixTime, index, offset: int): Option[RawCoord] =
   var alt = r.firstNum("enhanced_altitude")
   if alt.isNone:
     alt = r.firstNum("altitude")
+  var speed = r.firstNum("enhanced_speed")
+  if speed.isNone:
+    speed = r.firstNum("speed")
   some(
     RawCoord(
       c: Coord(
@@ -142,6 +147,7 @@ func coordOf(r: Record, t: UnixTime, index, offset: int): Option[RawCoord] =
         lon: float(lon.get) * semicircleDegrees,
         lat: float(lat.get) * semicircleDegrees,
         alt: alt,
+        speed: speed,
       ),
       index: index,
       offset: offset,
