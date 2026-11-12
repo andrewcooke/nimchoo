@@ -26,22 +26,22 @@ const
   altOffsetM = 500.0
   altPerM = 5.0
 
-func put32(s: var string, at: int, v: int32) =
+func put32*(s: var string, at: int, v: int32) =
   let u = cast[uint32](v)
   for k in 0 .. 3:
     s[at + k] = char((u shr (8 * k)) and 0xFF)
 
-func get32(s: string, at: int): int32 =
+func get32*(s: string, at: int): int32 =
   var u = 0'u32
   for k in 0 .. 3:
     u = u or (uint32(ord(s[at + k])) shl (8 * k))
   cast[int32](u)
 
-func put16(s: var string, at: int, v: uint16) =
+func put16*(s: var string, at: int, v: uint16) =
   s[at] = char(v and 0xFF)
   s[at + 1] = char(v shr 8)
 
-func get16(s: string, at: int): uint16 =
+func get16*(s: string, at: int): uint16 =
   uint16(ord(s[at])) or (uint16(ord(s[at + 1])) shl 8)
 
 func semicircles(degrees: float): int32 =

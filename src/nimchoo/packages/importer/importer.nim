@@ -12,7 +12,7 @@ import ../../core/errors
 import ../fit/model
 import ../util/profiling/profiling
 import ../util/warnings/warnings
-import ./[extract, route, visits]
+import ./[extract, route, series, visits]
 import ../user/session
 
 {.push raises: [].}
@@ -169,6 +169,10 @@ proc writeDecoded*(
     let routeStmt = prepareStmt(
       s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
     )
+    let trackStmt = prepareStmt(
+      s.db,
+      "insert into track(activity_id, t0, n, t, lon, lat, alt) values (?, ?, ?, ?, ?, ?, ?)",
+    )
     let startStmt = prepareStmt(
       s.db, "update activity set start = MakePoint(?, ?, 4326) where id = ?"
     )
@@ -185,6 +189,17 @@ proc writeDecoded*(
           insertSegment(segStmt, activityId, n, g)
       timed "insert coords":
         insertCoords(coordInsert, activityId, a.coords)
+      if a.coords.len > 0:
+        timed "insert track":
+          let arrays = encodePositions(a.coords)
+          trackStmt.bindInt(1, activityId)
+          trackStmt.bindInt(2, int64(arrays.t0))
+          trackStmt.bindInt(3, arrays.count)
+          trackStmt.bindBlob(4, arrays.t)
+          trackStmt.bindBlob(5, arrays.lon)
+          trackStmt.bindBlob(6, arrays.lat)
+          trackStmt.bindBlob(7, arrays.alt)
+          trackStmt.run()
       timed "insert cells":
         insertVisits(visitInsert, activityId, visitsOf(a.coords))
       if a.coords.len > 0: # where it started: the first position

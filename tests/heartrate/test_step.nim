@@ -3,7 +3,7 @@ import std/[os, tables, unittest]
 import ../support/shims
 import nimchoo/packages/user/session
 import nimchoo/packages/importer/channel
-import nimchoo/packages/heartrate/step
+import nimchoo/packages/heartrate/[series, step]
 import nimchoo/packages/importer/importer
 import nimchoo/packages/fit/time
 import nimchoo/packages/util/bytes/bytes
@@ -84,6 +84,27 @@ suite "heartrate: import":
       """select count(*) from heartrate h join activity a on a.id = h.activity_id
       where h.t < a.start_t or h.t > a.end_t + 1""",
     ) == 0
+
+  test "the series holds the same readings as the rows":
+    let s = openDb("series")
+    defer:
+      s.close()
+    var ws: seq[Warning]
+    discard s.importFile(p, "ride.fit", readBytes(ride), ws, @[heartrateStep])
+    let st = prepareStmt(s.db, "select t, bpm from heartrate_series")
+    check st.nextRow()
+    let r = Readings(
+      t0: UnixTime(s.db.scalar(int64, "select t0 from heartrate_series")),
+      count: s.db.scalar(int, "select n from heartrate_series"),
+      t: st.blobAt(0),
+      bpm: st.blobAt(1),
+    )
+    let rows =
+      s.db.query(tuple[t, bpm: int64], "select t, bpm from heartrate order by t")
+    let decoded = decodeReadings(r)
+    check decoded.len == rows.len and rows.len == 2099
+    for i in 0 ..< rows.len:
+      check int64(decoded[i][0]) == rows[i].t and decoded[i][1] == int(rows[i].bpm)
 
   test "without the step nothing is written; the table is empty":
     let s = openDb("nostep")

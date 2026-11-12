@@ -1,3 +1,5 @@
+import nimchoo/packages/importer/series
+import nimchoo/packages/fit/time
 import std/[options, os, unittest]
 import ../support/shims
 import nimchoo/core/errors
@@ -54,6 +56,37 @@ proc rows(s: Session): seq[tuple[activityId, cell, tIn, tOut: int64]] =
     tuple[activityId, cell, tIn, tOut: int64],
     "select activity_id, cell, t_in, t_out from route_cell order by activity_id, t_in",
   )
+
+suite "track: the positions as arrays":
+  test "the arrays hold the positions that coords does":
+    let s = importedRide("track")
+    defer:
+      s.close()
+    let st = prepareStmt(s.db, "select t0, n, t, lon, lat, alt from track")
+    check st.nextRow()
+    let p = Positions(
+      t0: UnixTime(s.db.scalar(int64, "select t0 from track")),
+      count: s.db.scalar(int, "select n from track"),
+      t: st.blobAt(2),
+      lon: st.blobAt(3),
+      lat: st.blobAt(4),
+      alt: st.blobAt(5),
+    )
+    let decoded = decodePositions(p)
+    let rows = s.db.query(
+      tuple[t: int64, lon, lat: float], "select t, lon, lat from coords order by t"
+    )
+    check decoded.len == rows.len and decoded.len > 100
+    for i in 0 ..< rows.len:
+      check int64(decoded[i].t) == rows[i].t
+      check abs(decoded[i].lon - rows[i].lon) < 1e-9 and
+        abs(decoded[i].lat - rows[i].lat) < 1e-9
+  test "deleting an activity deletes its track":
+    let s = importedRide("track-delete")
+    defer:
+      s.close()
+    s.db.execute("delete from activity")
+    check s.db.scalar(int, "select count(*) from track") == 0
 
 suite "route_cell: written with the samples":
   test "a real ride has visits, and they are what the samples say":

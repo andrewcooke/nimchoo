@@ -6,6 +6,7 @@ import std/[math, tables]
 import ../db/multirow
 import ../db/statement
 import ../importer/channel
+import ./series
 import ../../core/errors
 import ../fit/time
 import ../../core/ids
@@ -40,6 +41,17 @@ proc write(
       st.bindInt(3 * r + 3, int64(rows[i + r][1]))
     st.run()
     i += n
+  let arrays = encodeReadings(rows)
+  let series = prepareStmt(
+    db,
+    "insert into heartrate_series(activity_id, t0, n, t, bpm) values (?, ?, ?, ?, ?)",
+  )
+  series.bindInt(1, activityId)
+  series.bindInt(2, int64(arrays.t0))
+  series.bindInt(3, arrays.count)
+  series.bindBlob(4, arrays.t)
+  series.bindBlob(5, arrays.bpm)
+  series.run()
   rows.len
 
 let heartrateStep* = ImportStep(

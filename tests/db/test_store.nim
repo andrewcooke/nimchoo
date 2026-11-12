@@ -96,8 +96,9 @@ suite "database: opening and bringing the schema up to date":
     check names ==
       @[
         "climbs/001-schema.sql", "db/001-schema.sql", "heartrate/001-schema.sql",
-        "importer/001-schema.sql", "model/001-schema.sql", "names/001-schema.sql",
-        "selection/001-schema.sql", "user/001-schema.sql",
+        "heartrate/002-series.sql", "importer/001-schema.sql", "importer/002-track.sql",
+        "model/001-schema.sql", "names/001-schema.sql", "selection/001-schema.sql",
+        "user/001-schema.sql",
       ]
     s.close()
 
@@ -169,7 +170,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 8
+    check b.count("fragment") == 10
     b.close()
 
   test "the directory is created":
