@@ -29,15 +29,15 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    the routes run through places with many more features than the author's (the cost is the features in a route's box, so local
    density, not the size of a country or of the data); a per-cell place table is shared by all rides and would then scale better.
    Where naming lives (REVIEW.md §5.1) is a separate question, not needed now.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
-1b. **The gates of a climb have no direction** (found 2026-11-12; the evidence and the measurements are in HISTORY.md "Gates have no
-   direction").  Done: `overPaths` pairs the crossings closest to the climb's length first (stored efforts judged right by
-   `tools/gatetruth.nim truth`: 4,350 -> 4,411 of 4,493).  Left: 28 start late, 33 finish early, 21 mostly off the line (short
-   climbs 150 and 46, perhaps the tool's tolerance).  **17 of the 183 climbs are susceptible** (`gatetruth susceptible`: a gate meets
-   the climb's own line elsewhere; 398 efforts; climbs 62, 147, 144, 145, 172, 118, 155 ... ), and a direction rule is not safe on
-   them: at climb 145's finish (the line folds at 1951 m of 2005) a correct ride crosses the gate going against it.  To decide with
-   the author: report the susceptible climbs in `nch climbs`; retire them for a longer nearby climb with a clean entry and exit, or
-   move/narrow their gates; (f) match the sequence of curves (the author's); (e) progress along the climb as a test in `overPaths`
-   (the assistant's; `gatetruth` already does it for judging).  Look at examples with `nch map --layers routes efforts gates`.
+1b. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in HISTORY.md "Gates have no direction").  `overPaths`
+   now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right
+   (`tools/gatetruth.nim truth`), 28 start late, 33 finish early, 21 are mostly off the line.  The rest are on the **17 of 183 climbs
+   whose gate meets the climb's own line elsewhere** (`gatetruth susceptible`; 398 efforts; climbs 62, 147, 144, 145, 172, 118, 155 ...),
+   and a direction rule is not safe on them (climb 145's finish sits on a fold).  Not worth more until a user cares enough about a
+   climb or an attempt to push for something better, and has an opinion about how: the ideas are to report such climbs in
+   `nch climbs`, retire them for a longer nearby climb with clean ends, move or narrow their gates, match the sequence of curves,
+   or require progress along the climb (`gatetruth` already does that, for judging).  Look at examples with
+   `nch map --layers routes efforts gates`.
 2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
    as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
 7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.
