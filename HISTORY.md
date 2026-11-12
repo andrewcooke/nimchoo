@@ -95,6 +95,12 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **The efforts layer broke the page (2026-11-12, found by the author)**: "could not load the routes: TypeError: can't access property min, t is undefined".  The
+  dots at the ends of an effort were added straight to the map (`.addTo(map)`) before the map had a view; that made Leaflet's canvas renderer early, and the
+  layer groups added before them (the climbs) then added their lines to a renderer that was not set up yet.  Every older layer was inside a group.  The dots are in a
+  group of their own now.  My stub of Leaflet could not have shown it; running the page in node with the real Leaflet 1.9.4 and jsdom reproduced it at once and showed
+  that routes, climbs, gates and heat were fine (`tools/pagecheck.js`, by hand, needs `npm i jsdom leaflet`).  The lesson: look at the page with the real library
+  before saying it works, and a layer that draws must be in a group.
 * **Map layers `gates` and `efforts` (2026-11-12)**, to look at how climbs are matched (the gates have no direction, TODO 1b): `--layers routes,efforts,gates`.
   `gates` draws each climb's start and finish line from `climbs/match.gateLines` (the same gates `overPaths` uses, defined once); `efforts` draws the part of each
   selected ride between the stored start and finish time of an effort on a climb, thick, with a green dot at the start and a red one at the finish.

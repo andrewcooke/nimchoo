@@ -253,7 +253,10 @@
       // --- efforts: the part of each ride between the start and finish times stored for an effort on a climb, with a dot where
       // it starts and where it finishes; and the gates of the climbs, short lines across the road.  For looking at how a
       // climb is matched: the ride shows where it crosses a gate (a switchback can make it cross twice).
+      // (the dots go in a group of their own, added after the lines: a layer added straight to the map before it has a view makes
+      // the canvas renderer early, and the groups added before it then find a renderer that is not set up yet)
       const eff = style.efforts, gat = style.gates;
+      const effortDots = [];
       const effortLayer = L.geoJSON(data, {
         filter: ofKind('effort'),
         style: { color: eff.color, weight: eff.weight, opacity: eff.opacity },
@@ -263,13 +266,14 @@
                         Math.floor(p.elapsed_s / 60) + ' min ' + Math.round(p.elapsed_s % 60) + ' s; started ' + p.start_m + ' m into the ride (activity ' + p.activity + ')';
           l.bindPopup(facts);
           if (c.length > 0) {
-            const dot = (xy, colour, what) => L.circleMarker([xy[1], xy[0]], { radius: eff.radius, color: colour, fillColor: colour, fillOpacity: 1, weight: 1 })
-                                                .bindPopup(what + ' of the effort<br>' + facts).addTo(map);
+            const dot = (xy, colour, what) => effortDots.push(L.circleMarker([xy[1], xy[0]], { radius: eff.radius, color: colour, fillColor: colour, fillOpacity: 1, weight: 1 })
+                                                                .bindPopup(what + ' of the effort<br>' + facts));
             dot(c[0], eff.start, 'start');
             dot(c[c.length - 1], eff.finish, 'finish');
           }
         }
       }).addTo(map);
+      L.layerGroup(effortDots).addTo(map);
       const gateLayer = L.geoJSON(data, {
         filter: ofKind('gate'),
         style: (f) => ({ color: f.properties.end === 'start' ? gat.start : gat.finish, weight: gat.weight, opacity: gat.opacity }),
