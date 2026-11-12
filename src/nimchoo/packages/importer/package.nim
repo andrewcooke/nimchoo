@@ -1,7 +1,7 @@
 ## Putting the activities of FIT files into the database, and describing them.
 ##
-## This package owns the tables `file`, `activity`, `coords`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
-## activity, as arrays; other data refers to it by time and never by array index, and the arrays are never changed once
+## This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
+## activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the heart rate is in `heartrate`); other data refers to it by time and never by array index, and the arrays are never changed once
 ## written.
 ##
 ## * **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one).  A file whose path, size and
@@ -39,6 +39,7 @@ const package* = Package(
     fragment("001-schema.sql"),
       # file, activity, coords, segment, route, seen_file, route_cell (the cells of the grid each activity went through)
     fragment("002-track.sql"), # track: the positions of an activity as arrays
+    fragment("003-drop-coords.sql"), # (the rows of positions are gone)
   ],
   commands: @[
     CommandDecl(

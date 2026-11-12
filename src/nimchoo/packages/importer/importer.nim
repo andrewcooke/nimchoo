@@ -53,25 +53,6 @@ proc insertSegment(
   st.bindInt(4, int64(g.endT))
   st.run()
 
-proc insertCoords(
-    m: var MultiInsert, activityId: ActivityId, coords: seq[Coord]
-) {.raises: [StoreError].} =
-  ## All the coordinates of an activity, many rows to a statement.
-  var i = 0
-  while i < coords.len:
-    let n = min(rowsPerStatement, coords.len - i)
-    let st = m.statement(n)
-    for r in 0 ..< n:
-      let c = coords[i + r]
-      let b = 5 * r
-      st.bindInt(b + 1, activityId)
-      st.bindInt(b + 2, int64(c.t))
-      st.bindReal(b + 3, c.lon)
-      st.bindReal(b + 4, c.lat)
-      st.bindReal(b + 5, c.alt)
-    st.run()
-    i += n
-
 proc insertVisits(
     m: var MultiInsert, activityId: ActivityId, visits: seq[Visit]
 ) {.raises: [StoreError].} =
@@ -142,9 +123,6 @@ proc writeDecoded*(
   s.begin()
   var committed = false
   try:
-    var coordInsert = initMultiInsert(
-      s.db, "insert into coords(activity_id, t, lon, lat, alt) values ", 5
-    )
     var visitInsert = initMultiInsert(
       s.db, "insert into route_cell(activity_id, cell, t_in, t_out) values ", 4
     )
@@ -171,7 +149,7 @@ proc writeDecoded*(
     )
     let trackStmt = prepareStmt(
       s.db,
-      "insert into track(activity_id, t0, n, t, lon, lat, alt) values (?, ?, ?, ?, ?, ?, ?)",
+      "insert into track(activity_id, t0, t1, n, t, lon, lat, alt) values (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     let startStmt = prepareStmt(
       s.db, "update activity set start = MakePoint(?, ?, 4326) where id = ?"
@@ -187,18 +165,17 @@ proc writeDecoded*(
       timed "insert segments":
         for n, g in a.segments:
           insertSegment(segStmt, activityId, n, g)
-      timed "insert coords":
-        insertCoords(coordInsert, activityId, a.coords)
       if a.coords.len > 0:
         timed "insert track":
           let arrays = encodePositions(a.coords)
           trackStmt.bindInt(1, activityId)
           trackStmt.bindInt(2, int64(arrays.t0))
-          trackStmt.bindInt(3, arrays.count)
-          trackStmt.bindBlob(4, arrays.t)
-          trackStmt.bindBlob(5, arrays.lon)
-          trackStmt.bindBlob(6, arrays.lat)
-          trackStmt.bindBlob(7, arrays.alt)
+          trackStmt.bindInt(3, int64(a.coords[^1].t))
+          trackStmt.bindInt(4, arrays.count)
+          trackStmt.bindBlob(5, arrays.t)
+          trackStmt.bindBlob(6, arrays.lon)
+          trackStmt.bindBlob(7, arrays.lat)
+          trackStmt.bindBlob(8, arrays.alt)
           trackStmt.run()
       timed "insert cells":
         insertVisits(visitInsert, activityId, visitsOf(a.coords))

@@ -1,3 +1,4 @@
+import ../support/arrays
 import nimchoo/packages/db/statement
 import std/[os, tables, unittest]
 import ../support/shims
@@ -62,6 +63,7 @@ suite "heartrate: import":
     let r = s.imp(hand, ws)
     check r.activities == 1
     check r.extras.len == 1 and r.extras[0].n == 2
+    s.db.materialise()
     check s.db.scalar(
       string,
       "select group_concat((t - 1531065600) || ':' || bpm) from (select * from heartrate order by t)",
@@ -75,6 +77,7 @@ suite "heartrate: import":
     let r = s.importFile(p, "ride.fit", readBytes(ride), ws, @[heartrateStep])
     check r.coords == 2099
     check r.extras[0].n == 2099
+    s.db.materialise()
     check s.db.scalar(int, "select count(*) from heartrate") == 2099
     check s.db.scalar(string, "select min(bpm) || '-' || max(bpm) from heartrate") ==
       "84-156"
@@ -99,6 +102,7 @@ suite "heartrate: import":
       t: st.blobAt(0),
       bpm: st.blobAt(1),
     )
+    s.db.materialise()
     let rows =
       s.db.query(tuple[t, bpm: int64], "select t, bpm from heartrate order by t")
     let decoded = decodeReadings(r)
@@ -113,6 +117,7 @@ suite "heartrate: import":
     var ws: seq[Warning]
     let r = s.importFile(p, "ride.fit", readBytes(ride), ws)
     check r.extras.len == 0
+    s.db.materialise()
     check s.db.scalar(int, "select count(*) from heartrate") == 0
 
   test "a file with no heart rate writes none":
@@ -133,4 +138,5 @@ suite "heartrate: import":
     var ws: seq[Warning]
     discard s.imp(hand, ws)
     s.db.execute("delete from activity")
+    s.db.materialise()
     check s.db.scalar(int, "select count(*) from heartrate") == 0

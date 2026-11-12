@@ -63,4 +63,4 @@ proc addUser*(path, name: string) =
   c.execute("insert or ignore into user(name) values (:name)", name = name)
   c.close()
 
-const tables* = ["file", "activity", "coords", "segment", "seen_file", "selection"]
+const tables* = ["file", "activity", "track", "segment", "seen_file", "selection"]

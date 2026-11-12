@@ -57,8 +57,8 @@ proc snapshot(s: Session): string =
     "select group_concat(id || ':' || name || ':' || sha256, ';') from (select * from file order by id)",
     "select group_concat(id || ':' || file_id || ':' || session || ':' || start_t || ':' || end_t || ':' || ifnull(sport, '') || ':' || ifnull(name, ''), ';') from (select * from activity order by id)",
     "select group_concat(activity_id || ':' || n || ':' || start_t || ':' || end_t, ';') from (select * from segment order by activity_id, n)",
-    "select count(*) || ':' || sum(t) || ':' || sum(lon) || ':' || sum(lat) from coords",
-    "select count(*) || ':' || sum(t) || ':' || sum(bpm) from heartrate",
+    "select group_concat(activity_id || ':' || t0 || ':' || t1 || ':' || n || ':' || hex(t) || hex(lon) || hex(lat) || hex(alt), ';') from (select * from track order by activity_id)",
+    "select group_concat(activity_id || ':' || t0 || ':' || n || ':' || hex(t) || hex(bpm), ';') from (select * from heartrate_series order by activity_id)",
     "select group_concat(activity_id || ':' || hex(geom), ';') from (select * from route order by activity_id)",
     "select group_concat(path || ':' || size || ':' || ifnull(file_id, '') || ':' || ifnull(failure, '') || ':' || ifnull(message, ''), ';') from (select * from seen_file order by path)",
   ]:

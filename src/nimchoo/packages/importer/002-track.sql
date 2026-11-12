@@ -3,7 +3,8 @@
 -- Written once at import after the positions are cleaned (importer/clean.nim), and never changed.
 create table track (
   activity_id integer primary key references activity(id) on delete cascade,
-  t0 integer not null,
+  t0 integer not null,                -- the time of the first position
+  t1 integer not null,                -- the time of the last
   n integer not null,
   t blob not null,
   lon blob not null,

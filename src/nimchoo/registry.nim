@@ -271,7 +271,7 @@ metres is at a latitude.  One function for each, written here, is what SQL uses 
       doc: """The heart-rate channel of an import.
 
 An import step (`importer/steps`): the `heart_rate` field of each record is kept as beats per minute, one reading per second
-at most, in the table `heartrate`.  `model` works the training impulse out of it.""",
+at most, as arrays (`series.nim`) in the table `heartrate_series`.  `model` works the training impulse out of it.""",
     ),
     Registered(
       name: "importer",
@@ -281,8 +281,8 @@ at most, in the table `heartrate`.  `model` works the training impulse out of it
       doc:
         """Putting the activities of FIT files into the database, and describing them.
 
-This package owns the tables `file`, `activity`, `coords`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
-activity, as arrays; other data refers to it by time and never by array index, and the arrays are never changed once
+This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
+activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the heart rate is in `heartrate`); other data refers to it by time and never by array index, and the arrays are never changed once
 written.
 
 * **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one).  A file whose path, size and

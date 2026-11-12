@@ -1,3 +1,4 @@
+import ../support/arrays
 import nimchoo/packages/importer/series
 import nimchoo/packages/fit/time
 import std/[options, os, unittest]
@@ -73,6 +74,7 @@ suite "track: the positions as arrays":
       alt: st.blobAt(5),
     )
     let decoded = decodePositions(p)
+    s.db.materialise()
     let rows = s.db.query(
       tuple[t: int64, lon, lat: float], "select t, lon, lat from coords order by t"
     )
@@ -97,6 +99,7 @@ suite "route_cell: written with the samples":
     check written.len > 100
     check s.db.scalar(int, "select count(*) from route_cell") == written.len
     # each visit starts at a sample that is in its cell, they are in order and disjoint (the invariants say so too)
+    s.db.materialise()
     check s.db.scalar(
       int,
       """select count(*) from route_cell r join coords c on c.activity_id = r.activity_id and c.t = r.t_in

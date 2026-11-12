@@ -24,7 +24,7 @@ suite "session: the user a command works for":
     check int64(s.userId) > 0
     check s.db.scalar(string, "select name from user where is_default = 1") ==
       defaultUser
-    for table in ["user", "file", "activity", "coords", "segment", "fragment"]:
+    for table in ["user", "file", "activity", "track", "segment", "fragment"]:
       check s.db.scalar(
         int, "select count(*) from sqlite_master where name = :name", name = table
       ) == 1

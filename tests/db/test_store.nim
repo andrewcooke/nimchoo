@@ -1,3 +1,6 @@
+import ../support/arrays
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/coord
 import std/[options, os, sets, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/packages/db/fragment
@@ -40,8 +43,8 @@ suite "database: opening and bringing the schema up to date":
     defer:
       s.close()
     for t in [
-      "user", "file", "activity", "coords", "segment", "route", "seen_file", "sector",
-      "effort", "climbs_done", "heartrate", "landmark", "ff_model", "impulse",
+      "user", "file", "activity", "track", "segment", "route", "seen_file", "sector",
+      "effort", "climbs_done", "heartrate_series", "landmark", "ff_model", "impulse",
       "country", "coverage", "feature", "selection", "user_profile", "fragment",
     ]:
       checkpoint t
@@ -96,9 +99,10 @@ suite "database: opening and bringing the schema up to date":
     check names ==
       @[
         "climbs/001-schema.sql", "db/001-schema.sql", "heartrate/001-schema.sql",
-        "heartrate/002-series.sql", "importer/001-schema.sql", "importer/002-track.sql",
-        "model/001-schema.sql", "names/001-schema.sql", "selection/001-schema.sql",
-        "user/001-schema.sql",
+        "heartrate/002-series.sql", "heartrate/003-drop-rows.sql",
+        "importer/001-schema.sql", "importer/002-track.sql",
+        "importer/003-drop-coords.sql", "model/001-schema.sql", "names/001-schema.sql",
+        "selection/001-schema.sql", "user/001-schema.sql",
       ]
     s.close()
 
@@ -170,7 +174,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 10
+    check b.count("fragment") == 12
     b.close()
 
   test "the directory is created":
@@ -397,7 +401,7 @@ suite "database: cascades":
       """insert into activity(file_id, session, start_t, end_t)
                     values (1, 0, 0, 10)"""
     )
-    s.db.execute("insert into coords(activity_id, t, lon, lat) values (1, 5, 1.0, 2.0)")
+    s.db.putTrack(1, @[Coord(t: UnixTime(5), lon: 1.0, lat: 2.0)])
     s.db.execute(
       "insert into segment(activity_id, n, start_t, end_t) values (1, 1, 0, 10)"
     )
@@ -405,7 +409,7 @@ suite "database: cascades":
       "insert into seen_file(user_id, path, size, mtime, file_id) values (1, '/p', 1, 1, 1)"
     )
     s.db.execute("delete from user where id = 1")
-    for t in ["file", "activity", "coords", "segment", "seen_file"]:
+    for t in ["file", "activity", "track", "segment", "seen_file"]:
       check s.count(t) == 0
 
 suite "database: the schema":
@@ -418,9 +422,9 @@ suite "database: the schema":
       )
     s.close()
 
-  test "coords and segment are WITHOUT ROWID, keyed by activity":
+  test "segment is WITHOUT ROWID, keyed by activity":
     let s = open(":memory:")
-    for table in ["coords", "segment"]:
+    for table in ["segment"]:
       check s.db.scalar(
         int, "select wr from pragma_table_list where name = :name", name = table
       ) == 1
@@ -437,19 +441,17 @@ suite "database: the schema":
                     values (1, 0, 0, 0)"""
     )
     let ins = prepareStmt(
-      s.db, "insert into coords(activity_id, t, lon, lat, alt) values (?, ?, ?, ?, ?)"
+      s.db, "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"
     )
     ins.bindInt(1, 1)
-    ins.bindInt(2, 100)
-    ins.bindReal(3, 1.5)
-    ins.bindReal(4, 2.5)
-    ins.bindNull(5)
+    ins.bindInt(2, 1)
+    ins.bindInt(3, 0)
+    ins.bindInt(4, 10)
     ins.run()
     ins.bindInt(1, 1)
-    ins.bindInt(2, 100)
-    ins.bindReal(3, 1.5)
-    ins.bindReal(4, 2.5)
-    ins.bindNull(5)
+    ins.bindInt(2, 1)
+    ins.bindInt(3, 0)
+    ins.bindInt(4, 10)
     expect StoreError:
       ins.run()
     s.close()

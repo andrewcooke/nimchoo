@@ -2,6 +2,9 @@
 ## and are caught when broken.  (`nimble invariants` runs them over a real one.)
 
 import nimchoo/packages/db/statement
+import ../support/arrays
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/coord
 import std/[os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/packages/db/store
@@ -61,28 +64,29 @@ suite "invariants":
       "insert into sector(id, length_m, gain_m, gradient) values (2, 500, 40, 8)"
     )
     s.db.execute("pragma foreign_keys = off")
-    s.db.execute("insert into heartrate values (99, 1000, 70)")
+    s.db.putHeart(99, @[(UnixTime(1000), 70)])
     let v = violations(s.db).join("\n")
     check "stretches of an activity are in order" in v
     check "every climb has a name decision" in v
     check "no foreign key points at nothing" in v
     s.close()
 
-  test "visits that overlap, one not at a sample of its cell, and positions with no visits are found":
+  test "visits that overlap, ones the positions do not give, and positions with no visits are found":
     let s = fresh("cells")
     let c = int64(cell(111974, 57907))
-    s.db.execute("insert into coords values (1, 1000, -70.65, -33.45, null)")
+    s.db.putTrack(1, @[Coord(t: UnixTime(1000), lon: -70.65, lat: -33.45)])
     s.db.execute(
       "update activity set start = MakePoint(-70.65, -33.45, 4326) where id = 1"
     )
     check violations(s.db).join("\n").contains("exactly when it has positions")
-    s.db.execute("insert into route_cell values (1, :c, 1000, 1500)", c = c)
+    s.db.execute("insert into route_cell values (1, :c, 1000, 1000)", c = c)
     check violations(s.db) == newSeq[string]()
+    s.db.execute("update route_cell set t_out = 1500")
     s.db.execute("insert into route_cell values (1, :c, 1400, 1600)", c = c)
       # (overlaps, and no sample at 1400)
     let v = violations(s.db).join("\n")
     check "visits of an activity to cells are in order and disjoint" in v
-    check "every visit starts at a sample that is in its cell" in v
+    check "are those of its stored positions" in v
     s.close()
 
   test "a climb with a route and no cells round its gates is found":

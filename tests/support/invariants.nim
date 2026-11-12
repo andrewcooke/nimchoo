@@ -7,7 +7,10 @@
 
 import std/[strutils]
 import db_connector/db_sqlite
+import nimchoo/core/[errors, ids]
 import nimchoo/packages/db/statement
+import nimchoo/packages/heartrate/stored
+import nimchoo/packages/importer/[track, visits]
 
 type Invariant* = object
   name*: string
@@ -44,14 +47,14 @@ const allInvariants* = [
   Invariant(
     name: "the positions of an activity lie within the activity",
     offenders:
-      "select cast(a.id as text) from activity a where exists (select 1 from coords c " &
-      "where c.activity_id = a.id and (c.t < a.start_t or c.t > a.end_t))",
+      "select cast(a.id as text) from activity a where exists (select 1 from track t " &
+      "where t.activity_id = a.id and (t.t0 < a.start_t or t.t1 > a.end_t))",
   ),
   Invariant(
     name: "an activity has a start point exactly when it has positions",
     offenders:
       "select cast(a.id as text) from activity a where (a.start is null) = " &
-      "exists (select 1 from coords c where c.activity_id = a.id)",
+      "exists (select 1 from track t where t.activity_id = a.id)",
   ),
   Invariant(
     name: "the visits of an activity to cells are in order and disjoint",
@@ -61,17 +64,10 @@ const allInvariants* = [
       "and b.t_in > a.t_in and b.t_in <= a.t_out)",
   ),
   Invariant(
-    name: "every visit starts at a sample that is in its cell",
-    offenders:
-      "select r.activity_id || ' at ' || r.t_in from route_cell r " &
-      "left join coords c on c.activity_id = r.activity_id and c.t = r.t_in " &
-      "where c.t is null or cell(c.lon, c.lat) is not r.cell",
-  ),
-  Invariant(
     name: "an activity has visits to cells exactly when it has positions",
     offenders:
-      "select cast(a.id as text) from activity a where exists (select 1 from coords c " &
-      "where c.activity_id = a.id) != exists (select 1 from route_cell r where r.activity_id = a.id)",
+      "select cast(a.id as text) from activity a where exists (select 1 from track t " &
+      "where t.activity_id = a.id) != exists (select 1 from route_cell r where r.activity_id = a.id)",
   ),
   Invariant(
     name: "every climb with a route has the cells round both its gates",
@@ -94,16 +90,11 @@ const allInvariants* = [
     name: "every activity with positions has a naming decision",
     offenders:
       "select cast(id as text) from activity where start_place is null and exists " &
-      "(select 1 from coords c where c.activity_id = activity.id)",
+      "(select 1 from track t where t.activity_id = activity.id)",
   ),
   Invariant(
     name: "a climb has positive length and gain",
     offenders: "select cast(id as text) from sector where length_m <= 0 or gain_m <= 0",
-  ),
-  Invariant(
-    name: "heart rates are plausible (1 to 250 bpm)",
-    offenders:
-      "select distinct cast(activity_id as text) from heartrate where bpm < 1 or bpm > 250",
   ),
   Invariant(
     name: "no foreign key points at nothing",
@@ -111,6 +102,38 @@ const allInvariants* = [
       "select \"table\" || ' row ' || ifnull(rowid, '(no rowid)') from pragma_foreign_key_check",
   ),
 ]
+
+proc arrayViolations(db: DbConn): seq[string] {.raises: [StoreError].} =
+  ## The invariants that need the arrays decoded (SQL cannot read them).
+  var badVisits, badHeart: seq[string]
+  for id in db.query(int64, "select activity_id from track order by activity_id"):
+    let expected = visitsOf(readPositions(db, ActivityId(id)))
+    let stored = db.query(
+      tuple[cell, tIn, tOut: int64],
+      "select cell, t_in, t_out from route_cell where activity_id = :id order by t_in",
+      id = id,
+    )
+    var same = expected.len == stored.len
+    if same:
+      for i, v in expected:
+        same =
+          same and int64(v.cell) == stored[i].cell and int64(v.tIn) == stored[i].tIn and
+          int64(v.tOut) == stored[i].tOut
+    if not same:
+      badVisits.add $id
+  for id in db.query(
+    int64, "select activity_id from heartrate_series order by activity_id"
+  ):
+    for (_, bpm) in readReadings(db, ActivityId(id)):
+      if bpm < 1 or bpm > 250:
+        badHeart.add $id
+        break
+  if badVisits.len > 0:
+    result.add "the visits of an activity to cells are those of its stored positions: " &
+      $badVisits.len & " (" & badVisits[0 ..< min(badVisits.len, 5)].join(", ") & ")"
+  if badHeart.len > 0:
+    result.add "heart rates are plausible (1 to 250 bpm): " & $badHeart.len & " (" &
+      badHeart[0 ..< min(badHeart.len, 5)].join(", ") & ")"
 
 proc violations*(db: DbConn): seq[string] =
   ## One line per invariant that does not hold: its name, how many offenders,
@@ -121,3 +144,4 @@ proc violations*(db: DbConn): seq[string] =
       let n = db.scalar(int, "select count(*) from (" & inv.offenders & ")")
       result.add inv.name & ": " & $n & " (" & rows[0 ..< min(rows.len, 5)].join(", ") &
         ")"
+  result.add arrayViolations(db)

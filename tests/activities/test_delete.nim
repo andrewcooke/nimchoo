@@ -117,7 +117,7 @@ suite "delete: the command":
     defer:
       after.close()
     for t in [
-      "activity", "coords", "segment", "selection", "effort", "climbs_done", "file",
+      "activity", "track", "segment", "selection", "effort", "climbs_done", "file",
       "seen_file",
     ]:
       check after.count(t) == 0

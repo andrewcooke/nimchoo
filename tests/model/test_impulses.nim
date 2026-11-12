@@ -1,3 +1,4 @@
+import ../support/arrays
 import nimchoo/packages/db/statement
 import std/[os, options, unittest]
 import ../support/shims
@@ -272,7 +273,7 @@ suite "nch users: the FTHR and the impulses":
     defer:
       v.close()
     check v.q("select count(*) from impulse", int) == 0
-    check v.q("select count(*) from heartrate", int) == 2099 # (the heart rate stays)
+    check v.q("select n from heartrate_series", int) == 2099 # (the heart rate stays)
   test "making a user with an FTHR":
     let db = fresh("usernew")
     check userCommand.run(globals(db), @["--add", "bob", "--fthr", "150"]) == exitOk

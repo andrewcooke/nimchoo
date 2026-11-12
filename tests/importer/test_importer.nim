@@ -1,3 +1,4 @@
+import ../support/arrays
 import nimchoo/packages/db/statement
 import std/[options, os, unittest]
 import ../support/shims
@@ -88,6 +89,7 @@ suite "import: a real ride":
     check s.count("segment") == 1
     check s.count("file") == 1
     check s.count("activity") == 1
+    s.db.materialise()
     check s.count("coords") == 2099
     check s.db.scalar(string, "select sport || '/' || sub_sport from activity") ==
       "cycling/generic"
@@ -105,6 +107,7 @@ suite "import: a real ride":
     check s.db.scalar(int, "select NumGeometries(geom) from route") == 1
     check s.db.scalar(int, "select ST_NPoints(geom) from route") == 2099
     # every point is within the route's bounding box (to the rounding of 7 decimals), and the route is about as long as the ride
+    s.db.materialise()
     check s.db.scalar(
       int,
       """select count(*) from coords c, route r where
@@ -119,6 +122,7 @@ suite "import: a real ride":
     defer:
       s.close()
     discard s.importPath(ride)
+    s.db.materialise()
     let first = s.db.scalar(
       tuple[t: int64, lat, lon: float],
       "select t, lat, lon from coords order by t limit 1",
@@ -139,6 +143,7 @@ suite "import: a real ride":
     check r.activities == 0
     check s.count("file") == 1
     check s.count("activity") == 1
+    s.db.materialise()
     check s.count("coords") == 2099
 
   test "the same content under another name is the same file":
@@ -176,6 +181,7 @@ suite "import: several sessions":
     let (r, _) = s.importPath(multisport)
     check r.activities == 7
     check s.count("activity") == 7
+    s.db.materialise()
     check s.count("coords") == r.coords
     check r.coords > 20000
     check s.db.scalar(int, "select count(distinct session) from activity") == 7
@@ -200,6 +206,7 @@ suite "import: files that cannot be imported":
     var ws: seq[Warning]
     let r = s.importFile(p, "tiny.fit", tiny, ws)
     check r.coords == 3
+    s.db.materialise()
     check s.db.scalar(string, "select lat || ' ' || lon from coords limit 1") ==
       "45.0 -90.0"
 
@@ -215,6 +222,7 @@ suite "import: files that cannot be imported":
       # (and it is indexed)
     # a real ride: the same as the first row of its coordinates
     discard s.importPath(ride)
+    s.db.materialise()
     check s.db.scalar(
       int,
       """select count(*) from activity a where a.start is not null and
@@ -279,14 +287,14 @@ suite "import: files that cannot be imported":
     let s = openAll(tempDb("rollback"))
     defer:
       s.close()
-    s.db.execute("drop table coords") # the last insert will fail
+    s.db.execute("drop table track") # an insert will fail
     var ws: seq[Warning]
     expect StoreError:
       discard s.importFile(p, "tiny.fit", tiny, ws)
     check s.count("file") == 0
     check s.count("activity") == 0
     # and the connection is usable afterwards
-    s.db.execute("create table coords(x)")
+    s.db.execute("create table track(x)")
 
 suite "import: segments":
   test "the segments are stored in order, covering every coordinate":
@@ -302,6 +310,7 @@ suite "import: segments":
       on b.activity_id = a.activity_id and b.n = a.n + 1
       where b.start_t <= a.end_t""",
     ) == 0
+    s.db.materialise()
     check s.db.scalar(
       int,
       """select count(*) from coords c where not exists (
@@ -321,6 +330,7 @@ suite "import: segments":
       s.close()
     discard s.importPath(ride)
     check s.db.scalar(string, "select min(n) || '-' || max(n) from segment") == "0-0"
+    s.db.materialise()
     check s.db.scalar(
       int,
       """select count(*) from coords c, segment g where c.t < g.start_t or c.t > g.end_t""",
@@ -331,6 +341,7 @@ suite "import: segments":
     defer:
       s.close()
     discard s.importPath(ride)
+    s.db.materialise()
     check s.db.scalar(
       int,
       """select sum(cnt) from (
@@ -405,15 +416,17 @@ suite "import: decoding apart from writing":
     let viaParts = two.writeDecoded("r.fit", sha256Hex(readBytes(ride)), d, @[])
     check viaParts.outcome == ioImported and viaParts.coords == viaFile.coords and
       viaParts.segments == viaFile.segments and viaParts.activities == viaFile.activities
-    for table in ["file", "activity", "coords", "segment", "route"]:
+    for table in ["file", "activity", "track", "segment", "route"]:
       check one.count(table) == two.count(table)
+    one.db.materialise()
+    two.db.materialise()
     check one.db.scalar(string, "select sum(lon) || ',' || sum(lat) from coords") ==
       two.db.scalar(string, "select sum(lon) || ',' || sum(lat) from coords")
     # and nothing is written if the writing fails part way
     let three = openAll(tempDb("write3"))
     defer:
       three.close()
-    three.db.execute("drop table coords")
+    three.db.execute("drop table track")
     expect StoreError:
       discard three.writeDecoded("r.fit", "x", d, @[])
     check three.count("file") == 0
