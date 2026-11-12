@@ -31,6 +31,9 @@ type
     adFlag ## `?name=1` becomes `--name`
     adValue
       ## `?name=value` becomes `--name value`, if the option's `valid` accepts the value
+    adList
+      ## `?name=a,b` becomes `--name a b` (a list is spaces on the command line and commas in an address), if the option's
+      ## `valid` accepts each item
 
   ParseKind* = enum
     pkOk
@@ -234,8 +237,11 @@ func listOption*[P](
     metavar, help: string,
     level = 0,
     completion = Completion(),
+    address: Address = adNo,
+    valid: Validator = nil,
 ): Opt[P] =
-  ## An option with any number of values, described.
+  ## An option with any number of values, described.  Its name is plural and its values are separated by spaces (in an
+  ## address, by commas: `adList`).
   Opt[P](
     names: @nameList,
     takesList: true,
@@ -244,6 +250,8 @@ func listOption*[P](
     help: help,
     level: level,
     completion: completion,
+    address: address,
+    valid: valid,
   )
 
 func valueIs*(name, what, value: string): Problem =

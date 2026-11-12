@@ -150,7 +150,7 @@ const package* = Package(depends: @["db", "fit", "importer"], contributes: contr
   per activity; the impulses, per user, model and hour) and they differ in shape.  Commands call the library that owns
   the work directly.  A point pays when some command must trigger work from a package it cannot depend on (`activities
   --import` pre-computing, an `nch update`).
-* **activity criteria** (`--climb` for `activities`): decided at step 9, when options carry their help, because a
+* **activity criteria** (`--climbs` for `activities`): decided at step 9, when options carry their help, because a
   contribution would be one such option (name, parse, SQL predicate, help).  TODO.md has the alternative (tags).
 * name sources, deletion lines, sector naming: solved by layering (the command package depends on the libraries it
   joins).  A new point is added only when a second real case exists.
@@ -305,7 +305,7 @@ and the inventory.
 * **The selection** is two things: the stored selection (a table, the address bits, the content key; package
   `selection`, which `climbs` and `map` use) and the search language of `nch activities` (`criteria`,
   `ranges`, which live with the command).  They were one package, and the pair made a loop: `climbs` reads the stored
-  selection, and `--climb` reads `effort`.  `activities` no longer depends on `climbs`: `--climb` is a criterion that `climbs` offers through the point `activities/criteria` (2026-11-10).
+  selection, and `--climbs` reads `effort`.  `activities` no longer depends on `climbs`: `--climbs` is a criterion that `climbs` offers through the point `activities/criteria` (2026-11-10).
 * `zip` and `xlsx` are small utility packages (`xlsx` has one user, `fit`'s profile; merging them is possible).
 * `climbs` stays one package; splitting it into `sectors` and `climbs` is in TODO.md (step 9, "Larger changes").  The calendar became the package `calendar` (2026-11-10), which uses the rows of `activities`.
 

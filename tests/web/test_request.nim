@@ -120,6 +120,15 @@ suite "serve request: what is asked for":
     check route(target("/map?selection=A--B_-")).isSome
       # (a list may have two dashes in a row)
     check route(target("/map?selection=" & "A".repeat(7000))).isSome # (and be long)
+  test "a list is commas in an address and separate words for the command":
+    check route(target("/map?layers=routes,heat&selection=AB")).get.args ==
+      @["--layers", "routes", "heat", "--selection", "AB"]
+    check route(target("/map?layers=heat")).get.args == @["--layers", "heat"]
+    for bad in [
+      "layers=", "layers=heat,", "layers=,heat", "layers=heat,nope",
+      "layers=heat%20routes", "layers=heat,,routes",
+    ]:
+      check route(target("/map?" & bad)).isNone
   test "ff: options, and flags that are given as 1":
     let r = route(
       target(

@@ -1,4 +1,4 @@
-## Completing climbs by name: `nch activities --climb TEXT...` takes a word at a time (it finds the climbs whose names
+## Completing climbs by name: `nch activities --climbs TEXT...` takes a word at a time (it finds the climbs whose names
 ## hold the text), so it is offered the words of the names; `nch climbs --edit NAME` takes a whole name, as `--all` shows it,
 ## and is offered those.  The names are the shown ones ("Farellones₂", the kept number included), which `displayNames` makes
 ## in code, so they are filtered here and not in SQL (a climb with no name is shown as "unnamed", and offered so).  Case and accents do not matter, as in the option itself.

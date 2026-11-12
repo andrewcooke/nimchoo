@@ -41,19 +41,21 @@ type
     distanceM*, activeS*: NumRange ## --distance, --active (metres, seconds; open: any)
     distanceRel*, activeRel*: Option[Relative]
       ## --distance latest~T / previous~T, --active ...
-    sportRef*, subSportRef*: Reference ## --sport latest / previous, --sub-sport ...
+    sportRef*, subSportRef*: Reference ## --sports latest / previous, --sub-sports ...
     sports*, subSports*: seq[string]
       ## only these (lower case; "none": not recorded); empty: any
-    nameRef*, startRef*: Reference ## --name latest / previous, --start ...
+    nameRef*, startRef*: Reference ## --names latest / previous, --starts ...
     names*, starts*: seq[string]
-      ## --name, --start: text found in the name (the start place), whatever its case and
+      ## --names, --starts: text found in the name (the start place), whatever its case and
       ## accents; "none": nothing; empty: any
     namesExact*, startsExact*: seq[string]
       ## what `latest` / `previous` came to: the whole value ("" is none)
+    nameIds*: seq[int64]
+      ## the activities a whole number in `--names` meant, when no name held it (worked out when the command runs)
     paths*: seq[string]
-      ## --path: text found in a path the file was imported from (or in its name)
+      ## --paths: text found in a path the file was imported from (or in its name)
     contributed*: seq[Contributed]
-      ## the options that other packages offer (`--climb`), as given: they are resolved when the command runs
+      ## the options that other packages offer (`--climbs`), as given: they are resolved when the command runs
     fromT*: Option[UnixTime] ## start of the activity at or after
     toT*: Option[UnixTime] ## start of the activity before (exclusive)
     gps*: GpsFilter
@@ -136,11 +138,10 @@ func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
   fine
 
 func splitNames(values: seq[string], lower: bool): seq[string] =
-  ## Names, separated by spaces or commas.
+  ## The names given, one to a word (a comma is part of a name).
   for v in values:
-    for name in v.split(','):
-      if name.len > 0:
-        result.add (if lower: name.toLowerAscii else: name)
+    if v.len > 0:
+      result.add (if lower: v.toLowerAscii else: v)
 
 proc takeSports(
     p: var ListState, name: string, values: seq[string]
@@ -152,7 +153,7 @@ proc takeSports(
   for n in names:
     if parseReference(n) != refNone:
       if p.c.sportRef != refNone and p.c.sportRef != parseReference(n):
-        return refuse("--sport: latest and previous cannot be used together")
+        return refuse("--sports: latest and previous cannot be used together")
       p.c.sportRef = parseReference(n)
     else:
       p.c.sports.add n
@@ -168,7 +169,7 @@ proc takeSubSports(
   for n in names:
     if parseReference(n) != refNone:
       if p.c.subSportRef != refNone and p.c.subSportRef != parseReference(n):
-        return refuse("--sub-sport: latest and previous cannot be used together")
+        return refuse("--sub-sports: latest and previous cannot be used together")
       p.c.subSportRef = parseReference(n)
     else:
       p.c.subSports.add n
@@ -184,9 +185,8 @@ proc takeTexts(
   p.criteriaGiven = true
   var found: seq[string]
   for v in values:
-    for part in v.split(','):
-      if part.strip.len > 0:
-        found.add part.strip
+    if v.strip.len > 0:
+      found.add v.strip
   if found.len == 0:
     return refuse(name & " needs some text")
   for t in found:
@@ -213,9 +213,8 @@ proc takePaths(
 ): Problem {.nimcall.} =
   p.criteriaGiven = true
   for v in values:
-    for part in v.split(','):
-      if part.strip.len > 0:
-        p.c.paths.add part.strip
+    if v.strip.len > 0:
+      p.c.paths.add v.strip
   if p.c.paths.len == 0:
     return refuse(name & " needs some text")
   fine
@@ -378,36 +377,36 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         body = (p.c.all = true; fine),
       ),
       listOption[ListState](
-        ["--sport"],
+        ["--sports"],
         takeSports,
-        "A B",
+        "SPORT...",
         "only these sports (cycling, running, swimming ...); \"none\" means not recorded; \"latest\" or \"previous\": that activity's sport",
         completion = completesFrom(completeSports),
       ),
       listOption[ListState](
-        ["--sub-sport"],
+        ["--sub-sports"],
         takeSubSports,
-        "A B",
+        "SPORT...",
         "only these sub-sports (road, trail, open_water ...).  Many files say \"generic\" or nothing, so this misses some rides",
         completion = completesFrom(completeSubSports),
       ),
       listOption[ListState](
-        ["--name"],
+        ["--names"],
         takeNames,
-        "TEXT",
-        "activities whose name contains TEXT, whatever its case or accents: --name toyo finds \"El Toyo and back\"; several words are alternatives (--name toyo farellones); a name with spaces is quoted; \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
+        "TEXT...",
+        "activities whose name contains any of the TEXTs, whatever its case or accents: --names toyo finds \"El Toyo and back\", --names toyo farellones finds either; a text with spaces is quoted; a whole number that no name contains is an activity's number (--names 737); \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
       ),
       listOption[ListState](
-        ["--start"],
+        ["--starts"],
         takeStarts,
-        "TEXT",
-        "the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): --start providencia",
+        "TEXT...",
+        "the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): --starts providencia",
       ),
       listOption[ListState](
-        ["--path"],
+        ["--paths"],
         takePaths,
-        "TEXT",
-        "the same for the path of the file the activity was imported from (or any other path the same file was seen at): --path bowman, --path 2026-10",
+        "TEXT...",
+        "the same for the path of the file the activity was imported from (or any other path the same file was seen at): --paths bowman, --paths 2026-10",
       ),
       custom(
         ListState,
@@ -562,7 +561,8 @@ func finish(st: ListState): Parsed[Criteria] =
   if st.radiusGiven and c.near == nkNone:
     c.near = nkLatest # --radius alone: around the latest
   if c.invert and not c.hasFilter:
-    return bad("--invert needs a criterion to invert (--sport, --name, --distance ...)")
+    return
+      bad("--invert needs a criterion to invert (--sports, --names, --distance ...)")
   if c.newest > 0 and c.oldest > 0:
     return bad("--newest and --oldest cannot be used together")
   if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
@@ -572,8 +572,8 @@ func finish(st: ListState): Parsed[Criteria] =
 proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Criteria] =
-  ## The command line of `nch activities`.  Options with values: `--sport A B`, `--sub-sport A B`, `--name`, `--start`,
-  ## `--path`, `--climb` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
+  ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
+  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
@@ -675,13 +675,19 @@ func inValues*(column, name: string, values: seq[string]): Sql =
     parts.add column & " is null"
   result.text = " and (" & parts.join(" or ") & ")"
 
-func textSql*(column, name: string, typed, exact: seq[string]): Sql =
+func textSql*(
+    column, name: string, typed, exact: seq[string], ids: seq[int64] = @[]
+): Sql =
   ## " and (instr(fold(a.name), :nameT0) > 0 or a.name = :nameE0)": the typed text (folded) found anywhere in the
   ## value, whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or
   ## an exact "") is no value: null or "".  Nothing if there is nothing to match.
-  if typed.len == 0 and exact.len == 0:
+  if typed.len == 0 and exact.len == 0 and ids.len == 0:
     return
   var parts: seq[string]
+  for i, id in ids:
+    let n = name & "I" & $i
+    parts.add "a.id = :" & n
+    result.args.add (n, arg(id))
   for i, t in typed:
     if t.toLowerAscii == "none":
       parts.add "(" & column & " is null or " & column & " = '')"
@@ -746,7 +752,7 @@ func matchSql*(
     # the criteria, each as " and ...": with --invert, the whole is negated
   filt = filt & inValues("a.sport", "sport", c.sports)
   filt = filt & inValues("a.sub_sport", "subSport", c.subSports)
-  filt = filt & textSql("a.name", "name", c.names, c.namesExact)
+  filt = filt & textSql("a.name", "name", c.names, c.namesExact, c.nameIds)
   filt = filt & textSql("a.start_place", "start", c.starts, c.startsExact)
   filt = filt & pathSql(c.paths)
   filt = filt & extra

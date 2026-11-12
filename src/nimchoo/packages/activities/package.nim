@@ -9,7 +9,7 @@
 ##   (`matchSql`), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
 ##   the other criteria; the one that was selected before).  `--invert` negates all of them taken together.
 ## * **The point `activities/criteria`**: a package may offer an option that picks activities (a `Criterion`: the option's
-##   description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climb`.
+##   description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
 ##   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
 ##   so this package may run a condition that reads tables it does not.
 ## * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).
@@ -32,7 +32,7 @@ const package* = Package(
     PointDecl(
       name: activityCriterion.name,
       summary:
-        "options that pick activities, offered to `nch activities` (`--climb`): a description and what it means as SQL",
+        "options that pick activities, offered to `nch activities` (`--climbs`): a description and what it means as SQL",
     )
   ],
 )

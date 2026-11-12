@@ -23,26 +23,29 @@ suite "map: the command line":
   test "--layers: what is drawn, routes and climbs if it is not said":
     check parseArgs(@[]).params.layers == {lyRoutes, lyClimbs}
     check parseArgs(@["--layers", "heat"]).params.layers == {lyHeat}
-    check parseArgs(@["--layers", "heat,routes"]).params.layers == {lyRoutes, lyHeat}
-    check parseArgs(@["--layers", "routes,climbs,heat,heat"]).params.layers ==
+    check parseArgs(@["--layers", "heat", "routes"]).params.layers == {lyRoutes, lyHeat}
+    check parseArgs(@["--layers", "routes", "climbs", "heat", "heat"]).params.layers ==
       {lyRoutes, lyClimbs, lyHeat}
     check parseArgs(@["--layers", "heat", "--selection", "AWAn"]).params.layers ==
       {lyHeat}
   test "--layers: the gates and the efforts of the climbs":
-    check parseArgs(@["--layers", "gates,efforts"]).params.layers == {
-      lyGates, lyEfforts
-    }
-    check parseArgs(@["--layers", "routes,climbs,gates,efforts"]).params.layers ==
+    check parseArgs(@["--layers", "gates", "efforts"]).params.layers ==
+      {lyGates, lyEfforts}
+    check parseArgs(@["--layers", "routes", "climbs", "gates", "efforts"]).params.layers ==
       {lyRoutes, lyClimbs, lyGates, lyEfforts}
+  test "--layers: the layers are words, separated by spaces":
+    check parseArgs(@["--layers", "heat", "routes"]).params.layers == {lyRoutes, lyHeat}
+    check parseArgs(@["--layers=heat"]).params.layers == {lyHeat}
   test "--layers problems: a name that is not a layer, or none":
-    for bad in ["", "routs", "routes,", ",heat", "heat routes", "Heat"]:
-      check parseArgs(@["--layers", bad]).problem.contains("not a list of layers")
-    check parseArgs(@["--layers"]).problem.contains("needs a value")
+    for bad in ["", "routs", "routes,", "heat,routes", "Heat"]:
+      check parseArgs(@["--layers", bad]).problem.contains("is not a layer")
+    check parseArgs(@["--layers", "heat", "routs"]).problem.contains("is not a layer")
+    check parseArgs(@["--layers"]).problem.contains("needs at least one layer")
   test "the layers have one spelling, and parse back":
     check layersText({lyHeat, lyRoutes}) == "routes,heat"
     check layersText(defaultLayers) == "routes,climbs"
     for layers in [{lyRoutes}, {lyHeat}, {lyRoutes, lyClimbs, lyHeat}]:
-      check parseLayers(layersText(layers)) == some(layers)
+      check parseLayers(layersText(layers).split(',')) == some(layers)
     check layerNames() == @["routes", "climbs", "heat", "gates", "efforts"]
   test "--worker":
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
@@ -85,8 +88,10 @@ suite "map: the page the server may run":
     check mapPage.flags.len == 0
   test "what it accepts in an address is what the options accept":
     let layers = mapPage.options[0].valid
-    check layers("routes") and layers("heat,routes") and not layers("") and
-      not layers("routs")
+      # (of one item: an address spells a list with commas)
+    check mapPage.options[0].isList and not mapPage.options[1].isList
+    check layers("routes") and layers("heat") and not layers("") and not layers("routs") and
+      not layers("heat,routes")
     let bits = mapPage.options[1].valid
     check bits("AWAnLmgGhgZI6JjZom") and bits("A--B_") and not bits("") and
       not bits("a b")

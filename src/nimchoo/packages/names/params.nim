@@ -35,7 +35,7 @@ type
     pick*: int ## 1-based
     radiusM*: float
 
-  PlacedLandmark* = object ## `--add NAME --at LON,LAT`
+  PlacedLandmark* = object ## `--add NAME --at LAT,LON`
     name*: string
     at*: Position
     radiusM*: float
@@ -65,13 +65,13 @@ type
     radiusM: float
 
 func parsePosition*(s: string): Option[tuple[lon, lat: float]] =
-  ## "LON,LAT" in degrees.
+  ## "LAT,LON" in degrees (the order of every position the program takes or shows).
   let parts = s.split(',')
   if parts.len != 2:
     return
   try:
-    let lon = parseFloat(parts[0].strip)
-    let lat = parseFloat(parts[1].strip)
+    let lat = parseFloat(parts[0].strip)
+    let lon = parseFloat(parts[1].strip)
     if lon < -180.0 or lon > 180.0 or lat < -90.0 or lat > 90.0:
       return
     result = some((lon, lat))
@@ -93,14 +93,14 @@ func landmarkSpec*(): Spec[Raw] =
         Raw,
         ["--near"],
         true,
-        "LON,LAT",
+        "LAT,LON",
         "suggest the features within 2 km of a position, nearest first, numbered (the names for that area are fetched if need be)",
         body = (
           block:
             p.near = parsePosition(value)
             if p.near.isNone:
               return refuse(
-                "--near is a position as LON,LAT in degrees (not '" & value & "')"
+                "--near is a position as LAT,LON in degrees (not '" & value & "')"
               )
             fine
         ),
@@ -110,7 +110,7 @@ func landmarkSpec*(): Spec[Raw] =
         ["--add"],
         true,
         "NAME",
-        "make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same --search or --near) or at a position you give (`--at LON,LAT`); its circle has the radius of --radius (100 to 20,000 metres; default 1,000)",
+        "make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same --search or --near) or at a position you give (`--at LAT,LON`); its circle has the radius of --radius (100 to 20,000 metres; default 1,000)",
         body = (p.adding = true; p.name = value; fine),
       ),
       custom(
@@ -136,7 +136,7 @@ func landmarkSpec*(): Spec[Raw] =
         Raw,
         ["--at"],
         true,
-        "LON,LAT",
+        "LAT,LON",
         "the position of the landmark, if not at a suggestion",
         level = 1,
         body = (
@@ -144,7 +144,7 @@ func landmarkSpec*(): Spec[Raw] =
             p.at = parsePosition(value)
             if p.at.isNone:
               return
-                refuse("--at is a position as LON,LAT in degrees (not '" & value & "')")
+                refuse("--at is a position as LAT,LON in degrees (not '" & value & "')")
             fine
         ),
       ),
@@ -203,7 +203,7 @@ func finish(raw: Raw): Parsed[Params] =
   if raw.adding:
     if sources != 1:
       return bad(
-        "--add needs one of: --search TEXT --pick N, --near LON,LAT --pick N, --at LON,LAT"
+        "--add needs one of: --search TEXT --pick N, --near LAT,LON --pick N, --at LAT,LON"
       )
     if raw.at.isNone and raw.pick == 0:
       return bad(
@@ -252,6 +252,6 @@ func finish(raw: Raw): Parsed[Params] =
     parsedOk(Params(action: laList))
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch landmarks` (list), `--search TEXT`, `--near LON,LAT`, `--add NAME (--search TEXT | --near LON,LAT) --pick N`,
-  ## `--add NAME --at LON,LAT`, each with `--radius METRES`; `--delete NAME`.
+  ## `nch landmarks` (list), `--search TEXT`, `--near LAT,LON`, `--add NAME (--search TEXT | --near LAT,LON) --pick N`,
+  ## `--add NAME --at LAT,LON`, each with `--radius METRES`; `--delete NAME`.
   parseCommand(args, landmarkSpec(), Raw(radiusM: defaultRadiusM), finish)

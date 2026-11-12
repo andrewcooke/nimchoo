@@ -29,10 +29,10 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 const
   synopsis = """usage: nch landmarks
        nch landmarks --search TEXT
-       nch landmarks --near LON,LAT
+       nch landmarks --near LAT,LON
        nch landmarks --add NAME --search TEXT --pick N [--radius METRES]
-       nch landmarks --add NAME --near LON,LAT --pick N [--radius METRES]
-       nch landmarks --add NAME --at LON,LAT [--radius METRES]
+       nch landmarks --add NAME --near LAT,LON --pick N [--radius METRES]
+       nch landmarks --add NAME --at LAT,LON [--radius METRES]
        nch landmarks --delete NAME -f"""
   intro =
     """Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle

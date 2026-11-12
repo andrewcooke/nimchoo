@@ -205,11 +205,11 @@ suite "delete: the command":
     )
     s.db.execute("delete from selection")
     s.close()
-    check run(d, "--sport", "cycling") == exitFailure # no -f: nothing done
+    check run(d, "--sports", "cycling") == exitFailure # no -f: nothing done
     let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 3
     before.close()
-    check run(d, "--sport", "cycling", "-f") == exitOk
+    check run(d, "--sports", "cycling", "-f") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -239,7 +239,7 @@ suite "delete: the command":
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     s.close()
-    check run(d, "--sport", "swimming", "-f") == exitFailure
+    check run(d, "--sports", "swimming", "-f") == exitFailure
       # (nobody has the sport: refused, as for any listing)
     check run(d, "--from", "2030-01-01", "-f") == exitOk
     let after = openSession(d, allFragments, access = allAccess)

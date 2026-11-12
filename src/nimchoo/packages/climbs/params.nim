@@ -94,10 +94,10 @@ func climbSpec*(): Spec[Raw] =
   Spec[Raw](
     opts: @[
       listOption[Raw](
-        ["--name"],
+        ["--names"],
         takeNames,
         "TEXT...",
-        "the climbs whose name holds the text (any of them; case and accents do not matter; the number counts: `--name farellones₂`, which `--name \"farellones 2\"` also means), among all the climbs, not those of the selected rides",
+        "the climbs whose name holds any of the texts (case and accents do not matter; the number counts: `--names farellones₂`, which `--names \"farellones 2\"` also means), among all the climbs, not those of the selected rides; a whole number that no name holds is a climb's number (`--names 62`)",
       ),
       flag(
         Raw,
@@ -214,11 +214,11 @@ func finish(raw: Raw): Parsed[Params] =
   let listing = raw.all or raw.editing or raw.delete or raw.retired or raw.duplicates
   if raw.names.len > 0 and listing:
     return bad(
-      "--name chooses the climbs to show: it does not go with --all, --edit, --delete, --retired or --duplicates"
+      "--names chooses the climbs to show: it does not go with --all, --edit, --delete, --retired or --duplicates"
     )
   if (raw.verbose or raw.everyone) and listing:
     return bad(
-      "-v and --everyone go with the attempts: `nch climbs` (or `--name TEXT`) shows them"
+      "-v and --everyone go with the attempts: `nch climbs` (or `--names TEXT`) shows them"
     )
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:

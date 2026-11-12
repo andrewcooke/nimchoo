@@ -32,7 +32,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
-       nch [--db PATH] [--user NAME] climbs --name TEXT... [-v] [--everyone]
+       nch [--db PATH] [--user NAME] climbs --names TEXT... [-v] [--everyone]
        nch climbs --all
        nch climbs --all --delete -f
        nch climbs --edit NAME --rename NEW

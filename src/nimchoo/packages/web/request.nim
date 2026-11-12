@@ -31,7 +31,8 @@ type
 
   PageOption* = object
     name*: string ## `?name=value` becomes `--name value`
-    valid*: Validator
+    valid*: Validator ## of the value (of each item, for a list)
+    isList*: bool ## `?name=a,b` becomes `--name a b`
 
   WebPage* = object
     ## A command the server may run for a page, as a package offers it (the point `webPage`): the command
@@ -57,6 +58,10 @@ func pageOf*[P](command: string, spec: Spec[P]): WebPage =
       doAssert o.valid != nil,
         "an option allowed in an address needs a check for its value: " & name
       result.options.add PageOption(name: name, valid: o.valid)
+    of adList:
+      doAssert o.valid != nil,
+        "an option allowed in an address needs a check for its value: " & name
+      result.options.add PageOption(name: name, valid: o.valid, isList: true)
     of adNo:
       discard
 
@@ -207,9 +212,17 @@ func route*(t: Target, pages: seq[WebPage]): Option[Route] =
         args.add "--" & k
       else:
         let option = page.options.filterIt(it.name == k)
-        if option.len == 0 or not option[0].valid(v):
+        if option.len == 0:
           return none(Route)
         args.add "--" & k
-        args.add v
+        if option[0].isList:
+          let items = v.split(',')
+          if items.anyIt(it.len == 0 or not option[0].valid(it)):
+            return none(Route)
+          args.add items
+        else:
+          if not option[0].valid(v):
+            return none(Route)
+          args.add v
     return some(Route(isFile: false, command: page.command, args: args))
   none(Route)

@@ -366,7 +366,7 @@ suite "map: layers":
     withCells(w.db)
     check map(w.db, "--layers", "routes") == exitOk
     check "climb" notin kinds(parseFile(w.cache / geojsons(w.cache)[0]))
-    check map(w.db, "--layers", "routes,climbs,heat") == exitOk
+    check map(w.db, "--layers", "routes", "climbs", "heat") == exitOk
     check geojsons(w.cache).len == 2 # (another request: another file)
     var all: seq[string]
     for g in geojsons(w.cache):
@@ -378,7 +378,7 @@ suite "map: layers":
   test "the default is routes and climbs, and says the same as asking for them":
     let w = world("default")
     check map(w.db) == exitOk
-    check map(w.db, "--layers", "climbs,routes") == exitOk
+    check map(w.db, "--layers", "climbs", "routes") == exitOk
     check geojsons(w.cache).len == 1
   test "the state of a heat map does not depend on the climbs, but the default's does":
     let w = world("state")
@@ -432,7 +432,7 @@ suite "map: gates and efforts":
     let w = world("efforts")
     withClimb(w.db)
     withRideAlongClimb(w.db)
-    check map(w.db, "--layers", "efforts,gates") == exitOk
+    check map(w.db, "--layers", "efforts", "gates") == exitOk
     let j = parseFile(w.cache / geojsons(w.cache)[0])
     check kinds(j) == @["effort", "gate", "gate"]
     let e = j["features"][0]
@@ -461,5 +461,5 @@ suite "map: gates and efforts":
     check stateOf(s, ids, {lyGates}) != gates # (the gates moved with the route)
   test "no efforts, and no climbs: the layers are empty and the file is still valid":
     let w = world("noefforts")
-    check map(w.db, "--layers", "routes,efforts,gates") == exitOk
+    check map(w.db, "--layers", "routes", "efforts", "gates") == exitOk
     check kinds(parseFile(w.cache / geojsons(w.cache)[0])) == @["route", "route"]

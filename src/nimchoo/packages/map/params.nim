@@ -1,4 +1,4 @@
-## The command line of `nch map`, parsed.  Pure.  `--layers` says what is drawn; `--selection` and `--state` are for urls: the
+## The command line of `nch map`, parsed.  Pure.  `--layers` (words) says what is drawn; `--selection` and `--state` are for urls: the
 ## address a page has carries them (`selection=...&state=...`), and the server hands them to the worker.  The options are
 ## marked as allowed in an address, so the list of what a page may be given is made from here (`web/request.pageOf`).
 
@@ -38,22 +38,27 @@ type
 
   Raw = object ## what the options fill in
     help: bool
-    selection, state, layers: string
+    selection, state: string
+    layers: seq[string]
     web: WebArgs
 
 const defaultLayers* = {lyRoutes, lyClimbs} ## what a map shows when it is not told
 
-func parseLayers*(text: string): Option[set[Layer]] =
-  ## The layers a list names ("routes,heat"); none if it names one that is not there or none at all.
+func layerOf(word: string): Option[Layer] =
+  for l in Layer:
+    if $l == word:
+      return some(l)
+
+func parseLayers*(words: seq[string]): Option[set[Layer]] =
+  ## The layers a list names ("routes" "heat"); none if it names one that is not there or none at all.
   var layers: set[Layer]
-  for word in text.split(','):
-    var found = false
-    for l in Layer:
-      if $l == word:
-        layers.incl l
-        found = true
-    if not found:
+  for word in words:
+    let l = layerOf(word)
+    if l.isNone:
       return none(set[Layer])
+    layers.incl l.get
+  if words.len == 0:
+    return none(set[Layer])
   some(layers)
 
 func layersText*(layers: set[Layer]): string =
@@ -69,8 +74,17 @@ func layerNames*(): seq[string] =
   for l in Layer:
     result.add $l
 
-func layersValue(value: string): bool =
-  parseLayers(value).isSome
+func layerValue(value: string): bool =
+  layerOf(value).isSome
+
+proc takeLayers(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
+  if values.len == 0:
+    return refuse(name & " needs at least one layer (" & layerNames().join(", ") & ")")
+  for v in values:
+    if not layerValue(v):
+      return refuse("'" & v & "' is not a layer (" & layerNames().join(", ") & ")")
+  p.layers.add values
+  fine
 
 func bitsValue(value: string): bool =
   ## A list of activities: it may have two dashes in a row, and be long.
@@ -81,32 +95,21 @@ func mapSpec*(): Spec[Raw] =
   Spec[Raw](
     opts:
       @[
-        custom(
-          Raw,
+        listOption[Raw](
           ["--layers"],
-          true,
-          "LIST",
-          "what to draw, separated by commas: routes (the route of each activity), climbs (the climbs they went up), heat (how often each place was visited, in cells of about 100 m, coarser when zoomed out), gates (the start and finish line of each climb) and efforts (the part of each ride between the start and finish times of its efforts on climbs: for looking at how climbs are matched, with a few activities); default: routes,climbs",
+          takeLayers,
+          "LAYER...",
+          "what to draw, separated by spaces: routes (the route of each activity), climbs (the climbs they went up), heat (how often each place was visited, in cells of about 100 m, coarser when zoomed out), gates (the start and finish line of each climb) and efforts (the part of each ride between the start and finish times of its efforts on climbs: for looking at how climbs are matched, with a few activities); default: routes climbs",
           completion = Completion(kind: ckWords, words: layerNames()),
-          address = adValue,
-          valid = layersValue,
-          body = (
-            block:
-              if not layersValue(value):
-                return refuse(
-                  "'" & value & "' is not a list of layers (" & layerNames().join(", ") &
-                    ")"
-                )
-              p.layers = value
-              fine
-          ),
+          address = adList,
+          valid = layerValue,
         ),
         custom(
           Raw,
           ["--selection"],
           true,
-          "LIST",
-          "for urls: the activities to draw, as in the address (default: the current selection)",
+          "BITS",
+          "for urls: the activities to draw, as a compressed bit string (default: the current selection)",
           address = adValue,
           valid = bitsValue,
           body = (
@@ -146,7 +149,7 @@ func finish(raw: Raw): Parsed[Params] =
     if raw.layers.len == 0:
       defaultLayers
     else:
-      parseLayers(raw.layers).get # (`layersValue` has seen it)
+      parseLayers(raw.layers).get # (`takeLayers` has seen them)
   if raw.selection.len == 0:
     parsedOk(Params(target: tSelection, web: mode.params, layers: layers))
   else:
@@ -161,5 +164,5 @@ func finish(raw: Raw): Parsed[Params] =
     )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `--layers LIST`, `--selection STRING`, `--state HASH`, `--worker`, `--web` (with `--no-open`, `--port N`, `--new-token`), `-h`.
+  ## `--layers LAYER...`, `--selection STRING`, `--state HASH`, `--worker`, `--web` (with `--no-open`, `--port N`, `--new-token`), `-h`.
   parseCommand(args, mapSpec(), Raw(web: initWebArgs()), finish)

@@ -208,6 +208,13 @@ four kinds of things go wrong, and each has one mechanism:
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
   default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `packages/db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
+* **options that take a list** (decided 2026-11-12): the option has a **plural** name (`--sports`, `--names`, `--starts`, `--paths`,
+  `--climbs`, `--layers`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
+  spaces** (`--names 'El Toyo' Farellones 123`: a text with spaces is quoted, a comma is part of a value), and its placeholder
+  is the item and an ellipsis (`--sports SPORT...`).  **in an address** a list is separated by commas (`layers=routes,heat`):
+  an option marked `adList` becomes `--layers routes heat` for the worker.  a **position** is one point, always **`LAT,LON`**
+  in that order (`--near`, `--at`), as it is shown.  in `--names` (activities and climbs) and `--climbs` a whole number
+  that no name holds is the **number** of an activity or a climb (`nch activities --names 737`): a name that holds it wins.
 * **options describe themselves** (`util/args`: every option carries its names, value placeholder and help, which the compiler requires), and the option list of a command's usage is made from the descriptions (`util/args/usage.nim`, wrapped to the terminal's width, `ui/live.helpWidth`: 120 when piped), so it cannot differ from what the parser accepts.  a command's `parseArgs` gives a `Parsed[T]`: valid parameters (a variant on the action: a combination that means nothing cannot be represented), help asked for, or a problem.
 * **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
   once and a name in the braces is checked when the program is compiled; `&` and `$` pieced together are easy to get

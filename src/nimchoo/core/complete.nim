@@ -83,7 +83,7 @@ func optionNames(docs: seq[OptDoc], typed: string): Offer =
   names.withPrefix(typed)
 
 func normalise(words: seq[string]): seq[string] =
-  ## Bash gives `--sport=cyc` as three words, `--sport`, `=` and `cyc` (it breaks words at `=`).  The `=` is not a word of
+  ## Bash gives `--sports=cyc` as three words, `--sports`, `=` and `cyc` (it breaks words at `=`).  The `=` is not a word of
   ## ours: it goes, and one at the very end (the cursor is just after it) leaves an empty word being typed.
   for k, w in words:
     if w == "=" and k > 0 and words[k - 1].isOption:

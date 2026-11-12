@@ -50,7 +50,7 @@ suite "nch calendar: the command line":
     let p = parseArgs(@["--all", "-v"])
     check p.problem == "" and p.params.all and p.params.verbose
   test "no criteria, no other options":
-    check parseArgs(@["--sport", "cycling"]).problem.len > 0
+    check parseArgs(@["--sports", "cycling"]).problem.len > 0
     check parseArgs(@["x"]).problem.len > 0
   test "every option has help and is in the usage":
     for d in calendarSpec().docs:

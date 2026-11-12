@@ -5,7 +5,7 @@
 ##
 ## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
-import std/[options, sequtils, strutils, tables, times]
+import std/[options, sequtils, strformat, strutils, tables, times]
 import ./cmdname
 export cmdname
 import ../../core/[extension, globals]
@@ -21,6 +21,7 @@ import ../ui/vocabulary
 import ../util/args/[args, usage]
 import ./[rows, table]
 import ./criteria
+import ../text/fold/fold
 import ../user/session
 
 {.push raises: [].}
@@ -37,11 +38,11 @@ told otherwise.  With criteria (or --all) all the activities are searched instea
 (combined with "and") are shown, and with --select they become the selection (replacing the last one)."""
   notes =
     """"latest" is the newest activity among those that meet the criteria that do not use
-"latest": so  --sport cycling --distance latest~10%  is cycling rides within 10% of
+"latest": so  --sports cycling --distance latest~10%  is cycling rides within 10% of
 the length of your latest cycling ride.  (--latest, the flag, is --newest 1.)
 
 "previous" is the one activity that was selected before (`nch activities` shows it): select it
-with --select, then  --sport previous --distance previous~10%  finds rides like it.  It is an
+with --select, then  --sports previous --distance previous~10%  finds rides like it.  It is an
 error unless exactly one activity is selected."""
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
@@ -218,6 +219,35 @@ proc resolve(
     source = "the start of the " & nameOf & " activity"
     c.near = nkNone
 
+proc numbersAsIds(
+    st: Session, c: var Criteria, notes: var seq[Line]
+) {.raises: [StoreError].} =
+  ## A whole number in `--names` that no activity's name holds is the number of an activity (`--names 737`): a name that
+  ## has the digits wins, so a number can always be searched for as text by being in a name.  A note says which it was.
+  var texts: seq[string]
+  for t in c.names:
+    var n: int
+    let whole =
+      t.len > 0 and t.allIt(it in {'0' .. '9'}) and parseIntIn(t, 1, high(int), n)
+    if whole and
+        st.db.scalar(
+          int,
+          "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :owner and instr(fold(a.name), :typed) > 0",
+          owner = st.userId,
+          typed = foldText(t),
+        ) == 0 and
+        st.db.scalar(
+          int,
+          "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :owner and a.id = :id",
+          owner = st.userId,
+          id = n,
+        ) > 0:
+      c.nameIds.add int64(n)
+      notes.add plain(fmt"no activity name has '{t}': using activity {n}")
+    else:
+      texts.add t
+  c.names = texts
+
 type Resolved = object
   ## The criteria with `latest` and `previous` worked out, the conditions of the criteria other packages offer, and the
   ## notes that say which activities they came to.
@@ -229,7 +259,7 @@ type Resolved = object
 proc resolveCriteria(
     st: Session, criteria: Criteria, zone: Timezone
 ): Resolved {.raises: [StoreError].} =
-  ## `previous` (in --near, --distance, --active, --sport, --sub-sport) is the one activity
+  ## `previous` (in --near, --distance, --active, --sports, --sub-sports) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
@@ -242,6 +272,7 @@ proc resolveCriteria(
     for n in r.notes:
       if n.len > 0:
         result.notes.add plain(n)
+  numbersAsIds(st, c, result.notes)
   checkNames(st, "sport", "sport", c.sports)
   checkNames(st, "sub-sport", "sub_sport", c.subSports)
   var centre = none((float, float))

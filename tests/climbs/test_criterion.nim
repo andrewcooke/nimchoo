@@ -13,17 +13,26 @@ proc world(name: string): Session =
   discard ensureClimbs(s)
   s
 
-suite "climbs: the criterion --climb offered to activities":
+suite "climbs: the criterion --climbs offered to activities":
   test "it is described as an option that takes any number of words":
     let d = climbCriterion.doc
-    check d.names == @["--climb"] and d.arity == aList and d.help.len > 0
+    check d.names == @["--climbs"] and d.arity == aList and d.help.len > 0
 
-  test "the words are alternatives, and commas separate them":
+  test "the words are alternatives":
     let s = world("criterion-words")
     defer:
       s.close()
-    let r = climbCriterion.resolve(s, @["unnamed", "unname,unnamed"])
+    let r = climbCriterion.resolve(s, @["unnamed", "unname"])
     check r.condition.packages == @["climbs"]
+
+  test "a whole number that no name holds is a climb's number":
+    let s = world("criterion-number")
+    defer:
+      s.close()
+    let id = s.db.scalar(int64, "select id from sector")
+    check climbCriterion.resolve(s, @[$id]).condition.packages == @["climbs"]
+    expect StoreError:
+      discard climbCriterion.resolve(s, @[$(id + 1000)])
 
   test "text that no climb has is an error, with what to do":
     let s = world("criterion-none")

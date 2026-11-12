@@ -48,7 +48,7 @@ suite "nch landmarks":
   test "listing, with nothing and with something":
     let db = fresh("list")
     check landmark(db) == exitOk
-    check landmark(db, "--add", "Casa", "--at", "-70.6,-33.4") == exitOk
+    check landmark(db, "--add", "Casa", "--at", "-33.4,-70.6") == exitOk
     check landmark(db) == exitOk
     check q(db, "select name from landmark", string) == "Casa"
     check q(db, "select radius_m from landmark", float) == 1000.0
@@ -70,9 +70,9 @@ suite "nch landmarks":
     check q(db, "select count(*) from landmark", int) == 1
   test "suggestions round a position (offline: from the names already loaded)":
     let db = fresh("near")
-    check landmark(db, "--near", "-70.364,-33.344") == exitOk
+    check landmark(db, "--near", "-33.344,-70.364") == exitOk
     check landmark(
-      db, "--add", "Yerba Loca", "--near", "-70.364,-33.344", "--pick", "1"
+      db, "--add", "Yerba Loca", "--near", "-33.344,-70.364", "--pick", "1"
     ) == exitOk
     check q(db, "select count(*) from landmark", int) == 1
   test "removing":

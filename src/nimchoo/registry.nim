@@ -99,7 +99,7 @@ other views (`climbs`, `map`, `calendar`) take the selection.
   (`matchSql`), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
   the other criteria; the one that was selected before).  `--invert` negates all of them taken together.
 * **The point `activities/criteria`**: a package may offer an option that picks activities (a `Criterion`: the option's
-  description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climb`.
+  description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
   so this package may run a condition that reads tables it does not.
 * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).""",
@@ -161,7 +161,7 @@ swaps it for the leaderboard (riders, fastest and who, your best's place among e
 shown together, are worked out when asked for and never stored.  `-v` lists the attempts.  The selection chooses the climbs,
 never the attempts.
 
-Offers `--climb TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
+Offers `--climbs TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
 climb whose name holds the text.  Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.""",
     ),
     Registered(

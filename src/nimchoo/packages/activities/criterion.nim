@@ -1,5 +1,5 @@
 ## What another package may offer `nch activities`: a criterion, an option that picks activities.  This is an extension
-## point of this package (`activityCriterion`): `climbs` offers `--climb`, which needs the climbs of the database, so the
+## point of this package (`activityCriterion`): `climbs` offers `--climbs`, which needs the climbs of the database, so the
 ## command cannot know it.  A contribution is the option's description (names, value, help: it shows in `--help`, and is
 ## parsed like the options of the command) and `resolve`, which turns what was given into a condition on the activities.
 ##

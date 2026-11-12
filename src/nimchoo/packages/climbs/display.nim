@@ -4,7 +4,7 @@
 ## "Farellones₃" is always the same climb.  A climb with no name is "unnamed".  What a person types is "Farellones₃" or
 ## "Farellones 3" or "Farellones3" (`ordinalForms`).
 
-import std/[strutils, tables, unicode]
+import std/[options, sequtils, strutils, tables, unicode]
 import ../text/fold/fold
 
 {.push raises: [].}
@@ -63,6 +63,16 @@ func displayNames*(climbs: openArray[Shown]): seq[string] =
         base & subscriptNumber(c.n)
       else:
         base
+
+func climbNumber*(text: string): Option[int64] =
+  ## A climb's number, if the text is a whole number and nothing else (`--names 62`): used when no climb's name holds it.
+  let t = text.strip
+  if t.len > 0 and t.len < 18 and t.allIt(it in {'0' .. '9'}):
+    try:
+      return some(parseBiggestInt(t))
+    except ValueError:
+      discard
+  none(int64)
 
 func ordinalForms*(text: string): seq[string] =
   ## The ways to read what a person typed: as it is, and, if it ends in a number ("Farellones 3", "Farellones3"), with

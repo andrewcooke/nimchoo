@@ -1,4 +1,4 @@
-## Completing the sports of `nch activities --sport` and `--sub-sport`: those the user's activities have, that start with
+## Completing the sports of `nch activities --sports` and `--sub-sports`: those the user's activities have, that start with
 ## what has been typed.  (`none`, which the options also take, and `latest` and `previous` are not offered: they are not
 ## sports.)
 

@@ -13,7 +13,7 @@
 ## shown together, are worked out when asked for and never stored.  `-v` lists the attempts.  The selection chooses the climbs,
 ## never the attempts.
 ##
-## Offers `--climb TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
+## Offers `--climbs TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
 ## climb whose name holds the text.  Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.
 
 import ../../core/[extension, manifest]

@@ -80,7 +80,7 @@ suite "attempts: from the tables":
     s.db.execute("update sector set retired = 1")
     check selectedClimbs(s).len == 0
     check namedClimbs(s, @["unnamed"]).len == 0
-  test "--name: the climbs whose shown name holds the text, case and accents ignored":
+  test "--names: the climbs whose shown name holds the text, case and accents ignored":
     let s = world("attempts-name")
     defer:
       s.close()
@@ -88,9 +88,17 @@ suite "attempts: from the tables":
     check namedClimbs(s, @["chacabuco"]).len == 1
     check namedClimbs(s, @["CUESTA"]).len == 1
     check namedClimbs(s, @["nothing", "cuesta"]).len == 1
-    check namedClimbs(s, @["farellones"]).len == 0
     s.db.execute("delete from selection") # (the selection is not looked at)
     check namedClimbs(s, @["cuesta"]).len == 1
+  test "--names: a whole number that no name holds is a climb's number; a name that holds it wins":
+    let s = world("attempts-number")
+    defer:
+      s.close()
+    let id = s.db.scalar(int64, "select id from sector")
+    check namedClimbs(s, @[$id]) == @[id]
+    check namedClimbs(s, @["99999"]).len == 0
+    s.db.execute("update sector set name = 'Ruta " & $id & "', manual = 1")
+    check namedClimbs(s, @[$id]) == @[id] # (found by name now)
 
 func texts(ls: seq[Line]): seq[string] =
   ls.mapIt(it.text)
@@ -134,7 +142,7 @@ suite "attempts: the lines":
     let lines2 = summaryLines(rows, false, true, utc())
     check lines2[2][0].look.colour == white and lines2[3][0].look.colour == blue and
       "1970-01-12" in lines2[3].text
-  test "no selected ride on the climb (found by --name): dashes in the selection's columns":
+  test "no selected ride on the climb (found by --names): dashes in the selection's columns":
     let s = world("lines-none-selected")
     defer:
       s.close()

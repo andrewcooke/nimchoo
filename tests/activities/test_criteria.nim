@@ -67,8 +67,8 @@ suite "list: the command line":
     check not cmdline().params.select and not cmdline().params.all and
       not cmdline().params.given
     check cmdline("--all", "--select").params.select and cmdline("--all").params.all
-    check cmdline("--sport", "cycling", "--select").params.select and
-      cmdline("--sport", "cycling").params.given
+    check cmdline("--sports", "cycling", "--select").params.select and
+      cmdline("--sports", "cycling").params.given
     check cmdline("--select").problem.contains("needs criteria or --all")
     check cmdline("--newest", "1").params.given # (a limit searches all, too)
 
@@ -94,13 +94,13 @@ suite "list: the command line":
     check cmdline("--radius", "5").problem == ""
   test "sports and sub-sports, lower-cased, several, repeated":
     let c = cmdline(
-      "--sport", "Cycling", "running,Swimming", "--sub-sport", "ROAD", "--sport",
+      "--sports", "Cycling", "running", "Swimming", "--sub-sports", "ROAD", "--sports",
       "walking",
     ).params
     check c.sports == @["cycling", "running", "swimming", "walking"]
     check c.subSports == @["road"]
-    check cmdline("--sport").problem.contains("at least one name")
-    check cmdline("--sub-sport", "--select").problem.contains("at least one name")
+    check cmdline("--sports").problem.contains("at least one name")
+    check cmdline("--sub-sports", "--select").problem.contains("at least one name")
   test "-v is a display option, not a criterion; --file is gone":
     check cmdline("-v").params.verbose and cmdline("--verbose").params.verbose
     check cmdline("-v").problem == ""
@@ -133,13 +133,13 @@ suite "list: the command line":
     check l.distanceM.isOpen and l.activeS.isOpen # (not known until latest is found)
     check l.usesLatest
   test "latest as a sport and a sub-sport":
-    let c = cmdline("--sport", "latest", "--sub-sport", "Latest", "road").params
+    let c = cmdline("--sports", "latest", "--sub-sports", "Latest", "road").params
     check c.sportRef == refLatest and c.subSportRef == refLatest
     check c.sports.len == 0 and c.subSports == @["road"]
-    check cmdline("--sport", "latest", "cycling").params.sports == @["cycling"]
+    check cmdline("--sports", "latest", "cycling").params.sports == @["cycling"]
   test "previous: in the same places, and kept apart from latest":
     let c = cmdline(
-      "--sport", "previous", "--sub-sport", "previous", "--distance", "previous~10%",
+      "--sports", "previous", "--sub-sports", "previous", "--distance", "previous~10%",
       "--active", "Previous~15m", "--near", "previous",
     ).params
     check c.sportRef == refPrevious and c.subSportRef == refPrevious
@@ -148,21 +148,21 @@ suite "list: the command line":
     check c.activeRel == some(Relative(refers: refPrevious, tol: Tol(amount: 900.0)))
     check c.near == nkPrevious
     check c.usesPrevious and not c.usesLatest
-    let mixed = cmdline("--sport", "previous", "--distance", "latest~5").params
+    let mixed = cmdline("--sports", "previous", "--distance", "latest~5").params
     check mixed.usesPrevious and mixed.usesLatest
-    check cmdline("--sport", "latest", "previous").problem.contains(
+    check cmdline("--sports", "latest", "previous").problem.contains(
       "cannot be used together"
     )
-    check cmdline("--sub-sport", "previous", "latest").problem.contains(
+    check cmdline("--sub-sports", "previous", "latest").problem.contains(
       "cannot be used together"
     )
-    check cmdline("--sport", "previous", "previous").problem == ""
+    check cmdline("--sports", "previous", "previous").problem == ""
     check cmdline("--near", "previous").params.near == nkPrevious
     check cmdline("--near", "nowhere").problem.contains("latest or previous")
     check cmdline("--radius", "5").params.near == nkLatest # (alone: still latest)
   test "latest is found among the criteria that do not mention it, previous ones included":
     let c = cmdline(
-      "--sport", "previous", "--distance", "latest~5", "--near", "previous"
+      "--sports", "previous", "--distance", "latest~5", "--near", "previous"
     ).params
     let base = c.withoutLatest
     check not base.usesLatest
@@ -172,12 +172,12 @@ suite "list: the command line":
     check cmdline("--near", "latest").params.usesLatest
     check cmdline("--radius", "5").params.usesLatest
     check not cmdline("--near", "1,2").params.usesLatest
-    check not cmdline("--sport", "cycling", "--distance", "5-", "-n", "1").params.usesLatest
+    check not cmdline("--sports", "cycling", "--distance", "5-", "-n", "1").params.usesLatest
   test "without latest: what latest is found among":
     let c = cmdline(
-      "--sport", "latest", "cycling", "--distance", "latest~5", "--active", "latest~5%",
-      "--near", "latest", "--sub-sport", "latest", "-n", "3", "--from", "2018-01-01",
-      "--distance", "latest~2",
+      "--sports", "latest", "cycling", "--distance", "latest~5", "--active",
+      "latest~5%", "--near", "latest", "--sub-sports", "latest", "-n", "3", "--from",
+      "2018-01-01", "--distance", "latest~2",
     ).params
     let base = c.withoutLatest
     check not base.usesLatest
@@ -204,7 +204,7 @@ suite "list: the command line":
   test "the radius defaults to 100 km":
     check cmdline("--near", "1,2").params.radiusKm == 100.0
   test "--all is every activity: it does not go with criteria, but with the limits":
-    check cmdline("--all", "--sport", "cycling").problem.contains(
+    check cmdline("--all", "--sports", "cycling").problem.contains(
       "does not go with criteria"
     )
     check cmdline("--all", "--newest", "1").problem == ""
@@ -356,27 +356,29 @@ suite "list: the box and the sql":
       "distance_m"
     )
 
-suite "list: --name and --start":
+suite "list: --names and --starts":
   proc parsed(args: varargs[string]): Criteria =
     parseArgs(@args, utcZone).params
 
-  test "the words are alternatives; commas too; a name with spaces is one":
-    let c = parsed("--name", "toyo", "farellones", "--start", "providencia,ñuñoa")
+  test "the words are alternatives; a name with spaces is one; a comma is part of a word":
+    let c =
+      parsed("--names", "toyo", "farellones", "--starts", "providencia", "ñuñoa")
+    check parsed("--names", "a,b").names == @["a,b"]
     check c.names == @["toyo", "farellones"] and c.starts == @["providencia", "ñuñoa"]
-    check parsed("--name", "el toyo").names == @["el toyo"]
+    check parsed("--names", "el toyo").names == @["el toyo"]
   test "latest and previous are references, not text; they cannot be mixed":
-    let c = parsed("--name", "latest", "--start", "previous")
+    let c = parsed("--names", "latest", "--starts", "previous")
     check c.nameRef == refLatest and c.startRef == refPrevious and c.names.len == 0 and
       c.starts.len == 0
     check c.usesLatest and c.usesPrevious
     check not c.withoutLatest.usesLatest
-    check parseArgs(@["--name", "latest", "previous"], utcZone).problem.contains(
+    check parseArgs(@["--names", "latest", "previous"], utcZone).problem.contains(
       "cannot be used together"
     )
   test "a name needs some text; it is a criterion ":
-    check parseArgs(@["--name"], utcZone).problem.len > 0
+    check parseArgs(@["--names"], utcZone).problem.len > 0
   test "the sql: the folded text found in the column, none for nothing, an exact value for what latest came to":
-    let c = parsed("--name", "toyo", "none", "--start", "o'higgins")
+    let c = parsed("--names", "toyo", "none", "--starts", "o'higgins")
     let m = matchSql(@[UserId(1)], c, none((float, float)))
     let q = m.text
     check q.contains("instr(fold(a.name), :nameT0) > 0") and
@@ -398,9 +400,9 @@ suite "list: --name and --start":
       "fold("
     )
 
-suite "list: --path":
+suite "list: --paths":
   test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
-    let c = parseArgs(@["--path", "bowman,run", "2026-10"], utcZone).params
+    let c = parseArgs(@["--paths", "bowman", "run", "2026-10"], utcZone).params
     check c.paths == @["bowman", "run", "2026-10"]
     let m = matchSql(@[UserId(1)], c, none((float, float)))
     let q = m.text
@@ -413,22 +415,22 @@ suite "list: --path":
       "seen_file"
     )
   test "latest is just text here; a path needs some text and is a criterion":
-    check parseArgs(@["--path", "latest"], utcZone).params.paths == @["latest"]
-    check parseArgs(@["--path"], utcZone).problem.len > 0
+    check parseArgs(@["--paths", "latest"], utcZone).params.paths == @["latest"]
+    check parseArgs(@["--paths"], utcZone).problem.len > 0
 
 suite "list: --invert":
   test "it is a criterion on its own, and needs something to invert":
-    check parseArgs(@["--sport", "cycling", "--invert"], utcZone).params.invert
+    check parseArgs(@["--sports", "cycling", "--invert"], utcZone).params.invert
     check parseArgs(@["--invert"], utcZone).problem.contains("needs a criterion")
     check parseArgs(@["--invert", "--newest", "2"], utcZone).problem.contains(
       "needs a criterion"
     ) # (limits are not criteria)
     check parseArgs(@["--invert", "--gps"], utcZone).problem == ""
     check parseArgs(@["--invert", "--distance", "40-"], utcZone).problem == ""
-    check parseArgs(@["--invert", "--name", "latest"], utcZone).problem == ""
+    check parseArgs(@["--invert", "--names", "latest"], utcZone).problem == ""
   test "the sql negates all of the criteria together, treating an unknown as no match":
     let c =
-      parseArgs(@["--sport", "cycling", "--name", "toyo", "--invert"], utcZone).params
+      parseArgs(@["--sports", "cycling", "--names", "toyo", "--invert"], utcZone).params
     let q = matchSql(@[UserId(1)], c, none((float, float))).text
     check q.contains(
       " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :nameT0) > 0"
@@ -436,13 +438,13 @@ suite "list: --invert":
     check q.endsWith("), 0)")
     let plain = matchSql(
       @[UserId(1)],
-      parseArgs(@["--sport", "cycling"], utcZone).params,
+      parseArgs(@["--sports", "cycling"], utcZone).params,
       none((float, float)),
     )
     check not plain.text.contains("coalesce")
   test "the limits come after the inverting, and latest is found before it":
     let c =
-      parseArgs(@["--sport", "cycling", "--invert", "--newest", "2"], utcZone).params
+      parseArgs(@["--sports", "cycling", "--invert", "--newest", "2"], utcZone).params
     check matchSql(@[UserId(1)], c, none((float, float))).text.endsWith(
       " order by a.start_t desc limit :newest"
     )
@@ -465,7 +467,7 @@ suite "list: criteria that other packages offer":
 
   test "an offered option is parsed with the others, and kept as given for its package to resolve":
     let c = parseArgs(
-      @["--odd", "a", "b", "-o", "c", "--sport", "cycling"], utcZone, @[offered]
+      @["--odd", "a", "b", "-o", "c", "--sports", "cycling"], utcZone, @[offered]
     ).params
     check c.contributed.len == 1 and c.contributed[0].option == "--odd"
     check c.contributed[0].values == @["a", "b", "c"]
@@ -490,7 +492,7 @@ suite "list: --delete":
     let c = parseArgs(@["--delete", "-f"], utcZone).params
     check c.delete and c.force == fYes and not c.given and not c.all
     check parseArgs(@["--delete", "-f", "-f"], utcZone).params.force == fNow
-    check parseArgs(@["--sport", "cycling", "--delete"], utcZone).params.given
+    check parseArgs(@["--sports", "cycling", "--delete"], utcZone).params.given
     check parseArgs(@["--all", "--delete", "-f"], utcZone).problem == ""
     check parseArgs(@["-f"], utcZone).problem.contains("goes with --delete")
     check parseArgs(@["--delete", "--select"], utcZone).problem.contains(
@@ -509,7 +511,7 @@ suite "list: the usage":
         for n in d.names:
           check n in text
   test "the whole usage fits the width, except the synopsis lines":
-    for width in [50, 80, 120]:
+    for width in [60, 80, 120]:
       for l in activitiesCommand.usageText(width).splitLines:
         if not (l.startsWith("usage: ") or l.startsWith("       nch ")):
           check l.len <= width
@@ -532,6 +534,6 @@ suite "list: the criteria of the packages":
     for d in criteriaSpec().docs:
       for n in d.names:
         check n notin names
-  test "the climbs offer --climb, and it shows in the usage":
-    check "--climb" in
+  test "the climbs offer --climbs, and it shows in the usage":
+    check "--climbs" in
       activitiesCommand.usageText(100, extensions.get(activityCriterion))

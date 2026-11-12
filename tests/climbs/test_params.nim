@@ -78,14 +78,14 @@ suite "climbs params: --delete":
     check parseArgs(@["--all", "--delete", "--retired"]).problem.len > 0
     check parseArgs(@["--all", "--delete", "--edit", "X", "--retire"]).problem.len > 0
 
-suite "climbs params: --name, -v, --everyone":
+suite "climbs params: --names, -v, --everyone":
   test "names, and the flags":
-    let c = parseArgs(@["--name", "farellones", "cuesta", "-v", "--everyone"])
+    let c = parseArgs(@["--names", "farellones", "cuesta", "-v", "--everyone"])
     check c.problem == "" and c.params.action == caNamed
     check c.params.named.names == @["farellones", "cuesta"] and
       c.params.named.attempts.verbose and c.params.named.attempts.everyone
-  test "--name needs text and goes with nothing that lists or changes":
-    check parseArgs(@["--name"]).problem.len > 0
+  test "--names needs text and goes with nothing that lists or changes":
+    check parseArgs(@["--names"]).problem.len > 0
     for o in [
       @["--all"],
       @["--retired"],
@@ -93,7 +93,7 @@ suite "climbs params: --name, -v, --everyone":
       @["--delete", "--all"],
       @["--edit", "X", "--retire"],
     ]:
-      check parseArgs(@["--name", "x"] & o).problem.len > 0
+      check parseArgs(@["--names", "x"] & o).problem.len > 0
   test "-v and --everyone go with the attempts only":
     for o in [
       @["--all"], @["--retired"], @["--duplicates"], @["--edit", "X", "--retire"]
