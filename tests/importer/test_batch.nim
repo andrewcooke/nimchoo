@@ -87,6 +87,21 @@ suite "import: skipping what has not changed":
     # --slow does read it, and finds a different file
     check importReport(st, @[d], ImportOptions(slow: true)).imported == 1
 
+  test "a directory of links to FIT files is imported (it once said 'no .fit files found')":
+    let d = fresh("links")
+    bytesToFile(d / "real" / "a.fit", tiny(base + 1))
+    bytesToFile(d / "real" / "b.fit", tiny(base + 2))
+    createDir(d / "chosen")
+    createSymlink(d / "real" / "a.fit", d / "chosen" / "a.fit")
+    createSymlink(d / "real", d / "chosen" / "all")
+    createSymlink(d / "chosen", d / "chosen" / "loop")
+    let st = open(d / "x.db")
+    defer:
+      st.close()
+    let r = importReport(st, @[d / "chosen"])
+    check r.imported == 2 and r.failed == 0
+    check importReport(st, @[d / "chosen"]).unchanged == 2
+
   test "a changed modification time means the file is looked at again":
     let d = fresh("mtime")
     let path = d / "a.fit"

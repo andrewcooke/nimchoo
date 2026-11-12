@@ -19,6 +19,7 @@ import ./importer
 import ./pool
 import ./work
 import ./seen
+import ./walk
 
 {.push raises: [].}
 
@@ -42,9 +43,6 @@ type
     files: seq[Candidate]
     problems: seq[Problem] ## paths that do not exist, empty directories
 
-proc isFit(path: string): bool =
-  path.splitFile.ext.toLowerAscii == ".fit"
-
 proc candidate(path: string): Candidate {.raises: [OSError].} =
   ## The file at `path`, statted.
   let info = getFileInfo(path)
@@ -65,9 +63,7 @@ proc collect(args: seq[string]): Found =
     var here: seq[string]
     try:
       if dirExists(arg):
-        for path in walkDirRec(arg):
-          if path.isFit:
-            here.add path
+        here = fitFiles(arg)
         if here.len == 0:
           result.problems.add Problem(path: arg, message: "no .fit files found")
       elif fileExists(arg):

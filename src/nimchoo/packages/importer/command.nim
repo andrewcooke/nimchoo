@@ -18,7 +18,7 @@ const
   synopsis = "usage: nch [--db PATH] [--user NAME] import [-q] [--slow] [-j N] PATH..."
   intro =
     """Put the activities in FIT files into the database.  Each PATH is a file, or a directory that is searched
-(recursively) for *.fit files.  A file whose path, size and modification time are as when it was last looked at is
+(recursively, following symbolic links) for *.fit files.  A file whose path, size and modification time are as when it was last looked at is
 skipped without being read (this includes files that could not be imported); a file that cannot be imported is
 reported and the others carry on.  What happened is written to the log (see `nch log --help`).  The new activities
 are then named, from the places they went through (the names are downloaded the first time they are needed).  The

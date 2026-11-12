@@ -285,7 +285,7 @@ This package owns the tables `file`, `activity`, `coords`, `segment`, `route`, `
 activity, as arrays; other data refers to it by time and never by array index, and the arrays are never changed once
 written.
 
-* **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files.  A file whose path, size and
+* **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one).  A file whose path, size and
   modification time are as when it was last seen is skipped unread (`--slow` reads everything); a file with content already
   imported is a duplicate; a file that cannot be read is reported and the others carry on.  One transaction per file, files
   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the
