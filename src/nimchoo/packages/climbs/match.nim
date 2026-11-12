@@ -202,7 +202,10 @@ func overPaths*(sector, ride: Path): seq[Effort] =
     cum[i] = cum[i - 1] + dist(rideXY[i - 1], rideXY[i])
   let starts = crossings(rideXY, cum, g.get.start)
   let finishes = crossings(rideXY, cum, g.get.finish)
-  # the pairs that cover about the right ground, shortest first; those that overlap one taken are dropped
+  # the pairs that cover about the right ground, the one closest to the sector's length first; those that overlap one
+  # taken are dropped.  Closest and not shortest: where the road folds back through a gate, the ride crosses it a second
+  # time going the other way, and the pair from that crossing is shorter than the sector (HISTORY.md "Gates have no
+  # direction").
   var pairs: seq[tuple[s, f: Crossing]]
   for s in starts:
     for f in finishes:
@@ -212,7 +215,7 @@ func overPaths*(sector, ride: Path): seq[Effort] =
         pairs.add (s, f)
   pairs.sort(
     proc(a, b: tuple[s, f: Crossing]): int =
-      cmp(a.f.dist - a.s.dist, b.f.dist - b.s.dist)
+      cmp(abs(a.f.dist - a.s.dist - length), abs(b.f.dist - b.s.dist - length))
   )
   var taken: seq[tuple[s, f: Crossing]]
   for p in pairs:

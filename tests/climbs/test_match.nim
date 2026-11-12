@@ -99,6 +99,26 @@ suite "climbs: a ride over a sector":
       pathOf([(0.0, 0.0), (0.0, 0.0)], 5.0), pathOf([(-5.0, 0.0), (5.0, 0.0)], 5.0)
     ).len == 0
 
+  test "where the road folds back through the start gate, the first crossing is the start":
+    # east 60 m, a hairpin back west across the gate (at 130 m along the road), then a long way east
+    let road = [
+      (0.0, 0.0),
+      (60.0, 0.0),
+      (60.0, 10.0),
+      (-50.0, 10.0),
+      (-50.0, 40.0),
+      (3900.0, 40.0),
+    ]
+    let switchback = pathOf(road, 10.0)
+    let ride = pathOf(
+      @[(-100.0, 0.0)] & @road & @[(3950.0, 40.0)], 5.0, speed = 5.0, t0 = 1000.0
+    ) # starts 100 m before the gate and goes on past the finish gate
+    let es = overPaths(switchback, ride)
+    check es.len == 1
+    check abs(es[0].startT - 1020.0) < 0.5
+      # the first crossing, not the one coming back at 1048 s
+    check abs(es[0].startDist - 100.0) < 1.0
+
   test "a climb that bends is matched along its bend":
     let bend = pathOf([(0.0, 0.0), (1000.0, 0.0), (1000.0, 1000.0)], 10.0)
       # east, then north
