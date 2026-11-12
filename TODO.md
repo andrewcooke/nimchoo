@@ -18,24 +18,29 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Larger changes (designs not started)
 
-2. **Cleaning positions at import**: **designed, dev/CLEANING.md** (agreed 2026-11-12, from the author's data: stale positions,
-   spikes, bursts, a poor first fix, jumps that do not return; drop, not mark; positions only).  Built with item 3 (one importer
-   change, one rebuild).  **Medium priority**: needed before there are significant users, since one bad fix in anyone's file
-   can reach every consumer.  Until then a stretch that spreads over more than 5 degrees is not searched for names.
-3. **Per-second data as arrays per activity**, with cleaning at import (item 2).  A **simpler `route`**, also stored as a single
-   connected line beside the multi-part one, for the uses where segmentation does not matter (21% of routes have several parts and
-   SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11).
-4. **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
+2. **Per-second data as arrays per activity** (plan agreed 2026-11-13; the design of the cleaning is dev/CLEANING.md and is built:
+   `importer/clean.nim`, wired in `extract.nim`, 2026-11-13).  Built so far: the pure encoder `importer/series.nim` (positions as FIT
+   semicircles in int32, a time offset per position, altitude in 16 bits: 14 bytes a position, round trip tested).  Left, in order:
+   (a) fragment 002: a `track` table (one row per activity, the blobs) and the heart-rate series in `heartrate` (its own package);
+   (b) the importer and the heart-rate step write the arrays beside `coords`/`heartrate`; (c) move the readers one at a time, each with
+   its tests: `importer/track.nim` and `climbs/work.nim`/`profile.nim`, `importer/naming.nim`, `map/command.nim`, `model/impulses.nim`
+   (heart rate), and the "has GPS / has heart rate" checks (`activities/criteria.nim`, `model/impulses.nim`); (d) delete `coords` and
+   `heartrate` and what they made dead; (e) measure size, import, climbs and map times before and after (the rows now: `coords` 263 MB,
+   `heartrate` 100 MB); (f) the one rebuild (`nch db --delete -f`, import) and a comparison of efforts and names with the old ones, and
+   the rides that changed looked at on the map.  Then a **simpler `route`**, also stored as a single connected line beside the
+   multi-part one, for the uses where segmentation does not matter (21% of routes have several parts and SpatiaLite's resampling
+   returns NULL for them; dev/HISTORY.md, 2026-11-11).  Not yet looked at: the stretches the cleaning splits are extra `segment` rows.
+3. **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
   turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
   would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, dev/HISTORY.md, 2026-11-11).
   Not designed: check first what the naming needs and whether the stored name is enough.
-5. **The `sectors` package**; **the cache manifest**.
-6. **Addresses, what is left** (the requirements and the rules that stay are in dev/HISTORY.md): the wrapper page (user cache, same name,
+4. **The `sectors` package**; **the cache manifest**.
+5. **Addresses, what is left** (the requirements and the rules that stay are in dev/HISTORY.md): the wrapper page (user cache, same name,
     `.html`) is rewritten from the templates in the system cache each time it is served, so an edit of the templates changes every
     bookmark's look (if different looks are wanted, a `style=NAME` parameter picks a named style file); **climbs become a layer** of the
     map of their own, with their own fingerprint, so a change to the climbs does not make an old map's bookmark an error; **the general
     plot command** replaces `ff`, declaring its series through an extension point, each package giving the key of its data.
-7. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
+6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is
   batches times file size, so it would only matter for a large file (US about 2 M rows, Russia) with rides scattered over

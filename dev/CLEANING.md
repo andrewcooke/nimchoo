@@ -87,3 +87,11 @@ imported before it, and a rebuild could give different arrays.
 * **Smoothing on the map** only on cleaned data (corner cutting makes loops of zigzags).
 * **Places of bad reception**: a count of faults per cell, filled at import from what cleaning dropped, shown as a layer or a
   list.  A report about the data, never an input to cleaning (above).
+
+## Built (2026-11-13)
+
+Steps 1 to 5 of the design are in: `importer/clean.nim` (pure), wired in `extract.nim` before the stretches are worked out, with one
+advisory per kind and activity.  Changed from the design while testing against the author's 1,113 bike files: a jump that does not return
+splits the stretch only at 100 m or more (27 of 35 first splits were under 100 m; a split would have broken a climb across it), and the
+device's speed counts only for steps of 5 s or less.  Result: 18,125 stale positions in 477 activities, 387 spike or burst positions in
+73, 6 poor first fixes, 3 splits.  Not built: the survey tool (the import log gives the counts); the arrays (TODO.md).

@@ -64,6 +64,7 @@ import
     test_importer,
     test_visits,
     test_clean,
+    test_series,
     test_batch,
     test_walk,
     test_pool,

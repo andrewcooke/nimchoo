@@ -34,7 +34,6 @@ export coord
 
 const
   minCalendarFit* = FitTime(0x10000000) ## 1998-07-03; earlier times are not UTC
-  semicircleDegrees = 180.0 / 2147483648.0 ## degrees per FIT semicircle
   maxUtcOffsetS = 86_400 ## a local time more than a day from UTC is not a time zone
 
 type

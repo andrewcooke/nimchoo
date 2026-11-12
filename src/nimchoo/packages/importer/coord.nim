@@ -6,6 +6,9 @@ import ../fit/time
 
 {.push raises: [].}
 
+const semicircleDegrees* = 180.0 / 2147483648.0
+  ## degrees per FIT semicircle (the unit the file stores a position in)
+
 type Coord* = object
   t*: UnixTime
   lon*, lat*: float ## degrees
