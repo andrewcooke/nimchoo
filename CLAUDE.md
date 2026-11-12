@@ -170,7 +170,7 @@ cache can be deleted; nothing outside the author's machine depends on anything h
 
 ## conventions
 
-(moved from the old TODO.md on 2026-11-08 and corrected by hand; checking them against the code is TODO step 5.)
+(moved from the old TODO.md on 2026-11-08 and corrected by hand.)
 
 ### error handling
 
@@ -181,7 +181,7 @@ four kinds of things go wrong, and each has one mechanism:
    `must`/`mustMut` (`packages/util/lookup`), which asserts instead of raising `KeyError`.
 2. **input we cannot use is an exception**: a corrupt FIT file, a bad profile, a file that is not an xlsx.  all are
    subtypes of `NchError` (`core/errors.nim`), raised with the `raiseFit` / `raiseProfile` / ... helpers and listed in
-   `{.raises.}`.  corrupt input must never reach a Defect (a fuzzer is to check this for FIT files: TODO step 2).
+   `{.raises.}`.  corrupt input must never reach a Defect (the fuzz tests check this for FIT files, zip files and workbooks).
 3. **ordinary absence is an `Option`**.  no sentinel values.
 4. **oddities we can recover from are warnings**, collected (`packages/util/warnings`, each with a `WarningKind`), never
    logged or printed by library code.

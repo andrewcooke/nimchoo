@@ -3426,3 +3426,31 @@ own line elsewhere; 398 efforts).  Activity 737 on climb 62 shows the case: six 
 climb twice, and the old rule took the hairpin's return crossing 29 s after the true start.
 
 Lists, positions and numbers in the options (2026-11-12, the author's rules after finding `--name` and `--layers` disagreed): a list option has a plural name and is separated by spaces (`activities --sports --sub-sports --names --starts --paths --climbs`, `climbs --names`, `map --layers`; the commas that `--sport`, `--name` and `--path` also accepted are gone: a comma is part of a word); in an address it is separated by commas (`adList`: `layers=routes,heat` is `--layers routes heat`); a position is `LAT,LON` everywhere (`landmarks --near` and `--at` were `LON,LAT`); `map --selection` has the placeholder `BITS`.  In `--names` and `--climbs` a whole number that no name holds is the number of an activity or a climb, with a note saying so for activities (`nch activities --names 737`).
+
+Addresses, state and the cache: the requirements and the rules that stay (agreed 2026-11-12; moved from TODO.md when it was made one list; what is built is above).
+
+The author's requirements: a bookmark brings back **that plot**, not one remade; if the cache has been cleaned it is remade
+only if it can be remade exactly, else it is an error; an address is also an invocation of a command, and one without a
+`state` shows the current database and is bookmarkable.  One convention for every command that has a page (`map`, `ff`, the
+general plot command that will replace `ff`).  What is built is in HISTORY.md (2026-11-12): explicit parameters, `--state`,
+names by hash, and the server's flow (live, pinned, remade, error).  What is left of the design:
+
+* **The data file is pinned; the look is not.**  The wrapper page (user cache, same name, `.html`) is rewritten from the
+  templates in the system cache (`templates/*.html`, `.css`, style JSON, and `libraries.txt`) each time it is served, so an
+  edit of the templates changes the look of every bookmark.  The templates are edited by hand and made again if deleted.  If
+  different looks are wanted, a `style=NAME` parameter picks a named style file in the system cache.
+* **Climbs become a layer** (the author, 2026-11-12): they are in the map's data file now, which was under development when
+  the package work interrupted it.  As a layer of their own they have their own data and fingerprint, so a change to the
+  climbs does not make an old map's bookmark an error.  Until then, and for any plot that does include them, the
+  fingerprint includes them.
+* **The general plot command** replaces `ff`: it declares its series through an extension point, each package giving the key
+  of its data (its part of the state).
+* **The rules that stay** (for every command with a page): the program's version is not part of the state; activities are
+  identified by `selection` (ids in order, compressed), additions do not touch a selection, and the state covers the content of
+  the selected activities, so deleting one of them, or a rebuild that gives those ids other rides, makes the pinned address an
+  error; the basemap tiles come from the web when the page is viewed (the libraries are pinned by integrity hashes, the tiles
+  are not); each command has a **test that changes each table it reads and checks that the state changes** (`map` has one; for
+  `ff` the key is `model/impulses.inputKey`, tested there).
+
+
+The data-representation question, answered (REVIEW.md, third review, 2026-11-11): step 7 kept losing because every SQL prototype used SpatiaLite's geometry functions pair by pair, against Nim code that uses a grid: the grid won, not Nim.  The cells (item "Spatial data as cells" of the old TODO) were built 2026-11-12 (cell functions, `route_cell`, the heat map, climb candidates by cells); the via search and naming in SQL were decided against, and should be revisited only if the routes run through places with many more features than the author's (the cost is the features in a route's box, so local density; a per-cell place table shared by all rides would then scale better).  Where naming lives (REVIEW.md section 5.1) is a separate question, not needed now.  The measured naming time: all 1,112 activities in 2.9 s (start place 1.30 s, the features along a loop's route 0.66 s, the shape 0.35 s, reading the route 0.24 s, the destination 0.20 s, writing 0.07 s); nothing to do for speed.
