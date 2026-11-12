@@ -18,11 +18,10 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Larger changes (designs not started)
 
-2. **Cleaning bad positions at import** (A §3 class B, the part not done; **medium priority**: skipped for now, needed before there are significant users, since one bad fix in anyone's file can reach every consumer): drop or flag impossible fixes (a jump faster
-  than any rider, a point far from its neighbours) once, at import, so that every consumer sees clean data.  Needs its own
-  design (threshold, drop or flag, effect on stretches, climbs and efforts); it changes stored data.  Until then a stretch
-  that spreads over more than 5 degrees is not searched for names (dev/HISTORY.md, 2026-11-08).  Example bad data should be in `~/choochoo` (copy what is needed).  A first step that changes nothing: a tool that lists the
-   suspicious points of the author's 1,112 activities, to judge thresholds from examples.
+2. **Cleaning positions at import**: **designed, dev/CLEANING.md** (agreed 2026-11-12, from the author's data: stale positions,
+   spikes, bursts, a poor first fix, jumps that do not return; drop, not mark; positions only).  Built with item 3 (one importer
+   change, one rebuild).  **Medium priority**: needed before there are significant users, since one bad fix in anyone's file
+   can reach every consumer.  Until then a stretch that spreads over more than 5 degrees is not searched for names.
 3. **Per-second data as arrays per activity**, with cleaning at import (item 2).  A **simpler `route`**, also stored as a single
    connected line beside the multi-part one, for the uses where segmentation does not matter (21% of routes have several parts and
    SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11).
@@ -66,3 +65,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
 * **Versions** (dev/HISTORY.md, Task 11): when the version number changes; tie it to releases and the end of squashing.
 * **Tab completion**: zsh (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for the other plural
   commands, and a `--model` of `map`, if they gain them (completion follows the specs).
+* **Inspecting positions on the map** (dev/CLEANING.md, "Related"): the time of a position on hover, or a layer of the raw
+  positions; smoothing (`smooth_rounds`) only on cleaned data; places of bad reception (faults per cell, from cleaning) as a
+  layer or a list, never an input to cleaning.
