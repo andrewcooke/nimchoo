@@ -11,6 +11,7 @@ import ../db/store
 import ../../core/errors
 import ../fit/time
 import ../util/hashing/hashing
+import ../heartrate/stored
 import ./[calc, models]
 
 {.push raises: [].}
@@ -21,12 +22,7 @@ type Calculated* = object
 proc readings(
     db: DbConn, activityId: ActivityId
 ): seq[(UnixTime, int)] {.raises: [StoreError].} =
-  for r in db.query(
-    tuple[t: int64, bpm: int],
-    "select t, bpm from heartrate where activity_id = :activityId order by t",
-    activityId = activityId,
-  ):
-    result.add (UnixTime(r.t), r.bpm)
+  readReadings(db, activityId)
 
 proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   ## The user's threshold heart rate, if they have one.
@@ -72,7 +68,7 @@ proc missing(
     ActivityId,
     """select a.id from activity a join file f on f.id = a.file_id
         where f.user_id = :userId
-          and exists (select 1 from heartrate h where h.activity_id = a.id)
+          and exists (select 1 from heartrate_series h where h.activity_id = a.id)
           and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = :modelId)
         order by a.id""",
     userId = userId,
@@ -106,7 +102,7 @@ proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreErr
   for r in db.query(
     tuple[sha256: string, session: int],
     """select f.sha256, a.session from activity a join file f on f.id = a.file_id
-        where f.user_id = :userId and exists (select 1 from heartrate h where h.activity_id = a.id)""",
+        where f.user_id = :userId and exists (select 1 from heartrate_series h where h.activity_id = a.id)""",
     userId = userId,
   ):
     entries.add r.sha256 & ":" & $r.session

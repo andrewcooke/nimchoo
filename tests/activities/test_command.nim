@@ -1,3 +1,6 @@
+import ../support/arrays
+import nimchoo/packages/importer/coord
+import nimchoo/packages/fit/time
 import std/[algorithm, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/climbs/ordinal
@@ -142,10 +145,12 @@ suite "list: the command":
   test "--gps and --no-gps: with and without positions":
     let db = world("gps")
     let s = openSession(db, allFragments, access = allAccess)
-    s.db.execute(
-      """insert into coords(activity_id, t, lon, lat)
-                    select a.id, a.start_t, 1.0, 2.0 from activity a join file f on f.id = a.file_id
-                    where f.name = 'lisbon1'"""
+    s.db.putTrack(
+      s.db.scalar(
+        int64,
+        "select a.id from activity a join file f on f.id = a.file_id where f.name = 'lisbon1'",
+      ),
+      @[Coord(t: UnixTime(1), lon: 1.0, lat: 2.0)],
     )
     s.close()
     discard save(db, "--gps")

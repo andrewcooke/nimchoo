@@ -1,3 +1,5 @@
+import ../support/arrays
+import nimchoo/packages/fit/time
 ## `nch ff --web` and `--worker` as a real program, on a fixture database (see
 ## heatmap/test_web.nim for the general checks of the server: this is that it serves the chart).
 ## Needs a built ./build/nch-test (the `test` task builds it); without one these tests are skipped.
@@ -32,14 +34,10 @@ proc fixture(name: string): tuple[db, cache: string] =
     fileId = f,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
-  s.db.execute("begin")
+  var rows: seq[(UnixTime, int)]
   for k in 0 ..< 600:
-    s.db.execute(
-      "insert into heartrate(activity_id, t, bpm) values (:activityId, :t, 160)",
-      activityId = a,
-      t = 1535373814 + k,
-    )
-  s.db.execute("commit")
+    rows.add (UnixTime(1535373814 + k), 160)
+  s.db.putHeart(a, rows)
 
 proc environment(cache: string): StringTableRef =
   result = newStringTable()

@@ -2,6 +2,9 @@
 ## make a second user.
 
 import nimchoo/packages/user/session
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/coord
+import ./arrays
 import nimchoo/packages/db/statement
 import db_connector/db_sqlite
 import nimchoo/core/globals
@@ -32,10 +35,7 @@ proc fill*(s: Session, tag: string) =
     fileId = f,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
-  s.db.execute(
-    "insert into coords(activity_id, t, lon, lat) values (:activityId, 5, 1.0, 2.0)",
-    activityId = a,
-  )
+  s.db.putTrack(a, @[Coord(t: UnixTime(5), lon: 1.0, lat: 2.0)])
   s.db.execute(
     "insert into segment(activity_id, n, start_t, end_t) values (:activityId, 1, 0, 10)",
     activityId = a,

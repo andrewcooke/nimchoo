@@ -12,7 +12,7 @@ import ../names/activity
 import ../names/countries
 import ../names/lookup
 import ../util/profiling/profiling
-import ./route
+import ./[route, track]
 
 {.push raises: [].}
 
@@ -70,13 +70,9 @@ proc ensureActivityNames*(
       routeOf.rewind()
     if parts.len == 0:
       var lons, lats: seq[float]
-      for r in st.db.query(
-        tuple[lon, lat: float],
-        "select lon, lat from coords where activity_id = :activityId order by t",
-        activityId = id,
-      ):
-        lons.add r.lon
-        lats.add r.lat
+      for c in readPositions(st.db, ActivityId(id)):
+        lons.add c.lon
+        lats.add c.lat
       parts.add (lons, lats)
     var got: ActivityNames
     try:

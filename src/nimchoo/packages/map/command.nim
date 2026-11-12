@@ -23,7 +23,7 @@ import ../climbs/work
 import ../db/statement
 import ../db/store
 import ../../core/errors
-import ../importer/keys
+import ../importer/[keys, track]
 import ../fit/time
 import ../geo/cells
 import ../../core/ids
@@ -177,14 +177,11 @@ proc effortsOf(st: Store, ids: seq[int64]): seq[EffortLine] {.raises: [StoreErro
       elapsedS: e.elapsedS,
       startM: e.startM,
     )
-    for p in st.db.query(
-      tuple[lon, lat: float],
-      "select lon, lat from coords where activity_id = :activityId and t between :first and :last order by t",
-      activityId = e.activityId,
-      first = int64(floor(e.startT)),
-      last = int64(ceil(e.finishT)),
-    ):
-      line.points.add p
+    let first = int64(floor(e.startT))
+    let last = int64(ceil(e.finishT))
+    for c in readPositions(st.db, ActivityId(e.activityId)):
+      if int64(c.t) >= first and int64(c.t) <= last:
+        line.points.add (lon: c.lon, lat: c.lat)
     result.add line
 
 type Prepared = object

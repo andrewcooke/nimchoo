@@ -1,3 +1,6 @@
+import ../support/arrays
+import nimchoo/packages/importer/coord
+import nimchoo/packages/fit/time
 import nimchoo/packages/db/statement
 import ../support/env
 import std/[json, options, os, sequtils, strutils, times, unittest]
@@ -99,12 +102,10 @@ proc withRideAlongClimb(db: string) =
   let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
+  var coords: seq[Coord]
   for t in 0 .. 62:
-    s.db.execute(
-      "insert into coords(activity_id, t, lon, lat) values (1, :t, :lon, 38.72)",
-      t = t,
-      lon = -9.14 + 0.01 * float(t) / 61.0,
-    )
+    coords.add Coord(t: UnixTime(t), lon: -9.14 + 0.01 * float(t) / 61.0, lat: 38.72)
+  s.db.putTrack(1, coords)
 
 proc withCells(db: string) =
   ## Where the two rides went: ride 1 two cells, one of them twice, ride 2 one cell.

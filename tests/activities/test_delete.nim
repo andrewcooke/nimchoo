@@ -138,7 +138,7 @@ suite "delete: the command":
       after.close()
     check after.count("activity") == 1 and
       after.db.scalar(string, "select name from file") == "b"
-    check after.count("seen_file") == 1 and after.count("coords") == 1
+    check after.count("seen_file") == 1 and after.count("track") == 1
   test "only the user's own selection is looked at: --user":
     let d = fresh("user")
     openSession(d, allFragments, access = allAccess).close()

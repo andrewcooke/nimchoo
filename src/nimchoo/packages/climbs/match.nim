@@ -35,8 +35,10 @@ type
     startDist*: float ## metres along the ride given, at the start gate
 
 func elapsed*(e: Effort): float =
-  ## Seconds from the start of the effort to its finish.
-  e.finishT - e.startT
+  ## Seconds from the start of the effort to its finish, to the millisecond: the positions are a second apart and the gates
+  ## are crossed between them, so a millisecond is far finer than what is measured, and it keeps two passes at the same speed
+  ## equal (a Unix time of 4,000,000 s has a float error of about 1e-9 s that would otherwise break the tie).
+  round((e.finishT - e.startT) * 1000.0) / 1000.0
 
 func len*(p: Path): int =
   ## The number of points.

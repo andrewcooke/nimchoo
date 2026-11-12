@@ -1,3 +1,6 @@
+import ../support/arrays
+import nimchoo/packages/importer/coord
+import nimchoo/packages/fit/time
 import nimchoo/packages/db/statement
 import std/[strutils, unittest]
 import ../support/shims
@@ -31,19 +34,19 @@ proc addActivity(
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   var t = startT
+  var coords: seq[Coord]
   for k in 0 ..< points.high:
     let (x0, y0) = points[k]
     let (x1, y1) = points[k + 1]
     let n = max(1, int(max(abs(x1 - x0), abs(y1 - y0)) / 0.0005))
     for i in 0 ..< n:
-      s.db.execute(
-        "insert into coords(activity_id, t, lon, lat) values (:activityId, :t, :lon, :lat)",
-        activityId = a,
-        t = t,
-        lon = x0 + (x1 - x0) * i.float / n.float,
-        lat = y0 + (y1 - y0) * i.float / n.float,
+      coords.add Coord(
+        t: UnixTime(t),
+        lon: x0 + (x1 - x0) * i.float / n.float,
+        lat: y0 + (y1 - y0) * i.float / n.float,
       )
       inc t
+  s.db.putTrack(a, coords)
 
 proc world(name: string): tuple[names: Names, st: Store, net: Net] =
   let net = Net(chile: @[santiago, sanCristobal, pass, lake, barrio].join("\n") & "\n")

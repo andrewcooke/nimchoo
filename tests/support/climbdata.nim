@@ -6,6 +6,7 @@ import nimchoo/packages/db/statement
 import std/[math, options, os, strutils]
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/[extract, visits]
+import ./arrays
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
@@ -62,21 +63,11 @@ proc addRide*(
   var stretches: seq[(int, int)] # (start, end) times of each stretch
   var since = startT
   for i, x in xs:
-    let alt =
-      if withAltitude:
-        $altitude(x)
-      else:
-        ""
-    s.db.execute(
-      "insert into coords(activity_id, t, lon, lat, alt) values (:activityId, :t, :lon, :lat, nullif(:alt, ''))",
-      activityId = a,
-      t = t,
-      lon = x * metre,
-      lat = northM * metre,
-      alt = alt,
-    )
     coords.add Coord(
-      t: UnixTime(t), lon: x * metre, lat: northM * metre, alt: none(float)
+      t: UnixTime(t),
+      lon: x * metre,
+      lat: northM * metre,
+      alt: (if withAltitude: some(altitude(x)) else: none(float)),
     )
     wkt.add formatFloat(x * metre, ffDecimal, 9) & " " &
       formatFloat(northM * metre, ffDecimal, 9)
@@ -87,6 +78,7 @@ proc addRide*(
     else:
       inc t
   stretches.add (since, t - 1)
+  s.db.putTrack(a, coords)
   for v in visitsOf(coords):
     s.db.execute(
       "insert into route_cell(activity_id, cell, t_in, t_out) values (:activityId, :cell, :tIn, :tOut)",

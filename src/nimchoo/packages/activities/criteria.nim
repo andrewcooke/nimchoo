@@ -760,9 +760,9 @@ func matchSql*(
   filt = filt & rangeSql("a.timer_s", "active", c.activeS)
   case c.gps
   of gfWith:
-    filt = filt & " and exists (select 1 from coords k where k.activity_id = a.id)"
+    filt = filt & " and exists (select 1 from track k where k.activity_id = a.id)"
   of gfWithout:
-    filt = filt & " and not exists (select 1 from coords k where k.activity_id = a.id)"
+    filt = filt & " and not exists (select 1 from track k where k.activity_id = a.id)"
   of gfAny:
     discard
   if c.fromT.isSome:

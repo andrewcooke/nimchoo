@@ -123,7 +123,7 @@ suite "model: impulses, worked out when wanted":
       s.close()
     s.setFthr(154)
     discard s.importRide()
-    s.db.execute("delete from heartrate")
+    s.db.execute("delete from heartrate_series")
     check calculateMissing(s.db, s.userId, s.defaultM) == Calculated()
   test "a changed FTHR deletes that user's impulses (only theirs), an unchanged one does not":
     let path = fresh("trigger")
@@ -205,7 +205,7 @@ suite "model: the key of what impulses are made from":
     check inputKey(s.db, s.userId, findModel(s.db, "other").get) != k # another model
     discard s.importRide("copy.fit") # the same content: nothing new
     check inputKey(s.db, s.userId, s.defaultM) == k
-    s.db.execute("delete from heartrate")
+    s.db.execute("delete from heartrate_series")
     check inputKey(s.db, s.userId, s.defaultM) == ""
   test "it does not depend on database ids: the same ride in another database has the same key":
     let a = open(fresh("keya"))

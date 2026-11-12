@@ -271,12 +271,12 @@ suite "list: the box and the sql":
     )
     let with = matchSql(@[UserId(1)], Criteria(gps: gfWith), none((float, float))).text
     check with.contains(
-      " and exists (select 1 from coords k where k.activity_id = a.id)"
+      " and exists (select 1 from track k where k.activity_id = a.id)"
     )
     let without =
       matchSql(@[UserId(1)], Criteria(gps: gfWithout), none((float, float))).text
     check without.contains(
-      " and not exists (select 1 from coords k where k.activity_id = a.id)"
+      " and not exists (select 1 from track k where k.activity_id = a.id)"
     )
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "coords"
