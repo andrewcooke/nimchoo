@@ -18,14 +18,13 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Larger changes (designs not started)
 
-2. **Arrays: what is left.**  Built (2026-11-13): the cleaning (`importer/clean.nim`), the arrays (`track`, `heartrate_series`; `coords` and
-   `heartrate` are gone) and every reader.  Left: (a) the **rebuild** (`nch db --delete -f`, import) and a comparison of efforts and
-   names with the old ones, and the rides that changed looked at on the map; (b) **measure** size, import time, and the climbs and map
-   times before and after (the rows were: `coords` 263 MB, `heartrate` 100 MB, `route` 101 MB; the arrays are 14 and 5 bytes a reading);
-   (c) at the next squash fold `importer/002`/`003` and `heartrate/002`/`003` into the `001`s (the `coords` and `heartrate` tables then
-   never exist); (d) a **simpler `route`**, also stored as a single connected line beside the multi-part one, for the uses where
-   segmentation does not matter (21% of routes have several parts and SpatiaLite's resampling returns NULL for them; dev/HISTORY.md,
-   2026-11-11); (e) the stretches the cleaning splits are extra `segment` rows: look at one on the map.
+2. **Arrays: what is left.**  Built and measured (2026-11-13, dev/HISTORY.md "The arrays"): the cleaning, the arrays and every reader;
+   `coords` and `heartrate` are gone.  Left: (a) the **rebuild** of the author's database (`nch db --delete -f`, import) and a comparison
+   of efforts and names with the old ones, and the rides that changed looked at on the map; (b) at the next squash fold
+   `importer/002`/`003` and `heartrate/002`/`003` into the `001`s (the `coords` and `heartrate` tables then never exist); (c) a **simpler
+   `route`**, also stored as a single connected line beside the multi-part one, for the uses where segmentation does not matter (21% of
+   routes have several parts and SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11); (d) the stretches the
+   cleaning splits are extra `segment` rows: look at one on the map.
 3. **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
   turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
   would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, dev/HISTORY.md, 2026-11-11).
