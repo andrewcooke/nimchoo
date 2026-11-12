@@ -10,7 +10,7 @@
 ## such a gap.  Pure.
 
 import std/[math, options]
-import ../importer/extract
+import ../importer/coord
 import ../geo/geo
 
 {.push raises: [].}

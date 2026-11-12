@@ -40,6 +40,11 @@ type
     wkDuplicateTime ## several records in one second (the last is kept)
     wkInvalidTime ## a timestamp that is not a calendar time (dropped)
     wkOutsideSegment ## a coordinate outside every timer segment
+    # cleaning the positions (importer/clean.nim); one warning of each kind to an activity, with the count
+    wkStalePosition ## positions the device wrote again while moving (dropped)
+    wkBadPosition ## positions far from where the ride was (a spike or a burst: dropped)
+    wkPoorFirstFix ## the positions before a jump in the first seconds (dropped)
+    wkPositionJump ## a jump that did not return: the stretch is split there
 
   Warning* = object
     offset*: int ## byte offset in the file

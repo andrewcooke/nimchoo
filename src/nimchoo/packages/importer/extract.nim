@@ -27,6 +27,8 @@ import ../fit/records
 import ../fit/time
 import ../geo/geo
 import ./stretch
+import ./[clean, coord]
+export coord
 
 {.push raises: [].}
 
@@ -36,13 +38,6 @@ const
   maxUtcOffsetS = 86_400 ## a local time more than a day from UTC is not a time zone
 
 type
-  Coord* = object
-    t*: UnixTime
-    lon*, lat*: float ## degrees
-    alt*: Option[float] ## metres
-    speed*: Option[float]
-      ## metres a second, as the device measured it (from the Doppler shift, so reflections disturb it less than the position)
-
   Segment* = object
     ## A stretch of riding (a closed interval): a stretch during which the timer ran,
     ## or several of them joined across pauses the rider did not mean (see `joinStretches`).
@@ -274,6 +269,38 @@ proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
     else:
       result.add rc.c
 
+func cleaningWarnings*(c: Cleaned, ws: var seq[Warning]) =
+  ## One warning of each kind for what the cleaning did to an activity: how many, and the first second.
+  var count: array[Fault, int]
+  var first: array[Fault, int64]
+  for d in c.dropped:
+    if count[d.fault] == 0 or int64(d.t) < first[d.fault]:
+      first[d.fault] = int64(d.t)
+    inc count[d.fault]
+  for f in Fault:
+    if count[f] > 0:
+      let kind =
+        case f
+        of fStale: wkStalePosition
+        of fSpike: wkBadPosition
+        of fFirstFix: wkPoorFirstFix
+      ws.add kind, 0, fmt"{count[f]} dropped ({$f}); the first at second {first[f]}"
+  if c.splits.len > 0:
+    ws.add wkPositionJump,
+      0,
+      fmt"{c.splits.len} jumps that did not return: split at second {int64(c.splits[0])} (and later)"
+
+func splitAt*(segs: seq[Segment], times: seq[UnixTime]): seq[Segment] =
+  ## The stretches cut where a jump did not return: a coordinate at `t` is the first of the new stretch.
+  result = segs
+  for t in times:
+    for i in 0 ..< result.len:
+      if result[i].startT < t and t <= result[i].endT:
+        let tail = Segment(startT: t, endT: result[i].endT, endedBy: result[i].endedBy)
+        result[i].endT = UnixTime(int64(t) - 1)
+        result.insert(tail, i + 1)
+        break
+
 proc uniqueSamples(raw: var seq[RawSample]): Table[string, seq[Sample]] =
   ## By channel, in time order; of several in one second the last (by appearance) is kept.
   ## (The duplicate seconds are already warned about for the coordinates.)
@@ -384,6 +411,15 @@ proc readActivities*(
     while k + 1 < sessions.len and sessions[k + 1].startT <= c.t:
       inc k
     sessions[k].coords.add c
+  # clean the positions of each session (before the stretches are worked out from them)
+  var splits = newSeq[seq[UnixTime]](sessions.len)
+  for i, s in sessions.mpairs:
+    var cleaned: Cleaned
+    timed "import: clean positions":
+      cleaned = cleanCoords(s.coords)
+    s.coords = cleaned.kept
+    splits[i] = cleaned.splits
+    cleaningWarnings(cleaned, ws)
   # the other fields go to sessions the same way
   for name, list in uniqueSamples(rawSamples):
     var first = 0 # the samples of a session are those before the next one starts
@@ -412,5 +448,5 @@ proc readActivities*(
     s.utcOffsetS = offsetS
     s.segments = segmentsOf(s.startT, s.endT, perSession[i])
     cover(s.segments, s.coords, ws)
-    s.segments = joinStretches(s.segments, s.coords)
+    s.segments = splitAt(joinStretches(s.segments, s.coords), splits[i])
   sessions

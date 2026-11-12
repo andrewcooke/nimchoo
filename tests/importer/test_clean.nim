@@ -88,6 +88,20 @@ suite "import: cleaning the positions":
     check r.splits == @[UnixTime(t0 + 100)]
     check r.dropped.len == 0 and r.kept.len == 200
 
+  test "a jump of 60 m that does not return is a correction: no split (a few positions may go while it settles)":
+    var c = ride(200)
+    for i in 100 ..< 200:
+      c[i].lat += 60.0 / 111_195.0
+    let r = cleanCoords(c)
+    check r.splits.len == 0 and r.dropped.len <= 5 and r.kept.len >= 195
+
+  test "a long gap with a speed of zero at the end is not a fault":
+    var c = ride(100)
+    c.delete(40 ..< 90) # 50 s without positions: 400 m
+    c[40].speed = some(0.0) # the rider has just stopped
+    let r = cleanCoords(c)
+    check r.dropped.len == 0 and r.splits.len == 0
+
   test "a sideways jump of 25 m, a wobble, is left alone":
     var c = ride(120)
     c[60] = at(t0 + 60, 60.0 * 8.0, 27.0)

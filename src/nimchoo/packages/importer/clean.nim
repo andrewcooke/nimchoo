@@ -13,7 +13,7 @@
 ##    position within `burstS` seconds is again reachable: those between are dropped.
 ## 3. **A jump that does not return**: no later position is reachable from the last good one.  Within `firstFixS` of
 ##    the start of the recording, the positions before the jump were a poor first fix: they are dropped.  Later, the
-##    stretch is split there (nothing measures distance, a climb or an effort across it: there is no telling which side is
+##    stretch is split there if the jump is `splitM` (100 m) or more (a shorter one is a position corrected: kept) (nothing measures distance, a climb or an effort across it: there is no telling which side is
 ##    wrong).
 ##
 ## A dropped position leaves that second without one; the other channels of the second are untouched.  Nothing here looks
@@ -22,7 +22,7 @@
 import std/[algorithm, math, options]
 import ../fit/time
 import ../geo/geo
-import ./extract
+import ./coord
 
 {.push raises: [].}
 
@@ -49,10 +49,23 @@ type
     fastestMps*: float ## faster than any bicycle goes
     burstS*: int ## how long a run of wrong positions may be
     firstFixS*: int ## how soon after the start a jump is a poor first fix
+    splitM*: float
+      ## a jump that does not return splits the stretch only if it is this long; a shorter one is the position being
+      ## corrected (a fix found again after a pause), and a split there would break a climb that crosses it
+    speedWithinS*: int
+      ## the device's speed says how far a step may be only for steps this short (it is the speed now, not over a long gap)
 
 func tuning*(): Tuning =
   ## The defaults (shown not to matter: tests/importer/test_clean.nim).
-  Tuning(movingStepM: 3.0, leewayM: 30.0, fastestMps: 30.0, burstS: 30, firstFixS: 15)
+  Tuning(
+    movingStepM: 3.0,
+    leewayM: 30.0,
+    fastestMps: 30.0,
+    burstS: 30,
+    firstFixS: 15,
+    splitM: 100.0,
+    speedWithinS: 5,
+  )
 
 func cleanCoords*(coords: seq[Coord], tune = tuning()): Cleaned =
   ## `coords` in time order, one per second at most (as `extract` gives them).
@@ -90,7 +103,7 @@ func cleanCoords*(coords: seq[Coord], tune = tuning()): Cleaned =
   func reachable(a, b: int): bool =
     let dt = float(int64(coords[b].t) - int64(coords[a].t))
     let mps =
-      if coords[b].speed.isSome:
+      if coords[b].speed.isSome and dt <= float(tune.speedWithinS):
         min(tune.fastestMps, 2.0 * coords[b].speed.get + 3.0)
       else:
         tune.fastestMps
@@ -147,7 +160,8 @@ func cleanCoords*(coords: seq[Coord], tune = tuning()): Cleaned =
       good = at
       inc k
     else:
-      result.splits.add coords[at].t
+      if gap(good, at) >= tune.splitM:
+        result.splits.add coords[at].t
       kept.add at
       good = at
       inc k

@@ -517,6 +517,46 @@ suite "segments: in files":
     check a[0].segments.spans == @[seg(unixBase, unixBase + 50)]
     check a[1].segments.spans == @[seg(unixBase + 100, unixBase + 150)]
 
+suite "extract: cleaning the positions":
+  # about 8 m a second north (800 semicircles), a record every second
+  func moving(i: int, offTrack = 0): seq[byte] =
+    at(base + i, lat = north45 + i * 800 + offTrack)
+
+  test "a spike is dropped, said once, and the other positions are kept":
+    var body = recordDefn
+    for i in 0 ..< 20:
+      body = body & moving(i, (if i == 10: 30000 else: 0))
+    body = body & sessionDefn & session(base, base + 19)
+    let (a, ws) = activities(body)
+    check a[0].coords.len == 19
+    check a[0].coords.allIt(it.t != unixBase + 10)
+    check ws.kinds.count(wkBadPosition) == 1 and ws.len == 1
+
+  test "a jump that does not return splits the stretch":
+    var body = recordDefn
+    for i in 0 ..< 40:
+      body = body & moving(i, (if i >= 20: 60000 else: 0))
+    body = body & sessionDefn & session(base, base + 39)
+    let (a, ws) = activities(body)
+    check a[0].coords.len == 40
+    check a[0].segments.spans ==
+      @[seg(unixBase, unixBase + 19), seg(unixBase + 20, unixBase + 39)]
+    check ws.kinds.count(wkPositionJump) == 1
+
+  test "a clean ride has no cleaning warnings":
+    var body = recordDefn
+    for i in 0 ..< 20:
+      body = body & moving(i)
+    let (a, ws) = activities(body & sessionDefn & session(base, base + 19))
+    check a[0].coords.len == 20 and ws.len == 0
+
+  test "splitAt cuts a stretch where a coordinate begins the next":
+    check splitAt(@[seg(10, 50)], @[UnixTime(30)]).spans == @[seg(10, 29), seg(30, 50)]
+    check splitAt(@[seg(10, 50)], @[UnixTime(10)]).spans ==
+      @[seg(10, 50)] # (the first second is no cut)
+    check splitAt(@[seg(10, 50)], @[UnixTime(20), UnixTime(40)]).spans ==
+      @[seg(10, 19), seg(20, 39), seg(40, 50)]
+
 suite "segments: real files":
   test "the ride: its 20 timer segments are one stretch (auto-pauses the rider did not leave)":
     var ws: seq[Warning]

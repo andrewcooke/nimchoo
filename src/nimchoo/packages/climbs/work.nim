@@ -22,7 +22,7 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../../core/ids
-import ../importer/extract
+import ../importer/coord
 import ../importer/track
 import ../util/lookup/lookup
 import ../util/profiling/profiling
