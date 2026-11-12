@@ -36,12 +36,8 @@ const package* = Package(
     "ui", "user", "warnings",
   ],
   fragments: @[
-    fragment("001-schema.sql"), # file, activity, coords, segment, route, seen_file
-    fragment("002-seen-file-index.sql"),
-    fragment("003-route-cell.sql"),
-      # route_cell: the cells of the grid each activity went through
-    fragment("004-route-cell-fill.sql"),
-      # (legacy: its rows for a database made before it)
+    fragment("001-schema.sql")
+      # file, activity, coords, segment, route, seen_file, route_cell (the cells of the grid each activity went through)
   ],
   commands: @[
     CommandDecl(

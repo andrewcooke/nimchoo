@@ -20,8 +20,7 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 const package* = Package(
   depends: @["db", "hashing", "importer", "ui", "user"],
   fragments: @[
-    fragment("001-schema.sql"), # selection
-    fragment("002-activity-index.sql"),
+    fragment("001-schema.sql") # selection
   ],
   contributes: contributions,
 )

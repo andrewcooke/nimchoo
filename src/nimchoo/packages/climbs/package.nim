@@ -33,13 +33,8 @@ const package* = Package(
     "names", "profiling", "selection", "ui", "user",
   ],
   fragments: @[
-    fragment("001-schema.sql"), # sector (with retired), effort, climbs_done
-    fragment("002-name-number.sql"), # sector.name_n
-    fragment("003-effort-index.sql"), # effort(activity_id)
-    fragment("004-sector-gate-cell.sql"),
-      # sector_gate_cell: the cells round the gates of a sector (a trigger fills it)
-    fragment("005-sector-gate-cell-fill.sql"),
-      # (legacy: its rows for the sectors of a database made before it)
+    fragment("001-schema.sql")
+      # sector (with retired, name_n), effort, climbs_done, sector_gate_cell (the cells round the gates of a sector: a trigger fills it)
   ],
   commands: @[
     CommandDecl(

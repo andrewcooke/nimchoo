@@ -82,25 +82,6 @@ suite "climbs: the cells round the gates":
     check s.db.scalar(int, "select count(*) from sector_gate_cell") == 30
     s.db.execute("delete from sector where id = :id", id = id)
     check s.db.scalar(int, "select count(*) from sector_gate_cell") == 0
-  test "the SQL that fills it for an older database gives the rows the trigger does":
-    let s = fresh("fill")
-    defer:
-      s.close()
-    discard s.addSector(-70.60, -33.40, -70.59, -33.39)
-    discard s.addSector(-1.6, 54.1, -1.59, 54.11)
-    let before = s.db.query(
-      tuple[sectorId: int64, which: int, cell: int64],
-      "select sector_id, which, cell from sector_gate_cell order by sector_id, which, cell",
-    )
-    s.db.execute("delete from sector_gate_cell")
-    for f in allFragments:
-      if f.name == "climbs/005-sector-gate-cell-fill.sql":
-        s.db.execScript(f.sql)
-    check s.db.query(
-      tuple[sectorId: int64, which: int, cell: int64],
-      "select sector_id, which, cell from sector_gate_cell order by sector_id, which, cell",
-    ) == before
-    check before.len == 60
 
 suite "climbs: the sectors a ride may have gone over":
   test "a ride that visits the cells round the start and then those round the finish":

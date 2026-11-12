@@ -55,12 +55,6 @@ proc rows(s: Session): seq[tuple[activityId, cell, tIn, tOut: int64]] =
     "select activity_id, cell, t_in, t_out from route_cell order by activity_id, t_in",
   )
 
-proc fillSql(): string =
-  for f in allFragments:
-    if f.name == "importer/004-route-cell-fill.sql":
-      return f.sql
-  raiseAssert "the fragment is not there"
-
 suite "route_cell: written with the samples":
   test "a real ride has visits, and they are what the samples say":
     let s = importedRide("ride")
@@ -77,14 +71,6 @@ suite "route_cell: written with the samples":
     ) == 0
     for i in 1 ..< written.len:
       check written[i].tIn > written[i - 1].tOut
-  test "the SQL that fills it for an older database gives the same rows as the importer":
-    let s = importedRide("fill")
-    defer:
-      s.close()
-    let written = rows(s)
-    s.db.execute("delete from route_cell")
-    s.db.execScript(fillSql())
-    check rows(s) == written
   test "deleting an activity deletes its visits":
     let s = importedRide("delete")
     defer:

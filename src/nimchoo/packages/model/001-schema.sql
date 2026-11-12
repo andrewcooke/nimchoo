@@ -40,3 +40,6 @@ begin
   delete from impulse where activity_id in (
     select a.id from activity a join file f on f.id = a.file_id where f.user_id = new.user_id);
 end;
+
+-- A foreign key needs an index of its own (the primary key starts with the activity): deleting a model scanned the table.
+create index impulse_model on impulse(model_id);

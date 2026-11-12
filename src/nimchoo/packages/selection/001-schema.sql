@@ -5,3 +5,6 @@ create table selection (
   user_id integer not null references user(id) on delete cascade,
   activity_id integer not null references activity(id) on delete cascade,
   primary key (user_id, activity_id)) strict, without rowid;
+
+-- A foreign key needs an index of its own (the primary key starts with the user): deleting an activity scanned the selections.
+create index selection_activity on selection(activity_id);

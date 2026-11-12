@@ -29,7 +29,7 @@ create table activity (
   distance_m real,
   calories integer,
   -- Where it started and what it is called, text made from its route (see names/activity.nim).
-  -- null: not named yet (the next `nch import` does it); "": looked at, nothing to say (or made with --offline).
+  -- null: not named yet (the next `nch import` does it); "": looked at, nothing to say.
   start_place text,
   name text,
   start blob,                -- see below
@@ -83,3 +83,18 @@ create table seen_file (
   failure text,
   message text,
   primary key (user_id, path)) strict, without rowid;
+
+-- A foreign key needs an index of its own (the primary key starts with the user): deleting a file scanned the table.
+create index seen_file_file on seen_file(file_id);
+
+-- Where an activity went, as the cells of a grid (geo/cells.nim; in SQL the function cell(lon, lat)): one row for each
+-- visit, a run of consecutive samples in one cell, with the times of its first and last sample.  Questions about places (what is
+-- near a route, which rides pass a climb, a heat map) are joins on the integer cell.  Written by the importer from the
+-- samples, in the same transaction as them (importer/visits.nim).  Visits of an activity do not overlap in time.
+create table route_cell (
+  activity_id integer not null references activity(id) on delete cascade,
+  cell integer not null,
+  t_in integer not null,
+  t_out integer not null,
+  primary key (activity_id, t_in)) strict, without rowid;
+create index route_cell_cell on route_cell(cell, activity_id);

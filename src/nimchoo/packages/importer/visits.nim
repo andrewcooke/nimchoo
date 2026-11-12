@@ -1,6 +1,5 @@
 ## The visits of an activity to the cells of the grid (geo/cells.nim): a visit is a run of consecutive samples in one cell,
-## with the times of its first and last sample.  This is the definition of `route_cell`; the SQL that fills it for a
-## database made before it (`004-route-cell-fill.sql`) says the same, and a test holds the two to it.  Pure.
+## with the times of its first and last sample.  This is the definition of `route_cell`.  Pure.
 
 import std/options
 import ../fit/time
