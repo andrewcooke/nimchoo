@@ -2,7 +2,7 @@
 ## near its route, and keep it on the sector (as text).  Done after `ensureClimbs`, when a command wants the
 ## names.  If the names cannot be had (no network) it is a DownloadError and the command stops.
 
-import std/[options, strutils]
+import std/[options, strformat, strutils]
 import ../db/statement
 import ../db/store
 import ../../core/[errors, globals, logfile]
@@ -16,6 +16,8 @@ import ./[match, ordinal]
 
 type Named* = object
   named*, nothing*: int ## sectors given a name, and those looked at that have none near
+  left*: int
+    ## sectors left without a name (null) because `--offline` and the places near them are not in the cache
   damaged*: seq[int64]
     ## sectors whose route cannot be read: left without a name (null), so that they are tried again, not marked as
     ## having none near
@@ -35,7 +37,12 @@ proc ensureSectorNames*(
     if route.isNone:
       result.damaged.add id
       continue
-    let pick = nameClimb(names, route.get.lon, route.get.lat)
+    var pick: Option[Pick]
+    try:
+      pick = nameClimb(names, route.get.lon, route.get.lat)
+    except OfflineError:
+      inc result.left
+      continue
     if pick.isSome:
       st.db.execute(
         "update sector set name = :name where id = :id", name = pick.get.name, id = id
@@ -49,9 +56,10 @@ proc ensureSectorNames*(
 
 func damagedText*(n: Named): string =
   ## What to say about climbs that were not named because their route cannot be read.
-  $n.damaged.len & (if n.damaged.len == 1: " climb has" else: " climbs have") &
-    " a route that cannot be read (damaged data) and " &
-    (if n.damaged.len == 1: "was" else: "were") & " not named: " & n.damaged.join(", ")
+  let one = n.damaged.len == 1
+  let have = if one: "climb has" else: "climbs have"
+  let was = if one: "was" else: "were"
+  fmt"{n.damaged.len} {have} a route that cannot be read (damaged data) and {was} not named: {n.damaged.join("", "")}"
 
 proc nameClimbs*(
     g: Globals,
@@ -70,11 +78,15 @@ proc nameClimbs*(
   if named.damaged.len > 0:
     say "warning: " & damagedText(named)
     g.log.log(lvWarn, command, leAdvisory, damagedText(named))
+  if named.left > 0:
+    let text =
+      fmt"{named.left} climbs left unnamed (--offline; the next run that may use the network names them)"
+    say "note: " & text
   if named.named + named.nothing > 0:
     g.log.log(
       lvInfo,
       command,
       leDone,
-      "named " & $named.named & " climbs (" & $named.nothing & " with no name near)",
+      fmt"named {named.named} climbs ({named.nothing} with no name near)",
     )
   some(named)

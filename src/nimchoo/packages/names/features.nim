@@ -168,7 +168,7 @@ proc ensureCells*(
   n.ensureCountries()
   if n.st.db.scalar(int, "select count(*) from country where iso = :iso", iso = iso) == 0:
     raise n.couldNot("the names of " & iso & " (no such country)")
-  let path = fetchSource(n.env, n.sink, n.dataDir, geonamesCountry, iso)
+  let path = n.fetched(geonamesCountry, iso)
   if path.isNone:
     raise n.couldNot("the names of " & iso)
   # reading the file takes a while (unzipping, parsing, storing): the screen says so, and when it is done

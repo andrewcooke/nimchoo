@@ -22,7 +22,9 @@ type Names* = object
   dataDir*: string
   env*: Env
   sink*: Sink
-  offline*: bool ## `--offline`: no names are had; every question is answered "nothing"
+  offline*: bool
+    ## `--offline`: nothing is fetched (what is in the table and in the cache is used); what would need the network is an
+    ## OfflineError
   lastFailure: ref string
     ## what the last failed download said (for the error that is raised)
 
@@ -36,12 +38,28 @@ func newNames*(st: Store, dataDir: string, env: Env, sink: Sink): Names =
   Names(st: st, dataDir: dataDir, env: env, sink: told, lastFailure: last)
 
 proc couldNot*(n: Names, what: string): ref DownloadError =
-  ## The error for something that could not be had: what was wanted, and why (the last failure told).
+  ## The error for something that could not be had: what was wanted, and why (the last failure told); an OfflineError
+  ## when `--offline` is the reason.
+  if n.offline:
+    return (ref OfflineError)(msg: "cannot get " & what & " (--offline)")
   (ref DownloadError)(
     msg:
       "cannot get " & what &
       (if n.lastFailure[].len > 0: ": " & n.lastFailure[] else: "")
   )
+
+proc fetched*(n: Names, src: Source, arg = ""): Option[string] =
+  ## The source's file: in the cache already, or fetched now; with `--offline` only the first.  None if it could not be had
+  ## (`couldNot` says it).
+  if n.offline:
+    let path = sourceDir(n.dataDir, src) / fileFor(src, arg)
+    try:
+      if fileExists(path) and getFileSize(path) > 0:
+        return some(path)
+    except OSError:
+      discard
+    return none(string)
+  fetchSource(n.env, n.sink, n.dataDir, src, arg)
 
 proc refuse(n: Names, src: Source, why: string, path: string) =
   ## A file that came but cannot be read: say so, and delete it so that it is fetched again.
@@ -91,8 +109,8 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
   ## A DownloadError (and the reason told to the sink) if that cannot be done.
   if n.st.db.scalar(int, "select count(*) from country where geom is not null") != 0:
     return
-  let outlinesPath = fetchSource(n.env, n.sink, n.dataDir, naturalEarthCountries)
-  let infoPath = fetchSource(n.env, n.sink, n.dataDir, geonamesCountryInfo)
+  let outlinesPath = n.fetched(naturalEarthCountries)
+  let infoPath = n.fetched(geonamesCountryInfo)
   if outlinesPath.isNone or infoPath.isNone:
     raise n.couldNot("the countries")
   n.sink(

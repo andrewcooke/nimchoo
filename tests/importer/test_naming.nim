@@ -129,16 +129,35 @@ suite "import: naming the activities":
     )
     check ensureActivityNames(w.st, w.names).nothing == 1
     check w.st.db.scalar(string, "select coalesce(name, '-') from activity") == ""
-  test "offline: '' for all, no fetch, and they stay":
+  test "offline with nothing loaded: nothing is fetched, the activity is left (null), and a later run names it":
     let w = world("offline")
     defer:
       w.st.close()
     w.st.addActivity("a", 1_000_000, [home, barnechea, home])
     var names = w.names
     names.offline = true
-    check ensureActivityNames(w.st, names).nothing == 1
+    let r = ensureActivityNames(w.st, names)
+    check r.left == 1 and r.nothing == 0 and r.named == 0
+    check r.leftText.contains("1 left unnamed")
     check w.net.gets.len == 0
+    check pending(w.st) == @[1'i64] # (not stored as "nothing")
+    check ensureActivityNames(w.st, w.names).named == 1
+      # (a run that may use the network)
     check pending(w.st).len == 0
+  test "offline uses the places already loaded":
+    let w = world("offline-loaded")
+    defer:
+      w.st.close()
+    w.st.addActivity("first", 1_000_000, [home, barnechea, home])
+    check ensureActivityNames(w.st, w.names).named == 1
+    let fetched = w.net.gets.len
+    check fetched > 0
+    w.st.addActivity("second", 2_000_000, [home, barnechea, home])
+    var names = w.names
+    names.offline = true
+    let r = ensureActivityNames(w.st, names)
+    check r.named == 1 and r.left == 0
+    check w.net.gets.len == fetched
   test "no network: an error, and what was named so far stays; the rest are named next time":
     let (st, dir) = fresh("nonet")
     defer:

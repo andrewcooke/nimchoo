@@ -131,35 +131,30 @@ suite "names: an activity's name, from a route":
     let r = path([home, (-70.65, -33.455), (-70.645, -33.455), home])
     let got = nameActivity(w.names, [(r.lons, r.lats)])
     check got.shape == skLocal and got.name == "at Santiago" and got.start == "Santiago"
-  test "a landmark at the turning point comes first, and names the ride without any fetch":
+  test "a landmark at the turning point comes first":
     let w = world("landmark")
     defer:
       w.st.close()
     addLandmark(w.st, "Mi destino", barnechea[0], barnechea[1], 1500.0)
-    var names = w.names
-    names.offline = true # (no names at all: the landmark still answers)
     let r = path([home, barnechea, home])
-    let got = nameActivity(names, [(r.lons, r.lats)])
-    check got.name == "Mi destino and back" and got.start == ""
-    check w.net.gets.len == 0
+    let got = nameActivity(w.names, [(r.lons, r.lats)])
+    check got.name == "Mi destino and back" and got.start == "Santiago"
   test "a landmark along a loop is 'loop via <landmark>'":
     let w = world("loop landmark")
     defer:
       w.st.close()
     addLandmark(w.st, "Mi cuesta", -70.40, -33.40, 1000.0)
-    var names = w.names
-    names.offline = true
     let r = path([home, (-70.40, -33.46), (-70.40, -33.35), (-70.65, -33.35), home])
-    check nameActivity(names, [(r.lons, r.lats)]).name == "loop via Mi cuesta"
-  test "offline: no start, no name (nothing is fetched)":
+    check nameActivity(w.names, [(r.lons, r.lats)]).name == "loop via Mi cuesta"
+  test "offline with nothing loaded: an OfflineError, nothing is fetched, nothing half-named":
     let w = world("offline")
     defer:
       w.st.close()
     var names = w.names
     names.offline = true
     let r = path([home, barnechea, home])
-    let got = nameActivity(names, [(r.lons, r.lats)])
-    check got.name == "" and got.start == "" and got.shape == skOutAndBack
+    expect OfflineError:
+      discard nameActivity(names, [(r.lons, r.lats)])
     check w.net.gets.len == 0
   test "no positions: nothing":
     let w = world("none")

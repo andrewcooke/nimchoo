@@ -127,8 +127,10 @@ suite "import log: the command":
     check importCmd(g, @["-q", d / "src"]) == exitOk
     g.log.close()
     let ls = readFile(path).splitLines.filterIt(it.len > 0)
-    check ls.len == 2
+    check ls.allIt("a.fit" notin it) # (no file lines)
     check ls[1].endsWith("done       1 file, 0 imported, 1 unchanged, 0 failed")
+    check ls.len == 3 and "1 left unnamed (--offline)" in ls[2]
+      # (offline the activity was left unnamed the first time: it is tried again)
 
   test "no log, no file":
     let d = fresh("nolog")

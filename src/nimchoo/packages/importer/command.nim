@@ -124,7 +124,8 @@ proc runImport(
               "named " & what & ": " & $counts.named & " with a name, " &
               $counts.startOnly & " with only a start place, " & $counts.nothing &
               " with neither" &
-              (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: ""),
+              (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: "") &
+              (if counts.left > 0: "; " & counts.leftText else: ""),
           )
         )
         for e in counts.gpsErrors:
@@ -142,7 +143,8 @@ proc runImport(
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
             " with neither" &
-            (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: ""),
+            (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: "") &
+            (if counts.left > 0: "; " & counts.leftText else: ""),
         )
   except StoreError, DownloadError:
     namingFailed = true

@@ -128,7 +128,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           ,
         )
         if names.isSome:
-          discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
+          try:
+            discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
+          except OfflineError:
+            stderr.say "--offline: only the names already loaded for that area are suggested\n"
         found = featuresAround(st, suggest.near.lon, suggest.near.lat)
       if p.action == laAddPicked:
         let a = p.picked

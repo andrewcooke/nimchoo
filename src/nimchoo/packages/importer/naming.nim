@@ -1,8 +1,10 @@
 ## Naming the activities: each that has no name yet (null) gets its start place and its name from the places near its
 ## route (see names/activity.nim), kept on the activity as text.  Done at the end of `nch import`, so the names are
 ## decided in the run that imports; the first time (or after a migration) it names every activity.  If the names are
-## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.
+## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.  With `--offline`
+## the activities whose places are not in the cache are left null too, and counted (`left`), without an error.
 
+import std/strformat
 import ../db/statement
 import ../db/store
 import ../../core/errors
@@ -25,6 +27,9 @@ type
     named*: int ## ... of which now have one
     startOnly*: int ## ... and only a start place
     nothing*: int ## ... and nothing to say
+    left*: int
+      ## ... and left without a name because `--offline` and the places round them are not in the cache (null: the next run
+      ## that may use the network names them)
     gpsErrors*: seq[GpsErrors]
       ## activities with stretches left out of the search for a place along the route (bad GPS fixes)
 
@@ -32,6 +37,13 @@ func gpsErrorCount*(n: Named): int =
   ## The searches not made, in all.
   for e in n.gpsErrors:
     result += e.searches
+
+func leftText*(n: Named): string =
+  ## What to say about activities left unnamed because of `--offline`: empty if there are none.
+  if n.left > 0:
+    fmt"{n.left} left unnamed (--offline)"
+  else:
+    ""
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
@@ -66,7 +78,14 @@ proc ensureActivityNames*(
         lons.add r.lon
         lats.add r.lat
       parts.add (lons, lats)
-    let got = nameActivity(names, parts)
+    var got: ActivityNames
+    try:
+      got = nameActivity(names, parts)
+    except OfflineError:
+      inc result.left
+      if progress != nil:
+        progress(k + 1, todo.len)
+      continue
     if got.gpsErrors > 0:
       let where = st.db.scalar(
         string,

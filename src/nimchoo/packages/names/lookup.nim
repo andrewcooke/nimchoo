@@ -24,7 +24,7 @@ type
   Readiness* = enum
     rdReady ## the names round the place are in the table
     rdNothing
-      ## there is nothing to be had for this place (the sea, a country the list lacks, `--offline`)
+      ## there is nothing to be had for this place (the sea, a country the list lacks)
     rdTooWide
       ## the positions spread over more than `maxSpanDeg`: nothing is fetched for them
 
@@ -86,8 +86,8 @@ proc prepare*(
     n: Names, lons, lats: openArray[float], marginM = defaultMarginM
 ): Prepared {.raises: [StoreError, DownloadError].} =
   ## Make the names round the positions available (the cells they touch, of the countries they touch), fetching what is
-  ## missing.  `--offline`: nothing is had.
-  if n.offline or lons.len == 0:
+  ## missing (`--offline`: what is not in the table or the cache is an OfflineError).
+  if lons.len == 0:
     return Prepared(status: rdNothing)
   let box = boxAround(lons, lats, marginM)
   if box.lon1 - box.lon0 > maxSpanDeg or box.lat1 - box.lat0 > maxSpanDeg:

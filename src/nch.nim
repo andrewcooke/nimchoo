@@ -64,7 +64,7 @@ func headSpec(): Spec[Head] =
         ["--offline"],
         false,
         "",
-        "do not use the network (no names are looked up: climbs are \"unnamed\", and stay so)",
+        "do not use the network (names are made from the places already loaded; the others are left for a run that may use the network)",
         body = (p.g.offline = true; fine),
       ),
       optionalValue(

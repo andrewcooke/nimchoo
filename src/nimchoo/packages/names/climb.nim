@@ -51,8 +51,8 @@ proc candidatesNear*(
 proc nameClimb*(
     n: Names, lons, lats: openArray[float]
 ): Option[Pick] {.raises: [StoreError, DownloadError].} =
-  ## The name for a climb: none if there is nothing near to name it by, or `--offline`.  A DownloadError if the
-  ## names are needed and cannot be had.
+  ## The name for a climb: none if there is nothing near to name it by.  A DownloadError if the names are needed
+  ## and cannot be had (an OfflineError with `--offline`: the climb is left to be named later).
   if lons.len == 0:
     return none(Pick)
   # a landmark of the author's own comes before everything (even offline: it is not a download)

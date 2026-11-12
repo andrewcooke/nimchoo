@@ -71,14 +71,25 @@ suite "names: naming a route":
       discard nameClimb(names, lons, lats)
     check st.count("coverage") == 0 and st.count("feature") == 0
 
-  test "offline: the answer is nothing, with no fetch and no error":
+  test "offline with nothing loaded: an OfflineError (a kind of DownloadError), with no fetch":
     let w = world("offlineflag")
     defer:
       w.st.close()
     var names = w.names
     names.offline = true
-    check nameClimb(names, lons, lats).isNone
+    expect OfflineError:
+      discard nameClimb(names, lons, lats)
     check w.net.gets.len == 0
+  test "offline with the places loaded: the same answer as online":
+    let w = world("offlineloaded")
+    defer:
+      w.st.close()
+    let online = nameClimb(w.names, lons, lats)
+    let gets = w.net.gets.len
+    var names = w.names
+    names.offline = true
+    check nameClimb(names, lons, lats) == online
+    check w.net.gets.len == gets
 
   test "a landmark of your own holding the top comes before the pass, and works offline":
     let w = world("landmark")

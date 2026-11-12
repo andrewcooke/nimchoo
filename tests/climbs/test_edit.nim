@@ -100,8 +100,8 @@ suite "nch climbs: names, and the list of all":
     check climbs(db, "--edit", "Cuesta", "--rename", "Mine") == exitOk
     check q(db, "select manual from sector", int) == 1
     check climbs(db, "--edit", "Mine", "--auto") == exitOk
-    check q(db, "select coalesce(name, '-') from sector", string) == ""
-      # (named again at once: offline, nothing)
+    check q(db, "select coalesce(name, '-') from sector", string) == "-"
+      # (to be named again: null, and offline it is not done now)
     check q(db, "select manual from sector", int) == 0
   test "--user is allowed (it says whose selection and whose best time); the changes are shared":
     let db = fresh("user", [("Cuesta", 100.0)])

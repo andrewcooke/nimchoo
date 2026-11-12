@@ -96,8 +96,8 @@ suite "climbs: after an import":
     )
     check s.db.scalar(int, "select count(*) from sector where name is null") == 1
     let said = workNewClimbs.run(s, @[a], ctx)
-    check said.len == 2 and said[0].text.startsWith("climbs for ")
-    # (no place near it in the test cache: looked at, and given no name)
-    check said[1].text == "named 1 climb: 0 with a name, 1 with none near"
-    check s.db.scalar(int, "select count(*) from sector where name is null") == 0
-    check workNewClimbs.run(s, @[a], ctx).len == 0 # (nothing left to name)
+    check said.len == 1 and said[0].text.startsWith("climbs for ")
+    # (offline, with nothing in the test cache: not named, and not marked as having no name near; the names are tested in
+    # test_naming.nim)
+    check s.db.scalar(int, "select count(*) from sector where name is null") == 1
+    check workNewClimbs.run(s, @[a], ctx).len == 0 # (nothing new to say)

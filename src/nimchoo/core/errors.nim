@@ -29,6 +29,10 @@ type
     ## A file that was needed from the network could not be had (no connection, the server said no, the file is
     ## not what it should be).  The message says what and why.
 
+  OfflineError* = object of DownloadError
+    ## The same, because `--offline` was given and the file is not in the cache: not a failure but a choice, so what needs
+    ## it is left undone (the names stay null) and the next run that may use the network does it.
+
   TemplateError* = object of NchError
     ## A page template that cannot be used (a tag not closed, a name the values do not have).
     line*: int ## 1-based line of the template, 0 if not known

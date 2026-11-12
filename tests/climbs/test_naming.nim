@@ -66,6 +66,24 @@ suite "climbs: naming the sectors":
     check r.named + r.nothing == 2
     check st.db.scalar(int, "select count(*) from sector where name is null") == 0
 
+  test "offline: what is loaded is used, the rest is left (null) and counted, nothing is fetched":
+    let w = world("offline-climbs")
+    defer:
+      w.st.close()
+    sectorAt(w.st, [-70.14, -70.135, -70.13, -70.125, -70.12], -32.83)
+    var names = w.names
+    names.offline = true
+    let before = ensureSectorNames(w.st, names)
+    check before.left == 1 and before.named == 0 and before.nothing == 0
+    check w.net.gets.len == 0
+    check w.st.db.scalar(int, "select count(*) from sector where name is null") == 1
+    check ensureSectorNames(w.st, w.names).named == 1 # (a run that may use the network)
+    let gets = w.net.gets.len
+    sectorAt(w.st, [-70.14, -70.135, -70.13, -70.125, -70.12], -32.831)
+    let again = ensureSectorNames(w.st, names) # (the places are loaded now)
+    check again.left == 0 and again.named == 1
+    check w.net.gets.len == gets
+
   test "a sector whose route cannot be read is not named, not marked as having no name near, and is said":
     # (the class: a failure is never stored as a result)
     let w = world("damaged")

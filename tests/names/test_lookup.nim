@@ -1,4 +1,5 @@
 import std/[math, strutils, unittest]
+import nimchoo/core/errors
 import ../support/shims
 import nimchoo/packages/db/store
 import nimchoo/packages/names/countries
@@ -38,14 +39,19 @@ suite "names: looking things up":
     check w.net.gets.len == 0 and w.st.count("coverage") == 0
     check w.names.prepare([-70.64, -68.0], [-33.45, -31.0]).status == rdReady
       # (a long day: a few degrees)
-  test "offline: nothing, with no fetch":
+  test "offline with nothing loaded: an OfflineError, with no fetch; with the cells loaded: ready":
     let w = world("offlineflag")
     defer:
       w.st.close()
     var names = w.names
     names.offline = true
-    check names.prepare([-70.64], [-33.45]).status == rdNothing
+    expect OfflineError:
+      discard names.prepare([-70.64], [-33.45])
     check w.net.gets.len == 0
+    check w.names.prepare([-70.64], [-33.45]).status == rdReady
+    let gets = w.net.gets.len
+    check names.prepare([-70.64], [-33.45]).status == rdReady
+    check w.net.gets.len == gets
   test "the features in the box round some positions, widened by the margin":
     let w = world("near")
     defer:

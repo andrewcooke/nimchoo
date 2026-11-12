@@ -8,7 +8,7 @@
 ##   local                    "at <start place>"            (just the start place if that is "near ...")
 ##
 ## and a START place of its own, for finding rides from somewhere: the nearest populated place within 5 km, "near ..." out
-## to 20 km, none beyond.  Both are text, "" when there is nothing to say (and for `--offline`, which has no GeoNames names).
+## to 20 km, none beyond.  Both are text, "" when there is nothing to say.
 ##
 ## Destination and feature are found the same way: a landmark of the author's own (landmark/) comes first; else, for a
 ## destination, anything within 700 m of the turning point; else within half the distance out (at least 1.5 km).  Among
