@@ -1,0 +1,11 @@
+#!/bin/sh
+# Refuse a commit that has a .nim file not in nph's format (nimble test checks it too).  Switch it on once per clone:
+#   git config core.hooksPath .githooks
+files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.nim$')
+[ -z "$files" ] && exit 0
+if ! nph --check $files >/dev/null 2>&1; then
+  echo "pre-commit: these files are not in nph's format (run: nimble fmt):" >&2
+  nph --check $files 2>&1 | grep -i "would\|error" | head -10 >&2
+  exit 1
+fi
+exit 0

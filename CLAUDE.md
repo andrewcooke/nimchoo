@@ -206,7 +206,7 @@ four kinds of things go wrong, and each has one mechanism:
 * Nim 2.2 or later; the standard library first.  third-party: zippy (inflate), db_connector, checksums; C:
   SQLite, with SpatiaLite loaded as an extension.  compiler-checked is better than convention (`raises`, `case`
   over enums with no `else`, distinct types).
-* formatted with `nph`.  every module opens with a `##` comment saying what it is for, and `##` documents each
+* formatted with `nph` (`nimble fmt`; nothing formats files as they are edited, so run it before `nimble test`, which refuses unformatted files, and a git hook, `.githooks/pre-commit`, refuses to commit them: switch it on once per clone with `git config core.hooksPath .githooks`).  every module opens with a `##` comment saying what it is for, and `##` documents each
   exported thing (not the borrowed operators of a distinct type).  comments say *why*, not what the next line does.
 * `camelCase` for procs, variables, fields and constants; `PascalCase` for types; lower-case one-word module
   names.  enum members carry a short tag of their type (`wkDataSize`, `vkInt`).
