@@ -47,6 +47,10 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Features and ideas, unordered
 
+* **Effort lines that start and end on the gates** (the author, 2026-11-13): `map`'s efforts layer draws the samples between the floor of
+  the stored start time and the ceiling of the finish time, so the first and last dots are up to a sample (about 10 m at 10 m/s)
+  outside the gates.  Interpolate a point at exactly the stored start and finish times in `map/command.nim` `effortsOf`, so the line
+  and its dots start and end where the crossing was found.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
   (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
   A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for
