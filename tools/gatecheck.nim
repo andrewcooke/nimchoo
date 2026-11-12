@@ -8,7 +8,7 @@
 ##
 ## It opens the database for writing (SpatiaLite is not loaded in a read-only session): give it a copy.
 
-import std/[algorithm, math, options, os, tables]
+import std/[algorithm, math, options, os, strutils, tables]
 import nimchoo/packages/geo/geo
 import nimchoo/packages/climbs/match
 import nimchoo/packages/importer/track
@@ -73,6 +73,12 @@ var strongS, strongF, strongAny: array[3, int]
 var changed, lost, sLost, sChanged = 0
 var sChanges: seq[float]
 var examples: seq[string]
+type Case = object
+  aid, sid: int64
+  was, now, length, startMoved, finishMoved, startCos, finishCos, coveredWas, coveredNow:
+    float
+
+var cases: seq[Case]
 var changes: seq[float]
 var analysed, nested, multiStart, multiFinish, wrongStart, wrongFinish, extraWrong,
   extraSame = 0
@@ -164,6 +170,19 @@ for r in rows:
           if (p.s.dir < -0.9 or p.f.dir < -0.9) and abs(was - now) > 0.5:
             sChanged += 1
             sChanges.add now - was
+            cases.add Case(
+              aid: r.aid,
+              sid: r.sid,
+              was: was,
+              now: now,
+              length: length,
+              startMoved: q.s.dist - p.s.dist,
+              finishMoved: q.f.dist - p.f.dist,
+              startCos: p.s.dir,
+              finishCos: p.f.dir,
+              coveredWas: p.f.dist - p.s.dist,
+              coveredNow: q.f.dist - q.s.dist,
+            )
             if examples.len < 6:
               examples.add "activity " & $r.aid & " sector " & $r.sid & ": stored " &
                 $int(was) & " s, with the right direction " & $int(now) & " s (route " &
@@ -252,3 +271,89 @@ for k, v in bySector:
 sec.sort(Descending)
 for (v, k) in sec[0 ..< min(8, sec.len)]:
   echo "sector ", k, ": ", v, " efforts, length ", int(sectors[k].lon.len), " points"
+
+# a table of the strongly wrong-way efforts that have a right-direction pair, a sample of them (the number is the second argument, 14),
+# with what the climb normally takes (the median of all the efforts on it): which time is nearer to it?
+var byS: Table[int64, seq[float]]
+for r in rows:
+  byS.mgetOrPut(r.sid, @[]).add float(r.f - r.s)
+proc median(xs: seq[float]): float =
+  var ys = xs
+  ys.sort()
+  ys[ys.len div 2]
+
+let want =
+  if paramCount() > 1:
+    parseInt(paramStr(2))
+  else:
+    14
+if cases.len > 0:
+  echo ""
+  echo "efforts with a crossing against the route (more than 154 degrees off) and a right-way pair: ",
+    cases.len
+  echo "activity   date        climb  length  stored  right-way  typical  stored is off by  right-way is off by  start moves  finish moves  wrong end"
+  var stored, right = 0
+  for c in cases:
+    let m = median(byS[c.sid])
+    if abs(c.was - m) < abs(c.now - m):
+      inc stored
+    else:
+      inc right
+  let step = max(1, cases.len div want)
+  var i = 0
+  while i < cases.len and i div step < want:
+    let c = cases[i]
+    let m = median(byS[c.sid])
+    let date = st.db.scalar(
+      string,
+      "select date(start_t, 'unixepoch') from activity where id = :id",
+      id = c.aid,
+    )
+    echo align($c.aid, 8),
+      "   ",
+      date,
+      "  ",
+      align($c.sid, 5),
+      "  ",
+      align($int(c.length), 5),
+      "m  ",
+      align($int(c.was), 5),
+      "s  ",
+      align($int(c.now), 7),
+      "s  ",
+      align($int(m), 5),
+      "s  ",
+      align($int(c.was - m), 14),
+      "s  ",
+      align($int(c.now - m), 17),
+      "s  ",
+      align($int(c.startMoved), 9),
+      "m  ",
+      align($int(c.finishMoved), 10),
+      "m  ",
+      (if c.startCos < -0.9: "start" else: "") &
+        (if c.finishCos < -0.9: " finish" else: "")
+    i += step
+  echo "nearer to the climb's typical time: the stored one in ",
+    stored, " of these, the right-way one in ", right
+  var devWas, devNow: seq[float]
+  for c in cases:
+    devWas.add abs(c.coveredWas - c.length) / c.length * 100
+    devNow.add abs(c.coveredNow - c.length) / c.length * 100
+  devWas.sort()
+  devNow.sort()
+  echo "ground covered against the climb's own length (the test the algorithm applies, within 5%): stored pair off by median ",
+    devWas[devWas.len div 2],
+    "% (90th percentile ",
+    devWas[devWas.len * 9 div 10],
+    "%), right-way pair off by median ",
+    devNow[devNow.len div 2],
+    "% (90th ",
+    devNow[devNow.len * 9 div 10],
+    "%)"
+  var closer = 0
+  for c in cases:
+    if abs(c.coveredNow - c.length) < abs(c.coveredWas - c.length):
+      inc closer
+  echo "the right-way pair covers the climb's length more closely in ",
+    closer, " of ", cases.len
