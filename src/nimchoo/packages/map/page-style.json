@@ -11,7 +11,7 @@
     gates (the lines across a climb that a ride has to cross) are short lines, in the colour of the end they belong to.  A colour can be a tag for one of the terminal's colours (red, green,
     blue, yellow, grey, as in the routes line below) or any #rrggbb. }}
 {
-  "routes": { "color": "{{{red}}}", "weight": 1, "opacity": 0.85, "spread_m": 4 },
+  "routes": { "color": "{{{red}}}", "weight": 3, "opacity": 0.85, "spread_m": 4 },
   "climbs": { "color": "#868e96", "weight": 8, "opacity": 0.35, "gap_px": 14, "lane_px": 11 },
   "efforts": { "color": "{{{blue}}}", "weight": 5, "opacity": 0.85, "start": "{{{green}}}", "finish": "{{{red}}}", "radius": 6 },
   "gates": { "start": "{{{green}}}", "finish": "{{{red}}}", "weight": 4, "opacity": 1 },
