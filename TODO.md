@@ -6,15 +6,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Tidy left from the reviews
 
-1. **Cleaning bad positions at import** (A §3 class B, the part not done): drop or flag impossible fixes (a jump faster
-  than any rider, a point far from its neighbours) once, at import, so that every consumer sees clean data.  Needs its own
-  design (threshold, drop or flag, effect on stretches, climbs and efforts); it changes stored data.  Until then a stretch
-  that spreads over more than 5 degrees is not searched for names (HISTORY.md, 2026-11-08).
-2. **At the next squash** (then a whole-system review in a fresh session): the legacy steps in fragments (`names/002-country-cells.sql`'s
+1. **At the next squash** (then a whole-system review in a fresh session): the legacy steps in fragments (`names/002-country-cells.sql`'s
    `update country set geom = null`, the back-fill in `climbs/002-name-number.sql`), and the comments that say `""` means "(or made
    with --offline)" in `importer/001-schema.sql` and `climbs/001-schema.sql` (no longer true; a fragment is not edited once any
    database has had it).
-3. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in HISTORY.md "Gates have no direction").  `overPaths`
+2. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right
    (`tools/gatetruth.nim truth`), 28 start late, 33 finish early, 21 are mostly off the line.  The rest are on the **17 of 183 climbs
    whose gate meets the climb's own line elsewhere** (`gatetruth susceptible`; 398 efforts; climbs 62, 147, 144, 145, 172, 118, 155 ...),
@@ -26,7 +22,12 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Larger changes (designs not started)
 
-4. **Per-second data as arrays per activity**, with cleaning at import (item 1).  A **simpler `route`**, also stored as a single
+3. **Cleaning bad positions at import** (A §3 class B, the part not done; **medium priority**: skipped for now, needed before there are significant users, since one bad fix in anyone's file can reach every consumer): drop or flag impossible fixes (a jump faster
+  than any rider, a point far from its neighbours) once, at import, so that every consumer sees clean data.  Needs its own
+  design (threshold, drop or flag, effect on stretches, climbs and efforts); it changes stored data.  Until then a stretch
+  that spreads over more than 5 degrees is not searched for names (HISTORY.md, 2026-11-08).  Example bad data should be in `~/choochoo` (copy what is needed).  A first step that changes nothing: a tool that lists the
+   suspicious points of the author's 1,112 activities, to judge thresholds from examples.
+4. **Per-second data as arrays per activity**, with cleaning at import (item 3).  A **simpler `route`**, also stored as a single
    connected line beside the multi-part one, for the uses where segmentation does not matter (21% of routes have several parts and
    SpatiaLite's resampling returns NULL for them; HISTORY.md, 2026-11-11).
 5. **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
