@@ -12,11 +12,12 @@
 ##
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
-import std/[options, os, strutils, tables]
+import std/[math, options, os, strutils, tables]
 import ../cache/cache
 import ../util/atomic/atomic
 import ../../core/globals
 import ../climbs/attempts
+import ../climbs/match
 import ../climbs/report
 import ../climbs/work
 import ../db/statement
@@ -135,6 +136,57 @@ proc climbsOf(st: Store, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
         geometry: r.geometry,
       )
 
+proc gatesOf(st: Store, ids: seq[int64]): seq[GateLine] {.raises: [StoreError].} =
+  ## The two gates of each climb the activities went up (the lines `overPaths` counts a pass across).
+  let sectors = climbsOfActivities(st, ids)
+  if sectors.len == 0:
+    return
+  let names = shownNames(st)
+  for id in sectors:
+    let route = parseLineString(
+      st.db.scalar(
+        Option[string], "select AsText(route) from sector where id = :id", id = id
+      )
+    )
+    if route.isNone:
+      raiseStore(
+        "climb " & $id & " has a route that cannot be read (damaged data): " &
+          "run `nch climbs --all --delete -f` and ask for the climbs again"
+      )
+    let g = gateLines(route.get)
+    if g.isSome:
+      let name = names.getOrDefault(id, "unnamed")
+      result.add GateLine(climbId: id, name: name, start: true, ends: g.get.start)
+      result.add GateLine(climbId: id, name: name, start: false, ends: g.get.finish)
+
+proc effortsOf(st: Store, ids: seq[int64]): seq[EffortLine] {.raises: [StoreError].} =
+  ## The part of each ride that is a stored effort on a climb: its positions from the start time to the finish time.
+  let names = shownNames(st)
+  for e in st.db.query(
+    tuple[sectorId, activityId: int64, startT, finishT, elapsedS, startM: float],
+    """select sector_id, activity_id, start_t, finish_t, elapsed_s, start_m from effort
+        where activity_id in (select value from json_each(:ids)) order by activity_id, start_t, sector_id""",
+    ids = jsonList(ids),
+  ):
+    var line = EffortLine(
+      activityId: ActivityId(e.activityId),
+      climbId: e.sectorId,
+      name: names.getOrDefault(e.sectorId, "unnamed"),
+      startT: e.startT,
+      finishT: e.finishT,
+      elapsedS: e.elapsedS,
+      startM: e.startM,
+    )
+    for p in st.db.query(
+      tuple[lon, lat: float],
+      "select lon, lat from coords where activity_id = :activityId and t between :first and :last order by t",
+      activityId = e.activityId,
+      first = int64(floor(e.startT)),
+      last = int64(ceil(e.finishT)),
+    ):
+      line.points.add p
+    result.add line
+
 type Prepared = object
   status: int ## 0 if the files are there; else the exit status (already reported)
   stem, query: string
@@ -145,6 +197,8 @@ type Inputs = object
   state: string ## the key of everything the map is made from
   routes: int ## how many of the activities have a route
   climbs: seq[Climb]
+  gates: seq[GateLine]
+  efforts: seq[EffortLine]
   worked: Worked ## the climbs that had to be worked out first
 
 proc inputsOf(
@@ -158,10 +212,17 @@ proc inputsOf(
   var inputs = @[("activities", contentKey(st, ids))]
   if lyRoutes in layers:
     inputs.add ("routes", routeKey.key)
-  if lyClimbs in layers:
+  if layers * {lyClimbs, lyGates, lyEfforts} != {}:
     result.worked = ensureClimbs(st)
+  if lyClimbs in layers:
     result.climbs = climbsOf(st, ids)
     inputs.add ("climbs", climbsKey(result.climbs))
+  if lyGates in layers:
+    result.gates = gatesOf(st, ids)
+    inputs.add ("gates", gatesKey(result.gates))
+  if lyEfforts in layers:
+    result.efforts = effortsOf(st, ids)
+    inputs.add ("efforts", effortsKey(result.efforts))
   result.state = stateKey(inputs)
 
 proc stateOf*(
@@ -270,7 +331,10 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
                 " activities has been through a cell (no positions in the files)",
             )
           )
-        writeAtomic(path, featureCollection(routes, inputs.climbs, heat))
+        writeAtomic(
+          path,
+          featureCollection(routes, inputs.climbs, heat, inputs.efforts, inputs.gates),
+        )
     result = Prepared(stem: stem, query: request, geojson: path)
     if withPage:
       # the page is rewritten each time (it is tiny, and may have changed since)

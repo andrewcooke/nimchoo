@@ -16,6 +16,10 @@ type
     lyClimbs = "climbs" ## the climbs they went up
     lyHeat = "heat"
       ## how often each place was visited, as cells of the grid (geo/cells.nim)
+    lyGates = "gates"
+      ## the two gates of each climb: the lines a ride has to cross to be on it
+    lyEfforts = "efforts"
+      ## the part of each ride that counts as an effort on a climb (between its stored start and finish)
 
   Target* = enum
     tSelection ## the current selection
@@ -82,7 +86,7 @@ func mapSpec*(): Spec[Raw] =
           ["--layers"],
           true,
           "LIST",
-          "what to draw, separated by commas: routes (the route of each activity), climbs (the climbs they went up), heat (how often each place was visited, in cells of about 100 m, coarser when zoomed out); default: routes,climbs",
+          "what to draw, separated by commas: routes (the route of each activity), climbs (the climbs they went up), heat (how often each place was visited, in cells of about 100 m, coarser when zoomed out), gates (the start and finish line of each climb) and efforts (the part of each ride between the start and finish times of its efforts on climbs: for looking at how climbs are matched, with a few activities); default: routes,climbs",
           completion = Completion(kind: ckWords, words: layerNames()),
           address = adValue,
           valid = layersValue,

@@ -250,7 +250,33 @@
                       (p.distance_m ? (p.distance_m / 1000).toFixed(1) + 'km' : ''));
         }
       }).addTo(map);
+      // --- efforts: the part of each ride between the start and finish times stored for an effort on a climb, with a dot where
+      // it starts and where it finishes; and the gates of the climbs, short lines across the road.  For looking at how a
+      // climb is matched: the ride shows where it crosses a gate (a switchback can make it cross twice).
+      const eff = style.efforts, gat = style.gates;
+      const effortLayer = L.geoJSON(data, {
+        filter: ofKind('effort'),
+        style: { color: eff.color, weight: eff.weight, opacity: eff.opacity },
+        onEachFeature: (f, l) => {
+          const p = f.properties || {}, c = f.geometry.coordinates;
+          const facts = text(p.name || '') + '<br>' + text(p.start || '') + ' to ' + text(p.finish || '') + '<br>' +
+                        Math.floor(p.elapsed_s / 60) + ' min ' + Math.round(p.elapsed_s % 60) + ' s; started ' + p.start_m + ' m into the ride (activity ' + p.activity + ')';
+          l.bindPopup(facts);
+          if (c.length > 0) {
+            const dot = (xy, colour, what) => L.circleMarker([xy[1], xy[0]], { radius: eff.radius, color: colour, fillColor: colour, fillOpacity: 1, weight: 1 })
+                                                .bindPopup(what + ' of the effort<br>' + facts).addTo(map);
+            dot(c[0], eff.start, 'start');
+            dot(c[c.length - 1], eff.finish, 'finish');
+          }
+        }
+      }).addTo(map);
+      const gateLayer = L.geoJSON(data, {
+        filter: ofKind('gate'),
+        style: (f) => ({ color: f.properties.end === 'start' ? gat.start : gat.finish, weight: gat.weight, opacity: gat.opacity }),
+        onEachFeature: (f, l) => l.bindPopup(text(f.properties.name || '') + '<br>' + f.properties.end + ' gate'),
+      }).addTo(map);
       let bounds = routes.getBounds();
+      for (const l of [effortLayer, gateLayer]) if (!bounds.isValid() && l.getBounds().isValid()) bounds = l.getBounds();
       if (!bounds.isValid() && heatLayers.size) bounds = heatLayers.get(Math.max(...heatLayers.keys())).getBounds();
       if (bounds.isValid()) map.fitBounds(bounds); else map.setView([0, 0], 2);
       showHeat();
@@ -270,6 +296,9 @@
       const parts = [];
       if (n) parts.push(n + ' routes' + (n > 1 && spreadM ? ' (each moved up to ' + spreadM + ' m to the side)' : ''));
       if (m) parts.push(m + ' climbs (grey, beside the road, to either side)');
+      const ne = data.features.filter(ofKind('effort')).length, ng = data.features.filter(ofKind('gate')).length;
+      if (ne) parts.push(ne + ' efforts (thick, a green dot where each starts and a red one where it finishes)');
+      if (ng) parts.push(ng / 2 + ' climbs with their gates (green: start, red: finish)');
       if (heatLayers.size) parts.push('heat: how often each place was visited (more is stronger; the cells grow as you zoom out)');
       caption.textContent = parts.join(', ');
     })

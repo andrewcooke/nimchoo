@@ -28,6 +28,12 @@ suite "map: the command line":
       {lyRoutes, lyClimbs, lyHeat}
     check parseArgs(@["--layers", "heat", "--selection", "AWAn"]).params.layers ==
       {lyHeat}
+  test "--layers: the gates and the efforts of the climbs":
+    check parseArgs(@["--layers", "gates,efforts"]).params.layers == {
+      lyGates, lyEfforts
+    }
+    check parseArgs(@["--layers", "routes,climbs,gates,efforts"]).params.layers ==
+      {lyRoutes, lyClimbs, lyGates, lyEfforts}
   test "--layers problems: a name that is not a layer, or none":
     for bad in ["", "routs", "routes,", ",heat", "heat routes", "Heat"]:
       check parseArgs(@["--layers", bad]).problem.contains("not a list of layers")
@@ -37,7 +43,7 @@ suite "map: the command line":
     check layersText(defaultLayers) == "routes,climbs"
     for layers in [{lyRoutes}, {lyHeat}, {lyRoutes, lyClimbs, lyHeat}]:
       check parseLayers(layersText(layers)) == some(layers)
-    check layerNames() == @["routes", "climbs", "heat"]
+    check layerNames() == @["routes", "climbs", "heat", "gates", "efforts"]
   test "--worker":
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
     check parseArgs(@["--worker", "--selection", "AWAn", "--state", "ab12"]).problem ==

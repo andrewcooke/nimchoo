@@ -1,9 +1,10 @@
-## The routes of activities, the climbs on them and how often each place was visited, as GeoJSON: a FeatureCollection with a
-## feature for each activity, for each climb and for each cell of the heat.  Every feature says what it is in a property
-## `kind` ("route", "climb" or "heat") and carries only facts, never colours or widths: the page decides how things look.  Pure: the geometry arrives as GeoJSON text from the
-## database, the rest is put round it here.
+## The routes of activities, the climbs on them, how often each place was visited, and the gates and efforts of the climbs, as
+## GeoJSON: a FeatureCollection with a feature for each activity, climb, cell of the heat, gate and effort.  Every feature says
+## what it is in a property `kind` ("route", "climb", "heat", "gate" or "effort") and carries only facts, never colours or
+## widths: the page decides how things look.  Pure: the geometry arrives as GeoJSON text from the database (or as numbers), the
+## rest is put round it here.
 
-import std/[json, options, strutils, times]
+import std/[json, math, options, strutils, times]
 import ../../core/ids
 import ../util/hashing/hashing
 import ../fit/time
@@ -24,6 +25,21 @@ type HeatCell* = object
   bits*: int
   visits*: int ## the visits of the activities (`route_cell` rows) to the cells it holds
   rides*: int ## how many different activities visited it
+
+type GateLine* = object ## One gate of a climb, drawn as a short line across the road.
+  climbId*: int64
+  name*: string
+  start*: bool ## the start gate; else the finish gate
+  ends*: array[2, tuple[lon, lat: float]]
+
+type EffortLine* = object
+  ## The part of a ride that is an effort on a climb: its positions between the stored start and finish times.
+  activityId*: ActivityId
+  climbId*: int64
+  name*: string
+  startT*, finishT*: float ## Unix seconds, interpolated at the gates
+  elapsedS*, startM*: float
+  points*: seq[tuple[lon, lat: float]]
 
 type Climb* = object
   id*: int64
@@ -76,6 +92,32 @@ proc heatFeature*(h: HeatCell): string =
     ",\"visits\":" & $h.visits & ",\"rides\":" & $h.rides &
     "},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[" & ring & "]]}}"
 
+proc gateFeature*(g: GateLine): string =
+  ## One feature, on one line: a gate as a LineString.  Properties: kind ("gate"), id (of the climb), name, end ("start" or "finish").
+  proc pt(p: tuple[lon, lat: float]): string =
+    "[" & formatFloat(p.lon, ffDecimal, 6) & "," & formatFloat(p.lat, ffDecimal, 6) & "]"
+
+  "{\"type\":\"Feature\",\"properties\":{\"kind\":\"gate\",\"id\":" & $g.climbId &
+    ",\"name\":" & escapeJson(g.name) & ",\"end\":" &
+    escapeJson(if g.start: "start" else: "finish") &
+    "},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[" & pt(g.ends[0]) & "," &
+    pt(g.ends[1]) & "]}}"
+
+proc effortFeature*(e: EffortLine): string =
+  ## One feature, on one line: the part of the ride as a LineString.  Properties: kind ("effort"), activity, id (of the climb),
+  ## name, start and finish (UTC, ISO 8601), elapsed_s, start_m (how far along the ride the start gate was crossed).
+  var coords: seq[string]
+  for p in e.points:
+    coords.add "[" & formatFloat(p.lon, ffDecimal, 6) & "," &
+      formatFloat(p.lat, ffDecimal, 6) & "]"
+  "{\"type\":\"Feature\",\"properties\":{\"kind\":\"effort\",\"activity\":" &
+    $e.activityId & ",\"id\":" & $e.climbId & ",\"name\":" & escapeJson(e.name) &
+    ",\"start\":" & escapeJson(isoUtc(UnixTime(int64(round(e.startT))))) & ",\"finish\":" &
+    escapeJson(isoUtc(UnixTime(int64(round(e.finishT))))) & ",\"elapsed_s\":" &
+    formatFloat(e.elapsedS, ffDecimal, 1) & ",\"start_m\":" & $int(round(e.startM)) &
+    "},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[" & coords.join(",") &
+    "]}}"
+
 func climbsKey*(climbs: seq[Climb]): string =
   ## The key of the climbs as they are read (what goes into the file, so nothing that is shown can be left out).
   var text = ""
@@ -83,16 +125,38 @@ func climbsKey*(climbs: seq[Climb]): string =
     text.add climbFeature(c) & "\n"
   sha256Hex(text)[0 ..< 16]
 
+proc gatesKey*(gates: seq[GateLine]): string =
+  ## The key of the gates as they are drawn.
+  var text = ""
+  for g in gates:
+    text.add gateFeature(g) & "\n"
+  sha256Hex(text)[0 ..< 16]
+
+proc effortsKey*(efforts: seq[EffortLine]): string =
+  ## The key of the efforts as they are drawn (so, of the times and of the positions between them).
+  var text = ""
+  for e in efforts:
+    text.add effortFeature(e) & "\n"
+  sha256Hex(text)[0 ..< 16]
+
 proc featureCollection*(
-    routes: seq[Route], climbs: seq[Climb], heat: seq[HeatCell] = @[]
+    routes: seq[Route],
+    climbs: seq[Climb],
+    heat: seq[HeatCell] = @[],
+    efforts: seq[EffortLine] = @[],
+    gates: seq[GateLine] = @[],
 ): string =
-  ## The whole file: valid JSON, a feature to a line, the heat, then the routes and then the climbs (so that each is drawn on
-  ## top of the one before).
+  ## The whole file: valid JSON, a feature to a line, the heat, the routes, the efforts, the climbs and then the gates (so
+  ## that each is drawn on top of the one before).
   var fs: seq[string]
   for h in heat:
     fs.add heatFeature(h)
   for r in routes:
     fs.add feature(r)
+  for e in efforts:
+    fs.add effortFeature(e)
   for c in climbs:
     fs.add climbFeature(c)
+  for g in gates:
+    fs.add gateFeature(g)
   "{\"type\":\"FeatureCollection\",\"features\":[\n" & fs.join(",\n") & "\n]}\n"

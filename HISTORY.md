@@ -95,6 +95,11 @@ and we do not rewrite spatial algorithms the library has.  Decisions and why:
   (now `stateKey`, no code part) and `selection.stateOf`.  Every page is pinned by `state`: `pageOf` lost its pin.  The class
   of bug "an input missing from the fingerprint" has its tests in `map` (each table it reads changes the state) and, for `ff`,
   in `model` (`inputKey`: the FTHR, the model, the activities with heart rate).
+* **Map layers `gates` and `efforts` (2026-11-12)**, to look at how climbs are matched (the gates have no direction, TODO 1b): `--layers routes,efforts,gates`.
+  `gates` draws each climb's start and finish line from `climbs/match.gateLines` (the same gates `overPaths` uses, defined once); `efforts` draws the part of each
+  selected ride between the stored start and finish time of an effort on a climb, thick, with a green dot at the start and a red one at the finish.
+  Tried on activity 2 of the author's database: five efforts, and the one on climb 62 is 967.1 s, the stored time of the switchback example.  Both
+  are inputs of the state only when drawn.  Found by the test of the new feature: `formatFloat(x, ffDecimal, 0)` writes "1253." and that is not JSON.
 * **The scale of the grid, measured (2026-11-12)**, on the author's 6.2 M samples of 1,112 rides, to see whether 1/1024 degree (109 m by 91 m at Santiago) is the right
   stored size.  Visit rows written at import (distinct cells; samples that jump over a cell, which the visits-at-samples definition would miss):
   435 m 181 k (4.7 k; 16), 217 m 353 k (10.7 k; 34), **109 m 685 k (23 k; 65)**, 54 m 1.25 M (50 k; 47,434), 27 m 2.10 M (106 k; 310,377), 14 m 3.50 M (231 k;

@@ -94,6 +94,18 @@ proc withClimb(db: string) =
     values (1, 1, 1, 61, 60, 0)"""
   )
 
+proc withRideAlongClimb(db: string) =
+  ## The positions of ride 1 over the climb (a point a second for the 60 s of its effort, along the climb's line).
+  let s = openSession(db, allFragments, access = allAccess)
+  defer:
+    s.close()
+  for t in 0 .. 62:
+    s.db.execute(
+      "insert into coords(activity_id, t, lon, lat) values (1, :t, :lon, 38.72)",
+      t = t,
+      lon = -9.14 + 0.01 * float(t) / 61.0,
+    )
+
 proc withCells(db: string) =
   ## Where the two rides went: ride 1 two cells, one of them twice, ride 2 one cell.
   let s = openSession(db, allFragments, access = allAccess)
@@ -414,3 +426,40 @@ suite "map: layers":
     check geojsons(w.cache).len == 1 # (the file is there: nothing was made)
     check map(w.db, "--layers", "heat", "--selection", a.selection, "--state", "000000") ==
       exitFailure # (a state that is not the heat's, and the file is not there)
+
+suite "map: gates and efforts":
+  test "the efforts layer draws the part of the ride between the stored start and finish; the gates layer, two lines a climb":
+    let w = world("efforts")
+    withClimb(w.db)
+    withRideAlongClimb(w.db)
+    check map(w.db, "--layers", "efforts,gates") == exitOk
+    let j = parseFile(w.cache / geojsons(w.cache)[0])
+    check kinds(j) == @["effort", "gate", "gate"]
+    let e = j["features"][0]
+    check e["properties"]["name"].getStr == "Cerro" and
+      e["properties"]["activity"].getInt == 1
+    check e["properties"]["elapsed_s"].getFloat == 60.0
+    check e["geometry"]["coordinates"].len == 61
+      # (t from 1 to 61: the times of the effort)
+    check j["features"][1]["properties"]["end"].getStr == "start"
+    check j["features"][2]["properties"]["end"].getStr == "finish"
+  test "the efforts and the gates need the climbs worked out, and are inputs of the state; a heat map is not touched":
+    let w = world("effortsstate")
+    withClimb(w.db)
+    withRideAlongClimb(w.db)
+    let s = openSession(w.db, allFragments, access = allAccess)
+    defer:
+      s.close()
+    let ids = ownedIds(s, selectedIds(s))
+    let before = stateOf(s, ids, {lyEfforts})
+    s.db.execute("update effort set finish_t = 60, elapsed_s = 59")
+    check stateOf(s, ids, {lyEfforts}) != before # (the effort moved)
+    let gates = stateOf(s, ids, {lyGates})
+    s.db.execute(
+      "update sector set route = GeomFromText('LINESTRING Z(-9.14 38.72 10, -9.12 38.73 100)', 4326)"
+    )
+    check stateOf(s, ids, {lyGates}) != gates # (the gates moved with the route)
+  test "no efforts, and no climbs: the layers are empty and the file is still valid":
+    let w = world("noefforts")
+    check map(w.db, "--layers", "routes,efforts,gates") == exitOk
+    check kinds(parseFile(w.cache / geojsons(w.cache)[0])) == @["route", "route"]

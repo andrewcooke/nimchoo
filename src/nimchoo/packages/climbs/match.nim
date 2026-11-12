@@ -138,6 +138,24 @@ func gates(route: openArray[XY]): Option[tuple[start, finish: Gate]] =
     )
   )
 
+func gateLines*(
+    sector: Path
+): Option[tuple[start, finish: array[2, tuple[lon, lat: float]]]] =
+  ## The two gates of a sector as the ends of two lines, in longitude and latitude, for drawing them: the same gates `overPaths`
+  ## uses (`gates`).  None if the sector has no length.
+  if sector.len < 2:
+    return
+  let pr = projection(sector.lon[0], sector.lat[0])
+  let g = gates(sector.xy(pr))
+  if g.isNone:
+    return
+  some(
+    (
+      start: [pr.unproject(g.get.start.a), pr.unproject(g.get.start.b)],
+      finish: [pr.unproject(g.get.finish.a), pr.unproject(g.get.finish.b)],
+    )
+  )
+
 type Crossing = tuple[pos, dist: float]
   ## Where a ride crosses a gate: the position in the ride (the index of the point before it, plus
   ## the fraction of the way to the next), and the distance along the ride.

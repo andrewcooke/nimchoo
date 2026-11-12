@@ -129,3 +129,70 @@ suite "map lines: the heat":
     check j["features"].len == 2
     check j["features"][0]["properties"]["kind"].getStr == "heat"
     check j["features"][1]["properties"]["kind"].getStr == "route"
+
+suite "map lines: gates and efforts":
+  test "a gate is a short line, with the climb and which end":
+    let j = parseJson(
+      gateFeature(
+        GateLine(
+          climbId: 7, name: "Cerro", start: true, ends: [(-70.1, -33.2), (-70.2, -33.3)]
+        )
+      )
+    )
+    check j["properties"]["kind"].getStr == "gate" and j["properties"]["id"].getInt == 7
+    check j["properties"]["end"].getStr == "start" and
+      j["properties"]["name"].getStr == "Cerro"
+    check j["geometry"]["coordinates"].len == 2
+    check parseJson(gateFeature(GateLine(climbId: 7, name: "Cerro", start: false)))[
+      "properties"
+    ]["end"].getStr == "finish"
+  test "an effort is the positions between its times, with the times as text and the start as a whole number (valid JSON)":
+    let j = parseJson(
+      effortFeature(
+        EffortLine(
+          activityId: ActivityId(4),
+          climbId: 7,
+          name: "Cerro",
+          startT: 1535371200.4,
+          finishT: 1535371260.6,
+          elapsedS: 60.2,
+          startM: 1253.4,
+          points: @[(-70.1, -33.2), (-70.2, -33.3), (-70.3, -33.4)],
+        )
+      )
+    )
+    let p = j["properties"]
+    check p["kind"].getStr == "effort" and p["activity"].getInt == 4 and
+      p["id"].getInt == 7
+    check p["start"].getStr == "2018-08-27T12:00:00Z" and
+      p["finish"].getStr == "2018-08-27T12:01:01Z"
+    check p["elapsed_s"].getFloat == 60.2 and p["start_m"].getInt == 1253
+    check j["geometry"]["coordinates"].len == 3
+  test "the file puts the heat first, then the routes, the efforts, the climbs and the gates":
+    let text = featureCollection(
+      @[Route(id: ActivityId(1), startT: UnixTime(0), geometry: line)],
+      @[Climb(id: 9, name: "A", lengthM: 1, gainM: 1, gradient: 1, geometry: line)],
+      @[HeatCell(cell: cell(5, 6), bits: 0, visits: 1, rides: 1)],
+      @[
+        EffortLine(
+          activityId: ActivityId(1), climbId: 9, name: "A", points: @[(1.0, 2.0)]
+        )
+      ],
+      @[GateLine(climbId: 9, name: "A", start: true)],
+    )
+    var kinds: seq[string]
+    for f in parseJson(text)["features"]:
+      kinds.add f["properties"]["kind"].getStr
+    check kinds == @["heat", "route", "effort", "climb", "gate"]
+  test "the keys follow what is drawn":
+    let g = @[GateLine(climbId: 9, name: "A", start: true)]
+    let e = @[
+      EffortLine(
+        activityId: ActivityId(1), climbId: 9, name: "A", points: @[(1.0, 2.0)]
+      )
+    ]
+    check gatesKey(g) == gatesKey(g) and
+      gatesKey(g) != gatesKey(@[GateLine(climbId: 9, name: "B", start: true)])
+    var e2 = e
+    e2[0].points.add (3.0, 4.0)
+    check effortsKey(e) != effortsKey(e2)

@@ -7,7 +7,11 @@
 ## and a page (Leaflet) decides the look.  **The heat** is squares of the grid of `geo/cells.nim` from the table `route_cell`
 ## (`importer`), counted over the selected activities at three levels (cells of about 100 m, 870 m and 7 km: `level`), with
 ## `visits` (how often) and `rides` (by how many activities); the page shows the level that suits the zoom (the style says from
-## which), under the routes, shaded on a log scale.  `--web` serves the page on localhost (`web`); the address carries the
+## which), under the routes, shaded on a log scale.  **Gates and efforts** are for looking at how climbs are matched (`--layers routes,efforts,gates` with a few activities selected):
+## `gates` draws the start and finish line of each climb the activities went up (the lines a ride has to cross: `climbs/match.nim`
+## `gateLines`, the same gates `overPaths` uses), `efforts` the part of each ride between the stored start and finish time of its
+## efforts, thick, with a green dot where it starts and a red one where it finishes; where a ride crosses a gate twice (a
+## switchback near it) the dots show which crossing the effort used.  `--web` serves the page on localhost (`web`); the address carries the
 ## activities: `/map?selection=LIST&layers=LIST&state=HASH` (see `selection`).
 ##
 ## **The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never

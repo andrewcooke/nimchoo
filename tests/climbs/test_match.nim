@@ -131,3 +131,17 @@ suite "climbs: reading a stored route":
       "LINESTRING Z(, )",
     ]:
       check parseLineString(bad).isNone
+
+suite "climbs: the gates of a sector, for drawing":
+  test "a gate is across the route, 25 m each side, at its first and last points":
+    let g = gateLines(sector).get # (2 km due east: the gates run north and south)
+    for gate in [g.start, g.finish]:
+      check abs(gate[0].lon - gate[1].lon) < 1e-9
+        # (the same longitude: across a route that runs east)
+      let across = haversine(gate[0].lon, gate[0].lat, gate[1].lon, gate[1].lat)
+      check abs(across - 50.0) < 0.1
+    check abs(g.start[0].lon - sector.lon[0]) < 1e-9
+    check abs(g.finish[0].lon - sector.lon[^1]) < 1e-9
+    check abs((g.start[0].lat + g.start[1].lat) / 2 - sector.lat[0]) < 1e-9
+  test "a sector with no length has no gates":
+    check gateLines(Path()).isNone

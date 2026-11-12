@@ -7,11 +7,14 @@
     can be added by changing the page template.  The heat is the squares of how often each place was visited: coloured from
     `low` (a place visited once) to `high` (the busiest), more opaque as it is busier, and each size of square (`level`: 0
     is about 100 m, 3 about 870 m, 6 about 7 km) is used from the zoom `min_zoom` (the finest that is allowed, else the
-    coarsest).  A colour can be a tag for one of the terminal's colours (red, green,
+    coarsest).  Efforts (the part of a ride between the start and finish of an effort) are a thick line with a dot at each end, and
+    gates (the lines across a climb that a ride has to cross) are short lines, in the colour of the end they belong to.  A colour can be a tag for one of the terminal's colours (red, green,
     blue, yellow, grey, as in the routes line below) or any #rrggbb. }}
 {
   "routes": { "color": "{{{red}}}", "weight": 1, "opacity": 0.85, "spread_m": 4 },
   "climbs": { "color": "#868e96", "weight": 8, "opacity": 0.35, "gap_px": 14, "lane_px": 11 },
+  "efforts": { "color": "{{{blue}}}", "weight": 5, "opacity": 0.85, "start": "{{{green}}}", "finish": "{{{red}}}", "radius": 6 },
+  "gates": { "start": "{{{green}}}", "finish": "{{{red}}}", "weight": 4, "opacity": 1 },
   "heat": {
     "low": "#ffd43b", "high": "{{{red}}}", "opacity_low": 0.25, "opacity_high": 0.8,
     "levels": [ { "level": 0, "min_zoom": 14 }, { "level": 3, "min_zoom": 11 }, { "level": 6, "min_zoom": 0 } ]
