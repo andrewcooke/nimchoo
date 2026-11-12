@@ -2,7 +2,7 @@
 ## changed, import the rest, one transaction per file.  Everything that
 ## happens is announced as an event (events.nim); nothing is printed here.
 
-import std/[algorithm, monotimes, options, os, sets, strutils, tables, times]
+import std/[algorithm, monotimes, options, os, sets, tables, times]
 import ../db/checkpointer
 import ../db/store
 import ../user/session

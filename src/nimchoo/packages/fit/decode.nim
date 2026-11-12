@@ -27,14 +27,36 @@ const fieldDescriptionNum* = 206 ## global message number of field_description
 type
   TypeInfo = tuple[kind: TypeKind, base: BaseType]
 
+  # set by an enclosing component
+  Override = object
+    scale, offset: Option[float]
+    acc: int ## accumulator width in bits (0 = none)
+    bits: int ## width of the outermost component (0 = none)
+    depth: int
+
+  Piece = object
+    ## How the bytes of one field are read, besides the bytes (an `openArray` cannot be in an object) and the record's
+    ## `RecCtx`: what `emitPlain` and `decodeField` would otherwise each take as eight parameters.  `meta` is the field's
+    ## shared description; `scale`, `offset` and `accumulate` are the plain field's own (`decodeField` fills them in from
+    ## the profile's field); `defBase` is the base type the definition gave (none: the field's own); `fromBits` means the
+    ## bytes are the little-endian image of a component's bits.
+    meta: Meta
+    scale, offset: float
+    accumulate: bool
+    number: int
+    defBase: Option[BaseType]
+    endian: Endianness
+    ov: Override
+    fromBits: bool
+
   Slot = object
     def: FieldDef
     known: bool ## the profile has a field with this number in this message
     fieldName: string
     kind: FieldKind ## plain, composite or dynamic (plain if not known)
-    scale, offset: float
-    accumulate: bool
-    meta: Meta ## what its values have in common (made once, shared)
+    piece: Piece
+      ## how its bytes are read, made once with the plan: what its values have in common (`meta`, shared), its scale, offset
+      ## and accumulation, its number and base type in the definition, the definition's byte order
 
   DefPlan = object
     ready: bool
@@ -68,13 +90,6 @@ type
     ts: Option[FitTime]
     refs: Table[string, int64]
       ## first value of fields decoded so far, by name (only for dynamic fields)
-
-  # set by an enclosing component
-  Override = object
-    scale, offset: Option[float]
-    acc: int ## accumulator width in bits (0 = none)
-    bits: int ## width of the outermost component (0 = none)
-    depth: int
 
   Spec = object
     meta: Meta
@@ -264,63 +279,57 @@ proc metaFor(d: var Decoder, msgNum: int, f: Field): Meta =
 
 proc emitPlain(
     d: var Decoder,
-    meta: Meta,
-    scale, offset: float,
-    accumulate: bool,
-    number: int,
-    defBase: Option[BaseType],
-    data: openArray[byte],
-    endian: Endianness,
+    pc: Piece,
     ctx: RecCtx,
-    ov: Override,
-    fromBits: bool,
+    data: openArray[byte],
     into: var seq[FieldValue],
 ) =
-  ## Decode `data` as a plain field with the given scale and offset (an enclosing component's
-  ## win), adding the value to `into`.
-  let base = if defBase.isSome: defBase.get else: meta.base
+  ## Decode `data` as a plain field with the piece's scale and offset (an enclosing component's win), adding the value to
+  ## `into`.
+  let base = if pc.defBase.isSome: pc.defBase.get else: pc.meta.base
   let sp = Spec(
-    meta: meta,
-    number: number,
-    kind: meta.kind,
+    meta: pc.meta,
+    number: pc.number,
+    kind: pc.meta.kind,
     base: base,
-    scale: (if ov.scale.isSome: ov.scale.get else: scale),
-    offset: (if ov.offset.isSome: ov.offset.get else: offset),
-    acc: (if ov.acc > 0: ov.acc elif accumulate: 8 * base.size else: 0),
-    bits: (if ov.bits > 0: ov.bits else: 8 * data.len),
-    check: not fromBits,
+    scale: (if pc.ov.scale.isSome: pc.ov.scale.get else: pc.scale),
+    offset: (if pc.ov.offset.isSome: pc.ov.offset.get else: pc.offset),
+    acc: (if pc.ov.acc > 0: pc.ov.acc
+    elif pc.accumulate: 8 * base.size
+    else: 0),
+    bits: (if pc.ov.bits > 0: pc.ov.bits else: 8 * data.len),
+    check: not pc.fromBits,
     dev: false,
   )
-  if fromBits:
+  if pc.fromBits:
     d.interpret(
       sp, data.toOpenArray(0, min(base.size, data.len) - 1), littleEndian, ctx, into
     )
   else:
-    d.interpret(sp, data, endian, ctx, into)
+    d.interpret(sp, data, pc.endian, ctx, into)
 
 proc decodeField(
     d: var Decoder,
     p: Profile,
     plan: DefPlan,
     f: Field,
-    meta: Meta,
-    number: int,
-    defBase: Option[BaseType],
-    data: openArray[byte],
-    endian: Endianness,
+    pc: Piece,
     ctx: RecCtx,
-    ov: Override,
-    fromBits: bool,
+    data: openArray[byte],
     into: var seq[FieldValue],
 ) =
-  ## Decode `data` as profile field `f` (`meta` is its shared description), adding the values
-  ## to `into`.  `fromBits` means `data` is the little-endian image of a component's bits (so
+  ## Decode `data` as profile field `f` (`pc.meta` is its shared description), adding the values
+  ## to `into`.  `pc.fromBits` means `data` is the little-endian image of a component's bits (so
   ## only the leading bytes that fit the field's type are meaningful, and nothing is bad).
   ## (Composite and dynamic fields look up their targets in the profile's message, here.)
+  let ov = pc.ov
+  let fromBits = pc.fromBits
+  let defBase = pc.defBase
+  let endian = pc.endian
   if ov.depth > maxDepth:
     d.warnings.add wkNestingTooDeep, ctx.offset, "field nesting too deep at " & f.name
     return
-  let base = if defBase.isSome: defBase.get else: meta.base
+  let base = if defBase.isSome: defBase.get else: pc.meta.base
   case f.kind
   of fkComposite:
     let n =
@@ -367,14 +376,15 @@ proc decodeField(
         p,
         plan,
         target,
-        d.metaFor(plan.msgNum, target),
-        tnum,
-        none(BaseType),
-        le,
-        littleEndian,
+        Piece(
+          meta: d.metaFor(plan.msgNum, target),
+          number: tnum,
+          endian: littleEndian,
+          ov: ov2,
+          fromBits: true,
+        ),
         ctx,
-        ov2,
-        true,
+        le,
         made,
       )
       for v in made:
@@ -405,7 +415,13 @@ proc decodeField(
       )
       if fromBits:
         d.decodeField(
-          p, plan, tf, tmeta, number, none(BaseType), data, endian, ctx, ov2, true, into
+          p,
+          plan,
+          tf,
+          Piece(meta: tmeta, number: pc.number, endian: endian, ov: ov2, fromBits: true),
+          ctx,
+          data,
+          into,
         )
         return
       # as choochoo: the element count comes from the definition's base type,
@@ -421,24 +437,22 @@ proc decodeField(
         p,
         plan,
         tf,
-        tmeta,
-        number,
-        some(sbase),
-        data.toOpenArray(0, take - 1),
-        endian,
+        Piece(
+          meta: tmeta, number: pc.number, defBase: some(sbase), endian: endian, ov: ov2
+        ),
         ctx,
-        ov2,
-        false,
+        data.toOpenArray(0, take - 1),
         into,
       )
       return
     # no match: the field itself
   of fkPlain:
     discard
-  d.emitPlain(
-    meta, f.scale, f.offset, f.accumulate, number, defBase, data, endian, ctx, ov,
-    fromBits, into,
-  )
+  var plain = pc
+  plain.scale = f.scale
+  plain.offset = f.offset
+  plain.accumulate = f.accumulate
+  d.emitPlain(plain, ctx, data, into)
 
 # --- plans
 
@@ -451,7 +465,10 @@ proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
     ## A field with no description is read by its base type alone; a number met twice may repeat a name.
     var s = slot
     if not s.known and s.def.base.isSome:
-      s.meta = newMeta("", "", $s.def.base.get, tkBase, s.def.base.get)
+      s.piece.meta = newMeta("", "", $s.def.base.get, tkBase, s.def.base.get)
+    s.piece.number = s.def.number
+    s.piece.defBase = s.def.base
+    s.piece.endian = def.endian
     if s.def.number in numbers:
       result.mayDup = true
     numbers.add s.def.number
@@ -470,10 +487,10 @@ proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
           s.known = true
           s.fieldName = fname
           s.kind = f.kind
-          s.scale = f.scale
-          s.offset = f.offset
-          s.accumulate = f.accumulate
-          s.meta = d.metaFor(def.globalNum, f)
+          s.piece.scale = f.scale
+          s.piece.offset = f.offset
+          s.piece.accumulate = f.accumulate
+          s.piece.meta = d.metaFor(def.globalNum, f)
           case f.kind
           of fkDynamic:
             result.hasDynamic = true
@@ -605,7 +622,7 @@ proc decode*(
 
   proc unknown(slot: Slot): Spec =
     Spec(
-      meta: slot.meta,
+      meta: slot.piece.meta,
       number: slot.def.number,
       kind: tkBase,
       base: slot.def.base.get,
@@ -632,20 +649,7 @@ proc decode*(
       if fd.base.isSome:
         d.interpret(unknown(d.plans[idx].slots[i]), slotData(i), endian, ctx, into)
     elif d.plans[idx].slots[i].kind == fkPlain:
-      d.emitPlain(
-        d.plans[idx].slots[i].meta,
-        d.plans[idx].slots[i].scale,
-        d.plans[idx].slots[i].offset,
-        d.plans[idx].slots[i].accumulate,
-        fd.number,
-        fd.base,
-        slotData(i),
-        endian,
-        ctx,
-        Override(),
-        false,
-        into,
-      )
+      d.emitPlain(d.plans[idx].slots[i].piece, ctx, slotData(i), into)
     else:
       d.decodeField(
         p,
@@ -653,14 +657,9 @@ proc decode*(
         p.messages.must(d.plans[idx].msgName).fields.must(
           d.plans[idx].slots[i].fieldName
         ),
-        d.plans[idx].slots[i].meta,
-        fd.number,
-        fd.base,
-        slotData(i),
-        endian,
+        d.plans[idx].slots[i].piece,
         ctx,
-        Override(),
-        false,
+        slotData(i),
         into,
       )
 
@@ -737,7 +736,7 @@ proc definitionEvent*(
     message: d.plans[idx].msgName,
   )
   for s in d.plans[idx].slots:
-    let name = if s.known: s.meta.name else: ""
+    let name = if s.known: s.piece.meta.name else: ""
     let sz = if s.def.base.isSome: s.def.base.get.size else: 1
     result.fields.add (name, s.def.size div sz)
   for dv in t.defs[idx].devFields:
