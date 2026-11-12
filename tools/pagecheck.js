@@ -24,4 +24,7 @@ w.eval(fs.readFileSync(require.resolve('leaflet/dist/leaflet-src.js'), 'utf8'));
 const scripts = [...dom.window.document.querySelectorAll('script')].map((s) => s.textContent).filter((t) => t.includes('L.map'));
 let src = scripts[0].replace("caption.textContent = 'could not load the routes: ' + e;", "caption.textContent = 'could not load the routes: ' + e; console.log('STACK', e.stack);");
 w.eval(src);
-setTimeout(() => { console.log('CAPTION:', w.document.getElementById('caption').textContent); process.exit(0); }, 1500);
+setTimeout(() => {
+  w.document.getElementById('map').dispatchEvent(new w.MouseEvent('mousemove', { clientX: 450, clientY: 300, bubbles: true }));
+  console.log('CURSOR:', w.document.getElementById('cursor').textContent);
+  console.log('CAPTION:', w.document.getElementById('caption').textContent); process.exit(0); }, 1500);

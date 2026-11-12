@@ -48,12 +48,12 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    so 10 to 15 m each side); (c) take the direction from a longer stretch of the route than its last segment; (d) pair the crossings by
    the distance covered as well as shortest-first.  It changes stored efforts, so after cells step 4 (which must give identical
    efforts), then `nch climbs --all --delete -f` and work them out again.  A test with an S-shaped road is the test of the class.  Looking at examples: `nch map --layers routes,efforts,gates` with a few activities selected (`nch activities --from D --to D --select`)
-   draws each effort with its start and finish, and each climb's gates (built 2026-11-12).  Ideas from the author, 2026-11-12, to
-   weigh with the options above: (e) **progress along the climb**: project the ride onto the climb's line and require the position
+   draws each effort with its start and finish, and each climb's gates (built 2026-11-12).  Ideas, 2026-11-12, to weigh with the options
+   above: (e) (the assistant's) **progress along the climb**: project the ride onto the climb's line and require the position
    to rise from about 0 to the full length between the start and the finish (a ground truth computed from geometry, which can judge
-   every option, and rejects false efforts on another road); (f) **match the sequence of curves**, a count of the switchbacks or
+   every option, and rejects false efforts on another road); (f) (the author's) **match the sequence of curves**, a count of the switchbacks or
    left, right, left... of the ride and the climb (the climbs' lines have a point every 5 m, so the shape is there; the ride's
-   1 Hz track wobbles, so it needs a tolerance); (g) **find the climbs susceptible to this** (a gate that crosses the climb's own line
+   1 Hz track wobbles, so it needs a tolerance); (g) (the author's) **find the climbs susceptible to this** (a gate that crosses the climb's own line
    anywhere but at its end: geometry only, for all 183 climbs) and retire them in favour of a longer nearby climb with a clean entry
    and exit, or apply the direction rule to them only.
 2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
