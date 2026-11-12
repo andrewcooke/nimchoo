@@ -1,6 +1,6 @@
 ## The schema does not depend on the order the packages' fragments are applied in, as long as a package comes after
 ## those it depends on; and a database made by an older build gets the fragments added since, after those of the
-## packages that depend on theirs, and ends up the same (PACKAGES.md, "Fragments with packages").  This is what
+## packages that depend on theirs, and ends up the same (dev/PACKAGES.md, "Fragments with packages").  This is what
 ## CLAUDE.md asks to be compared by hand before a squash.
 
 import std/[algorithm, os, random, sequtils, sets, strutils, unittest]

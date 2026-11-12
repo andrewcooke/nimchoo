@@ -1,10 +1,10 @@
-## Who may touch which table (PACKAGES.md, "The access model: dependencies are grants").  A package may read the
+## Who may touch which table (dev/PACKAGES.md, "The access model: dependencies are grants").  A package may read the
 ## tables it owns, those of the packages it `depends` on, and those of `db` (the user table and the rest every
 ## package refers to); it may write, and change the definition of, only the tables it owns.  This module is the
 ## rule and nothing else: it is pure.  `packages/db/access.nim` asks it while a statement is prepared, with the
 ## package the statement was written in, and refuses what it forbids.
 ##
-## A mistake-catcher, not a security boundary: a package is source that is compiled in (see PACKAGES.md).
+## A mistake-catcher, not a security boundary: a package is source that is compiled in (see dev/PACKAGES.md).
 
 import std/[options, sets, strutils, tables]
 import ./[names, ownership]

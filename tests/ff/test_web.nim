@@ -1,6 +1,6 @@
 ## `nch ff --web` and `--worker` as a real program, on a fixture database (see
 ## heatmap/test_web.nim for the general checks of the server: this is that it serves the chart).
-## Needs a built ./nch-test (the `test` task builds it); without one these tests are skipped.
+## Needs a built ./build/nch-test (the `test` task builds it); without one these tests are skipped.
 
 import nimchoo/packages/db/statement
 import std/[httpclient, os, osproc, sequtils, streams, strtabs, strutils, unittest]
@@ -10,7 +10,7 @@ when defined(posix):
   import std/posix
 
 let dir = getTempDir() / "nch-test-ff-web"
-let exe = getCurrentDir() / "nch-test"
+let exe = getCurrentDir() / "build" / "nch-test"
 
 proc fixture(name: string): tuple[db, cache: string] =
   ## A user with an FTHR and one activity with ten minutes of hard heart rate.

@@ -135,13 +135,17 @@ suite "bundle: the profile and the notice":
     let d = defaultProfile()
     check d.note == ""
     check fileExists(systemDir(top) / "Profile.xlsx")
-    check readFile(systemDir(top) / "Profile.xlsx") == readFile("data/Profile.xlsx")
+    check readFile(systemDir(top) / "Profile.xlsx") ==
+      readFile("src/nimchoo/packages/fit/Profile.xlsx")
     check parseManifest(readFile(top / manifestName))["Profile.xlsx"] ==
-      sha256Hex(readFile("data/Profile.xlsx"))
+      sha256Hex(readFile("src/nimchoo/packages/fit/Profile.xlsx"))
   test "the author's profile is used, with a note; one that cannot be read is not, with a note":
     discard defaultProfile()
     # a good one: the same spreadsheet with a byte on the end, which readers of zip files allow
-    writeFile(systemDir(top) / "Profile.xlsx", readFile("data/Profile.xlsx") & "\0")
+    writeFile(
+      systemDir(top) / "Profile.xlsx",
+      readFile("src/nimchoo/packages/fit/Profile.xlsx") & "\0",
+    )
     let mine = defaultProfile()
     check mine.note.startsWith("using the profile ") and
       mine.note.endsWith("(not the built-in one)")

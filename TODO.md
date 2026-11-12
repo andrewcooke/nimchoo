@@ -1,12 +1,12 @@
 # TODO
 
-Open work only, as one list in the order the author chose (2026-11-12).  Finished work is in git and in HISTORY.md (with the
-reasoning behind decisions); the reviews are in REVIEW.md (the third, with the second as its appendix B and the first as A).
+Open work only, as one list in the order the author chose (2026-11-12).  Finished work is in git and in dev/HISTORY.md (with the
+reasoning behind decisions); the reviews are in dev/REVIEW.md (the third, with the second as its appendix B and the first as A).
 When something here is done, delete it (in the same commit).  Design steps are discussed with the author before they start.
 
 ## Tidy left from the reviews
 
-1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in HISTORY.md "Gates have no direction").  `overPaths`
+1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right
    (`tools/gatetruth.nim truth`), 28 start late, 33 finish early, 21 are mostly off the line.  The rest are on the **17 of 183 climbs
    whose gate meets the climb's own line elsewhere** (`gatetruth susceptible`; 398 efforts; climbs 62, 147, 144, 145, 172, 118, 155 ...),
@@ -21,17 +21,17 @@ When something here is done, delete it (in the same commit).  Design steps are d
 2. **Cleaning bad positions at import** (A §3 class B, the part not done; **medium priority**: skipped for now, needed before there are significant users, since one bad fix in anyone's file can reach every consumer): drop or flag impossible fixes (a jump faster
   than any rider, a point far from its neighbours) once, at import, so that every consumer sees clean data.  Needs its own
   design (threshold, drop or flag, effect on stretches, climbs and efforts); it changes stored data.  Until then a stretch
-  that spreads over more than 5 degrees is not searched for names (HISTORY.md, 2026-11-08).  Example bad data should be in `~/choochoo` (copy what is needed).  A first step that changes nothing: a tool that lists the
+  that spreads over more than 5 degrees is not searched for names (dev/HISTORY.md, 2026-11-08).  Example bad data should be in `~/choochoo` (copy what is needed).  A first step that changes nothing: a tool that lists the
    suspicious points of the author's 1,112 activities, to judge thresholds from examples.
 3. **Per-second data as arrays per activity**, with cleaning at import (item 2).  A **simpler `route`**, also stored as a single
    connected line beside the multi-part one, for the uses where segmentation does not matter (21% of routes have several parts and
-   SpatiaLite's resampling returns NULL for them; HISTORY.md, 2026-11-11).
+   SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11).
 4. **The shape of an activity stored at import** (idea): `names/shape.nim` computes the kind, the furthest distance, the
   turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
-  would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, HISTORY.md, 2026-11-11).
+  would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, dev/HISTORY.md, 2026-11-11).
   Not designed: check first what the naming needs and whether the stored name is enough.
 5. **The `sectors` package**; **the cache manifest**.
-6. **Addresses, what is left** (the requirements and the rules that stay are in HISTORY.md): the wrapper page (user cache, same name,
+6. **Addresses, what is left** (the requirements and the rules that stay are in dev/HISTORY.md): the wrapper page (user cache, same name,
     `.html`) is rewritten from the templates in the system cache each time it is served, so an edit of the templates changes every
     bookmark's look (if different looks are wanted, a `style=NAME` parameter picks a named style file); **climbs become a layer** of the
     map of their own, with their own fingerprint, so a change to the climbs does not make an old map's bookmark an error; **the general
@@ -58,11 +58,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
   cells when the latest attempt is of a selected ride).  The author also asked whether "the selection chooses
   the climbs, never the attempts" is right; it is built that way.
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
-* **A calendar of fitness** (HISTORY.md, Task 14): the `nch calendar` grid with the background showing fitness, fatigue or form, each day in thirds.
+* **A calendar of fitness** (dev/HISTORY.md, Task 14): the `nch calendar` grid with the background showing fitness, fatigue or form, each day in thirds.
 * **More climb features**: the elevation profile of a climb, the lead/lag comparison, the near-miss report, `exclude`, a way to retire many climbs
   (auto-retire of duplicates was tried and dropped: it retired long climbs into shorter near copies).
 * **Per-sport threshold heart rate and models**, if wanted.
 * **A terrain model (SRTM)**: if added, smooth its heights (`climbs/profile.smoothed` is there for that).
-* **Versions** (HISTORY.md, Task 11): when the version number changes; tie it to releases and the end of squashing.
+* **Versions** (dev/HISTORY.md, Task 11): when the version number changes; tie it to releases and the end of squashing.
 * **Tab completion**: zsh (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for the other plural
   commands, and a `--model` of `map`, if they gain them (completion follows the specs).

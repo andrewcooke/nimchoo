@@ -10,7 +10,7 @@
 ## are simplified to `simplifyM` first (the test is about 25 m, and a route has a point for every 5 m of climbing): that
 ## halves the time and changed no answer on 183 real climbs.  The buffer has round ends (SpatiaLite has no flat ones): the
 ## ground just beyond an end counts, which made no difference on the same climbs.  Measured and compared with the code
-## these replace (HISTORY.md, 2026-11-11).
+## these replace (dev/HISTORY.md, 2026-11-11).
 
 import ../db/[sqltext, statement, store]
 import ../../core/errors

@@ -3,7 +3,7 @@ import nimchoo/packages/util/zip/zipbytes
 import nimchoo/packages/util/zip/zipchild
 import ../../support/zips
 
-const exe = "./nch-test" ## the program (built by `nimble test`), run as the child
+const exe = "./build/nch-test" ## the program (built by `nimble test`), run as the child
 
 proc inflater(): Inflater =
   inflateInChild(absolutePath(exe), 60_000)

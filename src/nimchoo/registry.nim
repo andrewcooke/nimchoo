@@ -249,7 +249,7 @@ page to the server (`web/pages`).""",
 The decoder reads the records of a FIT file into messages and fields (`reader`, `decode`, `basetype`), checked against the
 SDK's own CSV output (`nimble csvreport`).  The profile, which the SDK ships as a spreadsheet (read by `xlsx`), is loaded
 into types, scales, offsets and sub-fields (`load`, `model`).  `nch fit FILE` prints a file as text or as SDK-format CSV.
-A corrupt file is a `FitError`, never a crash: the decoder is fuzzed (HISTORY.md).""",
+A corrupt file is a `FitError`, never a crash: the decoder is fuzzed (dev/HISTORY.md).""",
     ),
     Registered(
       name: "geo",
@@ -299,7 +299,7 @@ written.
   active time, then where it started and what it is called, joined by " / "); verbose adds the sub-sport and the path of
   the file.  In a table the parts are cells, headed `start`, `sport`, `distance`, `active`, `place / name`; not recorded
   is `-`, and an activity with no positions says `no GPS`.
-* **Where an activity went** (`route_cell`, decided 2026-11-12, REVIEW.md "spatial data as cells"): one row for each visit
+* **Where an activity went** (`route_cell`, decided 2026-11-12, dev/REVIEW.md "spatial data as cells"): one row for each visit
   to a cell of the grid in `geo/cells.nim` (a run of consecutive samples in one cell, with its first and last time), so that
   questions about places are joins on integers; `visits.nim` is the definition, written with the samples at import.
 * Deleting activities is `remove.nim`; `activities --delete` calls it.""",
@@ -568,7 +568,7 @@ and filtered.  The importer turns them into advisories in its log.""",
 
 An xlsx file is a zip of XML files; this reads just enough of them (shared strings, relationships, cells) to load the FIT
 profile.  Its input is checked against what the standard library's XML parser cannot take (character references that are
-not characters: Nim issue 26681), and it is fuzzed (HISTORY.md).""",
+not characters: Nim issue 26681), and it is fuzzed (dev/HISTORY.md).""",
     ),
     Registered(
       name: "zip",

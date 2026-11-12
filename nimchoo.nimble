@@ -50,7 +50,7 @@ task test,
   # replaces the one you use)
   exec "nimble fmtcheck"
   exec "nimble registry"
-  exec "nim c -d:release -d:ssl --checks:on --hints:off -o:nch-test src/nch.nim"
+  exec "nim c -d:release -d:ssl --checks:on --hints:off -o:build/nch-test src/nch.nim"
   exec "nim c -r -d:release -d:ssl --checks:on --hints:off tests/all.nim"
 
 task prod,
@@ -70,7 +70,7 @@ task prod,
 
 task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
   exec "nimble registry"
-  exec "nim c -d:ssl --hints:off -o:nch-test src/nch.nim"
+  exec "nim c -d:ssl --hints:off -o:build/nch-test src/nch.nim"
   exec "nim c -r -d:ssl --hints:off tests/all.nim"
 
 task fuzzlong,

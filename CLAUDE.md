@@ -18,12 +18,20 @@ the choochoo directory parallel to this one).  what i want to do is:
 
 * use ai for development.
 
-## TODO.md, HISTORY.md, REVIEW.md
+## where things are
+
+* the top level has only what has to be there: `src/`, `tests/`, `tools/` (developer tools), `dev/` (the notes: `dev/HISTORY.md`,
+  `dev/REVIEW.md`, `dev/PACKAGES.md`, `dev/MAP-LAYERS.md`), `README.md`, `TODO.md`, `NOTICE`, `CLAUDE.md` (and `AGENTS.md`, a link to
+  it), `nimchoo.nimble`, `config.nims`, `.github/`, `.claude/`.  git-ignored output: `nch` (the program, `nimble prod`), `build/`
+  (`build/nch-test`, the test build), `.fuzz/` (the fuzzers' binaries and corpus), `doc/` (`nimble docs`).
+* the built-in FIT profile is `src/nimchoo/packages/fit/Profile.xlsx` (embedded into the program).
+
+## TODO.md, dev/HISTORY.md, dev/REVIEW.md
 
 * TODO.md holds **open work only**.  when something is done, delete it from TODO.md in the same commit.
-* HISTORY.md holds finished tasks and the reasoning behind decisions (TODO.md until 2026-11-08).  read it for *why*
+* dev/HISTORY.md holds finished tasks and the reasoning behind decisions (TODO.md until 2026-11-08).  read it for *why*
   something was decided; its names of commands and files are those of their time, so it is not current guidance.
-* REVIEW.md is the third review (2026-11-11: spatial data as cells, a proposal with measurements) on top; the second
+* dev/REVIEW.md is the third review (2026-11-11: spatial data as cells, a proposal with measurements) on top; the second
   (2026-11-09: fuzzing, the access model, commands in their packages, tools) is its appendix B and the first
   (2026-11-08) its appendix A.
 
@@ -48,7 +56,7 @@ i would like to try using nim and have installed the compiler etc.
 ## general structure
 
 nimchoo is a set of **packages**, so that the system can be extended with new fit-related functionality by adding a
-package without editing the others (the design and its reasons: PACKAGES.md).  **what a package is for, what it owns and
+package without editing the others (the design and its reasons: dev/PACKAGES.md).  **what a package is for, what it owns and
 its rules are in the `##` comment at the top of its `package.nim`** (not here): read it before working on a package, with
 `nch packages NAME` or on the documentation site (`nimble docs`, published by github pages).  `nch packages` is the program
 describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use it to see how things fit.

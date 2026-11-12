@@ -1,5 +1,5 @@
 ## Reading the `import` lines of source files and checking them against the rules about packages
-## (PACKAGES.md, "Layout and rules" 4).  Pure: the files are given as text, so the rules are tested with
+## (dev/PACKAGES.md, "Layout and rules" 4).  Pure: the files are given as text, so the rules are tested with
 ## made-up trees, and the real tree is checked by tests/core/test_imports.nim.
 ##
 ## Only imports that start a line are read (an import inside `when` is of the standard library today), and
@@ -147,7 +147,7 @@ func violations*(
 func rawDatabaseImports*(sources: Table[string, string]): seq[string] =
   ## The files that import the database library (`db_connector/...`) and are neither in the package `db` nor in
   ## `core` (whose `Fragment` has to name the connection type): every statement is to go through the checked
-  ## helpers of `db` (REVIEW.md 4.2), and `db` re-exports the types it hands out.
+  ## helpers of `db` (dev/REVIEW.md 4.2), and `db` re-exports the types it hands out.
   for path in sorted(toSeq(sources.keys)):
     if path.startsWith("packages/db/") or path.isCore:
       continue

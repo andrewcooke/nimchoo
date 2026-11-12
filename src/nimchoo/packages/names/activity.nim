@@ -169,7 +169,7 @@ proc nameActivity*(
   of skLoop, skMixed:
     # a landmark along the route, well away from the start, else a feature there.  (The features are measured to the
     # route in Nim, with a grid: the same in SQL, `ST_Distance` of each feature in the route's box to the line, named the
-    # same places for 553 of 560 rides but took 16 to 60 s against a few seconds for all of naming; HISTORY.md,
+    # same places for 553 of 560 rides but took 16 to 60 s against a few seconds for all of naming; dev/HISTORY.md,
     # "Overlap of climbs in SQL".  Do not move it without measuring again.)
     var via = ""
     var bestD = viaRouteM + 1.0

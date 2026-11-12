@@ -16,7 +16,7 @@
 ## constant here, settled by looking at real rides: of 1,028 closed rides of the author, `retracedNear` is under 0.1 for 394
 ## and 0.9 or more for 462, with few between, and it finds the "El Toyo and back" rides that come home another way.
 
-## **Why this is Nim and not SpatiaLite** (measured 2026-11-11, HISTORY.md "Overlap of climbs in SQL"): the rule is about the
+## **Why this is Nim and not SpatiaLite** (measured 2026-11-11, dev/HISTORY.md "Overlap of climbs in SQL"): the rule is about the
 ## order of points (the turning point's index, the first third of the way back), which SQL cannot index; a route in several
 ## parts cannot be resampled there; and on a joined single-part route the SQL took 3.2 s for the author's 1,108 routes
 ## against 0.27 s here, with 32 of them getting another kind.  Do not move it without measuring again.

@@ -1,5 +1,5 @@
 ## `nch map --web` as a real program: started as a subprocess on a fixture database,
-## on any free port, and asked for things over plain HTTP.  Needs a built ./nch-test (the
+## on any free port, and asked for things over plain HTTP.  Needs a built ./build/nch-test (the
 ## `test` task builds it); without one these tests are skipped.
 
 import nimchoo/packages/db/statement
@@ -10,7 +10,7 @@ when defined(posix):
   import std/posix
 
 let dir = getTempDir() / "nch-test-web"
-let exe = getCurrentDir() / "nch-test"
+let exe = getCurrentDir() / "build" / "nch-test"
   # (built by the `test` task, like the tests: see nimchoo.nimble)
 
 type Web = object

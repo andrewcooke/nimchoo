@@ -1,4 +1,4 @@
-## The FIT profile built into the executable (data/Profile.xlsx), so that tools work without
+## The FIT profile built into the executable (Profile.xlsx, beside this file), so that tools work without
 ## `--profile`.  It is also kept as a file in the cache's `system/` part (see bundle/unpack.nim):
 ## a file the author puts there instead (say a newer SDK's) is used in its place.
 
@@ -7,7 +7,7 @@ import ./load
 
 {.push raises: [].}
 
-const embedded = staticRead("../../../../data/Profile.xlsx")
+const embedded = staticRead("Profile.xlsx")
 const profileBundle* = Bundle(name: "Profile.xlsx", data: embedded)
 
 proc loadDefaultProfile*(): Profile {.raises: [ProfileError, XlsxError].} =

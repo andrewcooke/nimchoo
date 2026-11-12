@@ -1,4 +1,4 @@
-## The rule about imports (PACKAGES.md, "Layout and rules" 4), on made-up trees and on the real one.
+## The rule about imports (dev/PACKAGES.md, "Layout and rules" 4), on made-up trees and on the real one.
 
 import std/[os, sequtils, strutils, tables, unittest]
 import nimchoo/registry as generated

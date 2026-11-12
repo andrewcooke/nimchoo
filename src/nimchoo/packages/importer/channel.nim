@@ -34,4 +34,4 @@ type
     one*, many*: string
 
 const importStep* = ExtensionPoint[ImportStep](name: "importer/steps")
-  ## What other packages add to an import: `heartrate` contributes its step to this (PACKAGES.md).
+  ## What other packages add to an import: `heartrate` contributes its step to this (dev/PACKAGES.md).

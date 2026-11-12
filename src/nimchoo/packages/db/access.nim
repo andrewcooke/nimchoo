@@ -41,7 +41,7 @@ var
 
 proc packageOfFile*(file: string): string {.compileTime.} =
   ## The package a source file belongs to: its name is the name of the nearest directory above the file that has
-  ## a `package.nim` (PACKAGES.md); "" for a file outside the packages (`core`, the tests).
+  ## a `package.nim` (dev/PACKAGES.md); "" for a file outside the packages (`core`, the tests).
   var dir = file.parentDir
   while dir.len > 1:
     if fileExists(dir / "package.nim"):

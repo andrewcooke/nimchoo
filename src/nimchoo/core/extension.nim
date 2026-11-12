@@ -1,4 +1,4 @@
-## Extension points: where a low package calls code that a higher package supplies (PACKAGES.md, "Extension
+## Extension points: where a low package calls code that a higher package supplies (dev/PACKAGES.md, "Extension
 ## points").  The package that defines a point owns its type and declares the point as a constant; a later
 ## package lists a contribution in its `package.nim`.  `core` knows no domain type, so a contribution holds
 ## its value type-erased; `get` gives the typed list back.

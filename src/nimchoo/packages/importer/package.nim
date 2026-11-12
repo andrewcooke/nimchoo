@@ -18,7 +18,7 @@
 ##   active time, then where it started and what it is called, joined by " / "); verbose adds the sub-sport and the path of
 ##   the file.  In a table the parts are cells, headed `start`, `sport`, `distance`, `active`, `place / name`; not recorded
 ##   is `-`, and an activity with no positions says `no GPS`.
-## * **Where an activity went** (`route_cell`, decided 2026-11-12, REVIEW.md "spatial data as cells"): one row for each visit
+## * **Where an activity went** (`route_cell`, decided 2026-11-12, dev/REVIEW.md "spatial data as cells"): one row for each visit
 ##   to a cell of the grid in `geo/cells.nim` (a run of consecutive samples in one cell, with its first and last time), so that
 ##   questions about places are joins on integers; `visits.nim` is the definition, written with the samples at import.
 ## * Deleting activities is `remove.nim`; `activities --delete` calls it.

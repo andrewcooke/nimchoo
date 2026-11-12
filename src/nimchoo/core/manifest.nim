@@ -1,5 +1,5 @@
 ## What a package says about itself.  `package.nim` in a package's directory holds one constant of this
-## type; the name of the package is the name of its directory, so it is not in the value (PACKAGES.md).
+## type; the name of the package is the name of its directory, so it is not in the value (dev/PACKAGES.md).
 ## This module imports no package: `core` is below all of them.
 
 import ./[extension, fragment, globals, optdoc]

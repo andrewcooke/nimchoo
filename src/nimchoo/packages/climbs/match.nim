@@ -181,7 +181,7 @@ func overPaths*(sector, ride: Path): seq[Effort] =
   ## The passes of `ride` (one stretch of a ride, so that the time is continuous) over `sector`, in
   ## order.  Empty if it does not go over it.
   ##
-  ## Nim and not SpatiaLite (measured 2026-11-11, HISTORY.md "Overlap of climbs in SQL"): the same times came out, but the
+  ## Nim and not SpatiaLite (measured 2026-11-11, dev/HISTORY.md "Overlap of climbs in SQL"): the same times came out, but the
   ## crossings of one sector took 4.5 to 7 s, because a segment is built for every second of every ride near it, and it could
   ## not read the arrays of TODO item 3.  Do not move it without measuring again.
   if sector.len < 2 or ride.len < 2:
@@ -204,7 +204,7 @@ func overPaths*(sector, ride: Path): seq[Effort] =
   let finishes = crossings(rideXY, cum, g.get.finish)
   # the pairs that cover about the right ground, the one closest to the sector's length first; those that overlap one
   # taken are dropped.  Closest and not shortest: where the road folds back through a gate, the ride crosses it a second
-  # time going the other way, and the pair from that crossing is shorter than the sector (HISTORY.md "Gates have no
+  # time going the other way, and the pair from that crossing is shorter than the sector (dev/HISTORY.md "Gates have no
   # direction").
   var pairs: seq[tuple[s, f: Crossing]]
   for s in starts:

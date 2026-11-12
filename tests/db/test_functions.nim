@@ -24,7 +24,7 @@ suite "sql functions: the grid of cells":
       check s.db.scalar(int64, "select cell(:lon, :lat)", lon = lon, lat = lat) ==
         int64(cellOf(lon, lat).get)
   test "and the formula of the design, written out in SQL, gives the same":
-    # (the prototype of REVIEW.md §8 computed it so)
+    # (the prototype of dev/REVIEW.md §8 computed it so)
     for (lon, lat) in [
       (-70.65, -33.45), (-1.6, 54.1), (0.0, 0.0), (151.2, -33.9), (-180.0, -90.0)
     ]:

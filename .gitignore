@@ -7,7 +7,7 @@ nimbledeps/
 nimble.develop
 *~
 /tests/csvreport
-/nch-test
+/build/
 \#*#
 .#*
 .saves-*
@@ -16,6 +16,5 @@ nimble.develop
 /tests/invariants
 /tools/genregistry
 /tools/fuzz
-/fuzz-bin/
-/fuzz-corpus/
+/.fuzz/
 /doc/

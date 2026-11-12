@@ -151,7 +151,7 @@ proc collectExtensions*(
 func accessOf*(
     packages: seq[Registered], fragments: seq[Fragment], mode = amEnforce
 ): Access {.raises: [PackageError].} =
-  ## The access rules for these packages (PACKAGES.md, "The access model"): who owns which table, from the
+  ## The access rules for these packages (dev/PACKAGES.md, "The access model"): who owns which table, from the
   ## fragments, and what each package declares it uses.
   var depends: Table[string, seq[string]]
   for p in packages:

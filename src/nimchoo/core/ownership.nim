@@ -1,5 +1,5 @@
 ## Which package owns which table.  Nobody lists it: the package that makes a table owns it, and what a
-## package makes is read from its fragments, which are plain DDL by rule (PACKAGES.md, "Ownership is
+## package makes is read from its fragments, which are plain DDL by rule (dev/PACKAGES.md, "Ownership is
 ## inferred").  A scan of the text is enough for `create table` and `alter table ... rename to`; what it cannot
 ## see (SpatiaLite makes `idx_activity_start` when a function is called) is found by a test that applies the
 ## fragments to SQLite and compares (tests/core/test_ownership.nim).  Pure, so it can run at compile time.

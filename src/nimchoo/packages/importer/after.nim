@@ -52,4 +52,4 @@ func quietContext*(g: Globals): AfterContext =
   AfterContext(g: g, show: noShow, say: noSay)
 
 const afterImport* = ExtensionPoint[AfterImport](name: "importer/after")
-  ## What is done after an import (PACKAGES.md, "Extension points").
+  ## What is done after an import (dev/PACKAGES.md, "Extension points").

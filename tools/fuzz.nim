@@ -1,13 +1,13 @@
 ## `nimble fuzz TARGET [SECONDS]`: build the libFuzzer harness tests/fuzz/TARGET.nim with clang and run it (default 60 s).
 ##
-## Level 2 of the fuzzing in REVIEW.md: coverage-guided, so it reaches code that the random damage of the level-1 tests
+## Level 2 of the fuzzing in dev/REVIEW.md: coverage-guided, so it reaches code that the random damage of the level-1 tests
 ## (tests/*/test_fuzz.nim, which are part of nimble test) does not.  Not run by the tests.  What it needs is clang with
 ## its libFuzzer and address sanitizer runtimes.
 ##
-## * the corpus is `fuzz-corpus/TARGET/` (git-ignored; started from valid examples if empty);
+## * the corpus is `.fuzz/corpus/TARGET/` (git-ignored; started from valid examples if empty);
 ## * an input that makes the harness fail is written to `tests/data/fuzz/TARGET/` (crash-HASH, oom-HASH, timeout-HASH), where
 ##   the level-1 test of the target replays it: fix the bug (a test first), and keep the file;
-## * the harness is built to `fuzz-bin/` (git-ignored) with `--panics:on` (a Defect aborts, which is a crash to libFuzzer).
+## * the harness is built to `.fuzz/bin/` (git-ignored) with `--panics:on` (a Defect aborts, which is a crash to libFuzzer).
 ##   The address sanitizer (with `-d:useMalloc`, so that it sees Nim's memory) is on only for the targets that go through
 ##   zippy, whose inflate code is unsafe (zip, xlsx, profile): the other readers are Nim without pointers, and it makes
 ##   them 4 times slower (fit: 120 runs a second with it, 500 without).
@@ -108,17 +108,17 @@ proc main(): int =
   let asan = target in withAddressSanitizer
   let sanitize = if asan: "fuzzer,address" else: "fuzzer"
   let malloc = if asan: " -d:useMalloc" else: ""
-  let bin = "fuzz-bin" / target
-  createDir("fuzz-bin")
+  let bin = ".fuzz/bin" / target
+  createDir(".fuzz/bin")
   let build =
     fmt"nim c --cc:clang --noMain:on -d:release --checks:on --panics:on{malloc} --hints:off " &
-    fmt"--nimcache:fuzz-bin/cache-{target} " &
+    fmt"--nimcache:.fuzz/bin/cache-{target} " &
     fmt""" --passC:"-fsanitize={sanitize}{gccFlag}" --passL:"-fsanitize={sanitize}{gccFlag}" """ &
     fmt"-o:{bin} tests/fuzz/{target}.nim"
   echo build
   if execCmd(build) != 0:
     return 1
-  let corpus = "fuzz-corpus" / target
+  let corpus = ".fuzz/corpus" / target
   if not dirExists(corpus) or toSeq(walkFiles(corpus / "*")).len == 0:
     seed(target, corpus)
   let crashes = "tests/data/fuzz" / target
