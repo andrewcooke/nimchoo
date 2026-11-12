@@ -29,33 +29,15 @@ the address design, "climbs vs sectors is answered", the step-7 note once item 1
    the routes run through places with many more features than the author's (the cost is the features in a route's box, so local
    density, not the size of a country or of the data); a per-cell place table is shared by all rides and would then scale better.
    Where naming lives (REVIEW.md §5.1) is a separate question, not needed now.  It replaces items 4, 5 and 6 below; item 2 follows on its own.
-1b. **BUG: the gates of a climb have no direction** (found 2026-11-12, measuring the baseline for cells step 4; the author had the same
-   trouble with the old Python code on S-shaped roads).  A gate is a 50 m line across the road (`gateRadius` 25 m each side) at the
-   climb's first and last point (`climbs/match.nim`: `gates`, `crossings`, `overPaths`).  A crossing counts in either direction, and
-   where the road folds back within 25 m (a hairpin above or below the gate) the ride crosses the gate line again, going the other
-   way.  `overPaths` takes the *shortest* pair of crossings that covers the climb's length within 5%, so it can pick the fold's
-   crossing, and the effort starts or finishes late or early.  Measured on the author's 4,493 stored efforts (`tools/gatecheck.nim`, run on a copy of the database before and
-   after a fix): 4,483 analysed; in 79 the start crossing and in 298 the finish crossing goes against the route's direction (cos below 0),
-   and in **200 (4.5%) it is nearly opposite (more than 154 degrees off)**.  Of those 200, 118 have another pair of crossings in the
-   right direction, and the time then differs by a median of +41 s (stored times too short), up to +753 s; 82 have no pair in the right
-   direction.  Examples (stored against right direction): activity 66 on sector 144 (2.8 km) 1003 s against 1059 s; activity 2 on sector
-   62 (4.1 km) 967 s against 1001 s (start crossing 98% opposite).  Sector 144 has 34 efforts, 155 has 38, 62 has 35: a few climbs
-   with hairpins at a gate account for most.  Caution: the route's direction at a gate is taken from its first or last segment,
-   which is long (a point for every 5 m of climbing), so on a curve a *correct* crossing can look more than 70 degrees off; the 200
-   count (more than 154 degrees) is solid, the 355 efforts below 0 are not all wrong.  To decide (no ground truth; look at examples
-   together, and compare the elapsed time with the ride's own speed on the climb): (a) require a crossing to go with the route
-   (the ride's direction at the crossing against the route's, a cosine above some limit); (b) a narrower gate (GPS error is 5 to 10 m,
-   so 10 to 15 m each side); (c) take the direction from a longer stretch of the route than its last segment; (d) pair the crossings by
-   the distance covered as well as shortest-first.  It changes stored efforts, so after cells step 4 (which must give identical
-   efforts), then `nch climbs --all --delete -f` and work them out again.  A test with an S-shaped road is the test of the class.  Looking at examples: `nch map --layers routes,efforts,gates` with a few activities selected (`nch activities --from D --to D --select`)
-   draws each effort with its start and finish, and each climb's gates (built 2026-11-12).  Ideas, 2026-11-12, to weigh with the options
-   above: (e) (the assistant's) **progress along the climb**: project the ride onto the climb's line and require the position
-   to rise from about 0 to the full length between the start and the finish (a ground truth computed from geometry, which can judge
-   every option, and rejects false efforts on another road); (f) (the author's) **match the sequence of curves**, a count of the switchbacks or
-   left, right, left... of the ride and the climb (the climbs' lines have a point every 5 m, so the shape is there; the ride's
-   1 Hz track wobbles, so it needs a tolerance); (g) (the author's) **find the climbs susceptible to this** (a gate that crosses the climb's own line
-   anywhere but at its end: geometry only, for all 183 climbs) and retire them in favour of a longer nearby climb with a clean entry
-   and exit, or apply the direction rule to them only.
+1b. **The gates of a climb have no direction** (found 2026-11-12; the evidence and the measurements are in HISTORY.md "Gates have no
+   direction").  Done: `overPaths` pairs the crossings closest to the climb's length first (stored efforts judged right by
+   `tools/gatetruth.nim truth`: 4,350 -> 4,411 of 4,493).  Left: 28 start late, 33 finish early, 21 mostly off the line (short
+   climbs 150 and 46, perhaps the tool's tolerance).  **17 of the 183 climbs are susceptible** (`gatetruth susceptible`: a gate meets
+   the climb's own line elsewhere; 398 efforts; climbs 62, 147, 144, 145, 172, 118, 155 ... ), and a direction rule is not safe on
+   them: at climb 145's finish (the line folds at 1951 m of 2005) a correct ride crosses the gate going against it.  To decide with
+   the author: report the susceptible climbs in `nch climbs`; retire them for a longer nearby climb with a clean entry and exit, or
+   move/narrow their gates; (f) match the sequence of curves (the author's); (e) progress along the climb as a test in `overPaths`
+   (the assistant's; `gatetruth` already does it for judging).  Look at examples with `nch map --layers routes,efforts,gates`.
 2. Per-second data as arrays per activity (step 9).  3. Cleaning bad positions at import.  4. A simpler `route`, also stored
    as a single connected line.  5. Naming is slow.  6. Store the shape of an activity at import.
 7. The `sectors` package.  8. Climbs as a layer of the map.  9. Wrapper page and templates in the system cache, `style=NAME`.

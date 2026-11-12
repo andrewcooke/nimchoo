@@ -3411,3 +3411,16 @@ are one description (`webOptions`, giving a `WebMode`), and `map` and `ff` mark 
 (`address`, with a check for the value): the server's pages are made from their own parsers (`web/request.pageOf`), and
 `map/web.nim` and `ff/web.nim` are gone.  The global options are described too.
 
+
+Gates have no direction (2026-11-12, TODO 1b).  A climb's gates are 50 m lines across it at its first and last points and have no
+direction, so where the road folds back through a gate (a switchback) a ride crosses it twice and `overPaths`, taking the shortest
+pair of crossings within 5% of the climb's length, could take the fold's: the effort started or finished 100 to 140 m late or early
+(stored times too short, median 41 s).  Ground truth, computed from geometry (`tools/gatetruth.nim truth`: follow the ride along the
+climb's line by directional nearest-segment matching within 30 m; right = starts and ends within 100 m of the climb's ends): of
+4,493 efforts 4,350 right, 67 start late, 55 finish early, 21 mostly off the line.  Rules compared on the same efforts: closest to
+the climb's length fixes 61 and breaks none; requiring both crossings to go with the climb fixes 84 but wrongly rejects 43 correct
+efforts, mostly climb 145, whose finish gate sits on a fold (the line passes the gate at 1951 m and goes on to 2005 m), where a
+correct ride crosses it against the gate's direction.  Chosen: closest to the length (test: a switchback at the start).  After
+recomputing the climbs 4,411 are right, 28 start late, 33 finish early.  17 of 183 climbs are susceptible (a gate meets the climb's
+own line elsewhere; 398 efforts).  Activity 737 on climb 62 shows the case: six start-gate crossings, the rider having done the
+climb twice, and the old rule took the hairpin's return crossing 29 s after the true start.
