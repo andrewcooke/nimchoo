@@ -3469,15 +3469,15 @@ The arrays (2026-11-13; dev/CLEANING.md has the cleaning): the positions of an a
 
 `dev/MAP-LAYERS.md` deleted (2026-11-14, step 0 of `dev/display-arch/plan.md`, decision D3): its ideas (layers with an index in the database, selection snapshots) were set aside in 2026-11-06 and are superseded by the display architecture (live views, subjects, frames); its useful finding, that a climb's displayed name is not an identity, is settled by `sector.name_n`.
 
-The baseline of `nch map` before the display architecture (2026-11-14, step 0 of `dev/display-arch/plan.md`, for step 4): `./nch` rebuilt with `nimble prod` from the commit before the plan's step 1, on a copy of the author's database (1,113 activities, 265 MB, 184 climbs; the climbs already worked out), with its own cache; wall time of `nch map --layers L` in one run each, **cold** = the geojson cache deleted first, **warm** = the file is already there (so warm is only the cost of finding it, except where the layer is never cached by name).  Cold, in seconds (file size):
+The baseline of `nch map` before the display architecture (2026-11-14, step 0 of `dev/display-arch/plan.md`, for step 4): `./nch` rebuilt with `nimble prod` from the commit before the plan's step 1, on a copy of the author's database (1,113 activities, 265 MB, 184 climbs; the climbs already worked out) in tmpfs, with its own cache.  Wall time of `nch map --layers L` (a script in Python, `perf_counter` around the process): 20 runs for one ride and a month, 10 for everything; mean, with the standard deviation in brackets.  **cold** = the geojson cache deleted before each run; **warm** = the file is already there (for `climbs` and `gates` warm equals cold: they are made on every request, so that is the cost of making a frame each time).  A command that opens the database and does nothing takes about 15 ms (`map --help`, which does not, 2 ms).  The page cache of the OS is warm throughout.  Cold, in ms (file size):
 
 | layers | one ride (45 km) | a month (6 rides) | everything (1,113) |
 |---|---|---|---|
-| routes | 0.03 (14 kB) | 0.07 (119 kB) | **4.48** (16.1 MB) |
-| climbs | 0.02 (39 kB) | 0.03 (433 kB) | 0.13 (2.7 MB) |
-| heat | 0.02 (90 kB) | 0.02 (513 kB) | 0.61 (6.4 MB) |
-| gates | 0.02 (1 kB) | 0.03 (9 kB) | 0.14 (73 kB) |
-| efforts | 0.02 (60 kB) | 0.06 (939 kB) | **2.00** (46.5 MB; 1.29 warm) |
-| routes + climbs (the default) | 0.02 (53 kB) | 0.07 (552 kB) | **4.57** (18.8 MB) |
+| routes | 22 (2) (14 kB) | 62 (3) (119 kB) | **4,566** (57) (16.1 MB) |
+| climbs | 16 (1) (39 kB) | 26 (1) (433 kB) | 136 (6) (2.7 MB) |
+| heat | 16 (1) (90 kB) | 23 (2) (513 kB) | 623 (12) (6.4 MB) |
+| gates | 17 (2) (1 kB) | 26 (2) (9 kB) | 143 (4) (73 kB) |
+| efforts | 19 (2) (60 kB) | 55 (3) (939 kB) | **2,010** (30) (46.5 MB; warm 1,293) |
+| routes + climbs (the default) | 24 (3) (53 kB) | 72 (4) (552 kB) | **4,594** (85) (18.8 MB) |
 
-So only the routes of everything (4.5 s, mostly reading and writing 1,113 routes) and the efforts of everything (2 s, and 46 MB) are slow enough to think about caching; any ride, month or climbs frame is under 0.15 s, so on every request is fine for them (D6 is to be agreed on these).  The measurement is one run each, on a tmpfs, not repeated.
+Warm (the file found): 15 to 18 ms for one ride, 16 to 41 ms for a month, 68 to 142 ms for everything (`efforts` 1,293: it is not found by name, only made again faster).  So only the routes of everything (4.6 s, mostly reading and writing 1,113 routes) and the efforts of everything (2 s, 46 MB) are slow enough to think about caching; the heat map of everything is 0.6 s, and the rest are under 0.15 s, so making them on every request is fine (D6 is to be agreed on these).  An earlier single run of each gave the same figures within 5%.
