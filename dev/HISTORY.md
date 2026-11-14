@@ -3466,3 +3466,18 @@ Second squash of the schema (2026-11-13): each package's fragments are one `001-
 Formatting at the boundaries (2026-11-13): the Claude Code hook that ran `nph` after every edit is gone (it reflowed files under the assistant, whose next patch from memory then missed); `nimble test` still refuses unformatted files, and `.githooks/pre-commit` (`git config core.hooksPath .githooks`) refuses to commit them, so it holds for anyone's edits.
 
 The arrays (2026-11-13; dev/CLEANING.md has the cleaning): the positions of an activity are one row of `track` (time offsets int32, longitude and latitude in FIT semicircles int32, altitude uint16 in 0.2 m: 14 bytes a position, `importer/series.nim`) and the heart rate one row of `heartrate_series` (offsets int32 and bpm uint8: 5 bytes, `heartrate/series.nim`); `coords` (6.2 M rows) and `heartrate` (6.1 M rows) are gone, and so is every query on them: the readers decode the arrays in Nim (`importer/track.nim` `readPositions` and `readTrack`, `heartrate/stored.nim`), the GPS criteria ask whether a `track` row exists, and the invariants decode what SQL cannot (the visits of an activity are those of its positions).  Measured on the author's 1,113 bike files, offline, on this machine: import 18.7 s (25.8 s with the rows and the cleaning), database 248 MB (`track` 83.7 MB where `coords` was 263 MB, `heartrate_series` 29.6 MB where `heartrate` was 100 MB, `route` 95.6 MB), climbs recomputed in 12.0 s (17.4 s from the rows), 184 climbs and 4,526 efforts (183 and 4,493 before the cleaning).  An effort's elapsed time is rounded to the millisecond so that equal speeds tie.  Tests that ask SQL about the samples call `materialise` (temporary tables made from the arrays); the program never does.
+
+`dev/MAP-LAYERS.md` deleted (2026-11-14, step 0 of `dev/display-arch/plan.md`, decision D3): its ideas (layers with an index in the database, selection snapshots) were set aside in 2026-11-06 and are superseded by the display architecture (live views, subjects, frames); its useful finding, that a climb's displayed name is not an identity, is settled by `sector.name_n`.
+
+The baseline of `nch map` before the display architecture (2026-11-14, step 0 of `dev/display-arch/plan.md`, for step 4): `./nch` rebuilt with `nimble prod` from the commit before the plan's step 1, on a copy of the author's database (1,113 activities, 265 MB, 184 climbs; the climbs already worked out), with its own cache; wall time of `nch map --layers L` in one run each, **cold** = the geojson cache deleted first, **warm** = the file is already there (so warm is only the cost of finding it, except where the layer is never cached by name).  Cold, in seconds (file size):
+
+| layers | one ride (45 km) | a month (6 rides) | everything (1,113) |
+|---|---|---|---|
+| routes | 0.03 (14 kB) | 0.07 (119 kB) | **4.48** (16.1 MB) |
+| climbs | 0.02 (39 kB) | 0.03 (433 kB) | 0.13 (2.7 MB) |
+| heat | 0.02 (90 kB) | 0.02 (513 kB) | 0.61 (6.4 MB) |
+| gates | 0.02 (1 kB) | 0.03 (9 kB) | 0.14 (73 kB) |
+| efforts | 0.02 (60 kB) | 0.06 (939 kB) | **2.00** (46.5 MB; 1.29 warm) |
+| routes + climbs (the default) | 0.02 (53 kB) | 0.07 (552 kB) | **4.57** (18.8 MB) |
+
+So only the routes of everything (4.5 s, mostly reading and writing 1,113 routes) and the efforts of everything (2 s, and 46 MB) are slow enough to think about caching; any ride, month or climbs frame is under 0.15 s, so on every request is fine for them (D6 is to be agreed on these).  The measurement is one run each, on a tmpfs, not repeated.

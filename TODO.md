@@ -30,11 +30,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
   would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, dev/HISTORY.md, 2026-11-11).
   Not designed: check first what the naming needs and whether the stored name is enough.
 4. **The `sectors` package**; **the cache manifest**.
-5. **Addresses, what is left** (the requirements and the rules that stay are in dev/HISTORY.md): the wrapper page (user cache, same name,
-    `.html`) is rewritten from the templates in the system cache each time it is served, so an edit of the templates changes every
-    bookmark's look (if different looks are wanted, a `style=NAME` parameter picks a named style file); **climbs become a layer** of the
-    map of their own, with their own fingerprint, so a change to the climbs does not make an old map's bookmark an error; **the general
-    plot command** replaces `ff`, declaring its series through an extension point, each package giving the key of its data.
+5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
+    only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
+    "`map` criteria of its own".  Next: step 1.
 6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is
@@ -58,10 +56,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
   position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Storing it
   has to be decided before the rebuild at the end of the arrays work, because what is not stored then is not there until the
   next re-import.
-* **`map` criteria of its own** (the author, 2026-11-13): extra arguments to `nch map` (the criteria `nch activities` takes, say
-  `--from`, `--names`, `--climbs`), so that a simple plot does not need `nch activities ... --select` first.  Design questions:
-  the same criteria options from one description (`activities/criteria.nim` offers them), what the address carries (the
-  criteria, or the resolved `selection` it already has), and what the state fingerprints.
 * **Investigate: "Cerro San Cristóbal" and "Parque Metropolitano" are not used to label rides** (the author, 2026-11-13).  Rides on
   that hill are named after other places.  Find out why: which GeoNames features are there and with what feature codes
   (`names/codes.nim` says which codes count and how they rank), whether they are within the search radii for the start, the
