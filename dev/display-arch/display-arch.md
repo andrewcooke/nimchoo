@@ -24,7 +24,7 @@ setting a clear direction and (2) reducing the churn in development.
 ### Selections, Views and URLs
 
 The system is structured around data grouped into **subjects** -
-*activities*, *climbs*, **FF statistics** etc.  Each subject is
+*activities*, *climbs*, *FF statistics* etc.  Each subject is
 relatively self-contained and independent, although there are obvious
 cross-cutting concerns.
 
@@ -35,7 +35,13 @@ tailored to measure anaerobic exercise.  And, of course, there's the
 rest of the database, full of state.
 
 We can display subjects in different **views**.  For examples: maps;
-(line) plots; calendars.
+(line) plots; calendars; text.
+
+The text view does not currently exist, but might display data as
+lists, csv format, etc.  It should not be confused with the text
+output of the commands that manage subject selection - those commands
+manipulate state and are not views.  You could imagine `text`
+replacing `map --files` at some point.
 
 When we generate a view of a subject we display data in the subject's
 current selection.  If the current selection changes then the view -
@@ -140,7 +146,30 @@ believe that:
   equivalent to `map --web` now); the version to generate files only
   should be `map --file` (in other words, swapped).
 
-## Implementation
+### Package Ordering
+
+The current design assumes that views precede subjects.  This allows
+easy extension with more subjects and implies that providers format
+frames as appropriate for each view.
+
+One small variation to this approach would be to assume activities are
+defined before views.  Then views would need to special case
+activities, but could use activitiers as a default.
+
+More generally, we might assume an intermediate data format, or a set
+of formats that generalise the types of views the system supports, and
+then have a registry where providers register the availability of
+frames, and where views can query for providers of suitable frames.
+
+One small variation to this is to have an initial registry only for
+subjects.
+
+I think this work is better as a later step.  In general, there is
+enough here to start with.  Reviewer suggests initial registry for
+subjects would be worth the effort, and avoids the ugly "activities
+first" approach, which is also a reasonable compromise.
+
+## Implementation Details
 
 ### FF Statistics
 
@@ -197,6 +226,10 @@ subject are identical).  I have no strong preference on the details of
 hash key generation (as long as it works) and leave it to the
 implementator.
 
+Review is pretty interested in this subject and also wants a set of
+rules, but since the reviewer will also be writing the design plan I
+am leaving that to them.
+
 ### Inverted Dependency Example
 
 The examples above have tended to be "easy cases" where the secondary
@@ -222,18 +255,10 @@ the implementation (either the climbs package uses the keys in the
 activity table, or it asks the activity package to do the
 calculation).
 
+### Context / All
 
-
-to consider
-
-3. **Register subjects once, not with each view.** If each view
-   defines a point for subjects, the package that manages a subject
-   contributes to every view: `activities` would depend on `map`, the
-   plot view and `calendar`, and a new view would mean editing every
-   subject's package.  Better: **one point, `subjects`** (name, owner,
-   how to get the selection, and the key of any set of its items),
-   defined by a small package below the views, which every view reads.
-   Frames stay per view (or per frame type, if two views ever share
-   one).  Either way the direction of the dependencies turns round:
-   the views become low packages (on `web`, `ui`, `cache`), and the
-   data packages, as providers, sit above them.
+A small variation on the idea of displaying the selection in views is
+to display all subjects, with the selection highlighted.  Currently
+`calendar --all` is the only view that does this, but it could be a
+common mode across views.  In the short term, for consistency,
+`calendar --all` could be dropped.
