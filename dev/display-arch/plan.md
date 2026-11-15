@@ -126,8 +126,32 @@ the database must be made again.
 * Visible: `--layers` is `--frames`; the map looks the same.  Rebuild: no.
 * 3b (optional, any time after): **a global heat map** frame from `activities` that reads no selection.
 
+### Step 3c: the fixes from the review after step 3
+
+From `review-after-step-3-findings.md` (2026-11-14; the numbers are its findings).  Before step 4, because the keys and the
+one read transaction need the first.
+
+* **Frames do not write** (2): the climbs frames stop calling `ensureClimbs` (the import works the climbs out); a frame that
+  finds activities whose climbs are not worked out says so in a note.  Then all the frames of a map are made in **one read
+  transaction**.  (If the author prefers the map to keep working out climbs: an optional `prepare` on `MapFrame`, run for
+  all the chosen frames before the transaction.)
+* **The declarations** (3): `climbTables` holds what the frames read (it shrinks once they do not write; else it gains
+  `route_cell`), and the recording ignores SpatiaLite's `spatial_ref_sys` as it ignores the `idx_` tables.
+* **An empty frame is a note, not a failure** (5): a selection with no routes still draws the other frames; the check that
+  the selection is not empty only when a chosen frame reads it.
+* **Registry tests** (6): every frame's subject is a registered subject, frame names are unique within a subject, and
+  style groups do not collide.
+* **The tidy** (7, 8): the dead `Prepared` in `map/command.nim`; `choose` returns a parsed value, not `""` for "fine";
+  `fmt` in the new messages; `db` out of `map`'s `depends`; the insert of `db/versions.nim` binds its value; "1 of the 3
+  activities have"; `NOTICE` (`nch heatmap --web`), the comment in `page.html` on `map-style.json`, "newer than" in the
+  documentation of `map/command.nim`.
+* Visible: a map with an empty frame draws the rest.  Rebuild: no.
+
 ### Step 4: caching, if measurement asks for it
 
+* **Every frame's file is named by its key, cached or not** (review finding 4): with names by subject and frame, another
+  tab or `nch map --file` can overwrite a file between the worker making it and the page fetching it, so a page could mix
+  two selections.
 * Measure as in step 0.  Agree a threshold with the author (D6); only frames slower than it are cached.
 * A cached frame's file is named by its key: `frameKey(database identity, build, view/subject/frame, the selection's key
   if it reads the selection, tablesKey(its declared tables))`, first 16 hex digits; a file that is there is used.
@@ -142,6 +166,11 @@ the database must be made again.
 
 ### Step 6: the climbs subject
 
+* **A design choice first** (review finding 1): the page script (`map/page.html`) and `map/lines.nim` still know every kind
+  of frame (route, climb, heat, effort, gate) and read each provider's style by name, so a new frame means editing `map`.
+  Options: (a) each provider ships its drawing, a script template beside its style, and `lines.nim`'s types move to the
+  providers; (b) a declarative style the page draws generically; (c) keep it and document that a new frame edits `map`.
+  The review recommends (a).
 * Decision D4 first: what `nch climbs` lists (the climbs selection) and what that selection is after an import and when
   nothing has been selected.
 * A selection of climbs (a table of `climbs`, per user, like `selection`); `nch climbs` with criteria and `--select`, like
