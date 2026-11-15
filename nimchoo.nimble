@@ -66,7 +66,8 @@ task prod,
     else:
       ""
   let dirty = if changesCode == 0 and changes.strip.len > 0: " -d:nchDirty" else: ""
-  exec "nim c -d:release -d:ssl" & commit & dirty & " --hints:off -o:nch src/nch.nim"
+  let built = " -d:nchBuilt=" & gorgeEx("date +%s").output.strip
+  exec "nim c -d:release -d:ssl" & commit & dirty & built & " --hints:off -o:nch src/nch.nim"
 
 task testdebug, "Run all tests as a debug build (slower; for tracking down a failure)":
   exec "nimble registry"

@@ -12,14 +12,21 @@
 ##   description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
 ##   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
 ##   so this package may run a condition that reads tables it does not.
+## * **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with the key of the user's
+##   selection.
 ## * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).
 
-import ../../core/manifest
-import ./[command, criterion]
+import ../../core/[extension, manifest]
+import ./[command, criterion, subject]
+
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[subject.contribution()]
 
 const package* = Package(
-  depends:
-    @["args", "confirm", "db", "fit", "fold", "importer", "selection", "ui", "user"],
+  depends: @[
+    "args", "confirm", "db", "fit", "fold", "importer", "selection", "subject", "ui",
+    "user",
+  ],
   commands: @[
     CommandDecl(
       name: command.commandName,
@@ -28,6 +35,7 @@ const package* = Package(
       options: command.options,
     )
   ],
+  contributes: contributions,
   defines: @[
     PointDecl(
       name: activityCriterion.name,

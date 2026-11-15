@@ -18,14 +18,16 @@ export ids
 import ../../core/globals
 import ../../core/fragment as coreFragment
 import ../../core/[access as coreAccess, ownership]
-import ./[access, fragment, functions]
+import ./[access, fragment, functions, versions]
 import ./statement
 export db_sqlite.DbConn, fragment, coreFragment
 
 {.push raises: [].}
 
-const baseFragments* =
-  @[fragment("001-schema.sql")] ## the database's own, applied first, always
+const baseFragments* = @[
+  fragment("001-schema.sql"),
+  fragment("002-versions.sql").withSeed(seedIdentity, "identity-1"),
+] ## the database's own, applied first, always
 
 type
   ConnObj = object
@@ -216,6 +218,7 @@ proc openStore*(
       # big import then spends about half as long on checkpoints (measured), and the log stays small
       result.db.execScript("pragma wal_autocheckpoint = 20000")
     bringUpToDate(result.db, fragments)
+    ensureCounters(result.db, baseFragments & fragments)
   except StoreError:
     close(result)
     raise

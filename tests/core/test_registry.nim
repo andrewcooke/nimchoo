@@ -273,11 +273,11 @@ suite "extension points":
         ]
       )
 
-  test "the real registry defines five points, and every contribution is to one of them":
+  test "the real registry defines six points, and every contribution is to one of them":
     check generated.points.mapIt(it.point.name).sorted ==
       @[
-        "activities/criteria", "importer/after", "importer/steps", "user/has",
-        "web/pages",
+        "activities/criteria", "importer/after", "importer/steps", "subject/subjects",
+        "user/has", "web/pages",
       ]
     for name in generated.extensions.points:
       check name in generated.points.mapIt(it.point.name)

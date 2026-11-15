@@ -28,7 +28,13 @@
 ## * **Functions of our own in SQL** (`functions.nim`, registered in every connection, also a read-only one): `fold(text)` and
 ##   the grid of cells (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
 ##   so that SQL and Nim cannot compute a cell differently.  Deterministic, so they may be used in an index.
-## * The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
+## * **Versions** (`versions.nim`, fragment `002-versions.sql`): the database has a random identity (`database_identity`, made when it is
+##   created) and every table a package owns has a counter in `table_version`, increased by triggers after each insert, update and
+##   delete (made here for every owned table that exists, so a new table gets them without anyone writing them).  A key made from
+##   the counters of the tables a view reads changes when any is written (`subject/keys`).  `startRecording` and `stopRecording`
+##   (`access.nim`) note the tables the authorizer sees read, so that a test can check what a view declares it reads.  Measured: the
+##   triggers add about 1% to an import of 1,113 rides (17.6 s to 17.8 s, three runs each).
+## * The `db` package owns the tables `fragment`, `database_identity` and `table_version`, and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
 ##   where the database is and how big; `nch db --delete -f` deletes it.
 
 import ../../core/manifest

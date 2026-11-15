@@ -32,6 +32,7 @@
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
+## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of, and the keys that say whether a frame is still current.
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
 ## * `ui <packages/ui/package.html>`_ - How the program looks: units, intervals, colours, tables and the live display.
 ## * `user <packages/user/package.html>`_ - The users, and which one a command works for.
@@ -62,6 +63,7 @@ import ./packages/map/package as pkgMap
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
 import ./packages/selection/package as pkgSelection
+import ./packages/subject/package as pkgSubject
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/templating/package as pkgTemplating
 import ./packages/ui/package as pkgUi
@@ -100,6 +102,8 @@ other views (`climbs`, `map`, `calendar`) take the selection.
   description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
   so this package may run a condition that reads tables it does not.
+* **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with the key of the user's
+  selection.
 * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).""",
     ),
     Registered(
@@ -207,7 +211,13 @@ the pause (`pause`).  The line that says what was deleted is here too.""",
 * **Functions of our own in SQL** (`functions.nim`, registered in every connection, also a read-only one): `fold(text)` and
   the grid of cells (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
   so that SQL and Nim cannot compute a cell differently.  Deterministic, so they may be used in an index.
-* The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
+* **Versions** (`versions.nim`, fragment `002-versions.sql`): the database has a random identity (`database_identity`, made when it is
+  created) and every table a package owns has a counter in `table_version`, increased by triggers after each insert, update and
+  delete (made here for every owned table that exists, so a new table gets them without anyone writing them).  A key made from
+  the counters of the tables a view reads changes when any is written (`subject/keys`).  `startRecording` and `stopRecording`
+  (`access.nim`) note the tables the authorizer sees read, so that a test can check what a view declares it reads.  Measured: the
+  triggers add about 1% to an import of 1,113 rides (17.6 s to 17.8 s, three runs each).
+* The `db` package owns the tables `fragment`, `database_identity` and `table_version`, and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
   where the database is and how big; `nch db --delete -f` deletes it.""",
     ),
     Registered(
@@ -384,6 +394,14 @@ It is what `climbs`, `map`, `calendar` and the like use.
 * **The selection** is a scratchpad in the database (table `selection`).  It belongs to one user, and is replaced whenever
   `activities --select` is given or an import adds activities.  A view shows the selection as it is when the view is made.
 * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).""",
+    ),
+    Registered(
+      name: "subject",
+      package: pkgSubject.package,
+      summary:
+        "Subjects: what the views are views of, and the keys that say whether a frame is still current.",
+      doc:
+        """Subjects: what the views are views of, and the keys that say whether a frame is still current.""",
     ),
     Registered(
       name: "fold",

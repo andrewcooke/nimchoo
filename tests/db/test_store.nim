@@ -98,11 +98,12 @@ suite "database: opening and bringing the schema up to date":
     names = s.db.query(string, "select name from fragment order by name")
     check names ==
       @[
-        "climbs/001-schema.sql", "db/001-schema.sql", "heartrate/001-schema.sql",
-        "heartrate/002-series.sql", "heartrate/003-drop-rows.sql",
-        "importer/001-schema.sql", "importer/002-track.sql",
-        "importer/003-drop-coords.sql", "model/001-schema.sql", "names/001-schema.sql",
-        "selection/001-schema.sql", "user/001-schema.sql",
+        "climbs/001-schema.sql", "db/001-schema.sql", "db/002-versions.sql",
+        "heartrate/001-schema.sql", "heartrate/002-series.sql",
+        "heartrate/003-drop-rows.sql", "importer/001-schema.sql",
+        "importer/002-track.sql", "importer/003-drop-coords.sql",
+        "model/001-schema.sql", "names/001-schema.sql", "selection/001-schema.sql",
+        "user/001-schema.sql",
       ]
     s.close()
 
@@ -174,7 +175,7 @@ suite "database: opening and bringing the schema up to date":
     let b = open(path)
     check b.userId == id
     check b.count("user") == 1
-    check b.count("fragment") == 12
+    check b.count("fragment") == 13
     b.close()
 
   test "the directory is created":
@@ -357,7 +358,7 @@ suite "database: fragments":
     openStore(path, @[one]).close()
     let s = openStore(path, @[one, frag("m/002.sql", "create table u(y);")])
     check s.count("u") == 0
-    check s.count("fragment") == 3
+    check s.count("fragment") == 4
     s.close()
 
   test "a fragment that fails is rolled back completely":
@@ -368,7 +369,7 @@ suite "database: fragments":
     # nothing of it remains, so a corrected fragment of that name applies
     let s = openStore(path, @[frag("m/001.sql", "create table ok1(x);")])
     check s.count("ok1") == 0
-    check s.count("fragment") == 2
+    check s.count("fragment") == 3
     s.close()
 
   test "the error says which fragment":
@@ -383,7 +384,8 @@ suite "database: fragments":
     for path in walkDirRec("src/nimchoo"):
       if path.endsWith(".sql"):
         onDisk.incl path.parentDir.lastPathPart & "/" & path.extractFilename
-    var listed = toHashSet(["db/001-schema.sql"]) # the database's own
+    var listed = toHashSet(["db/001-schema.sql", "db/002-versions.sql"])
+      # the database's own
     for f in allFragments:
       listed.incl f.name
     check onDisk == listed

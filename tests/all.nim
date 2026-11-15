@@ -6,6 +6,7 @@ import ./support/env, ./support/timing
 import
   ./core/test_access,
   ./db/test_access,
+  ./db/test_versions,
   ./db/test_orders,
   ./core/test_registry,
   ./core/test_inventory,
@@ -19,6 +20,7 @@ import
   ./test_introspect,
   ./test_completion
 import ./cache/test_cache
+import ./subject/[test_keys, test_subjects]
 import ./util/zip/test_zipbytes
 import ./util/zip/test_fuzz as zipFuzz
 import ./util/xlsx/test_xlsx

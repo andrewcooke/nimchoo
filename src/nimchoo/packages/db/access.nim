@@ -7,7 +7,7 @@
 ## the connection's pointer from SQLite, and the statement helpers get nothing but the connection.  It is set
 ## around a `prepare` and cleared after, so it never outlives one call.
 
-import std/[os, options]
+import std/[algorithm, os, options, strutils]
 import db_connector/db_sqlite
 from db_connector/sqlite3 import set_authorizer, SQLITE_OK, SQLITE_READ, SQLITE_INSERT
 import ../../core/access
@@ -38,6 +38,9 @@ var
   denial {.threadvar.}: string ## why the authorizer refused the last one
   written {.threadvar.}: seq[string]
     ## the tables the statement being prepared writes directly
+  recording {.threadvar.}: bool
+    ## whether the tables read are being noted (`startRecording`)
+  readTables {.threadvar.}: seq[string] ## the tables read since `startRecording`
 
 proc packageOfFile*(file: string): string {.compileTime.} =
   ## The package a source file belongs to: its name is the name of the nearest directory above the file that has
@@ -52,6 +55,10 @@ proc authorize(
     user: pointer, action: int32, arg1, arg2, database, trigger: cstring
 ): int32 {.cdecl, raises: [].} =
   let rules {.cursor.} = cast[Access](user)
+  if recording and action == SQLITE_READ and trigger.isNil and not arg1.isNil and
+      (database.isNil or $database != "temp") and $arg1 notin readTables and
+      not ($arg1).startsWith("sqlite_"):
+    readTables.add $arg1
   if caller.len == 0 or not trigger.isNil:
     # (what a trigger does is the database's own business)
     return sqliteOk
@@ -109,3 +116,16 @@ proc leave*(): string {.raises: [].} =
   ## The statement is prepared; why the authorizer refused it, "" if it did not.
   caller = ""
   denial
+
+proc startRecording*() {.raises: [].} =
+  ## Note the tables that the statements prepared from now on read (for a test of what a view reads: the authorizer sees
+  ## each one).  Only on this thread, and only while the connection has access rules.  What a trigger reads is not noted, and
+  ## neither are SQLite's own tables and the temporary ones.
+  recording = true
+  readTables.setLen 0
+
+proc stopRecording*(): seq[string] {.raises: [].} =
+  ## The tables read since `startRecording`, sorted, each once; the noting stops.
+  recording = false
+  result = readTables.sorted
+  readTables.setLen 0
