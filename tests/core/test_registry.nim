@@ -94,9 +94,9 @@ suite "the commands of the packages":
 suite "the generated registry":
   let source = "src" / "nimchoo"
 
-  test "the registry on disk is the one the generator would write":
+  test "the registry on disk is the one the generator would write, formatted":
     check readFile(source / "registry.nim") ==
-      registryText(findPackages(source / "packages"))
+      formatted(registryText(findPackages(source / "packages")))
 
   test "the packages in the registry are the packages on disk, in dependency order":
     check generated.packages.names.sorted ==

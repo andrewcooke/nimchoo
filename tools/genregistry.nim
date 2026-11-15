@@ -1,6 +1,7 @@
 ## Writes `src/nimchoo/registry.nim`: the list of the packages found under `src/nimchoo/packages/`.  Run by
 ## the nimble tasks (`nimble registry`), because Nim does not notice a new directory by itself.  A test
-## makes the text again and compares it with the file, so a stale registry fails the tests.
+## makes the text again and compares it with the file, so a stale registry fails the tests.  The text is formatted by
+## `nph` before it is written (`formatted`), so that the file is the same after `nimble registry` as after `nimble fmt`.
 ##
 ## A package is a directory that holds `package.nim`; its name is the name of that directory.  Here are
 ## only the checks of the layout (no package inside another, no name twice, a `##` comment that documents the
@@ -11,7 +12,7 @@
 ## its text in the registry (`nch packages` shows it) and writes the front page of the documentation, which lists the
 ## packages with the first line of each.
 
-import std/[algorithm, os, sequtils, strutils]
+import std/[algorithm, os, osproc, sequtils, strutils]
 
 const maxSummary* = 100 ## the longest first line of a package's documentation
 
@@ -146,10 +147,26 @@ func registryText*(found: seq[Found]): string =
   result.add "\nproc newAllAccess*(mode: AccessMode): Access =\n  ## The access rules for all the packages, in this `mode`.\n  try:\n    result = accessOf(packages, baseFragments & allFragments, mode)\n  except PackageError as e:\n    raiseAssert e.msg\n\nlet allAccess*: Access = newAllAccess(amEnforce)\n  ## the rules `nch` and the tests run under\n"
   result.add "\nlet extensions*: Extensions = collectExtensions(packages)\n  ## what the packages contribute to each other (made when `nch` starts)\n"
 
+proc formatted*(text: string): string {.raises: [OSError, IOError].} =
+  ## The text as `nph` writes it (it formats files, not text, so a file of its own in the temporary directory).
+  let dir = getTempDir() / ("nch-genregistry-" & $getCurrentProcessId())
+  createDir(dir)
+  defer:
+    removeDir(dir)
+  let path = dir / "registry.nim"
+  writeFile(path, text)
+  let (output, code) = execCmdEx("nph " & quoteShell(path))
+  if code != 0:
+    raise newException(OSError, "nph failed: " & output.strip)
+  readFile(path)
+
 when isMainModule:
   let source = currentSourcePath().parentDir.parentDir / "src" / "nimchoo"
   try:
-    writeFile(source / "registry.nim", registryText(findPackages(source / "packages")))
+    writeFile(
+      source / "registry.nim",
+      formatted(registryText(findPackages(source / "packages"))),
+    )
   except CatchableError as e:
     stderr.writeLine "genregistry: " & e.msg
     quit 1
