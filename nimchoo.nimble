@@ -81,14 +81,13 @@ task fuzzlong,
     putEnv("NCH_FUZZ_ROUNDS", "1500")
   exec "nim c -r -d:release --checks:on --hints:off tests/fit/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/importer/test_fuzz.nim"
-  exec "nim c -r -d:release --checks:on --hints:off tests/selection/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/util/zip/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/util/xlsx/test_fuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/fit/test_profilefuzz.nim"
   exec "nim c -r -d:release --checks:on --hints:off tests/web/test_fuzz.nim"
 
 task fuzz,
-  "Level-2 fuzzing, coverage-guided (needs clang): nimble fuzz TARGET [SECONDS] (fit importer bits zip xlsx profile request); not part of nimble test":
+  "Level-2 fuzzing, coverage-guided (needs clang): nimble fuzz TARGET [SECONDS] (fit importer zip xlsx profile request); not part of nimble test":
   var args: seq[string]
   var seen = false
   for i in 1 .. paramCount():

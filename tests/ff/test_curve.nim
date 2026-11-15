@@ -13,7 +13,7 @@ import nimchoo/packages/ff/curve
 import nimchoo/packages/ff/params
 import nimchoo/packages/util/args/args
 import nimchoo/packages/ff/command as ffCommand
-import nimchoo/packages/model/[calc, impulses, models]
+import nimchoo/packages/model/calc
 
 proc near(a, b: float, eps = 1e-9): bool =
   abs(a - b) <= eps
@@ -159,14 +159,15 @@ suite "ff: the rows":
       ]
 
 suite "nch ff":
-  test "a file in the cache, made once from the same data; --stdout prints; errors are reported":
+  test "a file in the cache, named by the options and made again each time; --stdout prints; errors are reported":
     let path = getTempDir() / "nch-test-ff.db"
     let cache = getTempDir() / "nch-test-ff-cache"
     removeFile(path)
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
     let g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
-    check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure # nothing yet
+    check ffCommand.run(g, @["--to", "2018-09-05", "--file"]) == exitFailure
+      # nothing yet
     let s = openSession(path, allFragments, access = allAccess)
     var ws: seq[Warning]
     discard s.importFile(
@@ -176,7 +177,7 @@ suite "nch ff":
       ws,
       @[heartrateStep],
     )
-    check ffCommand.run(g, @["--to", "2018-09-05"]) == exitFailure
+    check ffCommand.run(g, @["--to", "2018-09-05", "--file"]) == exitFailure
       # (no FTHR: refused, with a reason)
     s.db.execute(
       "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId
@@ -184,13 +185,13 @@ suite "nch ff":
     s.close()
     check not dirExists(cache / "user")
       # (nothing made yet; the database has unpacked its list of places)
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--file"]) == exitOk
     var files: seq[string]
     for f in walkFiles(cache / "user" / "*.csv"):
       files.add f
     check files.len == 1
     let name = extractFilename(files[0])
-    check name.startsWith("ff-") and name.endsWith(".csv")
+    check name == "ff-default-to-2018-09-05-utc.csv"
     let first = readFile(files[0])
     check first.startsWith("time,fitness,fatigue\n2018-08-27,")
     let t = openSession(path, allFragments, access = allAccess)
@@ -198,88 +199,42 @@ suite "nch ff":
       # (worked out by the command)
     t.db.execute("delete from impulse")
     t.close()
-    # the same request again finds the file, and does not work the impulses out again
+    # the same request again makes the file again, from the data as they are, and works the impulses out again
     writeFile(files[0], "marker")
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--worker"]) == exitOk
-      # (a program: nothing more is done)
-    check readFile(files[0]) == "marker"
-    let u = openSession(path, allFragments, access = allAccess)
-    check u.db.scalar(int, "select count(*) from impulse") == 0
-    u.close()
-    # at a terminal the latest values are worked out as well, which needs the impulses
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
-    check readFile(files[0]) == "marker" # (the file is still not made again)
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--file"]) == exitOk
+    check readFile(files[0]) == first
     let u2 = openSession(path, allFragments, access = allAccess)
     check u2.db.scalar(int, "select count(*) from impulse") == 2
     u2.close()
     # other options, other files
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--hourly"]) == exitOk
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--fatigue-scale", "5"]) ==
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--hourly", "--file"]) ==
       exitOk
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--from", "2018-08-28"]) ==
-      exitOk
+    check ffCommand.run(
+      g, @["--to", "2018-09-05", "--utc", "--fatigue-scale", "5", "--file"]
+    ) == exitOk
+    check ffCommand.run(
+      g, @["--to", "2018-09-05", "--utc", "--from", "2018-08-28", "--file"]
+    ) == exitOk
     var n = 0
     for f in walkFiles(cache / "user" / "*.csv"):
       inc n
     check n == 4
-    # a different FTHR is different data: a new file
+    # a different FTHR is different data: the same file, with other values
     let v = openSession(path, allFragments, access = allAccess)
     v.db.execute("update user_profile set fthr = 160")
     v.close()
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
+    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--file"]) == exitOk
     n = 0
     for f in walkFiles(cache / "user" / "*.csv"):
       inc n
-    check n == 5
-    check readFile(files[0]) == "marker"
+    check n == 4
+    check readFile(files[0]) != first
     # --stdout makes no file
     check ffCommand.run(g, @["--to", "2018-09-06", "--utc", "--stdout"]) == exitOk
     n = 0
     for f in walkFiles(cache / "user" / "*.csv"):
       inc n
-    check n == 5
-    check ffCommand.run(g, @["--model", "nope"]) == exitFailure
+    check n == 4
+    check ffCommand.run(g, @["--model", "nope", "--file"]) == exitFailure
     check ffCommand.run(g, @["--to", "x"]) == exitUsage
-    useTestCache()
-
-suite "nch ff: the key":
-  test "--state asks for a file by the state of its data; an old key can not be made again":
-    let path = getTempDir() / "nch-test-ff-key.db"
-    let cache = getTempDir() / "nch-test-ff-key-cache"
-    removeFile(path)
-    removeDir(cache)
-    putEnv("NCH_CACHE", cache)
-    let g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
-    let s = openSession(path, allFragments, access = allAccess)
-    var ws: seq[Warning]
-    discard s.importFile(
-      loadProfile("../choochoo/data/sdk/Profile.xlsx"),
-      "r.fit",
-      readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"),
-      ws,
-      @[heartrateStep],
-    )
-    s.db.execute(
-      "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId
-    )
-    s.close()
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc"]) == exitOk
-    let u = openSession(path, allFragments, access = allAccess)
-    let key = inputKey(u.db, u.userId, findModel(u.db, "default").get)
-    u.close()
-    check key.len == 12
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key]) == exitOk
-      # the current data
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", "ffffffffffff"]) ==
-      exitFailure # not made, not current
-    check ffCommand.run(
-      g, @["--to", "2018-09-05", "--utc", "--state", "ffffffffffff", "--stdout"]
-    ) == exitFailure
-    # a file that was made stays available under its key after the data change
-    let t = openSession(path, allFragments, access = allAccess)
-    t.db.execute("update user_profile set fthr = 160")
-    t.close()
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key]) == exitOk
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--state", key, "--hourly"]) ==
-      exitFailure # (that one was never made)
     useTestCache()

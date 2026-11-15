@@ -1,4 +1,4 @@
-## `nch map --web` as a real program: started as a subprocess on a fixture database,
+## `nch map` (which serves the page) as a real program: started as a subprocess on a fixture database,
 ## on any free port, and asked for things over plain HTTP.  Needs a built ./build/nch-test (the
 ## `test` task builds it); without one these tests are skipped.
 
@@ -66,7 +66,7 @@ proc start(
   ## prints.  If it stops instead, `output` is what it said and `web.process` is finished.
   let p = startProcess(
     exe,
-    args = @["--db", db, "map", "--web", "--no-open", "--port", "0"] & extra,
+    args = @["--db", db, "map", "--no-open", "--port", "0"] & extra,
     env = environment(cache),
     options = {poStdErrToStdOut},
   )
@@ -99,15 +99,15 @@ proc client(cookie = "", host = ""): HttpClient =
 proc built(): bool =
   fileExists(exe)
 
-suite "nch map --web: a real server":
-  test "the address, the cookie, the pinned page, the data":
+suite "nch map: a real server":
+  test "the address, the cookie, the page, the data":
     if not built():
       skip()
     let f = fixture("flow")
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
     check output.contains("http://localhost:")
-    check w.url.contains("/map?selection=") and w.url.contains("&state=")
+    check w.url.contains("/map?layers=routes,climbs&token=")
     check w.token.len == 32
     # the printed address: the token is traded for a cookie
     let c = client()
@@ -117,7 +117,7 @@ suite "nch map --web: a real server":
       "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
     )
     let pinned = $r1.headers["Location"]
-    check pinned.startsWith("/map?selection=") and not pinned.contains("token")
+    check pinned == "/map?layers=routes%2Cclimbs" # (the look, not the data)
     # with the cookie: the page, which asks for the data
     let withCookie = client(w.token)
     let page = withCookie.request(w.base & pinned)
@@ -129,11 +129,9 @@ suite "nch map --web: a real server":
     check data.code == Http200
     check $data.headers["Content-Type"] == "application/geo+json"
     check parseJson(data.body)["features"].len == 2
-    # no address with only the selection key: pinned again
+    # an address without options is the defaults, and is served as it is (nothing is pinned)
     let again = withCookie.request(w.base & "/map")
-    check again.code == Http302
-    check pinned.startsWith($again.headers["Location"])
-      # (the key; the defaults are not repeated)
+    check again.code == Http200
     check dirExists(f.cache / "user") and dirExists(f.cache / "system")
     check fileExists(f.cache / "server-token")
       # (the token is at the top, not in what is served)
@@ -163,8 +161,9 @@ suite "nch map --web: a real server":
     let c = client(w.token)
     for path in [
       "/", "/destroy", "/import?x=1", "/list?save=1", "/map?worker=1",
-      "/map?db=/etc/passwd", "/files/server-token", "/files/..%2fx.geojson",
-      "/files/%2e%2e%2fserver-token", "/files/nope.geojson",
+      "/map?db=/etc/passwd", "/map?selection=AB", "/map?state=ab12cd",
+      "/files/server-token", "/files/..%2fx.geojson", "/files/%2e%2e%2fserver-token",
+      "/files/nope.geojson",
     ]:
       check c.request(w.base & path).code == Http404
     check c.request(w.base & "/map", httpMethod = HttpPost, body = "x").code in
@@ -193,11 +192,11 @@ suite "nch map --web: a real server":
       skip()
     let f = fixture("renew")
     let (w1, _) = start(f.db, f.cache)
-    check client(w1.token).request(w1.base & "/map").code == Http302
+    check client(w1.token).request(w1.base & "/map").code == Http200
     check w1.stop() == 130
     let (w2, _) = start(f.db, f.cache, @["--new-token"])
     check client(w1.token).request(w2.base & "/map").code == Http403
-    check client(w2.token).request(w2.base & "/map").code == Http302
+    check client(w2.token).request(w2.base & "/map").code == Http200
     check w2.stop() == 130
 
   test "nothing to show: it says so in the terminal and does not start":
@@ -219,7 +218,7 @@ suite "nch map --web: a real server":
     let port = w.base.split(':')[^1]
     let p = startProcess(
       exe,
-      args = @["--db", f.db, "map", "--web", "--no-open", "--port", port],
+      args = @["--db", f.db, "map", "--no-open", "--port", port],
       env = environment(f.cache),
       options = {poStdErrToStdOut},
     )

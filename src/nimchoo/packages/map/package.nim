@@ -1,8 +1,8 @@
 ## The selected activities on a map: their routes, the climbs on them, and where they went most (heat).
 ##
 ## `nch map` makes everything itself: no layer commands, no layer index.  `--layers routes,climbs,heat` (default routes,climbs)
-## says what is drawn: the layers are a set of the address (`layers=`), named in the file's name, and only what is drawn is an
-## input of the state (a change to the climbs does not touch a heat map, and a heat map does not work the climbs out).  A GeoJSON
+## says what is drawn: the layers are a set of the address (`layers=`), named in the file's name (`map-routes-climbs.geojson`; made
+## again on every request: a map is a live view of the selection, and a bookmark keeps the layers and not the data).  A GeoJSON
 ## file in the cache holds the features (each says what it is, in `kind`: route, climb or heat, and nothing about how it looks)
 ## and a page (Leaflet) decides the look.  **The heat** is squares of the grid of `geo/cells.nim` from the table `route_cell`
 ## (`importer`), counted over the selected activities at three levels (cells of about 100 m, 870 m and 7 km: `level`), with
@@ -11,8 +11,8 @@
 ## `gates` draws the start and finish line of each climb the activities went up (the lines a ride has to cross: `climbs/match.nim`
 ## `gateLines`, the same gates `overPaths` uses), `efforts` the part of each ride between the stored start and finish time of its
 ## efforts, thick, with a green dot where it starts and a red one where it finishes; where a ride crosses a gate twice (a
-## switchback near it) the dots show which crossing the effort used.  `--web` serves the page on localhost (`web`); the address carries the
-## activities: `/map?selection=LIST&layers=LIST&state=HASH` (see `selection`).
+## switchback near it) the dots show which crossing the effort used.  The page is served on localhost (`web`; `--file` makes the files only, and prints their paths); the address
+## is `/map?layers=LIST`.
 ##
 ## **The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
 ## overwritten once changed; delete a file to get the built-in one): `map.html` (the page and its script), `map.css` (the look
@@ -31,8 +31,8 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 
 const package* = Package(
   depends: @[
-    "args", "atomic", "bundle", "cache", "climbs", "db", "fit", "geo", "hashing",
-    "importer", "selection", "templating", "ui", "user", "web",
+    "args", "atomic", "bundle", "cache", "climbs", "db", "fit", "geo", "importer",
+    "selection", "templating", "ui", "user", "web",
   ],
   commands: @[
     CommandDecl(

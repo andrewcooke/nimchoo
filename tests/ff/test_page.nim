@@ -82,23 +82,26 @@ suite "ff: the template is a file":
     check renderPage("{{data}}", @[], csv, "t", false) == some(csv)
     check renderPage("{{data}}", @[], "x.geojson", "t", false).isNone
 
-suite "ff: --worker, --web and the address":
+suite "ff: --file, --worker, serving and the address":
   test "options":
-    let p = parseArgs(@["--web", "--no-open", "--port", "0", "--new-token"])
+    let p = parseArgs(@["--no-open", "--port", "0", "--new-token"])
     check p.problem == "" and p.params.web.kind == wkServe and p.params.web.noOpen and
       p.params.web.newToken and p.params.web.port == 0
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
-    check parseArgs(@["--state", "ab12cd"]).params.state == some("ab12cd")
-    check parseArgs(@["--state", "a b"]).problem.contains("not a hash")
-    check parseArgs(@["--state"]).problem.contains("needs a value")
-    check parseArgs(@[]).params.web.kind == wkNone
+    check parseArgs(@["--file"]).params.web.kind == wkFile
+    check parseArgs(@[]).params.web.kind == wkServe # (the chart is the default)
+  test "--state and --web are gone":
+    check parseArgs(@["--state", "ab12cd"]).problem.contains("unexpected")
+    check parseArgs(@["--web"]).problem.contains("unexpected")
   test "problems":
-    check parseArgs(@["--web", "--worker"]).problem.contains("cannot be used together")
-    check parseArgs(@["--web", "--stdout"]).problem.contains("--stdout")
+    check parseArgs(@["--file", "--worker"]).problem.contains("cannot be used together")
+    check parseArgs(@["--file", "--stdout"]).problem.contains("--stdout")
     check parseArgs(@["--worker", "--stdout"]).problem.contains("--stdout")
-    check parseArgs(@["--no-open"]).problem.contains("go with --web")
-    check parseArgs(@["--port", "1"]).problem.contains("go with --web")
-    check parseArgs(@["--web", "--port", "70000"]).problem.contains("port number")
+    check parseArgs(@["--stdout", "--no-open"]).problem.contains("--stdout")
+    check parseArgs(@["--file", "--no-open"]).problem.contains("for serving the page")
+    check parseArgs(@["--file", "--port", "1"]).problem.contains("for serving the page")
+    check parseArgs(@["--port", "70000"]).problem.contains("port number")
+    check parseArgs(@["--stdout"]).problem == ""
   test "the address says what was asked for, not the defaults":
     check webQuery(parseArgs(@[]).params) == ""
     check webQuery(

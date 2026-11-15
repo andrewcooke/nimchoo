@@ -27,7 +27,6 @@ import ./util/zip/test_zipchild
 import ./util/child/test_child
 import ./text/templating/test_templating
 import ./util/version/test_version
-import ./text/proquint/test_proquint
 import ./util/atomic/test_atomic
 import ./geo/[test_geo, test_cells]
 import
@@ -78,8 +77,7 @@ import ./importer/test_command as importCommandTests
 import ./importer/test_params
 import ./importer/test_display
 import ./importer/test_logsink
-import
-  ./selection/[test_bits, test_imported, test_selection, test_fuzz as selectionFuzz]
+import ./selection/[test_imported, test_selection]
 import ./activities/test_ranges
 import ./activities/test_criteria
 import ./activities/test_completion as sportCompletion

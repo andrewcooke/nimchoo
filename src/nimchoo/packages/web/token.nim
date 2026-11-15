@@ -1,5 +1,5 @@
 ## The server's secret: 128 random bits as 32 hex digits, kept in a file in the cache
-## directory that only the user can read.  The URL that `--web` opens carries it once;
+## directory that only the user can read.  The URL that a command with a page opens carries it once;
 ## the browser then keeps it in a cookie (see handler.nim), so bookmarks keep working
 ## across runs.  `renew` makes a new one (the old cookies stop working).
 

@@ -8,14 +8,13 @@ import ../support/zones
 proc at(y: int, m: Month, d: int, h = 12, min = 0): int64 =
   dateTime(y, m, d, h, min, 0, 0, utc()).toTime.toUnix
 
-proc row(t: int64, selected = false): ListRow =
+proc row(t: int64): ListRow =
   ListRow(
     startT: UnixTime(t),
     sport: "cycling",
     file: "f.fit",
     user: "default",
     path: "/x/f.fit",
-    selected: selected,
   )
 
 let colourScreen = Screen(colour: true)
@@ -82,20 +81,20 @@ suite "calendar: the layout":
 suite "calendar: colours and marks":
   let rs = @[
     row(at(2018, mAug, 27)),
-    row(at(2018, mAug, 28), selected = true),
+    row(at(2018, mAug, 28)),
     row(at(2018, mAug, 29)),
-    row(at(2018, mAug, 29), selected = true),
+    row(at(2018, mAug, 29)),
   ]
-  test "white: listed; blue: listed and selected; grey: none":
+  test "blue: listed; grey: none":
     let aug = calendarLines(rs, utc(), false, colourScreen).monthRow("Aug")
-    check aug.cellOf(2 + 26).look.colour == white # the 27th
-    check aug.cellOf(2 + 27).look.colour == blue # the 28th: selected
-    check aug.cellOf(2 + 28).look.colour == blue # the 29th: two activities, one selected
+    check aug.cellOf(2 + 26).look.colour == blue # the 27th
+    check aug.cellOf(2 + 27).look.colour == blue # the 28th
+    check aug.cellOf(2 + 28).look.colour == blue # the 29th: two activities
     check aug.cellOf(2 + 25).look.colour == grey # the 26th: nothing
     check aug.cellOf(2).look.colour == grey # the 1st
   test "without colour the cells are 5 wide and marked":
     let aug = calendarLines(rs, utc(), false, plainScreen).monthRow("Aug")
-    check aug.cellOf(2 + 26).text == "  27 "
+    check aug.cellOf(2 + 26).text == " [27]"
     check aug.cellOf(2 + 27).text == " [28]"
     check aug.cellOf(2 + 25).text == "  -- "
     check aug.cellOf(0).text == "     "
@@ -179,13 +178,13 @@ suite "calendar: time zones":
         @[row(t)], fixedZone("+10", 10 * 3600), false, colourScreen
       )
       .monthRow("Aug")
-    check east.cellOf(2 + 27).look.colour == white and
+    check east.cellOf(2 + 27).look.colour == blue and
       east.cellOf(2 + 26).look.colour == grey
     let west = calendarLines(
         @[row(t)], fixedZone("-03", -3 * 3600), false, colourScreen
       )
       .monthRow("Aug")
-    check west.cellOf(2 + 26).look.colour == white and
+    check west.cellOf(2 + 26).look.colour == blue and
       west.cellOf(2 + 27).look.colour == grey
   test "near the end of a month, the month changes with the zone":
     let t = at(2018, mAug, 31, 20) # 06:00 on 1 September at +10

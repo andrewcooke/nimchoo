@@ -76,12 +76,3 @@ proc selectionRows*(st: Session, verbose: bool): seq[ListRow] {.raises: [StoreEr
       " from selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id " &
       "where s.user_id = :owner order by a.start_t, a.id".sqlOf.with("owner", st.userId),
   )
-
-proc allRows*(st: Session, verbose: bool): seq[ListRow] {.raises: [StoreError].} =
-  ## Every activity of the user, oldest first, those in the selection marked.
-  readRows(
-    st,
-    "select " & rowColumns(verbose, st.userId) &
-      " from activity a join file f on f.id = a.file_id " &
-      "where f.user_id = :owner order by a.start_t, a.id".sqlOf.with("owner", st.userId),
-  )

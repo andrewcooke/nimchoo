@@ -31,8 +31,7 @@
 ## * `model <packages/model/package.html>`_ - The training impulse: models, and the impulses worked out with them.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
-## * `proquint <packages/text/proquint/package.html>`_ - Numbers as pronounceable words (proquints): five letters for 16 bits.
-## * `selection <packages/selection/package.html>`_ - The selection (the activities commands use by default) and the addresses that name a set.
+## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
 ## * `ui <packages/ui/package.html>`_ - How the program looks: units, intervals, colours, tables and the live display.
 ## * `user <packages/user/package.html>`_ - The users, and which one a command works for.
@@ -64,7 +63,6 @@ import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
 import ./packages/selection/package as pkgSelection
 import ./packages/text/fold/package as pkgFold
-import ./packages/text/proquint/package as pkgProquint
 import ./packages/text/templating/package as pkgTemplating
 import ./packages/ui/package as pkgUi
 import ./packages/user/package as pkgUser
@@ -123,10 +121,9 @@ overwritten once changed; delete one to get the built-in version again.""",
       doc:
         """The cache directory: where files that commands make go, and what they are called.
 
-A command with a graphical result makes its file here (a GeoJSON file and a page for the map, CSV for `ff`), named after the
-request: the command and 48 bits of the hash of the whole pinned address (its parameters and the state of the data) as
-proquints.  A name has no collision check: 48 bits is plenty for a cache.  A changed state is a new file; the old one is the
-old plot, and stays until it is deleted.  The server
+A command with a graphical result makes its file here (a GeoJSON file and a page for the map, CSV for `ff`), named by the
+command and its options spelt out (`map-routes-climbs.geojson`) and made again on every request: a file is never
+"current", it is what the last request made.  The server
 (`web`) serves these files.  `nch cache` says what is there, by kind, and how big; `nch cache --delete KIND` deletes (no
 `-f`: everything in it can be made again).""",
     ),
@@ -137,8 +134,7 @@ old plot, and stays until it is deleted.  The server
       doc: """The activities of the selection on a calendar.
 
 `nch calendar` draws the selection: a row for each month that has an activity, the days in columns by weekday (weeks start
-on Monday).  `--all` draws every activity with those in the selection in blue; `-v` shows every month from the first to the
-last.  It takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them first
+on Monday).  `-v` shows every month from the first to the last.  It takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them first
 (`nch activities CRITERIA --select`).  Without colour (a pipe, `NO_COLOR`) the cells are wider and carry marks, so nothing is
 lost.  The rows come from `activities`.""",
     ),
@@ -233,9 +229,10 @@ that turns while the program waits).  Tests never use the network: every `Global
       doc: """Fitness and fatigue curves from the training impulses.
 
 `nch ff` adds up the hourly impulses of the user (`model`), each effort fading away exponentially, into one row per day (or
-hour) of fitness and fatigue, as CSV in the cache for plotting elsewhere or on standard output; `--web` serves a page that
-draws it (Observable Plot and d3, loaded from a CDN with the integrity hashes of the exact files).  `ff` is not about the
-selection: it always uses all the activities, and its `--state` is a hash of the data the curves are made from.  Offers its
+hour) of fitness and fatigue, and serves a page that draws it in the browser (Observable Plot and d3, loaded from a CDN with
+the integrity hashes of the exact files); `--file` makes the data as CSV in the cache for plotting elsewhere, and `--stdout`
+prints it.  `ff` is not about the selection: it always uses all the activities.  A chart is a live view: made again from the
+data as they are every time the page is asked for, in a file named by the options (`ff-default-hourly.csv`).  Offers its
 page to the server (`web/pages`).""",
     ),
     Registered(
@@ -324,8 +321,8 @@ latest run.  The words and their colours are in `ui/vocabulary`.""",
         """The selected activities on a map: their routes, the climbs on them, and where they went most (heat).
 
 `nch map` makes everything itself: no layer commands, no layer index.  `--layers routes,climbs,heat` (default routes,climbs)
-says what is drawn: the layers are a set of the address (`layers=`), named in the file's name, and only what is drawn is an
-input of the state (a change to the climbs does not touch a heat map, and a heat map does not work the climbs out).  A GeoJSON
+says what is drawn: the layers are a set of the address (`layers=`), named in the file's name (`map-routes-climbs.geojson`; made
+again on every request: a map is a live view of the selection, and a bookmark keeps the layers and not the data).  A GeoJSON
 file in the cache holds the features (each says what it is, in `kind`: route, climb or heat, and nothing about how it looks)
 and a page (Leaflet) decides the look.  **The heat** is squares of the grid of `geo/cells.nim` from the table `route_cell`
 (`importer`), counted over the selected activities at three levels (cells of about 100 m, 870 m and 7 km: `level`), with
@@ -334,8 +331,8 @@ which), under the routes, shaded on a log scale.  **Gates and efforts** are for 
 `gates` draws the start and finish line of each climb the activities went up (the lines a ride has to cross: `climbs/match.nim`
 `gateLines`, the same gates `overPaths` uses), `efforts` the part of each ride between the stored start and finish time of its
 efforts, thick, with a green dot where it starts and a red one where it finishes; where a ride crosses a gate twice (a
-switchback near it) the dots show which crossing the effort used.  `--web` serves the page on localhost (`web`); the address carries the
-activities: `/map?selection=LIST&layers=LIST&state=HASH` (see `selection`).
+switchback near it) the dots show which crossing the effort used.  The page is served on localhost (`web`; `--file` makes the files only, and prints their paths); the address
+is `/map?layers=LIST`.
 
 **The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
 overwritten once changed; delete a file to get the built-in one): `map.html` (the page and its script), `map.css` (the look
@@ -379,18 +376,13 @@ it.  Suggestions are found from the features and the rides.""",
       name: "selection",
       package: pkgSelection.package,
       summary:
-        "The selection (the activities commands use by default) and the addresses that name a set.",
-      doc:
-        """The selection (the activities commands use by default) and the addresses that name a set.
+        "The selection: the activities that commands work on unless told otherwise.",
+      doc: """The selection: the activities that commands work on unless told otherwise.
 
-* **The selection** is a scratchpad in the database (table `selection`): the activities that `climbs`, `map`, `calendar` and
-  the like work on unless told otherwise.  It belongs to one user, and is replaced whenever `activities --select` is given
-  or an import adds activities.  This is implicit state, which conflicts with the caching of files made by commands, so the
-  state of the activities selected goes into the address of the plot made from them, and the plot is named by a hash of that.
-* **The address** (`selection`): a set of activity ids as a short string (runs or a bitmap, bit-level codes, URL-safe base64: one
-  ride is 5 characters, a date range 5 to 8), so `/map?selection=LIST&state=HASH` names its activities.  `HASH` is the state of the data
-  the plot is made from, which includes the content key of those activities (`contentKey`): after a database rebuild the ids
-  mean other activities, and the state refuses the old address.  **`--state` means check**: verification, never choice.
+It is what `climbs`, `map`, `calendar` and the like use.
+
+* **The selection** is a scratchpad in the database (table `selection`).  It belongs to one user, and is replaced whenever
+  `activities --select` is given or an import adds activities.  A view shows the selection as it is when the view is made.
 * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).""",
     ),
     Registered(
@@ -401,14 +393,6 @@ it.  Suggestions are found from the features and the rides.""",
 
 One function does it everywhere: `foldText` in the program, and the SQL function `fold()` that the database registers on
 every connection, so a name compared in a query is compared as it is in code.""",
-    ),
-    Registered(
-      name: "proquint",
-      package: pkgProquint.package,
-      summary: "Numbers as pronounceable words (proquints): five letters for 16 bits.",
-      doc: """Numbers as pronounceable words (proquints): five letters for 16 bits.
-
-Used to name cache files after a request: `map-lusab-babad-fuzoh.geojson` is the command and 48 bits of a hash.""",
     ),
     Registered(
       name: "templating",
@@ -590,12 +574,13 @@ Used for xlsx files and for downloads.""",
       doc:
         """The local web server: runs `nch` commands named in addresses and shows their pages.
 
-A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?selection=...`) and shows its page, or serves
+A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?layers=routes,heat`) and shows its page, or serves
 a file of the cache (`/files/NAME`).  Any web page open in the browser can send requests to localhost, so the rules are
 strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DNS rebinding) and the token, in a cookie or
 once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each
 value) with only their options, each once; values of the kind a cache file name can hold.  The command runs as
-`nch COMMAND --worker ARGS` in a child process, which makes the files and says which the page is.  The libraries the pages
+`nch COMMAND --worker ARGS` in a child process, which makes the files again from the data as they are (a view is live: nothing is
+pinned in an address) and says which the page is.  The commands serve their pages by default; `--file` makes the files only.  The libraries the pages
 load from a CDN, with their integrity hashes, are in `libraries.txt`.  The extension point `web/pages` is defined here; `map`
 and `ff` contribute.""",
     ),

@@ -1,4 +1,4 @@
-import std/[os, sequtils, strutils, unittest]
+import std/[os, sequtils, unittest]
 import nimchoo/packages/importer/walk
 
 let top = getTempDir() / "nch-test-walk"

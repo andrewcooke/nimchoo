@@ -74,9 +74,6 @@ const
   cookieMaxAge* = 365 * 24 * 3600
     ## seconds: a bookmark works for a year, not only until the browser is closed
   tokenParam* = "token"
-  stateParam* = "state"
-    ## the parameter that pins a page to the data it was made from: an address without it is for the current data, and is
-    ## sent on to the one that names exactly what the worker made
   defaultPort* = 62466 ## the digits of "mchoo" on a phone keypad
 
 func encodedPath(path: string): string =
@@ -100,7 +97,7 @@ func withoutParam*(t: Target, name: string): string =
   render(t, name, true)
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/map?selection=AsBO&state=ab12cd" -> path "/map" and the query, percent-decoded.
+  ## "/map?layers=routes,heat" -> path "/map" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, as written or as decoded,
   ## no spaces or control characters, not too long as written or as written back).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):
@@ -170,10 +167,6 @@ func sameToken*(a, b: string): bool =
 func anyWord*(value: string): bool =
   ## Anything a cache file name can hold (see `isOptionValue`).
   isOptionValue(value)
-
-func hexHash*(value: string): bool =
-  ## A hash: hex digits.
-  isOptionValue(value) and value.allIt(it in {'0' .. '9', 'a' .. 'f'})
 
 func plainNumber*(value: string): bool =
   ## Digits and at most one dot, not starting or ending with it, up to 8 characters.

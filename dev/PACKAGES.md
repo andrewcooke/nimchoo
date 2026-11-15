@@ -43,7 +43,7 @@ src/nimchoo/
       fold/                  a package, called "fold"
         package.nim
         fold.nim             implementation files: internal, whatever they are called
-      proquint/
+      other/
         package.nim
         xyz.nim
     db/

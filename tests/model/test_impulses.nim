@@ -1,4 +1,3 @@
-import ../support/arrays
 import nimchoo/packages/db/statement
 import std/[os, options, unittest]
 import ../support/shims
@@ -183,42 +182,25 @@ suite "model: impulses, worked out when wanted":
     s.db.execute("delete from activity")
     check s.q("select count(*) from impulse", int) == 0
 
-suite "model: the key of what impulses are made from":
-  test "none without an FTHR or heart rate; the same for the same data; different when anything changes":
-    let path = fresh("key")
-    let s = open(path)
+suite "model: heart rate":
+  test "whether the user has an activity with heart rate":
+    let s = open(fresh("hasheart"))
     defer:
       s.close()
-    check inputKey(s.db, s.userId, s.defaultM) == ""
+    check not hasHeartRate(s.db, s.userId)
     discard s.importRide()
-    check inputKey(s.db, s.userId, s.defaultM) == "" # (no FTHR)
-    s.setFthr(154)
-    let k = inputKey(s.db, s.userId, s.defaultM)
-    check k.len == 12
-    check inputKey(s.db, s.userId, s.defaultM) == k
-    s.setFthr(155)
-    check inputKey(s.db, s.userId, s.defaultM) != k # another FTHR
-    s.setFthr(154)
-    check inputKey(s.db, s.userId, s.defaultM) == k
-    var m = defaultModel()
-    m.name = "other"
-    insertModel(s.db, m)
-    check inputKey(s.db, s.userId, findModel(s.db, "other").get) != k # another model
-    discard s.importRide("copy.fit") # the same content: nothing new
-    check inputKey(s.db, s.userId, s.defaultM) == k
+    check hasHeartRate(s.db, s.userId)
     s.db.execute("delete from heartrate_series")
-    check inputKey(s.db, s.userId, s.defaultM) == ""
-  test "it does not depend on database ids: the same ride in another database has the same key":
-    let a = open(fresh("keya"))
-    let b = open(fresh("keyb"))
+    check not hasHeartRate(s.db, s.userId)
+  test "only the user's own activities count":
+    let s = open(fresh("hasheartowner"))
     defer:
-      a.close()
-      b.close()
-    b.db.execute("insert into user(name) values ('pad')") # (other ids)
-    for s in [a, b]:
-      s.setFthr(154)
-      discard s.importRide()
-    check inputKey(a.db, a.userId, a.defaultM) == inputKey(b.db, b.userId, b.defaultM)
+      s.close()
+    discard s.importRide()
+    s.db.execute("insert into user(name) values ('bob')")
+    check not hasHeartRate(
+      s.db, UserId(s.db.scalar(int64, "select id from user where name = 'bob'"))
+    )
 
 suite "nch models":
   test "the list":

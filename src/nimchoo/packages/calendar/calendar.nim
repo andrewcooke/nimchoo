@@ -5,18 +5,17 @@
 ##     Jan                01 02 03 04 05 06 07 08 09 10 11 12 ...                      2018
 ##     Feb       01 02 03 04 05 06 07 08 ...                                           2018
 ##
-## A day is white if an activity that was listed falls on it, blue if one of them is also in the
-## selection, grey if none was listed.  Days are the days of the time zone given (the user's, for
-## display).  Pure: the rows, the zone and the screen are parameters.
+## A day is blue if an activity that was listed falls on it, grey if none was listed.  Days are the days of the time zone
+## given (the user's, for display).  Pure: the rows, the zone and the screen are parameters.
 ##
 ## Only the months with an activity are shown (all the months from the first to the last with
 ## `allMonths`); `skippedMonths` says how many the first leaves out, and the names of the months
 ## either side of a gap are yellow (with a `*` after them when there is no colour).
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
-## with data `"  12 "`, a selected day `" [34]"`, a day with none `"  -- "`.
+## with an activity `" [34]"`, a day with none `"  -- "`.
 
-import std/[algorithm, sequtils, strutils, tables, times]
+import std/[algorithm, sequtils, sets, strutils, times]
 import ../fit/time
 import ../ui/style
 import ../ui/vocabulary
@@ -29,7 +28,6 @@ type Screen* = object
   width*: int ## columns; 0: no limit
 
 const
-  dataColour* = white ## a day with a listed activity
   monthNames =
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   weekdayNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
@@ -49,24 +47,18 @@ func calendarWidth*(s: Screen): int =
 func two(n: int): string =
   intToStr(n, 2)
 
-func dayCell(day: int, state: int, s: Screen): Span =
-  ## `state`: 0 no activity, 1 some, 2 some in the selection.
+func dayCell(day: int, listed: bool, s: Screen): Span =
+  ## A day: with an activity (`listed`) or not.
   if s.colour:
-    case state
-    of 0:
-      span(two(day) & " ", grey)
-    of 1:
-      span(two(day) & " ", dataColour)
-    else:
+    if listed:
       span(two(day) & " ", selectedColour)
-  else:
-    case state
-    of 0:
-      span("  -- ")
-    of 1:
-      span("  " & two(day) & " ")
     else:
+      span(two(day) & " ", grey)
+  else:
+    if listed:
       span(" [" & two(day) & "]")
+    else:
+      span("  -- ")
 
 proc monthsOf(rows: seq[ListRow], zone: Timezone): seq[int] =
   ## The months (year * 12 + month - 1) with a listed activity, in order.
@@ -92,11 +84,10 @@ proc calendarLines*(
   ## are wider than the screen, a warning comes first and each line is cut to the screen.
   if rows.len == 0:
     return
-  var state: Table[int, int] # year*10000 + month*100 + day -> 1 or 2
+  var listed: HashSet[int] # the days with an activity: year*10000 + month*100 + day
   for r in rows:
     let d = r.startT.toTime.inZone(zone)
-    let key = d.year * 10000 + ord(d.month) * 100 + d.monthday
-    state[key] = max(state.getOrDefault(key), if r.selected: 2 else: 1)
+    listed.incl d.year * 10000 + ord(d.month) * 100 + d.monthday
   var months = monthsOf(rows, zone) # year*12 + (month - 1)
   if allMonths:
     months = toSeq(months[0] .. months[^1])
@@ -128,7 +119,7 @@ proc calendarLines*(
         line.add span(" ".repeat(cw))
       else:
         line.add dayCell(
-          day, state.getOrDefault(year * 10000 + (m mod 12 + 1) * 100 + day), screen
+          day, year * 10000 + (m mod 12 + 1) * 100 + day in listed, screen
         )
     line.add span("  " & $year)
     result.add line

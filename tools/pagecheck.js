@@ -5,7 +5,7 @@
 // needs packages that the project does not carry):
 //
 //     d=$(mktemp -d); (cd $d && npm i jsdom@24 leaflet@1.9.4)
-//     page=$(nch map --selection t --layers routes,climbs,efforts,gates --worker | head -2)   # the page, then the data
+//     page=$(nch map --layers routes climbs efforts gates --worker | head -2)   # the page, then the data (of the selection)
 //     NODE_PATH=$d/node_modules node tools/pagecheck.js $(echo "$page" | sed -n 1p) $(echo "$page" | sed -n 2p)
 const fs = require('fs');
 const { JSDOM } = require('jsdom');

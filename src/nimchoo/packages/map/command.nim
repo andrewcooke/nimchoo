@@ -1,14 +1,9 @@
 ## `nch map`: the routes of the selected activities, and the climbs they went up, on a map.  A GeoJSON file in the cache
 ## directory holds them (every feature says what it is, in `kind`, and nothing about how it looks), and a page, drawn by
-## Leaflet in the browser (`--web`), decides the look.
+## Leaflet in the browser, decides the look.
 ##
-## Which activities are drawn is carried by the address of the page: `selection=...` is the list of them
-## (selection/bits.nim) and `state=...` a hash of everything the map is made from (the content of the activities, their routes
-## and the climbs), so that an address made before the database was rebuilt, or before something it shows changed, is refused
-## and not wrong.  The files are named by a hash of the whole address, in pronounceable words
-## (`map-lusab-babad-fuzoh.geojson`).  An address with a state whose file is there is served as it is; if the file is gone
-## it is made again, but only if the state is still the same.  An address without a state is made from the data as they are,
-## and the address that names exactly that is what the command reports.
+## A map is a live view: it shows the selection as it is when the map is made, and is made again for every request.  The files
+## are named by the command and the layers (`map-routes-climbs.geojson`); a bookmark of the page keeps the layers, not the data.
 ##
 ## This module is newer than `importer`, `selection` and `climbs`: it reads their tables and uses their libraries.
 
@@ -23,11 +18,10 @@ import ../climbs/work
 import ../db/statement
 import ../db/store
 import ../../core/errors
-import ../importer/[keys, track]
+import ../importer/track
 import ../fit/time
 import ../geo/cells
 import ../../core/ids
-import ../selection/bits
 import ../selection/selection
 import ../ui/live
 import ../util/args/[args, usage]
@@ -47,17 +41,17 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis =
-    "usage: nch [--db PATH] [--user NAME] map [--layers LIST] [--web [--no-open] [--port N] [--new-token]]"
+    "usage: nch [--db PATH] [--user NAME] map [--layers LIST] [--file | [--no-open] [--port N] [--new-token]]"
   intro =
     """Show the selected activities (see `nch activities --select`) on a map: by default their routes and the climbs they
 went up, drawn over them; --layers chooses what is drawn, and `heat` shows how often each place was visited, in cells
-(about 100 m, coarser as you zoom out).  It makes a GeoJSON file in the cache directory and prints its path; with --web it
-also serves a page that draws it, and opens it in a browser.  Several rides over the same roads show as a glow; a click on a
-route says which activity it is, a click on a climb says what it is, a click on a cell says how often it was visited.  The climbs not yet worked out (an import does that) are
-worked out first.  Asking again for the same thing finds the file already there."""
+(about 100 m, coarser as you zoom out).  It serves a page that draws them on localhost and opens it in a browser (Ctrl-C
+stops it); with --file it makes a GeoJSON file in the cache directory instead and prints its path.  Several rides over the
+same roads show as a glow; a click on a route says which activity it is, a click on a climb says what it is, a click on a
+cell says how often it was visited.  The climbs not yet worked out (an import does that) are worked out first."""
   notes =
-    """The address of the page records which activities it shows, so a reload shows the same ones even if the selection
-has since changed.  It stops working when the database is rebuilt (the numbers then mean other activities)."""
+    """The map is made again each time the page is loaded, from the selection as it is then: a bookmark of the address keeps
+which layers are drawn, not which activities."""
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
@@ -186,155 +180,89 @@ proc effortsOf(st: Store, ids: seq[int64]): seq[EffortLine] {.raises: [StoreErro
 
 type Prepared = object
   status: int ## 0 if the files are there; else the exit status (already reported)
-  stem, query: string
-    ## the name of the files, and the address that names the map exactly
   geojson, page: string ## paths (page: only if asked for)
 
-type Inputs = object
-  state: string ## the key of everything the map is made from
-  routes: int ## how many of the activities have a route
-  climbs: seq[Climb]
-  gates: seq[GateLine]
-  efforts: seq[EffortLine]
-  worked: Worked ## the climbs that had to be worked out first
+proc stemOf(layers: set[Layer]): string =
+  ## What the files are named: the command and the layers, in the order of the layers (`map-routes-climbs`).
+  "map-" & layersText(layers).replace(',', '-')
 
-proc inputsOf(
-    st: Session, ids: seq[int64], layers: set[Layer]
-): Inputs {.raises: [StoreError].} =
-  ## What the map of the activities is made from, and the state that stands for it: the content of the activities (which the
-  ## cells of the heat are a function of) and, for the layers that have them, their routes and the climbs (which are worked
-  ## out first if they are not).  A layer that is not drawn is not an input: a change to the climbs does not touch a heat map.
-  let routeKey = routesKey(st, ids)
-  result.routes = routeKey.count
-  var inputs = @[("activities", contentKey(st, ids))]
-  if lyRoutes in layers:
-    inputs.add ("routes", routeKey.key)
-  if layers * {lyClimbs, lyGates, lyEfforts} != {}:
-    result.worked = ensureClimbs(st)
-  if lyClimbs in layers:
-    result.climbs = climbsOf(st, ids)
-    inputs.add ("climbs", climbsKey(result.climbs))
-  if lyGates in layers:
-    result.gates = gatesOf(st, ids)
-    inputs.add ("gates", gatesKey(result.gates))
-  if lyEfforts in layers:
-    result.efforts = effortsOf(st, ids)
-    inputs.add ("efforts", effortsKey(result.efforts))
-  result.state = stateKey(inputs)
-
-proc stateOf*(
-    st: Session, ids: seq[int64], layers: set[Layer] = defaultLayers
-): string {.raises: [StoreError].} =
-  ## The state of the map of these activities (which must be the user's: `ownedIds`) with these layers, as an address
-  ## carries it.
-  inputsOf(st, ids, layers).state
+proc routeCount(st: Store, ids: seq[int64]): int {.raises: [StoreError].} =
+  ## How many of the activities have a route.
+  st.db.scalar(
+    int,
+    "select count(*) from route where activity_id in (select value from json_each(:ids))",
+    ids = jsonList(ids),
+  )
 
 proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
-  ## Make the GeoJSON file (if it is not there) and, if asked, the page.  Reports problems.
+  ## Make the GeoJSON file of the selection as it is now (and, if asked, the page), whatever was there.  Reports problems.
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
     return Prepared(status: failure("nch map", e.msg))
   try:
-    # the activities: those of the address, else the selection
-    var ids: seq[int64]
-    if p.target == tList:
-      let d = decodeBits(p.selection, maxActivityId(st))
-      if d.problem.len > 0:
-        return Prepared(
-          status: usageError("nch map", usageText(helpWidth(stderr)), d.problem)
-        )
-      ids = d.ids
-    else:
-      ids = selectedIds(st)
-    let mine = ownedIds(st, ids)
-    if mine.len == 0:
+    let ids = selectedIds(st)
+    if ids.len == 0:
+      return Prepared(
+        status:
+          failure("nch map", "the selection is empty (see `nch activities --select`)")
+      )
+    if routeCount(st, ids) == 0:
       return Prepared(
         status: failure(
           "nch map",
-          if p.target == tSelection:
-            "the selection is empty (see `nch activities --select`)"
-          else:
-            "none of the activities of this address exist",
+          "none of the " & $ids.len &
+            " activities has a route (no positions in the files)",
         )
       )
-    if mine.len < ids.len:
-      stderr.say "note: " & $(ids.len - mine.len) & " of the " & $ids.len &
-        " activities of this address do not exist\n"
-    # (the request is the activities drawn, spelt one way: the address as typed may name others, or use the other form)
-    let selection = encodeBits(mine)
-    var request, stem, path: string
-    var found = false
-    proc name(state: string): bool =
-      ## Whether the files of the map of these activities, with these layers, in this state can be named; sets them.
-      request =
-        "selection=" & selection & "&layers=" & layersText(p.layers) & "&state=" & state
-      let s = requestStem("map", request)
-      if s.isNone:
-        return false
-      stem = s.get
-      path = cacheFile(dir, stem, "geojson").get
-      true
-
-    if p.target == tList and p.state.isSome:
-      # a pinned address: if its file is there it is what was asked for, and nothing needs working out
-      if not name(p.state.get):
-        return Prepared(status: failure("nch map", "cannot name a file"))
-      found = fileExists(path)
-    if not found:
-      let inputs = inputsOf(st, mine, p.layers)
-      if inputs.worked.activities > 0:
-        stderr.say "worked out the climbs of " & $inputs.worked.activities &
-          " activities: " & $inputs.worked.sectors & " new climbs\n"
-      if inputs.routes == 0:
-        return Prepared(
-          status: failure(
-            "nch map",
-            "none of the " & $mine.len &
-              " activities has a route (no positions in the files)",
-          )
+    # the climbs are worked out first if they are not (for the layers that have them)
+    if p.layers * {lyClimbs, lyGates, lyEfforts} != {}:
+      let worked = ensureClimbs(st)
+      if worked.activities > 0:
+        stderr.say "worked out the climbs of " & $worked.activities & " activities: " &
+          $worked.sectors & " new climbs\n"
+    let routes =
+      if lyRoutes in p.layers:
+        routesOf(st, ids)
+      else:
+        @[]
+    if lyRoutes in p.layers and routes.len < ids.len:
+      stderr.say "note: " & $(ids.len - routes.len) & " of the " & $ids.len &
+        " activities have no route (no positions in the files)\n"
+    let heat =
+      if lyHeat in p.layers:
+        heatOf(st, ids)
+      else:
+        @[]
+    if lyHeat in p.layers and lyRoutes notin p.layers and heat.len == 0:
+      return Prepared(
+        status: failure(
+          "nch map",
+          "none of the " & $ids.len &
+            " activities has been through a cell (no positions in the files)",
         )
-      if p.target == tList and p.state.isSome and p.state.get != inputs.state:
-        return Prepared(
-          status: failure(
-            "nch map",
-            "the data of this address have changed since it was made (the database was rebuilt, or activities, " &
-              "routes or climbs changed), and its files are gone; the map of these activities as they are now is " &
-              "/map?selection=" & selection & "&layers=" & layersText(p.layers),
-          )
-        )
-      if not name(inputs.state):
-        return Prepared(status: failure("nch map", "cannot name a file"))
-      if not fileExists(path):
-        let routes =
-          if lyRoutes in p.layers:
-            routesOf(st, mine)
-          else:
-            @[]
-        if lyRoutes in p.layers and routes.len < mine.len:
-          stderr.say "note: " & $(mine.len - routes.len) & " of the " & $mine.len &
-            " activities have no route (no positions in the files)\n"
-        let heat =
-          if lyHeat in p.layers:
-            heatOf(st, mine)
-          else:
-            @[]
-        if lyHeat in p.layers and lyRoutes notin p.layers and heat.len == 0:
-          return Prepared(
-            status: failure(
-              "nch map",
-              "none of the " & $mine.len &
-                " activities has been through a cell (no positions in the files)",
-            )
-          )
-        writeAtomic(
-          path,
-          featureCollection(routes, inputs.climbs, heat, inputs.efforts, inputs.gates),
-        )
-    result = Prepared(stem: stem, query: request, geojson: path)
+      )
+    let climbs =
+      if lyClimbs in p.layers:
+        climbsOf(st, ids)
+      else:
+        @[]
+    let gates =
+      if lyGates in p.layers:
+        gatesOf(st, ids)
+      else:
+        @[]
+    let efforts =
+      if lyEfforts in p.layers:
+        effortsOf(st, ids)
+      else:
+        @[]
+    let stem = stemOf(p.layers)
+    let path = cacheFile(dir, stem, "geojson").get
+    writeAtomic(path, featureCollection(routes, climbs, heat, efforts, gates))
+    result = Prepared(geojson: path)
     if withPage:
-      # the page is rewritten each time (it is tiny, and may have changed since)
       let pagePath = cacheFile(dir, stem, "html").get
       let html = pageHtml(extractFilename(path), "Map")
       if html.isNone:
@@ -358,6 +286,23 @@ proc prepare(g: Globals, p: Params, dir: string, withPage: bool): Prepared =
       )
     )
 
+proc checkSelection(g: Globals): int =
+  ## Before serving: the selection is not empty (the page makes its files itself, whenever it is asked for).
+  var st: Session
+  try:
+    st = openSession(g)
+  except StoreError as e:
+    return failure("nch map", e.msg)
+  try:
+    if selectedIds(st).len == 0:
+      return
+        failure("nch map", "the selection is empty (see `nch activities --select`)")
+    exitOk
+  except StoreError as e:
+    failure("nch map", e.msg)
+  finally:
+    st.close()
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch map ARGS`; returns the exit status.
   let parsed = parseArgs(args)
@@ -378,21 +323,27 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except IOError, OSError:
     return
       failure("nch map", "cannot make " & dir.get & ": " & getCurrentExceptionMsg())
-  let made = prepare(g, p, userDir(dir.get), p.web.kind != wkNone)
-  if made.status != 0:
-    return made.status
   case p.web.kind
   of wkServe:
-    # the address pins what was made: the activities, and the state of them
+    let checked = checkSelection(g)
+    if checked != exitOk:
+      return checked
+    # the address keeps the look (the layers); the data are those of the selection when the page is asked for
     return serveWeb(
       g,
       commandName,
       WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
       dir.get,
-      made.query,
+      "layers=" & layersText(p.layers),
     )
   of wkWorker:
-    stdout.say made.page & "\n" & made.geojson & "\n" & made.query & "\n"
-  of wkNone:
+    let made = prepare(g, p, userDir(dir.get), true)
+    if made.status != 0:
+      return made.status
+    stdout.say made.page & "\n" & made.geojson & "\n"
+  of wkFile:
+    let made = prepare(g, p, userDir(dir.get), false)
+    if made.status != 0:
+      return made.status
     stdout.say made.geojson & "\n"
   exitOk

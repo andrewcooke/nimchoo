@@ -6,7 +6,6 @@
 
 import std/[json, math, options, strutils, times]
 import ../../core/ids
-import ../util/hashing/hashing
 import ../fit/time
 import ../geo/cells
 
@@ -117,27 +116,6 @@ proc effortFeature*(e: EffortLine): string =
     formatFloat(e.elapsedS, ffDecimal, 1) & ",\"start_m\":" & $int(round(e.startM)) &
     "},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[" & coords.join(",") &
     "]}}"
-
-func climbsKey*(climbs: seq[Climb]): string =
-  ## The key of the climbs as they are read (what goes into the file, so nothing that is shown can be left out).
-  var text = ""
-  for c in climbs:
-    text.add climbFeature(c) & "\n"
-  sha256Hex(text)[0 ..< 16]
-
-proc gatesKey*(gates: seq[GateLine]): string =
-  ## The key of the gates as they are drawn.
-  var text = ""
-  for g in gates:
-    text.add gateFeature(g) & "\n"
-  sha256Hex(text)[0 ..< 16]
-
-proc effortsKey*(efforts: seq[EffortLine]): string =
-  ## The key of the efforts as they are drawn (so, of the times and of the positions between them).
-  var text = ""
-  for e in efforts:
-    text.add effortFeature(e) & "\n"
-  sha256Hex(text)[0 ..< 16]
 
 proc featureCollection*(
     routes: seq[Route],

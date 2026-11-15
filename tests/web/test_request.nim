@@ -101,8 +101,8 @@ suite "serve request: who is asking":
 
 suite "serve request: what is asked for":
   test "a file of the cache":
-    let r = route(target("/files/map-lusab-babad-fuzoh.geojson")).get
-    check r.isFile and r.fileName == "map-lusab-babad-fuzoh.geojson"
+    let r = route(target("/files/map-routes-climbs.geojson")).get
+    check r.isFile and r.fileName == "map-routes-climbs.geojson"
   test "files: only plain cache names, no query":
     for bad in [
       "/files/", "/files", "/files/x", "/files/x.exe", "/files/../x.geojson",
@@ -111,18 +111,15 @@ suite "serve request: what is asked for":
     ]:
       check route(target(bad)).isNone
   test "the command on the list, with its options, each once":
-    let r = route(target("/map?selection=AWAnLmgGhgZI6JjZom&state=c3eef5")).get
+    let r = route(target("/map?layers=heat")).get
     check not r.isFile and r.command == "map"
-    check r.args == @["--selection", "AWAnLmgGhgZI6JjZom", "--state", "c3eef5"]
+    check r.args == @["--layers", "heat"]
     check route(target("/map")).get.args.len == 0
-    check route(target("/map?token=T&selection=AB")).get.args ==
-      @["--selection", "AB"] # (the token is not an option)
-    check route(target("/map?selection=A--B_-")).isSome
-      # (a list may have two dashes in a row)
-    check route(target("/map?selection=" & "A".repeat(7000))).isSome # (and be long)
+    check route(target("/map?token=T&layers=heat")).get.args ==
+      @["--layers", "heat"] # (the token is not an option)
   test "a list is commas in an address and separate words for the command":
-    check route(target("/map?layers=routes,heat&selection=AB")).get.args ==
-      @["--layers", "routes", "heat", "--selection", "AB"]
+    check route(target("/map?layers=routes,heat")).get.args ==
+      @["--layers", "routes", "heat"]
     check route(target("/map?layers=heat")).get.args == @["--layers", "heat"]
     for bad in [
       "layers=", "layers=heat,", "layers=,heat", "layers=heat,nope",
@@ -132,24 +129,23 @@ suite "serve request: what is asked for":
   test "ff: options, and flags that are given as 1":
     let r = route(
       target(
-        "/ff?state=ab12cd&model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
+        "/ff?model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
       )
     ).get
     check r.command == "ff"
     check r.args ==
       @[
-        "--state", "ab12cd", "--model", "flat", "--from", "2018-08-01", "--to",
-        "2018-08-31", "--hourly", "--utc", "--fitness-scale", "2", "--fatigue-scale",
-        "5",
+        "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly",
+        "--utc", "--fitness-scale", "2", "--fatigue-scale", "5",
       ]
     check route(target("/ff")).get.args.len == 0
   test "ff: no other option or value":
     for bad in [
       "/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1",
-      "/ff?stdout=1", "/ff?web=1", "/ff?worker=1", "/ff?port=1", "/ff?to=yesterday",
-      "/ff?to=2018-8-1", "/ff?from=2018-08-0x", "/ff?model=a%20b", "/ff?model=",
-      "/ff?fitness-scale=x", "/ff?fatigue-scale=-1", "/ff?fitness-scale=1e3",
-      "/ff?style=lines", "/ff/x", "/FF",
+      "/ff?stdout=1", "/ff?file=1", "/ff?state=ab12cd", "/ff?worker=1", "/ff?port=1",
+      "/ff?to=yesterday", "/ff?to=2018-8-1", "/ff?from=2018-08-0x", "/ff?model=a%20b",
+      "/ff?model=", "/ff?fitness-scale=x", "/ff?fatigue-scale=-1",
+      "/ff?fitness-scale=1e3", "/ff?style=lines", "/ff/x", "/FF",
     ]:
       check route(target(bad)).isNone
   test "no other command, option or value":
@@ -166,17 +162,17 @@ suite "serve request: what is asked for":
       "/Map",
       "/map?worker=1",
       "/map?save",
-      "/map?selection=a&selection=b",
-      "/map?selection=a%20b",
-      "/map?selection=a;b",
-      "/map?selection=a+b",
-      "/map?selection=../x",
-      "/map?selection=",
+      "/map?layers=heat&layers=heat",
+      "/map?layers=a%20b",
+      "/map?layers=a;b",
+      "/map?layers=../x",
+      "/map?selection=AB",
       "/map?state=zz",
+      "/map?file=1",
       "/map?style=lines",
       "/map?tolerance=5",
       "/map?db=/etc/x",
-      "/map?selection=" & "+".repeat(10),
+      "/map?layers=" & "+".repeat(10),
     ]:
       check route(target(bad)).isNone
 

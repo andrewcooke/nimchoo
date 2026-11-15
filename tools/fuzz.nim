@@ -13,11 +13,10 @@
 ##   them 4 times slower (fit: 120 runs a second with it, 500 without).
 
 import std/[algorithm, os, osproc, parseutils, sequtils, strformat, strutils]
-import ../src/nimchoo/packages/selection/bits
 import ../tests/support/[fuzzfiles, fuzzsamples, xlsxbuilder, zips]
 
 const
-  targets = ["fit", "importer", "bits", "zip", "xlsx", "profile", "request"]
+  targets = ["fit", "importer", "zip", "xlsx", "profile", "request"]
   fitDirs = ["sdk", "other", "python-fitparse"]
   withAddressSanitizer = ["zip", "xlsx", "profile"]
   maxSegmentSeconds = 300
@@ -25,14 +24,9 @@ const
 func maxLen(target: string): int =
   ## The longest input libFuzzer makes: a little over what the reader accepts, where it limits the input.
   case target
-  of "bits":
-    maxChars + 1
-  of "request":
-    8100
-  of "fit", "importer":
-    16_384
-  else:
-    65_536
+  of "request": 8100
+  of "fit", "importer": 16_384
+  else: 65_536
 
 proc gccInstallDir(): string =
   ## The newest GCC installation that has `libstdc++.so`.  clang chooses the newest GCC it finds, which may be one that
@@ -62,14 +56,6 @@ proc seed(target, dir: string) =
   of "fit", "importer":
     for path in fitFiles(0, 12_000, fitDirs):
       put(extractFilename(path), readFile(path))
-  of "bits":
-    for ids in [
-      @[1'i64],
-      @[156'i64, 159, 165, 582, 682, 696],
-      @[200'i64, 201, 202, 203, 260],
-      @[1'i64, 2, 3, 10, 11, 500],
-    ]:
-      put("bits", encodeBits(ids))
   of "request":
     for a in requestAddresses:
       put("address", a)

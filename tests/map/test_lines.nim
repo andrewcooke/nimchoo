@@ -83,18 +83,6 @@ suite "map: GeoJSON":
     check j["features"][1]["properties"]["id"].getInt == 2 and
       j["features"][2]["properties"]["kind"].getStr == "climb"
     check text.countLines == 6 # { , 3 features, ]} (and the end)
-  test "the key of the climbs follows everything that is shown of them":
-    let c = Climb(id: 9, name: "A", lengthM: 1, gainM: 1, gradient: 1, geometry: line)
-    check climbsKey(@[c]) == climbsKey(@[c])
-    var d = c
-    d.name = "B"
-    check climbsKey(@[d]) != climbsKey(@[c])
-    d = c
-    d.category = "4"
-    check climbsKey(@[d]) != climbsKey(@[c])
-    d = c
-    d.geometry = "{}"
-    check climbsKey(@[d]) != climbsKey(@[c])
   test "no routes: still valid":
     check parseJson(featureCollection(@[], @[]))["features"].len == 0
 
@@ -184,15 +172,3 @@ suite "map lines: gates and efforts":
     for f in parseJson(text)["features"]:
       kinds.add f["properties"]["kind"].getStr
     check kinds == @["heat", "route", "effort", "climb", "gate"]
-  test "the keys follow what is drawn":
-    let g = @[GateLine(climbId: 9, name: "A", start: true)]
-    let e = @[
-      EffortLine(
-        activityId: ActivityId(1), climbId: 9, name: "A", points: @[(1.0, 2.0)]
-      )
-    ]
-    check gatesKey(g) == gatesKey(g) and
-      gatesKey(g) != gatesKey(@[GateLine(climbId: 9, name: "B", start: true)])
-    var e2 = e
-    e2[0].points.add (3.0, 4.0)
-    check effortsKey(e) != effortsKey(e2)

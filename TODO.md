@@ -32,7 +32,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
 4. **The `sectors` package**; **the cache manifest**.
 5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
-    "`map` criteria of its own".  Next: step 1.
+    "`map` criteria of its own".  Steps 0 and 1 are done; next: step 2.
 6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is

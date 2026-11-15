@@ -5,14 +5,13 @@
 ## what is lacking.  (A change of the threshold heart rate deletes the user's impulses: see the
 ## trigger in 001-schema.sql.)
 
-import std/[algorithm, options, strutils]
+import std/options
 import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../fit/time
-import ../util/hashing/hashing
 import ../heartrate/stored
-import ./[calc, models]
+import ./calc
 
 {.push raises: [].}
 
@@ -90,25 +89,12 @@ proc calculateMissing*(
     if n > 0:
       inc result.activities
 
-proc inputKey*(db: DbConn, userId: UserId, m: Model): string {.raises: [StoreError].} =
-  ## A name for everything the user's impulses for a model are made from: the FTHR, the model's
-  ## values, and each activity with heart rate (by its file's hash and its place in the file, not
-  ## by database ids).  The first 12 hex digits of a hash; "" if there is no such activity or no
-  ## FTHR.  If the key has not changed, nothing the impulses depend on has.
-  let fthr = fthrOf(db, userId)
-  if fthr.isNone:
-    return
-  var entries: seq[string]
-  for r in db.query(
-    tuple[sha256: string, session: int],
-    """select f.sha256, a.session from activity a join file f on f.id = a.file_id
-        where f.user_id = :userId and exists (select 1 from heartrate_series h where h.activity_id = a.id)""",
+proc hasHeartRate*(db: DbConn, userId: UserId): bool {.raises: [StoreError].} =
+  ## Whether the user has an activity with heart rate: what impulses are made from.
+  db.scalar(
+    int,
+    """select exists (select 1 from activity a join file f on f.id = a.file_id
+        where f.user_id = :userId
+          and exists (select 1 from heartrate_series h where h.activity_id = a.id))""",
     userId = userId,
-  ):
-    entries.add r.sha256 & ":" & $r.session
-  if entries.len == 0:
-    return
-  entries.sort
-  sha256Hex("fthr " & $fthr.get & "\n" & describe(m) & "\n" & entries.join("\n"))[
-    0 ..< 12
-  ]
+  ) == 1

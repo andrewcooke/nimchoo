@@ -1,7 +1,6 @@
 ## The command line of `nch ff`, parsed.  Pure.
 
 import std/[options, strutils, times]
-import ../cache/cache
 import ../util/args/args
 import ../model/completion
 import ../web/[request, webopts]
@@ -10,8 +9,6 @@ import ../web/[request, webopts]
 
 type
   Params* = object
-    state*: Option[string]
-      ## the hash of the data that must still be the current ones (none: no check)
     model*: Option[string] ## none: the default model
     fromDay*, toDay*: Option[int64]
       ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
@@ -19,11 +16,11 @@ type
     utc*: bool ## days and times in UTC, not the computer's timezone
     fitnessScale*, fatigueScale*: float
     stdout*: bool ## print the CSV, not write a file
-    web*: WebMode ## `--worker`, `--web` and what goes with it
+    web*: WebMode ## `--file`, `--worker` and the options of serving
 
   Raw = object ## what the options fill in
     help, hourly, utc, stdout: bool
-    state, model: string
+    model: string
     fromDay, toDay: Option[int64]
     fitnessScale, fatigueScale: float
     web: WebArgs
@@ -47,22 +44,6 @@ func ffSpec*(): Spec[Raw] =
   Spec[Raw](
     opts:
       @[
-        custom(
-          Raw,
-          ["--state"],
-          true,
-          "HASH",
-          "for urls: make sure the data are still those with this hash (`state=` in the address).  It chooses nothing: it is a safeguard, so that a file or address made earlier cannot show different data.  If the data have changed and that file is gone, the command stops and says so.  Leave it out to use the current data",
-          address = adValue,
-          valid = hexHash,
-          body = (
-            block:
-              if not isOptionValue(value):
-                return refuse("'" & value & "' is not a hash of the data")
-              p.state = value
-              fine
-          ),
-        ),
         text(
           Raw,
           ["--model"],
@@ -155,14 +136,17 @@ func ffSpec*(): Spec[Raw] =
 func finish(raw: Raw): Parsed[Params] =
   if raw.fromDay.isSome and raw.toDay.isSome and raw.fromDay.get > raw.toDay.get:
     return problemWith[Params]("--from is after --to")
-  if (raw.web.enabled or raw.web.worker) and raw.stdout:
-    return problemWith[Params]("--stdout cannot be used with --web or --worker")
+  if raw.stdout and (raw.web.file or raw.web.worker):
+    return problemWith[Params]("--stdout cannot be used with --file or --worker")
   let mode = webMode(raw.web)
   if mode.kind == pkProblem:
     return problemWith[Params](mode.problem)
+  if raw.stdout and (raw.web.noOpen or raw.web.newToken or raw.web.port != defaultPort):
+    return problemWith[Params](
+      "--no-open, --new-token and --port are for serving the page: they cannot be used with --stdout"
+    )
   parsedOk(
     Params(
-      state: (if raw.state.len > 0: some(raw.state) else: none(string)),
       model: (if raw.model.len > 0: some(raw.model) else: none(string)),
       fromDay: raw.fromDay,
       toDay: raw.toDay,

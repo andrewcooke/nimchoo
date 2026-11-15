@@ -1,7 +1,7 @@
-## `nch COMMAND --web`: serve a command's pages on localhost (127.0.0.1) and open the browser at one.
+## `nch COMMAND`: serve a command's pages on localhost (127.0.0.1) and open the browser at one.
 ## The files have already been made (so a problem is reported in the terminal, not in an
 ## empty browser tab); from here on the server runs `nch COMMAND --worker` for each page
-## request, which finds them again (see handler.nim).  Shared by the commands that have pages.
+## request, which makes them again from the data as they are then (see handler.nim).  Shared by the commands that have pages.
 
 import std/[os, osproc]
 import ../cache/cache
@@ -43,7 +43,7 @@ proc serveWeb*(
 ): int =
   ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its
   ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
-  ## pins the page in the address, e.g. "selection=AsBO&state=ab12cd".
+  ## the address says about the look of the page, e.g. "layers=routes,heat" (empty: the defaults).
   let name = "nch " & command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:
@@ -63,7 +63,8 @@ proc serveWeb*(
     o.port,
     proc(port: int) {.closure, raises: [].} =
       let url =
-        "http://localhost:" & $port & "/" & command & "?" & query & "&token=" & t.token
+        "http://localhost:" & $port & "/" & command & "?" &
+        (if query.len > 0: query & "&" else: "") & "token=" & t.token
       stdout.say url & "\n(Ctrl-C to stop)\n"
       try:
         stdout.flushFile()
@@ -78,8 +79,7 @@ proc serveWeb*(
   failure(
     name,
     "cannot listen on 127.0.0.1:" & $o.port & ": " & problem & (
-      if o.port == defaultPort:
-      " (is another `" & name & " --web` running? try --port N)"
+      if o.port == defaultPort: " (is another `" & name & "` running? try --port N)"
       else: ""
     ),
   )

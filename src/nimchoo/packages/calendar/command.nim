@@ -1,6 +1,6 @@
-## `nch calendar`: the activities on a calendar, a row for each month and the days in columns by weekday (weeks start on
-## Monday).  It shows the selection (see `nch activities --select`), or with `--all` every activity with the
-## selection in blue.  It takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them first.
+## `nch calendar`: the activities of the selection on a calendar, a row for each month and the days in columns by weekday
+## (weeks start on Monday).  It takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them
+## first (see `nch activities --select`).
 
 import std/[options, strutils, terminal, times]
 import ../../core/[errors, globals]
@@ -19,12 +19,11 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   calendarSpec().docs
 
 const
-  synopsis = "usage: nch [--db PATH] [--user NAME] calendar [--all] [-v]"
+  synopsis = "usage: nch [--db PATH] [--user NAME] calendar [-v]"
   intro =
     """The activities of the selection (see `nch activities --select`) on a calendar: a row for each month that has one,
-the days in columns by weekday (weeks start on Monday).  White: a day with an activity; blue: a day with one in the
-selection; grey: none.  The months either side of a gap are marked (a yellow name, or a * without colour), as are the
-months that were left out."""
+the days in columns by weekday (weeks start on Monday).  Blue: a day with an activity; grey: none.  The months either side
+of a gap are marked (a yellow name, or a * without colour), as are the months that were left out."""
 
 proc usageText*(width: int): string =
   ## The usage: the introduction and the options, wrapped to `width`.
@@ -46,22 +45,13 @@ proc skippedWarning(rows: seq[ListRow], zone: Timezone): seq[Line] =
 proc lines*(
     st: Session, p: Params, zone: Timezone, screen: Screen
 ): seq[Line] {.raises: [StoreError].} =
-  ## The calendar of the selection, or of every activity, and its last line.
-  let rows =
-    if p.all:
-      allRows(st, p.verbose)
-    else:
-      selectionRows(st, p.verbose)
+  ## The calendar of the selection, and its last line.
+  let rows = selectionRows(st, p.verbose)
   if rows.len == 0:
-    return @[
-      plain(
-        "nothing is selected: `nch calendar --all` shows every activity; `nch activities CRITERIA --select` chooses some"
-      )
-    ]
+    return
+      @[plain("nothing is selected: `nch activities CRITERIA --select` chooses some")]
   result = calendarLines(rows, zone, p.verbose, screen)
-  result.add footerLine(
-    rows, (if p.all: some(rows.len) else: none(int)), selectedColour
-  )
+  result.add footerLine(rows, none(int), selectedColour)
   if not p.verbose:
     result.add skippedWarning(rows, zone)
 

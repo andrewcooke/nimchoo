@@ -1,28 +1,11 @@
-## What is selected, as a short key: for naming files made from the selection (see
-## cache.nim), so that what a file or URL shows is pinned to one selection.
-##
-## The key is a hash of the *content* of the selected activities (the SHA-256 of
-## each one's file, and its session), not of database ids: the same activities
-## give the same key in any database, and a changed selection gives a new one.
+## The selection: the activities that commands work on unless they are told otherwise, kept in the database for the user.
 
-import std/[algorithm, sets]
-import ../util/hashing/hashing
 import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../user/session
 
 {.push raises: [].}
-
-const keyLength* = 12
-
-func keyOf*(entries: seq[string]): string =
-  ## The key of a selection, from "file-sha256:session" for each activity (in
-  ## any order): the first 12 hex digits of the SHA-256 of the sorted entries.
-  var text = ""
-  for e in entries.sorted:
-    text.add e & "\n"
-  sha256Hex(text)[0 ..< keyLength]
 
 proc replaceSelection*(st: Session, ids: seq[int64]) {.raises: [StoreError].} =
   ## Make the activities `ids` the selection of the store's user, in place of the one there was: all or nothing.
@@ -50,34 +33,3 @@ proc selectedIds*(st: Session): seq[int64] {.raises: [StoreError].} =
     "select activity_id from selection where user_id = :userId order by 1",
     userId = st.userId,
   )
-
-proc maxActivityId*(st: Store): int64 {.raises: [StoreError].} =
-  ## The highest activity id there is (0 if there are none): the largest an address can name.
-  st.db.scalar(int64, "select coalesce(max(id), 0) from activity")
-
-proc ownedIds*(st: Session, ids: seq[int64]): seq[int64] {.raises: [StoreError].} =
-  ## Of `ids` (in order), those that are activities of the store's user: an address may name any number, and only the
-  ## user's own activities are ever drawn.
-  let mine = st.db.query(
-    int64,
-    """select a.id from activity a join file f on f.id = a.file_id
-        where f.user_id = :userId""",
-    userId = st.userId,
-  ).toHashSet
-  for id in ids:
-    if id in mine:
-      result.add id
-
-proc contentKey*(st: Store, ids: seq[int64]): string {.raises: [StoreError].} =
-  ## The key of the *content* of the activities `ids`: of their files and sessions (the same kind of key as the
-  ## selection key).
-  var entries: seq[string]
-  for id in ids:
-    for row in st.db.query(
-      tuple[sha256: string, session: int],
-      """select f.sha256, a.session from activity a join file f on f.id = a.file_id
-          where a.id = :id""",
-      id = id,
-    ):
-      entries.add row.sha256 & ":" & $row.session
-  keyOf(entries)

@@ -1,6 +1,6 @@
 import ../support/arrays
 import nimchoo/packages/fit/time
-## `nch ff --web` and `--worker` as a real program, on a fixture database (see
+## `nch ff` (which serves the chart) and `--worker` as a real program, on a fixture database (see
 ## heatmap/test_web.nim for the general checks of the server: this is that it serves the chart).
 ## Needs a built ./build/nch-test (the `test` task builds it); without one these tests are skipped.
 
@@ -49,11 +49,6 @@ proc environment(cache: string): StringTableRef =
 proc built(): bool =
   fileExists(exe)
 
-proc keyOf(url: string): string =
-  ## The key in an address ("/ff?state=KEY&...").
-  let start = url.find("state=") + 6
-  url[start ..< url.find('&', start)]
-
 proc worker(db, cache: string, extra: seq[string]): tuple[output: string, code: int] =
   let p = startProcess(
     exe,
@@ -66,20 +61,18 @@ proc worker(db, cache: string, extra: seq[string]): tuple[output: string, code: 
   p.close()
 
 suite "nch ff --worker":
-  test "the page, then the CSV, in the cache, then the address that names them":
+  test "the page, then the CSV, in the cache, named by the options":
     if not built():
       skip()
     let f = fixture("worker")
     let (output, code) = worker(f.db, f.cache, @[])
     check code == 0
     let lines = output.strip.splitLines
-    check lines.len == 3
+    check lines.len == 2
     check lines[0].startsWith(f.cache) and lines[0].endsWith(".html")
     check lines[1].startsWith(f.cache) and lines[1].endsWith(".csv")
-    check lines[2].startsWith("state=") and
-      lines[2].contains("&model=default&to=2018-09-05")
-    check lines[0].startsWith(f.cache / "user" / "ff-") and
-      lines[1].startsWith(f.cache / "user" / "ff-")
+    check lines[0] == f.cache / "user" / "ff-default-to-2018-09-05-utc.html"
+    check lines[1] == f.cache / "user" / "ff-default-to-2018-09-05-utc.csv"
     check dirExists(f.cache / "system") # (the other part is made too)
     check readFile(lines[0]).contains("plot.umd.min.js")
     let csv = readFile(lines[1]).splitLines
@@ -99,17 +92,15 @@ suite "nch ff --worker":
       toSeq(walkFiles(f.cache / "user" / "*")).len == 0
       # (nothing made; the cache has only what was unpacked)
 
-suite "nch ff --web: a real server":
+suite "nch ff: a real server":
   test "the address, the cookie, the page and the data":
     if not built():
       skip()
     let f = fixture("web")
     let p = startProcess(
       exe,
-      args = @[
-        "--db", f.db, "ff", "--web", "--no-open", "--port", "0", "--utc", "--to",
-        "2018-09-05",
-      ],
+      args =
+        @["--db", f.db, "ff", "--no-open", "--port", "0", "--utc", "--to", "2018-09-05"],
       env = environment(f.cache),
       options = {poStdErrToStdOut},
     )
@@ -120,7 +111,7 @@ suite "nch ff --web: a real server":
         url = line
         break
     check url.len > 0
-    check url.contains("/ff?state=") and url.contains("&to=2018-09-05&utc=1&token=")
+    check url.contains("/ff?to=2018-09-05&utc=1&token=")
     let base = url[0 ..< url.find("/ff")]
     let token = url[url.find("token=") + 6 .. ^1]
     let c = newHttpClient(maxRedirects = 0, timeout = 20_000)
@@ -136,13 +127,10 @@ suite "nch ff --web: a real server":
     check data.code == Http200
     check $data.headers["Content-Type"] == "text/csv; charset=utf-8"
     check data.body.startsWith("time,fitness,fatigue\n2018-08-27,")
-    # the hourly chart is another file
-    let unpinned = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
-    check unpinned.code == Http302 and
-      $unpinned.headers["Location"] ==
-      "/ff?state=" & keyOf(url) & "&model=default&to=2018-09-05&hourly=1&utc=1"
-    let hourly = withCookie.request(base & $unpinned.headers["Location"])
+    # the hourly chart is another file, made at once (nothing is pinned)
+    let hourly = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
     check hourly.code == Http200 and hourly.body.contains("const hourly = true;")
+    check withCookie.request(base & "/ff?state=ab12cd").code == Http404
     check withCookie.request(base & "/ff?to=2018-09-05&bogus=1").code == Http404
     check newHttpClient(maxRedirects = 0).request(base & "/ff").code == Http403
     when defined(posix):

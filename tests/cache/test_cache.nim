@@ -22,7 +22,10 @@ suite "cache: files":
     check cacheFile("/c/nch", "heatmap-lusab-babad", "exe").isNone
     check cacheFile("/c/nch", "heatmap-lusab-babad", "").isNone
   test "what the server may serve: the names this module makes":
-    for ok in ["map-lusab-babad-fuzoh.html", "ff-lusab-babad-fuzoh.csv"]:
+    for ok in [
+      "map-routes-climbs.html", "ff-default-hourly.csv",
+      "ff-default-fitness-scale-1.5.csv",
+    ]:
       check isCacheFileName(ok)
   test "and nothing else":
     for bad in [
@@ -33,10 +36,6 @@ suite "cache: files":
     ]:
       check not isCacheFileName(bad)
     check not isCacheFileName("x".repeat(500) & ".html")
-  test "every name made is accepted":
-    let stem = requestStem("ff", "state=ab12cd&to=2018-09-05").get
-    for ext in ["html", "geojson"]:
-      check isCacheFileName(stem & "." & ext)
 
 suite "cache: the user and system parts":
   test "two parts of the cache directory":
@@ -46,38 +45,19 @@ suite "cache: the user and system parts":
     check cacheFile(userDir("/c/nch"), "heatmap-lusab-babad", "geojson") ==
       some "/c/nch/user/heatmap-lusab-babad.geojson"
 
-suite "cache: names made from a request":
-  test "the same request gives the same name: the command, a hyphen, and three proquint groups":
-    let a = requestStem("map", "selection=AsBO&state=ab12cd")
-    check a.isSome and a == requestStem("map", "selection=AsBO&state=ab12cd")
-    check a != requestStem("map", "selection=AsBO&state=ab12ce")
-    check a != requestStem("plot", "selection=AsBO&state=ab12cd")
-    let name = a.get
-    check name.startsWith("map-") and name.len == 4 + 17 and not name.contains("--")
-  test "they are accepted as file names, with an extension that is allowed":
-    let name = requestStem("map", "x").get
-    check cacheFile("/c/nch", name, "geojson").isSome
-    for ext in ["geojson", "html", "csv"]:
-      check isCacheFileName(name & "." & ext)
-    check not isCacheFileName(name & ".exe") and
-      not isCacheFileName("map-notaproquint.geojson")
-    check not isCacheFileName("map-lusab-babad-.geojson") and
-      not isCacheFileName("map-.geojson")
-    check not isCacheFileName("../map-lusab-babad.geojson") and
-      not isCacheFileName("Map-lusab-babad.geojson")
-    check isCacheFileName("map-lusab-babad.geojson") and
-      not isCacheFileName("map-lusab-babad-xx.geojson")
-  test "not a name for anything that is not a command":
-    check requestStem("Map", "x").isNone and requestStem("", "x").isNone and
-      requestStem("a-b", "x").isNone
-
-suite "cache: the state of the inputs":
-  test "the same inputs give the same state; any change of an input changes it":
-    let k = stateKey([("importer", "aa"), ("climbs", "bb")])
-    check k == stateKey([("importer", "aa"), ("climbs", "bb")])
-    check k.len == 16
-    check k != stateKey([("importer", "aa"), ("climbs", "bc")])
-    check k != stateKey([("importer", "aa")]) # (an input dropped)
-    check k != stateKey([("importer", "aa"), ("climbs", "bb"), ("speed", "cc")])
-  test "the owner is part of the state: the same value from another owner is another input":
-    check stateKey([("a", "x")]) != stateKey([("b", "x")])
+suite "cache: names made from the options":
+  test "a name is the command, a hyphen and the options spelt out":
+    for stem in ["map-routes", "map-routes-climbs", "ff-default-to-2018-09-05-utc"]:
+      check isFileStem(stem)
+      check cacheFile("/c/nch", stem, "geojson").isSome
+      for ext in ["geojson", "html", "csv"]:
+        check isCacheFileName(stem & "." & ext)
+    check not isCacheFileName("map-routes.exe")
+  test "not a name for anything else":
+    for bad in [
+      "map", "map-", "-routes", "Map-routes", "a b-routes", "map-routes-",
+      "map--routes", "map-a/b", "map-ro utes", "ff-x%2e", "",
+    ]:
+      check not isFileStem(bad)
+    check not isCacheFileName("../map-routes.geojson") and
+      not isCacheFileName("map-routes-.geojson")

@@ -8,8 +8,8 @@
 ##
 ## A request must (1) be a GET, (2) have our own address in its Host header, (3) carry the
 ## token, in the cookie, or once in the URL (then the cookie is set and the browser is sent
-## on to the same address without it).  Then it is a page (`/map?selection=...`: the worker
-## makes the files and the first it names is sent) or a file of the cache directory
+## on to the same address without it).  Then it is a page (`/map?layers=routes,heat`: the worker
+## makes the files and the first it names is sent: every request makes them again, so a page shows the data as they are) or a file of the cache directory
 ## (`/files/NAME`).  Anything else is "not found".
 
 import std/[options, os, sequtils, strutils]
@@ -48,7 +48,6 @@ type
       args*: seq[string]
         ## the arguments of the worker (the same arguments give the same page)
       route: Route
-      target: Target
 
   Reply* = object
     code*: int
@@ -97,7 +96,7 @@ converter toStep(r: Reply): Step =
   ## (so that a reply that needs nothing more can be returned as it is)
   Step(needsWorker: false, reply: r)
 
-proc page(cfg: ServerConfig, route: Route, t: Target, r: WorkerResult): Reply =
+proc page(cfg: ServerConfig, route: Route, r: WorkerResult): Reply =
   ## The page that the worker made.
   if r.code != 0:
     let why = r.stderr.strip
@@ -118,24 +117,6 @@ proc page(cfg: ServerConfig, route: Route, t: Target, r: WorkerResult): Reply =
   let name = extractFilename(lines[0])
   if parentDir(lines[0]) != cfg.cacheDir or not name.endsWith(".html"):
     return reply(500, "nch " & route.command & " named a page that is not in the cache")
-  if t.query.queryValue(stateParam).isNone and lines.len > 2:
-    # the address was for "the current data": the worker's third line is the address that names exactly what it made, and
-    # a reload of that shows the same plot
-    # (in the one spelling the server writes every address in: a comma in a value, say, is the same address either way)
-    let address = "/" & route.command & "?" & lines[2]
-    let canonical = parseTarget(address)
-    return Reply(
-      code: 302,
-      headers: @[
-        (
-          "Location",
-          if canonical.isSome:
-            canonical.get.withoutParam(tokenParam)
-          else:
-            address,
-        )
-      ],
-    )
   let body = readCacheFile(cfg, name)
   if body.isNone:
     return reply(404, "not found")
@@ -152,7 +133,7 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
   let t = target.get
   let given = t.query.queryValue(tokenParam)
   if given.isSome:
-    # the address that `nch ... --web` opens: set the cookie, and go on without the token
+    # the address that `nch ...` opens: set the cookie, and go on without the token
     if not sameToken(given.get, cfg.token):
       return reply(403, "forbidden")
     return Reply(
@@ -168,8 +149,7 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
     )
   if not sameToken(cookieValue(req.cookie, cookieName), cfg.token):
     return reply(
-      403,
-      "forbidden: open the address that `nch " & $cfg.logCommand & " --web` printed\n",
+      403, "forbidden: open the address that `nch " & $cfg.logCommand & "` printed\n"
     )
   let route = route(t, cfg.pages)
   if route.isNone:
@@ -183,7 +163,6 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
     needsWorker: true,
     args: cfg.baseArgs & @[route.get.command, "--worker"] & route.get.args,
     route: route.get,
-    target: t,
   )
 
 proc conclude(cfg: ServerConfig, req: Incoming, raw: Reply): Reply =
@@ -214,7 +193,7 @@ proc answered*(cfg: ServerConfig, req: Incoming, step: Step): Reply =
 proc finish*(cfg: ServerConfig, req: Incoming, step: Step, r: WorkerResult): Reply =
   ## The reply of a step that needed a worker, given what the worker did.
   doAssert step.needsWorker, "a step that needs no worker has its reply already"
-  conclude(cfg, req, page(cfg, step.route, step.target, r))
+  conclude(cfg, req, page(cfg, step.route, r))
 
 proc handle*(cfg: ServerConfig, port: int, req: Incoming, run: WorkerRunner): Reply =
   ## The reply to a request, running the worker (if there is one) with `run`.

@@ -5,7 +5,6 @@ import std/[options, sequtils, strutils, tables]
 import nimchoo/core/errors
 import nimchoo/packages/cache/cache
 import nimchoo/packages/fit/load
-import nimchoo/packages/selection/bits
 import nimchoo/packages/util/xlsx/xlsx
 import nimchoo/packages/util/zip/zipbytes
 import nimchoo/packages/web/request
@@ -29,31 +28,6 @@ proc useXlsx*(x: string) {.raises: [XlsxError].} =
 
 proc loads*(x: string) {.raises: [ProfileError, XlsxError].} =
   discard loadProfileFromBytes(x)
-
-const bitsMaxIds* = [1'i64, 2, 10, 300, 1112, 5000, 100_000]
-
-proc bitsProblem*(s: string, maxId: int64): string =
-  ## What is wrong with the way `decodeBits` read `s`, if anything ("" if all is well).
-  let d = decodeBits(s, maxId)
-  if d.problem != "":
-    if d.ids.len > 0:
-      return "ids as well as a problem"
-    return ""
-  for i, id in d.ids:
-    if id < 1 or id > maxId:
-      return "id " & $id & " is outside 1.." & $maxId
-    if i > 0 and id <= d.ids[i - 1]:
-      return "ids not in order at " & $i
-  let again = decodeBits(encodeBits(d.ids), maxId)
-  if again.problem != "" or again.ids != d.ids:
-    return "the ids do not encode and decode to themselves"
-
-proc bitsProblemAny*(s: string): string =
-  ## `bitsProblem` for each of the highest ids tried ("" if all is well).
-  for maxId in bitsMaxIds:
-    result = bitsProblem(s, maxId)
-    if result != "":
-      return
 
 func hasControl(s: string): bool =
   s.anyIt(it < ' ' or it == '\x7f')
@@ -102,13 +76,18 @@ proc requestProblem*(raw: string, pages: seq[WebPage]): string =
     if name in rule[0].flags:
       inc i
     elif rule[0].options.anyIt(it.name == name):
-      if i + 1 >= rt.args.len:
+      # (a list option takes the words up to the next option; any other takes one)
+      let isList = rule[0].options.anyIt(it.name == name and it.isList)
+      var j = i + 1
+      while j < rt.args.len and
+          (j == i + 1 or isList and not rt.args[j].startsWith("--")):
+        let v = rt.args[j]
+        if v.len == 0 or v.hasControl or v.anyIt(it == ' ') or "--" in v:
+          return "an option with a value that is not one"
+        inc j
+      if j == i + 1:
         return "an option with no value"
-      let v = rt.args[i + 1]
-      if v.len == 0 or v.hasControl or v.anyIt(it == ' ') or
-          "--" in v and name != "selection":
-        return "an option with a value that is not one"
-      i += 2
+      i = j
     else:
       return "an option the command does not have"
   ""

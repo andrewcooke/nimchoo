@@ -1,18 +1,13 @@
 ## The cache directory, where commands that make files (maps, exports) put
-## them, and what such files are called.  A file is named after the request that
-## made it, so the same request finds the same files: the command and a hash of
-## the request (the whole pinned address, which is always at hand, so the name does
-## not need to say what it holds):
-##
-##     ff-lusab-babad-fuzoh.csv
+## them, and what such files are called.  A file is named by the command and its options, spelt out
+## (`map-routes-climbs.geojson`, `ff-default-hourly.csv`), and is made again on every request: a view shows
+## the data as they are now, so a name says what the file is for and nothing about the data.
 ##
 ## A name is always a plain file name that can be put in a URL.  The cache directory has two parts, `user/` (made by commands) and `system/` (unpacked
 ## from the program), and keeps the server's token at its top.  Pure functions: no files are
 ## touched here.
 
-import std/[options, os, parseutils, sequtils, strutils]
-import ../util/hashing/hashing
-import ../text/proquint/proquint
+import std/[options, os, sequtils, strutils]
 
 {.push raises: [].}
 
@@ -34,34 +29,11 @@ func isOptionValue*(s: string): bool =
   ## (a name of a model, a day, a number, a hash).
   s.len > 0 and s.allIt(it.isValueChar) and "--" notin s
 
-func requestStem*(command, request: string): Option[string] =
-  ## The name, without extension, for what `command` makes for a `request` (the text that says exactly what is wanted):
-  ## the command, a hyphen and 48 bits of the request's hash as pronounceable words: "map-lusab-babad-fuzoh".  The same
-  ## request gives the same name.  None if the command is not a command name.
-  if not isCommandName(command):
-    return none(string)
-  let hex = sha256Hex(request)
-  var bytes: seq[byte]
-  for i in 0 ..< 6:
-    var v = 0
-    discard parseHex(hex[2 * i ..< 2 * i + 2], v)
-    bytes.add byte(v)
-  some(command & "-" & proquint(bytes))
-
-func stateKey*(inputs: openArray[(string, string)]): string =
-  ## The state of everything a plot is made from, besides the parameters that name it: each input is the key its owner
-  ## gives to the data it supplied, as (owner, key).  An address carries it (`state=`) so that a plot is remade only from
-  ## the same data.  The program's version is not part of it: a plot remade by a newer build is the same data and
-  ## parameters.  The owner's name is in the key, which stops a new input from being forgotten: it is a different state.
-  var text = ""
-  for (owner, key) in inputs:
-    text.add owner & "=" & key & "\n"
-  sha256Hex(text)[0 ..< 16]
-
-func isRequestStem(base: string): bool =
-  ## "map-lusab-babad-fuzoh": a command name, a hyphen, and a proquint.
-  let dash = base.find('-')
-  dash > 0 and isCommandName(base[0 ..< dash]) and isProquint(base[dash + 1 .. ^1])
+func isFileStem*(stem: string): bool =
+  ## "map-routes-climbs": a command name, a hyphen, and the options spelt out (letters, digits and . _ , -, no "--").
+  let dash = stem.find('-')
+  dash > 0 and isCommandName(stem[0 ..< dash]) and isOptionValue(stem[dash + 1 .. ^1]) and
+    "--" notin stem and not stem.endsWith('-')
 
 func userDir*(dir: string): string =
   ## Where commands put what they make (maps, charts, pages): a part of the cache directory `dir`.
@@ -96,7 +68,7 @@ func isCacheFileName*(name: string): bool =
     return false
   if name.len > maxNameLength + 8:
     return false
-  isRequestStem(base)
+  isFileStem(base)
 
 func cachePath*(nchCache, xdgCache, home: Option[string]): Option[string] =
   ## The cache directory, given $NCH_CACHE, $XDG_CACHE_HOME and the home
