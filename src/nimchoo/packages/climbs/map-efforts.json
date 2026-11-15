@@ -1,0 +1,5 @@
+{{! How the efforts (the part of a ride between the start and finish of an effort on a climb) are drawn, as JSON (the page reads
+    it): a thick line with a dot at each end. }}
+{
+  "efforts": { "color": "{{{blue}}}", "weight": 5, "opacity": 0.85, "start": "{{{green}}}", "finish": "{{{red}}}", "radius": 6 }
+}

@@ -38,13 +38,17 @@ type
     ## A command the server may run for a page, as a package offers it (the point `webPage`): the command
     ## and the options it may be given.
     command*: string
+    word*: Validator
+      ## nil: the address is `/COMMAND`.  Else it may be `/COMMAND/WORD` (a subject: `/map/climbs`), and the word, if it
+      ## passes, is the command's first argument
     options*: seq[PageOption]
     flags*: seq[string] ## `?name=1` becomes `--name`
 
-func pageOf*[P](command: string, spec: Spec[P]): WebPage =
+func pageOf*[P](command: string, spec: Spec[P], word: Validator = nil): WebPage =
   ## The page a command offers the server, made from its own options: those marked as allowed in an address, each with
-  ## its check, and the flags.  What the server will pass on is then what the command parses, and nothing else.
-  result = WebPage(command: command)
+  ## its check, and the flags.  What the server will pass on is then what the command parses, and nothing else.  `word`:
+  ## the check of the word after the command in the address, for a command that has one (`map SUBJECT`).
+  result = WebPage(command: command, word: word)
   for o in spec.opts:
     if o.address == adNo:
       continue
@@ -97,7 +101,7 @@ func withoutParam*(t: Target, name: string): string =
   render(t, name, true)
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/map?layers=routes,heat" -> path "/map" and the query, percent-decoded.
+  ## "/map/activities?frames=routes,heat" -> path "/map/activities" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, as written or as decoded,
   ## no spaces or control characters, not too long as written or as written back).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):
@@ -180,18 +184,23 @@ func day*(value: string): bool =
 
 func route*(t: Target, pages: seq[WebPage]): Option[Route] =
   ## What a request is for: a file of the cache directory (`/files/NAME`), or a command
-  ## (`/COMMAND?option=value...`) that a page offers, with only its options, each once.
+  ## (`/COMMAND?option=value...`, or `/COMMAND/WORD?...` if the page takes a word) that a page offers, with only its options,
+  ## each once.
   let segments = t.path.split('/') # "/a/b" -> ["", "a", "b"]
   if segments.len == 3 and segments[0] == "" and segments[1] == "files":
     if t.query.len == 0 and isCacheFileName(segments[2]):
       return some(Route(isFile: true, fileName: segments[2]))
     return none(Route)
-  if segments.len != 2 or segments[0] != "":
+  if segments.len notin 2 .. 3 or segments[0] != "":
     return none(Route)
   for page in pages:
     if segments[1] != page.command:
       continue
     var args: seq[string]
+    if segments.len == 3:
+      if page.word == nil or not page.word(segments[2]):
+        return none(Route)
+      args.add segments[2]
     var seen: seq[string]
     for (k, v) in t.query:
       if k == tokenParam:

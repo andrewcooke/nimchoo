@@ -27,7 +27,7 @@
 ## * `importer <packages/importer/package.html>`_ - Putting the activities of FIT files into the database, and describing them.
 ## * `log <packages/log/package.html>`_ - Reading the log: `nch log`.
 ## * `lookup <packages/util/lookup/package.html>`_ - Table lookups that have to succeed (`must`, `mustMut`).
-## * `map <packages/map/package.html>`_ - The selected activities on a map: their routes, the climbs on them, and where they went most (heat).
+## * `map <packages/map/package.html>`_ - The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ## * `model <packages/model/package.html>`_ - The training impulse: models, and the impulses worked out with them.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
@@ -104,6 +104,8 @@ other views (`climbs`, `map`, `calendar`) take the selection.
   so this package may run a condition that reads tables it does not.
 * **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with the key of the user's
   selection.
+* **Map frames** (`mapframes.nim`): the routes of the selected activities and the heat (how often each place was visited), offered to
+  `map/frames` with the style of each.
 * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).""",
     ),
     Registered(
@@ -162,7 +164,8 @@ shown together, are worked out when asked for and never stored.  `-v` lists the 
 never the attempts.
 
 Offers `--climbs TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
-climb whose name holds the text.  Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.""",
+climb whose name holds the text.  Offers the frames `climbs`, `gates` and `efforts` of the activities to the map (`mapframes.nim`).
+Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.""",
     ),
     Registered(
       name: "confirm",
@@ -326,31 +329,27 @@ latest run.  The words and their colours are in `ui/vocabulary`.""",
       name: "map",
       package: pkgMap.package,
       summary:
-        "The selected activities on a map: their routes, the climbs on them, and where they went most (heat).",
+        "The map: a view of a subject, drawn from the frames that the packages managing it contribute.",
       doc:
-        """The selected activities on a map: their routes, the climbs on them, and where they went most (heat).
+        """The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 
-`nch map` makes everything itself: no layer commands, no layer index.  `--layers routes,climbs,heat` (default routes,climbs)
-says what is drawn: the layers are a set of the address (`layers=`), named in the file's name (`map-routes-climbs.geojson`; made
-again on every request: a map is a live view of the selection, and a bookmark keeps the layers and not the data).  A GeoJSON
-file in the cache holds the features (each says what it is, in `kind`: route, climb or heat, and nothing about how it looks)
-and a page (Leaflet) decides the look.  **The heat** is squares of the grid of `geo/cells.nim` from the table `route_cell`
-(`importer`), counted over the selected activities at three levels (cells of about 100 m, 870 m and 7 km: `level`), with
-`visits` (how often) and `rides` (by how many activities); the page shows the level that suits the zoom (the style says from
-which), under the routes, shaded on a log scale.  **Gates and efforts** are for looking at how climbs are matched (`--layers routes,efforts,gates` with a few activities selected):
-`gates` draws the start and finish line of each climb the activities went up (the lines a ride has to cross: `climbs/match.nim`
-`gateLines`, the same gates `overPaths` uses), `efforts` the part of each ride between the stored start and finish time of its
-efforts, thick, with a green dot where it starts and a red one where it finishes; where a ride crosses a gate twice (a
-switchback near it) the dots show which crossing the effort used.  The page is served on localhost (`web`; `--file` makes the files only, and prints their paths); the address
-is `/map?layers=LIST`.
+`nch map [SUBJECT] [--frames FRAME...]`.  The map knows no subject and no kind of data: the point `map/frames` (`frames.nim`) takes
+the frames, each a GeoJSON file about a subject that its provider makes (`activities`: routes and heat; `climbs`: the climbs
+of the activities, their gates and efforts), with a style of its own that the provider ships, so a new subject or frame is a
+package that contributes, and nothing here changes.  `subject/subjects` says which subjects there are.  A GeoJSON file for each
+frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes.geojson`) and
+a page (Leaflet) decides the look.  Everything is made again on every request: a map is a live view of the selection, and a
+bookmark (`/map/activities?frames=routes,climbs`) keeps the frames and not the data.  The page is served on localhost (`web`;
+`--file` makes the files only, and prints their paths).
 
-**The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
+**The page is templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
 overwritten once changed; delete a file to get the built-in one): `map.html` (the page and its script), `map.css` (the look
-of the page) and `map-style.json` (how routes, climbs and the heat are drawn).  The css and the style are filled in first with the
-palette's colours as tags (`{{blue}}`), then put into the page.  The look: routes are thin red threads, each offset sideways
-by an amount of its own (`spread_m`); climbs are thick transparent grey lines beside the road, in lanes alternating sides so
-that climbs on the same stretch do not overlap, offset in pixels (recomputed on zoom, simplified first so that hairpins do not
-loop); corner cutting (`smooth_rounds`) rounds the lines.  Offers its page to the server (`web/pages`).""",
+of the page), `map-style.json` (the corner cutting, `smooth_rounds`) and a style for each frame, shipped by its provider
+(`activities-map-routes.json` ...).  The css and the styles are filled in first with the palette's colours as tags (`{{blue}}`),
+then put into the page.  The look: routes are thin red threads, each offset sideways by an amount of its own (`spread_m`);
+climbs are thick transparent grey lines beside the road, in lanes alternating sides so that climbs on the same stretch do not
+overlap, offset in pixels (recomputed on zoom, simplified first so that hairpins do not loop); corner cutting rounds the lines.
+`lines.nim` writes the features, as a library for the providers.  Offers its page to the server (`web/pages`).""",
     ),
     Registered(
       name: "model",
@@ -592,7 +591,7 @@ Used for xlsx files and for downloads.""",
       doc:
         """The local web server: runs `nch` commands named in addresses and shows their pages.
 
-A lightweight server on `127.0.0.1` that interprets the address as a command (`/map?layers=routes,heat`) and shows its page, or serves
+A lightweight server on `127.0.0.1` that interprets the address as a command (`/map/activities?frames=routes,heat`) and shows its page, or serves
 a file of the cache (`/files/NAME`).  Any web page open in the browser can send requests to localhost, so the rules are
 strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DNS rebinding) and the token, in a cookie or
 once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each

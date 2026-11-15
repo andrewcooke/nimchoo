@@ -14,18 +14,20 @@
 ##   so this package may run a condition that reads tables it does not.
 ## * **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with the key of the user's
 ##   selection.
+## * **Map frames** (`mapframes.nim`): the routes of the selected activities and the heat (how often each place was visited), offered to
+##   `map/frames` with the style of each.
 ## * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).
 
 import ../../core/[extension, manifest]
-import ./[command, criterion, subject]
+import ./[command, criterion, mapframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[subject.contribution()]
+  @[subject.contribution()] & mapframes.contributions()
 
 const package* = Package(
   depends: @[
-    "args", "confirm", "db", "fit", "fold", "importer", "selection", "subject", "ui",
-    "user",
+    "args", "bundle", "confirm", "db", "fit", "fold", "geo", "importer", "map",
+    "selection", "subject", "ui", "user",
   ],
   commands: @[
     CommandDecl(

@@ -10,7 +10,7 @@
 </head>
 <body>
 <div id="map"></div>
-<div id="caption">loading the routes ...</div>
+<div id="caption">loading the map ...</div>
 <div id="cursor"></div>
 <script src="{{leaflet-js}}" integrity="{{leaflet-js-hash}}" crossorigin=""></script>
 <script>
@@ -191,9 +191,14 @@
     return lanes;
   }
 
-  fetch('/files/{{{data}}}')
-    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then((data) => {
+  // one file for each frame, fetched on its own: a frame that cannot be read is said so, and the others are drawn
+  const files = {{{files}}};
+  Promise.allSettled(files.map((name) => fetch('/files/' + name)
+      .then((r) => { if (!r.ok) throw new Error(name + ': HTTP ' + r.status); return r.json(); })))
+    .then((results) => {
+      const failed = results.filter((r) => r.status === 'rejected').map((r) => String(r.reason));
+      const data = { type: 'FeatureCollection',
+                     features: [].concat(...results.filter((r) => r.status === 'fulfilled').map((r) => r.value.features)) };
       const ofKind = (kind) => (f) => (f.properties || {}).kind === kind;
       spreadRoutes(data.features);
       const lanes = lanesOfClimbs(data.features);
@@ -309,9 +314,9 @@
       if (ne) parts.push(ne + ' efforts (thick, a green dot where each starts and a red one where it finishes)');
       if (ng) parts.push(ng / 2 + ' climbs with their gates (green: start, red: finish)');
       if (heatLayers.size) parts.push('heat: how often each place was visited (more is stronger; the cells grow as you zoom out)');
-      caption.textContent = parts.join(', ');
+      caption.textContent = parts.join(', ') + (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '');
     })
-    .catch((e) => { caption.textContent = 'could not load the routes: ' + e; });
+    .catch((e) => { caption.textContent = 'could not draw the map: ' + e; });
 </script>
 </body>
 </html>

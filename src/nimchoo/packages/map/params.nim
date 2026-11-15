@@ -1,76 +1,46 @@
-## The command line of `nch map`, parsed.  Pure.  `--layers` (words) says what is drawn (what is drawn of is the selection, as it
-## is when the map is made).  The options are marked as allowed in an address (`/map?layers=routes,heat`), so the list of what a
-## page may be given is made from here (`web/request.pageOf`).
+## The command line of `nch map`, parsed.  Pure.  `nch map [SUBJECT] [--frames FRAME...]`: the subject is what the map is of (the
+## default one if it is left out) and the frames are what is drawn of it; which names exist is the registry's to say
+## (`subject/subjects`, `map/frames`), so the command checks them, not the parser.  The options are marked as allowed in an address
+## (`/map/activities?frames=routes,heat`), so the list of what a page may be given is made from here (`web/request.pageOf`).
 
-import std/[options, strutils]
+import std/[options, sequtils, strutils]
+import ../../core/[extension, globals]
 import ../util/args/args
 import ../web/webopts
+import ./frames
 
 {.push raises: [].}
 
 type
-  Layer* = enum
-    ## What a map can show; each is a set of features of the file with its own `kind`, and the page decides the look.
-    lyRoutes = "routes" ## the route of each activity
-    lyClimbs = "climbs" ## the climbs they went up
-    lyHeat = "heat"
-      ## how often each place was visited, as cells of the grid (geo/cells.nim)
-    lyGates = "gates"
-      ## the two gates of each climb: the lines a ride has to cross to be on it
-    lyEfforts = "efforts"
-      ## the part of each ride that counts as an effort on a climb (between its stored start and finish)
-
   Params* = object
     web*: WebMode ## `--file`, `--worker` and the options of serving
-    layers*: set[Layer] ## what to draw (never empty)
+    subject*: Option[string] ## none: the default subject
+    frames*: seq[string]
+      ## what to draw, in the order given; none: the frames that are shown unless told otherwise
 
   Raw = object ## what the options fill in
     help: bool
-    layers: seq[string]
+    subjects: seq[string]
+    frames: seq[string]
     web: WebArgs
 
-const defaultLayers* = {lyRoutes, lyClimbs} ## what a map shows when it is not told
+func isWord*(value: string): bool =
+  ## A name of a subject or a frame: lower case letters and digits.
+  value.len > 0 and value.allIt(it in {'a' .. 'z', '0' .. '9'})
 
-func layerOf(word: string): Option[Layer] =
-  for l in Layer:
-    if $l == word:
-      return some(l)
+func completeFrames(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
+  ## The names of the frames that start with what is typed (of every subject: the words before it are not known here).
+  for f in g.extensions.get(mapFramePoint):
+    if f.name.startsWith(typed) and f.name notin result:
+      result.add f.name
 
-func parseLayers*(words: seq[string]): Option[set[Layer]] =
-  ## The layers a list names ("routes" "heat"); none if it names one that is not there or none at all.
-  var layers: set[Layer]
-  for word in words:
-    let l = layerOf(word)
-    if l.isNone:
-      return none(set[Layer])
-    layers.incl l.get
-  if words.len == 0:
-    return none(set[Layer])
-  some(layers)
-
-func layersText*(layers: set[Layer]): string =
-  ## The list of layers in its one spelling (in the order of the layers), as an address carries it.
-  var names: seq[string]
-  for l in Layer:
-    if l in layers:
-      names.add $l
-  names.join(",")
-
-func layerNames*(): seq[string] =
-  ## The names of the layers, for completing the option.
-  for l in Layer:
-    result.add $l
-
-func layerValue(value: string): bool =
-  layerOf(value).isSome
-
-proc takeLayers(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
+proc takeFrames(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   if values.len == 0:
-    return refuse(name & " needs at least one layer (" & layerNames().join(", ") & ")")
+    return refuse(name & " needs at least one frame")
   for v in values:
-    if not layerValue(v):
-      return refuse("'" & v & "' is not a layer (" & layerNames().join(", ") & ")")
-  p.layers.add values
+    if not isWord(v):
+      return refuse("'" & v & "' is not a name of a frame")
+  p.frames.add values
   fine
 
 func mapSpec*(): Spec[Raw] =
@@ -79,28 +49,37 @@ func mapSpec*(): Spec[Raw] =
     opts:
       @[
         listOption[Raw](
-          ["--layers"],
-          takeLayers,
-          "LAYER...",
-          "what to draw, separated by spaces: routes (the route of each activity), climbs (the climbs they went up), heat (how often each place was visited, in cells of about 100 m, coarser when zoomed out), gates (the start and finish line of each climb) and efforts (the part of each ride between the start and finish times of its efforts on climbs: for looking at how climbs are matched, with a few activities); default: routes climbs",
-          completion = Completion(kind: ckWords, words: layerNames()),
+          ["--frames"],
+          takeFrames,
+          "FRAME...",
+          "what to draw, separated by spaces: the frames of the subject (see the list below); default: those marked as shown",
+          completion = completesFrom(completeFrames),
           address = adList,
-          valid = layerValue,
+          valid = isWord,
         )
-      ] & webOptions(Raw, web, "the map", "GeoJSON") & @[helpFlag(Raw)]
+      ] & webOptions(Raw, web, "the map", "GeoJSON files") & @[helpFlag(Raw)],
+    positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
+      if not isWord(arg):
+        return refuse("'" & arg & "' is not a name of a subject")
+      p.subjects.add arg
+      fine,
   )
 
 func finish(raw: Raw): Parsed[Params] =
   let mode = webMode(raw.web)
   if mode.kind == pkProblem:
     return problemWith[Params](mode.problem)
-  let layers =
-    if raw.layers.len == 0:
-      defaultLayers
-    else:
-      parseLayers(raw.layers).get # (`takeLayers` has seen them)
-  parsedOk(Params(web: mode.params, layers: layers))
+  if raw.subjects.len > 1:
+    return problemWith[Params]("expected at most one SUBJECT")
+  parsedOk(
+    Params(
+      web: mode.params,
+      subject: (if raw.subjects.len == 1: some(raw.subjects[0])
+      else: none(string)),
+      frames: raw.frames,
+    )
+  )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `--layers LAYER...`, `--file`, `--worker`, `--port N`, `--no-open`, `--new-token`, `-h`.
+  ## `[SUBJECT] [--frames FRAME...] [--file | --worker | --port N --no-open --new-token] [-h]`.
   parseCommand(args, mapSpec(), Raw(web: initWebArgs()), finish)

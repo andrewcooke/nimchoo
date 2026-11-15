@@ -8,7 +8,7 @@
 ##
 ## A request must (1) be a GET, (2) have our own address in its Host header, (3) carry the
 ## token, in the cookie, or once in the URL (then the cookie is set and the browser is sent
-## on to the same address without it).  Then it is a page (`/map?layers=routes,heat`: the worker
+## on to the same address without it).  Then it is a page (`/map/activities?frames=routes,heat`: the worker
 ## makes the files and the first it names is sent: every request makes them again, so a page shows the data as they are) or a file of the cache directory
 ## (`/files/NAME`).  Anything else is "not found".
 

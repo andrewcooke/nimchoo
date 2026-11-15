@@ -274,6 +274,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         commandName,
         WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
         dir.get,
+        commandName,
         webQuery(parsed.params),
       )
     let stem = stemOf(parsed.params, name)

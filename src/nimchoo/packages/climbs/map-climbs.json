@@ -1,0 +1,6 @@
+{{! How the climbs are drawn, as JSON (the page reads it): thick transparent grey lines beside the road, marking sections
+    of it: gap_px from the threads of the routes and lane_px between lanes, in pixels (so they stay clear of the road at any
+    zoom); climbs on the same stretch of road go in different lanes, alternately on each side. }}
+{
+  "climbs": { "color": "#868e96", "weight": 8, "opacity": 0.35, "gap_px": 14, "lane_px": 11 }
+}

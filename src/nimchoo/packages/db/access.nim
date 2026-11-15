@@ -42,6 +42,9 @@ var
     ## whether the tables read are being noted (`startRecording`)
   readTables {.threadvar.}: seq[string] ## the tables read since `startRecording`
 
+const tableFunctions = ["json_each", "json_tree"]
+  ## SQLite's table-valued functions appear to the authorizer as tables, and are not
+
 proc packageOfFile*(file: string): string {.compileTime.} =
   ## The package a source file belongs to: its name is the name of the nearest directory above the file that has
   ## a `package.nim` (dev/PACKAGES.md); "" for a file outside the packages (`core`, the tests).
@@ -57,7 +60,8 @@ proc authorize(
   let rules {.cursor.} = cast[Access](user)
   if recording and action == SQLITE_READ and trigger.isNil and not arg1.isNil and
       (database.isNil or $database != "temp") and $arg1 notin readTables and
-      not ($arg1).startsWith("sqlite_"):
+      not ($arg1).startsWith("sqlite_") and not ($arg1).startsWith("idx_") and
+      $arg1 notin tableFunctions:
     readTables.add $arg1
   if caller.len == 0 or not trigger.isNil:
     # (what a trigger does is the database's own business)
@@ -120,7 +124,8 @@ proc leave*(): string {.raises: [].} =
 proc startRecording*() {.raises: [].} =
   ## Note the tables that the statements prepared from now on read (for a test of what a view reads: the authorizer sees
   ## each one).  Only on this thread, and only while the connection has access rules.  What a trigger reads is not noted, and
-  ## neither are SQLite's own tables and the temporary ones.
+  ## neither are SQLite's own tables, its table-valued functions (`json_each`), the spatial indexes of SpatiaLite (`idx_sector_route`, read with the table that has the
+  ## geometry) and the temporary ones.
   recording = true
   readTables.setLen 0
 

@@ -85,6 +85,8 @@ import ./activities/test_criteria
 import ./activities/test_completion as sportCompletion
 import ./activities/test_table
 import ./activities/test_command
+import ./activities/test_mapframes
+import ./climbs/test_mapframes as climbsMapFrames
 import ./calendar/test_calendar
 import ./calendar/test_command as calendarCommandTests
 import ./map/test_params

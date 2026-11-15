@@ -107,7 +107,7 @@ suite "nch map: a real server":
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
     check output.contains("http://localhost:")
-    check w.url.contains("/map?layers=routes,climbs&token=")
+    check w.url.contains("/map/activities?frames=routes,climbs&token=")
     check w.token.len == 32
     # the printed address: the token is traded for a cookie
     let c = client()
@@ -117,21 +117,23 @@ suite "nch map: a real server":
       "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
     )
     let pinned = $r1.headers["Location"]
-    check pinned == "/map?layers=routes%2Cclimbs" # (the look, not the data)
+    check pinned == "/map/activities?frames=routes%2Cclimbs" # (the look, not the data)
     # with the cookie: the page, which asks for the data
     let withCookie = client(w.token)
     let page = withCookie.request(w.base & pinned)
     check page.code == Http200
     let html = page.body
     check html.contains("leaflet@1.9.4")
-    let dataName = html[html.find("/files/") .. html.find(".geojson'") + 7]
+    let dataName = "/files/map-activities-routes.geojson"
+    check html.contains("\"map-activities-routes.geojson\"") and
+      html.contains("\"map-activities-climbs.geojson\"")
     let data = withCookie.request(w.base & dataName)
     check data.code == Http200
     check $data.headers["Content-Type"] == "application/geo+json"
     check parseJson(data.body)["features"].len == 2
-    # an address without options is the defaults, and is served as it is (nothing is pinned)
-    let again = withCookie.request(w.base & "/map")
-    check again.code == Http200
+    # an address without a subject or frames is the defaults, and is served as it is (nothing is pinned)
+    check withCookie.request(w.base & "/map").code == Http200
+    check withCookie.request(w.base & "/map/activities?frames=routes").code == Http200
     check dirExists(f.cache / "user") and dirExists(f.cache / "system")
     check fileExists(f.cache / "server-token")
       # (the token is at the top, not in what is served)
@@ -162,6 +164,7 @@ suite "nch map: a real server":
     for path in [
       "/", "/destroy", "/import?x=1", "/list?save=1", "/map?worker=1",
       "/map?db=/etc/passwd", "/map?selection=AB", "/map?state=ab12cd",
+      "/map?layers=heat", "/map/a/b", "/map/Activities", "/map/activities?frames=Heat",
       "/files/server-token", "/files/..%2fx.geojson", "/files/%2e%2e%2fserver-token",
       "/files/nope.geojson",
     ]:
@@ -206,7 +209,7 @@ suite "nch map: a real server":
     let (w, output) = start(f.db, f.cache)
     check w.url == ""
     check w.process.waitForExit(10_000) == 1
-    check output.contains("the selection is empty")
+    check output.contains("the selection of activities is empty")
     w.process.close()
 
   test "a port that is taken: it says so and does not start":

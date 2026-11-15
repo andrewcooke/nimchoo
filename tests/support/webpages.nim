@@ -6,6 +6,6 @@ import ../../src/nimchoo/packages/map/params as mapParams
 import ../../src/nimchoo/packages/web/request
 
 let
-  mapPage* = pageOf("map", mapSpec())
+  mapPage* = pageOf("map", mapSpec(), isWord)
   ffPage* = pageOf("ff", ffSpec())
   testPages* = @[mapPage, ffPage]

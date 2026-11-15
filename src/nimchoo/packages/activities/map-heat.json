@@ -1,0 +1,9 @@
+{{! How the heat (how often each place was visited) is drawn, as JSON (the page reads it): squares coloured from `low` (a
+    place visited once) to `high` (the busiest), more opaque as it is busier, and each size of square (`level`: 0 is about
+    100 m, 3 about 870 m, 6 about 7 km) is used from the zoom `min_zoom` (the finest that is allowed, else the coarsest). }}
+{
+  "heat": {
+    "low": "#ffd43b", "high": "{{{red}}}", "opacity_low": 0.25, "opacity_high": 0.8,
+    "levels": [ { "level": 0, "min_zoom": 14 }, { "level": 3, "min_zoom": 11 }, { "level": 6, "min_zoom": 0 } ]
+  }
+}

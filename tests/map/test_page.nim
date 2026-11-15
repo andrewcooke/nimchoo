@@ -2,13 +2,24 @@ import std/[options, os, strutils, tables, unittest]
 import ../support/env
 import nimchoo/packages/bundle/unpack
 import nimchoo/packages/cache/cache
-import nimchoo/packages/map/page
+import nimchoo/packages/map/[frames, page]
 import nimchoo/packages/web/libraries
 import nimchoo/packages/text/templating/templating
+import nimchoo/core/extension
+from nimchoo/registry import extensions
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
-const data = "map-lusab-babad-fuzoh.geojson"
+const
+  data = "map-activities-routes.geojson"
+  others = ["map-activities-climbs.geojson"]
+
+let real = extensions.get(mapFramePoint)
+  ## the frames of the program, with the styles their providers ship
+
+proc pageHtml(file, title: string): Option[string] =
+  ## The page of one file, with the real frames' styles.
+  pageHtml(@[file], title, real)
 
 suite "map page: the text":
   test "it loads Leaflet with the integrity hashes, and the data from the server":
@@ -18,7 +29,8 @@ suite "map page: the text":
     check h.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
     check h.contains("integrity=\"" & libs["leaflet-js-hash"] & "\"")
     check h.contains("integrity=\"" & libs["leaflet-css-hash"] & "\"")
-    check h.contains("fetch('/files/" & data & "')")
+    check h.contains("\"" & data & "\"") # the file, in the list the page fetches
+    check h.contains("fetch('/files/' + name)")
     check h.contains("https://tile.openstreetmap.org/{z}/{x}/{y}.png")
     check h.contains("OpenStreetMap") # (the attribution the tile policy asks for)
   test "the hashes are the ones of the files that were checked":
@@ -31,9 +43,9 @@ suite "map page: the text":
     check h.contains("html, body, #map { height: 100%; margin: 0; }")
       # the css, in the page
     check h.contains("color: #222222;") # {{white}} of the palette
-    check h.contains("\"routes\": { \"color\": \"#e03131\"")
-      # {{{red}}} of the palette, in the style
-    check h.contains("\"spread_m\": 4") and h.contains("\"smooth_rounds\": 2")
+    check h.contains("\"routes\":{\"color\":\"#e03131\"")
+      # {{{red}}} of the palette, in the style of the routes
+    check h.contains("\"spread_m\":4") and h.contains("\"smooth_rounds\":2")
     check h.contains("const style = {") # the page reads it
     check not h.contains("{{!") # (comments are gone)
   test "no placeholder is left":
@@ -50,8 +62,9 @@ suite "map page: the text":
       "heatmap--check-a.geojson.exe",
     ]:
       check pageHtml(bad, "t").isNone
-    check pageHtml("map-lusab-babad-fuzoh.geojson", "t").isSome
+    check pageHtml("map-activities-routes.geojson", "t").isSome
       # (a name the cache could hold)
+    check pageHtml(@[data, "../x.geojson"], "t", real).isNone # (any one of them)
 
 suite "map page: the template and the libraries are files":
   teardown:
@@ -65,10 +78,11 @@ suite "map page: the template and the libraries are files":
     check readFile(systemDir(top) / "libraries.txt") == librariesBundle.data
     writeFile(
       systemDir(top) / "templates" / "map.html",
-      "<h1>{{title}}</h1> <a href=\"{{leaflet-js}}\">{{data}}</a>\n",
+      "<h1>{{title}}</h1> <a href=\"{{leaflet-js}}\">{{{files}}}</a>\n",
     )
     check pageHtml(data, "My <map>").get ==
-      "<h1>My &lt;map&gt;</h1> <a href=\"" & libs["leaflet-js"] & "\">" & data & "</a>\n"
+      "<h1>My &lt;map&gt;</h1> <a href=\"" & libs["leaflet-js"] & "\">[\n  \"" & data &
+      "\"\n]</a>\n"
   test "other versions of the libraries: change the file":
     let top = getTempDir() / "nch-test-map-libs"
     removeDir top
@@ -98,20 +112,21 @@ suite "map page: the template and the libraries are files":
       check e.msg == "line 2: there is no value called 'nothing-like-this'"
   test "the pure form takes the template, the libraries, the css and the style as they are":
     let page = renderPage(
-      "{{title}}|{{data}}|{{x}}|{{{css}}}|{{{style}}}",
+      "{{title}}|{{{files}}}|{{x}}|{{{css}}}|{{{style}}}",
       @[("x", text("1"))],
-      data,
+      @[data] & @others,
       "T",
       "a{}",
       "{\"k\":1}",
     )
-    check page == some("T|" & data & "|1|a{}|{\"k\":1}")
-    check renderPage("{{title}}", @[], "../x.geojson", "T").isNone
+    check page ==
+      some("T|[\n  \"" & data & "\",\n  \"" & others[0] & "\"\n]|1|a{}|{\"k\":1}")
+    check renderPage("{{title}}", @[], @["../x.geojson"], "T").isNone
   test "a closing script tag in the style cannot end the script of the page":
     let page = renderPage(
       "<script>const s = {{{style}}};</script>",
       @[],
-      data,
+      @[data],
       "T",
       "",
       "{\"k\":\"</script><b>\"}",
@@ -129,35 +144,55 @@ suite "map page: the css and the style are files too":
     discard pageHtml(data, "t")
     check readFile(systemDir(top) / "templates" / "map.css") == cssBundle.data
     check readFile(systemDir(top) / "templates" / "map-style.json") == styleBundle.data
+    check readFile(systemDir(top) / "templates" / "activities-map-routes.json").contains(
+      "spread_m"
+    ) # (a style for each frame, shipped by its provider)
     writeFile(systemDir(top) / "templates" / "map.css", "body { color: {{blue}}; }\n")
     writeFile(
-      systemDir(top) / "templates" / "map-style.json",
-      styleBundle.data.replace("\"spread_m\": 4", "\"spread_m\": 9"),
+      systemDir(top) / "templates" / "activities-map-routes.json",
+      readFile(systemDir(top) / "templates" / "activities-map-routes.json").replace(
+        "\"spread_m\": 4", "\"spread_m\": 9"
+      ),
     )
     let h = pageHtml(data, "t").get
-    check h.contains("body { color: #4dabf7; }") and h.contains("\"spread_m\": 9") and
+    check h.contains("body { color: #4dabf7; }") and h.contains("\"spread_m\":9") and
       not h.contains("height: 100%")
     check readFile(systemDir(top) / "templates" / "map.css") ==
       "body { color: {{blue}}; }\n" # (still the author's)
-  test "a style that is not JSON, or lacks something the page reads, is an error that says so":
+  test "a style that is not JSON, or lacks something the page reads, is an error that says which file":
     let top = getTempDir() / "nch-test-map-badstyle"
     removeDir top
     putEnv("NCH_CACHE", top)
     discard pageHtml(data, "t")
-    writeFile(systemDir(top) / "templates" / "map-style.json", "{ \"routes\": ")
+    let routes = systemDir(top) / "templates" / "activities-map-routes.json"
+    let original = readFile(routes)
+    writeFile(routes, "{ \"routes\": ")
     try:
       discard pageHtml(data, "t")
+      check false
     except TemplateError as e:
-      check e.msg.startsWith("map-style.json is not valid JSON")
-    writeFile(
-      systemDir(top) / "templates" / "map-style.json",
-      "{ \"routes\": {}, \"climbs\": {}, \"smooth_rounds\": 2 }",
-    )
+      check e.msg.startsWith("activities-map-routes.json is not valid JSON")
+    writeFile(routes, "[1]")
     try:
       discard pageHtml(data, "t")
+      check false
     except TemplateError as e:
-      check e.msg == "map-style.json has no routes.color"
-    writeFile(systemDir(top) / "templates" / "map-style.json", styleBundle.data)
+      check e.msg == "activities-map-routes.json is not a JSON object"
+    writeFile(routes, "{ \"routes\": {} }")
+    try:
+      discard pageHtml(data, "t")
+      check false
+    except TemplateError as e:
+      check e.msg == "activities-map-routes.json has no routes.color"
+    writeFile(routes, original)
+    let common = systemDir(top) / "templates" / "map-style.json"
+    writeFile(common, "{}")
+    try:
+      discard pageHtml(data, "t")
+      check false
+    except TemplateError as e:
+      check e.msg == "map-style.json has no smooth_rounds"
+    writeFile(common, styleBundle.data)
     check pageHtml(data, "t").isSome
   test "a mistake in the css template says which file":
     let top = getTempDir() / "nch-test-map-badcss"

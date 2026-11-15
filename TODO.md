@@ -14,7 +14,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
    climb or an attempt to push for something better, and has an opinion about how: the ideas are to report such climbs in
    `nch climbs`, retire them for a longer nearby climb with clean ends, move or narrow their gates, match the sequence of curves,
    or require progress along the climb (`gatetruth` already does that, for judging).  Look at examples with
-   `nch map --layers routes efforts gates`.
+   `nch map --frames routes efforts gates`.
 
 ## Larger changes (designs not started)
 
@@ -32,7 +32,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
 4. **The `sectors` package**; **the cache manifest**.
 5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
-    "`map` criteria of its own".  Steps 0, 1 and 2 are done; next: step 3 (`map` on frames), then a review in a fresh session.
+    "`map` criteria of its own".  Steps 0 to 3 are done; next: **a review of the whole in a fresh session** (the plan asks for one after step 3), then step 4 (caching, only if the
+    measurements ask for it), 5 (`calendar` on frames), 6 (the climbs subject), 7 (FF statistics).  Left over from step 3: tab completion of the
+    subject (a positional word: `core/complete` knows only options, so it needs the completion framework to learn them); the frames of a map are
+    made one after the other in one process, not in one read transaction, so a selection changed within those milliseconds could be seen by one
+    frame and not another.
 6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is

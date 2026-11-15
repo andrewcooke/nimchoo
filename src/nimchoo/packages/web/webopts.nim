@@ -62,8 +62,8 @@ template webOptions*(P: typedesc, field: untyped, page, data: string): seq[Opt[P
       ["--worker"],
       false,
       "",
-      "for programs: also make the web page, and print its path, then the path of the " &
-        data & " file, and nothing else",
+      "for programs: also make the web page, and print its path, then the paths of the " &
+        data & ", and nothing else",
       body = (p.field.worker = true; fine),
     ),
     custom(

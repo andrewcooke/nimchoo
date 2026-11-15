@@ -39,11 +39,12 @@ proc openBrowser(url: string): bool =
     false
 
 proc serveWeb*(
-    g: Globals, command: string, o: WebOptions, cacheDir, query: string
+    g: Globals, command: string, o: WebOptions, cacheDir, path, query: string
 ): int =
   ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its
-  ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `query` is what
-  ## the address says about the look of the page, e.g. "layers=routes,heat" (empty: the defaults).
+  ## `user/` part.  Serve until stopped (Ctrl-C ends the process with status 130).  `path` is the
+  ## address without its first slash ("map/climbs") and `query` what it says about the look of the page, e.g.
+  ## "frames=routes,heat" (empty: the defaults).
   let name = "nch " & command
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:
@@ -63,7 +64,7 @@ proc serveWeb*(
     o.port,
     proc(port: int) {.closure, raises: [].} =
       let url =
-        "http://localhost:" & $port & "/" & command & "?" &
+        "http://localhost:" & $port & "/" & path & "?" &
         (if query.len > 0: query & "&" else: "") & "token=" & t.token
       stdout.say url & "\n(Ctrl-C to stop)\n"
       try:

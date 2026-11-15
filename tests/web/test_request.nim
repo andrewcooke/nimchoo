@@ -111,19 +111,28 @@ suite "serve request: what is asked for":
     ]:
       check route(target(bad)).isNone
   test "the command on the list, with its options, each once":
-    let r = route(target("/map?layers=heat")).get
+    let r = route(target("/map?frames=heat")).get
     check not r.isFile and r.command == "map"
-    check r.args == @["--layers", "heat"]
+    check r.args == @["--frames", "heat"]
     check route(target("/map")).get.args.len == 0
-    check route(target("/map?token=T&layers=heat")).get.args ==
-      @["--layers", "heat"] # (the token is not an option)
-  test "a list is commas in an address and separate words for the command":
-    check route(target("/map?layers=routes,heat")).get.args ==
-      @["--layers", "routes", "heat"]
-    check route(target("/map?layers=heat")).get.args == @["--layers", "heat"]
+    check route(target("/map?token=T&frames=heat")).get.args ==
+      @["--frames", "heat"] # (the token is not an option)
+  test "a command that takes a word has it after a slash, once, if it passes the check":
+    let r = route(target("/map/climbs?frames=heat,gates")).get
+    check r.command == "map" and r.args == @["climbs", "--frames", "heat", "gates"]
+    check route(target("/map/climbs")).get.args == @["climbs"]
     for bad in [
-      "layers=", "layers=heat,", "layers=,heat", "layers=heat,nope",
-      "layers=heat%20routes", "layers=heat,,routes",
+      "/map/", "/map/Climbs", "/map/a-b", "/map/a/b", "/map/..", "/map/%2e%2e",
+      "/map/a%2Fb", "/ff/default", "/ff/", "/files",
+    ]:
+      check route(target(bad)).isNone
+  test "a list is commas in an address and separate words for the command":
+    check route(target("/map?frames=routes,heat")).get.args ==
+      @["--frames", "routes", "heat"]
+    check route(target("/map?frames=heat")).get.args == @["--frames", "heat"]
+    for bad in [
+      "frames=", "frames=heat,", "frames=,heat", "frames=heat%20routes",
+      "frames=heat,,routes",
     ]:
       check route(target("/map?" & bad)).isNone
   test "ff: options, and flags that are given as 1":
@@ -158,21 +167,21 @@ suite "serve request: what is asked for":
       "/heatmap",
       "/heatmap?check=ab12",
       "/map/",
-      "/map/x",
+      "/map/x/y",
       "/Map",
       "/map?worker=1",
       "/map?save",
-      "/map?layers=heat&layers=heat",
-      "/map?layers=a%20b",
-      "/map?layers=a;b",
-      "/map?layers=../x",
+      "/map?frames=heat&frames=heat",
+      "/map?frames=a%20b",
+      "/map?frames=a;b",
+      "/map?frames=../x",
       "/map?selection=AB",
       "/map?state=zz",
       "/map?file=1",
       "/map?style=lines",
       "/map?tolerance=5",
       "/map?db=/etc/x",
-      "/map?layers=" & "+".repeat(10),
+      "/map?frames=" & "+".repeat(10),
     ]:
       check route(target(bad)).isNone
 

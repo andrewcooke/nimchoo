@@ -1,45 +1,48 @@
-## The selected activities on a map: their routes, the climbs on them, and where they went most (heat).
+## The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ##
-## `nch map` makes everything itself: no layer commands, no layer index.  `--layers routes,climbs,heat` (default routes,climbs)
-## says what is drawn: the layers are a set of the address (`layers=`), named in the file's name (`map-routes-climbs.geojson`; made
-## again on every request: a map is a live view of the selection, and a bookmark keeps the layers and not the data).  A GeoJSON
-## file in the cache holds the features (each says what it is, in `kind`: route, climb or heat, and nothing about how it looks)
-## and a page (Leaflet) decides the look.  **The heat** is squares of the grid of `geo/cells.nim` from the table `route_cell`
-## (`importer`), counted over the selected activities at three levels (cells of about 100 m, 870 m and 7 km: `level`), with
-## `visits` (how often) and `rides` (by how many activities); the page shows the level that suits the zoom (the style says from
-## which), under the routes, shaded on a log scale.  **Gates and efforts** are for looking at how climbs are matched (`--layers routes,efforts,gates` with a few activities selected):
-## `gates` draws the start and finish line of each climb the activities went up (the lines a ride has to cross: `climbs/match.nim`
-## `gateLines`, the same gates `overPaths` uses), `efforts` the part of each ride between the stored start and finish time of its
-## efforts, thick, with a green dot where it starts and a red one where it finishes; where a ride crosses a gate twice (a
-## switchback near it) the dots show which crossing the effort used.  The page is served on localhost (`web`; `--file` makes the files only, and prints their paths); the address
-## is `/map?layers=LIST`.
+## `nch map [SUBJECT] [--frames FRAME...]`.  The map knows no subject and no kind of data: the point `map/frames` (`frames.nim`) takes
+## the frames, each a GeoJSON file about a subject that its provider makes (`activities`: routes and heat; `climbs`: the climbs
+## of the activities, their gates and efforts), with a style of its own that the provider ships, so a new subject or frame is a
+## package that contributes, and nothing here changes.  `subject/subjects` says which subjects there are.  A GeoJSON file for each
+## frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes.geojson`) and
+## a page (Leaflet) decides the look.  Everything is made again on every request: a map is a live view of the selection, and a
+## bookmark (`/map/activities?frames=routes,climbs`) keeps the frames and not the data.  The page is served on localhost (`web`;
+## `--file` makes the files only, and prints their paths).
 ##
-## **The page is three templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
+## **The page is templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
 ## overwritten once changed; delete a file to get the built-in one): `map.html` (the page and its script), `map.css` (the look
-## of the page) and `map-style.json` (how routes, climbs and the heat are drawn).  The css and the style are filled in first with the
-## palette's colours as tags (`{{blue}}`), then put into the page.  The look: routes are thin red threads, each offset sideways
-## by an amount of its own (`spread_m`); climbs are thick transparent grey lines beside the road, in lanes alternating sides so
-## that climbs on the same stretch do not overlap, offset in pixels (recomputed on zoom, simplified first so that hairpins do not
-## loop); corner cutting (`smooth_rounds`) rounds the lines.  Offers its page to the server (`web/pages`).
+## of the page), `map-style.json` (the corner cutting, `smooth_rounds`) and a style for each frame, shipped by its provider
+## (`activities-map-routes.json` ...).  The css and the styles are filled in first with the palette's colours as tags (`{{blue}}`),
+## then put into the page.  The look: routes are thin red threads, each offset sideways by an amount of its own (`spread_m`);
+## climbs are thick transparent grey lines beside the road, in lanes alternating sides so that climbs on the same stretch do not
+## overlap, offset in pixels (recomputed on zoom, simplified first so that hairpins do not loop); corner cutting rounds the lines.
+## `lines.nim` writes the features, as a library for the providers.  Offers its page to the server (`web/pages`).
 
 import ../../core/[extension, manifest]
 import ../web/request
-import ./[command, params]
+import ./[command, frames, params]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[contribute(webPage, pageOf(command.commandName, mapSpec()))]
+  @[contribute(webPage, pageOf(command.commandName, mapSpec(), isWord))]
 
 const package* = Package(
   depends: @[
-    "args", "atomic", "bundle", "cache", "climbs", "db", "fit", "geo", "importer",
-    "selection", "templating", "ui", "user", "web",
+    "args", "atomic", "bundle", "cache", "db", "fit", "geo", "subject", "templating",
+    "ui", "user", "web",
   ],
   commands: @[
     CommandDecl(
       name: command.commandName,
-      summary: "the routes of the selected activities and their climbs, on a map",
+      summary: "a subject (by default the selected activities) on a map",
       run: command.run,
       options: command.options,
+    )
+  ],
+  defines: @[
+    PointDecl(
+      name: mapFramePoint.name,
+      summary:
+        "the frames of a map, contributed by the packages that manage a subject: a GeoJSON file of the subject and its style",
     )
   ],
   contributes: contributions,

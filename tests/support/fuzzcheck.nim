@@ -65,6 +65,11 @@ proc requestProblem*(raw: string, pages: seq[WebPage]): string =
     return "a command that is not on the list"
   var i = 0
   var seen: seq[string]
+  if rt.args.len > 0 and not rt.args[0].startsWith("--"):
+    # (the word of a command that takes one: it passed its check)
+    if rule[0].word == nil or not rule[0].word(rt.args[0]):
+      return "a word that the command does not take, or that is not one"
+    inc i
   while i < rt.args.len:
     let a = rt.args[i]
     if not a.startsWith("--") or a == "--worker":

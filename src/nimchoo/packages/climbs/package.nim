@@ -14,23 +14,24 @@
 ## never the attempts.
 ##
 ## Offers `--climbs TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
-## climb whose name holds the text.  Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.
+## climb whose name holds the text.  Offers the frames `climbs`, `gates` and `efforts` of the activities to the map (`mapframes.nim`).
+## Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.
 
 import ../../core/[extension, manifest]
 import ../activities/criterion
 import ../importer/after
-import ./[command, criterion, imported]
+import ./[command, criterion, imported, mapframes]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[
     contribute(activityCriterion, climbCriterion),
     contribute(afterImport, workNewClimbs),
-  ]
+  ] & mapframes.contributions()
 
 const package* = Package(
   depends: @[
-    "activities", "args", "confirm", "db", "fit", "fold", "geo", "importer", "lookup",
-    "names", "profiling", "selection", "ui", "user",
+    "activities", "args", "bundle", "confirm", "db", "fit", "fold", "geo", "importer",
+    "lookup", "map", "names", "profiling", "selection", "ui", "user",
   ],
   fragments: @[
     fragment("001-schema.sql")

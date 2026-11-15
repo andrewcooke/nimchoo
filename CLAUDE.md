@@ -107,6 +107,9 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.
+* **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT] [--frames FRAME...]` draws the frames that the packages
+  managing the subject contribute (`map/frames`); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
+  again from the data as they are on every request; the page is the default and `--file` writes the files only.
 * **commands about things outside the database are singular**: `map`, `fit`, `log`, `ff`, `cache`, `db`; and `import`,
   which reads files into it.
 * nothing is kept for backward compatibility: there is one user.
@@ -217,10 +220,10 @@ four kinds of things go wrong, and each has one mechanism:
   default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `packages/db/checkpointer.nim`, an atomic).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
 * **options that take a list** (decided 2026-11-12): the option has a **plural** name (`--sports`, `--names`, `--starts`, `--paths`,
-  `--climbs`, `--layers`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
+  `--climbs`, `--frames`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
   spaces** (`--names 'El Toyo' Farellones 123`: a text with spaces is quoted, a comma is part of a value), and its placeholder
-  is the item and an ellipsis (`--sports SPORT...`).  **in an address** a list is separated by commas (`layers=routes,heat`):
-  an option marked `adList` becomes `--layers routes heat` for the worker.  a **position** is one point, always **`LAT,LON`**
+  is the item and an ellipsis (`--sports SPORT...`).  **in an address** a list is separated by commas (`frames=routes,heat`):
+  an option marked `adList` becomes `--frames routes heat` for the worker.  a **position** is one point, always **`LAT,LON`**
   in that order (`--near`, `--at`), as it is shown.  in `--names` (activities and climbs) and `--climbs` a whole number
   that no name holds is the **number** of an activity or a climb (`nch activities --names 737`): a name that holds it wins.
 * **options describe themselves** (`util/args`: every option carries its names, value placeholder and help, which the compiler requires), and the option list of a command's usage is made from the descriptions (`util/args/usage.nim`, wrapped to the terminal's width, `ui/live.helpWidth`: 120 when piped), so it cannot differ from what the parser accepts.  a command's `parseArgs` gives a `Parsed[T]`: valid parameters (a variant on the action: a combination that means nothing cannot be represented), help asked for, or a problem.

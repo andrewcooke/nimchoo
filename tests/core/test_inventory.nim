@@ -160,7 +160,7 @@ suite "the real registry":
     check dotText(inv).endsWith("}\n")
 
   test "the points of the registry are all listed, with their contributors":
-    check inv.points.len == 6
+    check inv.points.len == 7
     check inv.points.anyIt(
       it.name == "importer/after" and it.contributors[0].package == "selection"
     )

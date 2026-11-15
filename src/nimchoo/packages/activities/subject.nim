@@ -17,11 +17,16 @@ proc selectionKey(st: Session): string {.raises: [StoreError].} =
     ids.add $id
   keyOf([("user", $int64(st.userId)), ("ids", ids.join(","))])
 
+proc selected(st: Session): int {.raises: [StoreError].} =
+  selectedIds(st).len
+
 const activitiesSubject* = Subject(
   name: "activities",
   summary: "the activities of the selection (see `nch activities --select`)",
   isDefault: true,
   selectionKey: selectionKey,
+  selected: selected,
+  emptyHint: "see `nch activities --select`",
 )
 
 proc contribution*(): Contribution =
