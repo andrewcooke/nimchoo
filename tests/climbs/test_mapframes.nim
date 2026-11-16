@@ -56,6 +56,28 @@ suite "climbs frames: the climbs":
       s.close()
     check s.db.scalar(int, "select count(*) from climbs_done") == 0
 
+suite "climbs frames: they only read":
+  test "activities with no climbs worked out are a note, and nothing is worked out":
+    let w = world(dir, "unworked")
+    let s = openSession(w.db, allFragments, access = newAllAccess(amEnforce))
+    defer:
+      s.close()
+    for name in ["climbs", "gates", "efforts"]:
+      let made = frameOf(name).make(s)
+      check made.notes ==
+        @["3 activities have no climbs worked out (run `nch climbs` to work them out)"]
+    check s.db.scalar(int, "select count(*) from climbs_done") == 0
+    check s.db.scalar(int, "select count(*) from sector") == 0
+  test "no note when the selected activities are worked out":
+    let w = world(dir, "worked")
+    let s = openSession(w.db, allFragments, access = allAccess)
+    defer:
+      s.close()
+    s.db.execute(
+      "insert into climbs_done(activity_id, version) select id, 1 from activity"
+    )
+    check frameOf("climbs").make(s).notes.len == 0
+
 suite "climbs frames: gates and efforts":
   test "the efforts frame draws the part of the ride between the stored start and finish; the gates frame, two lines a climb":
     let w = world(dir, "efforts")

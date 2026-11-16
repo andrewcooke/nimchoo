@@ -21,6 +21,7 @@ import ../web/launch
 import ../web/pages
 import ../web/webopts
 import ./[frames, page, params]
+import ../db/store
 import ../user/session
 
 {.push raises: [].}
@@ -128,16 +129,23 @@ proc prepare(
   except StoreError as e:
     return (@[], "", failure("nch map", e.msg))
   try:
-    if c.subject.selected(st) == 0:
-      return (@[], "", emptyFailure(c.subject))
+    # one read transaction: the frames are made from one state of the database, whatever else is writing
+    var made: seq[FrameData]
+    st.begin()
+    try:
+      if c.subject.selected(st) == 0:
+        return (@[], "", emptyFailure(c.subject))
+      for f in c.frames:
+        made.add f.make(st)
+    finally:
+      st.rollback()
     var names: seq[string]
-    for f in c.frames:
-      let made = f.make(st)
-      for note in made.notes:
+    for k, f in c.frames:
+      for note in made[k].notes:
         stderr.say "note: " & note & "\n"
       let stem = fileStem(c.subject.name, f.name)
       let path = cacheFile(dir, stem, "geojson").get
-      writeAtomic(path, made.geojson)
+      writeAtomic(path, made[k].geojson)
       result.paths.add path
       names.add f.name
     if withPage:

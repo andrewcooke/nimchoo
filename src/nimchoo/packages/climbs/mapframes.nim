@@ -1,9 +1,9 @@
 ## The frames of the climbs on a map (`map/frames`), for the activities: the climbs the selected activities went up, the two gates
 ## of each (the lines a ride has to cross), and the part of each ride that is an effort on a climb.  `climbs` supports the
-## subject here, it does not manage it: the selection is the activities'.  The climbs that are not yet worked out are worked out
-## first, and a note says so.  The style of each is shipped here, next to the frame.
+## subject here, it does not manage it: the selection is the activities'.  The frames only read: a note says when some activities have
+## no climbs worked out (the import and `nch climbs` do that).  The style of each is shipped here, next to the frame.
 
-import std/[math, options, tables]
+import std/[math, options, strformat, tables]
 import ../../core/[errors, extension, ids]
 import ../bundle/unpack
 import ../db/statement
@@ -11,7 +11,7 @@ import ../importer/track
 import ../map/[frames, lines]
 import ../selection/selection
 import ../user/session
-import ./[attempts, match, report, work]
+import ./[attempts, match, report]
 
 {.push raises: [].}
 
@@ -52,7 +52,7 @@ proc gatesOf(st: Session, ids: seq[int64]): seq[GateLine] {.raises: [StoreError]
     )
     if route.isNone:
       raiseStore(
-        "climb " & $id & " has a route that cannot be read (damaged data): " &
+        fmt"climb {id} has a route that cannot be read (damaged data): " &
           "run `nch climbs --all --delete -f` and ask for the climbs again"
       )
     let g = gateLines(route.get)
@@ -86,31 +86,37 @@ proc effortsOf(st: Session, ids: seq[int64]): seq[EffortLine] {.raises: [StoreEr
         line.points.add (lon: c.lon, lat: c.lat)
     result.add line
 
-proc worked(st: Session): seq[string] {.raises: [StoreError].} =
-  ## Work out the climbs that are lacking; what to say if there were any.
-  let w = ensureClimbs(st)
-  if w.activities > 0:
-    result.add "worked out the climbs of " & $w.activities & " activities: " & $w.sectors &
-      " new climbs"
+proc unworked(st: Session, ids: seq[int64]): seq[string] {.raises: [StoreError].} =
+  ## A note when some of the activities have no climbs worked out: a frame only reads them, the import and `nch climbs` work
+  ## them out.
+  let n = st.db.scalar(
+    int,
+    """select count(*) from activity where id in (select value from json_each(:ids))
+        and id not in (select activity_id from climbs_done)""",
+    ids = jsonList(ids),
+  )
+  if n > 0:
+    let noun = if n == 1: "activity has" else: "activities have"
+    result.add fmt"{n} {noun} no climbs worked out (run `nch climbs` to work them out)"
 
 proc makeClimbs(st: Session): FrameData {.raises: [StoreError].} =
-  result.notes = worked(st)
-  result.geojson = featureCollection(@[], climbsOf(st, selectedIds(st)))
+  let ids = selectedIds(st)
+  result.notes = unworked(st, ids)
+  result.geojson = featureCollection(@[], climbsOf(st, ids))
 
 proc makeGates(st: Session): FrameData {.raises: [StoreError].} =
-  result.notes = worked(st)
-  result.geojson = featureCollection(@[], @[], gates = gatesOf(st, selectedIds(st)))
+  let ids = selectedIds(st)
+  result.notes = unworked(st, ids)
+  result.geojson = featureCollection(@[], @[], gates = gatesOf(st, ids))
 
 proc makeEfforts(st: Session): FrameData {.raises: [StoreError].} =
-  result.notes = worked(st)
-  result.geojson = featureCollection(@[], @[], efforts = effortsOf(st, selectedIds(st)))
+  let ids = selectedIds(st)
+  result.notes = unworked(st, ids)
+  result.geojson = featureCollection(@[], @[], efforts = effortsOf(st, ids))
 
 const
-  climbTables = @[
-    "activity", "climbs_done", "effort", "route", "sector", "sector_gate_cell",
-    "segment", "selection", "track",
-  ]
-    ## what the three frames read, including what working out the climbs reads (they are worked out first when lacking)
+  climbTables = @["activity", "climbs_done", "effort", "sector", "selection", "track"]
+    ## what the three frames read (they work nothing out)
   climbsStyle = Bundle(
     name: "templates/activities-map-climbs.json", data: staticRead("map-climbs.json")
   )

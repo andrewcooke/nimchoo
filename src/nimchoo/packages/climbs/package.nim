@@ -1,7 +1,7 @@
 ## Climbs: found in the rides, named, and ranked.
 ##
 ## The climbs are found in the rides once (after an import, which works out those of every activity not yet looked at, about a
-## minute for two thousand rides; `nch climbs` and `nch map` do any that are still lacking) and kept in `sector`, `effort` and `climbs_done`, the tables this package owns.
+## minute for two thousand rides; the import and `nch climbs` do any that are still lacking; `nch map` only says so) and kept in `sector`, `effort` and `climbs_done`, the tables this package owns.
 ## A ride that goes over part of a climb but not all of it makes a climb of its own.  Climbs are shared by all users; a climb
 ## is never deleted one at a time (`--edit NAME --retire` hides one), only all together (`climbs --all --delete -f`).
 ##
