@@ -156,7 +156,7 @@ proc main(): int {.raises: [].} =
     if path.isSome:
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
-        stderr.say fmt"warning: {g.log.problem} (continuing without a log)\n"
+        stderr.say fmt"warning: {g.log.problem} (continuing without a log)" & "\n"
   g.log.log(lvInfo, name, leRun, fmt"[{nchCommit}] {rest.join("" "")}")
   result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)

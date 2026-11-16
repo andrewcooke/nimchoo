@@ -136,7 +136,7 @@ proc prepare(
     var names: seq[string]
     for k, f in c.frames:
       for note in made[k].notes:
-        stderr.say fmt"note: {note}\n"
+        stderr.say fmt"note: {note}" & "\n"
       let stem = fileStem(c.subject.name, f.name)
       let path = cacheFile(dir, stem, "geojson").get
       writeAtomic(path, made[k].geojson)

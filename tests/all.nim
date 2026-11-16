@@ -11,6 +11,7 @@ import
   ./core/test_registry,
   ./core/test_inventory,
   ./core/test_imports,
+  ./core/test_fmt,
   ./core/test_ownership,
   ./core/test_logfile,
   ./text/fold/test_fold,

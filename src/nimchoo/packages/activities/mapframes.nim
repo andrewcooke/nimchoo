@@ -15,7 +15,8 @@ import ../user/session
 {.push raises: [].}
 
 const
-  toleranceM = 5.0 ## routes are simplified so that they stray at most this far
+  toleranceM = 5.0
+    ## routes are simplified (Douglas-Peucker: `Simplify`, not `SimplifyPreserveTopology`, which is 12 times slower and a line does not need) so that they stray at most this far
   metresPerDegree = 111320.0
   heatLevels* = [0, 3, 6]
     ## the levels of cells the heat is given at, finest first: cells of about 100 m, 870 m and 7 km (the page shows the one that
@@ -32,7 +33,7 @@ proc routesOf(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].}
       geometry: string,
     ],
     "select a.id, a.start_t, coalesce(a.sport, ''), a.distance_m, " &
-      "AsGeoJSON(SimplifyPreserveTopology(r.geom, :tolerance), 5) " &
+      "AsGeoJSON(Simplify(r.geom, :tolerance), 5) " &
       "from activity a join route r on r.activity_id = a.id " &
       "where a.id in (select value from json_each(:ids)) order by a.start_t, a.id",
     tolerance = toleranceM / metresPerDegree,
