@@ -2,7 +2,7 @@
 ## visited (the heat).  Each is a GeoJSON file made from the data as they are, for the activities of the user's selection; the
 ## style of each (a template the user can edit) is shipped here, next to the frame.
 
-import std/options
+import std/[options, strformat]
 import ../../core/[errors, extension, ids]
 import ../bundle/unpack
 import ../db/statement
@@ -63,23 +63,20 @@ proc heatOf(st: Session, ids: seq[int64]): seq[HeatCell] {.raises: [StoreError].
 proc makeRoutes(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   let routes = routesOf(st, ids)
+  let n = ids.len
   if routes.len == 0:
-    raiseStore(
-      "none of the " & $ids.len & " activities has a route (no positions in the files)"
-    )
-  if routes.len < ids.len:
-    result.notes.add $(ids.len - routes.len) & " of the " & $ids.len &
-      " activities have no route (no positions in the files)"
+    result.notes.add fmt"none of the {n} activities has a route (no positions in the files)"
+  elif routes.len < n:
+    let missing = n - routes.len
+    let noun = if missing == 1: "activity has" else: "activities have"
+    result.notes.add fmt"{missing} of the {n} selected {noun} no route (no positions in the files)"
   result.geojson = featureCollection(routes, @[])
 
 proc makeHeat(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   let heat = heatOf(st, ids)
   if heat.len == 0:
-    raiseStore(
-      "none of the " & $ids.len &
-        " activities has been through a cell (no positions in the files)"
-    )
+    result.notes.add fmt"none of the {ids.len} activities has been through a cell (no positions in the files)"
   result.geojson = featureCollection(@[], @[], heat)
 
 const

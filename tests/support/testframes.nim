@@ -32,6 +32,10 @@ proc makeAlpha(st: Session): FrameData {.raises: [StoreError].} =
 proc makeBeta(st: Session): FrameData {.raises: [StoreError].} =
   FrameData(geojson: "{\"type\":\"FeatureCollection\",\"features\":[]}\n")
 
+proc makeGlobal(st: Session): FrameData {.raises: [StoreError].} =
+  ## A frame that reads no selection.
+  FrameData(geojson: "{\"type\":\"FeatureCollection\",\"features\":[]}\n")
+
 proc makeBroken(st: Session): FrameData {.raises: [StoreError].} =
   raiseStore("the broken frame cannot be made")
 
@@ -53,6 +57,11 @@ proc frame(name: string, shown: bool, make: MakeFrame): MapFrame =
     styleKeys: @["alpha.colour"],
   )
 
+proc globalFrame(): MapFrame =
+  result = frame("global", false, makeGlobal)
+  result.readsSelection = false
+  result.tables = @[]
+
 proc testExtensions*(): Extensions =
   ## The subject `things` (the default) with the frames `alpha` (shown), `beta` and `broken`.
   result.add contribute(
@@ -69,3 +78,4 @@ proc testExtensions*(): Extensions =
   result.add contribute(mapFramePoint, frame("alpha", true, makeAlpha))
   result.add contribute(mapFramePoint, frame("beta", false, makeBeta))
   result.add contribute(mapFramePoint, frame("broken", false, makeBroken))
+  result.add contribute(mapFramePoint, globalFrame())

@@ -116,6 +116,10 @@ type Prepared = object
   status: int ## 0 if the files are there; else the exit status (already reported)
   geojson, page: string ## paths (page: only if asked for)
 
+func readsSelection(c: Chosen): bool =
+  ## Whether some chosen frame is made from the selection (the others need it not to be empty no more than they need anything).
+  c.frames.anyIt(it.readsSelection)
+
 proc emptyFailure(s: Subject): int =
   failure("nch map", "the selection of " & s.name & " is empty (" & s.emptyHint & ")")
 
@@ -133,7 +137,7 @@ proc prepare(
     var made: seq[FrameData]
     st.begin()
     try:
-      if c.subject.selected(st) == 0:
+      if readsSelection(c) and c.subject.selected(st) == 0:
         return (@[], "", emptyFailure(c.subject))
       for f in c.frames:
         made.add f.make(st)
@@ -181,7 +185,7 @@ proc prepare(
   finally:
     st.close()
 
-proc checkSelection(g: Globals, s: Subject): int =
+proc checkSelection(g: Globals, c: Chosen): int =
   ## Before serving: the selection is not empty (the page makes the files, whenever it is asked for).
   var st: Session
   try:
@@ -189,8 +193,8 @@ proc checkSelection(g: Globals, s: Subject): int =
   except StoreError as e:
     return failure("nch map", e.msg)
   try:
-    if s.selected(st) == 0:
-      return emptyFailure(s)
+    if readsSelection(c) and c.subject.selected(st) == 0:
+      return emptyFailure(c.subject)
     exitOk
   except StoreError as e:
     failure("nch map", e.msg)
@@ -222,7 +226,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       failure("nch map", "cannot make " & dir.get & ": " & getCurrentExceptionMsg())
   case p.web.kind
   of wkServe:
-    let checked = checkSelection(g, c.subject)
+    let checked = checkSelection(g, c)
     if checked != exitOk:
       return checked
     # the address keeps the look (the frames); the data are those of the selection when the page is asked for

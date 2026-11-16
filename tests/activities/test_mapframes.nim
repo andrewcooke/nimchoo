@@ -38,7 +38,7 @@ suite "activities frames: the routes":
     s.close()
     check map(w.db, "--frames", "routes") == exitOk
     check parseFile(frameFile(w.cache, "routes"))["features"].len == 2
-  test "none with a route is an error, and writes nothing":
+  test "none with a route is a note and an empty frame, not a failure":
     let w = world(dir, "noroute")
     let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("delete from selection")
@@ -47,8 +47,13 @@ suite "activities frames: the routes":
       userId = s.userId,
     )
     s.close()
-    check map(w.db, "--frames", "routes") == exitFailure # (activity 3 has no route)
-    check files(w.cache).len == 0
+    check map(w.db, "--frames", "routes") == exitOk # (activity 3 has no route)
+    check kinds(parseFile(frameFile(w.cache, "routes"))).len == 0
+    let s2 = openSession(w.db, allFragments, access = newAllAccess(amEnforce))
+    defer:
+      s2.close()
+    check frameOf("routes").make(s2).notes ==
+      @["none of the 1 activities has a route (no positions in the files)"]
   test "only the user's own selection is drawn":
     let w = world(dir, "others")
     let s = openSession(w.db, allFragments, access = allAccess)
@@ -107,10 +112,11 @@ suite "activities frames: the heat":
       if p["level"].getInt == 0 and p["visits"].getInt == 2:
         lisbon = p["rides"].getInt # (ride 1 went through that cell twice)
     check lisbon == 1
-  test "activities that went through no cell are an error, and write nothing":
+  test "activities that went through no cell are an empty frame, and the other frames are still drawn":
     let w = world(dir, "nocells")
-    check map(w.db, "--frames", "heat") == exitFailure
-    check files(w.cache).len == 0
+    check map(w.db, "--frames", "heat", "routes") == exitOk
+    check kinds(parseFile(frameFile(w.cache, "heat"))).len == 0
+    check kinds(parseFile(frameFile(w.cache, "routes"))).len == 2
 
 suite "activities frames: the map, with the real registry":
   test "by default the routes and the climbs, a file each":

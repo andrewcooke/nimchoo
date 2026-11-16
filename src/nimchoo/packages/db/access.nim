@@ -61,7 +61,7 @@ proc authorize(
   if recording and action == SQLITE_READ and trigger.isNil and not arg1.isNil and
       (database.isNil or $database != "temp") and $arg1 notin readTables and
       not ($arg1).startsWith("sqlite_") and not ($arg1).startsWith("idx_") and
-      $arg1 notin tableFunctions:
+      $arg1 != "spatial_ref_sys" and $arg1 notin tableFunctions:
     readTables.add $arg1
   if caller.len == 0 or not trigger.isNil:
     # (what a trigger does is the database's own business)
