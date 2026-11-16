@@ -32,8 +32,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
 4. **The `sectors` package**; **the cache manifest**.
 5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
-    "`map` criteria of its own".  Steps 0 to 3 are done and reviewed (`dev/display-arch/review-after-step-3-findings.md`); next: **step 3c** (the fixes from the
-    review), then step 4 (caching, only if the measurements ask for it), 5 (`calendar` on frames), 6 (the climbs subject, after a design
+    "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; next: step 4 (caching, only if the measurements ask for it), 5 (`calendar` on frames), 6 (the climbs subject, after a design
     choice on how frames are drawn), 7 (FF statistics).  Left over from step 3: tab completion of the subject (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
 6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells

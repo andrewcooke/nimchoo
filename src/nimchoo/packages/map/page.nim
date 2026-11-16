@@ -13,7 +13,7 @@
 ## the lines add up and glow.  A click on a line says which activity it is.  The page fetches each file, and if one cannot be
 ## read it says so and draws the rest.
 
-import std/[json, options, strutils]
+import std/[json, options, strformat, strutils, tables]
 import ../bundle/unpack
 import ./frames
 import ../cache/cache
@@ -60,10 +60,14 @@ proc joinedStyle*(
 ): string {.raises: [TemplateError].} =
   ## The style of the page: `map-style.json` (which must have `smooth_rounds`) and the style of every frame, each with the
   ## groups the page reads (`styleKeys`), joined into one JSON object.  A frame whose style lacks what the page reads is a
-  ## TemplateError that says which.
+  ## TemplateError that says which.  Two styles with a group of the same name are a TemplateError too (one would silently
+  ## replace the other).
   let joined = parsed(styleBundle, palette)
   if joined{"smooth_rounds"}.isNil:
     raiseTemplate("map-style.json has no smooth_rounds")
+  var owner: Table[string, string] # group -> the template it came from
+  for group, _ in joined:
+    owner[group] = styleBundle.nameOf
   for f in all:
     let j = parsed(f.style, palette)
     for key in f.styleKeys:
@@ -71,6 +75,11 @@ proc joinedStyle*(
       if j{at[0], at[1]}.isNil:
         raiseTemplate(f.style.nameOf & " has no " & key)
     for group, value in j:
+      if group in owner:
+        raiseTemplate(
+          fmt"{f.style.nameOf} and {owner.getOrDefault(group)} both have the group '{group}'"
+        )
+      owner[group] = f.style.nameOf
       joined[group] = value
   $joined
 

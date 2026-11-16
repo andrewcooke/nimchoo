@@ -39,11 +39,6 @@ proc makeGlobal(st: Session): FrameData {.raises: [StoreError].} =
 proc makeBroken(st: Session): FrameData {.raises: [StoreError].} =
   raiseStore("the broken frame cannot be made")
 
-const style = Bundle(
-  name: "templates/test-map-alpha.json",
-  data: "{ \"alpha\": { \"colour\": \"{{{red}}}\" } }",
-)
-
 proc frame(name: string, shown: bool, make: MakeFrame): MapFrame =
   MapFrame(
     subject: "things",
@@ -53,8 +48,11 @@ proc frame(name: string, shown: bool, make: MakeFrame): MapFrame =
     readsSelection: true,
     tables: @["selection"],
     make: make,
-    style: style,
-    styleKeys: @["alpha.colour"],
+    style: Bundle(
+      name: "templates/test-map-" & name & ".json",
+      data: "{ \"" & name & "\": { \"colour\": \"{{{red}}}\" } }",
+    ),
+    styleKeys: @[name & ".colour"],
   )
 
 proc globalFrame(): MapFrame =

@@ -60,8 +60,8 @@ proc ensureCounters*(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError
   var done = false
   try:
     for t in tables:
-      db.execScript(
-        fmt"insert or ignore into table_version(name, version) values ('{t}', 0)"
+      db.execute(
+        "insert or ignore into table_version(name, version) values (:name, 0)", name = t
       )
       # (not checked: `db` makes triggers on every package's tables, which it may not read)
       db.execScriptAs(triggerSql(t, "i", "insert"), "")
@@ -85,5 +85,5 @@ proc tableVersions*(
     let rows = db.query(
       int64, "select version from table_version where name = :name", name = name
     )
-    doAssert rows.len == 1, "table '" & name & "' has no counter (a table of a package)"
+    doAssert rows.len == 1, fmt"table '{name}' has no counter (a table of a package)"
     result.add (name, rows[0])

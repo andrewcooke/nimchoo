@@ -92,6 +92,7 @@ import ./calendar/test_command as calendarCommandTests
 import ./map/test_params
 import ./map/test_lines
 import ./map/test_page
+import ./map/test_registry as mapRegistry
 import ./map/test_command
 import ./map/test_web
 import ./util/args/test_args

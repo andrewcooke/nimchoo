@@ -27,7 +27,7 @@
   const text = (s) => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
   // --- routes as threads: each route is moved a little to the side of its direction of travel, by an amount of its
   // own, so that routes over the same road look like one line from far and like several threads from close.
-  // how things look: the numbers and colours are in map-style.json (system/templates/), filled in here
+  // how things look: the numbers and colours are in the style of each frame (system/templates/), filled in here
   const style = {{{style}}};
   const spreadM = style.routes.spread_m;                         // the widest offset of a route, to either side, in metres
   const routeStyle = { color: style.routes.color, weight: style.routes.weight, opacity: style.routes.opacity };
