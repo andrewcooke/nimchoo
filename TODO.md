@@ -20,8 +20,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 2. **Arrays: what is left.**  Built and measured (2026-11-13, dev/HISTORY.md "The arrays"): the cleaning, the arrays and every reader;
    `coords` and `heartrate` are gone.  Left: (a) the **rebuild** of the author's database (`nch db --delete -f`, import) and a comparison
-   of efforts and names with the old ones, and the rides that changed looked at on the map; (b) at the next squash fold
-   `importer/002`/`003` and `heartrate/002`/`003` into the `001`s (the `coords` and `heartrate` tables then never exist); (c) a **simpler
+   of efforts and names with the old ones, and the rides that changed looked at on the map; (b) at the next squash (the author asked
+   for it, 2026-11-17) fold every package's fragments into its `001` (`importer/002`/`003`, `heartrate/002`/`003`, `db/002`/`003`
+   with what is left of `db/versions.nim`, `climbs/002`), comparing the schema with the old fragments', then rebuild; after the
+   rebuild, a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at -33.4253,-70.6331`), so the 98
+   rides over it are named after it (dev/NAMING.md says why a landmark and not a rule); (c) a **simpler
    `route`**, also stored as a single connected line beside the multi-part one, for the uses where segmentation does not matter (21% of
    routes have several parts and SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11); (d) the stretches the
    cleaning splits are extra `segment` rows: look at one on the map.
@@ -34,12 +37,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
     "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject, after D4), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
-6. **Naming by namers, with climbs** (designed 2026-11-17, after an `/oppose`: `dev/NAMING.md`, not built).  Naming leaves the
-    importer for a package `naming` that asks namers in order of precedence, the first name proposed winning: landmarks, the
-    ride's big climb (HC, 1 or 2, from `climbs`), places.  Names stay stored text.  Open, to settle with examples: which climb
-    when there are several, the wording.  The plan's steps wait for the author's
-    approval; the squash and the rebuild come after them.
-7. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
+6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is
   batches times file size, so it would only matter for a large file (US about 2 M rows, Russia) with rides scattered over

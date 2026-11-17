@@ -21,7 +21,7 @@ the choochoo directory parallel to this one).  what i want to do is:
 ## where things are
 
 * the top level has only what has to be there: `src/`, `tests/`, `tools/` (developer tools), `dev/` (the notes: `dev/HISTORY.md`,
-  `dev/REVIEW.md`, `dev/PACKAGES.md`, `dev/CLEANING.md`, `dev/NAMING.md` (naming by namers: a design, not built), and `dev/display-arch/`: the design of the display and the plan of its migration, `plan.md`), `README.md`, `TODO.md`, `NOTICE`, `CLAUDE.md` (and `AGENTS.md`, a link to
+  `dev/REVIEW.md`, `dev/PACKAGES.md`, `dev/CLEANING.md`, `dev/NAMING.md` (naming rides after their climbs: tried and reverted, read it before trying again), and `dev/display-arch/`: the design of the display and the plan of its migration, `plan.md`), `README.md`, `TODO.md`, `NOTICE`, `CLAUDE.md` (and `AGENTS.md`, a link to
   it), `nimchoo.nimble`, `config.nims`, `.github/`, `.claude/`.  git-ignored output: `nch` (the program, `nimble prod`), `build/`
   (`build/nch-test`, the test build), `.fuzz/` (the fuzzers' binaries and corpus), `doc/` (`nimble docs`).
 * the built-in FIT profile is `src/nimchoo/packages/fit/Profile.xlsx` (embedded into the program).
