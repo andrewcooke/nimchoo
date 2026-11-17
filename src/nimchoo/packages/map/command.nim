@@ -145,9 +145,10 @@ proc prepare(
     if withPage:
       let stem = fileStem(c.subject.name, names.join("-"))
       let pagePath = cacheFile(dir, stem, "html").get
-      let html = pageHtml(
-        result.paths.mapIt(extractFilename(it)), "Map", g.extensions.get(mapFramePoint)
-      )
+      var drawn: seq[tuple[frame: MapFrame, file: string]]
+      for k, f in c.frames:
+        drawn.add (f, extractFilename(result.paths[k]))
+      let html = pageHtml(drawn, "Map")
       if html.isNone:
         return
           (@[], "", failure("nch map", fmt"cannot make a page for {result.paths[0]}"))

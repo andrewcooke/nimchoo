@@ -88,12 +88,14 @@ import ./activities/test_table
 import ./activities/test_command
 import ./activities/test_mapframes
 import ./activities/test_calendarframe
+import ./activities/test_mapfeatures
 import ./climbs/test_mapframes as climbsMapFrames
+import ./climbs/test_mapfeatures as climbsMapFeatures
 import ./calendar/test_calendar
 import ./calendar/test_command as calendarCommandTests
 import ./calendar/test_frames as calendarFrames
 import ./map/test_params
-import ./map/test_lines
+import ./map/test_geojson
 import ./map/test_page
 import ./map/test_registry as mapRegistry
 import ./map/test_command

@@ -100,8 +100,11 @@ suite "map: the command, with frames of its own":
     let page = readFile(w.cache / "map-things-alpha-beta.html")
     check page.contains("\"map-things-alpha.geojson\"") and
       page.contains("\"map-things-beta.geojson\"")
-    check page.contains("\"alpha\":{\"colour\":\"#e03131\"}")
-      # (the style of a frame, filled in with the palette)
+    check page.contains("\"name\":\"things/alpha\"") and
+      page.contains("\"style\":{\"color\":\"#e03131\"}")
+      # (the style of a frame, filled in with the palette, under the frame's own name)
+    check page.contains("\"drawer\":\"\"") # (alpha has no drawing: the generic one)
+    check page.contains("drawers[\"test-map-beta\"] = (") # (beta has its own)
     check "{{" notin page
   test "the options go together as they should; the old ones are gone":
     let w = world("usage")

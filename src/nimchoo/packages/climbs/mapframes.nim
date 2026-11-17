@@ -3,15 +3,15 @@
 ## subject here, it does not manage it: the selection is the activities'.  The frames only read: a note says when some activities have
 ## no climbs worked out (the import and `nch climbs` do that).  The style of each is shipped here, next to the frame.
 
-import std/[math, options, strformat, tables]
+import std/[math, options, sequtils, strformat, tables]
 import ../../core/[errors, extension, ids]
 import ../bundle/unpack
 import ../db/statement
 import ../importer/track
-import ../map/[frames, lines]
+import ../map/[frames, geojson]
 import ../selection/selection
 import ../user/session
-import ./[attempts, match, report]
+import ./[attempts, mapfeatures, match, report]
 
 {.push raises: [].}
 
@@ -102,17 +102,17 @@ proc unworked(st: Session, ids: seq[int64]): seq[string] {.raises: [StoreError].
 proc makeClimbs(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   result.notes = unworked(st, ids)
-  result.geojson = featureCollection(@[], climbsOf(st, ids))
+  result.geojson = featureCollection(climbsOf(st, ids).mapIt(climbFeature(it)))
 
 proc makeGates(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   result.notes = unworked(st, ids)
-  result.geojson = featureCollection(@[], @[], gates = gatesOf(st, ids))
+  result.geojson = featureCollection(gatesOf(st, ids).mapIt(gateFeature(it)))
 
 proc makeEfforts(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   result.notes = unworked(st, ids)
-  result.geojson = featureCollection(@[], @[], efforts = effortsOf(st, ids))
+  result.geojson = featureCollection(effortsOf(st, ids).mapIt(effortFeature(it)))
 
 const
   climbTables = @["activity", "climbs_done", "effort", "sector", "selection", "track"]
@@ -125,6 +125,14 @@ const
   )
   effortsStyle = Bundle(
     name: "templates/activities-map-efforts.json", data: staticRead("map-efforts.json")
+  )
+  climbsScript = Bundle(
+    name: "templates/activities-map-climbs.js", data: staticRead("map-climbs.js")
+  )
+  gatesScript =
+    Bundle(name: "templates/activities-map-gates.js", data: staticRead("map-gates.js"))
+  effortsScript = Bundle(
+    name: "templates/activities-map-efforts.js", data: staticRead("map-efforts.js")
   )
 
 proc contributions*(): seq[Contribution] =
@@ -141,10 +149,8 @@ proc contributions*(): seq[Contribution] =
         tables: climbTables,
         make: makeClimbs,
         style: climbsStyle,
-        styleKeys: @[
-          "climbs.color", "climbs.weight", "climbs.opacity", "climbs.gap_px",
-          "climbs.lane_px",
-        ],
+        styleKeys: @["color", "weight", "opacity", "gap_px", "lane_px"],
+        script: some(climbsScript),
       ),
     ),
     contribute(
@@ -159,7 +165,8 @@ proc contributions*(): seq[Contribution] =
         tables: climbTables,
         make: makeGates,
         style: gatesStyle,
-        styleKeys: @["gates.start", "gates.finish", "gates.weight", "gates.opacity"],
+        styleKeys: @["start", "finish", "weight", "opacity"],
+        script: some(gatesScript),
       ),
     ),
     contribute(
@@ -174,10 +181,8 @@ proc contributions*(): seq[Contribution] =
         tables: climbTables,
         make: makeEfforts,
         style: effortsStyle,
-        styleKeys: @[
-          "efforts.color", "efforts.weight", "efforts.opacity", "efforts.start",
-          "efforts.finish", "efforts.radius",
-        ],
+        styleKeys: @["color", "weight", "opacity", "start", "finish", "radius"],
+        script: some(effortsScript),
       ),
     ),
   ]

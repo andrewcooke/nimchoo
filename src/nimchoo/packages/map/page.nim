@@ -1,19 +1,15 @@
 ## The web page that shows the map: Leaflet (from a CDN, with the integrity hashes of the exact files, so a changed
 ## file is refused by the browser) drawing the frames of a GeoJSON file each that the server gives it.  The page is made of
 ## templates, each built in and kept in the cache's `system/templates/` (see bundle/unpack.nim), where the author can change them:
-## `map.html` (the page and its script), `map.css` (the look of the page), `map-style.json` (what is common to all: the corner
-## cutting) and **one style for each frame, which its provider ships** (`activities-map-routes.json`: colours, widths, offsets ...).
-## The CSS and the styles are filled in first, with the palette's colours (`{{blue}}`...), then the styles are joined into one
-## (each frame has its groups) and put into the page, which also gets the title, the names of the data files and the libraries
-## (serve/libraries.nim).
-##
-## The things drawn are told apart by their `kind` property in the files (route, climb, heat, gate, effort); the heat is squares
-## under the lines, the size that suits the zoom, shaded by how often the place was visited; the climbs are drawn thick and coloured by
-## category, and the routes as thin, mostly transparent lines, so where many rides share a road
-## the lines add up and glow.  A click on a line says which activity it is.  The page fetches each file, and if one cannot be
-## read it says so and draws the rest.
+## `map.html` (the page and its script, which knows no frame), `map.css` (the look of the page), `map-style.json` (what is common
+## to all: the corner cutting) and, **for each frame, a style and perhaps a drawing that its provider ships**
+## (`activities-map-routes.json`: colours, widths, offsets ...; `activities-map-routes.js`: how they are drawn; see `frames.nim`).
+## The CSS and the styles are filled in first, with the palette's colours (`{{blue}}`...), then put into the page with the drawings
+## of the frames drawn, which also gets the title, the list of the frames (each with its file, its style and the name of its
+## drawing) and the libraries (serve/libraries.nim).  The page fetches each file, and if one cannot be read or drawn it says so
+## and draws the rest.
 
-import std/[json, options, strformat, strutils, tables]
+import std/[json, options, sequtils, strformat, strutils]
 import ../bundle/unpack
 import ./frames
 import ../cache/cache
@@ -55,49 +51,60 @@ proc parsed(
   if result.kind != JObject:
     raiseTemplate(bundle.nameOf & " is not a JSON object")
 
-proc joinedStyle*(
-    palette: seq[(string, Value)], all: seq[MapFrame]
-): string {.raises: [TemplateError].} =
-  ## The style of the page: `map-style.json` (which must have `smooth_rounds`) and the style of every frame, each with the
-  ## groups the page reads (`styleKeys`), joined into one JSON object.  A frame whose style lacks what the page reads is a
-  ## TemplateError that says which.  Two styles with a group of the same name are a TemplateError too (one would silently
-  ## replace the other).
-  let joined = parsed(styleBundle, palette)
-  if joined{"smooth_rounds"}.isNil:
+type PageFrame* = object ## A frame as the page gets it.
+  name*: string ## "activities/routes"
+  file*: string ## its GeoJSON file in the cache directory
+  style*: JsonNode ## its style, filled in
+  drawer*: string
+    ## the name of its drawing ("activities-map-routes"); "": the generic one
+
+func stemOf(b: Bundle): string =
+  ## "activities-map-routes": a drawing's name, from its file's.
+  b.nameOf.rsplit('.', maxsplit = 1)[0]
+
+proc commonStyle*(palette: seq[(string, Value)]): JsonNode {.raises: [TemplateError].} =
+  ## `map-style.json`, filled in; it must have `smooth_rounds`.
+  result = parsed(styleBundle, palette)
+  if result{"smooth_rounds"}.isNil:
     raiseTemplate("map-style.json has no smooth_rounds")
-  var owner: Table[string, string] # group -> the template it came from
-  for group, _ in joined:
-    owner[group] = styleBundle.nameOf
-  for f in all:
-    let j = parsed(f.style, palette)
-    for key in f.styleKeys:
-      let at = key.split('.')
-      if j{at[0], at[1]}.isNil:
-        raiseTemplate(f.style.nameOf & " has no " & key)
-    for group, value in j:
-      if group in owner:
-        raiseTemplate(
-          fmt"{f.style.nameOf} and {owner.getOrDefault(group)} both have the group '{group}'"
-        )
-      owner[group] = f.style.nameOf
-      joined[group] = value
-  $joined
+
+proc frameStyle*(
+    f: MapFrame, palette: seq[(string, Value)]
+): JsonNode {.raises: [TemplateError].} =
+  ## The style of a frame, filled in, with every key its drawing reads (`styleKeys`); a TemplateError that says which file
+  ## otherwise.
+  result = parsed(f.style, palette)
+  for key in f.styleKeys:
+    if result{key}.isNil:
+      raiseTemplate(fmt"{f.style.nameOf} has no {key}")
+
+proc drawerText*(b: Bundle): string {.raises: [TemplateError].} =
+  ## The drawing of a frame, as the page will hold it (from the cache's copy, which the author may have changed).  It goes into
+  ## the page's script, so a closing script tag in it would end the script there: that is a TemplateError that names the file.
+  result = resolve(b).data
+  if "</script" in result.toLowerAscii:
+    raiseTemplate(fmt"{b.nameOf} has a closing script tag in it")
 
 proc renderPage*(
     source: string,
     libs: seq[(string, Value)],
-    files: seq[string],
+    frames: seq[PageFrame],
     title: string,
     css = "",
-    style = "{}",
+    common = "{}",
+    drawers: seq[(string, string)] = @[],
 ): Option[string] {.raises: [TemplateError].} =
-  ## The page from a template text, the libraries, the css and the style text (already filled in); none if any of `files`
-  ## is not a GeoJSON file of the cache directory (which is what makes them safe to put in the page).  Pure.
-  var names = newJArray()
-  for f in files:
-    if not isCacheFileName(f) or not f.endsWith(".geojson"):
+  ## The page from a template text, the libraries, the frames, the css, the common style and the drawings (each a name and the
+  ## text of its function; already checked); none if the file of any frame is not a GeoJSON file of the cache directory
+  ## (which is what makes them safe to put in the page).  Pure.
+  var list = newJArray()
+  for f in frames:
+    if not isCacheFileName(f.file) or not f.file.endsWith(".geojson"):
       return none(string)
-    names.add %f
+    list.add %*{"name": f.name, "file": f.file, "style": f.style, "drawer": f.drawer}
+  var code = ""
+  for (name, js) in drawers:
+    code.add "  drawers[" & escapeJson(name) & "] = (\n" & js.strip & "\n  );\n"
   some(
     render(
       source,
@@ -105,31 +112,47 @@ proc renderPage*(
         libs &
           @[
             ("title", text(title)),
-            ("files", text($names.pretty.replace("</", "<\\/"))),
+            ("frames", text(($list).replace("</", "<\\/"))),
             ("css", text(css)),
-            ("style", text(style.replace("</", "<\\/"))),
+            ("style", text(common.replace("</", "<\\/"))),
               # (in a script: the page ends at the first "</script")
+            ("drawers", text(code)),
           ]
       ),
     )
   )
 
 proc pageHtml*(
-    files: seq[string], title: string, all: seq[MapFrame]
+    drawn: seq[tuple[frame: MapFrame, file: string]], title: string
 ): Option[string] {.raises: [TemplateError].} =
-  ## The page for the GeoJSON files `files` (one for each frame drawn), from the templates and the libraries in use (the
-  ## author's if they have put their own in the cache's `system/` part); `all` are the frames whose styles it carries.
+  ## The page for the frames drawn, each with its GeoJSON file, from the templates, the styles and drawings of the frames and the
+  ## libraries in use (the author's if they have put their own in the cache's `system/` part).
   let palette = paletteValues()
   var css: string
   try:
     css = render(resolve(cssBundle).data, context(libraryValues() & palette))
   except TemplateError as e:
     raiseTemplate("map.css: " & e.msg)
+  var frames: seq[PageFrame]
+  var drawers: seq[(string, string)]
+  for (f, file) in drawn:
+    var drawer = ""
+    if f.script.isSome:
+      drawer = f.script.get.stemOf
+      if drawers.allIt(it[0] != drawer):
+        drawers.add (drawer, drawerText(f.script.get))
+    frames.add PageFrame(
+      name: f.subject & "/" & f.name,
+      file: file,
+      style: frameStyle(f, palette),
+      drawer: drawer,
+    )
   renderPage(
     resolve(templateBundle).data,
     libraryValues(),
-    files,
+    frames,
     title,
     css,
-    joinedStyle(palette, all),
+    $commonStyle(palette),
+    drawers,
   )

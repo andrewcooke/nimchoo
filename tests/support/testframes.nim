@@ -2,7 +2,7 @@
 ## packages above it (the real ones are tested with their providers: tests/activities/test_mapframes.nim and
 ## tests/climbs/test_mapframes.nim).
 
-import std/strutils
+import std/[options, strutils]
 import nimchoo/core/[errors, extension]
 import nimchoo/packages/bundle/unpack
 import nimchoo/packages/db/statement
@@ -46,10 +46,19 @@ proc frame(name: string, shown: bool, make: MakeFrame): MapFrame =
     tables: @["selection"],
     make: make,
     style: Bundle(
-      name: "templates/test-map-" & name & ".json",
-      data: "{ \"" & name & "\": { \"colour\": \"{{{red}}}\" } }",
+      name: "templates/test-map-" & name & ".json", data: "{ \"color\": \"{{{red}}}\" }"
     ),
-    styleKeys: @[name & ".colour"],
+    styleKeys: @["color"],
+    script:
+      if name == "beta":
+        some(
+          Bundle(
+            name: "templates/test-map-beta.js",
+            data: "(features, ctx) => ({ caption: features.length + ' betas' })",
+          )
+        )
+      else:
+        none(Bundle),
   )
 
 proc globalFrame(): MapFrame =
@@ -58,7 +67,8 @@ proc globalFrame(): MapFrame =
   result.tables = @[]
 
 proc testExtensions*(): Extensions =
-  ## The subject `things` (the default) with the frames `alpha` (shown), `beta` and `broken`.
+  ## The subject `things` (the default) with the frames `alpha` (shown; drawn generically), `beta` (with a drawing of its own)
+  ## and `broken`.
   result.add contribute(
     subjectPoint,
     Subject(

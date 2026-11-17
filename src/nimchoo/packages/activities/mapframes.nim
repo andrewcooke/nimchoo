@@ -2,14 +2,15 @@
 ## visited (the heat).  Each is a GeoJSON file made from the data as they are, for the activities of the user's selection; the
 ## style of each (a template the user can edit) is shipped here, next to the frame.
 
-import std/[options, strformat]
+import std/[options, sequtils, strformat]
 import ../../core/[errors, extension, ids]
 import ../bundle/unpack
 import ../db/statement
 import ../fit/time
 import ../geo/cells
-import ../map/[frames, lines]
+import ../map/[frames, geojson]
 import ../selection/selection
+import ./mapfeatures
 import ../user/session
 
 {.push raises: [].}
@@ -71,14 +72,14 @@ proc makeRoutes(st: Session): FrameData {.raises: [StoreError].} =
     let missing = n - routes.len
     let verb = if missing == 1: "has" else: "have"
     result.notes.add fmt"{missing} of the {n} selected activities {verb} no route (no positions in the files)"
-  result.geojson = featureCollection(routes, @[])
+  result.geojson = featureCollection(routes.mapIt(routeFeature(it)))
 
 proc makeHeat(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   let heat = heatOf(st, ids)
   if heat.len == 0:
     result.notes.add fmt"none of the {ids.len} activities has been through a cell (no positions in the files)"
-  result.geojson = featureCollection(@[], @[], heat)
+  result.geojson = featureCollection(heat.mapIt(heatFeature(it)))
 
 const
   routesStyle = Bundle(
@@ -87,6 +88,11 @@ const
   heatStyle = Bundle(
     name: "templates/activities-map-heat.json", data: staticRead("map-heat.json")
   )
+  routesScript = Bundle(
+    name: "templates/activities-map-routes.js", data: staticRead("map-routes.js")
+  )
+  heatScript =
+    Bundle(name: "templates/activities-map-heat.js", data: staticRead("map-heat.js"))
 
 proc contributions*(): seq[Contribution] =
   ## The frames of the activities, offered to the map.
@@ -102,8 +108,8 @@ proc contributions*(): seq[Contribution] =
         tables: @["activity", "route", "selection"],
         make: makeRoutes,
         style: routesStyle,
-        styleKeys:
-          @["routes.color", "routes.weight", "routes.opacity", "routes.spread_m"],
+        styleKeys: @["color", "weight", "opacity", "spread_m"],
+        script: some(routesScript),
       ),
     ),
     contribute(
@@ -118,10 +124,8 @@ proc contributions*(): seq[Contribution] =
         tables: @["route_cell", "selection"],
         make: makeHeat,
         style: heatStyle,
-        styleKeys: @[
-          "heat.low", "heat.high", "heat.opacity_low", "heat.opacity_high",
-          "heat.levels",
-        ],
+        styleKeys: @["low", "high", "opacity_low", "opacity_high", "levels"],
+        script: some(heatScript),
       ),
     ),
   ]

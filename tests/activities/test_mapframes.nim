@@ -160,9 +160,12 @@ suite "activities frames: the map, with the real registry":
     let page = readFile(w.cache / "map-activities-routes-climbs.html")
     check page.contains("\"map-activities-routes.geojson\"") and
       page.contains("\"map-activities-climbs.geojson\"")
-    check page.contains("\"routes\":{\"color\":\"#e03131\"")
-      # the style of the routes, in the page
+    check page.contains(
+      "\"name\":\"activities/routes\",\"file\":\"map-activities-routes.geojson\",\"style\":{\"color\":\"#e03131\""
+    ) # the style of the routes, in the page
     check page.contains("\"gap_px\":14") # and of the climbs
+    check page.contains("drawers[\"activities-map-routes\"] = (") and
+      page.contains("drawers[\"activities-map-climbs\"] = (") # and their drawings
 
 suite "activities frames: each declares the tables it reads":
   test "every table the frame reads is in its declaration":

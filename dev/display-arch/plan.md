@@ -197,6 +197,13 @@ one read transaction need the first.
     growing until most frames need no script, never a rewrite.
   * Tests: the page with a frame of a test-only provider and its own script (that `map` needs nothing above it, in JS too);
     a frame without a script drawn generically; `tools/pagecheck.js` for the real frames.
+  * Done 2026-11-17.  As built: the drawing is a script template holding one function `(features, ctx) => {...}` (the page
+    names it after its file, so one drawing can serve several frames); layers go in with `ctx.add(layer, z)` and the page adds
+    them in order of `z` (climbs 10, routes 20, efforts 30, gates 40, generic 50; the heat has a pane of its own); a drawing
+    returns `{ bounds, rank, caption, update }`; the contract is in `map/frames.nim`.  The page shows the same captions and
+    the same view as before on the author's data (`tools/pagecheck.js`, which now takes the worker's output and prints the
+    view); what differs: the caption follows the order of `--frames`, climbs alone fit the view to the climbs (before: the
+    whole world), and a frame whose drawing fails is reported and the others drawn.
 * Decision D4 first: what `nch climbs` lists (the climbs selection) and what that selection is after an import and when
   nothing has been selected.
 * A selection of climbs (a table of `climbs`, per user, like `selection`); `nch climbs` with criteria and `--select`, like
