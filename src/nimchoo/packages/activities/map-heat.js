@@ -35,15 +35,20 @@
     for (const l of s.levels) if (levels.has(l.level) && zoom >= l.min_zoom && (level === null || l.level < level)) level = l.level;
     if (level === null) level = Math.max(...levels.keys());
     // (Leaflet.heat draws each blob as the shadow of a circle painted 200 pixels off a small canvas: from a radius of about 66
-    // pixels, with the blur as big, the circle itself lands on the canvas, as hard quarter and then whole circles; so no more
-    // than 60.  Zoomed far in, the cells are then blobs of their own rather than one glow: finer cells would be needed.)
-    const px = Math.min(60, Math.max(4, s.radius_cells * cellM(level) / h.metresPerPixel(zoom, map.getCenter().lat)));
+    // pixels, with the blur as big, the circle itself lands on the canvas, as hard quarter and then whole circles.  So when the
+    // radius would be more than 60 the heat is not drawn: zoomed in that far the cells would be blobs of their own, and the
+    // routes say more.  The heat is the overview.)
+    const px = Math.max(4, s.radius_cells * cellM(level) / h.metresPerPixel(zoom, map.getCenter().lat));
+    if (px > 60) {
+      if (shown !== 'none') { heat.setLatLngs([]); shown = 'none'; }
+      return;
+    }
     heat.setOptions({ radius: px, blur: px });
     if (level !== shown) { heat.setLatLngs(levels.get(level)); shown = level; }
   };
   const coarsest = levels.get(Math.max(...levels.keys()));
   return {
     bounds: L.latLngBounds(coarsest.map((p) => [p[0], p[1]])), rank: 3, update,
-    caption: 'heat: how often each place was visited (stronger is more often)'
+    caption: 'heat: how often each place was visited (stronger is more often; zoomed far in, it is not drawn)'
   };
 }

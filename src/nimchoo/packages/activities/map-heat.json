@@ -1,7 +1,8 @@
 {{! How the heat (how often each place was visited) is drawn, as JSON (its drawing, activities-map-heat.js, reads it): a smooth glow
     (Leaflet.heat), from `low` (a place visited once) through to `high` (the busiest), on a log scale; `min_opacity` is how
     faint the faintest heat is, `radius_cells` how far each cell's heat spreads, in cells (so the glow looks the same at every
-    zoom, up to 60 pixels, what Leaflet.heat can draw).  Each size of cell (`level`: 0 is about 100 m, 3 about 870 m, 6 about 7 km) is used from the zoom `min_zoom` (the
+    zoom; zoomed in so far that it would be more than 60 pixels, what Leaflet.heat can draw, the heat is not drawn: the
+    routes say more there).  Each size of cell (`level`: 0 is about 100 m, 3 about 870 m, 6 about 7 km) is used from the zoom `min_zoom` (the
     finest that is allowed, else the coarsest). }}
 {
   "low": "#ffd43b", "high": "{{{red}}}", "min_opacity": 0.3, "radius_cells": 1.5,
