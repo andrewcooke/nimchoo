@@ -10,7 +10,8 @@ import ./cmdname
 export cmdname
 import ../../core/[extension, globals]
 import ../db/statement
-import ../names/places
+import ../importer/naming
+import ../names/[open, places]
 import ../selection/selection
 import ../db/store
 import ./deleterun as deleteRun
@@ -389,6 +390,39 @@ proc listActivities*(
   )
   result.saved = if c.select: rows.len else: -1
 
+proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [].} =
+  ## `--rename`: forget the names of the activities and make them again, as an import does.
+  let names = openNames(
+    g,
+    st,
+    commandName,
+    proc(line: string) {.closure, raises: [].} =
+      stderr.say line & "\n"
+    ,
+  )
+  if names.isNone:
+    return failure(
+      "nch activities",
+      "no place for the cache, where the names are kept: set NCH_CACHE or HOME",
+    )
+  try:
+    st.forgetNames(ids)
+    let n = ensureActivityNames(st, names.get)
+    let left =
+      if n.left > 0:
+        fmt"; {n.leftText}"
+      else:
+        ""
+    stdout.say fmt"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}" &
+      "\n"
+    exitOk
+  except StoreError, DownloadError:
+    failure(
+      "nch activities",
+      getCurrentExceptionMsg() &
+        " (the names not made are made by the next `nch import`)",
+    )
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch activities ARGS`; returns the exit status.
   let zone = local()
@@ -426,6 +460,19 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all",
       )
+    if criteria.rename:
+      let m = matchingIds(st, criteria, zone)
+      for l in m.notes:
+        stdout.say l.text & "\n"
+      if m.ids.len == 0:
+        return failure(
+          "nch activities",
+          if criteria.all or criteria.given:
+            "no activity meets the criteria: nothing to rename"
+          else:
+            "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all",
+        )
+      return renameActivities(g, st, m.ids)
     let colour = canColourStdout()
     let r = listActivities(st, criteria, zone)
     if r.saved >= 0:

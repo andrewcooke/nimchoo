@@ -49,6 +49,14 @@ proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
   st.db.query(int64, "select id from activity where name is null order by start_t, id")
 
+proc forgetNames*(st: Store, ids: seq[int64]) {.raises: [StoreError].} =
+  ## Forget the start place and the name of these activities (null), so that `ensureActivityNames` makes them again: after a
+  ## landmark is added, or the rules change (`nch activities --rename`).
+  st.db.execute(
+    "update activity set start_place = null, name = null where id in (select value from json_each(:ids))",
+    ids = jsonList(ids),
+  )
+
 proc ensureActivityNames*(
     st: Store,
     names: Names,

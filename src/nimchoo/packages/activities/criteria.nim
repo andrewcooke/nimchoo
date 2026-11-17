@@ -34,6 +34,7 @@ type
       ## some criterion or limit was given: the activities are searched for, not the selection
     select*: bool ## --select: keep what is listed as the selection
     delete*: bool ## --delete: delete the activities (an action, not a criterion)
+    rename*: bool ## --rename: name the activities again (an action, not a criterion)
     force*: Force ## -f: really do it (with --delete)
     verbose*: bool ## -v: show more of each activity (a display option)
     newest*, oldest*: int
@@ -522,6 +523,14 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
+        ["--rename"],
+        false,
+        "",
+        "name the activities again (with no criteria and no --all, those of the selection): where each started and what it is called, from the places and your landmarks as they are now (after `nch landmarks --add`, say)",
+        body = (p.c.rename = true; fine),
+      ),
+      custom(
+        ListState,
         ["--delete"],
         false,
         "",
@@ -562,6 +571,8 @@ func finish(st: ListState): Parsed[Criteria] =
     return bad("-f goes with --delete")
   if c.delete and (c.select or c.verbose):
     return bad("--delete shows nothing: it does not go with --select or -v")
+  if c.rename and (c.delete or c.select or c.verbose):
+    return bad("--rename shows nothing: it does not go with --delete, --select or -v")
   if c.select and not (c.given or c.all):
     return bad(
       "--select keeps the activities listed as the selection, so it needs criteria or --all"

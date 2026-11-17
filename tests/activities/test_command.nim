@@ -963,3 +963,36 @@ suite "list: --climbs":
     discard save(db, "--sports", "cycling")
     check list(db, "--climbs", "nowhere", "--select") == exitFailure
     check chosen(db) == @["lisbon1"]
+
+suite "nch activities --rename":
+  test "it forgets the names of the activities and makes them again (offline here: they are left for the next import)":
+    let db = world("rename", true)
+    let s = openSession(db, allFragments, access = allAccess)
+    s.db.execute("update activity set name = 'Old name', start_place = 'Old place'")
+    s.close()
+    let g = Globals(
+      dbPath: db,
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+      offline: true,
+    )
+    check listCommand.run(g, @["--all", "--rename"]) == exitOk
+    let after = openSession(db, allFragments, access = allAccess)
+    defer:
+      after.close()
+    check after.db.scalar(int, "select count(*) from activity where name = 'Old name'") ==
+      0
+  test "with nothing selected or nothing found it says so; it does not go with --select, --delete or -v":
+    let db = world("renamenone")
+    let g = Globals(
+      dbPath: db,
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+      offline: true,
+    )
+    check listCommand.run(g, @["--rename"]) == exitFailure # (nothing selected)
+    check listCommand.run(g, @["--sports", "rowing", "--rename"]) == exitFailure
+    check listCommand.run(g, @["--all", "--rename", "--select"]) == exitUsage
+    check listCommand.run(g, @["--all", "--rename", "-v"]) == exitUsage

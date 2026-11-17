@@ -22,7 +22,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
    `coords` and `heartrate` are gone.  Left: (a) the rebuild was done by the author after the squash (2026-11-17), without the old database, so there was nothing to
    compare efforts and names with; (b) a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at
    -33.4253,-70.6331`), so the 98 rides over it are named after it (dev/NAMING.md says why a landmark and not a rule); the rides
-   already named keep their names until they are named again; (c) a **simpler
+   already named are named again by `nch activities --all --rename`; (c) a **simpler
    `route`**, also stored as a single connected line beside the multi-part one, for the uses where segmentation does not matter (21% of
    routes have several parts and SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11); (d) the stretches the
    cleaning splits are extra `segment` rows: look at one on the map.
@@ -34,7 +34,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
    2026-11-17); **the cache manifest**.
 5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
-    "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject, after D4), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
+    "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject; D4 decided), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
 6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms

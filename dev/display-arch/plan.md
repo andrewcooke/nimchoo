@@ -204,8 +204,8 @@ one read transaction need the first.
     the same view as before on the author's data (`tools/pagecheck.js`, which now takes the worker's output and prints the
     view); what differs: the caption follows the order of `--frames`, climbs alone fit the view to the climbs (before: the
     whole world), and a frame whose drawing fails is reported and the others drawn.
-* Decision D4 first: what `nch climbs` lists (the climbs selection) and what that selection is after an import and when
-  nothing has been selected.
+* Decision D4 (decided 2026-11-17, below): `nch climbs` lists the climbs selection; an import makes the climbs of the activities
+  it imported the climbs selection.
 * A selection of climbs (a table of `climbs`, per user, like `selection`); `nch climbs` with criteria and `--select`, like
   `nch activities`; the climbs subject in the registry.
 * Frames for the climbs subject on the map: the selected climbs; the routes of the activities that went up them (the
@@ -233,7 +233,7 @@ one read transaction need the first.
 
 ## Decisions
 
-D1 to D3 and D7 are decided; D4 and D5 wait for their steps (6 and 7); D6 is moot (no caching).
+D1 to D4 and D7 are decided; D5 waits for its step (7); D6 is moot (no caching).
 
 * **D1. How the counters' triggers are made.**  (a) Each package writes them in a fragment for each of its tables: three
   triggers per table, about twenty tables, kept in step with the tables by hand.  (b) The `db` package makes them for every
@@ -245,7 +245,9 @@ D1 to D3 and D7 are decided; D4 and D5 wait for their steps (6 and 7); D6 is moo
   address and not on the command line.  **Decided (2026-11-14): (a).**
 * **D3. `dev/MAP-LAYERS.md`.**  Its ideas are set aside or superseded, and its useful finding (names are not identities) is
   settled (`name_n`).  **Decided (2026-11-14): delete it**, with a line in `dev/HISTORY.md`, in step 0.
-* **D4. The climbs selection** (step 6), above.
+* **D4. The climbs selection** (step 6): decided 2026-11-17: `nch climbs` with no arguments lists the climbs selection (as
+  `nch activities` lists the activities'); an import makes the climbs of the activities it imported the climbs selection
+  (as it makes them the activities' selection).
 * **D5. FF statistics** (step 7), above.
 * **D6. The threshold for caching** (step 4): moot, decided 2026-11-16: nothing is cached.
 * **D7. How frames are drawn** (step 6): decided 2026-11-17: each provider ships its drawing (a script beside its style),
