@@ -71,3 +71,9 @@ begin
   join (select -4 as v union all select -3 union all select -2 union all select -1 union all select 0 union all select 1 union all select 2 union all select 3 union all select 4) b on abs(b.v) <= cell_dy(g.c, 0, 100.0)
   where g.c is not null and cell_shift(g.c, a.v, b.v) is not null;
 end;
+
+-- The highest number ever given to a climb of each name (the name folded as the numbering folds it: `ordinal.nim`), so that a
+-- number is not given again when the climb that had it is renamed or deleted.
+create table sector_name_number (
+  name text not null primary key,
+  highest integer not null) strict, without rowid;

@@ -36,10 +36,9 @@ const package* = Package(
     "ui", "user", "warnings",
   ],
   fragments: @[
-    fragment("001-schema.sql"),
-      # file, activity, coords, segment, route, seen_file, route_cell (the cells of the grid each activity went through)
-    fragment("002-track.sql"), # track: the positions of an activity as arrays
-    fragment("003-drop-coords.sql"), # (the rows of positions are gone)
+    fragment("001-schema.sql")
+      # file, activity, track (the positions as arrays), segment, route, seen_file, route_cell (the cells of the grid each
+      # activity went through)
   ],
   commands: @[
     CommandDecl(

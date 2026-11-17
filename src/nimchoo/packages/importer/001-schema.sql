@@ -39,13 +39,18 @@ create table activity (
 select RecoverGeometryColumn('activity', 'start', 4326, 'POINT', 'XY');
 select CreateSpatialIndex('activity', 'start');
 
-create table coords (
-  activity_id integer not null references activity(id) on delete cascade,
-  t integer not null,
-  lon real not null,
-  lat real not null,
-  alt real,
-  primary key (activity_id, t)) strict, without rowid;
+-- The positions of an activity as arrays (importer/series.nim), one row for the activity: the times as offsets in seconds from
+-- t0, the longitudes and latitudes in FIT semicircles (int32), the altitudes in 0.2 m from -500 m (uint16), all little-endian.
+-- Written once at import after the positions are cleaned (importer/clean.nim), and never changed.
+create table track (
+  activity_id integer primary key references activity(id) on delete cascade,
+  t0 integer not null,                -- the time of the first position
+  t1 integer not null,                -- the time of the last
+  n integer not null,
+  t blob not null,
+  lon blob not null,
+  lat blob not null,
+  alt blob not null) strict;
 
 -- The stretches of riding of an activity: the times the timer ran (between a timer start and the
 -- next stop), with those the device paused by itself and the rider hardly left joined across the
@@ -60,8 +65,8 @@ create table segment (
   primary key (activity_id, n)) strict, without rowid;
 
 -- The route of an activity as one geometry, a part for each segment, so that
--- "passes near here", GeoJSON and GPX are queries and not scans of coords.  Derived from
--- coords and segment when the activity is imported, in the same transaction.  Parts of
+-- "passes near here", GeoJSON and GPX are queries and not scans of the positions.  Derived from
+-- the positions and the segments when the activity is imported, in the same transaction.  Parts of
 -- fewer than two points are left out, and an activity with no part has no row.  (SpatiaLite
 -- cannot put geometry on WITHOUT ROWID tables, so this is an ordinary table.)
 create table route (

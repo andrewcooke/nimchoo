@@ -17,7 +17,7 @@
 ##   survives).  Once anyone else has a database, never squash again.  Before deleting the old fragments compare the schema
 ##   they make with the squashed one (every table, column, index and foreign key, from a fresh database each way).  What a
 ##   rebuild loses that cannot be made again from the FIT files: the users and their FTHR, models, the saved selection,
-##   the landmarks and names given by hand.
+##   the landmarks and names given by hand.  Last squashed 2026-11-17 (each package has one fragment).
 ## * **Statements.**  Values are bound by name (`query(db, T, "... where id = :id", id = 3)`), never put into the text; a `?`
 ##   is a compile error.  A query built from pieces is an `Sql` (`sqltext`), which also records the packages whose files wrote
 ##   its pieces.  Rows are read into typed tuples or objects.  Nothing else imports `db_connector`.
@@ -29,8 +29,7 @@
 ##   the grid of cells (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
 ##   so that SQL and Nim cannot compute a cell differently.  Deterministic, so they may be used in an index.
 ## * **Recording what is read**: `startRecording` and `stopRecording` (`access.nim`) note the tables the authorizer sees read,
-##   so that a test can check what a view declares it reads (`map/frames`).  (The counters of tables and the identity of the
-##   database, `002-versions.sql`, were for keys of cached views; nothing is cached, and `003-drop-versions.sql` drops them.)
+##   so that a test can check what a view declares it reads (`map/frames`).
 ## * The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
 ##   where the database is and how big; `nch db --delete -f` deletes it.
 

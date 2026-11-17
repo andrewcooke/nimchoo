@@ -34,10 +34,9 @@ const package* = Package(
     "lookup", "map", "names", "profiling", "selection", "ui", "user",
   ],
   fragments: @[
-    fragment("001-schema.sql"),
-      # sector (with retired, name_n), effort, climbs_done, sector_gate_cell (the cells round the gates of a sector: a trigger fills it)
-    fragment("002-name-numbers.sql"),
-      # sector_name_number (the highest number given to each name)
+    fragment("001-schema.sql")
+      # sector (with retired, name_n), effort, climbs_done, sector_gate_cell (the cells round the gates of a sector: a trigger
+      # fills it), sector_name_number (the highest number given to each name)
   ],
   commands: @[
     CommandDecl(

@@ -98,11 +98,8 @@ suite "database: opening and bringing the schema up to date":
     names = s.db.query(string, "select name from fragment order by name")
     check names ==
       @[
-        "climbs/001-schema.sql", "climbs/002-name-numbers.sql", "db/001-schema.sql",
-        "db/002-versions.sql", "db/003-drop-versions.sql", "heartrate/001-schema.sql",
-        "heartrate/002-series.sql", "heartrate/003-drop-rows.sql",
-        "importer/001-schema.sql", "importer/002-track.sql",
-        "importer/003-drop-coords.sql", "model/001-schema.sql", "names/001-schema.sql",
+        "climbs/001-schema.sql", "db/001-schema.sql", "heartrate/001-schema.sql",
+        "importer/001-schema.sql", "model/001-schema.sql", "names/001-schema.sql",
         "selection/001-schema.sql", "user/001-schema.sql",
       ]
     s.close()

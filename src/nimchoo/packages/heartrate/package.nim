@@ -13,9 +13,7 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 const package* = Package(
   depends: @["db", "fit", "importer"],
   fragments: @[
-    fragment("001-schema.sql"), # heartrate
-    fragment("002-series.sql"), # heartrate_series: the same readings as arrays
-    fragment("003-drop-rows.sql"), # (the rows of readings are gone)
+    fragment("001-schema.sql") # heartrate_series: the readings as arrays
   ],
   contributes: contributions,
 )

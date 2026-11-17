@@ -18,17 +18,14 @@ export ids
 import ../../core/globals
 import ../../core/fragment as coreFragment
 import ../../core/[access as coreAccess, ownership]
-import ./[access, fragment, functions, versions]
+import ./[access, fragment, functions]
 import ./statement
 export db_sqlite.DbConn, fragment, coreFragment
 
 {.push raises: [].}
 
-const baseFragments* = @[
-  fragment("001-schema.sql"),
-  fragment("002-versions.sql").withSeed(seedIdentity, "identity-1"),
-  fragment("003-drop-versions.sql").withSeed(dropCounters, "drop-1"),
-] ## the database's own, applied first, always
+const baseFragments* =
+  @[fragment("001-schema.sql")] ## the database's own, applied first, always
 
 type
   ConnObj = object
