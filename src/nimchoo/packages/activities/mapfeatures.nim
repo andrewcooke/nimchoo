@@ -14,6 +14,7 @@ type Route* = object
   id*: ActivityId
   startT*: UnixTime
   sport*: string ## "" if unknown
+  name*: string ## what the activity is called ("" if nothing: see `names`)
   distanceM*: Option[float]
   geometry*: string ## GeoJSON text of the route (a LineString or MultiLineString)
 
@@ -30,10 +31,12 @@ proc isoUtc*(t: UnixTime): string =
   t.toTime.utc.format(fmt)
 
 proc routeFeature*(r: Route): string =
-  ## One feature, on one line.  Properties: kind ("route"), id, start (UTC, ISO 8601), sport,
-  ## distance_m (the last two only if known).
+  ## One feature, on one line.  Properties: kind ("route"), id, start (UTC, ISO 8601), name, sport, distance_m (the last
+  ## three only if known).
   var props =
     "\"kind\":\"route\",\"id\":" & $r.id & ",\"start\":" & escapeJson(isoUtc(r.startT))
+  if r.name.len > 0:
+    props.add ",\"name\":" & escapeJson(r.name)
   if r.sport.len > 0:
     props.add ",\"sport\":" & escapeJson(r.sport)
   if r.distanceM.isSome:

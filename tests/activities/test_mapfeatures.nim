@@ -16,6 +16,7 @@ suite "activities features: the routes":
           id: ActivityId(7),
           startT: UnixTime(1535371200),
           sport: "cycling",
+          name: "Farellones and back",
           distanceM: some 11978.11,
           geometry: line,
         )
@@ -26,13 +27,14 @@ suite "activities features: the routes":
     check f["properties"]["id"].getInt == 7
     check f["properties"]["start"].getStr == "2018-08-27T12:00:00Z"
     check f["properties"]["sport"].getStr == "cycling"
+    check f["properties"]["name"].getStr == "Farellones and back"
     check f["properties"]["distance_m"].getFloat == 11978.1
     check f["geometry"]["coordinates"].len == 2
   test "what is not known is left out":
     let f = parseJson(
       routeFeature(Route(id: ActivityId(1), startT: UnixTime(0), geometry: line))
     )
-    check not f["properties"].hasKey("sport")
+    check not f["properties"].hasKey("sport") and not f["properties"].hasKey("name")
     check not f["properties"].hasKey("distance_m")
     check f["properties"]["start"].getStr == "1970-01-01T00:00:00Z"
   test "text is escaped":

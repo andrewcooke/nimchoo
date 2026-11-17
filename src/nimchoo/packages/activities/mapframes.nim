@@ -29,11 +29,11 @@ proc routesOf(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].}
     tuple[
       id: ActivityId,
       startT: int64,
-      sport: string,
+      sport, name: string,
       distanceM: Option[float],
       geometry: string,
     ],
-    "select a.id, a.start_t, coalesce(a.sport, ''), a.distance_m, " &
+    "select a.id, a.start_t, coalesce(a.sport, ''), coalesce(a.name, ''), a.distance_m, " &
       "AsGeoJSON(Simplify(r.geom, :tolerance), 5) " &
       "from activity a join route r on r.activity_id = a.id " &
       "where a.id in (select value from json_each(:ids)) order by a.start_t, a.id",
@@ -44,6 +44,7 @@ proc routesOf(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].}
       id: r.id,
       startT: UnixTime(r.startT),
       sport: r.sport,
+      name: r.name,
       distanceM: r.distanceM,
       geometry: r.geometry,
     )

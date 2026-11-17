@@ -30,7 +30,8 @@
     style: { color: s.color, weight: s.weight, opacity: s.opacity },
     onEachFeature: (f, l) => {
       const p = f.properties || {};
-      l.bindPopup(h.text(p.start || '') + '<br>' + h.text(p.sport || '') + ' ' +
+      l.bindTooltip(h.text(p.name || (p.start || '').slice(0, 10)), { sticky: true });
+      l.bindPopup((p.name ? '<b>' + h.text(p.name) + '</b><br>' : '') + h.text(p.start || '') + '<br>' + h.text(p.sport || '') + ' ' +
                   (p.distance_m ? (p.distance_m / 1000).toFixed(1) + 'km' : ''));
     }
   });
