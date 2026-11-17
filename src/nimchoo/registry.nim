@@ -601,7 +601,11 @@ strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DN
 once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each
 value) with only their options, each once; values of the kind a cache file name can hold.  The command runs as
 `nch COMMAND --worker ARGS` in a child process, which makes the files again from the data as they are (a view is live: nothing is
-pinned in an address) and says which the page is.  The commands serve their pages by default; `--file` makes the files only.  The libraries the pages
+pinned in an address) and says which the page is.  The commands serve their pages by default; `--file` makes the files only.
+**One server for every page** (`launch.nim`): the first `nch map` (or `nch ff`) serves and stays running (in a terminal of
+its own, or with `&`); a later one finds it (`/status`, which answers only to the token in an `X-Nch-Token` header, never
+to a page's cookie), opens its page there and returns; `--start` starts the server without opening the browser, `--stop`
+stops it from anywhere (`/stop`).  The libraries the pages
 load from a CDN, with their integrity hashes, are in `libraries.txt`.  The extension point `web/pages` is defined here; `map`
 and `ff` contribute.""",
     ),

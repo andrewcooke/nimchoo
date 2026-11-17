@@ -234,8 +234,9 @@ func neighbours(inv: Inventory, name: string, reverse: bool): seq[string] =
     inv.packages[at].depends
 
 func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
-  ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes.  A package that
-  ## was drawn above is marked "(above)" and not drawn again, so the tree stays short.
+  ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes.  A package drawn above
+  ## is not drawn again: it is followed by "..." if something under it is left out (a package with nothing under it is just its
+  ## name), so the tree stays short (`treeNote` says so).
   var seen = initHashSet[string]()
   func walk(
       inv: Inventory,
@@ -255,10 +256,10 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
         "└── "
       else:
         "├── "
-    lines.add prefix & branch & name & (if again: " (above)" else: "")
+    let kids = neighbours(inv, name, reverse)
+    lines.add prefix & branch & name & (if again and kids.len > 0: "..." else: "")
     if again:
       return
-    let kids = neighbours(inv, name, reverse)
     let below =
       if top:
         ""
@@ -269,6 +270,9 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
     for i, k in kids:
       walk(inv, k, below, i == kids.high, false, seen, lines, reverse)
   walk(inv, inv.packages[inv.find(root)].name, "", true, true, seen, result, reverse)
+
+const treeNote* = "(... after a package: what is under it is drawn in full above)"
+  ## what a tree that left something out says under it
 
 func reducedDepends(inv: Inventory): Table[string, seq[string]] =
   ## For each package the packages it depends on directly and not through another it depends on (the edges that

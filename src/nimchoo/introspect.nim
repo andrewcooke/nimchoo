@@ -269,7 +269,13 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vLayers:
     show layerLines(inv, width)
   of vTree:
-    show treeLines(inv, p.root, p.reverse)
+    let tree = treeLines(inv, p.root, p.reverse)
+    show(
+      if tree.anyIt(it.endsWith("...")):
+        tree & @["", treeNote]
+      else:
+        tree
+    )
   of vDot:
     stdout.say dotText(inv)
   of vConfig:
