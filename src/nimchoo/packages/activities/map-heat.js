@@ -34,7 +34,10 @@
     let level = null;
     for (const l of s.levels) if (levels.has(l.level) && zoom >= l.min_zoom && (level === null || l.level < level)) level = l.level;
     if (level === null) level = Math.max(...levels.keys());
-    const px = Math.max(4, s.radius_cells * cellM(level) / h.metresPerPixel(zoom, map.getCenter().lat));
+    // (Leaflet.heat draws each blob as the shadow of a circle painted 200 pixels off a small canvas: from a radius of about 66
+    // pixels, with the blur as big, the circle itself lands on the canvas, as hard quarter and then whole circles; so no more
+    // than 60.  Zoomed far in, the cells are then blobs of their own rather than one glow: finer cells would be needed.)
+    const px = Math.min(60, Math.max(4, s.radius_cells * cellM(level) / h.metresPerPixel(zoom, map.getCenter().lat)));
     heat.setOptions({ radius: px, blur: px });
     if (level !== shown) { heat.setLatLngs(levels.get(level)); shown = level; }
   };
