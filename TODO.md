@@ -32,7 +32,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
   turning point and the retrace shares in Nim from the points; storing them as columns of the activity when it is imported
   would make them queryable in SQL, without SQL ever needing the points (it is faster in Nim, dev/HISTORY.md, 2026-11-11).
   Not designed: check first what the naming needs and whether the stored name is enough.
-4. **The `sectors` package**; **the cache manifest**.
+4. **The `sectors` package** (it should find long climbs such as Camino a Farellones, which climb detection splits: dev/HISTORY.md,
+   2026-11-17); **the cache manifest**.
 5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
     "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject, after D4), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
