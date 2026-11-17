@@ -94,6 +94,7 @@ proc renderPage*(
     css = "",
     common = "{}",
     drawers: seq[(string, string)] = @[],
+    scripts = "",
 ): string {.raises: [TemplateError].} =
   ## The page from a template text, the libraries, the frames, the css, the common style and the drawings (each a name and the
   ## text of its function; already checked).  Pure.
@@ -120,6 +121,7 @@ proc renderPage*(
           ("style", text(common.replace("</", "<\\/"))),
             # (in a script: the page ends at the first "</script")
           ("drawers", text(code)),
+          ("scripts", text(scripts)),
         ]
     ),
   )
@@ -138,6 +140,22 @@ proc pageHtml*(
     raiseTemplate("map.css: " & e.msg)
   var frames: seq[PageFrame]
   var drawers: seq[(string, string)]
+  var wanted: seq[string] # the libraries the drawings use, each once
+  for (f, _) in listed:
+    for l in f.libraries:
+      if l notin wanted:
+        wanted.add l
+  let known = libraries()
+  var scripts = ""
+  for l in wanted:
+    let url = known.filterIt(it[0] == l)
+    let hash = known.filterIt(it[0] == l & "-hash")
+    if url.len == 0 or hash.len == 0:
+      raiseTemplate(
+        fmt"libraries.txt has no {l} (or no {l}-hash), which a frame's drawing uses"
+      )
+    scripts.add "<script src=\"" & htmlEscape(url[0][1]) & "\" integrity=\"" &
+      htmlEscape(hash[0][1]) & "\" crossorigin=\"\"></script>\n"
   for (f, shown) in listed:
     var drawer = ""
     if f.script.isSome:
@@ -159,4 +177,5 @@ proc pageHtml*(
     css,
     $commonStyle(palette),
     drawers,
+    scripts,
   )

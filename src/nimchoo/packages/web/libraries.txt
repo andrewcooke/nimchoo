@@ -11,6 +11,10 @@ leaflet-css = https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
 leaflet-css-hash = sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=
 tiles = https://tile.openstreetmap.org/{z}/{x}/{y}.png
 
+# Leaflet.heat 0.2.0 (BSD-2-Clause, Vladimir Agafonkin): the heat of the activities, smoothed (activities-map-heat.js)
+leaflet-heat-js = https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js
+leaflet-heat-js-hash = sha256-65UqrlgGoRAnKfKRuriH3eeDrOhZgZo1SCenduc+SGo=
+
 # d3 7.9.0 and Observable Plot 0.6.17: the chart of `nch ff`
 d3-js = https://unpkg.com/d3@7.9.0/dist/d3.min.js
 d3-js-hash = sha256-8glLv2FBs1lyLE/kVOtsSw8OQswQzHr5IfwVj864ZTk=

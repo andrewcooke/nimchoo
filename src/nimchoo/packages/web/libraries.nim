@@ -27,6 +27,10 @@ func parseLibraries*(text: string): seq[(string, string)] =
     if name.len > 0 and value.len > 0:
       result.add (name, value)
 
+proc libraries*(): seq[(string, string)] =
+  ## The libraries file in use, as name and value.
+  parseLibraries(resolve(librariesBundle).data)
+
 func libraryValues*(content: string): seq[(string, Value)] =
   ## ... as the values of a template.
   for (k, v) in parseLibraries(content):

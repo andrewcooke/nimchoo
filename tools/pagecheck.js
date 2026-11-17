@@ -4,7 +4,7 @@
 // canvas renderer early and the layer groups added before it fail ("can't access property min").  Not part of `nimble test` (it
 // needs packages that the project does not carry):
 //
-//     d=$(mktemp -d); (cd $d && npm i jsdom@24 leaflet@1.9.4)
+//     d=$(mktemp -d); (cd $d && npm i jsdom@24 leaflet@1.9.4 leaflet.heat@0.2.0)
 //     NODE_PATH=$d/node_modules node tools/pagecheck.js $(nch map --worker) $(nch map --file --frames routes climbs efforts gates heat)
 //
 // (the page, then the file of each frame; the page's fetch of `?frame=NAME` is given the file of that frame: `map-SUBJECT-NAME.geojson`.
@@ -21,13 +21,17 @@ const w = dom.window;
 for (const p of ['clientWidth', 'offsetWidth']) Object.defineProperty(w.HTMLElement.prototype, p, { get() { return 900; } });
 for (const p of ['clientHeight', 'offsetHeight']) Object.defineProperty(w.HTMLElement.prototype, p, { get() { return 600; } });
 const noop = new Proxy(function () {}, { get: (t, k) => (k === 'canvas' ? undefined : noop), apply: () => noop, set: () => true });
-w.HTMLCanvasElement.prototype.getContext = () => noop;
+// (an image the size asked for, for what reads pixels back: Leaflet.heat colours its glow so)
+const image = (wd, ht) => ({ data: new Uint8ClampedArray(Math.max(1, wd * ht) * 4) });
+const context = new Proxy(noop, { get: (t, k) => (k === 'getImageData' ? (x, y, wd, ht) => image(wd, ht) : k === 'canvas' ? undefined : noop) });
+w.HTMLCanvasElement.prototype.getContext = () => context;
 w.fetch = (url) => {
   const frame = decodeURIComponent((url.match(/[?&]frame=([^&]*)/) || [])[1] || '');
   const name = [...geo.keys()].find((n) => n.endsWith('-' + frame + '.geojson'));
   return Promise.resolve(name ? { ok: true, json: () => Promise.resolve(JSON.parse(geo.get(name))) } : { ok: false, status: 404 });
 };
 w.eval(fs.readFileSync(require.resolve('leaflet/dist/leaflet-src.js'), 'utf8'));
+w.eval(fs.readFileSync(require.resolve('leaflet.heat/dist/leaflet-heat.js'), 'utf8')); // (the heat's library)
 const scripts = [...dom.window.document.querySelectorAll('script')].map((s) => s.textContent).filter((t) => t.includes('L.map'));
 let src = scripts[0].replace('const map = L.map(', 'const map = window.theMap = L.map(').replace("caption.textContent = 'could not draw the map: ' + e;", "caption.textContent = 'could not draw the map: ' + e; console.log('STACK', e.stack);");
 w.eval(src);

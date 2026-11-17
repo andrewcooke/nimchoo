@@ -64,6 +64,12 @@ suite "map page: the text":
     check h.contains("\"shown\":true") and h.contains("\"shown\":false")
     check h.contains("'?frame='")
     check h.contains("localStorage") # (the browser remembers which are ticked)
+  test "the libraries a frame's drawing uses are loaded, with their hashes (the heat: Leaflet.heat)":
+    let h = pageHtml("t")
+    check h.contains(
+      "<script src=\"https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js\" integrity=\"" &
+        libs["leaflet-heat-js-hash"] & "\""
+    )
 
 suite "map page: the template and the libraries are files":
   teardown:
