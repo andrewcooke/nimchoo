@@ -3,7 +3,7 @@
 // activities-map-heat.json.
 //
 // A smooth glow (Leaflet.heat, which the page loads for this frame) from the cells of the grid at several sizes (`level`; the file
-// has each): the size that suits the zoom is used, each cell a point at its middle, weighted on a log scale of its visits so that a
+// has each): the size that suits the zoom is used (see `update`), each cell a point at its middle, weighted on a log scale of its visits so that a
 // few busy places do not wash out the rest, and spread over about `radius_cells` cells.  It is under everything else.
 (features, ctx) => {
   const { L, map, helpers: h } = ctx, s = ctx.style;
@@ -29,17 +29,23 @@
   ctx.add(heat, 0);
   let shown = null;
   const cellM = (level) => h.metresPerDegree / 1024 * Math.pow(2, level);   // the height of a cell of a level
-  const update = () => {                                          // the finest level the zoom allows (the coarsest if none)
-    const zoom = map.getZoom();
-    let level = null;
-    for (const l of s.levels) if (levels.has(l.level) && zoom >= l.min_zoom && (level === null || l.level < level)) level = l.level;
-    if (level === null) level = Math.max(...levels.keys());
-    // (Leaflet.heat draws each blob as the shadow of a circle painted 200 pixels off a small canvas: from a radius of about 66
-    // pixels, with the blur as big, the circle itself lands on the canvas, as hard quarter and then whole circles.  So when the
-    // radius would be more than 60 the heat is not drawn: zoomed in that far the cells would be blobs of their own, and the
-    // routes say more.  The heat is the overview.)
-    const px = Math.max(4, s.radius_cells * cellM(level) / h.metresPerPixel(zoom, map.getCenter().lat));
-    if (px > 60) {
+  // the size of cell for a zoom: the finest whose glow is between 7 and 60 pixels across (smooth, and no more than Leaflet.heat
+  // can draw: it draws a blob as the shadow of a circle painted 200 pixels off a small canvas, and from a radius of about 66
+  // pixels the circle itself shows, as hard quarter and whole circles).  The sizes are 8 times apart and the window a little
+  // more, so one fits at every zoom, except zoomed so far in that even the finest is more than 60: then the heat is not drawn
+  // (the routes say more there: the heat is the overview).
+  const sizes = [...levels.keys()].sort((a, b) => a - b);        // finest first
+  const update = () => {
+    const mPerPx = h.metresPerPixel(map.getZoom(), map.getCenter().lat);
+    let level = null, px = 0;
+    for (const l of sizes) {
+      const r = s.radius_cells * cellM(l) / mPerPx;
+      if (r > 60) break;                                          // (and every coarser one is wider still)
+      level = l;
+      px = r;
+      if (r >= 7) break;                                          // the finest that is smooth
+    }
+    if (level === null) {
       if (shown !== 'none') { heat.setLatLngs([]); shown = 'none'; }
       return;
     }

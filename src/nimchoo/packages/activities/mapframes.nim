@@ -126,7 +126,7 @@ proc contributions*(): seq[Contribution] =
         tables: @["route_cell", "selection"],
         make: makeHeat,
         style: heatStyle,
-        styleKeys: @["low", "high", "min_opacity", "radius_cells", "levels"],
+        styleKeys: @["low", "high", "min_opacity", "radius_cells"],
         libraries: @["leaflet-heat-js"],
         script: some(heatScript),
       ),
