@@ -19,10 +19,10 @@ When something here is done, delete it (in the same commit).  Design steps are d
 ## Larger changes (designs not started)
 
 2. **Arrays: what is left.**  Built and measured (2026-11-13, dev/HISTORY.md "The arrays"): the cleaning, the arrays and every reader;
-   `coords` and `heartrate` are gone.  Left: (a) the **rebuild** of the author's database (`nch db --delete -f`, import: the squash of 2026-11-17 means an existing
-   database is refused) and a comparison of efforts and names with the old ones, and the rides that changed looked at on the map;
-   (b) after the rebuild, a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at -33.4253,-70.6331`),
-   so the 98 rides over it are named after it (dev/NAMING.md says why a landmark and not a rule); (c) a **simpler
+   `coords` and `heartrate` are gone.  Left: (a) the rebuild was done by the author after the squash (2026-11-17), without the old database, so there was nothing to
+   compare efforts and names with; (b) a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at
+   -33.4253,-70.6331`), so the 98 rides over it are named after it (dev/NAMING.md says why a landmark and not a rule); the rides
+   already named keep their names until they are named again; (c) a **simpler
    `route`**, also stored as a single connected line beside the multi-part one, for the uses where segmentation does not matter (21% of
    routes have several parts and SpatiaLite's resampling returns NULL for them; dev/HISTORY.md, 2026-11-11); (d) the stretches the
    cleaning splits are extra `segment` rows: look at one on the map.
