@@ -36,7 +36,8 @@ func serverIdentity(args: seq[string]): string =
   ## What a server says it is (`/status`): the build of nch on the first line, the options its workers get on the second.
   versionString & "\n" & args.join(" ")
 
-when defined(ssl):
+when declared(SslError):
+  # (what the socket raises depends on the build: `SslError` exists, and is raised, when SSL is in it)
   {.
     pragma: socketRaises, raises: [OSError, IOError, TimeoutError, ValueError, SslError]
   .}
@@ -46,7 +47,7 @@ else:
 proc exchange(
     port: int, token, path: string
 ): Option[tuple[code: int, body: string]] {.socketRaises.} =
-  ## (`ask` without the catching: what the socket may raise depends on the build, see `ask`)
+  ## (`ask` without the catching)
   var s = newSocket()
   defer:
     s.close()
@@ -71,9 +72,8 @@ proc ask(
     port: int, token, path: string
 ): Option[tuple[code: int, body: string]] {.raises: [].} =
   ## Ask the server on 127.0.0.1:`port` for `path` (`/status`, `/stop`) with the token in our header; none if nothing
-  ## answers there as an HTTP server would (no server, or not one that speaks to us).  (A build with SSL, as `nch` is, may
-  ## also raise `SslError` from the socket, which does not exist in a build without it.)
-  when defined(ssl):
+  ## answers there as an HTTP server would (no server, or not one that speaks to us).
+  when declared(SslError):
     try:
       exchange(port, token, path)
     except OSError, IOError, TimeoutError, ValueError, SslError:

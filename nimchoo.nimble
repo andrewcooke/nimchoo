@@ -39,7 +39,8 @@ task registry,
   exec "nim c -r --hints:off -o:tools/genregistry tools/genregistry.nim"
 
 task docs, "Write the generated documentation to doc/ (git-ignored); it must end without warnings":
-  exec "nimble registry"
+  # (from the registry as it is committed: a test fails if it is stale, and making it again needs nph, which the build
+  # of the documentation on GitHub does not have)
   exec "nim doc --project --index:on --hints:off --warningAsError:BrokenLink:on --outdir:doc src/nch.nim"
   # the front page is the list of packages, which the registry generator writes
   writeFile "doc/index.html", "<meta http-equiv=\"refresh\" content=\"0; url=nimchoo/registry.html\">\n"
