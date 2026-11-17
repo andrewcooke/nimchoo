@@ -1,10 +1,11 @@
 // How the climbs are drawn on the map: a frame's drawing (see the map package, `map/frames.nim`), editable here in
 // system/templates/ (delete it to have the built-in one again).  The numbers and colours are in activities-map-climbs.json.
 //
-// Thick, transparent grey lines beside the road, marking sections of it, under the routes.  They are offset by a number of pixels
-// beyond the outermost thread of the routes (so they are clearly off the road at any zoom; the offset is worked out again when the
-// zoom changes), and climbs on the same stretch of road go in different lanes so that they do not overlap: a climb takes the
-// lowest lane that no climb on the same road (a longer one, placed first) has, and climbs that share no road share a lane.
+// Transparent grey bands beside the road, marking sections of it, under the routes.  A band is a fixed width on the ground and a
+// fixed distance beyond the outermost thread of the routes, in metres, so it is a band beside the road when zoomed in and all but
+// disappears when zoomed out (its width in pixels is worked out again when the zoom changes).  Climbs on the same stretch of road
+// go in different lanes so that they do not overlap: a climb takes the lowest lane that no climb on the same road (a longer one,
+// placed first) has, and climbs that share no road share a lane.
 (features, ctx) => {
   const { L, map, helpers: h } = ctx, s = ctx.style;
   const sameRoadM = 15;           // two climbs are on the same road if their points are this close
@@ -12,8 +13,8 @@
 
   // how far from the road (in metres, negative: to the right of the direction of travel) the middle of a lane is.  The lanes
   // alternate sides of the road: 0 to the right, 1 to the left, 2 further right, 3 further left ...  (no routes: no threads)
-  const offsetM = (lane, mPerPx) =>
-    (lane % 2 === 0 ? -1 : 1) * ((ctx.shared.routesSpreadM || 0) + (s.gap_px + s.weight / 2 + s.lane_px * Math.floor(lane / 2)) * mPerPx);
+  const offsetM = (lane) =>
+    (lane % 2 === 0 ? -1 : 1) * ((ctx.shared.routesSpreadM || 0) + s.gap_m + s.width_m / 2 + s.lane_m * Math.floor(lane / 2));
 
   // the points of a path every `stepM` metres along it, in metres from `origin` ([lon, lat]), with a grid to find the ones near
   // a point
@@ -71,7 +72,7 @@
   const lanes = lanesOf(climbs);
   const placed = [];
   const layer = L.geoJSON({ type: 'FeatureCollection', features: climbs }, {
-    style: { color: s.color, weight: s.weight, opacity: s.opacity },
+    style: { color: s.color, weight: 1, opacity: s.opacity },
     onEachFeature: (f, l) => {
       const p = f.properties || {};
       const facts = (p.category ? 'category ' + h.text(p.category) + ', ' : '') + (p.length_m / 1000).toFixed(1) + 'km, +' +
@@ -82,14 +83,20 @@
     }
   });
   ctx.add(layer, 10);
-  // moved to their lanes once the zoom is known, and again when it changes
+  // moved to their lanes the first time (when every frame is drawn, so the routes' spread is known), and made as wide in pixels as
+  // their width in metres whenever the zoom changes
+  let moved = false;
   const update = () => {
-    const mPerPx = h.metresPerPixel(map.getZoom(), map.getCenter().lat);
-    placed.forEach(([f, original, l]) => {
-      const off = offsetM(lanes.get(f.properties.id), mPerPx);
-      const road = h.simplifyPath(original, Math.abs(off) * 0.35);       // (so that hairpins do not make loops)
-      l.setLatLngs(L.GeoJSON.coordsToLatLngs(h.smoothPath(h.offsetPath(road, off), ctx.common.smooth_rounds), 0));
-    });
+    if (!moved) {
+      placed.forEach(([f, original, l]) => {
+        const off = offsetM(lanes.get(f.properties.id));
+        const road = h.simplifyPath(original, Math.abs(off) * 0.35);       // (so that hairpins do not make loops)
+        l.setLatLngs(L.GeoJSON.coordsToLatLngs(h.smoothPath(h.offsetPath(road, off), ctx.common.smooth_rounds), 0));
+      });
+      moved = true;
+    }
+    const weight = s.width_m / h.metresPerPixel(map.getZoom(), map.getCenter().lat);
+    placed.forEach(([f, original, l]) => l.setStyle({ weight }));
   };
   const m = climbs.length;
   return { bounds: layer.getBounds(), rank: 2, update, caption: m ? m + ' climbs (grey, beside the road, to either side)' : '' };

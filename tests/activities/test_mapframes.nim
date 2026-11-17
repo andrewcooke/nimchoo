@@ -163,7 +163,7 @@ suite "activities frames: the map, with the real registry":
     check page.contains(
       "\"name\":\"activities/routes\",\"file\":\"map-activities-routes.geojson\",\"style\":{\"color\":\"#e03131\""
     ) # the style of the routes, in the page
-    check page.contains("\"gap_px\":14") # and of the climbs
+    check page.contains("\"gap_m\":15") # and of the climbs
     check page.contains("drawers[\"activities-map-routes\"] = (") and
       page.contains("drawers[\"activities-map-climbs\"] = (") # and their drawings
 

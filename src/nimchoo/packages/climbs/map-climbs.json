@@ -1,6 +1,7 @@
-{{! How the climbs are drawn, as JSON (their drawing, activities-map-climbs.js, reads it): thick transparent grey lines beside the road, marking sections
-    of it: gap_px from the threads of the routes and lane_px between lanes, in pixels (so they stay clear of the road at any
-    zoom); climbs on the same stretch of road go in different lanes, alternately on each side. }}
+{{! How the climbs are drawn, as JSON (their drawing, activities-map-climbs.js, reads it): transparent grey bands beside the road,
+    marking sections of it, in metres on the ground: width_m wide, gap_m beyond the threads of the routes, lane_m from the middle of
+    one lane to the next (climbs on the same stretch of road go in different lanes, alternately on each side).  Being sizes on the
+    ground, they are bands when zoomed in and all but disappear when zoomed out. }}
 {
-  "color": "#868e96", "weight": 8, "opacity": 0.35, "gap_px": 14, "lane_px": 11
+  "color": "#868e96", "opacity": 0.35, "width_m": 15, "gap_m": 15, "lane_m": 18
 }

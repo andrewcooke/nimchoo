@@ -175,7 +175,7 @@ proc contributions*(): seq[Contribution] =
         tables: climbTables,
         make: makeClimbs,
         style: climbsStyle,
-        styleKeys: @["color", "weight", "opacity", "gap_px", "lane_px"],
+        styleKeys: @["color", "opacity", "width_m", "gap_m", "lane_m"],
         script: some(climbsScript),
       ),
     ),
