@@ -3,5 +3,5 @@
     one lane to the next (climbs on the same stretch of road go in different lanes, alternately on each side).  Being sizes on the
     ground, they are bands when zoomed in and all but disappear when zoomed out. }}
 {
-  "color": "#868e96", "opacity": 0.35, "width_m": 15, "gap_m": 15, "lane_m": 18
+  "color": "#5c636a", "opacity": 0.6, "width_m": 15, "gap_m": 15, "lane_m": 18
 }

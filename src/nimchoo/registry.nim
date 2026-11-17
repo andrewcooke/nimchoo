@@ -91,7 +91,8 @@ const packages*: seq[Registered] = inDependencyOrder(
       doc: """The activities: listing them, choosing the selection, and deleting.
 
 `nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities, and
-`--select` keeps what is listed as the selection.  `--all` means everything, not just the selection.  Nothing is deleted
+`--select` keeps what is listed as the selection.  **Blue is the selection after the command**: the selection, all blue;
+`--all`, the selected ones among them; `--select`, everything listed; criteria alone change nothing, so none.  `--all` means everything, not just the selection.  Nothing is deleted
 without `-f` (it says what it would delete, with a countdown on a terminal).  Criteria belong to this command alone; the
 other views (`climbs`, `map`, `calendar`) take the selection.
 
