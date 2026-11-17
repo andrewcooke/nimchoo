@@ -179,7 +179,24 @@ one read transaction need the first.
   of frame (route, climb, heat, effort, gate) and read each provider's style by name, so a new frame means editing `map`.
   Options: (a) each provider ships its drawing, a script template beside its style, and `lines.nim`'s types move to the
   providers; (b) a declarative style the page draws generically; (c) keep it and document that a new frame edits `map`.
-  The review recommends (a).
+  **Decided (2026-11-17, D7): (a) for now, with an eye to (b).**  See "6a" below.
+* **6a. Providers draw their frames** (before the climbs subject; nothing visible):
+  * `map`'s page becomes a host: Leaflet and the tiles, the fetch of each frame's file (one that fails is reported, the rest
+    drawn), fitting the view, the line saying what is drawn, and generic helpers (moving a line sideways in metres or pixels,
+    the corner cutting, panes for what is drawn underneath).  It calls each frame's `draw(map, features, style, shared)`.
+  * A frame ships a script template beside its style (`activities-map-routes.js`), unpacked to `system/templates/` and
+    editable there like the others.  The page gets only the drawn frames' styles and scripts, **each under the frame's own
+    name** (`activities/routes`), so there is no shared namespace of groups and two frames may use the same group names.
+  * Frames that depend on each other say so through `shared`: the routes publish their spread, the climbs read it (with a
+    fallback when no routes are drawn).  Frames are drawn in the order of `--frames` (else of contribution).
+  * `lines.nim`'s types and writers go to their providers (routes and heat to `activities`; climbs, gates, efforts to
+    `climbs`); `map` loses `fit` and `geo`.  A climbs-subject frame may reuse another provider's script and style bundle.
+  * **Towards (b)**: the script is optional.  A frame without one is drawn by a generic drawer of `map` from its style alone
+    (lines, points or polygons: colour, width, opacity), so a simple new frame needs no JavaScript; when the scripts
+    show the same pattern twice, it moves into the helpers or the generic drawer.  (b) is then the generic drawer
+    growing until most frames need no script, never a rewrite.
+  * Tests: the page with a frame of a test-only provider and its own script (that `map` needs nothing above it, in JS too);
+    a frame without a script drawn generically; `tools/pagecheck.js` for the real frames.
 * Decision D4 first: what `nch climbs` lists (the climbs selection) and what that selection is after an import and when
   nothing has been selected.
 * A selection of climbs (a table of `climbs`, per user, like `selection`); `nch climbs` with criteria and `--select`, like
@@ -209,7 +226,7 @@ one read transaction need the first.
 
 ## Decisions
 
-D1 to D3 are decided; D4 and D5 wait for their steps (6 and 7); D6 is moot (no caching).
+D1 to D3 and D7 are decided; D4 and D5 wait for their steps (6 and 7); D6 is moot (no caching).
 
 * **D1. How the counters' triggers are made.**  (a) Each package writes them in a fragment for each of its tables: three
   triggers per table, about twenty tables, kept in step with the tables by hand.  (b) The `db` package makes them for every
@@ -224,6 +241,8 @@ D1 to D3 are decided; D4 and D5 wait for their steps (6 and 7); D6 is moot (no c
 * **D4. The climbs selection** (step 6), above.
 * **D5. FF statistics** (step 7), above.
 * **D6. The threshold for caching** (step 4): moot, decided 2026-11-16: nothing is cached.
+* **D7. How frames are drawn** (step 6): decided 2026-11-17: each provider ships its drawing (a script beside its style),
+  with an optional generic drawer in `map` that may grow into a declarative style (b) later.  Step 6a.
 
 ## Risks
 
