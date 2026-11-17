@@ -1,4 +1,5 @@
-## The shape of an activity, from its route alone (pure): what the namers word a name by (`naming/rules.nim`, dev/NAMING.md).  Three shapes are told apart, and a fourth for rides too small to name:
+## The shape of an activity, from its route alone (pure): the first step of naming activities (TODO.md, "Names refactor and
+## activity naming").  Three shapes are told apart, and a fourth for rides too small to name:
 ##
 ##   A  out and back: ends near where it began, and the way back starts over the way out (what comes later may differ: a
 ##      different road for the last stretch home is still "<destination> and back");

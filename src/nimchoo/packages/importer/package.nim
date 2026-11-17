@@ -8,11 +8,11 @@
 ##   modification time are as when it was last seen is skipped unread (`--slow` reads everything); a file with content already
 ##   imported is a duplicate; a file that cannot be read is reported and the others carry on.  One transaction per file, files
 ##   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the
-##   screen as two lines that follow the run.  Then the packages that asked do their part (`importer/after`): the new
-##   activities are selected, named (`naming`, which owns the names) and their climbs worked out.
+##   screen as two lines that follow the run.  The new activities are then named (`names`), and last the packages that asked
+##   do their part.
 ## * **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`heartrate` writes the
 ##   heart rate), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
-##   with the new activities (`selection` makes them the selection; `naming` names every activity that has no name).
+##   with the new activities (`selection` makes them the selection).
 ## * **Describing an activity** (decided 2026-11-05): an activity is said the same way wherever it appears, like `__str__`, by
 ##   `describe.nim`: `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back` (start, sport, distance,
 ##   active time, then where it started and what it is called, joined by " / "); verbose adds the sub-sport and the path of
@@ -32,21 +32,19 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 
 const package* = Package(
   depends: @[
-    "args", "bytes", "db", "download", "fit", "geo", "hashing", "profiling", "ui",
-    "user", "warnings",
+    "args", "bytes", "db", "download", "fit", "geo", "hashing", "names", "profiling",
+    "ui", "user", "warnings",
   ],
   fragments: @[
     fragment("001-schema.sql"),
       # file, activity, coords, segment, route, seen_file, route_cell (the cells of the grid each activity went through)
     fragment("002-track.sql"), # track: the positions of an activity as arrays
     fragment("003-drop-coords.sql"), # (the rows of positions are gone)
-    fragment("004-drop-names.sql"), # (the names of activities are `naming`'s)
   ],
   commands: @[
     CommandDecl(
       name: command.commandName,
-      summary:
-        "put the activities of FIT files into the database (then they are named, and their climbs worked out)",
+      summary: "put the activities of FIT files into the database, and name them",
       run: command.run,
       options: command.options,
     )

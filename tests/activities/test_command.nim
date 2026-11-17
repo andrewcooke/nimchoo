@@ -639,8 +639,7 @@ suite "list: what is shown":
     let db = world("verbose-place")
     let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
-      """insert or replace into activity_name(activity_id, start_place, name)
-      select id, 'Lisbon', 'Sintra and back' from activity
+      """update activity set start_place = 'Lisbon', name = 'Sintra and back'
       where file_id in (select id from file where name = 'lisbon1')"""
     )
     st.close()
@@ -694,14 +693,12 @@ proc named(db: string) =
   defer:
     s.close()
   s.db.execute(
-    """insert or replace into activity_name(activity_id, start_place, name)
-      select id, 'Lisboa', 'São Pedro and back' from activity
-      where file_id in (select id from file where name = 'lisbon1')"""
+    """update activity set name = 'São Pedro and back', start_place = 'Lisboa'
+    where file_id in (select id from file where name = 'lisbon1')"""
   )
   s.db.execute(
-    """insert or replace into activity_name(activity_id, start_place, name)
-      select id, 'Almada', 'São Pedro and back' from activity
-      where file_id in (select id from file where name = 'lisbon2')"""
+    """update activity set name = 'São Pedro and back', start_place = 'Almada'
+    where file_id in (select id from file where name = 'lisbon2')"""
   )
 
 suite "list: --names and --starts":
@@ -754,10 +751,7 @@ suite "list: --names and --starts":
     discard save(db, "--starts", "none")
     check chosen(db) == @["paris"]
     let s = openSession(db, allFragments, access = allAccess)
-    s.db.execute(
-      "insert into activity_name(activity_id, start_place, name) select id, '', '' from activity " &
-        "where id not in (select activity_id from activity_name)"
-    )
+    s.db.execute("update activity set name = '' where name is null")
     s.close()
     discard save(db, "--names", "none")
     check chosen(db) == @["paris"] # ('' counts too)
@@ -781,8 +775,7 @@ suite "list: --names and --starts":
     named(db)
     let s = openSession(db, allFragments, access = allAccess)
     s.db.execute(
-      """insert or replace into activity_name(activity_id, start_place, name)
-      select id, 'Providencia', 'O''Higgins Park' from activity
+      """update activity set name = 'O''Higgins Park', start_place = 'Providencia'
       where file_id in (select id from file where name = 'lisbon1')"""
     )
     s.close()

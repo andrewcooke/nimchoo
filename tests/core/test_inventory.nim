@@ -162,5 +162,5 @@ suite "the real registry":
   test "the points of the registry are all listed, with their contributors":
     check inv.points.len == generated.points.len
     check inv.points.anyIt(
-      it.name == "importer/after" and it.contributors.anyIt(it.package == "selection")
+      it.name == "importer/after" and it.contributors[0].package == "selection"
     )

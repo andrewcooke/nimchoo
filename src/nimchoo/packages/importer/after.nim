@@ -1,7 +1,6 @@
 ## What other packages do once an import has finished: an extension point of this package.  `selection` makes the new
-## activities the selection, `naming` names the activities, `climbs` works out their climbs.  The importer calls each
-## contribution once per import (every import, even one that added nothing), after the files are committed, with the
-## activities that are new (this user's, in the order of their ids: perhaps none) and a context (the
+## activities the selection.  The importer calls each contribution once per import, after the files are committed and
+## the activities named, with the activities that are new (this user's, in the order of their ids) and a context (the
 ## settings of the run, and how to be seen), and says what it reports, a line each.  One that fails does not undo the import:
 ## a warning says what was not done.
 

@@ -36,8 +36,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
     `core/complete` knows only options, so it needs the completion framework to learn them).
 6. **Naming by namers, with climbs** (designed 2026-11-17, after an `/oppose`: `dev/NAMING.md`, not built).  Naming leaves the
     importer for a package `naming` that asks namers in order of precedence, the first name proposed winning: landmarks, the
-    ride's big climb (HC, 1 or 2, from `climbs`), places.  Names stay stored text.  Step 1 (the package, the same names) is done;
-    next, step 2, the big-climb namer (open, to settle with examples: which climb when there are several, the wording).  The plan's steps wait for the author's
+    ride's big climb (HC, 1 or 2, from `climbs`), places.  Names stay stored text.  Open, to settle with examples: which climb
+    when there are several, the wording.  The plan's steps wait for the author's
     approval; the squash and the rebuild come after them.
 7. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms

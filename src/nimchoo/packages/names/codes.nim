@@ -1,5 +1,5 @@
 ## The GeoNames feature codes that the naming rules treat specially, in one place so that the rules for activities
-## (`naming/rules.nim`) and for climbs (`climbpick.nim`) cannot drift apart.  Pure.
+## (`activity.nim`) and for climbs (`climbpick.nim`) cannot drift apart.  Pure.
 
 {.push raises: [].}
 

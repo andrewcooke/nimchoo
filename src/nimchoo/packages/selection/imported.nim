@@ -13,8 +13,6 @@ import ./selection
 proc selectImported(
     st: Session, ids: seq[int64], ctx: AfterContext
 ): seq[ImportReport] {.raises: [StoreError].} =
-  if ids.len == 0:
-    return # (nothing new: the selection stays as it was)
   st.replaceSelection(ids)
   let what =
     if ids.len == 1:

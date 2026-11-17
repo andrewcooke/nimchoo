@@ -6,7 +6,7 @@ import nimchoo/packages/user/session
 import std/[options, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
-import nimchoo/packages/activities/[criteria, rows]
+import nimchoo/packages/activities/criteria
 import nimchoo/packages/confirm/confirm
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
@@ -381,20 +381,20 @@ suite "list: --names and --starts":
     let c = parsed("--names", "toyo", "none", "--starts", "o'higgins")
     let m = matchSql(@[UserId(1)], c, none((float, float)))
     let q = m.text
-    check q.contains("instr(fold(" & nameColumn & "), :nameT0) > 0") and
-      q.contains("(" & nameColumn & " is null or " & nameColumn & " = '')")
+    check q.contains("instr(fold(a.name), :nameT0) > 0") and
+      q.contains("(a.name is null or a.name = '')")
     check m.value("nameT0") == arg("toyo") # (folded)
-    check q.contains("instr(fold(" & startColumn & "), :startT0) > 0")
+    check q.contains("instr(fold(a.start_place), :startT0) > 0")
     check m.value("startT0") == arg("o'higgins") # (bound as it is: no quotes to double)
     var e = Criteria()
     e.namesExact = @["El Toyo and back", ""]
     e.startsExact = @["Providencia"]
     let rq = matchSql(@[UserId(1)], e, none((float, float)))
     let r = rq.text
-    check r.contains("" & nameColumn & " = :nameE0") and
-      r.contains("(" & nameColumn & " is null or " & nameColumn & " = '')")
+    check r.contains("a.name = :nameE0") and
+      r.contains("(a.name is null or a.name = '')")
     check rq.value("nameE0") == arg("El Toyo and back")
-    check r.contains("" & startColumn & " = :startE0") and
+    check r.contains("a.start_place = :startE0") and
       rq.value("startE0") == arg("Providencia")
     check not matchSql(@[UserId(1)], Criteria(), none((float, float))).text.contains(
       "fold("
@@ -433,8 +433,7 @@ suite "list: --invert":
       parseArgs(@["--sports", "cycling", "--names", "toyo", "--invert"], utcZone).params
     let q = matchSql(@[UserId(1)], c, none((float, float))).text
     check q.contains(
-      " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(" & nameColumn &
-        "), :nameT0) > 0"
+      " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :nameT0) > 0"
     )
     check q.endsWith("), 0)")
     let plain = matchSql(

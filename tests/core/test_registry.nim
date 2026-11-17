@@ -273,19 +273,17 @@ suite "extension points":
         ]
       )
 
-  test "the real registry defines nine points, and every contribution is to one of them":
+  test "the real registry defines eight points, and every contribution is to one of them":
     check generated.points.mapIt(it.point.name).sorted ==
       @[
         "activities/criteria", "calendar/frames", "importer/after", "importer/steps",
-        "map/frames", "naming/namers", "subject/subjects", "user/has", "web/pages",
+        "map/frames", "subject/subjects", "user/has", "web/pages",
       ]
     for name in generated.extensions.points:
       check name in generated.points.mapIt(it.point.name)
       for c in generated.extensions.contributions(name):
         check c.source.len > 0
-    check generated.extensions.contributions("importer/after").anyIt(
-      it.source == "selection"
-    )
+    check generated.extensions.contributions("importer/after")[0].source == "selection"
 
   test "the real registry gives the importer the heart-rate step":
     let steps = generated.extensions.get(importStep)
