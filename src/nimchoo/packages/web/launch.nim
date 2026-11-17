@@ -133,10 +133,15 @@ proc serveWeb*(
       return failure(name, known.problem)
     let running = ask(o.port, known.token, statusPath)
     if running.isSome:
+      if running.get.code == 404:
+        return failure(
+          name,
+          fmt"a server from an older nch (before --stop) is running on port {o.port}: press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, then try again",
+        )
       if running.get.code != 200:
         return failure(
           name,
-          fmt"something on port {o.port} answers but not to our token (a server started before --new-token?): stop it, or use --port N",
+          fmt"something on port {o.port} answers but not to our token (a server started before --new-token?): press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, or use --port N",
         )
       let theirs = running.get.body.split('\n', maxsplit = 1)
       let mine = identity.split('\n', maxsplit = 1)
@@ -205,10 +210,15 @@ proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
   if r.isNone:
     stderr.say fmt"no server is running on port {port}" & "\n"
     exitOk
+  elif r.get.code == 404:
+    failure(
+      name,
+      fmt"the server on port {port} is from an nch that cannot be stopped this way (before --stop): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
+    )
   elif r.get.code != 200:
     failure(
       name,
-      fmt"the server on port {port} does not answer to our token: stop it with Ctrl-C where it runs",
+      fmt"the server on port {port} does not answer to our token (it was started before --new-token?): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   else:
     stderr.say fmt"stopped the server on port {port}" & "\n"
