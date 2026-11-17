@@ -1,7 +1,8 @@
 ## The cache directory, where commands that make files (maps, exports) put
 ## them, and what such files are called.  A file is named by the command and its options, spelt out
-## (`map-routes-climbs.geojson`, `ff-default-hourly.csv`), and is made again on every request: a view shows
-## the data as they are now, so a name says what the file is for and nothing about the data.
+## (`ff-default-hourly.csv`), and is made again on every request: a view shows the data as they are now.  A map's names end in
+## a key of what the file was made from (`map-activities-routes-3f9a0c1d5e7b2a46.geojson`, see `map/command`), which is only
+## a part of the options as far as this module is concerned.
 ##
 ## A name is always a plain file name that can be put in a URL.  The cache directory has two parts, `user/` (made by commands) and `system/` (unpacked
 ## from the program), and keeps the server's token at its top.  Pure functions: no files are

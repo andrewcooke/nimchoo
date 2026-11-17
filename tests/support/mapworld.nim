@@ -9,7 +9,8 @@ import nimchoo/packages/fit/time
 import nimchoo/packages/importer/coord
 import nimchoo/packages/map/command as mapCommand
 import nimchoo/packages/user/session
-import ./arrays
+import ./[arrays, keyednames]
+export keyednames
 
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 
@@ -84,8 +85,8 @@ proc files*(cache: string): seq[string] =
       result.add f.extractFilename
 
 proc frameFile*(cache, frame: string, subject = "activities"): string =
-  ## The GeoJSON file of a frame (the path).
-  cache / ("map-" & subject & "-" & frame & ".geojson")
+  ## The GeoJSON file of a frame (the path): the newest, if the data have changed and there are several.
+  keyedFile(cache, "map-" & subject & "-" & frame, "geojson")
 
 proc kinds*(j: JsonNode): seq[string] =
   for f in j["features"]:

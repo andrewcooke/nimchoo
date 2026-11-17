@@ -69,8 +69,8 @@ proc makeRoutes(st: Session): FrameData {.raises: [StoreError].} =
     result.notes.add fmt"none of the {n} activities has a route (no positions in the files)"
   elif routes.len < n:
     let missing = n - routes.len
-    let noun = if missing == 1: "activity has" else: "activities have"
-    result.notes.add fmt"{missing} of the {n} selected {noun} no route (no positions in the files)"
+    let verb = if missing == 1: "has" else: "have"
+    result.notes.add fmt"{missing} of the {n} selected activities {verb} no route (no positions in the files)"
   result.geojson = featureCollection(routes, @[])
 
 proc makeHeat(st: Session): FrameData {.raises: [StoreError].} =

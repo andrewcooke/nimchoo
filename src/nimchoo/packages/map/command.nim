@@ -4,7 +4,8 @@
 ## looks), and a page, drawn by Leaflet in the browser, decides the look: each frame has a style of its own, which its provider ships.
 ##
 ## A map is a live view: it shows the selection of the subject as it is when the map is made, and is made again for every request.
-## The files are named by the subject and the frame (`map-activities-routes.geojson`); a bookmark of the page
+## The files are named by the subject, the frame and its key (`map-activities-routes-3f9a....geojson`: what it was made from, so
+## that another request cannot change a file under a page that is loading it); a bookmark of the page
 ## (`/map/activities?frames=routes,climbs`) keeps the look, not the data.
 ##
 ## This module is above `subject`: it reads the registry of subjects and of frames, and nothing of the packages that provide them.
@@ -14,7 +15,7 @@ import ../cache/cache
 import ../util/atomic/atomic
 import ../../core/[extension, globals]
 import ../../core/errors
-import ../subject/subjects
+import ../subject/[keys, subjects]
 import ../ui/live
 import ../util/args/[args, usage]
 import ../web/launch
@@ -102,9 +103,21 @@ proc choose(g: Globals, p: Params): Parsed[Chosen] =
       chosen.frames.add there[0]
   parsedOk(chosen)
 
-func fileStem(subject, frame: string): string =
-  ## What the file of a frame is named: `map-activities-routes`.
-  fmt"map-{subject}-{frame}"
+func fileStem(subject, frame, key: string): string =
+  ## What the file of a frame is named: `map-activities-routes-` and its key (the page's `map-activities-routes-climbs-`
+  ## and its own).  A name says what the file was made from, so that a file is never one thing for one request and another
+  ## for the next: two requests with different data write different files, and with the same data the same one.
+  fmt"map-{subject}-{frame}-{key}"
+
+proc frameKeyOf(st: Session, s: Subject, f: MapFrame): string {.raises: [StoreError].} =
+  ## The key of a frame as it would be made now (16 hex digits): the database, the build, the frame, the selection if it reads
+  ## it, and the counters of the tables it reads.  Asked in the transaction that makes the frame, so it names what was read.
+  let selection =
+    if f.readsSelection:
+      some(s.selectionKey(st))
+    else:
+      none(string)
+  frameKey(st.db, fmt"map/{s.name}/{f.name}", selection, f.tables)[0 ..< 16]
 
 func readsSelection(c: Chosen): bool =
   ## Whether some chosen frame is made from the selection (the others need it not to be empty no more than they need anything).
@@ -125,25 +138,28 @@ proc prepare(
   try:
     # one read transaction: the frames are made from one state of the database, whatever else is writing
     var made: seq[FrameData]
+    var keys: seq[string]
     st.begin()
     try:
       if readsSelection(c) and c.subject.selected(st) == 0:
         return (@[], "", emptyFailure(c.subject))
       for f in c.frames:
         made.add f.make(st)
+        keys.add frameKeyOf(st, c.subject, f)
     finally:
       st.rollback()
     var names: seq[string]
     for k, f in c.frames:
       for note in made[k].notes:
         stderr.say fmt"note: {note}" & "\n"
-      let stem = fileStem(c.subject.name, f.name)
+      let stem = fileStem(c.subject.name, f.name, keys[k])
       let path = cacheFile(dir, stem, "geojson").get
       writeAtomic(path, made[k].geojson)
       result.paths.add path
       names.add f.name
     if withPage:
-      let stem = fileStem(c.subject.name, names.join("-"))
+      let pageKey = keyOf(zip(names, keys))[0 ..< 16]
+      let stem = fileStem(c.subject.name, names.join("-"), pageKey)
       let pagePath = cacheFile(dir, stem, "html").get
       let html = pageHtml(
         result.paths.mapIt(extractFilename(it)), "Map", g.extensions.get(mapFramePoint)

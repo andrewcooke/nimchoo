@@ -149,7 +149,7 @@ one read transaction need the first.
 
 ### Step 4: caching, if measurement asks for it
 
-* **Every frame's file is named by its key, cached or not** (review finding 4): with names by subject and frame, another
+* **Every frame's file is named by its key, cached or not** (review finding 4; done 2026-11-16): with names by subject and frame, another
   tab or `nch map --file` can overwrite a file between the worker making it and the page fetching it, so a page could mix
   two selections.
 * Measure as in step 0.  Agree a threshold with the author (D6); only frames slower than it are cached.

@@ -32,7 +32,6 @@ suite "climbs frames: the climbs":
     let w = world(dir, "live")
     withClimb(w.db)
     check map(w.db, "--frames", "climbs") == exitOk
-    let path = frameFile(w.cache, "climbs")
     for (sql, expected) in [
       ("update sector set name = 'Renamed'", "Renamed"),
       ("update sector set category = 'HC'", "HC"),
@@ -40,13 +39,15 @@ suite "climbs frames: the climbs":
       let s = openSession(w.db, allFragments, access = allAccess)
       s.db.execute(sql)
       s.close()
+      forget(w.cache)
       check map(w.db, "--frames", "climbs") == exitOk
-      check expected in readFile(path)
+      check expected in readFile(frameFile(w.cache, "climbs"))
     let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("update sector set retired = 1")
     s.close()
+    forget(w.cache)
     check map(w.db, "--frames", "climbs") == exitOk
-    check kinds(parseFile(path)).len == 0 # (no climb now)
+    check kinds(parseFile(frameFile(w.cache, "climbs"))).len == 0 # (no climb now)
   test "routes alone work out no climbs":
     let w = world(dir, "routesonly")
     withClimb(w.db)
@@ -112,6 +113,7 @@ suite "climbs frames: gates and efforts":
       "update sector set route = GeomFromText('LINESTRING Z(-9.14 38.72 10, -9.12 38.73 100)', 4326)"
     )
     s.close()
+    forget(w.cache)
     check map(w.db, "--frames", "efforts", "gates") == exitOk
     check parseFile(frameFile(w.cache, "efforts"))["features"][0]["properties"][
       "elapsed_s"

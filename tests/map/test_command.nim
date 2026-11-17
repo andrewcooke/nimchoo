@@ -7,7 +7,7 @@ import nimchoo/packages/cache/cache
 import nimchoo/packages/db/statement
 import nimchoo/packages/map/command as mapCommand
 import nimchoo/packages/user/session
-import ../support/[env, testframes]
+import ../support/[env, keyednames, testframes]
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-map"
@@ -53,13 +53,15 @@ suite "map: the command, with frames of its own":
   test "by default the frames that are shown, a file for each, named for the subject and the frame":
     let w = world("basic")
     check run(w.db, "--file") == exitOk
-    check files(w.cache) == @["map-things-alpha.geojson"]
-    check isCacheFileName("map-things-alpha.geojson")
-    check parseFile(w.cache / "map-things-alpha.geojson")["features"].len == 2
+    check unkeyed(files(w.cache)) == @["map-things-alpha.geojson"]
+    check isCacheFileName(files(w.cache)[0])
+    check parseFile(keyedFile(w.cache, "map-things-alpha", "geojson"))["features"].len ==
+      2
   test "the subject may be named, and the frames chosen: each once, in the order given":
     let w = world("choose")
     check run(w.db, "things", "--frames", "beta", "alpha", "beta", "--file") == exitOk
-    check files(w.cache) == @["map-things-alpha.geojson", "map-things-beta.geojson"]
+    check unkeyed(files(w.cache)) ==
+      @["map-things-alpha.geojson", "map-things-beta.geojson"]
   test "a subject or a frame that is not there is a usage error that says what there is, and nothing is written":
     let w = world("unknown")
     check run(w.db, "nothing", "--file") == exitUsage
@@ -80,26 +82,51 @@ suite "map: the command, with frames of its own":
   test "a map is made again from the data as they are, on every request":
     let w = world("live")
     check run(w.db, "--file") == exitOk
-    let path = w.cache / "map-things-alpha.geojson"
+    let path = keyedFile(w.cache, "map-things-alpha", "geojson")
     setLastModificationTime(path, fromUnix(1_000_000_000))
     let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute("delete from selection where activity_id = 1")
     s.close()
     check run(w.db, "--file") == exitOk
-    check getLastModificationTime(path).toUnix != 1_000_000_000
-    check parseFile(path)["features"].len == 1
-    check files(w.cache).len == 1
+    check files(w.cache).len == 2 # (other data, another name; the first is as it was)
+    check getLastModificationTime(path).toUnix == 1_000_000_000
+    check parseFile(path)["features"].len == 2
+    check parseFile(keyedFile(w.cache, "map-things-alpha", "geojson"))["features"].len ==
+      1
+    # the same data again: the same names, the file made again
+    let again = keyedFile(w.cache, "map-things-alpha", "geojson")
+    setLastModificationTime(again, fromUnix(1_000_000_000))
+    check run(w.db, "--file") == exitOk
+    check files(w.cache).len == 2
+    check getLastModificationTime(again).toUnix != 1_000_000_000
+  test "a file is named by what it was made from: a frame that reads no selection keeps its name when the selection changes":
+    let w = world("keys")
+    check run(w.db, "--frames", "alpha", "global", "--file") == exitOk
+    let before = files(w.cache)
+    check before.len == 2
+    let s = openSession(w.db, allFragments, access = allAccess)
+    s.db.execute("delete from selection where activity_id = 1")
+    s.close()
+    check run(w.db, "--frames", "alpha", "global", "--file") == exitOk
+    let after = files(w.cache)
+    check after.len == 3 # (the global frame kept its name; the other has a new one)
+    for name in before:
+      check name in after
   test "--worker makes the page too, named for the frames, which names the files and carries the styles":
     let w = world("worker")
     check run(w.db, "--frames", "alpha", "beta", "--worker") == exitOk
-    check files(w.cache) ==
+    check unkeyed(files(w.cache)) ==
       @[
         "map-things-alpha-beta.html", "map-things-alpha.geojson",
         "map-things-beta.geojson",
       ]
-    let page = readFile(w.cache / "map-things-alpha-beta.html")
-    check page.contains("\"map-things-alpha.geojson\"") and
-      page.contains("\"map-things-beta.geojson\"")
+    let page = readFile(keyedFile(w.cache, "map-things-alpha-beta", "html"))
+    check page.contains(
+      "\"" & extractFilename(keyedFile(w.cache, "map-things-alpha", "geojson")) & "\""
+    ) and
+      page.contains(
+        "\"" & extractFilename(keyedFile(w.cache, "map-things-beta", "geojson")) & "\""
+      )
     check page.contains("\"alpha\":{\"colour\":\"#e03131\"}")
       # (the style of a frame, filled in with the palette)
     check "{{" notin page

@@ -4,7 +4,7 @@
 ## the frames, each a GeoJSON file about a subject that its provider makes (`activities`: routes and heat; `climbs`: the climbs
 ## of the activities, their gates and efforts), with a style of its own that the provider ships, so a new subject or frame is a
 ## package that contributes, and nothing here changes.  `subject/subjects` says which subjects there are.  A GeoJSON file for each
-## frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes.geojson`) and
+## frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes-` and a key of what it was made from, `3f9a0c1d5e7b2a46.geojson`) and
 ## a page (Leaflet) decides the look.  Everything is made again on every request: a map is a live view of the selection, and a
 ## bookmark (`/map/activities?frames=routes,climbs`) keeps the frames and not the data.  The page is served on localhost (`web`;
 ## `--file` makes the files only, and prints their paths).
