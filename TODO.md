@@ -34,19 +34,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
     "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject, after D4), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
-6. **Naming by namers, with climbs** (direction decided 2026-11-17; the design needs more thinking first).  A ride is often all
-    about a big climb, so naming cannot be separate from climbs; but climbs matter for cycling, not every sport, so `importer`
-    must not depend on them.  Tried and dropped: a hill names a ride the ride rose 100 m to reach, by its own altitudes (that
-    was climb detection again, done worse; dev/HISTORY.md has why Cerro San Cristóbal names nothing today: GeoNames has it as
-    `HLL`, which no rule ranks, and sections of the town outrank the park).  The direction: **naming leaves the importer** for
-    a package of its own above it, run after the import (`importer/after`), which collects proposals from **namers** at a
-    point of its own: a generic namer (places and landmarks: today's rules, `names/activity.nim`) and a **cycling namer** in
-    or beside `climbs`, which proposes the ride's big climb (categories HC, 1 and 2; category depends a little on the rider).
-    Naming pulls from the namers, so the climbs of an activity are worked out first when the cycling namer is asked.  Open:
-    which climb when there are several (the biggest, or the one at the turning point: no clear answer); the form of the name
-    ("Farellones and back", "up Farellones" ...); how the namers' proposals are weighed; whether names must be redone when a
-    later ride finds a new climb (perhaps not: a climb found later is probably on another route).  Look at examples together
-    before deciding.  Until then, a landmark names Cerro San Cristóbal (`nch landmarks --add ... --at -33.4253,-70.6331`).
+6. **Naming by namers, with climbs** (designed 2026-11-17, after an `/oppose`: `dev/NAMING.md`, not built).  Naming leaves the
+    importer for a package `naming` that collects whole names, each with a level, from namers: a generic one (places and
+    landmarks) and a cycling one from `climbs` (the ride's big climb, HC, 1 or 2).  Names stay stored text.  Open, to settle
+    with examples: which climb when there are several, the levels, the wording.  The plan's steps wait for the author's
+    approval; the squash and the rebuild come after them.
 7. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is
