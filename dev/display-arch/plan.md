@@ -18,7 +18,8 @@ author approves**, step by step.
 * **`nch climbs` becomes like `nch activities`**: it manages a selection of climbs.
 * **Keys**: SHA-256 of the parts in a fixed order; every key has the database's identity, the build and the frame's name;
   the data are keyed by **one counter per table**, increased by triggers on insert, update and delete.  A provider
-  declares the tables its frame reads.
+  declares the tables its frame reads.  (Built in step 2; the keys and counters were removed in step 4, 2026-11-16, when
+  measurement showed nothing needs caching.  The declared tables stay.)
 * **Caching after measuring**: frames are made on every request until a measurement says otherwise.
 * `calendar --all` is dropped now; "all, with the selection marked" across views is later.
 
@@ -90,7 +91,7 @@ the database must be made again.
   the text view.  Usage, completion and the help texts follow from the specs.  Visible: `nch map` opens the page.
 1c. **`calendar --all` goes** (and the drawing of the selection in blue among all activities).
 
-### Step 2: subjects and keys (nothing visible)
+### Step 2: subjects and keys (nothing visible; the keys were removed in step 4)
 
 * `db`: the fragment with `database_identity` and `table_version`, and the triggers (D1).  **Measure the import** before
   and after (the triggers fire per row, and `route_cell` and `track` take many rows): if the cost is large, say so and
@@ -147,16 +148,19 @@ one read transaction need the first.
   documentation of `map/command.nim`.
 * Visible: a map with an empty frame draws the rest.  Rebuild: no.
 
-### Step 4: caching, if measurement asks for it
+### Step 4: no caching (decided 2026-11-16)
 
-* **Every frame's file is named by its key, cached or not** (review finding 4; done 2026-11-16): with names by subject and frame, another
-  tab or `nch map --file` can overwrite a file between the worker making it and the page fetching it, so a page could mix
-  two selections.
-* Measure as in step 0.  Agree a threshold with the author (D6); only frames slower than it are cached.
-* A cached frame's file is named by its key: `frameKey(database identity, build, view/subject/frame, the selection's key
-  if it reads the selection, tablesKey(its declared tables))`, first 16 hex digits; a file that is there is used.
-* `nch cache` deletes the frames (files named by key pile up: a new key makes a new file and the old one is never read).
-* Visible: faster, nothing else.  Rebuild: no.
+* Done: routes are simplified with `Simplify`, not `SimplifyPreserveTopology` (the routes of everything: 4.45 s to 0.51 s,
+  dev/HISTORY.md).  With that, no frame in use is slow enough to cache.
+* **Decided: no cache, and no keys.**  Every frame's file has a fixed name (`map-activities-routes.geojson`) and is overwritten
+  on every request, so there is nothing to clean out.  The keyed names (`3d764ec`) were reverted, and the keys of step 2 (the
+  counters of tables and their triggers, `database_identity`, `subject/keys`, `Subject.selectionKey`, `nchBuild`) were deleted:
+  nothing used them.  Kept: each frame's declared `tables` and the test that checks them (`db/access` recording), as
+  documentation, until they feel like dead wood.
+* **Accepted**: a page fetches its files after the worker made them, so a second request in between (another tab, a reload
+  with other frames, `nch map --file`) can give it one frame of newer data (review finding 4).  For one user this is rare
+  and a reload fixes it.
+* If caching is ever wanted, see "Later".
 
 ### Step 5: `calendar` on frames
 
@@ -192,10 +196,15 @@ one read transaction need the first.
 * "All, with the selection marked" as a frame across views.
 * The registry of frame formats, when two views share one (the text view and the calendar; the text view and the plot).
 * The text view, perhaps replacing `--file`.
+* **Caching frames**, if a frame in use becomes slow (over about a second): the design of step 2 and the old step 4 (keys of
+  SHA-256 over the database's identity, the build, the frame's name, the selection's key and per-table counters kept by
+  triggers; files named by key; `nch cache` clears them) is in this file's history (`git log -p dev/display-arch/plan.md`)
+  and in `display-arch-crit-6.md`.  Also cheaper first: a table of simplified routes made at import (dev/HISTORY.md,
+  2026-11-16).
 
 ## Decisions
 
-D1 to D3 are decided; D4 to D6 wait for their steps (6, 7 and 4).
+D1 to D3 are decided; D4 and D5 wait for their steps (6 and 7); D6 is moot (no caching).
 
 * **D1. How the counters' triggers are made.**  (a) Each package writes them in a fragment for each of its tables: three
   triggers per table, about twenty tables, kept in step with the tables by hand.  (b) The `db` package makes them for every
@@ -209,7 +218,7 @@ D1 to D3 are decided; D4 to D6 wait for their steps (6, 7 and 4).
   settled (`name_n`).  **Decided (2026-11-14): delete it**, with a line in `dev/HISTORY.md`, in step 0.
 * **D4. The climbs selection** (step 6), above.
 * **D5. FF statistics** (step 7), above.
-* **D6. The threshold for caching** (step 4): agreed when the measurements are in.
+* **D6. The threshold for caching** (step 4): moot, decided 2026-11-16: nothing is cached.
 
 ## Risks
 

@@ -5,7 +5,6 @@
 import nimchoo/packages/db/statement
 import std/[httpclient, json, os, osproc, streams, strtabs, strutils, unittest]
 import nimchoo/packages/user/session
-import ../support/keyednames
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 when defined(posix):
   import std/posix
@@ -125,10 +124,9 @@ suite "nch map: a real server":
     check page.code == Http200
     let html = page.body
     check html.contains("leaflet@1.9.4")
-    let routesName = keyedNameIn(html, "map-activities-routes", "geojson")
-    check routesName.len > 0 and
-      keyedNameIn(html, "map-activities-climbs", "geojson").len > 0
-    let dataName = "/files/" & routesName
+    let dataName = "/files/map-activities-routes.geojson"
+    check html.contains("\"map-activities-routes.geojson\"") and
+      html.contains("\"map-activities-climbs.geojson\"")
     let data = withCookie.request(w.base & dataName)
     check data.code == Http200
     check $data.headers["Content-Type"] == "application/geo+json"

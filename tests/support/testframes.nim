@@ -15,9 +15,6 @@ proc selectedCount(st: Session): int {.raises: [StoreError].} =
     int, "select count(*) from selection where user_id = :userId", userId = st.userId
   )
 
-proc selectionKey(st: Session): string {.raises: [StoreError].} =
-  $selectedCount(st)
-
 proc makeAlpha(st: Session): FrameData {.raises: [StoreError].} =
   ## One point for each activity in the selection.
   var fs: seq[string]
@@ -68,7 +65,6 @@ proc testExtensions*(): Extensions =
       name: "things",
       summary: "the things",
       isDefault: true,
-      selectionKey: selectionKey,
       selected: selectedCount,
       emptyHint: "select some things",
     ),

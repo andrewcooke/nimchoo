@@ -1,5 +1,5 @@
 ## What `nch --version` says: the number in nimchoo.nimble and the git commit the
-## program was built from, found when it is compiled; and `nchBuild`, which tells builds apart.
+## program was built from, found when it is compiled.
 ##
 ## The commit is found when this module is compiled, and Nim does not compile a
 ## module again because the repository moved on.  So `nimble prod` looks the commit up
@@ -49,8 +49,6 @@ const
     ## from the build task: the short commit hash
   givenDirty {.booldefine: "nchDirty".} = false
     ## ... and whether there were uncommitted changes
-  givenBuilt {.strdefine: "nchBuilt".} = ""
-    ## ... and the time of the build (seconds since 1970)
   sourceDir = currentSourcePath().parentDir
   repoDir = repoRoot(sourceDir)
   nimbleText = staticRead(repoDir / "nimchoo.nimble")
@@ -71,14 +69,3 @@ const
       )
 
 const versionString* = versionLine(nchVersion, nchCommit)
-
-const nchBuild* =
-  nchCommit & " " & (
-    if givenBuilt.len > 0:
-      givenBuilt
-    else:
-      CompileDate & "T" & CompileTime
-  )
-  ## What tells one build of the program from another, for a key of something it made (`subject/keys`): the commit, and the
-  ## time of the build, so that a build of uncommitted changes is not taken for the build of the commit before them.  The
-  ## tasks that build the program give the time (a module that Nim does not compile again would keep an old one).

@@ -27,6 +27,7 @@ export db_sqlite.DbConn, fragment, coreFragment
 const baseFragments* = @[
   fragment("001-schema.sql"),
   fragment("002-versions.sql").withSeed(seedIdentity, "identity-1"),
+  fragment("003-drop-versions.sql").withSeed(dropCounters, "drop-1"),
 ] ## the database's own, applied first, always
 
 type
@@ -218,7 +219,6 @@ proc openStore*(
       # big import then spends about half as long on checkpoints (measured), and the log stays small
       result.db.execScript("pragma wal_autocheckpoint = 20000")
     bringUpToDate(result.db, fragments)
-    ensureCounters(result.db, baseFragments & fragments)
   except StoreError:
     close(result)
     raise

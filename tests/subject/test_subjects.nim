@@ -40,28 +40,18 @@ suite "subjects: the real registry":
     check all.mapIt(it.name).deduplicate.len == all.len
     check all.allIt(it.summary.len > 0 and it.name.len > 0)
 
-suite "subjects: the key of the activities' selection":
-  test "the same while the selection is the same, and another when it changes":
+suite "subjects: the activities' selection":
+  test "how many it holds follows the selection, and is the user's own":
     let s = open("sel")
     defer:
       s.close()
     let activities = defaultSubject(extensions.get(subjectPoint))
-    let empty = activities.selectionKey(s)
-    check empty == activities.selectionKey(s)
+    check activities.selected(s) == 0
     s.addSelected("a")
-    let one = activities.selectionKey(s)
-    check one != empty
     s.addSelected("b")
-    check activities.selectionKey(s) != one
-    s.db.execute("delete from selection where activity_id = 2")
-    check activities.selectionKey(s) == one
-  test "it belongs to the user: another user's empty selection is not the same key":
-    let s = open("user")
-    defer:
-      s.close()
-    let activities = defaultSubject(extensions.get(subjectPoint))
+    check activities.selected(s) == 2
     s.db.execute("insert into user(name) values ('bob')")
-    let bob = openSession(dir / "user.db", allFragments, "bob", access = allAccess)
+    let bob = openSession(dir / "sel.db", allFragments, "bob", access = allAccess)
     defer:
       bob.close()
-    check activities.selectionKey(s) != activities.selectionKey(bob)
+    check activities.selected(bob) == 0

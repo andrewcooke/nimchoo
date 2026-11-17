@@ -152,3 +152,36 @@ suite "access: fragments":
       why = e.msg
     check "'heartrate'" in why
     s.close()
+
+suite "access: the tables read are recorded (a test of what a view declares)":
+  test "the authorizer sees each table, once; what is not recorded is not noted":
+    let s = open("record")
+    defer:
+      s.close()
+    startRecording()
+    discard s.db.scalar(int, "select count(*) from selection")
+    discard s.db.query(
+      int64,
+      "select a.id from activity a join file f on f.id = a.file_id where f.user_id = :userId",
+      userId = s.userId,
+    )
+    check stopRecording() == @["activity", "file", "selection"]
+    check s.db.scalar(int, "select count(*) from file") == 0
+    check stopRecording().len == 0 # (not recording: nothing)
+  test "SpatiaLite's own table of reference systems is not a table read":
+    let s = open("recordsrs")
+    defer:
+      s.close()
+    startRecording()
+    discard s.db.scalar(int, "select count(*) from file")
+    discard s.db.scalar(int, "select count(*) from spatial_ref_sys")
+    check stopRecording() == @["file"]
+  test "recording starts empty":
+    let s = open("recordempty")
+    defer:
+      s.close()
+    startRecording()
+    discard s.db.scalar(int, "select count(*) from user")
+    discard stopRecording()
+    startRecording()
+    check stopRecording().len == 0

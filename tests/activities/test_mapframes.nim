@@ -24,7 +24,7 @@ suite "activities frames: the routes":
   test "a feature for each route, oldest first, in a file named for the subject and the frame":
     let w = world(dir, "routes")
     check map(w.db, "--frames", "routes") == exitOk
-    check unkeyed(files(w.cache)) == @["map-activities-routes.geojson"]
+    check files(w.cache) == @["map-activities-routes.geojson"]
     let j = parseFile(frameFile(w.cache, "routes"))
     check j["features"].len == 2 # (the third has no route)
     check j["features"][0]["properties"]["start"].getStr == "1970-01-01T00:16:40Z"
@@ -76,7 +76,6 @@ suite "activities frames: the routes":
     s.close()
     check map(w.db, "--frames", "routes") == exitOk
     check parseFile(frameFile(w.cache, "routes"))["features"].len == 2
-    forget(w.cache)
     check mapCommand.run(globalsOf(w.db, "bob"), @["--frames", "routes", "--file"]) ==
       exitOk
     check parseFile(frameFile(w.cache, "routes"))["features"].len == 1
@@ -123,13 +122,13 @@ suite "activities frames: the map, with the real registry":
   test "by default the routes and the climbs, a file each":
     let w = world(dir, "default")
     check map(w.db) == exitOk
-    check unkeyed(files(w.cache)) ==
+    check files(w.cache) ==
       @["map-activities-climbs.geojson", "map-activities-routes.geojson"]
   test "frames are chosen, in any order, once each; a file for each":
     let w = world(dir, "choose")
     withCells(w.db)
     check map(w.db, "--frames", "heat", "routes", "heat") == exitOk
-    check unkeyed(files(w.cache)) ==
+    check files(w.cache) ==
       @["map-activities-heat.geojson", "map-activities-routes.geojson"]
     check "climb" notin kinds(parseFile(frameFile(w.cache, "routes")))
   test "a map is a live view: every request is made again from the data as they are":
@@ -139,7 +138,7 @@ suite "activities frames: the map, with the real registry":
     setLastModificationTime(path, fromUnix(1_000_000_000))
     check map(w.db, "--frames", "routes") == exitOk
     check getLastModificationTime(path).toUnix != 1_000_000_000
-    check files(w.cache).len == 1 # (the same data, the same name)
+    check files(w.cache).len == 1 # (one name for the frame, whatever the data)
     let s = openSession(w.db, allFragments, access = allAccess)
     s.db.execute(
       "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72))', 4326) where activity_id = 1"
@@ -147,24 +146,20 @@ suite "activities frames: the map, with the real registry":
     s.db.execute("delete from selection where activity_id = 2")
     s.close()
     check map(w.db, "--frames", "routes") == exitOk
-    check files(w.cache).len == 2
-      # (other data, another name: the old file is not changed under anyone)
-    let fresh = files(w.cache).filterIt(it != extractFilename(path))
-    check fresh.len == 1
-    let j = parseFile(w.cache / fresh[0])
+    let j = parseFile(path)
     check j["features"].len == 1
     check j["features"][0]["geometry"]["coordinates"][0].len == 2
   test "--worker makes the page too, which names the files of the frames and carries their styles":
     let w = world(dir, "worker")
     check mapRaw(w.db, "--worker") == exitOk
-    check unkeyed(files(w.cache)) ==
+    check files(w.cache) ==
       @[
         "map-activities-climbs.geojson", "map-activities-routes-climbs.html",
         "map-activities-routes.geojson",
       ]
-    let page = readFile(keyedFile(w.cache, "map-activities-routes-climbs", "html"))
-    check page.contains("\"" & extractFilename(frameFile(w.cache, "routes")) & "\"") and
-      page.contains("\"" & extractFilename(frameFile(w.cache, "climbs")) & "\"")
+    let page = readFile(w.cache / "map-activities-routes-climbs.html")
+    check page.contains("\"map-activities-routes.geojson\"") and
+      page.contains("\"map-activities-climbs.geojson\"")
     check page.contains("\"routes\":{\"color\":\"#e03131\"")
       # the style of the routes, in the page
     check page.contains("\"gap_px\":14") # and of the climbs

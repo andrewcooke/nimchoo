@@ -21,7 +21,7 @@ import
   ./test_introspect,
   ./test_completion
 import ./cache/test_cache
-import ./subject/[test_keys, test_subjects]
+import ./subject/test_subjects
 import ./util/zip/test_zipbytes
 import ./util/zip/test_fuzz as zipFuzz
 import ./util/xlsx/test_xlsx

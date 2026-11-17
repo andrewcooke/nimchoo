@@ -1,15 +1,15 @@
-## Subjects: what the views are views of, and the keys that say whether a frame is still current.
+## Subjects: what the views are views of (activities, later climbs and FF statistics).
 
 import ../../core/[extension, manifest]
 import ./subjects
 
 const package* = Package(
-  depends: @["db", "hashing", "user", "version"],
+  depends: @["user"],
   defines: @[
     PointDecl(
       name: subjectPoint.name,
       summary:
-        "the subjects a view can show (activities, ...): a name, a summary, whether it is the default, and the key of its selection",
+        "the subjects a view can show (activities, ...): a name, a summary, whether it is the default, and how many its selection holds",
     )
   ],
 )

@@ -10,9 +10,6 @@ import ../user/session
 {.push raises: [].}
 
 type
-  SelectionKey* = proc(st: Session): string {.nimcall, raises: [StoreError].}
-    ## The key of the user's current selection of the subject: the same while the selection is the same.
-
   SelectedCount* = proc(st: Session): int {.nimcall, raises: [StoreError].}
     ## How many things the user's selection of the subject holds.
 
@@ -20,7 +17,6 @@ type
     name*: string ## what the user types: `nch map activities`
     summary*: string ## one line, for the list of subjects
     isDefault*: bool ## the subject a view shows when it is not told
-    selectionKey*: SelectionKey
     selected*: SelectedCount ## a view says "the selection is empty" when this is 0
     emptyHint*: string ## what to do about it: "see `nch activities --select`"
 

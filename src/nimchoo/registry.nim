@@ -32,7 +32,7 @@
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
-## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of, and the keys that say whether a frame is still current.
+## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (activities, later climbs and FF statistics).
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
 ## * `ui <packages/ui/package.html>`_ - How the program looks: units, intervals, colours, tables and the live display.
 ## * `user <packages/user/package.html>`_ - The users, and which one a command works for.
@@ -128,11 +128,8 @@ overwritten once changed; delete one to get the built-in version again.""",
         """The cache directory: where files that commands make go, and what they are called.
 
 A command with a graphical result makes its file here (a GeoJSON file and a page for the map, CSV for `ff`), named by the
-command and its options spelt out (`ff-default-hourly.csv`) and made again on every request: a file is never
-"current", it is what the last request made.  The files of a map also carry a key of what they were made from
-(`map-activities-routes-3f9a0c1d5e7b2a46.geojson`), so that two requests with different data do not share a name, and a
-file is never changed under a page that is loading it: they pile up, a file for each state of the data, until
-`nch cache --delete geojson html`.  The server
+command and its options spelt out (`map-activities-routes.geojson`) and made again on every request: a file is never
+"current", it is what the last request made.  The server
 (`web`) serves these files.  `nch cache` says what is there, by kind, and how big; `nch cache --delete KIND` deletes (no
 `-f`: everything in it can be made again).""",
     ),
@@ -217,13 +214,10 @@ the pause (`pause`).  The line that says what was deleted is here too.""",
 * **Functions of our own in SQL** (`functions.nim`, registered in every connection, also a read-only one): `fold(text)` and
   the grid of cells (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
   so that SQL and Nim cannot compute a cell differently.  Deterministic, so they may be used in an index.
-* **Versions** (`versions.nim`, fragment `002-versions.sql`): the database has a random identity (`database_identity`, made when it is
-  created) and every table a package owns has a counter in `table_version`, increased by triggers after each insert, update and
-  delete (made here for every owned table that exists, so a new table gets them without anyone writing them).  A key made from
-  the counters of the tables a view reads changes when any is written (`subject/keys`).  `startRecording` and `stopRecording`
-  (`access.nim`) note the tables the authorizer sees read, so that a test can check what a view declares it reads.  Measured: the
-  triggers add about 1% to an import of 1,113 rides (17.6 s to 17.8 s, three runs each).
-* The `db` package owns the tables `fragment`, `database_identity` and `table_version`, and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
+* **Recording what is read**: `startRecording` and `stopRecording` (`access.nim`) note the tables the authorizer sees read,
+  so that a test can check what a view declares it reads (`map/frames`).  (The counters of tables and the identity of the
+  database, `002-versions.sql`, were for keys of cached views; nothing is cached, and `003-drop-versions.sql` drops them.)
+* The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
   where the database is and how big; `nch db --delete -f` deletes it.""",
     ),
     Registered(
@@ -340,7 +334,7 @@ latest run.  The words and their colours are in `ui/vocabulary`.""",
 the frames, each a GeoJSON file about a subject that its provider makes (`activities`: routes and heat; `climbs`: the climbs
 of the activities, their gates and efforts), with a style of its own that the provider ships, so a new subject or frame is a
 package that contributes, and nothing here changes.  `subject/subjects` says which subjects there are.  A GeoJSON file for each
-frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes-` and a key of what it was made from, `3f9a0c1d5e7b2a46.geojson`) and
+frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes.geojson`) and
 a page (Leaflet) decides the look.  Everything is made again on every request: a map is a live view of the selection, and a
 bookmark (`/map/activities?frames=routes,climbs`) keeps the frames and not the data.  The page is served on localhost (`web`;
 `--file` makes the files only, and prints their paths).
@@ -401,9 +395,9 @@ It is what `climbs`, `map`, `calendar` and the like use.
       name: "subject",
       package: pkgSubject.package,
       summary:
-        "Subjects: what the views are views of, and the keys that say whether a frame is still current.",
+        "Subjects: what the views are views of (activities, later climbs and FF statistics).",
       doc:
-        """Subjects: what the views are views of, and the keys that say whether a frame is still current.""",
+        """Subjects: what the views are views of (activities, later climbs and FF statistics).""",
     ),
     Registered(
       name: "fold",

@@ -3,8 +3,8 @@
 ## packages above it.  This is an extension point of this package (`mapFramePoint`).
 ##
 ## A frame says which subject it is a frame of, its name, what it is, whether a map of that subject shows it unless told otherwise,
-## whether it reads the selection of the subject, which tables it reads (so that a key for it can be made from their counters:
-## `subject/keys`; a test checks that the declaration holds every table the frame reads), how to make it (the GeoJSON of the whole
+## whether it reads the selection of the subject, which tables it reads (what it depends on, for a reader and for
+## a cache if one is ever wanted; a test checks that the declaration holds every table the frame reads), how to make it (the GeoJSON of the whole
 ## file, with the notes it has for the user) and how it looks (a template of its own, which the user can edit: `style`).  A frame
 ## that fails raises `StoreError` with what to say.
 
