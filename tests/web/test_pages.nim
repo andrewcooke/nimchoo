@@ -18,7 +18,7 @@ func `==`(p: Problem, said: string): bool =
   p.get("") == said
 
 suite "serve web options: shared by the commands":
-  let spec = Spec[Holder](opts: webOptions(Holder, web, "the chart", "CSV"))
+  let spec = Spec[Holder](opts: webOptions(Holder, web, "the chart", "the CSV file"))
   test "each option is taken, with its value":
     var h = Holder(web: initWebArgs())
     check parseOptions(@["--no-open", "--port", "0", "--new-token"], spec, h) == ""

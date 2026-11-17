@@ -1,4 +1,4 @@
-import std/[strutils, unittest]
+import std/[sequtils, strutils, unittest]
 import nimchoo/packages/util/args/[args, usage]
 
 func doc(names: openArray[string], metavar, help: string): OptDoc =
@@ -86,3 +86,26 @@ suite "wrap: documentation":
     check rst(
       "one two three\nfour\n\n* item one is long\n  and goes on\n* item two", 14
     ) == "one two three\nfour\n\n* item one is\n  long and\n  goes on\n* item two"
+
+suite "usage: tables":
+  test "the columns line up, the last is wrapped to the width and its lines start under it":
+    let ls = tableLines(
+      @["subject", "frame", "what it is"],
+      @[
+        @["activities", "routes*", "the route of each activity"],
+        @[
+          "activities", "heat",
+          "how often each place was visited, in cells of about 100 m",
+        ],
+      ],
+      60,
+    )
+    check ls[0] == "  subject     frame    what it is"
+    check ls[1] == "  activities  routes*  the route of each activity"
+    check ls[2].startsWith("  activities  heat     how often each place")
+    check ls.len == 4 and ls[3].startsWith(" ".repeat(23)) and not ls[3][23].isSpaceAscii
+    check ls.allIt(it.len <= 60)
+  test "a narrow width still leaves the last column room":
+    let ls =
+      tableLines(@["a", "b"], @[@["x", "one two three four five six seven eight"]], 10)
+    check ls.allIt(it.len <= 2 + 1 + 2 + 30)

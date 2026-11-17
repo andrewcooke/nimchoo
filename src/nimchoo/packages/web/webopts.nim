@@ -44,17 +44,16 @@ proc takePort*(name, value: string, port: var int): Problem =
 
 template webOptions*(P: typedesc, field: untyped, page, data: string): seq[Opt[P]] =
   ## The web options as options of a command whose `P` holds them in `field` (a `WebArgs`): `page` is what is shown
-  ## ("the map"), `data` the file it is drawn from ("GeoJSON").  Without `--file` or `--worker` the command serves the page
-  ## and opens it.
+  ## ("the map"), `data` what it is drawn from, as a phrase ("a GeoJSON file for each frame", "the CSV file").  Without
+  ## `--file` or `--worker` the command serves the page and opens it.
   @[
     custom(
       P,
       ["--file"],
       false,
       "",
-      "make the " & data &
-        " file in the cache directory and print its path, instead of showing " & page &
-        " in the browser",
+      "make " & data & " in the cache directory and print where, instead of showing " &
+        page & " in the browser",
       body = (p.field.file = true; fine),
     ),
     custom(
@@ -62,8 +61,7 @@ template webOptions*(P: typedesc, field: untyped, page, data: string): seq[Opt[P
       ["--worker"],
       false,
       "",
-      "for programs: also make the web page, and print its path, then the paths of the " &
-        data & ", and nothing else",
+      "for programs: also make the web page, and print its path, then the paths of the files, and nothing else",
       body = (p.field.worker = true; fine),
     ),
     custom(

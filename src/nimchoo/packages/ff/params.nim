@@ -103,7 +103,7 @@ func ffSpec*(): Spec[Raw] =
           address = adFlag,
         ),
         flag(Raw, ["--stdout"], stdout, "print the CSV instead of making a file"),
-      ] & webOptions(Raw, web, "the chart", "CSV file") &
+      ] & webOptions(Raw, web, "the chart", "the CSV file") &
       @[
         number(
           Raw,

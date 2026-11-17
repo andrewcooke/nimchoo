@@ -52,12 +52,13 @@ func mapSpec*(): Spec[Raw] =
           ["--frames"],
           takeFrames,
           "FRAME...",
-          "what to draw, separated by spaces: the frames of the subject (see the list below); default: those marked as shown",
+          "what to draw, separated by spaces: the frames of the subject (see the table below); default: those marked *",
           completion = completesFrom(completeFrames),
           address = adList,
           valid = isWord,
         )
-      ] & webOptions(Raw, web, "the map", "GeoJSON files") & @[helpFlag(Raw)],
+      ] & webOptions(Raw, web, "the map", "a GeoJSON file for each frame") &
+      @[helpFlag(Raw)],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
       if not isWord(arg):
         return refuse("'" & arg & "' is not a name of a subject")

@@ -102,7 +102,8 @@ proc contributions*(): seq[Contribution] =
       MapFrame(
         subject: "activities",
         name: "routes",
-        summary: "the route of each activity",
+        summary:
+          "the route of each activity (several over the same road show as a glow)",
         shown: true,
         readsSelection: true,
         tables: @["activity", "route", "selection"],

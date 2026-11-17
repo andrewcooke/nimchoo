@@ -29,22 +29,31 @@ month that has a marked day, the days in columns by weekday (weeks start on Mond
 one when an activity started); grey: none.  The months either side of a gap are marked (a yellow name, or a * without
 colour), as are the months that were left out."""
 
-func registryText(subjects: seq[Subject], all: seq[CalendarFrame], width: int): string =
-  ## The subjects that have a calendar, as the usage says them, wrapped to `width`.
+func registryLines(
+    subjects: seq[Subject], all: seq[CalendarFrame], width: int
+): seq[string] =
+  ## The subjects that have a calendar, as a table (from the registry), and which is the default.
+  var rows: seq[seq[string]]
+  var default = ""
   for s in subjects:
+    if s.isDefault:
+      default = s.name
     for f in framesOf(all, s.name):
-      let default = if s.isDefault: " (the default)" else: ""
-      result.add prose(fmt"{s.name}{default}: {f.summary}", width) & "\n"
-  if result.len > 0:
-    result = "\n" & result
+      rows.add @[s.name, f.summary]
+  if rows.len == 0:
+    return
+  result = tableLines(@["subject", "what is marked"], rows, width)
+  result.add ""
+  result.add wrap(fmt"The subject is {default} when none is given.", width)
 
 proc usageText*(g: Globals, width: int): string =
   ## The usage: the introduction, the options and the subjects that have a calendar, wrapped to `width`.
   synopsis & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(calendarSpec().docs, width).join("\n") & "\n" &
-    registryText(
+    optionLines(calendarSpec().docs, width).join("\n") & "\n\n" &
+    registryLines(
       g.extensions.get(subjectPoint), g.extensions.get(calendarFramePoint), width
     )
+    .join("\n") & "\n"
 
 type Chosen* = object ## the subject and its frame
   subject*: Subject

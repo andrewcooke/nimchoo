@@ -36,31 +36,42 @@ const
   synopsis =
     "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--frames FRAME...] [--file | [--no-open] [--port N] [--new-token]]"
   intro =
-    """Show a subject (by default the activities: see `nch activities --select`) on a map.  What is drawn are its frames: for the
-activities by default their routes and the climbs they went up, drawn over them; `heat` shows how often each place was visited, in
-cells (about 100 m, coarser as you zoom out).  It serves a page that draws them on localhost and opens it in a browser (Ctrl-C
-stops it); with --file it makes a GeoJSON file for each frame in the cache directory instead and prints their paths.  Several rides
-over the same roads show as a glow; a click on a route says which activity it is, a click on a climb says what it is, a click on a
-cell says how often it was visited.  Climbs are worked out by the import and `nch climbs`; a map says when some activities have none."""
+    """Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are
+the subject's frames, the layers listed below, each made by the package that knows about it.  It serves a page that draws them
+on localhost and opens it in a browser (Ctrl-C stops it); with --file it makes a GeoJSON file for each frame in the cache
+directory instead, and prints where.  A click on anything drawn says what it is."""
   notes =
     """The map is made again each time the page is loaded, from the selection as it is then: a bookmark of the address keeps
 which frames are drawn, not which activities."""
 
-func registryText(subjects: seq[Subject], all: seq[MapFrame]): string =
-  ## The subjects and the frames each has, as the usage says them.
+func registryLines(
+    subjects: seq[Subject], all: seq[MapFrame], width: int
+): seq[string] =
+  ## The subjects and their frames, as a table (from the registry), and what the marks mean.
+  var rows: seq[seq[string]]
+  var default = ""
   for s in subjects:
-    result.add "\n" & s.name & (if s.isDefault: " (the default)" else: "") & ": " &
-      s.summary & "\n"
+    if s.isDefault:
+      default = s.name
     for f in framesOf(all, s.name):
-      result.add "  " & f.name & (if f.shown: " *" else: "") & ": " & f.summary & "\n"
-  if result.len > 0:
-    result.add "\n(* is drawn when --frames is not given)\n"
+      rows.add @[s.name, f.name & (if f.shown: "*" else: ""), f.summary]
+  if rows.len == 0:
+    return
+  result = tableLines(@["subject", "frame", "what it is"], rows, width)
+  result.add ""
+  result.add wrap(
+    fmt"* drawn when --frames is not given; the subject is {default} when none is given.",
+    width,
+  )
 
 proc usageText*(g: Globals, width: int): string =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.
   synopsis & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) & "\n\n" &
-    optionLines(mapSpec().docs, width).join("\n") & "\n" &
-    registryText(g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint))
+    optionLines(mapSpec().docs, width).join("\n") & "\n\n" &
+    registryLines(
+      g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint), width
+    )
+    .join("\n") & "\n"
 
 type Chosen = object
   subject: Subject
