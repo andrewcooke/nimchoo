@@ -1,18 +1,17 @@
-## `nch import`: put the activities of FIT files into the database, and name them.  When it is done the packages that
-## asked (the point `afterImport`) do their part: `selection` makes the new activities the selection.  (The module is
+## `nch import`: put the activities of FIT files into the database.  When it is done the packages that asked (the point
+## `afterImport`) do their part: `selection` makes the new activities the selection, `naming` names them, `climbs` works
+## out their climbs.  (The module is
 ## not called `import` because that is a Nim keyword.)
 
 import std/[cpuinfo, options, strutils]
 import ../../core/[errors, extension, globals, logfile]
 import ../db/[statement, store]
-import ../download/fetch
-import ../names/open
 import ../ui/[live, style, vocabulary]
 import ../util/args/[args, usage]
 import ../user/session
 import ./cmdname
 export cmdname
-import ./[after, batch, channel, display, events, logsink, naming, params, sinks]
+import ./[after, batch, channel, display, events, logsink, params, sinks]
 
 const
   synopsis = "usage: nch [--db PATH] [--user NAME] import [-q] [--slow] [-j N] PATH..."
@@ -90,116 +89,55 @@ proc runImport(
   except StoreError as e:
     return failure("nch import", e.msg)
   let summary = importPaths(st, targets, opts, sink)
-  # the activities without a name (these, and any from before the names existed) are named now: the names are decided
-  # in the run that imports, or the command says why not
-  var namingFailed = false
-  try:
-    let todo = pending(st).len
-    if todo > 0:
-      let names = openNames(
-        g,
-        st,
-        commandName,
-        proc(line: string) {.closure, raises: [].} =
-          stderr.say line & "\n"
-        ,
-      )
-      if names.isSome:
-        # (a spinner while it goes on, on a terminal; the downloads it makes are said by their own lines)
-        let tell = names.get.sink
-        let what =
-          insertSep($todo, ',') & (if todo == 1: " activity" else: " activities")
-        tell(DownloadEvent(kind: deWorking, label: "naming " & what))
-        var told = false
-        defer:
-          if not told:
-            tell(DownloadEvent(kind: deWorkDone)) # (it failed: the line goes)
-        let counts = ensureActivityNames(st, names.get)
-        told = true
-        let gps = counts.gpsErrorCount
-        tell(
-          DownloadEvent(
-            kind: deWorkDone,
-            message:
-              "named " & what & ": " & $counts.named & " with a name, " &
-              $counts.startOnly & " with only a start place, " & $counts.nothing &
-              " with neither" &
-              (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: "") &
-              (if counts.left > 0: "; " & counts.leftText else: ""),
-          )
-        )
-        for e in counts.gpsErrors:
-          g.log.log(
-            lvWarn,
-            commandName,
-            leAdvisory,
-            e.where & "  " & plural(e.searches, "search", "searches") &
-              " for a place not made: positions too far apart (GPS errors)",
-          )
-        g.log.log(
-          lvInfo,
-          commandName,
-          leDone,
-          "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
-            $counts.startOnly & " with only a start place, " & $counts.nothing &
-            " with neither" &
-            (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: "") &
-            (if counts.left > 0: "; " & counts.leftText else: ""),
-        )
-  except StoreError, DownloadError:
-    namingFailed = true
-    discard failure(
-      "nch activities",
-      getCurrentExceptionMsg() &
-        " (the activities are imported; they are named by the next `nch import`)",
-    )
-  # what the packages that asked do with the new activities (the selection is made of them)
+  # what the packages that asked do after every import, with the new activities (none, perhaps: a step that has nothing to
+  # do does nothing; naming names any activity left without a name, whatever this run added)
+  var stepFailed = false
   try:
     let ids = newActivities(st, before)
-    if ids.len > 0:
-      for step in g.extensions.get(afterImport):
-        # what follows the work of a step that takes a while: two live lines on a terminal, nothing otherwise.  The display is
-        # made when the first frame is wanted; if it is never drawn (a short run) nothing stays.
-        var live: Option[Live]
-        var drawn = false
-        let show = proc(lines: seq[Line], final: bool) {.closure, raises: [].} =
-          if opts.quiet or not canLive():
-            return
-          if live.isNone:
-            live = some(newTerminalLive())
-          if final:
-            if drawn:
-              live.get.keep(lines)
-            else:
-              live.get.finish()
-            live = none(Live)
-          elif live.get.due():
-            drawn = true
-            live.get.show(lines)
-        try:
-          let ctx = AfterContext(
-            g: g,
-            show: show,
-            say: proc(line: string) {.closure, raises: [].} =
-              stderr.say line & "\n"
-            ,
-          )
-          for said in step.run(st, ids, ctx):
-            g.log.log(lvInfo, commandName, leSaved, said.text)
-            if not opts.quiet:
-              stderr.say render(
-                @[Span(text: "done: " & said.text, look: said.look)], canColour()
-              ) & "\n"
-        except StoreError, DownloadError:
-          if live.isSome:
-            live.get.finish() # (the display of a step that stopped)
-          discard failure(
-            "nch import",
-            step.failed & " (the activities are imported): " & getCurrentExceptionMsg(),
-          )
+    for step in g.extensions.get(afterImport):
+      # what follows the work of a step that takes a while: two live lines on a terminal, nothing otherwise.  The display is
+      # made when the first frame is wanted; if it is never drawn (a short run) nothing stays.
+      var live: Option[Live]
+      var drawn = false
+      let show = proc(lines: seq[Line], final: bool) {.closure, raises: [].} =
+        if opts.quiet or not canLive():
+          return
+        if live.isNone:
+          live = some(newTerminalLive())
+        if final:
+          if drawn:
+            live.get.keep(lines)
+          else:
+            live.get.finish()
+          live = none(Live)
+        elif live.get.due():
+          drawn = true
+          live.get.show(lines)
+      try:
+        let ctx = AfterContext(
+          g: g,
+          show: show,
+          say: proc(line: string) {.closure, raises: [].} =
+            stderr.say line & "\n"
+          ,
+        )
+        for said in step.run(st, ids, ctx):
+          g.log.log(lvInfo, commandName, leSaved, said.text)
+          if not opts.quiet:
+            stderr.say render(
+              @[Span(text: "done: " & said.text, look: said.look)], canColour()
+            ) & "\n"
+      except StoreError, DownloadError:
+        if live.isSome:
+          live.get.finish() # (the display of a step that stopped)
+        stepFailed = true
+        discard failure(
+          "nch import",
+          step.failed & " (the activities are imported): " & getCurrentExceptionMsg(),
+        )
   except StoreError as e:
     discard failure("nch import", "the new activities could not be listed: " & e.msg)
-  if summary.failed > 0 or namingFailed: exitFailure else: exitOk
+  if summary.failed > 0 or stepFailed: exitFailure else: exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch import ARGS`; returns the exit status.

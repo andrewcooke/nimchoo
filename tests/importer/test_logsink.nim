@@ -4,7 +4,7 @@ import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
 import nimchoo/packages/importer/command as importCommand
 import nimchoo/core/globals
-from nimchoo/registry import allFragments, allAccess, newAllAccess
+from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/core/logfile
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
@@ -120,7 +120,11 @@ suite "import log: the command":
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let path = d / "nch.log"
     var g = Globals(
-      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+      dbPath: d / "x.db",
+      fragments: allFragments,
+      access: allAccess,
+      offline: true,
+      extensions: extensions, # (naming is a step after the import)
     )
     discard importCmd(g, @["-q", d / "src"])
     g.log = openLog(path)

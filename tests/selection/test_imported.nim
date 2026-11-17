@@ -1,4 +1,4 @@
-import std/[os, unittest]
+import std/[os, sequtils, unittest]
 import nimchoo/core/extension
 import nimchoo/core/globals
 import nimchoo/packages/db/statement
@@ -28,8 +28,8 @@ proc addActivity(s: Session, sha: string): int64 =
 
 suite "selection: after an import":
   test "the point has the contribution":
-    check extensions.get(afterImport).len == 2
-      # (the climbs are worked out too: climbs/test_imported.nim)
+    check extensions.get(afterImport).anyIt(it.failed == selectNewActivities.failed)
+      # (the activities are named and their climbs worked out too: naming/test_namers.nim, climbs/test_imported.nim)
 
   test "the new activities replace the selection, and the report is in the colour of the selection":
     let s = fresh("replace")

@@ -143,11 +143,12 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
   for r in st.db.query(
     AttemptRow,
     """select e.sector_id, a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
-              coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
+              coalesce(n.start_place, ''), coalesce(n.name, ''), e.elapsed_s,
               a.id in (select activity_id from selection where user_id = :userId),
               rank() over (partition by e.sector_id order by e.elapsed_s),
               count(*) over (partition by e.sector_id)
          from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
+              left join activity_name n on n.activity_id = a.id
         where e.sector_id in (select value from json_each(:ids)) and f.user_id = :userId
         order by e.sector_id, a.start_t, e.start_t""",
     userId = st.userId,

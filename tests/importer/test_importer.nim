@@ -230,15 +230,13 @@ suite "import: files that cannot be imported":
       ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""",
     ) == 2
 
-  test "the start is the first position; the start place and the name are not made at import (they are null until named)":
+  test "the start is the first position; the start place and the name are not made by the importer (`naming` makes them after)":
     let s = openAll(tempDb("placed"))
     defer:
       s.close()
     discard s.importPath(ride)
     check s.db.scalar(int, "select count(*) from activity where start is not null") == 1
-    check s.db.scalar(
-      int, "select count(*) from activity where start_place is null and name is null"
-    ) == 1
+    check s.db.scalar(int, "select count(*) from activity_name") == 0
 
   test "no positions, no start":
     let s = openAll(tempDb("nostart"))

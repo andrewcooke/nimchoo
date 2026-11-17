@@ -102,7 +102,8 @@ suite "database: opening and bringing the schema up to date":
         "db/002-versions.sql", "db/003-drop-versions.sql", "heartrate/001-schema.sql",
         "heartrate/002-series.sql", "heartrate/003-drop-rows.sql",
         "importer/001-schema.sql", "importer/002-track.sql",
-        "importer/003-drop-coords.sql", "model/001-schema.sql", "names/001-schema.sql",
+        "importer/003-drop-coords.sql", "importer/004-drop-names.sql",
+        "model/001-schema.sql", "names/001-schema.sql", "naming/001-schema.sql",
         "selection/001-schema.sql", "user/001-schema.sql",
       ]
     s.close()

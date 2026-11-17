@@ -7,7 +7,7 @@ import ../support/shims
 import nimchoo/packages/db/store
 import nimchoo/packages/download/fetch
 import nimchoo/core/errors
-import nimchoo/packages/importer/naming
+import nimchoo/packages/naming/[naming, rules]
 import nimchoo/packages/names/countries
 import ../support/namesdata
 
@@ -53,7 +53,9 @@ proc world(name: string): tuple[names: Names, st: Store, net: Net] =
   let (st, dir) = fresh(name)
   (newNames(st, dir, envOf(net), silent()), st, net)
 
-suite "import: naming the activities":
+const namers = @[landmarkNamer, placeNamer]
+
+suite "naming: naming the activities":
   test "activities with no name get a start and a name, once; the order is the order they began":
     let w = world("once")
     defer:
@@ -65,23 +67,25 @@ suite "import: naming the activities":
     let r = ensureActivityNames(
       w.st,
       w.names,
+      namers,
       proc(done, total: int) {.closure, raises: [].} =
         seen.add done
       ,
     )
     check r == Named(total: 2, named: 2)
     check seen == @[1, 2]
-    check w.st.db.scalar(string, "select name from activity where id = 1") ==
+    check w.st.db.scalar(string, "select name from activity_name where activity_id = 1") ==
       "Lo Barnechea and back"
-    check w.st.db.scalar(string, "select name from activity where id = 2") ==
+    check w.st.db.scalar(string, "select name from activity_name where activity_id = 2") ==
       "to Lo Barnechea"
-    check w.st.db.scalar(string, "select start_place from activity where id = 2") ==
-      "Santiago"
+    check w.st.db.scalar(
+      string, "select start_place from activity_name where activity_id = 2"
+    ) == "Santiago"
     check pending(w.st).len == 0
     let gets = w.net.gets.len
-    check ensureActivityNames(w.st, w.names) == Named() # nothing left to do
+    check ensureActivityNames(w.st, w.names, namers) == Named() # nothing left to do
     check w.net.gets.len == gets
-  test "an activity with nothing to say is '' (named: not null), and one with only a start is counted so":
+  test "an activity with nothing to say is '' (named: a row), and one with only a start is counted so":
     let w = world("nothing")
     defer:
       w.st.close()
@@ -89,12 +93,13 @@ suite "import: naming the activities":
       # nothing near
     w.st.addActivity("short", 2_000_000, [home, (-70.65, -33.455), home])
       # local: "at Santiago"
-    let r = ensureActivityNames(w.st, w.names)
+    let r = ensureActivityNames(w.st, w.names, namers)
     check r == Named(total: 2, named: 1, nothing: 1)
     check w.st.db.scalar(
-      string, "select coalesce(name, '-') from activity where id = 1"
+      string,
+      "select coalesce((select name from activity_name where activity_id = 1), '-')",
     ) == ""
-    check w.st.db.scalar(string, "select name from activity where id = 2") ==
+    check w.st.db.scalar(string, "select name from activity_name where activity_id = 2") ==
       "at Santiago"
   test "a stretch with a bad GPS fix is counted, with its file; the other stretch still names the ride":
     let w = world("gps errors")
@@ -115,7 +120,7 @@ suite "import: naming the activities":
       "insert into route(activity_id, geom) values (1, GeomFromText(:wkt, 4326))",
       wkt = "MULTILINESTRING((" & good & "), (-70.45 -33.40, 110 10))",
     )
-    let r = ensureActivityNames(w.st, w.names)
+    let r = ensureActivityNames(w.st, w.names, namers)
     check r.gpsErrors == @[GpsErrors(where: "/rides/a.fit", searches: 1)]
     check r.gpsErrorCount == 1
   test "no positions at all: '' too":
@@ -130,21 +135,23 @@ suite "import: naming the activities":
     w.st.db.execute(
       "insert into activity(file_id, session, start_t, end_t) values (1, 0, 1, 2)"
     )
-    check ensureActivityNames(w.st, w.names).nothing == 1
-    check w.st.db.scalar(string, "select coalesce(name, '-') from activity") == ""
-  test "offline with nothing loaded: nothing is fetched, the activity is left (null), and a later run names it":
+    check ensureActivityNames(w.st, w.names, namers).nothing == 1
+    check w.st.db.scalar(
+      string, "select coalesce((select name from activity_name), '-')"
+    ) == ""
+  test "offline with nothing loaded: nothing is fetched, the activity is left (no row), and a later run names it":
     let w = world("offline")
     defer:
       w.st.close()
     w.st.addActivity("a", 1_000_000, [home, barnechea, home])
     var names = w.names
     names.offline = true
-    let r = ensureActivityNames(w.st, names)
+    let r = ensureActivityNames(w.st, names, namers)
     check r.left == 1 and r.nothing == 0 and r.named == 0
     check r.leftText.contains("1 left unnamed")
     check w.net.gets.len == 0
     check pending(w.st) == @[1'i64] # (not stored as "nothing")
-    check ensureActivityNames(w.st, w.names).named == 1
+    check ensureActivityNames(w.st, w.names, namers).named == 1
       # (a run that may use the network)
     check pending(w.st).len == 0
   test "offline uses the places already loaded":
@@ -152,13 +159,13 @@ suite "import: naming the activities":
     defer:
       w.st.close()
     w.st.addActivity("first", 1_000_000, [home, barnechea, home])
-    check ensureActivityNames(w.st, w.names).named == 1
+    check ensureActivityNames(w.st, w.names, namers).named == 1
     let fetched = w.net.gets.len
     check fetched > 0
     w.st.addActivity("second", 2_000_000, [home, barnechea, home])
     var names = w.names
     names.offline = true
-    let r = ensureActivityNames(w.st, names)
+    let r = ensureActivityNames(w.st, names, namers)
     check r.named == 1 and r.left == 0
     check w.net.gets.len == fetched
   test "no network: an error, and what was named so far stays; the rest are named next time":
@@ -170,8 +177,9 @@ suite "import: naming the activities":
     env.fetcher.get = proc(url: string): FetchResult {.closure, raises: [].} =
       FetchResult(ok: false, message: "cannot reach download.geonames.org")
     expect DownloadError:
-      discard ensureActivityNames(st, newNames(st, dir, env, silent()))
+      discard ensureActivityNames(st, newNames(st, dir, env, silent()), namers)
     check pending(st) == @[1'i64]
     let good = Net(chile: @[santiago, barrio].join("\n") & "\n")
-    check ensureActivityNames(st, newNames(st, dir, envOf(good), silent())).named == 1
+    check ensureActivityNames(st, newNames(st, dir, envOf(good), silent()), namers).named ==
+      1
     check pending(st).len == 0

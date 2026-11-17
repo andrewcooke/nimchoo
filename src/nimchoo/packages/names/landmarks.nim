@@ -1,5 +1,5 @@
 ## The landmarks: places the author has named, each a position and a radius (see 001-schema.sql).  Pure database
-## code, used by the naming (a landmark comes before every other name) and by `nch landmarks`.
+## code, used by the naming (the landmark namer comes before every other: `naming/rules.nim`) and by `nch landmarks`.
 
 import std/[options, strutils]
 import ../db/statement

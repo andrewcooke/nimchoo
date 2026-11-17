@@ -72,7 +72,6 @@ import
     test_pool,
     test_events,
     test_stretch,
-    test_naming as importerNaming,
     test_describe as importerDescribe,
     test_fuzz as importerFuzz,
   ]
@@ -131,8 +130,9 @@ import ./download/test_fetch
 import
   ./names/[
     test_countryinfo, test_countries, test_features, test_climbpick, test_codes,
-    test_climb, test_lookup, test_shape, test_activity, test_landmarks,
+    test_climb, test_lookup, test_shape, test_landmarks,
   ]
+import ./naming/[test_rules, test_naming as namingNaming, test_namers]
 import
   ./web/[
     test_request,

@@ -26,7 +26,10 @@ proc fresh(name: string): Session =
     userId = int64(result.userId),
   )
   db.execute(
-    "insert into activity(id, file_id, session, start_t, end_t, start_place) values (1, 1, 0, 1000, 2000, '')"
+    "insert into activity(id, file_id, session, start_t, end_t) values (1, 1, 0, 1000, 2000)"
+  )
+  db.execute(
+    "insert into activity_name(activity_id, start_place, name) values (1, '', '')"
   )
   db.execute("insert into segment values (1, 0, 1000, 1500), (1, 1, 1600, 2000)")
   db.execute(

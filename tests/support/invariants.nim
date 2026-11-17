@@ -89,7 +89,7 @@ const allInvariants* = [
   Invariant(
     name: "every activity with positions has a naming decision",
     offenders:
-      "select cast(id as text) from activity where start_place is null and exists " &
+      "select cast(id as text) from activity where id not in (select activity_id from activity_name) and exists " &
       "(select 1 from track t where t.activity_id = activity.id)",
   ),
   Invariant(

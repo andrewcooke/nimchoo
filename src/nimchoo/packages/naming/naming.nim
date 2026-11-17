@@ -1,18 +1,17 @@
-## Naming the activities: each that has no name yet (null) gets its start place and its name from the places near its
-## route (see names/activity.nim), kept on the activity as text.  Done at the end of `nch import`, so the names are
-## decided in the run that imports; the first time (or after a migration) it names every activity.  If the names are
-## needed and cannot be had it is a DownloadError: the activities named so far keep their names, the rest stay null.  With `--offline`
-## the activities whose places are not in the cache are left null too, and counted (`left`), without an error.
+## Naming the activities: each that has no name yet (no row in `activity_name`) gets its start place, and the name the first
+## of the namers proposes (`namers.nim`, `rules.nim`), kept as text.  Done after `nch import` (`imported.nim`), so the names
+## are decided in the run that imports; the first time it names every activity.  If the names are needed and cannot be had
+## it is a DownloadError: the activities named so far keep their names, the rest have none.  With `--offline` the activities
+## whose places are not in the cache are left without one too, and counted (`left`), without an error.
 
 import std/strformat
 import ../db/statement
 import ../db/store
 import ../../core/errors
-import ../names/activity
-import ../names/countries
-import ../names/lookup
+import ../importer/[route, track]
+import ../names/[countries, lookup]
 import ../util/profiling/profiling
-import ./[route, track]
+import ./[namers, rules]
 
 {.push raises: [].}
 
@@ -47,14 +46,19 @@ func leftText*(n: Named): string =
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
-  st.db.query(int64, "select id from activity where name is null order by start_t, id")
+  st.db.query(
+    int64,
+    """select a.id from activity a left join activity_name n on n.activity_id = a.id
+        where n.activity_id is null order by a.start_t, a.id""",
+  )
 
 proc ensureActivityNames*(
     st: Store,
     names: Names,
+    namers: seq[Namer],
     progress: proc(done, total: int) {.closure, raises: [].} = nil,
 ): Named {.raises: [StoreError, DownloadError].} =
-  ## Name the activities that have no name yet (the place they started); `progress` is told how far it has got.
+  ## Name the activities that have no name yet, asking `namers` (the registry's); `progress` is told how far it has got.
   let todo = pending(st)
   result.total = todo.len
   # the route of an activity is read as the stored geometry (one blob), not as a row for each position; an activity with no
@@ -76,7 +80,7 @@ proc ensureActivityNames*(
       parts.add (lons, lats)
     var got: ActivityNames
     try:
-      got = nameActivity(names, parts)
+      got = nameOf(names, id, parts, namers)
     except OfflineError:
       inc result.left
       if progress != nil:
@@ -92,10 +96,10 @@ proc ensureActivityNames*(
       result.gpsErrors.add GpsErrors(where: where, searches: got.gpsErrors)
     timed "naming: write the name":
       st.db.execute(
-        "update activity set start_place = :startPlace, name = :name where id = :id",
+        "insert into activity_name(activity_id, start_place, name) values (:id, :startPlace, :name)",
+        id = id,
         startPlace = got.start,
         name = got.name,
-        id = id,
       )
     if got.name.len > 0:
       inc result.named

@@ -189,7 +189,8 @@ proc resolve(
     # the name and the start place of that activity, whole (they are not in the row unless it was listed with -v)
     let r = st.db.scalar(
       tuple[name, start: string],
-      "select coalesce(name, ''), coalesce(start_place, '') from activity where id = :id",
+      "select coalesce(" & nameColumn & ", ''), coalesce(" & startColumn &
+        ", '') from activity a where a.id = :id",
       id = id,
     )
     let name = r.name
@@ -232,7 +233,8 @@ proc numbersAsIds(
     if whole and
         st.db.scalar(
           int,
-          "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :owner and instr(fold(a.name), :typed) > 0",
+          "select count(*) from activity a join file f on f.id = a.file_id join activity_name n on n.activity_id = a.id " &
+            "where f.user_id = :owner and instr(fold(n.name), :typed) > 0",
           owner = st.userId,
           typed = foldText(t),
         ) == 0 and

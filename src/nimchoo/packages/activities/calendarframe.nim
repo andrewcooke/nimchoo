@@ -24,7 +24,7 @@ proc contribution*(): Contribution =
       subject: "activities",
       summary: "a day is marked when a selected activity started on it",
       readsSelection: true,
-      tables: @["activity", "file", "selection", "user"],
+      tables: @["activity", "activity_name", "file", "selection", "user"],
       make: makeCalendar,
     ),
   )

@@ -30,6 +30,7 @@
 ## * `map <packages/map/package.html>`_ - The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ## * `model <packages/model/package.html>`_ - The training impulse: models, and the impulses worked out with them.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
+## * `naming <packages/naming/package.html>`_ - Naming activities: where each started and what it is called, from the namers, after every import.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (activities, later climbs and FF statistics).
@@ -62,6 +63,7 @@ import ./packages/log/package as pkgLog
 import ./packages/map/package as pkgMap
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
+import ./packages/naming/package as pkgNaming
 import ./packages/selection/package as pkgSelection
 import ./packages/subject/package as pkgSubject
 import ./packages/text/fold/package as pkgFold
@@ -304,11 +306,11 @@ written.
   modification time are as when it was last seen is skipped unread (`--slow` reads everything); a file with content already
   imported is a duplicate; a file that cannot be read is reported and the others carry on.  One transaction per file, files
   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the
-  screen as two lines that follow the run.  The new activities are then named (`names`), and last the packages that asked
-  do their part.
+  screen as two lines that follow the run.  Then the packages that asked do their part (`importer/after`): the new
+  activities are selected, named (`naming`, which owns the names) and their climbs worked out.
 * **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`heartrate` writes the
   heart rate), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
-  with the new activities (`selection` makes them the selection).
+  with the new activities (`selection` makes them the selection; `naming` names every activity that has no name).
 * **Describing an activity** (decided 2026-11-05): an activity is said the same way wherever it appears, like `__str__`, by
   `describe.nim`: `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back` (start, sport, distance,
   active time, then where it started and what it is called, joined by " / "); verbose adds the sub-sport and the path of
@@ -385,6 +387,23 @@ for a bad connection: the program needs the internet for names and says so.  Thi
 **Landmarks** (`nch landmarks`) are the author's own names for places, shared by all users, and come before every other
 name: a ride that turns round inside a landmark's circle is "<landmark> and back", a climb that tops out in it is called by
 it.  Suggestions are found from the features and the rides.""",
+    ),
+    Registered(
+      name: "naming",
+      package: pkgNaming.package,
+      summary:
+        "Naming activities: where each started and what it is called, from the namers, after every import.",
+      doc:
+        """Naming activities: where each started and what it is called, from the namers, after every import.
+
+A ride's name is the first that the **namers** propose, asked in order of precedence (dev/NAMING.md): the point
+`naming/namers` (`namers.nim`), to which this package contributes two and the packages above it more: **landmarks**
+(the author's own places, first), the ride's **big climb** (`climbs`), then the **places** near the route (GeoNames).  A
+namer words the whole name; the shapes of a ride and their wording ("X and back", "to X", "loop via X", "around X",
+"at X") and the start place are in `rules.nim`, for any namer that wants them.  The names are kept as text in
+`activity_name` (this package owns it), made once after each import (`importer/after`, `imported.nim`) for every activity
+that has none; a change of the rules is applied by rebuilding the database.  `names` is the library of places and
+landmarks underneath.""",
     ),
     Registered(
       name: "selection",

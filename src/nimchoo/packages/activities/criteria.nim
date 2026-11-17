@@ -9,7 +9,7 @@ import ../util/args/args
 import ../db/sqltext
 import ../../core/ids
 import ../text/fold/fold
-import ./[completion, criterion, ranges]
+import ./[completion, criterion, ranges, rows]
 export ranges, criterion
 
 {.push raises: [].}
@@ -752,8 +752,8 @@ func matchSql*(
     # the criteria, each as " and ...": with --invert, the whole is negated
   filt = filt & inValues("a.sport", "sport", c.sports)
   filt = filt & inValues("a.sub_sport", "subSport", c.subSports)
-  filt = filt & textSql("a.name", "name", c.names, c.namesExact, c.nameIds)
-  filt = filt & textSql("a.start_place", "start", c.starts, c.startsExact)
+  filt = filt & textSql(nameColumn, "name", c.names, c.namesExact, c.nameIds)
+  filt = filt & textSql(startColumn, "start", c.starts, c.startsExact)
   filt = filt & pathSql(c.paths)
   filt = filt & extra
   filt = filt & rangeSql("a.distance_m", "distance", c.distanceM)

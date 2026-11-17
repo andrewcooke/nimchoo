@@ -1,5 +1,5 @@
 ## The rows of a listing of activities, as the table and the calendar show them: what a row is made of, and reading
-## them from a query (`activities` runs the queries, so it may read the tables of `importer` and `selection`).
+## them from a query (`activities` runs the queries, so it may read the tables of `importer`, `naming` and `selection`).
 
 import std/options
 import ../../core/[errors, ids]
@@ -9,6 +9,13 @@ import ../user/session
 import ./table
 
 {.push raises: [].}
+
+const
+  nameColumn* = "(select name from activity_name where activity_id = a.id)"
+    ## what the activity `a` is called (`naming` owns the names): null if it has not been named yet, "" if there was nothing
+    ## to say
+  startColumn* = "(select start_place from activity_name where activity_id = a.id)"
+    ## where the activity `a` started (the same)
 
 func rowColumns*(verbose: bool, userId: UserId): Sql =
   ## (it carries `:me`, the user whose selection says which are chosen)
@@ -25,8 +32,9 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
       "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, "
       else: "f.name as path, "
     ) &
-      # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
-      "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
+      # where it started and what it is called (text made after it was imported: see `naming`): in every listing
+      "coalesce(" & startColumn & ", '') as pname, coalesce(" & nameColumn &
+      ", '') as aname, " & (
       # whether it has a start (said "no GPS" if not): -v only
       if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon"
       else: "null as slat, null as slon"

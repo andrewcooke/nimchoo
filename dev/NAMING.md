@@ -51,7 +51,11 @@ again, done worse (dev/HISTORY.md, 2026-11-17).
 ## A plan of steps (each to be approved)
 
 1. `naming` with the table, the point, the landmark and place namers and the after-import step; the names move out of
-   `importer`; the readers read the new table.  Visible: none (the same names).
+   `importer`; the readers read the new table.  Visible: none (the same names).  **Done 2026-11-17**: on a copy of the author's
+   database, the 1,113 rides got the same names (3.1 s to name them all, against 2.6 s: each namer works out the shape).
+   As built: `importer/describe.nim` never read the names (its callers pass them), so it is unchanged; the importer now
+   runs the after-import steps on every import, even one that added nothing (each does nothing if it has nothing to do), and a
+   step that fails makes the import's exit status 1.
 2. The big-climb namer in `climbs`.  Visible: rides named after their big climb.  Look at examples before and after, with the
    author.
 3. The squash and the rebuild of the author's database (TODO.md).
