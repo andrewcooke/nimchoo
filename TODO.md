@@ -57,11 +57,19 @@ When something here is done, delete it (in the same commit).  Design steps are d
   position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Storing it
   has to be decided before the rebuild at the end of the arrays work, because what is not stored then is not there until the
   next re-import.
-* **Investigate: "Cerro San Cristóbal" and "Parque Metropolitano" are not used to label rides** (the author, 2026-11-13).  Rides on
-  that hill are named after other places.  Find out why: which GeoNames features are there and with what feature codes
-  (`names/codes.nim` says which codes count and how they rank), whether they are within the search radii for the start, the
-  turning point and the places along the route (`names/activity.nim`), and whether a landmark of the author's own (`nch landmarks`)
-  would be the answer.  Look at a few of the rides with `nch activities --names` and `nch map` before changing any rule.
+* **"Cerro San Cristóbal" and "Parque Metropolitano" do not name rides: investigated, a decision for the author** (2026-11-17).
+  98 activities pass within about 150 m of the summit (-33.4253, -70.6331); they are called "around Recoleta" (39), "Barrio
+  Bellavista and back" (18), "loop via Recoleta" (12), "Lo Contador and back" (10), "to Lo Contador" (4) ..., and only 2
+  "Parque metropolitano and back".  Why: GeoNames has the hill as `HLL` (204 m from the summit), and `names/activity.destKind`
+  ranks no `HLL` (only `HLLS`, `MTS` ...), so it can never be chosen; the park is `PRK` (rank 3), its point 603 m north-east of
+  the summit, and sections of the town (`PPLX`, rank 2) are as close (Lo Contador 647 m, Barrio Bellavista 883 m, Monserrat
+  960 m) and win, within 700 m of the turning point as beyond.  For loops, "the first kind that has anything wins" means a
+  section of town within 2 km of the route (Recoleta) always beats a park or a hill in the city.  Options: (a) **a landmark**
+  (`nch landmarks --add "Cerro San Cristóbal" --at -33.4253,-70.6331 --radius 600`, say): landmarks come before everything,
+  for a turning point inside the circle and for a loop that passes it; no code, and it is what landmarks are for (then re-name
+  the rides); (b) **a rule**: hills and peaks (`HLL`, `MT`, `PK`) as a kind, or "a feature within ~250 m of the turning point
+  wins whatever its kind"; it changes names everywhere, so look at examples first.  Recommended: (a) now, (b) only if other
+  hills turn out to matter.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **Light and dark terminal backgrounds** (`NCH_THEME`, else `COLORFGBG`; dim and yellow are poor on white).
 * **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by
