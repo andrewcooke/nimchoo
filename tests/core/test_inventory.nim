@@ -1,6 +1,6 @@
 ## What `nch packages` shows (core/inventory.nim), on made-up packages and on the real registry.
 
-import std/[sequtils, strutils, unittest]
+import std/[algorithm, sequtils, strutils, unittest]
 import nimchoo/core/[errors, extension, fragment, inventory, manifest, registry]
 import nimchoo/registry as generated
 
@@ -130,8 +130,14 @@ suite "the graphs":
   test "a package with nothing under it is a single line":
     check treeLines(world(), "db").mapIt(it.text) == @["db"]
 
+  test "with the implied ones, every dependency is there, the implied ones marked":
+    let lines = layerLines(world(), 80, implied = true)
+    let c = lines.filterIt(it[0].text.startsWith("  c"))[0]
+    check c.filterIt(not it.implied and it.text == "b").len == 1
+    check c.filterIt(it.implied).mapIt(it.text).sorted == @["a", "db"]
+
   test "the layers: highest first, each package with the dependencies that are not implied by others":
-    let lines = layerLines(world(), 80)
+    let lines = layerLines(world(), 80).mapIt(it.mapIt(it.text).join(""))
     check lines[0] == "layer 3"
     check lines[1].startsWith("  c") and lines[1].endsWith("← b")
       # (c names a and db too, but b implies them)
@@ -173,6 +179,7 @@ suite "the real registry":
     for t in inv.tables:
       check inv.find(t.owner) >= 0
     check layerLines(inv, 100).len > inv.packages.len
+    check layerLines(inv, 100, implied = true).len >= layerLines(inv, 100).len
     check dotText(inv).endsWith("}\n")
 
   test "the points of the registry are all listed, with their contributors":

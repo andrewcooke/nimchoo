@@ -33,7 +33,9 @@ type
       root*: string
       reverse*: bool ## what depends on `root`, not what it depends on
       repeats*: bool ## `-v`: the packages drawn above too, in grey
-    of vList, vPoints, vTables, vLayers, vDot, vConfig:
+    of vLayers:
+      implied*: bool ## `-v`: the dependencies implied by others too, in grey
+    of vList, vPoints, vTables, vDot, vConfig:
       discard
 
   Raw = object ## what the options fill in
@@ -73,7 +75,7 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "(with --graph NAME) the packages already drawn higher in the tree too, in grey (else each is drawn once)",
+        "(with --graph) everything, the rest in grey: with NAME the packages already drawn higher in the tree (else each is drawn once); without, the dependencies implied by others (else only those that are not)",
         level = 1,
       ),
       flag(
@@ -107,8 +109,8 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params]("a package name goes with nothing but --graph")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
     return problemWith[Params]("--reverse goes with --graph and a package name")
-  if raw.verbose and not (raw.graph and raw.name.len > 0):
-    return problemWith[Params]("-v goes with --graph and a package name")
+  if raw.verbose and not raw.graph:
+    return problemWith[Params]("-v goes with --graph")
   if raw.points:
     parsedOk(Params(view: vPoints))
   elif raw.tables:
@@ -122,7 +124,7 @@ func finish(raw: Raw): Parsed[Params] =
       Params(view: vTree, root: raw.name, reverse: raw.reverse, repeats: raw.verbose)
     )
   elif raw.graph:
-    parsedOk(Params(view: vLayers))
+    parsedOk(Params(view: vLayers, implied: raw.verbose))
   elif raw.name.len > 0:
     parsedOk(Params(view: vDetail, package: raw.name))
   else:
@@ -297,7 +299,13 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vTables:
     show tableLines(inv)
   of vLayers:
-    show layerLines(inv, width)
+    let colour = canColourStdout()
+    for l in layerLines(inv, width, p.implied):
+      # (a dependency implied by another is grey)
+      stdout.say render(l.mapIt(span(it.text, if it.implied: grey else: white)), colour) &
+        "\n"
+    if p.implied:
+      show(@["", "(grey: a dependency also reached through another one)"])
   of vTree:
     let tree = treeLines(inv, p.root, p.reverse, p.repeats)
     let colour = canColourStdout()

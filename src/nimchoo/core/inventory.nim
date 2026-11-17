@@ -346,33 +346,53 @@ func reducedDepends(inv: Inventory): Table[string, seq[string]] =
         kept.add d
     result[p.name.normalised] = kept
 
-func layerLines*(inv: Inventory, width: int): seq[string] =
-  ## The packages by layer, the highest first, each with the packages it depends on directly (not those implied by
-  ## another dependency): the picture of how the program is built up.
+type LayerPiece* = tuple[text: string, implied: bool]
+  ## a piece of a line of the layers: a dependency implied by another (drawn grey: `nch packages --graph -v`), or not
+
+func layerLines*(inv: Inventory, width: int, implied = false): seq[seq[LayerPiece]] =
+  ## The packages by layer, the highest first, each with the packages it depends on directly and not through another
+  ## dependency (and, with `implied`, those too, marked): the picture of how the program is built up.
   let reduced = reducedDepends(inv)
   var top = 0
   var nameWidth = 0
   for p in inv.packages:
     top = max(top, p.layer)
     nameWidth = max(nameWidth, p.name.len)
+  let room = max(20, width - nameWidth - 8)
   for l in countdown(top, 0):
     let here = inv.packages.filterIt(it.layer == l).sortedByIt(it.name.normalised)
     if here.len == 0:
       continue
-    result.add fmt"layer {l}" & (if l == 0: "  (depend on nothing)" else: "")
+    result.add @[
+      (fmt"layer {l}" & (if l == 0: "  (depend on nothing)" else: ""), false)
+    ]
     for p in here:
-      let deps = reduced.getOrDefault(p.name.normalised)
+      let kept = reduced.getOrDefault(p.name.normalised)
+      var deps: seq[LayerPiece]
+      for d in kept:
+        deps.add (d, false)
+      if implied:
+        for d in p.depends:
+          if kept.allIt(it.normalised != d.normalised):
+            deps.add (d, true)
       if deps.len == 0:
-        result.add "  " & p.name
+        result.add @[("  " & p.name, false)]
         continue
-      let lines = wrap(deps.join(" "), max(20, width - nameWidth - 8))
-      for i, line in lines:
-        result.add (
-          "  " & (
-            if i == 0: p.name.alignLeft(nameWidth) & "  ← "
-            else: " ".repeat(nameWidth + 5)
-          ) & line
-        )
+      # the names, wrapped to the room after the arrow; each keeps its mark
+      var line: seq[LayerPiece] =
+        @[("  " & p.name.alignLeft(nameWidth) & "  ← ", false)]
+      var used = 0
+      for (d, imp) in deps:
+        if used > 0 and used + 1 + d.len > room:
+          result.add line
+          line = @[(" ".repeat(nameWidth + 7), false)]
+          used = 0
+        if used > 0:
+          line.add (" ", false)
+          used += 1
+        line.add (d, imp)
+        used += d.len
+      result.add line
 
 func dotText*(inv: Inventory): string =
   ## The dependencies as a Graphviz graph (`nch packages --dot | dot -Tsvg > packages.svg`): an arrow from a package
