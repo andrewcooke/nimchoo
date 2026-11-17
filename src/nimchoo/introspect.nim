@@ -7,7 +7,7 @@ import std/[algorithm, editdistance, options, os, sequtils, strformat, strutils]
 import ./core/[access, errors, globals, inventory, logfile, manifest]
 import ./packages/cache/cache
 import ./packages/db/[fragment, store]
-import ./packages/ui/[live, units]
+import ./packages/ui/[live, palette, style, units]
 import ./packages/util/args/[args, usage]
 import ./packages/util/version/version
 import ./registry as generated
@@ -288,12 +288,12 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     show layerLines(inv, width)
   of vTree:
     let tree = treeLines(inv, p.root, p.reverse)
-    show(
-      if tree.anyIt(it.endsWith("...")):
-        tree & @["", treeNote]
-      else:
-        tree
-    )
+    let colour = canColourStdout()
+    for l in tree:
+      # (what was drawn above is grey)
+      stdout.say render(@[span(l.text, if l.again: grey else: white)], colour) & "\n"
+    if tree.anyIt(it.text.endsWith("...")):
+      show(@["", treeNote])
   of vDot:
     stdout.say dotText(inv)
   of vConfig:

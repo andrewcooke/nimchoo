@@ -111,8 +111,8 @@ suite "the views":
     check lines.anyIt(it.startsWith("ta") and it.endsWith("b c"))
 
 suite "the graphs":
-  test "the tree of what a package depends on; a package drawn above is not drawn again, and ... says what was left out":
-    check treeLines(world(), "c") ==
+  test "the tree of what a package depends on; a package drawn above is not drawn again (and comes after the new), and ... says what was left out":
+    check treeLines(world(), "c").mapIt(it.text) ==
       @[
         "c", "├── a", "│   └── db", "├── b", "│   ├── a...",
         "│   └── db", "└── db",
@@ -120,11 +120,11 @@ suite "the graphs":
         # (a has db under it, already drawn; db has nothing under it, so nothing is left out)
 
   test "the tree of what depends on a package":
-    check treeLines(world(), "a", reverse = true) ==
+    check treeLines(world(), "a", reverse = true).mapIt(it.text) ==
       @["a", "├── b", "│   └── c", "└── c"]
 
   test "a package with nothing under it is a single line":
-    check treeLines(world(), "db") == @["db"]
+    check treeLines(world(), "db").mapIt(it.text) == @["db"]
 
   test "the layers: highest first, each package with the dependencies that are not implied by others":
     let lines = layerLines(world(), 80)
@@ -156,11 +156,13 @@ suite "the real registry":
   test "a tree draws what is under a package once: a repeat is marked ..., or has nothing under it":
     for p in inv.packages:
       var drawn: seq[string]
-      for l in treeLines(inv, p.name):
+      for line in treeLines(inv, p.name):
+        let l = line.text
         let name =
           l.splitWhitespace.filterIt(it[0].isAlphaAscii)[0].strip(chars = {'.'})
         if name in drawn:
-          check l.endsWith("...") or inv.packages[inv.find(name)].depends.len == 0
+          check line.again and
+            (l.endsWith("...") or inv.packages[inv.find(name)].depends.len == 0)
         drawn.add name
 
   test "every table has an owner that is a package, and the layers print without error":

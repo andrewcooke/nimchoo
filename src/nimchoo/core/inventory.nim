@@ -254,10 +254,15 @@ func neighbours(inv: Inventory, name: string, reverse: bool): seq[string] =
   else:
     inv.packages[at].depends
 
-func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
+type TreeLine* = object ## A line of a tree of packages.
+  text*: string
+  again*: bool ## the package was drawn above (drawn grey: `nch packages`)
+
+func treeLines*(inv: Inventory, root: string, reverse = false): seq[TreeLine] =
   ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes.  A package drawn above
-  ## is not drawn again: it is followed by "..." if something under it is left out (a package with nothing under it is just its
-  ## name), so the tree stays short (`treeNote` says so).
+  ## is not drawn again: it is marked `again`, and followed by "..." if something under it is left out (a package with
+  ## nothing under it is just its name), so the tree stays short (`treeNote` says so).  Under each package those not drawn yet
+  ## come first, the ones drawn above after them.
   var seen = initHashSet[string]()
   func walk(
       inv: Inventory,
@@ -265,7 +270,7 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
       last: bool,
       top: bool,
       seen: var HashSet[string],
-      lines: var seq[string],
+      lines: var seq[TreeLine],
       reverse: bool,
   ) =
     let again = name.normalised in seen
@@ -278,7 +283,10 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
       else:
         "├── "
     let kids = neighbours(inv, name, reverse)
-    lines.add prefix & branch & name & (if again and kids.len > 0: "..." else: "")
+    lines.add TreeLine(
+      text: prefix & branch & name & (if again and kids.len > 0: "..." else: ""),
+      again: again,
+    )
     if again:
       return
     let below =
@@ -288,8 +296,11 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
         prefix & "    "
       else:
         prefix & "│   "
-    for i, k in kids:
-      walk(inv, k, below, i == kids.high, false, seen, lines, reverse)
+    let ordered =
+      kids.filterIt(it.normalised notin seen) & kids.filterIt(it.normalised in seen)
+    for i, k in ordered:
+      walk(inv, k, below, i == ordered.high, false, seen, lines, reverse)
+
   walk(inv, inv.packages[inv.find(root)].name, "", true, true, seen, result, reverse)
 
 const treeNote* = "(... after a package: what is under it is drawn in full above)"
