@@ -1,12 +1,13 @@
 ## The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ##
-## `nch map [SUBJECT] [--frames FRAME...]`.  The map knows no subject and no kind of data: the point `map/frames` (`frames.nim`) takes
+## `nch map [SUBJECT]` (with `--file`, `--frames FRAME...` says which files to make).  The map knows no subject and no kind of data: the point `map/frames` (`frames.nim`) takes
 ## the frames, each a GeoJSON file about a subject that its provider makes (`activities`: routes and heat; `climbs`: the climbs
 ## of the activities, their gates and efforts), with a style of its own and a drawing (a JavaScript function) that the provider
 ## ships, so a new subject or frame is a package that contributes, and nothing here changes, in Nim or in the page.  `subject/subjects` says which subjects there are.  A GeoJSON file for each
 ## frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes.geojson`) and
-## the frame's drawing, in a page (Leaflet), decides the look.  Everything is made again on every request: a map is a live view of the selection, and a
-## bookmark (`/map/activities?frames=routes,climbs`) keeps the frames and not the data.  The page is served on localhost (`web`;
+## the frame's drawing, in a page (Leaflet), decides the look.  Everything is made again on every request: a map is a live view of the selection.  The
+## page (`/map/activities`) lists the subject's frames, a box each: the ones ticked are fetched (`?frame=NAME`) and drawn, and the
+## browser remembers which are ticked (at first: those marked as shown).  The page is served on localhost (`web`;
 ## `--file` makes the files only, and prints their paths).
 ##
 ## **The page is templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never

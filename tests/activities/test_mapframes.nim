@@ -149,23 +149,22 @@ suite "activities frames: the map, with the real registry":
     let j = parseFile(path)
     check j["features"].len == 1
     check j["features"][0]["geometry"]["coordinates"][0].len == 2
-  test "--worker makes the page too, which names the files of the frames and carries their styles":
+  test "--worker makes the page: every frame of the activities with its style and drawing, routes and climbs ticked":
     let w = world(dir, "worker")
     check mapRaw(w.db, "--worker") == exitOk
-    check files(w.cache) ==
-      @[
-        "map-activities-climbs.geojson", "map-activities-routes-climbs.html",
-        "map-activities-routes.geojson",
-      ]
-    let page = readFile(w.cache / "map-activities-routes-climbs.html")
-    check page.contains("\"map-activities-routes.geojson\"") and
-      page.contains("\"map-activities-climbs.geojson\"")
-    check page.contains(
-      "\"name\":\"activities/routes\",\"file\":\"map-activities-routes.geojson\",\"style\":{\"color\":\"#e03131\""
-    ) # the style of the routes, in the page
+    check files(w.cache) == @["map-activities.html"]
+    let page = readFile(w.cache / "map-activities.html")
+    for name in ["routes", "heat", "climbs", "gates", "efforts"]:
+      check page.contains("\"name\":\"" & name & "\"")
+    check page.contains("\"style\":{\"color\":\"#e03131\"")
+      # the style of the routes, in the page
     check page.contains("\"gap_m\":15") # and of the climbs
     check page.contains("drawers[\"activities-map-routes\"] = (") and
       page.contains("drawers[\"activities-map-climbs\"] = (") # and their drawings
+  test "--worker --frame makes the data of one frame for the page":
+    let w = world(dir, "workerframe")
+    check mapRaw(w.db, "--worker", "--frame", "heat") == exitOk
+    check files(w.cache) == @["map-activities-heat.geojson"]
 
 suite "activities frames: each declares the tables it reads":
   test "every table the frame reads is in its declaration":

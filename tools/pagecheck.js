@@ -5,9 +5,10 @@
 // needs packages that the project does not carry):
 //
 //     d=$(mktemp -d); (cd $d && npm i jsdom@24 leaflet@1.9.4)
-//     NODE_PATH=$d/node_modules node tools/pagecheck.js $(nch map --frames routes climbs efforts gates heat --worker)
+//     NODE_PATH=$d/node_modules node tools/pagecheck.js $(nch map --worker) $(nch map --file --frames routes climbs efforts gates heat)
 //
-// (the worker prints the page, then the file of each frame; the page's fetch of `/files/NAME` is given the file of that name)
+// (the page, then the file of each frame; the page's fetch of `?frame=NAME` is given the file of that frame: `map-SUBJECT-NAME.geojson`.
+// After the frames ticked at first are drawn, it ticks every other box, one by one, and prints the caption again.)
 const fs = require('fs');
 const { JSDOM } = require('jsdom');
 const path = require('path');
@@ -22,8 +23,9 @@ for (const p of ['clientHeight', 'offsetHeight']) Object.defineProperty(w.HTMLEl
 const noop = new Proxy(function () {}, { get: (t, k) => (k === 'canvas' ? undefined : noop), apply: () => noop, set: () => true });
 w.HTMLCanvasElement.prototype.getContext = () => noop;
 w.fetch = (url) => {
-  const name = url.replace('/files/', '');
-  return Promise.resolve(geo.has(name) ? { ok: true, json: () => Promise.resolve(JSON.parse(geo.get(name))) } : { ok: false, status: 404 });
+  const frame = decodeURIComponent((url.match(/[?&]frame=([^&]*)/) || [])[1] || '');
+  const name = [...geo.keys()].find((n) => n.endsWith('-' + frame + '.geojson'));
+  return Promise.resolve(name ? { ok: true, json: () => Promise.resolve(JSON.parse(geo.get(name))) } : { ok: false, status: 404 });
 };
 w.eval(fs.readFileSync(require.resolve('leaflet/dist/leaflet-src.js'), 'utf8'));
 const scripts = [...dom.window.document.querySelectorAll('script')].map((s) => s.textContent).filter((t) => t.includes('L.map'));
@@ -34,4 +36,12 @@ setTimeout(() => {
   console.log('CURSOR:', w.document.getElementById('cursor').textContent);
   const m = w.theMap, c = m.getCenter();
   console.log('VIEW:', c.lat.toFixed(5), c.lng.toFixed(5), 'zoom', m.getZoom());
-  console.log('CAPTION:', w.document.getElementById('caption').textContent); process.exit(0); }, 1500);
+  console.log('CAPTION:', w.document.getElementById('caption').textContent);
+  const boxes = [...w.document.querySelectorAll('.frames input')];
+  console.log('BOXES:', boxes.map((b) => b.parentNode.textContent.trim() + (b.checked ? '*' : '')).join(' '));
+  for (const b of boxes) if (!b.checked) { b.checked = true; b.dispatchEvent(new w.Event('change')); }
+  setTimeout(() => {
+    console.log('ALL TICKED:', w.document.getElementById('caption').textContent);
+    process.exit(0);
+  }, 1500);
+}, 1500);

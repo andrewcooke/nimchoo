@@ -1,15 +1,16 @@
-## `nch map [SUBJECT] [--frames FRAME...]`: a subject on a map.  The map is a view (it knows no subject): the packages that manage a
+## `nch map [SUBJECT]`: a subject on a map.  The map is a view (it knows no subject): the packages that manage a
 ## subject contribute the frames of it (`map/frames`: the routes of the selected activities, the climbs they went up ...), each
 ## made as a GeoJSON file of its own in the cache directory (every feature says what it is, in `kind`, and nothing about how it
 ## looks), and a page, drawn by Leaflet in the browser, decides the look: each frame has a style of its own, which its provider ships.
 ##
-## A map is a live view: it shows the selection of the subject as it is when the map is made, and is made again for every request.
-## The files are named by the subject and the frame (`map-activities-routes.geojson`); a bookmark of the page
-## (`/map/activities?frames=routes,climbs`) keeps the look, not the data.
+## A map is a live view: it shows the selection of the subject as it is when a frame is made, and each is made again whenever it is
+## shown.  The page is the subject's (`/map/activities`, `map-activities.html`) and lists every frame of it; the frames ticked
+## are fetched from the same address with `?frame=NAME` (the worker with `--frame`), and the browser remembers which are ticked.
+## The files are named by the subject and the frame (`map-activities-routes.geojson`); `--file` makes those of `--frames`.
 ##
 ## This module is above `subject`: it reads the registry of subjects and of frames, and nothing of the packages that provide them.
 
-import std/[options, os, sequtils, strformat, strutils]
+import std/[options, sequtils, strformat, strutils]
 import ../cache/cache
 import ../util/atomic/atomic
 import ../../core/[extension, globals]
@@ -34,15 +35,16 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis =
-    "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--frames FRAME...] [--file | --stop | [--start] [--port N] [--new-token]]"
+    "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--file [--frames FRAME...] | --stop | [--start] [--port N] [--new-token]]"
   intro =
     """Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are
-the subject's frames, the layers listed below, each made by the package that knows about it.  It serves a page that draws them
-on localhost and opens it in a browser (Ctrl-C stops it); with --file it makes a GeoJSON file for each frame in the cache
-directory instead, and prints where.  A click on anything drawn says what it is."""
+the subject's frames, the layers in the table below, each made by the package that knows about it: the page lists them, and you
+tick the ones to draw (the browser remembers them for the next time; at first, those marked *).  It serves the page on
+localhost and opens it in a browser (Ctrl-C stops it); with --file it makes a GeoJSON file for each frame (those of --frames)
+in the cache directory instead, and prints where.  A click on anything drawn says what it is."""
   notes =
-    """The map is made again each time the page is loaded, from the selection as it is then: a bookmark of the address keeps
-which frames are drawn, not which activities."""
+    """A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The
+address of the page is the subject's (/map/activities), so a bookmark keeps the subject, not the activities."""
 
 func registryLines(
     subjects: seq[Subject], all: seq[MapFrame], width: int
@@ -124,69 +126,8 @@ func readsSelection(c: Chosen): bool =
 proc emptyFailure(s: Subject): int =
   failure("nch map", fmt"the selection of {s.name} is empty ({s.emptyHint})")
 
-proc prepare(
-    g: Globals, c: Chosen, dir: string, withPage: bool
-): tuple[paths: seq[string], page: string, status: int] =
-  ## Make the file of each frame (and, if asked, the page), whatever was there, from the data as they are now.  Reports problems.
-  var st: Session
-  try:
-    st = openSession(g)
-  except StoreError as e:
-    return (@[], "", failure("nch map", e.msg))
-  try:
-    # one read transaction: the frames are made from one state of the database, whatever else is writing
-    var made: seq[FrameData]
-    st.begin()
-    try:
-      if readsSelection(c) and c.subject.selected(st) == 0:
-        return (@[], "", emptyFailure(c.subject))
-      for f in c.frames:
-        made.add f.make(st)
-    finally:
-      st.rollback()
-    var names: seq[string]
-    for k, f in c.frames:
-      for note in made[k].notes:
-        stderr.say fmt"note: {note}" & "\n"
-      let stem = fileStem(c.subject.name, f.name)
-      let path = cacheFile(dir, stem, "geojson").get
-      writeAtomic(path, made[k].geojson)
-      result.paths.add path
-      names.add f.name
-    if withPage:
-      let stem = fileStem(c.subject.name, names.join("-"))
-      let pagePath = cacheFile(dir, stem, "html").get
-      var drawn: seq[tuple[frame: MapFrame, file: string]]
-      for k, f in c.frames:
-        drawn.add (f, extractFilename(result.paths[k]))
-      let html = pageHtml(drawn, "Map")
-      if html.isNone:
-        return
-          (@[], "", failure("nch map", fmt"cannot make a page for {result.paths[0]}"))
-      writeAtomic(pagePath, html.get)
-      result.page = pagePath
-  except StoreError as e:
-    result = (@[], "", failure("nch map", e.msg))
-  except IOError, OSError:
-    result = (
-      @[],
-      "",
-      failure("nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}"),
-    )
-  except TemplateError as e:
-    result = (
-      @[],
-      "",
-      failure(
-        "nch map",
-        fmt"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.txt, in the cache directory; delete one to have the built-in one again)",
-      ),
-    )
-  finally:
-    st.close()
-
 proc checkSelection(g: Globals, c: Chosen): int =
-  ## Before serving: the selection is not empty (the page makes the files, whenever it is asked for).
+  ## The selection is not empty, if a chosen frame reads it (before serving, and before making the page).
   var st: Session
   try:
     st = openSession(g)
@@ -200,6 +141,65 @@ proc checkSelection(g: Globals, c: Chosen): int =
     failure("nch map", e.msg)
   finally:
     st.close()
+
+proc makeFrames(
+    g: Globals, c: Chosen, frames: seq[MapFrame], dir: string
+): tuple[paths: seq[string], status: int] =
+  ## Make the file of each frame, whatever was there, from the data as they are now (in one read transaction, so that the
+  ## frames are made from one state of the database).  Reports problems.
+  var st: Session
+  try:
+    st = openSession(g)
+  except StoreError as e:
+    return (@[], failure("nch map", e.msg))
+  try:
+    var made: seq[FrameData]
+    st.begin()
+    try:
+      if frames.anyIt(it.readsSelection) and c.subject.selected(st) == 0:
+        return (@[], emptyFailure(c.subject))
+      for f in frames:
+        made.add f.make(st)
+    finally:
+      st.rollback()
+    for k, f in frames:
+      for note in made[k].notes:
+        stderr.say fmt"note: {note}" & "\n"
+      let path = cacheFile(dir, fileStem(c.subject.name, f.name), "geojson").get
+      writeAtomic(path, made[k].geojson)
+      result.paths.add path
+  except StoreError as e:
+    result = (@[], failure("nch map", e.msg))
+  except IOError, OSError:
+    result =
+      (@[], failure("nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}"))
+  finally:
+    st.close()
+
+proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: int] =
+  ## Make the page: every frame of the subject, those shown by default ticked (it fetches the data of each frame it shows).
+  let checked = checkSelection(g, c)
+  if checked != exitOk:
+    return ("", checked)
+  try:
+    let all = framesOf(g.extensions.get(mapFramePoint), c.subject.name)
+    var listed: seq[tuple[frame: MapFrame, shown: bool]]
+    for f in all:
+      listed.add (f, f.shown) # (at first; the browser remembers what is ticked)
+    let path = cacheFile(dir, fmt"map-{c.subject.name}", "html").get
+    writeAtomic(path, pageHtml(listed, c.subject.name, "Map"))
+    result = (path, exitOk)
+  except IOError, OSError:
+    result =
+      ("", failure("nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}"))
+  except TemplateError as e:
+    result = (
+      "",
+      failure(
+        "nch map",
+        fmt"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.txt, in the cache directory; delete one to have the built-in one again)",
+      ),
+    )
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch map ARGS`; returns the exit status.
@@ -238,15 +238,31 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       WebOptions(port: p.web.port, start: p.web.start, newToken: p.web.newToken),
       dir.get,
       commandName & "/" & c.subject.name,
-      "frames=" & c.frames.mapIt(it.name).join(","),
+      "",
     )
   of wkWorker:
-    let made = prepare(g, c, userDir(dir.get), true)
-    if made.status != 0:
-      return made.status
-    stdout.say made.page & "\n" & made.paths.join("\n") & "\n"
+    if p.frame.isSome:
+      # the data of one frame, which the page fetches
+      let one = framesOf(g.extensions.get(mapFramePoint), c.subject.name).filterIt(
+          it.name == p.frame.get
+        )
+      if one.len == 0:
+        return usageError(
+          "nch map",
+          usageText(g, helpWidth(stderr)),
+          fmt"'{p.frame.get}' is not a frame of {c.subject.name}",
+        )
+      let made = makeFrames(g, c, one, userDir(dir.get))
+      if made.status != 0:
+        return made.status
+      stdout.say made.paths[0] & "\n"
+    else:
+      let made = makePage(g, c, userDir(dir.get))
+      if made.status != 0:
+        return made.status
+      stdout.say made.page & "\n"
   of wkFile:
-    let made = prepare(g, c, userDir(dir.get), false)
+    let made = makeFrames(g, c, c.frames, userDir(dir.get))
     if made.status != 0:
       return made.status
     stdout.say made.paths.join("\n") & "\n"

@@ -12,7 +12,6 @@
 import std/[json, options, sequtils, strformat, strutils]
 import ../bundle/unpack
 import ./frames
-import ../cache/cache
 import ../web/libraries
 import ../text/templating/templating
 import ../ui/palette
@@ -52,8 +51,10 @@ proc parsed(
     raiseTemplate(bundle.nameOf & " is not a JSON object")
 
 type PageFrame* = object ## A frame as the page gets it.
-  name*: string ## "activities/routes"
-  file*: string ## its GeoJSON file in the cache directory
+  name*: string
+    ## "routes": the page fetches its data from its own address with `?frame=routes`
+  summary*: string ## what it is, beside its box in the list of frames
+  shown*: bool ## ticked when the page opens
   style*: JsonNode ## its style, filled in
   drawer*: string
     ## the name of its drawing ("activities-map-routes"); "": the generic one
@@ -93,40 +94,42 @@ proc renderPage*(
     css = "",
     common = "{}",
     drawers: seq[(string, string)] = @[],
-): Option[string] {.raises: [TemplateError].} =
+): string {.raises: [TemplateError].} =
   ## The page from a template text, the libraries, the frames, the css, the common style and the drawings (each a name and the
-  ## text of its function; already checked); none if the file of any frame is not a GeoJSON file of the cache directory
-  ## (which is what makes them safe to put in the page).  Pure.
+  ## text of its function; already checked).  Pure.
   var list = newJArray()
   for f in frames:
-    if not isCacheFileName(f.file) or not f.file.endsWith(".geojson"):
-      return none(string)
-    list.add %*{"name": f.name, "file": f.file, "style": f.style, "drawer": f.drawer}
+    list.add %*{
+      "name": f.name,
+      "summary": f.summary,
+      "shown": f.shown,
+      "style": f.style,
+      "drawer": f.drawer,
+    }
   var code = ""
   for (name, js) in drawers:
     code.add "  drawers[" & escapeJson(name) & "] = (\n" & js.strip & "\n  );\n"
-  some(
-    render(
-      source,
-      context(
-        libs &
-          @[
-            ("title", text(title)),
-            ("frames", text(($list).replace("</", "<\\/"))),
-            ("css", text(css)),
-            ("style", text(common.replace("</", "<\\/"))),
-              # (in a script: the page ends at the first "</script")
-            ("drawers", text(code)),
-          ]
-      ),
-    )
+  render(
+    source,
+    context(
+      libs &
+        @[
+          ("title", text(title)),
+          ("frames", text(($list).replace("</", "<\\/"))),
+          ("css", text(css)),
+          ("style", text(common.replace("</", "<\\/"))),
+            # (in a script: the page ends at the first "</script")
+          ("drawers", text(code)),
+        ]
+    ),
   )
 
 proc pageHtml*(
-    drawn: seq[tuple[frame: MapFrame, file: string]], title: string
-): Option[string] {.raises: [TemplateError].} =
-  ## The page for the frames drawn, each with its GeoJSON file, from the templates, the styles and drawings of the frames and the
-  ## libraries in use (the author's if they have put their own in the cache's `system/` part).
+    listed: seq[tuple[frame: MapFrame, shown: bool]], subject, title: string
+): string {.raises: [TemplateError].} =
+  ## The page of a subject: every frame of it (`listed`, those to show ticked), from the templates, the styles and drawings of
+  ## the frames and the libraries in use (the author's if they have put their own in the cache's `system/` part).  The page
+  ## fetches the data of each frame it shows from its own address.
   let palette = paletteValues()
   var css: string
   try:
@@ -135,15 +138,16 @@ proc pageHtml*(
     raiseTemplate("map.css: " & e.msg)
   var frames: seq[PageFrame]
   var drawers: seq[(string, string)]
-  for (f, file) in drawn:
+  for (f, shown) in listed:
     var drawer = ""
     if f.script.isSome:
       drawer = f.script.get.stemOf
       if drawers.allIt(it[0] != drawer):
         drawers.add (drawer, drawerText(f.script.get))
     frames.add PageFrame(
-      name: f.subject & "/" & f.name,
-      file: file,
+      name: f.name,
+      summary: f.summary,
+      shown: shown,
       style: frameStyle(f, palette),
       drawer: drawer,
     )
@@ -151,7 +155,7 @@ proc pageHtml*(
     resolve(templateBundle).data,
     libraryValues(),
     frames,
-    title,
+    title & " of " & subject,
     css,
     $commonStyle(palette),
     drawers,

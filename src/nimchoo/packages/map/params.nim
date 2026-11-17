@@ -1,7 +1,8 @@
-## The command line of `nch map`, parsed.  Pure.  `nch map [SUBJECT] [--frames FRAME...]`: the subject is what the map is of (the
-## default one if it is left out) and the frames are what is drawn of it; which names exist is the registry's to say
-## (`subject/subjects`, `map/frames`), so the command checks them, not the parser.  The options are marked as allowed in an address
-## (`/map/activities?frames=routes,heat`), so the list of what a page may be given is made from here (`web/request.pageOf`).
+## The command line of `nch map`, parsed.  Pure.  `nch map [SUBJECT]`: the subject is what the map is of (the default one if it
+## is left out); `--frames` says which frames `--file` makes, and `--frame` which one the worker makes for the page; which names
+## exist is the registry's to say (`subject/subjects`, `map/frames`), so the command checks them, not the parser.  `--frame` is
+## marked as allowed in an address (`/map/activities?frame=heat`), so the list of what a page may be given is made from here
+## (`web/request.pageOf`).
 
 import std/[options, sequtils, strutils]
 import ../../core/[extension, globals]
@@ -17,11 +18,14 @@ type
     subject*: Option[string] ## none: the default subject
     frames*: seq[string]
       ## what to draw, in the order given; none: the frames that are shown unless told otherwise
+    frame*: Option[string]
+      ## for the page (with `--worker`): make the data of this one frame, not the page (`?frame=heat`)
 
   Raw = object ## what the options fill in
     help: bool
     subjects: seq[string]
     frames: seq[string]
+    frame: string
     web: WebArgs
 
 func isWord*(value: string): bool =
@@ -52,11 +56,19 @@ func mapSpec*(): Spec[Raw] =
           ["--frames"],
           takeFrames,
           "FRAME...",
-          "what to draw, separated by spaces: the frames of the subject (see the table below); default: those marked *",
+          "with --file: the frames to make a file of, separated by spaces (see the table below); default: those marked *.  On the page, tick the frames to draw",
           completion = completesFrom(completeFrames),
-          address = adList,
           valid = isWord,
-        )
+        ),
+        text(
+          Raw,
+          ["--frame"],
+          frame,
+          "FRAME",
+          "for the page, with --worker: make the data of this one frame (the page fetches each frame it shows)",
+          address = adValue,
+          valid = isWord,
+        ),
       ] & webOptions(Raw, web, "the map", "a GeoJSON file for each frame") &
       @[helpFlag(Raw)],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
@@ -72,12 +84,19 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params](mode.problem)
   if raw.subjects.len > 1:
     return problemWith[Params]("expected at most one SUBJECT")
+  if raw.frame.len > 0 and mode.params.kind != wkWorker:
+    return problemWith[Params]("--frame is for the page: it goes with --worker")
+  if raw.frames.len > 0 and mode.params.kind != wkFile:
+    return problemWith[Params](
+      "--frames chooses the files of --file: on the page, tick the frames to draw (the browser remembers them)"
+    )
   parsedOk(
     Params(
       web: mode.params,
       subject: (if raw.subjects.len == 1: some(raw.subjects[0])
       else: none(string)),
       frames: raw.frames,
+      frame: (if raw.frame.len > 0: some(raw.frame) else: none(string)),
     )
   )
 

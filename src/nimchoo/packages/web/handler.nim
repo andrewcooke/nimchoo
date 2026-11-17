@@ -8,8 +8,9 @@
 ##
 ## A request must (1) be a GET, (2) have our own address in its Host header, (3) carry the
 ## token, in the cookie, or once in the URL (then the cookie is set and the browser is sent
-## on to the same address without it).  Then it is a page (`/map/activities?frames=routes,heat`: the worker
-## makes the files and the first it names is sent: every request makes them again, so a page shows the data as they are) or a file of the cache directory
+## on to the same address without it).  Then it is a page (`/map/activities`: the worker
+## makes the page and it is sent; `?frame=NAME` instead makes that frame's data, which the page fetches: every request makes
+## them again, so a page shows the data as they are) or a file of the cache directory
 ## (`/files/NAME`).  Anything else is "not found".
 ##
 ## Two addresses are for `nch` itself, never for a page: `/status` (what the server is: `ServerConfig.identity`, so that a
@@ -106,7 +107,7 @@ converter toStep(r: Reply): Step =
   Step(needsWorker: false, reply: r)
 
 proc page(cfg: ServerConfig, route: Route, r: WorkerResult): Reply =
-  ## The page that the worker made.
+  ## What the worker made and named first: a page, or the data a page asked for (a map's frame: GeoJSON), from the cache.
   if r.code != 0:
     let why = r.stderr.strip
     return reply(
@@ -124,12 +125,16 @@ proc page(cfg: ServerConfig, route: Route, r: WorkerResult): Reply =
   if lines.len == 0:
     return reply(500, "nch " & route.command & " made no page")
   let name = extractFilename(lines[0])
-  if parentDir(lines[0]) != cfg.cacheDir or not name.endsWith(".html"):
-    return reply(500, "nch " & route.command & " named a page that is not in the cache")
+  if parentDir(lines[0]) != cfg.cacheDir or
+      not (name.endsWith(".html") or name.endsWith(".geojson")):
+    return reply(
+      500,
+      "nch " & route.command & " named a file that is not a page or data of the cache",
+    )
   let body = readCacheFile(cfg, name)
   if body.isNone:
     return reply(404, "not found")
-  reply(200, body.get, htmlType)
+  reply(200, body.get, contentTypeOf(name))
 
 proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
   if req.meth != "GET":

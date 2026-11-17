@@ -31,8 +31,7 @@ type
 
   PageOption* = object
     name*: string ## `?name=value` becomes `--name value`
-    valid*: Validator ## of the value (of each item, for a list)
-    isList*: bool ## `?name=a,b` becomes `--name a b`
+    valid*: Validator ## of the value
 
   WebPage* = object
     ## A command the server may run for a page, as a package offers it (the point `webPage`): the command
@@ -62,10 +61,6 @@ func pageOf*[P](command: string, spec: Spec[P], word: Validator = nil): WebPage 
       doAssert o.valid != nil,
         "an option allowed in an address needs a check for its value: " & name
       result.options.add PageOption(name: name, valid: o.valid)
-    of adList:
-      doAssert o.valid != nil,
-        "an option allowed in an address needs a check for its value: " & name
-      result.options.add PageOption(name: name, valid: o.valid, isList: true)
     of adNo:
       discard
 
@@ -106,7 +101,7 @@ func withoutParam*(t: Target, name: string): string =
   render(t, name, true)
 
 func parseTarget*(raw: string): Option[Target] =
-  ## "/map/activities?frames=routes,heat" -> path "/map/activities" and the query, percent-decoded.
+  ## "/map/activities?frame=heat" -> path "/map/activities" and the query, percent-decoded.
   ## None for anything that is not a plain path (no scheme or host, as written or as decoded,
   ## no spaces or control characters, not too long as written or as written back).
   if raw.len == 0 or raw.len > maxTarget or raw[0] != '/' or raw.startsWith("//"):
@@ -222,14 +217,8 @@ func route*(t: Target, pages: seq[WebPage]): Option[Route] =
         if option.len == 0:
           return none(Route)
         args.add "--" & k
-        if option[0].isList:
-          let items = v.split(',')
-          if items.anyIt(it.len == 0 or not option[0].valid(it)):
-            return none(Route)
-          args.add items
-        else:
-          if not option[0].valid(v):
-            return none(Route)
-          args.add v
+        if not option[0].valid(v):
+          return none(Route)
+        args.add v
     return some(Route(isFile: false, command: page.command, args: args))
   none(Route)

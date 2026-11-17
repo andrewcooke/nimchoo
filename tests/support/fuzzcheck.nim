@@ -81,11 +81,9 @@ proc requestProblem*(raw: string, pages: seq[WebPage]): string =
     if name in rule[0].flags:
       inc i
     elif rule[0].options.anyIt(it.name == name):
-      # (a list option takes the words up to the next option; any other takes one)
-      let isList = rule[0].options.anyIt(it.name == name and it.isList)
+      # (an option takes one word)
       var j = i + 1
-      while j < rt.args.len and
-          (j == i + 1 or isList and not rt.args[j].startsWith("--")):
+      while j < rt.args.len and j == i + 1:
         let v = rt.args[j]
         if v.len == 0 or v.hasControl or v.anyIt(it == ' ') or "--" in v:
           return "an option with a value that is not one"

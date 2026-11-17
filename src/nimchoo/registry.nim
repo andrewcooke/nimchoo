@@ -338,13 +338,14 @@ latest run.  The words and their colours are in `ui/vocabulary`.""",
       doc:
         """The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 
-`nch map [SUBJECT] [--frames FRAME...]`.  The map knows no subject and no kind of data: the point `map/frames` (`frames.nim`) takes
+`nch map [SUBJECT]` (with `--file`, `--frames FRAME...` says which files to make).  The map knows no subject and no kind of data: the point `map/frames` (`frames.nim`) takes
 the frames, each a GeoJSON file about a subject that its provider makes (`activities`: routes and heat; `climbs`: the climbs
 of the activities, their gates and efforts), with a style of its own and a drawing (a JavaScript function) that the provider
 ships, so a new subject or frame is a package that contributes, and nothing here changes, in Nim or in the page.  `subject/subjects` says which subjects there are.  A GeoJSON file for each
 frame goes in the cache (each feature says what it is, in `kind`, and nothing about how it looks: `map-activities-routes.geojson`) and
-the frame's drawing, in a page (Leaflet), decides the look.  Everything is made again on every request: a map is a live view of the selection, and a
-bookmark (`/map/activities?frames=routes,climbs`) keeps the frames and not the data.  The page is served on localhost (`web`;
+the frame's drawing, in a page (Leaflet), decides the look.  Everything is made again on every request: a map is a live view of the selection.  The
+page (`/map/activities`) lists the subject's frames, a box each: the ones ticked are fetched (`?frame=NAME`) and drawn, and the
+browser remembers which are ticked (at first: those marked as shown).  The page is served on localhost (`web`;
 `--file` makes the files only, and prints their paths).
 
 **The page is templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
@@ -596,7 +597,7 @@ Used for xlsx files and for downloads.""",
       doc:
         """The local web server: runs `nch` commands named in addresses and shows their pages.
 
-A lightweight server on `127.0.0.1` that interprets the address as a command (`/map/activities?frames=routes,heat`) and shows its page, or serves
+A lightweight server on `127.0.0.1` that interprets the address as a command (`/map/activities`, `/map/activities?frame=heat`) and shows its page, or serves
 a file of the cache (`/files/NAME`).  Any web page open in the browser can send requests to localhost, so the rules are
 strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DNS rebinding) and the token, in a cookie or
 once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each

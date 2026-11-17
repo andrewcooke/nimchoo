@@ -18,3 +18,12 @@ html, body, #map { height: 100%; margin: 0; }
   font: 13px sans-serif;
   border-radius: 3px;
 }
+
+.frames {
+  background: rgba(255, 255, 255, 0.85);
+  color: {{white}};
+  font: 13px sans-serif;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+.frames label { display: block; cursor: pointer; }

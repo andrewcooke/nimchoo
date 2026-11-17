@@ -64,6 +64,7 @@ suite "map: the command, with frames of its own":
     let w = world("unknown")
     check run(w.db, "nothing", "--file") == exitUsage
     check run(w.db, "--frames", "gamma", "--file") == exitUsage
+    check run(w.db, "--frames", "alpha") == exitUsage # (on the page, the boxes choose)
     check run(w.db, "things", "--frames", "alpha", "gamma", "--file") == exitUsage
     check run(w.db, "a", "b", "--file") == exitUsage
     check run(w.db, "Things", "--file") == exitUsage
@@ -89,23 +90,25 @@ suite "map: the command, with frames of its own":
     check getLastModificationTime(path).toUnix != 1_000_000_000
     check parseFile(path)["features"].len == 1
     check files(w.cache).len == 1
-  test "--worker makes the page too, named for the frames, which names the files and carries the styles":
+  test "--worker makes the page of the subject: every frame of it listed, with its style and drawing; no data":
     let w = world("worker")
-    check run(w.db, "--frames", "alpha", "beta", "--worker") == exitOk
-    check files(w.cache) ==
-      @[
-        "map-things-alpha-beta.html", "map-things-alpha.geojson",
-        "map-things-beta.geojson",
-      ]
-    let page = readFile(w.cache / "map-things-alpha-beta.html")
-    check page.contains("\"map-things-alpha.geojson\"") and
-      page.contains("\"map-things-beta.geojson\"")
-    check page.contains("\"name\":\"things/alpha\"") and
-      page.contains("\"style\":{\"color\":\"#e03131\"}")
-      # (the style of a frame, filled in with the palette, under the frame's own name)
+    check run(w.db, "--worker") == exitOk
+    check files(w.cache) == @["map-things.html"]
+    let page = readFile(w.cache / "map-things.html")
+    check page.contains("\"name\":\"alpha\"") and page.contains("\"name\":\"beta\"")
+    check page.contains("\"style\":{\"color\":\"#e03131\"}")
+      # (the style of a frame, filled in with the palette)
     check page.contains("\"drawer\":\"\"") # (alpha has no drawing: the generic one)
     check page.contains("drawers[\"test-map-beta\"] = (") # (beta has its own)
+    check page.contains("\"shown\":true") # (alpha, shown by default)
     check "{{" notin page
+  test "--worker --frame makes the data of that one frame, which the page fetches; a frame not of the subject is an error":
+    let w = world("frame")
+    check run(w.db, "--worker", "--frame", "beta") == exitOk
+    check files(w.cache) == @["map-things-beta.geojson"]
+    check run(w.db, "--worker", "--frame", "gamma") == exitUsage
+    check run(w.db, "--worker", "--frame", "broken") == exitFailure
+      # (it says what it said)
   test "the options go together as they should; the old ones are gone":
     let w = world("usage")
     check run(w.db, "--file", "--worker") == exitUsage

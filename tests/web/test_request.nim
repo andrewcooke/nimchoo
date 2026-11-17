@@ -111,30 +111,24 @@ suite "serve request: what is asked for":
     ]:
       check route(target(bad)).isNone
   test "the command on the list, with its options, each once":
-    let r = route(target("/map?frames=heat")).get
+    let r = route(target("/map?frame=heat")).get
     check not r.isFile and r.command == "map"
-    check r.args == @["--frames", "heat"]
+    check r.args == @["--frame", "heat"]
     check route(target("/map")).get.args.len == 0
-    check route(target("/map?token=T&frames=heat")).get.args ==
-      @["--frames", "heat"] # (the token is not an option)
+    check route(target("/map?token=T&frame=heat")).get.args ==
+      @["--frame", "heat"] # (the token is not an option)
   test "a command that takes a word has it after a slash, once, if it passes the check":
-    let r = route(target("/map/climbs?frames=heat,gates")).get
-    check r.command == "map" and r.args == @["climbs", "--frames", "heat", "gates"]
+    let r = route(target("/map/climbs?frame=heat")).get
+    check r.command == "map" and r.args == @["climbs", "--frame", "heat"]
     check route(target("/map/climbs")).get.args == @["climbs"]
     for bad in [
       "/map/", "/map/Climbs", "/map/a-b", "/map/a/b", "/map/..", "/map/%2e%2e",
       "/map/a%2Fb", "/ff/default", "/ff/", "/files",
     ]:
       check route(target(bad)).isNone
-  test "a list is commas in an address and separate words for the command":
-    check route(target("/map?frames=routes,heat")).get.args ==
-      @["--frames", "routes", "heat"]
-    check route(target("/map?frames=heat")).get.args == @["--frames", "heat"]
-    for bad in [
-      "frames=", "frames=heat,", "frames=,heat", "frames=heat%20routes",
-      "frames=heat,,routes",
-    ]:
-      check route(target("/map?" & bad)).isNone
+  test "a list is never in an address: the frames of a map are chosen on its page":
+    for bad in ["/map?frames=heat", "/map?frames=routes,heat", "/map?frame=heat,routes"]:
+      check route(target(bad)).isNone
   test "ff: options, and flags that are given as 1":
     let r = route(
       target(
@@ -171,17 +165,17 @@ suite "serve request: what is asked for":
       "/Map",
       "/map?worker=1",
       "/map?save",
-      "/map?frames=heat&frames=heat",
-      "/map?frames=a%20b",
-      "/map?frames=a;b",
-      "/map?frames=../x",
+      "/map?frame=heat&frame=heat",
+      "/map?frame=a%20b",
+      "/map?frame=a;b",
+      "/map?frame=../x",
       "/map?selection=AB",
       "/map?state=zz",
       "/map?file=1",
       "/map?style=lines",
       "/map?tolerance=5",
       "/map?db=/etc/x",
-      "/map?frames=" & "+".repeat(10),
+      "/map?frame=" & "+".repeat(10),
     ]:
       check route(target(bad)).isNone
 

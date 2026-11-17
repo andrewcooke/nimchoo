@@ -1,4 +1,4 @@
-import std/[json, options, os, sequtils, strutils, tables, unittest]
+import std/[json, os, sequtils, strutils, tables, unittest]
 import ../support/env
 import nimchoo/packages/bundle/unpack
 import nimchoo/packages/cache/cache
@@ -10,30 +10,26 @@ from nimchoo/registry import extensions
 
 let libs = parseLibraries(librariesBundle.data).toTable
 
-const
-  data = "map-activities-routes.geojson"
-  others = ["map-activities-climbs.geojson"]
-
 proc real(name: string): MapFrame =
   ## A frame of the program, with the style and drawing its provider ships.
   extensions.get(mapFramePoint).filterIt(it.subject == "activities" and it.name == name)[
     0
   ]
 
-proc pageHtml(file, title: string): Option[string] =
-  ## The page of the routes, from one file.
-  pageHtml(@[(real("routes"), file)], title)
+proc pageHtml(title: string): string =
+  ## The page of the activities, with the routes ticked and the heat not.
+  pageHtml(@[(real("routes"), true), (real("heat"), false)], "activities", title)
 
 suite "map page: the text":
   test "it loads Leaflet with the integrity hashes, and the data from the server":
-    let h = pageHtml(data, "Map").get
+    let h = pageHtml("Map")
     check h.startsWith("<!DOCTYPE html>")
     check h.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js")
     check h.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css")
     check h.contains("integrity=\"" & libs["leaflet-js-hash"] & "\"")
     check h.contains("integrity=\"" & libs["leaflet-css-hash"] & "\"")
-    check h.contains("\"" & data & "\"") # the file, in the list the page fetches
-    check h.contains("fetch('/files/' + f.file)")
+    check h.contains("\"name\":\"routes\"") # the frames, in the list the page fetches
+    check h.contains("fetch(location.pathname + '?frame='")
     check h.contains("https://tile.openstreetmap.org/{z}/{x}/{y}.png")
     check h.contains("OpenStreetMap") # (the attribution the tile policy asks for)
   test "the hashes are the ones of the files that were checked":
@@ -42,11 +38,11 @@ suite "map page: the text":
     check libs["leaflet-css-hash"] ==
       "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
   test "the look comes from the css and the style templates, with the palette's colours filled in":
-    let h = pageHtml(data, "t").get
+    let h = pageHtml("t")
     check h.contains("html, body, #map { height: 100%; margin: 0; }")
       # the css, in the page
     check h.contains("color: #222222;") # {{white}} of the palette
-    check h.contains("\"name\":\"activities/routes\"") and
+    check h.contains("\"name\":\"routes\"") and
       h.contains("\"style\":{\"color\":\"#e03131\"")
       # {{{red}}} of the palette, in the style of the routes, under the frame's name
     check h.contains("\"spread_m\":4") and h.contains("\"smooth_rounds\":2")
@@ -56,23 +52,18 @@ suite "map page: the text":
       h.contains("ctx.shared.routesSpreadM") # the routes' drawing, in the page
     check not h.contains("{{!") # (comments are gone)
   test "no placeholder is left":
-    let h = pageHtml(data, "t").get
+    let h = pageHtml("t")
     check "{{" notin h and "}}}" notin h # (every tag was filled in)
   test "the title is text, not markup":
-    let h = pageHtml(data, "<script>alert(1)</script> & \"x\"").get
+    let h = pageHtml("<script>alert(1)</script> & \"x\"")
     check not h.contains("<script>alert")
     check h.contains("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;")
-  test "only the name of a cache file, and a geojson one":
-    for bad in [
-      "", "../x.geojson", "a/b.geojson", "map.html",
-      "heatmap--check-a.geojson'); alert(1); ('", "heatmap--check-a b.geojson",
-      "heatmap--check-a.geojson.exe",
-    ]:
-      check pageHtml(bad, "t").isNone
-    check pageHtml("map-activities-routes.geojson", "t").isSome
-      # (a name the cache could hold)
-    check pageHtml(@[(real("routes"), data), (real("heat"), "../x.geojson")], "t").isNone
-      # (any one of them)
+  test "every frame of the subject is listed, the ticked ones marked; the page fetches the data of a frame from its own address":
+    let h = pageHtml("t")
+    check h.contains("\"name\":\"routes\"") and h.contains("\"name\":\"heat\"")
+    check h.contains("\"shown\":true") and h.contains("\"shown\":false")
+    check h.contains("'?frame='")
+    check h.contains("localStorage") # (the browser remembers which are ticked)
 
 suite "map page: the template and the libraries are files":
   teardown:
@@ -81,27 +72,27 @@ suite "map page: the template and the libraries are files":
     let top = getTempDir() / "nch-test-map-page"
     removeDir top
     putEnv("NCH_CACHE", top)
-    check pageHtml(data, "t").get.startsWith("<!DOCTYPE html>")
+    check pageHtml("t").startsWith("<!DOCTYPE html>")
     check readFile(systemDir(top) / "templates" / "map.html") == pageTemplate
     check readFile(systemDir(top) / "libraries.txt") == librariesBundle.data
     writeFile(
       systemDir(top) / "templates" / "map.html",
       "<h1>{{title}}</h1> <a href=\"{{leaflet-js}}\">{{{frames}}}</a>\n",
     )
-    check pageHtml(data, "My <map>").get.startsWith(
-      "<h1>My &lt;map&gt;</h1> <a href=\"" & libs["leaflet-js"] &
-        "\">[{\"name\":\"activities/routes\",\"file\":\"" & data & "\",\"style\":{"
+    check pageHtml("My <map>").startsWith(
+      "<h1>My &lt;map&gt; of activities</h1> <a href=\"" & libs["leaflet-js"] &
+        "\">[{\"name\":\"routes\",\"summary\":\""
     )
   test "other versions of the libraries: change the file":
     let top = getTempDir() / "nch-test-map-libs"
     removeDir top
     putEnv("NCH_CACHE", top)
-    discard pageHtml(data, "t")
+    discard pageHtml("t")
     writeFile(
       systemDir(top) / "libraries.txt",
       librariesBundle.data.replace("leaflet@1.9.4", "leaflet@9.9.9"),
     )
-    let h = pageHtml(data, "t").get
+    let h = pageHtml("t")
     check h.contains("leaflet@9.9.9/dist/leaflet.js") and not h.contains(
       "leaflet@1.9.4"
     )
@@ -109,14 +100,14 @@ suite "map page: the template and the libraries are files":
     let top = getTempDir() / "nch-test-map-bad"
     removeDir top
     putEnv("NCH_CACHE", top)
-    discard pageHtml(data, "t")
+    discard pageHtml("t")
     writeFile(
       systemDir(top) / "templates" / "map.html", "line one\n{{nothing-like-this}}\n"
     )
     expect TemplateError:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
     except TemplateError as e:
       check e.msg == "line 2: there is no value called 'nothing-like-this'"
   test "the pure form takes the template, the libraries, the frames, the css, the style and the drawings as they are":
@@ -124,8 +115,8 @@ suite "map page: the template and the libraries are files":
       "{{title}}|{{{frames}}}|{{x}}|{{{css}}}|{{{style}}}|{{{drawers}}}",
       @[("x", text("1"))],
       @[
-        PageFrame(name: "a/b", file: data, style: %*{"k": 1}, drawer: "d"),
-        PageFrame(name: "a/c", file: others[0], style: %*{}),
+        PageFrame(name: "b", summary: "B", shown: true, style: %*{"k": 1}, drawer: "d"),
+        PageFrame(name: "c", summary: "C", style: %*{}),
       ],
       "T",
       "a{}",
@@ -133,22 +124,18 @@ suite "map page: the template and the libraries are files":
       @[("d", "(features, ctx) => ({})\n")],
     )
     check page ==
-      some(
-        "T|[{\"name\":\"a/b\",\"file\":\"" & data &
-          "\",\"style\":{\"k\":1},\"drawer\":\"d\"},{\"name\":\"a/c\",\"file\":\"" &
-          others[0] &
-          "\",\"style\":{},\"drawer\":\"\"}]|1|a{}|{\"k\":1}|  drawers[\"d\"] = (\n(features, ctx) => ({})\n  );\n"
-      )
-    check renderPage("{{title}}", @[], @[PageFrame(file: "../x.geojson")], "T").isNone
-  test "a closing script tag in a style cannot end the script of the page":
+      "T|[{\"name\":\"b\",\"summary\":\"B\",\"shown\":true,\"style\":{\"k\":1},\"drawer\":\"d\"}," &
+      "{\"name\":\"c\",\"summary\":\"C\",\"shown\":false,\"style\":{},\"drawer\":\"\"}]|1|a{}|{\"k\":1}|" &
+      "  drawers[\"d\"] = (\n(features, ctx) => ({})\n  );\n"
+  test "a closing script tag in a style or a summary cannot end the script of the page":
     let page = renderPage(
       "<script>const s = {{{style}}}; const f = {{{frames}}};</script>",
       @[],
-      @[PageFrame(name: "a/b", file: data, style: %*{"k": "</script><i>"})],
+      @[PageFrame(name: "b", summary: "</script>", style: %*{"k": "</script><i>"})],
       "T",
       "",
       "{\"k\":\"</script><b>\"}",
-    ).get
+    )
     check page.count("</script") == 1
     check page.contains("<\\/script><b>") and page.contains("<\\/script><i>")
 
@@ -159,7 +146,7 @@ suite "map page: the css and the style are files too":
     let top = getTempDir() / "nch-test-map-look"
     removeDir top
     putEnv("NCH_CACHE", top)
-    discard pageHtml(data, "t")
+    discard pageHtml("t")
     check readFile(systemDir(top) / "templates" / "map.css") == cssBundle.data
     check readFile(systemDir(top) / "templates" / "map-style.json") == styleBundle.data
     check readFile(systemDir(top) / "templates" / "activities-map-routes.json").contains(
@@ -172,7 +159,7 @@ suite "map page: the css and the style are files too":
         "\"spread_m\": 4", "\"spread_m\": 9"
       ),
     )
-    let h = pageHtml(data, "t").get
+    let h = pageHtml("t")
     check h.contains("body { color: #4dabf7; }") and h.contains("\"spread_m\":9") and
       not h.contains("height: 100%")
     check readFile(systemDir(top) / "templates" / "map.css") ==
@@ -181,24 +168,24 @@ suite "map page: the css and the style are files too":
     let top = getTempDir() / "nch-test-map-badstyle"
     removeDir top
     putEnv("NCH_CACHE", top)
-    discard pageHtml(data, "t")
+    discard pageHtml("t")
     let routes = systemDir(top) / "templates" / "activities-map-routes.json"
     let original = readFile(routes)
     writeFile(routes, "{ \"routes\": ")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
       check false
     except TemplateError as e:
       check e.msg.startsWith("activities-map-routes.json is not valid JSON")
     writeFile(routes, "[1]")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
       check false
     except TemplateError as e:
       check e.msg == "activities-map-routes.json is not a JSON object"
     writeFile(routes, "{ \"weight\": 3 }")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
       check false
     except TemplateError as e:
       check e.msg == "activities-map-routes.json has no color"
@@ -206,20 +193,20 @@ suite "map page: the css and the style are files too":
     let common = systemDir(top) / "templates" / "map-style.json"
     writeFile(common, "{}")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
       check false
     except TemplateError as e:
       check e.msg == "map-style.json has no smooth_rounds"
     writeFile(common, styleBundle.data)
-    check pageHtml(data, "t").isSome
+    check pageHtml("t").len > 0
   test "a mistake in the css template says which file":
     let top = getTempDir() / "nch-test-map-badcss"
     removeDir top
     putEnv("NCH_CACHE", top)
-    discard pageHtml(data, "t")
+    discard pageHtml("t")
     writeFile(systemDir(top) / "templates" / "map.css", "a {}\n{{nothing-like-this}}\n")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
     except TemplateError as e:
       check e.msg == "map.css: line 2: there is no value called 'nothing-like-this'"
 
@@ -230,14 +217,14 @@ suite "map page: the drawings of the frames are files too":
     let top = getTempDir() / "nch-test-map-drawing"
     removeDir top
     putEnv("NCH_CACHE", top)
-    discard pageHtml(data, "t")
+    discard pageHtml("t")
     let js = systemDir(top) / "templates" / "activities-map-routes.js"
     check readFile(js).contains("routesSpreadM") # (unpacked, as the provider ships it)
     writeFile(js, "// mine\n(features, ctx) => ({ caption: 'my routes' })\n")
-    check pageHtml(data, "t").get.contains("caption: 'my routes'")
+    check pageHtml("t").contains("caption: 'my routes'")
     writeFile(js, "(features, ctx) => '</SCRIPT>'\n")
     try:
-      discard pageHtml(data, "t")
+      discard pageHtml("t")
       check false
     except TemplateError as e:
       check e.msg == "activities-map-routes.js has a closing script tag in it"
@@ -245,6 +232,6 @@ suite "map page: the drawings of the frames are files too":
     let routes = real("routes")
     var again = routes
     again.name = "again"
-    let h = pageHtml(@[(routes, data), (again, others[0])], "t").get
+    let h = pageHtml(@[(routes, true), (again, true)], "activities", "t")
     check h.count("drawers[\"activities-map-routes\"] = (") == 1
-    check h.contains("\"name\":\"activities/again\"")
+    check h.contains("\"name\":\"again\"")

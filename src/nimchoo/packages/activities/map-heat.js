@@ -24,6 +24,9 @@
     }));
   }
   if (layers.size === 0) return {};
+  // one group on the map (so that the page can show and hide the frame); the level in it is the one the zoom calls for
+  const group = L.layerGroup();
+  ctx.add(group, 0);
   let shown = null;
   const update = () => {                                          // the finest level the zoom allows (the coarsest if none)
     const zoom = map.getZoom();
@@ -31,8 +34,8 @@
     for (const l of s.levels) if (layers.has(l.level) && zoom >= l.min_zoom && (level === null || l.level < level)) level = l.level;
     if (level === null) level = Math.max(...layers.keys());
     if (level === shown) return;
-    if (shown !== null) map.removeLayer(layers.get(shown));
-    layers.get(level).addTo(map);
+    group.clearLayers();
+    group.addLayer(layers.get(level));
     shown = level;
   };
   return {

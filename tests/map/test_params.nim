@@ -17,18 +17,29 @@ suite "map: the command line":
     check parseArgs(@["a", "b"]).problem.contains("at most one SUBJECT")
     check parseArgs(@["Activities"]).problem.contains("not a name of a subject")
     check parseArgs(@["a-b"]).problem.contains("not a name of a subject")
-  test "--frames: words, separated by spaces, in the order given":
-    check parseArgs(@["--frames", "heat"]).params.frames == @["heat"]
-    check parseArgs(@["--frames", "heat", "routes"]).params.frames == @[
-      "heat", "routes"
-    ]
-    check parseArgs(@["--frames=heat"]).params.frames == @["heat"]
-    check parseArgs(@["climbs", "--frames", "gates", "efforts"]).params.frames ==
+  test "--frames, with --file: words, separated by spaces, in the order given":
+    check parseArgs(@["--file", "--frames", "heat"]).params.frames == @["heat"]
+    check parseArgs(@["--file", "--frames", "heat", "routes"]).params.frames ==
+      @["heat", "routes"]
+    check parseArgs(@["--file", "--frames=heat"]).params.frames == @["heat"]
+    check parseArgs(@["climbs", "--file", "--frames", "gates", "efforts"]).params.frames ==
       @["gates", "efforts"]
-  test "--frames problems: a name that is not a word, or none":
+  test "--frames problems: a name that is not a word, or none; without --file (the page has its boxes)":
     for bad in ["", "Heat", "routes,", "heat,routes", "a-b"]:
-      check parseArgs(@["--frames", bad]).problem.contains("not a name of a frame")
-    check parseArgs(@["--frames"]).problem.contains("needs at least one frame")
+      check parseArgs(@["--file", "--frames", bad]).problem.contains(
+        "not a name of a frame"
+      )
+    check parseArgs(@["--file", "--frames"]).problem.contains(
+      "needs at least one frame"
+    )
+    check parseArgs(@["--frames", "heat"]).problem.contains("tick the frames")
+    check parseArgs(@["--worker", "--frames", "heat"]).problem.contains(
+      "tick the frames"
+    )
+  test "--frame, for the page: one frame, with --worker only":
+    check parseArgs(@["--worker", "--frame", "heat"]).params.frame == some("heat")
+    check parseArgs(@["--frame", "heat"]).problem.contains("goes with --worker")
+    # (its value is checked in an address; on the command line the command says whether it is a frame)
   test "the pinning options and --layers are gone: the map is of the selection":
     for old in [
       @["--selection", "AWAnLmgGhgZI6JjZom"],
@@ -61,15 +72,12 @@ suite "map: the command line":
 suite "map: the page the server may run":
   test "it is made from the options marked as allowed in an address, and takes the subject":
     check mapPage.command == "map"
-    check mapPage.options.mapIt(it.name) == @["frames"]
+    check mapPage.options.mapIt(it.name) == @["frame"]
     check mapPage.flags.len == 0
     check mapPage.word != nil
   test "what it accepts in an address is what the options accept":
-    let frames = mapPage.options[0].valid
-      # (of one item: an address spells a list with commas)
-    check mapPage.options[0].isList
-    check frames("routes") and frames("heat") and not frames("") and not frames(
-      "Routes"
-    ) and not frames("heat,routes")
+    let frame = mapPage.options[0].valid
+    check frame("routes") and frame("heat") and not frame("") and not frame("Routes") and
+      not frame("heat,routes")
     check mapPage.word("climbs") and not mapPage.word("") and not mapPage.word("A") and
       not mapPage.word("a/b")

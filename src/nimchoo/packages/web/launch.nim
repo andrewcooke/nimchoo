@@ -123,7 +123,7 @@ proc serveWeb*(
   ## `cacheDir` is the cache directory: the token is kept there, and what is served is in its `user/` part.  If a server of
   ## ours answers on the port, open the page there and return; else serve until stopped (`--stop`, or Ctrl-C, which ends
   ## the process with status 130).  `path` is the address without its first slash ("map/climbs") and `query` what it says
-  ## about the look of the page, e.g. "frames=routes,heat" (empty: the defaults).
+  ## about the look of the page, e.g. "hourly=1" (empty: the defaults).
   let name = "nch " & command
   let args = workerOptions(g)
   let identity = serverIdentity(args)

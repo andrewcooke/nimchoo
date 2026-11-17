@@ -107,7 +107,7 @@ suite "nch map: a real server":
     let (w, output) = start(f.db, f.cache)
     check w.url.len > 0
     check output.contains("http://localhost:")
-    check w.url.contains("/map/activities?frames=routes,climbs&token=")
+    check w.url.contains("/map/activities?token=")
     check w.token.len == 32
     # the printed address: the token is traded for a cookie
     let c = client()
@@ -117,23 +117,22 @@ suite "nch map: a real server":
       "nch=" & w.token & "; HttpOnly; SameSite=Strict; Path=/; Max-Age="
     )
     let pinned = $r1.headers["Location"]
-    check pinned == "/map/activities?frames=routes%2Cclimbs" # (the look, not the data)
-    # with the cookie: the page, which asks for the data
+    check pinned == "/map/activities" # (the subject, not the data nor the frames)
+    # with the cookie: the page, which lists the frames and fetches the data of each it shows
     let withCookie = client(w.token)
     let page = withCookie.request(w.base & pinned)
     check page.code == Http200
     let html = page.body
     check html.contains("leaflet@1.9.4")
-    let dataName = "/files/map-activities-routes.geojson"
-    check html.contains("\"map-activities-routes.geojson\"") and
-      html.contains("\"map-activities-climbs.geojson\"")
-    let data = withCookie.request(w.base & dataName)
+    check html.contains("\"name\":\"routes\"") and html.contains("\"name\":\"heat\"")
+    let data = withCookie.request(w.base & "/map/activities?frame=routes")
     check data.code == Http200
     check $data.headers["Content-Type"] == "application/geo+json"
     check parseJson(data.body)["features"].len == 2
-    # an address without a subject or frames is the defaults, and is served as it is (nothing is pinned)
+    check withCookie.request(w.base & "/map/activities?frame=nonesuch").code == Http500
+      # (the worker says it is not a frame of the subject)
+    # an address without a subject is the default one
     check withCookie.request(w.base & "/map").code == Http200
-    check withCookie.request(w.base & "/map/activities?frames=routes").code == Http200
     check dirExists(f.cache / "user") and dirExists(f.cache / "system")
     check fileExists(f.cache / "server-token")
       # (the token is at the top, not in what is served)
@@ -221,17 +220,17 @@ suite "nch map: a real server":
     let port = w.base.split(':')[^1]
     let p = startProcess(
       exe,
-      args = @["--db", f.db, "map", "--start", "--port", port, "--frames", "heat"],
+      args = @["--db", f.db, "map", "--start", "--port", port],
       env = environment(f.cache),
       options = {poStdErrToStdOut},
     )
     let said = p.outputStream.readAll()
     check p.waitForExit(10_000) == 0
     p.close()
-    check said.contains(w.base & "/map/activities?frames=heat&token=")
+    check said.contains(w.base & "/map/activities?token=")
     check said.contains("already running")
-    check client(w.token).request(w.base & "/map/activities?frames=heat").code == Http200
-      # (the first server makes the second page)
+    check client(w.token).request(w.base & "/map/activities?frame=heat").code == Http200
+      # (the first server makes the data the page asks for)
     check w.stop() == 130
 
   test "--stop stops the server, from another command; with none running it says so":

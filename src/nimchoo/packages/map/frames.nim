@@ -8,16 +8,20 @@
 ## file, with the notes it has for the user), how it looks (a template of its own, which the user can edit: `style`) and, if it
 ## needs more than the map's generic drawing, how it is drawn (`script`).  A frame that fails raises `StoreError` with what to say.
 ##
-## **A drawing** is a script template holding one JavaScript function, `(features, ctx) => { ... }`, called by the page with the
-## features of the frame's file.  `ctx` has `map` and `L` (Leaflet), `name` (the frame's), `style` (its own, filled in), `common`
+## **A drawing** is a script template holding one JavaScript function, `(features, ctx) => { ... }`, called by the page once,
+## the first time the frame is shown, with the features of its data (which the page fetches from its own address with
+## `?frame=NAME`).  `ctx` has `map` and `L` (Leaflet), `name` (the frame's), `style` (its own, filled in), `common`
 ## (`map-style.json`), `shared` (an object every drawing of the page sees: the routes put their `routesSpreadM` there, for the
 ## climbs beside them), `helpers` (`text`, `offsetPath`, `smoothPath`, `simplifyPath`, `metresPerDegree`, `metresPerPixel`,
-## `rgb`, `mix`: see `page.html`) and `add(layer, z)`.  It adds its layers with `add` (the page adds every frame's in order of
-## `z`, so that what is underneath does not depend on the order of the frames: climbs 10, routes 20, efforts 30, gates 40; the
-## generic drawing 50) and returns `{ bounds, rank, caption, update }`, each optional: the view fits the `bounds` of the frames
-## with the lowest `rank` that have any (routes 1, the others 2, the heat 3); `caption` says what is drawn; `update` is called
-## once the view is set and again on every zoom.  **Without a script** the frame is drawn from its style alone: lines, polygons
-## and points in `color`, `weight`, `opacity`, `fill_opacity` and `radius` (points), with every property in a popup.
+## `rgb`, `mix`: see `page.html`) and `add(layer, z)`.  **Every layer of the frame goes through `add`**, never onto the map
+## directly: the page shows and hides a frame (its box in the list of frames) by putting its layers on the map or taking them
+## off, in order of `z` (so what is underneath does not depend on the order frames are shown in: the heat 0, climbs 10, routes
+## 20, efforts 30, gates 40; the generic drawing 50); a layer whose content changes with the zoom (the heat's levels) is a group
+## whose content `update` changes.  It returns `{ bounds, rank, caption, update }`, each optional: the view is fitted to the
+## `bounds` of the frames shown when the page opens with the lowest `rank` that have any (routes 1, the others 2, the heat 3);
+## `caption` says what is drawn; `update` is called whenever the frame is shown and on every zoom while it is.  **Without a
+## script** the frame is drawn from its style alone: lines, polygons and points in `color`, `weight`, `opacity`, `fill_opacity`
+## and `radius` (points), with every property in a popup.
 
 import std/options
 import ../../core/[errors, extension]

@@ -107,8 +107,8 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.
-* **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT] [--frames FRAME...]` draws the frames that the packages
-  managing the subject contribute (`map/frames`), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
+* **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject
+  contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
   subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
   again from the data as they are on every request; the page is the default and `--file` writes the files only.
 * **commands about things outside the database are singular**: `map`, `fit`, `log`, `ff`, `cache`, `db`; and `import`,
@@ -223,8 +223,7 @@ four kinds of things go wrong, and each has one mechanism:
 * **options that take a list** (decided 2026-11-12): the option has a **plural** name (`--sports`, `--names`, `--starts`, `--paths`,
   `--climbs`, `--frames`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
   spaces** (`--names 'El Toyo' Farellones 123`: a text with spaces is quoted, a comma is part of a value), and its placeholder
-  is the item and an ellipsis (`--sports SPORT...`).  **in an address** a list is separated by commas (`frames=routes,heat`):
-  an option marked `adList` becomes `--frames routes heat` for the worker.  a **position** is one point, always **`LAT,LON`**
+  is the item and an ellipsis (`--sports SPORT...`); a list option is never in the address of a page.  a **position** is one point, always **`LAT,LON`**
   in that order (`--near`, `--at`), as it is shown; `--near` also takes a place's name (a landmark, else the biggest place of
   that name among the names loaded: `names/places.nim`), and says which place it used.  in `--names` (activities and climbs) and `--climbs` a whole number
   that no name holds is the **number** of an activity or a climb (`nch activities --names 737`): a name that holds it wins.

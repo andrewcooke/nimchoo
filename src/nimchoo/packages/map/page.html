@@ -120,34 +120,97 @@
     return { bounds: layer.getBounds(), rank: 2, caption: features.length ? features.length + ' ' + ctx.name : '' };
   }
 
-  // one file for each frame, fetched on its own: a frame that cannot be read or drawn is said so, and the others are drawn.  The
-  // layers of all of them are added in order of their `z` (so what is underneath does not depend on the order of the frames),
-  // then the view is fitted to the frames of the lowest rank that have any, then each frame is brought up to date with the view.
+  // --- the frames: each fetched from this page's own address (?frame=NAME, which makes its data from the data as they are) the
+  // first time it is shown, drawn by its drawing once, and then shown or hidden by its box in the list.  What is on the map is
+  // the layers of the ticked frames, put there in order of their `z` (so what is underneath does not depend on the order the
+  // frames were shown in); the browser remembers which are ticked.
   const shared = {};
-  Promise.allSettled(frames.map((f) => fetch('/files/' + f.file)
-      .then((r) => { if (!r.ok) throw new Error(f.file + ': HTTP ' + r.status); return r.json(); })))
+  const state = new Map();                                        // the name of a frame -> what became of it
+  let order = 0;
+  const ofFrame = (f) => { if (!state.has(f.name)) state.set(f.name, {}); return state.get(f.name); };
+  function load(f) {
+    const s = ofFrame(f);
+    if (!s.data) s.data = fetch(location.pathname + '?frame=' + encodeURIComponent(f.name))
+      .then((r) => { if (!r.ok) throw new Error(f.name + ': HTTP ' + r.status); return r.json(); });
+    return s.data;
+  }
+  function draw(f, data) {
+    const s = ofFrame(f);
+    if (s.drawn) return;
+    s.layers = [];
+    const ctx = { map, L, name: f.name, style: f.style, common, shared, helpers,
+                  add: (layer, z) => s.layers.push({ layer, z: z ?? 50, k: order++ }) };
+    try { Object.assign(s, (f.drawer ? drawers[f.drawer] : generic)(data.features || [], ctx) || {}); s.drawn = true; }
+    catch (e) { s.failed = f.name + ': ' + e; }
+  }
+  const updateShown = () => {
+    for (const f of frames) { const s = ofFrame(f); if (f.shown && s.drawn && s.update) s.update(); }
+  };
+  function arrange() {
+    const on = [];
+    for (const f of frames) {
+      const s = ofFrame(f);
+      for (const l of s.layers || []) { map.removeLayer(l.layer); if (f.shown && s.drawn) on.push(l); }
+    }
+    on.sort((a, b) => a.z - b.z || a.k - b.k).forEach((l) => l.layer.addTo(map));
+    updateShown();
+    const said = frames.filter((f) => f.shown).map((f) => ofFrame(f)).filter((s) => s.caption).map((s) => s.caption);
+    const failed = frames.filter((f) => f.shown && ofFrame(f).failed).map((f) => ofFrame(f).failed);
+    caption.textContent = said.join(', ') + (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '');
+    try { localStorage.setItem(remembered, JSON.stringify(frames.filter((f) => f.shown).map((f) => f.name))); }
+    catch (e) { /* (no storage: the page works, it just does not remember) */ }
+  }
+  function toggle(f, on) {
+    f.shown = on;
+    if (!on) { arrange(); return; }
+    load(f).then((data) => draw(f, data), (e) => { ofFrame(f).failed = String(e); }).then(arrange);
+  }
+  map.on('zoomend', updateShown);
+
+  // which frames are ticked: what was ticked the last time, in this browser, for this subject (else the defaults the page was
+  // made with); kept again whenever a box changes
+  const remembered = 'nch' + location.pathname;
+  try {
+    const names = JSON.parse(localStorage.getItem(remembered) || 'null');
+    if (Array.isArray(names)) for (const f of frames) f.shown = names.includes(f.name);
+  } catch (e) { /* (no storage, or what is there is not ours: the defaults) */ }
+
+  // the list of frames, a box each (its summary when the pointer is on it)
+  const list = L.control({ position: 'topright' });
+  list.onAdd = () => {
+    const div = L.DomUtil.create('div', 'frames');
+    L.DomEvent.disableClickPropagation(div);
+    for (const f of frames) {
+      const label = L.DomUtil.create('label', '', div);
+      label.title = f.summary;
+      const box = L.DomUtil.create('input', '', label);
+      box.type = 'checkbox';
+      box.checked = f.shown;
+      box.addEventListener('change', () => toggle(f, box.checked));
+      label.appendChild(document.createTextNode(' ' + f.name));
+    }
+    return div;
+  };
+  list.addTo(map);
+
+  // the frames ticked at first: fetched together, drawn in the order of the list (so that what a drawing shares, as the routes'
+  // spread, is there for the ones after it), then the view is fitted to the frames of the lowest rank that have any
+  const first = frames.filter((f) => f.shown);
+  Promise.allSettled(first.map(load))
     .then((results) => {
-      const failed = [], drawn = [], layers = [];
       results.forEach((r, i) => {
-        const f = frames[i];
-        if (r.status === 'rejected') { failed.push(String(r.reason)); return; }
-        const ctx = { map, L, name: f.name.split('/').pop(), style: f.style, common, shared, helpers,
-                      add: (layer, z) => layers.push({ layer, z: z ?? 50, k: layers.length }) };
-        try { drawn.push((f.drawer ? drawers[f.drawer] : generic)(r.value.features || [], ctx) || {}); }
-        catch (e) { failed.push(f.name + ': ' + e); }
+        if (r.status === 'fulfilled') draw(first[i], r.value); else ofFrame(first[i]).failed = String(r.reason);
       });
-      layers.sort((a, b) => a.z - b.z || a.k - b.k).forEach((a) => a.layer.addTo(map));
       let bounds = null, rank = Infinity;
-      for (const d of drawn) {
-        if (!d.bounds || !d.bounds.isValid()) continue;
+      for (const f of first) {
+        const d = ofFrame(f);
+        if (!d.drawn || !d.bounds || !d.bounds.isValid()) continue;
         const r = d.rank ?? 2;
         if (r < rank) { rank = r; bounds = L.latLngBounds(d.bounds.getSouthWest(), d.bounds.getNorthEast()); }
         else if (r === rank) bounds.extend(d.bounds);
       }
       if (bounds) map.fitBounds(bounds); else map.setView([0, 0], 2);
-      for (const d of drawn) if (d.update) { d.update(); map.on('zoomend', d.update); }
-      caption.textContent = drawn.map((d) => d.caption).filter((c) => c).join(', ') +
-                            (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '');
+      arrange();
     })
     .catch((e) => { caption.textContent = 'could not draw the map: ' + e; });
 </script>
