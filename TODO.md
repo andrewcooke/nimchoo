@@ -35,9 +35,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
     "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject, after D4), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
 6. **Naming by namers, with climbs** (designed 2026-11-17, after an `/oppose`: `dev/NAMING.md`, not built).  Naming leaves the
-    importer for a package `naming` that collects whole names, each with a level, from namers: a generic one (places and
-    landmarks) and a cycling one from `climbs` (the ride's big climb, HC, 1 or 2).  Names stay stored text.  Open, to settle
-    with examples: which climb when there are several, the levels, the wording.  The plan's steps wait for the author's
+    importer for a package `naming` that asks namers in order of precedence, the first name proposed winning: landmarks, the
+    ride's big climb (HC, 1 or 2, from `climbs`), places.  Names stay stored text.  Open, to settle with examples: which climb
+    when there are several, the wording.  The plan's steps wait for the author's
     approval; the squash and the rebuild come after them.
 7. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
