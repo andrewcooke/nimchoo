@@ -108,7 +108,8 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT] [--frames FRAME...]` draws the frames that the packages
-  managing the subject contribute (`map/frames`); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
+  managing the subject contribute (`map/frames`), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
+  subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
   again from the data as they are on every request; the page is the default and `--file` writes the files only.
 * **commands about things outside the database are singular**: `map`, `fit`, `log`, `ff`, `cache`, `db`; and `import`,
   which reads files into it.

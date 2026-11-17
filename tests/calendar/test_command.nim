@@ -1,11 +1,11 @@
-import std/[os, sequtils, strutils, times, unittest]
+import std/[options, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/calendar/[calendar, command as calendarCommand, params]
 import nimchoo/packages/db/statement
 import nimchoo/packages/ui/style
 import nimchoo/packages/user/session
 import nimchoo/packages/util/args/args
-from nimchoo/registry import allFragments, allAccess, newAllAccess
+from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 
 let dir = getTempDir() / "nch-test-calendar-cmd"
 
@@ -43,6 +43,12 @@ func texts(ls: seq[Line]): seq[string] =
     result.add l.text
 
 let screen = Screen(colour: true)
+let g = Globals(fragments: allFragments, access: allAccess, extensions: extensions)
+
+proc shown(s: Session, args: varargs[string]): seq[Line] =
+  ## The lines `nch calendar ARGS` shows, in UTC.
+  let p = parseArgs(@args).params
+  lines(s, choose(g, p).params, p, utc(), screen)
 
 suite "nch calendar: the command line":
   test "-v; --all is gone (the calendar is of the selection)":
@@ -50,23 +56,30 @@ suite "nch calendar: the command line":
     let p = parseArgs(@["-v"])
     check p.problem == "" and p.params.verbose
     check parseArgs(@["--all"]).problem.len > 0
-  test "no criteria, no other options":
+  test "a subject, at most one; no criteria, no other options":
+    check parseArgs(@["activities"]).params.subject.get == "activities"
+    check parseArgs(@[]).params.subject.isNone
+    check parseArgs(@["a", "b"]).problem.len > 0
+    check parseArgs(@["Not-a-word"]).problem.len > 0
     check parseArgs(@["--sports", "cycling"]).problem.len > 0
-    check parseArgs(@["x"]).problem.len > 0
+  test "the subject is the registry's: the default is the activities, and an unknown one says what there is":
+    check choose(g, parseArgs(@[]).params).params.subject.name == "activities"
+    let p = choose(g, parseArgs(@["nonesuch"]).params)
+    check "no subject 'nonesuch'" in p.problem and "activities" in p.problem
+    check calendarCommand.run(g, @["nonesuch"]) == exitUsage
   test "every option has help and is in the usage":
     for d in calendarSpec().docs:
       check d.help.len > 0
-    let text = calendarCommand.usageText(80)
+    let text = calendarCommand.usageText(g, 80)
     for d in calendarSpec().docs:
       for n in d.names:
         check n in text
   test "the whole usage fits the width, except the synopsis":
     for width in [50, 80]:
-      for l in calendarCommand.usageText(width).splitLines:
+      for l in calendarCommand.usageText(g, width).splitLines:
         if not l.startsWith("usage: "):
           check l.len <= width
   test "exit codes":
-    let g = Globals(fragments: allFragments, access: allAccess)
     check calendarCommand.run(g, @["--help"]) == exitOk
     check calendarCommand.run(g, @["--nonesuch"]) == exitUsage
 
@@ -75,12 +88,14 @@ suite "nch calendar: what it shows":
     let s = world("selection")
     defer:
       s.close()
-    let ls = lines(s, parseArgs(@[]).params, utc(), screen)
+    let ls = s.shown()
     check ls[0].text.startsWith("    Mo Tu We")
     check ls.texts.filterIt(it.startsWith("Jul ")).len == 1
     check ls.texts.filterIt(it.startsWith("Aug ")).len == 0
     let jul = ls.filterIt(it.text.startsWith("Jul "))[0]
     check jul.anyIt(it.look.colour == blue and it.text == "01 ")
+    check ls.texts[^1].startsWith("done: 1 activity")
+      # (the activities' frame sums them up)
 
   test "months left out are warned of, until -v shows them":
     let s = world("skip")
@@ -93,11 +108,11 @@ suite "nch calendar: what it shows":
       "insert or ignore into selection(user_id, activity_id) select :userId, id from activity",
       userId = s.userId,
     ) # (both are selected now)
-    let ls = lines(s, parseArgs(@[]).params, utc(), screen)
+    let ls = s.shown()
     check ls.texts[^1] ==
       "warning: 4 months with no activity not shown, at the yellow month names; use --verbose to show them"
     check ls[^1][0].look.colour == yellow
-    let all = lines(s, parseArgs(@["-v"]).params, utc(), screen)
+    let all = s.shown("-v")
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4
     check not all.texts[^1].startsWith("warning")
 
@@ -106,5 +121,6 @@ suite "nch calendar: what it shows":
     defer:
       s.close()
     s.db.execute("delete from selection")
-    let ls = lines(s, parseArgs(@[]).params, utc(), screen)
-    check ls.len == 1 and "nothing is selected" in ls[0].text
+    let ls = s.shown()
+    check ls.texts ==
+      @["the selection of activities is empty (see `nch activities --select`)"]

@@ -167,6 +167,11 @@ one read transaction need the first.
 * `calendar` defines `calendar/frames` (a mark for each day); `activities` provides the activities frame; `calendar`
   loses its dependency on `activities` (`activities/rows.nim` stays with `activities`).
 * Visible: none.  Rebuild: no.
+* Done 2026-11-16.  As built: `nch calendar [SUBJECT] [-v]`; a subject has at most one calendar frame (a day is marked or not,
+  so two would have nothing to tell them apart), and the frame gives the instants to mark and the last line (the activities':
+  "done: 35 activities, ..."), so the calendar knows nothing of activities.  The output is byte for byte the same on the
+  author's database; what differs is the usage (the subject, and the subjects that have a calendar) and the empty selection's
+  message, now the subject's own.  The subject is not completed by tab (as for `map`).
 
 ### Step 6: the climbs subject
 

@@ -1,5 +1,8 @@
-## The command line of `nch calendar`, parsed.  Pure.
+## The command line of `nch calendar`, parsed.  Pure.  `nch calendar [SUBJECT] [-v]`: the subject is what the calendar is of
+## (the default one if it is left out); which subjects exist is the registry's to say (`subject/subjects`), so the command
+## checks the name, not the parser.
 
+import std/[options, sequtils, strformat]
 import ../util/args/args
 
 {.push raises: [].}
@@ -7,9 +10,15 @@ import ../util/args/args
 type
   Params* = object
     verbose*: bool ## `-v`: every month from the first to the last
+    subject*: Option[string] ## none: the default subject
 
   Raw = object ## what the options fill in
     help, verbose: bool
+    subjects: seq[string]
+
+func isWord(value: string): bool =
+  ## A name of a subject: lower case letters and digits.
+  value.len > 0 and value.allIt(it in {'a' .. 'z', '0' .. '9'})
 
 func calendarSpec*(): Spec[Raw] =
   ## The options of `nch calendar`.
@@ -22,12 +31,28 @@ func calendarSpec*(): Spec[Raw] =
         "every month from the first to the last, not only those with an activity (the months either side of a gap are marked otherwise)",
       ),
       helpFlag(Raw),
-    ]
+    ],
+    positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
+      if not isWord(arg):
+        return refuse(fmt"'{arg}' is not a name of a subject")
+      p.subjects.add arg
+      fine,
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  parsedOk(Params(verbose: raw.verbose))
+  if raw.subjects.len > 1:
+    return problemWith[Params]("expected at most one SUBJECT")
+  parsedOk(
+    Params(
+      verbose: raw.verbose,
+      subject:
+        if raw.subjects.len == 1:
+          some(raw.subjects[0])
+        else:
+          none(string),
+    )
+  )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch calendar [-v]`.
+  ## `nch calendar [SUBJECT] [-v]`.
   parseCommand(args, calendarSpec(), Raw(), finish)

@@ -11,7 +11,7 @@
 ## * `bundle <packages/bundle/package.html>`_ - Files built into the program that are also kept in the cache, for the author to edit.
 ## * `bytes <packages/util/bytes/package.html>`_ - Reading numbers out of bytes, and a whole file as bytes: the one place for it.
 ## * `cache <packages/cache/package.html>`_ - The cache directory: where files that commands make go, and what they are called.
-## * `calendar <packages/calendar/package.html>`_ - The activities of the selection on a calendar.
+## * `calendar <packages/calendar/package.html>`_ - A subject on a calendar: by default the days the selected activities started on.
 ## * `child <packages/util/child/package.html>`_ - Running a child process and collecting what it says.
 ## * `childasync <packages/util/childasync/package.html>`_ - Running a child process from an event loop, so that other requests are served meanwhile.
 ## * `climbs <packages/climbs/package.html>`_ - Climbs: found in the rides, named, and ranked.
@@ -102,11 +102,13 @@ other views (`climbs`, `map`, `calendar`) take the selection.
   description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
   so this package may run a condition that reads tables it does not.
-* **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with the key of the user's
-  selection.
+* **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with how many the user's
+  selection holds.
 * **Map frames** (`mapframes.nim`): the routes of the selected activities and the heat (how often each place was visited), offered to
   `map/frames` with the style of each.
-* The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).""",
+* **A calendar frame** (`calendarframe.nim`): the days of the selected activities and the line that sums them up, offered to
+  `calendar/frames`.
+* The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).""",
     ),
     Registered(
       name: "bundle",
@@ -136,13 +138,19 @@ command and its options spelt out (`map-activities-routes.geojson`) and made aga
     Registered(
       name: "calendar",
       package: pkgCalendar.package,
-      summary: "The activities of the selection on a calendar.",
-      doc: """The activities of the selection on a calendar.
+      summary:
+        "A subject on a calendar: by default the days the selected activities started on.",
+      doc:
+        """A subject on a calendar: by default the days the selected activities started on.
 
-`nch calendar` draws the selection: a row for each month that has an activity, the days in columns by weekday (weeks start
-on Monday).  `-v` shows every month from the first to the last.  It takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them first
-(`nch activities CRITERIA --select`).  Without colour (a pipe, `NO_COLOR`) the cells are wider and carry marks, so nothing is
-lost.  The rows come from `activities`.""",
+`nch calendar [SUBJECT]` draws a row for each month that has a marked day, the days in columns by weekday (weeks start on
+Monday).  `-v` shows every month from the first to the last.  It takes no criteria, like `climbs` and `map`: to see a
+calendar of some activities, select them first (`nch activities CRITERIA --select`).  Without colour (a pipe, `NO_COLOR`)
+the cells are wider and carry marks, so nothing is lost.
+
+The calendar is a view and knows no subject: it defines the point `calendar/frames` (`frames.nim`), to which the package
+that manages a subject contributes the frame of it (`activities`: the days of the selected activities, and the line that
+sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.""",
     ),
     Registered(
       name: "climbs",

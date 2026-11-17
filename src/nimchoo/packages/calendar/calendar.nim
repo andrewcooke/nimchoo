@@ -1,25 +1,24 @@
-## The listing as a calendar: a row for each month, the days of the month in a row, each in the
+## Marks on a calendar: a row for each month, the days of the month in a row, each in the
 ## column of its weekday, so that days line up in columns (weeks start on Monday).
 ##
 ##         Mo Tu We Th Fr Sa Su Mo Tu We Th Fr Sa Su Mo Tu We Th Fr Sa Su ...
 ##     Jan                01 02 03 04 05 06 07 08 09 10 11 12 ...                      2018
 ##     Feb       01 02 03 04 05 06 07 08 ...                                           2018
 ##
-## A day is blue if an activity that was listed falls on it, grey if none was listed.  Days are the days of the time zone
-## given (the user's, for display).  Pure: the rows, the zone and the screen are parameters.
+## A day is blue if a mark (an instant: when an activity started, say) falls on it, grey if none does.  Days are the days of
+## the time zone given (the user's, for display).  Pure: the marks, the zone and the screen are parameters.
 ##
-## Only the months with an activity are shown (all the months from the first to the last with
+## Only the months with a mark are shown (all the months from the first to the last with
 ## `allMonths`); `skippedMonths` says how many the first leaves out, and the names of the months
 ## either side of a gap are yellow (with a `*` after them when there is no colour).
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
-## with an activity `" [34]"`, a day with none `"  -- "`.
+## with a mark `" [34]"`, a day with none `"  -- "`.
 
 import std/[algorithm, sequtils, sets, strutils, times]
 import ../fit/time
 import ../ui/style
 import ../ui/vocabulary
-import ../activities/table
 
 {.push raises: [].}
 
@@ -48,7 +47,7 @@ func two(n: int): string =
   intToStr(n, 2)
 
 func dayCell(day: int, listed: bool, s: Screen): Span =
-  ## A day: with an activity (`listed`) or not.
+  ## A day: with a mark (`listed`) or not.
   if s.colour:
     if listed:
       span(two(day) & " ", selectedColour)
@@ -60,35 +59,35 @@ func dayCell(day: int, listed: bool, s: Screen): Span =
     else:
       span("  -- ")
 
-proc monthsOf(rows: seq[ListRow], zone: Timezone): seq[int] =
-  ## The months (year * 12 + month - 1) with a listed activity, in order.
-  for r in rows:
-    let d = r.startT.toTime.inZone(zone)
+proc monthsOf(marks: seq[UnixTime], zone: Timezone): seq[int] =
+  ## The months (year * 12 + month - 1) with a mark, in order.
+  for t in marks:
+    let d = t.toTime.inZone(zone)
     let m = d.year * 12 + ord(d.month) - 1
     if m notin result:
       result.add m
   result.sort
 
-proc skippedMonths*(rows: seq[ListRow], zone: Timezone): int =
-  ## How many months between the first and the last have no activity (so a calendar of only
+proc skippedMonths*(marks: seq[UnixTime], zone: Timezone): int =
+  ## How many months between the first and the last have no mark (so a calendar of only
   ## the months with data leaves them out).
-  let months = monthsOf(rows, zone)
+  let months = monthsOf(marks, zone)
   if months.len > 0:
     result = months[^1] - months[0] + 1 - months.len
 
 proc calendarLines*(
-    rows: seq[ListRow], zone: Timezone, allMonths: bool, screen: Screen
+    marks: seq[UnixTime], zone: Timezone, allMonths: bool, screen: Screen
 ): seq[Line] =
-  ## The calendar of the rows: a header of weekday names, then a row for each month that has an
-  ## activity (or, with `allMonths`, for every month from the first to the last).  If the lines
+  ## The calendar of the marks: a header of weekday names, then a row for each month that has a
+  ## mark (or, with `allMonths`, for every month from the first to the last).  If the lines
   ## are wider than the screen, a warning comes first and each line is cut to the screen.
-  if rows.len == 0:
+  if marks.len == 0:
     return
-  var listed: HashSet[int] # the days with an activity: year*10000 + month*100 + day
-  for r in rows:
-    let d = r.startT.toTime.inZone(zone)
+  var listed: HashSet[int] # the days with a mark: year*10000 + month*100 + day
+  for t in marks:
+    let d = t.toTime.inZone(zone)
     listed.incl d.year * 10000 + ord(d.month) * 100 + d.monthday
-  var months = monthsOf(rows, zone) # year*12 + (month - 1)
+  var months = monthsOf(marks, zone) # year*12 + (month - 1)
   if allMonths:
     months = toSeq(months[0] .. months[^1])
   let cw = cellWidth(screen)

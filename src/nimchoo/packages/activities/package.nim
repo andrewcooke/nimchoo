@@ -12,22 +12,24 @@
 ##   description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
 ##   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
 ##   so this package may run a condition that reads tables it does not.
-## * **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with the key of the user's
-##   selection.
+## * **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with how many the user's
+##   selection holds.
 ## * **Map frames** (`mapframes.nim`): the routes of the selected activities and the heat (how often each place was visited), offered to
 ##   `map/frames` with the style of each.
-## * The table (`table.nim`) and its rows (`rows.nim`, which `calendar` uses too); the delete (`deleterun.nim`).
+## * **A calendar frame** (`calendarframe.nim`): the days of the selected activities and the line that sums them up, offered to
+##   `calendar/frames`.
+## * The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).
 
 import ../../core/[extension, manifest]
-import ./[command, criterion, mapframes, subject]
+import ./[calendarframe, command, criterion, mapframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[subject.contribution()] & mapframes.contributions()
+  @[subject.contribution(), calendarframe.contribution()] & mapframes.contributions()
 
 const package* = Package(
   depends: @[
-    "args", "bundle", "confirm", "db", "fit", "fold", "geo", "importer", "map",
-    "selection", "subject", "ui", "user",
+    "args", "bundle", "calendar", "confirm", "db", "fit", "fold", "geo", "importer",
+    "map", "selection", "subject", "ui", "user",
   ],
   commands: @[
     CommandDecl(

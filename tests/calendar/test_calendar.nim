@@ -1,21 +1,15 @@
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/packages/calendar/calendar
-import nimchoo/packages/activities/table
 import nimchoo/packages/ui/style
 import ../support/zones
 
 proc at(y: int, m: Month, d: int, h = 12, min = 0): int64 =
   dateTime(y, m, d, h, min, 0, 0, utc()).toTime.toUnix
 
-proc row(t: int64): ListRow =
-  ListRow(
-    startT: UnixTime(t),
-    sport: "cycling",
-    file: "f.fit",
-    user: "default",
-    path: "/x/f.fit",
-  )
+proc row(t: int64): UnixTime =
+  ## a mark (the calendar is given instants)
+  UnixTime(t)
 
 let colourScreen = Screen(colour: true)
 let plainScreen = Screen(colour: false)
@@ -108,7 +102,7 @@ suite "calendar: colours and marks":
 
 suite "calendar: months left out":
   test "how many months between the first and the last have nothing":
-    proc rowsIn(ms: seq[(int, Month)]): seq[ListRow] =
+    proc rowsIn(ms: seq[(int, Month)]): seq[UnixTime] =
       for (y, m) in ms:
         result.add row(at(y, m, 5))
 
@@ -122,7 +116,7 @@ suite "calendar: months left out":
       # (a month once, however many days)
 
 suite "calendar: the months either side of a gap":
-  proc rowsIn(ms: seq[(int, Month)]): seq[ListRow] =
+  proc rowsIn(ms: seq[(int, Month)]): seq[UnixTime] =
     for (y, m) in ms:
       result.add row(at(y, m, 5))
 

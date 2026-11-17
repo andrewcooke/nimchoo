@@ -1,6 +1,5 @@
 ## The rows of a listing of activities, as the table and the calendar show them: what a row is made of, and reading
-## them from a query (`activities` runs the queries, so it may read the tables of `importer` and `selection`).  Other
-## packages that show activities (`calendar`) ask for rows here.
+## them from a query (`activities` runs the queries, so it may read the tables of `importer` and `selection`).
 
 import std/options
 import ../../core/[errors, ids]
