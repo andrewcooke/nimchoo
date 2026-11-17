@@ -9,7 +9,7 @@ suite "map: the command line":
   test "no options: the page is served, of the default subject, with the frames that are shown":
     let p = parseArgs(@[])
     check p.problem == "" and p.params.web.kind == wkServe
-    check p.params.web.port == defaultPort and not p.params.web.noOpen
+    check p.params.web.port == defaultPort and not p.params.web.start
     check p.params.subject.isNone and p.params.frames.len == 0
   test "the subject is the one word that is not an option":
     check parseArgs(@["climbs"]).params.subject == some("climbs")
@@ -42,12 +42,12 @@ suite "map: the command line":
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
     check parseArgs(@["--file", "--worker"]).problem.contains("cannot be used together")
   test "serving and its options":
-    let p = parseArgs(@["--no-open", "--port", "0", "--new-token"])
+    let p = parseArgs(@["--start", "--port", "0", "--new-token"])
     check p.problem == "" and p.params.web.kind == wkServe
-    check p.params.web.noOpen and p.params.web.newToken and p.params.web.port == 0
+    check p.params.web.start and p.params.web.newToken and p.params.web.port == 0
     check parseArgs(@["--port", "8080"]).params.web.port == 8080
   test "serving problems":
-    for opt in [@["--no-open"], @["--new-token"], @["--port", "8080"]]:
+    for opt in [@["--start"], @["--new-token"], @["--port", "8080"]]:
       for mode in ["--file", "--worker"]:
         check parseArgs(@[mode] & opt).problem.contains("for serving the page")
     for bad in ["x", "-1", "65536", "1.5", ""]:

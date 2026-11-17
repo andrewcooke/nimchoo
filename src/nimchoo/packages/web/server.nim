@@ -4,8 +4,8 @@
 ## waiting for children does not stop the loop, so requests are answered while workers run.
 ## (How workers are run, shared and limited: workers.nim.)
 
-import std/[asyncdispatch, asynchttpserver, httpcore, nativesockets, strutils]
-import ./[handler, workers]
+import std/[asyncdispatch, asynchttpserver, httpcore, nativesockets, options, strutils]
+import ./[handler, request, workers]
 
 {.push raises: [].}
 
@@ -16,10 +16,11 @@ proc serveForever*(
     exe: string,
     port: int,
     ready: proc(port: int) {.closure, raises: [].},
-): string {.raises: [].} =
+): Option[string] {.raises: [].} =
   ## Listen on 127.0.0.1:`port` (0: any free port; `ready` is told which) and answer until
-  ## the process is stopped; pages are made by running `exe` (this program) as the worker.
-  ## Returns what went wrong, if it could not start.
+  ## the process is stopped, or until asked to stop (`/stop`: then none); pages are made by running `exe` (this program)
+  ## as the worker.  What went wrong, if it could not start or stopped otherwise.
+  var stopping = false
   try:
     let workers = newWorkers(exe)
     let server = newAsyncHttpServer(reuseAddr = true)
@@ -32,6 +33,7 @@ proc serveForever*(
         else: ""),
         host: $req.headers.getOrDefault("Host"),
         cookie: $req.headers.getOrDefault("Cookie"),
+        token: $req.headers.getOrDefault(tokenHeader),
       )
       var r: Reply
       {.cast(gcsafe).}:
@@ -43,12 +45,21 @@ proc serveForever*(
         else:
           r = answered(cfg, incoming, step)
       await req.respond(HttpCode(r.code), r.body, newHttpHeaders(r.headers))
+      if r.stop:
+        # (the loop is already waiting for the next connection: closing the socket ends the wait)
+        stopping = true
+        server.close()
 
     ready(actual)
     proc loop() {.async.} =
-      while true:
+      while not stopping:
         await server.acceptRequest(onRequest)
 
     waitFor loop()
+    result = none(string)
   except Exception: # (the top of the server: whatever ends it is told, not a trace)
-    result = getCurrentExceptionMsg()
+    result =
+      if stopping:
+        none(string) # (the wait for a connection, ended by closing the socket)
+      else:
+        some(getCurrentExceptionMsg())

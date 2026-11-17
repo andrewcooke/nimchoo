@@ -100,7 +100,7 @@ suite "nch ff: a real server":
     let p = startProcess(
       exe,
       args =
-        @["--db", f.db, "ff", "--no-open", "--port", "0", "--utc", "--to", "2018-09-05"],
+        @["--db", f.db, "ff", "--start", "--port", "0", "--utc", "--to", "2018-09-05"],
       env = environment(f.cache),
       options = {poStdErrToStdOut},
     )

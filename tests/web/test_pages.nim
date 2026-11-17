@@ -21,8 +21,8 @@ suite "serve web options: shared by the commands":
   let spec = Spec[Holder](opts: webOptions(Holder, web, "the chart", "the CSV file"))
   test "each option is taken, with its value":
     var h = Holder(web: initWebArgs())
-    check parseOptions(@["--no-open", "--port", "0", "--new-token"], spec, h) == ""
-    check h.web.noOpen and h.web.newToken and h.web.port == 0
+    check parseOptions(@["--start", "--port", "0", "--new-token"], spec, h) == ""
+    check h.web.start and h.web.newToken and h.web.port == 0
     check parseOptions(@["--file", "--worker"], spec, h) == ""
     check h.web.file and h.web.worker
     check parseOptions(@["--web"], spec, h) == "unexpected option --web"
@@ -47,20 +47,20 @@ suite "serve web options: shared by the commands":
       w.file = true
       case setting
       of 0:
-        w.noOpen = true
+        w.start = true
       of 1:
         w.newToken = true
       else:
         w.port = 0
       check webMode(w).problem.contains("for serving the page")
     w = initWebArgs()
-    w.noOpen = true
+    w.start = true
     w.port = 0
     let m = webMode(w).params
-    check m.kind == wkServe and m.noOpen and m.port == 0 and not m.newToken
+    check m.kind == wkServe and m.start and m.port == 0 and not m.newToken
   test "the options describe themselves":
     let docs = spec.docs
-    for o in ["--file", "--worker", "--port", "--no-open", "--new-token"]:
+    for o in ["--file", "--worker", "--port", "--start", "--new-token"]:
       check docs.anyIt(it.names == @[o] and it.help.len > 0)
     let text = optionLines(docs, 100).join("\n").splitWhitespace.join(" ")
     for o in ["the chart", "CSV file", $defaultPort]:

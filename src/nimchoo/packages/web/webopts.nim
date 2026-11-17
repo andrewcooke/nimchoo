@@ -1,7 +1,8 @@
-## The options every command with web pages takes (`--file`, `--worker`, and `--port`, `--no-open` and `--new-token`
-## for serving, which is what the command does when it is not told otherwise): parsed and described in one place, so
+## The options every command with web pages takes (`--file`, `--worker`, `--stop`, and `--port`, `--start` and `--new-token`
+## for serving, which is what the command does when it is not told otherwise: one server for every page, see launch.nim): parsed and described in one place, so
 ## that the commands cannot differ.  Pure.
 
+import std/sequtils
 import ../util/args/args
 import ./request
 
@@ -12,7 +13,8 @@ type
     ## The web options as they are read (a builder: `webMode` turns them into a `WebMode` or says what is wrong).
     worker*: bool ## for programs: make the files, print the page's path, then the data's
     file*: bool ## `--file`: make the file and print its path, serve nothing
-    noOpen*: bool ## serving, but do not open the browser
+    start*: bool ## serving, but do not open the browser
+    stop*: bool ## `--stop`: stop the server
     newToken*: bool ## serving, with a new secret token (the old bookmarks stop working)
     port*: int ## serving on this port (0: any free one)
 
@@ -20,13 +22,16 @@ type
     wkServe ## the default: show the page in the browser, served on localhost
     wkFile ## `--file`: make the file and print its path
     wkWorker ## for programs: also make the page, and print the paths
+    wkStop ## `--stop`: stop the server on the port
 
   WebMode* = object ## What the web options ask for.
     case kind*: WebKind
     of wkServe:
-      noOpen*: bool
+      start*: bool
       newToken*: bool
       port*: int
+    of wkStop:
+      stopPort*: int
     of wkFile, wkWorker:
       discard
 
@@ -75,11 +80,19 @@ template webOptions*(P: typedesc, field: untyped, page, data: string): seq[Opt[P
     ),
     custom(
       P,
-      ["--no-open"],
+      ["--start"],
       false,
       "",
-      "print the address but do not open the browser",
-      body = (p.field.noOpen = true; fine),
+      "start the server, if none is running, and print the address of the page without opening the browser",
+      body = (p.field.start = true; fine),
+    ),
+    custom(
+      P,
+      ["--stop"],
+      false,
+      "",
+      "stop the server (the one that serves the pages of every `nch` command, on the port)",
+      body = (p.field.stop = true; fine),
     ),
     custom(
       P,
@@ -93,18 +106,20 @@ template webOptions*(P: typedesc, field: untyped, page, data: string): seq[Opt[P
 
 func webMode*(w: WebArgs): Parsed[WebMode] =
   ## What the options ask for, or what is wrong with the combination.
-  if w.file and w.worker:
-    return problemWith[WebMode]("--file and --worker cannot be used together")
-  let serving = w.noOpen or w.newToken or w.port != defaultPort
+  if [w.file, w.worker, w.stop].countIt(it) > 1:
+    return problemWith[WebMode]("--file, --worker and --stop cannot be used together")
+  if w.stop and (w.start or w.newToken):
+    return problemWith[WebMode]("--stop cannot be used with --start or --new-token")
+  let serving = w.start or w.newToken or w.port != defaultPort
   if (w.file or w.worker) and serving:
     return problemWith[WebMode](
-      "--no-open, --new-token and --port are for serving the page: they cannot be used with --file or --worker"
+      "--start, --new-token and --port are for serving the page: they cannot be used with --file or --worker"
     )
-  if w.file:
+  if w.stop:
+    parsedOk(WebMode(kind: wkStop, stopPort: w.port))
+  elif w.file:
     parsedOk(WebMode(kind: wkFile))
   elif w.worker:
     parsedOk(WebMode(kind: wkWorker))
   else:
-    parsedOk(
-      WebMode(kind: wkServe, noOpen: w.noOpen, newToken: w.newToken, port: w.port)
-    )
+    parsedOk(WebMode(kind: wkServe, start: w.start, newToken: w.newToken, port: w.port))

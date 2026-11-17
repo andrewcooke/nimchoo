@@ -3,7 +3,7 @@
 ## `test` task builds it); without one these tests are skipped.
 
 import nimchoo/packages/db/statement
-import std/[httpclient, json, os, osproc, streams, strtabs, strutils, unittest]
+import std/[httpclient, json, net, os, osproc, streams, strtabs, strutils, unittest]
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 when defined(posix):
@@ -66,7 +66,7 @@ proc start(
   ## prints.  If it stops instead, `output` is what it said and `web.process` is finished.
   let p = startProcess(
     exe,
-    args = @["--db", db, "map", "--no-open", "--port", "0"] & extra,
+    args = @["--db", db, "map", "--start", "--port", "0"] & extra,
     env = environment(cache),
     options = {poStdErrToStdOut},
   )
@@ -212,21 +212,85 @@ suite "nch map: a real server":
     check output.contains("the selection of activities is empty")
     w.process.close()
 
-  test "a port that is taken: it says so and does not start":
+  test "a second command on the server's port opens its page there and returns: one server for every page":
     if not built():
       skip()
-    let f = fixture("taken")
+    let f = fixture("second")
     let (w, _) = start(f.db, f.cache)
     check w.url.len > 0
     let port = w.base.split(':')[^1]
     let p = startProcess(
       exe,
-      args = @["--db", f.db, "map", "--no-open", "--port", port],
+      args = @["--db", f.db, "map", "--start", "--port", port, "--frames", "heat"],
       env = environment(f.cache),
       options = {poStdErrToStdOut},
     )
     let said = p.outputStream.readAll()
-    check p.waitForExit(10_000) == 1
+    check p.waitForExit(10_000) == 0
     p.close()
-    check said.contains("cannot listen on 127.0.0.1:" & port)
+    check said.contains(w.base & "/map/activities?frames=heat&token=")
+    check said.contains("already running")
+    check client(w.token).request(w.base & "/map/activities?frames=heat").code == Http200
+      # (the first server makes the second page)
     check w.stop() == 130
+
+  test "--stop stops the server, from another command; with none running it says so":
+    if not built():
+      skip()
+    let f = fixture("stop")
+    let (w, _) = start(f.db, f.cache)
+    let port = w.base.split(':')[^1]
+    proc stopCommand(): tuple[said: string, code: int] =
+      let p = startProcess(
+        exe,
+        args = @["--db", f.db, "map", "--stop", "--port", port],
+        env = environment(f.cache),
+        options = {poStdErrToStdOut},
+      )
+      result.said = p.outputStream.readAll()
+      result.code = p.waitForExit(10_000)
+      p.close()
+
+    let first = stopCommand()
+    check first.code == 0 and first.said.contains("stopped the server on port " & port)
+    check w.process.waitForExit(10_000) == 0 # (asked to stop: not interrupted)
+    w.process.close()
+    let again = stopCommand()
+    check again.code == 0 and again.said.contains(
+      "no server is running on port " & port
+    )
+
+  test "a page cannot ask the server what it is or stop it: those need the token in a header of their own":
+    if not built():
+      skip()
+    let f = fixture("control")
+    let (w, _) = start(f.db, f.cache)
+    check client(w.token).request(w.base & "/stop").code == Http403
+      # (the cookie is not enough)
+    check client(w.token).request(w.base & "/status").code == Http403
+    var c = newHttpClient(maxRedirects = 0, timeout = 10_000)
+    c.headers = newHttpHeaders({"X-Nch-Token": w.token})
+    let r = c.request(w.base & "/status")
+    check r.code == Http200 and r.body.contains("nch ") and r.body.contains(f.db)
+    check w.stop() == 130
+
+  test "a port held by another program: it says so and does not start":
+    if not built():
+      skip()
+    let f = fixture("taken")
+    let other = newSocket()
+    other.setSockOpt(OptReuseAddr, true)
+    other.bindAddr(Port(0), "127.0.0.1")
+    other.listen()
+    let port = $int(other.getLocalAddr()[1])
+    let p = startProcess(
+      exe,
+      args = @["--db", f.db, "map", "--start", "--port", port],
+      env = environment(f.cache),
+      options = {poStdErrToStdOut},
+    )
+    let said = p.outputStream.readAll()
+    check p.waitForExit(20_000) == 1
+    p.close()
+    other.close()
+    check said.contains("cannot listen on 127.0.0.1:" & port)

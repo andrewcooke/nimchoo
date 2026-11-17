@@ -84,8 +84,8 @@ suite "ff: the template is a file":
 
 suite "ff: --file, --worker, serving and the address":
   test "options":
-    let p = parseArgs(@["--no-open", "--port", "0", "--new-token"])
-    check p.problem == "" and p.params.web.kind == wkServe and p.params.web.noOpen and
+    let p = parseArgs(@["--start", "--port", "0", "--new-token"])
+    check p.problem == "" and p.params.web.kind == wkServe and p.params.web.start and
       p.params.web.newToken and p.params.web.port == 0
     check parseArgs(@["--worker"]).params.web.kind == wkWorker
     check parseArgs(@["--file"]).params.web.kind == wkFile
@@ -97,8 +97,8 @@ suite "ff: --file, --worker, serving and the address":
     check parseArgs(@["--file", "--worker"]).problem.contains("cannot be used together")
     check parseArgs(@["--file", "--stdout"]).problem.contains("--stdout")
     check parseArgs(@["--worker", "--stdout"]).problem.contains("--stdout")
-    check parseArgs(@["--stdout", "--no-open"]).problem.contains("--stdout")
-    check parseArgs(@["--file", "--no-open"]).problem.contains("for serving the page")
+    check parseArgs(@["--stdout", "--start"]).problem.contains("--stdout")
+    check parseArgs(@["--file", "--start"]).problem.contains("for serving the page")
     check parseArgs(@["--file", "--port", "1"]).problem.contains("for serving the page")
     check parseArgs(@["--port", "70000"]).problem.contains("port number")
     check parseArgs(@["--stdout"]).problem == ""

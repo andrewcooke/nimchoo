@@ -141,9 +141,10 @@ func finish(raw: Raw): Parsed[Params] =
   let mode = webMode(raw.web)
   if mode.kind == pkProblem:
     return problemWith[Params](mode.problem)
-  if raw.stdout and (raw.web.noOpen or raw.web.newToken or raw.web.port != defaultPort):
+  if raw.stdout and
+      (raw.web.start or raw.web.stop or raw.web.newToken or raw.web.port != defaultPort):
     return problemWith[Params](
-      "--no-open, --new-token and --port are for serving the page: they cannot be used with --stdout"
+      "--start, --stop, --new-token and --port are for the server of the page: they cannot be used with --stdout"
     )
   parsedOk(
     Params(

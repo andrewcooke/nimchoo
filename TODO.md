@@ -54,6 +54,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
   the `enhanced_speed` / `speed` channel and writes it to a table of its own (on its own times: a second can have a speed and no
   position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Left out
   (decided 2026-11-17): no use for it yet, and a rebuild costs about 18 s of import, so it can be added when a use appears.
+* **`nch packages`** (the author, 2026-11-17, ideas noted while trying it): (a) the default table looks a mess in a narrow terminal:
+  give the columns of single numbers one-letter headings, explained below the table; (b) a more useful default order (by layer,
+  or by how many use a package); (c) `--points` is hard to understand: perhaps colours used the same way across the views of
+  packages (`--points`, `--graph`, the table) would help, not designed; (d) `nch packages NAME` with a misspelt name could
+  suggest close matches.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **Light and dark terminal backgrounds** (`NCH_THEME`, else `COLORFGBG`; dim and yellow are poor on white).
 * **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by

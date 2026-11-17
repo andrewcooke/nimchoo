@@ -78,6 +78,11 @@ const
   cookieMaxAge* = 365 * 24 * 3600
     ## seconds: a bookmark works for a year, not only until the browser is closed
   tokenParam* = "token"
+  tokenHeader* = "X-Nch-Token"
+    ## where `nch` itself sends the token, to ask the server what it is or to stop it (never a page: a browser does not send it)
+  statusPath* = "/status"
+    ## what the server is: its build and the database and user its workers look at
+  stopPath* = "/stop" ## stop the server
   defaultPort* = 62466 ## the digits of "mchoo" on a phone keypad
 
 func encodedPath(path: string): string =

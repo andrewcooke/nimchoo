@@ -11,6 +11,11 @@
 ## on to the same address without it).  Then it is a page (`/map/activities?frames=routes,heat`: the worker
 ## makes the files and the first it names is sent: every request makes them again, so a page shows the data as they are) or a file of the cache directory
 ## (`/files/NAME`).  Anything else is "not found".
+##
+## Two addresses are for `nch` itself, never for a page: `/status` (what the server is: `ServerConfig.identity`, so that a
+## later `nch map` can open its page here instead of starting another server) and `/stop`.  They need the token in a header
+## of their own (`X-Nch-Token`), which a browser never sends, so a web page that has the cookie cannot stop the server or read
+## what it is.
 
 import std/[options, os, sequtils, strutils]
 import ../cache/cache
@@ -35,9 +40,12 @@ type
     baseArgs*: seq[string] ## the options before the command (--db ..., --user ...)
     log*: Log
     logCommand*: string
+    identity*: string
+      ## what the server is, as `/status` says it: the build of nch and the options its workers get (`serverIdentity`)
 
   Incoming* = object
     meth*, target*, host*, cookie*: string
+    token*: string ## the `X-Nch-Token` header ("" if none)
 
   Step* = object
     ## What `begin` made of a request: the reply, or a page that needs a worker run first.
@@ -53,6 +61,7 @@ type
     code*: int
     headers*: seq[(string, string)]
     body*: string
+    stop*: bool ## the server stops once this is sent (`/stop`)
 
 const
   policy =
@@ -131,6 +140,15 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
   if target.isNone:
     return reply(400, "bad request")
   let t = target.get
+  if t.path == statusPath or t.path == stopPath:
+    # (for `nch` itself: the token in its own header, never the cookie of a page)
+    if not sameToken(req.token, cfg.token):
+      return reply(403, "forbidden")
+    if t.path == statusPath:
+      return reply(200, cfg.identity)
+    var r = reply(200, "stopping\n")
+    r.stop = true
+    return r
   let given = t.query.queryValue(tokenParam)
   if given.isSome:
     # the address that `nch ...` opens: set the cookie, and go on without the token

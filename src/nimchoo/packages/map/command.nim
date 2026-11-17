@@ -34,7 +34,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis =
-    "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--frames FRAME...] [--file | [--no-open] [--port N] [--new-token]]"
+    "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--frames FRAME...] [--file | --stop | [--start] [--port N] [--new-token]]"
   intro =
     """Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are
 the subject's frames, the layers listed below, each made by the package that knows about it.  It serves a page that draws them
@@ -225,6 +225,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except IOError, OSError:
     return failure("nch map", fmt"cannot make {dir.get}: {getCurrentExceptionMsg()}")
   case p.web.kind
+  of wkStop:
+    return stopWeb(g, commandName, p.web.stopPort, dir.get)
   of wkServe:
     let checked = checkSelection(g, c)
     if checked != exitOk:
@@ -233,7 +235,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return serveWeb(
       g,
       commandName,
-      WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
+      WebOptions(port: p.web.port, start: p.web.start, newToken: p.web.newToken),
       dir.get,
       commandName & "/" & c.subject.name,
       "frames=" & c.frames.mapIt(it.name).join(","),

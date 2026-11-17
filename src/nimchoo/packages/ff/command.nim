@@ -35,7 +35,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 const
   synopsis =
     """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
-                                      [--hourly] [--utc] [--stdout | --file | --worker]
+                                      [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]
                                       [--fitness-scale S] [--fatigue-scale S]"""
   intro =
     """Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (Ctrl-C stops it).  With
@@ -230,6 +230,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   of pkOk:
     discard
   var p = parsed.params
+  if p.web.kind == wkStop:
+    # (the server is shared by every page: nothing of the chart is needed to stop it)
+    let dir = cacheDir()
+    if dir.isNone:
+      return failure("nch ff", "no cache directory is known (set NCH_CACHE)")
+    return stopWeb(g, commandName, p.web.stopPort, dir.get)
   var st: Session
   try:
     st = openSession(g)
@@ -272,7 +278,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return serveWeb(
         g,
         commandName,
-        WebOptions(port: p.web.port, noOpen: p.web.noOpen, newToken: p.web.newToken),
+        WebOptions(port: p.web.port, start: p.web.start, newToken: p.web.newToken),
         dir.get,
         commandName,
         webQuery(parsed.params),
