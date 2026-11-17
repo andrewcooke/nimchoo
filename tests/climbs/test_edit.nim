@@ -5,6 +5,7 @@ import nimchoo/packages/climbs/command
 import nimchoo/packages/climbs/edit
 import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/climbs/report
+import nimchoo/packages/climbs/work
 import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
@@ -73,6 +74,29 @@ suite "nch climbs: names, and the list of all":
     check q(db, "select name from sector where id = 1", string) == "Old road"
     check q(db, "select manual from sector where id = 1", int) == 1
     check shown(db) == @["Farellones", "Cuesta", "Old road"]
+  test "a number is never given twice: not after its climb is renamed away or deleted, nor when it comes back; until every climb is deleted":
+    let db = fresh("again", [("Cuesta", 100.0), ("Cuesta", 200.0), ("Cuesta", 300.0)])
+    let s = openSession(db, allFragments, access = allAccess)
+    defer:
+      s.close()
+    proc add(name: string): int =
+      s.db.execute(
+        "insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, :name)",
+        name = name,
+      )
+      let id = lastInsertId(s.db)
+      assignNumber(s, id)
+      s.db.scalar(int, "select name_n from sector where id = :id", id = id)
+
+    rename(s, 3, "Other") # (Cuesta₃, the highest, goes)
+    check add("cuesta") == 4 # (before: 3 again)
+    s.db.execute("delete from sector where id = 4")
+    check add("Cuesta") == 5
+    rename(s, 3, "Cuesta") # (back again: a new number, not its old one)
+    check s.db.scalar(int, "select name_n from sector where id = 3") == 6
+    check add("Elsewhere") == 1 # (each name has its own)
+    clearClimbs(s) # (every climb deleted: the numbers start again, as in a new database)
+    check add("Cuesta") == 1
   test "names that differ only in accents or capitals are one group, with the number kept":
     let db =
       fresh("accents", [("Ñuñoa", 100.0), ("ñuñoa", 200.0), ("Nunoa", 300.0)])

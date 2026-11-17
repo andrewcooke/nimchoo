@@ -302,13 +302,14 @@ proc countClimbs*(st: Store): Counts {.raises: [StoreError].} =
   result.manual = st.db.scalar(int, "select count(*) from sector where manual = 1")
 
 proc clearClimbs*(st: Store) {.raises: [StoreError].} =
-  ## Delete every sector, with the efforts on them (of every user), and the record of what was
-  ## looked at: the next `ensureClimbs` starts again.
+  ## Delete every sector, with the efforts on them (of every user), the record of what was
+  ## looked at and the numbers given to names: the next `ensureClimbs` starts again, as in a new database.
   st.begin()
   var done = false
   try:
     st.db.execute("delete from climbs_done")
     st.db.execute("delete from sector")
+    st.db.execute("delete from sector_name_number")
     st.commit()
     done = true
   finally:

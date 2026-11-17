@@ -165,7 +165,7 @@ is never deleted one at a time (`--edit NAME --retire` hides one), only all toge
 
 **Describing a climb** (decided 2026-11-05): `Cerro San Luis₄  4 0.5km +89m 17.8%` (name, category, length, gain,
 gradient).  A name shared by several climbs carries a **kept number as a subscript** (`sector.name_n`, given when the climb
-gets its name, never renumbered), typed as `Cerro San Luis₄`, `Cerro San Luis 4` or `Cerro San Luis4`.  In `nch climbs`
+gets its name, never renumbered and never given twice: `ordinal.nim`), typed as `Cerro San Luis₄`, `Cerro San Luis 4` or `Cerro San Luis4`.  In `nch climbs`
 the summary follows: attempts, best, latest and its personal rank (`3 of 12`: among the user's own attempts); `--everyone`
 swaps it for the leaderboard (riders, fastest and who, your best's place among each person's best); the two ranks are never
 shown together, are worked out when asked for and never stored.  `-v` lists the attempts.  The selection chooses the climbs,

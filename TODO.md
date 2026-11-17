@@ -62,7 +62,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (`names/codes.nim` says which codes count and how they rank), whether they are within the search radii for the start, the
   turning point and the places along the route (`names/activity.nim`), and whether a landmark of the author's own (`nch landmarks`)
   would be the answer.  Look at a few of the rides with `nch activities --names` and `nch map` before changing any rule.
-* **Climb numbers**: a name renamed away from and then reused by a new climb can reuse the highest number.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **Light and dark terminal backgrounds** (`NCH_THEME`, else `COLORFGBG`; dim and yellow are poor on white).
 * **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by
