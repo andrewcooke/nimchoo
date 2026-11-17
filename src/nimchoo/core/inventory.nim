@@ -258,50 +258,67 @@ type TreeLine* = object ## A line of a tree of packages.
   text*: string
   again*: bool ## the package was drawn above (drawn grey: `nch packages`)
 
-func treeLines*(inv: Inventory, root: string, reverse = false): seq[TreeLine] =
+func treeLines*(
+    inv: Inventory, root: string, reverse = false, repeats = true
+): seq[TreeLine] =
   ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes.  A package drawn above
   ## is not drawn again: it is marked `again`, and followed by "..." if something under it is left out (a package with
-  ## nothing under it is just its name), so the tree stays short (`treeNote` says so).  Under each package those not drawn yet
-  ## come first, the ones drawn above after them.
+  ## nothing under it is just its name), so the tree stays short (`treeNote` says so); without `repeats` it is left out
+  ## altogether.  Under each package those not drawn yet come first, the ones drawn above after them.
+  type Node = tuple[depth: int, name: string, again, cut: bool]
+  var nodes: seq[Node]
   var seen = initHashSet[string]()
   func walk(
       inv: Inventory,
-      name, prefix: string,
-      last: bool,
-      top: bool,
+      name: string,
+      depth: int,
       seen: var HashSet[string],
-      lines: var seq[TreeLine],
+      nodes: var seq[Node],
       reverse: bool,
   ) =
     let again = name.normalised in seen
     seen.incl name.normalised
-    let branch =
-      if top:
-        ""
-      elif last:
-        "└── "
-      else:
-        "├── "
     let kids = neighbours(inv, name, reverse)
-    lines.add TreeLine(
-      text: prefix & branch & name & (if again and kids.len > 0: "..." else: ""),
-      again: again,
-    )
+    nodes.add (depth, name, again, again and kids.len > 0)
     if again:
       return
-    let below =
-      if top:
-        ""
-      elif last:
-        prefix & "    "
-      else:
-        prefix & "│   "
     let ordered =
       kids.filterIt(it.normalised notin seen) & kids.filterIt(it.normalised in seen)
-    for i, k in ordered:
-      walk(inv, k, below, i == ordered.high, false, seen, lines, reverse)
+    for k in ordered:
+      walk(inv, k, depth + 1, seen, nodes, reverse)
 
-  walk(inv, inv.packages[inv.find(root)].name, "", true, true, seen, result, reverse)
+  walk(inv, inv.packages[inv.find(root)].name, 0, seen, nodes, reverse)
+  if not repeats:
+    nodes = nodes.filterIt(not it.again)
+  # the connectors, from what is drawn: a package is the last under its parent if no later one has its depth before one that
+  # is less deep
+  func later(nodes: seq[Node], i, depth: int): bool =
+    for j in i + 1 .. nodes.high:
+      if nodes[j].depth < depth:
+        return false
+      if nodes[j].depth == depth:
+        return true
+    false
+
+  var open: seq[bool]
+    # for each depth: whether the package drawn there has a later sibling (a line goes on down)
+  for i, n in nodes:
+    if n.depth == 0:
+      result.add TreeLine(text: n.name, again: n.again)
+      open = @[false]
+      continue
+    let more = later(nodes, i, n.depth)
+    var prefix = ""
+    for d in 1 ..< n.depth:
+      prefix.add(if open[d]: "│   " else: "    ")
+    open.setLen(n.depth + 1)
+    open[n.depth] = more
+    result.add TreeLine(
+      text:
+        prefix & (if more: "├── " else: "└── ") & n.name &
+        (if n.cut: "..." else: ""),
+      again: n.again,
+    )
 
 const treeNote* = "(... after a package: what is under it is drawn in full above)"
   ## what a tree that left something out says under it

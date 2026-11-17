@@ -32,11 +32,12 @@ type
     of vTree:
       root*: string
       reverse*: bool ## what depends on `root`, not what it depends on
+      repeats*: bool ## `-v`: the packages drawn above too, in grey
     of vList, vPoints, vTables, vLayers, vDot, vConfig:
       discard
 
   Raw = object ## what the options fill in
-    help, points, tables, graph, reverse, dot, config: bool
+    help, points, tables, graph, reverse, verbose, dot, config: bool
     name: string
 
 func packagesSpec*(): Spec[Raw] =
@@ -70,6 +71,13 @@ func packagesSpec*(): Spec[Raw] =
       ),
       flag(
         Raw,
+        ["-v", "--verbose"],
+        verbose,
+        "(with --graph NAME) the packages already drawn higher in the tree too, in grey (else each is drawn once)",
+        level = 1,
+      ),
+      flag(
+        Raw,
         ["--dot"],
         dot,
         "the dependencies as a Graphviz graph: `nch packages --dot | dot -Tsvg > packages.svg`",
@@ -99,6 +107,8 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params]("a package name goes with nothing but --graph")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
     return problemWith[Params]("--reverse goes with --graph and a package name")
+  if raw.verbose and not (raw.graph and raw.name.len > 0):
+    return problemWith[Params]("-v goes with --graph and a package name")
   if raw.points:
     parsedOk(Params(view: vPoints))
   elif raw.tables:
@@ -108,7 +118,9 @@ func finish(raw: Raw): Parsed[Params] =
   elif raw.config:
     parsedOk(Params(view: vConfig))
   elif raw.graph and raw.name.len > 0:
-    parsedOk(Params(view: vTree, root: raw.name, reverse: raw.reverse))
+    parsedOk(
+      Params(view: vTree, root: raw.name, reverse: raw.reverse, repeats: raw.verbose)
+    )
   elif raw.graph:
     parsedOk(Params(view: vLayers))
   elif raw.name.len > 0:
@@ -136,7 +148,7 @@ const
   synopsis = """usage: nch packages
        nch packages NAME
        nch packages --points | --tables | --dot | --config
-       nch packages --graph [--reverse] [NAME]"""
+       nch packages --graph [--reverse] [-v] [NAME]"""
   intro =
     """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
 package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it
@@ -287,7 +299,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vLayers:
     show layerLines(inv, width)
   of vTree:
-    let tree = treeLines(inv, p.root, p.reverse)
+    let tree = treeLines(inv, p.root, p.reverse, p.repeats)
     let colour = canColourStdout()
     for l in tree:
       # (what was drawn above is grey)

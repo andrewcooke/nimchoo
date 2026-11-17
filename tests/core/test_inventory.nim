@@ -119,6 +119,10 @@ suite "the graphs":
       ]
         # (a has db under it, already drawn; db has nothing under it, so nothing is left out)
 
+  test "without the repeats each package is drawn once, and the lines join up":
+    check treeLines(world(), "c", repeats = false).mapIt(it.text) ==
+      @["c", "├── a", "│   └── db", "└── b"]
+
   test "the tree of what depends on a package":
     check treeLines(world(), "a", reverse = true).mapIt(it.text) ==
       @["a", "├── b", "│   └── c", "└── c"]
