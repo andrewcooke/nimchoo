@@ -3,11 +3,11 @@
 ## subject here, it does not manage it: the selection is the activities'.  The frames only read: a note says when some activities have
 ## no climbs worked out (the import and `nch climbs` do that).  The style of each is shipped here, next to the frame.
 
-import std/[math, options, sequtils, strformat, tables]
+import std/[options, sequtils, strformat, tables]
 import ../../core/[errors, extension, ids]
 import ../bundle/unpack
 import ../db/statement
-import ../importer/track
+import ../importer/[coord, track]
 import ../map/[frames, geojson]
 import ../selection/selection
 import ../user/session
@@ -61,9 +61,36 @@ proc gatesOf(st: Session, ids: seq[int64]): seq[GateLine] {.raises: [StoreError]
       result.add GateLine(climbId: id, name: name, start: true, ends: g.get.start)
       result.add GateLine(climbId: id, name: name, start: false, ends: g.get.finish)
 
+func effortPath*(
+    positions: seq[Coord], startT, finishT: float
+): seq[tuple[lon, lat: float]] =
+  ## The line of an effort: a point at exactly the start time and one at the finish time (where the gates were crossed),
+  ## each between the two positions either side of it, and the positions in between.  A time outside the positions is
+  ## taken at the first or last one (never beyond the ride).  Positions are in time order.
+  if positions.len == 0:
+    return
+  func at(t: float): tuple[lon, lat: float] =
+    if t <= float(positions[0].t):
+      return (positions[0].lon, positions[0].lat)
+    for k in 1 .. positions.high:
+      let (a, b) = (positions[k - 1], positions[k])
+      if t <= float(b.t):
+        let f = (t - float(a.t)) / (float(b.t) - float(a.t))
+        return (a.lon + (b.lon - a.lon) * f, a.lat + (b.lat - a.lat) * f)
+    (positions[^1].lon, positions[^1].lat)
+
+  result.add at(startT)
+  for c in positions:
+    if float(c.t) > startT and float(c.t) < finishT:
+      result.add (c.lon, c.lat)
+  result.add at(finishT)
+
 proc effortsOf(st: Session, ids: seq[int64]): seq[EffortLine] {.raises: [StoreError].} =
-  ## The part of each ride that is a stored effort on a climb: its positions from the start time to the finish time.
+  ## The part of each ride that is a stored effort on a climb: from where it crossed the start gate to where it crossed the
+  ## finish gate (`effortPath`).  The efforts come by activity, so each ride's positions are read once.
   let names = shownNames(st)
+  var positions: seq[Coord]
+  var readFor = -1'i64
   for e in st.db.query(
     tuple[sectorId, activityId: int64, startT, finishT, elapsedS, startM: float],
     """select sector_id, activity_id, start_t, finish_t, elapsed_s, start_m from effort
@@ -79,11 +106,10 @@ proc effortsOf(st: Session, ids: seq[int64]): seq[EffortLine] {.raises: [StoreEr
       elapsedS: e.elapsedS,
       startM: e.startM,
     )
-    let first = int64(floor(e.startT))
-    let last = int64(ceil(e.finishT))
-    for c in readPositions(st.db, ActivityId(e.activityId)):
-      if int64(c.t) >= first and int64(c.t) <= last:
-        line.points.add (lon: c.lon, lat: c.lat)
+    if e.activityId != readFor:
+      positions = readPositions(st.db, ActivityId(e.activityId))
+      readFor = e.activityId
+    line.points = effortPath(positions, e.startT, e.finishT)
     result.add line
 
 proc unworked(st: Session, ids: seq[int64]): seq[string] {.raises: [StoreError].} =

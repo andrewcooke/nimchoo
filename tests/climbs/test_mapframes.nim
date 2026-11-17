@@ -4,6 +4,9 @@
 import std/[json, os, strutils, unittest]
 import nimchoo/core/[access, extension, globals]
 import nimchoo/packages/db/[access, statement]
+import nimchoo/packages/climbs/mapframes
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/coord
 import nimchoo/packages/map/frames
 import nimchoo/packages/user/session
 import ../support/mapworld
@@ -142,3 +145,23 @@ suite "climbs frames: each declares the tables it reads":
       check read.len > 0
       for t in read:
         check t in f.tables
+
+suite "climbs frames: the line of an effort":
+  proc ride(): seq[Coord] =
+    ## A position a second, from t = 10, moving 0.001 degrees east a second.
+    for k in 0 .. 5:
+      result.add Coord(t: UnixTime(10 + k), lon: 0.001 * float(k), lat: -33.0)
+
+  test "it starts and ends where the gates were crossed, between the positions either side":
+    let p = effortPath(ride(), 11.25, 13.5)
+    check p.len == 4 # (the start, the positions at 12 and 13, the finish)
+    check abs(p[0].lon - 0.00125) < 1e-12 and p[0].lat == -33.0
+    check p[1].lon == 0.002 and p[2].lon == 0.003
+    check abs(p[3].lon - 0.0035) < 1e-12
+  test "a time on a position is that position, once":
+    let p = effortPath(ride(), 11.0, 13.0)
+    check p.len == 3 and p[0].lon == 0.001 and p[1].lon == 0.002 and p[2].lon == 0.003
+  test "a time outside the ride is taken at its first or last position; no positions, no line":
+    let p = effortPath(ride(), 5.0, 99.0)
+    check p[0].lon == 0.0 and p[^1].lon == 0.005 and p.len == 6 + 2
+    check effortPath(@[], 1.0, 2.0).len == 0
