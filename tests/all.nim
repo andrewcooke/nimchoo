@@ -130,7 +130,7 @@ import ./download/test_fetch
 import
   ./names/[
     test_countryinfo, test_countries, test_features, test_climbpick, test_codes,
-    test_climb, test_lookup, test_shape, test_activity, test_landmarks,
+    test_climb, test_lookup, test_shape, test_activity, test_landmarks, test_places,
   ]
 import
   ./web/[

@@ -10,6 +10,7 @@ import ./cmdname
 export cmdname
 import ../../core/[extension, globals]
 import ../db/statement
+import ../names/places
 import ../selection/selection
 import ../db/store
 import ./deleterun as deleteRun
@@ -301,6 +302,25 @@ proc resolveCriteria(
     resolve(st, c, refLatest, found.get.id, found.get.row, centre, centreFrom)
   if c.near == nkPoint:
     centre = some((c.lat, c.lon))
+  if c.near == nkPlace:
+    let found = placesNamed(st, c.place)
+    if found.len == 0:
+      raiseStore(
+        fmt"no place is called '{c.place}' among your landmarks (`nch landmarks`) and the places the names were loaded for (the countries of your rides): give LAT,LON instead"
+      )
+    let p = found[0]
+    centre = some((p.lat, p.lon))
+    let others =
+      case found.len
+      of 1:
+        ""
+      of 2:
+        "; 1 other has the name"
+      else:
+        fmt"; {found.len - 1} others have the name"
+    centreFrom = fmt"{p.name}, {p.what}{others}"
+    c.near = nkPoint
+    (c.lat, c.lon) = (p.lat, p.lon)
   if centre.isSome:
     result.notes.add plain(
       "near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &

@@ -81,6 +81,9 @@ suite "list: the command line":
     check c.fromT.isSome and c.toT.isSome and c.fromT.get < c.toT.get
     check c.near == nkPoint and c.lat == 38.7 and c.lon == -9.1 and c.radiusKm == 5.0
     check cmdline("--near", "latest").params.near == nkLatest
+    let named = cmdline("--near", "Lo Barnechea").params
+    check named.near == nkPlace and named.place == "Lo Barnechea"
+    check cmdline("--near", "38.7").problem.contains("cannot read the position")
   test "latest is the newest one; oldest; but not both":
     check cmdline("--latest").params.newest == 1
     check cmdline("--oldest", "2").params.oldest == 2
@@ -158,7 +161,7 @@ suite "list: the command line":
     )
     check cmdline("--sports", "previous", "previous").problem == ""
     check cmdline("--near", "previous").params.near == nkPrevious
-    check cmdline("--near", "nowhere").problem.contains("latest or previous")
+    check cmdline("--near", "38.7").problem.contains("latest or previous")
     check cmdline("--radius", "5").params.near == nkLatest # (alone: still latest)
   test "latest is found among the criteria that do not mention it, previous ones included":
     let c = cmdline(
@@ -215,7 +218,7 @@ suite "list: the command line":
   test "problems":
     check cmdline("--radius", "x", "--near", "1,2").problem.contains("radius")
     check cmdline("--radius", "0", "--near", "1,2").problem.contains("more than 0")
-    check cmdline("--near", "nowhere").problem.contains("position")
+    check cmdline("--near", "38.7").problem.contains("position")
     check cmdline("--from", "soon").problem.contains("cannot read the time")
     check cmdline("--from", "2018-09-01", "--to", "2018-08-01").problem.contains(
       "not before"

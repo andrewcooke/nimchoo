@@ -10,6 +10,7 @@ import nimchoo/packages/user/session
 import nimchoo/core/ids
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/packages/activities/command as listCommand
+import nimchoo/packages/names/landmarks
 import nimchoo/packages/activities/criteria
 import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
@@ -461,6 +462,17 @@ suite "list: the command":
     check chosen(db) == @["lisbon2"]
     discard save(db, "--from", "2030-01-01")
     check chosen(db).len == 0
+
+  test "near a place by its name: a landmark, or a place the names were loaded for; one that is not there is an error":
+    let db = world("nearplace", true)
+    let s = openSession(db, allFragments, access = allAccess)
+    addLandmark(s, "Alfama", -9.13, 38.73, 500.0)
+    s.close()
+    discard save(db, "--near", "alfama", "--radius", "5")
+    check chosen(db) == @["lisbon1"] # (as --near 38.73,-9.13 --radius 5)
+    check list(db, "--near", "nowhere") == exitFailure
+    check list(db, "--near", "38.7") == exitUsage
+      # (a number is a position written wrongly)
 
   test "near a point, 100 km unless told":
     let db = world("near", true)

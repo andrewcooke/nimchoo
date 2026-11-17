@@ -18,6 +18,7 @@ type
   NearKind* = enum
     nkNone
     nkPoint
+    nkPlace ## a place by its name, found when the command runs (`names/places`)
     nkLatest
     nkPrevious
 
@@ -63,6 +64,7 @@ type
       ## --invert: the activities that do NOT meet the criteria (before --newest / --oldest)
     near*: NearKind
     lat*, lon*: float ## for nkPoint
+    place*: string ## for nkPlace: the name as given
     radiusKm*: float
 
   Relative* = object
@@ -335,12 +337,18 @@ func takeNear(p: var ListState, v: string): Problem =
     p.c.near = nkPrevious
   else:
     let pos = parseLatLon(v)
-    if pos.isNone:
+    if pos.isSome:
+      p.c.near = nkPoint
+      (p.c.lat, p.c.lon) = pos.get
+    elif v.strip.len > 0 and not (v.len > 0 and v[0] in {'0' .. '9', '-', '+', '.'}):
+      # (a name: what looks like a number is a position written wrongly, and says so)
+      p.c.near = nkPlace
+      p.c.place = v.strip
+    else:
       return refuse(
-        "cannot read the position '" & v & "' (use 38.72,-9.14, latest or previous)"
+        "cannot read the position '" & v &
+          "' (use 38.72,-9.14, a place's name, latest or previous)"
       )
-    p.c.near = nkPoint
-    (p.c.lat, p.c.lon) = pos.get
   fine
 
 func takeRadius(p: var ListState, v: string): Problem =
@@ -460,8 +468,8 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ListState,
         ["--near"],
         true,
-        "LAT,LON",
-        "activities that start within the radius of the point; --near latest: of where the latest activity started (or \"previous\")",
+        "LAT,LON|PLACE",
+        "activities that start within the radius of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --near providencia); --near latest: of where the latest activity started (or \"previous\")",
         body = takeNear(p, value),
       ),
       custom(
