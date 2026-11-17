@@ -83,3 +83,11 @@ suite "nch packages: the settings":
   test "nch provides the command itself; no package may take its name":
     check "packages" in builtinCommands
     check "packages" notin commands.mapIt(it.name)
+
+  test "a misspelt package name is answered with the names it may be, the closest first":
+    let names = @["climbs", "calendar", "cache", "names", "naming"]
+    check closeNames("clims", names) == @["climbs"]
+    check closeNames("Climb", names) ==
+      @["climbs"] # (case does not matter; it holds what was typed)
+    check closeNames("nme", names)[0] == "names"
+    check closeNames("zzz", names).len == 0

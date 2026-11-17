@@ -3,7 +3,7 @@
 ## package cannot import).  What the views are made of is `core/inventory.nim`; here are the command line, the facts about
 ## the running program (`--config`) and the printing.
 
-import std/[algorithm, options, os, sequtils, strformat, strutils]
+import std/[algorithm, editdistance, options, os, sequtils, strformat, strutils]
 import ./core/[access, errors, globals, inventory, logfile, manifest]
 import ./packages/cache/cache
 import ./packages/db/[fragment, store]
@@ -115,6 +115,18 @@ func finish(raw: Raw): Parsed[Params] =
     parsedOk(Params(view: vDetail, package: raw.name))
   else:
     parsedOk(Params(view: vList))
+
+func closeNames*(asked: string, names: seq[string]): seq[string] =
+  ## The names that `asked` may be a misspelling of: those within two edits of it (ignoring case), or that hold it, the
+  ## closest first.
+  let a = asked.toLowerAscii
+  var scored: seq[(int, string)]
+  for n in names:
+    let d = editDistanceAscii(a, n.toLowerAscii)
+    if d <= 2 or (a.len >= 3 and a in n.toLowerAscii):
+      scored.add (d, n)
+  scored.sort()
+  scored.mapIt(it[1])
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## `nch packages [NAME] [--points | --tables | --graph [--reverse] | --dot | --config]`.
@@ -253,6 +265,12 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     of vTree: p.root
     else: ""
   if p.view in {vDetail, vTree} and inv.find(asked) < 0:
+    let close = closeNames(asked, inv.packages.mapIt(it.name))
+    if close.len > 0:
+      return failure(
+        "nch packages",
+        fmt"no package is called '{asked}': did you mean {close.join("" or "")}?",
+      )
     return failure(
       "nch packages",
       fmt"no package is called '{asked}' (they are: {inv.packages.mapIt(it.name).sorted.join("" "")})",

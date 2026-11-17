@@ -74,7 +74,16 @@ suite "the inventory of packages":
 suite "the views":
   test "the summary has a line for each package with what it is for, and under it what it provides":
     let lines = summaryLines(world(), 80)
-    check lines[0].startsWith("package") and "what it is for" in lines[0]
+    check lines[0].startsWith("package") and "what it is for" in lines[0] and
+      "  L  U  B  T  " in lines[0]
+    check lines[^1].startsWith("L: the layer") or
+      lines.anyIt(it.startsWith("L: the layer"))
+    let named = lines.filterIt(
+      it.len > 0 and it[0].isAlphaAscii and not it.startsWith("package") and
+        ":" notin it[0 .. min(2, it.high)]
+    )
+    check named.len > 0 and named[0].startsWith("db ")
+      # (the lowest layer first: db depends on nothing)
     check lines.anyIt(it.startsWith("b ") and it.endsWith("Package b is for b things."))
     check lines.anyIt("command bee" in it and "defines b/p" in it)
     check lines.anyIt("adds to b/p" in it)

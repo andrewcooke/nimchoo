@@ -122,23 +122,38 @@ func countOf(items: seq[string]): string =
   $items.len
 
 func summaryLines*(inv: Inventory, width: int): seq[string] =
-  ## One line for each package, in dependency order: its layer, how many packages it uses and is used by, how many
-  ## tables it owns, and what it is for; and under that, what it provides.
-  var nameWidth = "package".len
-  for p in inv.packages:
-    nameWidth = max(nameWidth, p.name.len)
-  let head = nameWidth + 2 + 5 + 2 + 4 + 2 + 7 + 2 + 6 + 2
-    # (the columns before the text)
-  result.add (
-    "package".alignLeft(nameWidth) & "  layer  uses  used by  tables  what it is for"
+  ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
+  ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
+  ## what it is for; and under that, what it provides.
+  var order = inv.packages
+  order.sort(
+    proc(a, b: PackageInfo): int =
+      result = cmp(a.layer, b.layer)
+      if result == 0:
+        result = cmp(b.dependents.len, a.dependents.len)
+      if result == 0:
+        result = cmp(a.name.normalised, b.name.normalised)
   )
-  for p in inv.packages:
+  var nameWidth = "package".len
+  var w = [1, 1, 1, 1] # the columns of numbers: layer, uses, used by, tables
+  for p in order:
+    nameWidth = max(nameWidth, p.name.len)
+    for k, n in [p.layer, p.depends.len, p.dependents.len, p.tables.len]:
+      w[k] = max(w[k], len($n))
+  var head = nameWidth
+  for x in w:
+    head += 2 + x
+  head += 2 # (the columns before the text)
+  var heading = "package".alignLeft(nameWidth)
+  for k, letter in ["L", "U", "B", "T"]:
+    heading.add "  " & letter.align(w[k])
+  result.add heading & "  what it is for"
+  for p in order:
     let what = wrap(p.summary, max(30, width - head))
-    result.add (
-      p.name.alignLeft(nameWidth) & "  " & align($p.layer, 5) & "  " &
-      align($p.depends.len, 4) & "  " & align($p.dependents.len, 7) & "  " &
-      align($p.tables.len, 6) & "  " & what[0]
-    ).strip(leading = false)
+    var line = p.name.alignLeft(nameWidth)
+    for k, n in [p.layer, p.depends.len, p.dependents.len, p.tables.len]:
+      line.add "  " & align($n, w[k])
+    result.add (line & "  " & what[0]).strip(leading = false)
     for l in what[1 ..^ 1]:
       result.add " ".repeat(head) & l
     var provides: seq[string]
@@ -151,6 +166,12 @@ func summaryLines*(inv: Inventory, width: int): seq[string] =
     if provides.len > 0:
       for l in wrap(provides.join(", "), max(30, width - head)):
         result.add " ".repeat(head) & l
+  result.add ""
+  result.add wrap(
+    "L: the layer (0 depends on nothing; each package is one above the highest it uses); U: how many packages it uses " &
+      "directly; B: how many use it directly; T: how many tables it owns.  Lowest layer first, the most used first in a layer.",
+    width,
+  )
 
 func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
   ## Everything about one package.  `name` must be that of a package.
