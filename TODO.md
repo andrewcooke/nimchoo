@@ -34,7 +34,20 @@ When something here is done, delete it (in the same commit).  Design steps are d
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
     "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject, after D4), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
-6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
+6. **Naming by namers, with climbs** (direction decided 2026-11-17; the design needs more thinking first).  A ride is often all
+    about a big climb, so naming cannot be separate from climbs; but climbs matter for cycling, not every sport, so `importer`
+    must not depend on them.  Tried and dropped: a hill names a ride the ride rose 100 m to reach, by its own altitudes (that
+    was climb detection again, done worse; dev/HISTORY.md has why Cerro San Cristóbal names nothing today: GeoNames has it as
+    `HLL`, which no rule ranks, and sections of the town outrank the park).  The direction: **naming leaves the importer** for
+    a package of its own above it, run after the import (`importer/after`), which collects proposals from **namers** at a
+    point of its own: a generic namer (places and landmarks: today's rules, `names/activity.nim`) and a **cycling namer** in
+    or beside `climbs`, which proposes the ride's big climb (categories HC, 1 and 2; category depends a little on the rider).
+    Naming pulls from the namers, so the climbs of an activity are worked out first when the cycling namer is asked.  Open:
+    which climb when there are several (the biggest, or the one at the turning point: no clear answer); the form of the name
+    ("Farellones and back", "up Farellones" ...); how the namers' proposals are weighed; whether names must be redone when a
+    later ride finds a new climb (perhaps not: a climb found later is probably on another route).  Look at examples together
+    before deciding.  Until then, a landmark names Cerro San Cristóbal (`nch landmarks --add ... --at -33.4253,-70.6331`).
+7. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
   per cell, `missingCells` under 1 ms, both fine).  A cell already loaded is never read again (`coverage`).  The cost is
   batches times file size, so it would only matter for a large file (US about 2 M rows, Russia) with rides scattered over
@@ -50,22 +63,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
   A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for
   the `enhanced_speed` / `speed` channel and writes it to a table of its own (on its own times: a second can have a speed and no
-  position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Storing it
-  has to be decided before the rebuild at the end of the arrays work, because what is not stored then is not there until the
-  next re-import.
-* **"Cerro San Cristóbal" and "Parque Metropolitano" do not name rides: investigated, a decision for the author** (2026-11-17).
-  98 activities pass within about 150 m of the summit (-33.4253, -70.6331); they are called "around Recoleta" (39), "Barrio
-  Bellavista and back" (18), "loop via Recoleta" (12), "Lo Contador and back" (10), "to Lo Contador" (4) ..., and only 2
-  "Parque metropolitano and back".  Why: GeoNames has the hill as `HLL` (204 m from the summit), and `names/activity.destKind`
-  ranks no `HLL` (only `HLLS`, `MTS` ...), so it can never be chosen; the park is `PRK` (rank 3), its point 603 m north-east of
-  the summit, and sections of the town (`PPLX`, rank 2) are as close (Lo Contador 647 m, Barrio Bellavista 883 m, Monserrat
-  960 m) and win, within 700 m of the turning point as beyond.  For loops, "the first kind that has anything wins" means a
-  section of town within 2 km of the route (Recoleta) always beats a park or a hill in the city.  Options: (a) **a landmark**
-  (`nch landmarks --add "Cerro San Cristóbal" --at -33.4253,-70.6331 --radius 600`, say): landmarks come before everything,
-  for a turning point inside the circle and for a loop that passes it; no code, and it is what landmarks are for (then re-name
-  the rides); (b) **a rule**: hills and peaks (`HLL`, `MT`, `PK`) as a kind, or "a feature within ~250 m of the turning point
-  wins whatever its kind"; it changes names everywhere, so look at examples first.  Recommended: (a) now, (b) only if other
-  hills turn out to matter.
+  position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Left out
+  (decided 2026-11-17): no use for it yet, and a rebuild costs about 18 s of import, so it can be added when a use appears.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **Light and dark terminal backgrounds** (`NCH_THEME`, else `COLORFGBG`; dim and yellow are poor on white).
 * **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by

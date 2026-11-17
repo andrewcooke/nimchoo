@@ -44,11 +44,11 @@ type
       ## the distance that decided (from the end in tier 1, from the middle otherwise)
 
 func kindOf(c: Candidate): Option[PickKind] =
-  if c.code in ["PASS", "SDL"]:
+  if c.code in passCodes:
     some(pkPass)
-  elif c.code in ["PK", "PKS", "MT", "MTS"]:
+  elif c.code in peakCodes:
     some(pkPeak)
-  elif c.code in ["HLL", "HLLS", "RDGE", "SPUR", "VAL", "CNYN"]:
+  elif c.code in hillCodes or c.code in ["RDGE", "SPUR", "VAL", "CNYN"]:
     some(pkHill)
   elif c.code.isInactivePlace:
     none(PickKind)

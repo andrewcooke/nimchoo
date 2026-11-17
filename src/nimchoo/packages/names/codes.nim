@@ -7,6 +7,9 @@ const
   inactivePlaceCodes* = ["PPLQ", "PPLW", "PPLH"]
     ## populated places that are abandoned, destroyed or historical: labels, not places, so never used
   neighbourhoodCode* = "PPLX" ## a section of a populated place
+  passCodes* = ["PASS", "SDL"] ## a pass or saddle
+  peakCodes* = ["PK", "PKS", "MT", "MTS"] ## a peak or mountain (one or several)
+  hillCodes* = ["HLL", "HLLS"] ## a hill (one or several)
 
 func isInactivePlace*(code: string): bool =
   ## An abandoned, destroyed or historical populated place.
