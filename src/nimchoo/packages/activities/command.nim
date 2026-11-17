@@ -372,8 +372,13 @@ proc listActivities*(
   )
   if c.select:
     st.replaceSelection(st.db.query(int64, sqlOf("select id from (") & match & ")"))
-  let rows =
+  var rows =
     readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
+  if not (c.select or c.all):
+    # blue is the selection after this command: criteria without --select change nothing, so nothing listed is blue (with
+    # --select everything listed is; with --all, the activities that are selected among them all)
+    for r in rows.mitems:
+      r.selected = false
   let total = st.db.scalar(
     int,
     "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :userId",

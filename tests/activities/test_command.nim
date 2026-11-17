@@ -587,7 +587,7 @@ suite "list: what is shown":
     check r.lines.texts[^1] ==
       "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
-  test "rows in the selection are blue; with --select all that are listed are":
+  test "blue is the selection after the command: the selection, --all with the selected among them, --select; criteria alone: none":
     let db = world("yellow")
     proc blueRows(lines: seq[Line]): seq[bool] =
       for l in lines:
@@ -598,6 +598,9 @@ suite "list: what is shown":
     discard save(db, "--sports", "cycling") # the selection: the cycling one
     check shown(db, "--all").lines.blueRows == @[true, false]
     check shown(db, "--sports", "running").lines.blueRows == @[false]
+    check shown(db, "--sports", "cycling").lines.blueRows ==
+      @[false] # (in the selection, but listing by criteria does not change it: not blue)
+    check "match selected" notin shown(db, "--sports", "cycling").lines.texts[^1]
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
@@ -605,7 +608,9 @@ suite "list: what is shown":
     check showSelection(st, p.params, utc()).blueRows == @[true] # the selection: all are
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
-    check shown(db, "--sports", "running").lines.blueRows == @[true]
+    check shown(db, "--sports", "running").lines.blueRows ==
+      @[false]
+        # (selected now, by the --select above; but criteria alone still show none in blue)
 
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")
