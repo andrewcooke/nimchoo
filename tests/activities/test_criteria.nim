@@ -66,7 +66,8 @@ suite "list: the command line":
   test "--select and --all":
     check not cmdline().params.select and not cmdline().params.all and
       not cmdline().params.given
-    check cmdline("--all", "--select").params.select and cmdline("--all").params.all
+    check parseArgs(@["--all", "--select"], utcZone).params.select and
+      cmdline("--all").params.all
     check cmdline("--sports", "cycling", "--select").params.select and
       cmdline("--sports", "cycling").params.given
     check cmdline("--select").problem.contains("needs criteria or --all")
@@ -540,3 +541,8 @@ suite "list: the criteria of the packages":
   test "the climbs offer --climbs, and it shows in the usage":
     check "--climbs" in
       activitiesCommand.usageText(100, extensions.get(activityCriterion))
+
+suite "list: --save":
+  test "--save is another name for --select":
+    check parseArgs(@["--all", "--save"], utcZone).params.select
+    check parseArgs(@["--all", "--select"], utcZone).params.select

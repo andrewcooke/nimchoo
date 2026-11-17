@@ -514,7 +514,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
-        ["--select"],
+        ["--select", "--save"],
         false,
         "",
         "make what is listed the selection (needs criteria or --all)",
