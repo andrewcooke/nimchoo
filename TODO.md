@@ -19,8 +19,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
 ## Larger changes (designs not started)
 
 2. **Arrays: what is left.**  Built and measured (2026-11-13, dev/HISTORY.md "The arrays"): the cleaning, the arrays and every reader;
-   `coords` and `heartrate` are gone.  Left: (a) the rebuild was done by the author after the squash (2026-11-17), without the old database, so there was nothing to
-   compare efforts and names with; (b) a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at
+   `coords` and `heartrate` are gone.  Left: (b) a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at
    -33.4253,-70.6331`), so the 98 rides over it are named after it (dev/NAMING.md says why a landmark and not a rule); the rides
    already named are named again by `nch activities --all --rename`; (c) a **simpler
    `route`**, also stored as a single connected line beside the multi-part one, for the uses where segmentation does not matter (21% of
@@ -60,9 +59,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 * **The map**: labels, a legend, landmarks on the map, style rules by
   property (colour by sport or year).
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page (superseded if the plot command comes first).
-* **Blue for the selection in `nch climbs`** (candidates: the `-v` attempts of selected rides; the latest/rank
-  cells when the latest attempt is of a selected ride).  The author also asked whether "the selection chooses
-  the climbs, never the attempts" is right; it is built that way.
+* **The selection's style in `nch climbs`**: the `-v` attempts of selected rides have it (done); left, the latest/rank cells
+  when the latest attempt is of a selected ride, once display step 6 has said what `nch climbs` lists.  The author also asked
+  whether "the selection chooses the climbs, never the attempts" is right; it is built that way.
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
 * **A calendar of fitness** (dev/HISTORY.md, Task 14): the `nch calendar` grid with the background showing fitness, fatigue or form, each day in thirds.
 * **More climb features**: the elevation profile of a climb, the lead/lag comparison, the near-miss report, `exclude`, a way to retire many climbs
