@@ -52,7 +52,7 @@ proc built(): bool =
 proc worker(db, cache: string, extra: seq[string]): tuple[output: string, code: int] =
   let p = startProcess(
     exe,
-    args = @["--db", db, "ff", "--worker", "--utc", "--to", "2018-09-05"] & extra,
+    args = @["--db", db, "ff", "--worker", "--utc", "--before", "2018-09-06"] & extra,
     env = environment(cache),
     options = {poStdErrToStdOut},
   )
@@ -99,8 +99,9 @@ suite "nch ff: a real server":
     let f = fixture("web")
     let p = startProcess(
       exe,
-      args =
-        @["--db", f.db, "ff", "--start", "--port", "0", "--utc", "--to", "2018-09-05"],
+      args = @[
+        "--db", f.db, "ff", "--start", "--port", "0", "--utc", "--before", "2018-09-06"
+      ],
       env = environment(f.cache),
       options = {poStdErrToStdOut},
     )
@@ -111,7 +112,7 @@ suite "nch ff: a real server":
         url = line
         break
     check url.len > 0
-    check url.contains("/ff?to=2018-09-05&utc=1&token=")
+    check url.contains("/ff?before=2018-09-06&utc=1&token=")
     let base = url[0 ..< url.find("/ff")]
     let token = url[url.find("token=") + 6 .. ^1]
     let c = newHttpClient(maxRedirects = 0, timeout = 20_000)
@@ -128,10 +129,10 @@ suite "nch ff: a real server":
     check $data.headers["Content-Type"] == "text/csv; charset=utf-8"
     check data.body.startsWith("time,fitness,fatigue\n2018-08-27,")
     # the hourly chart is another file, made at once (nothing is pinned)
-    let hourly = withCookie.request(base & "/ff?to=2018-09-05&utc=1&hourly=1")
+    let hourly = withCookie.request(base & "/ff?before=2018-09-06&utc=1&hourly=1")
     check hourly.code == Http200 and hourly.body.contains("const hourly = true;")
     check withCookie.request(base & "/ff?state=ab12cd").code == Http404
-    check withCookie.request(base & "/ff?to=2018-09-05&bogus=1").code == Http404
+    check withCookie.request(base & "/ff?before=2018-09-06&bogus=1").code == Http404
     check newHttpClient(maxRedirects = 0).request(base & "/ff").code == Http403
     when defined(posix):
       discard posix.kill(Pid(p.processID), SIGINT)

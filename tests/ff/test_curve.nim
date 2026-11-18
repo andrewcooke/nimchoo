@@ -70,22 +70,21 @@ suite "ff: the command line":
       p.params.fitnessScale == 1 and p.params.fatigueScale == 1
     let q = parseArgs(
       @[
-        "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly",
-        "--fitness-scale", "2", "--fatigue-scale", "5",
+        "--model", "flat", "--after", "2018-08-01", "--before", "2018-09-01",
+        "--hourly", "--fitness-scale", "2", "--fatigue-scale", "5",
       ]
     )
     check q.problem == "" and q.params.model == some("flat") and q.params.hourly and
       q.params.fitnessScale == 2 and q.params.fatigueScale == 5
-    check q.params.fromDay == some(1533081600'i64) and
-      q.params.toDay == some(1535673600'i64)
+    check q.params.firstDay == some(1533081600'i64) and
+      q.params.lastDay == some(1535673600'i64)
   test "--stdout":
     check parseArgs(@["--stdout"]).params.stdout and not parseArgs(@[]).params.stdout
   test "problems":
-    check parseArgs(@["--from", "yesterday"]).problem.contains("is a day")
-    check parseArgs(@["--to", "2018-13-01"]).problem.contains("is a day")
-    check parseArgs(@["--from", "2018-09-01", "--to", "2018-08-01"]).problem.contains(
-      "after"
-    )
+    check parseArgs(@["--after", "yesterday"]).problem.contains("is a day")
+    check parseArgs(@["--before", "2018-13-01"]).problem.contains("is a day")
+    check parseArgs(@["--after", "2018-09-01", "--before", "2018-08-02"]).problem
+      .contains("after")
     check parseArgs(@["--fitness-scale", "0"]).problem.contains("above 0")
     check parseArgs(@["--fatigue-scale", "x"]).problem.contains("above 0")
     check parseArgs(@["--model"]).problem.contains("needs a value")
@@ -99,7 +98,7 @@ suite "ff: the rows":
   let santiago = fixedZone("-03", -3 * 3600) # (a fixed offset: -03:00)
   let india = fixedZone("+0530", 5 * 3600 + 1800) # +05:30
   test "one a day, the value at the end of the day, scaled":
-    let p = Params(toDay: some(86400'i64 * 12), fitnessScale: 1, fatigueScale: 5)
+    let p = Params(lastDay: some(86400'i64 * 12), fitnessScale: 1, fatigueScale: 5)
     let r = rows(imp, m, p, 0, u)
     check r.len == 3
     check r[0] ==
@@ -107,12 +106,12 @@ suite "ff: the rows":
       formatFloat(50 * exp(-23.0 / (7 * 24)), ffDecimal, 4)
     check r[2].startsWith("1970-01-13,")
   test "--from drops the early days; --to defaults to today":
-    let p = Params(fromDay: some(86400'i64 * 11), fitnessScale: 1, fatigueScale: 1)
+    let p = Params(firstDay: some(86400'i64 * 11), fitnessScale: 1, fatigueScale: 1)
     let r = rows(imp, m, p, 86400'i64 * 12 + 5000, u)
     check r.len == 2 and r[0].startsWith("1970-01-12,")
   test "hourly rows are labelled by the end of the hour":
     let p = Params(
-      toDay: some(86400'i64 * 10), hourly: true, fitnessScale: 1, fatigueScale: 1
+      lastDay: some(86400'i64 * 10), hourly: true, fitnessScale: 1, fatigueScale: 1
     )
     let r = rows(imp, m, p, 0, u)
     check r.len == 24
@@ -120,7 +119,7 @@ suite "ff: the rows":
     check r[23].startsWith("1970-01-12T00:00:00Z,")
   test "in another timezone the days end at its midnight":
     # the impulse is at 21:00 on the 10th in Santiago (midnight UTC on the 11th); the 10th ends three hours later
-    let p = Params(toDay: some(86400'i64 * 9), fitnessScale: 1, fatigueScale: 1)
+    let p = Params(lastDay: some(86400'i64 * 9), fitnessScale: 1, fatigueScale: 1)
     let r = rows(imp, m, p, 0, santiago)
     check r ==
       @[
@@ -130,7 +129,9 @@ suite "ff: the rows":
     let none = rows(
       imp,
       m,
-      Params(toDay: some(86400'i64 * 8), hourly: true, fitnessScale: 1, fatigueScale: 1),
+      Params(
+        lastDay: some(86400'i64 * 8), hourly: true, fitnessScale: 1, fatigueScale: 1
+      ),
       0,
       santiago,
     )
@@ -138,7 +139,9 @@ suite "ff: the rows":
     let h = rows(
       imp,
       m,
-      Params(toDay: some(86400'i64 * 9), hourly: true, fitnessScale: 1, fatigueScale: 1),
+      Params(
+        lastDay: some(86400'i64 * 9), hourly: true, fitnessScale: 1, fatigueScale: 1
+      ),
       0,
       santiago,
     )
@@ -151,7 +154,7 @@ suite "ff: the rows":
     check rows(imp, m, p, 86400'i64 * 12 + 7200, santiago)[^1].startsWith("1970-01-12,")
   test "a half-hour timezone uses the last whole hour before its midnight":
     # the 11th ends at 18:30 UTC on the 11th; the last whole hour ends at 18:00, 17 hours after the impulse's hour starts
-    let p = Params(toDay: some(86400'i64 * 10), fitnessScale: 1, fatigueScale: 1)
+    let p = Params(lastDay: some(86400'i64 * 10), fitnessScale: 1, fatigueScale: 1)
     check rows(imp, m, p, 0, india) ==
       @[
         "1970-01-11," & formatFloat(10 * exp(-17.0 / (42 * 24)), ffDecimal, 4) & "," &
@@ -166,7 +169,7 @@ suite "nch ff":
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
     let g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
-    check ffCommand.run(g, @["--to", "2018-09-05", "--file"]) == exitFailure
+    check ffCommand.run(g, @["--before", "2018-09-06", "--file"]) == exitFailure
       # nothing yet
     let s = openSession(path, allFragments, access = allAccess)
     var ws: seq[Warning]
@@ -177,7 +180,7 @@ suite "nch ff":
       ws,
       @[heartrateStep],
     )
-    check ffCommand.run(g, @["--to", "2018-09-05", "--file"]) == exitFailure
+    check ffCommand.run(g, @["--before", "2018-09-06", "--file"]) == exitFailure
       # (no FTHR: refused, with a reason)
     s.db.execute(
       "insert into user_profile(user_id, fthr) values (:userId, 154)", userId = s.userId
@@ -185,7 +188,7 @@ suite "nch ff":
     s.close()
     check not dirExists(cache / "user")
       # (nothing made yet; the database has unpacked its list of places)
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--file"]) == exitOk
+    check ffCommand.run(g, @["--before", "2018-09-06", "--utc", "--file"]) == exitOk
     var files: seq[string]
     for f in walkFiles(cache / "user" / "*.csv"):
       files.add f
@@ -201,19 +204,19 @@ suite "nch ff":
     t.close()
     # the same request again makes the file again, from the data as they are, and works the impulses out again
     writeFile(files[0], "marker")
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--file"]) == exitOk
+    check ffCommand.run(g, @["--before", "2018-09-06", "--utc", "--file"]) == exitOk
     check readFile(files[0]) == first
     let u2 = openSession(path, allFragments, access = allAccess)
     check u2.db.scalar(int, "select count(*) from impulse") == 2
     u2.close()
     # other options, other files
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--hourly", "--file"]) ==
+    check ffCommand.run(g, @["--before", "2018-09-06", "--utc", "--hourly", "--file"]) ==
       exitOk
     check ffCommand.run(
-      g, @["--to", "2018-09-05", "--utc", "--fatigue-scale", "5", "--file"]
+      g, @["--before", "2018-09-06", "--utc", "--fatigue-scale", "5", "--file"]
     ) == exitOk
     check ffCommand.run(
-      g, @["--to", "2018-09-05", "--utc", "--from", "2018-08-28", "--file"]
+      g, @["--before", "2018-09-06", "--utc", "--after", "2018-08-28", "--file"]
     ) == exitOk
     var n = 0
     for f in walkFiles(cache / "user" / "*.csv"):
@@ -223,18 +226,18 @@ suite "nch ff":
     let v = openSession(path, allFragments, access = allAccess)
     v.db.execute("update user_profile set fthr = 160")
     v.close()
-    check ffCommand.run(g, @["--to", "2018-09-05", "--utc", "--file"]) == exitOk
+    check ffCommand.run(g, @["--before", "2018-09-06", "--utc", "--file"]) == exitOk
     n = 0
     for f in walkFiles(cache / "user" / "*.csv"):
       inc n
     check n == 4
     check readFile(files[0]) != first
     # --stdout makes no file
-    check ffCommand.run(g, @["--to", "2018-09-06", "--utc", "--stdout"]) == exitOk
+    check ffCommand.run(g, @["--before", "2018-09-07", "--utc", "--stdout"]) == exitOk
     n = 0
     for f in walkFiles(cache / "user" / "*.csv"):
       inc n
     check n == 4
     check ffCommand.run(g, @["--model", "nope", "--file"]) == exitFailure
-    check ffCommand.run(g, @["--to", "x"]) == exitUsage
+    check ffCommand.run(g, @["--before", "x"]) == exitUsage
     useTestCache()

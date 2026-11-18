@@ -104,8 +104,8 @@ suite "query plans: no query reads a whole table":
       paths: @["bowman"],
       distanceM: NumRange(lo: some 1.0, hi: some 2.0),
       activeS: NumRange(lo: some 1.0),
-      fromT: some(UnixTime(1)),
-      toT: some(UnixTime(2)),
+      afterT: some(UnixTime(1)),
+      beforeT: some(UnixTime(2)),
       gps: gfWith,
       radiusKm: 5.0,
     )

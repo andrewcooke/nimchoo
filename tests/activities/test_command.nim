@@ -175,7 +175,7 @@ suite "list: the command":
   test "saving a list with nothing in it empties the selection":
     let db = world("saveempty")
     discard save(db, "--all")
-    check save(db, "--from", "2030-01-01") == exitOk
+    check save(db, "--after", "2030-01-01") == exitOk
     check chosen(db).len == 0
 
   test "only the current user's activities: --user says whose":
@@ -206,7 +206,7 @@ suite "list: the command":
     check chosen(db).len == 2
     discard save(db, "--latest")
     check chosen(db) == @["paris"]
-    discard save(db, "--to", "2018-07-31")
+    discard save(db, "--before", "2018-08-01")
     check chosen(db) == @["lisbon1"]
 
   test "the newest or oldest few, of those that meet the other criteria":
@@ -215,9 +215,9 @@ suite "list: the command":
     check chosen(db) == @["lisbon2", "paris"] # (of all three, by start time)
     discard save(db, "--oldest", "1")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--from", "2018-08-01", "--oldest", "1")
+    discard save(db, "--after", "2018-08-01", "--oldest", "1")
     check chosen(db) == @["lisbon2"] # (of bob's and paris: only after 1 Aug)
-    discard save(db, "--from", "2018-08-01", "--newest", "5")
+    discard save(db, "--after", "2018-08-01", "--newest", "5")
     check chosen(db) == @["lisbon2", "paris"]
 
   test "by sport; several mean any of them; case does not matter":
@@ -245,7 +245,7 @@ suite "list: the command":
     discard save(db, "--sports", "cycling", "--sub-sports", "road")
     check chosen(db) == @["lisbon1"]
     discard
-      save(db, "--sports", "cycling", "--near", "38.73,-9.13", "--to", "2018-08-01")
+      save(db, "--sports", "cycling", "--near", "38.73,-9.13", "--before", "2018-08-02")
     check chosen(db) == @["lisbon1"]
 
   test "a sport nobody has is refused, naming those there are":
@@ -338,7 +338,7 @@ suite "list: the command":
     )
     check chosen(db) == @["paris"]
     discard save(
-      db, "--from", "2018-08-01", "--to", "2018-08-20", "--sports", "latest",
+      db, "--after", "2018-08-01", "--before", "2018-08-21", "--sports", "latest",
       "--distance", "latest~10%",
     )
     check chosen(db) == @["lisbon2"] # the latest in that month is bob's
@@ -436,7 +436,7 @@ suite "list: the command":
     let db = numbered("latest5")
     discard save(db, "--all")
     check save(
-      db, "--sports", "cycling", "--from", "2030-01-01", "--distance", "latest~5"
+      db, "--sports", "cycling", "--after", "2030-01-01", "--distance", "latest~5"
     ) == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
     setNumbers(db, "paris", "null", "null")
@@ -457,11 +457,11 @@ suite "list: the command":
 
   test "dates":
     let db = world("dates", true)
-    discard save(db, "--from", "2018-08-01")
+    discard save(db, "--after", "2018-08-01")
     check chosen(db) == @["lisbon2", "paris"]
-    discard save(db, "--from", "2018-08-01", "--to", "2018-08-20")
+    discard save(db, "--after", "2018-08-01", "--before", "2018-08-21")
     check chosen(db) == @["lisbon2"]
-    discard save(db, "--from", "2030-01-01")
+    discard save(db, "--after", "2030-01-01")
     check chosen(db).len == 0
 
   test "near a place by its name: a landmark, or a place the names were loaded for; one that is not there is an error":
@@ -550,14 +550,14 @@ suite "list: the command":
     let db = world("and", true)
     discard save(db, "--near", "38.73,-9.13", "--latest")
     check chosen(db) == @["lisbon2"] # (the newest of those near Lisbon, not of all)
-    discard save(db, "--near", "38.73,-9.13", "--to", "2018-08-01")
+    discard save(db, "--near", "38.73,-9.13", "--before", "2018-08-02")
     check chosen(db) == @["lisbon1"]
 
   test "a bad request changes nothing":
     let db = world("bad", true)
     discard save(db, "--all")
     check save(db, "--newest", "0") == exitUsage
-    check save(db, "--from", "soon") == exitUsage
+    check save(db, "--after", "soon") == exitUsage
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
   test "deleting an activity's file takes it out of the selection":
@@ -646,7 +646,7 @@ suite "list: what is shown":
     check showSelection(st, Criteria(), utc()).texts[0].startsWith(
       "nothing is selected"
     )
-    check shown(db, "--from", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
+    check shown(db, "--after", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
 
   test "--near says where":
     let db = world("shownnear", true)
@@ -884,9 +884,9 @@ suite "list: --invert":
     check chosen(db) == @["lisbon2", "paris"]
   test "all the criteria together: not (cycling and in July)":
     let db = world("invertall", true)
-    discard save(db, "--sports", "cycling", "--to", "2018-07-31")
+    discard save(db, "--sports", "cycling", "--before", "2018-08-01")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--sports", "cycling", "--to", "2018-07-31", "--invert")
+    discard save(db, "--sports", "cycling", "--before", "2018-08-01", "--invert")
     check chosen(db) == @["lisbon2", "paris"]
   test "names, starts and gps are inverted too; an activity not named yet fails to match":
     let db = world("invertnames", true)

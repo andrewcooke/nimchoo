@@ -2,7 +2,7 @@
 ## criteria turned into SQL.  Pure: no database, no clock, no terminal (the time
 ## zone is a parameter), so all of it is tested directly.
 
-import std/[math, options, strutils, times]
+import std/[math, options, strformat, strutils, times]
 import ../fit/time
 import ../confirm/confirm
 import ../util/args/args
@@ -59,8 +59,8 @@ type
       ## --paths: text found in a path the file was imported from (or in its name)
     contributed*: seq[Contributed]
       ## the options that other packages offer (`--climbs`), as given: they are resolved when the command runs
-    fromT*: Option[UnixTime] ## start of the activity at or after
-    toT*: Option[UnixTime] ## start of the activity before (exclusive)
+    afterT*: Option[UnixTime] ## the activity starts at or after this instant
+    beforeT*: Option[UnixTime] ## the activity starts before this instant
     gps*: GpsFilter
     invert*: bool
       ## --invert: the activities that do NOT meet the criteria (before --newest / --oldest)
@@ -80,30 +80,28 @@ type
 const
   defaultRadiusKm* = 100.0
   timeFormats = [
-    ("yyyy-MM-dd'T'HH:mm:ss", 1),
-    ("yyyy-MM-dd HH:mm:ss", 1),
-    ("yyyy-MM-dd'T'HH:mm", 60),
-    ("yyyy-MM-dd HH:mm", 60),
-    ("yyyy-MM-dd", 0),
-  ] # (granularity in seconds; 0: a calendar day)
+    "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
+    "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+  ] ## (a date alone is its midnight: as if written with T00:00:00)
 
-proc parseWhen*(s: string, zone: Timezone, isEnd: bool): Option[UnixTime] =
-  ## A time typed by the user, in `zone`, as Unix seconds.  For an end (`--to`, isEnd) it is
-  ## the first moment after what was named: after the day, the minute, the second.
-  for (format, granule) in timeFormats:
+proc parseWhen*(s: string, zone: Timezone): Option[UnixTime] =
+  ## An instant typed by the user, in `zone`, as Unix seconds: exactly what is written, a date being the start of its day
+  ## (`--after`, `--before`: the one rule for every form, so that `--after D --before E` meets the next range at E).
+  for format in timeFormats:
     try:
-      let dt = parse(s, format, zone)
-      if not isEnd:
-        return some(UnixTime(dt.toTime.toUnix))
-      let after =
-        if granule == 0:
-          dt + initTimeInterval(days = 1)
-        else:
-          dt + initDuration(seconds = granule)
-      return some(UnixTime(after.toTime.toUnix))
+      return some(UnixTime(parse(s, format, zone).toTime.toUnix))
     except TimeParseError, TimeFormatParseError, ValueError, OverflowDefect:
       discard
   none(UnixTime)
+
+proc parseOnDay*(s: string, zone: Timezone): Option[tuple[start, next: UnixTime]] =
+  ## A date typed by the user (`--on`: a date, not a time), as the start of that day in `zone` and the start of the next
+  ## (a day is not always 24 hours: the clocks change).
+  try:
+    let d = parse(s, "yyyy-MM-dd", zone)
+    some((UnixTime(d.toTime.toUnix), UnixTime((d + 1.days).toTime.toUnix)))
+  except TimeParseError, TimeFormatParseError, ValueError, OverflowDefect:
+    none(tuple[start, next: UnixTime])
 
 type ListState = object
   ## What the options of `nch activities` fill in as they are read.
@@ -112,14 +110,14 @@ type ListState = object
   zone: Timezone
   offered: seq[Criterion] ## the criteria other packages offer
   radiusGiven: bool ## --radius was given
+  onGiven, rangeGiven: bool ## --on was given; --after or --before was
   criteriaGiven: bool ## some option other than those that say what to display
 
 func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
   ## --newest N, -n N, --oldest N.
   var n = 0
   if not parseIntIn(value, 1, high(int), n):
-    return
-      refuse(name & " needs a number of activities, 1 or more (not '" & value & "')")
+    return refuse(fmt"{name} needs a number of activities, 1 or more (not '{value}')")
   p.criteriaGiven = true
   if oldest:
     p.c.oldest = n
@@ -139,7 +137,7 @@ proc takeSports(
   p.criteriaGiven = true
   let names = splitNames(values, true)
   if names.len == 0:
-    return refuse(name & " needs at least one name")
+    return refuse(fmt"{name} needs at least one name")
   for n in names:
     if parseReference(n) != refNone:
       if p.c.sportRef != refNone and p.c.sportRef != parseReference(n):
@@ -155,7 +153,7 @@ proc takeSubSports(
   p.criteriaGiven = true
   let names = splitNames(values, true)
   if names.len == 0:
-    return refuse(name & " needs at least one name")
+    return refuse(fmt"{name} needs at least one name")
   for n in names:
     if parseReference(n) != refNone:
       if p.c.subSportRef != refNone and p.c.subSportRef != parseReference(n):
@@ -178,11 +176,11 @@ proc takeTexts(
     if v.strip.len > 0:
       found.add v.strip
   if found.len == 0:
-    return refuse(name & " needs some text")
+    return refuse(fmt"{name} needs some text")
   for t in found:
     if parseReference(t) != refNone:
       if ref0 != refNone and ref0 != parseReference(t):
-        return refuse(name & ": latest and previous cannot be used together")
+        return refuse(fmt"{name}: latest and previous cannot be used together")
       ref0 = parseReference(t)
     else:
       texts.add t
@@ -206,7 +204,7 @@ proc takePaths(
     if v.strip.len > 0:
       p.c.paths.add v.strip
   if p.c.paths.len == 0:
-    return refuse(name & " needs some text")
+    return refuse(fmt"{name} needs some text")
   fine
 
 proc takeContributed(
@@ -217,7 +215,7 @@ proc takeContributed(
   for o in p.offered:
     if name in o.doc.names:
       if o.doc.arity == aList and values.len == 0:
-        return refuse(name & " needs at least one word")
+        return refuse(fmt"{name} needs at least one word")
       for c in p.c.contributed.mitems:
         if c.option == o.doc.names[0]:
           c.values.add values
@@ -226,7 +224,7 @@ proc takeContributed(
         option: o.doc.names[0], values: values, resolve: o.resolve
       )
       return fine
-  refuse(name & " is not an option") # (cannot happen: the spec has just these)
+  refuse(fmt"{name} is not an option") # (cannot happen: the spec has just these)
 
 func contributedOption(o: Criterion): Opt[ListState] =
   ## The option of an offered criterion, as the parser has them.
@@ -251,8 +249,7 @@ proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
     let ar = parseAround(v, parseDistance)
     if ar.isNone:
       return refuse(
-        "cannot read the distance '" & v &
-          "' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)"
+        fmt"cannot read the distance '{v}' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)"
       )
     if ar.get.centre.isSome:
       p.c.distanceM = around(ar.get.centre.get, ar.get.tol)
@@ -262,10 +259,9 @@ proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
     let r = parseRange(v, parseDistance)
     if r.isNone:
       if isBackwards(v, parseDistance):
-        return refuse("the distance range '" & v & "' is backwards (smaller end first)")
+        return refuse(fmt"the distance range '{v}' is backwards (smaller end first)")
       return refuse(
-        "cannot read the distance range '" & v &
-          "' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)"
+        fmt"cannot read the distance range '{v}' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)"
       )
     p.c.distanceM = r.get
   fine
@@ -276,8 +272,7 @@ proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
     let ar = parseAround(v, parseInterval)
     if ar.isNone:
       return refuse(
-        "cannot read the active time '" & v &
-          "' (use 2h~15m, latest~10% or previous~10%)"
+        fmt"cannot read the active time '{v}' (use 2h~15m, latest~10% or previous~10%)"
       )
     if ar.get.centre.isSome:
       p.c.activeS = around(ar.get.centre.get, ar.get.tol)
@@ -287,26 +282,35 @@ proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
     let r = parseRange(v, parseInterval)
     if r.isNone:
       if isBackwards(v, parseInterval):
-        return
-          refuse("the active time range '" & v & "' is backwards (shorter end first)")
+        return refuse(fmt"the active time range '{v}' is backwards (shorter end first)")
       return refuse(
-        "cannot read the active time range '" & v &
-          "' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
+        fmt"cannot read the active time range '{v}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
       )
     p.c.activeS = r.get
   fine
 
-proc takeWhen(p: var ListState, v: string, isEnd: bool): Problem =
-  ## --from T (the start of what is named) and --to T (the end).
+proc takeWhen(p: var ListState, v: string, before: bool): Problem =
+  ## --after T, --before T: the instant as written.
   p.criteriaGiven = true
-  let t = parseWhen(v, p.zone, isEnd)
+  p.rangeGiven = true
+  let t = parseWhen(v, p.zone)
   if t.isNone:
-    return
-      refuse("cannot read the time '" & v & "' (use 2018-08-27 or 2018-08-27T09:30)")
-  if isEnd:
-    p.c.toT = t
+    return refuse(fmt"cannot read the time '{v}' (use 2018-08-27 or 2018-08-27T09:30)")
+  if before:
+    p.c.beforeT = t
   else:
-    p.c.fromT = t
+    p.c.afterT = t
+  fine
+
+proc takeOn(p: var ListState, v: string): Problem =
+  ## --on DATE: the activities of that day.
+  p.criteriaGiven = true
+  p.onGiven = true
+  let d = parseOnDay(v, p.zone)
+  if d.isNone:
+    return refuse(fmt"--on takes a date, like 2018-08-27 (not '{v}')")
+  p.c.afterT = some(d.get.start)
+  p.c.beforeT = some(d.get.next)
   fine
 
 func takeGps(p: var ListState, wanted: GpsFilter): Problem =
@@ -334,8 +338,7 @@ func takeNear(p: var ListState, v: string): Problem =
       p.c.place = v.strip
     else:
       return refuse(
-        "cannot read the position '" & v &
-          "' (use 38.72,-9.14, a place's name, latest or previous)"
+        fmt"cannot read the position '{v}' (use 38.72,-9.14, a place's name, latest or previous)"
       )
   fine
 
@@ -344,7 +347,7 @@ func takeRadius(p: var ListState, v: string): Problem =
   try:
     p.c.radiusKm = parseFloat(v)
   except ValueError:
-    return refuse("cannot read the radius '" & v & "' (kilometres)")
+    return refuse(fmt"cannot read the radius '{v}' (kilometres)")
   if p.c.radiusKm <= 0:
     return refuse("the radius must be more than 0km")
   p.radiusGiven = true
@@ -356,8 +359,8 @@ func hasFilter*(c: Criteria): bool =
     c.paths.len > 0 or c.contributed.len > 0 or c.sportRef != refNone or
     c.subSportRef != refNone or c.nameRef != refNone or c.startRef != refNone or
     c.distanceM.lo.isSome or c.distanceM.hi.isSome or c.activeS.lo.isSome or
-    c.activeS.hi.isSome or c.distanceRel.isSome or c.activeRel.isSome or c.fromT.isSome or
-    c.toT.isSome or c.gps != gfAny or c.near != nkNone
+    c.activeS.hi.isSome or c.distanceRel.isSome or c.activeRel.isSome or c.afterT.isSome or
+    c.beforeT.isSome or c.gps != gfAny or c.near != nkNone
 
 proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   ## The options of `nch activities`, in the order the usage lists them, each with its help; the criteria that other
@@ -422,7 +425,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
-        ["--from"],
+        ["--after"],
         true,
         "TIME",
         "activities that start at or after TIME",
@@ -430,11 +433,19 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
-        ["--to"],
+        ["--before"],
         true,
         "TIME",
-        "activities that start before the end of TIME\n(TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a --to date means the whole day)",
+        "activities that start before TIME\n(TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a date is the start of that day, as if written with T00:00:00: --after 2018-08-01 --before 2018-09-01 is August)",
         body = takeWhen(p, value, true),
+      ),
+      custom(
+        ListState,
+        ["--on"],
+        true,
+        "DATE",
+        "activities that start on that day (a date: --on 2018-08-27 is --after 2018-08-27 --before 2018-08-28)",
+        body = takeOn(p, value),
       ),
       custom(
         ListState,
@@ -571,15 +582,17 @@ func finish(st: ListState): Parsed[Criteria] =
       bad("--invert needs a criterion to invert (--sports, --names, --distance ...)")
   if c.newest > 0 and c.oldest > 0:
     return bad("--newest and --oldest cannot be used together")
-  if c.fromT.isSome and c.toT.isSome and c.fromT.get >= c.toT.get:
-    return bad("--from is not before --to")
+  if st.onGiven and st.rangeGiven:
+    return bad("--on is a day of its own: it does not go with --after or --before")
+  if c.afterT.isSome and c.beforeT.isSome and c.afterT.get >= c.beforeT.get:
+    return bad("--after is not before --before")
   parsedOk(c)
 
 proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Criteria] =
   ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
-  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--from T`, `--to T`, `--near LAT,LON|latest`, `--radius KM`;
+  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--near LAT,LON|latest`, `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
@@ -771,10 +784,11 @@ func matchSql*(
     filt = filt & " and not exists (select 1 from track k where k.activity_id = a.id)"
   of gfAny:
     discard
-  if c.fromT.isSome:
-    filt = filt & sqlOf(" and a.start_t >= :fromT").with("fromT", int64(c.fromT.get))
-  if c.toT.isSome:
-    filt = filt & sqlOf(" and a.start_t < :toT").with("toT", int64(c.toT.get))
+  if c.afterT.isSome:
+    filt = filt & sqlOf(" and a.start_t >= :afterT").with("afterT", int64(c.afterT.get))
+  if c.beforeT.isSome:
+    filt =
+      filt & sqlOf(" and a.start_t < :beforeT").with("beforeT", int64(c.beforeT.get))
   if centre.isSome:
     let (lat, lon) = centre.get
     # activities that START within the radius: the spatial index finds those in a box, and

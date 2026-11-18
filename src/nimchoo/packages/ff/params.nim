@@ -1,17 +1,19 @@
 ## The command line of `nch ff`, parsed.  Pure.
 
-import std/[options, strutils, times]
+import std/[options, strformat, strutils, times]
 import ../util/args/args
 import ../model/completion
 import ../web/[request, webopts]
+import ./curve
 
 {.push raises: [].}
 
 type
   Params* = object
     model*: Option[string] ## none: the default model
-    fromDay*, toDay*: Option[int64]
-      ## a calendar date, as Unix seconds at its start in UTC (it is a day of the timezone used)
+    firstDay*, lastDay*: Option[int64]
+      ## the first and the last day shown (`--after D`: D; `--before D`: the day before D), each a calendar date, as Unix
+      ## seconds at its start in UTC (it is a day of the timezone used)
     hourly*: bool
     utc*: bool ## days and times in UTC, not the computer's timezone
     fitnessScale*, fatigueScale*: float
@@ -21,7 +23,7 @@ type
   Raw = object ## what the options fill in
     help, hourly, utc, stdout: bool
     model: string
-    fromDay, toDay: Option[int64]
+    firstDay, lastDay: Option[int64]
     fitnessScale, fatigueScale: float
     web: WebArgs
 
@@ -56,35 +58,35 @@ func ffSpec*(): Spec[Raw] =
         ),
         custom(
           Raw,
-          ["--from"],
+          ["--after"],
           true,
           "DAY",
-          "the first day to show, like 2018-08-27 (default: the first with an impulse)",
+          "show from the start of that day, like 2018-08-27 (default: the first with an impulse)",
           address = adValue,
           valid = day,
           body = (
             block:
               let d = parseDay(value)
               if d.isNone:
-                return refuse(name & " is a day, like 2018-08-27 (not '" & value & "')")
-              p.fromDay = d
+                return refuse(fmt"{name} is a day, like 2018-08-27 (not '{value}')")
+              p.firstDay = d
               fine
           ),
         ),
         custom(
           Raw,
-          ["--to"],
+          ["--before"],
           true,
           "DAY",
-          "the last day to show (default: today)",
+          "show up to the start of that day: the day before is the last shown (default: up to the end of today)",
           address = adValue,
           valid = day,
           body = (
             block:
               let d = parseDay(value)
               if d.isNone:
-                return refuse(name & " is a day, like 2018-08-27 (not '" & value & "')")
-              p.toDay = d
+                return refuse(fmt"{name} is a day, like 2018-08-27 (not '{value}')")
+              p.lastDay = some(d.get - secondsPerDay)
               fine
           ),
         ),
@@ -134,8 +136,8 @@ func ffSpec*(): Spec[Raw] =
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  if raw.fromDay.isSome and raw.toDay.isSome and raw.fromDay.get > raw.toDay.get:
-    return problemWith[Params]("--from is after --to")
+  if raw.firstDay.isSome and raw.lastDay.isSome and raw.firstDay.get > raw.lastDay.get:
+    return problemWith[Params]("--after is not before --before")
   if raw.stdout and (raw.web.file or raw.web.worker):
     return problemWith[Params]("--stdout cannot be used with --file or --worker")
   let mode = webMode(raw.web)
@@ -149,8 +151,8 @@ func finish(raw: Raw): Parsed[Params] =
   parsedOk(
     Params(
       model: (if raw.model.len > 0: some(raw.model) else: none(string)),
-      fromDay: raw.fromDay,
-      toDay: raw.toDay,
+      firstDay: raw.firstDay,
+      lastDay: raw.lastDay,
       hourly: raw.hourly,
       utc: raw.utc,
       fitnessScale: raw.fitnessScale,

@@ -242,7 +242,7 @@ suite "delete: the command":
     s.close()
     check run(d, "--sports", "swimming", "-f") == exitFailure
       # (nobody has the sport: refused, as for any listing)
-    check run(d, "--from", "2030-01-01", "-f") == exitOk
+    check run(d, "--after", "2030-01-01", "-f") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()

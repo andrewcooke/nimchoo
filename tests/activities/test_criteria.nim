@@ -26,16 +26,17 @@ func has(q: Sql, name: string): bool =
       return true
 
 suite "list: times":
-  test "a date is a day in the given zone; as an end it is the day after":
-    check parseWhen("2018-08-27", utcZone, false) == some(UnixTime(1535328000))
-    check parseWhen("2018-08-27", utcZone, true) == some(UnixTime(1535414400))
-  test "minutes and seconds, with T or a space":
-    check parseWhen("2018-08-27T10:30", utcZone, false) == some(UnixTime(1535365800))
-    check parseWhen("2018-08-27 10:30", utcZone, false) == some(UnixTime(1535365800))
-    check parseWhen("2018-08-27T10:30", utcZone, true) == some(UnixTime(1535365860))
-      # the minute
-    check parseWhen("2018-08-27T10:30:15", utcZone, true) == some(UnixTime(1535365816))
-      # the second
+  test "a date is the start of its day in the given zone, as if written with T00:00:00":
+    check parseWhen("2018-08-27", utcZone) == some(UnixTime(1535328000))
+    check parseWhen("2018-08-27T00:00:00", utcZone) == parseWhen("2018-08-27", utcZone)
+  test "minutes and seconds, with T or a space, exactly as written":
+    check parseWhen("2018-08-27T10:30", utcZone) == some(UnixTime(1535365800))
+    check parseWhen("2018-08-27 10:30", utcZone) == some(UnixTime(1535365800))
+    check parseWhen("2018-08-27T10:30:15", utcZone) == some(UnixTime(1535365815))
+  test "--on: a date (not a time), the day from its start to the next":
+    check parseOnDay("2018-08-27", utcZone) ==
+      some((start: UnixTime(1535328000), next: UnixTime(1535414400)))
+    check parseOnDay("2018-08-27T10:30", utcZone).isNone
   test "the zone matters":
     let plus2 = newTimezone(
       "+2",
@@ -46,10 +47,10 @@ suite "list: times":
           time: t - initDuration(seconds = 7200), utcOffset: -7200, isDst: false
         ),
     )
-    check parseWhen("2018-08-27", plus2, false) == some(UnixTime(1535328000 - 7200))
+    check parseWhen("2018-08-27", plus2) == some(UnixTime(1535328000 - 7200))
   test "rubbish":
     for bad in ["", "yesterday", "2018-13-45", "27/08/2018", "2018-08"]:
-      check parseWhen(bad, utcZone, false).isNone
+      check parseWhen(bad, utcZone).isNone
 
 suite "list: the command line":
   proc cmdline(args: varargs[string]): Parsed[Criteria] =
@@ -67,11 +68,15 @@ suite "list: the command line":
 
   test "the options":
     let c = cmdline(
-      "--select", "--newest", "3", "--from", "2018-08-01", "--to", "2018-08-31",
+      "--select", "--newest", "3", "--after", "2018-08-01", "--before", "2018-09-01",
       "--near", "38.7,-9.1", "--radius", "5",
     ).params
     check c.select and c.newest == 3 and c.oldest == 0
-    check c.fromT.isSome and c.toT.isSome and c.fromT.get < c.toT.get
+    check c.afterT == some(UnixTime(1533081600)) and
+      c.beforeT == some(UnixTime(1535760000)) # (August, the dates their midnights)
+    let on = cmdline("--on", "2018-08-27").params
+    check on.afterT == some(UnixTime(1535328000)) and
+      on.beforeT == some(UnixTime(1535414400))
     check c.near == nkPoint and c.lat == 38.7 and c.lon == -9.1 and c.radiusKm == 5.0
     check cmdline("--near", "latest").params.near == nkLatest
     let named = cmdline("--near", "Lo Barnechea").params
@@ -172,13 +177,13 @@ suite "list: the command line":
   test "without latest: what latest is found among":
     let c = cmdline(
       "--sports", "latest", "cycling", "--distance", "latest~5", "--active",
-      "latest~5%", "--near", "latest", "--sub-sports", "latest", "-n", "3", "--from",
+      "latest~5%", "--near", "latest", "--sub-sports", "latest", "-n", "3", "--after",
       "2018-01-01", "--distance", "latest~2",
     ).params
     let base = c.withoutLatest
     check not base.usesLatest
     check base.sports == @["cycling"] # (what was named stays)
-    check base.fromT == c.fromT # (and the other criteria)
+    check base.afterT == c.afterT # (and the other criteria)
     check base.newest == 0 and base.oldest == 0 # (newest is applied afterwards)
   test "--distance and --active problems":
     check cmdline("--distance", "5").problem.contains(
@@ -212,11 +217,18 @@ suite "list: the command line":
     check cmdline("--radius", "x", "--near", "1,2").problem.contains("radius")
     check cmdline("--radius", "0", "--near", "1,2").problem.contains("more than 0")
     check cmdline("--near", "38.7").problem.contains("position")
-    check cmdline("--from", "soon").problem.contains("cannot read the time")
-    check cmdline("--from", "2018-09-01", "--to", "2018-08-01").problem.contains(
+    check cmdline("--after", "soon").problem.contains("cannot read the time")
+    check cmdline("--after", "2018-09-01", "--before", "2018-08-01").problem.contains(
       "not before"
     )
-    check cmdline("--from").problem.contains("needs a value")
+    check cmdline("--after", "2018-08-01", "--before", "2018-08-01").problem.contains(
+      "not before"
+    ) # (an empty range: nothing could be found)
+    check cmdline("--after").problem.contains("needs a value")
+    check cmdline("--on", "2018-08-27T09:00").problem.contains("takes a date")
+    check cmdline("--on", "2018-08-27", "--before", "2018-09-01").problem.contains(
+      "does not go with --after or --before"
+    )
     check cmdline("--bogus").problem.contains("unexpected")
     check cmdline("-h").help
 
@@ -289,15 +301,17 @@ suite "list: the box and the sql":
     let fullQ = matchSql(
       @[UserId(1)],
       Criteria(
-        fromT: some(UnixTime(5)), toT: some(UnixTime(9)), newest: 2, radiusKm: 5.0
+        afterT: some(UnixTime(5)), beforeT: some(UnixTime(9)), newest: 2, radiusKm: 5.0
       ),
       some((38.7, -9.1)),
       sqlOf("a.id, a.start_t"),
     )
     let full = fullQ.text
     check full.startsWith("select a.id, a.start_t from activity a")
-    check full.contains("a.start_t >= :fromT") and full.contains("a.start_t < :toT")
-    check fullQ.value("fromT") == arg(5) and fullQ.value("toT") == arg(9)
+    check full.contains("a.start_t >= :afterT") and full.contains(
+      "a.start_t < :beforeT"
+    )
+    check fullQ.value("afterT") == arg(5) and fullQ.value("beforeT") == arg(9)
     check full.contains("SpatialIndex") and
       full.contains("MakePoint(:nearLon, :nearLat, 4326)")
     check fullQ.value("nearM") == arg(5000.0)

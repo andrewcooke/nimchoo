@@ -34,7 +34,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis =
-    """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--from DAY] [--to DAY]
+    """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--after DAY] [--before DAY]
                                       [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]
                                       [--fitness-scale S] [--fatigue-scale S]"""
   intro =
@@ -44,7 +44,7 @@ the two curves, each with the share of the earlier days on which it was higher (
 highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at
 the end of the day (in this computer's timezone; --utc for UTC).  They are made from the impulses of the user's activities
 (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start from 0 at the first
-activity with an impulse and run to --to (default: today), so they fade away after the last."""
+activity with an impulse and run up to --before (default: the end of today), so they fade away after the last."""
   notes =
     """The file is made again each time, from the data as they are then; its name is made from the options
 (`ff-default-hourly.csv`), so charts with different options do not overwrite each other."""
@@ -69,7 +69,7 @@ proc hourlyImpulses(
 
 proc civilOf(t: int64, tz: Timezone): int64 =
   ## The date at an instant in a timezone, as Unix seconds at its start in UTC (the form of
-  ## `Params.fromDay`).
+  ## `Params.firstDay`).
   let d = fromUnix(t).inZone(tz)
   dateTime(d.year, d.month, d.monthday, 0, 0, 0, 0, utc()).toTime.toUnix
 
@@ -84,8 +84,8 @@ proc rows*(
   ## The CSV lines (without the header) for the impulses.  Days are those of the timezone; a
   ## daily row is labelled with the date, an hourly one with the time at the end of the hour.
   let toCivil =
-    if p.toDay.isSome:
-      p.toDay.get
+    if p.lastDay.isSome:
+      p.lastDay.get
     else:
       civilOf(now, tz)
   let midnight = dayStart(toCivil + secondsPerDay, tz) # the end of the last day
@@ -96,13 +96,13 @@ proc rows*(
     fitness = dayEnds(fitness, tz)
     fatigue = dayEnds(fatigue, tz)
   let firstDay =
-    if p.fromDay.isSome:
-      localDate(p.fromDay.get, utc())
+    if p.firstDay.isSome:
+      localDate(p.firstDay.get, utc())
     else:
       ""
   let firstInstant =
-    if p.fromDay.isSome:
-      dayStart(p.fromDay.get, tz)
+    if p.firstDay.isSome:
+      dayStart(p.firstDay.get, tz)
     else:
       low(int64)
   for k in 0 ..< fitness.len:
@@ -149,8 +149,8 @@ proc latestStats(
     st: Session, m: Model, p: Params, now: int64, tz: Timezone
 ): Line {.raises: [StoreError].} =
   ## The line about the latest values (see stats.nim): for today, as of the last whole hour (the
-  ## label is the date and time); for an earlier last day (`--to`), at the end of it (the date).
-  ## `p.toDay` is set.
+  ## label is the date and time); for an earlier last day (`--before` the next), at the end of it (the date).
+  ## `p.lastDay` is set.
   ensureImpulses(st, m)
   let impulses = hourlyImpulses(st.db, st.userId, m.id)
   let today = civilOf(now, tz)
@@ -158,14 +158,14 @@ proc latestStats(
   var asOf: int64
   var day: int64
   var label: string
-  if p.toDay.get >= today:
+  if p.lastDay.get >= today:
     asOf = nowHour - bucketSeconds
     day = today
     label =
       localDate(today, utc()) & " " &
       fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm")
   else:
-    day = p.toDay.get
+    day = p.lastDay.get
     asOf =
       floorDiv(dayStart(day + secondsPerDay, tz), bucketSeconds) * bucketSeconds -
       bucketSeconds
@@ -186,10 +186,10 @@ proc webQuery*(p: Params): string =
   var q: seq[string]
   if p.model.isSome:
     q.add "model=" & p.model.get
-  if p.fromDay.isSome:
-    q.add "from=" & localDate(p.fromDay.get, utc())
-  if p.toDay.isSome:
-    q.add "to=" & localDate(p.toDay.get, utc())
+  if p.firstDay.isSome:
+    q.add "after=" & localDate(p.firstDay.get, utc())
+  if p.lastDay.isSome:
+    q.add "before=" & localDate(p.lastDay.get + secondsPerDay, utc())
   if p.hourly:
     q.add "hourly=1"
   if p.utc:
@@ -204,10 +204,10 @@ proc stemOf(p: Params, model: string): string =
   ## What the files are named: the command, the model and the options given (`ff-default-hourly-to-2026-11-14`).  Charts with
   ## other options are other files.
   var parts = @[commandName, model]
-  if p.fromDay.isSome:
-    parts.add "from-" & localDate(p.fromDay.get, utc())
-  if p.toDay.isSome:
-    parts.add "to-" & localDate(p.toDay.get, utc())
+  if p.firstDay.isSome:
+    parts.add "from-" & localDate(p.firstDay.get, utc())
+  if p.lastDay.isSome:
+    parts.add "to-" & localDate(p.lastDay.get, utc())
   if p.hourly:
     parts.add "hourly"
   if p.utc:
@@ -266,8 +266,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         utc()
       else:
         local()
-    if p.toDay.isNone:
-      p.toDay = some(civilOf(now, tz)) # (the last day: today, when the chart is made)
+    if p.lastDay.isNone:
+      p.lastDay = some(civilOf(now, tz)) # (the last day: today, when the chart is made)
     if p.stdout:
       g.say osOut, makeCsv(st, m.get, p, now, tz)
       return exitOk

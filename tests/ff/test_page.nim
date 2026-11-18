@@ -97,17 +97,17 @@ suite "ff: --file, --worker, serving and the address":
     check webQuery(
       parseArgs(
         @[
-          "--model", "flat", "--hourly", "--utc", "--from", "2018-08-01", "--to",
-          "2018-08-31", "--fitness-scale", "2", "--fatigue-scale", "5.25",
+          "--model", "flat", "--hourly", "--utc", "--after", "2018-08-01", "--before",
+          "2018-09-01", "--fitness-scale", "2", "--fatigue-scale", "5.25",
         ]
       ).params
     ) ==
-      "model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5.25"
+      "model=flat&after=2018-08-01&before=2018-09-01&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5.25"
   test "every address the command makes is one the server accepts":
     for args in [
       @["--model", "flat"],
       @["--hourly", "--utc"],
-      @["--to", "2018-08-31", "--from", "2018-08-01"],
+      @["--before", "2018-09-01", "--after", "2018-08-01"],
       @["--fitness-scale", "0.5", "--fatigue-scale", "12"],
     ]:
       let q = webQuery(parseArgs(args).params)

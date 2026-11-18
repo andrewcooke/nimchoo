@@ -181,10 +181,10 @@ suite "serve handler: the second command":
     s.fake.result = WorkerResult(
       stdout: s.cache / (ffStem & ".html") & "\n" & s.cache / (ffStem & ".csv") & "\n"
     )
-    let r = handle(s, port, get("/ff?to=2018-09-05&hourly=1"))
+    let r = handle(s, port, get("/ff?before=2018-09-06&hourly=1"))
     check r.code == 200 and r.body == "<html>the chart</html>"
     check s.fake.calls[^1] ==
-      @["--db", "/x/y.db", "ff", "--worker", "--to", "2018-09-05", "--hourly"]
+      @["--db", "/x/y.db", "ff", "--worker", "--before", "2018-09-06", "--hourly"]
     let c = handle(s, port, get("/files/" & ffStem & ".csv"))
     check c.code == 200 and c.header("Content-Type") == "text/csv; charset=utf-8"
     check c.body == "time,fitness,fatigue\n"

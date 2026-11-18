@@ -132,22 +132,22 @@ suite "serve request: what is asked for":
   test "ff: options, and flags that are given as 1":
     let r = route(
       target(
-        "/ff?model=flat&from=2018-08-01&to=2018-08-31&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
+        "/ff?model=flat&after=2018-08-01&before=2018-09-01&hourly=1&utc=1&fitness-scale=2&fatigue-scale=5"
       )
     ).get
     check r.command == "ff"
     check r.args ==
       @[
-        "--model", "flat", "--from", "2018-08-01", "--to", "2018-08-31", "--hourly",
-        "--utc", "--fitness-scale", "2", "--fatigue-scale", "5",
+        "--model", "flat", "--after", "2018-08-01", "--before", "2018-09-01",
+        "--hourly", "--utc", "--fitness-scale", "2", "--fatigue-scale", "5",
       ]
     check route(target("/ff")).get.args.len == 0
   test "ff: no other option or value":
     for bad in [
       "/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1",
       "/ff?stdout=1", "/ff?file=1", "/ff?state=ab12cd", "/ff?worker=1", "/ff?port=1",
-      "/ff?to=yesterday", "/ff?to=2018-8-1", "/ff?from=2018-08-0x", "/ff?model=a%20b",
-      "/ff?model=", "/ff?fitness-scale=x", "/ff?fatigue-scale=-1",
+      "/ff?before=yesterday", "/ff?before=2018-8-1", "/ff?after=2018-08-0x",
+      "/ff?model=a%20b", "/ff?model=", "/ff?fitness-scale=x", "/ff?fatigue-scale=-1",
       "/ff?fitness-scale=1e3", "/ff?style=lines", "/ff/x", "/FF",
     ]:
       check route(target(bad)).isNone
