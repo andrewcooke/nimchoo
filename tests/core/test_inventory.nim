@@ -1,6 +1,6 @@
 ## What `nch packages` shows (core/inventory.nim), on made-up packages and on the real registry.
 
-import std/[algorithm, sequtils, strutils, unittest]
+import std/[algorithm, options, sequtils, strutils, unittest]
 import nimchoo/core/[errors, extension, fragment, inventory, manifest, registry]
 import nimchoo/registry as generated
 
@@ -70,6 +70,32 @@ suite "the inventory of packages":
     check p.contributors == @[("c", 0), ("c", 2)]
     check inv.packages[inv.find("c")].contributes == @[("b/p", 2), ("b/p", 0)] or
       inv.packages[inv.find("c")].contributes.len == 2
+
+suite "the filters of the list":
+  # (db on layer 0; a uses db; b uses a and db; c uses b, a and db.  Tables: dbt of db, every package reads it; ta of a,
+  # which b and c may read; tb of b, which c may read)
+  proc kept(f: PackageFilter): seq[string] =
+    let inv = world()
+    inv.packages.filterIt(inv.keeps(f, it)).mapIt(it.name)
+
+  test "-L: a layer; -U: those that use a package; -B: those a package uses":
+    check kept(PackageFilter()) == @["db", "a", "b", "c"]
+    check kept(PackageFilter(layer: some(1))) == @["a"]
+    check kept(PackageFilter(uses: some("a"))) == @["b", "c"]
+    check kept(PackageFilter(usedBy: some("c"))) == @["db", "a", "b"]
+    check kept(PackageFilter(usedBy: some("a"))) == @["db"]
+    check kept(PackageFilter(uses: some("c"))).len == 0
+
+  test "-T: those that own the table or may read it":
+    check kept(PackageFilter(table: some("ta"))) == @["a", "b", "c"]
+    check kept(PackageFilter(table: some("tb"))) == @["b", "c"]
+    check kept(PackageFilter(table: some("dbt"))) == @["db", "a", "b", "c"]
+
+  test "together, each narrows the list further":
+    check kept(PackageFilter(uses: some("a"), layer: some(3))) == @["c"]
+    check kept(PackageFilter(table: some("tb"), usedBy: some("c"))) == @["b"]
+    let lines = summaryLines(world(), 80, PackageFilter(layer: some(1)))
+    check lines.anyIt(it.startsWith("a ")) and not lines.anyIt(it.startsWith("b "))
 
 suite "the views":
   test "the summary has a line for each package with what it is for, and under it what it provides":

@@ -1,6 +1,6 @@
 ## `nch packages` (src/nimchoo/introspect.nim): its command line, and the facts about the running program.
 
-import std/[os, sequtils, strutils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 from std/unicode import runeLen
 import nimchoo/core/[globals, registry]
 import nimchoo/introspect
@@ -13,6 +13,12 @@ from nimchoo/registry import allFragments
 suite "nch packages: the command line":
   test "no arguments is the list; a name is the detail":
     check parseArgs(@[]).params.view == vList
+    let f = parseArgs(@["-L", "2", "-U", "db", "-B", "climbs", "-T", "effort"]).params
+    check f.view == vList and f.filter.layer == some(2) and f.filter.uses == some("db") and
+      f.filter.usedBy == some("climbs") and f.filter.table == some("effort")
+    check parseArgs(@["-L", "x"]).problem.contains("is a layer")
+    check parseArgs(@["-L", "1", "--tables"]).problem.contains("narrow the list")
+    check parseArgs(@["-U", "db", "climbs"]).problem.contains("narrow the list")
     let p = parseArgs(@["importer"])
     check p.problem == "" and p.params.view == vDetail and p.params.package == "importer"
 

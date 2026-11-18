@@ -35,17 +35,82 @@ type
       repeats*: bool ## `-v`: the packages drawn above too, hidden
     of vLayers:
       implied*: bool ## `-v`: the dependencies implied by others too, hidden
-    of vList, vPoints, vTables, vDot, vConfig:
+    of vList:
+      filter*: PackageFilter ## `-L`, `-U`, `-B`, `-T`: which packages
+    of vPoints, vTables, vDot, vConfig:
       discard
 
   Raw = object ## what the options fill in
     help, points, tables, graph, reverse, verbose, dot, config: bool
     name: string
+    filter: PackageFilter
+
+proc inventory(): Inventory =
+  try:
+    inventoryOf(
+      generated.packages, generated.extensions, generated.points, generated.schema
+    )
+  except PackageError as e:
+    raiseAssert e.msg # (the registry has already been checked when it was compiled)
+
+proc completePackages(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
+  ## The names of the packages that start with what is typed.
+  for p in inventory().packages:
+    if p.name.startsWith(typed):
+      result.add p.name
+
+proc completeTables(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
+  ## The names of the tables that start with what is typed.
+  for t in inventory().tables:
+    if t.name.startsWith(typed):
+      result.add t.name
 
 func packagesSpec*(): Spec[Raw] =
   ## The options of `nch packages`, each with its help.
   Spec[Raw](
     opts: @[
+      custom(
+        Raw,
+        ["-L"],
+        true,
+        "N",
+        "only the packages on layer N (the column L)",
+        body = (
+          block:
+            var n = 0
+            if not parseIntIn(value, 0, 1000, n):
+              return refuse(fmt"-L is a layer, a number from 0 (not '{value}')")
+            p.filter.layer = some(n)
+            fine
+        ),
+      ),
+      custom(
+        Raw,
+        ["-U"],
+        true,
+        "NAME",
+        "only the packages that use package NAME (it is one of those counted in their column U)",
+        completion = completesFrom(completePackages),
+        body = (p.filter.uses = some(value); fine),
+      ),
+      custom(
+        Raw,
+        ["-B"],
+        true,
+        "NAME",
+        "only the packages that package NAME uses (it is one of those counted in their column B)",
+        completion = completesFrom(completePackages),
+        body = (p.filter.usedBy = some(value); fine),
+      ),
+      custom(
+        Raw,
+        ["-T"],
+        true,
+        "TABLE",
+        "only the packages that own TABLE or may read it (-L, -U, -B and -T go together, each narrowing the list further)",
+        completion = completesFrom(completeTables),
+        body = (p.filter.table = some(value); fine),
+      ),
       flag(
         Raw,
         ["--points"],
@@ -111,6 +176,13 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params]("--reverse goes with --graph and a package name")
   if raw.verbose and not raw.graph:
     return problemWith[Params]("-v goes with --graph")
+  let filtered =
+    raw.filter.layer.isSome or raw.filter.uses.isSome or raw.filter.usedBy.isSome or
+    raw.filter.table.isSome
+  if filtered and (chosen.anyIt(it) or raw.name.len > 0):
+    return problemWith[Params](
+      "-L, -U, -B and -T narrow the list of packages: they go with no package name and no other view"
+    )
   if raw.points:
     parsedOk(Params(view: vPoints))
   elif raw.tables:
@@ -128,7 +200,7 @@ func finish(raw: Raw): Parsed[Params] =
   elif raw.name.len > 0:
     parsedOk(Params(view: vDetail, package: raw.name))
   else:
-    parsedOk(Params(view: vList))
+    parsedOk(Params(view: vList, filter: raw.filter))
 
 func closeNames*(asked: string, names: seq[string]): seq[string] =
   ## The names that `asked` may be a misspelling of: those within two edits of it (ignoring case), or that hold it, the
@@ -147,7 +219,7 @@ proc parseArgs*(args: seq[string]): Parsed[Params] =
   parseCommand(args, packagesSpec(), Raw(), finish)
 
 const
-  synopsis = """usage: nch packages
+  synopsis = """usage: nch packages [-L N] [-U NAME] [-B NAME] [-T TABLE]
        nch packages NAME
        nch packages --points | --tables | --dot | --config
        nch packages --graph [--reverse] [-v] [NAME]"""
@@ -254,14 +326,6 @@ proc configLines*(g: Globals): seq[string] =
 
 # --- the command -------------------------------------------------------------------------------------------------------
 
-proc inventory(): Inventory =
-  try:
-    inventoryOf(
-      generated.packages, generated.extensions, generated.points, generated.schema
-    )
-  except PackageError as e:
-    raiseAssert e.msg # (the registry has already been checked when it was compiled)
-
 proc showAll(g: Globals, lines: seq[string]) =
   for l in lines:
     g.say osOut, l & "\n"
@@ -300,7 +364,31 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     )
   case p.view
   of vList:
-    g.showAll summaryLines(inv, width)
+    let f = p.filter
+    for (option, name) in [("-U", f.uses), ("-B", f.usedBy)]:
+      if name.isSome and inv.find(name.get) < 0:
+        let close = closeNames(name.get, inv.packages.mapIt(it.name))
+        let hint =
+          if close.len > 0:
+            fmt": did you mean {close.join("" or "")}?"
+          else:
+            ""
+        return failure(
+          g, "nch packages", fmt"{option}: no package is called '{name.get}'{hint}"
+        )
+    if f.table.isSome and inv.tables.allIt(it.name != f.table.get):
+      let close = closeNames(f.table.get, inv.tables.mapIt(it.name))
+      let hint =
+        if close.len > 0:
+          fmt": did you mean {close.join("" or "")}?"
+        else:
+          ""
+      return
+        failure(g, "nch packages", fmt"-T: no table is called '{f.table.get}'{hint}")
+    if inv.packages.allIt(not inv.keeps(f, it)):
+      g.say osOut, "no package is kept by those filters\n"
+    else:
+      g.showAll summaryLines(inv, width, f)
   of vDetail:
     g.showAll detailLines(inv, p.package, width)
   of vPoints:

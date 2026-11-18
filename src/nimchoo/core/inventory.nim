@@ -3,7 +3,7 @@
 ## (`inventoryOf`), then drawn as lists, trees, layers or a Graphviz graph for `nch packages`.  Pure: no database, no
 ## terminal, so every view is tested with made-up packages.
 
-import std/[algorithm, sequtils, sets, strformat, strutils, tables]
+import std/[algorithm, options, sequtils, sets, strformat, strutils, tables]
 import ./[access, errors, extension, fragment, manifest, names, ownership, ruled, wrap]
 
 {.push raises: [].}
@@ -121,11 +121,39 @@ func listOf(items: seq[string]): string =
 func countOf(items: seq[string]): string =
   $items.len
 
-func summaryLines*(inv: Inventory, width: int): seq[string] =
+type PackageFilter* = object
+  ## What narrows the list of packages (`nch packages -L N -U NAME -B NAME -T TABLE`): each given is one more test.
+  layer*: Option[int] ## on this layer
+  uses*: Option[string] ## that use this package (it is in their `depends`)
+  usedBy*: Option[string] ## that this package uses (they are in its `depends`)
+  table*: Option[string] ## that own this table or may read it
+
+func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
+  ## Whether the package passes every test of the filter.  The names are those of a package and a table (checked before).
+  if f.layer.isSome and p.layer != f.layer.get:
+    return false
+  if f.uses.isSome and f.uses.get.normalised notin p.depends.mapIt(it.normalised):
+    return false
+  if f.usedBy.isSome:
+    let at = inv.find(f.usedBy.get)
+    if at < 0 or p.name.normalised notin inv.packages[at].depends.mapIt(it.normalised):
+      return false
+  if f.table.isSome:
+    var ok = false
+    for t in inv.tables:
+      if t.name == f.table.get:
+        ok =
+          t.owner.normalised == p.name.normalised or t.everyone or
+          p.name.normalised in t.readers.mapIt(it.normalised)
+    if not ok:
+      return false
+  true
+
+func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[string] =
   ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
   ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
-  ## what it is for; and under that, what it provides.
-  var order = inv.packages
+  ## what it is for; and under that, what it provides.  Only those the filter keeps.
+  var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
     proc(a, b: PackageInfo): int =
       result = cmp(a.layer, b.layer)
