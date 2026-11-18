@@ -3,6 +3,7 @@
 ## features of GeoNames by part of their name or by nearness to a position, and pick one to make a landmark of.
 
 import std/[options, strutils]
+import ../geo/position
 import ../ui/columns
 import ../../core/globals
 import ../ui/units
@@ -46,9 +47,6 @@ proc usageText*(width: int): string =
     optionLines(landmarkSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) &
     "\n"
 
-func positionText(lon, lat: float): string =
-  formatFloat(lat, ffDecimal, 5) & ", " & formatFloat(lon, ffDecimal, 5)
-
 func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
   var cells = @[@["", "name", "kind", "position", (if withDistance: "from" else: "")]]
   for i, s in rows:
@@ -56,7 +54,7 @@ func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
       $(i + 1),
       s.name,
       s.cls & " " & s.code,
-      positionText(s.lon, s.lat),
+      positionText((lon: s.lon, lat: s.lat)),
       (if withDistance: km(s.distanceM) else: ""),
     ]
   columns(cells, {0})
@@ -64,7 +62,7 @@ func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
 proc landmarkLines(rows: seq[Landmark]): seq[string] =
   var cells = @[@["landmark", "position", "radius"]]
   for l in rows:
-    cells.add @[l.name, positionText(l.lon, l.lat), km(l.radiusM)]
+    cells.add @[l.name, positionText((lon: l.lon, lat: l.lat)), km(l.radiusM)]
   columns(cells, {2})
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -108,8 +106,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of laAddAt:
       let a = p.placed
       addLandmark(st, a.name, a.at.lon, a.at.lat, a.radiusM)
-      let said =
-        "made the landmark " & a.name.strip & " at " & positionText(a.at.lon, a.at.lat)
+      let said = "made the landmark " & a.name.strip & " at " & positionText(a.at)
       g.log.log(lvInfo, commandName, leSaved, said)
       g.say osOut, said & "\n"
       return exitOk
@@ -148,7 +145,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         addLandmark(st, a.name, s.lon, s.lat, a.radiusM)
         let said =
           "made the landmark " & a.name.strip & " at " & s.name & " (" &
-          positionText(s.lon, s.lat) & ")"
+          positionText((lon: s.lon, lat: s.lat)) & ")"
         g.log.log(lvInfo, commandName, leSaved, said)
         g.say osOut, said & "\n"
         return exitOk

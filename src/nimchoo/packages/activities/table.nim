@@ -13,6 +13,7 @@
 import
   std/[algorithm, math, options, sequtils, strformat, strutils, tables, times, unicode]
 import ../fit/time
+import ../geo/position
 import ../importer/describe
 import ../ui/interval
 import ../ui/style
@@ -30,15 +31,15 @@ type ListRow* = object
   path*: string ## where the file was imported from (its name if not known)
   place*: string ## where it started, as text ("" if not known)
   name*: string ## what it is called ("" if nothing)
-  position*: string ## its start as `positionText` (no GPS if it has none)
+  position*: string ## its start as `startText` (no GPS if it has none)
   selected*: bool ## it is in the selection (of the current user)
 
-func positionText*(lat, lon: Option[float]): string =
-  ## The start as "-33.4362,-70.6090": latitude, longitude, four decimals (about 10 metres), as
-  ## Google Maps takes them; "no GPS" if there is no start.
+func startText*(lat, lon: Option[float]): string =
+  ## Where an activity started, as every position is written (`geo/position`: "-33.4362,-70.6090", which Google Maps takes
+  ## too); "no GPS" if there is no start.
   if lat.isNone or lon.isNone:
     return noGps
-  fmt"{lat.get:.4f},{lon.get:.4f}"
+  positionText((lon: lon.get, lat: lat.get))
 
 func padRight*(s: string, width: int): string =
   ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).

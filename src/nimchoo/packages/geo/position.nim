@@ -1,8 +1,8 @@
 ## A position as the user writes it: `LAT,LON` in degrees, latitude first (the order of every position the program takes or
-## shows: `--near`, `--at`).  One reader for every command, and a type with named fields, so that the order of latitude and
+## shows: `--near`, `--at`).  One reader and one writer for every command, and a type with named fields, so that the order of latitude and
 ## longitude cannot be mixed up after it is read.  Pure.
 
-import std/[options, strutils]
+import std/[options, strformat, strutils]
 
 {.push raises: [].}
 
@@ -21,3 +21,8 @@ func parsePosition*(s: string): Option[Position] =
     some((lon: lon, lat: lat))
   except ValueError:
     none(Position)
+
+func positionText*(p: Position): string =
+  ## "-33.4362,-70.6090": as it is read (`parsePosition`), so that what is shown can be given back to `--near` or `--at`
+  ## as it is; four decimals, about 10 metres, and no space (which the shell would split).
+  fmt"{p.lat:.4f},{p.lon:.4f}"

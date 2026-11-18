@@ -220,12 +220,10 @@ suite "list table: the table":
       "2018-08-27 12:00  running  0.0km 2s"
 
 suite "list table: positions and padding":
-  test "the start as coordinates: lat,lon, four decimals; no GPS if there is no start":
-    check positionText(some(-33.436213), some(-70.608963)) == "-33.4362,-70.6090"
-    check positionText(some(38.7), some(-9.1)) == "38.7000,-9.1000"
-    check positionText(some(0.0), some(0.0)) == "0.0000,0.0000"
-    check positionText(none(float), none(float)) == "no GPS"
-    check positionText(some(-33.4), none(float)) == "no GPS"
+  test "the start as every position is written; no GPS if there is no start":
+    check startText(some(-33.436213), some(-70.608963)) == "-33.4362,-70.6090"
+    check startText(none(float), none(float)) == "no GPS"
+    check startText(some(-33.4), none(float)) == "no GPS"
   test "padding counts characters":
     check padRight("Zürich", 8) == "Zürich  "
     check padLeft("Zürich", 8) == "  Zürich"

@@ -5,6 +5,7 @@
 import std/[json, options, strformat]
 import ../../core/errors
 import ../db/[sqltext, statement]
+import ../geo/position
 import ../names/places
 import ../user/session
 import ./[attempts, params]
@@ -53,7 +54,7 @@ proc foundClimbs*(st: Session, c: ClimbCriteria): Found {.raises: [StoreError].}
         else:
           fmt"; {places.len - 1} others have the name"
       said = fmt" ({p.name}, {p.what}{others})"
-    result.notes.add fmt"near {lat:.4f},{lon:.4f}{said}, within {n.radiusKm:g}km"
+    result.notes.add fmt"near {positionText((lon: lon, lat: lat))}{said}, within {n.radiusKm:g}km"
     # (the distance on the ellipsoid, in metres, from where the climb starts)
     conditions.add sqlOf(
       """ST_Distance(MakePoint(ST_X(StartPoint(s.route)), ST_Y(StartPoint(s.route)), 4326),

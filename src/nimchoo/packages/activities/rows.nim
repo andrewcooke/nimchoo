@@ -64,7 +64,7 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       path: r.path,
       place: r.place,
       name: r.name,
-      position: positionText(r.lat, r.lon),
+      position: startText(r.lat, r.lon),
     )
 
 proc selectionRows*(st: Session, verbose: bool): seq[ListRow] {.raises: [StoreError].} =

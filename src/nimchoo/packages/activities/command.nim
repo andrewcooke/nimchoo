@@ -11,6 +11,7 @@ export cmdname
 import ../../core/[extension, globals]
 import ../db/statement
 import ../importer/naming
+import ../geo/position
 import ../names/[open, places]
 import ../selection/selection
 import ../db/store
@@ -324,12 +325,13 @@ proc resolveCriteria(
     c.near = nkPoint
     (c.lat, c.lon) = (p.lat, p.lon)
   if centre.isSome:
-    result.notes.add plain(
-      "near " & formatFloat(centre.get[0], ffDecimal, 4) & "," &
-        formatFloat(centre.get[1], ffDecimal, 4) &
-        (if centreFrom.len > 0: " (" & centreFrom & ")" else: "") & ", within " &
-        radiusText(c.radiusKm) & "km"
-    )
+    let at = positionText((lon: centre.get[1], lat: centre.get[0]))
+    let said =
+      if centreFrom.len > 0:
+        fmt" ({centreFrom})"
+      else:
+        ""
+    result.notes.add plain(fmt"near {at}{said}, within {radiusText(c.radiusKm)}km")
   result.c = c
   result.extra = extra
   result.centre = centre
