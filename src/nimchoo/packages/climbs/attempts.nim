@@ -40,20 +40,11 @@ type
 
   Summary* = object
     climb*: ClimbInfo
+    manual*: bool ## its name was given by a person
     attempts*: seq[Attempt] ## the user's, oldest first
     riders*: seq[Rider] ## each person's best, the fastest first
 
 # --- which climbs
-
-proc selectedClimbs*(st: Session): seq[int64] {.raises: [StoreError].} =
-  ## The climbs (not retired) that the selected activities went up, the biggest first.
-  st.db.query(
-    int64,
-    "select s.id from sector s where s.retired = 0 and exists (select 1 from effort e " &
-      "where e.sector_id = s.id and e.activity_id in " &
-      "(select activity_id from selection where user_id = :userId)) order by s.gain_m desc, s.id",
-    userId = st.userId,
-  )
 
 proc climbsOfActivities*(
     st: Store, activities: seq[int64]
@@ -99,7 +90,8 @@ proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreErr
 # --- the rows
 
 type
-  ClimbRow = tuple[id: int64, lengthM, gainM, gradient: float, category: string]
+  ClimbRow =
+    tuple[id: int64, lengthM, gainM, gradient: float, category: string, manual: bool]
   AttemptRow =
     tuple[
       sectorId, startT: int64,
@@ -132,13 +124,14 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     sums[id] = Summary()
   for r in st.db.query(
     ClimbRow,
-    "select id, length_m, gain_m, gradient, coalesce(category, '') from sector " &
+    "select id, length_m, gain_m, gradient, coalesce(category, ''), manual from sector " &
       "where id in (select value from json_each(:ids))",
     ids = wanted,
   ):
     sums.mustMut(r.id).climb = climbOf(
       names.getOrDefault(r.id, unnamed), r.category, r.lengthM, r.gainM, r.gradient
     )
+    sums.mustMut(r.id).manual = r.manual
   for r in st.db.query(
     AttemptRow,
     """select e.sector_id, a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
@@ -237,8 +230,11 @@ func alignedLines(
         if c <= 31 and c in selectedCols: span(text, selectedStyle)
         else: span(text)
       )
+    # (no trailing blanks, though the last cells be empty)
+    while line.len > 0 and line[^1].text.strip.len == 0:
+      line.setLen(line.len - 1)
     if line.len > 0:
-      line[^1].text = line[^1].text.strip(leading = false) # (no trailing blanks)
+      line[^1].text = line[^1].text.strip(leading = false)
     result.add merged(line)
       # (selected cells side by side are one span: a background runs on)
 
@@ -259,14 +255,15 @@ proc summaryLines*(
     if everyone:
       @[
         @[
-          "climb", "cat", "length", "gain", "gradient", "riders", "fastest", "by", "you"
+          "climb", "cat", "length", "gain", "gradient", "riders", "fastest", "by",
+          "you", "",
         ]
       ]
     else:
       @[
         @[
           "climb", "cat", "length", "gain", "gradient", "best", "best selected", "rank",
-          "attempts",
+          "attempts", "",
         ]
       ]
   for s in rows:
@@ -298,7 +295,8 @@ proc summaryLines*(
           (if chosen.isSome: $chosen.get.rank else: notRecorded),
           $s.attempts.len,
         ]
-    cells.add climbCells(s.climb) & tail
+    cells.add climbCells(s.climb) & tail &
+      @[(if s.manual: "manual" else: "")] # (a name given by a person)
   var right: set[0 .. 31] = {2, 3, 4, 5, 6}
   if not everyone:
     right = right + {7, 8}

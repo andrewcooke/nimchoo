@@ -9,7 +9,6 @@ import ../db/store
 import ../../core/errors
 import ../ui/[markup, style]
 import ./[describe, display, work]
-import ../user/session
 
 {.push raises: [].}
 
@@ -23,12 +22,6 @@ type SectorRow* = object
   retired*: bool ## hidden from the lists
 
 # --- the rows
-
-proc selectedActivities*(st: Session): int {.raises: [StoreError].} =
-  ## How many activities the user has selected.
-  st.db.scalar(
-    int, "select count(*) from selection where user_id = :userId", userId = st.userId
-  )
 
 proc shownNames*(st: Store): Table[int64, string] {.raises: [StoreError].} =
   ## The name of every sector as it is shown, "name₃" where a name is shared (the number is kept: see ordinal.nim).

@@ -1,6 +1,6 @@
-## `nch climbs`: the climbs.  With no arguments the climbs of the selected activities, with the time of each and where
-## it ranks; `--all` every climb found; `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and
-## `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
+## `nch climbs`: the climbs.  With no arguments the climbs selection, with the time of each and where it ranks; criteria
+## (`found.nim`) or `--all` search every climb, and `--select` keeps what they find as the selection (as `nch activities`
+## does); `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
 ## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
 import std/[options, strutils, times]
@@ -11,11 +11,12 @@ import ../../core/errors
 import ../names/open
 import ../../core/logfile
 import ../ui/live
-import ../ui/style
+import ../ui/[markup, style]
 import ../confirm/confirm
 import ../util/args/[args, usage]
 import ./params
 import ./attempts
+import ./[chosen, found]
 import ./duplicates
 import ./edit
 import ./naming
@@ -32,8 +33,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
-       nch [--db PATH] [--user NAME] climbs --names TEXT... [-v] [--everyone]
-       nch climbs --all
+       nch [--db PATH] [--user NAME] climbs CRITERIA|--all [--select] [-v] [--everyone]
        nch climbs --all --delete -f
        nch climbs --edit NAME --rename NEW
        nch climbs --edit NAME --auto
@@ -42,10 +42,12 @@ const
        nch climbs --retired
        nch climbs --duplicates"""
   intro =
-    """Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
-category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time
-on the selected rides (in the selection's colour) and when, where that one ranks among your own attempts, and how many times you rode it.
-All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the
+    """Show the climbs selection (with criteria, or --all, the climbs they find among all of them; --select keeps those as the
+selection, which `nch map climbs` and `nch calendar climbs` show too; an import selects the climbs of what it imported),
+each the standard way (name, category by the height gained, length, gain, gradient), then how you did on it: your best
+time and when, your best time on the selected rides (see `nch activities --select`; in the selection's colour) and when,
+where that one ranks among your own attempts, and how many times you rode it; "manual" marks a name given by hand.  All
+your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the
 top, stops included.
 
 The climbs are found in the rides, once: an import works out those of every activity that has not been looked at (about
@@ -152,7 +154,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return editClimb(g, st, p.edit)
     of caDeleteAll:
       return deleteClimbs(g, st, p.force)
-    of caAll, caNamed, caSelected:
+    of caList:
       discard
     var worked: Worked
     if canLive():
@@ -191,45 +193,51 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g.say osErr, line & "\n"
       ,
     )
-    if p.action == caAll:
-      let rows = allSectors(st)
-      if rows.len == 0:
-        g.say osOut, "no climbs found yet\n"
-      else:
-        for l in sectorLines(rows):
-          g.say osOut, l & "\n"
+    let list = p.list
+    var ids: seq[int64]
+    case list.kind
+    of lkSelection:
+      ids = chosenClimbs(st)
+      if ids.len == 0:
+        g.say osOut,
+          "no climbs are selected: `nch climbs CRITERIA --select` chooses climbs (`nch climbs --ridden --select`: those of the selected activities), `nch climbs --all` lists every climb\n"
+        return exitOk
+    of lkFound:
+      let found = foundClimbs(st, list.criteria)
+      for note in found.notes:
+        g.say osErr, note & "\n"
+      ids = found.ids
+      if list.select:
+        st.replaceClimbSelection(ids)
+        g.log.log(
+          lvInfo,
+          commandName,
+          leSaved,
+          $ids.len & (if ids.len == 1: " climb" else: " climbs"),
+        )
+      if not list.criteria.given:
+        # (--all: every climb, and how many are hidden)
         let hidden = countRetired(st)
         if hidden > 0:
-          g.say osOut, noteRetired(hidden)
-      return exitOk
-    var ids: seq[int64]
-    if p.action == caNamed:
-      ids = namedClimbs(st, p.named.names)
+          g.say osErr, noteRetired(hidden)
       if ids.len == 0:
-        return failure(
-          g, "nch climbs",
-          "no climb has a name like that (`nch climbs --all` lists them)",
-        )
-    else:
-      if selectedActivities(st) == 0:
-        g.say osOut,
-          "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
+        let what = if list.select: " (the climbs selection is now empty)" else: ""
+        g.say osOut, "no climb meets the criteria" & what & "\n"
         return exitOk
-      ids = selectedClimbs(st)
-      if ids.len == 0:
-        g.say osOut,
-          "no climbs in the " & $selectedActivities(st) & " selected activities\n"
-        return exitOk
-    let attempts = if p.action == caNamed: p.named.attempts else: p.selected
     let paint = paintOf(g, osOut)
     for l in summaryLines(
       summaries(st, ids),
-      attempts.everyone,
-      attempts.verbose,
+      list.attempts.everyone,
+      list.attempts.verbose,
       local(),
       marks = not paint.colour,
     ):
       g.sayRendered osOut, render(l, paint) & "\n"
+    if list.kind == lkFound and list.select:
+      let noun = if ids.len == 1: "climb" else: "climbs"
+      g.show(
+        osOut, styled"done: {ids.len} {noun}, [select saved as the climbs selection]"
+      )
     exitOk
   except StoreError, DownloadError:
     failure(g, "nch climbs", getCurrentExceptionMsg())

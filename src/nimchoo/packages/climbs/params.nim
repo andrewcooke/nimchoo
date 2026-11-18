@@ -1,20 +1,23 @@
-## The command line of `nch climbs`, parsed.  Pure.
+## The command line of `nch climbs`, parsed.  Pure.  With no criteria it lists the climbs selection; criteria (or `--all`)
+## search every climb, and `--select` keeps what they find as the selection, as `nch activities` does.
 
+import ../activities/criteria
 import ../confirm/confirm
 import ../util/args/args
 import ./completion
 import ./[display, match]
-import std/[strformat, strutils, unicode]
+import std/[options, strformat, strutils, unicode]
 
 {.push raises: [].}
 
-const maxNameLength* = 60
+const
+  maxNameLength* = 60
+  defaultClimbRadiusKm* = 10.0 ## for `--near`: a climb starts within this of the point
+  categoryNames* = ["HC", "1", "2", "3", "4"] ## as the database has them
 
 type
   ClimbAction* = enum
-    caSelected ## the climbs of the selected activities
-    caNamed ## the climbs whose names hold some text
-    caAll ## every climb found
+    caList ## list climbs: the selection, or those the criteria find
     caEdit ## change one climb
     caRetired ## list the retired climbs
     caDuplicates ## list the climbs that largely overlap
@@ -24,9 +27,38 @@ type
     verbose*: bool ## list the attempts under each climb
     everyone*: bool ## the people's best times instead of the user's own attempts
 
-  ByName* = object
-    names*: seq[string] ## the climbs whose name holds any of these texts
+  NearKind* = enum
+    nrPoint ## a position
+    nrPlace ## a place by its name, found when the command runs (`names/places`)
+
+  Near* = object ## where `--near` says
+    radiusKm*: float
+    case kind*: NearKind
+    of nrPoint:
+      lat*, lon*: float
+    of nrPlace:
+      place*: string
+
+  ClimbCriteria* = object
+    ## which climbs: each criterion given narrows them (all of them, with `--invert`, widen)
+    names*: seq[string] ## whose name holds any of these texts
+    ridden*: bool ## that the selected activities went up
+    near*: Option[Near] ## that start near a point
+    categories*: seq[string] ## of these categories (`categoryNames`)
+    invert*: bool ## those the others do NOT find
+
+  ListKind* = enum
+    lkSelection ## the climbs selection
+    lkFound ## every climb, or those that the criteria find
+
+  Listing* = object ## what `nch climbs` lists, and how
     attempts*: Attempts
+    case kind*: ListKind
+    of lkSelection:
+      discard
+    of lkFound:
+      criteria*: ClimbCriteria ## none given: every climb (`--all`)
+      select*: bool ## keep what is found as the climbs selection
 
   ChangeKind* = enum
     ckRename
@@ -47,23 +79,23 @@ type
 
   Params* = object
     case action*: ClimbAction
-    of caSelected:
-      selected*: Attempts
-    of caNamed:
-      named*: ByName
+    of caList:
+      list*: Listing
     of caEdit:
       edit*: Edit
     of caDeleteAll:
       force*: Force ## really do it
-    of caAll, caRetired, caDuplicates:
+    of caRetired, caDuplicates:
       discard
 
   Raw = object ## what the options fill in
     help, all, editing, auto, retire, unretire, retired, duplicates, delete: bool
     force: Force
-    verbose, everyone: bool
+    verbose, everyone, ridden, invert, select: bool
     name, rename: string
-    names: seq[string]
+    names, categories: seq[string]
+    near: Option[Near]
+    radiusKm: Option[float]
 
 func nameProblem*(s: string): string =
   ## "" if `s` can be the name of a climb, else what is wrong.
@@ -89,6 +121,40 @@ proc takeNames(p: var Raw, name: string, values: seq[string]): Problem {.nimcall
     return refuse(fmt"{name} needs some text")
   fine
 
+proc takeCategories(
+    p: var Raw, name: string, values: seq[string]
+): Problem {.nimcall.} =
+  if values.len == 0:
+    return refuse(fmt"{name} needs at least one category")
+  for v in values:
+    let c = v.strip.toUpperAscii
+    if c notin categoryNames:
+      return refuse(fmt"'{v}' is not a category (they are {categoryNames.join("" "")})")
+    p.categories.add c
+  fine
+
+func takeNear(p: var Raw, v: string): Problem =
+  let pos = parseLatLon(v)
+  if pos.isSome:
+    p.near = some(Near(kind: nrPoint, lat: pos.get[0], lon: pos.get[1]))
+  elif v.strip.len > 0 and v[0] notin {'0' .. '9', '-', '+', '.'}:
+    # (a name: what looks like a number is a position written wrongly, and says so)
+    p.near = some(Near(kind: nrPlace, place: v.strip))
+  else:
+    return
+      refuse(fmt"cannot read the position '{v}' (use -33.42,-70.63 or a place's name)")
+  fine
+
+func takeRadius(p: var Raw, v: string): Problem =
+  try:
+    let r = parseFloat(v)
+    if r <= 0:
+      return refuse("the radius must be more than 0km")
+    p.radiusKm = some(r)
+  except ValueError:
+    return refuse(fmt"cannot read the radius '{v}' (kilometres)")
+  fine
+
 func climbSpec*(): Spec[Raw] =
   ## The options of `nch climbs`: the options that change a climb go under `--edit`.
   Spec[Raw](
@@ -97,7 +163,48 @@ func climbSpec*(): Spec[Raw] =
         ["--names"],
         takeNames,
         "TEXT...",
-        "the climbs whose name holds any of the texts (case and accents do not matter; the number counts: `--names farellones₂`, which `--names \"farellones 2\"` also means), among all the climbs, not those of the selected rides; a whole number that no name holds is a climb's number (`--names 62`)",
+        "the climbs whose name holds any of the texts (case and accents do not matter; the number counts: `--names farellones₂`, which `--names \"farellones 2\"` also means); a whole number that no name holds is a climb's number (`--names 62`)",
+      ),
+      flag(
+        Raw,
+        ["--ridden"],
+        ridden,
+        "the climbs that the selected activities went up (see `nch activities --select`)",
+      ),
+      custom(
+        Raw,
+        ["--near"],
+        true,
+        "LAT,LON|PLACE",
+        fmt"the climbs that start within the radius of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --near providencia)",
+        body = takeNear(p, value),
+      ),
+      custom(
+        Raw,
+        ["--radius"],
+        true,
+        "KM",
+        fmt"the radius for --near in kilometres (default: {defaultClimbRadiusKm:g})",
+        level = 1,
+        body = takeRadius(p, value),
+      ),
+      listOption[Raw](
+        ["--categories"],
+        takeCategories,
+        "CAT...",
+        fmt"the climbs of these categories ({categoryNames.join("" "")}, by the height gained)",
+      ),
+      flag(
+        Raw,
+        ["--invert"],
+        invert,
+        "the climbs that the criteria do NOT find (all of them taken together)",
+      ),
+      flag(
+        Raw,
+        ["--select", "--save"],
+        select,
+        "make what is listed the climbs selection, which `nch climbs` lists and `nch map climbs` shows (needs criteria or --all)",
       ),
       flag(
         Raw,
@@ -111,12 +218,7 @@ func climbSpec*(): Spec[Raw] =
         everyone,
         "the people instead of your attempts: how many have ridden each climb, the fastest and who, and where your best time comes among everyone's best times (\"4 of 6\"); with -v each person's best.  (The personal rank and this one are never shown together.)",
       ),
-      flag(
-        Raw,
-        ["--all"],
-        all,
-        "just the climbs found, the biggest first: category, length, height gained and gradient, how many times it has been ridden, and \"manual\" against a name given by a person",
-      ),
+      flag(Raw, ["--all"], all, "every climb, not just the selection"),
       flag(
         Raw,
         ["--delete"],
@@ -178,6 +280,27 @@ func climbSpec*(): Spec[Raw] =
       fmt" (to change a climb: --edit {arg} --rename NEW, --auto, --retire or --unretire)",
   )
 
+func given*(c: ClimbCriteria): bool =
+  ## Whether any criterion is given (none: every climb, `--all`).
+  c.names.len > 0 or c.ridden or c.near.isSome or c.categories.len > 0
+
+func criteriaOf(raw: Raw): Option[ClimbCriteria] =
+  ## The criteria given (none: there are none).
+  var near = raw.near
+  if near.isSome:
+    near.get.radiusKm = raw.radiusKm.get(defaultClimbRadiusKm)
+  let c = ClimbCriteria(
+    names: raw.names,
+    ridden: raw.ridden,
+    near: near,
+    categories: raw.categories,
+    invert: raw.invert,
+  )
+  if c.given:
+    some(c)
+  else:
+    none(ClimbCriteria)
+
 func finish(raw: Raw): Parsed[Params] =
   func bad(why: string): Parsed[Params] =
     problemWith[Params](why)
@@ -211,14 +334,23 @@ func finish(raw: Raw): Parsed[Params] =
       )
     if raw.editing or raw.retired or raw.duplicates:
       return bad("--delete does not go with --edit, --retired or --duplicates")
-  let listing = raw.all or raw.editing or raw.delete or raw.retired or raw.duplicates
-  if raw.names.len > 0 and listing:
+  let criteria = criteriaOf(raw)
+  let tidying = raw.editing or raw.delete or raw.retired or raw.duplicates
+  if tidying and (criteria.isSome or raw.select or raw.invert or raw.radiusKm.isSome):
     return bad(
-      "--names chooses the climbs to show: it does not go with --all, --edit, --delete, --retired or --duplicates"
+      "the criteria choose climbs to list: they do not go with --edit, --delete, --retired or --duplicates"
     )
-  if (raw.verbose or raw.everyone) and listing:
+  if (raw.verbose or raw.everyone) and tidying:
     return bad(
-      "-v and --everyone go with the attempts: `nch climbs` (or `--names TEXT`) shows them"
+      "-v and --everyone go with the attempts: `nch climbs` (with criteria, or --all) shows them"
+    )
+  if raw.invert and criteria.isNone:
+    return bad("--invert needs criteria to turn round")
+  if raw.radiusKm.isSome and raw.near.isNone:
+    return bad("--radius goes with --near")
+  if raw.select and criteria.isNone and not raw.all:
+    return bad(
+      "--select needs criteria or --all: it keeps what they find as the climbs selection"
     )
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:
@@ -238,16 +370,24 @@ func finish(raw: Raw): Parsed[Params] =
     parsedOk(Params(action: caRetired))
   elif raw.duplicates:
     parsedOk(Params(action: caDuplicates))
-  elif raw.all:
-    parsedOk(Params(action: caAll))
-  elif raw.names.len > 0:
+  elif criteria.isSome or raw.all:
     parsedOk(
-      Params(action: caNamed, named: ByName(names: raw.names, attempts: attempts))
+      Params(
+        action: caList,
+        list: Listing(
+          kind: lkFound,
+          attempts: attempts,
+          criteria: criteria.get(ClimbCriteria()),
+          select: raw.select,
+        ),
+      )
     )
   else:
-    parsedOk(Params(action: caSelected, selected: attempts))
+    parsedOk(
+      Params(action: caList, list: Listing(kind: lkSelection, attempts: attempts))
+    )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch climbs` (the climbs of the selected activities), `--all`, `--retired`, `--duplicates`,
+  ## `nch climbs` (the climbs selection), criteria or `--all` [`--select`], `--retired`, `--duplicates`,
   ## `--delete --all -f`, `--edit NAME --rename NEW`, `--edit NAME --auto`, `--edit NAME --retire`, `--edit NAME --unretire`.
   parseCommand(args, climbSpec(), Raw(), finish)

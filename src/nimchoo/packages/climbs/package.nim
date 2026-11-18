@@ -46,7 +46,7 @@ const package* = Package(
   commands: @[
     CommandDecl(
       name: command.commandName,
-      summary: "the climbs of the selected activities, with times and ranks",
+      summary: "the climbs selection (or the climbs found), with times and ranks",
       run: command.run,
       options: command.options,
     )

@@ -31,7 +31,7 @@ suite "nch climbs":
       again.close()
     check again.count("sector") == 1 and again.count("climbs_done") == 1
 
-  test "the climbs of the selected activities":
+  test "the climbs of the selected activities (--ridden), kept as the climbs selection":
     let s = fresh("command-selected")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     s.db.execute(
@@ -40,20 +40,25 @@ suite "nch climbs":
     )
     let path = s.path
     s.close()
-    check climbs(path) == exitOk
+    check climbs(path) == exitOk # (no climbs are selected: a note)
     check climbs(path, "--all") == exitOk
+    check climbsCommand.run(globals(path), @["--ridden", "--select"]) == exitOk
+    let chosen = openSession(path, allFragments, access = allAccess)
+    check chosen.count("climb_selection") == 1
+    chosen.close()
+    check climbs(path) == exitOk
     check climbsCommand.run(globals(path), @["-v"]) == exitOk
     check climbsCommand.run(globals(path), @["--everyone", "-v"]) == exitOk
 
-  test "--names looks at all the climbs; no climb of that name is a failure":
+  test "--names looks at all the climbs; no climb of that name is said, and is no failure":
     let s = fresh("command-name")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     let path = s.path
     s.close()
     check climbsCommand.run(globals(path), @["--names", "unnamed"]) == exitOk
       # (nothing is selected)
-    check climbsCommand.run(globals(path), @["--names", "nonesuch"]) == exitFailure
-    check climbsCommand.run(globals(path), @["--names", "unnamed", "--all"]) == exitUsage
+    check climbsCommand.run(globals(path), @["--names", "nonesuch"]) == exitOk
+    check climbsCommand.run(globals(path), @["--names", "unnamed", "--all"]) == exitOk
 
   test "--all --delete: nothing without -f; with -f the climbs and their efforts go, the rides stay, and they come back":
     let s = fresh("command-delete")

@@ -1,12 +1,16 @@
 import nimchoo/packages/user/session
 import nimchoo/packages/db/statement
 import std/[sequtils, strutils, times, unittest]
-import nimchoo/packages/climbs/attempts
+import nimchoo/packages/climbs/[attempts, found, params]
 import nimchoo/packages/climbs/display
 import nimchoo/packages/climbs/work
 import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]
 import ../support/styles
+
+proc ridden(s: Session): seq[int64] =
+  ## The climbs the selected activities went up (`--ridden`).
+  foundClimbs(s, ClimbCriteria(ridden: true)).ids
 
 proc world(name: string): Session =
   ## The default user rode at 5 and at 6 m/s, bob at 4 m/s; only the slowest-but-one ride is selected.
@@ -27,7 +31,7 @@ suite "attempts: from the tables":
     let s = world("attempts-selection")
     defer:
       s.close()
-    let ids = selectedClimbs(s)
+    let ids = ridden(s)
     check ids.len == 1
     let sums = summaries(s, ids)
     check sums[0].attempts.len == 2
@@ -39,7 +43,7 @@ suite "attempts: from the tables":
     let s = world("attempts-riders")
     defer:
       s.close()
-    let r = summaries(s, selectedClimbs(s))[0].riders
+    let r = summaries(s, ridden(s))[0].riders
     check r.len == 2
     check r[0].user == "default" and r[0].rank == 1 and r[0].me and r[0].total == 2
       # (the 6 m/s ride)
@@ -58,7 +62,7 @@ suite "attempts: from the tables":
       "insert into selection(user_id, activity_id) select :userId, id from activity",
       userId = s.userId,
     )
-    let sum = summaries(s, selectedClimbs(s))[0]
+    let sum = summaries(s, ridden(s))[0]
     check sum.attempts.len == 3
     check sum.attempts[0].rank == 1 and sum.attempts[1].rank == 3 and
       sum.attempts[2].rank == 1 # (oldest first: early, slow, late)
@@ -71,14 +75,14 @@ suite "attempts: from the tables":
     defer:
       s.close()
     s.db.execute("delete from selection")
-    check selectedClimbs(s).len == 0
+    check ridden(s).len == 0
     s.db.execute(
       "insert into selection(user_id, activity_id) select :userId, id from activity",
       userId = s.userId,
     )
-    check selectedClimbs(s).len == 1
+    check ridden(s).len == 1
     s.db.execute("update sector set retired = 1")
-    check selectedClimbs(s).len == 0
+    check ridden(s).len == 0
     check namedClimbs(s, @["unnamed"]).len == 0
   test "--names: the climbs whose shown name holds the text, case and accents ignored":
     let s = world("attempts-name")
@@ -108,7 +112,7 @@ suite "attempts: the lines":
     let s = world("lines-own")
     defer:
       s.close()
-    let rows = summaries(s, selectedClimbs(s))
+    let rows = summaries(s, ridden(s))
     let lines = summaryLines(rows, everyone = false, verbose = false, zone = utc())
     let table = lines.texts
     check table.len == 2
@@ -164,7 +168,7 @@ suite "attempts: the lines":
     let s = world("lines-everyone")
     defer:
       s.close()
-    let rows = summaries(s, selectedClimbs(s))
+    let rows = summaries(s, ridden(s))
     let table = summaryLines(rows, true, false, utc()).texts
     check "riders" in table[0] and "fastest" in table[0] and "attempts" notin table[0]
     check table[1].endsWith("1 of 2") and "default" in table[1]
@@ -175,7 +179,7 @@ suite "attempts: the lines":
     defer:
       s.close()
     s.db.execute("update file set user_id = (select id from user where name = 'bob')")
-    let table = summaryLines(summaries(s, selectedClimbs(s)), false, false, utc()).texts
+    let table = summaryLines(summaries(s, ridden(s)), false, false, utc()).texts
     check table[1].endsWith("0") and
       table[1].splitWhitespace()[^4 .. ^2] == @["-", "-", "-"]
 
