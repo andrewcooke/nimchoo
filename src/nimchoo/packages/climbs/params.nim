@@ -12,7 +12,8 @@ import std/[options, strformat, strutils, unicode]
 
 const
   maxNameLength* = 60
-  defaultClimbRadiusKm* = 10.0 ## for `--near`: a climb starts within this of the point
+  defaultStartKm* = 10.0 ## for `--from`: a climb starts within this of the point
+  defaultPassKm* = 1.0 ## for `--near`: a climb's line comes this close to the point
   categoryNames* = ["HC", "1", "2", "3", "4"] ## as the database has them
 
 type
@@ -31,8 +32,7 @@ type
     nrPoint ## a position
     nrPlace ## a place by its name, found when the command runs (`names/places`)
 
-  Near* = object ## where `--near` says
-    radiusKm*: float
+  Near* = object ## where `--from` or `--near` says
     case kind*: NearKind
     of nrPoint:
       lat*, lon*: float
@@ -43,7 +43,9 @@ type
     ## which climbs: each criterion given narrows them (all of them, with `--invert`, widen)
     names*: seq[string] ## whose name holds any of these texts
     ridden*: bool ## that the selected activities went up
-    near*: Option[Near] ## that start near a point
+    start*: Option[Near] ## that start near a point (`--from`)
+    passes*: Option[Near] ## whose line passes near a point (`--near`)
+    radiusKm*: Option[float] ## `--radius` (none: each its default)
     categories*: seq[string] ## of these categories (`categoryNames`)
     invert*: bool ## those the others do NOT find
 
@@ -94,7 +96,7 @@ type
     verbose, everyone, ridden, invert, select: bool
     name, rename: string
     names, categories: seq[string]
-    near: Option[Near]
+    start, passes: Option[Near]
     radiusKm: Option[float]
 
 func nameProblem*(s: string): string =
@@ -133,16 +135,21 @@ proc takeCategories(
     p.categories.add c
   fine
 
-func takeNear(p: var Raw, v: string): Problem =
+func takeNear(p: var Raw, v: string, passes: bool): Problem =
   let pos = parsePosition(v)
+  var near: Near
   if pos.isSome:
-    p.near = some(Near(kind: nrPoint, lat: pos.get.lat, lon: pos.get.lon))
+    near = Near(kind: nrPoint, lat: pos.get.lat, lon: pos.get.lon)
   elif v.strip.len > 0 and v[0] notin {'0' .. '9', '-', '+', '.'}:
     # (a name: what looks like a number is a position written wrongly, and says so)
-    p.near = some(Near(kind: nrPlace, place: v.strip))
+    near = Near(kind: nrPlace, place: v.strip)
   else:
     return
       refuse(fmt"cannot read the position '{v}' (use -33.42,-70.63 or a place's name)")
+  if passes:
+    p.passes = some(near)
+  else:
+    p.start = some(near)
   fine
 
 func takeRadius(p: var Raw, v: string): Problem =
@@ -173,18 +180,26 @@ func climbSpec*(): Spec[Raw] =
       ),
       custom(
         Raw,
+        ["--from"],
+        true,
+        "LAT,LON|PLACE",
+        fmt"the climbs that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --from providencia)",
+        body = takeNear(p, value, false),
+      ),
+      custom(
+        Raw,
         ["--near"],
         true,
         "LAT,LON|PLACE",
-        fmt"the climbs that start within the radius of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --near providencia)",
-        body = takeNear(p, value),
+        fmt"the climbs whose line passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as --from: --near farellones)",
+        body = takeNear(p, value, true),
       ),
       custom(
         Raw,
         ["--radius"],
         true,
         "KM",
-        fmt"the radius for --near in kilometres (default: {defaultClimbRadiusKm:g})",
+        "the radius for --from and --near in kilometres",
         level = 1,
         body = takeRadius(p, value),
       ),
@@ -282,17 +297,25 @@ func climbSpec*(): Spec[Raw] =
 
 func given*(c: ClimbCriteria): bool =
   ## Whether any criterion is given (none: every climb, `--all`).
-  c.names.len > 0 or c.ridden or c.near.isSome or c.categories.len > 0
+  c.names.len > 0 or c.ridden or c.start.isSome or c.passes.isSome or
+    c.categories.len > 0
+
+func startKm*(c: ClimbCriteria): float =
+  ## The radius of `--from`.
+  c.radiusKm.get(defaultStartKm)
+
+func passKm*(c: ClimbCriteria): float =
+  ## The radius of `--near`.
+  c.radiusKm.get(defaultPassKm)
 
 func criteriaOf(raw: Raw): Option[ClimbCriteria] =
   ## The criteria given (none: there are none).
-  var near = raw.near
-  if near.isSome:
-    near.get.radiusKm = raw.radiusKm.get(defaultClimbRadiusKm)
   let c = ClimbCriteria(
     names: raw.names,
     ridden: raw.ridden,
-    near: near,
+    start: raw.start,
+    passes: raw.passes,
+    radiusKm: raw.radiusKm,
     categories: raw.categories,
     invert: raw.invert,
   )
@@ -346,8 +369,8 @@ func finish(raw: Raw): Parsed[Params] =
     )
   if raw.invert and criteria.isNone:
     return bad("--invert needs criteria to turn round")
-  if raw.radiusKm.isSome and raw.near.isNone:
-    return bad("--radius goes with --near")
+  if raw.radiusKm.isSome and raw.start.isNone and raw.passes.isNone:
+    return bad("--radius goes with --from or --near")
   if raw.select and criteria.isNone and not raw.all:
     return bad(
       "--select needs criteria or --all: it keeps what they find as the climbs selection"

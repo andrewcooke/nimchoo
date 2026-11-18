@@ -30,39 +30,40 @@ proc foundClimbs*(st: Session, c: ClimbCriteria): Found {.raises: [StoreError].}
                     where e.sector_id = s.id and x.user_id = :owner)"""
     )
       .with("owner", st.userId)
-  if c.near.isSome:
-    let n = c.near.get
+  for (near, passes) in [(c.start, false), (c.passes, true)]:
+    if near.isNone:
+      continue
+    let n = near.get
     var (lat, lon) = (0.0, 0.0)
     var said = ""
     case n.kind
     of nrPoint:
       (lat, lon) = (n.lat, n.lon)
     of nrPlace:
-      let places = placesNamed(st, n.place)
-      if places.len == 0:
-        raiseStore(
-          fmt"no place is called '{n.place}' among your landmarks (`nch landmarks`) and the places the names were loaded for (the countries of your rides): give LAT,LON instead"
-        )
-      let p = places[0]
+      let p = placeNamed(st, n.place)
       (lat, lon) = (p.lat, p.lon)
-      let others =
-        case places.len
-        of 1:
-          ""
-        of 2:
-          "; 1 other has the name"
-        else:
-          fmt"; {places.len - 1} others have the name"
-      said = fmt" ({p.name}, {p.what}{others})"
-    result.notes.add fmt"near {positionText((lon: lon, lat: lat))}{said}, within {n.radiusKm:g}km"
-    # (the distance on the ellipsoid, in metres, from where the climb starts)
-    conditions.add sqlOf(
-      """ST_Distance(MakePoint(ST_X(StartPoint(s.route)), ST_Y(StartPoint(s.route)), 4326),
-                       MakePoint(:lon, :lat, 4326), 1) <= :metres"""
+      said = fmt" ({p.said})"
+    let km = if passes: c.passKm else: c.startKm
+    let what = if passes: "passing near" else: "starting near"
+    result.notes.add fmt"{what} {positionText((lon: lon, lat: lat))}{said}, within {km:g}km"
+    # (the distance on the ellipsoid, in metres: from any point of the climb's line, or from where it starts)
+    conditions.add(
+      if passes:
+        sqlOf(
+          "ST_Distance(CastToXY(s.route), MakePoint(:passLon, :passLat, 4326), 1) <= :passM"
+        )
+          .with("passLon", lon)
+          .with("passLat", lat)
+          .with("passM", km * 1000.0)
+      else:
+        sqlOf(
+          """ST_Distance(MakePoint(ST_X(StartPoint(s.route)), ST_Y(StartPoint(s.route)), 4326),
+                         MakePoint(:startLon, :startLat, 4326), 1) <= :startM"""
+        )
+          .with("startLon", lon)
+          .with("startLat", lat)
+          .with("startM", km * 1000.0)
     )
-      .with("lon", lon)
-      .with("lat", lat)
-      .with("metres", n.radiusKm * 1000.0)
   if c.categories.len > 0:
     conditions.add sqlOf("s.category in (select value from json_each(:categories))")
       .with("categories", $(%c.categories))

@@ -23,6 +23,15 @@ type
     nkLatest
     nkPrevious
 
+  Spot* = object ## a point as given to `--from` or `--near`
+    kind*: NearKind
+    lat*, lon*: float ## for nkPoint
+    place*: string ## for nkPlace: the name as given
+
+  Points* = object
+    ## the points `--from` and `--near` came to, once a place, `latest` and `previous` are worked out: (lat, lon)
+    start*, passes*: Option[(float, float)]
+
   GpsFilter* = enum
     gfAny
     gfWith
@@ -64,10 +73,9 @@ type
     gps*: GpsFilter
     invert*: bool
       ## --invert: the activities that do NOT meet the criteria (before --newest / --oldest)
-    near*: NearKind
-    lat*, lon*: float ## for nkPoint
-    place*: string ## for nkPlace: the name as given
-    radiusKm*: float
+    start*: Spot ## --from: where the activity starts
+    passes*: Spot ## --near: a point its route passes
+    radiusKm*: Option[float] ## --radius (none: each its default)
 
   Relative* = object
     ## `latest~10%`: around an activity that is found when the command runs.
@@ -78,7 +86,8 @@ type
     minX*, minY*, maxX*, maxY*: float ## degrees
 
 const
-  defaultRadiusKm* = 100.0
+  defaultStartKm* = 10.0 ## the radius of --from: a start within this
+  defaultPassKm* = 1.0 ## the radius of --near: a route that comes this close has passed
   timeFormats = [
     "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
     "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
@@ -321,37 +330,53 @@ func takeGps(p: var ListState, wanted: GpsFilter): Problem =
   p.c.gps = wanted
   fine
 
-func takeNear(p: var ListState, v: string): Problem =
-  p.criteriaGiven = true
+func parseSpot(v: string): Option[Spot] =
+  ## LAT,LON, a place's name, `latest` or `previous`.
   if parseReference(v) == refLatest:
-    p.c.near = nkLatest
-  elif parseReference(v) == refPrevious:
-    p.c.near = nkPrevious
+    return some(Spot(kind: nkLatest))
+  if parseReference(v) == refPrevious:
+    return some(Spot(kind: nkPrevious))
+  let pos = parsePosition(v)
+  if pos.isSome:
+    return some(Spot(kind: nkPoint, lat: pos.get.lat, lon: pos.get.lon))
+  if v.strip.len > 0 and v[0] notin {'0' .. '9', '-', '+', '.'}:
+    # (a name: what looks like a number is a position written wrongly, and says so)
+    return some(Spot(kind: nkPlace, place: v.strip))
+  none(Spot)
+
+func takeSpot(p: var ListState, v: string, passes: bool): Problem =
+  ## --from SPOT (where the activity starts), --near SPOT (a point its route passes).
+  p.criteriaGiven = true
+  let spot = parseSpot(v)
+  if spot.isNone:
+    return refuse(
+      fmt"cannot read the position '{v}' (use 38.72,-9.14, a place's name, latest or previous)"
+    )
+  if passes:
+    p.c.passes = spot.get
   else:
-    let pos = parsePosition(v)
-    if pos.isSome:
-      p.c.near = nkPoint
-      (p.c.lat, p.c.lon) = (pos.get.lat, pos.get.lon)
-    elif v.strip.len > 0 and not (v.len > 0 and v[0] in {'0' .. '9', '-', '+', '.'}):
-      # (a name: what looks like a number is a position written wrongly, and says so)
-      p.c.near = nkPlace
-      p.c.place = v.strip
-    else:
-      return refuse(
-        fmt"cannot read the position '{v}' (use 38.72,-9.14, a place's name, latest or previous)"
-      )
+    p.c.start = spot.get
   fine
 
 func takeRadius(p: var ListState, v: string): Problem =
   p.criteriaGiven = true
   try:
-    p.c.radiusKm = parseFloat(v)
+    let r = parseFloat(v)
+    if r <= 0:
+      return refuse("the radius must be more than 0km")
+    p.c.radiusKm = some(r)
   except ValueError:
     return refuse(fmt"cannot read the radius '{v}' (kilometres)")
-  if p.c.radiusKm <= 0:
-    return refuse("the radius must be more than 0km")
   p.radiusGiven = true
   fine
+
+func startKm*(c: Criteria): float =
+  ## The radius of --from.
+  c.radiusKm.get(defaultStartKm)
+
+func passKm*(c: Criteria): float =
+  ## The radius of --near.
+  c.radiusKm.get(defaultPassKm)
 
 func hasFilter*(c: Criteria): bool =
   ## Whether any criterion that picks activities is given (not the limits, the users or the display).
@@ -360,7 +385,8 @@ func hasFilter*(c: Criteria): bool =
     c.subSportRef != refNone or c.nameRef != refNone or c.startRef != refNone or
     c.distanceM.lo.isSome or c.distanceM.hi.isSome or c.activeS.lo.isSome or
     c.activeS.hi.isSome or c.distanceRel.isSome or c.activeRel.isSome or c.afterT.isSome or
-    c.beforeT.isSome or c.gps != gfAny or c.near != nkNone
+    c.beforeT.isSome or c.gps != gfAny or c.start.kind != nkNone or
+    c.passes.kind != nkNone
 
 proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   ## The options of `nch activities`, in the order the usage lists them, each with its help; the criteria that other
@@ -465,18 +491,26 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
+        ["--from"],
+        true,
+        "LAT,LON|PLACE",
+        fmt"""activities that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --from providencia); --from latest: of where the latest activity started (or "previous")""",
+        body = takeSpot(p, value, false),
+      ),
+      custom(
+        ListState,
         ["--near"],
         true,
         "LAT,LON|PLACE",
-        "activities that start within the radius of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --near providencia); --near latest: of where the latest activity started (or \"previous\")",
-        body = takeNear(p, value),
+        fmt"""activities whose route passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as --from: --near farellones), or of where the latest activity started (or "previous")""",
+        body = takeSpot(p, value, true),
       ),
       custom(
         ListState,
         ["--radius"],
         true,
         "KM",
-        "radius for --near in kilometres (default: 100); on its own it means --near latest",
+        "the radius for --from and --near in kilometres; on its own it means --from latest",
         body = takeRadius(p, value),
       ),
       custom(
@@ -575,8 +609,8 @@ func finish(st: ListState): Parsed[Criteria] =
     return bad(
       "--select keeps the activities listed as the selection, so it needs criteria or --all"
     )
-  if st.radiusGiven and c.near == nkNone:
-    c.near = nkLatest # --radius alone: around the latest
+  if st.radiusGiven and c.start.kind == nkNone and c.passes.kind == nkNone:
+    c.start = Spot(kind: nkLatest) # --radius alone: around where the latest started
   if c.invert and not c.hasFilter:
     return
       bad("--invert needs a criterion to invert (--sports, --names, --distance ...)")
@@ -592,14 +626,14 @@ proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Criteria] =
   ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
-  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--near LAT,LON|latest`, `--radius KM`;
+  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius KM`;
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
   parseCommand(
     args,
     criteriaSpec(offered),
-    ListState(c: Criteria(radiusKm: defaultRadiusKm), zone: zone, offered: offered),
+    ListState(c: Criteria(), zone: zone, offered: offered),
     finish,
   )
 
@@ -639,7 +673,8 @@ func boxes*(lat, lon, radiusKm: float): seq[Box] =
 func refersTo*(c: Criteria, r: Reference): bool =
   ## Whether any criterion is measured against the activity `r` stands for.
   let near = if r == refLatest: nkLatest else: nkPrevious
-  c.near == near or (c.distanceRel.isSome and c.distanceRel.get.refers == r) or
+  c.start.kind == near or c.passes.kind == near or
+    (c.distanceRel.isSome and c.distanceRel.get.refers == r) or
     (c.activeRel.isSome and c.activeRel.get.refers == r) or c.sportRef == r or
     c.subSportRef == r or c.nameRef == r or c.startRef == r
 
@@ -655,8 +690,10 @@ func withoutLatest*(c: Criteria): Criteria =
   ## resolved by then), and not `--newest/--oldest` either: the activities that meet these
   ## are those among which "latest" is found.
   result = c
-  if result.near == nkLatest:
-    result.near = nkNone
+  if result.start.kind == nkLatest:
+    result.start = Spot()
+  if result.passes.kind == nkLatest:
+    result.passes = Spot()
   if result.distanceRel.isSome and result.distanceRel.get.refers == refLatest:
     result.distanceRel = none(Relative)
   if result.activeRel.isSome and result.activeRel.get.refers == refLatest:
@@ -748,10 +785,33 @@ func rangeSql*(column, name: string, r: NumRange): Sql =
     result.text.add " and " & column & " <= :" & name & "Hi"
     result.args.add (name & "Hi", arg(r.hi.get))
 
+func nearSql(
+    centre: (float, float), km: float, idColumn, table, column, name: string
+): Sql =
+  ## " and (the row's box meets the circle's)", with the point and the radius bound as :NAMELon, :NAMELat and :NAMEM for
+  ## the test of the distance that follows.
+  let (lat, lon) = centre
+  var probes: seq[string]
+  for k, b in boxes(lat, lon, km):
+    let n = name & "Box" & $k
+    probes.add inBox(
+      idColumn,
+      table,
+      column,
+      ":" & n & "West, :" & n & "South, :" & n & "East, :" & n & "North",
+    )
+    result.args.add (n & "West", arg(b.minX))
+    result.args.add (n & "South", arg(b.minY))
+    result.args.add (n & "East", arg(b.maxX))
+    result.args.add (n & "North", arg(b.maxY))
+  result.text = " and (" & probes.join(" or ") & ")"
+  result =
+    result.with(name & "Lon", lon).with(name & "Lat", lat).with(name & "M", km * 1000)
+
 func matchSql*(
     userIds: seq[UserId],
     c: Criteria,
-    centre: Option[(float, float)],
+    points: Points,
     columns = sqlOf("a.id"),
     extra = Sql(),
 ): Sql =
@@ -759,7 +819,7 @@ func matchSql*(
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
   ## criteria become SQL, used to list them, to count them and to save them.
   ## `extra` is the conditions of the criteria other packages offer, each " and (...)" (`resolveOffered`).
-  ## `centre` is the point `--near` means.  Every value is bound by name (`sqltext.nim`).
+  ## `points` are the points `--from` and `--near` came to.  Every value is bound by name (`sqltext.nim`).
   var ids: seq[int64]
   for id in userIds:
     ids.add int64(id)
@@ -789,30 +849,19 @@ func matchSql*(
   if c.beforeT.isSome:
     filt =
       filt & sqlOf(" and a.start_t < :beforeT").with("beforeT", int64(c.beforeT.get))
-  if centre.isSome:
-    let (lat, lon) = centre.get
-    # activities that START within the radius: the spatial index finds those in a box, and
-    # the distance on the ground decides (an activity without a start is never near)
-    var probes: seq[string]
-    var values = Sql()
-    for k, b in boxes(lat, lon, c.radiusKm):
-      let n = "box" & $k
-      probes.add inBox(
-        "a.id",
-        "activity",
-        "start",
-        ":" & n & "West, :" & n & "South, :" & n & "East, :" & n & "North",
-      )
-      values.args.add (n & "West", arg(b.minX))
-      values.args.add (n & "South", arg(b.minY))
-      values.args.add (n & "East", arg(b.maxX))
-      values.args.add (n & "North", arg(b.maxY))
-    values.text =
-      " and (" & probes.join(" or ") &
-      ") and ST_Distance(a.start, MakePoint(:nearLon, :nearLat, 4326), 1) <= :nearM"
-    values =
-      values.with("nearLon", lon).with("nearLat", lat).with("nearM", c.radiusKm * 1000)
-    filt = filt & values
+  if points.start.isSome:
+    # activities that START within the radius: the spatial index finds those in a box, and the distance on the ground
+    # decides (an activity without a start is never near)
+    filt =
+      filt & nearSql(points.start.get, c.startKm, "a.id", "activity", "start", "start") &
+      " and ST_Distance(a.start, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
+  if points.passes.isSome:
+    # activities whose ROUTE passes within the radius: the index of the routes (a route's row is its activity's id) finds
+    # those whose box meets the circle's, and the distance on the ground from the point to the line decides
+    filt =
+      filt & nearSql(points.passes.get, c.passKm, "a.id", "route", "geom", "pass") &
+      " and exists (select 1 from route r where r.activity_id = a.id" &
+      " and ST_Distance(r.geom, MakePoint(:passLon, :passLat, 4326), 1) <= :passM)"
   # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
   result =
     result & (

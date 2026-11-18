@@ -107,33 +107,45 @@ suite "query plans: no query reads a whole table":
       afterT: some(UnixTime(1)),
       beforeT: some(UnixTime(2)),
       gps: gfWith,
-      radiusKm: 5.0,
+      radiusKm: some(5.0),
     )
-    var each: seq[(string, Criteria, Option[(float, float)])] = @[
-      ("none", Criteria(), none),
-      ("sports", Criteria(sports: @["cycling"]), none),
-      ("names", Criteria(names: @["toyo"]), none),
-      ("paths", Criteria(paths: @["bowman"]), none),
-      ("a range", Criteria(distanceM: NumRange(lo: some 1.0)), none),
-      ("no gps", Criteria(gps: gfWithout), none),
-      ("near", Criteria(radiusKm: 5.0), some((38.7, -9.1))),
-      ("near across the date line", Criteria(radiusKm: 50.0), some((-17.0, 179.9))),
-      ("newest", Criteria(newest: 3), none),
-      ("all", all, some((38.7, -9.1))),
+    let here = some((38.7, -9.1))
+    let nowhere = Points()
+    var each: seq[(string, Criteria, Points)] = @[
+      ("none", Criteria(), nowhere),
+      ("sports", Criteria(sports: @["cycling"]), nowhere),
+      ("names", Criteria(names: @["toyo"]), nowhere),
+      ("paths", Criteria(paths: @["bowman"]), nowhere),
+      ("a range", Criteria(distanceM: NumRange(lo: some 1.0)), nowhere),
+      ("no gps", Criteria(gps: gfWithout), nowhere),
+      ("from", Criteria(radiusKm: some(5.0)), Points(start: here)),
+      (
+        "from, across the date line",
+        Criteria(radiusKm: some(50.0)),
+        Points(start: some((-17.0, 179.9))),
+      ),
+      ("near (a route passing)", Criteria(), Points(passes: here)),
+      (
+        "near, across the date line",
+        Criteria(radiusKm: some(50.0)),
+        Points(passes: some((-17.0, 179.9))),
+      ),
+      ("newest", Criteria(newest: 3), nowhere),
+      ("all", all, Points(start: here, passes: here)),
     ]
     var inverted = all
     inverted.invert = true
-    each.add ("all, inverted", inverted, some((38.7, -9.1)))
+    each.add ("all, inverted", inverted, Points(start: here, passes: here))
     # (a criterion that another package offers: the climbs; its condition is joined by `and`)
     let climbs = sqlOf(" and (") & onClimbs(@[1'i64]) & sqlOf(")")
-    check scans(plan(st.db, matchSql(@[UserId(1)], all, none, extra = climbs).text)).len ==
+    check scans(plan(st.db, matchSql(@[UserId(1)], all, nowhere, extra = climbs).text)).len ==
       0
     check scans(
-      plan(st.db, matchSql(@[UserId(1)], Criteria(), none, extra = climbs).text)
+      plan(st.db, matchSql(@[UserId(1)], Criteria(), nowhere, extra = climbs).text)
     ).len == 0
-    for (what, c, centre) in each:
-      let p = plan(st.db, matchSql(@[UserId(1)], c, centre).text)
+    for (what, c, points) in each:
+      let p = plan(st.db, matchSql(@[UserId(1)], c, points).text)
       checkpoint what
       check scans(p).len == 0
-      if centre.isSome:
+      if points.start.isSome or points.passes.isSome:
         check usesSpatialIndex(p)

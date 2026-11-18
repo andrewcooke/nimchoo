@@ -245,7 +245,7 @@ suite "list: the command":
     discard save(db, "--sports", "cycling", "--sub-sports", "road")
     check chosen(db) == @["lisbon1"]
     discard
-      save(db, "--sports", "cycling", "--near", "38.73,-9.13", "--before", "2018-08-02")
+      save(db, "--sports", "cycling", "--from", "38.73,-9.13", "--before", "2018-08-02")
     check chosen(db) == @["lisbon1"]
 
   test "a sport nobody has is refused, naming those there are":
@@ -343,12 +343,12 @@ suite "list: the command":
     )
     check chosen(db) == @["lisbon2"] # the latest in that month is bob's
 
-  test "--near latest respects the other criteria":
+  test "--from latest respects the other criteria":
     let db = numbered("latest3")
-    discard save(db, "--sports", "cycling", "--near", "latest", "--radius", "5")
+    discard save(db, "--sports", "cycling", "--from", "latest", "--radius", "5")
     check chosen(db) ==
       @["lisbon2"] # (the latest cycling ride, not the latest ride; 5 km round it)
-    discard save(db, "--radius", "5") # alone: --near latest, of everything: paris
+    discard save(db, "--radius", "5") # alone: --from latest, of everything: paris
     check chosen(db) == @["paris"]
 
   test "previous is the one activity that was selected before":
@@ -379,16 +379,16 @@ suite "list: the command":
     check list(db, "--sports", "previous") == exitFailure # none
     discard save(db, "--all")
     check list(db, "--distance", "previous~10%") == exitFailure # three
-    check list(db, "--near", "previous") == exitFailure
+    check list(db, "--from", "previous") == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
-  test "--near previous":
+  test "--from previous":
     let db = numbered("previous4")
     discard save(db, "--sports", "cycling", "--oldest", "1") # the one ride: lisbon1
-    discard save(db, "--near", "previous", "--radius", "5")
+    discard save(db, "--from", "previous", "--radius", "5")
     check chosen(db) == @["lisbon1"] # (lisbon2 started 6.9 km away)
     discard save(db, "--sports", "cycling", "--oldest", "1")
-    discard save(db, "--near", "previous", "--radius", "10")
+    discard save(db, "--from", "previous", "--radius", "10")
     check chosen(db) == @["lisbon1", "lisbon2"]
     discard save(db, "--sports", "running") # paris
     check chosen(db) == @["paris"]
@@ -398,7 +398,7 @@ suite "list: the command":
     )
     st.close()
     discard save(db, "--sub-sports", "none")
-      # lisbon2 has no start    check save(db, "--near", "previous") == exitFailure
+      # lisbon2 has no start    check save(db, "--from", "previous") == exitFailure
     check chosen(db) == @["lisbon2"]
 
   test "previous with latest: previous first, then latest among what is left":
@@ -464,28 +464,40 @@ suite "list: the command":
     discard save(db, "--after", "2030-01-01")
     check chosen(db).len == 0
 
-  test "near a place by its name: a landmark, or a place the names were loaded for; one that is not there is an error":
+  test "--from a place by its name: a landmark, or a place the names were loaded for; one that is not there is an error":
     let db = world("nearplace", true)
     let s = openSession(db, allFragments, access = allAccess)
     addLandmark(s, "Alfama", -9.13, 38.73, 500.0)
     s.close()
-    discard save(db, "--near", "alfama", "--radius", "5")
-    check chosen(db) == @["lisbon1"] # (as --near 38.73,-9.13 --radius 5)
-    check list(db, "--near", "nowhere") == exitFailure
-    check list(db, "--near", "38.7") == exitUsage
+    discard save(db, "--from", "alfama", "--radius", "5")
+    check chosen(db) == @["lisbon1"] # (as --from 38.73,-9.13 --radius 5)
+    check list(db, "--from", "nowhere") == exitFailure
+    check list(db, "--from", "38.7") == exitUsage
       # (a number is a position written wrongly)
 
-  test "near a point, 100 km unless told":
+  test "--near: the route passes within 1 km unless told, wherever the ride started":
+    let db = world("passing", true)
+    # (lisbon1 goes from 38.72,-9.14 to 38.75,-9.10, about 5 km; lisbon2's route is 4 km from that end)
+    discard save(db, "--near", "38.75,-9.10")
+    check chosen(db) == @["lisbon1"]
+    check save(db, "--from", "38.75,-9.10", "--radius", "1") == exitOk
+    check chosen(db).len == 0 # (it did not start there)
+    discard save(db, "--near", "38.75,-9.10", "--radius", "5")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--from", "38.72,-9.14", "--near", "38.75,-9.10", "--radius", "1")
+    check chosen(db) == @["lisbon1"] # (both: started there, and passed there)
+
+  test "--from a point, 10 km unless told":
     let db = world("near", true)
-    discard save(db, "--near", "38.73,-9.13")
+    discard save(db, "--from", "38.73,-9.13")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--near", "38.73,-9.13", "--radius", "10")
+    discard save(db, "--from", "38.73,-9.13", "--radius", "10")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--near", "38.73,-9.13", "--radius", "5")
+    discard save(db, "--from", "38.73,-9.13", "--radius", "5")
     check chosen(db) == @["lisbon1"] # (it started 1.4 km away; the other 6.9 km)
-    discard save(db, "--near", "38.73,-9.13", "--radius", "0.3")
+    discard save(db, "--from", "38.73,-9.13", "--radius", "0.3")
     check chosen(db).len == 0 # (nothing started within 300 m)
-    discard save(db, "--near", "38.73,-9.13", "--radius", "5000")
+    discard save(db, "--from", "38.73,-9.13", "--radius", "5000")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
 
   test "near across the date line":
@@ -514,15 +526,15 @@ suite "list: the command":
       -13.8,
     )
     st.close()
-    discard save(db, "--near", "-17.0,-179.9", "--radius", "50")
+    discard save(db, "--from", "-17.0,-179.9", "--radius", "50")
       # from the west side of the line
     check chosen(db) == @["fiji"]
     discard
-      save(db, "--near", "-17.0,179.99", "--radius", "50") # and from the east side
+      save(db, "--from", "-17.0,179.99", "--radius", "50") # and from the east side
     check chosen(db) == @["fiji"]
-    discard save(db, "--near", "-13.8,-172.0", "--radius", "5")
+    discard save(db, "--from", "-13.8,-172.0", "--radius", "5")
     check chosen(db) == @["samoa"]
-    discard save(db, "--near", "-17.0,179.9", "--radius", "1") # not near enough
+    discard save(db, "--from", "-17.0,179.9", "--radius", "1") # not near enough
     check chosen(db).len == 0
 
   test "a radius on its own is around the latest activity":
@@ -532,14 +544,14 @@ suite "list: the command":
 
   test "near the latest activity":
     let db = world("latest", true)
-    discard save(db, "--near", "latest", "--radius", "50")
+    discard save(db, "--from", "latest", "--radius", "50")
     check chosen(db) == @["paris"] # (the latest is in Paris)
     let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
       "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
-    check save(db, "--sub-sports", "none", "--near", "latest") == exitFailure
+    check save(db, "--sub-sports", "none", "--from", "latest") == exitFailure
       # (bob's has no start
     check chosen(db) ==
       @["paris"]
@@ -548,9 +560,9 @@ suite "list: the command":
 
   test "criteria are combined":
     let db = world("and", true)
-    discard save(db, "--near", "38.73,-9.13", "--latest")
+    discard save(db, "--from", "38.73,-9.13", "--latest")
     check chosen(db) == @["lisbon2"] # (the newest of those near Lisbon, not of all)
-    discard save(db, "--near", "38.73,-9.13", "--before", "2018-08-02")
+    discard save(db, "--from", "38.73,-9.13", "--before", "2018-08-02")
     check chosen(db) == @["lisbon1"]
 
   test "a bad request changes nothing":
@@ -648,11 +660,13 @@ suite "list: what is shown":
     )
     check shown(db, "--after", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
 
-  test "--near says where":
+  test "--from and --near say where":
     let db = world("shownnear", true)
-    let r = shown(db, "--near", "38.73,-9.13", "--radius", "10")
-    check r.lines.texts[0] == "near 38.7300,-9.1300, within 10km"
+    let r = shown(db, "--from", "38.73,-9.13", "--radius", "10")
+    check r.lines.texts[0] == "starting near 38.7300,-9.1300, within 10km"
     check r.lines.texts[^1].startsWith("done: 2 of 3 activities")
+    let p = shown(db, "--near", "38.75,-9.10")
+    check p.lines.texts[0] == "passing near 38.7500,-9.1000, within 1km"
 
   test "-v says where it started and what it is called: the stored text":
     let db = world("verbose-place")

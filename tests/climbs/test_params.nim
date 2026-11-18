@@ -106,7 +106,7 @@ suite "climbs params: criteria":
   test "each criterion is read, and they go together":
     let p = parseArgs(
       @[
-        "--names", "Farellones", "62", "--ridden", "--near", "-33.42,-70.63",
+        "--names", "Farellones", "62", "--ridden", "--from", "-33.42,-70.63",
         "--radius", "5", "--categories", "hc", "1", "--select", "-v",
       ]
     )
@@ -115,13 +115,14 @@ suite "climbs params: criteria":
     check l.kind == lkFound and l.select and l.attempts.verbose
     let c = l.criteria
     check c.names == @["Farellones", "62"] and c.ridden and c.categories == @["HC", "1"]
-    check c.near.isSome and c.near.get.kind == nrPoint and c.near.get.lat == -33.42 and
-      c.near.get.lon == -70.63 and c.near.get.radiusKm == 5.0
+    check c.start.isSome and c.start.get.kind == nrPoint and c.start.get.lat == -33.42 and
+      c.start.get.lon == -70.63 and c.startKm == 5.0 and c.passes.isNone
 
   test "--near takes a place's name, and the radius has a default":
     let c = parseArgs(@["--near", "Providencia"]).params.list.criteria
-    check c.near.get.kind == nrPlace and c.near.get.place == "Providencia" and
-      c.near.get.radiusKm == defaultClimbRadiusKm
+    check c.passes.get.kind == nrPlace and c.passes.get.place == "Providencia" and
+      c.passKm == defaultPassKm and c.start.isNone
+    check parseArgs(@["--from", "0,0"]).params.list.criteria.startKm == defaultStartKm
 
   test "--save is --select; --select keeps what --all finds too":
     check parseArgs(@["--ridden", "--save"]).params.list.select
@@ -130,7 +131,7 @@ suite "climbs params: criteria":
   test "mistakes":
     check parseArgs(@["--select"]).problem.contains("needs criteria or --all")
     check parseArgs(@["--invert"]).problem.contains("needs criteria")
-    check parseArgs(@["--radius", "3"]).problem.contains("goes with --near")
+    check parseArgs(@["--radius", "3"]).problem.contains("goes with --from or --near")
     check parseArgs(@["--near", "1x,2"]).problem.contains("cannot read the position")
     check parseArgs(@["--near", "0,0", "--radius", "0"]).problem.contains("more than 0")
     check parseArgs(@["--categories", "5"]).problem.contains("not a category")

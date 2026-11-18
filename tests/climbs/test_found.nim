@@ -12,8 +12,8 @@ proc world(name: string): Session =
   discard ensureClimbs(s)
   s
 
-proc point(lat, lon, km: float): Option[Near] =
-  some(Near(kind: nrPoint, lat: lat, lon: lon, radiusKm: km))
+proc point(lat, lon: float): Option[Near] =
+  some(Near(kind: nrPoint, lat: lat, lon: lon))
 
 suite "climbs: the climbs that criteria find":
   test "with none, every climb; a retired one never":
@@ -36,15 +36,30 @@ suite "climbs: the climbs that criteria find":
     )
     check foundClimbs(s, ClimbCriteria(ridden: true)).ids.len == 1
 
-  test "--near: those that start within the radius, measured on the ground":
+  test "--from: those that start within the radius, measured on the ground":
+    let s = world("found-from")
+    defer:
+      s.close()
+    check foundClimbs(s, ClimbCriteria(start: point(0.0, 0.0), radiusKm: some(2.0))).ids.len ==
+      1
+    check foundClimbs(s, ClimbCriteria(start: point(0.0, 0.0), radiusKm: some(0.5))).ids.len ==
+      0 # (it starts about 1 km east)
+    let far = foundClimbs(s, ClimbCriteria(start: point(1.0, 1.0)))
+    check far.ids.len == 0 and far.notes == @[
+      "starting near 1.0000,1.0000, within 10km"
+    ]
+
+  test "--near: those whose line passes within the radius":
     let s = world("found-near")
     defer:
       s.close()
-    check foundClimbs(s, ClimbCriteria(near: point(0.0, 0.0, 2.0))).ids.len == 1
-    check foundClimbs(s, ClimbCriteria(near: point(0.0, 0.0, 0.5))).ids.len == 0
-      # (it starts about 1 km east)
-    let far = foundClimbs(s, ClimbCriteria(near: point(1.0, 1.0, 10.0)))
-    check far.ids.len == 0 and far.notes == @["near 1.0000,1.0000, within 10km"]
+    # (the climb runs east along the equator from about 1 km to 4 km: a point 2.5 km east is on it, not near its start)
+    let onIt = point(0.0, 2500.0 * metre)
+    check foundClimbs(s, ClimbCriteria(passes: onIt)).ids.len == 1
+    check foundClimbs(s, ClimbCriteria(start: onIt, radiusKm: some(1.0))).ids.len == 0
+    let aside = point(0.02, 2500.0 * metre) # (about 2.2 km north of it)
+    check foundClimbs(s, ClimbCriteria(passes: aside)).ids.len == 0
+    check foundClimbs(s, ClimbCriteria(passes: aside, radiusKm: some(3.0))).ids.len == 1
 
   test "--categories, --names, and --invert of them all together":
     let s = world("found-other")

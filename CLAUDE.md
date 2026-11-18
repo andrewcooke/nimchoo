@@ -224,7 +224,9 @@ four kinds of things go wrong, and each has one mechanism:
   `--climbs`, `--frames`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
   spaces** (`--names 'El Toyo' Farellones 123`: a text with spaces is quoted, a comma is part of a value), and its placeholder
   is the item and an ellipsis (`--sports SPORT...`); a list option is never in the address of a page.  a **position** is one point, always **`LAT,LON`**
-  in that order (`--near`, `--at`), as it is shown; `--near` also takes a place's name (a landmark, else the biggest place of
+  in that order (`--from`, `--near`, `--at`), as it is shown (`geo/position`: one reader, one writer); **`--from` is where a
+  thing starts and `--near` is where its route or line passes** (activities, climbs: decided 2026-11-18; `nch landmarks
+  --near` searches for places near a point); each also takes a place's name (a landmark, else the biggest place of
   that name among the names loaded: `names/places.nim`), and says which place it used.  in `--names` (activities and climbs) and `--climbs` a whole number
   that no name holds is the **number** of an activity or a climb (`nch activities --names 737`): a name that holds it wins.
 * **options describe themselves** (`util/args`: every option carries its names, value placeholder and help, which the compiler requires), and the option list of a command's usage is made from the descriptions (`util/args/usage.nim`, wrapped to the terminal's width, `ui/live.helpWidth`: 120 when piped), so it cannot differ from what the parser accepts.  a command's `parseArgs` gives a `Parsed[T]`: valid parameters (a variant on the action: a combination that means nothing cannot be represented), help asked for, or a problem.

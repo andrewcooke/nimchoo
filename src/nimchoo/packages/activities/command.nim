@@ -178,8 +178,8 @@ proc resolve(
     which: Reference,
     id: ActivityId,
     row: ListRow,
-    centre: var Option[(float, float)],
-    source: var string,
+    points: var Points,
+    sources: var tuple[start, passes: string],
 ) {.raises: [StoreError].} =
   ## Replace the criteria measured against `which` by what they mean for this activity.
   let nameOf = if which == refLatest: "latest" else: "previous"
@@ -214,14 +214,16 @@ proc resolve(
       raiseStore("the " & nameOf & " activity has no recorded active time")
     c.activeS = around(row.activeS.get, c.activeRel.get.tol)
     c.activeRel = none(Relative)
-  if c.near == (if which == refLatest: nkLatest else: nkPrevious):
-    centre = startOf(st, id)
-    if centre.isNone:
-      raiseStore(
-        "the " & nameOf & " activity has no start position (--near " & nameOf & ")"
-      )
-    source = "the start of the " & nameOf & " activity"
-    c.near = nkNone
+  let refers = if which == refLatest: nkLatest else: nkPrevious
+  if c.start.kind == refers or c.passes.kind == refers:
+    let at = startOf(st, id)
+    if at.isNone:
+      raiseStore(fmt"the {nameOf} activity has no start position (to measure from)")
+    let said = fmt"the start of the {nameOf} activity"
+    if c.start.kind == refers:
+      (points.start, sources.start, c.start) = (at, said, Spot())
+    if c.passes.kind == refers:
+      (points.passes, sources.passes, c.passes) = (at, said, Spot())
 
 proc numbersAsIds(
     st: Session, c: var Criteria, notes: var seq[Line]
@@ -257,13 +259,13 @@ type Resolved = object
   ## notes that say which activities they came to.
   c: Criteria
   extra: Sql ## the offered criteria, each " and (...)"
-  centre: Option[(float, float)]
+  points: Points ## where --from and --near came to
   notes: seq[Line]
 
 proc resolveCriteria(
     st: Session, criteria: Criteria, zone: Timezone
 ): Resolved {.raises: [StoreError].} =
-  ## `previous` (in --near, --distance, --active, --sports, --sub-sports) is the one activity
+  ## `previous` (in --from, --near, --distance, --active, --sports, --sub-sports) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
@@ -279,12 +281,12 @@ proc resolveCriteria(
   numbersAsIds(st, c, result.notes)
   checkNames(st, "sport", "sport", c.sports)
   checkNames(st, "sub-sport", "sub_sport", c.subSports)
-  var centre = none((float, float))
-  var centreFrom = ""
+  var points: Points
+  var sources: tuple[start, passes: string]
   if usesPrevious(c):
     let prev = previousSelected(st)
     result.notes.add plain("previous: " & activityText(prev.row, zone))
-    resolve(st, c, refPrevious, prev.id, prev.row, centre, centreFrom)
+    resolve(st, c, refPrevious, prev.id, prev.row, points, sources)
   if usesLatest(c):
     let base = withoutLatest(c)
     let found = latestAmong(
@@ -292,7 +294,7 @@ proc resolveCriteria(
       matchSql(
         userIds,
         base,
-        none((float, float)),
+        Points(),
         sqlOf("a.id as id, ") & rowColumns(false, st.userId),
         extra,
       ),
@@ -302,39 +304,35 @@ proc resolveCriteria(
         "`latest` is the newest activity that meets the other criteria, and none does"
       )
     result.notes.add plain("latest: " & activityText(found.get.row, zone))
-    resolve(st, c, refLatest, found.get.id, found.get.row, centre, centreFrom)
-  if c.near == nkPoint:
-    centre = some((c.lat, c.lon))
-  if c.near == nkPlace:
-    let found = placesNamed(st, c.place)
-    if found.len == 0:
-      raiseStore(
-        fmt"no place is called '{c.place}' among your landmarks (`nch landmarks`) and the places the names were loaded for (the countries of your rides): give LAT,LON instead"
-      )
-    let p = found[0]
-    centre = some((p.lat, p.lon))
-    let others =
-      case found.len
-      of 1:
-        ""
-      of 2:
-        "; 1 other has the name"
-      else:
-        fmt"; {found.len - 1} others have the name"
-    centreFrom = fmt"{p.name}, {p.what}{others}"
-    c.near = nkPoint
-    (c.lat, c.lon) = (p.lat, p.lon)
-  if centre.isSome:
-    let at = positionText((lon: centre.get[1], lat: centre.get[0]))
-    let said =
-      if centreFrom.len > 0:
-        fmt" ({centreFrom})"
-      else:
-        ""
-    result.notes.add plain(fmt"near {at}{said}, within {radiusText(c.radiusKm)}km")
+    resolve(st, c, refLatest, found.get.id, found.get.row, points, sources)
+  for (spot, at, said) in [
+    (addr c.start, addr points.start, addr sources.start),
+    (addr c.passes, addr points.passes, addr sources.passes),
+  ]:
+    case spot[].kind
+    of nkPoint:
+      at[] = some((spot[].lat, spot[].lon))
+    of nkPlace:
+      let p = placeNamed(st, spot[].place)
+      at[] = some((p.lat, p.lon))
+      said[] = p.said
+    of nkNone, nkLatest, nkPrevious:
+      discard # (latest and previous are worked out above)
+  for (what, at, said, km) in [
+    ("starting near", points.start, sources.start, c.startKm),
+    ("passing near", points.passes, sources.passes, c.passKm),
+  ]:
+    if at.isSome:
+      let where = positionText((lon: at.get[1], lat: at.get[0]))
+      let why =
+        if said.len > 0:
+          fmt" ({said})"
+        else:
+          ""
+      result.notes.add plain(fmt"{what} {where}{why}, within {radiusText(km)}km")
   result.c = c
   result.extra = extra
-  result.centre = centre
+  result.points = points
 
 proc matchingIds*(
     st: Session, criteria: Criteria, zone: Timezone
@@ -351,7 +349,7 @@ proc matchingIds*(
     result.notes = r.notes
     query =
       "select id from (" &
-      matchSql(@[st.userId], r.c, r.centre, sqlOf("a.id as id"), r.extra) & ")"
+      matchSql(@[st.userId], r.c, r.points, sqlOf("a.id as id"), r.extra) & ")"
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
@@ -370,7 +368,7 @@ proc listActivities*(
   let match = matchSql(
     @[st.userId],
     c,
-    r.centre,
+    r.points,
     sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId),
     r.extra,
   )
