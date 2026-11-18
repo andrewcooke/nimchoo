@@ -4,9 +4,9 @@
 # What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
 
 default
-em      fg=#ffffff  weight=bold
-hide    fg=#585858
-good    fg=green
-bad     fg=red
-warn    fg=yellow
-select  fg=#87afff
+em                  weight=bold
+hide                weight=dim
+select                           underline=yes
+bad     fg=#c08080
+good    fg=#40a040
+warn    fg=#c08040

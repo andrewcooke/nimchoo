@@ -7,7 +7,7 @@
 ## drawn on its own (it starts from nothing and ends with a reset), and can be cut or printed without the next.
 ##
 ## Reading the markup (`parseMarkup`) needs no theme, so it can be checked before a theme is known; `paint` gives each piece
-## its look from a theme.
+## its look from a theme.  There is no fixed set of styles: a name is whatever a theme defines.
 
 import std/[strformat, tables]
 import ../../core/errors
@@ -82,18 +82,17 @@ func parseMarkup*(text: string): seq[seq[Piece]] {.raises: [MarkupError].} =
     raiseMarkup(fmt"[{open[^1].name} is not closed", open[^1].at)
   flush()
 
-func paint*(theme: Theme, line: seq[Piece]): seq[Painted] {.raises: [MarkupError].} =
-  ## The pieces of a line with their looks.
+func paint*(theme: Theme, line: seq[Piece]): seq[Painted] =
+  ## The pieces of a line with their looks.  A style the theme does not have changes nothing (a theme need not have them
+  ## all; the names the program uses are checked against the built-in theme when it is compiled).
   let base = baseLook(theme)
   for p in line:
     var look = base
     for name in p.styles:
       if name == defaultStyle:
         look = base
-      elif name in theme.styles:
-        look = look.over(theme.styles.getOrDefault(name))
       else:
-        raiseMarkup(fmt"there is no style '{name}' in the theme")
+        look = look.over(theme.styles.getOrDefault(name))
     result.add Painted(text: p.text, look: look)
 
 func render*(line: seq[Painted], colour: bool): string =

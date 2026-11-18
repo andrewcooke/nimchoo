@@ -52,7 +52,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
    (2) themes in nch: built-in `dark.theme` and `light.theme` unpacked to `system/themes/`, chosen by `--theme`/`NCH_THEME`, else a
    symlink (in a config directory or the cache: undecided), else `COLORFGBG`, else dark; loaded once into `Globals`, shown by
    `nch packages --config`; (3) the code uses styles (default, em, hide, good, bad, warn, select) instead of `palette` colours, and
-   `vocabulary` maps events to them; (4) `styled"..."`, markup checked when compiled, the values in `{}` plain text; (5) the web: a
+   `vocabulary` maps events to them; (4) `styled"..."`, markup checked when compiled, the values in `{}` plain text.  No fixed set
+   of styles (decided 2026-11-18): the names are those the built-in theme defines, the names in `styled` are checked against it when
+   compiled, and a style that a chosen theme lacks changes nothing; (5) the web: a
    `web=#hex` per style, the page tags named by style; (6) the docs.  Also: a mark for the selection when there is no colour.
 
 ## Features and ideas, unordered

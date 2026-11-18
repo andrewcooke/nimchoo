@@ -59,9 +59,9 @@ suite "ui markup: painting and rendering":
     let p = paint(t, parseMarkup("[em [line [default x]]]")[0])
     check p[0].look == baseLook(t)
 
-  test "a style the theme does not have is refused":
-    expect MarkupError:
-      discard paint(t, parseMarkup("[blue x]")[0])
+  test "a style the theme does not have changes nothing":
+    check paint(t, parseMarkup("[red a [blue b]]")[0])[1].look ==
+      paint(t, parseMarkup("[red a]")[0])[0].look
 
   test "each piece starts its look and ends with a reset; without colour, only the text":
     let plain = parseTheme("red fg=red")
