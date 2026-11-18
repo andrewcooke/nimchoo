@@ -438,10 +438,10 @@ engine ends a comment at the first closing braces).""",
       summary: "The themes in the cache, and which theme is in force.",
       doc: """The themes in the cache, and which theme is in force.
 
-The themes are files `NAME.txt` in the cache directory's `system/themes/`: the built-in `dark` and `light` (which `ui`
+The themes are files `NAME.theme` in the cache directory's `system/themes/`: the built-in `dark` and `light` (which `ui`
 carries: the names of its styles are those the program uses) are unpacked there (an edited one is kept, a deleted one comes back), and any other file there is a theme too.  The one in force is,
 the first that is given: `--theme NAME`; `$NCH_THEME`; the symbolic link `system/themes/.current`, which the author makes
-(`ln -sf light.txt ~/.cache/nch/system/themes/.current`) and which names a theme in the same directory; `$COLORFGBG`, which
+(`ln -sf light.theme ~/.cache/nch/system/themes/.current`) and which names a theme in the same directory; `$COLORFGBG`, which
 some terminals set (a light background: `light`); else `dark`.  A theme that cannot be used is warned of, and the
 built-in `dark` is used instead (how text looks is not worth stopping a command for).  The format of the file is in
 `core/theme.nim`; `tools/look.nim` shows what a theme looks like.""",
@@ -459,8 +459,8 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
 * Intervals of time (`interval`): units `d h m s`, no leading zero unit, the first unpadded and later ones two digits
   (`45s`, `22m05s`, `4h41m`, `2d03h07m`); seconds only under an hour; rounding carries.
 * Styles (`style`, `vocabulary`, `markup`): text is in named styles, and what each looks like is the theme's
-  (`core/theme.nim`: foreground, background, weight, underline, italic, reverse, each optional; the built-in `dark.txt`
-  and `light.txt` are here, and the names the program uses are those of `dark.txt`, checked when it is compiled).  The
+  (`core/theme.nim`: foreground, background, weight, underline, italic, reverse, each optional; the built-in `dark.theme`
+  and `light.theme` are here, and the names the program uses are those of `dark.theme`, checked when it is compiled).  The
   words and styles for what happened are in `vocabulary`, one table, so that "failed" is `bad` wherever it appears.
   Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
   selection, `selectedStyle`), each used for nothing else; `em` for what to read first, `hide` for the bookkeeping and

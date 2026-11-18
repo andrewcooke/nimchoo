@@ -3,7 +3,7 @@
 ## line is drawn in whatever theme is in force, and with or without colour (a `Paint`).  Keeping lines as spans, not as
 ## strings full of escape codes, means they can be measured and cut to a width without splitting an escape sequence.
 ##
-## The names the program uses are those of the built-in dark theme (`dark.txt`, beside this file), and a name written in
+## The names the program uses are those of the built-in dark theme (`dark.theme`, beside this file), and a name written in
 ## the code is checked against them when it is compiled (`span("failed", "bad")`, `styleName"select"`): a misspelt style is
 ## a compile error.  A theme that lacks one draws its text as the text around it.
 
@@ -40,8 +40,8 @@ func namesIn(text: string): seq[string] =
 
 const
   builtInThemes* = [
-    (name: "dark", text: staticRead("dark.txt")),
-    (name: "light", text: staticRead("light.txt")),
+    (name: "dark", text: staticRead("dark.theme")),
+    (name: "light", text: staticRead("light.theme")),
   ] ## the themes the program carries (the `themes` package unpacks them)
   styleNames* = namesIn(builtInThemes[0].text)
     ## the styles the program may use: those of the built-in dark theme

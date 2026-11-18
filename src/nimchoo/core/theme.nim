@@ -49,7 +49,7 @@ type
   Theme* = object
     styles*: OrderedTable[string, Style] ## in the order of the file
     name*: string
-      ## what it is called (the file's name without `.txt`; "" when read from text)
+      ## what it is called (the file's name without `.theme`; "" when read from text)
     origin*: string
       ## why it is the one in force (`--theme`, `$NCH_THEME` ...: `nch packages --config`)
 

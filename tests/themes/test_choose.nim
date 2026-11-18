@@ -25,14 +25,14 @@ suite "themes: which one is chosen":
     check lightBackground("0;99") == none(bool)
 
   test "the link names a theme in its own directory":
-    check linkName("light.txt") == some("light")
+    check linkName("light.theme") == some("light")
     check linkName("/etc/passwd") == none(string)
-    check linkName("../light.txt") == none(string)
+    check linkName("../light.theme") == none(string)
     check linkName("light") == none(string)
 
   test "the first that is given chooses":
     let all = Given(
-      flag: some("a"), env: some("b"), link: some("c.txt"), colorFgBg: some("0;15")
+      flag: some("a"), env: some("b"), link: some("c.theme"), colorFgBg: some("0;15")
     )
     check chooseName(all) == Choice(name: "a", origin: "--theme")
     var g = all
@@ -57,9 +57,9 @@ suite "themes: reading the one chosen":
     let r = loadTheme(cache, some("light"))
     check r.warning.isNone
     check r.theme.name == "light"
-    check fileExists(themesDir(cache) / "dark.txt")
-    check fileExists(themesDir(cache) / "light.txt")
-    writeFile(themesDir(cache) / "light.txt", "default\nem underline=yes\n")
+    check fileExists(themesDir(cache) / "dark.theme")
+    check fileExists(themesDir(cache) / "light.theme")
+    writeFile(themesDir(cache) / "light.theme", "default\nem underline=yes\n")
     let edited = loadTheme(cache, some("light"))
     check edited.theme.styles["em"].underline == some(true)
     check "good" notin edited.theme.styles
@@ -67,7 +67,7 @@ suite "themes: reading the one chosen":
   test "a theme of the author's own is a file in the directory":
     fresh()
     discard loadTheme(cache, none(string))
-    writeFile(themesDir(cache) / "mine.txt", "em fg=#123456\n")
+    writeFile(themesDir(cache) / "mine.theme", "em fg=#123456\n")
     let r = loadTheme(cache, some("mine"))
     check r.warning.isNone
     check r.theme.name == "mine"
@@ -84,7 +84,7 @@ suite "themes: reading the one chosen":
     ]:
       if text.len > 0:
         createDir(themesDir(cache))
-        writeFile(themesDir(cache) / (name & ".txt"), text)
+        writeFile(themesDir(cache) / (name & ".theme"), text)
       let r = loadTheme(cache, some(name))
       check r.theme.name == fallback
       check r.theme.origin == "the fallback"

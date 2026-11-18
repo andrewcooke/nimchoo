@@ -1,5 +1,5 @@
 
-# The theme for a terminal with a dark background.  Copy it to make another (NAME.txt in this directory: `nch --theme NAME`).
+# The theme for a terminal with a dark background.  Copy it to make another (NAME.theme in this directory: `nch --theme NAME`).
 # The styles here are those nch uses (it is compiled with this file: a style it uses that is not here is a compile error).
 # One style per line: its name, then any of fg=, bg=, weight=bold|normal|dim, underline=yes|no, italic=yes|no,
 # reverse=yes|no (foreground and background swapped).

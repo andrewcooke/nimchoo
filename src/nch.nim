@@ -79,7 +79,7 @@ func headSpec(): Spec[Head] =
         ["--theme"],
         true,
         "NAME",
-        "how text looks: a theme, NAME.txt in the cache's system/themes/ (default: $NCH_THEME, else what system/themes/.current links to, else light or dark as $COLORFGBG says, else dark)",
+        "how text looks: a theme, NAME.theme in the cache's system/themes/ (default: $NCH_THEME, else what system/themes/.current links to, else light or dark as $COLORFGBG says, else dark)",
         completion = completesFrom(completeThemes),
         body = (p.theme = some(value); fine),
       ),

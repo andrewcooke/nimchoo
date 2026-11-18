@@ -1,9 +1,9 @@
 ## What styled text looks like with a theme (a tool for trying themes: no part of nch).
 ##
 ##     nim c -d:release --hints:off -o:build/look tools/look.nim
-##     build/look ~/.cache/nch/system/themes/dark.txt '[good imported] 3 files [hide (1.2s)]'
+##     build/look ~/.cache/nch/system/themes/dark.theme '[good imported] 3 files [hide (1.2s)]'
 ##     build/look THEME                  # a sample: every style of the theme, nested, and lines like those of nch
-##     build/look light                  # a theme by its name: NAME.txt in the cache's themes, else the built-in one
+##     build/look light                  # a theme by its name: NAME.theme in the cache's themes, else the built-in one
 ##     build/look THEME - < lines.txt    # each line of stdin (read as markup)
 ##     build/look --plain THEME ...      # without colour, as NO_COLOR would show it
 ##
@@ -56,9 +56,10 @@ proc show(t: Theme, text: string, colour: bool) =
 proc whereThemesAre(): string =
   ## Where the themes are, to say with a usage or a file that cannot be read.
   let cache = cacheDir()
-  result = "the built-in themes are in src/nimchoo/packages/ui/ (dark.txt, light.txt)"
+  result =
+    "the built-in themes are in src/nimchoo/packages/ui/ (dark.theme, light.theme)"
   if cache.isSome:
-    let names = themeNames(cache.get).mapIt(it & ".txt").join(", ")
+    let names = themeNames(cache.get).mapIt(it & themeExtension).join(", ")
     result.add fmt"; nch uses those in {themesDir(cache.get)} ({names})"
 
 proc main() =
@@ -73,8 +74,8 @@ proc main() =
   var text = none(string)
   let cache = cacheDir()
   if not fileExists(path) and isThemeName(path):
-    if cache.isSome and fileExists(themesDir(cache.get) / (path & ".txt")):
-      path = themesDir(cache.get) / (path & ".txt")
+    if cache.isSome and fileExists(themesDir(cache.get) / (path & themeExtension)):
+      path = themesDir(cache.get) / (path & themeExtension)
     else:
       for b in builtInThemes:
         if b.name == path:

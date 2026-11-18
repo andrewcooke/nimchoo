@@ -8,9 +8,11 @@ import ../ui/style
 
 {.push raises: [].}
 
+const themeExtension* = ".theme" ## a theme is a file NAME.theme
+
 func bundlesOf(themes: openArray[tuple[name, text: string]]): seq[Bundle] =
   for t in themes:
-    result.add Bundle(name: "themes/" & t.name & ".txt", data: t.text)
+    result.add Bundle(name: "themes/" & t.name & themeExtension, data: t.text)
 
 const
   builtIn* = bundlesOf(builtInThemes)
@@ -45,9 +47,9 @@ func lightBackground*(colorFgBg: string): Option[bool] =
   none(bool)
 
 func linkName*(target: string): Option[string] =
-  ## The theme a `.current` that points to `target` names: `NAME.txt` in the same directory.
+  ## The theme a `.current` that points to `target` names: `NAME.theme` in the same directory.
   let (dir, name, ext) = splitFile(target)
-  if dir.len == 0 and ext == ".txt" and name.len > 0:
+  if dir.len == 0 and ext == themeExtension and name.len > 0:
     some(name)
   else:
     none(string)
@@ -63,7 +65,7 @@ func chooseName*(g: Given): Choice {.raises: [ThemeError].} =
     let name = linkName(g.link.get)
     if name.isNone:
       raiseTheme(
-        fmt"{currentLink} points to '{g.link.get}', not to a theme in its directory (NAME.txt)"
+        fmt"{currentLink} points to '{g.link.get}', not to a theme in its directory (NAME.theme)"
       )
     return Choice(name: name.get, origin: fmt"system/themes/{currentLink}")
   if g.colorFgBg.isSome:
@@ -82,11 +84,11 @@ func isThemeName*(s: string): bool =
 proc themeText(cache, name: string): string {.raises: [ThemeError].} =
   ## The text of the theme `name`: the built-in one (as unpacked, or as edited), or the file of that name.
   for b in builtIn:
-    if b.name == fmt"themes/{name}.txt":
+    if b.name == "themes/" & name & themeExtension:
       return resolve(cache, b).data
   if not isThemeName(name):
     raiseTheme(fmt"'{name}' is not a name of a theme")
-  let path = themesDir(cache) / fmt"{name}.txt"
+  let path = themesDir(cache) / (name & themeExtension)
   if cache.len == 0 or not fileExists(path):
     raiseTheme(fmt"there is no theme '{name}' (no {path})")
   try:
@@ -97,7 +99,7 @@ proc themeText(cache, name: string): string {.raises: [ThemeError].} =
 proc builtInTheme(name: string): Theme =
   ## A theme the program carries, as it carries it.
   for b in builtIn:
-    if b.name == fmt"themes/{name}.txt":
+    if b.name == "themes/" & name & themeExtension:
       try:
         result = parseTheme(b.data)
       except ThemeError as e:
@@ -150,7 +152,7 @@ proc loadTheme*(
     result.warning = some(fmt"{which}: {e.msg} (using the built-in {fallback})")
 
 proc themeNames*(cache: string): seq[string] =
-  ## The themes there are: the built-in ones, and the files `NAME.txt` in `system/themes/`.
+  ## The themes there are: the built-in ones, and the files `NAME.theme` in `system/themes/`.
   for b in builtIn:
     result.add splitFile(b.name).name
   if cache.len == 0:
@@ -158,7 +160,7 @@ proc themeNames*(cache: string): seq[string] =
   try:
     for kind, path in walkDir(themesDir(cache)):
       let (_, name, ext) = splitFile(path)
-      if kind in {pcFile, pcLinkToFile} and ext == ".txt" and isThemeName(name) and
+      if kind in {pcFile, pcLinkToFile} and ext == themeExtension and isThemeName(name) and
           name notin result:
         result.add name
   except OSError:

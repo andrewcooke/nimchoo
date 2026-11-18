@@ -5,8 +5,8 @@
 ## * Intervals of time (`interval`): units `d h m s`, no leading zero unit, the first unpadded and later ones two digits
 ##   (`45s`, `22m05s`, `4h41m`, `2d03h07m`); seconds only under an hour; rounding carries.
 ## * Styles (`style`, `vocabulary`, `markup`): text is in named styles, and what each looks like is the theme's
-##   (`core/theme.nim`: foreground, background, weight, underline, italic, reverse, each optional; the built-in `dark.txt`
-##   and `light.txt` are here, and the names the program uses are those of `dark.txt`, checked when it is compiled).  The
+##   (`core/theme.nim`: foreground, background, weight, underline, italic, reverse, each optional; the built-in `dark.theme`
+##   and `light.theme` are here, and the names the program uses are those of `dark.theme`, checked when it is compiled).  The
 ##   words and styles for what happened are in `vocabulary`, one table, so that "failed" is `bad` wherever it appears.
 ##   Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
 ##   selection, `selectedStyle`), each used for nothing else; `em` for what to read first, `hide` for the bookkeeping and
