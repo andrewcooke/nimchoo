@@ -176,7 +176,10 @@ never the attempts.
 
 Offers `--climbs TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
 climb whose name holds the text.  Offers the frames `climbs`, `gates` and `efforts` of the activities to the map (`mapframes.nim`).
-Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.""",
+Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.
+
+**The climbs are a subject** (`subject.nim`, display step 6): each user has a climbs selection (`climb_selection`,
+`chosen.nim`), which `nch climbs` lists and the views show (`nch map climbs`, `nch calendar climbs`).""",
     ),
     Registered(
       name: "confirm",

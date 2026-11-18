@@ -13,7 +13,7 @@ import ../../core/errors
 
 {.push raises: [].}
 
-const userTables* = ["file", "seen_file", "selection"]
+const userTables* = ["file", "seen_file", "selection", "climb_selection"]
   ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
 
 func counted*(n: int, one, many: string): string =

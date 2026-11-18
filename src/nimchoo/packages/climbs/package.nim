@@ -16,27 +16,32 @@
 ## Offers `--climbs TEXT...` to `nch activities` (the point `activities/criteria`): the activities that have an effort on a
 ## climb whose name holds the text.  Offers the frames `climbs`, `gates` and `efforts` of the activities to the map (`mapframes.nim`).
 ## Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.
+##
+## **The climbs are a subject** (`subject.nim`, display step 6): each user has a climbs selection (`climb_selection`,
+## `chosen.nim`), which `nch climbs` lists and the views show (`nch map climbs`, `nch calendar climbs`).
 
 import ../../core/[extension, manifest]
 import ../activities/criterion
 import ../importer/after
-import ./[command, criterion, imported, mapframes]
+import ./[command, criterion, imported, mapframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[
     contribute(activityCriterion, climbCriterion),
     contribute(afterImport, workNewClimbs),
+    subject.contribution(),
   ] & mapframes.contributions()
 
 const package* = Package(
   depends: @[
     "activities", "args", "bundle", "confirm", "db", "fit", "fold", "geo", "importer",
-    "lookup", "map", "names", "profiling", "selection", "ui", "user",
+    "lookup", "map", "names", "profiling", "selection", "subject", "ui", "user",
   ],
   fragments: @[
-    fragment("001-schema.sql")
+    fragment("001-schema.sql"),
       # sector (with retired, name_n), effort, climbs_done, sector_gate_cell (the cells round the gates of a sector: a trigger
       # fills it), sector_name_number (the highest number given to each name)
+    fragment("002-selection.sql"), # climb_selection: the climbs subject
   ],
   commands: @[
     CommandDecl(
