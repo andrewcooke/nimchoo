@@ -129,10 +129,13 @@ suite "attempts: the lines":
       .mapIt(it.text.strip)
       .join(" ")
       .contains("1970-01-12")
-    check lines[1].filterIt(styleOf(it) == "select").mapIt(it.text.strip)[^1] == "2"
+    check lines[1].filterIt(styleOf(it) == "select").mapIt(it.text.strip)[^1].endsWith(
+      "2"
+    )
+    # (the selection's columns are side by side: one span, so that a background runs on across them)
     check lines[0].filterIt(styleOf(it) == "select").mapIt(it.text.strip) ==
-      @["best selected", "rank"]
-    check lines[1].filterIt(styleOf(it) == "select").len == 2
+      @["best selected  rank"]
+    check lines[1].filterIt(styleOf(it) == "select").len == 1
     let long = summaryLines(rows, false, true, utc()).texts
     check long.len == 4 and long[0] == table[0] and long[1] == table[1]
     check long[2].strip.startsWith("1  ") and long[3].strip.startsWith("2  ") and

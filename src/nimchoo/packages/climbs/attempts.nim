@@ -239,7 +239,8 @@ func alignedLines(
       )
     if line.len > 0:
       line[^1].text = line[^1].text.strip(leading = false) # (no trailing blanks)
-    result.add line
+    result.add merged(line)
+      # (selected cells side by side are one span: a background runs on)
 
 proc summaryLines*(
     rows: seq[Summary], everyone, verbose: bool, zone: Timezone

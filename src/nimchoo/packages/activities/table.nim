@@ -130,6 +130,8 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
           style = some(styleName"warn")
       let text = padded(row[c], c)
       result.add (if style.isSome: span(text, style.get) else: span(text))
+    result = merged(result)
+      # (a row of the selection is one span: its background runs on)
 
   result.add line(header, none(ListRow))
   for i, row in cells:

@@ -73,3 +73,17 @@ suite "ui style: rendering":
       check names.len == styleNames.len
       for n in styleNames:
         check n in names
+
+suite "ui style: merging":
+  test "spans of the same style side by side become one, with the spaces between them":
+    let l = merged(
+      @[span("a", "select"), span("  "), span("b", "select"), span("  "), span("c")]
+    )
+    check l.len == 2
+    check l[0].text == "a  b" and styleOf(l[0]) == "select"
+    check l[1].text == "  c" and l[1].styles.len == 0
+
+  test "spaces between different styles, or text that is not space, stay as they are":
+    check merged(@[span("a", "good"), span(" "), span("b", "bad")]).len == 3
+    check merged(@[span("a", "good"), span("x"), span("b", "good")]).len == 3
+    check merged(@[span("a"), span("b")]).len == 1

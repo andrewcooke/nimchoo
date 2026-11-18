@@ -112,6 +112,20 @@ func truncated*(line: Line, maxWidth: int): Line =
   else:
     result.add span(ellipsis)
 
+func merged*(line: Line): Line =
+  ## The line with the spans that have the same styles side by side made one, and the plain spaces between two spans of
+  ## the same style in that style: so that a style with a background (a row of the selection) runs on across the
+  ## columns, without gaps between them.
+  for i, s in line:
+    var styles = s.styles
+    if styles.len == 0 and s.text.strip.len == 0 and i > 0 and i < line.high and
+        line[i - 1].styles.len > 0 and line[i - 1].styles == line[i + 1].styles:
+      styles = line[i - 1].styles
+    if result.len > 0 and result[^1].styles == styles:
+      result[^1].text.add s.text
+    else:
+      result.add Span(text: s.text, styles: styles)
+
 func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
   ## How text in `styles` looks: the theme's base look with each style over it in turn (`default` goes back to the base;
   ## a style the theme lacks changes nothing).

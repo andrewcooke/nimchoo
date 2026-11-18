@@ -1,4 +1,4 @@
-import std/[options, sequtils, strutils, times, unicode, unittest]
+import std/[math, options, sequtils, strutils, times, unicode, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/packages/activities/table
 import nimchoo/packages/ui/style
@@ -296,8 +296,8 @@ suite "list table: looks":
     check lookOfText(2, "Santiago") != "hide"
   proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): string =
     for sp in lines[rowIndex]:
-      if sp.text.strip.startsWith(prefix):
-        return styleOf(sp)
+      if sp.text.strip.startsWith(prefix) or (" " & prefix) in sp.text:
+        return styleOf(sp) # (cells of the same style side by side are one span)
     raiseAssert "no cell " & prefix
 
   test "a plain row has no style at all":
@@ -312,7 +312,7 @@ suite "list table: looks":
   test "not recorded is dim":
     let lines = table(@[row(aug27, "cycling", "", -1.0, -1.0)], zone, false)
     check lookOf(lines, 1, "-") == "hide"
-    check lines[1].countIt(styleOf(it) == "hide" and it.text.strip == "-") == 2
+    check lines[1].filterIt(styleOf(it) == "hide").mapIt(it.text.count('-')).sum == 2
   test "a distance or active time that shows as zero is a warning; others are not":
     let zeros = table(@[row(aug27, "running", "", 0.0, 0.0)], zone, false)
     check lookOf(zeros, 1, "0.0") == "warn"
