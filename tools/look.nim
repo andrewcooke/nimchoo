@@ -26,12 +26,13 @@ const examples = [
   "  738  2026-11-18  San Cristóbal            8.4km",
   "[select   739  2026-11-18  Pocuro                       [hide —]]",
   "[select a selected line with [default a plain word] in it]",
-  "[em a heading [hide with a quiet aside] and more]",
+  "[em what to read first [hide with a quiet aside] and more]",
   "[hide a style that runs\nover a newline]",
 ]
 
 proc sample(t: Theme): seq[string] =
-  ## Every style alone, inside the others that change the colour, and lines like those of nch.
+  ## Every style of the theme alone and inside each of the others; then lines like those of nch, in the styles nch uses (and
+  ## which of those the theme lacks).
   let names = toSeq(t.styles.keys)
   let width = max(names.mapIt(it.len)) + 2
   result.add "each style alone, then inside each other style:"
@@ -42,7 +43,13 @@ proc sample(t: Theme): seq[string] =
         line.add fmt" [{outer} [{name} {name}]]"
     result.add line
   result.add ""
-  result.add "lines like those of nch:"
+  # (nch uses the styles of the built-in dark theme, whatever a theme has: those it lacks draw as the text around them)
+  let lacking = styleNames.filterIt(it notin t.styles)
+  result.add "lines like those of nch, which uses the styles " & styleNames.join(", ") &
+    ":"
+  if lacking.len > 0:
+    result.add "(this theme has no " & lacking.join(", ") &
+      ": nch draws text in those as the text around it)"
   for e in examples:
     result.add e
 
