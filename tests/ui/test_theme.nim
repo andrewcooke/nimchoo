@@ -42,6 +42,7 @@ suite "ui theme: reading a theme file":
     check problem("a weight=heavy") ==
       "line 1: weight is bold, normal or dim, not 'heavy'"
     check problem("a underline=true") == "line 1: underline is yes or no, not 'true'"
+    check problem("a reverse=on") == "line 1: reverse is yes or no, not 'on'"
     check problem("a fg").startsWith("line 1: 'fg' is not key=value")
     check problem("Bad fg=red").startsWith("line 1: 'Bad' is not a name of a style")
 
@@ -62,9 +63,9 @@ suite "ui theme: looks":
   test "the terminal codes of a look":
     check terminalCodes(terminalLook) == ""
     let t = parseTheme(
-      "a fg=red\nb fg=bright-red bg=blue\nc fg=#010203 bg=#040506\nd weight=dim italic=yes underline=yes"
+      "a fg=red\nb fg=bright-red bg=blue\nc fg=#010203 bg=#040506\nd weight=dim italic=yes underline=yes reverse=yes"
     )
     check terminalCodes(terminalLook.over(t.styles["a"])) == "\e[31m"
     check terminalCodes(terminalLook.over(t.styles["b"])) == "\e[91;44m"
     check terminalCodes(terminalLook.over(t.styles["c"])) == "\e[38;2;1;2;3;48;2;4;5;6m"
-    check terminalCodes(terminalLook.over(t.styles["d"])) == "\e[2;3;4m"
+    check terminalCodes(terminalLook.over(t.styles["d"])) == "\e[2;3;4;7m"

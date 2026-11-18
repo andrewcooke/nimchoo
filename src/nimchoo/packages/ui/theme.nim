@@ -1,10 +1,10 @@
 ## Themes: what each style of text looks like on a terminal, read from a theme file.  A style names only the attributes it
-## changes (foreground, background, weight, underline, italic); one nested inside another replaces those and keeps the rest
+## changes (foreground, background, weight, underline, italic, reverse); one nested inside another replaces those and keeps the rest
 ## (`markup.nim`).  The style `default` surrounds all text, and what it leaves out is the terminal's own, so every piece of
 ## text has a complete look.
 ##
 ## The file has one style per line: its name, then any of `fg=COLOUR`, `bg=COLOUR`, `weight=bold|normal|dim`,
-## `underline=yes|no` and `italic=yes|no`.  A colour is `#rrggbb`, one of the sixteen terminal colours (`red`,
+## `underline=yes|no`, `italic=yes|no` and `reverse=yes|no` (foreground and background swapped).  A colour is `#rrggbb`, one of the sixteen terminal colours (`red`,
 ## `bright-red` ...: they follow the terminal's own palette), or `terminal` (the terminal's own text or background colour).
 ## Blank lines and lines starting with `#` are ignored.
 
@@ -37,12 +37,12 @@ type
     ## what a style changes: none for an attribute it keeps from the style around it
     fg*, bg*: Option[Colour]
     weight*: Option[Weight]
-    underline*, italic*: Option[bool]
+    underline*, italic*, reverse*: Option[bool]
 
   Look* = object ## how a piece of text is drawn: every attribute
     fg*, bg*: Colour
     weight*: Weight
-    underline*, italic*: bool
+    underline*, italic*, reverse*: bool
 
   Theme* = object
     styles*: OrderedTable[string, Style] ## in the order of the file
@@ -60,6 +60,7 @@ const
     weight: wtNormal,
     underline: false,
     italic: false,
+    reverse: false,
   ) ## the terminal's own look: what `default` starts from
 
 func `==`*(a, b: Colour): bool =
@@ -113,7 +114,8 @@ func parseStyle(words: seq[string], line: int): Style {.raises: [ThemeError].} =
     let kv = word.split('=', maxsplit = 1)
     if kv.len != 2 or kv[1].len == 0:
       raiseTheme(
-        fmt"'{word}' is not key=value (fg=, bg=, weight=, underline=, italic=)", line
+        fmt"'{word}' is not key=value (fg=, bg=, weight=, underline=, italic=, reverse=)",
+        line,
       )
     let (key, value) = (kv[0], kv[1])
     template once(field: untyped, v: untyped) =
@@ -142,9 +144,11 @@ func parseStyle(words: seq[string], line: int): Style {.raises: [ThemeError].} =
       once(underline, parseYes(key, value, line))
     of "italic":
       once(italic, parseYes(key, value, line))
+    of "reverse":
+      once(reverse, parseYes(key, value, line))
     else:
       raiseTheme(
-        fmt"'{key}' is not an attribute (they are fg, bg, weight, underline, italic)",
+        fmt"'{key}' is not an attribute (they are fg, bg, weight, underline, italic, reverse)",
         line,
       )
 
@@ -180,6 +184,8 @@ func over*(look: Look, style: Style): Look =
     result.underline = style.underline.get
   if style.italic.isSome:
     result.italic = style.italic.get
+  if style.reverse.isSome:
+    result.reverse = style.reverse.get
 
 func baseLook*(theme: Theme): Look =
   ## The look of text in no style but `default`: the terminal's own, with what `default` changes.
@@ -213,6 +219,8 @@ func terminalCodes*(look: Look): string =
     parts.add "3"
   if look.underline:
     parts.add "4"
+  if look.reverse:
+    parts.add "7"
   for (c, background) in [(look.fg, false), (look.bg, true)]:
     let code = colourCode(c, background)
     if code.len > 0:
