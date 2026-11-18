@@ -15,8 +15,8 @@
 ## frame: it fetches each frame's file, calls the frame's drawing, fits the view and offers the drawings generic helpers),
 ## `map.css` (the look of the page), `map-style.json` (the corner cutting, `smooth_rounds`) and, for each frame, a style and a
 ## drawing shipped by its provider (`activities-map-routes.json`, `activities-map-routes.js` ...; a frame with no drawing is
-## drawn generically from its style: `frames.nim` has the contract).  The css and the styles are filled in first with the
-## palette's colours as tags (`{{blue}}`), then put into the page.  `geojson.nim` writes a file of features, for the providers.
+## drawn generically from its style: `frames.nim` has the contract).  The css and the styles have their own colours, and are
+## put into the page.  `geojson.nim` writes a file of features, for the providers.
 ## Offers its page to the server (`web/pages`).
 
 import ../../core/[extension, manifest]

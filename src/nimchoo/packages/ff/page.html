@@ -20,7 +20,7 @@
 <script src="{{plot-js}}" integrity="{{plot-js-hash}}" crossorigin=""></script>
 <script>
   const hourly = {{{hourly}}};
-  const colours = { fitness: '{{{green}}}', fatigue: '{{{red}}}' };   // green and red, as in the terminal
+  const colours = { fitness: '#2f9e44', fatigue: '#e03131' };
   const chart = document.getElementById('chart');
   const info = document.getElementById('info');
   let long = [];          // every point: { time, series, value }

@@ -53,8 +53,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
    `system/themes/.current`, `COLORFGBG`, else dark), the theme in `Globals` and in `nch packages --config`; step 3, the code uses styles (default, em, hide, good, bad, warn, select: `ui/style.nim`, the built-in
    themes in `ui/`), drawn with a `Paint` (the theme and whether in colour); step 4, `styled"..."` (markup read when compiled, the values plain
    text) and everything a command writes in the theme (`g.say`, `g.show`, `failure(g, ...)`).  No fixed set of styles (decided
-   2026-11-18): the names are those the built-in theme defines, and a style that a chosen theme lacks changes nothing.  Next: (5) the web: a
-   `web=#hex` per style, the page tags named by style; (6) the docs.  Also: a mark for the selection when there is no colour.
+   2026-11-18): the names are those the built-in theme defines, and a style that a chosen theme lacks changes nothing.  Step 5 (decided 2026-11-18, option b):
+   the web pages keep their own colours, in their templates (they are always on white, whatever the terminal's theme), and
+   `ui/palette.nim` is gone.  Next: (6) the docs.  Also: a mark for the selection when there is no colour.
 
 ## Features and ideas, unordered
 
@@ -67,7 +68,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
 * **`nch packages --points`** is hard to understand (the author, 2026-11-17): perhaps colours used the same way across the views
   of packages (`--points`, `--graph`, the table) would help; not designed.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
-* **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by
+* **The map**: labels, a legend, landmarks on the map, style rules by
   property (colour by sport or year).
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page (superseded if the plot command comes first).
 * **Blue for the selection in `nch climbs`** (candidates: the `-v` attempts of selected rides; the latest/rank

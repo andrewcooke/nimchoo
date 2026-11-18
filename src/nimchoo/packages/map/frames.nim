@@ -50,7 +50,7 @@ type
     make*: MakeFrame
     style*: Bundle
       ## how it looks: JSON with the groups the page reads, built in and kept in the cache's `system/templates/`, where
-      ## the user can change it; filled in with the palette's colours first (`{{{red}}}`)
+      ## the user can change it (its colours are its own)
     styleKeys*: seq[string]
       ## the keys that the style must have, which the drawing reads ("color", "spread_m")
     libraries*: seq[string]

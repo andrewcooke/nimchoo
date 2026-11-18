@@ -4,7 +4,7 @@
 ## `map.html` (the page and its script, which knows no frame), `map.css` (the look of the page), `map-style.json` (what is common
 ## to all: the corner cutting) and, **for each frame, a style and perhaps a drawing that its provider ships**
 ## (`activities-map-routes.json`: colours, widths, offsets ...; `activities-map-routes.js`: how they are drawn; see `frames.nim`).
-## The CSS and the styles are filled in first, with the palette's colours (`{{blue}}`...), then put into the page with the drawings
+## The CSS and the styles (each with its own colours) are read first, then put into the page with the drawings
 ## of the frames drawn, which also gets the title, the list of the frames (each with its file, its style and the name of its
 ## drawing) and the libraries (serve/libraries.nim).  The page fetches each file, and if one cannot be read or drawn it says so
 ## and draws the rest.
@@ -14,7 +14,6 @@ import ../bundle/unpack
 import ./frames
 import ../web/libraries
 import ../text/templating/templating
-import ../ui/palette
 
 {.push raises: [].}
 
@@ -25,22 +24,15 @@ const styleBundle* =
   Bundle(name: "templates/map-style.json", data: staticRead("page-style.json"))
   ## what is common to all the frames
 
-func paletteValues*(): seq[(string, Value)] =
-  ## The palette's colours as template values: {{white}} {{grey}} {{red}} {{green}} {{yellow}} {{blue}}.
-  for c in Color:
-    result.add ($c, text(hex(c)))
-
 func nameOf(b: Bundle): string =
   ## "activities-map-routes.json": what the user sees in `system/templates/`.
   b.name.rsplit('/', maxsplit = 1)[^1]
 
-proc parsed(
-    bundle: Bundle, palette: seq[(string, Value)]
-): JsonNode {.raises: [TemplateError].} =
-  ## A style template filled in with the palette, as JSON (an object); a TemplateError that says what is wrong otherwise.
+proc parsed(bundle: Bundle): JsonNode {.raises: [TemplateError].} =
+  ## A style template, as JSON (an object; its comments taken out); a TemplateError that says what is wrong otherwise.
   var text: string
   try:
-    text = render(resolve(bundle).data, context(palette))
+    text = render(resolve(bundle).data, context(newSeq[(string, Value)]()))
   except TemplateError as e:
     raiseTemplate(bundle.nameOf & ": " & e.msg)
   try:
@@ -63,18 +55,16 @@ func stemOf(b: Bundle): string =
   ## "activities-map-routes": a drawing's name, from its file's.
   b.nameOf.rsplit('.', maxsplit = 1)[0]
 
-proc commonStyle*(palette: seq[(string, Value)]): JsonNode {.raises: [TemplateError].} =
-  ## `map-style.json`, filled in; it must have `smooth_rounds`.
-  result = parsed(styleBundle, palette)
+proc commonStyle*(): JsonNode {.raises: [TemplateError].} =
+  ## `map-style.json`; it must have `smooth_rounds`.
+  result = parsed(styleBundle)
   if result{"smooth_rounds"}.isNil:
     raiseTemplate("map-style.json has no smooth_rounds")
 
-proc frameStyle*(
-    f: MapFrame, palette: seq[(string, Value)]
-): JsonNode {.raises: [TemplateError].} =
-  ## The style of a frame, filled in, with every key its drawing reads (`styleKeys`); a TemplateError that says which file
+proc frameStyle*(f: MapFrame): JsonNode {.raises: [TemplateError].} =
+  ## The style of a frame, with every key its drawing reads (`styleKeys`); a TemplateError that says which file
   ## otherwise.
-  result = parsed(f.style, palette)
+  result = parsed(f.style)
   for key in f.styleKeys:
     if result{key}.isNil:
       raiseTemplate(fmt"{f.style.nameOf} has no {key}")
@@ -132,10 +122,9 @@ proc pageHtml*(
   ## The page of a subject: every frame of it (`listed`, those to show ticked), from the templates, the styles and drawings of
   ## the frames and the libraries in use (the author's if they have put their own in the cache's `system/` part).  The page
   ## fetches the data of each frame it shows from its own address.
-  let palette = paletteValues()
   var css: string
   try:
-    css = render(resolve(cssBundle).data, context(libraryValues() & palette))
+    css = render(resolve(cssBundle).data, context(libraryValues()))
   except TemplateError as e:
     raiseTemplate("map.css: " & e.msg)
   var frames: seq[PageFrame]
@@ -166,7 +155,7 @@ proc pageHtml*(
       name: f.name,
       summary: f.summary,
       shown: shown,
-      style: frameStyle(f, palette),
+      style: frameStyle(f),
       drawer: drawer,
     )
   renderPage(
@@ -175,7 +164,7 @@ proc pageHtml*(
     frames,
     title & " of " & subject,
     css,
-    $commonStyle(palette),
+    $commonStyle(),
     drawers,
     scripts,
   )

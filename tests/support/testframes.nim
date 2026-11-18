@@ -46,7 +46,7 @@ proc frame(name: string, shown: bool, make: MakeFrame): MapFrame =
     tables: @["selection"],
     make: make,
     style: Bundle(
-      name: "templates/test-map-" & name & ".json", data: "{ \"color\": \"{{{red}}}\" }"
+      name: "templates/test-map-" & name & ".json", data: "{ \"color\": \"#e03131\" }"
     ),
     styleKeys: @["color"],
     script:

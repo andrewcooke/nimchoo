@@ -154,10 +154,7 @@ import ./importer/test_count
 import ./bundle/test_unpack
 import ./themes/test_choose
 import
-  ./ui/[
-    test_units, test_style, test_live, test_vocabulary, test_interval, test_palette,
-    test_markup,
-  ]
+  ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval, test_markup]
 import ./log/test_lines
 import ./log/test_command
 {.pop.}

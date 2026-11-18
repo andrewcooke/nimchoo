@@ -37,14 +37,14 @@ suite "map page: the text":
       "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     check libs["leaflet-css-hash"] ==
       "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  test "the look comes from the css and the style templates, with the palette's colours filled in":
+  test "the look comes from the css and the style templates, each with its own colours":
     let h = pageHtml("t")
     check h.contains("html, body, #map { height: 100%; margin: 0; }")
       # the css, in the page
-    check h.contains("color: #222222;") # {{white}} of the palette
+    check h.contains("color: #222222;") # (the text, in map.css)
     check h.contains("\"name\":\"routes\"") and
       h.contains("\"style\":{\"color\":\"#e03131\"")
-      # {{{red}}} of the palette, in the style of the routes, under the frame's name
+      # (the routes' colour, in their style, under the frame's name)
     check h.contains("\"spread_m\":4") and h.contains("\"smooth_rounds\":2")
     check h.contains("const common = {") and h.contains("const frames = [")
       # the page reads them
@@ -158,7 +158,7 @@ suite "map page: the css and the style are files too":
     check readFile(systemDir(top) / "templates" / "activities-map-routes.json").contains(
       "spread_m"
     ) # (a style for each frame, shipped by its provider)
-    writeFile(systemDir(top) / "templates" / "map.css", "body { color: {{blue}}; }\n")
+    writeFile(systemDir(top) / "templates" / "map.css", "body { color: #123456; }\n")
     writeFile(
       systemDir(top) / "templates" / "activities-map-routes.json",
       readFile(systemDir(top) / "templates" / "activities-map-routes.json").replace(
@@ -166,10 +166,10 @@ suite "map page: the css and the style are files too":
       ),
     )
     let h = pageHtml("t")
-    check h.contains("body { color: #4dabf7; }") and h.contains("\"spread_m\":9") and
+    check h.contains("body { color: #123456; }") and h.contains("\"spread_m\":9") and
       not h.contains("height: 100%")
     check readFile(systemDir(top) / "templates" / "map.css") ==
-      "body { color: {{blue}}; }\n" # (still the author's)
+      "body { color: #123456; }\n" # (still the author's)
   test "a style that is not JSON, or lacks something the page reads, is an error that says which file":
     let top = getTempDir() / "nch-test-map-badstyle"
     removeDir top

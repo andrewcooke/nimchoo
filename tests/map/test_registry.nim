@@ -22,6 +22,6 @@ suite "map: the registry of frames":
 
   test "every frame's style has what its drawing reads, and its drawing can go in a page":
     for f in extensions.get(mapFramePoint):
-      check frameStyle(f, paletteValues()).kind == JObject
+      check frameStyle(f).kind == JObject
       if f.script.isSome:
         check drawerText(f.script.get).len > 0

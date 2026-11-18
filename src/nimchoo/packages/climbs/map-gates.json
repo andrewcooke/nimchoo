@@ -1,5 +1,5 @@
 {{! How the gates (the lines across a climb that a ride has to cross) are drawn, as JSON (their drawing, activities-map-gates.js, reads it): short lines, in
     the colour of the end they belong to. }}
 {
-  "start": "{{{green}}}", "finish": "{{{red}}}", "weight": 4, "opacity": 1
+  "start": "#2f9e44", "finish": "#e03131", "weight": 4, "opacity": 1
 }

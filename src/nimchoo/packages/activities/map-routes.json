@@ -1,8 +1,7 @@
 {{! How the routes of activities are drawn, as JSON (their drawing, activities-map-routes.js, reads it).  Routes are thin red threads, each moved a little
     to the side of its direction of travel by an amount of its own (spread_m, in metres), so that routes over the same
     road look like one line from far and like several threads from close.  The climbs are placed beside the threads, using
-    spread_m.  A colour can be a tag for one of the terminal's colours (red, green, blue, yellow, grey, as in the line
-    below) or any #rrggbb. }}
+    spread_m.  A colour is #rrggbb. }}
 {
-  "color": "{{{red}}}", "weight": 3, "opacity": 0.85, "spread_m": 4
+  "color": "#e03131", "weight": 3, "opacity": 0.85, "spread_m": 4
 }

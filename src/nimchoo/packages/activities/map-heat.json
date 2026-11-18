@@ -4,5 +4,5 @@
     zoom (about 100 m, 870 m or 7 km), so the glow looks much the same at every zoom; zoomed in so far that it would be more than
     60 pixels, what Leaflet.heat can draw, the heat is not drawn (the routes say more there). }}
 {
-  "low": "#ffd43b", "high": "{{{red}}}", "min_opacity": 0.3, "radius_cells": 1.5
+  "low": "#ffd43b", "high": "#e03131", "min_opacity": 0.3, "radius_cells": 1.5
 }

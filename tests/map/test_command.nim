@@ -96,8 +96,7 @@ suite "map: the command, with frames of its own":
     check files(w.cache) == @["map-things.html"]
     let page = readFile(w.cache / "map-things.html")
     check page.contains("\"name\":\"alpha\"") and page.contains("\"name\":\"beta\"")
-    check page.contains("\"style\":{\"color\":\"#e03131\"}")
-      # (the style of a frame, filled in with the palette)
+    check page.contains("\"style\":{\"color\":\"#e03131\"}") # (the style of a frame)
     check page.contains("\"drawer\":\"\"") # (alpha has no drawing: the generic one)
     check page.contains("drawers[\"test-map-beta\"] = (") # (beta has its own)
     check page.contains("\"shown\":true") # (alpha, shown by default)

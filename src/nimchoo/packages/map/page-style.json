@@ -1,7 +1,6 @@
 {{! What is common to every frame of the map, as JSON (the page reads it): smooth_rounds is the corner cutting, 0 none, 1 or 2
     smooth.  How each frame looks is in the style that its provider ships, next to this one in system/templates/ (activities-map-routes.json
-    for the routes of activities, ...), and how it is drawn in its script (activities-map-routes.js), if it has one.  The palette's colours (white, grey, red, green, yellow,
-    blue) are tags in triple braces, as in the other styles. }}
+    for the routes of activities, ...), and how it is drawn in its script (activities-map-routes.js), if it has one. }}
 {
   "smooth_rounds": 2
 }

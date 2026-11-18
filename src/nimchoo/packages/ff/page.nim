@@ -2,8 +2,8 @@
 ## Observable Plot and d3 (from a CDN, with the integrity hashes of the exact files, so a changed
 ## file is refused by the browser) drawing the two curves of a CSV that the server gives it.  The
 ## page is a template (page.html, built in and kept in the cache's `system/templates/`, see
-## bundle/unpack.nim) filled in with the title, the name of the data, whether the rows are hours,
-## the colours of the two curves (the palette's) and the libraries (serve/libraries.nim).
+## bundle/unpack.nim) filled in with the title, the name of the data, whether the rows are hours
+## and the libraries (serve/libraries.nim); the colours of the two curves are in the template.
 ##
 ## Days are drawn as dates (the labels are dates of the computer's timezone, so they must not
 ## be shifted by the browser: the axis is in UTC); hours are instants and are drawn in the
@@ -14,7 +14,6 @@ import ../bundle/unpack
 import ../cache/cache
 import ../web/libraries
 import ../text/templating/templating
-import ../ui/palette
 
 {.push raises: [].}
 
@@ -33,13 +32,7 @@ proc renderPage*(
       source,
       context(
         libs &
-          @[
-            ("title", text(title)),
-            ("data", text(dataName)),
-            ("hourly", flag(hourly)),
-            ("green", text(hex(green))),
-            ("red", text(hex(red))),
-          ]
+          @[("title", text(title)), ("data", text(dataName)), ("hourly", flag(hourly))]
       ),
     )
   )

@@ -10,7 +10,6 @@ import nimchoo/packages/web/webopts
 import nimchoo/packages/web/request
 import ../support/webpages
 import nimchoo/packages/cache/cache
-import nimchoo/packages/ui/palette
 
 const csv = "ff-lusab-babad-fuzoh.csv"
 
@@ -33,20 +32,13 @@ suite "ff: the page":
     check "csvParse(" notin h and "csvParseRows(" in h
     check "eval(" notin h and "new Function" notin h and
       "Function(" notin h.replace("csvParse(", "")
-  test "you can drag to zoom and double-click to go back; fitness is green and fatigue red":
+  test "you can drag to zoom and double-click to go back; the curves have their colours":
     let h = pageHtml(csv, "t", false).get
     for needle in [
-      "pointerdown",
-      "pointermove",
-      "pointerup",
-      "dblclick",
-      "drag to zoom",
-      hex(green),
-      hex(red),
+      "pointerdown", "pointermove", "pointerup", "dblclick", "drag to zoom"
     ]:
       check needle in h
-    check h.find("fitness: '" & hex(green) & "'") > 0 and
-      h.find("fatigue: '" & hex(red) & "'") > 0 # (the palette's)
+    check h.find("fitness: '#2f9e44'") > 0 and h.find("fatigue: '#e03131'") > 0
   test "the title is text, not markup":
     let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false).get
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")
@@ -72,11 +64,9 @@ suite "ff: the template is a file":
     discard pageHtml(csv, "t", false)
     check readFile(systemDir(top) / "templates" / "ff.html") == pageTemplate
     writeFile(
-      systemDir(top) / "templates" / "ff.html",
-      "{{title}} {{{hourly}}} {{{green}}} {{{red}}} {{plot-js}}\n",
+      systemDir(top) / "templates" / "ff.html", "{{title}} {{{hourly}}} {{plot-js}}\n"
     )
-    check pageHtml(csv, "T", true).get ==
-      "T true " & hex(green) & " " & hex(red) & " " & libs["plot-js"] & "\n"
+    check pageHtml(csv, "T", true).get == "T true " & libs["plot-js"] & "\n"
     check pageHtml(csv, "T", false).get.startsWith("T false ")
   test "the pure form":
     check renderPage("{{data}}", @[], csv, "t", false) == some(csv)
