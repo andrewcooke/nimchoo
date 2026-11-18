@@ -1,0 +1,223 @@
+## Themes: what each style of text looks like on a terminal, read from a theme file.  A style names only the attributes it
+## changes (foreground, background, weight, underline, italic); one nested inside another replaces those and keeps the rest
+## (`markup.nim`).  The style `default` surrounds all text, and what it leaves out is the terminal's own, so every piece of
+## text has a complete look.
+##
+## The file has one style per line: its name, then any of `fg=COLOUR`, `bg=COLOUR`, `weight=bold|normal|dim`,
+## `underline=yes|no` and `italic=yes|no`.  A colour is `#rrggbb`, one of the sixteen terminal colours (`red`,
+## `bright-red` ...: they follow the terminal's own palette), or `terminal` (the terminal's own text or background colour).
+## Blank lines and lines starting with `#` are ignored.
+
+import std/[options, strformat, strutils, tables]
+import ../../core/errors
+
+{.push raises: [].}
+
+type
+  ColourKind* = enum
+    ckTerminal ## the terminal's own foreground or background
+    ckBasic ## one of the sixteen colours of the terminal's palette
+    ckRgb ## an exact colour (true colour)
+
+  Colour* = object
+    case kind*: ColourKind
+    of ckTerminal:
+      discard
+    of ckBasic:
+      index*: range[0 .. 15] ## 0-7 the normal colours, 8-15 the bright ones
+    of ckRgb:
+      r*, g*, b*: uint8
+
+  Weight* = enum
+    wtNormal
+    wtBold
+    wtDim
+
+  Style* = object
+    ## what a style changes: none for an attribute it keeps from the style around it
+    fg*, bg*: Option[Colour]
+    weight*: Option[Weight]
+    underline*, italic*: Option[bool]
+
+  Look* = object ## how a piece of text is drawn: every attribute
+    fg*, bg*: Colour
+    weight*: Weight
+    underline*, italic*: bool
+
+  Theme* = object
+    styles*: OrderedTable[string, Style] ## in the order of the file
+
+const
+  defaultStyle* = "default" ## the style around all text
+  basicNames = [
+    "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+    "bright-black", "bright-red", "bright-green", "bright-yellow", "bright-blue",
+    "bright-magenta", "bright-cyan", "bright-white",
+  ]
+  terminalLook* = Look(
+    fg: Colour(kind: ckTerminal),
+    bg: Colour(kind: ckTerminal),
+    weight: wtNormal,
+    underline: false,
+    italic: false,
+  ) ## the terminal's own look: what `default` starts from
+
+func `==`*(a, b: Colour): bool =
+  if a.kind != b.kind:
+    return false
+  case a.kind
+  of ckTerminal:
+    true
+  of ckBasic:
+    a.index == b.index
+  of ckRgb:
+    a.r == b.r and a.g == b.g and a.b == b.b
+
+func isStyleName*(s: string): bool =
+  ## A name of a style: a lower-case letter, then lower-case letters, digits and hyphens.
+  s.len > 0 and s[0] in {'a' .. 'z'} and s.allCharsInSet({'a' .. 'z', '0' .. '9', '-'})
+
+func parseColour(value: string, line: int): Colour {.raises: [ThemeError].} =
+  if value == "terminal":
+    return Colour(kind: ckTerminal)
+  let i = basicNames.find(value)
+  if i >= 0:
+    return Colour(kind: ckBasic, index: i)
+  if value.len == 7 and value[0] == '#' and value[1 .. ^1].allCharsInSet(HexDigits):
+    try:
+      return Colour(
+        kind: ckRgb,
+        r: uint8(parseHexInt(value[1 .. 2])),
+        g: uint8(parseHexInt(value[3 .. 4])),
+        b: uint8(parseHexInt(value[5 .. 6])),
+      )
+    except ValueError:
+      raiseAssert "six hex digits were checked"
+  raiseTheme(
+    fmt"'{value}' is not a colour (#rrggbb, terminal, or one of {basicNames.join("" "")})",
+    line,
+  )
+
+func parseYes(key, value: string, line: int): bool {.raises: [ThemeError].} =
+  case value
+  of "yes":
+    true
+  of "no":
+    false
+  else:
+    raiseTheme(fmt"{key} is yes or no, not '{value}'", line)
+
+func parseStyle(words: seq[string], line: int): Style {.raises: [ThemeError].} =
+  ## The attributes after the name, each `key=value`, none twice.
+  for word in words:
+    let kv = word.split('=', maxsplit = 1)
+    if kv.len != 2 or kv[1].len == 0:
+      raiseTheme(
+        fmt"'{word}' is not key=value (fg=, bg=, weight=, underline=, italic=)", line
+      )
+    let (key, value) = (kv[0], kv[1])
+    template once(field: untyped, v: untyped) =
+      if result.field.isSome:
+        raiseTheme(fmt"{key} is given twice", line)
+      result.field = some(v)
+
+    case key
+    of "fg":
+      once(fg, parseColour(value, line))
+    of "bg":
+      once(bg, parseColour(value, line))
+    of "weight":
+      let w =
+        case value
+        of "normal":
+          wtNormal
+        of "bold":
+          wtBold
+        of "dim":
+          wtDim
+        else:
+          raiseTheme(fmt"weight is bold, normal or dim, not '{value}'", line)
+      once(weight, w)
+    of "underline":
+      once(underline, parseYes(key, value, line))
+    of "italic":
+      once(italic, parseYes(key, value, line))
+    else:
+      raiseTheme(
+        fmt"'{key}' is not an attribute (they are fg, bg, weight, underline, italic)",
+        line,
+      )
+
+func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
+  ## The theme in `text`, the contents of a theme file.
+  var line = 0
+  for raw in text.splitLines:
+    inc line
+    let s = raw.strip
+    if s.len == 0 or s.startsWith('#'):
+      continue
+    let words = s.splitWhitespace
+    let name = words[0]
+    if not isStyleName(name):
+      raiseTheme(
+        fmt"'{name}' is not a name of a style (lower-case letters, digits and hyphens, starting with a letter)",
+        line,
+      )
+    if name in result.styles:
+      raiseTheme(fmt"the style {name} is given twice", line)
+    result.styles[name] = parseStyle(words[1 ..^ 1], line)
+
+func over*(look: Look, style: Style): Look =
+  ## `look` with what `style` changes.
+  result = look
+  if style.fg.isSome:
+    result.fg = style.fg.get
+  if style.bg.isSome:
+    result.bg = style.bg.get
+  if style.weight.isSome:
+    result.weight = style.weight.get
+  if style.underline.isSome:
+    result.underline = style.underline.get
+  if style.italic.isSome:
+    result.italic = style.italic.get
+
+func baseLook*(theme: Theme): Look =
+  ## The look of text in no style but `default`: the terminal's own, with what `default` changes.
+  terminalLook.over(theme.styles.getOrDefault(defaultStyle))
+
+func colourCode(c: Colour, background: bool): string =
+  case c.kind
+  of ckTerminal:
+    ""
+  of ckBasic:
+    let base =
+      if c.index < 8:
+        (if background: 40 else: 30)
+      else:
+        (if background: 100 else: 90)
+    $(base + c.index mod 8)
+  of ckRgb:
+    (if background: "48" else: "38") & fmt";2;{c.r};{c.g};{c.b}"
+
+func terminalCodes*(look: Look): string =
+  ## The escape code that starts `look` ("" for the terminal's own look: nothing to start).
+  var parts: seq[string]
+  case look.weight
+  of wtNormal:
+    discard
+  of wtBold:
+    parts.add "1"
+  of wtDim:
+    parts.add "2"
+  if look.italic:
+    parts.add "3"
+  if look.underline:
+    parts.add "4"
+  for (c, background) in [(look.fg, false), (look.bg, true)]:
+    let code = colourCode(c, background)
+    if code.len > 0:
+      parts.add code
+  if parts.len == 0:
+    ""
+  else:
+    "\e[" & parts.join(";") & "m" # (a code built from its parts)

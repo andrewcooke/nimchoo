@@ -1,0 +1,12 @@
+# The theme for a terminal with a dark background (a first draft: try it with tools/look.nim).
+# One style per line: its name, then any of fg=, bg=, weight=bold|normal|dim, underline=yes|no, italic=yes|no.
+# A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
+# What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
+
+default
+em      fg=#ffffff  weight=bold
+hide    fg=#585858
+good    fg=green
+bad     fg=red
+warn    fg=yellow
+select  fg=#87afff

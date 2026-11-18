@@ -92,3 +92,25 @@ proc raiseTemplate*(msg: string, line = 0) {.noreturn, raises: [TemplateError].}
   raise (ref TemplateError)(
     msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line
   )
+
+type
+  ThemeError* = object of NchError
+    ## A theme file that cannot be used (a bad colour, an unknown attribute).
+    line*: int ## 1-based line of the file, 0 if not known
+
+  MarkupError* = object of NchError
+    ## Styled text that cannot be read (a bracket not closed, an unknown style).
+    column*: int
+      ## 1-based position in the text (in bytes, counting every line), 0 if not known
+
+proc raiseTheme*(msg: string, line = 0) {.noreturn, raises: [ThemeError].} =
+  ## Raise a ThemeError, optionally for a 1-based `line` of the file.
+  raise (ref ThemeError)(
+    msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line
+  )
+
+proc raiseMarkup*(msg: string, column = 0) {.noreturn, raises: [MarkupError].} =
+  ## Raise a MarkupError, optionally at a 1-based `column` of the text.
+  raise (ref MarkupError)(
+    msg: (if column > 0: "at " & $column & ": " else: "") & msg, column: column
+  )

@@ -46,6 +46,15 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
   Time the largest country first.
 
+7. **Styles, themes and markup** (designed with the author, 2026-11-18).  Done: step 1, `ui/theme.nim` (the theme file),
+   `ui/markup.nim` (`[style text]`, nesting that replaces only what a style gives, `[default ...]` back to plain, `\[ \] \\`,
+   styles that run over newlines) and `tools/look.nim` to try them; the author is trying colours and the format with it.  Next:
+   (2) themes in nch: built-in `dark.theme` and `light.theme` unpacked to `system/themes/`, chosen by `--theme`/`NCH_THEME`, else a
+   symlink (in a config directory or the cache: undecided), else `COLORFGBG`, else dark; loaded once into `Globals`, shown by
+   `nch packages --config`; (3) the code uses styles (default, em, hide, good, bad, warn, select) instead of `palette` colours, and
+   `vocabulary` maps events to them; (4) `styled"..."`, markup checked when compiled, the values in `{}` plain text; (5) the web: a
+   `web=#hex` per style, the page tags named by style; (6) the docs.  Also: a mark for the selection when there is no colour.
+
 ## Features and ideas, unordered
 
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
@@ -57,7 +66,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
 * **`nch packages --points`** is hard to understand (the author, 2026-11-17): perhaps colours used the same way across the views
   of packages (`--points`, `--graph`, the table) would help; not designed.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
-* **Light and dark terminal backgrounds** (`NCH_THEME`, else `COLORFGBG`; dim and yellow are poor on white).
 * **The map**: labels, a legend, landmarks on the map, the page's palette from `packages/ui/palette.nim`, style rules by
   property (colour by sport or year).
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page (superseded if the plot command comes first).
