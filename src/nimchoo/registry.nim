@@ -463,7 +463,7 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
   and `light.theme` are here, and the names the program uses are those of `dark.theme`, checked when it is compiled).  The
   words and styles for what happened are in `vocabulary`, one table, so that "failed" is `bad` wherever it appears.
   Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
-  selection, `selectedStyle`), each used for nothing else; `em` for what to read first, `hide` for the bookkeeping and
+  selection, `selectedStyle`), each used for nothing else; `cmd` for the name of a command (`nch packages`); `em` for what to read first, `hide` for the bookkeeping and
   what was not recorded (and the lines of a table or a tree, `│ ─ ┼ └`, wherever they are: `theme.lineStyle`);
   `default` is around everything (all that a command writes is in it: `g.say`, `g.show`).  Markup
   (`[good imported] 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,

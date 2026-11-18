@@ -38,3 +38,20 @@ suite "ruled tables":
     check ls[0] == "name │ L   U │ what"
     check ls[1] == "─────┼───────┼─────"
     check ls[2] == "x    │ 1  12 │ a"
+
+suite "ruled tables: cells in styles":
+  test "a cell is wrapped by words as text is, and each word keeps its style":
+    let cell: Cell = @[("one two ", ""), ("three", "cmd"), (" four", "")]
+    let ls = wrapCell(cell, 9)
+    check ls.mapIt(it.cellText) == @["one two", "three", "four"]
+    check ls[1] == @[("three", "cmd")]
+    check wrapCell(@[("a.  b", "")], 80).mapIt(it.cellText) ==
+      @["a.  b"] # (two spaces after a full stop stay)
+    check wrapCell(@[("a\nb", "")], 80).len == 2 # (a newline starts a line)
+
+  test "a styled cell in a table: the text is that of the plain table, the style kept":
+    let lines =
+      ruledCells(@["a", "b"], @[@[plainCell("x"), @[("go ", ""), ("ff", "cmd")]]], 80)
+    check lines.mapIt(it.cellText) ==
+      @["a │ b", "──┼──────", "x │ go ff"]
+    check ("ff", "cmd") in lines[2]

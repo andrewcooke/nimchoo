@@ -1,7 +1,7 @@
 ## What `nch packages` shows (core/inventory.nim), on made-up packages and on the real registry.
 
 import std/[algorithm, options, sequtils, strutils, unittest]
-import nimchoo/core/[errors, extension, fragment, inventory, manifest, registry]
+import nimchoo/core/[errors, extension, fragment, inventory, manifest, registry, ruled]
 import nimchoo/registry as generated
 
 const pointP = ExtensionPoint[int](name: "b/p")
@@ -94,12 +94,14 @@ suite "the filters of the list":
   test "together, each narrows the list further":
     check kept(PackageFilter(uses: some("a"), layer: some(3))) == @["c"]
     check kept(PackageFilter(table: some("tb"), usedBy: some("c"))) == @["b"]
-    let lines = summaryLines(world(), 80, PackageFilter(layer: some(1)))
+    let lines =
+      summaryLines(world(), 80, PackageFilter(layer: some(1))).mapIt(it.cellText)
     check lines.anyIt(it.startsWith("a ")) and not lines.anyIt(it.startsWith("b "))
 
 suite "the views":
-  test "the summary has a line for each package with what it is for, and under it what it provides":
-    let lines = summaryLines(world(), 80)
+  test "the summary has a line for each package with what it is for, then what it provides":
+    let cells = summaryLines(world(), 120)
+    let lines = cells.mapIt(it.cellText)
     check lines[0].startsWith("package") and "what it is for" in lines[0] and
       " │ L  U  B  T │ " in lines[0]
     check lines[1].startsWith("────") and "┼" in lines[1]
@@ -112,9 +114,14 @@ suite "the views":
     )
     check named.len > 0 and named[0].startsWith("db ")
       # (the lowest layer first: db depends on nothing)
-    check lines.anyIt(it.startsWith("b ") and it.endsWith("Package b is for b things."))
-    check lines.anyIt("command bee" in it and "defines b/p" in it)
-    check lines.anyIt("adds to b/p" in it)
+    check lines.anyIt(
+      it.startsWith("b ") and
+        it.endsWith("Package b is for b things.  Defines bee and the point b/p.")
+    )
+    check lines.anyIt(it.startsWith("c ") and it.endsWith("Adds to b/p, b/p."))
+    # (the name of a command is in the style of commands, the rest is not)
+    let b = cells.filterIt(it.cellText.startsWith("b "))[0]
+    check b.filterIt(it.style == commandStyle).mapIt(it.text) == @["bee"]
     check lines.anyIt(it.startsWith("db ") and it.endsWith("Package db is the base."))
 
   test "the detail of a package":

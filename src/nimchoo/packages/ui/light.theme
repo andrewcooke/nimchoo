@@ -11,3 +11,4 @@ good    fg=#2e7d32
 bad     fg=#c62828
 warn    fg=#b45309
 select  fg=#1f5fbf
+cmd     fg=#5b3fbf

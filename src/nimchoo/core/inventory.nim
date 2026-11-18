@@ -149,10 +149,13 @@ func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
       return false
   true
 
-func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[string] =
+const commandStyle* = "cmd" ## the style of the name of a command (of the theme)
+
+func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Cell] =
   ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
   ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
-  ## what it is for; and under that, what it provides.  Only those the filter keeps.
+  ## what it is for, then what it provides (commands, in `commandStyle`; points it defines; points it adds to).  Only those
+  ## the filter keeps.  As styled pieces (`ruled.Cell`).
   var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
     proc(a, b: PackageInfo): int =
@@ -162,34 +165,50 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[st
       if result == 0:
         result = cmp(a.name.normalised, b.name.normalised)
   )
-  var rows: seq[seq[string]]
+  var rows: seq[seq[Cell]]
   for p in order:
-    var provides: seq[string]
+    # what it provides follows what it is for: "Defines users and the point user/has.  Adds to web/pages.", the names of
+    # commands in the style of commands
+    var what: Cell = @[(p.summary, "")]
+    var defines: seq[Cell]
     for c in p.commands:
-      provides.add "command " & c.name
-    for d in p.defines:
-      provides.add "defines " & d.name
-    for c in p.contributes:
-      provides.add "adds to " & c.point
-    let what =
-      if provides.len > 0:
-        p.summary & "\n" & provides.join(", ")
-      else:
-        p.summary
-    rows.add @[p.name, $p.layer, $p.depends.len, $p.dependents.len, $p.tables.len, what]
-  result = ruledLines(
+      defines.add @[(c.name, commandStyle)]
+    let points = p.defines.mapIt(it.name)
+    if points.len > 0:
+      defines.add plainCell(
+        (if points.len == 1: "the point " else: "the points ") & points.join(", ")
+      )
+    if defines.len > 0:
+      what.add ("  Defines ", "")
+      for k, d in defines:
+        if k > 0:
+          what.add ((if k == defines.high: " and " else: ", "), "")
+        what.add d
+      what.add (".", "")
+    if p.contributes.len > 0:
+      what.add ("  Adds to " & p.contributes.mapIt(it.point).join(", ") & ".", "")
+    rows.add @[
+      plainCell(p.name),
+      plainCell($p.layer),
+      plainCell($p.depends.len),
+      plainCell($p.dependents.len),
+      plainCell($p.tables.len),
+      what,
+    ]
+  result = ruledCells(
     @["package", "L", "U", "B", "T", "what it is for"],
     rows,
     width,
     right = {1, 2, 3, 4},
     together = {1, 2, 3},
   )
-  result.add ""
-  result.add wrap(
+  result.add plainCell("")
+  for l in wrap(
     "L: the layer (0 depends on nothing; each package is one above the highest it uses); U: how many packages it uses " &
       "directly; B: how many use it directly; T: how many tables it owns.  Lowest layer first, the most used first in a layer.",
     width,
-  )
+  ):
+    result.add plainCell(l)
 
 func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
   ## Everything about one package.  `name` must be that of a package.

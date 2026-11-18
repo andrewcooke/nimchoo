@@ -388,7 +388,18 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     if inv.packages.allIt(not inv.keeps(f, it)):
       g.say osOut, "no package is kept by those filters\n"
     else:
-      g.showAll summaryLines(inv, width, f)
+      for cell in summaryLines(inv, width, f):
+        var line: Line
+        for r in cell:
+          line.add(
+            if r.style == commandStyle:
+              span(r.text, styleName"cmd")
+            elif r.style.len > 0:
+              span(r.text, anyStyle(r.style))
+            else:
+              span(r.text)
+          )
+        g.show(osOut, line)
   of vDetail:
     g.showAll detailLines(inv, p.package, width)
   of vPoints:
