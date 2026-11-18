@@ -152,7 +152,7 @@ func render*(line: Line, paint: Paint): string =
   ## own (`theme.Drawer`).
   if not paint.colour:
     for s in line:
-      result.add s.text
+      result.add withoutMarks(s.text)
     return
   var d: Drawer
   for s in line:

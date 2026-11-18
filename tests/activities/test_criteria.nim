@@ -11,6 +11,7 @@ import nimchoo/packages/activities/criteria
 import nimchoo/packages/confirm/confirm
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
+from nimchoo/core/theme import withoutMarks
 
 let utcZone = utc()
 
@@ -537,7 +538,7 @@ suite "list: the usage":
     for width in [60, 80, 120]:
       for l in activitiesCommand.usageText(width).splitLines:
         if not (l.startsWith("usage: ") or l.startsWith("       nch ")):
-          check l.runeLen <= width
+          check withoutMarks(l).runeLen <= width
   test "an option of another package would be listed and parsed from its description":
     let extra = OptDoc(
       names: @["--extra"],

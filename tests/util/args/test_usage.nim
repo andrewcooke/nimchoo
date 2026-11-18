@@ -1,8 +1,13 @@
 import std/[sequtils, strutils, unicode, unittest]
 import nimchoo/packages/util/args/[args, usage]
+from nimchoo/core/theme import typedEnd, typedStart, withoutMarks
 
 func doc(names: openArray[string], metavar, help: string): OptDoc =
   OptDoc(names: @names, metavar: metavar, help: help)
+
+proc shownOptionLines(docs: seq[OptDoc], width: int): seq[string] =
+  ## The option lines as they are shown without colour (the marks of what is typed take no room).
+  optionLines(docs, width).mapIt(withoutMarks(it))
 
 suite "usage: wrapping":
   test "lines are broken at spaces, not beyond the width":
@@ -18,12 +23,12 @@ suite "usage: wrapping":
 
 suite "usage: the option list":
   test "a value that may be left out is in brackets":
-    check optionLines(
+    check shownOptionLines(
       @[OptDoc(names: @["--shell"], metavar: "SHELL", help: "which", arity: aOptional)],
       80,
     ) == @["  --shell [SHELL]  which"]
   test "names, the value, and the help in a column":
-    check optionLines(
+    check shownOptionLines(
       @[
         doc(["--all"], "", "every activity"),
         doc(["-n", "--newest"], "N", "only the N newest"),
@@ -31,13 +36,13 @@ suite "usage: the option list":
       80,
     ) == @["  --all           every activity", "  -n, --newest N  only the N newest"]
   test "long help is wrapped under its own column":
-    let lines = optionLines(
+    let lines = shownOptionLines(
       @[doc(["--sport"], "A B", "one two three four five six seven eight")], 36
     )
     check lines ==
       @["  --sport A B  one two three four five six", "               seven eight"]
   test "a label that is too long leaves the help for the next line":
-    let lines = optionLines(
+    let lines = shownOptionLines(
       @[
         doc(["--a-very-long-option-name"], "SOMETHING", "text"),
         doc(["-x"], "", "short"),
@@ -47,9 +52,9 @@ suite "usage: the option list":
     check lines ==
       @["  --a-very-long-option-name SOMETHING", "      text", "  -x  short"]
   test "an option with no help is still listed":
-    check optionLines(@[doc(["--odd"], "", "")], 80) == @["  --odd"]
+    check shownOptionLines(@[doc(["--odd"], "", "")], 80) == @["  --odd"]
   test "the width of the help has a floor, so a narrow terminal does not make a line a word long":
-    let lines = optionLines(
+    let lines = shownOptionLines(
       @[doc(["--x"], "", "aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll")], 10
     )
     check lines.len < 12
@@ -69,7 +74,7 @@ suite "usage: from a spec":
         flag(P, ["--deep"], yes, "goes with the one before", level = 1),
       ]
     )
-    let shown = optionLines(spec.docs, 80).join("\n")
+    let shown = shownOptionLines(spec.docs, 80).join("\n")
     check "-y, --yes" in shown and "-n N" in shown and "say yes" in shown
     check "\n    --deep" in shown # (indented under the one before it)
     check spec.docs[1].arity == aOne and spec.docs[0].arity == aFlag
@@ -120,3 +125,9 @@ suite "usage: tables":
     let ls =
       tableLines(@["a", "b"], @[@["x", "one two three four five six seven eight"]], 10)
     check ls.allIt(it.runeLen <= 2 + 1 + 3 + 30)
+
+suite "usage: the options are marked as text to type":
+  test "the names and the value are between the marks, which take no room":
+    let raw = optionLines(@[doc(["-n", "--newest"], "N", "only the N newest")], 80)
+    check raw[0].startsWith("  " & typedStart & "-n, --newest N" & typedEnd & "  only")
+    check withoutMarks(raw[0]) == "  -n, --newest N  only the N newest"

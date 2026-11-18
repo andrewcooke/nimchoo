@@ -255,6 +255,16 @@ const
     ## the style of what is between backticks, wherever it is: a command, an option, a path, what a person would type (in
     ## colour the backticks are left out: the style marks it; without colour they are the mark)
 
+const
+  typedStart* = "\x0e"
+    ## (shift out) with `typedEnd`, marks text to type, as backticks do, but taking no room either way: for text laid out
+    ## in columns before it is drawn (the options of a usage).  In colour it is in `typedStyle`; without, the marks go.
+  typedEnd* = "\x0f" ## (shift in)
+
+func withoutMarks*(text: string): string =
+  ## `text` without the marks of `typedStart` and `typedEnd`: as it is shown without colour.
+  text.multiReplace((typedStart, ""), (typedEnd, ""))
+
 func isLineDrawing*(r: Rune): bool =
   ## Whether `r` is a box-drawing character (U+2500 to U+257F).
   int32(r) in 0x2500'i32 .. 0x257F'i32
@@ -278,6 +288,9 @@ func draw*(d: var Drawer, theme: Theme, look: Look, text: string) =
     if r == Rune('`'):
       d.inTyped = not d.inTyped
       continue # (in colour the style marks it: the backtick is not drawn)
+    if r == Rune(typedStart[0]) or r == Rune(typedEnd[0]):
+      d.inTyped = r == Rune(typedStart[0])
+      continue
     elif r.isLineDrawing:
       want = lines
     elif d.inTyped:

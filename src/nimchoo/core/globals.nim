@@ -56,7 +56,7 @@ func inTheme*(g: Globals, o: OutStream, text: string): string =
   ## backticks in their styles (`theme.Drawer`), and a reset at the end of each line, so that nothing runs on; so that all
   ## the text of a command looks alike.
   if not g.colour[o]:
-    return text
+    return withoutMarks(text)
   var d: Drawer
   let lines = text.split('\n')
   for k, line in lines:

@@ -2,7 +2,7 @@
 
 import std/[options, os, sequtils, strutils, unittest]
 from std/unicode import runeLen
-import nimchoo/core/[globals, registry]
+import nimchoo/core/[globals, registry, theme]
 import nimchoo/introspect
 import nimchoo/packages/util/args/args
 from nimchoo/registry import allAccess, commands, schema
@@ -47,7 +47,7 @@ suite "nch packages: the command line":
       let text = usageText(width)
       for line in text.splitLines:
         if not (line.startsWith("usage: ") or line.startsWith("       nch ")):
-          check line.runeLen <= width
+          check withoutMarks(line).runeLen <= width
       for d in packagesSpec().docs:
         for n in d.names:
           check n in text
