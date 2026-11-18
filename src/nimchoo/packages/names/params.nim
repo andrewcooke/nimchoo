@@ -4,12 +4,12 @@ import ../util/args/args
 import ./completion
 import std/[options, strutils]
 import ./landmarks
+import ../geo/position
+export position.Position
 
 {.push raises: [].}
 
 type
-  Position* = tuple[lon, lat: float] ## in degrees
-
   LandmarkAction* = enum
     laList ## show the landmarks
     laSearch ## suggest features by name
@@ -63,20 +63,6 @@ type
     near, at: Option[Position]
     pick: int
     radiusM: float
-
-func parsePosition*(s: string): Option[tuple[lon, lat: float]] =
-  ## "LAT,LON" in degrees (the order of every position the program takes or shows).
-  let parts = s.split(',')
-  if parts.len != 2:
-    return
-  try:
-    let lat = parseFloat(parts[0].strip)
-    let lon = parseFloat(parts[1].strip)
-    if lon < -180.0 or lon > 180.0 or lat < -90.0 or lat > 90.0:
-      return
-    result = some((lon, lat))
-  except ValueError:
-    discard
 
 func landmarkSpec*(): Spec[Raw] =
   ## The options of `nch landmarks`.

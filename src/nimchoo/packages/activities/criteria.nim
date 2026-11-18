@@ -8,6 +8,7 @@ import ../confirm/confirm
 import ../util/args/args
 import ../db/sqltext
 import ../../core/ids
+import ../geo/position
 import ../text/fold/fold
 import ./[completion, criterion, ranges]
 export ranges, criterion
@@ -103,20 +104,6 @@ proc parseWhen*(s: string, zone: Timezone, isEnd: bool): Option[UnixTime] =
     except TimeParseError, TimeFormatParseError, ValueError, OverflowDefect:
       discard
   none(UnixTime)
-
-func parseLatLon*(s: string): Option[(float, float)] =
-  ## "38.72,-9.14": latitude, longitude, in range.
-  let parts = s.split(',')
-  if parts.len != 2:
-    return none((float, float))
-  try:
-    let lat = parseFloat(parts[0].strip)
-    let lon = parseFloat(parts[1].strip)
-    if lat < -90 or lat > 90 or lon < -180 or lon > 180:
-      return none((float, float))
-    some((lat, lon))
-  except ValueError:
-    none((float, float))
 
 type ListState = object
   ## What the options of `nch activities` fill in as they are read.
@@ -337,10 +324,10 @@ func takeNear(p: var ListState, v: string): Problem =
   elif parseReference(v) == refPrevious:
     p.c.near = nkPrevious
   else:
-    let pos = parseLatLon(v)
+    let pos = parsePosition(v)
     if pos.isSome:
       p.c.near = nkPoint
-      (p.c.lat, p.c.lon) = pos.get
+      (p.c.lat, p.c.lon) = (pos.get.lat, pos.get.lon)
     elif v.strip.len > 0 and not (v.len > 0 and v[0] in {'0' .. '9', '-', '+', '.'}):
       # (a name: what looks like a number is a position written wrongly, and says so)
       p.c.near = nkPlace

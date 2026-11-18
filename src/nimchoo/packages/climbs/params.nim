@@ -1,7 +1,7 @@
 ## The command line of `nch climbs`, parsed.  Pure.  With no criteria it lists the climbs selection; criteria (or `--all`)
 ## search every climb, and `--select` keeps what they find as the selection, as `nch activities` does.
 
-import ../activities/criteria
+import ../geo/position
 import ../confirm/confirm
 import ../util/args/args
 import ./completion
@@ -134,9 +134,9 @@ proc takeCategories(
   fine
 
 func takeNear(p: var Raw, v: string): Problem =
-  let pos = parseLatLon(v)
+  let pos = parsePosition(v)
   if pos.isSome:
-    p.near = some(Near(kind: nrPoint, lat: pos.get[0], lon: pos.get[1]))
+    p.near = some(Near(kind: nrPoint, lat: pos.get.lat, lon: pos.get.lon))
   elif v.strip.len > 0 and v[0] notin {'0' .. '9', '-', '+', '.'}:
     # (a name: what looks like a number is a position written wrongly, and says so)
     p.near = some(Near(kind: nrPlace, place: v.strip))

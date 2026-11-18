@@ -51,14 +51,6 @@ suite "list: times":
     for bad in ["", "yesterday", "2018-13-45", "27/08/2018", "2018-08"]:
       check parseWhen(bad, utcZone, false).isNone
 
-suite "list: positions":
-  test "latitude, longitude":
-    check parseLatLon("38.72,-9.14") == some((38.72, -9.14))
-    check parseLatLon(" 38.72 , -9.14 ") == some((38.72, -9.14))
-  test "out of range or not a pair":
-    for bad in ["", "1", "1,2,3", "91,0", "0,181", "a,b"]:
-      check parseLatLon(bad).isNone
-
 suite "list: the command line":
   proc cmdline(args: varargs[string]): Parsed[Criteria] =
     parseArgs(@args, utcZone)

@@ -1,4 +1,4 @@
-import std/[options, strutils, unittest]
+import std/[strutils, unittest]
 import nimchoo/packages/names/params
 import nimchoo/packages/util/args/args
 
@@ -58,8 +58,3 @@ suite "landmark: the command line":
     )
     check parseArgs(@["--radius", "500"]).problem.contains("--add")
     check parseArgs(@["Yerba"]).problem.contains("--search Yerba")
-  test "positions":
-    check parsePosition("1.5,-2.5").get == (-2.5, 1.5)
-    check parsePosition(" -70.364 , -33.344 ").isSome
-    check parsePosition("1").isNone and parsePosition("a,b").isNone and
-      parsePosition("0,181").isNone and parsePosition("91,0").isNone
