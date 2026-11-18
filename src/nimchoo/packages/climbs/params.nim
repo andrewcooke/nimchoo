@@ -388,6 +388,6 @@ func finish(raw: Raw): Parsed[Params] =
     )
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch climbs` (the climbs selection), criteria or `--all` [`--select`], `--retired`, `--duplicates`,
+  ## `nch climbs` (the climbs selection), criteria or `--all` (and `--select`), `--retired`, `--duplicates`,
   ## `--delete --all -f`, `--edit NAME --rename NEW`, `--edit NAME --auto`, `--edit NAME --retire`, `--edit NAME --unretire`.
   parseCommand(args, climbSpec(), Raw(), finish)
