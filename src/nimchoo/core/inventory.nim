@@ -4,7 +4,7 @@
 ## terminal, so every view is tested with made-up packages.
 
 import std/[algorithm, sequtils, sets, strformat, strutils, tables]
-import ./[access, errors, extension, fragment, manifest, names, ownership, wrap]
+import ./[access, errors, extension, fragment, manifest, names, ownership, ruled, wrap]
 
 {.push raises: [].}
 
@@ -134,28 +134,8 @@ func summaryLines*(inv: Inventory, width: int): seq[string] =
       if result == 0:
         result = cmp(a.name.normalised, b.name.normalised)
   )
-  var nameWidth = "package".len
-  var w = [1, 1, 1, 1] # the columns of numbers: layer, uses, used by, tables
+  var rows: seq[seq[string]]
   for p in order:
-    nameWidth = max(nameWidth, p.name.len)
-    for k, n in [p.layer, p.depends.len, p.dependents.len, p.tables.len]:
-      w[k] = max(w[k], len($n))
-  var head = nameWidth
-  for x in w:
-    head += 2 + x
-  head += 2 # (the columns before the text)
-  var heading = "package".alignLeft(nameWidth)
-  for k, letter in ["L", "U", "B", "T"]:
-    heading.add "  " & letter.align(w[k])
-  result.add heading & "  what it is for"
-  for p in order:
-    let what = wrap(p.summary, max(30, width - head))
-    var line = p.name.alignLeft(nameWidth)
-    for k, n in [p.layer, p.depends.len, p.dependents.len, p.tables.len]:
-      line.add "  " & align($n, w[k])
-    result.add (line & "  " & what[0]).strip(leading = false)
-    for l in what[1 ..^ 1]:
-      result.add " ".repeat(head) & l
     var provides: seq[string]
     for c in p.commands:
       provides.add "command " & c.name
@@ -163,9 +143,18 @@ func summaryLines*(inv: Inventory, width: int): seq[string] =
       provides.add "defines " & d.name
     for c in p.contributes:
       provides.add "adds to " & c.point
-    if provides.len > 0:
-      for l in wrap(provides.join(", "), max(30, width - head)):
-        result.add " ".repeat(head) & l
+    let what =
+      if provides.len > 0:
+        p.summary & "\n" & provides.join(", ")
+      else:
+        p.summary
+    rows.add @[p.name, $p.layer, $p.depends.len, $p.dependents.len, $p.tables.len, what]
+  result = ruledLines(
+    @["package", "L", "U", "B", "T", "what it is for"],
+    rows,
+    width,
+    right = {1, 2, 3, 4},
+  )
   result.add ""
   result.add wrap(
     "L: the layer (0 depends on nothing; each package is one above the highest it uses); U: how many packages it uses " &
@@ -229,19 +218,14 @@ func pointLines*(inv: Inventory, width: int): seq[string] =
     for i, c in pt.contributors:
       result.add fmt"    {i + 1}. {c.package} (priority {c.priority})"
 
-func tableLines*(inv: Inventory): seq[string] =
+func tableLines*(inv: Inventory, width: int): seq[string] =
   ## Each table, its owner and the packages that may read it.
-  var tw = "table".len
-  var ow = "owner".len
+  var rows: seq[seq[string]]
   for t in inv.tables:
-    tw = max(tw, t.name.len)
-    ow = max(ow, t.owner.len)
-  result.add "table".alignLeft(tw) & "  " & "owner".alignLeft(ow) & "  may read"
-  for t in inv.tables:
-    result.add (
-      t.name.alignLeft(tw) & "  " & t.owner.alignLeft(ow) & "  " &
-      (if t.everyone: "every package" else: listOf(t.readers))
-    ).strip(leading = false)
+    rows.add @[
+      t.name, t.owner, (if t.everyone: "every package" else: listOf(t.readers))
+    ]
+  ruledLines(@["table", "owner", "may read"], rows, width)
 
 # --- the graphs --------------------------------------------------------------------------------------------------------
 

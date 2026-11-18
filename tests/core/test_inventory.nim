@@ -75,12 +75,14 @@ suite "the views":
   test "the summary has a line for each package with what it is for, and under it what it provides":
     let lines = summaryLines(world(), 80)
     check lines[0].startsWith("package") and "what it is for" in lines[0] and
-      "  L  U  B  T  " in lines[0]
+      " │ L │ U │ B │ T │ " in lines[0]
+    check lines[1].startsWith("────") and "┼" in lines[1]
+      # (the rule under the headings)
     check lines[^1].startsWith("L: the layer") or
       lines.anyIt(it.startsWith("L: the layer"))
     let named = lines.filterIt(
       it.len > 0 and it[0].isAlphaAscii and not it.startsWith("package") and
-        ":" notin it[0 .. min(2, it.high)]
+        ":" notin it[0 .. min(2, it.high)] and "│" in it
     )
     check named.len > 0 and named[0].startsWith("db ")
       # (the lowest layer first: db depends on nothing)
@@ -105,7 +107,7 @@ suite "the views":
     check "1. c (priority 0)" in text and "2. c (priority 2)" in text
 
   test "the tables":
-    let lines = tableLines(world())
+    let lines = tableLines(world(), 120)
     check lines[0].startsWith("table")
     check lines.anyIt(it.startsWith("dbt") and it.endsWith("every package"))
     check lines.anyIt(it.startsWith("ta") and it.endsWith("b c"))

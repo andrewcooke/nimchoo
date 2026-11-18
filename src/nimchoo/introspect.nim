@@ -306,7 +306,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vPoints:
     g.showAll pointLines(inv, width)
   of vTables:
-    g.showAll tableLines(inv)
+    g.showAll tableLines(inv, width)
   of vLayers:
     let paint = paintOf(g, osOut)
     for l in layerLines(inv, width, p.implied):
