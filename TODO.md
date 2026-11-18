@@ -53,8 +53,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
   the `enhanced_speed` / `speed` channel and writes it to a table of its own (on its own times: a second can have a speed and no
   position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Left out
   (decided 2026-11-17): no use for it yet, and a rebuild costs about 18 s of import, so it can be added when a use appears.
-* **`nch packages --points`** is hard to understand (the author, 2026-11-17): perhaps colours used the same way across the views
-  of packages (`--points`, `--graph`, the table) would help; not designed.
+* **`nch packages --points`** is hard to understand (the author, 2026-11-17).  Since 2026-11-18 it is a ruled table (point,
+  defined by, added to by, what it is; the types and priorities are in `nch packages NAME`); the author is going through the
+  packages soon and may change it again.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **The map**: labels, a legend, landmarks on the map, style rules by
   property (colour by sport or year).
