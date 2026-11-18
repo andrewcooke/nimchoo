@@ -18,24 +18,27 @@
 ## Contributes to `importer/after` (`imported.nim`): the climbs of the new activities.
 ##
 ## **The climbs are a subject** (`subject.nim`, display step 6): each user has a climbs selection (`climb_selection`,
-## `chosen.nim`), which `nch climbs` lists and the views show (`nch map climbs`, `nch calendar climbs`).
+## `chosen.nim`), which `nch climbs` lists and the views show (`nch map climbs`, `nch calendar climbs`: `mapframes.nim`,
+## `calendarframe.nim`).
 
 import ../../core/[extension, manifest]
 import ../activities/criterion
 import ../importer/after
-import ./[command, criterion, imported, mapframes, subject]
+import ./[calendarframe, command, criterion, imported, mapframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[
     contribute(activityCriterion, climbCriterion),
     contribute(afterImport, workNewClimbs),
     subject.contribution(),
+    calendarframe.contribution(),
   ] & mapframes.contributions()
 
 const package* = Package(
   depends: @[
-    "activities", "args", "bundle", "confirm", "db", "fit", "fold", "geo", "importer",
-    "lookup", "map", "names", "profiling", "selection", "subject", "ui", "user",
+    "activities", "args", "bundle", "calendar", "confirm", "db", "fit", "fold", "geo",
+    "importer", "lookup", "map", "names", "profiling", "selection", "subject", "ui",
+    "user",
   ],
   fragments: @[
     fragment("001-schema.sql"),

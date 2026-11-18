@@ -124,6 +124,7 @@ import
 import ./climbs/test_criterion
 import ./climbs/test_chosen
 import ./climbs/test_found
+import ./climbs/test_calendarframe
 import ./climbs/test_completion as climbCompletion
 import ./climbs/test_command
 import ./climbs/test_params as climbsParams

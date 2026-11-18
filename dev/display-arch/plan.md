@@ -220,6 +220,10 @@ one read transaction need the first.
   4. the frames of the climbs on the map: `climbs` (shown), `gates`, and `routes` (the rides that went up them: the
      activities' drawing and style, reused);
   5. the frame of the climbs on the calendar: the days with an effort on a selected climb.
+
+  Done 2026-11-18, as above.  What differs from the plan: `--near` measures from where a climb starts, with a default radius
+  of 10km (the activities' 100km is for where a ride starts); criteria that find nothing say so and are no failure, as
+  for activities; on the map of the climbs the routes come first, so that the climbs are drawn beside their threads.
 * Frames for the climbs subject on the map: the selected climbs; the routes of the activities that went up them (the
   inverted case, provided by `climbs`, declaring the activity tables it reads).
 * What `nch climbs` lists today (the climbs of the selected activities) becomes a frame (climbs for activities), shown by

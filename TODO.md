@@ -33,7 +33,7 @@ When something here is done, delete it (in the same commit).  Design steps are d
    2026-11-17); **the cache manifest**.
 5. **The display architecture** (live views, subjects, frames; designed 2026-11-14): `dev/display-arch/plan.md` has the steps, each one done
     only with the author's approval; it replaces the old "Addresses, what is left" (wrapper page, climbs as a layer, the plot command) and
-    "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); next: 6 (the climbs subject; D4 decided), 7 (FF statistics).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
+    "`map` criteria of its own".  Steps 0 to 3 and 3c (the fixes from the review, `dev/display-arch/review-after-step-3-findings.md`) are done; step 4 decided no caching and step 5 done (2026-11-16); 6a done (providers draw their frames, D7); 6 done (the climbs subject, 2026-11-18: D8 to D10); next: 7 (FF statistics, after a design note: D5).  Left over from steps 3 and 5: tab completion of the subject of `map` and `calendar` (a positional word:
     `core/complete` knows only options, so it needs the completion framework to learn them).
 6. **Large countries and `ensureCells`** (low priority; idea, measured 2026-11-11 on Chile only): a batch of new cells
   unzips and parses the whole country file (Chile: 75-140 ms per batch, 2 s for the whole country; `countriesOfCell` 0.15 ms
@@ -74,6 +74,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 * **Inspecting positions on the map** (dev/CLEANING.md, "Related"): the time of a position on hover, or a layer of the raw
   positions; smoothing (`smooth_rounds`) only on cleaned data; places of bad reception (faults per cell, from cleaning) as a
   layer or a list, never an input to cleaning.
+* **Tests that depend on timing fail now and then under load** (2026-11-18): `tests/util/child/test_child.nim` ("three children
+  that take 0.5 s each take about 0.5 s together": 1.36 s against 1.3 s) and `tests/download/test_fetch.nim` (the spinner's
+  thread drew one frame, not two).  Each passed when run again.  Give them more slack, or measure what they mean another way.
 * **Triggers are not checked by the access model** (the review of 2026-11-14, finding 9; low priority): the authorizer skips every
   statement inside a trigger, so a trigger in a package's fragment could write any table.  Audit the triggers of `climbs` and `model`,
   or check a trigger's writes against the package that made it (the `tv_` counters belong to `db`).
