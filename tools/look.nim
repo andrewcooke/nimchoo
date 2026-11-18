@@ -9,9 +9,11 @@
 ## The markup is that of `ui/markup.nim`: `[NAME text]`, nesting, `\[` `\]` `\\`.  Each TEXT given is a line; a `\n` in one
 ## (as two characters, typed in the shell) is a newline too, so that a style running over lines can be tried.
 
-import std/[os, sequtils, strformat, strutils, tables]
+import std/[options, os, sequtils, strformat, strutils, tables]
 import nimchoo/core/errors
 import nimchoo/core/theme
+import nimchoo/packages/cache/cache
+import nimchoo/packages/themes/choose
 import nimchoo/packages/ui/[markup, style]
 
 const examples = [
@@ -50,17 +52,25 @@ proc show(t: Theme, text: string, colour: bool) =
   except MarkupError as e:
     echo fmt"({e.msg}) {text}"
 
+proc whereThemesAre(): string =
+  ## Where the themes are, to say with a usage or a file that cannot be read.
+  let cache = cacheDir()
+  result = "the built-in themes are in src/nimchoo/packages/ui/ (dark.txt, light.txt)"
+  if cache.isSome:
+    let names = themeNames(cache.get).mapIt(it & ".txt").join(", ")
+    result.add fmt"; nch uses those in {themesDir(cache.get)} ({names})"
+
 proc main() =
   var args = commandLineParams()
   let colour = "--plain" notin args
   args = args.filterIt(it != "--plain")
   if args.len == 0:
-    quit "usage: look [--plain] THEME [TEXT... | -]", 2
+    quit "usage: look [--plain] THEME [TEXT... | -]\n(" & whereThemesAre() & ")", 2
   var t: Theme
   try:
     t = parseTheme(readFile(args[0]))
   except IOError as e:
-    quit fmt"look: cannot read {args[0]}: {e.msg}", 1
+    quit fmt"look: cannot read {args[0]}: {e.msg}" & "\n(" & whereThemesAre() & ")", 1
   except ThemeError as e:
     quit fmt"look: {args[0]}: {e.msg}", 1
   let texts = args[1 ..^ 1]
