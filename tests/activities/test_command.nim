@@ -628,7 +628,7 @@ suite "list: what is shown":
       ", 1 saved as the selection, " in r.lines.texts[^1]
     check "match selected" notin r.lines.texts[^1] # (said once)
     check r.lines[^1].anyIt(
-      styleOf(it) == "select" and it.text == ", 1 saved as the selection"
+      styleOf(it) == "select" and it.text == "1 saved as the selection"
     )
     let st = openSession(db, allFragments, access = allAccess)
     defer:

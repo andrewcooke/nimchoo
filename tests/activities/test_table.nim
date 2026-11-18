@@ -65,7 +65,7 @@ suite "list table: the last line":
     ]
     let l = footerLine(rows, some 5)
     check l.text == "done: 3 of 5 activities, 2 match selected, 2.5km, 12m00s"
-    check l.filterIt(styleOf(it) == "select").mapIt(it.text) == @[", 2 match selected"]
+    check l.filterIt(styleOf(it) == "select").mapIt(it.text) == @["2 match selected"]
     check footerLine(rows).text.startsWith("done: 3 activities, 2 match selected, ")
   test "saving: said once, in the select style, in place of the count of those selected":
     let rows = @[row(0, selected = true), row(1, selected = true)]
@@ -73,7 +73,7 @@ suite "list table: the last line":
     check l.text.startsWith("done: 2 of 5 activities, 2 saved as the selection")
     check "match selected" notin l.text
     check l.filterIt(styleOf(it) == "select").mapIt(it.text) ==
-      @[", 2 saved as the selection"]
+      @["2 saved as the selection"]
     check footerLine(@[], some 5, saved = some 0).text ==
       "done: 0 of 5 activities, 0 saved as the selection"
   test "all selected, and a count with no totals":

@@ -10,7 +10,8 @@
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
 
-import std/[algorithm, math, options, sequtils, strutils, tables, times, unicode]
+import
+  std/[algorithm, math, options, sequtils, strformat, strutils, tables, times, unicode]
 import ../fit/time
 import ../importer/describe
 import ../ui/interval
@@ -37,7 +38,7 @@ func positionText*(lat, lon: Option[float]): string =
   ## Google Maps takes them; "no GPS" if there is no start.
   if lat.isNone or lon.isNone:
     return noGps
-  formatFloat(lat.get, ffDecimal, 4) & "," & formatFloat(lon.get, ffDecimal, 4)
+  fmt"{lat.get:.4f},{lon.get:.4f}"
 
 func padRight*(s: string, width: int): string =
   ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).
@@ -149,12 +150,16 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     if r.activeS.isSome:
       seconds += r.activeS.get
     bySport.inc(if r.sport.len > 0: r.sport else: "unknown")
-  result =
-    $rows.len & (if choices.isSome: " of " & $choices.get else: "") &
-    (if rows.len == 1 and choices.isNone: " activity" else: " activities")
+  let ofAll =
+    if choices.isSome:
+      fmt" of {choices.get}"
+    else:
+      ""
+  let noun = if rows.len == 1 and choices.isNone: "activity" else: "activities"
+  result = fmt"{rows.len}{ofAll} {noun}"
   if rows.len == 0:
     return
-  result.add ", " & km(metres) & ", " & interval(seconds)
+  result.add fmt", {km(metres)}, {interval(seconds)}"
   if bySport.len > 1:
     var parts: seq[(string, int)]
     for k, v in bySport:
@@ -165,14 +170,14 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
         result = cmp(a[0], b[0])
     var text: seq[string]
     for (k, v) in parts:
-      text.add $v & " " & k
-    result.add " (" & text.join(", ") & ")"
+      text.add fmt"{v} {k}"
+    result.add fmt" ({text.join("", "")})"
 
 func footerLine*(
     rows: seq[ListRow], choices = none(int), style = selectedStyle, saved = none(int)
 ): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
-  ## the activities are in the selection, ", 35 match selected" follows the count, in the style
+  ## the activities are in the selection, ", 35 match selected" follows the count, the words (not the comma) in the style
   ## the selected ones have in the display (the rows of the table, the days of the calendar):
   ## "done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m".
   ## With `saved` (the listing was kept as the selection) it says so there, in one line with the rest:
@@ -180,7 +185,7 @@ func footerLine*(
   let text = footer(rows, choices)
   let selected = rows.countIt(it.selected)
   if selected == 0 and saved.isNone:
-    return plain("done: " & text)
+    return plain(fmt"done: {text}")
   let split = text.find(", ") # the count comes first; the rest follows a comma
   let head =
     if split < 0:
@@ -189,9 +194,10 @@ func footerLine*(
       text[0 ..< split]
   let said =
     if saved.isSome:
-      ", " & $saved.get & " saved as the selection"
+      fmt"{saved.get} saved as the selection"
     else:
-      ", " & $selected & " match selected"
-  result = @[span("done: " & head), span(said, style)]
+      fmt"{selected} match selected"
+  result =
+    @[span(fmt"done: {head}, "), span(said, style)] # (the comma is not in the style)
   if split >= 0:
     result.add span(text[split .. ^1])
