@@ -5,7 +5,7 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
-import std/strutils
+import std/[strutils, tables, unicode]
 import ./[access, extension, fragment, theme]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
@@ -52,21 +52,31 @@ proc say*(f: File, text: string) {.raises: [].} =
     discard
 
 func inTheme*(g: Globals, o: OutStream, text: string): string =
-  ## `text`, plain, as it goes to `o`: in colour, each line in the theme's `default` look (it starts the look and ends
-  ## with a reset, so that nothing runs on), so that all the text of a command looks alike.
+  ## `text`, plain, as it goes to `o`: in colour, each line in the theme's `default` look, with the lines of a table in the
+  ## `lineStyle` (each look started where it begins, and a reset at the end of each line, so that nothing runs on), so that
+  ## all the text of a command looks alike.
   if not g.colour[o]:
     return text
-  let start = terminalCodes(baseLook(g.theme))
-  if start.len == 0:
+  let base = baseLook(g.theme)
+  let plain = terminalCodes(base)
+  let drawn = terminalCodes(base.over(g.theme.styles.getOrDefault(lineStyle)))
+  if plain.len == 0 and drawn.len == 0:
     return text
   var lines: seq[string]
   for line in text.split('\n'):
-    lines.add(
-      if line.len > 0:
-        start & line & "\e[0m"
-      else:
-        line
-    )
+    var drawnLine = ""
+    var inForce = ""
+    for r in line.runes:
+      let want = if r.isLineDrawing: drawn else: plain
+      if want != inForce:
+        if inForce.len > 0:
+          drawnLine.add "\e[0m"
+        drawnLine.add want
+        inForce = want
+      drawnLine.add $r
+    if inForce.len > 0:
+      drawnLine.add "\e[0m"
+    lines.add drawnLine
   lines.join("\n")
 
 proc file(o: OutStream): File =

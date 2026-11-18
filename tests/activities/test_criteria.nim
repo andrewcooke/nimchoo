@@ -4,6 +4,7 @@ from nimchoo/registry import extensions
 import nimchoo/core/errors
 import nimchoo/packages/user/session
 import std/[options, strutils, times, unittest]
+from std/unicode import runeLen
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/activities/criteria
@@ -536,7 +537,7 @@ suite "list: the usage":
     for width in [60, 80, 120]:
       for l in activitiesCommand.usageText(width).splitLines:
         if not (l.startsWith("usage: ") or l.startsWith("       nch ")):
-          check l.len <= width
+          check l.runeLen <= width
   test "an option of another package would be listed and parsed from its description":
     let extra = OptDoc(
       names: @["--extra"],

@@ -100,3 +100,12 @@ suite "ui style: rendering looks that run on":
       "\e[34ma b\e[0m"
     check render(@[span("a", "select"), span(" "), span("b", "select")], p) ==
       "\e[34ma\e[0m \e[34mb\e[0m"
+
+suite "ui style: the lines of a table or a tree":
+  test "they are drawn in the line style over the span's own; without colour, as they are":
+    let p = Paint(theme: parseTheme("hide fg=bright-black\nbad fg=red"), colour: true)
+    check render(@[span("├── x")], p) == "\e[90m├──\e[0m x"
+    check render(@[span("│a", "bad")], p) == "\e[90m│\e[0m\e[31ma\e[0m"
+    var plain = p
+    plain.colour = false
+    check render(@[span("├── x")], plain) == "├── x"

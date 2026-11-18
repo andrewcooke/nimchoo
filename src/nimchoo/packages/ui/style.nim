@@ -148,19 +148,24 @@ func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
 func render*(line: Line, paint: Paint): string =
   ## The line as text for a terminal: each look is started (if in colour) where it begins and reset where it ends, and the
   ## line ends with a reset, so that nothing runs on to the next line.  Spans side by side that look the same share one.
+  ## The lines of a table or a tree in a span (`│ ─ ├`) are in `lineStyle` over the span's own.
+  if not paint.colour:
+    for s in line:
+      result.add s.text
+    return
   var inForce = "" # the codes of the look being drawn
   for s in line:
-    let start =
-      if paint.colour:
-        terminalCodes(lookOf(paint.theme, s.styles))
-      else:
-        ""
-    if start != inForce:
-      if inForce.len > 0:
-        result.add "\e[0m"
-      result.add start
-      inForce = start
-    result.add s.text
+    let look = lookOf(paint.theme, s.styles)
+    let plain = terminalCodes(look)
+    let drawn = terminalCodes(look.over(paint.theme.styles.getOrDefault(lineStyle)))
+    for r in s.text.runes:
+      let want = if r.isLineDrawing: drawn else: plain
+      if want != inForce:
+        if inForce.len > 0:
+          result.add "\e[0m"
+        result.add want
+        inForce = want
+      result.add $r
   if inForce.len > 0:
     result.add "\e[0m"
 

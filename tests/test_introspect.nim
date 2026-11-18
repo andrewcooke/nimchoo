@@ -1,6 +1,7 @@
 ## `nch packages` (src/nimchoo/introspect.nim): its command line, and the facts about the running program.
 
 import std/[os, sequtils, strutils, unittest]
+from std/unicode import runeLen
 import nimchoo/core/[globals, registry]
 import nimchoo/introspect
 import nimchoo/packages/util/args/args
@@ -40,7 +41,7 @@ suite "nch packages: the command line":
       let text = usageText(width)
       for line in text.splitLines:
         if not (line.startsWith("usage: ") or line.startsWith("       nch ")):
-          check line.len <= width
+          check line.runeLen <= width
       for d in packagesSpec().docs:
         for n in d.names:
           check n in text

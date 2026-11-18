@@ -464,7 +464,8 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
   words and styles for what happened are in `vocabulary`, one table, so that "failed" is `bad` wherever it appears.
   Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
   selection, `selectedStyle`), each used for nothing else; `em` for what to read first, `hide` for the bookkeeping and
-  what was not recorded; `default` is around everything (all that a command writes is in it: `g.say`, `g.show`).  Markup
+  what was not recorded (and the lines of a table or a tree, `│ ─ ┼ └`, wherever they are: `theme.lineStyle`);
+  `default` is around everything (all that a command writes is in it: `g.say`, `g.show`).  Markup
   (`[good imported] 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,
   which nest; `tools/look.nim` shows text with a theme.  (The web pages' colours are their own, in their templates:
   they are always on white, whatever the terminal's theme.)

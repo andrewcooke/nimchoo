@@ -1,4 +1,4 @@
-import std/[sequtils, strutils, unittest]
+import std/[sequtils, strutils, unicode, unittest]
 import nimchoo/packages/util/args/[args, usage]
 
 func doc(names: openArray[string], metavar, help: string): OptDoc =
@@ -88,7 +88,7 @@ suite "wrap: documentation":
     ) == "one two three\nfour\n\n* item one is\n  long and\n  goes on\n* item two"
 
 suite "usage: tables":
-  test "the columns line up, the last is wrapped to the width and its lines start under it":
+  test "the columns line up between lines, the headings over a rule, the last column wrapped under itself":
     let ls = tableLines(
       @["subject", "frame", "what it is"],
       @[
@@ -100,12 +100,23 @@ suite "usage: tables":
       ],
       60,
     )
-    check ls[0] == "  subject     frame    what it is"
-    check ls[1] == "  activities  routes*  the route of each activity"
-    check ls[2].startsWith("  activities  heat     how often each place")
-    check ls.len == 4 and ls[3].startsWith(" ".repeat(23)) and not ls[3][23].isSpaceAscii
-    check ls.allIt(it.len <= 60)
+    check ls[0] == "  subject    │ frame   │ what it is"
+    check ls[1].startsWith(
+      "  ───────────┼─────────┼────"
+    )
+    check ls[2] == "  activities │ routes* │ the route of each activity"
+    check ls[3].startsWith("  activities │ heat    │ how often each place")
+    check ls.len == 5 and ls[4].startsWith("             │         │ ") and
+      not ls[4].runeAt(ls[4].runeOffset(25)).isWhiteSpace
+    check ls.allIt(it.runeLen <= 60)
+    check ls[1].runeLen == ls.mapIt(it.runeLen).max # (the rule as wide as the table)
+  test "a name with an accent does not upset the columns":
+    let ls = tableLines(@["a", "b"], @[@["Ñuñoa", "x"], @["ab", "y"]], 60)
+    let bar = "│".runeAt(0)
+    check ls[2].toRunes.find(bar) == ls[3].toRunes.find(bar)
+      # (counted in characters, not bytes)
+    check ls[2].toRunes.find(bar) == 8
   test "a narrow width still leaves the last column room":
     let ls =
       tableLines(@["a", "b"], @[@["x", "one two three four five six seven eight"]], 10)
-    check ls.allIt(it.len <= 2 + 1 + 2 + 30)
+    check ls.allIt(it.runeLen <= 2 + 1 + 3 + 30)

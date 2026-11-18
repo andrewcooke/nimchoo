@@ -10,6 +10,7 @@
 ## Blank lines and lines starting with `#` are ignored.
 
 import std/[options, strformat, strutils, tables]
+from std/unicode import Rune
 import ./errors
 
 {.push raises: [].}
@@ -245,3 +246,11 @@ func asStyle*(look: Look): Style =
     italic: some(look.italic),
     reverse: some(look.reverse),
   )
+
+const lineStyle* = "hide"
+  ## the style that the lines of a table or a tree (the box-drawing characters, `│ ─ ┼ └`) are drawn in, wherever they
+  ## are (`Globals.inTheme`, `style.render`)
+
+func isLineDrawing*(r: Rune): bool =
+  ## Whether `r` is a box-drawing character (U+2500 to U+257F).
+  int32(r) in 0x2500'i32 .. 0x257F'i32

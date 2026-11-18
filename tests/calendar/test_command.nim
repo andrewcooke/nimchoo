@@ -1,4 +1,5 @@
 import std/[options, os, sequtils, strutils, times, unittest]
+from std/unicode import runeLen
 import nimchoo/core/globals
 import nimchoo/packages/calendar/[calendar, command as calendarCommand, params]
 import nimchoo/packages/db/statement
@@ -79,7 +80,7 @@ suite "nch calendar: the command line":
     for width in [50, 80]:
       for l in calendarCommand.usageText(g, width).splitLines:
         if not l.startsWith("usage: "):
-          check l.len <= width
+          check l.runeLen <= width
   test "exit codes":
     check calendarCommand.run(g, @["--help"]) == exitOk
     check calendarCommand.run(g, @["--nonesuch"]) == exitUsage

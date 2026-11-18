@@ -15,6 +15,14 @@ suite "globals: what is said, in the theme":
     check g.inTheme(osErr, "a\n\nb\n") == "\e[37ma\e[0m\n\n\e[37mb\e[0m\n"
     check g.inTheme(osOut, "a") == "a" # (stdout is not in colour)
 
+  test "the lines of a table are drawn in the line style, even when default changes nothing":
+    var g = Globals(theme: parseTheme("hide fg=bright-black"))
+    g.colour[osOut] = true
+    check g.inTheme(osOut, "a │ b") == "a \e[90m│\e[0m b"
+    var d = Globals(theme: parseTheme("default fg=white\nhide fg=bright-black"))
+    d.colour[osOut] = true
+    check d.inTheme(osOut, "a│") == "\e[37ma\e[0m\e[90m│\e[0m"
+
 suite "globals: nothing writes to the terminal behind the theme's back":
   test "only the low-level writers and the output for programs use stdout and stderr themselves":
     # (everything a person reads goes through `g.say`, `g.show` or `g.inTheme`, so that it is in the theme)
