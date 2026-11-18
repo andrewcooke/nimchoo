@@ -193,30 +193,54 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
     result.add field("defines", "-")
   for d in p.defines:
     var users: seq[string]
+    var holds = ""
     for pt in inv.points:
       if pt.name == d.name:
+        holds = pt.typeName
         for c in pt.contributors:
-          users.add c.package
-    result.add field("defines", d.name & " - " & d.summary)
-    result.add field("  added to by", listOf(users))
+          users.add fmt"{c.package} (priority {c.priority})"
+    let what =
+      if holds.len > 0:
+        fmt"{d.name} (holds {holds})"
+      else:
+        d.name
+    result.add field("defines", fmt"{what} - {d.summary}")
+    result.add field("  added to by", (if users.len == 0: "-"
+      else: users.join(", "))) # (in the order the contributions are used)
   var adds: seq[string]
   for c in p.contributes:
     adds.add fmt"{c.point} (priority {c.priority})"
   result.add field("adds to", listOf(adds))
 
 func pointLines*(inv: Inventory, width: int): seq[string] =
-  ## Each extension point: who defines it, what it holds, and who contributes, in the order the contributions are used.
+  ## Each extension point as a row: who defines it, who adds to it (in the order the contributions are used; a package that
+  ## adds more than one is named once, "c ×2"), and what it is.  The type it holds and the priorities are in the detail of
+  ## the package that defines it (`detailLines`).
+  var rows: seq[seq[string]]
   for pt in inv.points:
-    if result.len > 0:
-      result.add ""
-    result.add fmt"{pt.name}   defined by {pt.owner}" &
-      (if pt.typeName.len > 0: fmt"   holds {pt.typeName}" else: "")
-    for l in wrap(pt.summary, max(30, width - 4)):
-      result.add "    " & l
-    if pt.contributors.len == 0:
-      result.add "    (nothing is contributed)"
-    for i, c in pt.contributors:
-      result.add fmt"    {i + 1}. {c.package} (priority {c.priority})"
+    var names: seq[string]
+    var counts: seq[int]
+    for c in pt.contributors:
+      let at = names.find(c.package)
+      if at < 0:
+        names.add c.package
+        counts.add 1
+      else:
+        inc counts[at]
+    var added: seq[string]
+    for k, n in names:
+      added.add(
+        if counts[k] > 1:
+          fmt"{n} ×{counts[k]}"
+        else:
+          n
+      )
+    rows.add @[
+      pt.name, pt.owner, (if added.len == 0: "-" else: added.join(", ")), pt.summary
+    ]
+  ruledLines(
+    @["point", "defined by", "added to by (in order)", "what it is"], rows, width
+  )
 
 func tableLines*(inv: Inventory, width: int): seq[string] =
   ## Each table, its owner and the packages that may read it.

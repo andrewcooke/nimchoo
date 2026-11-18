@@ -99,12 +99,16 @@ suite "the views":
     check "used by" in text and "tb" in text
     check "ta (a)" in text # (it may read the tables of a)
     check "bee - does b things" in text
-    check "added to by" in text and "c" in text
+    check "added to by" in text and "c (priority 0), c (priority 2)" in text
+    check "b/p (holds int) - " in text
+      # (what --points no longer shows: the detail has it)
 
   test "the points":
-    let text = pointLines(world(), 80).join("\n")
-    check "b/p   defined by b   holds int" in text
-    check "1. c (priority 0)" in text and "2. c (priority 2)" in text
+    let lines = pointLines(world(), 80)
+    check lines[0].startsWith("point") and "added to by (in order)" in lines[0]
+    check lines[1].startsWith("─") and "┼" in lines[1]
+    check lines.anyIt(it.startsWith("b/p") and " │ b " in it and " │ c ×2 " in it)
+      # (c adds twice: named once)
 
   test "the tables":
     let lines = tableLines(world(), 120)
