@@ -13,6 +13,7 @@ import
   ./core/test_fmt,
   ./core/test_ownership,
   ./core/test_logfile,
+  ./core/test_theme,
   ./text/fold/test_fold,
   ./core/test_errors,
   ./test_structure,
@@ -150,10 +151,11 @@ import ./user/test_command
 import ./confirm/test_confirm
 import ./importer/test_count
 import ./bundle/test_unpack
+import ./themes/test_choose
 import
   ./ui/[
     test_units, test_style, test_live, test_vocabulary, test_interval, test_palette,
-    test_theme, test_markup,
+    test_markup,
   ]
 import ./log/test_lines
 import ./log/test_command

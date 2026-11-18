@@ -5,7 +5,7 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
-import ./[access, extension, fragment]
+import ./[access, extension, fragment, theme]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
 
@@ -27,6 +27,8 @@ type Globals* = object ## Options given before the command name, for every comma
   access*: Access ## who may touch which table (`nch` fills it; nil: nothing is checked)
   extensions*: Extensions
     ## what the packages contribute to each other's extension points (`nch` fills it from the registry)
+  theme*: Theme
+    ## what the styles of text look like (`nch` chooses it: the `themes` package; empty: the terminal's own text)
 
 const
   exitOk* = 0

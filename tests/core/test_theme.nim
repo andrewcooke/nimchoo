@@ -1,6 +1,6 @@
 import std/[options, strutils, tables, unittest]
 import nimchoo/core/errors
-import nimchoo/packages/ui/theme
+import nimchoo/core/theme
 
 proc problem(text: string): string =
   try:

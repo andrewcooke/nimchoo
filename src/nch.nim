@@ -7,6 +7,8 @@
 import std/[algorithm, options, os, sequtils, strformat, strutils]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
 import nimchoo/[completion, introspect]
+import nimchoo/packages/cache/cache
+import nimchoo/packages/themes/choose
 import nimchoo/packages/ui/live
 import nimchoo/packages/user/completion as userCompletion
 import nimchoo/packages/util/args/[args, usage]
@@ -23,6 +25,7 @@ const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
 type Head = object ## The options before the command name.
   g: Globals
   help, version, offline: bool
+  theme: Option[string] ## `--theme`
   job: Option[Job] ## `--install-completion` or `--show-completion`
 
 func takeJob(p: var Head, action: Action, value: string): Problem =
@@ -36,6 +39,10 @@ func takeJob(p: var Head, action: Action, value: string): Problem =
     )
   p.job = some(Job(action: action, shell: shell.get))
   fine
+
+proc completeThemes(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
+  ## The themes whose names start with what is typed.
+  themeNames(cacheDir().get("")).filterIt(it.startsWith(typed))
 
 func headSpec(): Spec[Head] =
   ## The options every command takes, given before its name.
@@ -66,6 +73,15 @@ func headSpec(): Spec[Head] =
         "",
         "do not use the network (names are made from the places already loaded; the others are left for a run that may use the network)",
         body = (p.g.offline = true; fine),
+      ),
+      custom(
+        Head,
+        ["--theme"],
+        true,
+        "NAME",
+        "how text looks: a theme, NAME.txt in the cache's system/themes/ (default: $NCH_THEME, else what system/themes/.current links to, else light or dark as $COLORFGBG says, else dark)",
+        completion = completesFrom(completeThemes),
+        body = (p.theme = some(value); fine),
       ),
       optionalValue(
         Head,
@@ -139,6 +155,11 @@ proc main(): int {.raises: [].} =
   var g = head.g
   g.extensions = registry.extensions
   g.access = allAccess
+  let cache = cacheDir()
+  let chosen = loadTheme(cache.get(""), head.theme)
+  g.theme = chosen.theme
+  if chosen.warning.isSome:
+    stderr.say fmt"warning: {chosen.warning.get}" & "\n"
   if i >= args.len:
     stderr.say usageText(helpWidth(stderr))
     return exitUsage

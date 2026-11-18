@@ -1,7 +1,7 @@
 ## What styled text looks like with a theme (a tool for trying themes: no part of nch).
 ##
 ##     nim c -d:release --hints:off -o:build/look tools/look.nim
-##     build/look src/nimchoo/packages/ui/dark.theme '[good imported] 3 files [hide (1.2s)]'
+##     build/look ~/.cache/nch/system/themes/dark.txt '[good imported] 3 files [hide (1.2s)]'
 ##     build/look THEME                  # a sample: every style of the theme, nested, and lines like those of nch
 ##     build/look THEME - < lines.txt    # each line of stdin (read as markup)
 ##     build/look --plain THEME ...      # without colour, as NO_COLOR would show it
@@ -11,7 +11,8 @@
 
 import std/[os, sequtils, strformat, strutils, tables]
 import nimchoo/core/errors
-import nimchoo/packages/ui/[markup, theme]
+import nimchoo/core/theme
+import nimchoo/packages/ui/markup
 
 const examples = [
   "[good imported] 3 files [hide (1.2s)]",

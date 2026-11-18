@@ -1,6 +1,7 @@
 import std/[strutils, unittest]
 import nimchoo/core/errors
-import nimchoo/packages/ui/[markup, theme]
+import nimchoo/core/theme
+import nimchoo/packages/ui/markup
 
 proc problem(text: string): string =
   try:

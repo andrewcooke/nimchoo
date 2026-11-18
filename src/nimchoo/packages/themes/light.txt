@@ -1,0 +1,13 @@
+# The theme for a terminal with a light background.  Copy it to make another (NAME.txt in this directory: `nch --theme NAME`).
+# One style per line: its name, then any of fg=, bg=, weight=bold|normal|dim, underline=yes|no, italic=yes|no,
+# reverse=yes|no (foreground and background swapped).
+# A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
+# What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
+
+default
+em      fg=#000000  weight=bold
+hide    fg=#9e9e9e
+good    fg=#2e7d32
+bad     fg=#c62828
+warn    fg=#b45309
+select  fg=#1f5fbf

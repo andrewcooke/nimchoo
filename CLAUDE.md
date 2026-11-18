@@ -66,7 +66,7 @@ describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use
   starts with its documentation (a `##` comment: the first line is a summary of up to 100 characters; the registry
   generator refuses a package without one and says what to write) and has one constant, `package`, of type `Package`:
   `depends`, `fragments`, `commands`, `defines` (its extension points, each with a summary) and `contributes`.
-* `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit
+* `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `theme.nim` (what a theme says: `Globals` carries the one in force), `Globals` and the exit
   codes, the log, `ownership.nim`, `registry.nim` (the dependency order), `inventory.nim` (what `nch packages` shows),
   `optdoc.nim` (`OptDoc`, what an option is) and `complete.nim` (what tab completion offers, from the options' descriptions).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the packages

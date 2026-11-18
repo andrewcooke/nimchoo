@@ -7,7 +7,7 @@
 ## * Colours (`palette`, `style`, `vocabulary`): the words and looks for what happened are in `vocabulary`, one table, so that
 ##   "failed" is red wherever it appears.  Colour only where it means something; the status colours are green (done), red
 ##   (failed or deleted), yellow (advisory) and blue (the selection, `selectedColour`), and are used for nothing else.
-## * Themes and markup (`theme`, `markup`; not used by the commands yet: TODO "Styles, themes and markup"): a theme file says
+## * Markup (`markup`, with the themes of `core/theme.nim`; not used by the commands yet: TODO "Styles, themes and markup"): a theme file says
 ##   what each style looks like (foreground, background, weight, underline, italic, reverse, each optional), and markup
 ##   (`[good imported] 3 files`) gives text its styles, which nest; `tools/look.nim` shows text with a theme.
 ## * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also

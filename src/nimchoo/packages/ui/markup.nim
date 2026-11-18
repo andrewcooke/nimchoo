@@ -11,7 +11,7 @@
 
 import std/[strformat, tables]
 import ../../core/errors
-import ./theme
+import ../../core/theme
 
 {.push raises: [].}
 

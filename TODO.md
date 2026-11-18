@@ -46,13 +46,11 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
   Time the largest country first.
 
-7. **Styles, themes and markup** (designed with the author, 2026-11-18).  Done: step 1, `ui/theme.nim` (the theme file),
+7. **Styles, themes and markup** (designed with the author, 2026-11-18).  Done: step 1, `core/theme.nim` (the theme file),
    `ui/markup.nim` (`[style text]`, nesting that replaces only what a style gives, `[default ...]` back to plain, `\[ \] \\`,
-   styles that run over newlines) and `tools/look.nim` to try them; the author is trying colours and the format with it.  Next:
-   (2) themes in nch: built-in `dark.txt` and `light.txt` unpacked to the cache's `system/themes/`, chosen by `--theme`/`NCH_THEME`,
-   else the symlink `system/themes/.current` (relative: `.current -> dark.txt`; made by the author, decided 2026-11-18), else
-   `COLORFGBG`, else dark; a broken link or a bad theme is warned of and the built-in dark is used; loaded once into `Globals`, shown by
-   `nch packages --config`; (3) the code uses styles (default, em, hide, good, bad, warn, select) instead of `palette` colours, and
+   styles that run over newlines) and `tools/look.nim` to try them; the author is trying colours and the format with it; step 2, the `themes`
+   package (built-in `dark.txt` and `light.txt` in the cache's `system/themes/`, chosen by `--theme`, `NCH_THEME`, the link
+   `system/themes/.current`, `COLORFGBG`, else dark), the theme in `Globals` and in `nch packages --config`.  Next: (3) the code uses styles (default, em, hide, good, bad, warn, select) instead of `palette` colours, and
    `vocabulary` maps events to them; (4) `styled"..."`, markup checked when compiled, the values in `{}` plain text.  No fixed set
    of styles (decided 2026-11-18): the names are those the built-in theme defines, the names in `styled` are checked against it when
    compiled, and a style that a chosen theme lacks changes nothing; (5) the web: a

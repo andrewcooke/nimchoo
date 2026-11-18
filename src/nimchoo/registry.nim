@@ -34,6 +34,7 @@
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (activities, later climbs and FF statistics).
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
+## * `themes <packages/themes/package.html>`_ - The built-in themes, and which theme is in force.
 ## * `ui <packages/ui/package.html>`_ - How the program looks: units, intervals, colours, tables and the live display.
 ## * `user <packages/user/package.html>`_ - The users, and which one a command works for.
 ## * `version <packages/util/version/package.html>`_ - What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.
@@ -66,6 +67,7 @@ import ./packages/selection/package as pkgSelection
 import ./packages/subject/package as pkgSubject
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/templating/package as pkgTemplating
+import ./packages/themes/package as pkgThemes
 import ./packages/ui/package as pkgUi
 import ./packages/user/package as pkgUser
 import ./packages/util/args/package as pkgArgs
@@ -119,7 +121,7 @@ other views (`climbs`, `map`, `calendar`) take the selection.
       doc:
         """Files built into the program that are also kept in the cache, for the author to edit.
 
-The FIT profile, the licence notice and the page templates are unpacked to the cache directory's `system/` part and never
+The FIT profile, the licence notice, the page templates and the themes are unpacked to the cache directory's `system/` part and never
 overwritten once changed; delete one to get the built-in version again.""",
     ),
     Registered(
@@ -427,6 +429,20 @@ A subset of Mustache, enough for the pages and small enough to read in one sitti
 engine ends a comment at the first closing braces).""",
     ),
     Registered(
+      name: "themes",
+      package: pkgThemes.package,
+      summary: "The built-in themes, and which theme is in force.",
+      doc: """The built-in themes, and which theme is in force.
+
+The themes are files `NAME.txt` in the cache directory's `system/themes/`: the built-in `dark` and `light` are unpacked
+there (an edited one is kept, a deleted one comes back), and any other file there is a theme too.  The one in force is,
+the first that is given: `--theme NAME`; `$NCH_THEME`; the symbolic link `system/themes/.current`, which the author makes
+(`ln -sf light.txt ~/.cache/nch/system/themes/.current`) and which names a theme in the same directory; `$COLORFGBG`, which
+some terminals set (a light background: `light`); else `dark`.  A theme that cannot be used is warned of, and the
+built-in `dark` is used instead (how text looks is not worth stopping a command for).  The format of the file is in
+`core/theme.nim`; `tools/look.nim` shows what a theme looks like.""",
+    ),
+    Registered(
       name: "ui",
       package: pkgUi.package,
       summary:
@@ -441,7 +457,7 @@ engine ends a comment at the first closing braces).""",
 * Colours (`palette`, `style`, `vocabulary`): the words and looks for what happened are in `vocabulary`, one table, so that
   "failed" is red wherever it appears.  Colour only where it means something; the status colours are green (done), red
   (failed or deleted), yellow (advisory) and blue (the selection, `selectedColour`), and are used for nothing else.
-* Themes and markup (`theme`, `markup`; not used by the commands yet: TODO "Styles, themes and markup"): a theme file says
+* Markup (`markup`, with the themes of `core/theme.nim`; not used by the commands yet: TODO "Styles, themes and markup"): a theme file says
   what each style looks like (foreground, background, weight, underline, italic, reverse, each optional), and markup
   (`[good imported] 3 files`) gives text its styles, which nest; `tools/look.nim` shows text with a theme.
 * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also

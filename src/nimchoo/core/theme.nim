@@ -1,4 +1,5 @@
-## Themes: what each style of text looks like on a terminal, read from a theme file.  A style names only the attributes it
+## Themes: what each style of text looks like on a terminal, read from a theme file.  The theme in force is in `Globals`
+## (chosen by the `themes` package when `nch` starts); an empty one draws everything as the terminal's own text.  A style names only the attributes it
 ## changes (foreground, background, weight, underline, italic, reverse); one nested inside another replaces those and keeps the rest
 ## (`markup.nim`).  The style `default` surrounds all text, and what it leaves out is the terminal's own, so every piece of
 ## text has a complete look.
@@ -9,7 +10,7 @@
 ## Blank lines and lines starting with `#` are ignored.
 
 import std/[options, strformat, strutils, tables]
-import ../../core/errors
+import ./errors
 
 {.push raises: [].}
 
@@ -46,6 +47,10 @@ type
 
   Theme* = object
     styles*: OrderedTable[string, Style] ## in the order of the file
+    name*: string
+      ## what it is called (the file's name without `.txt`; "" when read from text)
+    origin*: string
+      ## why it is the one in force (`--theme`, `$NCH_THEME` ...: `nch packages --config`)
 
 const
   defaultStyle* = "default" ## the style around all text

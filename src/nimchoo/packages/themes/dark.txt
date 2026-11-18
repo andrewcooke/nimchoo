@@ -1,4 +1,4 @@
-# The theme for a terminal with a dark background (a first draft: try it with tools/look.nim).
+# The theme for a terminal with a dark background.  Copy it to make another (NAME.txt in this directory: `nch --theme NAME`).
 # One style per line: its name, then any of fg=, bg=, weight=bold|normal|dim, underline=yes|no, italic=yes|no,
 # reverse=yes|no (foreground and background swapped).
 # A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
@@ -8,6 +8,9 @@ default fg=#ffffff  bg=#000000  weight=normal  underline=no  italic=no
 em                              weight=bold
 hide    fg=#808080
 select              bg=#283010
-bad     fg=#e06060
-good    fg=#40a040
-warn    fg=#c08040
+#bad     fg=#e06060
+#good    fg=#40a040
+#warn    fg=#c08040
+bad     fg=#ffa0a0
+good    fg=#a0ffa0
+warn    fg=#ffffa0

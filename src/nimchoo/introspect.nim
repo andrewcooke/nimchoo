@@ -225,6 +225,13 @@ proc configLines*(g: Globals): seq[string] =
       "the default user of the database",
   )
   result.add row("offline", if g.offline: "yes (--offline)" else: "no")
+  result.add row(
+    "theme",
+    if g.theme.name.len > 0:
+      fmt"{g.theme.name}  ({g.theme.origin})"
+    else:
+      "none: the terminal's own text",
+  )
   let log = envLogPath()
   result.add row("log", if log.isSome: log.get else: "off (NCH_LOG is empty)")
   let cache = cacheDir()
@@ -239,7 +246,7 @@ proc configLines*(g: Globals): seq[string] =
   result.add row("commands", generated.commands.mapIt(it.name).join(" ") & " packages")
   let variables = [
     "NCH_DB", "NCH_LOG", "NCH_CACHE", "XDG_STATE_HOME", "XDG_CACHE_HOME",
-    "XDG_DATA_HOME", "NO_COLOR",
+    "XDG_DATA_HOME", "NO_COLOR", "NCH_THEME", "COLORFGBG",
   ].mapIt(setIn(it))
   for i, v in variables:
     result.add row((if i == 0: "environment" else: ""), v)
