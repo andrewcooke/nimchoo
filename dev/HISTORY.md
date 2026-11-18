@@ -4,6 +4,40 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Styles, themes and markup (done 2026-11-18)
+
+Colour on the terminal was a fixed palette of six colours named in code (`ui/palette.nim`, `span(text, red, bold = true)`).
+The author asked for it to be formalised: a few named styles, their looks in a file, markup to write styled text, and a way
+to switch between files.  Built in five steps, each discussed first:
+
+* **Styles are names; looks are the theme's.**  A theme file (`core/theme.nim`) gives each style any of fg, bg,
+  weight (bold, normal, dim: one attribute, as terminals switch bold and dim off together), underline, italic, reverse;
+  what a style leaves out it keeps from the style around it, so styles nest (a style that only underlines keeps the colour).
+  `default` surrounds everything, and inline goes back to the plain look.  Colours are `#rrggbb` (true colour), the sixteen
+  of the terminal's palette, or `terminal`; booleans are `yes|no` (a bare flag could not switch underline off inside an
+  underlined style).  The author tested what modern terminals show (true colour, bold, dim, italic, underline, reverse).
+* **No fixed set of styles** (the author: "we don't need a fixed set").  The names the code may use are those of the built-in
+  `dark.txt`, checked when compiled (`span(text, "bad")`, `styleName"select"`, `styled"..."`); a style that a chosen theme
+  lacks changes nothing (option (a) of three: simpler than filling gaps from the built-in theme, or refusing a partial theme).
+* **Markup** is `[style text]` (the author: less typing than open/close tags), escapes `\[ \] \\`; doubling cannot work
+  since `]]` closes two styles.  A style may run over a newline, but each line is drawn on its own (it starts its look and
+  ends with a reset), so a line can be cut or printed alone.  In code, `styled"[good imported] {n} files"` (a macro: the
+  markup is read when compiled, errors point at the literal; the values are put in by `fmt` and are plain text, so a name
+  with brackets is not markup).  Option (c), markup parsed at run time everywhere, was refused: escaping every value by hand,
+  errors found late.
+* **Which theme**: files `NAME.txt` in the cache's `system/themes/` (the built-in dark and light unpacked like the other
+  bundles), chosen by `--theme`, `$NCH_THEME`, the relative link `system/themes/.current` (the author's choice of how a choice
+  persists), `$COLORFGBG`, else dark.  A theme that cannot be used is warned of and the built-in dark used: how text looks
+  is not worth stopping a command for.  The theme's type is in `core` so that `Globals` carries it (as it carries the log).
+* **Everything a person reads is in the theme** (option (a) of two, the author's): `default` applied only to styled spans
+  made some plain text look different, so commands write with `g.say`/`g.show`/`failure(g, ...)`, and a test forbids
+  writing to the terminal any other way (except output for programs).  A selected row is one span (`style.merged`), so a
+  style with a background runs on across the columns; the comma before "N match selected" is outside the style.
+* **The web pages keep their own colours** (option (b) of three): they are always on white, whatever the terminal's theme,
+  and most of their colours are drawing colours with no meaning (routes, heat, gates); a `web=` colour per style would have
+  been the same in every theme.  `palette.nim` went; each template has its colours written in it.
+* The tool `tools/look.nim` shows text (or a sample) in a theme, so themes can be tried without nch.
+
 ## Overlap of climbs in SQL (done 2026-11-11; REVIEW.md step 12, first part)
 
 `climbs/overlap.nim` asks SpatiaLite whether a climb found is a stored one (`isRepeat`) and which stored climbs are near

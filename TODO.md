@@ -46,19 +46,10 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
   Time the largest country first.
 
-7. **Styles, themes and markup** (designed with the author, 2026-11-18).  Done: step 1, `core/theme.nim` (the theme file),
-   `ui/markup.nim` (`[style text]`, nesting that replaces only what a style gives, `[default ...]` back to plain, `\[ \] \\`,
-   styles that run over newlines) and `tools/look.nim` to try them; the author is trying colours and the format with it; step 2, the `themes`
-   package (built-in `dark.txt` and `light.txt` in the cache's `system/themes/`, chosen by `--theme`, `NCH_THEME`, the link
-   `system/themes/.current`, `COLORFGBG`, else dark), the theme in `Globals` and in `nch packages --config`; step 3, the code uses styles (default, em, hide, good, bad, warn, select: `ui/style.nim`, the built-in
-   themes in `ui/`), drawn with a `Paint` (the theme and whether in colour); step 4, `styled"..."` (markup read when compiled, the values plain
-   text) and everything a command writes in the theme (`g.say`, `g.show`, `failure(g, ...)`).  No fixed set of styles (decided
-   2026-11-18): the names are those the built-in theme defines, and a style that a chosen theme lacks changes nothing.  Step 5 (decided 2026-11-18, option b):
-   the web pages keep their own colours, in their templates (they are always on white, whatever the terminal's theme), and
-   `ui/palette.nim` is gone.  Next: (6) the docs.  Also: a mark for the selection when there is no colour.
-
 ## Features and ideas, unordered
 
+* **A mark for the selection when there is no colour** (left from the styles, 2026-11-18): with NO_COLOR or a pipe, the
+  selected rows of `nch activities` (and the selected days, rides) are not told apart; options proposed to the author.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
   (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
   A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for
