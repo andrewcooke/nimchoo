@@ -3,6 +3,7 @@
 ##     nim c -d:release --hints:off -o:build/look tools/look.nim
 ##     build/look ~/.cache/nch/system/themes/dark.txt '[good imported] 3 files [hide (1.2s)]'
 ##     build/look THEME                  # a sample: every style of the theme, nested, and lines like those of nch
+##     build/look light                  # a theme by its name: NAME.txt in the cache's themes, else the built-in one
 ##     build/look THEME - < lines.txt    # each line of stdin (read as markup)
 ##     build/look --plain THEME ...      # without colour, as NO_COLOR would show it
 ##
@@ -65,14 +66,37 @@ proc main() =
   let colour = "--plain" notin args
   args = args.filterIt(it != "--plain")
   if args.len == 0:
-    quit "usage: look [--plain] THEME [TEXT... | -]\n(" & whereThemesAre() & ")", 2
+    quit "usage: look [--plain] THEME|NAME [TEXT... | -]\n(" & whereThemesAre() & ")", 2
+  # THEME is a file, else the name of a theme: the file of that name in the cache's themes (as nch would use it), else the
+  # built-in one of that name
+  var path = args[0]
+  var text = none(string)
+  let cache = cacheDir()
+  if not fileExists(path) and isThemeName(path):
+    if cache.isSome and fileExists(themesDir(cache.get) / (path & ".txt")):
+      path = themesDir(cache.get) / (path & ".txt")
+    else:
+      for b in builtInThemes:
+        if b.name == path:
+          text = some(b.text)
+          path = fmt"the built-in {b.name}"
   var t: Theme
   try:
-    t = parseTheme(readFile(args[0]))
+    t = parseTheme(
+      if text.isSome:
+        text.get
+      else:
+        readFile(path)
+    )
   except IOError as e:
-    quit fmt"look: cannot read {args[0]}: {e.msg}" & "\n(" & whereThemesAre() & ")", 1
+    let why =
+      if fileExists(path):
+        fmt"cannot read {path}: {e.msg}"
+      else:
+        fmt"no file or theme is called {path}"
+    quit fmt"look: {why}" & "\n(" & whereThemesAre() & ")", 1
   except ThemeError as e:
-    quit fmt"look: {args[0]}: {e.msg}", 1
+    quit fmt"look: {path}: {e.msg}", 1
   let texts = args[1 ..^ 1]
   if texts.len > 0:
     for text in texts:
