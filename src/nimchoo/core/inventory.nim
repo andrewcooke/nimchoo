@@ -154,6 +154,7 @@ func summaryLines*(inv: Inventory, width: int): seq[string] =
     rows,
     width,
     right = {1, 2, 3, 4},
+    together = {1, 2, 3},
   )
   result.add ""
   result.add wrap(

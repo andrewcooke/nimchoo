@@ -75,7 +75,7 @@ suite "the views":
   test "the summary has a line for each package with what it is for, and under it what it provides":
     let lines = summaryLines(world(), 80)
     check lines[0].startsWith("package") and "what it is for" in lines[0] and
-      " │ L │ U │ B │ T │ " in lines[0]
+      " │ L  U  B  T │ " in lines[0]
     check lines[1].startsWith("────") and "┼" in lines[1]
       # (the rule under the headings)
     check lines[^1].startsWith("L: the layer") or
