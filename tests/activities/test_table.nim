@@ -2,6 +2,7 @@ import std/[options, sequtils, strutils, times, unicode, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/packages/activities/table
 import nimchoo/packages/ui/style
+import ../support/styles
 
 let zone = utc()
 
@@ -55,8 +56,8 @@ suite "list table: the last line":
     let rows =
       @[row(0, "cycling", "", 1500.0, 600.0), row(1, "cycling", "", 500.0, 60.0)]
     check footerLine(rows, some 5).text == "done: " & footer(rows, some 5)
-    check footerLine(rows, some 5).allIt(it.look.colour == white)
-  test "some selected: the count in blue, after the number of activities":
+    check footerLine(rows, some 5).allIt(styleOf(it) == "")
+  test "some selected: the count in the select style, after the number of activities":
     let rows = @[
       row(0, "cycling", "", 1500.0, 600.0, selected = true),
       row(1, "cycling", "", 500.0, 60.0),
@@ -64,14 +65,14 @@ suite "list table: the last line":
     ]
     let l = footerLine(rows, some 5)
     check l.text == "done: 3 of 5 activities, 2 match selected, 2.5km, 12m00s"
-    check l.filterIt(it.look.colour == blue).mapIt(it.text) == @[", 2 match selected"]
+    check l.filterIt(styleOf(it) == "select").mapIt(it.text) == @[", 2 match selected"]
     check footerLine(rows).text.startsWith("done: 3 activities, 2 match selected, ")
-  test "saving: said once, in blue, in place of the count of those selected":
+  test "saving: said once, in the select style, in place of the count of those selected":
     let rows = @[row(0, selected = true), row(1, selected = true)]
     let l = footerLine(rows, some 5, saved = some 2)
     check l.text.startsWith("done: 2 of 5 activities, 2 saved as the selection")
     check "match selected" notin l.text
-    check l.filterIt(it.look.colour == blue).mapIt(it.text) ==
+    check l.filterIt(styleOf(it) == "select").mapIt(it.text) ==
       @[", 2 saved as the selection"]
     check footerLine(@[], some 5, saved = some 0).text ==
       "done: 0 of 5 activities, 0 saved as the selection"
@@ -249,7 +250,7 @@ suite "list table: the last line":
     check footer(@[row(0, ""), row(1, "cycling")]).endsWith("(1 cycling, 1 unknown)")
 
 suite "list table: looks":
-  test "a row in the selection is blue all through; the others are not":
+  test "a row in the selection is in the select style all through; the others are not":
     let rows = @[
       row(aug27, "cycling", "", 1000.0, 60.0, selected = true),
       row(aug27, "running", "", 2000.0, 90.0),
@@ -257,20 +258,20 @@ suite "list table: looks":
     ]
     let t = table(rows, zone, false)
     for sp in t[1]:
-      check sp.look.colour == blue or sp.text.strip == ""
+      check styleOf(sp) == "select" or sp.text.strip == ""
     for sp in t[2]:
-      check sp.look.colour != blue or sp.text.strip == ""
+      check styleOf(sp) != "select" or sp.text.strip == ""
     for sp in t[3]:
-      check sp.look.colour == grey or sp.text.strip == ""
+      check styleOf(sp) == "hide" or sp.text.strip == ""
       # (a transition stays dim)
     for sp in t[0]:
-      check sp.look.colour == white
+      check styleOf(sp) == ""
       # (the header is plain)
-  test "a selected row with a missing value is blue too, not grey":
+  test "a selected row with a missing value is in the select style too, not hidden":
     let t =
       table(@[row(aug27, "cycling", "", -1.0, -1.0, selected = true)], zone, false)
     for sp in t[1]:
-      check sp.look.colour == blue or sp.text.strip == ""
+      check styleOf(sp) == "select" or sp.text.strip == ""
   test "no GPS is dim; a position and a place name are not":
     let rows = @[
       row(aug27, "cycling", "", 1000.0, 60.0, position = "no GPS"),
@@ -285,48 +286,48 @@ suite "list table: looks":
       ),
     ]
     let t = table(rows, zone, true)
-    proc lookOfText(i: int, text: string): Look =
+    proc lookOfText(i: int, text: string): string =
       for sp in t[i]:
         if sp.text.contains(text):
-          return sp.look
+          return styleOf(sp)
       raiseAssert "no cell with " & text
 
-    check lookOfText(1, "no GPS").colour == grey
-    check lookOfText(2, "Santiago").colour != grey
-  proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): Look =
+    check lookOfText(1, "no GPS") == "hide"
+    check lookOfText(2, "Santiago") != "hide"
+  proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): string =
     for sp in lines[rowIndex]:
       if sp.text.strip.startsWith(prefix):
-        return sp.look
+        return styleOf(sp)
     raiseAssert "no cell " & prefix
 
-  test "a plain row has no look at all":
+  test "a plain row has no style at all":
     let lines = table(@[row(aug27, "cycling", "road", 5000.0, 600.0)], zone, false)
     for sp in lines[1]:
-      check sp.look == Look()
+      check sp.styles.len == 0
   test "a transition is dim all through, even with zeros":
     let lines = table(@[row(aug27, "transition", "", 0.0, 0.0)], zone, false)
     for sp in lines[1]:
-      check sp.look == Look(colour: grey) or sp.text.strip == ""
-    check lookOf(lines, 1, "0.0").colour == grey
+      check styleOf(sp) == "hide" or sp.text.strip == ""
+    check lookOf(lines, 1, "0.0") == "hide"
   test "not recorded is dim":
     let lines = table(@[row(aug27, "cycling", "", -1.0, -1.0)], zone, false)
-    check lookOf(lines, 1, "-").colour == grey
-    check lines[1].countIt(it.look.colour == grey and it.text.strip == "-") == 2
-  test "a distance or active time that shows as zero is yellow; others are not":
+    check lookOf(lines, 1, "-") == "hide"
+    check lines[1].countIt(styleOf(it) == "hide" and it.text.strip == "-") == 2
+  test "a distance or active time that shows as zero is a warning; others are not":
     let zeros = table(@[row(aug27, "running", "", 0.0, 0.0)], zone, false)
-    check lookOf(zeros, 1, "0.0").colour == yellow
-    check lookOf(zeros, 1, "0s").colour == yellow
+    check lookOf(zeros, 1, "0.0") == "warn"
+    check lookOf(zeros, 1, "0s") == "warn"
     let small = table(@[row(aug27, "running", "", 2.49, 2.1)], zone, false)
       # shows as 0.0, 2s
     check small.texts[1].contains("0.0") and small.texts[1].endsWith("2s")
-    check lookOf(small, 1, "0.0").colour == yellow
-    check lookOf(small, 1, "2s").colour == yellow
+    check lookOf(small, 1, "0.0") == "warn"
+    check lookOf(small, 1, "2s") == "warn"
     let notYet = table(@[row(aug27, "running", "", 60.0, 40.0)], zone, false) # 0.1, 40s
-    check lookOf(notYet, 1, "0.1").colour == white
-    check lookOf(notYet, 1, "40s").colour == white
+    check lookOf(notYet, 1, "0.1") == ""
+    check lookOf(notYet, 1, "40s") == ""
     let onlyActive = table(@[row(aug27, "running", "", 5000.0, 0.0)], zone, false)
-    check lookOf(onlyActive, 1, "5.0").colour == white
-    check lookOf(onlyActive, 1, "0s").colour == yellow
-  test "the header has no look":
+    check lookOf(onlyActive, 1, "5.0") == ""
+    check lookOf(onlyActive, 1, "0s") == "warn"
+  test "the header has no style":
     for sp in table(@[row(aug27)], zone, false)[0]:
-      check sp.look == Look()
+      check sp.styles.len == 0

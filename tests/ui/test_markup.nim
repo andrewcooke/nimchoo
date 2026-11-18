@@ -1,7 +1,7 @@
 import std/[strutils, unittest]
 import nimchoo/core/errors
 import nimchoo/core/theme
-import nimchoo/packages/ui/markup
+import nimchoo/packages/ui/[markup, style]
 
 proc problem(text: string): string =
   try:
@@ -10,13 +10,16 @@ proc problem(text: string): string =
   except MarkupError as e:
     e.msg
 
-func piece(text: string, styles: varargs[string]): Piece =
-  Piece(text: text, styles: @styles)
+func piece(text: string, styles: varargs[string]): Span =
+  var names: seq[StyleName]
+  for s in styles:
+    names.add anyStyle(s)
+  Span(text: text, styles: names)
 
 suite "ui markup: reading":
   test "text with no markup is one piece in no style":
     check parseMarkup("plain text") == @[@[piece("plain text")]]
-    check parseMarkup("") == @[newSeq[Piece]()]
+    check parseMarkup("") == @[newSeq[Span]()]
 
   test "a style covers its text, and the space after its name is not text":
     check parseMarkup("[good imported] 3 files") ==
@@ -44,28 +47,31 @@ suite "ui markup: reading":
       "at 4: the name of a style is followed by a space: [em text]"
     check problem("a \\n").startsWith("at 3: a backslash goes only before")
 
-suite "ui markup: painting and rendering":
+suite "ui markup: drawing":
   let t = parseTheme("default fg=white\nem weight=bold\nred fg=red\nline underline=yes")
 
-  test "every piece has the base look with its styles over it, in order":
-    let p = paint(t, parseMarkup("a [red b [em c]] [line [red d]]")[0])
-    check p[0].look == baseLook(t)
-    check p[1].look.fg == Colour(kind: ckBasic, index: 1)
-    check p[2].look.fg == Colour(kind: ckBasic, index: 1)
-    check p[2].look.weight == wtBold
-    check p[4].look.underline
-    check p[4].look.fg == Colour(kind: ckBasic, index: 1)
+  func looks(t: Theme, text: string): seq[Look] =
+    for sp in parseMarkup(text)[0]:
+      result.add lookOf(t, sp.styles)
+
+  test "every span has the base look with its styles over it, in order":
+    let p = looks(t, "a [red b [em c]] [line [red d]]")
+    check p[0] == baseLook(t)
+    check p[1].fg == Colour(kind: ckBasic, index: 1)
+    check p[2].fg == Colour(kind: ckBasic, index: 1)
+    check p[2].weight == wtBold
+    check p[4].underline
+    check p[4].fg == Colour(kind: ckBasic, index: 1)
 
   test "default inside a style goes back to the base look":
-    let p = paint(t, parseMarkup("[em [line [default x]]]")[0])
-    check p[0].look == baseLook(t)
+    check looks(t, "[em [line [default x]]]")[0] == baseLook(t)
 
   test "a style the theme does not have changes nothing":
-    check paint(t, parseMarkup("[red a [blue b]]")[0])[1].look ==
-      paint(t, parseMarkup("[red a]")[0])[0].look
+    check looks(t, "[red a [blue b]]")[1] == looks(t, "[red a]")[0]
 
-  test "each piece starts its look and ends with a reset; without colour, only the text":
-    let plain = parseTheme("red fg=red")
-    check styled(plain, "a [red b]\n[red c] d", true) ==
+  test "each span starts its look and ends with a reset; without colour, only the text":
+    let red = parseTheme("red fg=red")
+    check styled(Paint(theme: red, colour: true), "a [red b]\n[red c] d") ==
       @["a \e[31mb\e[0m", "\e[31mc\e[0m d"]
-    check styled(plain, "a [red b]\n[red c] d", false) == @["a b", "c d"]
+    check styled(Paint(theme: red, colour: false), "a [red b]\n[red c] d") ==
+      @["a b", "c d"]

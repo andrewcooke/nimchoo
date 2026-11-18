@@ -256,7 +256,7 @@ func neighbours(inv: Inventory, name: string, reverse: bool): seq[string] =
 
 type TreeLine* = object ## A line of a tree of packages.
   text*: string
-  again*: bool ## the package was drawn above (drawn grey: `nch packages`)
+  again*: bool ## the package was drawn above (drawn hidden: `nch packages`)
 
 func treeLines*(
     inv: Inventory, root: string, reverse = false, repeats = true
@@ -347,7 +347,7 @@ func reducedDepends(inv: Inventory): Table[string, seq[string]] =
     result[p.name.normalised] = kept
 
 type LayerPiece* = tuple[text: string, implied: bool]
-  ## a piece of a line of the layers: a dependency implied by another (drawn grey: `nch packages --graph -v`), or not
+  ## a piece of a line of the layers: a dependency implied by another (drawn hidden: `nch packages --graph -v`), or not
 
 func layerLines*(inv: Inventory, width: int, implied = false): seq[seq[LayerPiece]] =
   ## The packages by layer, the highest first, each with the packages it depends on directly and not through another

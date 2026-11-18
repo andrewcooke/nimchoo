@@ -16,7 +16,6 @@ import ../importer/describe
 import ../util/lookup/lookup
 import ../text/fold/fold
 import std/unicode
-import ../ui/palette
 import ../ui/style
 import ../ui/units
 import ../ui/vocabulary
@@ -234,8 +233,9 @@ func alignedLines(
           pad & cell
         else:
           cell & pad
-      line.add span(
-        text, (if c <= 31 and c in selectedCols: selectedColour else: white)
+      line.add (
+        if c <= 31 and c in selectedCols: span(text, selectedStyle)
+        else: span(text)
       )
     if line.len > 0:
       line[^1].text = line[^1].text.strip(leading = false) # (no trailing blanks)
@@ -331,4 +331,6 @@ proc summaryLines*(
         chosen.add a.selected
     let aligned = columns(inner, {0, 1})
     for j, l in aligned:
-      result.add @[span("    " & l, (if chosen[j]: selectedColour else: white))]
+      result.add @[
+        (if chosen[j]: span("    " & l, selectedStyle) else: span("    " & l))
+      ]

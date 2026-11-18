@@ -1,4 +1,5 @@
 import std/[strutils, unittest]
+import nimchoo/core/theme
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
 
@@ -24,7 +25,7 @@ proc live(f: Fake, colour = false): Live =
       f.now,
     size = proc(): tuple[w, h: int] {.closure, raises: [].} =
       (f.w, f.h),
-    colour = colour,
+    paint = Paint(theme: parseTheme("bad fg=red"), colour: colour),
   )
 
 func lines(xs: varargs[string]): seq[Line] =
@@ -109,8 +110,8 @@ suite "live region: what is drawn":
 
   test "colour is used only when asked for":
     let f = newFake()
-    f.live(colour = false).show @[@[span("x", red)]]
-    f.live(colour = true).show @[@[span("x", red)]]
+    f.live(colour = false).show @[@[span("x", "bad")]]
+    f.live(colour = true).show @[@[span("x", "bad")]]
     check not f.written[0].contains("\e[31m")
     check f.written[1].contains("\e[31mx\e[0m")
 

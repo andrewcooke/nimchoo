@@ -114,20 +114,20 @@ func commas(n: int): string =
   insertSep($n, ',')
 
 func climbingLines*(done, total: int, worked: Worked): seq[Line] =
-  ## The two lines that follow the work, as the import's do: the first plain ("climbing" in bold), the second
-  ## the counts in green, joined by grey dots.  The last frame is left on the screen.
+  ## The two lines that follow the work, as the import's do: the first plain ("climbing" emphasised), the second
+  ## the counts good, joined by hidden dots.  The last frame is left on the screen.
   ##
   ##     climbing 120 / 1,986 activities
   ##     climbs 12 · efforts 40
   @[
     @[
-      span("climbing ", bold = true),
+      span("climbing ", "em"),
       span(commas(done) & " / " & commas(total) & " activities"),
     ],
     @[
-      span("climbs " & commas(worked.sectors), green),
-      span(" · ", grey),
-      span("efforts " & commas(worked.efforts), green),
+      span("climbs " & commas(worked.sectors), "good"),
+      span(" · ", "hide"),
+      span("efforts " & commas(worked.efforts), "good"),
     ],
   ]
 

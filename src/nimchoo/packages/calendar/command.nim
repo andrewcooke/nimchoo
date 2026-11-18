@@ -25,9 +25,9 @@ const
   synopsis = "usage: nch [--db PATH] [--user NAME] calendar [SUBJECT] [-v]"
   intro =
     """A subject (by default the activities of the selection: see `nch activities --select`) on a calendar: a row for each
-month that has a marked day, the days in columns by weekday (weeks start on Monday).  Blue: a marked day (for the activities,
-one when an activity started); grey: none.  The months either side of a gap are marked (a yellow name, or a * without
-colour), as are the months that were left out."""
+month that has a marked day, the days in columns by weekday (weeks start on Monday).  In the selection's colour: a marked day (for the
+activities, one when an activity started); dimmed: none.  The months either side of a gap are marked (a name in the warning
+colour, or a * without colour), as are the months that were left out."""
 
 func registryLines(
     subjects: seq[Subject], all: seq[CalendarFrame], width: int
@@ -86,8 +86,8 @@ proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
     let months = if n == 1: "month" else: "months"
     result.add @[
       span(
-        fmt"warning: {n} {months} with no activity not shown, at the yellow month names; use --verbose to show them",
-        yellow,
+        fmt"warning: {n} {months} with no activity not shown, at the month names in this colour; use --verbose to show them",
+        "warn",
       )
     ]
 
@@ -128,9 +128,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure("nch calendar", e.msg)
   try:
-    let colour = canColourStdout()
+    let paint = stdoutPaint(g.theme)
     let screen = Screen(
-      colour: colour,
+      colour: paint.colour,
       width:
         if isatty(stdout):
           terminalWidth()
@@ -138,7 +138,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           0,
     )
     for l in lines(st, chosen.params, p, local(), screen):
-      stdout.say render(l, colour) & "\n"
+      stdout.say render(l, paint) & "\n"
     exitOk
   except StoreError as e:
     failure("nch calendar", e.msg)

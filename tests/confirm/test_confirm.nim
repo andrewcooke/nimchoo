@@ -2,13 +2,14 @@ import std/[sequtils, strutils, unittest]
 import nimchoo/packages/confirm/confirm
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
+import ../support/styles
 
 suite "confirm: the countdown":
-  test "the countdown line is red, with the number bold":
+  test "the countdown line is bad, with the number emphasised":
     let l = countdownLine("74 activities for all users", 4)
     check l.text == "deleting 74 activities for all users in 4 s ... (Ctrl-C to cancel)"
-    check l.allIt(it.look.colour == red)
-    check l[1].text == "4" and l[1].look.bold
+    check l.allIt($it.styles[0] == "bad")
+    check l[1].text == "4" and emphasised(l[1])
 
   test "it counts down once a second, then takes the line away":
     var written: seq[string]
@@ -20,7 +21,7 @@ suite "confirm: the countdown":
         0,
       size = proc(): tuple[w, h: int] {.closure, raises: [].} =
         (100, 24),
-      colour = false,
+      paint = Paint(colour: false),
     )
     countdown(
       l,

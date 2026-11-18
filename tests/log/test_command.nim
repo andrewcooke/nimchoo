@@ -5,6 +5,12 @@ import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
 import nimchoo/packages/ui/vocabulary
 import nimchoo/packages/log/lines
+import nimchoo/core/theme
+import nimchoo/packages/ui/style
+
+let
+  noColour = Paint(colour: false)
+  colour = Paint(theme: parseTheme("bad fg=red weight=bold"), colour: true)
 
 let dir = getTempDir() / "nch-test-log-command"
 let commands = @["activities", "map", "climbs", "fit"]
@@ -50,23 +56,24 @@ suite "nch log: the command line":
 suite "nch log: showing":
   test "the lines, plain without colour":
     let p = logWith("plain", run1, fail1, run2, dup2)
-    check show(p, Filter(commands: @["activities"], last: true), false).lines ==
+    check show(p, Filter(commands: @["activities"], last: true), noColour).lines ==
       @[run2, dup2]
-    check show(p, Filter(events: {leFailed}), false).lines == @[fail1]
+    check show(p, Filter(events: {leFailed}), noColour).lines == @[fail1]
   test "with colour the level word and the event word are coloured":
     let p = logWith("colour", fail1)
-    let r = show(p, Filter(), true)
-    check r.lines[0].contains("\e[31m\e[1mfailed\e[0m")
-    check r.lines[0].startsWith(
-      "2026-11-02T10:00:01Z \e[31m\e[1mERROR\e[0m activities "
-    ) # (the level too)
+    let r = show(p, Filter(), colour)
+    check r.lines[0].contains("\e[1;31mfailed\e[0m")
+    check r.lines[0].startsWith("2026-11-02T10:00:01Z \e[1;31mERROR\e[0m activities ")
+      # (the level too)
   test "no log yet":
-    check show(dir / "nonesuch" / "nch.log", Filter(), false).problem.contains("no log")
+    check show(dir / "nonesuch" / "nch.log", Filter(), noColour).problem.contains(
+      "no log"
+    )
   test "no run to show, and why it may be":
     let p = logWith("norun", "2026-11-01T15:58:42Z INFO  activities start: 3 files")
-    let r = show(p, Filter(commands: @["activities"], last: true), false)
+    let r = show(p, Filter(commands: @["activities"], last: true), noColour)
     check r.problem.contains("no run of activities")
     check r.problem.contains("not recognised")
     let q = logWith("norun2", run1)
-    check not show(q, Filter(commands: @["heatmap"], last: true), false).problem
+    check not show(q, Filter(commands: @["heatmap"], last: true), noColour).problem
       .contains("not recognised")

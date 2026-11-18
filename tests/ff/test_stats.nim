@@ -1,4 +1,4 @@
-import std/[math, options, times, unittest]
+import std/[math, options, sequtils, times, unittest]
 import nimchoo/packages/ff/curve
 import nimchoo/packages/ff/stats
 import nimchoo/packages/model/calc
@@ -52,7 +52,7 @@ suite "ff stats: the line":
     check top(Standing(value: 1, earlier: 1000, higher: 2)) == "top <1%"
     check top(Standing(value: 1, earlier: 1000, higher: 999)) == "top >99%"
     check top(Standing(value: 1, earlier: 0, higher: 0)) == "top 0%"
-  test "one line, with the numbers coloured: fitness green, fatigue red":
+  test "one line, with the numbers emphasised: fitness good, fatigue bad":
     let l = statLine(
       "2026-11-03 15:00",
       some(Standing(value: 71.4894, earlier: 200, higher: 8)),
@@ -62,12 +62,12 @@ suite "ff stats: the line":
     )
     check l.text == "2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 15.0 (top 50%)"
       # (scaled by 5; the share is not)
-    var coloured: seq[(string, Color)]
+    var styled: seq[(string, seq[string])]
     for sp in l:
-      if sp.look.colour != white:
-        coloured.add (sp.text, sp.look.colour)
-    check coloured == @[("71.5 (top 4%)", green), ("15.0 (top 50%)", red)]
-    check l.render(false) == l.text and l.render(true) != l.text
+      if sp.styles.len > 0:
+        styled.add (sp.text, sp.styles.mapIt($it))
+    check styled ==
+      @[("71.5 (top 4%)", @["good", "em"]), ("15.0 (top 50%)", @["bad", "em"])]
   test "no earlier days: the value only; no value yet: a dash":
     let l = statLine(
       "x", some(Standing(value: 1, earlier: 0, higher: 0)), none(Standing), 1, 1

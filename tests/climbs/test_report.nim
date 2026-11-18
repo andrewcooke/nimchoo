@@ -5,6 +5,7 @@ import nimchoo/packages/db/store
 import nimchoo/packages/ui/units
 import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]
+import ../support/styles
 
 suite "climbs report: the words":
   test "a time, to the second":
@@ -19,16 +20,15 @@ suite "climbs report: the words":
     check km(50) == "0.1km"
 
 suite "climbs report: the display while they are worked out":
-  test "two lines like the import's: plain, then the counts in green joined by grey dots":
+  test "two lines like the import's: plain, then the counts good joined by hidden dots":
     let lines =
       climbingLines(120, 1986, Worked(activities: 120, sectors: 12, efforts: 40))
     check lines.len == 2
     check lines[0].text == "climbing 120 / 1,986 activities"
-    check lines[0][0].look.bold and lines[0][0].look.colour == white and
-      lines[0][1].look.colour == white
+    check styleOf(lines[0][0]) == "em" and styleOf(lines[0][1]) == ""
     check lines[1].text == "climbs 12 · efforts 40"
-    check lines[1][0].look.colour == green and lines[1][2].look.colour == green
-    check lines[1][1].text == " · " and lines[1][1].look.colour == grey
+    check styleOf(lines[1][0]) == "good" and styleOf(lines[1][2]) == "good"
+    check lines[1][1].text == " · " and styleOf(lines[1][1]) == "hide"
   test "the line after the display, as the import has one":
     check doneLine(Worked(activities: 1650, sectors: 138, efforts: 2661)) ==
       "done: 1,650 activities: 138 new climbs, 2,661 efforts"

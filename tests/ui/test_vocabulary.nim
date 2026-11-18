@@ -14,24 +14,26 @@ suite "vocabulary: the events":
     for w in ["", "warning", "Failed", "failed ", "imports"]:
       check parseEvent(w).isNone
 
-suite "vocabulary: the looks":
+suite "vocabulary: the styles":
   test "the ones that matter":
-    check look(leImported) == Look(colour: green)
-    check look(leSaved) == look(leImported)
-    check look(leFailed) == Look(colour: red, bold: true)
-    check look(leAdvisory) == Look(colour: yellow)
-    check look(leDuplicate) == Look(colour: grey)
-    check look(leUnchanged) == look(leDuplicate)
-  test "the server's words: served is dim, denied is red":
-    check look(leServed) == Look(colour: grey)
-    check look(leDenied) == Look(colour: red)
-  test "bookkeeping words are dim":
+    check $style(leImported) == "good"
+    check style(leSaved) == style(leImported)
+    check $style(leFailed) == "bad"
+    check $style(leAdvisory) == "warn"
+    check $style(leDuplicate) == "hide"
+    check style(leUnchanged) == style(leDuplicate)
+  test "the server's words: served is hidden, denied is bad":
+    check $style(leServed) == "hide"
+    check $style(leDenied) == "bad"
+  test "bookkeeping words are hidden":
     for e in [leStart, leRun, leExit, leDone, leNote]:
-      check look(e) == Look(colour: grey)
-  test "a span takes the look of its event":
-    check span("x", leFailed).look == look(leFailed)
+      check $style(e) == "hide"
+  test "a span takes the style of its event":
+    check span("x", leFailed).styles == @[style(leFailed)]
     check span("x", leFailed).text == "x"
-  test "no two of the words that carry a meaning in colour look the same":
-    check look(leImported) != look(leFailed)
-    check look(leFailed) != look(leAdvisory)
-    check look(leAdvisory) != look(leDuplicate)
+  test "no two of the words that carry a meaning have the same style":
+    check style(leImported) != style(leFailed)
+    check style(leFailed) != style(leAdvisory)
+    check style(leAdvisory) != style(leDuplicate)
+  test "the selection has a style of its own":
+    check $selectedStyle == "select"

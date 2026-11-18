@@ -1,31 +1,33 @@
-import std/unittest
+import std/[tables, unittest]
+import nimchoo/core/theme
 import nimchoo/packages/ui/style
+import ../support/styles
 
 suite "ui style: measuring and cutting":
   test "width counts characters, over all spans":
     check width(@[span("abc"), span("de")]) == 5
     check width(@[span("héllo")]) == 5
     check width(@[]) == 0
-    check text(@[span("ab"), span("cd", red)]) == "abcd"
+    check text(@[span("ab"), span("cd", "bad")]) == "abcd"
 
   test "a line that fits is not changed":
-    let line = @[span("abc", red), span("def")]
+    let line = @[span("abc", "bad"), span("def")]
     check line.truncated(6) == line
     check line.truncated(10) == line
 
   test "a line that is too long is cut, ending in an ellipsis":
-    let line = @[span("abc", red), span("def", green)]
+    let line = @[span("abc", "bad"), span("def", "good")]
     check text(line.truncated(4)) == "abc…"
     check text(line.truncated(5)) == "abcd…"
     check width(line.truncated(4)) == 4
     check width(line.truncated(5)) == 5
 
   test "the cut keeps the look of what it cuts":
-    let cut = @[span("abc", red), span("def", green)].truncated(5)
-    check cut[0].look.colour == red
-    check cut[1].look.colour == green
+    let cut = @[span("abc", "bad"), span("def", "good")].truncated(5)
+    check styleOf(cut[0]) == "bad"
+    check styleOf(cut[1]) == "good"
     check cut[^1].text == "…"
-    check cut[^1].look.colour == green
+    check styleOf(cut[^1]) == "good"
 
   test "cuts fall between characters, not inside them":
     check text(@[span("héllo wörld")].truncated(6)) == "héllo…"
@@ -36,13 +38,38 @@ suite "ui style: measuring and cutting":
     check text(@[span("abc")].truncated(1)) == "…"
 
 suite "ui style: rendering":
+  let paint = Paint(
+    theme: parseTheme("good fg=green\nbad fg=red\nem weight=bold\nhide fg=#585858"),
+    colour: true,
+  )
+
   test "without colour it is just the text":
-    check render(@[span("a", red, bold = true), span("b")], false) == "ab"
+    var plainPaint = paint
+    plainPaint.colour = false
+    check render(@[span("a", "bad", "em"), span("b")], plainPaint) == "ab"
 
-  test "with colour, styled spans get codes and a reset":
-    check render(@[span("go", green)], true) == "\e[32mgo\e[0m"
-    check render(@[span("no", red, bold = true)], true) == "\e[31m\e[1mno\e[0m"
-    check render(@[span("sh", grey)], true) == "\e[38;5;240msh\e[0m"
+  test "with colour, styled spans get their codes and a reset":
+    check render(@[span("go", "good")], paint) == "\e[32mgo\e[0m"
+    check render(@[span("no", "bad", "em")], paint) == "\e[1;31mno\e[0m"
+    check render(@[span("sh", "hide")], paint) == "\e[38;2;88;88;88msh\e[0m"
 
-  test "unstyled spans get no codes":
-    check render(@[span("a"), span("b", yellow), span("c")], true) == "a\e[33mb\e[0mc"
+  test "plain spans get no codes, unless default gives them a look":
+    check render(@[span("a"), span("b", "warn"), span("c")], paint) == "abc"
+      # (this theme has no warn)
+    let dark = Paint(theme: parseTheme("default fg=white"), colour: true)
+    check render(@[span("a")], dark) == "\e[37ma\e[0m"
+
+  test "a style the theme lacks changes nothing, and default goes back to the base":
+    let t = parseTheme("default fg=white\nem weight=bold")
+    check lookOf(t, @[anyStyle("nosuch")]) == baseLook(t)
+    check lookOf(t, @[styleName"em", styleName"default"]) == baseLook(t)
+    check lookOf(t, @[styleName"em"]).weight == wtBold
+
+  test "the built-in themes are themes, with the same styles":
+    for t in builtInThemes:
+      var names: seq[string]
+      for n in parseTheme(t.text).styles.keys:
+        names.add n
+      check names.len == styleNames.len
+      for n in styleNames:
+        check n in names

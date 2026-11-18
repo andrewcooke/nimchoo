@@ -44,7 +44,7 @@ const
   intro =
     """Show the climbs the selected activities went up (see `nch activities --select`), each the standard way (name,
 category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time
-on the selected rides (blue) and when, where that one ranks among your own attempts, and how many times you rode it.
+on the selected rides (in the selection's colour) and when, where that one ranks among your own attempts, and how many times you rode it.
 All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the
 top, stops included.
 
@@ -109,11 +109,11 @@ proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreErro
   let what = describe(countClimbs(st))
   if force == fNo:
     return failure("nch climbs", "would delete " & what & "; use -f to confirm")
-  pause(what, force)
+  pause(g.theme, what, force)
   clearClimbs(st)
   st.reclaim()
   g.log.log(lvInfo, commandName, leDeleted, "deleted " & what & " from " & st.path)
-  sayDeleted("deleted " & what)
+  sayDeleted(g.theme, "deleted " & what)
   exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -157,7 +157,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     var worked: Worked
     if canLive():
       # two lines that follow the work and stay on the screen at the end (as the import's do)
-      let live = newTerminalLive()
+      let live = newTerminalLive(g.theme)
       var shown = false
       worked = ensureClimbs(
         st,
@@ -219,11 +219,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           " selected activities\n"
         return exitOk
     let attempts = if p.action == caNamed: p.named.attempts else: p.selected
-    let colour = canColourStdout()
+    let paint = stdoutPaint(g.theme)
     for l in summaryLines(
       summaries(st, ids), attempts.everyone, attempts.verbose, local()
     ):
-      stdout.say render(l, colour) & "\n"
+      stdout.say render(l, paint) & "\n"
     exitOk
   except StoreError, DownloadError:
     failure("nch climbs", getCurrentExceptionMsg())

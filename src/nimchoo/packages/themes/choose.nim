@@ -4,14 +4,17 @@ import std/[options, os, strformat, strutils]
 import ../../core/[errors, theme]
 import ../bundle/unpack
 import ../cache/cache
+import ../ui/style
 
 {.push raises: [].}
 
+func bundlesOf(themes: openArray[tuple[name, text: string]]): seq[Bundle] =
+  for t in themes:
+    result.add Bundle(name: "themes/" & t.name & ".txt", data: t.text)
+
 const
-  builtIn* = [
-    Bundle(name: "themes/dark.txt", data: staticRead("dark.txt")),
-    Bundle(name: "themes/light.txt", data: staticRead("light.txt")),
-  ] ## the themes the program carries
+  builtIn* = bundlesOf(builtInThemes)
+    ## the themes the program carries (`ui/style.nim`), as they are unpacked
   fallback* = "dark"
     ## the theme when nothing says which, and when the one chosen cannot be used
   currentLink* = ".current" ## the link in `system/themes/` that names the theme in force

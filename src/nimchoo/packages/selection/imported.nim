@@ -4,7 +4,7 @@
 import std/strformat
 import ../../core/errors
 import ../importer/after
-import ../ui/[style, vocabulary]
+import ../ui/vocabulary
 import ../user/session
 import ./selection
 
@@ -19,7 +19,7 @@ proc selectImported(
       "the new activity"
     else:
       fmt"the {ids.len} new activities"
-  @[ImportReport(text: fmt"selected {what}", look: Look(colour: selectedColour))]
+  @[ImportReport(text: fmt"selected {what}", style: selectedStyle)]
 
 let selectNewActivities* =
   AfterImport(run: selectImported, failed: "the new activities could not be selected")

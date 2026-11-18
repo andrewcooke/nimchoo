@@ -13,7 +13,7 @@ import ./[rows, table]
 proc makeCalendar(st: Session): CalendarData {.raises: [StoreError].} =
   let rows = selectionRows(st, false)
   CalendarData(
-    marks: rows.mapIt(it.startT), summary: footerLine(rows, none(int), selectedColour)
+    marks: rows.mapIt(it.startT), summary: footerLine(rows, none(int), selectedStyle)
   )
 
 proc contribution*(): Contribution =

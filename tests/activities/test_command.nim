@@ -15,6 +15,7 @@ import nimchoo/packages/activities/criteria
 import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
+import ../support/styles
 
 let dir = getTempDir() / "nch-test-select"
 
@@ -587,19 +588,20 @@ suite "list: what is shown":
     check r.lines.texts[^1] ==
       "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
-  test "blue is the selection after the command: the selection, --all with the selected among them, --select; criteria alone: none":
+  test "the select style is the selection after the command: the selection, --all with the selected among them, --select; criteria alone: none":
     let db = world("yellow")
     proc blueRows(lines: seq[Line]): seq[bool] =
       for l in lines:
         if l.text.startsWith("20"): # the rows (they start with a date)
-          result.add l.anyIt(it.look.colour == blue)
+          result.add l.anyIt(styleOf(it) == "select")
 
     check shown(db, "--all").lines.blueRows == @[false, false] # nothing selected yet
     discard save(db, "--sports", "cycling") # the selection: the cycling one
     check shown(db, "--all").lines.blueRows == @[true, false]
     check shown(db, "--sports", "running").lines.blueRows == @[false]
     check shown(db, "--sports", "cycling").lines.blueRows ==
-      @[false] # (in the selection, but listing by criteria does not change it: not blue)
+      @[false]
+        # (in the selection, but listing by criteria does not change it: not in the selection's style)
     check "match selected" notin shown(db, "--sports", "cycling").lines.texts[^1]
     let st = openSession(db, allFragments, access = allAccess)
     defer:
@@ -610,7 +612,7 @@ suite "list: what is shown":
       @[true, true] # --select: what is listed is the selection
     check shown(db, "--sports", "running").lines.blueRows ==
       @[false]
-        # (selected now, by the --select above; but criteria alone still show none in blue)
+        # (selected now, by the --select above; but criteria alone still show none in the selection's style)
 
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")
@@ -626,7 +628,7 @@ suite "list: what is shown":
       ", 1 saved as the selection, " in r.lines.texts[^1]
     check "match selected" notin r.lines.texts[^1] # (said once)
     check r.lines[^1].anyIt(
-      it.look.colour == blue and it.text == ", 1 saved as the selection"
+      styleOf(it) == "select" and it.text == ", 1 saved as the selection"
     )
     let st = openSession(db, allFragments, access = allAccess)
     defer:

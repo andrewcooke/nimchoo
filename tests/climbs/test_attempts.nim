@@ -4,9 +4,9 @@ import std/[sequtils, strutils, times, unittest]
 import nimchoo/packages/climbs/attempts
 import nimchoo/packages/climbs/display
 import nimchoo/packages/climbs/work
-import nimchoo/packages/ui/palette
 import nimchoo/packages/ui/style
 import ../support/[climbdata, userdata]
+import ../support/styles
 
 proc world(name: string): Session =
   ## The default user rode at 5 and at 6 m/s, bob at 4 m/s; only the slowest-but-one ride is selected.
@@ -125,14 +125,14 @@ suite "attempts: the lines":
     check "1970-02-04" in table[1] and "1970-01-12" in table[1]
       # (the best, and the best selected)
     check lines[1]
-      .filterIt(it.look.colour == blue)
+      .filterIt(styleOf(it) == "select")
       .mapIt(it.text.strip)
       .join(" ")
       .contains("1970-01-12")
-    check lines[1].filterIt(it.look.colour == blue).mapIt(it.text.strip)[^1] == "2"
-    check lines[0].filterIt(it.look.colour == blue).mapIt(it.text.strip) ==
+    check lines[1].filterIt(styleOf(it) == "select").mapIt(it.text.strip)[^1] == "2"
+    check lines[0].filterIt(styleOf(it) == "select").mapIt(it.text.strip) ==
       @["best selected", "rank"]
-    check lines[1].filterIt(it.look.colour == blue).len == 2
+    check lines[1].filterIt(styleOf(it) == "select").len == 2
     let long = summaryLines(rows, false, true, utc()).texts
     check long.len == 4 and long[0] == table[0] and long[1] == table[1]
     check long[2].strip.startsWith("1  ") and long[3].strip.startsWith("2  ") and
@@ -140,7 +140,7 @@ suite "attempts: the lines":
     check long[2].startsWith("    ") and "1970-02-" in long[2]
     # the attempt of the selected ride (the slower, 1970-01) is in the selection's colour, the other is not
     let lines2 = summaryLines(rows, false, true, utc())
-    check lines2[2][0].look.colour == white and lines2[3][0].look.colour == blue and
+    check styleOf(lines2[2][0]) == "" and styleOf(lines2[3][0]) == "select" and
       "1970-01-12" in lines2[3].text
   test "no selected ride on the climb (found by --names): dashes in the selection's columns":
     let s = world("lines-none-selected")

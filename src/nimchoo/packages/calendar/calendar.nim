@@ -5,12 +5,12 @@
 ##     Jan                01 02 03 04 05 06 07 08 09 10 11 12 ...                      2018
 ##     Feb       01 02 03 04 05 06 07 08 ...                                           2018
 ##
-## A day is blue if a mark (an instant: when an activity started, say) falls on it, grey if none does.  Days are the days of
+## A day is in the selection's style if a mark (an instant: when an activity started, say) falls on it, hidden if none does.  Days are the days of
 ## the time zone given (the user's, for display).  Pure: the marks, the zone and the screen are parameters.
 ##
 ## Only the months with a mark are shown (all the months from the first to the last with
 ## `allMonths`); `skippedMonths` says how many the first leaves out, and the names of the months
-## either side of a gap are yellow (with a `*` after them when there is no colour).
+## either side of a gap are in the warning style (with a `*` after them when there is no colour).
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
 ## with a mark `" [34]"`, a day with none `"  -- "`.
@@ -50,9 +50,9 @@ func dayCell(day: int, listed: bool, s: Screen): Span =
   ## A day: with a mark (`listed`) or not.
   if s.colour:
     if listed:
-      span(two(day) & " ", selectedColour)
+      span(two(day) & " ", selectedStyle)
     else:
-      span(two(day) & " ", grey)
+      span(two(day) & " ", "hide")
   else:
     if listed:
       span(" [" & two(day) & "]")
@@ -101,7 +101,7 @@ proc calendarLines*(
     let month = Month(m mod 12 + 1)
     let offset = ord(getDayOfWeek(1, month, year)) # Monday is 0
     let days = getDaysInMonth(month, year)
-    # the months either side of a gap are marked: yellow names (a "*" without colour)
+    # the months either side of a gap are marked: names in the warning style (a "*" without colour)
     let gap =
       months.find(m) > 0 and m - months[months.find(m) - 1] > 1 or
       months.find(m) < months.high and months[months.find(m) + 1] - m > 1
@@ -109,7 +109,7 @@ proc calendarLines*(
       if not gap:
         @[span(monthNames[m mod 12] & " ")]
       elif screen.colour:
-        @[span(monthNames[m mod 12], yellow), span(" ")]
+        @[span(monthNames[m mod 12], "warn"), span(" ")]
       else:
         @[span(monthNames[m mod 12] & "*")]
     for k in 0 ..< cells:
@@ -128,6 +128,6 @@ proc calendarLines*(
       span(
         "the calendar needs " & $calendarWidth(screen) & " columns and the screen has " &
           $screen.width & ": the lines are cut",
-        yellow,
+        "warn",
       )
     ], 0

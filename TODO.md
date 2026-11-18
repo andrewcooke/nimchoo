@@ -50,8 +50,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
    `ui/markup.nim` (`[style text]`, nesting that replaces only what a style gives, `[default ...]` back to plain, `\[ \] \\`,
    styles that run over newlines) and `tools/look.nim` to try them; the author is trying colours and the format with it; step 2, the `themes`
    package (built-in `dark.txt` and `light.txt` in the cache's `system/themes/`, chosen by `--theme`, `NCH_THEME`, the link
-   `system/themes/.current`, `COLORFGBG`, else dark), the theme in `Globals` and in `nch packages --config`.  Next: (3) the code uses styles (default, em, hide, good, bad, warn, select) instead of `palette` colours, and
-   `vocabulary` maps events to them; (4) `styled"..."`, markup checked when compiled, the values in `{}` plain text.  No fixed set
+   `system/themes/.current`, `COLORFGBG`, else dark), the theme in `Globals` and in `nch packages --config`; step 3, the code uses styles (default, em, hide, good, bad, warn, select: `ui/style.nim`, the built-in
+   themes in `ui/`), drawn with a `Paint` (the theme and whether in colour).  Next: (4) `styled"..."`, markup checked when compiled, the values in `{}` plain text.  No fixed set
    of styles (decided 2026-11-18): the names are those the built-in theme defines, the names in `styled` are checked against it when
    compiled, and a style that a chosen theme lacks changes nothing; (5) the web: a
    `web=#hex` per style, the page tags named by style; (6) the docs.  Also: a mark for the selection when there is no colour.

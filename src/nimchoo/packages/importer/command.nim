@@ -70,7 +70,7 @@ proc runImport(
   let screen =
     if not opts.quiet and canLive():
       liveSink(
-        newTerminalLive(),
+        newTerminalLive(g.theme),
         logged,
         proc(s: string) {.closure, raises: [].} =
           stdout.say(s),
@@ -166,7 +166,7 @@ proc runImport(
           if opts.quiet or not canLive():
             return
           if live.isNone:
-            live = some(newTerminalLive())
+            live = some(newTerminalLive(g.theme))
           if final:
             if drawn:
               live.get.keep(lines)
@@ -188,7 +188,7 @@ proc runImport(
             g.log.log(lvInfo, commandName, leSaved, said.text)
             if not opts.quiet:
               stderr.say render(
-                @[Span(text: "done: " & said.text, look: said.look)], canColour()
+                @[span("done: " & said.text, said.style)], stderrPaint(g.theme)
               ) & "\n"
         except StoreError, DownloadError:
           if live.isSome:

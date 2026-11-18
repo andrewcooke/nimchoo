@@ -26,7 +26,7 @@ proc openNames*(
     return none(Names)
   let screen =
     if canLive():
-      liveSink()
+      liveSink(g.theme)
     else:
       screenSink(say)
   var names = newNames(

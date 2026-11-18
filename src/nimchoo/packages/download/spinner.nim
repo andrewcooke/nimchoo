@@ -6,9 +6,11 @@
 ## The thread owns the terminal: it makes its `Live`, draws about ten frames a second, and at the end leaves the
 ## line on the screen, takes it away or leaves a failure.  The rest of the program only changes what the line says
 ## (`setSize`) and stops it.  The two share one small record, with plain numbers and fixed-size text
-## (nothing that needs a garbage collector), behind a lock.
+## (nothing that needs a garbage collector), behind a lock; so the looks of the line's styles are worked out from the
+## theme before the thread starts, and it makes a small theme of its own from them.
 
-import std/[locks, monotimes, os, times, typedthreads]
+import std/[locks, monotimes, os, tables, times, typedthreads]
+import ../../core/theme
 import ../ui/live
 import ../ui/[style, units]
 import ./fetch
@@ -27,16 +29,22 @@ type
     enKeep
     enClear
     enFailed
-      ## the line goes on; it is left as it is; it is taken away; it is replaced by the red failure message
+      ## the line goes on; it is left as it is; it is taken away; it is replaced by the failure message
 
   Text = array[cap, char]
+
+  LineStyle = enum
+    lsPlain
+    lsHide
+    lsBad
 
   Shared = object
     lock: Lock
     ending: Ending
     bytes: int64
     label, url, message, text: Text
-    maker: proc(): Live {.nimcall, raises: [].}
+    looks: array[LineStyle, Look] ## of the styles the line uses, in the theme in force
+    maker: proc(theme: Theme): Live {.nimcall, raises: [].}
 
   Spinner* = ref object
     shared: ptr Shared
@@ -51,14 +59,14 @@ func progressLine*(
   ##     need locations in CL: download.geonames.org/export/dump/CL.zip ⠹
   ##     need locations in CL: download.geonames.org/export/dump/CL.zip (71.3MB)
   ##
-  ## The address is grey.  While the work goes on there is only the spinner, turning with `frame`; the size comes when it
+  ## The address is hidden (`hide`).  While the work goes on there is only the spinner, turning with `frame`; the size comes when it
   ## is `finished` (nothing if it is not known: 0).
   ## With `text` the line is that text and the spinner (a job of the command's own, like "naming 1,112 activities").
   result =
     if text.len > 0:
       @[span(text)]
     else:
-      @[span("need " & label & ": "), span(shortUrl(url), grey)]
+      @[span("need " & label & ": "), span(shortUrl(url), "hide")]
   if finished:
     if bytes > 0:
       result.add span(" (" & humanBytes(bytes) & ")")
@@ -81,7 +89,11 @@ proc get(t: Text): string =
 
 proc loop(s: ptr Shared) {.thread.} =
   {.cast(gcsafe).}:
-    let live = s.maker()
+    var theme: Theme
+    theme.styles[defaultStyle] = asStyle(s.looks[lsPlain])
+    theme.styles["hide"] = asStyle(s.looks[lsHide])
+    theme.styles["bad"] = asStyle(s.looks[lsBad])
+    let live = s.maker(theme)
     let start = getMonoTime()
     while true:
       acquire(s.lock)
@@ -111,18 +123,29 @@ proc loop(s: ptr Shared) {.thread.} =
         live.finish()
         break
       of enFailed:
-        live.keep(@[@[span("cannot download " & shortUrl(url) & ": " & message, red)]])
+        live.keep(
+          @[@[span("cannot download " & shortUrl(url) & ": " & message, "bad")]]
+        )
         break
       sleep(pollMs)
 
 proc startSpinner*(
-    maker: proc(): Live {.nimcall, raises: [].}, label, url: string, text = ""
+    maker: proc(theme: Theme): Live {.nimcall, raises: [].},
+    theme: Theme,
+    label, url: string,
+    text = "",
 ): Spinner =
-  ## Start drawing the line; `maker` makes the `Live` (in the thread).  If the thread cannot be made nothing is drawn.
+  ## Start drawing the line in `theme`; `maker` makes the `Live` (in the thread).  If the thread cannot be made nothing is
+  ## drawn.
   result = Spinner()
   let s = cast[ptr Shared](allocShared0(sizeof(Shared)))
   initLock(s.lock)
   s.maker = maker
+  s.looks = [
+    lookOf(theme, @[]),
+    lookOf(theme, @[styleName"hide"]),
+    lookOf(theme, @[styleName"bad"]),
+  ]
   put(s.label, label)
   put(s.url, url)
   put(s.text, text)

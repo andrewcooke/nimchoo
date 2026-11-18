@@ -38,7 +38,10 @@ proc screenSink*(write: proc(line: string) {.closure, raises: [].}): Sink =
     if ev.kind notin {deProgress, deReading, deFinished, deWorking, deWorkDone}:
       write describe(ev)
 
-proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): Sink =
+proc liveSink*(
+    theme: Theme,
+    maker: proc(theme: Theme): Live {.nimcall, raises: [].} = newTerminalLive,
+): Sink =
   ## Say a download on one line that turns a spinner (see spinner.nim) while the file comes and while it is read, and that
   ## stays on the screen at the end.  A file that is already in the cache and is only read gets the line and the spinner
   ## too, if the reading takes a moment, and the line goes at the end.
@@ -60,7 +63,7 @@ proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): S
       downloaded = false
       label = ev.label
       url = ev.url
-      sp = startSpinner(maker, label, url)
+      sp = startSpinner(maker, theme, label, url)
     of deProgress:
       discard # (the size is said when the line is done)
     of deDownloaded:
@@ -70,19 +73,19 @@ proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): S
     of deReading:
       if sp == nil:
         downloaded = false
-        sp = startSpinner(maker, ev.label, ev.url)
+        sp = startSpinner(maker, theme, ev.label, ev.url)
     of deFinished:
       endLine(if downloaded: enKeep else: enClear)
       downloaded = false
       if job.len > 0:
-        sp = startSpinner(maker, "", "", job) # (the job goes on)
+        sp = startSpinner(maker, theme, "", "", job) # (the job goes on)
     of deWorking:
       endLine(enClear)
       job = ev.label
-      sp = startSpinner(maker, "", "", job)
+      sp = startSpinner(maker, theme, "", "", job)
     of deWorkDone:
       if sp == nil and ev.message.len > 0:
-        sp = startSpinner(maker, "", "", job)
+        sp = startSpinner(maker, theme, "", "", job)
       endLine(if ev.message.len > 0: enKeep else: enClear, ev.message)
       job = ""
       downloaded = false
@@ -90,7 +93,7 @@ proc liveSink*(maker: proc(): Live {.nimcall, raises: [].} = newTerminalLive): S
       if sp != nil:
         endLine(enFailed, ev.message)
       else:
-        maker().keep(
-          @[@[span("cannot download " & shortUrl(ev.url) & ": " & ev.message, red)]]
+        maker(theme).keep(
+          @[@[span("cannot download " & shortUrl(ev.url) & ": " & ev.message, "bad")]]
         )
       downloaded = false

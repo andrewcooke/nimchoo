@@ -34,8 +34,8 @@
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (activities, later climbs and FF statistics).
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
-## * `themes <packages/themes/package.html>`_ - The built-in themes, and which theme is in force.
-## * `ui <packages/ui/package.html>`_ - How the program looks: units, intervals, colours, tables and the live display.
+## * `themes <packages/themes/package.html>`_ - The themes in the cache, and which theme is in force.
+## * `ui <packages/ui/package.html>`_ - How the program looks: units, intervals, styles and themes, tables and the live display.
 ## * `user <packages/user/package.html>`_ - The users, and which one a command works for.
 ## * `version <packages/util/version/package.html>`_ - What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.
 ## * `warnings <packages/util/warnings/package.html>`_ - Warnings: oddities in a file that do not stop us reading it.
@@ -93,7 +93,7 @@ const packages*: seq[Registered] = inDependencyOrder(
       doc: """The activities: listing them, choosing the selection, and deleting.
 
 `nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities, and
-`--select` keeps what is listed as the selection.  **Blue is the selection after the command**: the selection, all blue;
+`--select` keeps what is listed as the selection.  **The selection's style (`select`) is the selection after the command**: the selection, all of it;
 `--all`, the selected ones among them; `--select`, everything listed; criteria alone change nothing, so none.  `--all` means everything, not just the selection.  Nothing is deleted
 without `-f` (it says what it would delete, with a countdown on a terminal).  Criteria belong to this command alone; the
 other views (`climbs`, `map`, `calendar`) take the selection.
@@ -431,11 +431,11 @@ engine ends a comment at the first closing braces).""",
     Registered(
       name: "themes",
       package: pkgThemes.package,
-      summary: "The built-in themes, and which theme is in force.",
-      doc: """The built-in themes, and which theme is in force.
+      summary: "The themes in the cache, and which theme is in force.",
+      doc: """The themes in the cache, and which theme is in force.
 
-The themes are files `NAME.txt` in the cache directory's `system/themes/`: the built-in `dark` and `light` are unpacked
-there (an edited one is kept, a deleted one comes back), and any other file there is a theme too.  The one in force is,
+The themes are files `NAME.txt` in the cache directory's `system/themes/`: the built-in `dark` and `light` (which `ui`
+carries: the names of its styles are those the program uses) are unpacked there (an edited one is kept, a deleted one comes back), and any other file there is a theme too.  The one in force is,
 the first that is given: `--theme NAME`; `$NCH_THEME`; the symbolic link `system/themes/.current`, which the author makes
 (`ln -sf light.txt ~/.cache/nch/system/themes/.current`) and which names a theme in the same directory; `$COLORFGBG`, which
 some terminals set (a light background: `light`); else `dark`.  A theme that cannot be used is warned of, and the
@@ -446,20 +446,23 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
       name: "ui",
       package: pkgUi.package,
       summary:
-        "How the program looks: units, intervals, colours, tables and the live display.",
+        "How the program looks: units, intervals, styles and themes, tables and the live display.",
       doc:
-        """How the program looks: units, intervals, colours, tables and the live display.
+        """How the program looks: units, intervals, styles and themes, tables and the live display.
 
 * The number formats every listing needs (`units`): the unit follows the number with no space (`36.7km`, `+89m`, `17.8%`,
   `1h41m`), and a value that is not recorded is a dash.
 * Intervals of time (`interval`): units `d h m s`, no leading zero unit, the first unpadded and later ones two digits
   (`45s`, `22m05s`, `4h41m`, `2d03h07m`); seconds only under an hour; rounding carries.
-* Colours (`palette`, `style`, `vocabulary`): the words and looks for what happened are in `vocabulary`, one table, so that
-  "failed" is red wherever it appears.  Colour only where it means something; the status colours are green (done), red
-  (failed or deleted), yellow (advisory) and blue (the selection, `selectedColour`), and are used for nothing else.
-* Markup (`markup`, with the themes of `core/theme.nim`; not used by the commands yet: TODO "Styles, themes and markup"): a theme file says
-  what each style looks like (foreground, background, weight, underline, italic, reverse, each optional), and markup
-  (`[good imported] 3 files`) gives text its styles, which nest; `tools/look.nim` shows text with a theme.
+* Styles (`style`, `vocabulary`, `markup`): text is in named styles, and what each looks like is the theme's
+  (`core/theme.nim`: foreground, background, weight, underline, italic, reverse, each optional; the built-in `dark.txt`
+  and `light.txt` are here, and the names the program uses are those of `dark.txt`, checked when it is compiled).  The
+  words and styles for what happened are in `vocabulary`, one table, so that "failed" is `bad` wherever it appears.
+  Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
+  selection, `selectedStyle`), each used for nothing else; `em` for what to read first, `hide` for the bookkeeping and
+  what was not recorded; `default` is around everything.  Markup (`[good imported] 3 files`) gives text its styles,
+  which nest; `tools/look.nim` shows text with a theme.  (The web pages' colours are still `palette`'s: TODO "Styles,
+  themes and markup", step 5.)
 * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also
   says how wide the help text may be (`helpWidth`).""",
     ),

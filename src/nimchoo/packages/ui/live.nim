@@ -27,7 +27,7 @@ type
     write: Write
     now: Clock
     size: Size
-    colour: bool
+    paint: Paint
     firstDelay, interval: int64
     startAt, lastDraw: int64
     drawn: int # lines of the region now on screen
@@ -47,7 +47,7 @@ proc newLive*(
     write: Write,
     now: Clock,
     size: Size,
-    colour: bool,
+    paint: Paint,
     firstDelay = 150'i64,
     interval = 100'i64,
 ): Live =
@@ -58,7 +58,7 @@ proc newLive*(
     write: write,
     now: now,
     size: size,
-    colour: colour,
+    paint: paint,
     firstDelay: firstDelay,
     interval: interval,
     startAt: now(),
@@ -76,7 +76,7 @@ proc print*(l: Live, line: Line) =
 
 proc permanent(l: Live, f: var string) =
   for q in l.queued:
-    f.add eraseLine & q.render(l.colour) & "\n"
+    f.add eraseLine & q.render(l.paint) & "\n"
   l.queued.setLen(0)
 
 proc frame(l: Live, lines: seq[Line]): string =
@@ -93,7 +93,7 @@ proc frame(l: Live, lines: seq[Line]): string =
     f.add up(l.drawn)
   l.permanent(f)
   for ln in shownLines:
-    f.add eraseLine & ln.truncated(w - 1).render(l.colour) & "\n"
+    f.add eraseLine & ln.truncated(w - 1).render(l.paint) & "\n"
   f.add eraseBelow
   l.drawn = shownLines.len
   l.lastDraw = l.now()
@@ -139,6 +139,14 @@ proc canColour*(): bool =
   ## Whether to use colours: a live display, and NO_COLOR (no-color.org) unset.
   canLive() and getEnv("NO_COLOR").len == 0
 
+proc stdoutPaint*(theme: Theme): Paint =
+  ## How to draw what goes to stdout: in `theme`, in colour if `canColourStdout`.
+  Paint(theme: theme, colour: canColourStdout())
+
+proc stderrPaint*(theme: Theme): Paint =
+  ## How to draw what goes to stderr: in `theme`, in colour if `canColour`.
+  Paint(theme: theme, colour: canColour())
+
 func orDefault(n, default: int): int =
   ## A terminal that does not report its size reports 0.
   if n > 0: n else: default
@@ -165,8 +173,8 @@ proc restoreCursor() {.noconv.} =
   else:
     quit(130)
 
-proc newTerminalLive*(): Live =
-  ## A live region on stderr, using the real clock and terminal size.
+proc newTerminalLive*(theme: Theme): Live =
+  ## A live region on stderr in `theme`, using the real clock and terminal size.
   setControlCHook(restoreCursor)
   newLive(
     write = proc(s: string) {.closure, raises: [].} =
@@ -179,5 +187,5 @@ proc newTerminalLive*(): Live =
       getMonoTime().ticks div 1_000_000,
     size = proc(): tuple[w, h: int] {.closure, raises: [].} =
       (orDefault(terminalWidth(), 80), orDefault(terminalHeight(), 24)),
-    colour = canColour(),
+    paint = Paint(theme: theme, colour: canColour()),
   )

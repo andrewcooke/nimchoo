@@ -70,5 +70,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     what.add $k & ": " & describe(u)
   let text = what.join("; ")
   g.log.log(lvInfo, commandName, leDeleted, text & " from " & dir.get)
-  sayDeleted("deleted " & text)
+  sayDeleted(g.theme, "deleted " & text)
   exitOk

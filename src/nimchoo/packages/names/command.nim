@@ -101,7 +101,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         return failure("nch landmarks", "there is no landmark called '" & d.name & "'")
       let said = "deleted the landmark " & d.name
       g.log.log(lvInfo, commandName, leDeleted, said)
-      sayDeleted(said)
+      sayDeleted(g.theme, said)
       return exitOk
     of laAddAt:
       let a = p.placed

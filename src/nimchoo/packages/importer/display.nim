@@ -27,16 +27,16 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   ## at, `current`, if any) of `sum.total`.  What is zero is left out, except
   ## imported and failed.
   var first: Line =
-    @[span("importing ", bold = true), span(commas(index) & " / " & commas(sum.total))]
+    @[span("importing ", "em"), span(commas(index) & " / " & commas(sum.total))]
   if current.len > 0:
-    first.add span("   " & current, grey)
+    first.add span("   " & current, "hide")
   var second: Line
   template part(sp: Span) =
     if second.len > 0:
-      second.add span(dot, grey)
+      second.add span(dot, "hide")
     second.add sp
 
-  # the looks are those of the events of the same name (packages/ui/vocabulary.nim)
+  # the styles are those of the events of the same name (packages/ui/vocabulary.nim)
   part span("imported " & commas(sum.imported), leImported)
   if sum.duplicates > 0:
     part span("duplicates " & commas(sum.duplicates), leDuplicate)

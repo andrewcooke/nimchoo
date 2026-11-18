@@ -103,7 +103,7 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "list the attempts under each climb, the fastest first, each with its rank (those of the selected rides in blue)",
+        "list the attempts under each climb, the fastest first, each with its rank (those of the selected rides in the selection's colour)",
       ),
       flag(
         Raw,

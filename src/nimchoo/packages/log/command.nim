@@ -26,8 +26,8 @@ const
 lines of those commands, an EVENT (failed, advisory, duplicate ...) shows those events; both together show the events
 of those commands.  Several of one kind mean "any of them".  With no names, everything."""
   notes =
-    """On a terminal the event words have the colours they have in `nch import` (imported green, failed red, advisory
-yellow, duplicate grey)."""
+    """On a terminal the event words have the styles they have in `nch import` (imported good, failed bad, advisory a
+warning, duplicate dimmed: their colours are the theme's, see `nch --theme`)."""
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
@@ -35,7 +35,7 @@ proc usageText*(width: int): string =
     optionLines(logSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
 
 proc show*(
-    path: string, f: Filter, colour: bool
+    path: string, f: Filter, paint: Paint
 ): tuple[lines: seq[string], problem: string] =
   ## The lines to print for the log at `path`, or what is wrong.
   if not fileExists(path):
@@ -61,7 +61,7 @@ proc show*(
       )
     return
   for l in s.lines:
-    result.lines.add render(styled(l), colour)
+    result.lines.add render(styled(l), paint)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch log ARGS`; returns the exit status.
@@ -81,7 +81,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       "nch log",
       "logging is switched off (NCH_LOG is empty, or there is no home directory)",
     )
-  let r = show(path.get, p.filter, canColourStdout())
+  let r = show(path.get, p.filter, stdoutPaint(g.theme))
   if r.problem.len > 0:
     return failure("nch log", r.problem)
   for l in r.lines:

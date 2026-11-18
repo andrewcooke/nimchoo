@@ -1,6 +1,6 @@
 ## `nch db`: the database file.  With no arguments it says where it is and how big; `--delete -f` deletes it, and
 ## with it the data of every user (the cache, which can be made again, is `nch cache`).  Does nothing without
-## -f; on a terminal it then counts down, in red, so there is time to press Ctrl-C (`-f -f`: no countdown).
+## -f; on a terminal it then counts down, in the bad style, so there is time to press Ctrl-C (`-f -f`: no countdown).
 
 import std/[os, strutils]
 import db_connector/db_sqlite
@@ -78,12 +78,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     ") with the data of every user"
   if p.force == fNo:
     return failure("nch db", "would delete " & what & "; use -f to confirm")
-  pause(what, p.force)
+  pause(g.theme, what, p.force)
   try:
     for suffix in ["", "-journal", "-wal", "-shm"]:
       removeFile path & suffix
   except OSError as e:
     return failure("nch db", "cannot delete " & path & ": " & e.msg)
   g.log.log(lvInfo, commandName, leDeleted, "deleted " & what)
-  sayDeleted("deleted " & what)
+  sayDeleted(g.theme, "deleted " & what)
   exitOk

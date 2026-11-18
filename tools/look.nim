@@ -12,7 +12,7 @@
 import std/[os, sequtils, strformat, strutils, tables]
 import nimchoo/core/errors
 import nimchoo/core/theme
-import nimchoo/packages/ui/markup
+import nimchoo/packages/ui/[markup, style]
 
 const examples = [
   "[good imported] 3 files [hide (1.2s)]",
@@ -45,7 +45,7 @@ proc sample(t: Theme): seq[string] =
 
 proc show(t: Theme, text: string, colour: bool) =
   try:
-    for line in styled(t, text, colour):
+    for line in styled(Paint(theme: t, colour: colour), text):
       echo line
   except MarkupError as e:
     echo fmt"({e.msg}) {text}"

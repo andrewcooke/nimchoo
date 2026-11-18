@@ -6,6 +6,7 @@ import nimchoo/packages/importer/after
 import nimchoo/packages/selection/imported
 import nimchoo/packages/ui/vocabulary
 import nimchoo/packages/user/session
+import nimchoo/packages/ui/style
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 
 let dir = getTempDir() / "nch-test-imported"
@@ -41,7 +42,7 @@ suite "selection: after an import":
     let ctx = quietContext(Globals(offline: true))
     let first = selectNewActivities.run(s, @[a], ctx)
     check first.len == 1 and first[0].text == "selected the new activity"
-    check first[0].look.colour == selectedColour
+    check first[0].style == selectedStyle
     let second = selectNewActivities.run(s, @[b, c], ctx)
     check second.len == 1 and second[0].text == "selected the 2 new activities"
     check s.db.query(int64, "select activity_id from selection order by 1") == @[b, c]

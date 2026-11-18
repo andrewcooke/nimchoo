@@ -1,6 +1,6 @@
 ## What `nch ff` says about the latest values of the curves, in a line: each value, and the share
 ## of the earlier days on which it was higher ("top 1%" means only 1% of earlier days were higher:
-## nearly the highest it has been).  Fitness is green and fatigue red, as in the chart.
+## nearly the highest it has been).  Fitness is good and fatigue bad (each emphasised), as in the chart.
 ## Pure: lines of styled spans (see packages/ui/style.nim), drawn with or without colour by the caller.
 
 import std/[options, strutils]
@@ -21,7 +21,7 @@ func top*(s: Standing): string =
   "top " & (if pc < 0.5: "<1%" elif pc >= 99.5: ">99%" else: $int(pc + 0.5) & "%")
 
 func curve(
-    name: string, colour: Color, standing: Option[Standing], scale: float
+    name: string, style: StyleName, standing: Option[Standing], scale: float
 ): Line =
   result.add plain(name & ": ")
   if standing.isNone:
@@ -29,22 +29,22 @@ func curve(
     return
   let s = standing.get
   let value = formatFloat(s.value * scale, ffDecimal, 1)
-  result.add span(
-    if s.earlier == 0:
-      value
-    else:
-      value & " (" & top(s) & ")",
-    colour,
-    bold = true,
+  result.add Span(
+    text:
+      if s.earlier == 0:
+        value
+      else:
+        value & " (" & top(s) & ")",
+    styles: @[style, styleName"em"],
   )
 
 func statLine*(
     label: string, fitness, fatigue: Option[Standing], fitnessScale, fatigueScale: float
 ): Line =
   ## One line: the label (when the values are for), then the two curves (the number and the "top" share
-  ## coloured: fitness green, fatigue red).  The values are multiplied by the scales, as in the
+  ## emphasised, fitness good and fatigue bad).  The values are multiplied by the scales, as in the
   ## file; the share does not depend on them.
   result = plain(label & "  ")
-  result.add curve("fitness", green, fitness, fitnessScale)
+  result.add curve("fitness", styleName"good", fitness, fitnessScale)
   result.add plain(",  ")
-  result.add curve("fatigue", red, fatigue, fatigueScale)
+  result.add curve("fatigue", styleName"bad", fatigue, fatigueScale)

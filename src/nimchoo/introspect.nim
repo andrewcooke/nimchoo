@@ -7,7 +7,7 @@ import std/[algorithm, editdistance, options, os, sequtils, strformat, strutils]
 import ./core/[access, errors, globals, inventory, logfile, manifest]
 import ./packages/cache/cache
 import ./packages/db/[fragment, store]
-import ./packages/ui/[live, palette, style, units]
+import ./packages/ui/[live, style, units]
 import ./packages/util/args/[args, usage]
 import ./packages/util/version/version
 import ./registry as generated
@@ -32,9 +32,9 @@ type
     of vTree:
       root*: string
       reverse*: bool ## what depends on `root`, not what it depends on
-      repeats*: bool ## `-v`: the packages drawn above too, in grey
+      repeats*: bool ## `-v`: the packages drawn above too, hidden
     of vLayers:
-      implied*: bool ## `-v`: the dependencies implied by others too, in grey
+      implied*: bool ## `-v`: the dependencies implied by others too, hidden
     of vList, vPoints, vTables, vDot, vConfig:
       discard
 
@@ -75,7 +75,7 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "(with --graph) everything, the rest in grey: with NAME the packages already drawn higher in the tree (else each is drawn once); without, the dependencies implied by others (else only those that are not)",
+        "(with --graph) everything, the rest dimmed: with NAME the packages already drawn higher in the tree (else each is drawn once); without, the dependencies implied by others (else only those that are not)",
         level = 1,
       ),
       flag(
@@ -306,19 +306,34 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vTables:
     show tableLines(inv)
   of vLayers:
-    let colour = canColourStdout()
+    let paint = stdoutPaint(g.theme)
     for l in layerLines(inv, width, p.implied):
-      # (a dependency implied by another is grey)
-      stdout.say render(l.mapIt(span(it.text, if it.implied: grey else: white)), colour) &
-        "\n"
+      # (a dependency implied by another is hidden)
+      stdout.say render(
+        l.mapIt(
+          if it.implied:
+            span(it.text, "hide")
+          else:
+            span(it.text)
+        ),
+        paint,
+      ) & "\n"
     if p.implied:
-      show(@["", "(grey: a dependency also reached through another one)"])
+      show(@["", "(dimmed: a dependency also reached through another one)"])
   of vTree:
     let tree = treeLines(inv, p.root, p.reverse, p.repeats)
-    let colour = canColourStdout()
+    let paint = stdoutPaint(g.theme)
     for l in tree:
-      # (what was drawn above is grey)
-      stdout.say render(@[span(l.text, if l.again: grey else: white)], colour) & "\n"
+      # (what was drawn above is hidden)
+      stdout.say render(
+        @[
+          if l.again:
+            span(l.text, "hide")
+          else:
+            span(l.text)
+        ],
+        paint,
+      ) & "\n"
     if tree.anyIt(it.text.endsWith("...")):
       show(@["", treeNote])
   of vDot:

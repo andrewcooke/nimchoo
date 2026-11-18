@@ -85,9 +85,9 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   ## sport and the path of the file last.  No lines at all if there
   ## are no rows.
   ##
-  ## Looks: a row in the selection is blue all through; a
-  ## transition row is dim all through; "-" (not recorded) is dim; a distance
-  ## or an active time that shows as zero is yellow.
+  ## Styles: a row in the selection is `select` all through; a
+  ## transition row is `hide` all through; "-" (not recorded) is `hide`; a distance
+  ## or an active time that shows as zero is `warn`.
   if rows.len == 0:
     return
   var header = @["start", "sport", "distance", "active", "place / name"]
@@ -116,19 +116,20 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
         break # (nothing to say last: no trailing blanks)
       if c > 0:
         result.add span("  ")
-      var look = Look()
+      var style = none(StyleName) # (plain)
       if r.isSome:
         if r.get.isTransition:
-          look.colour = grey
+          style = some(styleName"hide")
         elif r.get.selected:
-          look.colour = selectedColour # the whole row: it is in the selection
+          style = some(selectedStyle) # the whole row: it is in the selection
         elif row[c] == notRecorded or row[c] == noGps:
-          look.colour = grey
+          style = some(styleName"hide")
         elif (c == first and r.get.zeroDistance) or (
           c == first + 1 and r.get.zeroActive
         ):
-          look.colour = yellow
-      result.add Span(text: padded(row[c], c), look: look)
+          style = some(styleName"warn")
+      let text = padded(row[c], c)
+      result.add (if style.isSome: span(text, style.get) else: span(text))
 
   result.add line(header, none(ListRow))
   for i, row in cells:
@@ -166,11 +167,11 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     result.add " (" & text.join(", ") & ")"
 
 func footerLine*(
-    rows: seq[ListRow], choices = none(int), colour = selectedColour, saved = none(int)
+    rows: seq[ListRow], choices = none(int), style = selectedStyle, saved = none(int)
 ): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
-  ## the activities are in the selection, ", 35 match selected" follows the count, in the colour
-  ## the selected ones have in the display (blue rows in the table, blue days in the calendar):
+  ## the activities are in the selection, ", 35 match selected" follows the count, in the style
+  ## the selected ones have in the display (the rows of the table, the days of the calendar):
   ## "done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m".
   ## With `saved` (the listing was kept as the selection) it says so there, in one line with the rest:
   ## "done: 1 of 1112 activities, 1 saved as the selection, 95.4km, 5h24m".
@@ -189,6 +190,6 @@ func footerLine*(
       ", " & $saved.get & " saved as the selection"
     else:
       ", " & $selected & " match selected"
-  result = @[span("done: " & head), span(said, colour)]
+  result = @[span("done: " & head), span(said, style)]
   if split >= 0:
     result.add span(text[split .. ^1])

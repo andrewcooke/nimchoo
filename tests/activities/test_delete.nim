@@ -8,6 +8,7 @@ import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/ui/style
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import ../support/userdata
+import ../support/styles
 
 let dir = getTempDir() / "nch-test-delete"
 
@@ -306,12 +307,12 @@ suite "delete: progress":
       s.db.scalar(string, "select name from file") == "keeper"
 
 suite "delete: the display":
-  test "two lines, as the import's: the word in bold, then the counts in red joined by grey dots":
+  test "two lines, as the import's: the word emphasised, then the counts bad joined by hidden dots":
     let lines = deletingLines(340, 1381, 120)
     check lines.len == 2
     check lines[0].text == "deleting 340 / 1,381 activities"
-    check lines[0][0].look.bold and lines[0][0].text == "deleting "
+    check emphasised(lines[0][0]) and lines[0][0].text == "deleting "
     check lines[1].text == "activities 340 · files 120"
-    check lines[1][0].look.colour == red and lines[1][2].look.colour == red
-    check lines[1][1].text == " · " and lines[1][1].look.colour == grey
+    check styleOf(lines[1][0]) == "bad" and styleOf(lines[1][2]) == "bad"
+    check lines[1][1].text == " · " and styleOf(lines[1][1]) == "hide"
     check deletingLines(1, 1, 1)[0].text == "deleting 1 / 1 activity"

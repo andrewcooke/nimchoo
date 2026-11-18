@@ -321,8 +321,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       stdout.say pageFile.get & "\n" & csvPath & "\n"
       return exitOk
     stdout.say csvPath & "\n"
-    let colour = canColourStdout()
-    stdout.say render(latestStats(st, m.get, p, now, tz), colour) & "\n"
+    let paint = stdoutPaint(g.theme)
+    stdout.say render(latestStats(st, m.get, p, now, tz), paint) & "\n"
     exitOk
   except StoreError as e:
     failure("nch ff", e.msg)

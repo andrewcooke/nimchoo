@@ -1,10 +1,6 @@
-## The colours of nch: five, named here and nowhere else.  Everything else says "green" or "grey",
-## never a terminal code or a hex value, so a palette (even one for another background) is a change
-## to this file alone.
-##
-## The terminal forms are escape codes (white is the terminal's own text colour, grey is a fixed
-## dark grey from the 256-colour range, so it looks the same in any theme); the web forms are hex
-## values for pages with a white background.
+## The colours of the web pages, named here and nowhere else: hex values for pages with a white background, given to the
+## templates as tags (`{{blue}}`).  (The terminal's are the theme's: `core/theme.nim`; the pages will take theirs from the
+## theme too: TODO "Styles, themes and markup", step 5.)
 
 {.push raises: [].}
 
@@ -15,25 +11,6 @@ type Color* = enum
   green ## good: imported, saved, fitness
   yellow ## a warning (some terminals draw it as orange)
   blue ## what is selected (a light blue)
-
-func terminalCode*(c: Color): string =
-  ## The escape code that starts the colour in a terminal ("" for white: nothing to start).
-  case c
-  of white:
-    ""
-  of grey:
-    "\e[38;5;240m"
-  # (238 is darker, 242 lighter; "\e[90m" is the theme's bright black)
-  of red:
-    "\e[31m"
-  of green:
-    "\e[32m"
-  of yellow:
-    "\e[33m"
-  of blue:
-    "\e[38;5;111m" # (a light blue: 75 is deeper, 117 paler)
-
-const resetCode* = "\e[0m" ## ... and the one that ends any colour
 
 func hex*(c: Color): string =
   ## The colour on a web page with a white background.

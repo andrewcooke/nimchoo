@@ -1,5 +1,5 @@
 ## `nch activities --delete`: delete activities of the current user (the selection, or those the criteria find), with
-## everything made from them.  Does nothing without -f; on a terminal it then counts down, in red, so there is time to press
+## everything made from them.  Does nothing without -f; on a terminal it then counts down, in the bad style, so there is time to press
 ## Ctrl-C, and shows how far it has got.  The file of an activity is forgotten too, so importing its folder again brings the
 ## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
 
@@ -18,23 +18,23 @@ import ../user/session
 {.push raises: [].}
 
 func deletingLines*(done, total, files: int): seq[Line] =
-  ## The two lines shown while the activities go, as the import's and the climbs' are (the counts in red here, not green):
-  ## the first plain with the word in bold, the second the counts joined by grey dots.
+  ## The two lines shown while the activities go, as the import's and the climbs' are (the counts bad here, not good):
+  ## the first plain with the word emphasised, the second the counts joined by hidden dots.
   ##
   ##     deleting 340 / 1,381 activities
   ##     activities 340 · files 120
   @[
     @[
-      span("deleting ", bold = true),
+      span("deleting ", "em"),
       span(
         insertSep($done, ',') & " / " & insertSep($total, ',') &
           (if total == 1: " activity" else: " activities")
       ),
     ],
     @[
-      span("activities " & insertSep($done, ','), red),
-      span(" · ", grey),
-      span("files " & insertSep($files, ','), red),
+      span("activities " & insertSep($done, ','), "bad"),
+      span(" · ", "hide"),
+      span("files " & insertSep($files, ','), "bad"),
     ],
   ]
 
@@ -50,13 +50,13 @@ proc runDelete*(
     let what = describe(plan)
     if force == fNo:
       return failure("nch activities", "would delete " & what & "; use -f to confirm")
-    pause(what, force)
+    pause(g.theme, what, force)
     # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
     var shown = false
     var live = Live()
     let screen = canLive()
     if screen:
-      live = newTerminalLive()
+      live = newTerminalLive(g.theme)
     let done = deleteActivities(
       st,
       plan,
@@ -80,7 +80,7 @@ proc runDelete*(
       said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
         " kept, with other activities in"
     g.log.log(lvInfo, commandName, leDeleted, said & " from " & st.path)
-    sayDeleted(said)
+    sayDeleted(g.theme, said)
     exitOk
   except StoreError as e:
     failure("nch activities", e.msg)

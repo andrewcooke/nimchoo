@@ -3,6 +3,7 @@ import nimchoo/packages/fit/time
 import nimchoo/packages/calendar/calendar
 import nimchoo/packages/ui/style
 import ../support/zones
+import ../support/styles
 
 proc at(y: int, m: Month, d: int, h = 12, min = 0): int64 =
   dateTime(y, m, d, h, min, 0, 0, utc()).toTime.toUnix
@@ -67,8 +68,8 @@ suite "calendar: the layout":
     let all = calendarLines(rs, utc(), true, colourScreen)
     check all.len == 1 + 4
     check all.mapIt(it.text[0 .. 2]) == @["   ", "Mar", "Apr", "May", "Jun"]
-    check all[2].filterIt(it.look.colour == grey).len == 30 and
-      all[2].allIt(it.look.colour != yellow) # April: 30 days, none listed
+    check all[2].filterIt(styleOf(it) == "hide").len == 30 and
+      all[2].allIt(styleOf(it) != "warn") # April: 30 days, none listed
   test "nothing listed: nothing":
     check calendarLines(@[], utc(), true, colourScreen).len == 0
 
@@ -79,13 +80,13 @@ suite "calendar: colours and marks":
     row(at(2018, mAug, 29)),
     row(at(2018, mAug, 29)),
   ]
-  test "blue: listed; grey: none":
+  test "select: listed; hide: none":
     let aug = calendarLines(rs, utc(), false, colourScreen).monthRow("Aug")
-    check aug.cellOf(2 + 26).look.colour == blue # the 27th
-    check aug.cellOf(2 + 27).look.colour == blue # the 28th
-    check aug.cellOf(2 + 28).look.colour == blue # the 29th: two activities
-    check aug.cellOf(2 + 25).look.colour == grey # the 26th: nothing
-    check aug.cellOf(2).look.colour == grey # the 1st
+    check styleOf(aug.cellOf(2 + 26)) == "select" # the 27th
+    check styleOf(aug.cellOf(2 + 27)) == "select" # the 28th
+    check styleOf(aug.cellOf(2 + 28)) == "select" # the 29th: two activities
+    check styleOf(aug.cellOf(2 + 25)) == "hide" # the 26th: nothing
+    check styleOf(aug.cellOf(2)) == "hide" # the 1st
   test "without colour the cells are 5 wide and marked":
     let aug = calendarLines(rs, utc(), false, plainScreen).monthRow("Aug")
     check aug.cellOf(2 + 26).text == " [27]"
@@ -120,11 +121,11 @@ suite "calendar: the months either side of a gap":
     for (y, m) in ms:
       result.add row(at(y, m, 5))
 
-  proc labelColours(ls: seq[Line]): seq[Color] =
+  proc labelColours(ls: seq[Line]): seq[string] =
     for l in ls[1 .. ^1]:
-      result.add l[0].look.colour
+      result.add styleOf(l[0])
 
-  test "their names are yellow; the others are not":
+  test "their names are in the warning style; the others are not":
     # Jan Feb | Apr | Jun Jul Aug | Dec: gaps after Feb, around Apr, after Aug
     let rs = rowsIn(
       @[
@@ -140,20 +141,18 @@ suite "calendar: the months either side of a gap":
     let ls = calendarLines(rs, utc(), false, colourScreen)
     check ls[1 ..^ 1].mapIt(it.text[0 .. 2]) ==
       @["Jan", "Feb", "Apr", "Jun", "Jul", "Aug", "Dec"]
-    check labelColours(ls) == @[white, yellow, yellow, yellow, white, yellow, yellow]
-  test "no gap, no yellow; with every month asked for, none either":
+    check labelColours(ls) == @["", "warn", "warn", "warn", "", "warn", "warn"]
+  test "no gap, no warning; with every month asked for, none either":
     let rs = rowsIn(@[(2018, mMar), (2018, mApr), (2018, mMay)])
-    check labelColours(calendarLines(rs, utc(), false, colourScreen)).allIt(it == white)
+    check labelColours(calendarLines(rs, utc(), false, colourScreen)).allIt(it == "")
     let gappy = rowsIn(@[(2018, mMar), (2018, mJun)])
-    check labelColours(calendarLines(gappy, utc(), true, colourScreen)).allIt(
-      it == white
-    )
+    check labelColours(calendarLines(gappy, utc(), true, colourScreen)).allIt(it == "")
     check labelColours(calendarLines(gappy, utc(), false, colourScreen)) ==
-      @[yellow, yellow]
+      @["warn", "warn"]
   test "a gap between years counts (December to February)":
     let ls =
       calendarLines(rowsIn(@[(2017, mDec), (2018, mFeb)]), utc(), false, colourScreen)
-    check labelColours(ls) == @[yellow, yellow]
+    check labelColours(ls) == @["warn", "warn"]
   test "without colour a star follows the name, and the width does not change":
     let ls =
       calendarLines(rowsIn(@[(2018, mMar), (2018, mJun)]), utc(), false, plainScreen)
@@ -172,25 +171,25 @@ suite "calendar: time zones":
         @[row(t)], fixedZone("+10", 10 * 3600), false, colourScreen
       )
       .monthRow("Aug")
-    check east.cellOf(2 + 27).look.colour == blue and
-      east.cellOf(2 + 26).look.colour == grey
+    check styleOf(east.cellOf(2 + 27)) == "select" and
+      styleOf(east.cellOf(2 + 26)) == "hide"
     let west = calendarLines(
         @[row(t)], fixedZone("-03", -3 * 3600), false, colourScreen
       )
       .monthRow("Aug")
-    check west.cellOf(2 + 26).look.colour == blue and
-      west.cellOf(2 + 27).look.colour == grey
+    check styleOf(west.cellOf(2 + 26)) == "select" and
+      styleOf(west.cellOf(2 + 27)) == "hide"
   test "near the end of a month, the month changes with the zone":
     let t = at(2018, mAug, 31, 20) # 06:00 on 1 September at +10
     let ls = calendarLines(@[row(t)], fixedZone("+10", 10 * 3600), false, colourScreen)
     check ls.len == 2 and ls[1].text.startsWith("Sep ")
 
 suite "calendar: too narrow a screen":
-  test "a yellow warning first, then every line cut to the screen":
+  test "a warning first, then every line cut to the screen":
     let rs = @[row(at(2018, mAug, 27))]
     let ls = calendarLines(rs, utc(), false, Screen(colour: true, width: 60))
     check ls.len == 3
-    check ls[0][0].look.colour == yellow and
+    check styleOf(ls[0][0]) == "warn" and
       ls[0].text.startsWith("the calendar needs 121 columns and the screen has 60")
     for l in ls[1 .. ^1]:
       check l.width == 60 and l.text.endsWith("…")

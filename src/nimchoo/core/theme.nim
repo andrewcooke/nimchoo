@@ -234,3 +234,14 @@ func terminalCodes*(look: Look): string =
     ""
   else:
     "\e[" & parts.join(";") & "m" # (a code built from its parts)
+
+func asStyle*(look: Look): Style =
+  ## A style that gives every attribute of `look` (so that it looks the same whatever it is inside).
+  Style(
+    fg: some(look.fg),
+    bg: some(look.bg),
+    weight: some(look.weight),
+    underline: some(look.underline),
+    italic: some(look.italic),
+    reverse: some(look.reverse),
+  )

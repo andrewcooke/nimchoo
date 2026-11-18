@@ -12,10 +12,10 @@ import ../user/session
 
 type
   ImportReport* = object
-    ## What a contribution says it did: a line for the screen and the log, with the look of what it is about (the
-    ## selection has its own: `ui/vocabulary.selectedColour`).
+    ## What a contribution says it did: a line for the screen and the log, in the style of what it is about (the
+    ## selection has its own: `ui/vocabulary.selectedStyle`).
     text*: string
-    look*: Look
+    style*: StyleName
 
   Show* = proc(lines: seq[Line], final: bool) {.closure, raises: [].}
     ## How a contribution shows work that takes a while: the lines that follow it, as often as it likes (the importer decides how

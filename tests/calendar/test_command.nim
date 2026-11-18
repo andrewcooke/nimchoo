@@ -5,6 +5,7 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/ui/style
 import nimchoo/packages/user/session
 import nimchoo/packages/util/args/args
+import ../support/styles
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 
 let dir = getTempDir() / "nch-test-calendar-cmd"
@@ -93,7 +94,7 @@ suite "nch calendar: what it shows":
     check ls.texts.filterIt(it.startsWith("Jul ")).len == 1
     check ls.texts.filterIt(it.startsWith("Aug ")).len == 0
     let jul = ls.filterIt(it.text.startsWith("Jul "))[0]
-    check jul.anyIt(it.look.colour == blue and it.text == "01 ")
+    check jul.anyIt(styleOf(it) == "select" and it.text == "01 ")
     check ls.texts[^1].startsWith("done: 1 activity")
       # (the activities' frame sums them up)
 
@@ -110,8 +111,8 @@ suite "nch calendar: what it shows":
     ) # (both are selected now)
     let ls = s.shown()
     check ls.texts[^1] ==
-      "warning: 4 months with no activity not shown, at the yellow month names; use --verbose to show them"
-    check ls[^1][0].look.colour == yellow
+      "warning: 4 months with no activity not shown, at the month names in this colour; use --verbose to show them"
+    check styleOf(ls[^1][0]) == "warn"
     let all = s.shown("-v")
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4
     check not all.texts[^1].startsWith("warning")

@@ -1,33 +1,82 @@
-## Styled text for terminal displays: a line is a list of spans, each a piece
-## of text with a look (a colour of the palette, and bold).  Keeping lines as spans, not as
-## strings full of escape codes, means they can be measured and cut to a width
-## without splitting an escape sequence, and rendered with or without colour.
+## Styled text for terminal displays: a line is a list of spans, each a piece of text in the styles it is in (the outermost
+## first; none: plain text).  A style is a name; what it looks like is the theme's to say (`core/theme.nim`), so the same
+## line is drawn in whatever theme is in force, and with or without colour (a `Paint`).  Keeping lines as spans, not as
+## strings full of escape codes, means they can be measured and cut to a width without splitting an escape sequence.
+##
+## The names the program uses are those of the built-in dark theme (`dark.txt`, beside this file), and a name written in
+## the code is checked against them when it is compiled (`span("failed", "bad")`, `styleName"select"`): a misspelt style is
+## a compile error.  A theme that lacks one draws its text as the text around it.
 
-import std/unicode
-import ./palette
-export palette
+import std/[strutils, tables, unicode]
+import ../../core/[errors, theme]
+export theme.Theme
 
 {.push raises: [].}
 
 type
-  Look* = object
-    colour*: Color ## white (the default) is ordinary text
-    bold*: bool
+  StyleName* = distinct string ## the name of a style
 
   Span* = object
     text*: string
-    look*: Look
+    styles*: seq[StyleName] ## the outermost first; none: plain text
 
   Line* = seq[Span]
 
-const ellipsis = "…"
+  Paint* = object
+    ## how lines are drawn: the theme in force, and whether in colour at all
+    theme*: Theme
+    colour*: bool
 
-func span*(text: string, colour = white, bold = false): Span =
-  ## A piece of text with its look.
-  Span(text: text, look: Look(colour: colour, bold: bold))
+func `==`*(a, b: StyleName): bool {.borrow.}
+func `$`*(s: StyleName): string {.borrow.}
+
+func namesIn(text: string): seq[string] =
+  ## The names of the styles of a built-in theme (which is tested to be one).
+  try:
+    for name in parseTheme(text).styles.keys:
+      result.add name
+  except ThemeError as e:
+    raiseAssert "a built-in theme: " & e.msg
+
+const
+  builtInThemes* = [
+    (name: "dark", text: staticRead("dark.txt")),
+    (name: "light", text: staticRead("light.txt")),
+  ] ## the themes the program carries (the `themes` package unpacks them)
+  styleNames* = namesIn(builtInThemes[0].text)
+    ## the styles the program may use: those of the built-in dark theme
+  ellipsis = "…"
+
+template styleName*(name: static string): StyleName =
+  ## The style `name`, which the built-in theme must have (checked when compiled).
+  static:
+    doAssert name in styleNames,
+      "no style '" & name & "' in the built-in theme (it has " & styleNames.join(", ") &
+        ")"
+  StyleName(name)
+
+func anyStyle*(name: string): StyleName =
+  ## The style `name`, whatever it is: for markup read while the program runs (a theme may define styles of its own).
+  StyleName(name)
+
+func span*(text: string): Span =
+  ## A piece of plain text.
+  Span(text: text)
+
+func span*(text: string, style: StyleName): Span =
+  ## A piece of text in a style.
+  Span(text: text, styles: @[style])
+
+template span*(words: string, style: static string): Span =
+  ## A piece of text in the style named (checked when compiled).
+  span(words, styleName(style))
+
+template span*(words: string, outer, inner: static string): Span =
+  ## A piece of text in one style inside another (`span("5", "bad", "em")`).
+  Span(text: words, styles: @[styleName(outer), styleName(inner)])
 
 func plain*(text: string): Line =
-  ## A line of text with no look.
+  ## A line of text with no style.
   @[span(text)]
 
 func width*(line: Line): int =
@@ -56,21 +105,34 @@ func truncated*(line: Line, maxWidth: int): Line =
       result.add s
       room -= n
     else:
-      result.add Span(text: s.text.runeSubStr(0, room), look: s.look)
+      result.add Span(text: s.text.runeSubStr(0, room), styles: s.styles)
       room = 0
   if result.len > 0:
-    result.add Span(text: ellipsis, look: result[^1].look)
+    result.add Span(text: ellipsis, styles: result[^1].styles)
   else:
     result.add span(ellipsis)
 
-func render*(line: Line, colour: bool): string =
-  ## The line as text for a terminal: with escape codes if `colour`.
+func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
+  ## How text in `styles` looks: the theme's base look with each style over it in turn (`default` goes back to the base;
+  ## a style the theme lacks changes nothing).
+  let base = baseLook(theme)
+  result = base
+  for s in styles:
+    if $s == defaultStyle:
+      result = base
+    else:
+      result = result.over(theme.styles.getOrDefault($s))
+
+func render*(line: Line, paint: Paint): string =
+  ## The line as text for a terminal: each span starts its look (if in colour) and ends with a reset, so that nothing
+  ## runs on to the next span or the next line.
   for s in line:
-    let styled = colour and (s.look.colour != white or s.look.bold)
-    if styled:
-      result.add terminalCode(s.look.colour)
-      if s.look.bold:
-        result.add "\e[1m"
+    let start =
+      if paint.colour:
+        terminalCodes(lookOf(paint.theme, s.styles))
+      else:
+        ""
+    result.add start
     result.add s.text
-    if styled:
-      result.add resetCode
+    if start.len > 0:
+      result.add "\e[0m"

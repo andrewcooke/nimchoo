@@ -50,11 +50,11 @@ template forceOptionIn*(P: typedesc, group, field: untyped, indent: int = 0): Op
   )
 
 func countdownLine*(what: string, seconds: int): Line =
-  ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", in red.
+  ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", bad, the seconds emphasised.
   @[
-    span("deleting " & what & " in ", red),
-    span($seconds, red, bold = true),
-    span(" s ... (Ctrl-C to cancel)", red),
+    span("deleting " & what & " in ", "bad"),
+    span($seconds, "bad", "em"),
+    span(" s ... (Ctrl-C to cancel)", "bad"),
   ]
 
 proc countdown*(
@@ -66,9 +66,9 @@ proc countdown*(
     wait 1000
   l.finish()
 
-proc sayDeleted*(text: string) =
-  ## The line that says what was deleted ("done: deleted ..."), in red on a terminal, so that it stands out.
-  stdout.say render(@[span("done: " & text, red)], canColourStdout()) & "\n"
+proc sayDeleted*(theme: Theme, text: string) =
+  ## The line that says what was deleted ("done: deleted ..."), bad on a terminal, so that it stands out.
+  stdout.say render(@[span("done: " & text, "bad")], stdoutPaint(theme)) & "\n"
 
 proc sleepMs*(ms: int) {.raises: [].} =
   ## Wait for `ms` milliseconds.
@@ -77,7 +77,7 @@ proc sleepMs*(ms: int) {.raises: [].} =
   except OSError:
     discard
 
-proc pause*(what: string, force: Force) =
-  ## The countdown before deleting `what`, on a terminal, unless `-f` was given twice.
+proc pause*(theme: Theme, what: string, force: Force) =
+  ## The countdown before deleting `what`, on a terminal in `theme`, unless `-f` was given twice.
   if force != fNow and canLive():
-    countdown(newTerminalLive(), what, waitSeconds, sleepMs)
+    countdown(newTerminalLive(theme), what, waitSeconds, sleepMs)

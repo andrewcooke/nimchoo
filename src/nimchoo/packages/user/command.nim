@@ -135,10 +135,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "nch users",
           "would delete " & what & " from " & st.path & "; use -f to confirm",
         )
-      pause(what, p.delete.force)
+      pause(g.theme, what, p.delete.force)
       deleteUser(st, id)
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
-      sayDeleted("deleted " & what)
+      sayDeleted(g.theme, "deleted " & what)
       return exitOk
     of uaAdd:
       let n = p.add

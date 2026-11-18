@@ -12,6 +12,7 @@ import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
 import nimchoo/packages/ui/vocabulary
 import ../support/fitbuilder
+import ../support/styles
 
 const base = 900_000_000
 
@@ -55,12 +56,12 @@ suite "import display: the lines":
   test "no failures and no advisories: nothing alarming":
     let ls = renderImport(Summary(total: 10, imported: 2, unchanged: 1), 4, "x.fit")
     check ls[1].text == "imported 2 · unchanged 1 · failed 0"
-    check ls[1].allIt(it.look.colour notin {red, yellow})
+    check ls[1].allIt(styleOf(it) notin ["bad", "warn"])
 
-  test "monitor files are counted in grey, apart from the failures":
+  test "monitor files are counted hidden, apart from the failures":
     let ls = renderImport(Summary(total: 5, imported: 1, monitor: 4), 5, "x")
     check ls[1].text == "imported 1 · monitor 4 · failed 0"
-    check ls[1].anyIt(it.text == "monitor 4" and it.look.colour == grey)
+    check ls[1].anyIt(it.text == "monitor 4" and styleOf(it) == "hide")
 
   test "duplicates, unchanged and known failures are shown apart; zeros are left out":
     check renderImport(Summary(total: 5, duplicates: 1, unchanged: 2, known: 3), 3, "x").texts[
@@ -97,8 +98,8 @@ suite "import display: the lines":
     check p.params.filter.events == {leFailed, leDuplicate, leAdvisory}
     check p.params.filter.last
 
-  test "imported is green even when it is 0":
-    check renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0].look.colour == green
+  test "imported is good even when it is 0":
+    check styleOf(renderImport(Summary(total: 1, unchanged: 1), 1, "")[1][0]) == "good"
 
   test "the counts have the looks of the events of the same name":
     var s = Summary(
@@ -112,26 +113,26 @@ suite "import display: the lines":
     )
     s.failures[fkBadFormat] = 5
     let second = renderImport(s, 5, "x")[1]
-    proc lookOf(prefix: string): Look =
+    proc styleOf(prefix: string): seq[StyleName] =
       for sp in second:
         if sp.text.startsWith(prefix):
-          return sp.look
+          return sp.styles
       raiseAssert "no span starting " & prefix
 
-    check lookOf("imported") == look(leImported)
-    check lookOf("duplicates") == look(leDuplicate)
-    check lookOf("unchanged") == look(leUnchanged)
-    check lookOf("known failures") == look(leUnchanged)
-    check lookOf("failed") == look(leFailed)
-    check lookOf("advisories") == look(leAdvisory)
+    check styleOf("imported") == @[style(leImported)]
+    check styleOf("duplicates") == @[style(leDuplicate)]
+    check styleOf("unchanged") == @[style(leUnchanged)]
+    check styleOf("known failures") == @[style(leUnchanged)]
+    check styleOf("failed") == @[style(leFailed)]
+    check styleOf("advisories") == @[style(leAdvisory)]
 
-  test "colours: imported green, failed red, advisories yellow":
+  test "styles: imported good, failed bad, advisories a warning":
     var s = Summary(total: 5, imported: 1, failed: 1, advisories: 2)
     s.failures[fkBadFormat] = 1
     let second = renderImport(s, 2, "x")[1]
-    check second[0].look.colour == green
-    check second.anyIt(it.look.colour == red and it.text.startsWith("failed"))
-    check second.anyIt(it.look.colour == yellow and it.text.startsWith("advisories"))
+    check styleOf(second[0]) == "good"
+    check second.anyIt(styleOf(it) == "bad" and it.text.startsWith("failed"))
+    check second.anyIt(styleOf(it) == "warn" and it.text.startsWith("advisories"))
 
 suite "import display: a run":
   type Fake = ref object
@@ -146,7 +147,7 @@ suite "import display: a run":
         f.now,
       size = proc(): tuple[w, h: int] {.closure, raises: [].} =
         (100, 24),
-      colour = false,
+      paint = Paint(colour: false),
     )
 
   proc run(f: Fake, d: string, advanceBy: int64): Summary =

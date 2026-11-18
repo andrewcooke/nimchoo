@@ -93,25 +93,25 @@ func select*(lines: seq[LogLine], f: Filter): Selected =
   if f.count > 0 and result.lines.len > f.count:
     result.lines = result.lines[result.lines.len - f.count .. ^1]
 
-func levelLook*(level: string): Look =
-  ## ERROR red and bold, WARN yellow, INFO grey: the quiet ordinary lines, and the ones that need a look.
+func levelStyle*(level: string): StyleName =
+  ## ERROR bad, WARN a warning, INFO hidden: the quiet ordinary lines, and the ones that need a look.
   case level
   of "ERROR":
-    Look(colour: red, bold: true)
+    styleName"bad"
   of "WARN":
-    Look(colour: yellow)
+    styleName"warn"
   else:
-    Look(colour: grey)
+    styleName"hide"
 
 func styled*(l: LogLine): Line =
-  ## The line, with the level word in its look (red ERROR, yellow WARN, grey INFO) and the event word in the look of the event.
+  ## The line, with the level word in its style (bad ERROR, warning WARN, hidden INFO) and the event word in the style of
+  ## the event.
   if l.event.isNone:
     return plain(l.raw)
   @[
     span(l.raw[0 ..< l.levelStart]),
-    Span(
-      text: l.raw[l.levelStart ..< l.levelEnd],
-      look: levelLook(l.raw[l.levelStart ..< l.levelEnd]),
+    span(
+      l.raw[l.levelStart ..< l.levelEnd], levelStyle(l.raw[l.levelStart ..< l.levelEnd])
     ),
     span(l.raw[l.levelEnd ..< l.eventStart]),
     span(l.raw[l.eventStart ..< l.eventEnd], l.event.get),

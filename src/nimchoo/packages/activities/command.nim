@@ -116,7 +116,7 @@ proc listing(
 ): seq[Line] =
   ## The table and its last line.
   result = table(rows, zone, c.verbose)
-  result.add footerLine(rows, choices, selectedColour, saved)
+  result.add footerLine(rows, choices, selectedStyle, saved)
 
 proc showSelection*(
     st: Session, c: Criteria, zone: Timezone
@@ -376,7 +376,7 @@ proc listActivities*(
   var rows =
     readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
   if not (c.select or c.all):
-    # blue is the selection after this command: criteria without --select change nothing, so nothing listed is blue (with
+    # the select style is the selection after this command: criteria without --select change nothing, so nothing listed is in it (with
     # --select everything listed is; with --all, the activities that are selected among them all)
     for r in rows.mitems:
       r.selected = false
@@ -473,7 +473,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all",
         )
       return renameActivities(g, st, m.ids)
-    let colour = canColourStdout()
+    let paint = stdoutPaint(g.theme)
     let r = listActivities(st, criteria, zone)
     if r.saved >= 0:
       g.log.log(
@@ -483,7 +483,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         $r.saved & (if r.saved == 1: " activity" else: " activities"),
       )
     for l in r.lines:
-      stdout.say render(l, colour) & "\n"
+      stdout.say render(l, paint) & "\n"
     exitOk
   except StoreError as e:
     failure("nch activities", e.msg)
