@@ -10,7 +10,7 @@
 ## Blank lines and lines starting with `#` are ignored.
 
 import std/[options, strformat, strutils, tables]
-from std/unicode import Rune
+from std/unicode import Rune, runes, `$`, `==`
 import ./errors
 
 {.push raises: [].}
@@ -247,10 +247,50 @@ func asStyle*(look: Look): Style =
     reverse: some(look.reverse),
   )
 
-const lineStyle* = "hide"
-  ## the style that the lines of a table or a tree (the box-drawing characters, `│ ─ ┼ └`) are drawn in, wherever they
-  ## are (`Globals.inTheme`, `style.render`)
+const
+  lineStyle* = "hide"
+    ## the style that the lines of a table or a tree (the box-drawing characters, `│ ─ ┼ └`) are drawn in, wherever they
+    ## are
+  typedStyle* = "cmd"
+    ## the style of what is between backticks, wherever it is: a command, an option, a path, what a person would type (in
+    ## colour the backticks are left out: the style marks it; without colour they are the mark)
 
 func isLineDrawing*(r: Rune): bool =
   ## Whether `r` is a box-drawing character (U+2500 to U+257F).
   int32(r) in 0x2500'i32 .. 0x257F'i32
+
+type Drawer* = object
+  ## Text drawn for a terminal, piece by piece, each piece in a look of its own, with the two rules that hold wherever text
+  ## is drawn (`Globals.inTheme`, `style.render`): the lines of a table in `lineStyle`, and what is between backticks in
+  ## `typedStyle`, over the piece's own look.  A look is started where it begins and reset where it ends.  What is between
+  ## backticks runs on from one piece to the next and over the end of a line (a phrase can be wrapped).
+  text*: string ## what is drawn so far
+  inForce: string ## the codes of the look being drawn
+  inTyped: bool ## between backticks
+
+func draw*(d: var Drawer, theme: Theme, look: Look, text: string) =
+  ## Draw `text` in `look`.
+  let plain = terminalCodes(look)
+  let lines = terminalCodes(look.over(theme.styles.getOrDefault(lineStyle)))
+  let typed = terminalCodes(look.over(theme.styles.getOrDefault(typedStyle)))
+  for r in text.runes:
+    var want = plain
+    if r == Rune('`'):
+      d.inTyped = not d.inTyped
+      continue # (in colour the style marks it: the backtick is not drawn)
+    elif r.isLineDrawing:
+      want = lines
+    elif d.inTyped:
+      want = typed
+    if want != d.inForce:
+      if d.inForce.len > 0:
+        d.text.add "\e[0m"
+      d.text.add want
+      d.inForce = want
+    d.text.add $r
+
+func endLine*(d: var Drawer) =
+  ## The end of a line: a reset, so that nothing runs on (what is between backticks goes on in the next line).
+  if d.inForce.len > 0:
+    d.text.add "\e[0m"
+    d.inForce = ""

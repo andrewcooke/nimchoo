@@ -23,6 +23,17 @@ suite "globals: what is said, in the theme":
     d.colour[osOut] = true
     check d.inTheme(osOut, "a│") == "\e[37ma\e[0m\e[90m│\e[0m"
 
+  test "what is between backticks is in the typed style, without the backticks; without colour, as it is":
+    var g = Globals(theme: parseTheme("cmd fg=blue"))
+    g.colour[osOut] = true
+    check g.inTheme(osOut, "see `nch climbs` now") == "see \e[34mnch climbs\e[0m now"
+    check g.inTheme(osErr, "see `nch climbs` now") == "see `nch climbs` now"
+  test "a phrase between backticks runs on over the end of a line":
+    var g = Globals(theme: parseTheme("cmd fg=blue"))
+    g.colour[osOut] = true
+    check g.inTheme(osOut, "see `nch\nclimbs` now") ==
+      "see \e[34mnch\e[0m\n\e[34mclimbs\e[0m now"
+
 suite "globals: nothing writes to the terminal behind the theme's back":
   test "only the low-level writers and the output for programs use stdout and stderr themselves":
     # (everything a person reads goes through `g.say`, `g.show` or `g.inTheme`, so that it is in the theme)
