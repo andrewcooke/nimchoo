@@ -39,20 +39,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch cache", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch cache", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   let dir = cacheDir()
   if dir.isNone:
     return failure(
-      "nch cache", "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)"
+      g, "nch cache",
+      "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)",
     )
   if p.action == caShow:
-    stdout.say "the cache is in " & dir.get & "\n"
+    g.say osOut, "the cache is in " & dir.get & "\n"
     var cells: seq[array[3, string]]
     for k in Kind:
       let u = useOf(dir.get, k)
@@ -62,7 +63,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         (if u.count == 0: "-" else: humanBytes(u.bytes)),
       ]
     for c in cells:
-      stdout.say alignLeft(c[0], 10) & align(c[1], 8) & "  " & align(c[2], 10) & "\n"
+      g.say osOut, alignLeft(c[0], 10) & align(c[1], 8) & "  " & align(c[2], 10) & "\n"
     return exitOk
   var what: seq[string]
   for k in p.kinds:
@@ -70,5 +71,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     what.add $k & ": " & describe(u)
   let text = what.join("; ")
   g.log.log(lvInfo, commandName, leDeleted, text & " from " & dir.get)
-  sayDeleted(g.theme, "deleted " & text)
+  sayDeleted(g, "deleted " & text)
   exitOk

@@ -8,7 +8,7 @@
 ## a compile error.  A theme that lacks one draws its text as the text around it.
 
 import std/[strutils, tables, unicode]
-import ../../core/[errors, theme]
+import ../../core/[errors, globals, theme]
 export theme.Theme
 
 {.push raises: [].}
@@ -136,3 +136,11 @@ func render*(line: Line, paint: Paint): string =
     result.add s.text
     if start.len > 0:
       result.add "\e[0m"
+
+func paintOf*(g: Globals, o: OutStream): Paint =
+  ## How lines are drawn on `o`: in the theme in force, in colour if `o` is.
+  Paint(theme: g.theme, colour: g.colour[o])
+
+proc show*(g: Globals, o: OutStream, line: Line) =
+  ## Write a line to `o`, drawn as `o` is.
+  g.sayRendered(o, render(line, paintOf(g, o)) & "\n")

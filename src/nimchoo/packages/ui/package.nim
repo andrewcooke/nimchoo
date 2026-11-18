@@ -10,7 +10,8 @@
 ##   words and styles for what happened are in `vocabulary`, one table, so that "failed" is `bad` wherever it appears.
 ##   Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
 ##   selection, `selectedStyle`), each used for nothing else; `em` for what to read first, `hide` for the bookkeeping and
-##   what was not recorded; `default` is around everything.  Markup (`[good imported] 3 files`) gives text its styles,
+##   what was not recorded; `default` is around everything (all that a command writes is in it: `g.say`, `g.show`).  Markup
+##   (`[good imported] 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,
 ##   which nest; `tools/look.nim` shows text with a theme.  (The web pages' colours are still `palette`'s: TODO "Styles,
 ##   themes and markup", step 5.)
 ## * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also

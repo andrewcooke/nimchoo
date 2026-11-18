@@ -15,7 +15,7 @@
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
 ## with a mark `" [34]"`, a day with none `"  -- "`.
 
-import std/[algorithm, sequtils, sets, strutils, times]
+import std/[algorithm, sequtils, sets, strformat, strutils, times]
 import ../fit/time
 import ../ui/style
 import ../ui/vocabulary
@@ -50,12 +50,12 @@ func dayCell(day: int, listed: bool, s: Screen): Span =
   ## A day: with a mark (`listed`) or not.
   if s.colour:
     if listed:
-      span(two(day) & " ", selectedStyle)
+      span(fmt"{two(day)} ", selectedStyle)
     else:
-      span(two(day) & " ", "hide")
+      span(fmt"{two(day)} ", "hide")
   else:
     if listed:
-      span(" [" & two(day) & "]")
+      span(fmt" [{two(day)}]")
     else:
       span("  -- ")
 
@@ -94,7 +94,7 @@ proc calendarLines*(
   var header: Line = @[span(" ".repeat(labelWidth))]
   for k in 0 ..< cells:
     let name = weekdayNames[k mod 7]
-    header.add span((if screen.colour: name & " " else: "  " & name & " "))
+    header.add span((if screen.colour: fmt"{name} " else: fmt"  {name} "))
   result.add header
   for m in months:
     let year = m div 12
@@ -107,11 +107,11 @@ proc calendarLines*(
       months.find(m) < months.high and months[months.find(m) + 1] - m > 1
     var line: Line =
       if not gap:
-        @[span(monthNames[m mod 12] & " ")]
+        @[span(fmt"{monthNames[m mod 12]} ")]
       elif screen.colour:
         @[span(monthNames[m mod 12], "warn"), span(" ")]
       else:
-        @[span(monthNames[m mod 12] & "*")]
+        @[span(fmt"{monthNames[m mod 12]}*")]
     for k in 0 ..< cells:
       let day = k - offset + 1
       if day < 1 or day > days:
@@ -120,14 +120,13 @@ proc calendarLines*(
         line.add dayCell(
           day, year * 10000 + (m mod 12 + 1) * 100 + day in listed, screen
         )
-    line.add span("  " & $year)
+    line.add span(fmt"  {year}")
     result.add line
   if screen.width > 0 and calendarWidth(screen) > screen.width:
     result = result.mapIt(it.truncated(screen.width))
     result.insert @[
       span(
-        "the calendar needs " & $calendarWidth(screen) & " columns and the screen has " &
-          $screen.width & ": the lines are cut",
+        fmt"the calendar needs {calendarWidth(screen)} columns and the screen has {screen.width}: the lines are cut",
         "warn",
       )
     ], 0

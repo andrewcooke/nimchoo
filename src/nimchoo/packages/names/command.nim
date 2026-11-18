@@ -72,15 +72,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch landmarks", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch landmarks", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   if g.user.len > 0:
     return usageError(
+      g,
       "nch landmarks",
       usageText(helpWidth(stderr)),
       "the landmarks are shared by all users: --user has no part in this command",
@@ -89,19 +90,20 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     st = openStore(g)
   except StoreError as e:
-    return failure("nch landmarks", e.msg)
+    return failure(g, "nch landmarks", e.msg)
   try:
     case p.action
     of laDelete:
       let d = p.deleted
       if not d.force:
-        stderr.say "would delete the landmark " & d.name & ": add -f to do it\n"
+        g.say osErr, "would delete the landmark " & d.name & ": add -f to do it\n"
         return exitFailure
       if not removeLandmark(st, d.name):
-        return failure("nch landmarks", "there is no landmark called '" & d.name & "'")
+        return
+          failure(g, "nch landmarks", "there is no landmark called '" & d.name & "'")
       let said = "deleted the landmark " & d.name
       g.log.log(lvInfo, commandName, leDeleted, said)
-      sayDeleted(g.theme, said)
+      sayDeleted(g, said)
       return exitOk
     of laAddAt:
       let a = p.placed
@@ -109,7 +111,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         "made the landmark " & a.name.strip & " at " & positionText(a.at.lon, a.at.lat)
       g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
+      g.say osOut, said & "\n"
       return exitOk
     of laSearch, laNear, laAddPicked:
       let suggest = if p.action == laAddPicked: p.picked.suggestions else: p.suggest
@@ -124,19 +126,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           st,
           commandName,
           proc(line: string) {.closure, raises: [].} =
-            stderr.say line & "\n"
+            g.say osErr, line & "\n"
           ,
         )
         if names.isSome:
           try:
             discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
           except OfflineError:
-            stderr.say "--offline: only the names already loaded for that area are suggested\n"
+            g.say osErr,
+              "--offline: only the names already loaded for that area are suggested\n"
         found = featuresAround(st, suggest.near.lon, suggest.near.lat)
       if p.action == laAddPicked:
         let a = p.picked
         if a.pick > found.len:
           return failure(
+            g,
             "nch landmarks",
             "there is no suggestion " & $a.pick & " (" & $found.len & " found)",
           )
@@ -146,25 +150,27 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "made the landmark " & a.name.strip & " at " & s.name & " (" &
           positionText(s.lon, s.lat) & ")"
         g.log.log(lvInfo, commandName, leSaved, said)
-        stdout.say said & "\n"
+        g.say osOut, said & "\n"
         return exitOk
       if found.len == 0:
-        stdout.say (
-          if suggest.kind == skSearch:
-          "nothing is called like that among the names loaded (the places you have ridden)\n"
-          else: "no features within 2 km\n"
-        )
+        g.say osOut,
+          (
+            if suggest.kind == skSearch:
+            "nothing is called like that among the names loaded (the places you have ridden)\n"
+            else: "no features within 2 km\n"
+          )
         return exitOk
       for l in suggestionLines(found, suggest.kind == skNear):
-        stdout.say l & "\n"
+        g.say osOut, l & "\n"
       return exitOk
     of laList:
       let rows = listLandmarks(st)
       if rows.len == 0:
-        stdout.say "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
+        g.say osOut,
+          "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
       else:
         for l in landmarkLines(rows):
-          stdout.say l & "\n"
+          g.say osOut, l & "\n"
       return exitOk
   except StoreError, DownloadError:
-    failure("nch landmarks", getCurrentExceptionMsg())
+    failure(g, "nch landmarks", getCurrentExceptionMsg())

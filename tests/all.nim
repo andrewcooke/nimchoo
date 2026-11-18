@@ -14,6 +14,7 @@ import
   ./core/test_ownership,
   ./core/test_logfile,
   ./core/test_theme,
+  ./core/test_globals,
   ./text/fold/test_fold,
   ./core/test_errors,
   ./test_structure,

@@ -139,14 +139,6 @@ proc canColour*(): bool =
   ## Whether to use colours: a live display, and NO_COLOR (no-color.org) unset.
   canLive() and getEnv("NO_COLOR").len == 0
 
-proc stdoutPaint*(theme: Theme): Paint =
-  ## How to draw what goes to stdout: in `theme`, in colour if `canColourStdout`.
-  Paint(theme: theme, colour: canColourStdout())
-
-proc stderrPaint*(theme: Theme): Paint =
-  ## How to draw what goes to stderr: in `theme`, in colour if `canColour`.
-  Paint(theme: theme, colour: canColour())
-
 func orDefault(n, default: int): int =
   ## A terminal that does not report its size reports 0.
   if n > 0: n else: default

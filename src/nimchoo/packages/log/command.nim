@@ -68,22 +68,22 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args, g.commandNames)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch log", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch log", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   let path = envLogPath()
   if path.isNone:
     return failure(
-      "nch log",
+      g, "nch log",
       "logging is switched off (NCH_LOG is empty, or there is no home directory)",
     )
-  let r = show(path.get, p.filter, stdoutPaint(g.theme))
+  let r = show(path.get, p.filter, paintOf(g, osOut))
   if r.problem.len > 0:
-    return failure("nch log", r.problem)
+    return failure(g, "nch log", r.problem)
   for l in r.lines:
-    stdout.say l & "\n"
+    g.say osOut, l & "\n"
   exitOk

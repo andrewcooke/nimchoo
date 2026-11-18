@@ -6,7 +6,7 @@
 import std/os
 import ../../core/globals
 import ../ui/live
-import ../ui/style
+import ../ui/[markup, style]
 import ../util/args/args
 
 {.push raises: [].}
@@ -51,11 +51,7 @@ template forceOptionIn*(P: typedesc, group, field: untyped, indent: int = 0): Op
 
 func countdownLine*(what: string, seconds: int): Line =
   ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", bad, the seconds emphasised.
-  @[
-    span("deleting " & what & " in ", "bad"),
-    span($seconds, "bad", "em"),
-    span(" s ... (Ctrl-C to cancel)", "bad"),
-  ]
+  styled"[bad deleting {what} in [em {seconds}] s ... (Ctrl-C to cancel)]"
 
 proc countdown*(
     l: Live, what: string, seconds: int, wait: proc(ms: int) {.closure, raises: [].}
@@ -66,9 +62,9 @@ proc countdown*(
     wait 1000
   l.finish()
 
-proc sayDeleted*(theme: Theme, text: string) =
+proc sayDeleted*(g: Globals, text: string) =
   ## The line that says what was deleted ("done: deleted ..."), bad on a terminal, so that it stands out.
-  stdout.say render(@[span("done: " & text, "bad")], stdoutPaint(theme)) & "\n"
+  g.show(osOut, styled"[bad done: {text}]")
 
 proc sleepMs*(ms: int) {.raises: [].} =
   ## Wait for `ms` milliseconds.

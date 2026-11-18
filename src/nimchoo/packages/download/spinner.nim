@@ -12,7 +12,7 @@
 import std/[locks, monotimes, os, tables, times, typedthreads]
 import ../../core/theme
 import ../ui/live
-import ../ui/[style, units]
+import ../ui/[markup, style, units]
 import ./fetch
 
 {.push raises: [].}
@@ -66,7 +66,7 @@ func progressLine*(
     if text.len > 0:
       @[span(text)]
     else:
-      @[span("need " & label & ": "), span(shortUrl(url), "hide")]
+      styled"need {label}: [hide {shortUrl(url)}]"
   if finished:
     if bytes > 0:
       result.add span(" (" & humanBytes(bytes) & ")")
@@ -123,9 +123,7 @@ proc loop(s: ptr Shared) {.thread.} =
         live.finish()
         break
       of enFailed:
-        live.keep(
-          @[@[span("cannot download " & shortUrl(url) & ": " & message, "bad")]]
-        )
+        live.keep(@[styled"[bad cannot download {shortUrl(url)}: {message}]"])
         break
       sleep(pollMs)
 

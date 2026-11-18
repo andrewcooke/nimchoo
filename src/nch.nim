@@ -137,47 +137,49 @@ proc main(): int {.raises: [].} =
   var head = Head(g: Globals(fragments: allFragments))
   var i = 0
   let why = parseLeading(args, headSpec(), head, i)
+  # (the theme and the colours first, so that everything said is in them, even a bad command line)
+  var g = head.g
+  g.extensions = registry.extensions
+  g.access = allAccess
+  g.colour = [canColourStdout(), canColour()]
+  let chosen = loadTheme(cacheDir().get(""), head.theme)
+  g.theme = chosen.theme
+  if chosen.warning.isSome:
+    g.say osErr, fmt"warning: {chosen.warning.get}" & "\n"
   if why.isSome:
-    return usageError("nch", usageText(helpWidth(stderr)), why.get)
+    return usageError(g, "nch", usageText(helpWidth(stderr)), why.get)
   if head.help:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   if head.version:
-    stdout.say versionString & "\n"
+    g.say osOut, versionString & "\n"
     return exitOk
   if head.job.isSome:
     let job = head.job.get
     case job.action
     of acInstall:
-      return installMain(job.shell)
+      return installMain(g, job.shell)
     of acShow:
       return showMain(job.shell)
-  var g = head.g
-  g.extensions = registry.extensions
-  g.access = allAccess
-  let cache = cacheDir()
-  let chosen = loadTheme(cache.get(""), head.theme)
-  g.theme = chosen.theme
-  if chosen.warning.isSome:
-    stderr.say fmt"warning: {chosen.warning.get}" & "\n"
   if i >= args.len:
-    stderr.say usageText(helpWidth(stderr))
+    g.say osErr, usageText(helpWidth(stderr))
     return exitUsage
   let rest = args[i + 1 .. ^1]
   if args[i] == "help":
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
-    return usageError("nch", usageText(helpWidth(stderr)), fmt"unknown command {name}")
+    return
+      usageError(g, "nch", usageText(helpWidth(stderr)), fmt"unknown command {name}")
   g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
-        stderr.say fmt"warning: {g.log.problem} (continuing without a log)" & "\n"
+        g.say osErr, fmt"warning: {g.log.problem} (continuing without a log)" & "\n"
   g.log.log(lvInfo, name, leRun, fmt"[{nchCommit}] {rest.join("" "")}")
   result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)

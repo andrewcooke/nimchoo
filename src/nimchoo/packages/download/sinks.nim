@@ -3,7 +3,7 @@
 
 import ../../core/logfile
 import ../ui/live
-import ../ui/[style, units]
+import ../ui/[markup, style, units]
 import ./[fetch, spinner]
 
 {.push raises: [].}
@@ -94,6 +94,6 @@ proc liveSink*(
         endLine(enFailed, ev.message)
       else:
         maker(theme).keep(
-          @[@[span("cannot download " & shortUrl(ev.url) & ": " & ev.message, "bad")]]
+          @[styled"[bad cannot download {shortUrl(ev.url)}: {ev.message}]"]
         )
       downloaded = false

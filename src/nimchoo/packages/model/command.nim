@@ -81,10 +81,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch models", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch models", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
@@ -92,22 +92,22 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     st = openStore(g)
   except StoreError as e:
-    return failure("nch models", e.msg)
+    return failure(g, "nch models", e.msg)
   try:
     case p.action
     of maList:
       for l in modelLines(loadModels(st.db)):
-        stdout.say l & "\n"
+        g.say osOut, l & "\n"
       exitOk
     of maAdd:
       if findModel(st.db, p.model.name).isSome:
         return failure(
-          "nch models", "there is a model called '" & p.model.name & "' already"
+          g, "nch models", "there is a model called '" & p.model.name & "' already"
         )
       insertModel(st.db, p.model)
       let said = "made the model " & p.model.name
       g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
+      g.say osOut, said & "\n"
       exitOk
   except StoreError as e:
-    failure("nch models", e.msg)
+    failure(g, "nch models", e.msg)

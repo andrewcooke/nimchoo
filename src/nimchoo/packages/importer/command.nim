@@ -65,7 +65,7 @@ proc runImport(
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure("nch import", e.msg)
+    return failure(g, "nch import", e.msg)
   let logged = g.log.enabled
   let screen =
     if not opts.quiet and canLive():
@@ -73,12 +73,12 @@ proc runImport(
         newTerminalLive(g.theme),
         logged,
         proc(s: string) {.closure, raises: [].} =
-          stdout.say(s),
+          g.say(osOut, s),
         proc(s: string) {.closure, raises: [].} =
-          stderr.say(s),
+          g.say(osErr, s),
       )
     else:
-      plainSink(opts.quiet, logged)
+      plainSink(g, opts.quiet, logged)
   let sink =
     if g.log.enabled:
       fanOut(@[screen, logSink(g.log)])
@@ -88,7 +88,7 @@ proc runImport(
   try:
     before = newestActivity(st)
   except StoreError as e:
-    return failure("nch import", e.msg)
+    return failure(g, "nch import", e.msg)
   let summary = importPaths(st, targets, opts, sink)
   # the activities without a name (these, and any from before the names existed) are named now: the names are decided
   # in the run that imports, or the command says why not
@@ -101,7 +101,7 @@ proc runImport(
         st,
         commandName,
         proc(line: string) {.closure, raises: [].} =
-          stderr.say line & "\n"
+          g.say osErr, line & "\n"
         ,
       )
       if names.isSome:
@@ -149,6 +149,7 @@ proc runImport(
   except StoreError, DownloadError:
     namingFailed = true
     discard failure(
+      g,
       "nch activities",
       getCurrentExceptionMsg() &
         " (the activities are imported; they are named by the next `nch import`)",
@@ -181,24 +182,25 @@ proc runImport(
             g: g,
             show: show,
             say: proc(line: string) {.closure, raises: [].} =
-              stderr.say line & "\n"
+              g.say osErr, line & "\n"
             ,
           )
           for said in step.run(st, ids, ctx):
             g.log.log(lvInfo, commandName, leSaved, said.text)
             if not opts.quiet:
-              stderr.say render(
-                @[span("done: " & said.text, said.style)], stderrPaint(g.theme)
-              ) & "\n"
+              g.sayRendered osErr,
+                render(@[span("done: " & said.text, said.style)], paintOf(g, osErr)) &
+                  "\n"
         except StoreError, DownloadError:
           if live.isSome:
             live.get.finish() # (the display of a step that stopped)
           discard failure(
+            g,
             "nch import",
             step.failed & " (the activities are imported): " & getCurrentExceptionMsg(),
           )
   except StoreError as e:
-    discard failure("nch import", "the new activities could not be listed: " & e.msg)
+    discard failure(g, "nch import", "the new activities could not be listed: " & e.msg)
   if summary.failed > 0 or namingFailed: exitFailure else: exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -206,10 +208,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch import", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch import", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params

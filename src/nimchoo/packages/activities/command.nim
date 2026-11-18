@@ -397,12 +397,12 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
     st,
     commandName,
     proc(line: string) {.closure, raises: [].} =
-      stderr.say line & "\n"
+      g.say osErr, line & "\n"
     ,
   )
   if names.isNone:
     return failure(
-      "nch activities",
+      g, "nch activities",
       "no place for the cache, where the names are kept: set NCH_CACHE or HOME",
     )
   try:
@@ -413,11 +413,13 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
         fmt"; {n.leftText}"
       else:
         ""
-    stdout.say fmt"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}" &
-      "\n"
+    g.say osOut,
+      fmt"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}" &
+        "\n"
     exitOk
   except StoreError, DownloadError:
     failure(
+      g,
       "nch activities",
       getCurrentExceptionMsg() &
         " (the names not made are made by the next `nch import`)",
@@ -430,11 +432,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args, zone, offered)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout), offered)
+    g.say osOut, usageText(helpWidth(stdout), offered)
     return exitOk
   of pkProblem:
     return usageError(
-      "nch activities", usageText(helpWidth(stderr), offered), parsed.problem
+      g, "nch activities", usageText(helpWidth(stderr), offered), parsed.problem
     )
   of pkOk:
     discard
@@ -443,12 +445,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure("nch activities", e.msg)
+    return failure(g, "nch activities", e.msg)
   try:
     if criteria.delete:
       let m = matchingIds(st, criteria, zone)
       for l in m.notes:
-        stdout.say l.text & "\n"
+        g.say osOut, l.text & "\n"
       let searched = criteria.all or criteria.given
       return runDelete(
         g,
@@ -463,9 +465,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if criteria.rename:
       let m = matchingIds(st, criteria, zone)
       for l in m.notes:
-        stdout.say l.text & "\n"
+        g.say osOut, l.text & "\n"
       if m.ids.len == 0:
         return failure(
+          g,
           "nch activities",
           if criteria.all or criteria.given:
             "no activity meets the criteria: nothing to rename"
@@ -473,7 +476,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or --all",
         )
       return renameActivities(g, st, m.ids)
-    let paint = stdoutPaint(g.theme)
+    let paint = paintOf(g, osOut)
     let r = listActivities(st, criteria, zone)
     if r.saved >= 0:
       g.log.log(
@@ -483,7 +486,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         $r.saved & (if r.saved == 1: " activity" else: " activities"),
       )
     for l in r.lines:
-      stdout.say render(l, paint) & "\n"
+      g.sayRendered osOut, render(l, paint) & "\n"
     exitOk
   except StoreError as e:
-    failure("nch activities", e.msg)
+    failure(g, "nch activities", e.msg)

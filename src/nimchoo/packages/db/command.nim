@@ -59,31 +59,31 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch db", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch db", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
-    stdout.say "no database at " & path & "\n"
+    g.say osOut, "no database at " & path & "\n"
     return exitOk
   if p.action == daShow:
-    stdout.say path & " (" & humanBytes(size(path)) & freeSpace(path) & ")\n"
+    g.say osOut, path & " (" & humanBytes(size(path)) & freeSpace(path) & ")\n"
     return exitOk
   let what =
     "the database " & path & " (" & humanBytes(size(path)) &
     ") with the data of every user"
   if p.force == fNo:
-    return failure("nch db", "would delete " & what & "; use -f to confirm")
+    return failure(g, "nch db", "would delete " & what & "; use -f to confirm")
   pause(g.theme, what, p.force)
   try:
     for suffix in ["", "-journal", "-wal", "-shm"]:
       removeFile path & suffix
   except OSError as e:
-    return failure("nch db", "cannot delete " & path & ": " & e.msg)
+    return failure(g, "nch db", "cannot delete " & path & ": " & e.msg)
   g.log.log(lvInfo, commandName, leDeleted, "deleted " & what)
-  sayDeleted(g.theme, "deleted " & what)
+  sayDeleted(g, "deleted " & what)
   exitOk

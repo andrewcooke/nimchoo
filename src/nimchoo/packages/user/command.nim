@@ -99,15 +99,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch users", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch users", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   if g.user.len > 0:
     return usageError(
+      g,
       "nch users",
       usageText(helpWidth(stderr)),
       "--user goes after the command here: nch users --edit " & g.user &
@@ -117,12 +118,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure("nch users", e.msg)
+    return failure(g, "nch users", e.msg)
   try:
     case p.action
     of uaList:
       for l in userLines(st, g.extensions.get(userHas)):
-        stdout.say l & "\n"
+        g.say osOut, l & "\n"
       return exitOk
     of uaDelete:
       let id = findUser(st, p.delete.name)
@@ -132,18 +133,20 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let what = describe(has, p.delete.name)
       if p.delete.force == fNo:
         return failure(
+          g,
           "nch users",
           "would delete " & what & " from " & st.path & "; use -f to confirm",
         )
       pause(g.theme, what, p.delete.force)
       deleteUser(st, id)
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
-      sayDeleted(g.theme, "deleted " & what)
+      sayDeleted(g, "deleted " & what)
       return exitOk
     of uaAdd:
       let n = p.add
       if exists(st, n.name):
-        return failure("nch users", "there is a user called '" & n.name & "' already")
+        return
+          failure(g, "nch users", "there is a user called '" & n.name & "' already")
       addUser(st, n.name)
       let id = findUser(st, n.name)
       var said = "made the user " & n.name
@@ -154,7 +157,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         said.add ", with an FTHR of " & $n.fthr.get
         setFthr(st, id, n.fthr.get)
       g.log.log(lvInfo, commandName, leSaved, said)
-      stdout.say said & "\n"
+      g.say osOut, said & "\n"
       return exitOk
     of uaEdit:
       let e = p.edit
@@ -167,30 +170,30 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           fmt"{e.name}: FTHR is {e.fthr.bpm}" &
           (if old.isSome and old.get != e.fthr.bpm: recalculated else: "")
         g.log.log(lvInfo, commandName, leSaved, said)
-        stdout.say said & "\n"
+        g.say osOut, said & "\n"
       of fkClear:
         let old = currentFthr(st, id)
         clearFthr(st, id)
         let said =
           fmt"{e.name}: FTHR forgotten" & (if old.isSome: recalculated else: "")
         g.log.log(lvInfo, commandName, leSaved, said)
-        stdout.say said & "\n"
+        g.say osOut, said & "\n"
       of fkKeep:
         discard
       if e.makeDefault:
         setDefaultUser(st, id)
         let said = e.name & " is now the default user"
         g.log.log(lvInfo, commandName, leSaved, said)
-        stdout.say said & "\n"
+        g.say osOut, said & "\n"
       if e.rename.isSome:
         if exists(st, e.rename.get):
           return failure(
-            "nch users", "there is a user called '" & e.rename.get & "' already"
+            g, "nch users", "there is a user called '" & e.rename.get & "' already"
           )
         renameUser(st, id, e.rename.get)
         let said = e.name & " is now called " & e.rename.get
         g.log.log(lvInfo, commandName, leSaved, said)
-        stdout.say said & "\n"
+        g.say osOut, said & "\n"
       return exitOk
   except StoreError as e:
-    failure("nch users", e.msg)
+    failure(g, "nch users", e.msg)

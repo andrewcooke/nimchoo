@@ -106,16 +106,16 @@ func pageUrl(port: int, path, query, token: string): string =
       ""
   fmt"http://localhost:{port}/{path}?{q}token={token}"
 
-proc showPage(url: string, start: bool) =
+proc showPage(g: Globals, url: string, start: bool) =
   ## Print the page's address and, unless only starting, open the browser at it.
-  stdout.say url & "\n"
+  g.say osOut, url & "\n"
   try:
     stdout.flushFile()
     # (a program reading our output waits for this line)
   except IOError:
     discard
   if not start and not openBrowser(url):
-    stderr.say "note: could not open a browser; open the address above\n"
+    g.say osErr, "note: could not open a browser; open the address above\n"
 
 proc serveWeb*(
     g: Globals, command: string, o: WebOptions, cacheDir, path, query: string
@@ -130,16 +130,18 @@ proc serveWeb*(
   if o.port != 0:
     let known = loadToken(cacheDir, false)
     if known.problem.len > 0:
-      return failure(name, known.problem)
+      return failure(g, name, known.problem)
     let running = ask(o.port, known.token, statusPath)
     if running.isSome:
       if running.get.code == 404:
         return failure(
+          g,
           name,
           fmt"a server from an older nch (before --stop) is running on port {o.port}: press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, then try again",
         )
       if running.get.code != 200:
         return failure(
+          g,
           name,
           fmt"something on port {o.port} answers but not to our token (a server started before --new-token?): press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, or use --port N",
         )
@@ -152,24 +154,27 @@ proc serveWeb*(
           else:
             theirs[1]
         return failure(
+          g,
           name,
           fmt"a server for another database or user ({what}) is running on port {o.port}: `{name} --stop` it first, or use --port N",
         )
       if o.newToken:
         return failure(
+          g,
           name,
           fmt"a server is running on port {o.port}: `{name} --stop` it before making a new token",
         )
       if theirs[0] != mine[0]:
-        stderr.say fmt"note: the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one" &
-          "\n"
-      showPage(pageUrl(o.port, path, query, known.token), o.start)
+        g.say osErr,
+          fmt"note: the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one" &
+            "\n"
+      showPage(g, pageUrl(o.port, path, query, known.token), o.start)
       if o.start:
-        stderr.say fmt"(the server was already running, on port {o.port})" & "\n"
+        g.say osErr, fmt"(the server was already running, on port {o.port})" & "\n"
       return exitOk
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:
-    return failure(name, t.problem)
+    return failure(g, name, t.problem)
   let cfg = ServerConfig(
     token: t.token,
     cacheDir: userDir(cacheDir),
@@ -185,15 +190,17 @@ proc serveWeb*(
     getAppFilename(),
     o.port,
     proc(port: int) {.closure, raises: [].} =
-      showPage(pageUrl(port, path, query, t.token), o.start)
-      stdout.say fmt"(the server stays running for the pages of `nch` in this terminal: Ctrl-C or `{name} --stop` stops it)" &
-        "\n"
+      showPage(g, pageUrl(port, path, query, t.token), o.start)
+      g.say osOut,
+        fmt"(the server stays running for the pages of `nch` in this terminal: Ctrl-C or `{name} --stop` stops it)" &
+          "\n"
       g.log.log(lvInfo, command, leServed, fmt"listening on 127.0.0.1:{port}"),
   )
   if problem.isNone:
     g.log.log(lvInfo, command, leServed, "stopped (asked to)")
     return exitOk
   failure(
+    g,
     name,
     fmt"cannot listen on 127.0.0.1:{o.port}: {problem.get}" & (
       if o.port == defaultPort: " (another program has the port? try --port N)" else: ""
@@ -205,21 +212,23 @@ proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
   let name = "nch " & command
   let known = loadToken(cacheDir, false)
   if known.problem.len > 0:
-    return failure(name, known.problem)
+    return failure(g, name, known.problem)
   let r = ask(port, known.token, stopPath)
   if r.isNone:
-    stderr.say fmt"no server is running on port {port}" & "\n"
+    g.say osErr, fmt"no server is running on port {port}" & "\n"
     exitOk
   elif r.get.code == 404:
     failure(
+      g,
       name,
       fmt"the server on port {port} is from an nch that cannot be stopped this way (before --stop): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   elif r.get.code != 200:
     failure(
+      g,
       name,
       fmt"the server on port {port} does not answer to our token (it was started before --new-token?): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   else:
-    stderr.say fmt"stopped the server on port {port}" & "\n"
+    g.say osErr, fmt"stopped the server on port {port}" & "\n"
     exitOk

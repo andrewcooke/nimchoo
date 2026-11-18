@@ -133,13 +133,13 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
     if hint.len > 0:
       result.stderr.add hint
 
-proc plainSink*(quiet: bool, logged = false): Sink =
+proc plainSink*(g: Globals, quiet: bool, logged = false): Sink =
   ## Print the plain lines as the events come.  `logged`: there is a log, so the
   ## hint at the end can say how to look in it.
   result = proc(ev: ImportEvent) {.closure, raises: [].} =
     let lines = plainLines(ev, quiet, logged)
     for l in lines.stdout:
-      stdout.say l & "\n"
+      g.say osOut, l & "\n"
     if lines.stdout.len > 0 and lines.stderr.len > 0:
       try:
         stdout.flushFile()
@@ -147,4 +147,4 @@ proc plainSink*(quiet: bool, logged = false): Sink =
       except IOError:
         discard
     for l in lines.stderr:
-      stderr.say l & "\n"
+      g.say osErr, l & "\n"

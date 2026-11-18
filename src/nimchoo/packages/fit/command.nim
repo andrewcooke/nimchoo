@@ -102,10 +102,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch fit", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let (csv, files) = (parsed.params.csv, @[parsed.params.file])
@@ -121,28 +121,28 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           let d = defaultProfile()
           if d.note.len > 0:
-            stderr.say "note: " & d.note & "\n"
+            g.say osErr, "note: " & d.note & "\n"
           d.profile
       except NchError as e:
-        return failure("nch fit", "cannot use the profile: " & e.msg)
+        return failure(g, "nch fit", "cannot use the profile: " & e.msg)
     try:
       renderInto(p, readBytes(files[0]), csv, lines, warnings)
     except FitError as e:
       problem = e.msg # report it after the output so far
   except NchError as e:
-    return failure("nch fit", e.msg)
+    return failure(g, "nch fit", e.msg)
   except IOError as e:
-    return failure("nch fit", e.msg)
+    return failure(g, "nch fit", e.msg)
   except OSError as e:
-    return failure("nch fit", e.msg)
+    return failure(g, "nch fit", e.msg)
   try:
     for l in lines:
-      stdout.write l & "\n"
+      stdout.write g.inTheme(osOut, l) & "\n"
   except IOError as e:
-    return failure("nch fit", "cannot write the output: " & e.msg)
+    return failure(g, "nch fit", "cannot write the output: " & e.msg)
   for w in warnings:
-    stderr.say "warning: offset " & $w.offset & ": " & w.msg & "\n"
+    g.say osErr, "warning: offset " & $w.offset & ": " & w.msg & "\n"
   if problem.len > 0:
-    failure("nch fit", problem)
+    failure(g, "nch fit", problem)
   else:
     exitOk

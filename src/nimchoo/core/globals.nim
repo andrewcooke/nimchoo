@@ -5,11 +5,16 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
+import std/strutils
 import ./[access, extension, fragment, theme]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
 
 {.push raises: [].}
+
+type OutStream* = enum ## where a command's text goes
+  osOut ## stdout: what was asked for
+  osErr ## stderr: what is said about it (problems, progress, notes)
 
 type Globals* = object ## Options given before the command name, for every command.
   dbPath*: string ## the database file; "" for the default
@@ -29,6 +34,9 @@ type Globals* = object ## Options given before the command name, for every comma
     ## what the packages contribute to each other's extension points (`nch` fills it from the registry)
   theme*: Theme
     ## what the styles of text look like (`nch` chooses it: the `themes` package; empty: the terminal's own text)
+  colour*: array[OutStream, bool]
+    ## whether each stream is drawn in colour (`nch` fills it: a terminal that is not dumb, and NO_COLOR not set; in tests,
+    ## neither is)
 
 const
   exitOk* = 0
@@ -43,12 +51,43 @@ proc say*(f: File, text: string) {.raises: [].} =
   except IOError:
     discard
 
-proc usageError*(command, usage, problem: string): int {.raises: [].} =
+func inTheme*(g: Globals, o: OutStream, text: string): string =
+  ## `text`, plain, as it goes to `o`: in colour, each line in the theme's `default` look (it starts the look and ends
+  ## with a reset, so that nothing runs on), so that all the text of a command looks alike.
+  if not g.colour[o]:
+    return text
+  let start = terminalCodes(baseLook(g.theme))
+  if start.len == 0:
+    return text
+  var lines: seq[string]
+  for line in text.split('\n'):
+    lines.add(
+      if line.len > 0:
+        start & line & "\e[0m"
+      else:
+        line
+    )
+  lines.join("\n")
+
+proc file(o: OutStream): File =
+  case o
+  of osOut: stdout
+  of osErr: stderr
+
+proc say*(g: Globals, o: OutStream, text: string) =
+  ## Write plain text to `o`, in the theme (`inTheme`).
+  file(o).say g.inTheme(o, text)
+
+proc sayRendered*(g: Globals, o: OutStream, text: string) =
+  ## Write text that is already drawn (`style.render`: it has its looks) to `o`.
+  file(o).say text
+
+proc usageError*(g: Globals, command, usage, problem: string): int {.raises: [].} =
   ## Report a bad command line.
-  stderr.say command & ": " & problem & "\n" & usage
+  g.say(osErr, command & ": " & problem & "\n" & usage)
   exitUsage
 
-proc failure*(command, problem: string): int {.raises: [].} =
+proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
   ## Report that the work failed.
-  stderr.say command & ": " & problem & "\n"
+  g.say(osErr, command & ": " & problem & "\n")
   exitFailure

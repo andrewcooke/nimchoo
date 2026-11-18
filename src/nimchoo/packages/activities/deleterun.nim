@@ -10,7 +10,7 @@ import ../db/store
 import ../../core/errors
 import ../../core/logfile
 import ../ui/live
-import ../ui/style
+import ../ui/[markup, style]
 import ../confirm/confirm
 import ../importer/remove
 import ../user/session
@@ -23,19 +23,12 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ##
   ##     deleting 340 / 1,381 activities
   ##     activities 340 · files 120
+  let (d, t, f) =
+    (insertSep($done, ','), insertSep($total, ','), insertSep($files, ','))
+  let noun = if total == 1: "activity" else: "activities"
   @[
-    @[
-      span("deleting ", "em"),
-      span(
-        insertSep($done, ',') & " / " & insertSep($total, ',') &
-          (if total == 1: " activity" else: " activities")
-      ),
-    ],
-    @[
-      span("activities " & insertSep($done, ','), "bad"),
-      span(" · ", "hide"),
-      span("files " & insertSep($files, ','), "bad"),
-    ],
+    styled"[em deleting ]{d} / {t} {noun}",
+    styled"[bad activities {d}][hide  · ][bad files {f}]",
   ]
 
 proc runDelete*(
@@ -45,11 +38,12 @@ proc runDelete*(
   try:
     let plan = planDelete(st, ids)
     if plan.ids.len == 0:
-      stdout.say nothing & "\n"
+      g.say osOut, nothing & "\n"
       return exitOk
     let what = describe(plan)
     if force == fNo:
-      return failure("nch activities", "would delete " & what & "; use -f to confirm")
+      return
+        failure(g, "nch activities", "would delete " & what & "; use -f to confirm")
     pause(g.theme, what, force)
     # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
     var shown = false
@@ -80,7 +74,7 @@ proc runDelete*(
       said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
         " kept, with other activities in"
     g.log.log(lvInfo, commandName, leDeleted, said & " from " & st.path)
-    sayDeleted(g.theme, said)
+    sayDeleted(g, said)
     exitOk
   except StoreError as e:
-    failure("nch activities", e.msg)
+    failure(g, "nch activities", e.msg)

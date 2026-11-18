@@ -153,14 +153,14 @@ proc install*(s: Shell, path: string): Option[string] =
   except IOError, OSError:
     return some(fmt"cannot write {path}: {getCurrentExceptionMsg()}")
 
-proc installMain*(s: Shell): int {.raises: [].} =
+proc installMain*(g: Globals, s: Shell): int {.raises: [].} =
   ## `nch --install-completion [SHELL]`: write the script, and say where and what is left to do.
   let path = scriptPath(s)
   let problem = install(s, path)
   if problem.isSome:
-    return failure("nch", problem.get)
-  stdout.say fmt"wrote {path}: new {s} shells complete nch (this one: source {path})" &
-    "\n"
+    return failure(g, "nch", problem.get)
+  g.say osOut,
+    fmt"wrote {path}: new {s} shells complete nch (this one: source {path})" & "\n"
   exitOk
 
 proc showMain*(s: Shell): int {.raises: [].} =

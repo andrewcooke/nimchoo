@@ -86,7 +86,7 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
       st,
       commandName,
       proc(line: string) {.closure, raises: [].} =
-        stderr.say line & "\n"
+        g.say osErr, line & "\n"
       ,
     )
     if names.isSome:
@@ -101,19 +101,19 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
     rename(st, id, e.change.newName)
     said = was & " is now called " & shownName(st, id)
   g.log.log(lvInfo, commandName, leSaved, said)
-  stdout.say said & "\n"
+  g.say osOut, said & "\n"
   exitOk
 
 proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreError].} =
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
   if force == fNo:
-    return failure("nch climbs", "would delete " & what & "; use -f to confirm")
+    return failure(g, "nch climbs", "would delete " & what & "; use -f to confirm")
   pause(g.theme, what, force)
   clearClimbs(st)
   st.reclaim()
   g.log.log(lvInfo, commandName, leDeleted, "deleted " & what & " from " & st.path)
-  sayDeleted(g.theme, "deleted " & what)
+  sayDeleted(g, "deleted " & what)
   exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -121,10 +121,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch climbs", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch climbs", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
@@ -132,21 +132,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure("nch climbs", e.msg)
+    return failure(g, "nch climbs", e.msg)
   try:
     # the lists for tidying, and the changes, need no working out of climbs
     case p.action
     of caDuplicates:
       for l in duplicateLines(duplicateGroups(st)):
-        stdout.say l & "\n"
+        g.say osOut, l & "\n"
       return exitOk
     of caRetired:
       let rows = allSectors(st, retired = true)
       if rows.len == 0:
-        stdout.say "no climbs are retired\n"
+        g.say osOut, "no climbs are retired\n"
       else:
         for l in sectorLines(rows):
-          stdout.say l & "\n"
+          g.say osOut, l & "\n"
       return exitOk
     of caEdit:
       return editClimb(g, st, p.edit)
@@ -174,7 +174,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     else:
       worked = ensureClimbs(st)
     if worked.activities > 0:
-      stderr.say doneLine(worked) & "\n"
+      g.say osErr, doneLine(worked) & "\n"
       g.log.log(
         lvInfo,
         commandName,
@@ -188,42 +188,44 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       st,
       commandName,
       proc(line: string) {.closure, raises: [].} =
-        stderr.say line & "\n"
+        g.say osErr, line & "\n"
       ,
     )
     if p.action == caAll:
       let rows = allSectors(st)
       if rows.len == 0:
-        stdout.say "no climbs found yet\n"
+        g.say osOut, "no climbs found yet\n"
       else:
         for l in sectorLines(rows):
-          stdout.say l & "\n"
+          g.say osOut, l & "\n"
         let hidden = countRetired(st)
         if hidden > 0:
-          stdout.say noteRetired(hidden)
+          g.say osOut, noteRetired(hidden)
       return exitOk
     var ids: seq[int64]
     if p.action == caNamed:
       ids = namedClimbs(st, p.named.names)
       if ids.len == 0:
         return failure(
-          "nch climbs", "no climb has a name like that (`nch climbs --all` lists them)"
+          g, "nch climbs",
+          "no climb has a name like that (`nch climbs --all` lists them)",
         )
     else:
       if selectedActivities(st) == 0:
-        stdout.say "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
+        g.say osOut,
+          "nothing is selected: `nch activities CRITERIA --select` chooses activities, `nch climbs --all` lists every climb\n"
         return exitOk
       ids = selectedClimbs(st)
       if ids.len == 0:
-        stdout.say "no climbs in the " & $selectedActivities(st) &
-          " selected activities\n"
+        g.say osOut,
+          "no climbs in the " & $selectedActivities(st) & " selected activities\n"
         return exitOk
     let attempts = if p.action == caNamed: p.named.attempts else: p.selected
-    let paint = stdoutPaint(g.theme)
+    let paint = paintOf(g, osOut)
     for l in summaryLines(
       summaries(st, ids), attempts.everyone, attempts.verbose, local()
     ):
-      stdout.say render(l, paint) & "\n"
+      g.sayRendered osOut, render(l, paint) & "\n"
     exitOk
   except StoreError, DownloadError:
-    failure("nch climbs", getCurrentExceptionMsg())
+    failure(g, "nch climbs", getCurrentExceptionMsg())

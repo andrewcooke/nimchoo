@@ -7,7 +7,7 @@ import ../ui/columns
 import ../db/statement
 import ../db/store
 import ../../core/errors
-import ../ui/style
+import ../ui/[markup, style]
 import ./[describe, display, work]
 import ../user/session
 
@@ -119,16 +119,11 @@ func climbingLines*(done, total: int, worked: Worked): seq[Line] =
   ##
   ##     climbing 120 / 1,986 activities
   ##     climbs 12 · efforts 40
+  let (d, t) = (commas(done), commas(total))
+  let (c, e) = (commas(worked.sectors), commas(worked.efforts))
   @[
-    @[
-      span("climbing ", "em"),
-      span(commas(done) & " / " & commas(total) & " activities"),
-    ],
-    @[
-      span("climbs " & commas(worked.sectors), "good"),
-      span(" · ", "hide"),
-      span("efforts " & commas(worked.efforts), "good"),
-    ],
+    styled"[em climbing ]{d} / {t} activities",
+    styled"[good climbs {c}][hide  · ][good efforts {e}]",
   ]
 
 func workedText*(worked: Worked): string =

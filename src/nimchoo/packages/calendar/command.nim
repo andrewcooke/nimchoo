@@ -109,26 +109,28 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(g, helpWidth(stdout))
+    g.say osOut, usageText(g, helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch calendar", usageText(g, helpWidth(stderr)), parsed.problem)
+    return
+      usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   let chosen = choose(g, p)
   case chosen.kind
   of pkHelp, pkProblem:
-    return usageError("nch calendar", usageText(g, helpWidth(stderr)), chosen.problem)
+    return
+      usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), chosen.problem)
   of pkOk:
     discard
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure("nch calendar", e.msg)
+    return failure(g, "nch calendar", e.msg)
   try:
-    let paint = stdoutPaint(g.theme)
+    let paint = paintOf(g, osOut)
     let screen = Screen(
       colour: paint.colour,
       width:
@@ -138,9 +140,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           0,
     )
     for l in lines(st, chosen.params, p, local(), screen):
-      stdout.say render(l, paint) & "\n"
+      g.sayRendered osOut, render(l, paint) & "\n"
     exitOk
   except StoreError as e:
-    failure("nch calendar", e.msg)
+    failure(g, "nch calendar", e.msg)
   finally:
     st.close()

@@ -262,19 +262,19 @@ proc inventory(): Inventory =
   except PackageError as e:
     raiseAssert e.msg # (the registry has already been checked when it was compiled)
 
-proc show(lines: seq[string]) =
+proc showAll(g: Globals, lines: seq[string]) =
   for l in lines:
-    stdout.say l & "\n"
+    g.say osOut, l & "\n"
 
 proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch packages ARGS`; returns the exit status.
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(helpWidth(stdout))
+    g.say osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch packages", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch packages", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
@@ -289,57 +289,61 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     let close = closeNames(asked, inv.packages.mapIt(it.name))
     if close.len > 0:
       return failure(
+        g,
         "nch packages",
         fmt"no package is called '{asked}': did you mean {close.join("" or "")}?",
       )
     return failure(
+      g,
       "nch packages",
       fmt"no package is called '{asked}' (they are: {inv.packages.mapIt(it.name).sorted.join("" "")})",
     )
   case p.view
   of vList:
-    show summaryLines(inv, width)
+    g.showAll summaryLines(inv, width)
   of vDetail:
-    show detailLines(inv, p.package, width)
+    g.showAll detailLines(inv, p.package, width)
   of vPoints:
-    show pointLines(inv, width)
+    g.showAll pointLines(inv, width)
   of vTables:
-    show tableLines(inv)
+    g.showAll tableLines(inv)
   of vLayers:
-    let paint = stdoutPaint(g.theme)
+    let paint = paintOf(g, osOut)
     for l in layerLines(inv, width, p.implied):
       # (a dependency implied by another is hidden)
-      stdout.say render(
-        l.mapIt(
-          if it.implied:
-            span(it.text, "hide")
-          else:
-            span(it.text)
-        ),
-        paint,
-      ) & "\n"
+      g.sayRendered osOut,
+        render(
+          l.mapIt(
+            if it.implied:
+              span(it.text, "hide")
+            else:
+              span(it.text)
+          ),
+          paint,
+        ) & "\n"
     if p.implied:
-      show(@["", "(dimmed: a dependency also reached through another one)"])
+      g.showAll(@["", "(dimmed: a dependency also reached through another one)"])
   of vTree:
     let tree = treeLines(inv, p.root, p.reverse, p.repeats)
-    let paint = stdoutPaint(g.theme)
+    let paint = paintOf(g, osOut)
     for l in tree:
       # (what was drawn above is hidden)
-      stdout.say render(
-        @[
-          if l.again:
-            span(l.text, "hide")
-          else:
-            span(l.text)
-        ],
-        paint,
-      ) & "\n"
+      g.sayRendered osOut,
+        render(
+          @[
+            if l.again:
+              span(l.text, "hide")
+            else:
+              span(l.text)
+          ],
+          paint,
+        ) & "\n"
     if tree.anyIt(it.text.endsWith("...")):
-      show(@["", treeNote])
+      g.showAll(@["", treeNote])
   of vDot:
-    stdout.say dotText(inv)
+    g.say osOut, dotText(inv)
   of vConfig:
-    show configLines(g)
+    g.showAll configLines(g)
   exitOk
 
 proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =

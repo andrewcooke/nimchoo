@@ -123,8 +123,8 @@ func readsSelection(c: Chosen): bool =
   ## Whether some chosen frame is made from the selection (the others need it not to be empty no more than they need anything).
   c.frames.anyIt(it.readsSelection)
 
-proc emptyFailure(s: Subject): int =
-  failure("nch map", fmt"the selection of {s.name} is empty ({s.emptyHint})")
+proc emptyFailure(g: Globals, s: Subject): int =
+  failure(g, "nch map", fmt"the selection of {s.name} is empty ({s.emptyHint})")
 
 proc checkSelection(g: Globals, c: Chosen): int =
   ## The selection is not empty, if a chosen frame reads it (before serving, and before making the page).
@@ -132,13 +132,13 @@ proc checkSelection(g: Globals, c: Chosen): int =
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure("nch map", e.msg)
+    return failure(g, "nch map", e.msg)
   try:
     if readsSelection(c) and c.subject.selected(st) == 0:
-      return emptyFailure(c.subject)
+      return emptyFailure(g, c.subject)
     exitOk
   except StoreError as e:
-    failure("nch map", e.msg)
+    failure(g, "nch map", e.msg)
   finally:
     st.close()
 
@@ -151,28 +151,29 @@ proc makeFrames(
   try:
     st = openSession(g)
   except StoreError as e:
-    return (@[], failure("nch map", e.msg))
+    return (@[], failure(g, "nch map", e.msg))
   try:
     var made: seq[FrameData]
     st.begin()
     try:
       if frames.anyIt(it.readsSelection) and c.subject.selected(st) == 0:
-        return (@[], emptyFailure(c.subject))
+        return (@[], emptyFailure(g, c.subject))
       for f in frames:
         made.add f.make(st)
     finally:
       st.rollback()
     for k, f in frames:
       for note in made[k].notes:
-        stderr.say fmt"note: {note}" & "\n"
+        g.say osErr, fmt"note: {note}" & "\n"
       let path = cacheFile(dir, fileStem(c.subject.name, f.name), "geojson").get
       writeAtomic(path, made[k].geojson)
       result.paths.add path
   except StoreError as e:
-    result = (@[], failure("nch map", e.msg))
+    result = (@[], failure(g, "nch map", e.msg))
   except IOError, OSError:
-    result =
-      (@[], failure("nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}"))
+    result = (
+      @[], failure(g, "nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}")
+    )
   finally:
     st.close()
 
@@ -190,12 +191,14 @@ proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: i
     writeAtomic(path, pageHtml(listed, c.subject.name, "Map"))
     result = (path, exitOk)
   except IOError, OSError:
-    result =
-      ("", failure("nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}"))
+    result = (
+      "", failure(g, "nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}")
+    )
   except TemplateError as e:
     result = (
       "",
       failure(
+        g,
         "nch map",
         fmt"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.txt, in the cache directory; delete one to have the built-in one again)",
       ),
@@ -206,24 +209,24 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    stdout.say usageText(g, helpWidth(stdout))
+    g.say osOut, usageText(g, helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError("nch map", usageText(g, helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch map", usageText(g, helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
   let p = parsed.params
   let chosen = choose(g, p)
   if chosen.kind != pkOk:
-    return usageError("nch map", usageText(g, helpWidth(stderr)), chosen.problem)
+    return usageError(g, "nch map", usageText(g, helpWidth(stderr)), chosen.problem)
   let c = chosen.params
   let dir = cacheDir()
   if dir.isNone:
-    return failure("nch map", "no place for the cache: set NCH_CACHE or HOME")
+    return failure(g, "nch map", "no place for the cache: set NCH_CACHE or HOME")
   try:
     makeCacheDirs(dir.get)
   except IOError, OSError:
-    return failure("nch map", fmt"cannot make {dir.get}: {getCurrentExceptionMsg()}")
+    return failure(g, "nch map", fmt"cannot make {dir.get}: {getCurrentExceptionMsg()}")
   case p.web.kind
   of wkStop:
     return stopWeb(g, commandName, p.web.stopPort, dir.get)
@@ -248,6 +251,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
       if one.len == 0:
         return usageError(
+          g,
           "nch map",
           usageText(g, helpWidth(stderr)),
           fmt"'{p.frame.get}' is not a frame of {c.subject.name}",
@@ -255,15 +259,15 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let made = makeFrames(g, c, one, userDir(dir.get))
       if made.status != 0:
         return made.status
-      stdout.say made.paths[0] & "\n"
+      g.say osOut, made.paths[0] & "\n"
     else:
       let made = makePage(g, c, userDir(dir.get))
       if made.status != 0:
         return made.status
-      stdout.say made.page & "\n"
+      g.say osOut, made.page & "\n"
   of wkFile:
     let made = makeFrames(g, c, c.frames, userDir(dir.get))
     if made.status != 0:
       return made.status
-    stdout.say made.paths.join("\n") & "\n"
+    g.say osOut, made.paths.join("\n") & "\n"
   exitOk
