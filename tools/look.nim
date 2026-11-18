@@ -27,12 +27,11 @@ const examples = [
   "[select   739  2026-11-18  Pocuro                       [hide —]]",
   "[select a selected line with [default a plain word] in it]",
   "[em what to read first [hide with a quiet aside] and more]",
-  "[hide a style that runs\nover a newline]",
 ]
 
 proc sample(t: Theme): seq[string] =
-  ## Every style of the theme alone and inside each of the others; then lines like those of nch, in the styles nch uses (and
-  ## which of those the theme lacks).
+  ## Made from the styles the theme defines: each alone and inside each of the others, then each in use (in a sentence,
+  ## across a row of a table, over a newline); then lines like those of nch, if the theme has the styles nch uses.
   let names = toSeq(t.styles.keys)
   let width = max(names.mapIt(it.len)) + 2
   result.add "each style alone, then inside each other style:"
@@ -43,15 +42,22 @@ proc sample(t: Theme): seq[string] =
         line.add fmt" [{outer} [{name} {name}]]"
     result.add line
   result.add ""
+  result.add "each style in a sentence, across a row, and over a newline:"
+  for name in names:
+    result.add fmt"  some text with [{name} a few words in {name}] in the middle of it"
+    let row = fmt"  737  2026-11-17  a row in {name}".alignLeft(42) & "36.7km"
+    result.add fmt"[{name} {row}]"
+    result.add fmt"  [{name} a style that runs" & "\n  over a newline]"
+  result.add ""
   # (nch uses the styles of the built-in dark theme, whatever a theme has: those it lacks draw as the text around them)
   let lacking = styleNames.filterIt(it notin t.styles)
-  result.add "lines like those of nch, which uses the styles " & styleNames.join(", ") &
-    ":"
   if lacking.len > 0:
-    result.add "(this theme has no " & lacking.join(", ") &
-      ": nch draws text in those as the text around it)"
-  for e in examples:
-    result.add e
+    result.add "(lines like those of nch are shown when the theme has the styles nch uses; it has no " &
+      lacking.join(", ") & ", which nch draws as the text around them)"
+  else:
+    result.add "lines like those of nch:"
+    for e in examples:
+      result.add e
 
 proc show(t: Theme, text: string, colour: bool) =
   try:
