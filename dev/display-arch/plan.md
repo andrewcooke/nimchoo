@@ -208,6 +208,18 @@ one read transaction need the first.
   it imported the climbs selection.
 * A selection of climbs (a table of `climbs`, per user, like `selection`); `nch climbs` with criteria and `--select`, like
   `nch activities`; the climbs subject in the registry.
+* **As agreed with the author (2026-11-18), D8 to D10 below**, built in this order, a commit each:
+  1. the table `climb_selection` (a new fragment of `climbs`, `002-selection.sql`: applied when the database is opened, no
+     rebuild) and the climbs subject (`climbs/subject.nim`);
+  2. `nch climbs`: no arguments, the climbs selection; criteria `--names`, `--ridden` (the climbs the selected activities
+     went up: what `nch climbs` showed before), `--near LAT,LON|PLACE` with `--radius` (from the climb's start),
+     `--categories HC 1 2 ...`, `--invert`, `--all` (every climb, in the same listing: D8); `--select`/`--save`; the
+     listing gains the "manual" mark of the old catalogue (`--retired` keeps the catalogue's layout);
+  3. the import makes the climbs of the imported activities the climbs selection, empty if they went up none (D10), and
+     says so in the selection's style;
+  4. the frames of the climbs on the map: `climbs` (shown), `gates`, and `routes` (the rides that went up them: the
+     activities' drawing and style, reused);
+  5. the frame of the climbs on the calendar: the days with an effort on a selected climb.
 * Frames for the climbs subject on the map: the selected climbs; the routes of the activities that went up them (the
   inverted case, provided by `climbs`, declaring the activity tables it reads).
 * What `nch climbs` lists today (the climbs of the selected activities) becomes a frame (climbs for activities), shown by
@@ -233,7 +245,7 @@ one read transaction need the first.
 
 ## Decisions
 
-D1 to D4 and D7 are decided; D5 waits for its step (7); D6 is moot (no caching).
+D1 to D4 and D7 to D10 are decided; D5 waits for its step (7); D6 is moot (no caching).
 
 * **D1. How the counters' triggers are made.**  (a) Each package writes them in a fragment for each of its tables: three
   triggers per table, about twenty tables, kept in step with the tables by hand.  (b) The `db` package makes them for every
@@ -249,6 +261,13 @@ D1 to D4 and D7 are decided; D5 waits for its step (7); D6 is moot (no caching).
   `nch activities` lists the activities'); an import makes the climbs of the activities it imported the climbs selection
   (as it makes them the activities' selection).
 * **D5. FF statistics** (step 7), above.
+* **D8. `nch climbs --all`** (step 6): decided 2026-11-18: every climb, in the same listing as the selection (as `--all`
+  means everywhere), not the old catalogue, whose "manual" mark moves to the listing (its count of efforts by everyone is
+  `--everyone`'s riders).
+* **D9. The criteria of `nch climbs`** (step 6): decided 2026-11-18: `--names`, `--ridden`, `--near`/`--radius`,
+  `--categories`, `--invert` to start with.
+* **D10. An import with no climbs** (step 6): decided 2026-11-18: the climbs selection becomes empty, as the activities'
+  does.
 * **D6. The threshold for caching** (step 4): moot, decided 2026-11-16: nothing is cached.
 * **D7. How frames are drawn** (step 6): decided 2026-11-17: each provider ships its drawing (a script beside its style),
   with an optional generic drawer in `map` that may grow into a declarative style (b) later.  Step 6a.
