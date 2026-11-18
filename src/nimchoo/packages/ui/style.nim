@@ -126,6 +126,14 @@ func merged*(line: Line): Line =
     else:
       result.add Span(text: s.text, styles: styles)
 
+func bracketed*(line: Line, selected: bool): Line =
+  ## The line marked for where there is no colour, as the calendar marks a day: `[` before it and `]` after it if it is
+  ## `selected`, a space before it if not (so that lines with and without the mark line up).
+  if selected:
+    @[span("[")] & line & @[span("]")]
+  else:
+    @[span(" ")] & line
+
 func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
   ## How text in `styles` looks: the theme's base look with each style over it in turn (`default` goes back to the base;
   ## a style the theme lacks changes nothing).
@@ -138,18 +146,23 @@ func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
       result = result.over(theme.styles.getOrDefault($s))
 
 func render*(line: Line, paint: Paint): string =
-  ## The line as text for a terminal: each span starts its look (if in colour) and ends with a reset, so that nothing
-  ## runs on to the next span or the next line.
+  ## The line as text for a terminal: each look is started (if in colour) where it begins and reset where it ends, and the
+  ## line ends with a reset, so that nothing runs on to the next line.  Spans side by side that look the same share one.
+  var inForce = "" # the codes of the look being drawn
   for s in line:
     let start =
       if paint.colour:
         terminalCodes(lookOf(paint.theme, s.styles))
       else:
         ""
-    result.add start
+    if start != inForce:
+      if inForce.len > 0:
+        result.add "\e[0m"
+      result.add start
+      inForce = start
     result.add s.text
-    if start.len > 0:
-      result.add "\e[0m"
+  if inForce.len > 0:
+    result.add "\e[0m"
 
 func paintOf*(g: Globals, o: OutStream): Paint =
   ## How lines are drawn on `o`: in the theme in force, in colour if `o` is.

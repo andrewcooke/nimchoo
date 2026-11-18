@@ -94,7 +94,7 @@ suite "nch calendar: what it shows":
     check ls.texts.filterIt(it.startsWith("Jul ")).len == 1
     check ls.texts.filterIt(it.startsWith("Aug ")).len == 0
     let jul = ls.filterIt(it.text.startsWith("Jul "))[0]
-    check jul.anyIt(styleOf(it) == "select" and it.text == "01 ")
+    check jul.anyIt(styleOf(it) == "select" and it.text == "01")
     check ls.texts[^1].startsWith("done: 1 activity")
       # (the activities' frame sums them up)
 

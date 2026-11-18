@@ -145,6 +145,11 @@ suite "attempts: the lines":
     let lines2 = summaryLines(rows, false, true, utc())
     check styleOf(lines2[2][0]) == "" and styleOf(lines2[3][0]) == "select" and
       "1970-01-12" in lines2[3].text
+    # (where there is no colour, in brackets in the indent, so nothing moves)
+    let marked = summaryLines(rows, false, true, utc(), marks = true)
+    check marked[2].text == lines2[2].text
+    check marked[3].text.startsWith("   [") and marked[3].text.endsWith("]") and
+      marked[3].text[4 ..^ 2] == lines2[3].text[4 ..^ 1]
   test "no selected ride on the climb (found by --names): dashes in the selection's columns":
     let s = world("lines-none-selected")
     defer:

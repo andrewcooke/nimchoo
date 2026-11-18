@@ -223,7 +223,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let attempts = if p.action == caNamed: p.named.attempts else: p.selected
     let paint = paintOf(g, osOut)
     for l in summaryLines(
-      summaries(st, ids), attempts.everyone, attempts.verbose, local()
+      summaries(st, ids),
+      attempts.everyone,
+      attempts.verbose,
+      local(),
+      marks = not paint.colour,
     ):
       g.sayRendered osOut, render(l, paint) & "\n"
     exitOk

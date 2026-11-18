@@ -243,7 +243,7 @@ func alignedLines(
       # (selected cells side by side are one span: a background runs on)
 
 proc summaryLines*(
-    rows: seq[Summary], everyone, verbose: bool, zone: Timezone
+    rows: seq[Summary], everyone, verbose: bool, zone: Timezone, marks = false
 ): seq[Line] =
   ## A table of the climbs, each the standard way, then how the user did on it:
   ##
@@ -253,7 +253,8 @@ proc summaryLines*(
   ## the best time of all the user's attempts, with its date, and (in the selection's colour) the best of those on the
   ## selected rides, with its date, and where that one ranks among all the user's own attempts, then how many there are.  Or, with `everyone`, the people: how many have ridden it, the fastest and who,
   ## and where the user's best is among them.  With `verbose` the attempts (or the people's best times) follow each
-  ## climb, the fastest first.
+  ## climb, the fastest first; those of the selected rides in the selection's colour and, with `marks` (where there is no
+  ## colour), in brackets.
   var cells =
     if everyone:
       @[
@@ -332,6 +333,10 @@ proc summaryLines*(
         chosen.add a.selected
     let aligned = columns(inner, {0, 1})
     for j, l in aligned:
-      result.add @[
-        (if chosen[j]: span("    " & l, selectedStyle) else: span("    " & l))
-      ]
+      if not chosen[j]:
+        result.add @[span("    " & l)]
+      elif marks:
+        # (where there is no colour, in brackets, as a day of the calendar: in the indent, so nothing moves)
+        result.add @[span("   [" & l & "]", selectedStyle)]
+      else:
+        result.add @[span("    " & l, selectedStyle)]

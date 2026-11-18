@@ -80,7 +80,9 @@ proc activityText*(r: ListRow, zone: Timezone): string =
   ## One activity in a sentence, the standard way: "2019-05-21 14:04  running  0.0km 2s".
   activityLine(info(r), zone)
 
-proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
+proc table*(
+    rows: seq[ListRow], zone: Timezone, verbose: bool, marks = false
+): seq[Line] =
   ## The header and a line for each row, columns aligned (distance and active right-aligned): the start, the sport, the
   ## distance, the active time and "place / name" of each activity (describe.nim), and if `verbose` the sub-sport after the
   ## sport and the path of the file last.  No lines at all if there
@@ -88,7 +90,8 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   ##
   ## Styles: a row in the selection is `select` all through; a
   ## transition row is `hide` all through; "-" (not recorded) is `hide`; a distance
-  ## or an active time that shows as zero is `warn`.
+  ## or an active time that shows as zero is `warn`.  With `marks` (for where there is no colour) a row in the selection is
+  ## also in brackets, `[...]`, as a day of the calendar is, and every line is one column further in.
   if rows.len == 0:
     return
   var header = @["start", "sport", "distance", "active", "place / name"]
@@ -137,6 +140,9 @@ proc table*(rows: seq[ListRow], zone: Timezone, verbose: bool): seq[Line] =
   result.add line(header, none(ListRow))
   for i, row in cells:
     result.add line(row, some(rows[i]))
+  if marks:
+    for i in 0 .. result.high:
+      result[i] = bracketed(result[i], i > 0 and rows[i - 1].selected)
 
 func footer*(rows: seq[ListRow], choices = none(int)): string =
   ## "42 of 310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many

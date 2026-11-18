@@ -331,3 +331,14 @@ suite "list table: looks":
   test "the header has no style":
     for sp in table(@[row(aug27)], zone, false)[0]:
       check sp.styles.len == 0
+
+suite "activities table: marks where there is no colour":
+  test "the selected rows are in brackets, and every line is a column further in":
+    var picked = row(aug27, "cycling", "road", 5000.0, 600.0)
+    picked.selected = true
+    let other = row(aug27, "running", "", 3000.0, 900.0)
+    let plainLines = table(@[picked, other], zone, false)
+    let marked = table(@[picked, other], zone, false, marks = true)
+    check marked[0].text == " " & plainLines[0].text
+    check marked[1].text == "[" & plainLines[1].text & "]"
+    check marked[2].text == " " & plainLines[2].text

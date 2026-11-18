@@ -48,8 +48,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Features and ideas, unordered
 
-* **A mark for the selection when there is no colour** (left from the styles, 2026-11-18): with NO_COLOR or a pipe, the
-  selected rows of `nch activities` (and the selected days, rides) are not told apart; options proposed to the author.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
   (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
   A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for

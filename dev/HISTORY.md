@@ -37,6 +37,11 @@ to switch between files.  Built in five steps, each discussed first:
   and most of their colours are drawing colours with no meaning (routes, heat, gates); a `web=` colour per style would have
   been the same in every theme.  `palette.nim` went; each template has its colours written in it.
 * The tool `tools/look.nim` shows text (or a sample) in a theme, so themes can be tried without nch.
+* **Where there is no colour** (NO_COLOR, a pipe) the selection is in brackets, as the calendar already marked a day
+  (`[05]`; the author chose brackets for that, and a mark only without colour, option (a) of three): a selected row of
+  `nch activities` is `[...]`, every line a column further in; a selected attempt of `nch climbs -v` has its `[` in the
+  indent.  In colour, a marked day of the calendar is a band with the spaces either side of it (`" 05 06 "`), and `render`
+  starts a look only where it changes.
 
 ## Overlap of climbs in SQL (done 2026-11-11; REVIEW.md step 12, first part)
 

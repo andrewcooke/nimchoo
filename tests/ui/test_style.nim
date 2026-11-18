@@ -87,3 +87,16 @@ suite "ui style: merging":
     check merged(@[span("a", "good"), span(" "), span("b", "bad")]).len == 3
     check merged(@[span("a", "good"), span("x"), span("b", "good")]).len == 3
     check merged(@[span("a"), span("b")]).len == 1
+
+suite "ui style: marks where there is no colour":
+  test "a selected line is in brackets; the others have a space where the bracket would be":
+    check bracketed(@[span("a"), span("b", "select")], true).text == "[ab]"
+    check bracketed(@[span("ab")], false).text == " ab"
+
+suite "ui style: rendering looks that run on":
+  test "spans side by side that look the same share their codes":
+    let p = Paint(theme: parseTheme("select fg=blue"), colour: true)
+    check render(@[span("a", "select"), span(" ", "select"), span("b", "select")], p) ==
+      "\e[34ma b\e[0m"
+    check render(@[span("a", "select"), span(" "), span("b", "select")], p) ==
+      "\e[34ma\e[0m \e[34mb\e[0m"

@@ -47,12 +47,13 @@ func two(n: int): string =
   intToStr(n, 2)
 
 func dayCell(day: int, listed: bool, s: Screen): Span =
-  ## A day: with a mark (`listed`) or not.
+  ## A day: with a mark (`listed`) or not.  With colour it is the two digits (the spaces between days are the line's: see
+  ## `calendarLines`).
   if s.colour:
     if listed:
-      span(fmt"{two(day)} ", selectedStyle)
+      span(two(day), selectedStyle)
     else:
-      span(fmt"{two(day)} ", "hide")
+      span(two(day), "hide")
   else:
     if listed:
       span(fmt" [{two(day)}]")
@@ -106,20 +107,32 @@ proc calendarLines*(
       months.find(m) > 0 and m - months[months.find(m) - 1] > 1 or
       months.find(m) < months.high and months[months.find(m) + 1] - m > 1
     var line: Line =
-      if not gap:
-        @[span(fmt"{monthNames[m mod 12]} ")]
-      elif screen.colour:
-        @[span(monthNames[m mod 12], "warn"), span(" ")]
-      else:
+      if screen.colour:
+        @[(if gap: span(monthNames[m mod 12], "warn") else: span(monthNames[m mod 12]))]
+      elif gap:
         @[span(fmt"{monthNames[m mod 12]}*")]
+      else:
+        @[span(fmt"{monthNames[m mod 12]} ")]
     for k in 0 ..< cells:
       let day = k - offset + 1
+      if screen.colour:
+        line.add span(" ") # (the space before each day: see below)
       if day < 1 or day > days:
-        line.add span(" ".repeat(cw))
+        line.add span(" ".repeat(if screen.colour: 2 else: cw))
       else:
         line.add dayCell(
           day, year * 10000 + (m mod 12 + 1) * 100 + day in listed, screen
         )
+    if screen.colour:
+      line.add span(" ")
+      # a space next to a marked day is marked too, so that a marked day, or a run of them, is a band (" 05 06 "), not
+      # the digits and the space after them
+      for i in 1 ..< line.high:
+        if line[i].text == " " and (
+          line[i - 1].styles == @[selectedStyle] or
+          line[i + 1].styles == @[selectedStyle]
+        ):
+          line[i] = span(" ", selectedStyle)
     line.add span(fmt"  {year}")
     result.add line
   if screen.width > 0 and calendarWidth(screen) > screen.width:

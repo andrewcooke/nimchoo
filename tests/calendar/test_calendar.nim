@@ -22,7 +22,11 @@ proc monthRow(ls: seq[Line], name: string): Line =
   raiseAssert "no row for " & name
 
 proc cellOf(l: Line, k: int): Span =
-  ## cell k (0 to 36) of a month row: the spans are the label, 37 cells, the year
+  ## cell k (0 to 36) of a month row in colour: the spans are the label, a space and a cell 37 times, a space, the year
+  l[2 + 2 * k]
+
+proc plainCellOf(l: Line, k: int): Span =
+  ## cell k of a month row without colour: the spans are the label, 37 cells, the year
   l[1 + k]
 
 suite "calendar: the layout":
@@ -39,16 +43,16 @@ suite "calendar: the layout":
   test "days sit in the column of their weekday: 1 August 2018 was a Wednesday":
     let ls = calendarLines(@[row(at(2018, mAug, 27))], utc(), false, colourScreen)
     let aug = ls.monthRow("Aug")
-    check aug.cellOf(0).text == "   " and aug.cellOf(1).text == "   "
-    check aug.cellOf(2).text == "01 " and aug.cellOf(2 + 30).text == "31 "
-    check aug.cellOf(2 + 31).text == "   "
+    check aug.cellOf(0).text == "  " and aug.cellOf(1).text == "  "
+    check aug.cellOf(2).text == "01" and aug.cellOf(2 + 30).text == "31"
+    check aug.cellOf(2 + 31).text == "  "
     # the 27th was a Monday: the same column as the first Monday, 6 August, and 13th, 20th
-    check aug.cellOf(2 + 26).text == "27 " and (2 + 26) mod 7 == 0
+    check aug.cellOf(2 + 26).text == "27" and (2 + 26) mod 7 == 0
   test "a 31-day month that starts on a Sunday fills all 37 cells (January 2017)":
     let jan = calendarLines(@[row(at(2017, mJan, 5))], utc(), false, colourScreen)
       .monthRow("Jan")
-    check jan.cellOf(6).text == "01 " and jan.cellOf(36).text == "31 "
-    check jan.len == 1 + 37 + 1
+    check jan.cellOf(6).text == "01" and jan.cellOf(36).text == "31"
+    check jan.len == 1 + 2 * 37 + 1 + 1
   test "February: 28 days, and 29 in a leap year":
     check calendarLines(@[row(at(2018, mFeb, 5))], utc(), false, colourScreen)
       .monthRow("Feb").text
@@ -89,10 +93,10 @@ suite "calendar: colours and marks":
     check styleOf(aug.cellOf(2)) == "hide" # the 1st
   test "without colour the cells are 5 wide and marked":
     let aug = calendarLines(rs, utc(), false, plainScreen).monthRow("Aug")
-    check aug.cellOf(2 + 26).text == " [27]"
-    check aug.cellOf(2 + 27).text == " [28]"
-    check aug.cellOf(2 + 25).text == "  -- "
-    check aug.cellOf(0).text == "     "
+    check aug.plainCellOf(2 + 26).text == " [27]"
+    check aug.plainCellOf(2 + 27).text == " [28]"
+    check aug.plainCellOf(2 + 25).text == "  -- "
+    check aug.plainCellOf(0).text == "     "
     check aug.text.len == 4 + 37 * 5 + 6
     check calendarLines(rs, utc(), false, plainScreen)[0].text.startsWith("      Mo ")
   test "everything is plain text that stays the same width":
@@ -199,3 +203,16 @@ suite "calendar: too narrow a screen":
     check calendarLines(rs, utc(), false, Screen(colour: true, width: 0)).len == 2
     check calendarLines(rs, utc(), false, Screen(colour: false, width: 150)).len == 3
       # plain is 185 wide
+
+suite "calendar: a marked day is a band":
+  test "the spaces either side of a marked day are marked too, and a run of days is one band":
+    let rs =
+      @[row(at(2018, mAug, 27)), row(at(2018, mAug, 28)), row(at(2018, mAug, 30))]
+    let aug = calendarLines(rs, utc(), false, colourScreen).monthRow("Aug")
+    var marked = ""
+    for sp in aug:
+      if styleOf(sp) == "select":
+        marked.add sp.text
+      elif marked.len > 0 and not marked.endsWith("|"):
+        marked.add "|"
+    check marked == " 27 28 | 30 |"
