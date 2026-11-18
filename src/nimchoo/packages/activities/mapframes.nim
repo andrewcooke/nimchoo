@@ -23,8 +23,8 @@ const
     ## the levels of cells the heat is given at, finest first: cells of about 100 m, 870 m and 7 km (the page shows the one that
     ## suits its zoom)
 
-proc routesOf(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].} =
-  ## The routes of the activities, oldest first.
+proc routesOf*(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].} =
+  ## The routes of the activities, oldest first (the climbs' frame of the rides up them uses it too).
   for r in st.db.query(
     tuple[
       id: ActivityId,
@@ -83,15 +83,17 @@ proc makeHeat(st: Session): FrameData {.raises: [StoreError].} =
   result.geojson = featureCollection(heat.mapIt(heatFeature(it)))
 
 const
-  routesStyle = Bundle(
+  routesStyle* = Bundle(
     name: "templates/activities-map-routes.json", data: staticRead("map-routes.json")
-  )
+  ) ## (with its drawing, `routesScript`, used for other routes too: the climbs' rides)
   heatStyle = Bundle(
     name: "templates/activities-map-heat.json", data: staticRead("map-heat.json")
   )
-  routesScript = Bundle(
+  routesScript* = Bundle(
     name: "templates/activities-map-routes.js", data: staticRead("map-routes.js")
   )
+  routesStyleKeys* = @["color", "weight", "opacity", "spread_m"]
+    ## what the drawing of the routes reads from its style
   heatScript =
     Bundle(name: "templates/activities-map-heat.js", data: staticRead("map-heat.js"))
 
@@ -110,7 +112,7 @@ proc contributions*(): seq[Contribution] =
         tables: @["activity", "route", "selection"],
         make: makeRoutes,
         style: routesStyle,
-        styleKeys: @["color", "weight", "opacity", "spread_m"],
+        styleKeys: routesStyleKeys,
         script: some(routesScript),
       ),
     ),

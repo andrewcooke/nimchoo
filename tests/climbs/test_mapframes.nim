@@ -165,3 +165,38 @@ suite "climbs frames: the line of an effort":
     let p = effortPath(ride(), 5.0, 99.0)
     check p[0].lon == 0.0 and p[^1].lon == 0.005 and p.len == 6 + 2
     check effortPath(@[], 1.0, 2.0).len == 0
+
+suite "climbs frames: the climbs subject":
+  proc chooseClimb(db: string) =
+    let s = openSession(db, allFragments, access = allAccess)
+    defer:
+      s.close()
+    s.db.execute(
+      "insert into climb_selection(user_id, sector_id) select :userId, id from sector",
+      userId = s.userId,
+    )
+
+  test "an empty climbs selection is said, and nothing is made":
+    let w = world(dir, "subject-empty")
+    withClimb(w.db)
+    check map(w.db, "climbs") == exitFailure
+
+  test "the climbs of the selection, their gates, and the routes of the rides up them":
+    let w = world(dir, "subject")
+    withClimb(w.db)
+    chooseClimb(w.db)
+    check map(w.db, "climbs", "--frames", "climbs", "gates", "routes") == exitOk
+    check kinds(parseFile(frameFile(w.cache, "climbs", "climbs"))) == @["climb"]
+    check kinds(parseFile(frameFile(w.cache, "gates", "climbs"))).len == 2
+    check kinds(parseFile(frameFile(w.cache, "routes", "climbs"))) ==
+      @["route"] # (ride 1 went up it; ride 2 did not)
+
+  test "the climbs subject's frames do not read the activities' selection":
+    let w = world(dir, "subject-own")
+    withClimb(w.db)
+    chooseClimb(w.db)
+    let s = openSession(w.db, allFragments, access = allAccess)
+    s.db.execute("delete from selection")
+    s.close()
+    check map(w.db, "climbs", "--frames", "climbs") == exitOk
+    check kinds(parseFile(frameFile(w.cache, "climbs", "climbs"))) == @["climb"]

@@ -1,7 +1,9 @@
-## The frames of the climbs on a map (`map/frames`), for the activities: the climbs the selected activities went up, the two gates
-## of each (the lines a ride has to cross), and the part of each ride that is an effort on a climb.  `climbs` supports the
-## subject here, it does not manage it: the selection is the activities'.  The frames only read: a note says when some activities have
-## no climbs worked out (the import and `nch climbs` do that).  The style of each is shipped here, next to the frame.
+## The frames of the climbs on a map (`map/frames`).  For the activities: the climbs the selected activities went up, the two
+## gates of each (the lines a ride has to cross), and the part of each ride that is an effort on a climb; `climbs` supports that
+## subject, it does not manage it (the selection is the activities'), and a note says when some activities have no climbs worked
+## out (the import and `nch climbs` do that).  For the climbs, the subject it manages: the climbs of the climbs selection, their
+## gates, and the routes of your rides that went up them (drawn as the activities' routes are).  The frames only read.  The
+## style of each is shipped here, next to the frame.
 
 import std/[options, sequtils, strformat, tables]
 import ../../core/[errors, extension, ids]
@@ -9,15 +11,15 @@ import ../bundle/unpack
 import ../db/statement
 import ../importer/[coord, track]
 import ../map/[frames, geojson]
+import ../activities/[mapfeatures as activityFeatures, mapframes as activityFrames]
 import ../selection/selection
 import ../user/session
-import ./[attempts, mapfeatures, match, report]
+import ./[attempts, chosen, mapfeatures, match, report]
 
 {.push raises: [].}
 
-proc climbsOf(st: Session, ids: seq[int64]): seq[Climb] {.raises: [StoreError].} =
-  ## The climbs the activities went up, the biggest first.
-  let sectors = climbsOfActivities(st, ids)
+proc climbsOf(st: Session, sectors: seq[int64]): seq[Climb] {.raises: [StoreError].} =
+  ## The climbs, in the order given.
   if sectors.len == 0:
     return
   let names = shownNames(st)
@@ -38,9 +40,8 @@ proc climbsOf(st: Session, ids: seq[int64]): seq[Climb] {.raises: [StoreError].}
         geometry: r.geometry,
       )
 
-proc gatesOf(st: Session, ids: seq[int64]): seq[GateLine] {.raises: [StoreError].} =
-  ## The two gates of each climb the activities went up (the lines `overPaths` counts a pass across).
-  let sectors = climbsOfActivities(st, ids)
+proc gatesOf(st: Session, sectors: seq[int64]): seq[GateLine] {.raises: [StoreError].} =
+  ## The two gates of each of the climbs (the lines `overPaths` counts a pass across).
   if sectors.len == 0:
     return
   let names = shownNames(st)
@@ -128,12 +129,43 @@ proc unworked(st: Session, ids: seq[int64]): seq[string] {.raises: [StoreError].
 proc makeClimbs(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   result.notes = unworked(st, ids)
-  result.geojson = featureCollection(climbsOf(st, ids).mapIt(climbFeature(it)))
+  result.geojson =
+    featureCollection(climbsOf(st, climbsOfActivities(st, ids)).mapIt(climbFeature(it)))
 
 proc makeGates(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   result.notes = unworked(st, ids)
-  result.geojson = featureCollection(gatesOf(st, ids).mapIt(gateFeature(it)))
+  result.geojson =
+    featureCollection(gatesOf(st, climbsOfActivities(st, ids)).mapIt(gateFeature(it)))
+
+# --- the climbs subject: the climbs selection
+
+proc makeChosenClimbs(st: Session): FrameData {.raises: [StoreError].} =
+  result.geojson =
+    featureCollection(climbsOf(st, chosenClimbs(st)).mapIt(climbFeature(it)))
+
+proc makeChosenGates(st: Session): FrameData {.raises: [StoreError].} =
+  result.geojson =
+    featureCollection(gatesOf(st, chosenClimbs(st)).mapIt(gateFeature(it)))
+
+proc ridesUp*(st: Session, sectors: seq[int64]): seq[int64] {.raises: [StoreError].} =
+  ## The user's activities that have an effort on any of the climbs, oldest first.
+  st.db.query(
+    int64,
+    """select a.id from activity a join file f on f.id = a.file_id
+        where f.user_id = :userId and exists (select 1 from effort e
+          where e.activity_id = a.id and e.sector_id in (select value from json_each(:sectors)))
+        order by a.start_t, a.id""",
+    userId = st.userId,
+    sectors = jsonList(sectors),
+  )
+
+proc makeChosenRoutes(st: Session): FrameData {.raises: [StoreError].} =
+  let rides = ridesUp(st, chosenClimbs(st))
+  let routes = routesOf(st, rides)
+  if rides.len == 0:
+    result.notes.add "you have ridden none of the selected climbs"
+  result.geojson = featureCollection(routes.mapIt(routeFeature(it)))
 
 proc makeEfforts(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
@@ -142,7 +174,9 @@ proc makeEfforts(st: Session): FrameData {.raises: [StoreError].} =
 
 const
   climbTables = @["activity", "climbs_done", "effort", "sector", "selection", "track"]
-    ## what the three frames read (they work nothing out)
+    ## what the three frames of the activities read (they work nothing out)
+  chosenTables =
+    @["climb_selection", "sector"] ## what the climbs subject's climbs and gates read
   climbsStyle = Bundle(
     name: "templates/activities-map-climbs.json", data: staticRead("map-climbs.json")
   )
@@ -209,6 +243,52 @@ proc contributions*(): seq[Contribution] =
         style: effortsStyle,
         styleKeys: @["color", "weight", "opacity", "start", "finish", "radius"],
         script: some(effortsScript),
+      ),
+    ),
+    # (the routes first: the climbs are drawn beside their threads, from the spread the routes' drawing says)
+    contribute(
+      mapFramePoint,
+      MapFrame(
+        subject: "climbs",
+        name: "routes",
+        summary: "the routes of your rides that went up them",
+        shown: false,
+        readsSelection: true,
+        tables: @["activity", "climb_selection", "effort", "file", "route", "sector"],
+        make: makeChosenRoutes,
+        style: routesStyle,
+        styleKeys: routesStyleKeys,
+        script: some(routesScript),
+      ),
+    ),
+    contribute(
+      mapFramePoint,
+      MapFrame(
+        subject: "climbs",
+        name: "climbs",
+        summary: "the climbs of the selection",
+        shown: true,
+        readsSelection: true,
+        tables: chosenTables,
+        make: makeChosenClimbs,
+        style: climbsStyle,
+        styleKeys: @["color", "opacity", "width_m", "gap_m", "lane_m"],
+        script: some(climbsScript),
+      ),
+    ),
+    contribute(
+      mapFramePoint,
+      MapFrame(
+        subject: "climbs",
+        name: "gates",
+        summary: "the start and finish line of each of them",
+        shown: false,
+        readsSelection: true,
+        tables: chosenTables,
+        make: makeChosenGates,
+        style: gatesStyle,
+        styleKeys: @["start", "finish", "weight", "opacity"],
+        script: some(gatesScript),
       ),
     ),
   ]
