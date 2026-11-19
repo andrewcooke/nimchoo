@@ -401,7 +401,9 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
           )
         g.show(osOut, line)
   of vDetail:
-    g.showAll detailLines(inv, p.package, width)
+    let lines = detailLines(inv, p.package, width)
+    g.show(osOut, @[span(lines[0], "em")]) # (the title: "package ui  (layer 0)")
+    g.showAll lines[1 ..^ 1]
   of vPoints:
     g.showAll pointLines(inv, width)
   of vTables:

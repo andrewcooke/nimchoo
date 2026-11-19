@@ -222,9 +222,10 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
   doAssert at >= 0
   let p = inv.packages[at]
   func field(label, text: string): seq[string] =
-    let lines = wrap(text, max(30, width - 16))
+    ## a row of the fields: the label, a line (drawn in the line style), the text wrapped beside it
+    let lines = wrap(text, max(30, width - 17))
     for i, l in lines:
-      result.add (if i == 0: label.alignLeft(14) & "  " else: " ".repeat(16)) & l
+      result.add (if i == 0: label.alignLeft(13) else: " ".repeat(13)) & " │ " & l
   result.add fmt"package {p.name}  (layer {p.layer})"
   if p.doc.len > 0:
     result.add ""
@@ -261,9 +262,13 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
         fmt"{d.name} (holds {holds})"
       else:
         d.name
-    result.add field("defines", fmt"{what} - {d.summary}")
-    result.add field("  added to by", (if users.len == 0: "-"
-      else: users.join(", "))) # (in the order the contributions are used)
+    let added =
+      if users.len == 0:
+        "nothing"
+      else:
+        users.join(", ")
+    # (who adds to it, in the order the contributions are used)
+    result.add field("defines", fmt"{what} - {d.summary}; added to by {added}")
   var adds: seq[string]
   for c in p.contributes:
     adds.add fmt"{c.point} (priority {c.priority})"

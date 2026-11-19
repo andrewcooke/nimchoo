@@ -127,7 +127,7 @@ suite "the views":
     check lines.anyIt(it.startsWith("db ") and it.endsWith("Package db is the base."))
 
   test "the detail of a package":
-    let text = detailLines(world(), "b", 80).join("\n")
+    let text = detailLines(world(), "b", 200).join("\n")
     check "package b  (layer 2)" in text
     check "It has a paragraph more." in text
     check "depends on" in text and "a db" in text
