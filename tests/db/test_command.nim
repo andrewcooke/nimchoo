@@ -51,12 +51,9 @@ suite "nch db":
     check dbCommand.run(globals(d), @["--nonesuch"]) == exitUsage
     check dbCommand.run(globals(d), @["x"]) == exitUsage
     check dbCommand.run(globals(d), @["--help"]) == exitOk
-  test "--tables on a real database: it says what it holds and writes nothing; not with --delete":
+  test "on a real database it says what it holds, and writes nothing":
     let d = fresh("tables")
     openSession(d, allFragments, access = allAccess).close()
     let before = getLastModificationTime(d)
-    check dbCommand.run(globals(d), @["--tables"]) == exitOk
+    check dbCommand.run(globals(d), @[]) == exitOk
     check getLastModificationTime(d) == before
-    check parseArgs(@["--tables"]).params.action == daTables
-    check dbCommand.run(globals(d), @["--tables", "--delete", "-f"]) == exitUsage
-    check fileExists(d)

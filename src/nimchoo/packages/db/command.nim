@@ -1,5 +1,5 @@
-## `nch db`: the database file.  With no arguments it says where it is and how big; `--tables` what it holds, table
-## by table (`holding.nim`); `--delete -f` deletes it, and
+## `nch db`: the database file.  With no arguments it says where it is, how big, and what it holds,
+## table by table (`holding.nim`); `--delete -f` deletes it, and
 ## with it the data of every user (the cache, which can be made again, is `nch cache`).  Does nothing without
 ## -f; on a terminal it then counts down, in the bad style, so there is time to press Ctrl-C (`-f -f`: no countdown).
 
@@ -25,10 +25,10 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] db
-       nch [--db PATH] db --tables
        nch [--db PATH] db --delete -f"""
   intro =
-    """Without options, say where the database is and how big.  With `--tables`, what it holds, table by table (who may
+    """Without options, say where the database is and how big, and what it holds, table by table: the package that
+owns each, how many rows, how much of the file it takes (with its indexes) and the tables it refers to (who else may
 read each: `nch packages --tables`)."""
 
 proc usageText*(width: int): seq[Line] =
@@ -124,17 +124,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if not fileExists(path):
     g.show(osOut, @[span("no database at "), span(path, "file")])
     return exitOk
-  if p.action == daTables:
-    try:
-      g.showAll(osOut, tablesLines(g, path, helpWidth(stdout)))
-    except StoreError as e:
-      return failure(g, "nch db", e.msg)
-    return exitOk
   if p.action == daShow:
     g.show(
       osOut,
       @[span(path, "file"), span(" (" & humanBytes(size(path)) & freeSpace(path) & ")")],
     )
+    g.show(osOut, plain(""))
+    try:
+      g.showAll(osOut, tablesLines(g, path, helpWidth(stdout)))
+    except StoreError as e:
+      return failure(g, "nch db", e.msg)
     return exitOk
   let what =
     "the database " & path & " (" & humanBytes(size(path)) &
