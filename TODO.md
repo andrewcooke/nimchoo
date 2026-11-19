@@ -45,7 +45,17 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
   Time the largest country first.
 
-## Queued by the author (2026-11-18), in order
+## Next: styled text, done once (proposed 2026-11-18, the author to decide; start in a fresh session)
+
+The styling grew by additions and now has six ways to say a piece's style: `ui/style` spans (names checked when compiled),
+markup and `styled"..."`, `core/ruled` cells (names as plain strings: `core` cannot import `ui`), backticks drawn as `cmd`,
+invisible marks (shift out/in, for the option column and synopses), and box-drawing characters drawn in `hide`.  The cause:
+the help and the views are built as plain strings and styled afterwards.  Options: (A, recommended) one styled line in
+`core`, with one wrap and one table on it; the usages and the views of `nch packages` built as styled lines, not strings
+(the marks, `Cell` and `wrapCell` go); the style names the program uses one list in `core`, checked when compiled, with a
+test that the built-in themes define them; backticks stay as the one convention for prose (guarded by
+`tests/core/test_backticks.nim`).  (B) every printed text is markup (values would need escaping everywhere).  (C) merge
+`Cell` into `Line` only (the marks stay).  Waiting on it, from the author:
 
 * File paths in a style of their own, `file` (the author's dark theme has one).
 * "usage:" and "commands:" (`nch --help`) in `em`.
