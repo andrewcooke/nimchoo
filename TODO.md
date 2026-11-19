@@ -47,8 +47,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Next
 
-* **File paths in `file`** (the author, 2026-11-18; the style is in both built-in themes since 2026-11-19): wherever a path is
-  shown (`nch packages` detail and `--config`, `nch cache`, what `--file` writes, the importer's failures).
+* **File paths in `file`, the rest** (the author, 2026-11-18): done where a path is the output (`nch packages` detail and
+  `--config`, `nch db`, `nch cache`, what `--file` writes); left: paths inside messages made as plain strings (`failure()`,
+  the importer's per-file lines, `sinks.nim`), which need those to be lines first.
 * **`nch cache`: its tables ruled** (the author, 2026-11-19): it has several tables without lines between the columns
   (`core/ruled.nim`, as the usages and `nch packages` have).
 

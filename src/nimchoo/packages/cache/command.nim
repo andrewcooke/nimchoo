@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ./cache
 import ../../core/globals
 import ../util/args/[args, usage]
-import ../ui/[live, units]
+import ../ui/[live, style, units]
 import ../../core/logfile
 import ../confirm/confirm
 import ./[files, params]
@@ -59,7 +59,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)",
     )
   if p.action == caShow:
-    g.say osOut, "the cache is in " & dir.get & "\n"
+    g.show(osOut, @[span("the cache is in "), span(dir.get, "file")])
     var cells: seq[array[3, string]]
     for k in Kind:
       let u = useOf(dir.get, k)

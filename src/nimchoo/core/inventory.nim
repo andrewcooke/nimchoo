@@ -270,7 +270,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     for l in rst(p.doc, width).split('\n'):
       result.add inv.withPackages(l)
     result.add plain("")
-  result.add field("source", plain(p.path))
+  result.add field("source", @[span(p.path, "file")])
   result.add field("depends on", pkgList(p.depends))
   result.add field("used by", pkgList(p.dependents))
   result.add field("fragments", plain(listOf(p.fragments)))

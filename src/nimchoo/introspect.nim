@@ -272,10 +272,19 @@ proc fragmentLines*(path: string): seq[string] =
     result.add "  all of them match"
   result.add differences
 
-proc configLines*(g: Globals): seq[string] =
-  ## The settings in force, and where each came from.
-  func row(label, value: string): string =
-    label.alignLeft(10) & "  " & value
+proc configLines*(g: Globals): seq[Line] =
+  ## The settings in force, and where each came from (a path in `file`).
+  func row(label: string, value: Line): Line =
+    @[span(label.alignLeft(10) & "  ")] & value
+
+  func row(label, value: string): Line =
+    row(label, plain(value))
+
+  func pathOr(path: Option[string], otherwise: string): Line =
+    if path.isSome:
+      @[span(path.get, "file")]
+    else:
+      plain(otherwise)
   result.add row("version", versionString)
   let path = resolveDbPath(g.dbPath)
   let source =
@@ -291,7 +300,7 @@ proc configLines*(g: Globals): seq[string] =
       state = humanBytes(getFileSize(path))
   except OSError:
     state = "cannot be read"
-  result.add row("database", fmt"{path}  ({source}; {state})")
+  result.add row("database", @[span(path, "file"), span(fmt"  ({source}; {state})")])
   result.add row(
     "user",
     if g.user.len > 0:
@@ -308,9 +317,9 @@ proc configLines*(g: Globals): seq[string] =
       "none: the terminal's own text",
   )
   let log = envLogPath()
-  result.add row("log", if log.isSome: log.get else: "off (NCH_LOG is empty)")
+  result.add row("log", pathOr(log, "off (NCH_LOG is empty)"))
   let cache = cacheDir()
-  result.add row("cache", if cache.isSome: cache.get else: "none (no HOME)")
+  result.add row("cache", pathOr(cache, "none (no HOME)"))
   result.add row(
     "access",
     case g.access.mode
@@ -325,7 +334,8 @@ proc configLines*(g: Globals): seq[string] =
   ].mapIt(setIn(it))
   for i, v in variables:
     result.add row((if i == 0: "environment" else: ""), v)
-  result.add fragmentLines(path)
+  for l in fragmentLines(path):
+    result.add plain(l)
 
 # --- the command -------------------------------------------------------------------------------------------------------
 

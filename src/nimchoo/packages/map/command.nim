@@ -16,7 +16,7 @@ import ../util/atomic/atomic
 import ../../core/[extension, globals]
 import ../../core/errors
 import ../subject/subjects
-import ../ui/live
+import ../ui/[live, style]
 import ../util/args/[args, usage]
 import ../web/launch
 import ../web/pages
@@ -261,15 +261,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let made = makeFrames(g, c, one, userDir(dir.get))
       if made.status != 0:
         return made.status
-      g.say osOut, made.paths[0] & "\n"
+      g.show(osOut, @[span(made.paths[0], "file")])
     else:
       let made = makePage(g, c, userDir(dir.get))
       if made.status != 0:
         return made.status
-      g.say osOut, made.page & "\n"
+      g.show(osOut, @[span(made.page, "file")])
   of wkFile:
     let made = makeFrames(g, c, c.frames, userDir(dir.get))
     if made.status != 0:
       return made.status
-    g.say osOut, made.paths.join("\n") & "\n"
+    for path in made.paths:
+      g.show(osOut, @[span(path, "file")])
   exitOk

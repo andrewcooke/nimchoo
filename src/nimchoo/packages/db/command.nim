@@ -9,7 +9,7 @@ import ../util/args/[args, usage]
 import ../ui/units
 import ../../core/errors
 import ../../core/logfile
-import ../ui/live
+import ../ui/[live, style]
 import ../confirm/confirm
 import ./statement
 import ./[params, store]
@@ -69,10 +69,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let p = parsed.params
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
-    g.say osOut, "no database at " & path & "\n"
+    g.show(osOut, @[span("no database at "), span(path, "file")])
     return exitOk
   if p.action == daShow:
-    g.say osOut, path & " (" & humanBytes(size(path)) & freeSpace(path) & ")\n"
+    g.show(
+      osOut,
+      @[span(path, "file"), span(" (" & humanBytes(size(path)) & freeSpace(path) & ")")],
+    )
     return exitOk
   let what =
     "the database " & path & " (" & humanBytes(size(path)) &

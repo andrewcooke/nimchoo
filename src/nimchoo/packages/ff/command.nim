@@ -328,9 +328,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "delete one to have the built-in one again)",
       )
     if p.web.kind == wkWorker:
-      g.say osOut, pageFile.get & "\n" & csvPath & "\n"
+      g.show(osOut, @[span(pageFile.get, "file")])
+      g.show(osOut, @[span(csvPath, "file")])
       return exitOk
-    g.say osOut, csvPath & "\n"
+    g.show(osOut, @[span(csvPath, "file")])
     let paint = paintOf(g, osOut)
     g.sayRendered osOut, render(latestStats(st, m.get, p, now, tz), paint) & "\n"
     exitOk
