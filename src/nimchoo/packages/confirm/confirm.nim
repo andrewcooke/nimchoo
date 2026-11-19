@@ -22,7 +22,7 @@ type Force* = enum
 const forceHelp* =
   "really do it (nothing is deleted without it).  On a terminal there are then " &
   $waitSeconds &
-  " seconds in which to press Ctrl-C; given twice (-f -f) there is no pause"
+  " seconds in which to press Ctrl-C; given twice (`-f -f`) there is no pause"
 
 template forceOption*(P: typedesc, field: untyped, indent: int = 0): Opt[P] =
   ## `-f` / `--force` as an option of a command whose `P` holds a `Force` in `field`: the first time is `fYes`, the second

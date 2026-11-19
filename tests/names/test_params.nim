@@ -35,7 +35,7 @@ suite "landmark: the command line":
     check parseArgs(@["--add", "X"]).problem.contains("needs one of")
     check parseArgs(@["--add", "X", "--search", "y"]).problem.contains("--pick")
     check parseArgs(@["--add", "X", "--at", "1,2", "--pick", "1"]).problem.contains(
-      "not with --at"
+      "not with `--at`"
     )
     check parseArgs(@["--add", "X", "--search", "y", "--near", "1,2", "--pick", "1"]).problem
       .contains("needs one of")
@@ -57,4 +57,4 @@ suite "landmark: the command line":
       "cannot be used together"
     )
     check parseArgs(@["--radius", "500"]).problem.contains("--add")
-    check parseArgs(@["Yerba"]).problem.contains("--search Yerba")
+    check parseArgs(@["Yerba"]).problem.contains("`--search Yerba`")

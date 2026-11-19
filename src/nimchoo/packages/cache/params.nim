@@ -25,7 +25,7 @@ type
 proc takeKinds(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   p.delete = true
   if values.len == 0:
-    return refuse(name & " needs a kind: " & kindNames() & ", or all")
+    return refuse("`" & name & "` needs a kind: " & kindNames() & ", or all")
   for v in values:
     var k: Kind
     if v.toLowerAscii == "all":

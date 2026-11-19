@@ -35,10 +35,10 @@ suite "nch packages: the command line":
   test "combinations that mean nothing are refused":
     check parseArgs(@["--points", "--tables"]).problem.contains("choose one")
     check parseArgs(@["importer", "--points"]).problem.contains(
-      "goes with nothing but --graph"
+      "goes with nothing but `--graph`"
     )
-    check parseArgs(@["--reverse"]).problem.contains("--reverse goes with")
-    check parseArgs(@["--graph", "--reverse"]).problem.contains("--reverse goes with")
+    check parseArgs(@["--reverse"]).problem.contains("`--reverse` goes with")
+    check parseArgs(@["--graph", "--reverse"]).problem.contains("`--reverse` goes with")
     check parseArgs(@["a", "b"]).problem.len > 0
     check parseArgs(@["--nonesuch"]).problem.len > 0
 
@@ -61,7 +61,7 @@ suite "nch packages: the settings":
     let g = Globals(dbPath: dir / "x.db", user: "bob", offline: true, access: allAccess)
     let text = configLines(g).join("\n")
     check "version" in text and "(--db; not made yet)" in text
-    check "bob  (--user)" in text and "yes (--offline)" in text
+    check "bob  (`--user`)" in text and "yes (`--offline`)" in text
     check "access" in text and "enforced" in text
     check "NCH_DB" in text and "packages" in text
     check "there is no database file yet" in text

@@ -44,16 +44,16 @@ suite "user: the command line":
   test "a bare name is not taken for a user, and the message says what to do":
     let p = parseArgs(@["bob", "--fthr", "150"])
     check p.problem.contains("unexpected argument bob") and
-      p.problem.contains("--add bob") and p.problem.contains("--edit bob")
+      p.problem.contains("`--add bob`") and p.problem.contains("`--edit bob`")
   test "the changes go with --add or --edit":
     check parseArgs(@["--fthr", "154"]).problem.contains(
-      "go with --add NAME or --edit NAME"
+      "go with `--add NAME` or `--edit NAME`"
     )
     check parseArgs(@["--default"]).problem.contains(
-      "go with --add NAME or --edit NAME"
+      "go with `--add NAME` or `--edit NAME`"
     )
     check parseArgs(@["--rename", "x"]).problem.contains(
-      "go with --add NAME or --edit NAME"
+      "go with `--add NAME` or `--edit NAME`"
     )
     check parseArgs(@["--edit", "bob"]).problem.contains("needs something to change")
   test "--default, alone with --edit or with --add":
@@ -64,16 +64,16 @@ suite "user: the command line":
       "cannot be used together"
     )
   test "problems":
-    check parseArgs(@["--add"]).problem.contains("--add needs a value")
-    check parseArgs(@["--edit"]).problem.contains("--edit needs a value")
+    check parseArgs(@["--add"]).problem.contains("`--add` needs a value")
+    check parseArgs(@["--edit"]).problem.contains("`--edit` needs a value")
     check parseArgs(@["--add", "bad name"]).problem.contains("not a name for a user")
     check parseArgs(@["--add", "-x"]).problem.contains("not a name for a user")
     check parseArgs(@["--add", "a", "b"]).problem.contains("unexpected argument b")
     check parseArgs(@["--add", "bob", "--rename", "x"]).problem.contains(
-      "only with --fthr"
+      "only with `--fthr`"
     )
     check parseArgs(@["--add", "bob", "--clear-fthr"]).problem.contains(
-      "only with --fthr"
+      "only with `--fthr`"
     )
     check parseArgs(@["--edit", "bob", "--fthr", "150", "--clear-fthr"]).problem
       .contains("cannot be used together")
@@ -104,5 +104,5 @@ suite "user params: --delete":
     check parseArgs(@["--delete", "bob", "--rename", "x"]).problem.contains(
       "cannot be combined"
     )
-    check parseArgs(@["-f"]).problem.contains("goes with --delete")
-    check parseArgs(@["--add", "bob", "-f"]).problem.contains("goes with --delete")
+    check parseArgs(@["-f"]).problem.contains("goes with `--delete`")
+    check parseArgs(@["--add", "bob", "-f"]).problem.contains("goes with `--delete`")

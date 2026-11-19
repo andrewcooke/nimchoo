@@ -119,7 +119,7 @@ func userSpec*(): Spec[Raw] =
             p.fthr = parseFthr(value)
             if p.fthr.isNone:
               return refuse(
-                "--fthr is a whole number of beats per minute, " & $minFthr & " to " &
+                "`--fthr` is a whole number of beats per minute, " & $minFthr & " to " &
                   $maxFthr & " (not '" & value & "')"
               )
             fine
@@ -148,7 +148,7 @@ func userSpec*(): Spec[Raw] =
         Raw,
         ["--default"],
         makeDefault,
-        "make the user the default: the one used when there is no --user",
+        "make the user the default: the one used when there is no `--user`",
         level = 1,
       ),
       custom(
@@ -156,7 +156,7 @@ func userSpec*(): Spec[Raw] =
         ["--delete"],
         true,
         "NAME",
-        "delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  Needs -f.  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
+        "delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  Needs `-f`.  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
         completion = completesFrom(completeUsers),
         body = (p.deleting = true; p.name = value; fine),
       ),
@@ -164,38 +164,41 @@ func userSpec*(): Spec[Raw] =
       helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to make a user: --add " & arg & "; to change one: --edit " & arg & ")",
+      " (to make a user: `--add " & arg & "`; to change one: `--edit " & arg & "`)",
   )
 
 func finish(raw: Raw): Parsed[Params] =
   let modes = [raw.adding, raw.editing, raw.deleting]
   if modes.count(true) > 1:
-    return problemWith[Params]("--add, --edit and --delete cannot be used together")
+    return
+      problemWith[Params]("`--add`, `--edit` and `--delete` cannot be used together")
   let changes =
     raw.fthr.isSome or raw.clearFthr or raw.makeDefault or raw.rename.len > 0
   if raw.fthr.isSome and raw.clearFthr:
-    return problemWith[Params]("--fthr and --clear-fthr cannot be used together")
+    return problemWith[Params]("`--fthr` and `--clear-fthr` cannot be used together")
   if raw.adding:
     if not validUserName(raw.name):
       return problemWith[Params](
         "'" & raw.name & "' is not a name for a user (1 to " & $maxNameLength & notAName
       )
     if raw.rename.len > 0 or raw.clearFthr:
-      return problemWith[Params]("--add can be combined only with --fthr and --default")
+      return problemWith[Params](
+        "`--add` can be combined only with `--fthr` and `--default`"
+      )
   if raw.editing and not changes:
     return problemWith[Params](
-      "--edit needs something to change: --fthr, --clear-fthr, --rename or --default"
+      "`--edit` needs something to change: `--fthr`, `--clear-fthr`, `--rename` or `--default`"
     )
   if raw.deleting and changes:
     return problemWith[Params](
-      "--delete cannot be combined with the other options (only -f)"
+      "`--delete` cannot be combined with the other options (only `-f`)"
     )
   if changes and not (raw.adding or raw.editing):
     return problemWith[Params](
-      "--fthr, --clear-fthr, --rename and --default go with --add NAME or --edit NAME"
+      "`--fthr`, `--clear-fthr`, `--rename` and `--default` go with `--add NAME` or `--edit NAME`"
     )
   if raw.force != fNo and not raw.deleting:
-    return problemWith[Params]("-f goes with --delete")
+    return problemWith[Params]("`-f` goes with `--delete`")
   if raw.adding:
     parsedOk(
       Params(

@@ -41,7 +41,7 @@ proc couldNot*(n: Names, what: string): ref DownloadError =
   ## The error for something that could not be had: what was wanted, and why (the last failure told); an OfflineError
   ## when `--offline` is the reason.
   if n.offline:
-    return (ref OfflineError)(msg: "cannot get " & what & " (--offline)")
+    return (ref OfflineError)(msg: "cannot get " & what & " (`--offline`)")
   (ref DownloadError)(
     msg:
       "cannot get " & what &

@@ -117,17 +117,17 @@ func nameProblem*(s: string): string =
 proc takeNames(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   for v in values:
     if v.strip.len == 0:
-      return refuse(fmt"{name} needs some text")
+      return refuse(fmt"`{name}` needs some text")
     p.names.add v.strip
   if values.len == 0:
-    return refuse(fmt"{name} needs some text")
+    return refuse(fmt"`{name}` needs some text")
   fine
 
 proc takeCategories(
     p: var Raw, name: string, values: seq[string]
 ): Problem {.nimcall.} =
   if values.len == 0:
-    return refuse(fmt"{name} needs at least one category")
+    return refuse(fmt"`{name}` needs at least one category")
   for v in values:
     let c = v.strip.toUpperAscii
     if c notin categoryNames:
@@ -183,7 +183,7 @@ func climbSpec*(): Spec[Raw] =
         ["--from"],
         true,
         "LAT,LON|PLACE",
-        fmt"the climbs that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --from providencia)",
+        fmt"the climbs that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: `--from providencia`)",
         body = takeNear(p, value, false),
       ),
       custom(
@@ -191,7 +191,7 @@ func climbSpec*(): Spec[Raw] =
         ["--near"],
         true,
         "LAT,LON|PLACE",
-        fmt"the climbs whose line passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as --from: --near farellones)",
+        fmt"the climbs whose line passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as `--from`: `--near farellones`)",
         body = takeNear(p, value, true),
       ),
       custom(
@@ -199,7 +199,7 @@ func climbSpec*(): Spec[Raw] =
         ["--radius"],
         true,
         "KM",
-        "the radius for --from and --near in kilometres",
+        "the radius for `--from` and `--near` in kilometres",
         level = 1,
         body = takeRadius(p, value),
       ),
@@ -219,7 +219,7 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--select", "--save"],
         select,
-        "make what is listed the climbs selection, which `nch climbs` lists and `nch map climbs` shows (needs criteria or --all)",
+        "make what is listed the climbs selection, which `nch climbs` lists and `nch map climbs` shows (needs criteria or `--all`)",
       ),
       flag(
         Raw,
@@ -231,14 +231,14 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--everyone"],
         everyone,
-        "the people instead of your attempts: how many have ridden each climb, the fastest and who, and where your best time comes among everyone's best times (\"4 of 6\"); with -v each person's best.  (The personal rank and this one are never shown together.)",
+        "the people instead of your attempts: how many have ridden each climb, the fastest and who, and where your best time comes among everyone's best times (\"4 of 6\"); with `-v` each person's best.  (The personal rank and this one are never shown together.)",
       ),
       flag(Raw, ["--all"], all, "every climb, not just the selection"),
       flag(
         Raw,
         ["--delete"],
         delete,
-        "(with --all) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  Needs -f.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
+        "(with `--all`) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  Needs `-f`.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
         level = 1,
       ),
       forceOption(Raw, force, 2),
@@ -292,7 +292,7 @@ func climbSpec*(): Spec[Raw] =
       helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      fmt" (to change a climb: --edit {arg} --rename NEW, --auto, --retire or --unretire)",
+      fmt" (to change a climb: `--edit {arg} --rename NEW`, `--auto`, `--retire` or `--unretire`)",
   )
 
 func given*(c: ClimbCriteria): bool =
@@ -333,47 +333,50 @@ func finish(raw: Raw): Parsed[Params] =
     (if raw.retire: 1 else: 0) + (if raw.unretire: 1 else: 0)
   if raw.editing:
     if raw.name.strip.len == 0:
-      return bad("--edit needs the name of a climb, as `nch climbs --all` shows it")
+      return bad("`--edit` needs the name of a climb, as `nch climbs --all` shows it")
     if changes == 0:
       return bad(
-        "--edit needs something to change: --rename NEW, --auto, --retire or --unretire"
+        "`--edit` needs something to change: `--rename NEW`, `--auto`, `--retire` or `--unretire`"
       )
     if changes > 1:
-      return bad("--rename, --auto, --retire and --unretire cannot be used together")
-    if raw.retired or raw.duplicates or raw.all:
       return
-        bad("--all, --retired and --duplicates list climbs: they do not go with --edit")
+        bad("`--rename`, `--auto`, `--retire` and `--unretire` cannot be used together")
+    if raw.retired or raw.duplicates or raw.all:
+      return bad(
+        "`--all`, `--retired` and `--duplicates` list climbs: they do not go with `--edit`"
+      )
   elif changes > 0:
-    return bad("--rename, --auto, --retire and --unretire go with --edit NAME")
+    return
+      bad("`--rename`, `--auto`, `--retire` and `--unretire` go with `--edit NAME`")
   if (if raw.retired: 1 else: 0) + (if raw.duplicates: 1 else: 0) +
       (if raw.all: 1 else: 0) > 1:
-    return bad("--all, --retired and --duplicates cannot be used together")
+    return bad("`--all`, `--retired` and `--duplicates` cannot be used together")
   if raw.force != fNo and not raw.delete:
-    return bad("-f goes with --delete")
+    return bad("`-f` goes with `--delete`")
   if raw.delete:
     if not raw.all:
       return bad(
-        "--delete needs --all: the climbs are never deleted one at a time (to hide one: --edit NAME --retire)"
+        "`--delete` needs `--all`: the climbs are never deleted one at a time (to hide one: `--edit NAME --retire`)"
       )
     if raw.editing or raw.retired or raw.duplicates:
-      return bad("--delete does not go with --edit, --retired or --duplicates")
+      return bad("`--delete` does not go with `--edit`, `--retired` or `--duplicates`")
   let criteria = criteriaOf(raw)
   let tidying = raw.editing or raw.delete or raw.retired or raw.duplicates
   if tidying and (criteria.isSome or raw.select or raw.invert or raw.radiusKm.isSome):
     return bad(
-      "the criteria choose climbs to list: they do not go with --edit, --delete, --retired or --duplicates"
+      "the criteria choose climbs to list: they do not go with `--edit`, `--delete`, `--retired` or `--duplicates`"
     )
   if (raw.verbose or raw.everyone) and tidying:
     return bad(
-      "-v and --everyone go with the attempts: `nch climbs` (with criteria, or --all) shows them"
+      "`-v` and `--everyone` go with the attempts: `nch climbs` (with criteria, or `--all`) shows them"
     )
   if raw.invert and criteria.isNone:
-    return bad("--invert needs criteria to turn round")
+    return bad("`--invert` needs criteria to turn round")
   if raw.radiusKm.isSome and raw.start.isNone and raw.passes.isNone:
-    return bad("--radius goes with --from or --near")
+    return bad("`--radius` goes with `--from` or `--near`")
   if raw.select and criteria.isNone and not raw.all:
     return bad(
-      "--select needs criteria or --all: it keeps what they find as the climbs selection"
+      "`--select` needs criteria or `--all`: it keeps what they find as the climbs selection"
     )
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:

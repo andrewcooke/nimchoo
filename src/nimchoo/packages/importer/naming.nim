@@ -41,7 +41,7 @@ func gpsErrorCount*(n: Named): int =
 func leftText*(n: Named): string =
   ## What to say about activities left unnamed because of `--offline`: empty if there are none.
   if n.left > 0:
-    fmt"{n.left} left unnamed (--offline)"
+    fmt"{n.left} left unnamed (`--offline`)"
   else:
     ""
 

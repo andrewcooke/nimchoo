@@ -197,7 +197,7 @@ suite "import: remembered failures":
     check second.failed == 0
     check second.known == 1
     check second.lines[0].startsWith("known")
-    check second.lines[^1].contains("1 known failure (use --slow to retry)")
+    check second.lines[^1].contains("1 known failure (use `--slow` to retry)")
     check st.db.scalar(string, "select failure from seen_file") == "bad_format"
 
   test "the kinds of failure are remembered":

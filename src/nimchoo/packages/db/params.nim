@@ -38,7 +38,7 @@ func dbSpec*(): Spec[Raw] =
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.force != fNo and not raw.delete:
-    return problemWith[Params]("-f goes with --delete")
+    return problemWith[Params]("`-f` goes with `--delete`")
   if raw.delete:
     parsedOk(Params(action: daDelete, force: raw.force))
   else:

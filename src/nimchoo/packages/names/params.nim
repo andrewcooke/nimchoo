@@ -86,7 +86,7 @@ func landmarkSpec*(): Spec[Raw] =
             p.near = parsePosition(value)
             if p.near.isNone:
               return refuse(
-                "--near is a position as LAT,LON in degrees (not '" & value & "')"
+                "`--near` is a position as LAT,LON in degrees (not '" & value & "')"
               )
             fine
         ),
@@ -96,7 +96,7 @@ func landmarkSpec*(): Spec[Raw] =
         ["--add"],
         true,
         "NAME",
-        "make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same --search or --near) or at a position you give (`--at LAT,LON`); its circle has the radius of --radius (100 to 20,000 metres; default 1,000)",
+        "make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same `--search` or `--near`) or at a position you give (`--at LAT,LON`); its circle has the radius of `--radius` (100 to 20,000 metres; default 1,000)",
         body = (p.adding = true; p.name = value; fine),
       ),
       custom(
@@ -112,9 +112,9 @@ func landmarkSpec*(): Spec[Raw] =
               p.pick = parseInt(value)
             except ValueError:
               return
-                refuse("--pick is the number of a suggestion (not '" & value & "')")
+                refuse("`--pick` is the number of a suggestion (not '" & value & "')")
             if p.pick < 1:
-              return refuse("--pick is the number of a suggestion, from 1")
+              return refuse("`--pick` is the number of a suggestion, from 1")
             fine
         ),
       ),
@@ -129,8 +129,9 @@ func landmarkSpec*(): Spec[Raw] =
           block:
             p.at = parsePosition(value)
             if p.at.isNone:
-              return
-                refuse("--at is a position as LAT,LON in degrees (not '" & value & "')")
+              return refuse(
+                "`--at` is a position as LAT,LON in degrees (not '" & value & "')"
+              )
             fine
         ),
       ),
@@ -146,7 +147,7 @@ func landmarkSpec*(): Spec[Raw] =
             try:
               p.radiusM = parseFloat(value)
             except ValueError:
-              return refuse("--radius is metres (not '" & value & "')")
+              return refuse("`--radius` is metres (not '" & value & "')")
             fine
         ),
       ),
@@ -155,7 +156,7 @@ func landmarkSpec*(): Spec[Raw] =
         ["--delete"],
         true,
         "NAME",
-        "delete the landmark (needs -f)",
+        "delete the landmark (needs `-f`)",
         completion = completesFrom(completeLandmarks),
         body = (p.deleting = true; p.name = value; fine),
       ),
@@ -163,8 +164,8 @@ func landmarkSpec*(): Spec[Raw] =
       helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to find a place: --search " & arg & "; to make a landmark: --add " & arg &
-        " ...)",
+      " (to find a place: `--search " & arg & "`; to make a landmark: `--add " & arg &
+        " ...`)",
   )
 
 func finish(raw: Raw): Parsed[Params] =
@@ -172,15 +173,15 @@ func finish(raw: Raw): Parsed[Params] =
     problemWith[Params](why)
 
   if raw.force and not raw.deleting:
-    return bad("-f goes with --delete")
+    return bad("`-f` goes with `--delete`")
   if raw.adding and raw.deleting:
-    return bad("--add and --delete cannot be used together")
+    return bad("`--add` and `--delete` cannot be used together")
   let sources =
     (if raw.search.len > 0: 1 else: 0) + (if raw.near.isSome: 1 else: 0) +
     (if raw.at.isSome: 1 else: 0)
   if raw.deleting:
     if sources > 0 or raw.pick > 0:
-      return bad("--delete goes with a name only")
+      return bad("`--delete` goes with a name only")
     return parsedOk(
       Params(
         action: laDelete, deleted: DeletedLandmark(name: raw.name, force: raw.force)
@@ -189,14 +190,14 @@ func finish(raw: Raw): Parsed[Params] =
   if raw.adding:
     if sources != 1:
       return bad(
-        "--add needs one of: --search TEXT --pick N, --near LAT,LON --pick N, --at LAT,LON"
+        "`--add` needs one of: `--search TEXT --pick N`, `--near LAT,LON --pick N`, `--at LAT,LON`"
       )
     if raw.at.isNone and raw.pick == 0:
       return bad(
-        "--add with --search or --near also needs --pick N (the number of the suggestion)"
+        "`--add` with `--search` or `--near` also needs `--pick N` (the number of the suggestion)"
       )
     if raw.at.isSome and raw.pick > 0:
-      return bad("--pick goes with --search or --near, not with --at")
+      return bad("`--pick` goes with `--search` or `--near`, not with `--at`")
     let why = problem(raw.name, 0.0, 0.0, raw.radiusM)
     if why.len > 0:
       return bad(why)
@@ -221,13 +222,13 @@ func finish(raw: Raw): Parsed[Params] =
       )
     )
   if raw.pick > 0:
-    return bad("--pick goes with --add NAME")
+    return bad("`--pick` goes with `--add NAME`")
   if raw.at.isSome:
-    return bad("--at goes with --add NAME")
+    return bad("`--at` goes with `--add NAME`")
   if sources > 1:
-    return bad("--search and --near cannot be used together")
+    return bad("`--search` and `--near` cannot be used together")
   if raw.radiusM != defaultRadiusM:
-    return bad("--radius goes with --add")
+    return bad("`--radius` goes with `--add`")
   if raw.search.len > 0:
     parsedOk(
       Params(action: laSearch, suggest: Suggest(kind: skSearch, text: raw.search))

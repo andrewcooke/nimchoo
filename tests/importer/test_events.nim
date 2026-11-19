@@ -237,7 +237,7 @@ suite "import events: sinks":
 
   test "the summary mentions known failures":
     check summaryLine(Summary(done: 5, unchanged: 3, known: 2)) ==
-      "5 files, 0 imported, 3 unchanged, 0 failed, 2 known failures (use --slow to retry)"
+      "5 files, 0 imported, 3 unchanged, 0 failed, 2 known failures (use `--slow` to retry)"
     check summaryLine(Summary(done: 1, known: 1)).contains("1 known failure (")
 
   test "notes about the run go to stderr at the end":

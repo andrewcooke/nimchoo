@@ -57,7 +57,7 @@ template variable(
   )
 
 const zonesWhat =
-  "--zones is five percentages of the threshold heart rate, like 68,83,94,105,121"
+  "`--zones` is five percentages of the threshold heart rate, like 68,83,94,105,121"
 
 func modelSpec*(): Spec[Raw] =
   ## The options of `nch models`.
@@ -146,12 +146,12 @@ func modelSpec*(): Spec[Raw] =
       helpFlag(Raw),
     ],
     hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to add a model: --add " & arg & ")",
+      " (to add a model: `--add " & arg & "`)",
   )
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.varsGiven and not raw.add:
-    return problemWith[Params]("the variables can be given only with --add NAME")
+    return problemWith[Params]("the variables can be given only with `--add NAME`")
   if not raw.add:
     return parsedOk(Params(action: maList))
   let why = problem(raw.model)

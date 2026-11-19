@@ -16,6 +16,7 @@ import
   ./core/test_theme,
   ./core/test_globals,
   ./core/test_ruled,
+  ./core/test_backticks,
   ./text/fold/test_fold,
   ./core/test_errors,
   ./test_structure,

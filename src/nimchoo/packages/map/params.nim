@@ -40,7 +40,7 @@ func completeFrames(g: Globals, typed: string): seq[string] {.nimcall, raises: [
 
 proc takeFrames(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   if values.len == 0:
-    return refuse(name & " needs at least one frame")
+    return refuse("`" & name & "` needs at least one frame")
   for v in values:
     if not isWord(v):
       return refuse("'" & v & "' is not a name of a frame")
@@ -56,7 +56,7 @@ func mapSpec*(): Spec[Raw] =
           ["--frames"],
           takeFrames,
           "FRAME...",
-          "with --file: the frames to make a file of, separated by spaces (see the table below); default: those marked *.  On the page, tick the frames to draw",
+          "with `--file`: the frames to make a file of, separated by spaces (see the table below); default: those marked *.  On the page, tick the frames to draw",
           completion = completesFrom(completeFrames),
           valid = isWord,
         ),
@@ -65,7 +65,7 @@ func mapSpec*(): Spec[Raw] =
           ["--frame"],
           frame,
           "FRAME",
-          "for the page, with --worker: make the data of this one frame (the page fetches each frame it shows)",
+          "for the page, with `--worker`: make the data of this one frame (the page fetches each frame it shows)",
           address = adValue,
           valid = isWord,
         ),
@@ -85,10 +85,10 @@ func finish(raw: Raw): Parsed[Params] =
   if raw.subjects.len > 1:
     return problemWith[Params]("expected at most one SUBJECT")
   if raw.frame.len > 0 and mode.params.kind != wkWorker:
-    return problemWith[Params]("--frame is for the page: it goes with --worker")
+    return problemWith[Params]("`--frame` is for the page: it goes with `--worker`")
   if raw.frames.len > 0 and mode.params.kind != wkFile:
     return problemWith[Params](
-      "--frames chooses the files of --file: on the page, tick the frames to draw (the browser remembers them)"
+      "`--frames` chooses the files of `--file`: on the page, tick the frames to draw (the browser remembers them)"
     )
   parsedOk(
     Params(

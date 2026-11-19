@@ -77,7 +77,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     "the database " & path & " (" & humanBytes(size(path)) &
     ") with the data of every user"
   if p.force == fNo:
-    return failure(g, "nch db", "would delete " & what & "; use -f to confirm")
+    return failure(g, "nch db", "would delete " & what & "; use `-f` to confirm")
   pause(g.theme, what, p.force)
   try:
     for suffix in ["", "-journal", "-wal", "-shm"]:

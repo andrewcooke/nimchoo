@@ -137,13 +137,13 @@ proc serveWeb*(
         return failure(
           g,
           name,
-          fmt"a server from an older nch (before --stop) is running on port {o.port}: press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, then try again",
+          fmt"a server from an older nch (before `--stop`) is running on port {o.port}: press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, then try again",
         )
       if running.get.code != 200:
         return failure(
           g,
           name,
-          fmt"something on port {o.port} answers but not to our token (a server started before --new-token?): press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, or use --port N",
+          fmt"something on port {o.port} answers but not to our token (a server started before `--new-token`?): press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, or use `--port N`",
         )
       let theirs = running.get.body.split('\n', maxsplit = 1)
       let mine = identity.split('\n', maxsplit = 1)
@@ -156,7 +156,7 @@ proc serveWeb*(
         return failure(
           g,
           name,
-          fmt"a server for another database or user ({what}) is running on port {o.port}: `{name} --stop` it first, or use --port N",
+          fmt"a server for another database or user ({what}) is running on port {o.port}: `{name} --stop` it first, or use `--port N`",
         )
       if o.newToken:
         return failure(
@@ -203,7 +203,8 @@ proc serveWeb*(
     g,
     name,
     fmt"cannot listen on 127.0.0.1:{o.port}: {problem.get}" & (
-      if o.port == defaultPort: " (another program has the port? try --port N)" else: ""
+      if o.port == defaultPort: " (another program has the port? try `--port N`)"
+      else: ""
     ),
   )
 
@@ -221,13 +222,13 @@ proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
     failure(
       g,
       name,
-      fmt"the server on port {port} is from an nch that cannot be stopped this way (before --stop): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
+      fmt"the server on port {port} is from an nch that cannot be stopped this way (before `--stop`): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   elif r.get.code != 200:
     failure(
       g,
       name,
-      fmt"the server on port {port} does not answer to our token (it was started before --new-token?): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
+      fmt"the server on port {port} does not answer to our token (it was started before `--new-token`?): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   else:
     g.say osErr, fmt"stopped the server on port {port}" & "\n"

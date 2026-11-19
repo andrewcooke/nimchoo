@@ -113,7 +113,7 @@ suite "nch calendar: what it shows":
     ) # (both are selected now)
     let ls = s.shown()
     check ls.texts[^1] ==
-      "warning: 4 months with no activity omitted; use --verbose to show them"
+      "warning: 4 months with no activity omitted; use `--verbose` to show them"
     check styleOf(ls[^1][0]) == "warn"
     let all = s.shown("-v")
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4

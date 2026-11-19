@@ -38,7 +38,7 @@ suite "map: the command line":
     )
   test "--frame, for the page: one frame, with --worker only":
     check parseArgs(@["--worker", "--frame", "heat"]).params.frame == some("heat")
-    check parseArgs(@["--frame", "heat"]).problem.contains("goes with --worker")
+    check parseArgs(@["--frame", "heat"]).problem.contains("goes with `--worker`")
     # (its value is checked in an address; on the command line the command says whether it is a frame)
   test "the pinning options and --layers are gone: the map is of the selection":
     for old in [

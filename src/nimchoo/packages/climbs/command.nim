@@ -42,7 +42,7 @@ const
        nch climbs --retired
        nch climbs --duplicates"""
   intro =
-    """Show the climbs selection (with criteria, or --all, the climbs they find among all of them; --select keeps those as the
+    """Show the climbs selection (with criteria, or `--all`, the climbs they find among all of them; `--select` keeps those as the
 selection, which `nch map climbs` and `nch calendar climbs` show too; an import selects the climbs of what it imported),
 each the standard way (name, category by the height gained, length, gain, gradient), then how you did on it: your best
 time and when, your best time on the selected rides (see `nch activities --select`; in the selection's colour) and when,
@@ -77,7 +77,7 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
     said =
       was & (
         if retiring:
-        " is retired: hidden from the lists (`nch climbs --retired` shows it; --unretire brings it back)"
+        " is retired: hidden from the lists (`nch climbs --retired` shows it; `--unretire` brings it back)"
         else: " is shown again"
       )
   of ckAuto:
@@ -110,7 +110,7 @@ proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreErro
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
   if force == fNo:
-    return failure(g, "nch climbs", "would delete " & what & "; use -f to confirm")
+    return failure(g, "nch climbs", "would delete " & what & "; use `-f` to confirm")
   pause(g.theme, what, force)
   clearClimbs(st)
   st.reclaim()

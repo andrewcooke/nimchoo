@@ -25,10 +25,10 @@ suite "climbs: the command line":
     check parseArgs(@["--edit", "X", "--rename", "Y", "--auto"]).problem.contains(
       "cannot be used together"
     )
-    check parseArgs(@["--rename", "Y"]).problem.contains("go with --edit")
-    check parseArgs(@["--auto"]).problem.contains("go with --edit")
+    check parseArgs(@["--rename", "Y"]).problem.contains("go with `--edit NAME`")
+    check parseArgs(@["--auto"]).problem.contains("go with `--edit NAME`")
     check parseArgs(@["--edit", " ", "--auto"]).problem.contains("needs the name")
-    check parseArgs(@["Cerro"]).problem.contains("--edit Cerro --rename NEW")
+    check parseArgs(@["Cerro"]).problem.contains("`--edit Cerro --rename NEW`")
   test "names that are refused":
     check nameProblem("Cerro Calán") == ""
     check nameProblem("  ").contains("empty")
@@ -49,8 +49,8 @@ suite "climbs: retiring":
       ckUnretire
     check parseArgs(@["--retired"]).params.action == caRetired
     check parseArgs(@["--duplicates"]).params.action == caDuplicates
-    check parseArgs(@["--retire"]).problem.contains("go with --edit")
-    check parseArgs(@["--unretire"]).problem.contains("go with --edit")
+    check parseArgs(@["--retire"]).problem.contains("go with `--edit NAME`")
+    check parseArgs(@["--unretire"]).problem.contains("go with `--edit NAME`")
     check parseArgs(@["--edit", "X", "--retire", "--unretire"]).problem.contains(
       "cannot be used together"
     )
@@ -63,10 +63,10 @@ suite "climbs: retiring":
     )
     check parseArgs(@["--all", "--retired"]).problem.contains("cannot be used together")
     check parseArgs(@["--edit", "X", "--retire", "--retired"]).problem.contains(
-      "do not go with --edit"
+      "do not go with `--edit`"
     )
     check parseArgs(@["--edit", "X", "--retire", "--all"]).problem.contains(
-      "do not go with --edit"
+      "do not go with `--edit`"
     )
 
 suite "climbs params: --delete":
@@ -76,8 +76,8 @@ suite "climbs params: --delete":
     check parseArgs(@["--all", "--delete", "-f", "-f"]).params.force == fNow
       # (twice: no pause)
     check parseArgs(@["--all", "--delete", "--force", "--force"]).params.force == fNow
-    check parseArgs(@["--delete"]).problem.contains("needs --all")
-    check parseArgs(@["--all", "-f"]).problem.contains("goes with --delete")
+    check parseArgs(@["--delete"]).problem.contains("needs `--all`")
+    check parseArgs(@["--all", "-f"]).problem.contains("goes with `--delete`")
     check parseArgs(@["--all", "--delete", "--retired"]).problem.len > 0
     check parseArgs(@["--all", "--delete", "--edit", "X", "--retire"]).problem.len > 0
 
@@ -129,9 +129,11 @@ suite "climbs params: criteria":
     check parseArgs(@["--all", "--select"]).params.list.select
 
   test "mistakes":
-    check parseArgs(@["--select"]).problem.contains("needs criteria or --all")
+    check parseArgs(@["--select"]).problem.contains("needs criteria or `--all`")
     check parseArgs(@["--invert"]).problem.contains("needs criteria")
-    check parseArgs(@["--radius", "3"]).problem.contains("goes with --from or --near")
+    check parseArgs(@["--radius", "3"]).problem.contains(
+      "goes with `--from` or `--near`"
+    )
     check parseArgs(@["--near", "1x,2"]).problem.contains("cannot read the position")
     check parseArgs(@["--near", "0,0", "--radius", "0"]).problem.contains("more than 0")
     check parseArgs(@["--categories", "5"]).problem.contains("not a category")

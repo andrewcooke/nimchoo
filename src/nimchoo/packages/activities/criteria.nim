@@ -126,7 +126,7 @@ func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
   ## --newest N, -n N, --oldest N.
   var n = 0
   if not parseIntIn(value, 1, high(int), n):
-    return refuse(fmt"{name} needs a number of activities, 1 or more (not '{value}')")
+    return refuse(fmt"`{name}` needs a number of activities, 1 or more (not '{value}')")
   p.criteriaGiven = true
   if oldest:
     p.c.oldest = n
@@ -146,11 +146,11 @@ proc takeSports(
   p.criteriaGiven = true
   let names = splitNames(values, true)
   if names.len == 0:
-    return refuse(fmt"{name} needs at least one name")
+    return refuse(fmt"`{name}` needs at least one name")
   for n in names:
     if parseReference(n) != refNone:
       if p.c.sportRef != refNone and p.c.sportRef != parseReference(n):
-        return refuse("--sports: latest and previous cannot be used together")
+        return refuse("`--sports`: latest and previous cannot be used together")
       p.c.sportRef = parseReference(n)
     else:
       p.c.sports.add n
@@ -162,11 +162,11 @@ proc takeSubSports(
   p.criteriaGiven = true
   let names = splitNames(values, true)
   if names.len == 0:
-    return refuse(fmt"{name} needs at least one name")
+    return refuse(fmt"`{name}` needs at least one name")
   for n in names:
     if parseReference(n) != refNone:
       if p.c.subSportRef != refNone and p.c.subSportRef != parseReference(n):
-        return refuse("--sub-sports: latest and previous cannot be used together")
+        return refuse("`--sub-sports`: latest and previous cannot be used together")
       p.c.subSportRef = parseReference(n)
     else:
       p.c.subSports.add n
@@ -185,11 +185,11 @@ proc takeTexts(
     if v.strip.len > 0:
       found.add v.strip
   if found.len == 0:
-    return refuse(fmt"{name} needs some text")
+    return refuse(fmt"`{name}` needs some text")
   for t in found:
     if parseReference(t) != refNone:
       if ref0 != refNone and ref0 != parseReference(t):
-        return refuse(fmt"{name}: latest and previous cannot be used together")
+        return refuse(fmt"`{name}`: latest and previous cannot be used together")
       ref0 = parseReference(t)
     else:
       texts.add t
@@ -213,7 +213,7 @@ proc takePaths(
     if v.strip.len > 0:
       p.c.paths.add v.strip
   if p.c.paths.len == 0:
-    return refuse(fmt"{name} needs some text")
+    return refuse(fmt"`{name}` needs some text")
   fine
 
 proc takeContributed(
@@ -224,7 +224,7 @@ proc takeContributed(
   for o in p.offered:
     if name in o.doc.names:
       if o.doc.arity == aList and values.len == 0:
-        return refuse(fmt"{name} needs at least one word")
+        return refuse(fmt"`{name}` needs at least one word")
       for c in p.c.contributed.mitems:
         if c.option == o.doc.names[0]:
           c.values.add values
@@ -233,7 +233,7 @@ proc takeContributed(
         option: o.doc.names[0], values: values, resolve: o.resolve
       )
       return fine
-  refuse(fmt"{name} is not an option") # (cannot happen: the spec has just these)
+  refuse(fmt"`{name}` is not an option") # (cannot happen: the spec has just these)
 
 func contributedOption(o: Criterion): Opt[ListState] =
   ## The option of an offered criterion, as the parser has them.
@@ -317,7 +317,7 @@ proc takeOn(p: var ListState, v: string): Problem =
   p.onGiven = true
   let d = parseOnDay(v, p.zone)
   if d.isNone:
-    return refuse(fmt"--on takes a date, like 2018-08-27 (not '{v}')")
+    return refuse(fmt"`--on` takes a date, like 2018-08-27 (not '{v}')")
   p.c.afterT = some(d.get.start)
   p.c.beforeT = some(d.get.next)
   fine
@@ -326,7 +326,7 @@ func takeGps(p: var ListState, wanted: GpsFilter): Problem =
   ## --gps and --no-gps, which contradict each other.
   p.criteriaGiven = true
   if p.c.gps notin {gfAny, wanted}:
-    return refuse("--gps and --no-gps cannot be used together")
+    return refuse("`--gps` and `--no-gps` cannot be used together")
   p.c.gps = wanted
   fine
 
@@ -419,19 +419,19 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--names"],
         takeNames,
         "TEXT...",
-        "activities whose name contains any of the TEXTs, whatever its case or accents: --names toyo finds \"El Toyo and back\", --names toyo farellones finds either; a text with spaces is quoted; a whole number that no name contains is an activity's number (--names 737); \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
+        "activities whose name contains any of the TEXTs, whatever its case or accents: `--names toyo` finds \"El Toyo and back\", `--names toyo farellones` finds either; a text with spaces is quoted; a whole number that no name contains is an activity's number (`--names 737`); \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
       ),
       listOption[ListState](
         ["--starts"],
         takeStarts,
         "TEXT...",
-        "the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): --starts providencia",
+        "the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): `--starts providencia`",
       ),
       listOption[ListState](
         ["--paths"],
         takePaths,
         "TEXT...",
-        "the same for the path of the file the activity was imported from (or any other path the same file was seen at): --paths bowman, --paths 2026-10",
+        "the same for the path of the file the activity was imported from (or any other path the same file was seen at): `--paths bowman`, `--paths 2026-10`",
       ),
       custom(
         ListState,
@@ -462,7 +462,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--before"],
         true,
         "TIME",
-        "activities that start before TIME\n(TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a date is the start of that day, as if written with T00:00:00: --after 2018-08-01 --before 2018-09-01 is August)",
+        "activities that start before TIME\n(TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a date is the start of that day, as if written with T00:00:00: `--after 2018-08-01 --before 2018-09-01` is August)",
         body = takeWhen(p, value, true),
       ),
       custom(
@@ -470,7 +470,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--on"],
         true,
         "DATE",
-        "activities that start on that day (a date: --on 2018-08-27 is --after 2018-08-27 --before 2018-08-28)",
+        "activities that start on that day (a date: `--on 2018-08-27` is `--after 2018-08-27 --before 2018-08-28`)",
         body = takeOn(p, value),
       ),
       custom(
@@ -494,7 +494,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--from"],
         true,
         "LAT,LON|PLACE",
-        fmt"""activities that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: --from providencia); --from latest: of where the latest activity started (or "previous")""",
+        fmt"""activities that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: `--from providencia`); `--from latest`: of where the latest activity started (or "previous")""",
         body = takeSpot(p, value, false),
       ),
       custom(
@@ -502,7 +502,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--near"],
         true,
         "LAT,LON|PLACE",
-        fmt"""activities whose route passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as --from: --near farellones), or of where the latest activity started (or "previous")""",
+        fmt"""activities whose route passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as `--from`: `--near farellones`), or of where the latest activity started (or "previous")""",
         body = takeSpot(p, value, true),
       ),
       custom(
@@ -510,7 +510,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--radius"],
         true,
         "KM",
-        "the radius for --from and --near in kilometres; on its own it means --from latest",
+        "the radius for `--from` and `--near` in kilometres; on its own it means `--from latest`",
         body = takeRadius(p, value),
       ),
       custom(
@@ -518,7 +518,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--invert"],
         false,
         "",
-        "the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; --newest and --oldest apply after.  Needs a criterion",
+        "the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; `--newest` and `--oldest` apply after.  Needs a criterion",
         body = (p.criteriaGiven = true; p.c.invert = true; fine),
       ),
       custom(
@@ -542,7 +542,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--latest"],
         false,
         "",
-        "the same as --newest 1",
+        "the same as `--newest 1`",
         body = (p.criteriaGiven = true; p.c.newest = 1; fine),
       ),
       custom(
@@ -550,7 +550,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--select", "--save"],
         false,
         "",
-        "make what is listed the selection (needs criteria or --all)",
+        "make what is listed the selection (needs criteria or `--all`)",
         body = (p.c.select = true; fine),
       ),
       custom(
@@ -558,7 +558,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--rename"],
         false,
         "",
-        "name the activities again (with no criteria and no --all, those of the selection): where each started and what it is called, from the places and your landmarks as they are now (after `nch landmarks --add`, say)",
+        "name the activities again (with no criteria and no `--all`, those of the selection): where each started and what it is called, from the places and your landmarks as they are now (after `nch landmarks --add`, say)",
         body = (p.c.rename = true; fine),
       ),
       custom(
@@ -566,7 +566,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--delete"],
         false,
         "",
-        "delete the activities (with no criteria and no --all, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without -f (it says what it would delete)",
+        "delete the activities (with no criteria and no `--all`, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without `-f` (it says what it would delete)",
         body = (p.c.delete = true; fine),
       ),
       forceOptionIn(ListState, c, force),
@@ -597,29 +597,33 @@ func finish(st: ListState): Parsed[Criteria] =
   c.given = st.criteriaGiven
   if c.all and c.hasFilter:
     return bad(
-      "--all is every activity: it does not go with criteria (--newest and --oldest do)"
+      "`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
   if c.force != fNo and not c.delete:
-    return bad("-f goes with --delete")
+    return bad("`-f` goes with `--delete`")
   if c.delete and (c.select or c.verbose):
-    return bad("--delete shows nothing: it does not go with --select or -v")
+    return bad("`--delete` shows nothing: it does not go with `--select` or `-v`")
   if c.rename and (c.delete or c.select or c.verbose):
-    return bad("--rename shows nothing: it does not go with --delete, --select or -v")
+    return bad(
+      "`--rename` shows nothing: it does not go with `--delete`, `--select` or `-v`"
+    )
   if c.select and not (c.given or c.all):
     return bad(
-      "--select keeps the activities listed as the selection, so it needs criteria or --all"
+      "`--select` keeps the activities listed as the selection, so it needs criteria or `--all`"
     )
   if st.radiusGiven and c.start.kind == nkNone and c.passes.kind == nkNone:
     c.start = Spot(kind: nkLatest) # --radius alone: around where the latest started
   if c.invert and not c.hasFilter:
-    return
-      bad("--invert needs a criterion to invert (--sports, --names, --distance ...)")
+    return bad(
+      "`--invert` needs a criterion to invert (`--sports`, `--names`, `--distance` ...)"
+    )
   if c.newest > 0 and c.oldest > 0:
-    return bad("--newest and --oldest cannot be used together")
+    return bad("`--newest` and `--oldest` cannot be used together")
   if st.onGiven and st.rangeGiven:
-    return bad("--on is a day of its own: it does not go with --after or --before")
+    return
+      bad("`--on` is a day of its own: it does not go with `--after` or `--before`")
   if c.afterT.isSome and c.beforeT.isSome and c.afterT.get >= c.beforeT.get:
-    return bad("--after is not before --before")
+    return bad("`--after` is not before `--before`")
   parsedOk(c)
 
 proc parseArgs*(

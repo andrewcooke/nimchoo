@@ -68,7 +68,7 @@ func ffSpec*(): Spec[Raw] =
             block:
               let d = parseDay(value)
               if d.isNone:
-                return refuse(fmt"{name} is a day, like 2018-08-27 (not '{value}')")
+                return refuse(fmt"`{name}` is a day, like 2018-08-27 (not '{value}')")
               p.firstDay = d
               fine
           ),
@@ -85,7 +85,7 @@ func ffSpec*(): Spec[Raw] =
             block:
               let d = parseDay(value)
               if d.isNone:
-                return refuse(fmt"{name} is a day, like 2018-08-27 (not '{value}')")
+                return refuse(fmt"`{name}` is a day, like 2018-08-27 (not '{value}')")
               p.lastDay = some(d.get - secondsPerDay)
               fine
           ),
@@ -137,16 +137,16 @@ func ffSpec*(): Spec[Raw] =
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.firstDay.isSome and raw.lastDay.isSome and raw.firstDay.get > raw.lastDay.get:
-    return problemWith[Params]("--after is not before --before")
+    return problemWith[Params]("`--after` is not before `--before`")
   if raw.stdout and (raw.web.file or raw.web.worker):
-    return problemWith[Params]("--stdout cannot be used with --file or --worker")
+    return problemWith[Params]("`--stdout` cannot be used with `--file` or `--worker`")
   let mode = webMode(raw.web)
   if mode.kind == pkProblem:
     return problemWith[Params](mode.problem)
   if raw.stdout and
       (raw.web.start or raw.web.stop or raw.web.newToken or raw.web.port != defaultPort):
     return problemWith[Params](
-      "--start, --stop, --new-token and --port are for the server of the page: they cannot be used with --stdout"
+      "`--start`, `--stop`, `--new-token` and `--port` are for the server of the page: they cannot be used with `--stdout`"
     )
   parsedOk(
     Params(

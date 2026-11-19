@@ -79,7 +79,7 @@ func packagesSpec*(): Spec[Raw] =
           block:
             var n = 0
             if not parseIntIn(value, 0, 1000, n):
-              return refuse(fmt"-L is a layer, a number from 0 (not '{value}')")
+              return refuse(fmt"`-L` is a layer, a number from 0 (not '{value}')")
             p.filter.layer = some(n)
             fine
         ),
@@ -107,7 +107,7 @@ func packagesSpec*(): Spec[Raw] =
         ["-T"],
         true,
         "TABLE",
-        "only the packages that own TABLE or may read it (-L, -U, -B and -T go together, each narrowing the list further)",
+        "only the packages that own TABLE or may read it (`-L`, `-U`, `-B` and `-T` go together, each narrowing the list further)",
         completion = completesFrom(completeTables),
         body = (p.filter.table = some(value); fine),
       ),
@@ -133,14 +133,14 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["--reverse"],
         reverse,
-        "(with --graph NAME) the tree of what depends on NAME instead",
+        "(with `--graph NAME`) the tree of what depends on NAME instead",
         level = 1,
       ),
       flag(
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "(with --graph) everything, the rest dimmed: with NAME the packages already drawn higher in the tree (else each is drawn once); without, the dependencies implied by others (else only those that are not)",
+        "(with `--graph`) everything, the rest dimmed: with NAME the packages already drawn higher in the tree (else each is drawn once); without, the dependencies implied by others (else only those that are not)",
         level = 1,
       ),
       flag(
@@ -168,20 +168,20 @@ func finish(raw: Raw): Parsed[Params] =
   let chosen = [raw.points, raw.tables, raw.graph, raw.dot, raw.config]
   if chosen.countIt(it) > 1:
     return problemWith[Params](
-      "choose one of --points, --tables, --graph, --dot and --config"
+      "choose one of `--points`, `--tables`, `--graph`, `--dot` and `--config`"
     )
   if raw.name.len > 0 and (raw.points or raw.tables or raw.dot or raw.config):
-    return problemWith[Params]("a package name goes with nothing but --graph")
+    return problemWith[Params]("a package name goes with nothing but `--graph`")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
-    return problemWith[Params]("--reverse goes with --graph and a package name")
+    return problemWith[Params]("`--reverse` goes with `--graph` and a package name")
   if raw.verbose and not raw.graph:
-    return problemWith[Params]("-v goes with --graph")
+    return problemWith[Params]("`-v` goes with `--graph`")
   let filtered =
     raw.filter.layer.isSome or raw.filter.uses.isSome or raw.filter.usedBy.isSome or
     raw.filter.table.isSome
   if filtered and (chosen.anyIt(it) or raw.name.len > 0):
     return problemWith[Params](
-      "-L, -U, -B and -T narrow the list of packages: they go with no package name and no other view"
+      "`-L`, `-U`, `-B` and `-T` narrow the list of packages: they go with no package name and no other view"
     )
   if raw.points:
     parsedOk(Params(view: vPoints))
@@ -292,11 +292,11 @@ proc configLines*(g: Globals): seq[string] =
   result.add row(
     "user",
     if g.user.len > 0:
-      fmt"{g.user}  (--user)"
+      fmt"{g.user}  (`--user`)"
     else:
       "the default user of the database",
   )
-  result.add row("offline", if g.offline: "yes (--offline)" else: "no")
+  result.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
   result.add row(
     "theme",
     if g.theme.name.len > 0:
@@ -384,7 +384,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           ""
       return
-        failure(g, "nch packages", fmt"-T: no table is called '{f.table.get}'{hint}")
+        failure(g, "nch packages", fmt"`-T`: no table is called '{f.table.get}'{hint}")
     if inv.packages.allIt(not inv.keeps(f, it)):
       g.say osOut, "no package is kept by those filters\n"
     else:

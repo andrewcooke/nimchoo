@@ -34,7 +34,7 @@ const
        nch users --delete NAME -f"""
   intro =
     """Without options, show the users.  One user is always the default: the first, until another is made so.  (The users
-are named after the command, not by --user before it.)"""
+are named after the command, not by `--user` before it.)"""
   notes = "Names have 1 to 32 letters, digits and _ . - (not starting with -)."
 
 proc usageText*(width: int): string =
@@ -111,7 +111,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g,
       "nch users",
       usageText(helpWidth(stderr)),
-      "--user goes after the command here: nch users --edit " & g.user &
+      "`--user` goes after the command here: nch users `--edit` " & g.user &
         " ... (the users are named there)",
     )
   var st: Session
@@ -135,7 +135,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         return failure(
           g,
           "nch users",
-          "would delete " & what & " from " & st.path & "; use -f to confirm",
+          "would delete " & what & " from " & st.path & "; use `-f` to confirm",
         )
       pause(g.theme, what, p.delete.force)
       deleteUser(st, id)

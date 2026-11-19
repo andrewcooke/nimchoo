@@ -65,7 +65,7 @@ suite "list: the command line":
       cmdline("--all").params.all
     check cmdline("--sports", "cycling", "--select").params.select and
       cmdline("--sports", "cycling").params.given
-    check cmdline("--select").problem.contains("needs criteria or --all")
+    check cmdline("--select").problem.contains("needs criteria or `--all`")
     check cmdline("--newest", "1").params.given # (a limit searches all, too)
 
   test "the options":
@@ -240,7 +240,7 @@ suite "list: the command line":
     check cmdline("--after").problem.contains("needs a value")
     check cmdline("--on", "2018-08-27T09:00").problem.contains("takes a date")
     check cmdline("--on", "2018-08-27", "--before", "2018-09-01").problem.contains(
-      "does not go with --after or --before"
+      "does not go with `--after` or `--before`"
     )
     check cmdline("--bogus").problem.contains("unexpected")
     check cmdline("-h").help
@@ -518,7 +518,7 @@ suite "list: --delete":
     check parseArgs(@["--delete", "-f", "-f"], utcZone).params.force == fNow
     check parseArgs(@["--sports", "cycling", "--delete"], utcZone).params.given
     check parseArgs(@["--all", "--delete", "-f"], utcZone).problem == ""
-    check parseArgs(@["-f"], utcZone).problem.contains("goes with --delete")
+    check parseArgs(@["-f"], utcZone).problem.contains("goes with `--delete`")
     check parseArgs(@["--delete", "--select"], utcZone).problem.contains(
       "shows nothing"
     )

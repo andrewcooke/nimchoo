@@ -40,7 +40,7 @@ const
     """Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are
 the subject's frames, the layers in the table below, each made by the package that knows about it: the page lists them, and you
 tick the ones to draw (the browser remembers them for the next time; at first, those marked *).  It serves the page on
-localhost and opens it in a browser (Ctrl-C stops it); with --file it makes a GeoJSON file for each frame (those of --frames)
+localhost and opens it in a browser (Ctrl-C stops it); with `--file` it makes a GeoJSON file for each frame (those of `--frames`)
 in the cache directory instead, and prints where.  A click on anything drawn says what it is."""
   notes =
     """A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The
@@ -62,7 +62,7 @@ func registryLines(
   result = tableLines(@["subject", "frame", "what it is"], rows, width)
   result.add ""
   result.add wrap(
-    fmt"* drawn when --frames is not given; the subject is {default} when none is given.",
+    fmt"* drawn when `--frames` is not given; the subject is {default} when none is given.",
     width,
   )
 

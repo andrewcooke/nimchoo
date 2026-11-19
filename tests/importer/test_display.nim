@@ -80,18 +80,18 @@ suite "import display: the lines":
 
   test "the hint says what to look at, only for what happened":
     check moreHint(Summary(done: 1, imported: 1), true) == ""
-    check moreHint(Summary(failed: 1), true) == "more: nch log import failed --last"
+    check moreHint(Summary(failed: 1), true) == "more: `nch log import failed --last`"
     check moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true) ==
-      "more: nch log import failed duplicate advisory --last"
+      "more: `nch log import failed duplicate advisory --last`"
     check moreHint(Summary(duplicates: 1), true) ==
-      "more: nch log import duplicate --last"
+      "more: `nch log import duplicate --last`"
     check moreHint(Summary(failed: 1), false) == "" # no log, no hint
 
   test "what the hint says is a command line that `nch log` accepts":
     let hint = moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true)
-    check hint.startsWith("more: nch log ")
+    check hint.startsWith("more: `nch log ") and hint.endsWith("`")
     let p = logParams.parseArgs(
-      hint["more: nch log ".len .. ^1].splitWhitespace, @["import", "map"]
+      hint["more: `nch log ".len ..^ 2].splitWhitespace, @["import", "map"]
     )
     check p.problem == ""
     check p.params.filter.commands == @["import"]
@@ -181,7 +181,7 @@ suite "import display: a run":
     check drawn.endsWith("\e[?25h") # the cursor is back
     check not drawn.contains("bad.fit") # no line per failure
     check f.outs == @["read: 2 files, 1 imported, 1 failed (bad format 1)\n"]
-    check f.errs == @["more: nch log import failed --last\n"]
+    check f.errs == @["more: `nch log import failed --last`\n"]
 
   test "a longer run draws frames that follow it, and the last one stays":
     let d = fresh("long")

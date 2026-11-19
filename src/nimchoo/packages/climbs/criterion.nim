@@ -31,7 +31,7 @@ proc resolveClimbs(
     if v.strip.len > 0:
       texts.add v.strip
   if texts.len == 0:
-    raiseStore("--climbs needs some text")
+    raiseStore("`--climbs` needs some text")
   var ids: seq[int64]
   let shown = shownNames(st)
   for t in texts:
@@ -59,7 +59,7 @@ let climbCriterion* = Criterion(
     names: @["--climbs"],
     metavar: "TEXT...",
     help:
-      "activities that have an effort on a climb whose name (as `nch climbs --all` shows it) contains any of the TEXTs: --climbs farellones (all of them), --climbs farellones₂ (or \"farellones 2\") (one); a whole number that no name holds is a climb's number (--climbs 62); retired climbs too.  It is an error if no climb has the text",
+      "activities that have an effort on a climb whose name (as `nch climbs --all` shows it) contains any of the TEXTs: `--climbs farellones` (all of them), `--climbs farellones₂` (or \"farellones 2\") (one); a whole number that no name holds is a climb's number (`--climbs 62`); retired climbs too.  It is an error if no climb has the text",
     arity: aList,
     completion: completesFrom(completeClimbWords),
   ),

@@ -25,9 +25,10 @@ suite "serve web options: shared by the commands":
     check h.web.start and h.web.newToken and h.web.port == 0
     check parseOptions(@["--file", "--worker"], spec, h) == ""
     check h.web.file and h.web.worker
-    check parseOptions(@["--web"], spec, h) == "unexpected option --web"
+    check parseOptions(@["--web"], spec, h) == "unexpected option `--web`"
       # (it is the default now)
-    check parseOptions(@["--other"], spec, h) == "unexpected option --other" # (not ours)
+    check parseOptions(@["--other"], spec, h) == "unexpected option `--other`"
+      # (not ours)
   test "bad ports":
     for bad in [@["--port"], @["--port", "x"], @["--port", "-1"], @["--port", "65536"]]:
       var h = Holder(web: initWebArgs())

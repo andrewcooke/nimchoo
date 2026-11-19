@@ -107,13 +107,15 @@ template webOptions*(P: typedesc, field: untyped, page, data: string): seq[Opt[P
 func webMode*(w: WebArgs): Parsed[WebMode] =
   ## What the options ask for, or what is wrong with the combination.
   if [w.file, w.worker, w.stop].countIt(it) > 1:
-    return problemWith[WebMode]("--file, --worker and --stop cannot be used together")
+    return
+      problemWith[WebMode]("`--file`, `--worker` and `--stop` cannot be used together")
   if w.stop and (w.start or w.newToken):
-    return problemWith[WebMode]("--stop cannot be used with --start or --new-token")
+    return
+      problemWith[WebMode]("`--stop` cannot be used with `--start` or `--new-token`")
   let serving = w.start or w.newToken or w.port != defaultPort
   if (w.file or w.worker) and serving:
     return problemWith[WebMode](
-      "--start, --new-token and --port are for serving the page: they cannot be used with --file or --worker"
+      "`--start`, `--new-token` and `--port` are for serving the page: they cannot be used with `--file` or `--worker`"
     )
   if w.stop:
     parsedOk(WebMode(kind: wkStop, stopPort: w.port))

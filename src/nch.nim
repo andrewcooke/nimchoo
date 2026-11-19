@@ -31,7 +31,8 @@ type Head = object ## The options before the command name.
 func takeJob(p: var Head, action: Action, value: string): Problem =
   ## `--install-completion [SHELL]`, `--show-completion [SHELL]`.
   if p.job.isSome:
-    return refuse("only one of --install-completion and --show-completion may be given")
+    return
+      refuse("only one of `--install-completion` and `--show-completion` may be given")
   let shell = parseShell(value)
   if shell.isNone:
     return refuse(

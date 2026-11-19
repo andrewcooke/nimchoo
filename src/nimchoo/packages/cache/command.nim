@@ -24,7 +24,7 @@ const
        nch cache --delete KIND..."""
   intro =
     """Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made
-again when it is needed (so deleting it needs no -f, and nothing in the database changes)."""
+again when it is needed (so deleting it needs no `-f`, and nothing in the database changes)."""
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.

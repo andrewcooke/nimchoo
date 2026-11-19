@@ -22,7 +22,7 @@ suite "model: the command line":
     check parseArgs(@["--add", "a--b"]).problem.contains("not a name")
     check parseArgs(@["--add", "a-b"]).problem == ""
   test "the variables only with --add":
-    check parseArgs(@["--gamma", "3"]).problem.contains("only with --add")
+    check parseArgs(@["--gamma", "3"]).problem.contains("only with `--add NAME`")
   test "problems":
     check parseArgs(@["--add"]).problem.contains("needs a value")
     check parseArgs(@["--add", "bad name"]).problem.contains("not a name for a model")
@@ -43,7 +43,7 @@ suite "model: the command line":
     check parseArgs(@["--add", "x", "--zones", "90,80,100,110,120"]).problem.contains(
       "increase"
     )
-    check parseArgs(@["bob"]).problem.contains("--add bob")
+    check parseArgs(@["bob"]).problem.contains("`--add bob`")
     check parseArgs(@["-x"]).problem.contains("unexpected option")
   test "help":
     check parseArgs(@["-h"]).help

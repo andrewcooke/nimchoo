@@ -160,10 +160,10 @@ proc walk[P](
         else:
           inc i
           if i >= args.len:
-            return refuse(name & " needs a value")
+            return refuse("`" & name & "` needs a value")
           v = args[i]
       elif eq > 0:
-        return refuse(name & " does not take a value")
+        return refuse("`" & name & "` does not take a value")
       let why = o.apply(p, name, v)
       if why.isSome:
         return why
@@ -171,15 +171,15 @@ proc walk[P](
       # the options every command has are given before its name: say so, as that is the likely mistake
       if name == "--user":
         return refuse(
-          "unexpected option " & a &
-            " (it goes before the command: nch --user NAME COMMAND ...)"
+          "unexpected option `" & a &
+            "` (it goes before the command: `nch --user NAME COMMAND ...`)"
         )
       if name == "--db":
         return refuse(
-          "unexpected option " & a &
-            " (it goes before the command: nch --db PATH COMMAND ...)"
+          "unexpected option `" & a &
+            "` (it goes before the command: `nch --db PATH COMMAND ...`)"
         )
-      return refuse("unexpected option " & a)
+      return refuse("unexpected option `" & a & "`")
     elif spec.positional != nil:
       let why = spec.positional(p, a)
       if why.isSome:
@@ -251,7 +251,7 @@ func listOption*[P](
 
 func valueIs*(name, what, value: string): Problem =
   ## "--fthr is a whole number of beats per minute, 80 to 230 (not 'x')"
-  refuse(name & " is " & what & " (not '" & value & "')")
+  refuse("`" & name & "` is " & what & " (not '" & value & "')")
 
 func parseFloatIn*(v: string, lo, hi: float, x: var float): bool =
   ## A number from `lo` up to `hi` (both included), not NaN or infinite.

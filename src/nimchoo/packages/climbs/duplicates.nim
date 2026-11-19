@@ -160,5 +160,5 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
         anyToHide = true
   if anyToHide:
     result.add ""
-    result.add "hide: nch climbs --edit 'NAME' --retire"
+    result.add "hide: `nch climbs --edit 'NAME' --retire`"
       # (NAME: any climb above that is a copy of one with more efforts)

@@ -82,7 +82,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g,
       "nch landmarks",
       usageText(helpWidth(stderr)),
-      "the landmarks are shared by all users: --user has no part in this command",
+      "the landmarks are shared by all users: `--user` has no part in this command",
     )
   var st: Store
   try:
@@ -94,7 +94,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of laDelete:
       let d = p.deleted
       if not d.force:
-        g.say osErr, "would delete the landmark " & d.name & ": add -f to do it\n"
+        g.say osErr, "would delete the landmark " & d.name & ": add `-f` to do it\n"
         return exitFailure
       if not removeLandmark(st, d.name):
         return
@@ -131,7 +131,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
           except OfflineError:
             g.say osErr,
-              "--offline: only the names already loaded for that area are suggested\n"
+              "`--offline`: only the names already loaded for that area are suggested\n"
         found = featuresAround(st, suggest.near.lon, suggest.near.lat)
       if p.action == laAddPicked:
         let a = p.picked
