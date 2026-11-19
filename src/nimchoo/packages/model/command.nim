@@ -32,7 +32,7 @@ are those of the `default` model."""
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(modelSpec().docs, width).join("\n") & "\n"
 
 func zones(m: Model): string =

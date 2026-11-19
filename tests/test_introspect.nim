@@ -46,7 +46,9 @@ suite "nch packages: the command line":
     for width in [50, 80, 120]:
       let text = usageText(width)
       for line in text.splitLines:
-        if not (line.startsWith("usage: ") or line.startsWith("       nch ")):
+        if not (
+          line.startsWith("usage: ") or withoutMarks(line).startsWith("       nch ")
+        ):
           check withoutMarks(line).runeLen <= width
       for d in packagesSpec().docs:
         for n in d.names:

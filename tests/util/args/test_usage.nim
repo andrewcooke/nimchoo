@@ -131,3 +131,11 @@ suite "usage: the options are marked as text to type":
     let raw = optionLines(@[doc(["-n", "--newest"], "N", "only the N newest")], 80)
     check raw[0].startsWith("  " & typedStart & "-n, --newest N" & typedEnd & "  only")
     check withoutMarks(raw[0]) == "  -n, --newest N  only the N newest"
+
+suite "usage: the synopsis is marked as text to type":
+  test "each command line, not usage: nor the indent":
+    let s = synopsisText("usage: nch a [-v]\n       nch a --all")
+    check s ==
+      "usage: " & typedStart & "nch a [-v]" & typedEnd & "\n       " & typedStart &
+      "nch a --all" & typedEnd
+    check withoutMarks(s) == "usage: nch a [-v]\n       nch a --all"

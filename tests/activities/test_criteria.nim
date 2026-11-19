@@ -537,7 +537,7 @@ suite "list: the usage":
   test "the whole usage fits the width, except the synopsis lines":
     for width in [60, 80, 120]:
       for l in activitiesCommand.usageText(width).splitLines:
-        if not (l.startsWith("usage: ") or l.startsWith("       nch ")):
+        if not (l.startsWith("usage: ") or withoutMarks(l).startsWith("       nch ")):
           check withoutMarks(l).runeLen <= width
   test "an option of another package would be listed and parsed from its description":
     let extra = OptDoc(

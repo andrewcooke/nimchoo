@@ -111,7 +111,7 @@ func headSpec(): Spec[Head] =
 
 proc usageText(width: int): string =
   ## The usage: the options every command takes, and the commands.
-  "usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]\n\n" &
+  synopsisText("usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]") & "\n\n" &
     optionLines(headSpec().docs, width).join("\n") & "\n\ncommands:\n" &
     commandList(allCommands) & "\nFor more about a command: `nch COMMAND --help`.\n"
 

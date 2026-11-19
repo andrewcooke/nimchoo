@@ -39,7 +39,7 @@ are named after the command, not by --user before it.)"""
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(userSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =

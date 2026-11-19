@@ -48,7 +48,7 @@ func registryLines(
 
 proc usageText*(g: Globals, width: int): string =
   ## The usage: the introduction, the options and the subjects that have a calendar, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(calendarSpec().docs, width).join("\n") & "\n\n" &
     registryLines(
       g.extensions.get(subjectPoint), g.extensions.get(calendarFramePoint), width

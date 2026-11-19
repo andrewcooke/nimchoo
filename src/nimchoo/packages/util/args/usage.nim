@@ -33,6 +33,22 @@ func marked(l: string): string =
   let names = l.strip(trailing = false)
   " ".repeat(l.len - names.len) & typedStart & names & typedEnd
 
+func synopsisText*(text: string): string =
+  ## The synopsis of a usage with each of its command lines marked as text to type (`theme.typedStart`: drawn in the style
+  ## of commands, taking no room); `usage: ` and the indent before the others are not.
+  var lines: seq[string]
+  for l in text.splitLines:
+    var lead = l.len - l.strip(trailing = false).len
+    if l.startsWith("usage: "):
+      lead = "usage: ".len
+    lines.add(
+      if l.strip.len == 0:
+        l
+      else:
+        l[0 ..< lead] & typedStart & l[lead .. ^1] & typedEnd
+    )
+  lines.join("\n")
+
 func optionLines*(docs: seq[OptDoc], width: int): seq[string] =
   ## The lines for the options: two spaces, the names and the value (marked as text to type), the help in a column,
   ## wrapped to `width`.

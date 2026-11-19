@@ -68,8 +68,8 @@ func registryLines(
 
 proc usageText*(g: Globals, width: int): string =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) & "\n\n" &
-    optionLines(mapSpec().docs, width).join("\n") & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) &
+    "\n\n" & optionLines(mapSpec().docs, width).join("\n") & "\n\n" &
     registryLines(
       g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint), width
     )

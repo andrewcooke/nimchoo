@@ -29,7 +29,7 @@ const
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(dbSpec().docs, width).join("\n") & "\n"
 
 proc size(path: string): int64 =

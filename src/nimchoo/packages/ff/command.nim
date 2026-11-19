@@ -51,8 +51,8 @@ activity with an impulse and run up to --before (default: the end of today), so 
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the notes and the options, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) & "\n\n" &
-    optionLines(ffSpec().docs, width).join("\n") & "\n"
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) &
+    "\n\n" & optionLines(ffSpec().docs, width).join("\n") & "\n"
 
 proc hourlyImpulses(
     db: DbConn, userId: UserId, modelId: ModelId

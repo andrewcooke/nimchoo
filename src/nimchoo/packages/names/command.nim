@@ -43,7 +43,7 @@ holds the place comes before every name GeoNames has.  Without options, list the
 
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(landmarkSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) &
     "\n"
 

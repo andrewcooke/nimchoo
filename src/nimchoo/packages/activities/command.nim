@@ -55,7 +55,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 proc usageText*(width: int, offered: seq[Criterion] = @[]): string =
   ## The usage: the synopsis, the introduction, the options (made from their descriptions) and the notes, all wrapped to
   ## `width` (the synopsis lines are not).
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(criteriaSpec(offered).docs, width).join("\n") & "\n\n" &
     prose(notes, width) & "\n"
 

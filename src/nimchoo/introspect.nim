@@ -230,7 +230,7 @@ provides: commands, extension points it defines, and the points it adds to.  Wit
 and everything else about it."""
 
 proc usageText*(width: int): string =
-  synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(packagesSpec().docs, width).join("\n") & "\n"
 
 # --- the settings ------------------------------------------------------------------------------------------------------

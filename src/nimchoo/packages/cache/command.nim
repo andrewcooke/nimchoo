@@ -29,7 +29,7 @@ again when it is needed (so deleting it needs no -f, and nothing in the database
 proc usageText*(width: int): string =
   ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.
   result =
-    synopsis & "\n\n" & prose(intro, width) & "\n\n" &
+    synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
     optionLines(cacheSpec().docs, width).join("\n") & "\n\nThe kinds:\n"
   for k in Kind:
     result.add "  " & alignLeft($k, 10) & kindHelp[k] & "\n"
