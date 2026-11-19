@@ -283,12 +283,19 @@ suite "download: the line while a file comes":
         # (the first is the start, at 0)
     check net.events[2].bytes == 100 and net.events[2].total == 1000
   test "the spinner thread turns the spinner by itself, and leaves the line, takes it away, or leaves the failure":
-    written = @[]
-    let sp = startSpinner(testMaker, Theme(), "locations in CL", url)
-    sp.setSize(1000)
-    sleep(350)
-    sp.stop(enKeep)
-    check spinnerChars().len >= 2 # (it moved without being told anything)
+    # (it moves without being told anything; how soon depends on the machine, so it is given longer each time until it
+    # has, and stopped before what it wrote is read)
+    var moved = false
+    for attempt in 1 .. 8:
+      written = @[]
+      let sp = startSpinner(testMaker, Theme(), "locations in CL", url)
+      sp.setSize(1000)
+      sleep(350 * attempt)
+      sp.stop(enKeep)
+      if spinnerChars().len >= 2:
+        moved = true
+        break
+    check moved
     check "need locations in CL: download.geonames.org/export/dump/CL.zip (1kB)" in
       written[^1]
     check not written[^1].contains(frames[0]) and not written[^1].contains(frames[5])

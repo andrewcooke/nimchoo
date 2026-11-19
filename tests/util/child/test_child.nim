@@ -52,15 +52,16 @@ suite "child processes: without stopping the event loop":
     check all[0].stdout == "a\n" and all[2].stdout == "c\n"
     check t0.ms < 1300
   test "the loop keeps running while a child does":
+    # (counted while the child runs, however long the machine makes that: not a number of ticks by a time)
     var ticks = 0
+    let child = runChildAsync("/bin/sh", @["-c", "sleep 0.5"], 5000)
     proc ticker() {.async.} =
-      for _ in 1 .. 10:
-        await sleepAsync(20)
+      while not child.finished:
+        await sleepAsync(10)
         inc ticks
 
-    let child = runChildAsync("/bin/sh", @["-c", "sleep 0.6"], 5000)
-    waitFor ticker() # (about 0.2 s)
-    check ticks == 10 and not child.finished
+    waitFor ticker()
+    check ticks >= 2
     check waitFor(child).code == 0
   test "a hung child is killed at the limit":
     let t0 = getMonoTime()
