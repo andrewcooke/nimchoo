@@ -3,4 +3,9 @@
 
 * anywhere currently with **text** should be <em text>
 
-* in packages docs, what is teh difference between tables and may also read?
+* in package docs, what is defined should be formatted like activities/criteria[Criterium] (not activities/criteria (holds Criterion)).
+
+* in package docs the left column needs a description and a type.  so "defines extension points" or "access to external tables" or "own tables" or "contributes to extension points".  maybe that column needs to be wrapped at, say, 20 chars?
+
+-----
+

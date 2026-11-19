@@ -166,10 +166,30 @@ func pkgList(names: seq[string], between = " "): Line =
       result.add span(between)
     result.add span(n, "pkg")
 
+func counted(items: seq[tuple[name: string, priority: int]]): seq[string] =
+  ## Each name once, in the order first given, with how many times it is there ("map/frames ×2") and its priorities when
+  ## any is not 0 (the order of the contributions: `core/extension.nim`); each kept on one line when wrapped.
+  var names: seq[string]
+  var priorities: seq[seq[int]]
+  for it in items:
+    let at = names.find(it.name)
+    if at < 0:
+      names.add it.name
+      priorities.add @[it.priority]
+    else:
+      priorities[at].add it.priority
+  for k, n in names:
+    var text = n
+    if priorities[k].len > 1:
+      text.add fmt" ×{priorities[k].len}"
+    if priorities[k].anyIt(it != 0):
+      text.add " (priority " & priorities[k].mapIt($it).join(", ") & ")"
+    result.add unbroken(text)
+
 func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
   ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
   ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
-  ## what it is for, then what it provides (commands, in `cmd`; points it defines; points it adds to).  Only those
+  ## what it is for, then what it provides (commands, in `cmd`; the extension points it defines; those it contributes to).  Only those
   ## the filter keeps.  As styled lines.
   var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
@@ -182,7 +202,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
   )
   var rows: seq[seq[Line]]
   for p in order:
-    # what it provides follows what it is for: "Defines users and the point user/has.  Adds to web/pages.", the names of
+    # what it provides follows what it is for: "Defines users and the extension point user/has.  Contributes to web/pages.", the names of
     # commands in the style of commands
     var what: Line = @[span(p.summary)]
     var defines: seq[Line]
@@ -191,7 +211,8 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
       defines.add plain(
-        (if points.len == 1: "the point " else: "the points ") & points.join(", ")
+        (if points.len == 1: "the extension point " else: "the extension points ") &
+          points.join(", ")
       )
     if defines.len > 0:
       what.add span("  Defines ")
@@ -201,7 +222,8 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
         what.add d
       what.add span(".")
     if p.contributes.len > 0:
-      what.add span("  Adds to " & p.contributes.mapIt(it.point).join(", ") & ".")
+      let adds = counted(p.contributes.mapIt((it.point, it.priority)))
+      what.add span("  Contributes to " & adds.join(", ") & ".")
     rows.add @[
       pkg(p.name),
       plain($p.layer),
@@ -225,31 +247,45 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
   ):
     result.add plain(l)
 
-func withPackages(inv: Inventory, text: string): Line =
-  ## `text` with each name of a package between backticks (`map`) in the style of packages, without the backticks (what
-  ## else is between backticks stays as it is: drawn as what is typed).
-  var rest = text
-  while rest.len > 0:
-    let a = rest.find('`')
-    let b =
-      if a < 0:
-        -1
+func docLine(inv: Inventory, text: string, strong: var bool): Line =
+  ## A line of documentation (RST): each name of a package between backticks (`map`) in the style of packages, without
+  ## the backticks (what else is between backticks stays as it is: drawn as what is typed), and what is between `**` in
+  ## `em`, without them.  `strong` says whether the line starts inside `**`, and is left saying whether it ends inside
+  ## (a phrase can be wrapped over lines).
+  var plainText = ""
+  template flush() =
+    if plainText.len > 0:
+      result.add(
+        if strong:
+          span(plainText, "em")
+        else:
+          span(plainText)
+      )
+      plainText = ""
+
+  var i = 0
+  while i < text.len:
+    if text.continuesWith("**", i):
+      flush()
+      strong = not strong
+      i += 2
+    elif text[i] == '`' and text.find('`', i + 1) > i:
+      let close = text.find('`', i + 1)
+      let inside = text[i + 1 ..< close]
+      if inv.find(inside) >= 0:
+        flush()
+        result.add span(inside, "pkg")
       else:
-        rest.find('`', a + 1)
-    if a < 0 or b < 0:
-      result.add span(rest)
-      break
-    let inside = rest[a + 1 ..< b]
-    if inv.find(inside) >= 0:
-      result.add span(rest[0 ..< a])
-      result.add span(inside, "pkg")
+        plainText.add text[i .. close]
+      i = close + 1
     else:
-      result.add span(rest[0 .. b])
-    rest = rest[b + 1 .. ^1]
+      plainText.add text[i]
+      inc i
+  flush()
 
 func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
-  ## Everything about one package, as styled lines: the title, the documentation, and the fields in two columns.  `name`
-  ## must be that of a package.
+  ## Everything about one package, as styled lines: the title, the documentation, and the fields in two columns (what each
+  ## is, wrapped narrow, and what it holds).  `name` must be that of a package.
   let at = inv.find(name)
   doAssert at >= 0
   let p = inv.packages[at]
@@ -264,24 +300,35 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   ]
   if p.doc.len > 0:
     result.add plain("")
+    var strong = false
     for l in rst(p.doc, width).split('\n'):
-      result.add inv.withPackages(l)
+      result.add inv.docLine(l, strong)
     result.add plain("")
   fields.add field("source", @[span(p.path, "file")])
   fields.add field("depends on", pkgList(p.depends))
   fields.add field("used by", pkgList(p.dependents))
   fields.add field("fragments", plain(listOf(p.fragments)))
-  fields.add field("tables", plain(listOf(p.tables)))
-  var reads: Line
+  fields.add field("own tables", plain(listOf(p.tables)))
+  var owners: seq[string]
+    # (the tables of others it may read, by their owner, in the order of the tables)
+  var byOwner: seq[seq[string]]
   for t in inv.tables:
     if t.owner.normalised != p.name.normalised and (t.everyone or p.name in t.readers):
-      if reads.len > 0:
-        reads.add span(" ")
-      reads.add span(t.name & " (")
-      reads.add span(t.owner, "pkg")
-      reads.add span(")")
-  fields.add field("may also read", (if reads.len == 0: plain("-")
-    else: reads))
+      let k = owners.find(t.owner)
+      if k < 0:
+        owners.add t.owner
+        byOwner.add @[t.name]
+      else:
+        byOwner[k].add t.name
+  var reads: Line
+  for k, o in owners:
+    if k > 0:
+      reads.add span("; ")
+    reads.add span(o, "pkg")
+    reads.add span(": " & byOwner[k].join(", "))
+  fields.add field(
+    "access to external tables", (if reads.len == 0: plain("-") else: reads)
+  )
   if p.commands.len == 0:
     fields.add field("commands", plain("-"))
   for c in p.commands:
@@ -289,36 +336,45 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
       "command", @[span("nch " & c.name, "cmd"), span(" - " & c.summary)]
     )
   if p.defines.len == 0:
-    fields.add field("defines", plain("-"))
+    fields.add field("defines extension points", plain("-"))
   for d in p.defines:
     var holds = ""
-    var added: Line # (who adds to it, in the order the contributions are used)
+    var added: seq[tuple[name: string, priority: int]]
+      # (who contributes to it, in the order the contributions are used)
     for pt in inv.points:
       if pt.name == d.name:
         holds = pt.typeName
-        for k, c in pt.contributors:
-          if k > 0:
-            added.add span(", ")
-          added.add span(c.package, "pkg")
-          added.add span(fmt" (priority {c.priority})")
-    let what =
-      if holds.len > 0:
-        fmt"{d.name} (holds {holds})"
-      else:
-        d.name
+        for c in pt.contributors:
+          added.add (c.package, c.priority)
+    var by: Line
+    for k, c in counted(added):
+      if k > 0:
+        by.add span(", ")
+      let n = c.split(noBreak)[0]
+      by.add span(n, "pkg")
+      by.add span(c[n.len .. ^1])
+    let what = (if holds.len > 0: fmt"{d.name}[{holds}]" else: d.name)
+    var strong = false
     fields.add field(
-      "defines",
-      @[span(fmt"{what} - ")] & inv.withPackages(d.summary) & @[span("; added to by ")] &
-        (if added.len == 0: plain("nothing") else: added),
+      "defines extension points",
+      @[span(unbroken(what)), span(" - ")] & inv.docLine(d.summary, strong) &
+        @[span("; contributed to by ")] & (if by.len == 0: plain("nothing")
+      else: by),
     )
-  var adds: seq[string]
-  for c in p.contributes:
-    adds.add fmt"{c.point} (priority {c.priority})"
-  fields.add field("adds to", plain(listOf(adds)))
-  result.add ruled(@["", ""], fields, width)
+  let adds = counted(p.contributes.mapIt((it.point, it.priority)))
+  fields.add field(
+    "contributes to extension points",
+    plain(
+      if adds.len == 0:
+        "-"
+      else:
+        adds.join(", ")
+    ),
+  )
+  result.add ruled(@["", ""], fields, width, narrow = 20)
 
 func pointLines*(inv: Inventory, width: int): seq[Line] =
-  ## Each extension point as a row: who defines it, who adds to it (in the order the contributions are used; a package that
+  ## Each extension point as a row: who defines it, who contributes to it (in the order the contributions are used; a package that
   ## adds more than one is named once, "c ×2"), and what it is.  The type it holds and the priorities are in the detail of
   ## the package that defines it (`detailLines()`).
   var rows: seq[seq[Line]]
@@ -345,7 +401,11 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
       (if added.len == 0: plain("-") else: added),
       plain(pt.summary),
     ]
-  ruled(@["point", "defined by", "added to by (in order)", "what it is"], rows, width)
+  ruled(
+    @["extension point", "defined by", "contributed to by (in order)", "what it is"],
+    rows,
+    width,
+  )
 
 func tableLines*(inv: Inventory, width: int): seq[Line] =
   ## Each table, its owner and the packages that may read it.

@@ -68,6 +68,13 @@ template span*(words: string, outer, inner: static string): Span =
   ## A piece of text in one style inside another (`span("5", "bad", "em")`).
   Span(text: words, styles: @[styleName(outer), styleName(inner)])
 
+const noBreak* = "\u00A0"
+  ## a space that a line is not broken at when it is wrapped (`unbroken`); drawn as a space (`theme.render`)
+
+func unbroken*(text: string): string =
+  ## `text` kept on one line when it is wrapped: an item of a list ("route (importer)").
+  text.replace(" ", noBreak)
+
 func plain*(text: string): Line =
   ## A line of text with no style.
   @[span(text)]

@@ -315,11 +315,11 @@ func render*(line: Line, paint: Paint): string =
   ## The line as text for a terminal: each look is started (if in colour) where it begins and reset where it ends, and the
   ## line ends with a reset, so that nothing runs on to the next line.  Spans side by side that look the same share one.
   ## The lines of a table or a tree in a span (`│ ─ ├`), and what is between backticks, are in their styles over the span's
-  ## own (`Drawer`).
+  ## own (`Drawer`).  A space that is not to be broken (`line.noBreak`) is drawn as a space.
   if not paint.colour:
-    return line.text
+    return line.text.replace(noBreak, " ")
   var d: Drawer
   for s in line:
-    d.draw(paint.theme, lookOf(paint.theme, s.styles), s.text)
+    d.draw(paint.theme, lookOf(paint.theme, s.styles), s.text.replace(noBreak, " "))
   d.endLine()
   d.text

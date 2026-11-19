@@ -61,6 +61,12 @@ suite "ruled tables: cells in styles":
       @["a │ b", "──┼──────", "x │ go ff"]
     check span("ff", "cmd") in lines[2]
 
+suite "ruled tables: narrow columns":
+  test "with narrow, the other columns wrap too, and a row is as tall as its tallest cell":
+    let ls = ruled(@["", ""], @[@["defines extension points", "x"]], 80, narrow = 10)
+      .mapIt(it.text)
+    check ls == @["defines   │ x", "extension │", "points    │"]
+
 suite "ruled tables: the only tables":
   test "no other code lines up columns (with align or alignLeft): every table is ruled":
     # (the exceptions: the two that make the tables, the log file's own format, a developer's timings, and the diagram of

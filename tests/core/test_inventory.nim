@@ -3,6 +3,7 @@
 import std/[algorithm, options, sequtils, strutils, unittest]
 import nimchoo/core/[errors, extension, fragment, inventory, line, manifest, registry]
 import nimchoo/registry as generated
+import ../support/styles
 
 const pointP = ExtensionPoint[int](name: "b/p")
 
@@ -21,7 +22,7 @@ proc world(): Inventory {.raises: [].} =
       name: "b",
       path: "src/nimchoo/packages/b/",
       summary: "Package b is for b things.",
-      doc: "Package b is for b things.\n\nIt has a paragraph more.",
+      doc: "Package b is for b things.\n\nIt has a **paragraph** more.",
       package: Package(
         depends: @["a", "db"],
         defines: @[PointDecl(name: "b/p", summary: "a number")],
@@ -95,13 +96,13 @@ suite "the filters of the list":
   test "together, each narrows the list further":
     check kept(PackageFilter(uses: some("a"), layer: some(3))) == @["c"]
     check kept(PackageFilter(table: some("tb"), usedBy: some("c"))) == @["b"]
-    let lines = summaryLines(world(), 80, PackageFilter(layer: some(1))).mapIt(it.text)
+    let lines = summaryLines(world(), 80, PackageFilter(layer: some(1))).texts
     check lines.anyIt(it.startsWith("a ")) and not lines.anyIt(it.startsWith("b "))
 
 suite "the views":
   test "the summary has a line for each package with what it is for, then what it provides":
-    let cells = summaryLines(world(), 120)
-    let lines = cells.mapIt(it.text)
+    let cells = summaryLines(world(), 200)
+    let lines = cells.texts
     check lines[0].startsWith("package") and "what it is for" in lines[0] and
       " │ L  U  B  T │ " in lines[0]
     check lines[1].startsWith("────") and "┼" in lines[1]
@@ -116,9 +117,13 @@ suite "the views":
       # (the lowest layer first: db depends on nothing)
     check lines.anyIt(
       it.startsWith("b ") and
-        it.endsWith("Package b is for b things.  Defines nch bee and the point b/p.")
+        it.endsWith(
+          "Package b is for b things.  Defines nch bee and the extension point b/p."
+        )
     )
-    check lines.anyIt(it.startsWith("c ") and it.endsWith("Adds to b/p, b/p."))
+    check lines.anyIt(
+      it.startsWith("c ") and it.endsWith("Contributes to b/p ×2 (priority 0, 2).")
+    )
     # (the name of a command is in the style of commands, the rest is not)
     let b = cells.filterIt(it.text.startsWith("b "))[0]
     check b.filterIt(it.styles == @[styleName"cmd"]).mapIt(it.text) == @["nch bee"]
@@ -126,13 +131,15 @@ suite "the views":
 
   test "the detail of a package":
     let cells = detailLines(world(), "b", 200)
-    let text = cells.mapIt(it.text).join("\n")
+    let text = cells.texts.join("\n")
     check cells[0] ==
       @[span("package ", "em"), span("b", "pkg"), span("  "), span("layer 2", "hide")]
     check "It has a paragraph more." in text
+      # (what is between ** is in em, without them)
+    check cells.anyIt(span("paragraph", "em") in it)
     check "depends on" in text and "a db" in text
     check "used by" in text and "tb" in text
-    check "ta (a)" in text # (it may read the tables of a)
+    check "db: dbt; a: ta" in text # (it may read the tables of a, and of db: by owner)
     check "nch bee - does b things" in text
     check cells.anyIt(span("nch bee", "cmd") in it)
     check cells.anyIt(span("src/nimchoo/packages/b/", "file") in it)
@@ -140,21 +147,21 @@ suite "the views":
       # (the command in the style of commands)
     check cells.anyIt(span("a", "pkg") in it and span("db", "pkg") in it)
       # (depends on: the names of packages in their style)
-    check "added to by" in text and "c (priority 0), c (priority 2)" in text
-    check "b/p (holds int) - " in text
-      # (what --points no longer shows: the detail has it)
+    check "contributed to by" in text and "c ×2 (priority 0, 2)" in text
+    check "b/p[int] - " in text # (what --points no longer shows: the detail has it)
 
   test "the points":
     let cells = pointLines(world(), 80)
-    let lines = cells.mapIt(it.text)
+    let lines = cells.texts
     check cells.anyIt(span("c", "pkg") in it)
-    check lines[0].startsWith("point") and "added to by (in order)" in lines[0]
+    check lines[0].startsWith("extension point") and
+      "contributed to by (in order)" in lines[0]
     check lines[1].startsWith("─") and "┼" in lines[1]
     check lines.anyIt(it.startsWith("b/p") and " │ b " in it and " │ c ×2 " in it)
       # (c adds twice: named once)
 
   test "the tables":
-    let lines = tableLines(world(), 120).mapIt(it.text)
+    let lines = tableLines(world(), 120).texts
     check lines[0].startsWith("table")
     check lines.anyIt(it.startsWith("dbt") and it.endsWith("every package"))
     check lines.anyIt(it.startsWith("ta") and it.endsWith("b c"))

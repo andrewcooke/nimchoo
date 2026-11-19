@@ -226,7 +226,7 @@ const
   intro =
     """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
 package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it
-provides: commands, extension points it defines, and the points it adds to.  With the name of a package, its documentation
+provides: commands, the extension points it defines, and those it contributes to.  With the name of a package, its documentation
 and everything else about it."""
 
 proc usageText*(width: int): seq[Line] =

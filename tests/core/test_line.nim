@@ -87,3 +87,7 @@ suite "lines: stripping":
     check @[span("a"), span("b ", "cmd"), span("  ")].stripped ==
       @[span("a"), span("b", "cmd")]
     check plain("   ").stripped.len == 0
+
+  test "a piece kept whole is not broken where it has spaces":
+    let ls = @[span("aaaa " & unbroken("route (importer)") & " b")].wrapped(10)
+    check ls.mapIt(it.text) == @["aaaa", unbroken("route (importer)"), "b"]

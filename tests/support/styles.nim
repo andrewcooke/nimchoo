@@ -10,8 +10,8 @@ func styleOf*(s: Span): string =
     $s.styles[^1]
 
 func texts*(lines: seq[Line]): seq[string] =
-  ## Lines as they are shown without colour.
-  lines.mapIt(it.text)
+  ## Lines as they are shown without colour (a space not to be broken is a space).
+  lines.mapIt(it.text.replace(noBreak, " "))
 
 func cellsOf*(line: string): seq[string] =
   ## The cells of a line of a table (`core/ruled.nim`), without the spaces around them.
@@ -19,7 +19,7 @@ func cellsOf*(line: string): seq[string] =
 
 func plainText*(lines: seq[Line]): string =
   ## Lines as they are shown without colour, one to a line.
-  lines.mapIt(it.text).join("\n")
+  lines.texts.join("\n")
 
 func emphasised*(s: Span): bool =
   ## Whether the span is in the style `em` (inside another, or alone).
