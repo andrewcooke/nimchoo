@@ -49,8 +49,8 @@ proc sample(t: Theme): seq[string] =
     result.add fmt"<{name} {row}>"
     result.add fmt"  <{name} a style that runs" & "\n  over a newline>"
   result.add ""
-  # (nch uses the styles of `programStyles`, whatever a theme has: those it lacks draw as the text around them)
-  let lacking = programStyles.filterIt(it notin t.styles)
+  # (nch uses the styles of `baseStyles` (and alt-X, which is X unless the theme says), whatever a theme has: those it lacks draw as the text around them)
+  let lacking = baseStyles.filterIt(it notin t.styles)
   if lacking.len > 0:
     result.add "(lines like those of nch are shown when the theme has the styles nch uses; it has no " &
       lacking.join(", ") & ", which nch draws as the text around them)"

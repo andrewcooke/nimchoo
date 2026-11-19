@@ -35,8 +35,7 @@ suite "ui style: rendering":
       var names: seq[string]
       for n in parseTheme(t.text).styles.keys:
         names.add n
-      check names.len == programStyles.len
-      for n in programStyles:
+      for n in programStyles: # (each X with its alt-X)
         check n in names
 
 suite "ui style: rendering looks that run on":

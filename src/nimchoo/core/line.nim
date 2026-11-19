@@ -14,7 +14,7 @@ from std/unicode import Rune, runeLen, runeSubStr, runes
 {.push raises: [].}
 
 const
-  baseStyles = [
+  baseStyles* = [
     "default", ## around everything
     "em", ## what to read first: titles, headings
     "hide", ## the bookkeeping, what was not recorded, the lines of tables
@@ -26,20 +26,15 @@ const
     "pkg", ## the name of a package
     "file", ## the path of a file or a directory
   ]
-  altPrefix = "alt"
-    ## every other row of a table that asks for it (`alternated`) is in the `alt` version of each style: `alt` for plain
-    ## text, `alt-cmd` for `cmd` ...
+  altPrefix* = "alt-"
+    ## every other row of a table that asks for it (`alternated`) is in the alt version of each style: `alt-default` for
+    ## plain text, `alt-cmd` for `cmd` ...; a theme defines each as the style it stands for unless it says otherwise (`theme.parseTheme`)
 
 func withAlts(names: openArray[string]): seq[string] =
   for n in names:
     result.add n
   for n in names:
-    result.add(
-      if n == "default":
-        altPrefix
-      else:
-        altPrefix & "-" & n
-    )
+    result.add altPrefix & n
 
 const programStyles* = withAlts(baseStyles)
   ## the styles the program uses, each for one thing, and the `alt` version of each: the names in the code are checked
@@ -177,21 +172,19 @@ func bracketed*(line: Line, selected: bool): Line =
     @[span(" ")] & line
 
 func alternated*(line: Line): Line =
-  ## The line in the `alt` version of each of its styles (`alt-cmd` for `cmd`; `alt` for plain text): a row of a table
-  ## told from its neighbours (`ruled.ruledRows(alternate)`), whatever the theme makes of it.
+  ## The line in the alt version of each of its styles (`alt-cmd` for `cmd`; `alt-default` for plain text): a row of a
+  ## table told from its neighbours (`ruled.ruledRows(alternate)`), whatever the theme makes of it.
   for s in line:
     var styles: seq[StyleName]
     for st in s.styles:
       styles.add StyleName(
-        if $st == "default":
-          altPrefix
-        elif ($st).startsWith(altPrefix):
+        if ($st).startsWith(altPrefix):
           $st
         else:
-          altPrefix & "-" & $st
+          altPrefix & $st
       )
     if styles.len == 0:
-      styles = @[StyleName(altPrefix)]
+      styles = @[StyleName(altPrefix & "default")]
     result.add Span(text: s.text, styles: styles)
 
 func wrapped*(line: Line, width: int): seq[Line] =

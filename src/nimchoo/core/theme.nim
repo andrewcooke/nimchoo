@@ -147,6 +147,20 @@ func withValue(c: Colour, gamma: float): Colour =
 
   Colour(kind: ckRgb, r: scaled(c.r), g: scaled(c.g), b: scaled(c.b))
 
+func over(base, top: Style): Style =
+  ## `base` with what `top` gives instead.
+  func pick[T](a, b: Option[T]): Option[T] =
+    (if b.isSome: b else: a)
+
+  Style(
+    fg: pick(base.fg, top.fg),
+    bg: pick(base.bg, top.bg),
+    weight: pick(base.weight, top.weight),
+    underline: pick(base.underline, top.underline),
+    italic: pick(base.italic, top.italic),
+    reverse: pick(base.reverse, top.reverse),
+  )
+
 func lookOfName(defined: OrderedTable[string, Style], name: string): Look =
   ## How a style defined above is drawn: the terminal's own look, with `default`, then the style.
   result = terminalLook.over(defined.getOrDefault(defaultStyle))
@@ -245,8 +259,12 @@ func parseStyle(
       )
 
 func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
-  ## The theme in `text`, the contents of a theme file.
+  ## The theme in `text`, the contents of a theme file.  Each style X comes with `alt-X` (the style of every other row of
+  ## a table that asks for it: `line.alternated`), defined as X; a line `alt-X ...` changes what it gives, and the rest
+  ## stays X's (`alt-pkg fg=...` keeps pkg's background), whichever of the two lines comes first.
   var line = 0
+  var given: seq[string] # (the names on the lines: an alt-X made from X is not given)
+  var altGiven: Table[string, Style] # (what each alt-X line gives, by X)
   for raw in text.splitLines:
     inc line
     let s = raw.strip
@@ -259,9 +277,17 @@ func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
         fmt"'{name}' is not a name of a style (lower-case letters, digits and hyphens, starting with a letter)",
         line,
       )
-    if name in result.styles:
+    if name in given:
       raiseTheme(fmt"the style {name} is given twice", line)
-    result.styles[name] = parseStyle(words[1 ..^ 1], line, result.styles)
+    given.add name
+    let style = parseStyle(words[1 ..^ 1], line, result.styles)
+    if name.startsWith(altPrefix):
+      let x = name[altPrefix.len ..^ 1]
+      altGiven[x] = style
+      result.styles[name] = result.styles.getOrDefault(x).over(style)
+    else:
+      result.styles[name] = style
+      result.styles[altPrefix & name] = style.over(altGiven.getOrDefault(name))
 
 func baseLook*(theme: Theme): Look =
   ## The look of text in no style but `default`: the terminal's own, with what `default` changes.

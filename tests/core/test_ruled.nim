@@ -96,4 +96,4 @@ suite "ruled tables: alternate":
       alternate = true,
     )
     check ls[0] == @[span("a │ "), span("one", "cmd")]
-    check ls[1] == @[span("b │ ", "alt"), span("two", "alt-cmd")]
+    check ls[1] == @[span("b │ ", "alt-default"), span("two", "alt-cmd")]

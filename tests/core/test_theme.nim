@@ -19,12 +19,12 @@ suite "ui theme: reading a theme file":
     check t.styles["em"].fg == some(Colour(kind: ckRgb, r: 255, g: 128, b: 0))
     check t.styles["em"].weight == some(wtBold)
 
-  test "the styles keep the order of the file":
+  test "the styles keep the order of the file, each followed by its alt-X":
     let t = parseTheme("b\na\nc\n")
     var names: seq[string]
     for n in t.styles.keys:
       names.add n
-    check names == @["b", "a", "c"]
+    check names == @["b", "alt-b", "a", "alt-a", "c", "alt-c"]
 
   test "colours are terminal, one of the sixteen, or #rrggbb":
     let t = parseTheme("x fg=terminal bg=bright-blue\ny fg=red bg=#000000")
@@ -111,3 +111,23 @@ suite "ui theme: v(NAME, GAMMA)":
     check problem("a fg=#808080\nb fg=v(a, x)").contains("is a number")
     check problem("a fg=#808080\nb fg=v(a)").contains("not v(NAME, GAMMA)")
     check problem("a fg=#808080\nb fg=v(a, 0)").contains("2") # (the line)
+
+suite "ui theme: alt":
+  test "each style comes with its alt-X, defined as X; an alt-X line changes what it gives, the rest stays X's":
+    let t = parseTheme("cmd fg=#a0a0c0\npkg fg=#ffffff bg=#303040\nalt-pkg fg=#000000")
+    check t.styles["alt-cmd"] == t.styles["cmd"]
+    check t.styles["alt-pkg"].fg.get == Colour(kind: ckRgb, r: 0, g: 0, b: 0)
+    check t.styles["alt-pkg"].bg.get == t.styles["pkg"].bg.get # (pkg's background)
+    check "alt-nothing" notin t.styles
+
+  test "the alt-X line may come before X":
+    let t = parseTheme("alt-pkg fg=#000000\npkg fg=#ffffff bg=#303040")
+    check t.styles["alt-pkg"].fg.get == Colour(kind: ckRgb, r: 0, g: 0, b: 0) and
+      t.styles["alt-pkg"].bg.get == t.styles["pkg"].bg.get
+
+  test "an alt-X can be used in v() below X, and is given only once":
+    check parseTheme("cmd fg=#808080\nx fg=v(alt-cmd, 2)").styles["x"].fg.get ==
+      Colour(kind: ckRgb, r: 0x40, g: 0x40, b: 0x40)
+    check problem("cmd fg=#808080\nalt-cmd fg=red\nalt-cmd fg=blue").contains(
+      "given twice"
+    )
