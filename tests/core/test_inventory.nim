@@ -123,30 +123,37 @@ suite "the views":
     check lines.anyIt(it.startsWith("c ") and it.endsWith("Adds to b/p, b/p."))
     # (the name of a command is in the style of commands, the rest is not)
     let b = cells.filterIt(it.cellText.startsWith("b "))[0]
-    check b.filterIt(it.style == commandStyle).mapIt(it.text) == @["nch bee"]
+    check b.filterIt(it.style == typedStyle).mapIt(it.text) == @["nch bee"]
     check lines.anyIt(it.startsWith("db ") and it.endsWith("Package db is the base."))
 
   test "the detail of a package":
-    let text = detailLines(world(), "b", 200).join("\n")
-    check "package b  (layer 2)" in text
+    let cells = detailLines(world(), "b", 200)
+    let text = cells.mapIt(it.cellText).join("\n")
+    check cells[0] ==
+      @[("package ", "em"), ("b", packageStyle), ("  ", ""), ("layer 2", "hide")]
     check "It has a paragraph more." in text
     check "depends on" in text and "a db" in text
     check "used by" in text and "tb" in text
     check "ta (a)" in text # (it may read the tables of a)
-    check (typedStart & "nch bee" & typedEnd & " - does b things") in text
+    check "nch bee - does b things" in text
+    check cells.anyIt(("nch bee", "cmd") in it) # (the command in the style of commands)
+    check cells.anyIt(("a", packageStyle) in it and ("db", packageStyle) in it)
+      # (depends on: the names of packages in their style)
     check "added to by" in text and "c (priority 0), c (priority 2)" in text
     check "b/p (holds int) - " in text
       # (what --points no longer shows: the detail has it)
 
   test "the points":
-    let lines = pointLines(world(), 80)
+    let cells = pointLines(world(), 80)
+    let lines = cells.mapIt(it.cellText)
+    check cells.anyIt(("c", packageStyle) in it)
     check lines[0].startsWith("point") and "added to by (in order)" in lines[0]
     check lines[1].startsWith("─") and "┼" in lines[1]
     check lines.anyIt(it.startsWith("b/p") and " │ b " in it and " │ c ×2 " in it)
       # (c adds twice: named once)
 
   test "the tables":
-    let lines = tableLines(world(), 120)
+    let lines = tableLines(world(), 120).mapIt(it.cellText)
     check lines[0].startsWith("table")
     check lines.anyIt(it.startsWith("dbt") and it.endsWith("every package"))
     check lines.anyIt(it.startsWith("ta") and it.endsWith("b c"))

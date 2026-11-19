@@ -4,7 +4,7 @@
 ## the running program (`--config`) and the printing.
 
 import std/[algorithm, editdistance, options, os, sequtils, strformat, strutils]
-import ./core/[access, errors, globals, inventory, logfile, manifest]
+import ./core/[access, errors, globals, inventory, logfile, manifest, ruled]
 import ./packages/cache/cache
 import ./packages/db/[fragment, store]
 import ./packages/ui/[live, style, units]
@@ -326,6 +326,32 @@ proc configLines*(g: Globals): seq[string] =
 
 # --- the command -------------------------------------------------------------------------------------------------------
 
+proc showCells(g: Globals, cells: seq[Cell]) =
+  ## Lines of styled pieces (the views of `core/inventory.nim`), each piece in its style of the theme.
+  for cell in cells:
+    var line: Line
+    for r in cell:
+      line.add(
+        if r.style.len > 0:
+          span(r.text, anyStyle(r.style))
+        else:
+          span(r.text)
+      )
+    g.show(osOut, line)
+
+func namedInTree(text: string): Line =
+  ## A line of a tree ("├── activities", "│   └── climbs ..."): the name of the package in its style.
+  var start = 0
+  for k, c in text:
+    if c in Letters:
+      start = k
+      break
+  var finish = text.len
+  if text.endsWith(" ..."):
+    finish = text.len - 4
+  @[span(text[0 ..< start]), span(text[start ..< finish], anyStyle(packageStyle))] &
+    (if finish < text.len: @[span(text[finish .. ^1])] else: @[])
+
 proc showAll(g: Globals, lines: seq[string]) =
   for l in lines:
     g.say osOut, l & "\n"
@@ -388,26 +414,13 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     if inv.packages.allIt(not inv.keeps(f, it)):
       g.say osOut, "no package is kept by those filters\n"
     else:
-      for cell in summaryLines(inv, width, f):
-        var line: Line
-        for r in cell:
-          line.add(
-            if r.style == commandStyle:
-              span(r.text, styleName"cmd")
-            elif r.style.len > 0:
-              span(r.text, anyStyle(r.style))
-            else:
-              span(r.text)
-          )
-        g.show(osOut, line)
+      g.showCells summaryLines(inv, width, f)
   of vDetail:
-    let lines = detailLines(inv, p.package, width)
-    g.show(osOut, @[span(lines[0], "em")]) # (the title: "package ui  (layer 0)")
-    g.showAll lines[1 ..^ 1]
+    g.showCells detailLines(inv, p.package, width)
   of vPoints:
-    g.showAll pointLines(inv, width)
+    g.showCells pointLines(inv, width)
   of vTables:
-    g.showAll tableLines(inv, width)
+    g.showCells tableLines(inv, width)
   of vLayers:
     let paint = paintOf(g, osOut)
     for l in layerLines(inv, width, p.implied):
@@ -417,6 +430,8 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
           l.mapIt(
             if it.implied:
               span(it.text, "hide")
+            elif inv.find(it.text.strip) >= 0:
+              span(it.text, anyStyle(packageStyle)) # (the name of a package)
             else:
               span(it.text)
           ),
@@ -431,12 +446,12 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
       # (what was drawn above is hidden)
       g.sayRendered osOut,
         render(
-          @[
+          (
             if l.again:
-              span(l.text, "hide")
+              @[span(l.text, "hide")]
             else:
-              span(l.text)
-          ],
+              namedInTree(l.text)
+          ),
           paint,
         ) & "\n"
     if tree.anyIt(it.text.endsWith("...")):

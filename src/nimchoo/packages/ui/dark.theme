@@ -14,3 +14,4 @@ bad     fg=#e06060
 good    fg=#40a040
 warn    fg=#a08040
 cmd     fg=#a0a0c0
+pkg     fg=#a0a0c0  bg=#0a0a30
