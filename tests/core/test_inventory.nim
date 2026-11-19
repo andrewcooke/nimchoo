@@ -1,7 +1,9 @@
 ## What `nch packages` shows (core/inventory.nim), on made-up packages and on the real registry.
 
 import std/[algorithm, options, sequtils, strutils, unittest]
-import nimchoo/core/[errors, extension, fragment, inventory, manifest, registry, ruled]
+import
+  nimchoo/core/
+    [errors, extension, fragment, inventory, manifest, registry, ruled, theme]
 import nimchoo/registry as generated
 
 const pointP = ExtensionPoint[int](name: "b/p")
@@ -131,7 +133,7 @@ suite "the views":
     check "depends on" in text and "a db" in text
     check "used by" in text and "tb" in text
     check "ta (a)" in text # (it may read the tables of a)
-    check "bee - does b things" in text
+    check (typedStart & "bee" & typedEnd & " - does b things") in text
     check "added to by" in text and "c (priority 0), c (priority 2)" in text
     check "b/p (holds int) - " in text
       # (what --points no longer shows: the detail has it)

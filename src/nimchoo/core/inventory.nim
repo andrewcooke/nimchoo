@@ -4,7 +4,10 @@
 ## terminal, so every view is tested with made-up packages.
 
 import std/[algorithm, options, sequtils, sets, strformat, strutils, tables]
-import ./[access, errors, extension, fragment, manifest, names, ownership, ruled, wrap]
+import
+  ./[
+    access, errors, extension, fragment, manifest, names, ownership, ruled, theme, wrap
+  ]
 
 {.push raises: [].}
 
@@ -236,7 +239,8 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
   if p.commands.len == 0:
     result.add field("commands", "-")
   for c in p.commands:
-    result.add field("command", c.name & " - " & c.summary)
+    result.add field("command", typedStart & c.name & typedEnd & " - " & c.summary)
+      # (the name drawn as a command: the marks take no room)
   if p.defines.len == 0:
     result.add field("defines", "-")
   for d in p.defines:
