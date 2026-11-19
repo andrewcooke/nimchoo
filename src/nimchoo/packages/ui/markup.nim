@@ -113,7 +113,7 @@ func holes(
 
 macro styled*(literal: string{lit}): Line =
   ## A line written as markup, with values as `fmt` puts them (`styled"<good imported> {n} files <hide ({t:.1f}s)>"`).  The
-  ## markup is read when the program is compiled: a bracket not closed, or a style the built-in theme does not have, is a
+  ## markup is read when the program is compiled: a bracket not closed, or a style the program does not use (`programStyles`), is a
   ## compile error.  A value is plain text, whatever it holds (an activity called `<bad>` is not markup).  One line: a
   ## newline is an error (one `styled` per line).
   let text = literal.strVal
@@ -131,10 +131,10 @@ macro styled*(literal: string{lit}): Line =
   for sp in lines[0]:
     var names = nnkBracket.newTree()
     for s in sp.styles:
-      if $s notin styleNames:
+      if $s notin programStyles:
         error(
-          "styled: there is no style '" & $s & "' in the built-in theme (it has " &
-            styleNames.join(", ") & ")",
+          "styled: there is no style '" & $s & "' (the program uses " &
+            programStyles.join(", ") & ")",
           literal,
         )
       names.add newCall(bindSym"anyStyle", newLit($s))

@@ -13,3 +13,4 @@ warn    fg=#b45309
 select  fg=#1f5fbf
 cmd     fg=#5b3fbf
 pkg     fg=#2f5f8f
+file    fg=#4a4a7a

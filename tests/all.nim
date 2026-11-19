@@ -15,6 +15,7 @@ import
   ./core/test_logfile,
   ./core/test_theme,
   ./core/test_globals,
+  ./core/test_line,
   ./core/test_ruled,
   ./core/test_backticks,
   ./text/fold/test_fold,

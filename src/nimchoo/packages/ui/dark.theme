@@ -1,6 +1,6 @@
 
 # The theme for a terminal with a dark background.  Copy it to make another (NAME.theme in this directory: `nch --theme NAME`).
-# The styles here are those nch uses (it is compiled with this file: a style it uses that is not here is a compile error).
+# The styles here are those nch uses (`core/line.programStyles`: a test checks that they are all here).
 # One style per line: its name, then any of fg=, bg=, weight=bold|normal|dim, underline=yes|no, italic=yes|no,
 # reverse=yes|no (foreground and background swapped).
 # A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
@@ -15,3 +15,4 @@ good    fg=#40a040
 warn    fg=#a08040
 cmd     fg=#a0a0c0
 pkg     fg=#a0a0c0  bg=#0a0a30
+file    fg=#a0a0c0  weight=normal

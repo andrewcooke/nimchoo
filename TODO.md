@@ -67,6 +67,8 @@ code in the documentation).  Agreed 2026-11-18 as the plan to try next.  Waiting
 
 ## Features and ideas, unordered
 
+* **`nch cache --verbose` shows the directories** (the author, 2026-11-19): where each part of the cache lives, as `nch packages
+  web` does for the web's; and its table is a ruled one (`core/ruled.nim`: lines between the columns), as the others are.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
   (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
   A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for

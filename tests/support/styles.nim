@@ -1,6 +1,6 @@
 ## What the tests ask of a span's styles.
 import std/sequtils
-import nimchoo/packages/ui/style
+import nimchoo/core/line
 
 func styleOf*(s: Span): string =
   ## The innermost style of the span ("" for plain text).

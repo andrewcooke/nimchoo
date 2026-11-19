@@ -1,0 +1,183 @@
+## Styled text: a line is a list of spans, each a piece of text in the styles it is in (the outermost first; none: plain
+## text).  A style is a name; what it looks like is the theme's to say (`theme.nim`), so the same line is drawn in whatever
+## theme is in force, and with or without colour (`ui/style.render()`).  Lines, not strings full of escape codes, so that
+## they can be measured, wrapped, cut to a width and laid out in tables (`ruled.nim`) without splitting a code.  The one kind
+## of styled text: the usages, the views and the messages are all made of it (markup, `ui/markup.styled"..."`, makes it too).
+##
+## The styles the program uses are one list (`programStyles`), and a name written in the code is checked against it when it
+## is compiled (`span("failed", "bad")`, `styleName"select"`): a misspelt style is a compile error.  The built-in themes
+## define them all (a test checks); a theme that lacks one draws its text as the text around it.
+
+import std/[strutils, unicode]
+
+{.push raises: [].}
+
+const programStyles* = [
+  "default", ## around everything
+  "em", ## what to read first: titles, headings
+  "hide", ## the bookkeeping, what was not recorded, the lines of tables
+  "select", ## the selection, and nothing else
+  "good", ## done
+  "bad", ## failed, deleted
+  "warn", ## advisory
+  "cmd", ## what a person would type: a command, an option (what is between backticks)
+  "pkg", ## the name of a package
+  "file", ## the path of a file or a directory
+]
+  ## the styles the program uses, each for one thing: the names in the code are checked against these
+
+type
+  StyleName* = distinct string ## the name of a style
+
+  Span* = object
+    text*: string
+    styles*: seq[StyleName] ## the outermost first; none: plain text
+
+  Line* = seq[Span]
+
+func `==`*(a, b: StyleName): bool {.borrow.}
+func `$`*(s: StyleName): string {.borrow.}
+
+const ellipsis = "…"
+
+template styleName*(name: static string): StyleName =
+  ## The style `name`, which must be one the program uses (`programStyles`, checked when compiled).
+  static:
+    doAssert name in programStyles,
+      "no style '" & name & "' (the program uses " & programStyles.join(", ") & ")"
+  StyleName(name)
+
+func anyStyle*(name: string): StyleName =
+  ## The style `name`, whatever it is: for markup read while the program runs (a theme may define styles of its own).
+  StyleName(name)
+
+func span*(text: string): Span =
+  ## A piece of plain text.
+  Span(text: text)
+
+func span*(text: string, style: StyleName): Span =
+  ## A piece of text in a style.
+  Span(text: text, styles: @[style])
+
+template span*(words: string, style: static string): Span =
+  ## A piece of text in the style named (checked when compiled).
+  span(words, styleName(style))
+
+template span*(words: string, outer, inner: static string): Span =
+  ## A piece of text in one style inside another (`span("5", "bad", "em")`).
+  Span(text: words, styles: @[styleName(outer), styleName(inner)])
+
+func plain*(text: string): Line =
+  ## A line of text with no style.
+  @[span(text)]
+
+func width*(line: Line): int =
+  ## Columns the line takes (one per character: wide characters are not counted as two).
+  for s in line:
+    result += s.text.runeLen
+
+func text*(line: Line): string =
+  ## The line without any styling.
+  for s in line:
+    result.add s.text
+
+func truncated*(line: Line, maxWidth: int): Line =
+  ## The line cut to `maxWidth` columns; if it was cut, it ends in an ellipsis.
+  if maxWidth <= 0:
+    return @[]
+  if line.width <= maxWidth:
+    return line
+  var room = maxWidth - 1 # the ellipsis takes a column
+  for s in line:
+    if room <= 0:
+      break
+    let n = s.text.runeLen
+    if n <= room:
+      result.add s
+      room -= n
+    else:
+      result.add Span(text: s.text.runeSubStr(0, room), styles: s.styles)
+      room = 0
+  if result.len > 0:
+    result.add Span(text: ellipsis, styles: result[^1].styles)
+  else:
+    result.add span(ellipsis)
+
+func merged*(line: Line): Line =
+  ## The line with the spans that have the same styles side by side made one (empty ones dropped), and the plain spaces
+  ## between two spans of the same style in that style: so that a style with a background (a row of the selection) runs on
+  ## across the columns, without gaps between them.
+  for i, s in line:
+    if s.text.len == 0:
+      continue
+    var styles = s.styles
+    if styles.len == 0 and s.text.strip.len == 0 and i > 0 and i < line.high and
+        line[i - 1].styles.len > 0 and line[i - 1].styles == line[i + 1].styles:
+      styles = line[i - 1].styles
+    if result.len > 0 and result[^1].styles == styles:
+      result[^1].text.add s.text
+    else:
+      result.add Span(text: s.text, styles: styles)
+
+func stripped*(line: Line): Line =
+  ## The line without the spaces at its end.
+  result = line.merged
+  while result.len > 0:
+    result[^1].text = result[^1].text.strip(leading = false)
+    if result[^1].text.len > 0:
+      break
+    result.setLen(result.len - 1)
+
+func bracketed*(line: Line, selected: bool): Line =
+  ## The line marked for where there is no colour, as the calendar marks a day: `[` before it and `]` after it if it is
+  ## `selected`, a space before it if not (so that lines with and without the mark line up).
+  if selected:
+    @[span("[")] & line & @[span("]")]
+  else:
+    @[span(" ")] & line
+
+func wrapped*(line: Line, width: int): seq[Line] =
+  ## The line broken into lines of at most `width` characters at spaces (a longer word has a line of its own, a newline
+  ## starts a new line, two spaces after a full stop stay two unless the line ends there); each word keeps its styles, and
+  ## a space between two words in the same style is in it too (a phrase in a style is not broken by plain spaces).
+  var paragraphs: seq[seq[Line]] =
+    @[@[newSeq[Span]()]] # paragraphs of words, a word being spans
+  for s in line:
+    var piece = ""
+    for ch in s.text:
+      case ch
+      of ' ':
+        paragraphs[^1][^1].add Span(text: piece, styles: s.styles)
+        piece = ""
+        paragraphs[^1].add newSeq[Span]()
+      of '\n':
+        paragraphs[^1][^1].add Span(text: piece, styles: s.styles)
+        piece = ""
+        paragraphs.add @[newSeq[Span]()]
+      else:
+        piece.add ch
+    paragraphs[^1][^1].add Span(text: piece, styles: s.styles)
+  for words in paragraphs:
+    var current: Line
+    var length = 0
+    var started = false
+    for word in words:
+      let n = word.text.runeLen
+      if not started:
+        current = word
+        length = n
+        started = true
+      elif length + 1 + n <= width:
+        let between =
+          if current.len > 0 and word.len > 0 and current[^1].styles == word[0].styles:
+            current[^1].styles
+          else:
+            @[]
+        current.add Span(text: " ", styles: between)
+        current.add word
+        length += 1 + n
+      else:
+        result.add current.stripped
+        current = word
+        length = n
+    result.add current.stripped

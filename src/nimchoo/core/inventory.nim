@@ -5,9 +5,7 @@
 
 import std/[algorithm, options, sequtils, sets, strformat, strutils, tables]
 import
-  ./[
-    access, errors, extension, fragment, manifest, names, ownership, ruled, theme, wrap
-  ]
+  ./[access, errors, extension, fragment, manifest, line, names, ownership, ruled, wrap]
 
 {.push raises: [].}
 
@@ -155,27 +153,24 @@ func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
       return false
   true
 
-const packageStyle* = "pkg"
-  ## the style of the name of a package (of the theme), in the views of the packages
-
-func pkg(name: string): Cell =
+func pkg(name: string): Line =
   ## The name of a package, in its style.
-  @[(name, packageStyle)]
+  @[span(name, "pkg")]
 
-func pkgList(names: seq[string], between = " "): Cell =
+func pkgList(names: seq[string], between = " "): Line =
   ## Names of packages, each in its style; "-" for none.
   if names.len == 0:
-    return plainCell("-")
+    return plain("-")
   for k, n in names:
     if k > 0:
-      result.add (between, "")
-    result.add (n, packageStyle)
+      result.add span(between)
+    result.add span(n, "pkg")
 
-func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Cell] =
+func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
   ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
   ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
-  ## what it is for, then what it provides (commands, in `theme.typedStyle`; points it defines; points it adds to).  Only those
-  ## the filter keeps.  As styled pieces (`ruled.Cell`).
+  ## what it is for, then what it provides (commands, in `cmd`; points it defines; points it adds to).  Only those
+  ## the filter keeps.  As styled lines.
   var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
     proc(a, b: PackageInfo): int =
@@ -185,52 +180,52 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Ce
       if result == 0:
         result = cmp(a.name.normalised, b.name.normalised)
   )
-  var rows: seq[seq[Cell]]
+  var rows: seq[seq[Line]]
   for p in order:
     # what it provides follows what it is for: "Defines users and the point user/has.  Adds to web/pages.", the names of
     # commands in the style of commands
-    var what: Cell = @[(p.summary, "")]
-    var defines: seq[Cell]
+    var what: Line = @[span(p.summary)]
+    var defines: seq[Line]
     for c in p.commands:
-      defines.add @[("nch " & c.name, typedStyle)] # (a command is never named alone)
+      defines.add @[span("nch " & c.name, "cmd")] # (a command is never named alone)
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
-      defines.add plainCell(
+      defines.add plain(
         (if points.len == 1: "the point " else: "the points ") & points.join(", ")
       )
     if defines.len > 0:
-      what.add ("  Defines ", "")
+      what.add span("  Defines ")
       for k, d in defines:
         if k > 0:
-          what.add ((if k == defines.high: " and " else: ", "), "")
+          what.add span((if k == defines.high: " and " else: ", "))
         what.add d
-      what.add (".", "")
+      what.add span(".")
     if p.contributes.len > 0:
-      what.add ("  Adds to " & p.contributes.mapIt(it.point).join(", ") & ".", "")
+      what.add span("  Adds to " & p.contributes.mapIt(it.point).join(", ") & ".")
     rows.add @[
       pkg(p.name),
-      plainCell($p.layer),
-      plainCell($p.depends.len),
-      plainCell($p.dependents.len),
-      plainCell($p.tables.len),
+      plain($p.layer),
+      plain($p.depends.len),
+      plain($p.dependents.len),
+      plain($p.tables.len),
       what,
     ]
-  result = ruledCells(
+  result = ruled(
     @["package", "L", "U", "B", "T", "what it is for"],
     rows,
     width,
     right = {1, 2, 3, 4},
     together = {1, 2, 3},
   )
-  result.add plainCell("")
+  result.add plain("")
   for l in wrap(
     "L: the layer (0 depends on nothing; each package is one above the highest it uses); U: how many packages it uses " &
       "directly; B: how many use it directly; T: how many tables it owns.  Lowest layer first, the most used first in a layer.",
     width,
   ):
-    result.add plainCell(l)
+    result.add plain(l)
 
-func withPackages(inv: Inventory, text: string): Cell =
+func withPackages(inv: Inventory, text: string): Line =
   ## `text` with each name of a package between backticks (`map`) in the style of packages, without the backticks (what
   ## else is between backticks stays as it is: drawn as what is typed).
   var rest = text
@@ -242,73 +237,73 @@ func withPackages(inv: Inventory, text: string): Cell =
       else:
         rest.find('`', a + 1)
     if a < 0 or b < 0:
-      result.add (rest, "")
+      result.add span(rest)
       break
     let inside = rest[a + 1 ..< b]
     if inv.find(inside) >= 0:
-      result.add (rest[0 ..< a], "")
-      result.add (inside, packageStyle)
+      result.add span(rest[0 ..< a])
+      result.add span(inside, "pkg")
     else:
-      result.add (rest[0 .. b], "")
+      result.add span(rest[0 .. b])
     rest = rest[b + 1 .. ^1]
 
-func detailLines*(inv: Inventory, name: string, width: int): seq[Cell] =
-  ## Everything about one package, as styled pieces: the title, the documentation, and the fields in two columns.  `name`
+func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
+  ## Everything about one package, as styled lines: the title, the documentation, and the fields in two columns.  `name`
   ## must be that of a package.
   let at = inv.find(name)
   doAssert at >= 0
   let p = inv.packages[at]
-  func field(label: string, value: Cell): seq[Cell] =
+  func field(label: string, value: Line): seq[Line] =
     ## a row of the fields: the label, a line (drawn in the line style), the value wrapped beside it
-    for i, l in wrapCell(value, max(30, width - 17)):
+    for i, l in value.wrapped(max(30, width - 17)):
       result.add @[
-        ((if i == 0: label.alignLeft(13) else: " ".repeat(13)) & " │ ", "")
+        span((if i == 0: label.alignLeft(13) else: " ".repeat(13)) & " │ ")
       ] & l
   result.add @[
-    ("package ", "em"),
-    (p.name, packageStyle),
-    ("  ", ""),
-    (fmt"layer {p.layer}", lineStyle),
+    span("package ", "em"),
+    span(p.name, "pkg"),
+    span("  "),
+    span(fmt"layer {p.layer}", "hide"),
   ]
   if p.doc.len > 0:
-    result.add plainCell("")
+    result.add plain("")
     for l in rst(p.doc, width).split('\n'):
       result.add inv.withPackages(l)
-    result.add plainCell("")
-  result.add field("source", plainCell(p.path))
+    result.add plain("")
+  result.add field("source", plain(p.path))
   result.add field("depends on", pkgList(p.depends))
   result.add field("used by", pkgList(p.dependents))
-  result.add field("fragments", plainCell(listOf(p.fragments)))
-  result.add field("tables", plainCell(listOf(p.tables)))
-  var reads: Cell
+  result.add field("fragments", plain(listOf(p.fragments)))
+  result.add field("tables", plain(listOf(p.tables)))
+  var reads: Line
   for t in inv.tables:
     if t.owner.normalised != p.name.normalised and (t.everyone or p.name in t.readers):
       if reads.len > 0:
-        reads.add (" ", "")
-      reads.add (t.name & " (", "")
-      reads.add (t.owner, packageStyle)
-      reads.add (")", "")
-  result.add field("may also read", (if reads.len == 0: plainCell("-")
+        reads.add span(" ")
+      reads.add span(t.name & " (")
+      reads.add span(t.owner, "pkg")
+      reads.add span(")")
+  result.add field("may also read", (if reads.len == 0: plain("-")
     else: reads))
   if p.commands.len == 0:
-    result.add field("commands", plainCell("-"))
+    result.add field("commands", plain("-"))
   for c in p.commands:
     result.add field(
-      "command", @[("nch " & c.name, typedStyle), (" - " & c.summary, "")]
+      "command", @[span("nch " & c.name, "cmd"), span(" - " & c.summary)]
     )
   if p.defines.len == 0:
-    result.add field("defines", plainCell("-"))
+    result.add field("defines", plain("-"))
   for d in p.defines:
     var holds = ""
-    var added: Cell # (who adds to it, in the order the contributions are used)
+    var added: Line # (who adds to it, in the order the contributions are used)
     for pt in inv.points:
       if pt.name == d.name:
         holds = pt.typeName
         for k, c in pt.contributors:
           if k > 0:
-            added.add (", ", "")
-          added.add (c.package, packageStyle)
-          added.add (fmt" (priority {c.priority})", "")
+            added.add span(", ")
+          added.add span(c.package, "pkg")
+          added.add span(fmt" (priority {c.priority})")
     let what =
       if holds.len > 0:
         fmt"{d.name} (holds {holds})"
@@ -316,19 +311,19 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Cell] =
         d.name
     result.add field(
       "defines",
-      @[(fmt"{what} - ", "")] & inv.withPackages(d.summary) & @[("; added to by ", "")] &
-        (if added.len == 0: plainCell("nothing") else: added),
+      @[span(fmt"{what} - ")] & inv.withPackages(d.summary) & @[span("; added to by ")] &
+        (if added.len == 0: plain("nothing") else: added),
     )
   var adds: seq[string]
   for c in p.contributes:
     adds.add fmt"{c.point} (priority {c.priority})"
-  result.add field("adds to", plainCell(listOf(adds)))
+  result.add field("adds to", plain(listOf(adds)))
 
-func pointLines*(inv: Inventory, width: int): seq[Cell] =
+func pointLines*(inv: Inventory, width: int): seq[Line] =
   ## Each extension point as a row: who defines it, who adds to it (in the order the contributions are used; a package that
   ## adds more than one is named once, "c ×2"), and what it is.  The type it holds and the priorities are in the detail of
   ## the package that defines it (`detailLines()`).
-  var rows: seq[seq[Cell]]
+  var rows: seq[seq[Line]]
   for pt in inv.points:
     var names: seq[string]
     var counts: seq[int]
@@ -339,33 +334,31 @@ func pointLines*(inv: Inventory, width: int): seq[Cell] =
         counts.add 1
       else:
         inc counts[at]
-    var added: Cell
+    var added: Line
     for k, n in names:
       if k > 0:
-        added.add (", ", "")
-      added.add (n, packageStyle)
+        added.add span(", ")
+      added.add span(n, "pkg")
       if counts[k] > 1:
-        added.add (fmt" ×{counts[k]}", "")
+        added.add span(fmt" ×{counts[k]}")
     rows.add @[
-      plainCell(pt.name),
+      plain(pt.name),
       pkg(pt.owner),
-      (if added.len == 0: plainCell("-") else: added),
-      plainCell(pt.summary),
+      (if added.len == 0: plain("-") else: added),
+      plain(pt.summary),
     ]
-  ruledCells(
-    @["point", "defined by", "added to by (in order)", "what it is"], rows, width
-  )
+  ruled(@["point", "defined by", "added to by (in order)", "what it is"], rows, width)
 
-func tableLines*(inv: Inventory, width: int): seq[Cell] =
+func tableLines*(inv: Inventory, width: int): seq[Line] =
   ## Each table, its owner and the packages that may read it.
-  var rows: seq[seq[Cell]]
+  var rows: seq[seq[Line]]
   for t in inv.tables:
     rows.add @[
-      plainCell(t.name),
+      plain(t.name),
       pkg(t.owner),
-      (if t.everyone: plainCell("every package") else: pkgList(t.readers)),
+      (if t.everyone: plain("every package") else: pkgList(t.readers)),
     ]
-  ruledCells(@["table", "owner", "may read"], rows, width)
+  ruled(@["table", "owner", "may read"], rows, width)
 
 # --- the graphs --------------------------------------------------------------------------------------------------------
 
