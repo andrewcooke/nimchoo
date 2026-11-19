@@ -1,13 +1,13 @@
 import std/[sequtils, strutils, unicode, unittest]
 import nimchoo/packages/util/args/[args, usage]
-from nimchoo/core/theme import typedEnd, typedStart, withoutMarks
+import ../../support/styles
 
 func doc(names: openArray[string], metavar, help: string): OptDoc =
   OptDoc(names: @names, metavar: metavar, help: help)
 
 proc shownOptionLines(docs: seq[OptDoc], width: int): seq[string] =
-  ## The option lines as they are shown without colour (the marks of what is typed take no room).
-  optionLines(docs, width).mapIt(withoutMarks(it))
+  ## The option lines as they are shown without colour.
+  optionLines(docs, width).mapIt(it.text)
 
 suite "usage: wrapping":
   test "lines are broken at spaces, not beyond the width":
@@ -95,16 +95,17 @@ suite "wrap: documentation":
 suite "usage: tables":
   test "the columns line up between lines, the headings over a rule, the last column wrapped under itself":
     let ls = tableLines(
-      @["subject", "frame", "what it is"],
-      @[
-        @["activities", "routes*", "the route of each activity"],
+        @["subject", "frame", "what it is"],
         @[
-          "activities", "heat",
-          "how often each place was visited, in cells of about 100 m",
+          @["activities", "routes*", "the route of each activity"],
+          @[
+            "activities", "heat",
+            "how often each place was visited, in cells of about 100 m",
+          ],
         ],
-      ],
-      60,
-    )
+        60,
+      )
+      .mapIt(it.text)
     check ls[0] == "  subject    │ frame   │ what it is"
     check ls[1].startsWith(
       "  ───────────┼─────────┼────"
@@ -116,26 +117,31 @@ suite "usage: tables":
     check ls.allIt(it.runeLen <= 60)
     check ls[1].runeLen == ls.mapIt(it.runeLen).max # (the rule as wide as the table)
   test "a name with an accent does not upset the columns":
-    let ls = tableLines(@["a", "b"], @[@["Ñuñoa", "x"], @["ab", "y"]], 60)
+    let ls =
+      tableLines(@["a", "b"], @[@["Ñuñoa", "x"], @["ab", "y"]], 60).mapIt(it.text)
     let bar = "│".runeAt(0)
     check ls[2].toRunes.find(bar) == ls[3].toRunes.find(bar)
       # (counted in characters, not bytes)
     check ls[2].toRunes.find(bar) == 8
   test "a narrow width still leaves the last column room":
-    let ls =
-      tableLines(@["a", "b"], @[@["x", "one two three four five six seven eight"]], 10)
+    let ls = tableLines(
+        @["a", "b"], @[@["x", "one two three four five six seven eight"]], 10
+      )
+      .mapIt(it.text)
     check ls.allIt(it.runeLen <= 2 + 1 + 3 + 30)
 
-suite "usage: the options are marked as text to type":
-  test "the names and the value are between the marks, which take no room":
-    let raw = optionLines(@[doc(["-n", "--newest"], "N", "only the N newest")], 80)
-    check raw[0].startsWith("  " & typedStart & "-n, --newest N" & typedEnd & "  only")
-    check withoutMarks(raw[0]) == "  -n, --newest N  only the N newest"
+suite "usage: what is typed is in cmd":
+  test "the names and the value of an option":
+    let ls = optionLines(@[doc(["-n", "--newest"], "N", "only the N newest")], 80)
+    check ls[0] ==
+      @[span("  "), span("-n, --newest N", "cmd"), span("  only the N newest")]
 
-suite "usage: the synopsis is marked as text to type":
-  test "each command line, not usage: nor the indent":
-    let s = synopsisText("usage: nch a [-v]\n       nch a --all")
-    check s ==
-      "usage: " & typedStart & "nch a [-v]" & typedEnd & "\n       " & typedStart &
-      "nch a --all" & typedEnd
-    check withoutMarks(s) == "usage: nch a [-v]\n       nch a --all"
+  test "each command line of the synopsis, not the indent; usage: in em":
+    let ls = synopsisLines("usage: nch a [-v]\n       nch a --all")
+    check ls[0] == @[span("usage:", "em"), span(" "), span("nch a [-v]", "cmd")]
+    check ls[1] == @[span("       "), span("nch a --all", "cmd")]
+    check ls.plainText == "usage: nch a [-v]\n       nch a --all"
+
+  test "the parts of a usage have a blank line between them, and an empty part none":
+    let ls = usageOf(@[plain("a")], newSeq[Line](), @[plain("b"), plain("c")])
+    check ls.plainText == "a\n\nb\nc"

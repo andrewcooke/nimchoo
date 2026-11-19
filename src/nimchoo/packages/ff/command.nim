@@ -49,10 +49,14 @@ activity with an impulse and run up to `--before` (default: the end of today), s
     """The file is made again each time, from the data as they are then; its name is made from the options
 (`ff-default-hourly.csv`), so charts with different options do not overwrite each other."""
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the notes and the options, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) &
-    "\n\n" & optionLines(ffSpec().docs, width).join("\n") & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    proseLines(notes, width),
+    optionLines(ffSpec().docs, width),
+  )
 
 proc hourlyImpulses(
     db: DbConn, userId: UserId, modelId: ModelId
@@ -223,7 +227,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch ff", usageText(helpWidth(stderr)), parsed.problem)

@@ -46,9 +46,7 @@ in the cache directory instead, and prints where.  A click on anything drawn say
     """A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The
 address of the page is the subject's (/map/activities), so a bookmark keeps the subject, not the activities."""
 
-func registryLines(
-    subjects: seq[Subject], all: seq[MapFrame], width: int
-): seq[string] =
+func registryLines(subjects: seq[Subject], all: seq[MapFrame], width: int): seq[Line] =
   ## The subjects and their frames, as a table (from the registry), and what the marks mean.
   var rows: seq[seq[string]]
   var default = ""
@@ -60,20 +58,24 @@ func registryLines(
   if rows.len == 0:
     return
   result = tableLines(@["subject", "frame", "what it is"], rows, width)
-  result.add ""
-  result.add wrap(
+  result.add plain("")
+  for l in wrap(
     fmt"* drawn when `--frames` is not given; the subject is {default} when none is given.",
     width,
-  )
+  ):
+    result.add plain(l)
 
-proc usageText*(g: Globals, width: int): string =
+proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" & prose(notes, width) &
-    "\n\n" & optionLines(mapSpec().docs, width).join("\n") & "\n\n" &
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    proseLines(notes, width),
+    optionLines(mapSpec().docs, width),
     registryLines(
       g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint), width
-    )
-    .join("\n") & "\n"
+    ),
+  )
 
 type Chosen = object
   subject: Subject
@@ -209,7 +211,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(g, helpWidth(stdout))
+    g.showAll osOut, usageText(g, helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch map", usageText(g, helpWidth(stderr)), parsed.problem)

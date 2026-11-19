@@ -68,3 +68,9 @@ suite "lines: wrapping":
   test "a phrase in one style keeps the style over its spaces, across lines too":
     let ls = @[span("x "), span("in a style", "em"), span(" y")].wrapped(80)
     check ls == @[@[span("x "), span("in a style", "em"), span(" y")]]
+
+suite "lines: stripping":
+  test "the spaces at the end go, a span of nothing but spaces too (as unicode.strip leaves it)":
+    check @[span("a"), span("b ", "cmd"), span("  ")].stripped ==
+      @[span("a"), span("b", "cmd")]
+    check plain("   ").stripped.len == 0

@@ -3,7 +3,7 @@
 
 import std/[algorithm, strutils, tables]
 import ./errors
-import ./[access, extension, fragment, names, ownership, manifest, theme]
+import ./[access, extension, fragment, line, names, ownership, manifest]
 export names
 
 {.push raises: [].}
@@ -84,12 +84,15 @@ func collectCommands*(
       result.add c
   result = result.sortedByIt(it.name)
 
-func commandList*(commands: seq[CommandDecl]): string =
-  ## The lines of the usage text that name the commands (they are in the order given, by name), each name
-  ## padded to a column and marked as text to type (`theme.typedStart`: drawn in the style of commands, taking no room).
+func commandList*(commands: seq[CommandDecl]): seq[Line] =
+  ## The lines of the usage text that name the commands (they are in the order given, by name), each name in `cmd`, the
+  ## summaries in a column.
   for c in commands:
-    result.add "  " & typedStart & c.name & typedEnd &
-      " ".repeat(max(1, 12 - c.name.len)) & c.summary & "\n"
+    result.add @[
+      span("  "),
+      span(c.name, "cmd"),
+      span(" ".repeat(max(1, 12 - c.name.len)) & c.summary),
+    ]
 
 func collectPoints*(
     packages: seq[Registered]

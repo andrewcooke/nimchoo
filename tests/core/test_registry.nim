@@ -1,7 +1,8 @@
 ## The ordering of packages (core/registry.nim) and the generator of the registry (tools/genregistry.nim).
 
 import std/[algorithm, os, sequtils, strutils, unittest]
-import nimchoo/core/[extension, globals, manifest, registry, theme]
+import nimchoo/core/[extension, globals, line, manifest, registry]
+import ../support/styles
 import nimchoo/packages/importer/channel
 import nimchoo/core/errors
 import nimchoo/registry as generated
@@ -75,12 +76,12 @@ suite "the commands of the packages":
       check "'x'" in e.msg and "'a'" in e.msg and "'b'" in e.msg
 
   test "the usage list has a line for every command, in order, with its summary":
-    let marked = commandList(
+    let lines = commandList(
       collectCommands(@[provides("a", "zed", "alpha"), provides("b", "mid")])
     )
-    check (typedStart & "alpha" & typedEnd) in marked # (drawn as a command)
-    let text = withoutMarks(marked)
-    check text.splitLines[0 ..< ^1].len == 3
+    check lines.anyIt(span("alpha", "cmd") in it) # (drawn as a command)
+    let text = lines.plainText
+    check lines.len == 3
     check text.contains("  alpha       does alpha\n")
     check text.find("alpha") < text.find("mid") and text.find("mid") < text.find("zed")
 

@@ -2,7 +2,7 @@
 ## with it the data of every user (the cache, which can be made again, is `nch cache`).  Does nothing without
 ## -f; on a terminal it then counts down, in the bad style, so there is time to press Ctrl-C (`-f -f`: no countdown).
 
-import std/[os, strutils]
+import std/os
 import db_connector/db_sqlite
 import ../../core/globals
 import ../util/args/[args, usage]
@@ -27,10 +27,11 @@ const
        nch [--db PATH] db --delete -f"""
   intro = "Without options, say where the database is and how big."
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(dbSpec().docs, width).join("\n") & "\n"
+  usageOf(
+    synopsisLines(synopsis), proseLines(intro, width), optionLines(dbSpec().docs, width)
+  )
 
 proc size(path: string): int64 =
   ## The database file with its journal files.
@@ -59,7 +60,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch db", usageText(helpWidth(stderr)), parsed.problem)

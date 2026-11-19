@@ -34,13 +34,6 @@ suite "globals: what is said, in the theme":
     check g.inTheme(osOut, "see `nch\nclimbs` now") ==
       "see \e[34mnch\e[0m\n\e[34mclimbs\e[0m now"
 
-  test "text between the marks of what is typed is in the typed style; without colour the marks go":
-    var g = Globals(theme: parseTheme("cmd fg=blue"))
-    g.colour[osOut] = true
-    let text = "  " & typedStart & "--all" & typedEnd & "  every one"
-    check g.inTheme(osOut, text) == "  \e[34m--all\e[0m  every one"
-    check g.inTheme(osErr, text) == "  --all  every one"
-
 suite "globals: nothing writes to the terminal behind the theme's back":
   test "only the low-level writers and the output for programs use stdout and stderr themselves":
     # (everything a person reads goes through `g.say`, `g.show` or `g.inTheme`, so that it is in the theme)

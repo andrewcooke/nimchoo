@@ -6,7 +6,7 @@
 ## that escapes is a bug and is left to crash with a trace.
 
 import std/strutils
-import ./[access, extension, fragment, theme]
+import ./[access, extension, fragment, line, theme]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
 
@@ -56,7 +56,7 @@ func inTheme*(g: Globals, o: OutStream, text: string): string =
   ## backticks in their styles (`theme.Drawer`), and a reset at the end of each line, so that nothing runs on; so that all
   ## the text of a command looks alike.
   if not g.colour[o]:
-    return withoutMarks(text)
+    return text
   var d: Drawer
   let lines = text.split('\n')
   for k, line in lines:
@@ -76,12 +76,28 @@ proc say*(g: Globals, o: OutStream, text: string) =
   file(o).say g.inTheme(o, text)
 
 proc sayRendered*(g: Globals, o: OutStream, text: string) =
-  ## Write text that is already drawn (`style.render`: it has its looks) to `o`.
+  ## Write text that is already drawn (`theme.render`: it has its looks) to `o`.
   file(o).say text
 
-proc usageError*(g: Globals, command, usage, problem: string): int {.raises: [].} =
-  ## Report a bad command line.
-  g.say(osErr, command & ": " & problem & "\n" & usage)
+func paintOf*(g: Globals, o: OutStream): Paint =
+  ## How lines are drawn on `o`: in the theme in force, in colour if `o` is.
+  Paint(theme: g.theme, colour: g.colour[o])
+
+proc show*(g: Globals, o: OutStream, line: Line) =
+  ## Write a styled line to `o`, drawn as `o` is.
+  file(o).say render(line, paintOf(g, o)) & "\n"
+
+proc showAll*(g: Globals, o: OutStream, lines: seq[Line]) =
+  ## Write styled lines to `o` (a usage, a table), drawn as `o` is.
+  for l in lines:
+    g.show(o, l)
+
+proc usageError*(
+    g: Globals, command: string, usage: seq[Line], problem: string
+): int {.raises: [].} =
+  ## Report a bad command line: the problem, then the usage.
+  g.say(osErr, command & ": " & problem & "\n")
+  g.showAll(osErr, usage)
   exitUsage
 
 proc failure*(g: Globals, command, problem: string): int {.raises: [].} =

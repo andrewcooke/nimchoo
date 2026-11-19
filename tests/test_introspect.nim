@@ -2,12 +2,13 @@
 
 import std/[options, os, sequtils, strutils, unittest]
 from std/unicode import runeLen
-import nimchoo/core/[globals, registry, theme]
+import nimchoo/core/[globals, registry]
 import nimchoo/introspect
 import nimchoo/packages/util/args/args
 from nimchoo/registry import allAccess, commands, schema
 import nimchoo/packages/db/[statement, store]
 import nimchoo/packages/user/session
+import ./support/styles
 from nimchoo/registry import allFragments
 
 suite "nch packages: the command line":
@@ -44,12 +45,10 @@ suite "nch packages: the command line":
 
   test "every option has help and is in the usage, at any width":
     for width in [50, 80, 120]:
-      let text = usageText(width)
+      let text = usageText(width).plainText
       for line in text.splitLines:
-        if not (
-          line.startsWith("usage: ") or withoutMarks(line).startsWith("       nch ")
-        ):
-          check withoutMarks(line).runeLen <= width
+        if not (line.startsWith("usage: ") or line.startsWith("       nch ")):
+          check line.runeLen <= width
       for d in packagesSpec().docs:
         for n in d.names:
           check n in text

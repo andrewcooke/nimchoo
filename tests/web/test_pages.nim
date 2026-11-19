@@ -3,6 +3,7 @@ import nimchoo/packages/util/args/[args, usage]
 import nimchoo/packages/web/pages
 import nimchoo/packages/web/request
 import nimchoo/packages/web/webopts
+import ../support/styles
 
 let dir = getTempDir() / "nch-test-pages"
 
@@ -63,6 +64,6 @@ suite "serve web options: shared by the commands":
     let docs = spec.docs
     for o in ["--file", "--worker", "--port", "--start", "--new-token"]:
       check docs.anyIt(it.names == @[o] and it.help.len > 0)
-    let text = optionLines(docs, 100).join("\n").splitWhitespace.join(" ")
+    let text = optionLines(docs, 100).plainText.splitWhitespace.join(" ")
     for o in ["the chart", "CSV file", $defaultPort]:
       check o in text

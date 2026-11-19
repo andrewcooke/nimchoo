@@ -52,12 +52,15 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch activities`, described (for tab completion).
   criteriaSpec(g.extensions.get(activityCriterion)).docs
 
-proc usageText*(width: int, offered: seq[Criterion] = @[]): string =
+proc usageText*(width: int, offered: seq[Criterion] = @[]): seq[Line] =
   ## The usage: the synopsis, the introduction, the options (made from their descriptions) and the notes, all wrapped to
   ## `width` (the synopsis lines are not).
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(criteriaSpec(offered).docs, width).join("\n") & "\n\n" &
-    prose(notes, width) & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(criteriaSpec(offered).docs, width),
+    proseLines(notes, width),
+  )
 
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"
@@ -433,7 +436,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args, zone, offered)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout), offered)
+    g.showAll osOut, usageText(helpWidth(stdout), offered)
     return exitOk
   of pkProblem:
     return usageError(

@@ -1,12 +1,12 @@
 ## The option list of a command's usage text, made from the descriptions of its options (`OptDoc`), so that it cannot
 ## differ from what the parser accepts; and the tables a usage shows of what the registry holds (`tableLines`: the subjects
-## and frames of `map`).  A command's usage is its synopsis and introduction, written by hand, then
-## this list, then any closing prose.  Pure: the width to wrap to is given.
+## and frames of `map`).  A command's usage is styled lines (`core/line.nim`): its synopsis and introduction, written by
+## hand, then this list, then any closing prose, put together by `usageOf`.  Pure: the width to wrap to is given.
 
-import std/strutils
-import ../../../core/[ruled, theme, wrap]
+import std/[sequtils, strutils]
+import ../../../core/[line, ruled, wrap]
 import ./args
-export wrap
+export wrap, line
 
 {.push raises: [].}
 
@@ -27,31 +27,37 @@ func label(d: OptDoc): string =
         " " & d.metavar
     )
 
-func marked(l: string): string =
-  ## The label with its names and value marked as text to type (`theme.typedStart`): in colour they are drawn in the style
-  ## of what is typed; the marks take no room, so the columns are those of the plain text.
-  let names = l.strip(trailing = false)
-  " ".repeat(l.len - names.len) & typedStart & names & typedEnd
-
-func synopsisText*(text: string): string =
-  ## The synopsis of a usage with each of its command lines marked as text to type (`theme.typedStart`: drawn in the style
-  ## of commands, taking no room); "usage:" and the indent before the others are not.
-  var lines: seq[string]
+func synopsisLines*(text: string): seq[Line] =
+  ## The synopsis of a usage: "usage:" in `em`, and each command line in `cmd` (the indent before the others is not).
   for l in text.splitLines:
     var lead = l.len - l.strip(trailing = false).len
     if l.startsWith("usage: "):
       lead = "usage: ".len
-    lines.add(
-      if l.strip.len == 0:
-        l
-      else:
-        l[0 ..< lead] & typedStart & l[lead .. ^1] & typedEnd
-    )
-  lines.join("\n")
+    if l.strip.len == 0:
+      result.add plain(l)
+    elif l.startsWith("usage: "):
+      result.add @[span("usage:", "em"), span(" "), span(l[lead .. ^1], "cmd")]
+    else:
+      result.add @[span(l[0 ..< lead]), span(l[lead .. ^1], "cmd")]
 
-func optionLines*(docs: seq[OptDoc], width: int): seq[string] =
-  ## The lines for the options: two spaces, the names and the value (marked as text to type), the help in a column,
-  ## wrapped to `width`.
+func proseLines*(text: string, width: int): seq[Line] =
+  ## Paragraphs wrapped to `width` (`wrap.prose`), as lines.
+  for l in prose(text, width).split('\n'):
+    result.add plain(l)
+
+func heading*(text: string): seq[Line] =
+  ## A heading in a usage ("commands:"), in `em`.
+  @[@[span(text, "em")]]
+
+func usageOf*(parts: varargs[seq[Line]]): seq[Line] =
+  ## A usage made of its parts (the synopsis, the introduction, the options ...), a blank line between each two.
+  for k, p in parts:
+    if k > 0 and p.len > 0:
+      result.add plain("")
+    result.add p
+
+func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
+  ## The lines for the options: two spaces, the names and the value (in `cmd`), the help in a column, wrapped to `width`.
   var labelWidth = 0
   for d in docs:
     let n = label(d).len
@@ -61,23 +67,23 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[string] =
   let helpWidth = max(minHelpWidth, width - column)
   for d in docs:
     let l = label(d)
+    let names = l.strip(trailing = false)
+    let lead = span(" ".repeat(indent + l.len - names.len))
     let help = wrap(d.help, helpWidth)
-    if l.len > maxLabel:
-      result.add " ".repeat(indent) & marked(l)
+    if l.len > maxLabel or help.len == 0:
+      result.add @[lead, span(names, "cmd")]
       for h in help:
-        result.add " ".repeat(column) & h
+        result.add plain(" ".repeat(column) & h)
     else:
       for i, h in help:
         if i == 0:
-          result.add (
-            " ".repeat(indent) & marked(l) & " ".repeat(labelWidth - l.len + gap) & h
-          ).strip(leading = false)
+          let first: Line =
+            @[lead, span(names, "cmd"), span(" ".repeat(labelWidth - l.len + gap) & h)]
+          result.add first.stripped
         else:
-          result.add " ".repeat(column) & h
-      if help.len == 0:
-        result.add " ".repeat(indent) & marked(l)
+          result.add plain(" ".repeat(column) & h)
 
-func tableLines*(header: seq[string], rows: seq[seq[string]], width: int): seq[string] =
+func tableLines*(header: seq[string], rows: seq[seq[string]], width: int): seq[Line] =
   ## A table for a usage text, indented like the options, with lines between the columns and under the headings
   ## (`core/ruled.nim`).
-  ruledLines(header, rows, width, indent)
+  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent)

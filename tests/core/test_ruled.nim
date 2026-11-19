@@ -1,6 +1,19 @@
 import std/[sequtils, strutils, unicode, unittest]
 import nimchoo/core/[line, ruled]
 
+func ruledLines(
+    header: seq[string],
+    rows: seq[seq[string]],
+    width: int,
+    indent = 0,
+    right: set[0 .. 31] = {},
+    together: set[0 .. 31] = {},
+): seq[string] =
+  ## The table of plain cells, as text.
+  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent, right, together).mapIt(
+    it.text
+  )
+
 suite "ruled tables":
   test "lines between the columns, a rule under the headings, crossed where they meet":
     let ls = ruledLines(@["a", "bb", "c"], @[@["xxx", "y", "z"]], 80)

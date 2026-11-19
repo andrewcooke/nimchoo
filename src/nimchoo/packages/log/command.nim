@@ -29,10 +29,14 @@ of those commands.  Several of one kind mean "any of them".  With no names, ever
     """On a terminal the event words have the styles they have in `nch import` (imported good, failed bad, advisory a
 warning, duplicate dimmed: their colours are the theme's, see `nch --theme`)."""
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(logSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(logSpec().docs, width),
+    proseLines(notes, width),
+  )
 
 proc show*(
     path: string, f: Filter, paint: Paint
@@ -68,7 +72,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args, g.commandNames)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch log", usageText(helpWidth(stderr)), parsed.problem)

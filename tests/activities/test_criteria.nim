@@ -11,7 +11,7 @@ import nimchoo/packages/activities/criteria
 import nimchoo/packages/confirm/confirm
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
-from nimchoo/core/theme import withoutMarks
+import ../support/styles
 
 let utcZone = utc()
 
@@ -505,7 +505,7 @@ suite "list: criteria that other packages offer":
     check parseArgs(@["--odd", "x"], utcZone).problem.contains("unexpected option")
   test "it is in the usage":
     check "--odd, -o WORD..." in
-      optionLines(criteriaSpec(@[offered]).docs, 100).join("\n")
+      optionLines(criteriaSpec(@[offered]).docs, 100).plainText
   test "the conditions are joined by the command, with and":
     let c = Criteria()
     let q = matchSql(@[UserId(1)], c, Points(), extra = sqlOf(" and (a.id = 7)"))
@@ -530,15 +530,15 @@ suite "list: the usage":
       check d.help.len > 0
   test "the usage lists every option, at any width":
     for width in [60, 80, 120]:
-      let text = activitiesCommand.usageText(width)
+      let text = activitiesCommand.usageText(width).plainText
       for d in criteriaSpec().docs:
         for n in d.names:
           check n in text
   test "the whole usage fits the width, except the synopsis lines":
     for width in [60, 80, 120]:
-      for l in activitiesCommand.usageText(width).splitLines:
-        if not (l.startsWith("usage: ") or withoutMarks(l).startsWith("       nch ")):
-          check withoutMarks(l).runeLen <= width
+      for l in activitiesCommand.usageText(width).plainText.splitLines:
+        if not (l.startsWith("usage: ") or l.startsWith("       nch ")):
+          check l.runeLen <= width
   test "an option of another package would be listed and parsed from its description":
     let extra = OptDoc(
       names: @["--extra"],
@@ -546,7 +546,7 @@ suite "list: the usage":
       help: "something offered by another package",
       arity: aList,
     )
-    check "--extra WORDS..." in optionLines(criteriaSpec().docs & extra, 100).join("\n")
+    check "--extra WORDS..." in optionLines(criteriaSpec().docs & extra, 100).plainText
 
 suite "list: the criteria of the packages":
   test "no two offered criteria share a name, and none takes the name of an option of the command":
@@ -560,7 +560,7 @@ suite "list: the criteria of the packages":
         check n notin names
   test "the climbs offer --climbs, and it shows in the usage":
     check "--climbs" in
-      activitiesCommand.usageText(100, extensions.get(activityCriterion))
+      activitiesCommand.usageText(100, extensions.get(activityCriterion)).plainText
 
 suite "list: --save":
   test "--save is another name for --select":

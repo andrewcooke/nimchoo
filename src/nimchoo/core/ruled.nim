@@ -68,16 +68,3 @@ func ruled*(
       for r in l.lead.text.runes:
         rule.add(if r == "│".runeAt(0): "┼" else: "─")
       result.add plain(" ".repeat(indent) & rule & "─".repeat(used))
-
-func ruledLines*(
-    header: seq[string],
-    rows: seq[seq[string]],
-    width: int,
-    indent = 0,
-    right: set[0 .. 31] = {},
-    together: set[0 .. 31] = {},
-): seq[string] =
-  ## The same, for cells of text in no style, as lines of text.
-  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent, right, together).mapIt(
-    it.text
-  )

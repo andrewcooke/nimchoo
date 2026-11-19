@@ -4,6 +4,23 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Styled text, done once (done 2026-11-19)
+
+The styling had grown six ways of saying a piece's style: `ui/style` spans (names checked when compiled), markup,
+`core/ruled` cells (names as plain strings, since `core` could not import `ui`), backticks drawn as `cmd`, invisible marks
+(shift out/in, for the option column and synopses, so that columns could be laid out before drawing), and box-drawing
+characters drawn in `hide`.  The cause: help and views were built as strings and styled afterwards.  Chosen (option A of
+three, with B's way of writing): one styled line type in `core/line.nim` (`Span`, `Line`, one wrap, used by the one table,
+`core/ruled.nim`); the drawing (`lookOf`, `render`) in `core/theme.nim` and `show`/`showAll` in `core/globals.nim`, so that
+`usageError` draws a usage; the usages and the views of `nch packages` built as lines (`usage.synopsisLines`,
+`optionLines`, `usageOf`, `heading`; "usage:", "commands:" in `em`), so the marks, `Cell` and `wrapCell` went; the style
+names one list (`line.programStyles`, adding `file`), checked when compiled and tested against the built-in themes;
+markup delimiters `<style text>` instead of `[style text]` (`[` is in every synopsis), values never parsed; backticks
+stay the shorthand for `cmd` in prose.  Rejected: (B) all printed text as markup (values would need escaping), (C) merging
+`Cell` into `Line` only (the marks stay); `(:name ...)` as delimiters (`)` is common in prose).  Found on the way: in Nim
+2.4.0 `unicode.strip(s, leading = false)` leaves a string of only spaces as it is (`strutils.strip` does not), so
+`line.nim` takes only the rune functions from `unicode`.
+
 ## Styles, themes and markup (done 2026-11-18)
 
 Colour on the terminal was a fixed palette of six colours named in code (`ui/palette.nim`, `span(text, red, bold = true)`).

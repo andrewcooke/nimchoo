@@ -3,7 +3,7 @@
 ## does); `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
 ## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
-import std/[options, strutils, times]
+import std/[options, times]
 import ../../core/globals
 import ../db/store
 import ../user/session
@@ -56,10 +56,14 @@ over part of a climb but not all of it makes a climb of its own."""
   notes =
     "The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are \"yours\".)"
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(climbSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(climbSpec().docs, width),
+    proseLines(notes, width),
+  )
 
 func noteRetired(count: int): string =
   $count & (if count == 1: " climb is retired" else: " climbs are retired") &
@@ -123,7 +127,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch climbs", usageText(helpWidth(stderr)), parsed.problem)

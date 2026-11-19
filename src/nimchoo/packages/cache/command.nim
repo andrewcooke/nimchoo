@@ -26,20 +26,26 @@ const
     """Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made
 again when it is needed (so deleting it needs no `-f`, and nothing in the database changes)."""
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.
-  result =
-    synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(cacheSpec().docs, width).join("\n") & "\n\nThe kinds:\n"
+  var kinds = heading("The kinds:")
   for k in Kind:
-    result.add "  " & alignLeft($k, 10) & kindHelp[k] & "\n"
+    kinds.add @[
+      span("  "), span($k, "cmd"), span(" ".repeat(10 - len($k)) & kindHelp[k])
+    ]
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(cacheSpec().docs, width),
+    kinds,
+  )
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch cache ARGS`; returns the exit status.
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch cache", usageText(helpWidth(stderr)), parsed.problem)

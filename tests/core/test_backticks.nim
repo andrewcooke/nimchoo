@@ -1,7 +1,7 @@
 ## What a person would type (an option, a command) is between backticks in every text the program shows, so that it is drawn
 ## in the style of what is typed (`theme.typedStyle`; without colour, the backticks mark it).  This test reads the string
 ## literals of the source and fails on any option (`-v`, `--names`) in the prose outside backticks, so that a new text
-## cannot forget them.  Synopses (a literal starting `usage: `) are marked another way (`usage.synopsisText`), and two files
+## cannot forget them.  Synopses (a literal starting `usage: `) are drawn in `cmd` another way (`usage.synopsisLines()`), and two files
 ## hold literals that are not prose: the completion script (shell) and the git command lines of `version.nim`.
 
 import std/[os, sequtils, strutils, unittest]

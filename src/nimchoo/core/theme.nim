@@ -11,7 +11,7 @@
 
 import std/[options, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
-import ./errors
+import ./[errors, line]
 
 {.push raises: [].}
 
@@ -255,16 +255,6 @@ const
     ## the style of what is between backticks, wherever it is: a command, an option, a path, what a person would type (in
     ## colour the backticks are left out: the style marks it; without colour they are the mark)
 
-const
-  typedStart* = "\x0e"
-    ## (shift out) with `typedEnd`, marks text to type, as backticks do, but taking no room either way: for text laid out
-    ## in columns before it is drawn (the options of a usage).  In colour it is in `typedStyle`; without, the marks go.
-  typedEnd* = "\x0f" ## (shift in)
-
-func withoutMarks*(text: string): string =
-  ## `text` without the marks of `typedStart` and `typedEnd`: as it is shown without colour.
-  text.multiReplace((typedStart, ""), (typedEnd, ""))
-
 func isLineDrawing*(r: Rune): bool =
   ## Whether `r` is a box-drawing character (U+2500 to U+257F).
   int32(r) in 0x2500'i32 .. 0x257F'i32
@@ -288,10 +278,7 @@ func draw*(d: var Drawer, theme: Theme, look: Look, text: string) =
     if r == Rune('`'):
       d.inTyped = not d.inTyped
       continue # (in colour the style marks it: the backtick is not drawn)
-    if r == Rune(typedStart[0]) or r == Rune(typedEnd[0]):
-      d.inTyped = r == Rune(typedStart[0])
-      continue
-    elif r.isLineDrawing:
+    if r.isLineDrawing:
       want = lines
     elif d.inTyped:
       want = typed
@@ -307,3 +294,32 @@ func endLine*(d: var Drawer) =
   if d.inForce.len > 0:
     d.text.add "\e[0m"
     d.inForce = ""
+
+type Paint* = object
+  ## how lines are drawn: the theme in force, and whether in colour at all
+  theme*: Theme
+  colour*: bool
+
+func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
+  ## How text in `styles` looks: the theme's base look with each style over it in turn (`default` goes back to the base;
+  ## a style the theme lacks changes nothing).
+  let base = baseLook(theme)
+  result = base
+  for s in styles:
+    if $s == defaultStyle:
+      result = base
+    else:
+      result = result.over(theme.styles.getOrDefault($s))
+
+func render*(line: Line, paint: Paint): string =
+  ## The line as text for a terminal: each look is started (if in colour) where it begins and reset where it ends, and the
+  ## line ends with a reset, so that nothing runs on to the next line.  Spans side by side that look the same share one.
+  ## The lines of a table or a tree in a span (`│ ─ ├`), and what is between backticks, are in their styles over the span's
+  ## own (`Drawer`).
+  if not paint.colour:
+    return line.text
+  var d: Drawer
+  for s in line:
+    d.draw(paint.theme, lookOf(paint.theme, s.styles), s.text)
+  d.endLine()
+  d.text

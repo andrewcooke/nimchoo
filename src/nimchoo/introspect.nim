@@ -229,9 +229,12 @@ package that depends on nothing), how many packages it uses and is used by, how 
 provides: commands, extension points it defines, and the points it adds to.  With the name of a package, its documentation
 and everything else about it."""
 
-proc usageText*(width: int): string =
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(packagesSpec().docs, width).join("\n") & "\n"
+proc usageText*(width: int): seq[Line] =
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(packagesSpec().docs, width),
+  )
 
 # --- the settings ------------------------------------------------------------------------------------------------------
 
@@ -352,7 +355,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch packages", usageText(helpWidth(stderr)), parsed.problem)

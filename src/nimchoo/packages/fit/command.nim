@@ -1,6 +1,6 @@
 ## `nch fit`: read a FIT file and dump it as text or as SDK-format CSV.
 
-import std/[options, strutils, times]
+import std/[options, times]
 import ../util/bytes/bytes
 import ./time
 import ../../core/globals
@@ -26,10 +26,13 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch fit`, described (for tab completion).
   fitSpec().docs
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(fitSpec().docs, width).join("\n") & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(fitSpec().docs, width),
+  )
 
 const isoFormat = "yyyy-MM-dd'T'HH:mm:ss"
 
@@ -102,7 +105,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.problem)

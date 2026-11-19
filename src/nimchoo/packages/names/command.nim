@@ -41,11 +41,14 @@ holds the place comes before every name GeoNames has.  Without options, list the
   notes =
     "Landmarks are shared by all users (as the climbs are), so `--user` goes nowhere here."
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(landmarkSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) &
-    "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(landmarkSpec().docs, width),
+    proseLines(notes, width),
+  )
 
 func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
   var cells = @[@["", "name", "kind", "position", (if withDistance: "from" else: "")]]
@@ -70,7 +73,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch landmarks", usageText(helpWidth(stderr)), parsed.problem)

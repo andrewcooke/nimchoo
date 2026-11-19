@@ -29,10 +29,13 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch import`, described (for tab completion).
   importSpec().docs
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(importSpec().docs, width).join("\n") & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(importSpec().docs, width),
+  )
 
 {.push raises: [].}
 
@@ -208,7 +211,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch import", usageText(helpWidth(stderr)), parsed.problem)

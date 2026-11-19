@@ -110,11 +110,14 @@ func headSpec(): Spec[Head] =
     ]
   )
 
-proc usageText(width: int): string =
+proc usageText(width: int): seq[Line] =
   ## The usage: the options every command takes, and the commands.
-  synopsisText("usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]") & "\n\n" &
-    optionLines(headSpec().docs, width).join("\n") & "\n\ncommands:\n" &
-    commandList(allCommands) & "\nFor more about a command: `nch COMMAND --help`.\n"
+  usageOf(
+    synopsisLines("usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]"),
+    optionLines(headSpec().docs, width),
+    heading("commands:") & commandList(allCommands),
+    @[plain("For more about a command: `nch COMMAND --help`.")],
+  )
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
@@ -150,7 +153,7 @@ proc main(): int {.raises: [].} =
   if why.isSome:
     return usageError(g, "nch", usageText(helpWidth(stderr)), why.get)
   if head.help:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   if head.version:
     g.say osOut, versionString & "\n"
@@ -163,11 +166,11 @@ proc main(): int {.raises: [].} =
     of acShow:
       return showMain(job.shell)
   if i >= args.len:
-    g.say osErr, usageText(helpWidth(stderr))
+    g.showAll osErr, usageText(helpWidth(stderr))
     return exitUsage
   let rest = args[i + 1 .. ^1]
   if args[i] == "help":
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)

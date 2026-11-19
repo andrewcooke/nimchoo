@@ -8,7 +8,8 @@
 ## is compiled (`span("failed", "bad")`, `styleName"select"`): a misspelt style is a compile error.  The built-in themes
 ## define them all (a test checks); a theme that lacks one draws its text as the text around it.
 
-import std/[strutils, unicode]
+import std/strutils
+from std/unicode import runeLen, runeSubStr
 
 {.push raises: [].}
 

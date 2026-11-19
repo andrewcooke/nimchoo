@@ -31,7 +31,7 @@ colour, or a * without colour), as are the months that were left out."""
 
 func registryLines(
     subjects: seq[Subject], all: seq[CalendarFrame], width: int
-): seq[string] =
+): seq[Line] =
   ## The subjects that have a calendar, as a table (from the registry), and which is the default.
   var rows: seq[seq[string]]
   var default = ""
@@ -43,17 +43,20 @@ func registryLines(
   if rows.len == 0:
     return
   result = tableLines(@["subject", "what is marked"], rows, width)
-  result.add ""
-  result.add wrap(fmt"The subject is {default} when none is given.", width)
+  result.add plain("")
+  for l in wrap(fmt"The subject is {default} when none is given.", width):
+    result.add plain(l)
 
-proc usageText*(g: Globals, width: int): string =
+proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the introduction, the options and the subjects that have a calendar, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(calendarSpec().docs, width).join("\n") & "\n\n" &
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(calendarSpec().docs, width),
     registryLines(
       g.extensions.get(subjectPoint), g.extensions.get(calendarFramePoint), width
-    )
-    .join("\n") & "\n"
+    ),
+  )
 
 type Chosen* = object ## the subject and its frame
   subject*: Subject
@@ -109,7 +112,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(g, helpWidth(stdout))
+    g.showAll osOut, usageText(g, helpWidth(stdout))
     return exitOk
   of pkProblem:
     return

@@ -7,7 +7,6 @@ import nimchoo/packages/ui/style
 import nimchoo/packages/user/session
 import nimchoo/packages/util/args/args
 import ../support/styles
-from nimchoo/core/theme import withoutMarks
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 
 let dir = getTempDir() / "nch-test-calendar-cmd"
@@ -73,15 +72,15 @@ suite "nch calendar: the command line":
   test "every option has help and is in the usage":
     for d in calendarSpec().docs:
       check d.help.len > 0
-    let text = calendarCommand.usageText(g, 80)
+    let text = calendarCommand.usageText(g, 80).plainText
     for d in calendarSpec().docs:
       for n in d.names:
         check n in text
   test "the whole usage fits the width, except the synopsis":
     for width in [50, 80]:
-      for l in calendarCommand.usageText(g, width).splitLines:
+      for l in calendarCommand.usageText(g, width).plainText.splitLines:
         if not l.startsWith("usage: "):
-          check withoutMarks(l).runeLen <= width
+          check l.runeLen <= width
   test "exit codes":
     check calendarCommand.run(g, @["--help"]) == exitOk
     check calendarCommand.run(g, @["--nonesuch"]) == exitUsage

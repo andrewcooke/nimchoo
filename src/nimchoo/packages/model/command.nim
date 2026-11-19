@@ -30,10 +30,13 @@ const
 fitness and fatigue curves made from it.  A model is never changed once it is made: add another.  Variables not given
 are those of the `default` model."""
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(modelSpec().docs, width).join("\n") & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(modelSpec().docs, width),
+  )
 
 func zones(m: Model): string =
   for i, z in m.zones:
@@ -81,7 +84,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch models", usageText(helpWidth(stderr)), parsed.problem)

@@ -37,10 +37,14 @@ const
 are named after the command, not by `--user` before it.)"""
   notes = "Names have 1 to 32 letters, digits and _ . - (not starting with -)."
 
-proc usageText*(width: int): string =
+proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  synopsisText(synopsis) & "\n\n" & prose(intro, width) & "\n\n" &
-    optionLines(userSpec().docs, width).join("\n") & "\n\n" & prose(notes, width) & "\n"
+  usageOf(
+    synopsisLines(synopsis),
+    proseLines(intro, width),
+    optionLines(userSpec().docs, width),
+    proseLines(notes, width),
+  )
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0
@@ -99,7 +103,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.say osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
     return usageError(g, "nch users", usageText(helpWidth(stderr)), parsed.problem)
