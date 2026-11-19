@@ -46,7 +46,8 @@ suite "activities frame on a calendar":
       s.close()
     let made = frame().make(s)
     check made.marks == @[UnixTime(1530446400)]
-    check made.summary.text.startsWith("done: 1 activity")
+    check made.summary.text.startsWith("done: 1 of 2 activities,") and
+      "match selected" notin made.summary.text
 
   test "every table the frame reads is in its declaration":
     let s =

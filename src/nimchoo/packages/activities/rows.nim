@@ -67,6 +67,14 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       position: startText(r.lat, r.lon),
     )
 
+proc activityCount*(st: Session): int {.raises: [StoreError].} =
+  ## How many activities the user has.
+  st.db.scalar(
+    int,
+    "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :userId",
+    userId = st.userId,
+  )
+
 proc selectionRows*(st: Session, verbose: bool): seq[ListRow] {.raises: [StoreError].} =
   ## The activities in the user's selection, oldest first.
   readRows(

@@ -16,7 +16,9 @@ import ./[rows, table]
 proc makeCalendar(st: Session): CalendarData {.raises: [StoreError].} =
   let rows = selectionRows(st, false)
   CalendarData(
-    marks: rows.mapIt(it.startT), summary: footerLine(rows, none(int), selectedStyle)
+    marks: rows.mapIt(it.startT),
+    summary:
+      footerLine(rows, some(activityCount(st)), selectedStyle, isSelection = true),
   )
 
 proc activityStarts(st: Session): seq[UnixTime] {.raises: [StoreError].} =

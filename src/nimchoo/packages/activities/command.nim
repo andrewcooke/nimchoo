@@ -119,10 +119,11 @@ proc listing(
     choices: Option[int],
     saved = none(int),
     marks = false,
+    isSelection = false,
 ): seq[Line] =
   ## The table and its last line (`marks`: the selection in brackets, where there is no colour).
   result = table(rows, zone, c.verbose, width, marks)
-  result.add footerLine(rows, choices, selectedStyle, saved)
+  result.add footerLine(rows, choices, selectedStyle, saved, isSelection)
 
 proc showSelection*(
     st: Session, c: Criteria, zone: Timezone, width: int, marks = false
@@ -135,7 +136,9 @@ proc showSelection*(
         "nothing is selected: `nch activities --all` lists every activity; with criteria and `--select` some are chosen"
       )
     ]
-  result = listing(rows, zone, width, c, none(int), marks = marks)
+  result = listing(
+    rows, zone, width, c, some(activityCount(st)), marks = marks, isSelection = true
+  )
 
 proc latestAmong(
     st: Store, match: Sql
@@ -385,11 +388,7 @@ proc listActivities*(
     # --select everything listed is; with --all, the activities that are selected among them all)
     for r in rows.mitems:
       r.selected = false
-  let total = st.db.scalar(
-    int,
-    "select count(*) from activity a join file f on f.id = a.file_id where f.user_id = :userId",
-    userId = st.userId,
-  )
+  let total = activityCount(st)
   result.lines.add listing(
     rows,
     zone,

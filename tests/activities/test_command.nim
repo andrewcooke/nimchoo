@@ -645,8 +645,8 @@ suite "list: what is shown":
       st.close()
     let again = showSelection(st, Criteria(), utc(), 120)
     check again.texts[2].startsWith("2018-08-27 12:00 │ running")
-    check again.texts[^1].startsWith("done: 1 activity, 1 match selected,")
-      # (no "of": nothing was chosen from)
+    check again.texts[^1].startsWith("done: 1 of 2 activities,") and
+      "match selected" notin again.texts[^1] # (no "of": nothing was chosen from)
 
   test "an empty selection, and a list with nothing in it":
     let db = world("shownempty")

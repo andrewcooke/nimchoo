@@ -134,7 +134,7 @@ proc table*(
     )
 
 func footer*(rows: seq[ListRow], choices = none(int)): string =
-  ## "42 of 310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many
+  ## "42 of 1,310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many (with commas, as every count)
   ## (of how many there are to choose from, if known), the total distance and active
   ## time (of those that have them), and how many of each sport if there are several.
   var metres, seconds = 0.0
@@ -147,11 +147,11 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     bySport.inc(if r.sport.len > 0: r.sport else: "unknown")
   let ofAll =
     if choices.isSome:
-      fmt" of {choices.get}"
+      " of " & insertSep($choices.get, ',')
     else:
       ""
   let noun = if rows.len == 1 and choices.isNone: "activity" else: "activities"
-  result = fmt"{rows.len}{ofAll} {noun}"
+  result = insertSep($rows.len, ',') & fmt"{ofAll} {noun}"
   if rows.len == 0:
     return
   result.add fmt", {km(metres)}, {interval(seconds)}"
@@ -169,17 +169,22 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     result.add fmt" ({text.join("", "")})"
 
 func footerLine*(
-    rows: seq[ListRow], choices = none(int), style = selectedStyle, saved = none(int)
+    rows: seq[ListRow],
+    choices = none(int),
+    style = selectedStyle,
+    saved = none(int),
+    isSelection = false,
 ): Line =
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
   ## the activities are in the selection, ", 35 match selected" follows the count, the words (not the comma) in the style
   ## the selected ones have in the display (the rows of the table, the days of the calendar):
   ## "done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m".
   ## With `saved` (the listing was kept as the selection) it says so there, in one line with the rest:
-  ## "done: 1 of 1112 activities, 1 saved as the selection, 95.4km, 5h24m".
+  ## "done: 1 of 1112 activities, 1 saved as the selection, 95.4km, 5h24m".  When the rows are the selection
+  ## (`isSelection`), that every one is selected goes without saying: "done: 11 of 1,113 activities, 1,057.9km, 2d10h52m".
   let text = footer(rows, choices)
   let selected = rows.countIt(it.selected)
-  if selected == 0 and saved.isNone:
+  if (selected == 0 or isSelection) and saved.isNone:
     return plain(fmt"done: {text}")
   let split = text.find(", ") # the count comes first; the rest follows a comma
   let head =

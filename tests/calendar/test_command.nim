@@ -99,8 +99,7 @@ suite "nch calendar: what it shows":
     check ls.texts.filterIt(it.startsWith("Aug ")).len == 0
     let jul = ls.filterIt(it.text.startsWith("Jul "))[0]
     check jul.anyIt(styleOf(it) == "select" and it.text == "01")
-    check ls.texts[^1].startsWith("done: 1 activity")
-      # (the activities' frame sums them up)
+    check ls.texts[^1].startsWith("done: 1 of ") # (the activities' frame sums them up)
 
   test "months left out are warned of, until -v shows them":
     let s = world("skip")
