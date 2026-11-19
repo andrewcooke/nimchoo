@@ -156,7 +156,9 @@ the cells are wider and carry marks, so nothing is lost.
 
 The calendar is a view and knows no subject: it defines the point `calendar/frames` (`frames.nim`), to which the package
 that manages a subject contributes the frame of it (`activities`: the days of the selected activities, and the line that
-sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.""",
+sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.  Under every
+frame it draws the days of `calendar/background` (`activities`: the days any activity started on), so that the marked days
+are seen among the days you rode.""",
       path: "src/nimchoo/packages/calendar/",
     ),
     Registered(

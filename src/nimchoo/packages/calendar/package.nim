@@ -7,7 +7,9 @@
 ##
 ## The calendar is a view and knows no subject: it defines the point `calendar/frames` (`frames.nim`), to which the package
 ## that manages a subject contributes the frame of it (`activities`: the days of the selected activities, and the line that
-## sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.
+## sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.  Under every
+## frame it draws the days of `calendar/background` (`activities`: the days any activity started on), so that the marked days
+## are seen among the days you rode.
 
 import ../../core/[extension, manifest]
 import ./[command, frames]
@@ -27,6 +29,11 @@ const package* = Package(
       name: calendarFramePoint.name,
       summary:
         "the frame of a subject on a calendar, contributed by the package that manages it: the instants whose days are marked, and a last line",
-    )
+    ),
+    PointDecl(
+      name: calendarBackgroundPoint.name,
+      summary:
+        "the days drawn under every frame, whatever the subject: the instants whose days are drawn plain, not dimmed (the activities)",
+    ),
   ],
 )

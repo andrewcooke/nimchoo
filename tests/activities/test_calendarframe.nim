@@ -59,3 +59,28 @@ suite "activities frame on a calendar":
     check read.len > 0
     for t in read:
       check t in frame().tables
+
+suite "activities: the background of every calendar":
+  proc background(): CalendarBackground =
+    let all = extensions.get(calendarBackgroundPoint)
+    doAssert all.len == 1
+    all[0]
+
+  test "the start of every activity of the user, selected or not":
+    let s = openSession(world("background"), allFragments, access = allAccess)
+    defer:
+      s.close()
+    check background().make(s) == @[UnixTime(1530446400), UnixTime(1535371200)]
+
+  test "every table the background reads is in its declaration":
+    let s = openSession(
+      world("background-declared"), allFragments, access = newAllAccess(amEnforce)
+    )
+    defer:
+      s.close()
+    startRecording()
+    discard background().make(s)
+    let read = stopRecording()
+    check read.len > 0
+    for t in read:
+      check t in background().tables

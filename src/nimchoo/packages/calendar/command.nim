@@ -89,20 +89,28 @@ proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
     let months = if n == 1: "month" else: "months"
     result.add @[
       span(
-        fmt"warning: {n} {months} with no activity omitted; use `--verbose` to show them",
+        fmt"warning: {n} {months} with nothing marked omitted; use `--verbose` to show them",
         "warn",
       )
     ]
 
 proc lines*(
-    st: Session, c: Chosen, p: Params, zone: Timezone, screen: Screen
+    st: Session,
+    c: Chosen,
+    backgrounds: seq[CalendarBackground],
+    p: Params,
+    zone: Timezone,
+    screen: Screen,
 ): seq[Line] {.raises: [StoreError].} =
-  ## The calendar of the subject, and its last lines.
+  ## The calendar of the subject over the days of the `backgrounds` (`calendar/background`), and its last lines.
   if c.frame.readsSelection and c.subject.selected(st) == 0:
     return
       @[plain(fmt"the selection of {c.subject.name} is empty ({c.subject.emptyHint})")]
   let made = c.frame.make(st)
-  result = calendarLines(made.marks, zone, p.verbose, screen)
+  var background: seq[UnixTime]
+  for b in backgrounds:
+    background.add b.make(st)
+  result = calendarLines(made.marks, background, zone, p.verbose, screen)
   result.add made.summary
   if not p.verbose:
     result.add skippedWarning(made.marks, zone)
@@ -142,7 +150,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           0,
     )
-    for l in lines(st, chosen.params, p, local(), screen):
+    for l in lines(
+      st, chosen.params, g.extensions.get(calendarBackgroundPoint), p, local(), screen
+    ):
       g.sayRendered osOut, render(l, paint) & "\n"
     exitOk
   except StoreError as e:

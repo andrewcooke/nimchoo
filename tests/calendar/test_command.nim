@@ -1,7 +1,8 @@
 import std/[options, os, sequtils, strutils, times, unittest]
 from std/unicode import runeLen
 import nimchoo/core/globals
-import nimchoo/packages/calendar/[calendar, command as calendarCommand, params]
+import nimchoo/packages/calendar/[calendar, command as calendarCommand, frames, params]
+import nimchoo/core/extension
 import nimchoo/packages/db/statement
 import nimchoo/packages/ui/style
 import nimchoo/packages/user/session
@@ -50,7 +51,9 @@ let g = Globals(fragments: allFragments, access: allAccess, extensions: extensio
 proc shown(s: Session, args: varargs[string]): seq[Line] =
   ## The lines `nch calendar ARGS` shows, in UTC.
   let p = parseArgs(@args).params
-  lines(s, choose(g, p).params, p, utc(), screen)
+  lines(
+    s, choose(g, p).params, g.extensions.get(calendarBackgroundPoint), p, utc(), screen
+  )
 
 suite "nch calendar: the command line":
   test "-v; --all is gone (the calendar is of the selection)":
@@ -112,7 +115,7 @@ suite "nch calendar: what it shows":
     ) # (both are selected now)
     let ls = s.shown()
     check ls.texts[^1] ==
-      "warning: 4 months with no activity omitted; use `--verbose` to show them"
+      "warning: 4 months with nothing marked omitted; use `--verbose` to show them"
     check styleOf(ls[^1][0]) == "warn"
     let all = s.shown("-v")
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4

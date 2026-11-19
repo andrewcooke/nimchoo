@@ -5,7 +5,8 @@
 ##     Jan                01 02 03 04 05 06 07 08 09 10 11 12 ...                      2018
 ##     Feb       01 02 03 04 05 06 07 08 ...                                           2018
 ##
-## A day is in the selection's style if a mark (an instant: when an activity started, say) falls on it, hidden if none does.  Days are the days of
+## A day is in the selection's style if a mark (an instant: when a selected activity started, say) falls on it, plain if
+## only one of the background does (any activity started on it), and hidden if neither does.  Days are the days of
 ## the time zone given (the user's, for display).  Pure: the marks, the zone and the screen are parameters.
 ##
 ## Only the months with a mark are shown (all the months from the first to the last with
@@ -13,7 +14,7 @@
 ## either side of a gap are in the warning style (with a `*` after them when there is no colour).
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
-## with a mark `" [34]"`, a day with none `"  -- "`.
+## with a mark `" [34]"`, a day of the background `"  34 "`, a day with neither `"  -- "`.
 
 import std/[algorithm, sequtils, sets, strformat, strutils, times]
 import ../fit/time
@@ -46,18 +47,29 @@ func calendarWidth*(s: Screen): int =
 func two(n: int): string =
   intToStr(n, 2)
 
-func dayCell(day: int, listed: bool, s: Screen): Span =
-  ## A day: with a mark (`listed`) or not.  With colour it is the two digits (the spaces between days are the line's: see
+type DayKind = enum
+  dkNone ## nothing on it
+  dkBackground ## a day of the background (an activity), not marked
+  dkMarked ## a mark falls on it
+
+func dayCell(day: int, kind: DayKind, s: Screen): Span =
+  ## A day, by what falls on it.  With colour it is the two digits (the spaces between days are the line's: see
   ## `calendarLines`).
   if s.colour:
-    if listed:
+    case kind
+    of dkMarked:
       span(two(day), selectedStyle)
-    else:
+    of dkBackground:
+      span(two(day))
+    of dkNone:
       span(two(day), "hide")
   else:
-    if listed:
+    case kind
+    of dkMarked:
       span(fmt" [{two(day)}]")
-    else:
+    of dkBackground:
+      span(fmt"  {two(day)} ")
+    of dkNone:
       span("  -- ")
 
 proc monthsOf(marks: seq[UnixTime], zone: Timezone): seq[int] =
@@ -77,17 +89,21 @@ proc skippedMonths*(marks: seq[UnixTime], zone: Timezone): int =
     result = months[^1] - months[0] + 1 - months.len
 
 proc calendarLines*(
-    marks: seq[UnixTime], zone: Timezone, allMonths: bool, screen: Screen
+    marks, background: seq[UnixTime], zone: Timezone, allMonths: bool, screen: Screen
 ): seq[Line] =
-  ## The calendar of the marks: a header of weekday names, then a row for each month that has a
-  ## mark (or, with `allMonths`, for every month from the first to the last).  If the lines
-  ## are wider than the screen, a warning comes first and each line is cut to the screen.
+  ## The calendar of the marks, over the days of the `background`: a header of weekday names, then a row for each month
+  ## that has a mark (or, with `allMonths`, for every month from the first to the last).  If the lines are wider than the
+  ## screen, a warning comes first and each line is cut to the screen.
   if marks.len == 0:
     return
-  var listed: HashSet[int] # the days with a mark: year*10000 + month*100 + day
-  for t in marks:
-    let d = t.toTime.inZone(zone)
-    listed.incl d.year * 10000 + ord(d.month) * 100 + d.monthday
+  proc daysOf(ts: seq[UnixTime], zone: Timezone): HashSet[int] =
+    ## the days the instants fall on: year*10000 + month*100 + day
+    for t in ts:
+      let d = t.toTime.inZone(zone)
+      result.incl d.year * 10000 + ord(d.month) * 100 + d.monthday
+
+  let listed = daysOf(marks, zone)
+  let active = daysOf(background, zone)
   var months = monthsOf(marks, zone) # year*12 + (month - 1)
   if allMonths:
     months = toSeq(months[0] .. months[^1])
@@ -120,9 +136,15 @@ proc calendarLines*(
       if day < 1 or day > days:
         line.add span(" ".repeat(if screen.colour: 2 else: cw))
       else:
-        line.add dayCell(
-          day, year * 10000 + (m mod 12 + 1) * 100 + day in listed, screen
-        )
+        let key = year * 10000 + (m mod 12 + 1) * 100 + day
+        let kind =
+          if key in listed:
+            dkMarked
+          elif key in active:
+            dkBackground
+          else:
+            dkNone
+        line.add dayCell(day, kind, screen)
     if screen.colour:
       line.add span(" ")
       # a space next to a marked day is marked too, so that a marked day, or a run of them, is a band (" 05 06 "), not
