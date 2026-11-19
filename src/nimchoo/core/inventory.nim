@@ -425,7 +425,7 @@ func tableLines*(inv: Inventory, width: int): seq[Line] =
       pkg(t.owner),
       (if t.everyone: plain("every package") else: pkgList(t.readers)),
     ]
-  ruled(@["table", "owner", "may read"], rows, width)
+  ruled(@["table", "owner package", "packages with access"], rows, width)
 
 # --- the graphs --------------------------------------------------------------------------------------------------------
 
