@@ -35,7 +35,7 @@ func marked(l: string): string =
 
 func synopsisText*(text: string): string =
   ## The synopsis of a usage with each of its command lines marked as text to type (`theme.typedStart`: drawn in the style
-  ## of commands, taking no room); `usage: ` and the indent before the others are not.
+  ## of commands, taking no room); "usage:" and the indent before the others are not.
   var lines: seq[string]
   for l in text.splitLines:
     var lead = l.len - l.strip(trailing = false).len
