@@ -47,14 +47,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Queued by the author (2026-11-18), in order
 
-* Titles in `em` ("package ui  (layer 0)", and other obvious titles).
-* The fields at the bottom of `nch packages NAME` as a table, a bar in `hide` between label and value ("added to by" then a row
-  of its own, not an indent).
-* `web`'s documentation: drop "**One server for every page**" (the text after says it; `**` shows as is).
+* Package names in a style of their own, `pkg` (the author's dark theme has one), in the views of `nch packages`.
 * `libraries.txt` (web: the libraries the pages load from a CDN) gets a name of its own, as the themes did (`.theme`); not
   `.manifest`, which the cache's record of what was unpacked is already called.
-* `nch packages web` says where the cache lives (its documentation, pointing to `nch packages --config` for the directory in
-  force).
 
 ## Features and ideas, unordered
 
