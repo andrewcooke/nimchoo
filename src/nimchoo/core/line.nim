@@ -25,6 +25,7 @@ const
     "cmd", ## what a person would type: a command, an option (what is between backticks)
     "pkg", ## the name of a package
     "file", ## the path of a file or a directory
+    "extn", ## the name of an extension point
   ]
   altPrefix* = "alt-"
     ## every other row of a table that asks for it (`alternated`) is in the alt version of each style: `alt-default` for

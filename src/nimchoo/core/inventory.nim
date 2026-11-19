@@ -186,6 +186,16 @@ func counted(items: seq[tuple[name: string, priority: int]]): seq[string] =
       text.add " (priority " & priorities[k].mapIt($it).join(", ") & ")"
     result.add unbroken(text)
 
+func namedList(items: seq[string], style: StyleName, between = ", "): Line =
+  ## Items of `counted()` (or plain names), the name of each in `style` and what follows it ("×2", the priorities) not.
+  for k, it in items:
+    if k > 0:
+      result.add span(between)
+    let name = it.split(noBreak)[0]
+    result.add span(name, style)
+    if name.len < it.len:
+      result.add span(it[name.len .. ^1])
+
 func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
   ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
   ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
@@ -210,10 +220,9 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
       defines.add @[span("nch " & c.name, "cmd")] # (a command is never named alone)
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
-      defines.add plain(
-        (if points.len == 1: "the extension point " else: "the extension points ") &
-          points.join(", ")
-      )
+      defines.add @[
+        span(if points.len == 1: "the extension point " else: "the extension points ")
+      ] & namedList(points, styleName"extn")
     if defines.len > 0:
       what.add span("  Defines ")
       for k, d in defines:
@@ -223,7 +232,9 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
       what.add span(".")
     if p.contributes.len > 0:
       let adds = counted(p.contributes.mapIt((it.point, it.priority)))
-      what.add span("  Contributes to " & adds.join(", ") & ".")
+      what.add span("  Contributes to ")
+      what.add namedList(adds, styleName"extn")
+      what.add span(".")
     rows.add @[
       pkg(p.name),
       plain($p.layer),
@@ -275,6 +286,9 @@ func docLine(inv: Inventory, text: string, strong: var bool): Line =
       if inv.find(inside) >= 0:
         flush()
         result.add span(inside, "pkg")
+      elif inv.points.anyIt(it.name == inside):
+        flush()
+        result.add span(inside, "extn")
       else:
         plainText.add text[i .. close]
       i = close + 1
@@ -357,19 +371,14 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     var strong = false
     fields.add field(
       "defines extension points",
-      @[span(unbroken(what)), span(" - ")] & inv.docLine(d.summary, strong) &
+      @[span(unbroken(what), "extn"), span(" - ")] & inv.docLine(d.summary, strong) &
         @[span("; contributed to by ")] & (if by.len == 0: plain("nothing")
       else: by),
     )
   let adds = counted(p.contributes.mapIt((it.point, it.priority)))
   fields.add field(
     "contributes to extension points",
-    plain(
-      if adds.len == 0:
-        "-"
-      else:
-        adds.join(", ")
-    ),
+    (if adds.len == 0: plain("-") else: namedList(adds, styleName"extn")),
   )
   result.add ruled(@["", ""], fields, width, narrow = 20, alternate = true)
 
@@ -396,7 +405,7 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
       if counts[k] > 1:
         added.add span(fmt" ×{counts[k]}")
     rows.add @[
-      plain(pt.name),
+      @[span(pt.name, "extn")],
       pkg(pt.owner),
       (if added.len == 0: plain("-") else: added),
       plain(pt.summary),

@@ -16,6 +16,7 @@ select  fg=#1f5fbf
 cmd     fg=#5b3fbf
 pkg     fg=#2f5f8f
 file    fg=#4a4a7a
+extn    italic=yes
 
 # alt-X: every other row of a table that asks for it (the fields of `nch packages NAME`) is in the alt version of each
 # style (alt-default for plain text).  One not given here is the style it stands for: alt-cmd is cmd.

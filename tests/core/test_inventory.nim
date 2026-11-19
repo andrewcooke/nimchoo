@@ -149,12 +149,19 @@ suite "the views":
       # (the second field: on an alternate row, in the alt version of the style)
       # (depends on: the names of packages in their style)
     check "contributed to by" in text and "c ×2 (priority 0, 2)" in text
+    check cells.anyIt(
+      it.anyIt(
+        it.text == unbroken("b/p[int]") and $it.styles[^1] in ["extn", "alt-extn"]
+      )
+    ) # (an extension point in its style)
     check "b/p[int] - " in text # (what --points no longer shows: the detail has it)
 
   test "the points":
     let cells = pointLines(world(), 80)
     let lines = cells.texts
     check cells.anyIt(span("c", "pkg") in it)
+    check cells.anyIt(span("b/p", "extn") in it) # (the name of the point in its style)
+    check cells.anyIt(span("b/p", "extn") in it)
     check lines[0].startsWith("extension point") and
       "contributed to by (in order)" in lines[0]
     check lines[1].startsWith("─") and "┼" in lines[1]

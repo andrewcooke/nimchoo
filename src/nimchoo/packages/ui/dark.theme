@@ -18,6 +18,11 @@ warn    fg=#a08040
 cmd     fg=#a0a0c0
 pkg     fg=#a0a0c0  bg=#303040
 file    fg=#a0a0c0              weight=normal
+extn    italic=yes
 
 # alt-X: every other row of a table that asks for it (the fields of `nch packages NAME`) is in the alt version of each
 # style (alt-default for plain text).  One not given here is the style it stands for: alt-cmd is cmd.
+alt-default fg=v(default, 3)
+alt-cmd     fg=v(cmd, 3)
+alt-pkg     fg=v(pkg, 2)     bg=v(pkg, 1.2)
+alt-file    fg=v(file, 3)
