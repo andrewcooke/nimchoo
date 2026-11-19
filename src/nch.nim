@@ -146,6 +146,7 @@ proc main(): int {.raises: [].} =
   g.extensions = registry.extensions
   g.access = allAccess
   g.colour = [canColourStdout(), canColour()]
+  g.width = [helpWidth(stdout), helpWidth(stderr)]
   let chosen = loadTheme(cacheDir().get(""), head.theme)
   g.theme = chosen.theme
   if chosen.warning.isSome:

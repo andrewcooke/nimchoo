@@ -87,7 +87,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     for suffix in ["", "-journal", "-wal", "-shm"]:
       removeFile path & suffix
   except OSError as e:
-    return failure(g, "nch db", "cannot delete " & path & ": " & e.msg)
+    return failure(
+      g, "nch db", @[span("cannot delete "), span(path, "file"), span(": " & e.msg)]
+    )
   g.log.log(lvInfo, commandName, leDeleted, "deleted " & what)
   sayDeleted(g, "deleted " & what)
   exitOk

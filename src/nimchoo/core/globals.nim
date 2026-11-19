@@ -34,6 +34,8 @@ type Globals* = object ## Options given before the command name, for every comma
     ## what the packages contribute to each other's extension points (`nch` fills it from the registry)
   theme*: Theme
     ## what the styles of text look like (`nch` chooses it: the `themes` package; empty: the terminal's own text)
+  width*: array[OutStream, int]
+    ## how wide a message may be on each stream, to wrap it (`tell`; `nch` fills it: `ui/live.helpWidth()`); 0: no wrap
   colour*: array[OutStream, bool]
     ## whether each stream is drawn in colour (`nch` fills it: a terminal that is not dumb, and NO_COLOR not set; in tests,
     ## neither is)
@@ -92,15 +94,26 @@ proc showAll*(g: Globals, o: OutStream, lines: seq[Line]) =
   for l in lines:
     g.show(o, l)
 
+proc tell*(g: Globals, o: OutStream, line: Line) =
+  ## Write a message to `o`, wrapped to its width (`width`), drawn as `o` is.
+  if g.width[o] > 0:
+    g.showAll(o, line.wrapped(g.width[o]))
+  else:
+    g.show(o, line)
+
 proc usageError*(
     g: Globals, command: string, usage: seq[Line], problem: string
 ): int {.raises: [].} =
   ## Report a bad command line: the problem, then the usage.
-  g.say(osErr, command & ": " & problem & "\n")
+  g.tell(osErr, plain(command & ": " & problem))
   g.showAll(osErr, usage)
   exitUsage
 
-proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
-  ## Report that the work failed.
-  g.say(osErr, command & ": " & problem & "\n")
+proc failure*(g: Globals, command: string, problem: Line): int {.raises: [].} =
+  ## Report that the work failed, in a message wrapped to the width (a path in it in `file`).
+  g.tell(osErr, @[span(command & ": ")] & problem)
   exitFailure
+
+proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
+  ## Report that the work failed, in plain text.
+  failure(g, command, plain(problem))

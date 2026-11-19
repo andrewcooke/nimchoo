@@ -201,8 +201,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of lkSelection:
       ids = chosenClimbs(st)
       if ids.len == 0:
-        g.say osOut,
-          "no climbs are selected: `nch climbs CRITERIA --select` chooses climbs (`nch climbs --ridden --select`: those of the selected activities), `nch climbs --all` lists every climb\n"
+        g.tell(
+          osOut,
+          plain(
+            "no climbs are selected: `nch climbs CRITERIA --select` chooses climbs (`nch climbs --ridden --select`: those of the selected activities), `nch climbs --all` lists every climb"
+          ),
+        )
         return exitOk
     of lkFound:
       let found = foundClimbs(st, list.criteria)

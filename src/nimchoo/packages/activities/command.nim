@@ -424,9 +424,12 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
         fmt"; {n.leftText}"
       else:
         ""
-    g.say osOut,
-      fmt"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}" &
-        "\n"
+    g.tell(
+      osOut,
+      plain(
+        fmt"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}"
+      ),
+    )
     exitOk
   except StoreError, DownloadError:
     failure(

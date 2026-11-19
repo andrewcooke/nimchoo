@@ -47,11 +47,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Next
 
-* **File paths in `file`, the rest** (the author, 2026-11-18): done where a path is the output (`nch packages` detail and
-  `--config`, `nch db`, `nch cache`, what `--file` writes); left: paths inside messages made as plain strings (`failure()`,
-  the importer's per-file lines, `sinks.nim`), which need those to be lines first.
-* **Long messages are not wrapped** (seen 2026-11-19): `nch climbs` with no selection prints one line of 170 characters.  A
-  message made as a styled line could be wrapped to the window as the usages are.
+* **Paths inside the messages of errors** (2026-11-19): a message a command writes shows a path it names in `file`
+  (`failure(g, command, Line)`), and the importer's lines show the file's; the text of an error raised below (a
+  `StoreError`, a `FitError`) is a plain string, so a path in it is plain.  Making errors carry styled lines would cover it.
 
 ## Features and ideas, unordered
 

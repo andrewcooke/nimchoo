@@ -10,7 +10,7 @@
 
 import std/[net, options, os, osproc, strformat, strutils]
 import ../cache/cache
-import ../../core/[extension, globals]
+import ../../core/[extension, globals, line]
 import ../db/store
 import ../../core/logfile
 import ../ui/interrupt
@@ -165,9 +165,12 @@ proc serveWeb*(
           fmt"a server is running on port {o.port}: `{name} --stop` it before making a new token",
         )
       if theirs[0] != mine[0]:
-        g.say osErr,
-          fmt"note: the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one" &
-            "\n"
+        g.tell(
+          osErr,
+          plain(
+            fmt"note: the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one"
+          ),
+        )
       showPage(g, pageUrl(o.port, path, query, known.token), o.start)
       if o.start:
         g.say osErr, fmt"(the server was already running, on port {o.port})" & "\n"
@@ -191,9 +194,12 @@ proc serveWeb*(
     o.port,
     proc(port: int) {.closure, raises: [].} =
       showPage(g, pageUrl(port, path, query, t.token), o.start)
-      g.say osOut,
-        fmt"(the server stays running for the pages of `nch` in this terminal: Ctrl-C or `{name} --stop` stops it)" &
-          "\n"
+      g.tell(
+        osOut,
+        plain(
+          fmt"(the server stays running for the pages of `nch` in this terminal: Ctrl-C or `{name} --stop` stops it)"
+        ),
+      )
       g.log.log(lvInfo, command, leServed, fmt"listening on 127.0.0.1:{port}"),
   )
   if problem.isNone:

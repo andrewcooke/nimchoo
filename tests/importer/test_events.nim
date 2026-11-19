@@ -1,4 +1,5 @@
 import std/[os, sequtils, strutils, unittest]
+import nimchoo/core/line
 import nimchoo/packages/importer/sinks
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/events
@@ -7,6 +8,7 @@ import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/util/warnings/warnings
 import ../support/fitbuilder
+import ../support/styles
 
 const base = 900_000_000
 
@@ -209,18 +211,21 @@ suite "import events: sinks":
         failure: fkBadFormat,
         message: msg,
       )
-    check plainLines(done(oImported), false).stdout ==
+    check plainLines(done(oImported), false).stdout.texts ==
       @["imported  p.fit  (1 activity, 2 segments, 3 coordinates)"]
-    check plainLines(done(oDuplicate), false).stdout ==
+    check plainLines(done(oDuplicate), false).stdout.texts ==
       @["duplicate p.fit  (already imported)"]
     var same = done(oDuplicate)
     same.sameAs = "q/p.fit"
-    check plainLines(same, false).stdout ==
+    check plainLines(same, false).stdout.texts ==
       @["duplicate p.fit  (same content as q/p.fit)"]
-    check plainLines(done(oUnchanged), false).stdout == @["unchanged p.fit"]
-    check plainLines(done(oKnownFailure, "why"), false).stdout ==
+    check plainLines(done(oUnchanged), false).stdout.texts == @["unchanged p.fit"]
+    check plainLines(done(oKnownFailure, "why"), false).stdout.texts ==
       @["known     p.fit  (failed before: why)"]
-    check plainLines(done(oFailed, "why"), false).stdout == @["failed    p.fit: why"]
+    check plainLines(done(oFailed, "why"), false).stdout.texts ==
+      @["failed    p.fit: why"]
+    check span("p.fit", "file") in plainLines(done(oFailed, "why"), false).stdout[0]
+      # (the path of a file in its style)
 
   test "quiet keeps only failures and the summary":
     func done(o: Outcome): ImportEvent =
@@ -233,7 +238,7 @@ suite "import events: sinks":
         kind: evFinish, summary: Summary(done: 3, imported: 1, duplicates: 1, failed: 1)
       ),
       true,
-    ).stdout == @["read: 3 files, 1 imported, 1 duplicate, 1 failed"]
+    ).stdout.texts == @["read: 3 files, 1 imported, 1 duplicate, 1 failed"]
 
   test "the summary mentions known failures":
     check summaryLine(Summary(done: 5, unchanged: 3, known: 2)) ==
@@ -244,4 +249,4 @@ suite "import events: sinks":
     let lines = plainLines(
       ImportEvent(kind: evFinish, summary: Summary(notes: @["something odd"])), false
     )
-    check lines.stderr == @["note: something odd"]
+    check lines.stderr.texts == @["note: something odd"]

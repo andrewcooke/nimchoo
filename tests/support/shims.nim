@@ -3,6 +3,7 @@
 
 import nimchoo/packages/user/session
 import nimchoo/packages/download/fetch
+import ./styles
 import nimchoo/packages/importer/channel
 import nimchoo/core/errors
 import nimchoo/packages/importer/sinks
@@ -26,8 +27,8 @@ proc reportSink(report: Report, quiet: bool): events.Sink =
   ## Collect the plain lines into `report`.
   result = proc(ev: ImportEvent) {.closure, raises: [].} =
     let lines = plainLines(ev, quiet)
-    report.lines.add lines.stdout
-    report.stderr.add lines.stderr
+    report.lines.add lines.stdout.texts
+    report.stderr.add lines.stderr.texts
     if ev.kind == evFinish:
       report.imported = ev.summary.imported
       report.duplicates = ev.summary.duplicates

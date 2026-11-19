@@ -9,7 +9,7 @@
 ## noticed in a file that was imported anyway).
 
 import std/[strutils, tables]
-import ../../core/globals
+import ../../core/[globals, line]
 import ../util/warnings/warnings
 import ./events
 import ./cmdname
@@ -18,8 +18,9 @@ import ./failure
 
 {.push raises: [].}
 
-type Lines* = object ## What one event prints.
-  stdout*, stderr*: seq[string]
+type Lines* = object
+  ## What one event prints: styled lines, the path of a file in `file`.
+  stdout*, stderr*: seq[Line]
 
 func extrasText*(c: Counts): string =
   ## ", 2,099 heart-rate readings" for what import steps wrote (nothing if they wrote none).
@@ -31,7 +32,7 @@ func plural*(n: int, one, many: string): string =
   ## "1 file", "3 files".
   $n & " " & (if n == 1: one else: many)
 
-func advisoryLines*(path: string, ws: seq[Warning]): seq[string] =
+func advisoryLines*(path: string, ws: seq[Warning]): seq[Line] =
   ## One line per kind of advisory in a file: the first of its kind, and how
   ## many more there were.
   var count: Table[WarningKind, int]
@@ -43,8 +44,18 @@ func advisoryLines*(path: string, ws: seq[Warning]): seq[string] =
       continue
     shown.add w.kind
     let more = count.getOrDefault(w.kind) - 1
-    result.add "advisory: " & path & ": offset " & $w.offset & ": " & w.msg &
-      (if more > 0: " (and " & $more & " more like it)" else: "")
+    result.add @[
+      span("advisory: "),
+      span(path, "file"),
+      span(
+        ": offset " & $w.offset & ": " & w.msg &
+          (if more > 0: " (and " & $more & " more like it)" else: "")
+      ),
+    ]
+
+func fileLine(before, path, after: string): Line =
+  ## A line about a file: its path in `file`.
+  @[span(before), span(path, "file"), span(after)]
 
 func failureBreakdown*(s: Summary): string =
   ## "no activity 4, bad format 1": the failures by kind ("" if none).
@@ -101,50 +112,54 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
     case ev.outcome
     of oImported:
       if not quiet:
-        result.stdout.add "imported  " & ev.path & "  (" &
-          plural(ev.counts.activities, "activity", "activities") & ", " &
-          plural(ev.counts.segments, "segment", "segments") & ", " &
-          plural(ev.counts.coords, "coordinate", "coordinates") & extrasText(ev.counts) &
-          ")"
+        result.stdout.add fileLine(
+          "imported  ",
+          ev.path,
+          "  (" & plural(ev.counts.activities, "activity", "activities") & ", " &
+            plural(ev.counts.segments, "segment", "segments") & ", " &
+            plural(ev.counts.coords, "coordinate", "coordinates") & extrasText(
+            ev.counts
+          ) & ")",
+        )
     of oDuplicate:
       if not quiet:
-        result.stdout.add "duplicate " & ev.path & "  (" & (
-          if ev.sameAs.len > 0: "same content as " & ev.sameAs
-          else: "already imported"
-        ) & ")"
+        if ev.sameAs.len > 0:
+          result.stdout.add fileLine("duplicate ", ev.path, "  (same content as ") &
+            @[span(ev.sameAs, "file"), span(")")]
+        else:
+          result.stdout.add fileLine("duplicate ", ev.path, "  (already imported)")
     of oUnchanged:
       if not quiet:
-        result.stdout.add "unchanged " & ev.path
+        result.stdout.add fileLine("unchanged ", ev.path, "")
     of oKnownFailure:
       if not quiet:
-        result.stdout.add "known     " & ev.path & "  (failed before: " & ev.message &
-          ")"
+        result.stdout.add fileLine(
+          "known     ", ev.path, "  (failed before: " & ev.message & ")"
+        )
     of oMonitor:
       discard
     # (expected, and there may be thousands: only counted)
     of oFailed:
-      result.stdout.add "failed    " & ev.path & ": " & ev.message
+      result.stdout.add fileLine("failed    ", ev.path, ": " & ev.message)
     result.stderr.add advisoryLines(ev.path, ev.advisories)
   of evFinish:
     for note in ev.summary.notes:
-      result.stderr.add "note: " & note
-    result.stdout.add "read: " & summaryLine(ev.summary)
+      result.stderr.add plain("note: " & note)
+    result.stdout.add plain("read: " & summaryLine(ev.summary))
     let hint = moreHint(ev.summary, logged)
     if hint.len > 0:
-      result.stderr.add hint
+      result.stderr.add plain(hint)
 
 proc plainSink*(g: Globals, quiet: bool, logged = false): Sink =
   ## Print the plain lines as the events come.  `logged`: there is a log, so the
   ## hint at the end can say how to look in it.
   result = proc(ev: ImportEvent) {.closure, raises: [].} =
     let lines = plainLines(ev, quiet, logged)
-    for l in lines.stdout:
-      g.say osOut, l & "\n"
+    g.showAll(osOut, lines.stdout)
     if lines.stdout.len > 0 and lines.stderr.len > 0:
       try:
         stdout.flushFile()
       # (so the two streams stay in order in a pipe)
       except IOError:
         discard
-    for l in lines.stderr:
-      g.say osErr, l & "\n"
+    g.showAll(osErr, lines.stderr)
