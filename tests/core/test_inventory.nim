@@ -134,6 +134,8 @@ suite "the views":
     check "ta (a)" in text # (it may read the tables of a)
     check "nch bee - does b things" in text
     check cells.anyIt(span("nch bee", "cmd") in it)
+    check cells.anyIt(it.anyIt(it.styles == @[styleName"file"]))
+      # (the source path in the style of paths)
       # (the command in the style of commands)
     check cells.anyIt(span("a", "pkg") in it and span("db", "pkg") in it)
       # (depends on: the names of packages in their style)
