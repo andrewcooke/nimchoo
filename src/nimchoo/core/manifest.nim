@@ -49,3 +49,5 @@ type
     summary*: string ## the first line of the `##` comment of its package.nim
     doc*: string
       ## the whole `##` comment: what the package is for (the generator reads it from the file)
+    path*: string
+      ## its directory, from the top of the project: "src/nimchoo/packages/util/args/"

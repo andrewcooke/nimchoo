@@ -18,6 +18,8 @@ type
     name*: string
     summary*, doc*: string
       ## what the package is for: its `##` documentation, and the first line of it
+    path*: string
+      ## its directory, from the top of the project ("src/nimchoo/packages/fit/")
     layer*: int
       ## 0 for a package that depends on nothing, else one more than the highest of those it depends on
     depends*, dependents*: seq[string]
@@ -71,6 +73,7 @@ func inventoryOf*(
       name: p.name,
       summary: p.summary,
       doc: p.doc,
+      path: p.path,
       layer: layer.getOrDefault(p.name.normalised),
       depends: p.package.depends.sortedByIt(it.normalised),
       dependents: dependents.getOrDefault(p.name.normalised).sortedByIt(it.normalised),
@@ -227,6 +230,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
     result.add ""
     result.add rst(p.doc, width)
     result.add ""
+  result.add field("source", p.path)
   result.add field("depends on", listOf(p.depends))
   result.add field("used by", listOf(p.dependents))
   result.add field("fragments", listOf(p.fragments))

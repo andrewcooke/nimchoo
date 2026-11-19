@@ -138,6 +138,7 @@ func registryText*(found: seq[Found]): string =
       f.name.capitalizeAscii & ".package,\n"
     result.add field("summary", nimString(summaryOf(f.doc)))
     result.add field("doc", "\"\"\"" & f.doc & "\"\"\"")
+    result.add field("path", nimString("src/nimchoo/" & f.importPath.parentDir & "/"))
     result.add "    ),\n"
   result.add "  ]\n)\n"
   result.add "\nconst commands*: seq[CommandDecl] = collectCommands(packages)\n"

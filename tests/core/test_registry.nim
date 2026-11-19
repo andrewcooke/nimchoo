@@ -84,6 +84,13 @@ suite "the commands of the packages":
     check text.contains("  alpha       does alpha\n")
     check text.find("alpha") < text.find("mid") and text.find("mid") < text.find("zed")
 
+  test "each package says where it is: its directory, which holds its package.nim":
+    let top = currentSourcePath().parentDir.parentDir.parentDir
+    for p in generated.packages:
+      check p.path.startsWith("src/nimchoo/packages/") and p.path.endsWith("/")
+      check fileExists(top / p.path / "package.nim")
+      check p.path.endsWith("/" & p.name & "/")
+
   test "the commands of nimchoo have names and summaries, and fit is there and runs":
     let names = generated.commands.names
     check names.len == names.deduplicate.len

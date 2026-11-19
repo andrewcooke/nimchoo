@@ -112,6 +112,7 @@ other views (`climbs`, `map`, `calendar`) take the selection.
 * **A calendar frame** (`calendarframe.nim`): the days of the selected activities and the line that sums them up, offered to
   `calendar/frames`.
 * The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).""",
+      path: "src/nimchoo/packages/activities/",
     ),
     Registered(
       name: "bundle",
@@ -123,6 +124,7 @@ other views (`climbs`, `map`, `calendar`) take the selection.
 
 The FIT profile, the licence notice, the page templates and the themes are unpacked to the cache directory's `system/` part and never
 overwritten once changed; delete one to get the built-in version again.""",
+      path: "src/nimchoo/packages/bundle/",
     ),
     Registered(
       name: "cache",
@@ -137,6 +139,7 @@ command and its options spelt out (`map-activities-routes.geojson`) and made aga
 "current", it is what the last request made.  The server
 (`web`) serves these files.  `nch cache` says what is there, by kind, and how big; `nch cache --delete KIND` deletes (no
 `-f`: everything in it can be made again).""",
+      path: "src/nimchoo/packages/cache/",
     ),
     Registered(
       name: "calendar",
@@ -154,6 +157,7 @@ the cells are wider and carry marks, so nothing is lost.
 The calendar is a view and knows no subject: it defines the point `calendar/frames` (`frames.nim`), to which the package
 that manages a subject contributes the frame of it (`activities`: the days of the selected activities, and the line that
 sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.""",
+      path: "src/nimchoo/packages/calendar/",
     ),
     Registered(
       name: "climbs",
@@ -181,6 +185,7 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
 **The climbs are a subject** (`subject.nim`, display step 6): each user has a climbs selection (`climb_selection`,
 `chosen.nim`), which `nch climbs` lists and the views show (`nch map climbs`, `nch calendar climbs`: `mapframes.nim`,
 `calendarframe.nim`).""",
+      path: "src/nimchoo/packages/climbs/",
     ),
     Registered(
       name: "confirm",
@@ -192,6 +197,7 @@ Nothing is deleted without `--force`, and on a terminal there are then a few sec
 `users --delete`, `db --delete`, `climbs --all --delete`); given twice (`-f -f`) there is no pause.  The option is written
 once here (`forceOption`, with the `Force` it sets: no, yes, now), so that every command that deletes has the same, and so is
 the pause (`pause`).  The line that says what was deleted is here too.""",
+      path: "src/nimchoo/packages/confirm/",
     ),
     Registered(
       name: "db",
@@ -233,6 +239,7 @@ the pause (`pause`).  The line that says what was deleted is here too.""",
   so that a test can check what a view declares it reads (`map/frames`).
 * The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
   where the database is and how big; `nch db --delete -f` deletes it.""",
+      path: "src/nimchoo/packages/db/",
     ),
     Registered(
       name: "download",
@@ -245,6 +252,7 @@ the pause (`pause`).  The line that says what was deleted is here too.""",
 Everything it downloads is listed in `sources` (where from, what the file is, how big it may be).  Downloads are checked
 (size, free space, the zip inflated in a child) and announced as events, which go to the log and to the screen (a line
 that turns while the program waits).  Tests never use the network: every `Globals` in a test says `offline: true`.""",
+      path: "src/nimchoo/packages/download/",
     ),
     Registered(
       name: "ff",
@@ -258,6 +266,7 @@ the integrity hashes of the exact files); `--file` makes the data as CSV in the 
 prints it.  `ff` is not about the selection: it always uses all the activities.  A chart is a live view: made again from the
 data as they are every time the page is asked for, in a file named by the options (`ff-default-hourly.csv`).  Offers its
 page to the server (`web/pages`).""",
+      path: "src/nimchoo/packages/ff/",
     ),
     Registered(
       name: "fit",
@@ -269,6 +278,7 @@ The decoder reads the records of a FIT file into messages and fields (`reader`, 
 SDK's own CSV output (`nimble csvreport`).  The profile, which the SDK ships as a spreadsheet (read by `xlsx`), is loaded
 into types, scales, offsets and sub-fields (`load`, `model`).  `nch fit FILE` prints a file as text or as SDK-format CSV.
 A corrupt file is a `FitError`, never a crash: the decoder is fuzzed (dev/HISTORY.md).""",
+      path: "src/nimchoo/packages/fit/",
     ),
     Registered(
       name: "geo",
@@ -282,6 +292,7 @@ plane round a reference point, which is accurate over the length of a ride.
 Also the **grid of cells** (`cells.nim`) that says where a ride went: latitude and longitude in cells of 1/1024 of a degree,
 each an integer (`(iy << 32) | ix`), with `coarsen` for the coarser levels and `reach` for how many cells a distance in
 metres is at a latitude.  One function for each, written here, is what SQL uses too (`db/functions.nim`).""",
+      path: "src/nimchoo/packages/geo/",
     ),
     Registered(
       name: "heartrate",
@@ -291,6 +302,7 @@ metres is at a latitude.  One function for each, written here, is what SQL uses 
 
 An import step (`importer/steps`): the `heart_rate` field of each record is kept as beats per minute, one reading per second
 at most, as arrays (`series.nim`) in the table `heartrate_series`.  `model` works the training impulse out of it.""",
+      path: "src/nimchoo/packages/heartrate/",
     ),
     Registered(
       name: "importer",
@@ -322,6 +334,7 @@ written.
   to a cell of the grid in `geo/cells.nim` (a run of consecutive samples in one cell, with its first and last time), so that
   questions about places are joins on integers; `visits.nim` is the definition, written with the samples at import.
 * Deleting activities is `remove.nim`; `activities --delete` calls it.""",
+      path: "src/nimchoo/packages/importer/",
     ),
     Registered(
       name: "log",
@@ -333,6 +346,7 @@ The log is a plain text file (where it goes is `NCH_LOG`, else the state directo
 did: the time, the level, the command, an event word (`start`, `imported`, `failed`, `advisory`, `saved`, ...) and a text.
 `nch log` shows it filtered by command and event, with the events in the colours they have on the screen; `--last` shows the
 latest run.  The words and their colours are in `ui/vocabulary`.""",
+      path: "src/nimchoo/packages/log/",
     ),
     Registered(
       name: "map",
@@ -360,6 +374,7 @@ drawing shipped by its provider (`activities-map-routes.json`, `activities-map-r
 drawn generically from its style: `frames.nim` has the contract).  The css and the styles have their own colours, and are
 put into the page.  `geojson.nim` writes a file of features, for the providers.
 Offers its page to the server (`web/pages`).""",
+      path: "src/nimchoo/packages/map/",
     ),
     Registered(
       name: "model",
@@ -372,6 +387,7 @@ impulse of an activity is worked out from its heart rate, hour by hour, with a m
 arithmetic, pure; `impulses` stores them in `impulse`, with `ff_model`, the tables this package owns).  They are worked out
 when `ff` needs them, and deleted when the FTHR they were worked out with changes (a trigger of the table), so they are
 worked out again.""",
+      path: "src/nimchoo/packages/model/",
     ),
     Registered(
       name: "names",
@@ -390,6 +406,7 @@ for a bad connection: the program needs the internet for names and says so.  Thi
 **Landmarks** (`nch landmarks`) are the author's own names for places, shared by all users, and come before every other
 name: a ride that turns round inside a landmark's circle is "<landmark> and back", a climb that tops out in it is called by
 it.  Suggestions are found from the features and the rides.""",
+      path: "src/nimchoo/packages/names/",
     ),
     Registered(
       name: "selection",
@@ -403,6 +420,7 @@ It is what `climbs`, `map`, `calendar` and the like use.
 * **The selection** is a scratchpad in the database (table `selection`).  It belongs to one user, and is replaced whenever
   `activities --select` is given or an import adds activities.  A view shows the selection as it is when the view is made.
 * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).""",
+      path: "src/nimchoo/packages/selection/",
     ),
     Registered(
       name: "subject",
@@ -411,6 +429,7 @@ It is what `climbs`, `map`, `calendar` and the like use.
         "Subjects: what the views are views of (activities, later climbs and FF statistics).",
       doc:
         """Subjects: what the views are views of (activities, later climbs and FF statistics).""",
+      path: "src/nimchoo/packages/subject/",
     ),
     Registered(
       name: "fold",
@@ -420,6 +439,7 @@ It is what `climbs`, `map`, `calendar` and the like use.
 
 One function does it everywhere: `foldText` in the program, and the SQL function `fold()` that the database registers on
 every connection, so a name compared in a query is compared as it is in code.""",
+      path: "src/nimchoo/packages/text/fold/",
     ),
     Registered(
       name: "templating",
@@ -429,6 +449,7 @@ every connection, so a name compared in a query is compared as it is in code."""
 
 A subset of Mustache, enough for the pages and small enough to read in one sitting.  A comment must not contain a tag (the
 engine ends a comment at the first closing braces).""",
+      path: "src/nimchoo/packages/text/templating/",
     ),
     Registered(
       name: "themes",
@@ -443,6 +464,7 @@ the first that is given: `--theme NAME`; `$NCH_THEME`; the symbolic link `system
 some terminals set (a light background: `light`); else `dark`.  A theme that cannot be used is warned of, and the
 built-in `dark` is used instead (how text looks is not worth stopping a command for).  The format of the file is in
 `core/theme.nim`; `tools/look.nim` shows what a theme looks like.""",
+      path: "src/nimchoo/packages/themes/",
     ),
     Registered(
       name: "ui",
@@ -469,6 +491,7 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
   they are always on white, whatever the terminal's theme.)
 * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also
   says how wide the help text may be (`helpWidth`).""",
+      path: "src/nimchoo/packages/ui/",
     ),
     Registered(
       name: "user",
@@ -489,6 +512,7 @@ if the default is deleted another becomes it.  Deleting a user deletes everythin
   impulses out again, by a trigger of its own.
 * The extension point `user/has`: the packages whose data hangs off a user contribute a count with its name (`importer`:
   the activities).  `nch users` shows each as a column and says them when it asks before a delete.""",
+      path: "src/nimchoo/packages/user/",
     ),
     Registered(
       name: "args",
@@ -511,6 +535,7 @@ which is valid parameters (a variant on the action, so that a combination of opt
 represented), a request for help, or a problem (a sentence that does not name the option).  An option's `apply` returns
 `fine` or `refuse("...")`.  An option may also say it is allowed in an address of the local web server (`address`, with
 a check for its value); the server's list of what a page may be given is made from the options themselves.""",
+      path: "src/nimchoo/packages/util/args/",
     ),
     Registered(
       name: "atomic",
@@ -520,6 +545,7 @@ a check for its value); the server's list of what a page may be given is made fr
 
 The one way the program writes a file that others read: the text goes to a file of its own, which is then renamed over the
 target.""",
+      path: "src/nimchoo/packages/util/atomic/",
     ),
     Registered(
       name: "bytes",
@@ -528,6 +554,7 @@ target.""",
         "Reading numbers out of bytes, and a whole file as bytes: the one place for it.",
       doc:
         """Reading numbers out of bytes, and a whole file as bytes: the one place for it.""",
+      path: "src/nimchoo/packages/util/bytes/",
     ),
     Registered(
       name: "child",
@@ -536,6 +563,7 @@ target.""",
       doc: """Running a child process and collecting what it says.
 
 The one way the program does it (the web server runs its worker so).  `childasync` is the same for an event loop.""",
+      path: "src/nimchoo/packages/util/child/",
     ),
     Registered(
       name: "childasync",
@@ -547,6 +575,7 @@ The one way the program does it (the web server runs its worker so).  `childasyn
 
 The same steps as `child`, with `sleepAsync` between looks at the child's pipes.  It is a package of its own because async
 code is not `raises: []`.""",
+      path: "src/nimchoo/packages/util/childasync/",
     ),
     Registered(
       name: "hashing",
@@ -556,6 +585,7 @@ code is not `raises: []`.""",
       doc: """SHA-256 as the hex text used wherever something is named by its content.
 
 Files, fragments of the schema, selections, the data impulses are made from, bundled files.""",
+      path: "src/nimchoo/packages/util/hashing/",
     ),
     Registered(
       name: "lookup",
@@ -564,6 +594,7 @@ Files, fragments of the schema, selections, the data impulses are made from, bun
       doc: """Table lookups that have to succeed (`must`, `mustMut`).
 
 A lookup that cannot fail is a bug if it does, so these assert instead of raising `KeyError` (CLAUDE.md, error handling).""",
+      path: "src/nimchoo/packages/util/lookup/",
     ),
     Registered(
       name: "profiling",
@@ -573,6 +604,7 @@ A lookup that cannot fail is a bug if it does, so these assert instead of raisin
 
 Off unless the environment has `NCH_PROFILE`; then each `timed("phase")` adds its time to a table printed at the end.  It
 holds the program's only module-level mutable state, apart from the stop flag of the database's checkpointer.""",
+      path: "src/nimchoo/packages/util/profiling/",
     ),
     Registered(
       name: "version",
@@ -583,6 +615,7 @@ holds the program's only module-level mutable state, apart from the stop flag of
         """What `nch --version` says: the version in nimchoo.nimble and the git commit it was built from.
 
 Both are found when the program is compiled.""",
+      path: "src/nimchoo/packages/util/version/",
     ),
     Registered(
       name: "warnings",
@@ -592,6 +625,7 @@ Both are found when the program is compiled.""",
 
 They are collected, never logged or printed by library code, each with a kind (`WarningKind`) so that they can be counted
 and filtered.  The importer turns them into advisories in its log.""",
+      path: "src/nimchoo/packages/util/warnings/",
     ),
     Registered(
       name: "xlsx",
@@ -602,6 +636,7 @@ and filtered.  The importer turns them into advisories in its log.""",
 An xlsx file is a zip of XML files; this reads just enough of them (shared strings, relationships, cells) to load the FIT
 profile.  Its input is checked against what the standard library's XML parser cannot take (character references that are
 not characters: Nim issue 26681), and it is fuzzed (dev/HISTORY.md).""",
+      path: "src/nimchoo/packages/util/xlsx/",
     ),
     Registered(
       name: "zip",
@@ -614,6 +649,7 @@ not characters: Nim issue 26681), and it is fuzzed (dev/HISTORY.md).""",
 `zipbytes` reads the central directory and inflates an entry from bytes (zippy only opens a path); `zipchild` inflates in a
 child process that cannot use much memory, because zippy cannot stop at a size and a hostile entry could fill the memory.
 Used for xlsx files and for downloads.""",
+      path: "src/nimchoo/packages/util/zip/",
     ),
     Registered(
       name: "web",
@@ -636,6 +672,7 @@ to a page's cookie), opens its page there and returns; `--start` starts the serv
 stops it from anywhere (`/stop`).  The libraries the pages
 load from a CDN, with their integrity hashes, are in `libraries.txt`.  The extension point `web/pages` is defined here; `map`
 and `ff` contribute.""",
+      path: "src/nimchoo/packages/web/",
     ),
   ]
 )
