@@ -1,16 +1,11 @@
-## `nch packages`: the program describing itself: its packages, their dependencies, tables, commands and extension points,
-## and the settings in force.  It is built into `nch` and not a package, because it needs the whole registry (which a
-## package cannot import).  What the views are made of is `core/inventory.nim`; here are the command line, the facts about
-## the running program (`--config`) and the printing.
+## `nch packages`: the program describing itself: its packages, their dependencies, tables, commands and extension points.
+## It is built into `nch` and not a package, because it needs the whole registry (which a package cannot import).  What
+## the views are made of is `core/inventory.nim`; here are the command line and the printing.
 
-import std/[algorithm, editdistance, options, os, sequtils, strformat, strutils]
-import ./core/[access, errors, globals, inventory, logfile, manifest, ruled]
-import ./packages/cache/cache
-import ./packages/db/[fragment, store]
-import ./packages/ui/[live, style, units]
-import ./packages/user/session
+import std/[algorithm, editdistance, options, sequtils, strformat, strutils]
+import ./core/[errors, globals, inventory, manifest]
+import ./packages/ui/[live, style]
 import ./packages/util/args/[args, usage]
-import ./packages/util/version/version
 import ./registry as generated
 
 {.push raises: [].}
@@ -24,7 +19,6 @@ type
     vLayers
     vTree
     vDot
-    vConfig
 
   Params* = object ## what `nch packages` is asked to show
     case view*: View
@@ -38,11 +32,11 @@ type
       implied*: bool ## `-v`: the dependencies implied by others too, hidden
     of vList:
       filter*: PackageFilter ## `-L`, `-U`, `-B`, `-T`: which packages
-    of vPoints, vTables, vDot, vConfig:
+    of vPoints, vTables, vDot:
       discard
 
   Raw = object ## what the options fill in
-    help, points, tables, graph, reverse, verbose, dot, config: bool
+    help, points, tables, graph, reverse, verbose, dot: bool
     name: string
     filter: PackageFilter
 
@@ -150,12 +144,6 @@ func packagesSpec*(): Spec[Raw] =
         dot,
         "the dependencies as a Graphviz graph: `nch packages --dot | dot -Tsvg > packages.svg`",
       ),
-      flag(
-        Raw,
-        ["--config"],
-        config,
-        "the settings in force: the database, the user, the log, the cache, the version, the environment, and whether the database was made by this version",
-      ),
       helpFlag(Raw),
     ],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
@@ -166,12 +154,11 @@ func packagesSpec*(): Spec[Raw] =
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  let chosen = [raw.points, raw.tables, raw.graph, raw.dot, raw.config]
+  let chosen = [raw.points, raw.tables, raw.graph, raw.dot]
   if chosen.countIt(it) > 1:
-    return problemWith[Params](
-      "choose one of `--points`, `--tables`, `--graph`, `--dot` and `--config`"
-    )
-  if raw.name.len > 0 and (raw.points or raw.tables or raw.dot or raw.config):
+    return
+      problemWith[Params]("choose one of `--points`, `--tables`, `--graph` and `--dot`")
+  if raw.name.len > 0 and (raw.points or raw.tables or raw.dot):
     return problemWith[Params]("a package name goes with nothing but `--graph`")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
     return problemWith[Params]("`--reverse` goes with `--graph` and a package name")
@@ -190,8 +177,6 @@ func finish(raw: Raw): Parsed[Params] =
     parsedOk(Params(view: vTables))
   elif raw.dot:
     parsedOk(Params(view: vDot))
-  elif raw.config:
-    parsedOk(Params(view: vConfig))
   elif raw.graph and raw.name.len > 0:
     parsedOk(
       Params(view: vTree, root: raw.name, reverse: raw.reverse, repeats: raw.verbose)
@@ -216,13 +201,13 @@ func closeNames*(asked: string, names: seq[string]): seq[string] =
   scored.mapIt(it[1])
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch packages [NAME] [--points | --tables | --graph [--reverse] | --dot | --config]`.
+  ## `nch packages [NAME] [--points | --tables | --graph [--reverse] | --dot]`.
   parseCommand(args, packagesSpec(), Raw(), finish)
 
 const
   synopsis = """usage: nch packages [-L N] [-U NAME] [-B NAME] [-T TABLE]
        nch packages NAME
-       nch packages --points | --tables | --dot | --config
+       nch packages --points | --tables | --dot
        nch packages --graph [--reverse] [-v] [NAME]"""
   intro =
     """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
@@ -238,186 +223,6 @@ proc usageText*(width: int): seq[Line] =
   )
 
 # --- the settings ------------------------------------------------------------------------------------------------------
-
-proc fragmentLines*(path: string): seq[string] =
-  ## What the database file has had applied, against what this program has: the fragments are the SQL that makes the
-  ## tables, in the order the program applies them (`db` package).
-  let program = generated.schema
-  let what =
-    fmt"the program has {program.len} fragments (the SQL that makes its tables)"
-  if not fileExists(path):
-    return @[fmt"{what}; there is no database yet"]
-  var have: seq[(string, string)]
-  try:
-    have = appliedFragments(path)
-  except StoreError as e:
-    return @[fmt"{what}; the database: {e.msg}"]
-  var differences: seq[string]
-  for (name, sum) in have:
-    let known = program.filterIt(it.name == name)
-    if known.len == 0:
-      differences.add fmt"{name}: only in the database (from a newer version: it will be refused)"
-    elif known[0].checksum != sum:
-      differences.add fmt"{name}: not the SQL this version has (made by a different version: it will be refused)"
-  for f in program:
-    if have.allIt(it[0] != f.name):
-      differences.add fmt"{f.name}: not applied yet (it will be, when the database is opened)"
-  if differences.len == 0:
-    return
-      @[fmt"{what}, and the database has had all of them, as this version has them"]
-  @[fmt"{what}; the database has had {have.len}:"] & differences
-
-proc userText(g: Globals, path: string): string =
-  ## The user the commands work on: its name, and "(default)" if it is the default one.
-  if not fileExists(path):
-    return
-      (if g.user.len > 0: g.user else: "the default user") &
-      " (there is no database yet)"
-  var ro = g
-  ro.readOnly = true
-  try:
-    let st = openSession(ro)
-    defer:
-      st.close()
-    result = st.userName & (if st.isDefault: " (default)" else: "")
-  except StoreError as e:
-    result = e.msg
-
-type EnvVar = tuple[name, what: string, default: Option[string], isPath: bool]
-
-proc environment(): seq[EnvVar] =
-  ## The variables of the environment that nch reads, what each is for, and what is used when it is not set.
-  let home = envOpt("HOME")
-  func under(p: string): Option[string] =
-    (if home.isSome: some(home.get / p) else: none(string))
-
-  @[
-    (
-      "NCH_DB",
-      "the database file (`--db` comes first)",
-      some(getDataDir() / "nch" / "nch.db"),
-      true,
-    ),
-    (
-      "NCH_LOG",
-      "the log file; set and empty: no log",
-      logPath(none(string), envOpt("XDG_STATE_HOME"), home),
-      true,
-    ),
-    (
-      "NCH_CACHE",
-      "the cache directory",
-      cachePath(none(string), envOpt("XDG_CACHE_HOME"), home),
-      true,
-    ),
-    (
-      "XDG_DATA_HOME",
-      "where the database goes (in `nch/`) when NCH_DB is not set",
-      under(".local/share"),
-      true,
-    ),
-    (
-      "XDG_STATE_HOME",
-      "where the log goes (in `nch/`) when NCH_LOG is not set",
-      under(".local/state"),
-      true,
-    ),
-    (
-      "XDG_CACHE_HOME",
-      "where the cache goes (in `nch/`) when NCH_CACHE is not set",
-      under(".cache"),
-      true,
-    ),
-    (
-      "NO_COLOR",
-      "set to anything: no colour (a convention many programs follow); not set: colour on a terminal",
-      none(string),
-      false,
-    ),
-    ("NCH_THEME", "the theme, when `--theme` is not given", none(string), false),
-    (
-      "COLORFGBG",
-      "set by some terminals (the numbers of the text and background colours): whether the background is light, to choose the light or dark theme when nothing else does",
-      none(string),
-      false,
-    ),
-  ]
-
-proc environmentLines(width: int): seq[Line] =
-  ## The variables of the environment: the value of each (or what is used when it is not set, "(default)"), and what
-  ## it is for.
-  var rows: seq[seq[Line]]
-  for v in environment():
-    let given = envOpt(v.name)
-    let value =
-      if given.isSome:
-        (
-          if v.isPath and given.get.len > 0: @[span(given.get, "file")]
-          else: plain(given.get)
-        )
-      elif v.default.isSome:
-        @[span(v.default.get, "file"), span(" (default)")]
-      else:
-        plain("not set (default)")
-    rows.add @[plain(v.name), value, plain(v.what)]
-  ruled(@["variable", "value", "what it is for"], rows, width)
-
-proc configLines*(g: Globals, width: int): seq[Line] =
-  ## The settings in force, and where each came from (a path in `file`), as a table without headings; then the
-  ## variables of the environment.
-  var rows: seq[seq[Line]]
-  func row(label: string, value: Line): seq[Line] =
-    @[plain(label), value]
-
-  func row(label, value: string): seq[Line] =
-    row(label, plain(value))
-
-  func pathOr(path: Option[string], otherwise: string): Line =
-    if path.isSome:
-      @[span(path.get, "file")]
-    else:
-      plain(otherwise)
-  rows.add row("version", versionString)
-  let path = resolveDbPath(g.dbPath)
-  let source =
-    if g.dbPath.len > 0:
-      "--db"
-    elif getEnv("NCH_DB").len > 0:
-      "$NCH_DB"
-    else:
-      "the default"
-  var state = "not made yet"
-  try:
-    if fileExists(path):
-      state = humanBytes(getFileSize(path))
-  except OSError:
-    state = "cannot be read"
-  rows.add row("database", @[span(path, "file"), span(fmt"  ({source}; {state})")])
-  rows.add row("schema", fragmentLines(path).join("\n"))
-  rows.add row("user", userText(g, path))
-  rows.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
-  rows.add row(
-    "theme",
-    if g.theme.name.len > 0:
-      fmt"{g.theme.name}  ({g.theme.origin})"
-    else:
-      "none: the terminal's own text",
-  )
-  let log = envLogPath()
-  rows.add row("log", pathOr(log, "off (NCH_LOG is empty)"))
-  let cache = cacheDir()
-  rows.add row("cache", pathOr(cache, "none (no HOME)"))
-  rows.add row(
-    "access",
-    case g.access.mode
-    of amEnforce: "enforced: a package that touches the table of another is refused"
-    of amOff: "off"
-    ,
-  )
-  rows.add row("commands", generated.commands.mapIt(it.name).join(" ") & " packages")
-  result = ruled(@["", ""], rows, width)
-  result.add plain("")
-  result.add environmentLines(width)
 
 # --- the command -------------------------------------------------------------------------------------------------------
 
@@ -532,8 +337,6 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.show(osOut, namedInTree(l.text))
   of vDot:
     g.say osOut, dotText(inv)
-  of vConfig:
-    g.showAll configLines(g, helpWidth(stdout))
   exitOk
 
 proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =

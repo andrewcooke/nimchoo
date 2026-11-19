@@ -6,7 +6,7 @@
 
 import std/[algorithm, options, os, sequtils, strformat, strutils]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
-import nimchoo/[completion, introspect]
+import nimchoo/[completion, introspect, settings]
 import nimchoo/packages/cache/cache
 import nimchoo/packages/themes/choose
 import nimchoo/packages/ui/live
@@ -24,7 +24,7 @@ const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
 
 type Head = object ## The options before the command name.
   g: Globals
-  help, version, offline: bool
+  help, version, config, offline: bool
   theme: Option[string] ## `--theme`
   job: Option[Job] ## `--install-completion` or `--show-completion`
 
@@ -106,6 +106,12 @@ func headSpec(): Spec[Head] =
         version,
         "print the version and the git commit it was built from",
       ),
+      flag(
+        Head,
+        ["--config"],
+        config,
+        "the settings in force (the database and its schema, the user, the theme, the log, the cache) and the variables of the environment nch reads, with what each is for",
+      ),
       helpFlag(Head),
     ]
   )
@@ -158,6 +164,9 @@ proc main(): int {.raises: [].} =
     return exitOk
   if head.version:
     g.say osOut, versionString & "\n"
+    return exitOk
+  if head.config:
+    g.showAll osOut, configLines(g, helpWidth(stdout))
     return exitOk
   if head.job.isSome:
     let job = head.job.get

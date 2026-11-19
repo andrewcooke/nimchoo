@@ -1,13 +1,11 @@
-## `nch packages` (src/nimchoo/introspect.nim): its command line, and the facts about the running program.
+## `nch packages` (src/nimchoo/introspect.nim): its command line and its views.
 
-import std/[options, os, sequtils, strutils, unittest]
+import std/[options, sequtils, strutils, unittest]
 from std/unicode import runeLen
-import nimchoo/core/[globals, registry]
+import nimchoo/core/registry
 import nimchoo/introspect
 import nimchoo/packages/util/args/args
 from nimchoo/registry import allAccess, commands, schema
-import nimchoo/packages/db/[statement, store]
-import nimchoo/packages/user/session
 import ./support/styles
 from nimchoo/registry import allFragments
 
@@ -27,7 +25,6 @@ suite "nch packages: the command line":
     check parseArgs(@["--points"]).params.view == vPoints
     check parseArgs(@["--tables"]).params.view == vTables
     check parseArgs(@["--dot"]).params.view == vDot
-    check parseArgs(@["--config"]).params.view == vConfig
     check parseArgs(@["--graph"]).params.view == vLayers
     check parseArgs(@["--graph", "db"]).params.view == vTree
     check parseArgs(@["db", "--graph"]).params.root == "db"
@@ -53,45 +50,7 @@ suite "nch packages: the command line":
         for n in d.names:
           check n in text
 
-suite "nch packages: the settings":
-  let dir = getTempDir() / "nch-test-introspect"
-
-  test "the settings in force, with where each came from":
-    let g = Globals(dbPath: dir / "x.db", user: "bob", offline: true, access: allAccess)
-    let text = configLines(g, 120).plainText
-    check "version" in text and "(--db; not made yet)" in text
-    check "bob (there is no database yet)" in text and "yes (`--offline`)" in text
-    check "access" in text and "enforced" in text
-    check "NCH_DB" in text and "packages" in text
-    check "there is no database yet" in text
-    check "NO_COLOR" in text and "not set (default)" in text
-      # (the environment, with its defaults)
-
-  test "the fragments of the database are compared with the program's":
-    removeDir dir
-    createDir dir
-    let path = dir / "y.db"
-    openSession(path, allFragments, access = allAccess).close()
-    check fragmentLines(path) ==
-      @[
-        "the program has " & $schema.len &
-          " fragments (the SQL that makes its tables), and the database has had all of them, as this version has them"
-      ]
-    # a fragment the database has and this program does not
-    let s = openStore(path, allFragments, access = allAccess)
-    s.db.execScript(
-      "insert into fragment(name, applied_at, sha256) values ('zzz/001.sql', 0, 'x')"
-    )
-    s.db.execScript(
-      "update fragment set sha256 = 'other' where name = 'user/001-schema.sql'"
-    )
-    s.close()
-    let lines = fragmentLines(path).join("\n")
-    check "zzz/001.sql: only in the database" in lines
-    check "user/001-schema.sql: not the SQL this version has" in lines
-    check lines.startsWith("the program has " & $schema.len & " fragments")
-    removeDir dir
-
+suite "nch packages: the commands":
   test "nch provides the command itself; no package may take its name":
     check "packages" in builtinCommands
     check "packages" notin commands.mapIt(it.name)

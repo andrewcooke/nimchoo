@@ -24,6 +24,7 @@ import
   ./test_structure,
   ./core/test_complete,
   ./test_introspect,
+  ./test_settings,
   ./test_completion
 import ./cache/test_cache
 import ./subject/test_subjects

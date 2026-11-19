@@ -2,7 +2,7 @@
 ##
 ## A lightweight server on `127.0.0.1` that interprets the address as a command (`/map/activities`, `/map/activities?frame=heat`) and shows its page, or serves
 ## a file of the cache (`/files/NAME`): the pages and their data are made in the cache directory's `user/` part (by default
-## `~/.cache/nch/user/`; `nch packages --config` says where the cache is).  Any web page open in the browser can send requests to localhost, so the rules are
+## `~/.cache/nch/user/`; `nch --config` says where the cache is).  Any web page open in the browser can send requests to localhost, so the rules are
 ## strict (`request.nim`, pure, fuzzed): a GET with our own Host header (against DNS rebinding) and the token, in a cookie or
 ## once in the address; only the commands that packages offer (`web/pages`: the command, its options and flags, a check for each
 ## value) with only their options, each once; values of the kind a cache file name can hold.  The command runs as

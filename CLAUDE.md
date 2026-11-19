@@ -59,7 +59,7 @@ nimchoo is a set of **packages**, so that the system can be extended with new fi
 package without editing the others (the design and its reasons: dev/PACKAGES.md).  **what a package is for, what it owns and
 its rules are in the `##` comment at the top of its `package.nim`** (not here): read it before working on a package, with
 `nch packages NAME` or on the documentation site (`nimble docs`, published by github pages).  `nch packages` is the program
-describing itself (packages, `--points`, `--tables`, `--graph`, `--config`); use it to see how things fit.
+describing itself (packages, `--points`, `--tables`, `--graph`; `nch --config` gives the settings in force); use it to see how things fit.
 
 * a package is a directory under `src/nimchoo/packages/` that contains a `package.nim`; its **name is its directory's
   name** (unique; compared as nim compares names); directories without one only group (`text/`, `util/`).  `package.nim`
