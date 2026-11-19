@@ -9,3 +9,23 @@
 
 -----
 
+* in packages --config the user value should be NAME and then (default) if it is teh default.  i know this mixes two meanings of default, but it's less clumsy and clear enough if you know enough to care.
+
+* the environment values alternate, but they're all in the same "environment" row of the table.
+
+* for environment, can we display defaults even if not set.  asnd then add (default) if not set.  for example NO_COLOR=false (default) (if that is typically a bool)
+
+* what does
+
+    fragments: the program has 9; the database has had 9
+      all of them match
+
+  mean?
+
+* it might be good to have an explanation of what the environment vars do too, because i don't know them all.  COLORFGBG?!
+
+* packages --graph, layer 0 values the markup should not include leading spaces
+
+* nch packages --graph calendar --verbose  don't use hide now that packages have their own style.  drop the last line explanation.
+
+* please update system dark theme from mine

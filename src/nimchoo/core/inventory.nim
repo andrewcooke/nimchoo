@@ -455,7 +455,7 @@ func treeLines*(
 ): seq[TreeLine] =
   ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes.  A package drawn above
   ## is not drawn again: it is marked `again`, and followed by "..." if something under it is left out (a package with
-  ## nothing under it is just its name), so the tree stays short (`treeNote` says so); without `repeats` it is left out
+  ## nothing under it is just its name), so the tree stays short; without `repeats` it is left out
   ## altogether.  Under each package those not drawn yet come first, the ones drawn above after them.
   type Node = tuple[depth: int, name: string, again, cut: bool]
   var nodes: seq[Node]
@@ -512,9 +512,6 @@ func treeLines*(
       again: n.again,
     )
 
-const treeNote* = "(... after a package: what is under it is drawn in full above)"
-  ## what a tree that left something out says under it
-
 func reducedDepends(inv: Inventory): Table[string, seq[string]] =
   ## For each package the packages it depends on directly and not through another it depends on (the edges that
   ## carry information; the rest are implied).
@@ -568,11 +565,14 @@ func layerLines*(inv: Inventory, width: int, implied = false): seq[seq[LayerPiec
           if kept.allIt(it.normalised != d.normalised):
             deps.add (d, true)
       if deps.len == 0:
-        result.add @[("  " & p.name, false)]
+        result.add @[("  ", false), (p.name, false)]
         continue
       # the names, wrapped to the room after the arrow; each keeps its mark
-      var line: seq[LayerPiece] =
-        @[("  " & p.name.alignLeft(nameWidth) & "  ← ", false)]
+      var line: seq[LayerPiece] = @[
+        ("  ", false),
+        (p.name, false),
+        (" ".repeat(nameWidth - p.name.len) & "  ← ", false),
+      ]
       var used = 0
       for (d, imp) in deps:
         if used > 0 and used + 1 + d.len > room:

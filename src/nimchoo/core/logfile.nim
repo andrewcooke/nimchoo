@@ -70,7 +70,8 @@ func logPath*(nchLog, xdgState, home: Option[string]): Option[string] =
     return some(home.get / ".local" / "state" / "nch" / "nch.log")
   none(string)
 
-proc envOpt(name: string): Option[string] =
+proc envOpt*(name: string): Option[string] =
+  ## The variable of the environment `name`, if it is set (perhaps to "").
   if existsEnv(name):
     some(getEnv(name))
   else:

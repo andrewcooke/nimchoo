@@ -8,6 +8,7 @@
 ## touched here.
 
 import std/[options, os, sequtils, strutils]
+import ../../core/logfile
 
 {.push raises: [].}
 
@@ -81,12 +82,6 @@ func cachePath*(nchCache, xdgCache, home: Option[string]): Option[string] =
   if home.isSome and home.get.len > 0:
     return some(home.get / ".cache" / "nch")
   none(string)
-
-proc envOpt(name: string): Option[string] =
-  if existsEnv(name):
-    some(getEnv(name))
-  else:
-    none(string)
 
 proc cacheDir*(): Option[string] =
   ## `cachePath` for the real environment.

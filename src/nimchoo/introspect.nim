@@ -8,6 +8,7 @@ import ./core/[access, errors, globals, inventory, logfile, manifest, ruled]
 import ./packages/cache/cache
 import ./packages/db/[fragment, store]
 import ./packages/ui/[live, style, units]
+import ./packages/user/session
 import ./packages/util/args/[args, usage]
 import ./packages/util/version/version
 import ./registry as generated
@@ -140,7 +141,7 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "(with `--graph`) everything, the rest dimmed: with NAME the packages already drawn higher in the tree (else each is drawn once); without, the dependencies implied by others (else only those that are not)",
+        "(with `--graph`) everything: with NAME the packages already drawn higher in the tree, again (else each is drawn once); without, the dependencies implied by others too, dimmed (else only those that are not)",
         level = 1,
       ),
       flag(
@@ -238,42 +239,132 @@ proc usageText*(width: int): seq[Line] =
 
 # --- the settings ------------------------------------------------------------------------------------------------------
 
-proc setIn(name: string): string =
-  ## "NAME=value" for a variable of the environment that is set, "NAME (not set)" if not.
-  let v = getEnv(name)
-  if v.len > 0:
-    fmt"{name}={v}"
-  else:
-    fmt"{name} (not set)"
-
 proc fragmentLines*(path: string): seq[string] =
-  ## What the database file has had applied, against what this program has.
+  ## What the database file has had applied, against what this program has: the fragments are the SQL that makes the
+  ## tables, in the order the program applies them (`db` package).
   let program = generated.schema
+  let what =
+    fmt"the program has {program.len} fragments (the SQL that makes its tables)"
   if not fileExists(path):
-    return
-      @[fmt"fragments: the program has {program.len}; there is no database file yet"]
+    return @[fmt"{what}; there is no database yet"]
   var have: seq[(string, string)]
   try:
     have = appliedFragments(path)
   except StoreError as e:
-    return @[fmt"fragments: the program has {program.len}; the database: {e.msg}"]
-  result.add fmt"fragments: the program has {program.len}; the database has had {have.len}"
+    return @[fmt"{what}; the database: {e.msg}"]
   var differences: seq[string]
   for (name, sum) in have:
     let known = program.filterIt(it.name == name)
     if known.len == 0:
-      differences.add fmt"  {name}: only in the database (from a newer version: it will be refused)"
+      differences.add fmt"{name}: only in the database (from a newer version: it will be refused)"
     elif known[0].checksum != sum:
-      differences.add fmt"  {name}: not the SQL this version has (made by a different version: it will be refused)"
+      differences.add fmt"{name}: not the SQL this version has (made by a different version: it will be refused)"
   for f in program:
     if have.allIt(it[0] != f.name):
-      differences.add fmt"  {f.name}: not applied yet (it will be, when the database is opened)"
+      differences.add fmt"{f.name}: not applied yet (it will be, when the database is opened)"
   if differences.len == 0:
-    result.add "  all of them match"
-  result.add differences
+    return
+      @[fmt"{what}, and the database has had all of them, as this version has them"]
+  @[fmt"{what}; the database has had {have.len}:"] & differences
+
+proc userText(g: Globals, path: string): string =
+  ## The user the commands work on: its name, and "(default)" if it is the default one.
+  if not fileExists(path):
+    return
+      (if g.user.len > 0: g.user else: "the default user") &
+      " (there is no database yet)"
+  var ro = g
+  ro.readOnly = true
+  try:
+    let st = openSession(ro)
+    defer:
+      st.close()
+    result = st.userName & (if st.isDefault: " (default)" else: "")
+  except StoreError as e:
+    result = e.msg
+
+type EnvVar = tuple[name, what: string, default: Option[string], isPath: bool]
+
+proc environment(): seq[EnvVar] =
+  ## The variables of the environment that nch reads, what each is for, and what is used when it is not set.
+  let home = envOpt("HOME")
+  func under(p: string): Option[string] =
+    (if home.isSome: some(home.get / p) else: none(string))
+
+  @[
+    (
+      "NCH_DB",
+      "the database file (`--db` comes first)",
+      some(getDataDir() / "nch" / "nch.db"),
+      true,
+    ),
+    (
+      "NCH_LOG",
+      "the log file; set and empty: no log",
+      logPath(none(string), envOpt("XDG_STATE_HOME"), home),
+      true,
+    ),
+    (
+      "NCH_CACHE",
+      "the cache directory",
+      cachePath(none(string), envOpt("XDG_CACHE_HOME"), home),
+      true,
+    ),
+    (
+      "XDG_DATA_HOME",
+      "where the database goes (in `nch/`) when NCH_DB is not set",
+      under(".local/share"),
+      true,
+    ),
+    (
+      "XDG_STATE_HOME",
+      "where the log goes (in `nch/`) when NCH_LOG is not set",
+      under(".local/state"),
+      true,
+    ),
+    (
+      "XDG_CACHE_HOME",
+      "where the cache goes (in `nch/`) when NCH_CACHE is not set",
+      under(".cache"),
+      true,
+    ),
+    (
+      "NO_COLOR",
+      "set to anything: no colour (a convention many programs follow); not set: colour on a terminal",
+      none(string),
+      false,
+    ),
+    ("NCH_THEME", "the theme, when `--theme` is not given", none(string), false),
+    (
+      "COLORFGBG",
+      "set by some terminals (the numbers of the text and background colours): whether the background is light, to choose the light or dark theme when nothing else does",
+      none(string),
+      false,
+    ),
+  ]
+
+proc environmentLines(width: int): seq[Line] =
+  ## The variables of the environment: the value of each (or what is used when it is not set, "(default)"), and what
+  ## it is for.
+  var rows: seq[seq[Line]]
+  for v in environment():
+    let given = envOpt(v.name)
+    let value =
+      if given.isSome:
+        (
+          if v.isPath and given.get.len > 0: @[span(given.get, "file")]
+          else: plain(given.get)
+        )
+      elif v.default.isSome:
+        @[span(v.default.get, "file"), span(" (default)")]
+      else:
+        plain("not set (default)")
+    rows.add @[plain(v.name), value, plain(v.what)]
+  ruled(@["variable", "value", "what it is for"], rows, width)
 
 proc configLines*(g: Globals, width: int): seq[Line] =
-  ## The settings in force, and where each came from (a path in `file`), as a table without headings; then the fragments.
+  ## The settings in force, and where each came from (a path in `file`), as a table without headings; then the
+  ## variables of the environment.
   var rows: seq[seq[Line]]
   func row(label: string, value: Line): seq[Line] =
     @[plain(label), value]
@@ -302,13 +393,8 @@ proc configLines*(g: Globals, width: int): seq[Line] =
   except OSError:
     state = "cannot be read"
   rows.add row("database", @[span(path, "file"), span(fmt"  ({source}; {state})")])
-  rows.add row(
-    "user",
-    if g.user.len > 0:
-      fmt"{g.user}  (`--user`)"
-    else:
-      "the default user of the database",
-  )
+  rows.add row("schema", fragmentLines(path).join("\n"))
+  rows.add row("user", userText(g, path))
   rows.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
   rows.add row(
     "theme",
@@ -329,16 +415,9 @@ proc configLines*(g: Globals, width: int): seq[Line] =
     ,
   )
   rows.add row("commands", generated.commands.mapIt(it.name).join(" ") & " packages")
-  let variables = [
-    "NCH_DB", "NCH_LOG", "NCH_CACHE", "XDG_STATE_HOME", "XDG_CACHE_HOME",
-    "XDG_DATA_HOME", "NO_COLOR", "NCH_THEME", "COLORFGBG",
-  ].mapIt(setIn(it))
-  for i, v in variables:
-    rows.add row((if i == 0: "environment" else: ""), v)
   result = ruled(@["", ""], rows, width)
   result.add plain("")
-  for l in fragmentLines(path):
-    result.add plain(l)
+  result.add environmentLines(width)
 
 # --- the command -------------------------------------------------------------------------------------------------------
 
@@ -437,7 +516,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
           l.mapIt(
             if it.implied:
               span(it.text, "hide")
-            elif inv.find(it.text.strip) >= 0:
+            elif inv.find(it.text) >= 0:
               span(it.text, styleName"pkg") # (the name of a package)
             else:
               span(it.text)
@@ -450,19 +529,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     let tree = treeLines(inv, p.root, p.reverse, p.repeats)
     let paint = paintOf(g, osOut)
     for l in tree:
-      # (what was drawn above is hidden)
-      g.sayRendered osOut,
-        render(
-          (
-            if l.again:
-              @[span(l.text, "hide")]
-            else:
-              namedInTree(l.text)
-          ),
-          paint,
-        ) & "\n"
-    if tree.anyIt(it.text.endsWith("...")):
-      g.showAll(@["", treeNote])
+      g.show(osOut, namedInTree(l.text))
   of vDot:
     g.say osOut, dotText(inv)
   of vConfig:

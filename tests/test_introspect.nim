@@ -60,20 +60,23 @@ suite "nch packages: the settings":
     let g = Globals(dbPath: dir / "x.db", user: "bob", offline: true, access: allAccess)
     let text = configLines(g, 120).plainText
     check "version" in text and "(--db; not made yet)" in text
-    check "bob  (`--user`)" in text and "yes (`--offline`)" in text
+    check "bob (there is no database yet)" in text and "yes (`--offline`)" in text
     check "access" in text and "enforced" in text
     check "NCH_DB" in text and "packages" in text
-    check "there is no database file yet" in text
+    check "there is no database yet" in text
+    check "NO_COLOR" in text and "not set (default)" in text
+      # (the environment, with its defaults)
 
   test "the fragments of the database are compared with the program's":
     removeDir dir
     createDir dir
     let path = dir / "y.db"
     openSession(path, allFragments, access = allAccess).close()
-    check fragmentLines(path)[0] ==
-      "fragments: the program has " & $schema.len & "; the database has had " &
-      $schema.len
-    check "  all of them match" in fragmentLines(path)
+    check fragmentLines(path) ==
+      @[
+        "the program has " & $schema.len &
+          " fragments (the SQL that makes its tables), and the database has had all of them, as this version has them"
+      ]
     # a fragment the database has and this program does not
     let s = openStore(path, allFragments, access = allAccess)
     s.db.execScript(
@@ -86,6 +89,7 @@ suite "nch packages: the settings":
     let lines = fragmentLines(path).join("\n")
     check "zzz/001.sql: only in the database" in lines
     check "user/001-schema.sql: not the SQL this version has" in lines
+    check lines.startsWith("the program has " & $schema.len & " fragments")
     removeDir dir
 
   test "nch provides the command itself; no package may take its name":

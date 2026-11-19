@@ -199,7 +199,9 @@ suite "the graphs":
 
   test "with the implied ones, every dependency is there, the implied ones marked":
     let lines = layerLines(world(), 80, implied = true)
-    let c = lines.filterIt(it[0].text.startsWith("  c"))[0]
+    let c = lines.filterIt(it.mapIt(it.text).join("").startsWith("  c "))[0]
+    check c[1].text == "c"
+      # (the name a piece of its own: drawn in pkg, without the spaces)
     check c.filterIt(not it.implied and it.text == "b").len == 1
     check c.filterIt(it.implied).mapIt(it.text).sorted == @["a", "db"]
 

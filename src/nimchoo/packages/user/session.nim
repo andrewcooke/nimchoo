@@ -24,6 +24,7 @@ type Session* = object
   path*: string ## the database file, as `store.path`
   userId*: UserId
   userName*: string
+  isDefault*: bool ## the user is the default one (used when none is asked for)
 
 converter toStore*(s: Session): Store =
   s.store
@@ -76,6 +77,8 @@ proc openSession*(
       userId: id.get,
       userName:
         st.db.scalar(string, "select name from user where id = :id", id = id.get),
+      isDefault:
+        st.db.scalar(bool, "select is_default from user where id = :id", id = id.get),
     )
   except StoreError:
     close(st)
