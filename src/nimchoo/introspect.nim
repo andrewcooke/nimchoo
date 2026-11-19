@@ -141,7 +141,7 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "(with `--graph`) everything: with NAME the packages already drawn higher in the tree, again (else each is drawn once); without, the dependencies implied by others too, dimmed (else only those that are not)",
+        "(with `--graph`) everything: with NAME each package again wherever it is needed, besides where it is drawn in full (else once, at the shallowest place); without, the dependencies implied by others too, dimmed (else only those that are not)",
         level = 1,
       ),
       flag(

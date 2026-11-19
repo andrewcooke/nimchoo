@@ -178,17 +178,20 @@ suite "the views":
     check lines.anyIt(it.startsWith("ta") and it.endsWith("b c"))
 
 suite "the graphs":
-  test "the tree of what a package depends on; a package drawn above is not drawn again (and comes after the new), and ... says what was left out":
-    check treeLines(world(), "c").mapIt(it.text) ==
+  test "the tree of what a package depends on, breadth first: each package in full where it is first needed, ... where something is left out":
+    let tree = treeLines(world(), "c")
+    check tree.mapIt(it.text) ==
       @[
         "c", "├── a", "│   └── db", "├── b", "│   ├── a...",
         "│   └── db", "└── db",
       ]
-        # (a has db under it, already drawn; db has nothing under it, so nothing is left out)
+        # (c uses a, b and db itself: all three are drawn in full under it; under a and b they are repeats, and a has
+        # db under it, so it is followed by ...)
+    check tree.mapIt(it.again) == @[false, false, true, false, true, true, false]
 
   test "without the repeats each package is drawn once, and the lines join up":
     check treeLines(world(), "c", repeats = false).mapIt(it.text) ==
-      @["c", "├── a", "│   └── db", "└── b"]
+      @["c", "├── a", "├── b", "└── db"]
 
   test "the tree of what depends on a package":
     check treeLines(world(), "a", reverse = true).mapIt(it.text) ==
@@ -232,17 +235,18 @@ suite "the real registry":
         check inv.packages[inv.find(d)].layer < p.layer
         check p.name in inv.packages[inv.find(d)].dependents
 
-  test "a tree draws what is under a package once: a repeat is marked ..., or has nothing under it":
+  test "a tree draws each package in full once; a repeat is marked ..., or has nothing under it":
     for p in inv.packages:
-      var drawn: seq[string]
+      var full: seq[string]
       for line in treeLines(inv, p.name):
         let l = line.text
         let name =
           l.splitWhitespace.filterIt(it[0].isAlphaAscii)[0].strip(chars = {'.'})
-        if name in drawn:
-          check line.again and
-            (l.endsWith("...") or inv.packages[inv.find(name)].depends.len == 0)
-        drawn.add name
+        if line.again:
+          check l.endsWith("...") or inv.packages[inv.find(name)].depends.len == 0
+        else:
+          check name notin full
+          full.add name
 
   test "every table has an owner that is a package, and the layers print without error":
     for t in inv.tables:

@@ -453,33 +453,46 @@ type TreeLine* = object ## A line of a tree of packages.
 func treeLines*(
     inv: Inventory, root: string, reverse = false, repeats = true
 ): seq[TreeLine] =
-  ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes.  A package drawn above
-  ## is not drawn again: it is marked `again`, and followed by "..." if something under it is left out (a package with
-  ## nothing under it is just its name), so the tree stays short; without `repeats` it is left out
-  ## altogether.  Under each package those not drawn yet come first, the ones drawn above after them.
+  ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes, breadth first:
+  ## each package is drawn in full at the shallowest place it is needed (the first a breadth-first walk from `root`
+  ## meets it), so what `root` uses itself is all directly under it, what those use that is not already there under
+  ## them, and so on.  Anywhere else it is marked `again`, followed by "..." if something under it is left out (a
+  ## package with nothing under it is just its name); without `repeats` it is left out altogether.  Under each package
+  ## those drawn in full there come first, the others after them.
   type Node = tuple[depth: int, name: string, again, cut: bool]
   var nodes: seq[Node]
-  var seen = initHashSet[string]()
-  func walk(
+  let start = inv.packages[inv.find(root)].name
+  var home: Table[string, string] # package -> the package it is drawn in full under
+  var met = toHashSet([start.normalised])
+  var queue = @[start]
+  var at = 0
+  while at < queue.len:
+    let u = queue[at]
+    inc at
+    for k in neighbours(inv, u, reverse):
+      if k.normalised notin met:
+        met.incl k.normalised
+        home[k.normalised] = u.normalised
+        queue.add k
+
+  func draw(
       inv: Inventory,
       name: string,
       depth: int,
-      seen: var HashSet[string],
+      home: Table[string, string],
       nodes: var seq[Node],
       reverse: bool,
   ) =
-    let again = name.normalised in seen
-    seen.incl name.normalised
+    nodes.add (depth, name, false, false)
     let kids = neighbours(inv, name, reverse)
-    nodes.add (depth, name, again, again and kids.len > 0)
-    if again:
-      return
-    let ordered =
-      kids.filterIt(it.normalised notin seen) & kids.filterIt(it.normalised in seen)
-    for k in ordered:
-      walk(inv, k, depth + 1, seen, nodes, reverse)
+    let here = kids.filterIt(home.getOrDefault(it.normalised) == name.normalised)
+    for k in here:
+      draw(inv, k, depth + 1, home, nodes, reverse)
+    for k in kids:
+      if home.getOrDefault(k.normalised) != name.normalised:
+        nodes.add (depth + 1, k, true, neighbours(inv, k, reverse).len > 0)
 
-  walk(inv, inv.packages[inv.find(root)].name, 0, seen, nodes, reverse)
+  draw(inv, start, 0, home, nodes, reverse)
   if not repeats:
     nodes = nodes.filterIt(not it.again)
   # the connectors, from what is drawn: a package is the last under its parent if no later one has its depth before one that
