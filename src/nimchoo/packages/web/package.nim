@@ -12,7 +12,7 @@
 ## its own, or with `&`); a later one finds it (`/status`, which answers only to the token in an `X-Nch-Token` header, never
 ## to a page's cookie), opens its page there and returns; `--start` starts the server without opening the browser, `--stop`
 ## stops it from anywhere (`/stop`).  The libraries the pages
-## load from a CDN, with their integrity hashes, are in `libraries.txt` (built in, beside this file, and kept in the cache's
+## load from a CDN, with their integrity hashes, are in `libraries.cdn` (built in, beside this file, and kept in the cache's
 ## `system/` part, where it can be edited).  The extension point `web/pages` is defined here; `map`
 ## and `ff` contribute.
 

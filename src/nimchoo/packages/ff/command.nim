@@ -320,7 +320,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g,
         "nch ff",
         "cannot make the page: " & e.msg & " (the template is " &
-          "system/templates/ff.html and the libraries are system/libraries.txt, in the cache directory; " &
+          "system/templates/ff.html and the libraries are system/libraries.cdn, in the cache directory; " &
           "delete one to have the built-in one again)",
       )
     if p.web.kind == wkWorker:

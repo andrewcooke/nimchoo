@@ -141,7 +141,7 @@ proc pageHtml*(
     let hash = known.filterIt(it[0] == l & "-hash")
     if url.len == 0 or hash.len == 0:
       raiseTemplate(
-        fmt"libraries.txt has no {l} (or no {l}-hash), which a frame's drawing uses"
+        fmt"libraries.cdn has no {l} (or no {l}-hash), which a frame's drawing uses"
       )
     scripts.add "<script src=\"" & htmlEscape(url[0][1]) & "\" integrity=\"" &
       htmlEscape(hash[0][1]) & "\" crossorigin=\"\"></script>\n"

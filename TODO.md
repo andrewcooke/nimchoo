@@ -49,8 +49,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 * File paths in a style of their own, `file` (the author's dark theme has one).
 * "usage:" and "commands:" (`nch --help`) in `em`.
-* `libraries.txt` (web: the libraries the pages load from a CDN) gets a name of its own, as the themes did (`.theme`); not
-  `.manifest`, which the cache's record of what was unpacked is already called.
 
 ## Features and ideas, unordered
 

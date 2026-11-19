@@ -15,7 +15,7 @@ proc fresh(name: string): string =
   createDir(result / "cache" / "data" / "geonames")
   writeFile(result / "cache" / "user" / "heatmap--check-ab.geojson", "{}")
   writeFile(result / "cache" / "user" / "ff--check-cd.csv", "time\n")
-  writeFile(result / "cache" / "system" / "libraries.txt", "x")
+  writeFile(result / "cache" / "system" / "libraries.cdn", "x")
   writeFile(result / "cache" / "data" / "geonames" / "CL.zip", "zip")
   writeFile(result / "cache" / "server-token", "secret")
 
@@ -35,14 +35,14 @@ suite "nch cache":
     check run("--delete", "csv") == exitOk
     check not fileExists(d / "cache" / "user" / "ff--check-cd.csv")
     check fileExists(d / "cache" / "user" / "heatmap--check-ab.geojson") and
-      fileExists(d / "cache" / "system" / "libraries.txt")
+      fileExists(d / "cache" / "system" / "libraries.cdn")
     check run("--delete", "csv") == exitOk # nothing left: fine
   test "several kinds, and all":
     let d = fresh("several")
     check run("--delete", "geojson", "downloads") == exitOk
     check not fileExists(d / "cache" / "user" / "heatmap--check-ab.geojson") and
       not dirExists(d / "cache" / "data")
-    check fileExists(d / "cache" / "system" / "libraries.txt")
+    check fileExists(d / "cache" / "system" / "libraries.cdn")
     check run("--delete", "all") == exitOk
     check not dirExists(d / "cache" / "system") and
       not fileExists(d / "cache" / "user" / "ff--check-cd.csv")

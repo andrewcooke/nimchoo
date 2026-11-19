@@ -200,7 +200,7 @@ proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: i
       failure(
         g,
         "nch map",
-        fmt"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.txt, in the cache directory; delete one to have the built-in one again)",
+        fmt"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
       ),
     )
 

@@ -54,7 +54,7 @@ type
     styleKeys*: seq[string]
       ## the keys that the style must have, which the drawing reads ("color", "spread_m")
     libraries*: seq[string]
-      ## the libraries its drawing uses besides Leaflet (names in the libraries file, `web/libraries.txt`:
+      ## the libraries its drawing uses besides Leaflet (names in the libraries file, `web/libraries.cdn`:
       ## "leaflet-heat-js"), which the page loads, each with its hash
     script*: Option[Bundle]
       ## how it is drawn: a JavaScript function (see above), built in and kept in the cache's `system/templates/`, where the

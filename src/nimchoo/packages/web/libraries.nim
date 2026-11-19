@@ -1,5 +1,5 @@
 ## The libraries the web pages load from a CDN (leaflet, d3, plot) and their integrity hashes, as
-## `name = value` lines in libraries.txt.  The file is built into the program and kept in the cache's
+## `name = value` lines in libraries.cdn.  The file is built into the program and kept in the cache's
 ## `system/` part (see bundle/unpack.nim), where the author can change it to use another version.
 ## Every name in it can be used in a page template.
 
@@ -10,7 +10,7 @@ import ../text/templating/templating
 {.push raises: [].}
 
 const librariesBundle* =
-  Bundle(name: "libraries.txt", data: staticRead("libraries.txt"))
+  Bundle(name: "libraries.cdn", data: staticRead("libraries.cdn"))
 
 func parseLibraries*(text: string): seq[(string, string)] =
   ## The `name = value` lines (comments start with #, and lines that are not a name and a value

@@ -80,7 +80,7 @@ suite "map page: the template and the libraries are files":
     putEnv("NCH_CACHE", top)
     check pageHtml("t").startsWith("<!DOCTYPE html>")
     check readFile(systemDir(top) / "templates" / "map.html") == pageTemplate
-    check readFile(systemDir(top) / "libraries.txt") == librariesBundle.data
+    check readFile(systemDir(top) / "libraries.cdn") == librariesBundle.data
     writeFile(
       systemDir(top) / "templates" / "map.html",
       "<h1>{{title}}</h1> <a href=\"{{leaflet-js}}\">{{{frames}}}</a>\n",
@@ -95,7 +95,7 @@ suite "map page: the template and the libraries are files":
     putEnv("NCH_CACHE", top)
     discard pageHtml("t")
     writeFile(
-      systemDir(top) / "libraries.txt",
+      systemDir(top) / "libraries.cdn",
       librariesBundle.data.replace("leaflet@1.9.4", "leaflet@9.9.9"),
     )
     let h = pageHtml("t")
