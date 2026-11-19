@@ -243,7 +243,7 @@ four kinds of things go wrong, and each has one mechanism:
   in its header; input never takes a unit for distance (decimal km), and `m` always means minutes.
 * **everything a person reads is in the theme** (decided 2026-11-18): a command writes with `g.say(osOut, text)` (plain
   text, in the theme's `default`), `g.show(osOut, line)` (a `Line` of styled spans) and `failure(g, ...)`; styled text
-  in the code is `styled"[good imported] {n} files"` (markup read when compiled: a style the built-in theme lacks is a
+  in the code is `styled"<good imported> {n} files"` (markup read when compiled: a style the built-in theme lacks is a
   compile error; the values are plain text), or `span(text, "bad")`.  never `stdout.say`/`echo`: a test fails
   (`tests/core/test_globals.nim`), except for output meant for programs (the completion scripts).
 

@@ -1,13 +1,13 @@
 ## What styled text looks like with a theme (a tool for trying themes: no part of nch).
 ##
 ##     nim c -d:release --hints:off -o:build/look tools/look.nim
-##     build/look ~/.cache/nch/system/themes/dark.theme '[good imported] 3 files [hide (1.2s)]'
+##     build/look ~/.cache/nch/system/themes/dark.theme '<good imported> 3 files <hide (1.2s)>'
 ##     build/look THEME                  # a sample: every style of the theme, nested, and lines like those of nch
 ##     build/look light                  # a theme by its name: NAME.theme in the cache's themes, else the built-in one
 ##     build/look THEME - < lines.txt    # each line of stdin (read as markup)
 ##     build/look --plain THEME ...      # without colour, as NO_COLOR would show it
 ##
-## The markup is that of `ui/markup.nim`: `[NAME text]`, nesting, `\[` `\]` `\\`.  Each TEXT given is a line; a `\n` in one
+## The markup is that of `ui/markup.nim`: `<NAME text>`, nesting, `\<` `\>` `\\`.  Each TEXT given is a line; a `\n` in one
 ## (as two characters, typed in the shell) is a newline too, so that a style running over lines can be tried.
 
 import std/[options, os, sequtils, strformat, strutils, tables]
@@ -18,15 +18,15 @@ import nimchoo/packages/themes/choose
 import nimchoo/packages/ui/[markup, style]
 
 const examples = [
-  "[good imported] 3 files [hide (1.2s)]",
-  "[bad failed] ride.fit: [em not a FIT file] (it ends at byte 12)",
-  "[warn note:] the clock of ride.fit jumped back 3m, so the times after it are moved",
+  "<good imported> 3 files <hide (1.2s)>",
+  "<bad failed> ride.fit: <em not a FIT file> (it ends at byte 12)",
+  "<warn note:> the clock of ride.fit jumped back 3m, so the times after it are moved",
   "   id  date        name                  distance",
-  "[select   737  2026-11-17  Camino a Farellones     36.7km]",
+  "<select   737  2026-11-17  Camino a Farellones     36.7km>",
   "  738  2026-11-18  San Cristóbal            8.4km",
-  "[select   739  2026-11-18  Pocuro                       [hide —]]",
-  "[select a selected line with [default a plain word] in it]",
-  "[em what to read first [hide with a quiet aside] and more]",
+  "<select   739  2026-11-18  Pocuro                       <hide —>>",
+  "<select a selected line with <default a plain word> in it>",
+  "<em what to read first <hide with a quiet aside> and more>",
 ]
 
 proc sample(t: Theme): seq[string] =
@@ -36,18 +36,18 @@ proc sample(t: Theme): seq[string] =
   let width = max(names.mapIt(it.len)) + 2
   result.add "each style alone, then inside each other style:"
   for name in names:
-    var line = fmt"  [{name} {name.alignLeft(width)}]"
+    var line = fmt"  <{name} {name.alignLeft(width)}>"
     for outer in names:
       if outer != name:
-        line.add fmt" [{outer} [{name} {name}]]"
+        line.add fmt" <{outer} <{name} {name}>>"
     result.add line
   result.add ""
   result.add "each style in a sentence, across a row, and over a newline:"
   for name in names:
-    result.add fmt"  some text with [{name} a few words in {name}] in the middle of it"
+    result.add fmt"  some text with <{name} a few words in {name}> in the middle of it"
     let row = fmt"  737  2026-11-17  a row in {name}".alignLeft(42) & "36.7km"
-    result.add fmt"[{name} {row}]"
-    result.add fmt"  [{name} a style that runs" & "\n  over a newline]"
+    result.add fmt"<{name} {row}>"
+    result.add fmt"  <{name} a style that runs" & "\n  over a newline>"
   result.add ""
   # (nch uses the styles of the built-in dark theme, whatever a theme has: those it lacks draw as the text around them)
   let lacking = styleNames.filterIt(it notin t.styles)

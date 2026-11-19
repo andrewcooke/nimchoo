@@ -51,7 +51,7 @@ template forceOptionIn*(P: typedesc, group, field: untyped, indent: int = 0): Op
 
 func countdownLine*(what: string, seconds: int): Line =
   ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", bad, the seconds emphasised.
-  styled"[bad deleting {what} in [em {seconds}] s ... (Ctrl-C to cancel)]"
+  styled"<bad deleting {what} in <em {seconds}> s ... (Ctrl-C to cancel)>"
 
 proc countdown*(
     l: Live, what: string, seconds: int, wait: proc(ms: int) {.closure, raises: [].}
@@ -64,7 +64,7 @@ proc countdown*(
 
 proc sayDeleted*(g: Globals, text: string) =
   ## The line that says what was deleted ("done: deleted ..."), bad on a terminal, so that it stands out.
-  g.show(osOut, styled"[bad done: {text}]")
+  g.show(osOut, styled"<bad done: {text}>")
 
 proc sleepMs*(ms: int) {.raises: [].} =
   ## Wait for `ms` milliseconds.

@@ -486,7 +486,7 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
   selection, `selectedStyle`), each used for nothing else; `cmd` for what a person would type: a command, an option, a path (what is between backticks, wherever it is, drawn without them in colour; the options and commands of the usages; `theme.typedStyle`); `em` for what to read first, `hide` for the bookkeeping and
   what was not recorded (and the lines of a table or a tree, `│ ─ ┼ └`, wherever they are: `theme.lineStyle`);
   `default` is around everything (all that a command writes is in it: `g.say()`, `g.show()`).  Markup
-  (`[good imported] 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,
+  (`<good imported> 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,
   which nest; `tools/look.nim` shows text with a theme.  (The web pages' colours are their own, in their templates:
   they are always on white, whatever the terminal's theme.)
 * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also

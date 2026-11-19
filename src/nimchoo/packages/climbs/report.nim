@@ -115,8 +115,8 @@ func climbingLines*(done, total: int, worked: Worked): seq[Line] =
   let (d, t) = (commas(done), commas(total))
   let (c, e) = (commas(worked.sectors), commas(worked.efforts))
   @[
-    styled"[em climbing ]{d} / {t} activities",
-    styled"[good climbs {c}][hide  · ][good efforts {e}]",
+    styled"<em climbing >{d} / {t} activities",
+    styled"<good climbs {c}><hide  · ><good efforts {e}>",
   ]
 
 func workedText*(worked: Worked): string =

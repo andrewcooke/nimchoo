@@ -27,8 +27,8 @@ func deletingLines*(done, total, files: int): seq[Line] =
     (insertSep($done, ','), insertSep($total, ','), insertSep($files, ','))
   let noun = if total == 1: "activity" else: "activities"
   @[
-    styled"[em deleting ]{d} / {t} {noun}",
-    styled"[bad activities {d}][hide  · ][bad files {f}]",
+    styled"<em deleting >{d} / {t} {noun}",
+    styled"<bad activities {d}><hide  · ><bad files {f}>",
   ]
 
 proc runDelete*(

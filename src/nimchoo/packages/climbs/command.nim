@@ -236,7 +236,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if list.kind == lkFound and list.select:
       let noun = if ids.len == 1: "climb" else: "climbs"
       g.show(
-        osOut, styled"done: {ids.len} {noun}, [select saved as the climbs selection]"
+        osOut, styled"done: {ids.len} {noun}, <select saved as the climbs selection>"
       )
     exitOk
   except StoreError, DownloadError:

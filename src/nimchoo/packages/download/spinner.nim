@@ -66,7 +66,7 @@ func progressLine*(
     if text.len > 0:
       @[span(text)]
     else:
-      styled"need {label}: [hide {shortUrl(url)}]"
+      styled"need {label}: <hide {shortUrl(url)}>"
   if finished:
     if bytes > 0:
       result.add span(" (" & humanBytes(bytes) & ")")
@@ -123,7 +123,7 @@ proc loop(s: ptr Shared) {.thread.} =
         live.finish()
         break
       of enFailed:
-        live.keep(@[styled"[bad cannot download {shortUrl(url)}: {message}]"])
+        live.keep(@[styled"<bad cannot download {shortUrl(url)}: {message}>"])
         break
       sleep(pollMs)
 

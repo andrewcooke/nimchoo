@@ -1,6 +1,7 @@
-## Styled text written as markup: `[good imported] 3 files [hide (1.2s)]`.  A bracket opens a style, named by the word
-## after it and ended by one space; the matching `]` closes it.  Styles nest, and a nested one changes only the attributes
-## it gives (`core/theme.nim`); `[default ...]` goes back to the look of plain text, whatever is around it.  `\[`, `\]` and
+## Styled text written as markup: `<good imported> 3 files <hide (1.2s)>`.  A `<` opens a style, named by the word after it
+## and ended by one space; the matching `>` closes it.  (Angle brackets, as they are rare in the program's text; `[` is in
+## every synopsis.)  Styles nest, and a nested one changes only the attributes
+## it gives (`core/theme.nim`); `<default ...>` goes back to the look of plain text, whatever is around it.  `\<`, `\>` and
 ## `\\` are a bracket and a backslash.
 ##
 ## A style may run over a newline: the text is read into lines (`style.Line`), and each span carries its styles, so a line
@@ -32,33 +33,32 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
   while i < text.len:
     case text[i]
     of '\\':
-      if i + 1 < text.len and text[i + 1] in {'[', ']', '\\'}:
+      if i + 1 < text.len and text[i + 1] in {'<', '>', '\\'}:
         buffer.add text[i + 1]
         i += 2
       else:
         raiseMarkup(
-          "a backslash goes only before [, ] or \\ (write \\\\ for a backslash)", i + 1
+          "a backslash goes only before <, > or \\ (write \\\\ for a backslash)", i + 1
         )
-    of '[':
+    of '<':
       var j = i + 1
       while j < text.len and text[j] in {'a' .. 'z', '0' .. '9', '-'}:
         inc j
       let name = text[i + 1 ..< j]
       if not isStyleName(name):
         raiseMarkup(
-          "a [ starts a style, so the name of one follows it (write \\[ for a bracket)",
-          i + 1,
+          "a < starts a style, so the name of one follows it (write \\< for a <)", i + 1
         )
       if j >= text.len or text[j] != ' ':
         raiseMarkup(
-          fmt"the name of a style is followed by a space: [{name} text]", j + 1
+          fmt"the name of a style is followed by a space: <{name} text>", j + 1
         )
       flush()
       open.add (name, i + 1)
       i = j + 1
-    of ']':
+    of '>':
       if open.len == 0:
-        raiseMarkup("this ] closes no style (write \\] for a bracket)", i + 1)
+        raiseMarkup("this > closes no style (write \\> for a >)", i + 1)
       flush()
       discard open.pop()
       inc i
@@ -70,7 +70,7 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
       buffer.add text[i]
       inc i
   if open.len > 0:
-    raiseMarkup(fmt"[{open[^1].name} is not closed", open[^1].at)
+    raiseMarkup(fmt"<{open[^1].name} is not closed", open[^1].at)
   flush()
 
 func styled*(paint: Paint, text: string): seq[string] {.raises: [MarkupError].} =
@@ -112,9 +112,9 @@ func holes(
       inc i
 
 macro styled*(literal: string{lit}): Line =
-  ## A line written as markup, with values as `fmt` puts them (`styled"[good imported] {n} files [hide ({t:.1f}s)]"`).  The
+  ## A line written as markup, with values as `fmt` puts them (`styled"<good imported> {n} files <hide ({t:.1f}s)>"`).  The
   ## markup is read when the program is compiled: a bracket not closed, or a style the built-in theme does not have, is a
-  ## compile error.  A value is plain text, whatever it holds (an activity called `[bad]` is not markup).  One line: a
+  ## compile error.  A value is plain text, whatever it holds (an activity called `<bad>` is not markup).  One line: a
   ## newline is an error (one `styled` per line).
   let text = literal.strVal
   var lines: seq[Line]
