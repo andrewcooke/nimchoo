@@ -26,7 +26,7 @@
 ## * `heartrate <packages/heartrate/package.html>`_ - The heart-rate channel of an import.
 ## * `importer <packages/importer/package.html>`_ - Putting the activities of FIT files into the database, and describing them.
 ## * `log <packages/log/package.html>`_ - Reading the log.
-## * `lookup <packages/util/lookup/package.html>`_ - Table lookups that have to succeed (`must`, `mustMut`).
+## * `lookup <packages/util/lookup/package.html>`_ - Table lookups that have to succeed (`must()`, `mustMut()`).
 ## * `map <packages/map/package.html>`_ - The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ## * `model <packages/model/package.html>`_ - The training impulse: models, and the impulses worked out with them.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
@@ -99,10 +99,10 @@ without `-f` (it says what it would delete, with a countdown on a terminal).  Cr
 other views (`climbs`, `map`, `calendar`) take the selection.
 
 * **Criteria** (`criteria.nim`): the command line parsed into a `Criteria`, and the `Criteria` turned into SQL in one place
-  (`matchSql`), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
+  (`matchSql()`), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
   the other criteria; the one that was selected before).  `--invert` negates all of them taken together.
 * **The point `activities/criteria`**: a package may offer an option that picks activities (a `Criterion`: the option's
-  description, and `resolve`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
+  description, and `resolve()`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.
   The offered options appear in `--help` and are parsed like the others; the SQL pieces carry the package that wrote them,
   so this package may run a condition that reads tables it does not.
 * **A subject** (`subject.nim`): contributes the activities to `subject/subjects`, as the default, with how many the user's
@@ -195,8 +195,8 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
 
 Nothing is deleted without `--force`, and on a terminal there are then a few seconds to cancel (`activities --delete`,
 `users --delete`, `db --delete`, `climbs --all --delete`); given twice (`-f -f`) there is no pause.  The option is written
-once here (`forceOption`, with the `Force` it sets: no, yes, now), so that every command that deletes has the same, and so is
-the pause (`pause`).  The line that says what was deleted is here too.""",
+once here (`forceOption()`, with the `Force` it sets: no, yes, now), so that every command that deletes has the same, and so is
+the pause (`pause()`).  The line that says what was deleted is here too.""",
       path: "src/nimchoo/packages/confirm/",
     ),
     Registered(
@@ -217,7 +217,7 @@ the pause (`pause`).  The line that says what was deleted is here too.""",
   SQLite cannot drop a column that has a foreign key or an index without rebuilding the table.  Fragments are plain DDL;
   data is inserted from Nim (a fragment may have a seed).  Every table must say `strict`.  A geometry column is declared
   `blob` and registered with `RecoverGeometryColumn(table, column, 4326, 'POINT', 'XY')`, because SpatiaLite's
-  `AddGeometryColumn` does not work on a strict table.  New files are made with `auto_vacuum = incremental`; `reclaim`
+  `AddGeometryColumn` does not work on a strict table.  New files are made with `auto_vacuum = incremental`; `reclaim()`
   gives the space back after a big delete.
 * **Squashing (decided 2026-11-05).**  While only the author has a database, at a milestone, each package's fragments may
   be merged into its `001-schema.sql` and the database rebuilt (`nch db --delete -f`, then import again; the cache
@@ -233,9 +233,9 @@ the pause (`pause`).  The line that says what was deleted is here too.""",
   depends on; a breach is a `StoreError` naming the package, the table and the SQL.  A piece contributed by another
   package may be read, but cannot make the runner write.
 * **Functions of our own in SQL** (`functions.nim`, registered in every connection, also a read-only one): `fold(text)` and
-  the grid of cells (`cell`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
+  the grid of cells (`cell()`, `cell_coarse`, `cell_lon`, `cell_lat`, `cell_dx`, `cell_dy`), each the same function as in `geo`,
   so that SQL and Nim cannot compute a cell differently.  Deterministic, so they may be used in an index.
-* **Recording what is read**: `startRecording` and `stopRecording` (`access.nim`) note the tables the authorizer sees read,
+* **Recording what is read**: `startRecording()` and `stopRecording()` (`access.nim`) note the tables the authorizer sees read,
   so that a test can check what a view declares it reads (`map/frames`).
 * The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
   where the database is and how big; `nch db --delete -f` deletes it.""",
@@ -290,7 +290,7 @@ Positions come as longitude and latitude in degrees; for the distances and cross
 plane round a reference point, which is accurate over the length of a ride.
 
 Also the **grid of cells** (`cells.nim`) that says where a ride went: latitude and longitude in cells of 1/1024 of a degree,
-each an integer (`(iy << 32) | ix`), with `coarsen` for the coarser levels and `reach` for how many cells a distance in
+each an integer (`(iy << 32) | ix`), with `coarsen()` for the coarser levels and `reach()` for how many cells a distance in
 metres is at a latitude.  One function for each, written here, is what SQL uses too (`db/functions.nim`).""",
       path: "src/nimchoo/packages/geo/",
     ),
@@ -437,7 +437,7 @@ It is what `climbs`, `map`, `calendar` and the like use.
       summary: "Comparing text without regard to case or accents.",
       doc: """Comparing text without regard to case or accents.
 
-One function does it everywhere: `foldText` in the program, and the SQL function `fold()` that the database registers on
+One function does it everywhere: `foldText()` in the program, and the SQL function `fold()` that the database registers on
 every connection, so a name compared in a query is compared as it is in code.""",
       path: "src/nimchoo/packages/text/fold/",
     ),
@@ -485,12 +485,12 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
   Style only where it means something: `good` (done), `bad` (failed or deleted), `warn` (advisory), `select` (the
   selection, `selectedStyle`), each used for nothing else; `cmd` for what a person would type: a command, an option, a path (what is between backticks, wherever it is, drawn without them in colour; the options and commands of the usages; `theme.typedStyle`); `em` for what to read first, `hide` for the bookkeeping and
   what was not recorded (and the lines of a table or a tree, `│ ─ ┼ └`, wherever they are: `theme.lineStyle`);
-  `default` is around everything (all that a command writes is in it: `g.say`, `g.show`).  Markup
+  `default` is around everything (all that a command writes is in it: `g.say()`, `g.show()`).  Markup
   (`[good imported] 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,
   which nest; `tools/look.nim` shows text with a theme.  (The web pages' colours are their own, in their templates:
   they are always on white, whatever the terminal's theme.)
 * A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also
-  says how wide the help text may be (`helpWidth`).""",
+  says how wide the help text may be (`helpWidth()`).""",
       path: "src/nimchoo/packages/ui/",
     ),
     Registered(
@@ -505,7 +505,7 @@ user is the default, the one a command works on without `--user`; the first is m
 if the default is deleted another becomes it.  Deleting a user deletes everything they have, by `on delete cascade`
 (`wipe.userTables` lists the tables, and a test checks that none is forgotten).
 
-* `openSession` finds the user a command works for and gives a `Session` (the store, the user's id and name); a `Session`
+* `openSession()` finds the user a command works for and gives a `Session` (the store, the user's id and name); a `Session`
   converts to a `Store`, so only code that needs the user says `Session`.
 * `nch users` is a command of this package: make, rename, set the FTHR of users, choose the default, delete.  A user's name
   is the key for `--user`, and users are never made by accident (`--add`).  Changing an FTHR makes `model` work its
@@ -522,15 +522,15 @@ if the default is deleted another becomes it.  Deleting a user deletes everythin
       doc:
         """One command-line parser for all the commands, and the usage text made from the same descriptions.
 
-A command describes its options as a list (`Opt`s made with `flag`, `text`, `number`, `whole`, `custom` and
-`listOption`).  Each option carries its description, which the compiler requires: its names, the placeholder for its
+A command describes its options as a list (`Opt`s made with `flag()`, `text()`, `number()`, `whole()`, `custom()` and
+`listOption()`).  Each option carries its description, which the compiler requires: its names, the placeholder for its
 value, its help, whether it is indented under the option before it (`level`: `--rename` under `--edit`), and what could
 complete it (`OptDoc`).  The option list of a command's usage is made from the descriptions (`usage.nim`), wrapped to the
 width of the terminal (`ui/live.helpWidth`), so it cannot differ from what the parser accepts; only the synopsis, the
 introduction and the notes are written by hand.  A package that offers an option to another command (the criteria of
 `activities`) hands over just the description.
 
-`parseCommand` reads the options into a builder and the command's own `finish` turns it into the answer: a `Parsed[T]`,
+`parseCommand()` reads the options into a builder and the command's own `finish()` turns it into the answer: a `Parsed[T]`,
 which is valid parameters (a variant on the action, so that a combination of options that means nothing cannot be
 represented), a request for help, or a problem (a sentence that does not name the option).  An option's `apply` returns
 `fine` or `refuse("...")`.  An option may also say it is allowed in an address of the local web server (`address`, with
@@ -590,8 +590,8 @@ Files, fragments of the schema, selections, the data impulses are made from, bun
     Registered(
       name: "lookup",
       package: pkgLookup.package,
-      summary: "Table lookups that have to succeed (`must`, `mustMut`).",
-      doc: """Table lookups that have to succeed (`must`, `mustMut`).
+      summary: "Table lookups that have to succeed (`must()`, `mustMut()`).",
+      doc: """Table lookups that have to succeed (`must()`, `mustMut()`).
 
 A lookup that cannot fail is a bug if it does, so these assert instead of raising `KeyError` (CLAUDE.md, error handling).""",
       path: "src/nimchoo/packages/util/lookup/",
