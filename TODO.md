@@ -59,7 +59,8 @@ test that the built-in themes define them; backticks stay as the one convention 
 authoring.  Texts with styles are written as `styled"..."` markup (read when compiled; values put in as plain text, never
 parsed, so no escaping of values), with `<style text>` instead of `[style text]` (in the program's prose `[` is ~120 times,
 mostly synopses; `<` 15, mostly `->` `<=`); no markup is parsed at run time except in tools; backticks stay the shorthand
-for `cmd` in prose.  Waiting on it, from the author:
+for `cmd` in prose (agreed with the author: not the general delimiter, as they cannot nest, already mean "typed", and mark
+code in the documentation).  Agreed 2026-11-18 as the plan to try next.  Waiting on it, from the author:
 
 * File paths in a style of their own, `file` (the author's dark theme has one).
 * "usage:" and "commands:" (`nch --help`) in `em`.
