@@ -8,17 +8,18 @@ import ../util/args/args
 type
   DbAction* = enum
     daShow ## say where the database is and how big
+    daTables ## what it holds, table by table
     daDelete
 
   Params* = object
     case action*: DbAction
-    of daShow:
+    of daShow, daTables:
       discard
     of daDelete:
       force*: Force ## really do it
 
   Raw = object ## what the options fill in
-    help, delete: bool
+    help, delete, tables: bool
     force: Force
 
 func dbSpec*(): Spec[Raw] =
@@ -31,6 +32,12 @@ func dbSpec*(): Spec[Raw] =
         delete,
         "delete the database file, and with it the users and all their data: files, activities, climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete less: `nch activities --all --delete -f` keeps the users, `nch climbs --all --delete -f` keeps the activities.)  The next command that needs a database makes a new one.",
       ),
+      flag(
+        Raw,
+        ["--tables"],
+        tables,
+        "what the database holds, table by table: the package that owns each, how many rows, how much of the file it takes (with its indexes), and the tables it refers to",
+      ),
       forceOption(Raw, force, 1),
       helpFlag(Raw),
     ]
@@ -39,11 +46,16 @@ func dbSpec*(): Spec[Raw] =
 func finish(raw: Raw): Parsed[Params] =
   if raw.force != fNo and not raw.delete:
     return problemWith[Params]("`-f` goes with `--delete`")
+  if raw.delete and raw.tables:
+    return
+      problemWith[Params]("`--tables` shows and `--delete` deletes: one or the other")
   if raw.delete:
     parsedOk(Params(action: daDelete, force: raw.force))
+  elif raw.tables:
+    parsedOk(Params(action: daTables))
   else:
     parsedOk(Params(action: daShow))
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch db`, `nch db --delete [-f]`.
+  ## `nch db`, `nch db --tables`, `nch db --delete [-f]`.
   parseCommand(args, dbSpec(), Raw(), finish)
