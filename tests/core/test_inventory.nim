@@ -19,6 +19,7 @@ proc world(): Inventory {.raises: [].} =
     Registered(name: "a", package: Package(depends: @["db"]), summary: "Package a."),
     Registered(
       name: "b",
+      path: "src/nimchoo/packages/b/",
       summary: "Package b is for b things.",
       doc: "Package b is for b things.\n\nIt has a paragraph more.",
       package: Package(
@@ -134,7 +135,7 @@ suite "the views":
     check "ta (a)" in text # (it may read the tables of a)
     check "nch bee - does b things" in text
     check cells.anyIt(span("nch bee", "cmd") in it)
-    check cells.anyIt(it.anyIt(it.styles == @[styleName"file"]))
+    check cells.anyIt(span("src/nimchoo/packages/b/", "file") in it)
       # (the source path in the style of paths)
       # (the command in the style of commands)
     check cells.anyIt(span("a", "pkg") in it and span("db", "pkg") in it)
