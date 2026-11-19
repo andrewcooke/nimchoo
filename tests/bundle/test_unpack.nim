@@ -162,3 +162,12 @@ suite "bundle: the profile and the notice":
     check readFile(systemDir(top) / "NOTICE") == readFile("NOTICE")
     check parseManifest(readFile(top / manifestName)).hasKey("NOTICE")
     check noticeBundle.data == readFile("NOTICE")
+
+  test "an entry whose file is gone is left out when the manifest is written again":
+    let cache = fresh("stale")
+    discard resolve(cache, bundle("v1", "themes/old.txt"))
+    check parseManifest(readFile(cache / manifestName)).hasKey("themes/old.txt")
+    removeFile(systemDir(cache) / "themes/old.txt") # (the program no longer carries it)
+    discard resolve(cache, bundle("v1"))
+    let entries = parseManifest(readFile(cache / manifestName))
+    check not entries.hasKey("themes/old.txt") and entries.hasKey("Profile.xlsx")

@@ -88,8 +88,13 @@ proc readManifest(top: string): Table[string, string] =
 
 proc record(top, name, hash: string) =
   ## Write the hash of what was unpacked.  (A failure only means the file counts as the author's
-  ## next time, which is why a file equal to the program's own is always `acCurrent` first.)
-  var entries = readManifest(top)
+  ## next time, which is why a file equal to the program's own is always `acCurrent` first.)  An entry
+  ## whose file is no longer there is left out: one the program still carries is unpacked and recorded
+  ## again when it is wanted, so what goes is what the program no longer carries (a renamed theme).
+  var entries: Table[string, string]
+  for k, v in readManifest(top):
+    if fileExists(systemDir(top) / k):
+      entries[k] = v
   entries[name] = hash
   try:
     writeAtomic(top / manifestName, formatManifest(entries))
