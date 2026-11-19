@@ -55,7 +55,11 @@ the help and the views are built as plain strings and styled afterwards.  Option
 (the marks, `Cell` and `wrapCell` go); the style names the program uses one list in `core`, checked when compiled, with a
 test that the built-in themes define them; backticks stay as the one convention for prose (guarded by
 `tests/core/test_backticks.nim`).  (B) every printed text is markup (values would need escaping everywhere).  (C) merge
-`Cell` into `Line` only (the marks stay).  Waiting on it, from the author:
+`Cell` into `Line` only (the marks stay).  Revised after the author asked whether another syntax helps B: A's core with B's
+authoring.  Texts with styles are written as `styled"..."` markup (read when compiled; values put in as plain text, never
+parsed, so no escaping of values), with `<style text>` instead of `[style text]` (in the program's prose `[` is ~120 times,
+mostly synopses; `<` 15, mostly `->` `<=`); no markup is parsed at run time except in tools; backticks stay the shorthand
+for `cmd` in prose.  Waiting on it, from the author:
 
 * File paths in a style of their own, `file` (the author's dark theme has one).
 * "usage:" and "commands:" (`nch --help`) in `em`.
