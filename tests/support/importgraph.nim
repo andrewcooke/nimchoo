@@ -153,3 +153,59 @@ func rawDatabaseImports*(sources: Table[string, string]): seq[string] =
       continue
     if importedNames(sources[path]).anyIt(it.startsWith("db_connector")):
       result.add path
+
+func namesTable(text, table: string): bool =
+  ## Whether `text` has SQL that names `table`: `from`, `join`, `into`, `update` or `references` before it (a word
+  ## of its own).  Lenient: an English "from file" counts too, which can only let an unused dependency through.
+  let lower = text.toLowerAscii
+  for kw in ["from", "join", "into", "update", "references"]:
+    var at = 0
+    while true:
+      at = lower.find(kw, at)
+      if at < 0:
+        break
+      let before = at == 0 or lower[at - 1] notin IdentChars
+      var i = at + kw.len
+      if before and i < lower.len and lower[i] in Whitespace:
+        while i < lower.len and lower[i] in Whitespace:
+          inc i
+        if lower.continuesWith(table, i) and
+            (i + table.len >= lower.len or lower[i + table.len] notin IdentChars):
+          return true
+      at += kw.len
+  false
+
+func unusedDepends*(
+    sources: Table[string, string],
+    depends: Table[string, seq[string]],
+    tables: Table[string, seq[string]],
+): seq[string] =
+  ## The dependencies a package declares and does not use, as "package -> dependency": it neither imports a file of
+  ## the dependency nor has SQL that names one of its tables (`tables`: package -> the tables it owns).  `sources`
+  ## maps each file under `src/nimchoo` (the `.nim` files and the fragments, `.sql`) to its text.
+  var files: HashSet[string]
+  for path in sources.keys:
+    files.incl path
+  var dirOf: Table[string, string] # package name -> its directory
+  for path in files:
+    if path.extractFilename == "package.nim":
+      dirOf[path.parentDir.lastPathPart] = path.parentDir
+  for name in sorted(toSeq(depends.keys)):
+    let own = dirOf.getOrDefault(name)
+    var imported: HashSet[string]
+    var text = ""
+    for path in files:
+      if packageOf(path, files) != own or path.extractFilename == "package.nim":
+        continue
+      text.add sources[path] & "\n"
+      if path.endsWith(".nim"):
+        for n in importedNames(sources[path]):
+          let target = resolve(path, n, files)
+          if target.len > 0:
+            imported.incl packageOf(target, files)
+    for d in depends[name]:
+      let used =
+        dirOf.getOrDefault(d) in imported or
+        tables.getOrDefault(d).anyIt(text.namesTable(it))
+      if not used:
+        result.add name & " -> " & d

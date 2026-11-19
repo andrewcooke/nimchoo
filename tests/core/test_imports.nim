@@ -2,6 +2,7 @@
 
 import std/[os, sequtils, strutils, tables, unittest]
 import nimchoo/registry as generated
+import nimchoo/core/ownership
 import ../support/importgraph
 
 proc tree(files: openArray[(string, string)]): Table[string, string] =
@@ -126,3 +127,32 @@ suite "the packages of nimchoo":
       if path.endsWith(".nim"):
         t[path] = readFile(root / path)
     check rawDatabaseImports(t) == newSeq[string]()
+
+  test "every dependency a package declares is used: it imports the package, or its SQL names one of its tables":
+    var t: Table[string, string]
+    let root = "src" / "nimchoo"
+    for path in walkDirRec(root, relative = true):
+      if path.endsWith(".nim") or path.endsWith(".sql"):
+        t[path] = readFile(root / path)
+    var depends: Table[string, seq[string]]
+    for p in generated.packages:
+      depends[p.name] = p.package.depends
+    var tables: Table[string, seq[string]]
+    for table, owner in tableOwners(generated.allFragments):
+      tables.mgetOrPut(owner, @[]).add table
+    check unusedDepends(t, depends, tables) == newSeq[string]()
+
+suite "declared and not used":
+  test "a dependency neither imported nor read in SQL is found; one read in SQL is not":
+    let t = tree {
+      "packages/a/package.nim": "",
+      "packages/a/one.nim": "",
+      "packages/b/package.nim": "",
+      "packages/b/two.nim": "import ../a/one",
+      "packages/c/package.nim": "",
+      "packages/c/three.nim": "let q = \"select x from ta join tb\"",
+      "packages/d/package.nim": "",
+    }
+    let depends = {"a": @[], "b": @["a", "c"], "c": @["a"], "d": @["a"]}.toTable
+    let tables = {"a": @["ta"]}.toTable
+    check unusedDepends(t, depends, tables) == @["b -> c", "d -> a"]
