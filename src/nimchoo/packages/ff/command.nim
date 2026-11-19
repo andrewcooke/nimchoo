@@ -313,9 +313,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly
         )
         if html.isNone:
-          return failure(
-            g, "nch ff", @[span("cannot make a page for "), span(csvPath, "file")]
-          )
+          return failure(g, "nch ff", "cannot make a page for " & csvPath)
         writeAtomic(pageFile.get, html.get)
     except IOError, OSError:
       return failure(

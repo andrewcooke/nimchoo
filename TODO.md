@@ -45,12 +45,6 @@ When something here is done, delete it (in the same commit).  Design steps are d
   (a spatial index built lazily; more generated files to name, make safe against a crash, and delete with `nch cache`).
   Time the largest country first.
 
-## Next
-
-* **Paths inside the messages of errors** (2026-11-19): a message a command writes shows a path it names in `file`
-  (`failure(g, command, Line)`), and the importer's lines show the file's; the text of an error raised below (a
-  `StoreError`, a `FitError`) is a plain string, so a path in it is plain.  Making errors carry styled lines would cover it.
-
 ## Features and ideas, unordered
 
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning

@@ -1,6 +1,6 @@
 ## `nch fit`: read a FIT file and dump it as text or as SDK-format CSV.
 
-import std/[options, times]
+import std/[options, strutils, times]
 import ../util/bytes/bytes
 import ./time
 import ../../core/globals
@@ -99,6 +99,13 @@ proc renderInto*(
   finally:
     warnings.add r.warnings
 
+func about(path, msg: string): string =
+  ## A message about the file at `path`, which names it (unless it already does).
+  if path in msg:
+    msg
+  else:
+    path & ": " & msg
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch fit ARGS`; returns the exit status.  (It does not use
   ## the database, so ignores the global options.)
@@ -131,13 +138,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     try:
       renderInto(p, readBytes(files[0]), csv, lines, warnings)
     except FitError as e:
-      problem = e.msg # report it after the output so far
+      problem = about(files[0], e.msg) # report it after the output so far
   except NchError as e:
     return failure(g, "nch fit", e.msg)
   except IOError as e:
-    return failure(g, "nch fit", e.msg)
+    return failure(g, "nch fit", about(files[0], e.msg))
   except OSError as e:
-    return failure(g, "nch fit", e.msg)
+    return failure(g, "nch fit", about(files[0], e.msg))
   try:
     for l in lines:
       stdout.write g.inTheme(osOut, l) & "\n"

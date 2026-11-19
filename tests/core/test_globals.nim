@@ -60,3 +60,9 @@ suite "globals: nothing writes to the terminal behind the theme's back":
     check found.len == 0
     if found.len > 0:
       echo found.join("\n")
+
+suite "globals: messages on one line":
+  test "the lines of a message from below are joined, blank ones left out":
+    check oneLine("Permission denied\nAdditional info: /x/\n") ==
+      "Permission denied; Additional info: /x/"
+    check oneLine("one line") == "one line"

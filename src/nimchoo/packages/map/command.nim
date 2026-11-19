@@ -174,16 +174,7 @@ proc makeFrames(
     result = (@[], failure(g, "nch map", e.msg))
   except IOError, OSError:
     result = (
-      @[],
-      failure(
-        g,
-        "nch map",
-        @[
-          span("cannot write to "),
-          span(dir, "file"),
-          span(": " & getCurrentExceptionMsg()),
-        ],
-      ),
+      @[], failure(g, "nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}")
     )
   finally:
     st.close()
@@ -203,16 +194,7 @@ proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: i
     result = (path, exitOk)
   except IOError, OSError:
     result = (
-      "",
-      failure(
-        g,
-        "nch map",
-        @[
-          span("cannot write to "),
-          span(dir, "file"),
-          span(": " & getCurrentExceptionMsg()),
-        ],
-      ),
+      "", failure(g, "nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}")
     )
   except TemplateError as e:
     result = (
@@ -246,15 +228,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     makeCacheDirs(dir.get)
   except IOError, OSError:
-    return failure(
-      g,
-      "nch map",
-      @[
-        span("cannot make "),
-        span(dir.get, "file"),
-        span(": " & getCurrentExceptionMsg()),
-      ],
-    )
+    return failure(g, "nch map", fmt"cannot make {dir.get}: {getCurrentExceptionMsg()}")
   case p.web.kind
   of wkStop:
     return stopWeb(g, commandName, p.web.stopPort, dir.get)

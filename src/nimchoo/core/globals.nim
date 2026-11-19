@@ -101,19 +101,24 @@ proc tell*(g: Globals, o: OutStream, line: Line) =
   else:
     g.show(o, line)
 
+func oneLine*(text: string): string =
+  ## A message on one line: the lines of a message from below (an `OSError` has "Additional info: ..." on a line of its
+  ## own) joined with "; ".
+  var parts: seq[string]
+  for l in text.splitLines:
+    if l.strip.len > 0:
+      parts.add l.strip
+  parts.join("; ")
+
 proc usageError*(
     g: Globals, command: string, usage: seq[Line], problem: string
 ): int {.raises: [].} =
-  ## Report a bad command line: the problem, then the usage.
-  g.tell(osErr, plain(command & ": " & problem))
+  ## Report a bad command line: the problem (in `bad`, on one line), then the usage.
+  g.tell(osErr, @[span(oneLine(command & ": " & problem), "bad")])
   g.showAll(osErr, usage)
   exitUsage
 
-proc failure*(g: Globals, command: string, problem: Line): int {.raises: [].} =
-  ## Report that the work failed, in a message wrapped to the width (a path in it in `file`).
-  g.tell(osErr, @[span(command & ": ")] & problem)
-  exitFailure
-
 proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
-  ## Report that the work failed, in plain text.
-  failure(g, command, plain(problem))
+  ## Report that the work failed: one message, on one line (wrapped to the width), all in `bad`.
+  g.tell(osErr, @[span(oneLine(command & ": " & problem), "bad")])
+  exitFailure
