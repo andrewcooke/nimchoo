@@ -114,17 +114,18 @@ proc checkNames(
 proc listing(
     rows: seq[ListRow],
     zone: Timezone,
+    width: int,
     c: Criteria,
     choices: Option[int],
     saved = none(int),
     marks = false,
 ): seq[Line] =
   ## The table and its last line (`marks`: the selection in brackets, where there is no colour).
-  result = table(rows, zone, c.verbose, marks)
+  result = table(rows, zone, c.verbose, width, marks)
   result.add footerLine(rows, choices, selectedStyle, saved)
 
 proc showSelection*(
-    st: Session, c: Criteria, zone: Timezone, marks = false
+    st: Session, c: Criteria, zone: Timezone, width: int, marks = false
 ): seq[Line] {.raises: [StoreError].} =
   ## The stored selection of the store's user, as a listing.
   let rows = selectionRows(st, c.verbose)
@@ -134,7 +135,7 @@ proc showSelection*(
         "nothing is selected: `nch activities --all` lists every activity; with criteria and `--select` some are chosen"
       )
     ]
-  result = listing(rows, zone, c, none(int), marks = marks)
+  result = listing(rows, zone, width, c, none(int), marks = marks)
 
 proc latestAmong(
     st: Store, match: Sql
@@ -356,13 +357,13 @@ proc matchingIds*(
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
-    st: Session, criteria: Criteria, zone: Timezone, marks = false
+    st: Session, criteria: Criteria, zone: Timezone, width: int, marks = false
 ): tuple[lines: seq[Line], saved: int] {.raises: [StoreError].} =
   ## List the activities that meet the criteria, or the selection if there are none (and keep them as the selection if
   ## asked); `saved` is how many were kept, -1 if not asked.
   if not (criteria.all or criteria.given):
     # no criteria: the selection
-    result.lines = showSelection(st, criteria, zone, marks)
+    result.lines = showSelection(st, criteria, zone, width, marks)
     result.saved = -1
     return
   let r = resolveCriteria(st, criteria, zone)
@@ -390,7 +391,13 @@ proc listActivities*(
     userId = st.userId,
   )
   result.lines.add listing(
-    rows, zone, c, some(total), (if c.select: some(rows.len) else: none(int)), marks
+    rows,
+    zone,
+    width,
+    c,
+    some(total),
+    (if c.select: some(rows.len) else: none(int)),
+    marks,
   )
   result.saved = if c.select: rows.len else: -1
 
@@ -481,7 +488,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
       return renameActivities(g, st, m.ids)
     let paint = paintOf(g, osOut)
-    let r = listActivities(st, criteria, zone, not paint.colour)
+    let r = listActivities(st, criteria, zone, helpWidth(stdout), not paint.colour)
     if r.saved >= 0:
       g.log.log(
         lvInfo,

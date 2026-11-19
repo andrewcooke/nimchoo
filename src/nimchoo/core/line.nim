@@ -9,7 +9,7 @@
 ## define them all (a test checks); a theme that lacks one draws its text as the text around it.
 
 import std/strutils
-from std/unicode import runeLen, runeSubStr
+from std/unicode import Rune, runeLen, runeSubStr, runes
 
 {.push raises: [].}
 
@@ -104,21 +104,35 @@ func truncated*(line: Line, maxWidth: int): Line =
   else:
     result.add span(ellipsis)
 
-func merged*(line: Line): Line =
-  ## The line with the spans that have the same styles side by side made one (empty ones dropped), and the plain spaces
-  ## between two spans of the same style in that style: so that a style with a background (a row of the selection) runs on
-  ## across the columns, without gaps between them.
-  for i, s in line:
+func isBetween(text: string): bool =
+  ## Whether `text` is only what goes between the columns of a table: spaces and box-drawing characters (U+2500 to U+257F).
+  for r in text.runes:
+    if int32(r) != int32(' ') and int32(r) notin 0x2500'i32 .. 0x257F'i32:
+      return false
+  true
+
+func joined(line: Line): Line =
+  ## The spans side by side that have the same styles made one; empty ones dropped.
+  for s in line:
     if s.text.len == 0:
       continue
-    var styles = s.styles
-    if styles.len == 0 and s.text.strip.len == 0 and i > 0 and i < line.high and
-        line[i - 1].styles.len > 0 and line[i - 1].styles == line[i + 1].styles:
-      styles = line[i - 1].styles
-    if result.len > 0 and result[^1].styles == styles:
+    if result.len > 0 and result[^1].styles == s.styles:
       result[^1].text.add s.text
     else:
-      result.add Span(text: s.text, styles: styles)
+      result.add s
+
+func merged*(line: Line): Line =
+  ## The line with the spans that have the same styles side by side made one (empty ones dropped), and the plain spaces
+  ## (and lines of a table) between two spans in the selection's style in that style: so that the selection (a row of it,
+  ## the columns about it) is one band, without gaps between the columns.  (Only the selection: two names of packages side
+  ## by side stay two.)
+  var spans = joined(line)
+  for i in 1 ..< spans.high:
+    if spans[i].styles.len == 0 and spans[i].text.isBetween and
+        styleName"select" in spans[i - 1].styles and
+        spans[i - 1].styles == spans[i + 1].styles:
+      spans[i].styles = spans[i - 1].styles
+  joined(spans)
 
 func stripped*(line: Line): Line =
   ## The line without the spaces at its end.

@@ -58,14 +58,15 @@ suite "climbs report: the lines":
           efforts: 0,
           name: "unnamed",
         ),
-      ]
-    )
+      ],
+      120,
+    ).texts
     check lines[0].startsWith("climb") and "length" in lines[0] and "efforts" in lines[
       0
     ] and "best" notin lines[0]
-    check lines[1].contains("HC   14.9km  +1109m      7.4%") and
-      lines[2].contains("3     4.9km   +245m      5.0%")
-    check lines[1].endsWith("manual") and lines[2].endsWith("0")
+    check cellsOf(lines[2])[1 .. 4] == @["HC", "14.9km", "+1109m", "7.4%"] and
+      cellsOf(lines[3])[1 .. 4] == @["3", "4.9km", "+245m", "5.0%"]
+    check lines[2].endsWith("manual") and lines[3].endsWith("0")
     let named = sectorLines(
       @[
         SectorRow(
@@ -77,9 +78,10 @@ suite "climbs report: the lines":
           name: "near Farellones₁",
           efforts: 1,
         )
-      ]
-    )
-    check named[1].startsWith("near Farellones₁")
+      ],
+      120,
+    ).texts
+    check named[2].startsWith("near Farellones₁")
   test "the name leads a line, lined up by characters, and a long one is cut":
     check cut("short") == "short"
     check cut("x".repeat(40)) == "x".repeat(27) & "..."

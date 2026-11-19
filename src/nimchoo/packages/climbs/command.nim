@@ -143,16 +143,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # the lists for tidying, and the changes, need no working out of climbs
     case p.action
     of caDuplicates:
-      for l in duplicateLines(duplicateGroups(st)):
-        g.say osOut, l & "\n"
+      g.showAll(osOut, duplicateLines(duplicateGroups(st), helpWidth(stdout)))
       return exitOk
     of caRetired:
       let rows = allSectors(st, retired = true)
       if rows.len == 0:
         g.say osOut, "no climbs are retired\n"
       else:
-        for l in sectorLines(rows):
-          g.say osOut, l & "\n"
+        g.showAll(osOut, sectorLines(rows, helpWidth(stdout)))
       return exitOk
     of caEdit:
       return editClimb(g, st, p.edit)
@@ -234,6 +232,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       list.attempts.everyone,
       list.attempts.verbose,
       local(),
+      helpWidth(stdout),
       marks = not paint.colour,
     ):
       g.sayRendered osOut, render(l, paint) & "\n"

@@ -96,10 +96,6 @@ proc world(name: string, together = false): string =
     38.70,
   )
 
-func texts(ls: seq[Line]): seq[string] =
-  for l in ls:
-    result.add l.text
-
 proc list(db: string, args: varargs[string]): int =
   listCommand.run(
     Globals(
@@ -425,7 +421,7 @@ suite "list: the command":
     defer:
       st.close()
     let r =
-      listActivities(st, parseArgs(@["--sports", "previous"], utc()).params, utc())
+      listActivities(st, parseArgs(@["--sports", "previous"], utc()).params, utc(), 120)
     check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00  running")
   test "newest is not part of finding latest":
     let db = numbered("latest4")
@@ -588,15 +584,16 @@ suite "list: what is shown":
       st.close()
     let p = parseArgs(@args, utc())
     doAssert p.problem == "", p.problem
-    listActivities(st, p.params, utc())
+    listActivities(st, p.params, utc(), 120)
 
   test "a table of the activities, oldest first, with a last line":
     let db = world("shown")
     let r = shown(db, "--all")
     check r.saved == -1
-    check r.lines.texts[0] == "start             sport    distance  active  place / name"
-    check r.lines.texts[1] == "2018-07-01 12:00  cycling    12.3km   1h01m"
-    check r.lines.texts[2] == "2018-08-27 12:00  running    12.3km   1h01m"
+    check r.lines.texts[0] ==
+      "start            │ sport   │ distance │ active │ place / name"
+    check r.lines.texts[2] == "2018-07-01 12:00 │ cycling │   12.3km │  1h01m"
+    check r.lines.texts[3] == "2018-08-27 12:00 │ running │   12.3km │  1h01m"
     check r.lines.texts[^1] ==
       "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
@@ -619,7 +616,8 @@ suite "list: what is shown":
     defer:
       st.close()
     let p = parseArgs(@[], utc())
-    check showSelection(st, p.params, utc()).blueRows == @[true] # the selection: all are
+    check showSelection(st, p.params, utc(), 120).blueRows ==
+      @[true] # the selection: all are
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
     check shown(db, "--sports", "running").lines.blueRows ==
@@ -630,7 +628,7 @@ suite "list: what is shown":
     let db = world("shownfile")
     let r = shown(db, "-v", "-n", "1")
     check r.lines.texts[0].endsWith("path")
-    check r.lines.texts[1].endsWith("paris")
+    check r.lines.texts[2].endsWith("paris")
 
   test "saving says so, and --show shows what was saved":
     let db = world("shownsave")
@@ -645,8 +643,8 @@ suite "list: what is shown":
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
-    let again = showSelection(st, Criteria(), utc())
-    check again.texts[1].startsWith("2018-08-27 12:00  running")
+    let again = showSelection(st, Criteria(), utc(), 120)
+    check again.texts[2].startsWith("2018-08-27 12:00 │ running")
     check again.texts[^1].startsWith("done: 1 activity, 1 match selected,")
       # (no "of": nothing was chosen from)
 
@@ -655,7 +653,7 @@ suite "list: what is shown":
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
-    check showSelection(st, Criteria(), utc()).texts[0].startsWith(
+    check showSelection(st, Criteria(), utc(), 120).texts[0].startsWith(
       "nothing is selected"
     )
     check shown(db, "--after", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
@@ -678,12 +676,12 @@ suite "list: what is shown":
     st.close()
     let rows = shown(db, "-v", "--all").lines.texts
     check rows[0].contains("place") and rows[0].contains("name")
-    check rows[1].contains("Lisbon") and rows[1].contains("Sintra and back")
-    check not rows[2].contains("Lisbon") and not rows[2].contains("Sintra")
+    check rows[2].contains("Lisbon") and rows[2].contains("Sintra and back")
+    check not rows[3].contains("Lisbon") and not rows[3].contains("Sintra")
       # paris: nothing stored
     check not shown(db, "--all").lines.texts[0].contains("path")
       # (the path only with -v)
-    check shown(db, "--all").lines.texts[1].endsWith("Lisbon / Sintra and back")
+    check shown(db, "--all").lines.texts[2].endsWith("Lisbon / Sintra and back")
       # (the place and name in every listing)
 
   test "-v says no GPS where the place and name would be, for an activity with no start; the sub-sport follows the sport":
@@ -695,14 +693,14 @@ suite "list: what is shown":
     st.close()
     let rows = shown(db, "-v", "--all").lines.texts
     check rows[0].contains("place / name") and rows[0].endsWith("path")
-    check rows[1].contains("cycling/road") and not rows[1].contains("no GPS")
+    check rows[2].contains("cycling/road") and not rows[2].contains("no GPS")
       # lisbon1: a start, though no place is stored
-    check rows[2].contains("running/trail") and rows[2].contains("no GPS")
+    check rows[3].contains("running/trail") and rows[3].contains("no GPS")
       # paris: no start at all
-    check rows[2].find("no GPS") < rows[2].find("paris") # (and before the path)
-    check not shown(db, "--all").lines.texts[1].contains("no GPS") # (not without -v)
-    check shown(db, "--all").lines.texts[1].contains("cycling") and
-      not shown(db, "--all").lines.texts[1].contains("cycling/road")
+    check rows[3].find("no GPS") < rows[3].find("paris") # (and before the path)
+    check not shown(db, "--all").lines.texts[2].contains("no GPS") # (not without -v)
+    check shown(db, "--all").lines.texts[2].contains("cycling") and
+      not shown(db, "--all").lines.texts[2].contains("cycling/road")
 
   test "saving is logged":
     let db = world("shownlog")
@@ -830,13 +828,13 @@ suite "list: --names and --starts":
     defer:
       st.close()
     let p = parseArgs(@["-v", "--all"], utc())
-    let rows = listActivities(st, p.params, utc()).lines.texts
+    let rows = listActivities(st, p.params, utc(), 120).lines.texts
     check rows[0].contains("place / name") and rows[0].endsWith("path")
-    check rows[1].contains("Lisboa") and rows[1].contains("São Pedro and back")
+    check rows[2].contains("Lisboa") and rows[2].contains("São Pedro and back")
       # lisbon1
-    check rows[2].contains("Almada") and rows[2].contains("São Pedro and back")
+    check rows[3].contains("Almada") and rows[3].contains("São Pedro and back")
       # lisbon2 (bob's)
-    check not rows[3].contains("Lisboa") and not rows[3].contains("Almada") # paris
+    check not rows[4].contains("Lisboa") and not rows[4].contains("Almada") # paris
 
 suite "list: --paths":
   proc seen(db, tag, path: string) =
@@ -882,9 +880,8 @@ suite "list: --paths":
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
-    let rows =
-      listActivities(st, parseArgs(@["-v", "--all"], utc()).params, utc()).lines.texts
-    check rows[0].endsWith("path") and rows[1].endsWith("/x/bike/a.fit")
+    let rows = listActivities(st, parseArgs(@["-v", "--all"], utc()).params, utc(), 120).lines.texts
+    check rows[0].endsWith("path") and rows[2].endsWith("/x/bike/a.fit")
 
 suite "list: --invert":
   test "everything that fails to match, including what has nothing recorded":

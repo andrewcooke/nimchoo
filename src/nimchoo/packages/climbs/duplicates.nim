@@ -6,7 +6,8 @@
 ## (`nch climbs --edit NAME --retire`).
 
 import std/[algorithm, math, options, strformat, tables]
-import ../ui/columns
+import ../../core/ruled
+import ../ui/style
 import ../db/statement
 import ../util/lookup/lookup
 import ../db/store
@@ -127,16 +128,16 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
       result = cmp(eb, ea)
   )
 
-func duplicateLines*(groups: seq[Group]): seq[string] =
+func duplicateLines*(groups: seq[Group], width: int): seq[Line] =
   ## The groups, each a block of lines: the climbs with their length, gain and efforts (and how many of them are unique to
   ## the climb: none of its near copies was matched by that ride), the most ridden first; then, at
   ## the end, one line that shows how to hide a climb (NAME is any of those above that is a copy of one with more efforts).
   if groups.len == 0:
-    return @["no climbs overlap: nothing to tidy"]
-  result.add fmt"climbs that are nearly the same (at least {int(round((1.0 - nearCopyLimit) * 100.0))}% of each is within {int(gateRadius)}m of the other), the most ridden first:"
+    return @[plain("no climbs overlap: nothing to tidy")]
+  result.add plain fmt"climbs that are nearly the same (at least {int(round((1.0 - nearCopyLimit) * 100.0))}% of each is within {int(gateRadius)}m of the other), the most ridden first:"
   var anyToHide = false
   for g in groups:
-    result.add ""
+    result.add plain("")
     var cells: seq[seq[string]]
     for m in g.members:
       cells.add climbCells(
@@ -153,12 +154,13 @@ func duplicateLines*(groups: seq[Group]): seq[string] =
             (if m.efforts == 1: " effort unique" else: " efforts unique"),
           (if m.retired: "retired" else: ""),
         ]
-    for l in columns(cells, {2, 3, 4, 5}):
-      result.add "  " & l
+    result.add ruled(
+      newSeq[string](cells[0].len), cells, width, indent = 2, right = {2, 3, 4, 5}
+    )
     for m in g.members:
       if m.hideable and not m.retired:
         anyToHide = true
   if anyToHide:
-    result.add ""
-    result.add "hide: `nch climbs --edit 'NAME' --retire`"
+    result.add plain("")
+    result.add plain("hide: `nch climbs --edit 'NAME' --retire`")
       # (NAME: any climb above that is a copy of one with more efforts)

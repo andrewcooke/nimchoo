@@ -104,84 +104,81 @@ suite "attempts: from the tables":
     s.db.execute("update sector set name = 'Ruta " & $id & "', manual = 1")
     check namedClimbs(s, @[$id]) == @[id] # (found by name now)
 
-func texts(ls: seq[Line]): seq[string] =
-  ls.mapIt(it.text)
-
 suite "attempts: the lines":
   test "the summary of the user's attempts: the best of the selected rides in the selection's colour; with -v the attempts":
     let s = world("lines-own")
     defer:
       s.close()
     let rows = summaries(s, ridden(s))
-    let lines = summaryLines(rows, everyone = false, verbose = false, zone = utc())
+    let lines =
+      summaryLines(rows, everyone = false, verbose = false, zone = utc(), width = 120)
     let table = lines.texts
-    check table.len == 2
+    check table.len == 3 # (the headings, the rule, the climb)
     check table[0].startsWith("climb") and table[0].endsWith("attempts") and
       "best selected" in table[0]
     check table[0].find("best") < table[0].find("best selected") and
       table[0].find("rank") < table[0].find("attempts")
     # the best (with its date) is the faster ride, from 1970-02; the selected ride is the slower of the two: its time and
     # date, and its rank (just the number) among the user's own attempts; the number of attempts is last
-    check table[1].startsWith(unnamed)
-    let cells = table[1].splitWhitespace()
+    check table[2].startsWith(unnamed)
+    let cells = cellsOf(table[2])
     check cells[^1] == "2" and cells[^2] == "2"
       # (attempts, then the rank of the selected one)
-    check "1970-02-04" in table[1] and "1970-01-12" in table[1]
+    check "1970-02-04" in table[2] and "1970-01-12" in table[2]
       # (the best, and the best selected)
-    check lines[1]
+    check lines[2]
       .filterIt(styleOf(it) == "select")
       .mapIt(it.text.strip)
       .join(" ")
       .contains("1970-01-12")
-    check lines[1].filterIt(styleOf(it) == "select").mapIt(it.text.strip)[^1].endsWith(
+    check lines[2].filterIt(styleOf(it) == "select").mapIt(it.text.strip)[^1].endsWith(
       "2"
     )
-    # (the selection's columns are side by side: one span, so that a background runs on across them)
+    # (the selection's columns are side by side: one span, the line between them too, so that a background runs on)
     check lines[0].filterIt(styleOf(it) == "select").mapIt(it.text.strip) ==
-      @["best selected  rank"]
-    check lines[1].filterIt(styleOf(it) == "select").len == 1
-    let long = summaryLines(rows, false, true, utc()).texts
-    check long.len == 4 and long[0] == table[0] and long[1] == table[1]
-    check long[2].strip.startsWith("1  ") and long[3].strip.startsWith("2  ") and
-      " of " notin long[2]
-    check long[2].startsWith("    ") and "1970-02-" in long[2]
+      @["best selected │ rank"]
+    check lines[2].filterIt(styleOf(it) == "select").len == 1
+    let long = summaryLines(rows, false, true, utc(), 120).texts
+    check long.len == 5 and long[0] == table[0] and long[2] == table[2]
+    check long[3].strip.startsWith("1 │") and long[4].strip.startsWith("2 │") and
+      " of " notin long[3]
+    check long[3].startsWith("    ") and "1970-02-" in long[3]
     # the attempt of the selected ride (the slower, 1970-01) is in the selection's colour, the other is not
-    let lines2 = summaryLines(rows, false, true, utc())
-    check styleOf(lines2[2][0]) == "" and styleOf(lines2[3][0]) == "select" and
-      "1970-01-12" in lines2[3].text
+    let lines2 = summaryLines(rows, false, true, utc(), 120)
+    check styleOf(lines2[3][1]) == "" and styleOf(lines2[4][1]) == "select" and
+      "1970-01-12" in lines2[4].text
     # (where there is no colour, in brackets in the indent, so nothing moves)
-    let marked = summaryLines(rows, false, true, utc(), marks = true)
-    check marked[2].text == lines2[2].text
-    check marked[3].text.startsWith("   [") and marked[3].text.endsWith("]") and
-      marked[3].text[4 ..^ 2] == lines2[3].text[4 ..^ 1]
+    let marked = summaryLines(rows, false, true, utc(), 120, marks = true)
+    check marked[3].text == lines2[3].text
+    check marked[4].text.startsWith("   [") and marked[4].text.endsWith("]") and
+      marked[4].text[4 ..^ 2] == lines2[4].text[4 ..^ 1]
   test "no selected ride on the climb (found by --names): dashes in the selection's columns":
     let s = world("lines-none-selected")
     defer:
       s.close()
     s.db.execute("delete from selection")
     let table = summaryLines(
-      summaries(s, namedClimbs(s, @["unnamed"])), false, false, utc()
+      summaries(s, namedClimbs(s, @["unnamed"])), false, false, utc(), 120
     ).texts
-    check not table[1].contains("1970-01") and
-      table[1].splitWhitespace()[^3 .. ^1] == @["-", "-", "2"]
+    check not table[2].contains("1970-01") and
+      cellsOf(table[2])[^3 .. ^1] == @["-", "-", "2"]
   test "with everyone: the people, never the personal rank":
     let s = world("lines-everyone")
     defer:
       s.close()
     let rows = summaries(s, ridden(s))
-    let table = summaryLines(rows, true, false, utc()).texts
+    let table = summaryLines(rows, true, false, utc(), 120).texts
     check "riders" in table[0] and "fastest" in table[0] and "attempts" notin table[0]
-    check table[1].endsWith("1 of 2") and "default" in table[1]
-    let long = summaryLines(rows, true, true, utc()).texts
-    check long.len == 4 and "default (you)" in long[2] and "bob" in long[3]
+    check table[2].endsWith("1 of 2") and "default" in table[2]
+    let long = summaryLines(rows, true, true, utc(), 120).texts
+    check long.len == 5 and "default (you)" in long[3] and "bob" in long[4]
   test "a climb you never rode: dashes":
     let s = world("lines-never")
     defer:
       s.close()
     s.db.execute("update file set user_id = (select id from user where name = 'bob')")
-    let table = summaryLines(summaries(s, ridden(s)), false, false, utc()).texts
-    check table[1].endsWith("0") and
-      table[1].splitWhitespace()[^4 .. ^2] == @["-", "-", "-"]
+    let table = summaryLines(summaries(s, ridden(s)), false, false, utc(), 120).texts
+    check table[2].endsWith("0") and cellsOf(table[2])[^4 .. ^2] == @["-", "-", "-"]
 
 suite "attempts: the climbs of given activities":
   test "the climbs of the activities named, not of the selection":

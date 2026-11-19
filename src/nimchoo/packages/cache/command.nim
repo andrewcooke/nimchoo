@@ -4,7 +4,7 @@
 
 import std/[options, strutils]
 import ./cache
-import ../../core/globals
+import ../../core/[globals, ruled]
 import ../util/args/[args, usage]
 import ../ui/[live, style, units]
 import ../../core/logfile
@@ -60,16 +60,17 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     )
   if p.action == caShow:
     g.show(osOut, @[span("the cache is in "), span(dir.get, "file")])
-    var cells: seq[array[3, string]]
+    var cells: seq[seq[string]]
     for k in Kind:
       let u = useOf(dir.get, k)
-      cells.add [
+      cells.add @[
         $k,
         (if u.count == 0: "-" else: insertSep($u.count, ',')),
         (if u.count == 0: "-" else: humanBytes(u.bytes)),
       ]
-    for c in cells:
-      g.say osOut, alignLeft(c[0], 10) & align(c[1], 8) & "  " & align(c[2], 10) & "\n"
+    g.showAll(
+      osOut, ruled(@["kind", "files", "size"], cells, helpWidth(stdout), right = {1, 2})
+    )
     return exitOk
   var what: seq[string]
   for k in p.kinds:

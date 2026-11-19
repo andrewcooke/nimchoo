@@ -4,7 +4,7 @@
 
 import std/[options, strutils]
 import ../geo/position
-import ../ui/columns
+import ../../core/ruled
 import ../../core/globals
 import ../ui/units
 import ../db/store
@@ -50,23 +50,26 @@ proc usageText*(width: int): seq[Line] =
     proseLines(notes, width),
   )
 
-func suggestionLines(rows: seq[Suggestion], withDistance: bool): seq[string] =
-  var cells = @[@["", "name", "kind", "position", (if withDistance: "from" else: "")]]
+func suggestionLines(rows: seq[Suggestion], withDistance: bool, width: int): seq[Line] =
+  ## The places found, numbered, as a table (`core/ruled.nim`); how far each is, when near a point.
+  var header = @["", "name", "kind", "position"]
+  if withDistance:
+    header.add "from"
+  var cells: seq[seq[string]]
   for i, s in rows:
     cells.add @[
-      $(i + 1),
-      s.name,
-      s.cls & " " & s.code,
-      positionText((lon: s.lon, lat: s.lat)),
-      (if withDistance: km(s.distanceM) else: ""),
+      $(i + 1), s.name, s.cls & " " & s.code, positionText((lon: s.lon, lat: s.lat))
     ]
-  columns(cells, {0})
+    if withDistance:
+      cells[^1].add km(s.distanceM)
+  ruled(header, cells, width, right = {0, 4})
 
-proc landmarkLines(rows: seq[Landmark]): seq[string] =
-  var cells = @[@["landmark", "position", "radius"]]
+func landmarkLines(rows: seq[Landmark], width: int): seq[Line] =
+  ## The landmarks as a table (`core/ruled.nim`).
+  var cells: seq[seq[string]]
   for l in rows:
     cells.add @[l.name, positionText((lon: l.lon, lat: l.lat)), km(l.radiusM)]
-  columns(cells, {2})
+  ruled(@["landmark", "position", "radius"], cells, width, right = {2})
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch landmarks ARGS`; returns the exit status.
@@ -160,8 +163,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             else: "no features within 2 km\n"
           )
         return exitOk
-      for l in suggestionLines(found, suggest.kind == skNear):
-        g.say osOut, l & "\n"
+      g.showAll(
+        osOut, suggestionLines(found, suggest.kind == skNear, helpWidth(stdout))
+      )
       return exitOk
     of laList:
       let rows = listLandmarks(st)
@@ -169,8 +173,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g.say osOut,
           "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
       else:
-        for l in landmarkLines(rows):
-          g.say osOut, l & "\n"
+        g.showAll(osOut, landmarkLines(rows, helpWidth(stdout)))
       return exitOk
   except StoreError, DownloadError:
     failure(g, "nch landmarks", getCurrentExceptionMsg())

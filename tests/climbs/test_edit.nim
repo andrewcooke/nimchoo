@@ -10,6 +10,7 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 import nimchoo/core/errors
+import ../support/styles
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 let dir = getTempDir() / "nch-test-climbs-edit"
@@ -62,8 +63,9 @@ suite "nch climbs: names, and the list of all":
     let s = openSession(db, allFragments, access = allAccess)
     defer:
       s.close()
-    check sectorLines(allSectors(s))[0].startsWith("climb")
-    check sectorLines(allSectors(s)).len == 4
+    check sectorLines(allSectors(s), 120).texts[0].startsWith("climb")
+    check sectorLines(allSectors(s), 120).len == 5
+      # (the headings, the rule, three climbs)
     check climbs(db) == exitOk # (nothing selected: said, not an error)
   test "rename by the name as shown; the group closes up; the name is kept":
     let db =

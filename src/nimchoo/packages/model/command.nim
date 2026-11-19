@@ -2,8 +2,8 @@
 ## (see calc.nim), and the making of new ones.  Models belong to no user.  The impulses of a
 ## model are worked out when they are wanted (see `nch ff`), not when the model is added.
 ##
-import std/[options, strutils]
-import ../../core/globals
+import std/options
+import ../../core/[globals, ruled]
 import ../db/store
 import ../ui/[live, units]
 import ../util/args/[args, usage]
@@ -44,13 +44,13 @@ func zones(m: Model): string =
       result.add '/'
     result.add plainNumber(z)
 
-proc modelLines*(ms: seq[Model]): seq[string] =
-  ## The models, one to a line.
+proc modelLines*(ms: seq[Model], width: int): seq[Line] =
+  ## The models as a table (`core/ruled.nim`), one to a row.
   let head =
     ["model", "gamma", "zero", "one", "max_secs", "zones_%", "fitness_d", "fatigue_d"]
-  var rows: seq[array[8, string]]
+  var rows: seq[seq[string]]
   for m in ms:
-    rows.add [
+    rows.add @[
       m.name,
       plainNumber(m.gamma),
       plainNumber(m.zero),
@@ -60,24 +60,7 @@ proc modelLines*(ms: seq[Model]): seq[string] =
       plainNumber(m.fitnessDays),
       plainNumber(m.fatigueDays),
     ]
-  var w: array[8, int]
-  for c in 0 .. 7:
-    w[c] = head[c].len
-    for r in rows:
-      w[c] = max(w[c], r[c].len)
-  proc line(cells: array[8, string]): string =
-    for c in 0 .. 7:
-      if c > 0:
-        result.add "  "
-      result.add (
-        if c == 0 or c == 5: cells[c].alignLeft(w[c])
-        else: cells[c].align(w[c])
-      )
-    result = result.strip(leading = false)
-
-  result.add line(head)
-  for r in rows:
-    result.add line(r)
+  ruled(@head, rows, width, right = {1, 2, 3, 4, 6, 7})
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch models ARGS`; returns the exit status.
@@ -99,8 +82,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     case p.action
     of maList:
-      for l in modelLines(loadModels(st.db)):
-        g.say osOut, l & "\n"
+      g.showAll(osOut, modelLines(loadModels(st.db), helpWidth(stdout)))
       exitOk
     of maAdd:
       if findModel(st.db, p.model.name).isSome:

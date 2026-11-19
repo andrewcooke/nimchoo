@@ -10,13 +10,13 @@
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
 
-import
-  std/[algorithm, math, options, sequtils, strformat, strutils, tables, times, unicode]
+import std/[algorithm, math, options, sequtils, strformat, strutils, tables, times]
 import ../fit/time
 import ../geo/position
 import ../importer/describe
 import ../ui/interval
 import ../ui/style
+import ../../core/ruled
 import ../ui/units
 import ../ui/vocabulary
 export describe, units
@@ -40,14 +40,6 @@ func startText*(lat, lon: Option[float]): string =
   if lat.isNone or lon.isNone:
     return noGps
   positionText((lon: lon.get, lat: lat.get))
-
-func padRight*(s: string, width: int): string =
-  ## `s` padded with spaces to `width` characters (not bytes: "Valparaíso" is 10).
-  s & ' '.repeat(max(0, width - s.runeLen))
-
-func padLeft*(s: string, width: int): string =
-  ## The text with blanks before it, to the width (by characters, not bytes).
-  ' '.repeat(max(0, width - s.runeLen)) & s
 
 const transition = "transition" ## the sport of the gaps between the legs of a triathlon
 
@@ -82,68 +74,57 @@ proc activityText*(r: ListRow, zone: Timezone): string =
   activityLine(info(r), zone)
 
 proc table*(
-    rows: seq[ListRow], zone: Timezone, verbose: bool, marks = false
+    rows: seq[ListRow], zone: Timezone, verbose: bool, width: int, marks = false
 ): seq[Line] =
-  ## The header and a line for each row, columns aligned (distance and active right-aligned): the start, the sport, the
-  ## distance, the active time and "place / name" of each activity (describe.nim), and if `verbose` the sub-sport after the
-  ## sport and the path of the file last.  No lines at all if there
-  ## are no rows.
+  ## The header and a line for each row, as a table (`core/ruled.nim`, the last column wrapped to `width`; distance and
+  ## active to the right): the start, the sport, the distance, the active time and "place / name" of each activity
+  ## (describe.nim), and if `verbose` the sub-sport after the sport and the path of the file last.  No lines at all if
+  ## there are no rows.
   ##
-  ## Styles: a row in the selection is `select` all through; a
-  ## transition row is `hide` all through; "-" (not recorded) is `hide`; a distance
-  ## or an active time that shows as zero is `warn`.  With `marks` (for where there is no colour) a row in the selection is
-  ## also in brackets, `[...]`, as a day of the calendar is, and every line is one column further in.
+  ## Styles: a row in the selection is `select` all through (a band, the lines between the columns too); a transition row
+  ## is `hide` all through; "-" (not recorded) is `hide`; a distance or an active time that shows as zero is `warn`.  With
+  ## `marks` (for where there is no colour) a row in the selection is also in brackets, `[...]`, as a day of the calendar
+  ## is, and every line is one column further in.
   if rows.len == 0:
     return
   var header = @["start", "sport", "distance", "active", "place / name"]
   if verbose:
     header.add "path"
-  var cells: seq[seq[string]]
+  const first = 2 # the distance column; the active time follows (`right` below)
+  var cells: seq[seq[Line]]
+  var styles: seq[seq[StyleName]]
   for r in rows:
-    cells.add activityCells(info(r, verbose), zone, verbose)
-  let first = 2 # the distance column; the active time follows
-  var widths = newSeq[int](header.len)
-  for c in 0 ..< header.len:
-    widths[c] = header[c].runeLen
-    for row in cells:
-      widths[c] = max(widths[c], row[c].runeLen)
-  proc padded(text: string, c: int): string =
-    if c == first or c == first + 1:
-      text.padLeft(widths[c])
-    elif c == header.len - 1:
-      text
-    else:
-      text.padRight(widths[c])
-
-  proc line(row: seq[string], r: Option[ListRow]): Line =
-    for c in 0 ..< row.len:
-      if c == row.len - 1 and row[c].len == 0 and c > 0:
-        break # (nothing to say last: no trailing blanks)
-      if c > 0:
-        result.add span("  ")
-      var style = none(StyleName) # (plain)
-      if r.isSome:
-        if r.get.isTransition:
+    let texts = activityCells(info(r, verbose), zone, verbose)
+    var line: seq[Line]
+    for c, text in texts:
+      var style = none(StyleName) # (plain; a row in a style of its own has no others)
+      if not (r.isTransition or r.selected):
+        if text == notRecorded or text == noGps:
           style = some(styleName"hide")
-        elif r.get.selected:
-          style = some(selectedStyle) # the whole row: it is in the selection
-        elif row[c] == notRecorded or row[c] == noGps:
-          style = some(styleName"hide")
-        elif (c == first and r.get.zeroDistance) or (
-          c == first + 1 and r.get.zeroActive
-        ):
+        elif (c == first and r.zeroDistance) or (c == first + 1 and r.zeroActive):
           style = some(styleName"warn")
-      let text = padded(row[c], c)
-      result.add (if style.isSome: span(text, style.get) else: span(text))
-    result = merged(result)
-      # (a row of the selection is one span: its background runs on)
-
-  result.add line(header, none(ListRow))
-  for i, row in cells:
-    result.add line(row, some(rows[i]))
-  if marks:
-    for i in 0 .. result.high:
-      result[i] = bracketed(result[i], i > 0 and rows[i - 1].selected)
+      line.add(
+        if style.isSome:
+          @[span(text, style.get)]
+        else:
+          plain(text)
+      )
+    cells.add line
+    styles.add(
+      if r.isTransition:
+        @[styleName"hide"]
+      elif r.selected:
+        @[selectedStyle]
+      else:
+        @[]
+    )
+  for l in ruledRows(header, cells, width, right = {2, 3}, rowStyles = styles):
+    result.add(
+      if marks:
+        bracketed(l.line, l.row >= 0 and rows[l.row].selected)
+      else:
+        l.line
+    )
 
 func footer*(rows: seq[ListRow], choices = none(int)): string =
   ## "42 of 310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many

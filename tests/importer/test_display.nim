@@ -38,9 +38,6 @@ proc fresh(name: string): string =
   removeDir(result)
   createDir(result)
 
-func texts(ls: seq[Line]): seq[string] =
-  ls.mapIt(it.text)
-
 suite "import display: the lines":
   test "the counts of a run in progress":
     var s =

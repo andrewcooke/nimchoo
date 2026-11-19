@@ -6,7 +6,7 @@
 ## `user/has`: each is a column of the list and a part of what a delete says it will remove.
 
 import std/[options, strformat, strutils]
-import ../../core/[extension, globals]
+import ../../core/[extension, globals, ruled]
 import ../db/statement
 import ../db/store
 import ../../core/errors
@@ -64,9 +64,11 @@ proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
 func commas(n: int): string =
   insertSep($n, ',')
 
-proc userLines*(st: Store, has: seq[UserHas]): seq[string] {.raises: [StoreError].} =
-  ## The users, one to a line: name, FTHR ("-" if not set), what the other packages say they have (`has`: how many
-  ## activities, say), and "yes" for the default user.
+proc userLines*(
+    st: Store, has: seq[UserHas], width: int
+): seq[Line] {.raises: [StoreError].} =
+  ## The users as a table (`core/ruled.nim`), one to a row: name, FTHR ("-" if not set), what the other packages say they
+  ## have (`has`: how many activities, say), and "yes" for the default user.
   var header = @["user", "fthr"]
   for h in has:
     header.add h.heading
@@ -81,22 +83,11 @@ proc userLines*(st: Store, has: seq[UserHas]): seq[string] {.raises: [StoreError
       row.add commas(h.count(st.db, UserId(r.id)))
     row.add (if r.isDefault: "yes" else: "")
     rows.add row
-  let last = header.len # (the flag column has the heading below, and is not aligned)
-  var w = newSeq[int](last)
-  for c in 0 ..< last:
-    w[c] = header[c].len
-    for r in rows:
-      w[c] = max(w[c], r[c].len)
-  proc line(cells: seq[string], flag: string): string =
-    var parts = @[cells[0].alignLeft(w[0])]
-    for c in 1 ..< last:
-      parts.add cells[c].align(w[c])
-    parts.add flag
-    parts.join("  ").strip(leading = false)
-
-  result.add line(header, "default")
-  for r in rows:
-    result.add line(r, r[last])
+  header.add "default"
+  var right: set[0 .. 31]
+  for c in 1 ..< header.high:
+    right.incl c
+  ruled(header, rows, width, right = right)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch users ARGS`; returns the exit status.
@@ -126,8 +117,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     case p.action
     of uaList:
-      for l in userLines(st, g.extensions.get(userHas)):
-        g.say osOut, l & "\n"
+      g.showAll(osOut, userLines(st, g.extensions.get(userHas), helpWidth(stdout)))
       return exitOk
     of uaDelete:
       let id = findUser(st, p.delete.name)

@@ -3,7 +3,7 @@
 ## gate, stops included.  The formatting is pure.
 
 import std/[strutils, tables, unicode]
-import ../ui/columns
+import ../../core/ruled
 import ../db/statement
 import ../db/store
 import ../../core/errors
@@ -92,14 +92,19 @@ func climbOf*(
     gradient: gradient,
   )
 
-func sectorLines*(rows: seq[SectorRow]): seq[string] =
+func sectorLines*(rows: seq[SectorRow], width: int): seq[Line] =
   ## A table of the climbs with a line of headings: each the standard way, then how often it was ridden, and "manual"
   ## against a name given by a person.  Only the climbs: how the rides went is `nch climbs` (and -v).
-  var cells = @[@["climb", "cat", "length", "gain", "gradient", "efforts", ""]]
+  var cells: seq[seq[string]]
   for s in rows:
     cells.add climbCells(climbOf(s.name, s.category, s.lengthM, s.gainM, s.gradient)) &
       @[$s.efforts, (if s.manual: "manual" else: "")]
-  columns(cells, {2, 3, 4, 5, 6})
+  ruled(
+    @["climb", "cat", "length", "gain", "gradient", "efforts", ""],
+    cells,
+    width,
+    right = {2, 3, 4, 5, 6},
+  )
 
 # --- the display while the climbs are worked out
 

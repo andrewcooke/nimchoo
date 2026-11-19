@@ -3,7 +3,7 @@ import std/[sequtils, strutils, unittest]
 import nimchoo/packages/climbs/duplicates
 import nimchoo/packages/climbs/work
 import nimchoo/packages/db/store
-import nimchoo/core/errors
+import nimchoo/core/[errors, line]
 import ../support/[climbdata, userdata]
 
 suite "climbs: duplicates":
@@ -29,7 +29,7 @@ suite "climbs: duplicates":
       # the shorter one is the most ridden
     check groups[0].members[0].unique == 2 and groups[0].members[1].unique == 0
       # the two short rides matched only it; the long ride both
-    let lines = duplicateLines(groups)
+    let lines = duplicateLines(groups, 120).mapIt(it.text)
     check lines[0].startsWith("climbs that are nearly the same")
     check lines.anyIt(it.contains("2/3 efforts unique")) and
       lines.anyIt(it.contains("0/1 effort unique"))
@@ -48,7 +48,8 @@ suite "climbs: duplicates":
     discard ensureClimbs(s)
     check s.count("sector") == 2
     check duplicateGroups(s).len == 0
-    check duplicateLines(@[]) == @["no climbs overlap: nothing to tidy"]
+    check duplicateLines(@[], 120).mapIt(it.text) ==
+      @["no climbs overlap: nothing to tidy"]
   test "retired ones are in the report, marked, and are not offered again":
     let s = fresh("dupsretired")
     defer:
@@ -57,7 +58,7 @@ suite "climbs: duplicates":
     addRide(s, "default", "short", 2_000_000, 5.0, eastbound(5.0, to0 = 3500.0))
     discard ensureClimbs(s)
     s.db.execute("update sector set retired = 1 where id = 1")
-    let lines = duplicateLines(duplicateGroups(s))
+    let lines = duplicateLines(duplicateGroups(s), 120).mapIt(it.text)
     check lines.anyIt(it.contains("retired")) and
       not lines.anyIt(it.contains("--retire"))
 
@@ -77,19 +78,21 @@ suite "climbs: duplicates, one line that shows how to hide":
         ]
       ),
     ]
-    let lines = duplicateLines(groups)
+    let lines = duplicateLines(groups, 120).mapIt(it.text)
     check lines.filterIt(it.startsWith("hide:")) ==
       @["hide: `nch climbs --edit 'NAME' --retire`"]
     check lines[^1] == "hide: `nch climbs --edit 'NAME' --retire`"
   test "nothing that can be hidden (all retired, or none a copy of a more ridden one): no hide line":
     let lines = duplicateLines(
-      @[
-        Group(
-          members: @[
-            Member(id: 1, name: "A₁", efforts: 5),
-            Member(id: 2, name: "A₂", efforts: 2, retired: true, hideable: true),
-          ]
-        )
-      ]
-    )
+        @[
+          Group(
+            members: @[
+              Member(id: 1, name: "A₁", efforts: 5),
+              Member(id: 2, name: "A₂", efforts: 2, retired: true, hideable: true),
+            ]
+          )
+        ],
+        120,
+      )
+      .mapIt(it.text)
     check not lines.anyIt(it.contains("hide:"))

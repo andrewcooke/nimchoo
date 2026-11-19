@@ -50,8 +50,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
 * **File paths in `file`, the rest** (the author, 2026-11-18): done where a path is the output (`nch packages` detail and
   `--config`, `nch db`, `nch cache`, what `--file` writes); left: paths inside messages made as plain strings (`failure()`,
   the importer's per-file lines, `sinks.nim`), which need those to be lines first.
-* **`nch cache`: its tables ruled** (the author, 2026-11-19): it has several tables without lines between the columns
-  (`core/ruled.nim`, as the usages and `nch packages` have).
+* **Long messages are not wrapped** (seen 2026-11-19): `nch climbs` with no selection prints one line of 170 characters.  A
+  message made as a styled line could be wrapped to the window as the usages are.
 
 ## Features and ideas, unordered
 

@@ -7,7 +7,7 @@
 ## Whatever the climbs, all their attempts count, those of the selected rides and the others.
 
 import std/[algorithm, options, sequtils, strutils, tables, times]
-import ../ui/columns
+import ../../core/ruled
 import ../db/statement
 import ../db/store
 import ../../core/errors
@@ -15,7 +15,6 @@ import ../fit/time
 import ../importer/describe
 import ../util/lookup/lookup
 import ../text/fold/fold
-import std/unicode
 import ../ui/style
 import ../ui/units
 import ../ui/vocabulary
@@ -204,44 +203,14 @@ func best(s: Summary, selectedOnly = false): Option[Attempt] =
     if result.isNone or a.elapsed < result.get.elapsed:
       result = some(a)
 
-func alignedLines(
-    cells: seq[seq[string]], right, selectedCols: set[0 .. 31]
-): seq[Line] =
-  ## The rows with their cells lined up (two spaces between), those in `right` to the right, and those in `selectedCols`
-  ## in the selection's colour.
-  var widths: seq[int]
-  for row in cells:
-    for c, cell in row:
-      if c >= widths.len:
-        widths.add 0
-      widths[c] = max(widths[c], cell.runeLen)
-  for row in cells:
-    var line: Line
-    for c, cell in row:
-      if c > 0:
-        line.add span("  ")
-      let pad = repeat(' ', widths[c] - cell.runeLen)
-      let text =
-        if c <= 31 and c in right:
-          pad & cell
-        else:
-          cell & pad
-      line.add (
-        if c <= 31 and c in selectedCols: span(text, selectedStyle)
-        else: span(text)
-      )
-    # (no trailing blanks, though the last cells be empty)
-    while line.len > 0 and line[^1].text.strip.len == 0:
-      line.setLen(line.len - 1)
-    if line.len > 0:
-      line[^1].text = line[^1].text.strip(leading = false)
-    result.add merged(line)
-      # (selected cells side by side are one span: a background runs on)
-
 proc summaryLines*(
-    rows: seq[Summary], everyone, verbose: bool, zone: Timezone, marks = false
+    rows: seq[Summary],
+    everyone, verbose: bool,
+    zone: Timezone,
+    width: int,
+    marks = false,
 ): seq[Line] =
-  ## A table of the climbs, each the standard way, then how the user did on it:
+  ## A table of the climbs (`core/ruled.nim`), each the standard way, then how the user did on it:
   ##
   ##     climb                 cat  length   gain  gradient             best    best selected  rank  attempts
   ##     Cerro San Luis (4/5)  4     0.5km   +89m     17.8%  8:25 2019-03-02  9:41 2020-08-14     3         4
@@ -251,21 +220,18 @@ proc summaryLines*(
   ## and where the user's best is among them.  With `verbose` the attempts (or the people's best times) follow each
   ## climb, the fastest first; those of the selected rides in the selection's colour and, with `marks` (where there is no
   ## colour), in brackets.
-  var cells =
+  let header =
     if everyone:
       @[
-        @[
-          "climb", "cat", "length", "gain", "gradient", "riders", "fastest", "by",
-          "you", "",
-        ]
+        "climb", "cat", "length", "gain", "gradient", "riders", "fastest", "by", "you",
+        "",
       ]
     else:
       @[
-        @[
-          "climb", "cat", "length", "gain", "gradient", "best", "best selected", "rank",
-          "attempts", "",
-        ]
+        "climb", "cat", "length", "gain", "gradient", "best", "best selected", "rank",
+        "attempts", "",
       ]
+  var cells: seq[seq[string]]
   for s in rows:
     var tail: seq[string]
     if everyone:
@@ -303,14 +269,35 @@ proc summaryLines*(
   var selectedCols: set[0 .. 31] = {}
   if not everyone:
     selectedCols = {6, 7}
-  let table = alignedLines(cells, right, selectedCols)
-  result.add table[0]
-  for i, s in rows:
-    result.add table[i + 1]
-    if not verbose:
+  var styled: seq[seq[Line]]
+  for row in cells:
+    var line: seq[Line]
+    for c, cell in row:
+      line.add(
+        if c in selectedCols:
+          @[span(cell, selectedStyle)]
+        else:
+          plain(cell)
+      )
+    styled.add line
+  var headings: seq[Line]
+  for c, h in header:
+    headings.add(
+      if c in selectedCols:
+        @[span(h, selectedStyle)]
+      else:
+        plain(h)
+    )
+  let table = ruledRows(headings, styled, width, right = right)
+  for k, l in table:
+    result.add l.line
+    let last = k == table.high or table[k + 1].row != l.row
+    if not verbose or l.row < 0 or not last:
       continue
+    let s = rows[l.row]
     var inner: seq[seq[string]]
-    var chosen: seq[bool] # the attempts of selected rides: in the selection's colour
+    var chosen: seq[seq[StyleName]]
+      # the attempts of selected rides: in the selection's colour
     if everyone:
       for r in s.riders:
         inner.add @[
@@ -319,7 +306,7 @@ proc summaryLines*(
           r.user & (if r.me: " (you)" else: ""),
           dateText(r.startT, zone),
         ]
-        chosen.add false
+        chosen.add @[]
     else:
       var sorted = s.attempts
       sorted.sort(
@@ -328,13 +315,26 @@ proc summaryLines*(
       )
       for a in sorted:
         inner.add @[$a.rank, duration(a.elapsed), activityLine(a.activity, zone)]
-        chosen.add a.selected
-    let aligned = columns(inner, {0, 1})
-    for j, l in aligned:
-      if not chosen[j]:
-        result.add @[span("    " & l)]
-      elif marks:
+        chosen.add(
+          if a.selected:
+            @[selectedStyle]
+          else:
+            @[]
+        )
+    if inner.len == 0:
+      continue
+    let noHeadings = newSeq[string](inner[0].len)
+      # (none: the climb's row says what they are)
+    for e in ruledRows(
+      noHeadings,
+      inner.mapIt(it.mapIt(plain(it))),
+      width,
+      indent = 4,
+      right = {0, 1},
+      rowStyles = chosen,
+    ):
+      if marks and chosen[e.row].len > 0:
         # (where there is no colour, in brackets, as a day of the calendar: in the indent, so nothing moves)
-        result.add @[span("   [" & l & "]", selectedStyle)]
+        result.add @[span("   [")] & e.line[1 .. ^1] & @[span("]")]
       else:
-        result.add @[span("    " & l, selectedStyle)]
+        result.add e.line

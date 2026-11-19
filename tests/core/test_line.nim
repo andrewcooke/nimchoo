@@ -50,6 +50,19 @@ suite "lines: merging":
     check merged(@[span("a", "good"), span("x"), span("b", "good")]).len == 3
     check merged(@[span("a"), span("b")]).len == 1
 
+  test "the selection is one band: the lines of a table between its cells join it, in pieces too; no other style does":
+    let l = merged(
+      @[
+        span("a", "select"),
+        span("  "),
+        span(" │ "),
+        span("b", "select"),
+        span(" │ c"),
+      ]
+    )
+    check l.len == 2 and l[0].text == "a   │ b" and styleOf(l[0]) == "select"
+    check merged(@[span("a", "pkg"), span(" │ "), span("b", "pkg")]).len == 3
+
 suite "lines: marks where there is no colour":
   test "a selected line is in brackets; the others have a space where the bracket would be":
     check bracketed(@[span("a"), span("b", "select")], true).text == "[ab]"

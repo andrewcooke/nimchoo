@@ -9,6 +9,14 @@ func styleOf*(s: Span): string =
   else:
     $s.styles[^1]
 
+func texts*(lines: seq[Line]): seq[string] =
+  ## Lines as they are shown without colour.
+  lines.mapIt(it.text)
+
+func cellsOf*(line: string): seq[string] =
+  ## The cells of a line of a table (`core/ruled.nim`), without the spaces around them.
+  line.split("│").mapIt(it.strip)
+
 func plainText*(lines: seq[Line]): string =
   ## Lines as they are shown without colour, one to a line.
   lines.mapIt(it.text).join("\n")

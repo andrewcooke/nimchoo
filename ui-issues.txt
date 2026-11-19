@@ -1,0 +1,6 @@
+
+* in packages docs, and maybe elsewhere, use "expansion point", not "point".
+
+* anywhere currently with **text** should be <em text>
+
+* in packages docs, what is teh difference between tables and may also read?

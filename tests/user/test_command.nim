@@ -1,7 +1,8 @@
 import nimchoo/packages/db/statement
-import std/[os, strutils, unittest]
+import std/[os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
+import nimchoo/core/line
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
@@ -47,14 +48,18 @@ proc lines(db: string): seq[string] =
   let s = openSession(db, allFragments, access = allAccess)
   defer:
     s.close()
-  userLines(s, extensions.get(userHas))
+  userLines(s, extensions.get(userHas), 120).mapIt(it.text)
 
 suite "nch users":
   test "a new database has the default user, with no FTHR and no activities":
     let db = fresh("fresh")
     check user(db) == exitOk
     check lines(db) ==
-      @["user     fthr  activities  default", "default     -           0  yes"]
+      @[
+        "user    │ fthr │ activities │ default",
+        "────────┼──────┼────────────┼────────",
+        "default │    - │          0 │ yes",
+      ]
 
   test "make a user, with an FTHR, and see them":
     let db = fresh("create")
@@ -62,8 +67,10 @@ suite "nch users":
     check user(db, "--add", "carol") == exitOk
     check lines(db) ==
       @[
-        "user     fthr  activities  default", "bob       150           0",
-        "carol       -           0", "default     -           0  yes",
+        "user    │ fthr │ activities │ default",
+        "────────┼──────┼────────────┼────────",
+        "bob     │  150 │          0", "carol   │    - │          0",
+        "default │    - │          0 │ yes",
       ]
     check q(
       db,
@@ -153,7 +160,7 @@ suite "nch users":
     check edit(db, "bob", "--default") == exitOk
     check q(db, "select name from user where is_default = 1", string) == "bob"
     check q(db, "select count(*) from user where is_default = 1", int) == 1
-    check lines(db)[^1] == "default     -           0" # (the flag column is blank)
+    check lines(db)[^1] == "default │    - │          0" # (the flag column is blank)
     check user(db, "--add", "carol", "--default") == exitOk
       # made and made the default in one go
     check q(db, "select name from user where is_default = 1", string) == "carol"
@@ -194,8 +201,9 @@ suite "nch users":
     s.close()
     check lines(db) ==
       @[
-        "user     fthr  activities  default", "bob         -       1,200",
-        "default     -           0  yes",
+        "user    │ fthr │ activities │ default",
+        "────────┼──────┼────────────┼────────",
+        "bob     │    - │      1,200", "default │    - │          0 │ yes",
       ]
 
   test "the profile goes with the user":

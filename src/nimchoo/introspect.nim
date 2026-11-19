@@ -4,7 +4,7 @@
 ## the running program (`--config`) and the printing.
 
 import std/[algorithm, editdistance, options, os, sequtils, strformat, strutils]
-import ./core/[access, errors, globals, inventory, logfile, manifest]
+import ./core/[access, errors, globals, inventory, logfile, manifest, ruled]
 import ./packages/cache/cache
 import ./packages/db/[fragment, store]
 import ./packages/ui/[live, style, units]
@@ -272,12 +272,13 @@ proc fragmentLines*(path: string): seq[string] =
     result.add "  all of them match"
   result.add differences
 
-proc configLines*(g: Globals): seq[Line] =
-  ## The settings in force, and where each came from (a path in `file`).
-  func row(label: string, value: Line): Line =
-    @[span(label.alignLeft(10) & "  ")] & value
+proc configLines*(g: Globals, width: int): seq[Line] =
+  ## The settings in force, and where each came from (a path in `file`), as a table without headings; then the fragments.
+  var rows: seq[seq[Line]]
+  func row(label: string, value: Line): seq[Line] =
+    @[plain(label), value]
 
-  func row(label, value: string): Line =
+  func row(label, value: string): seq[Line] =
     row(label, plain(value))
 
   func pathOr(path: Option[string], otherwise: string): Line =
@@ -285,7 +286,7 @@ proc configLines*(g: Globals): seq[Line] =
       @[span(path.get, "file")]
     else:
       plain(otherwise)
-  result.add row("version", versionString)
+  rows.add row("version", versionString)
   let path = resolveDbPath(g.dbPath)
   let source =
     if g.dbPath.len > 0:
@@ -300,16 +301,16 @@ proc configLines*(g: Globals): seq[Line] =
       state = humanBytes(getFileSize(path))
   except OSError:
     state = "cannot be read"
-  result.add row("database", @[span(path, "file"), span(fmt"  ({source}; {state})")])
-  result.add row(
+  rows.add row("database", @[span(path, "file"), span(fmt"  ({source}; {state})")])
+  rows.add row(
     "user",
     if g.user.len > 0:
       fmt"{g.user}  (`--user`)"
     else:
       "the default user of the database",
   )
-  result.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
-  result.add row(
+  rows.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
+  rows.add row(
     "theme",
     if g.theme.name.len > 0:
       fmt"{g.theme.name}  ({g.theme.origin})"
@@ -317,23 +318,25 @@ proc configLines*(g: Globals): seq[Line] =
       "none: the terminal's own text",
   )
   let log = envLogPath()
-  result.add row("log", pathOr(log, "off (NCH_LOG is empty)"))
+  rows.add row("log", pathOr(log, "off (NCH_LOG is empty)"))
   let cache = cacheDir()
-  result.add row("cache", pathOr(cache, "none (no HOME)"))
-  result.add row(
+  rows.add row("cache", pathOr(cache, "none (no HOME)"))
+  rows.add row(
     "access",
     case g.access.mode
     of amEnforce: "enforced: a package that touches the table of another is refused"
     of amOff: "off"
     ,
   )
-  result.add row("commands", generated.commands.mapIt(it.name).join(" ") & " packages")
+  rows.add row("commands", generated.commands.mapIt(it.name).join(" ") & " packages")
   let variables = [
     "NCH_DB", "NCH_LOG", "NCH_CACHE", "XDG_STATE_HOME", "XDG_CACHE_HOME",
     "XDG_DATA_HOME", "NO_COLOR", "NCH_THEME", "COLORFGBG",
   ].mapIt(setIn(it))
   for i, v in variables:
-    result.add row((if i == 0: "environment" else: ""), v)
+    rows.add row((if i == 0: "environment" else: ""), v)
+  result = ruled(@["", ""], rows, width)
+  result.add plain("")
   for l in fragmentLines(path):
     result.add plain(l)
 
@@ -463,7 +466,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vDot:
     g.say osOut, dotText(inv)
   of vConfig:
-    g.showAll configLines(g)
+    g.showAll configLines(g, helpWidth(stdout))
   exitOk
 
 proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =

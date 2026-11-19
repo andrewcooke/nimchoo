@@ -110,13 +110,15 @@ suite "list table: the table":
       ],
       zone,
       false,
+      120,
     ).texts
     check lines ==
       @[
-        "start             sport    distance  active  place / name",
-        "2018-03-04 09:12  cycling   102.7km   4h41m",
-        "2018-08-27 12:00  cycling     5.5km  22m00s",
-      ]
+        "start            │ sport   │ distance │ active │ place / name",
+        "─────────────────┼─────────┼──────────┼────────┼─────────────",
+        "2018-03-04 09:12 │ cycling │  102.7km │  4h41m",
+        "2018-08-27 12:00 │ cycling │    5.5km │ 22m00s",
+      ] # (a table, `core/ruled.nim`; nothing in the last column: no line before it)
   test "the place and the name, joined; whichever there is":
     let lines = table(
       @[
@@ -134,13 +136,14 @@ suite "list table: the table":
       ],
       zone,
       false,
+      120,
     ).texts
-    check lines[1].endsWith("36.7km   1h41m  Providencia / Lo Barnechea and back")
-    check lines[2].endsWith("5.5km  22m00s  Providencia")
-    check lines[3].endsWith("5.5km  22m00s  around Recoleta")
+    check lines[2].endsWith("36.7km │  1h41m │ Providencia / Lo Barnechea and back")
+    check lines[3].endsWith("5.5km │ 22m00s │ Providencia")
+    check lines[4].endsWith("5.5km │ 22m00s │ around Recoleta")
   test "not recorded is a dash":
-    let lines = table(@[row(aug27, "", "")], zone, false).texts
-    check lines[1] == "2018-08-27 12:00  -             -       -"
+    let lines = table(@[row(aug27, "", "")], zone, false, 120).texts
+    check lines[2] == "2018-08-27 12:00 │ -     │        - │      -"
   test "the zone moves the date and the time":
     let plus2 = newTimezone(
       "+2",
@@ -151,22 +154,25 @@ suite "list table: the table":
           time: t - initDuration(seconds = 7200), utcOffset: -7200, isDst: false
         ),
     )
-    check table(@[row(aug27)], plus2, false).texts[1].startsWith("2018-08-27 14:00")
+    check table(@[row(aug27)], plus2, false, 120).texts[2].startsWith(
+      "2018-08-27 14:00"
+    )
   test "verbose adds the sub-sport and the path, last":
     let rows = @[
       row(mar4, "cycling", "road", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit"),
       row(aug27, "running", "", 2000.0, 120.0, "bb.fit", "bob", "/y/bb.fit"),
     ]
-    let plain = table(rows, zone, false).texts
-    check plain[0] == "start             sport    distance  active  place / name"
-    check plain[1] == "2018-03-04 09:12  cycling     1.0km   1m00s"
-    let verbose = table(rows, zone, true).texts
+    let plain = table(rows, zone, false, 120).texts
+    check plain[0] ==
+      "start            │ sport   │ distance │ active │ place / name"
+    check plain[2] == "2018-03-04 09:12 │ cycling │    1.0km │  1m00s"
+    let verbose = table(rows, zone, true, 120).texts
     check verbose[0] ==
-      "start             sport         distance  active  place / name  path"
-    check verbose[1] ==
-      "2018-03-04 09:12  cycling/road     1.0km   1m00s                /x/a.fit"
+      "start            │ sport        │ distance │ active │ place / name │ path"
     check verbose[2] ==
-      "2018-08-27 12:00  running          2.0km   2m00s                /y/bb.fit"
+      "2018-03-04 09:12 │ cycling/road │    1.0km │  1m00s │              │ /x/a.fit"
+    check verbose[3] ==
+      "2018-08-27 12:00 │ running      │    2.0km │  2m00s │              │ /y/bb.fit"
   test "verbose: where it started and what it is called, aligned by characters, not bytes; no GPS said where they would be":
     let rows = @[
       row(
@@ -190,19 +196,19 @@ suite "list table: the table":
         aug27, "swimming", "", 2000.0, 120.0, "c.fit", "alice", "/z/c.fit", "", "no GPS"
       ),
     ]
-    let t = table(rows, zone, true).texts
-    check t[1].endsWith("1m00s  Valparaíso / Quillota and back  /x/a.fit")
-    check t[2].endsWith("2m00s  Zürich" & " ".repeat(24) & "  /y/b.fit")
+    let t = table(rows, zone, true, 120).texts
+    check t[2].endsWith("1m00s │ Valparaíso / Quillota and back │ /x/a.fit")
+    check t[3].endsWith("2m00s │ Zürich" & " ".repeat(24) & " │ /y/b.fit")
       # (padded to the width of the longest)
-    check t[3].endsWith("2m00s  no GPS" & " ".repeat(24) & "  /z/c.fit")
+    check t[4].endsWith("2m00s │ no GPS" & " ".repeat(24) & " │ /z/c.fit")
     # the path column starts at the same character in every line (they all end in a path of the same length)
-    check t[1].runeLen == t[2].runeLen and t[2].runeLen == t[3].runeLen
+    check t[2].runeLen == t[3].runeLen and t[3].runeLen == t[4].runeLen
   test "no GPS is said only if verbose (the positions are not read otherwise)":
     let r = row(mar4, "cycling", "", 1000.0, 60.0, position = "no GPS")
-    check table(@[r], zone, false).texts[1].endsWith("1.0km   1m00s")
-    check table(@[r], zone, true).texts[1].contains("no GPS")
+    check table(@[r], zone, false, 120).texts[2].endsWith("1.0km │  1m00s")
+    check table(@[r], zone, true, 120).texts[2].contains("no GPS")
   test "no rows, no lines":
-    check table(@[], zone, true).len == 0
+    check table(@[], zone, true, 120).len == 0
   test "an activity said in a sentence, the standard way":
     check activityText(
       row(
@@ -219,16 +225,11 @@ suite "list table: the table":
     check activityText(row(aug27, "running", "", 0.0, 2.0), zone) ==
       "2018-08-27 12:00  running  0.0km 2s"
 
-suite "list table: positions and padding":
+suite "list table: positions":
   test "the start as every position is written; no GPS if there is no start":
     check startText(some(-33.436213), some(-70.608963)) == "-33.4362,-70.6090"
     check startText(none(float), none(float)) == "no GPS"
     check startText(some(-33.4), none(float)) == "no GPS"
-  test "padding counts characters":
-    check padRight("Zürich", 8) == "Zürich  "
-    check padLeft("Zürich", 8) == "  Zürich"
-    check padRight("abc", 2) == "abc" and padLeft("abc", 2) == "abc"
-    check padRight("日本", 4) == "日本  "
 
 suite "list table: the last line":
   test "how many, and of how many":
@@ -254,12 +255,12 @@ suite "list table: looks":
       row(aug27, "running", "", 2000.0, 90.0),
       row(aug27, "transition", "", -1.0, -1.0, selected = true),
     ]
-    let t = table(rows, zone, false)
-    for sp in t[1]:
-      check styleOf(sp) == "select" or sp.text.strip == ""
+    let t = table(rows, zone, false, 120)
     for sp in t[2]:
-      check styleOf(sp) != "select" or sp.text.strip == ""
+      check styleOf(sp) == "select" or sp.text.strip == ""
     for sp in t[3]:
+      check styleOf(sp) != "select" or sp.text.strip == ""
+    for sp in t[4]:
       check styleOf(sp) == "hide" or sp.text.strip == ""
       # (a transition stays dim)
     for sp in t[0]:
@@ -267,8 +268,8 @@ suite "list table: looks":
       # (the header is plain)
   test "a selected row with a missing value is in the select style too, not hidden":
     let t =
-      table(@[row(aug27, "cycling", "", -1.0, -1.0, selected = true)], zone, false)
-    for sp in t[1]:
+      table(@[row(aug27, "cycling", "", -1.0, -1.0, selected = true)], zone, false, 120)
+    for sp in t[2]:
       check styleOf(sp) == "select" or sp.text.strip == ""
   test "no GPS is dim; a position and a place name are not":
     let rows = @[
@@ -283,15 +284,15 @@ suite "list table: looks":
         position = "-33.4362,-70.6090",
       ),
     ]
-    let t = table(rows, zone, true)
+    let t = table(rows, zone, true, 120)
     proc lookOfText(i: int, text: string): string =
       for sp in t[i]:
         if sp.text.contains(text):
           return styleOf(sp)
       raiseAssert "no cell with " & text
 
-    check lookOfText(1, "no GPS") == "hide"
-    check lookOfText(2, "Santiago") != "hide"
+    check lookOfText(2, "no GPS") == "hide"
+    check lookOfText(3, "Santiago") != "hide"
   proc lookOf(lines: seq[Line], rowIndex: int, prefix: string): string =
     for sp in lines[rowIndex]:
       if sp.text.strip.startsWith(prefix) or (" " & prefix) in sp.text:
@@ -299,35 +300,36 @@ suite "list table: looks":
     raiseAssert "no cell " & prefix
 
   test "a plain row has no style at all":
-    let lines = table(@[row(aug27, "cycling", "road", 5000.0, 600.0)], zone, false)
-    for sp in lines[1]:
+    let lines = table(@[row(aug27, "cycling", "road", 5000.0, 600.0)], zone, false, 120)
+    for sp in lines[2]:
       check sp.styles.len == 0
   test "a transition is dim all through, even with zeros":
-    let lines = table(@[row(aug27, "transition", "", 0.0, 0.0)], zone, false)
-    for sp in lines[1]:
+    let lines = table(@[row(aug27, "transition", "", 0.0, 0.0)], zone, false, 120)
+    for sp in lines[2]:
       check styleOf(sp) == "hide" or sp.text.strip == ""
-    check lookOf(lines, 1, "0.0") == "hide"
+    check lookOf(lines, 2, "0.0") == "hide"
   test "not recorded is dim":
-    let lines = table(@[row(aug27, "cycling", "", -1.0, -1.0)], zone, false)
-    check lookOf(lines, 1, "-") == "hide"
-    check lines[1].filterIt(styleOf(it) == "hide").mapIt(it.text.count('-')).sum == 2
+    let lines = table(@[row(aug27, "cycling", "", -1.0, -1.0)], zone, false, 120)
+    check lookOf(lines, 2, "-") == "hide"
+    check lines[2].filterIt(styleOf(it) == "hide").mapIt(it.text.count('-')).sum == 2
   test "a distance or active time that shows as zero is a warning; others are not":
-    let zeros = table(@[row(aug27, "running", "", 0.0, 0.0)], zone, false)
-    check lookOf(zeros, 1, "0.0") == "warn"
-    check lookOf(zeros, 1, "0s") == "warn"
-    let small = table(@[row(aug27, "running", "", 2.49, 2.1)], zone, false)
+    let zeros = table(@[row(aug27, "running", "", 0.0, 0.0)], zone, false, 120)
+    check lookOf(zeros, 2, "0.0") == "warn"
+    check lookOf(zeros, 2, "0s") == "warn"
+    let small = table(@[row(aug27, "running", "", 2.49, 2.1)], zone, false, 120)
       # shows as 0.0, 2s
-    check small.texts[1].contains("0.0") and small.texts[1].endsWith("2s")
-    check lookOf(small, 1, "0.0") == "warn"
-    check lookOf(small, 1, "2s") == "warn"
-    let notYet = table(@[row(aug27, "running", "", 60.0, 40.0)], zone, false) # 0.1, 40s
-    check lookOf(notYet, 1, "0.1") == ""
-    check lookOf(notYet, 1, "40s") == ""
-    let onlyActive = table(@[row(aug27, "running", "", 5000.0, 0.0)], zone, false)
-    check lookOf(onlyActive, 1, "5.0") == ""
-    check lookOf(onlyActive, 1, "0s") == "warn"
+    check small.texts[2].contains("0.0") and small.texts[2].endsWith("2s")
+    check lookOf(small, 2, "0.0") == "warn"
+    check lookOf(small, 2, "2s") == "warn"
+    let notYet = table(@[row(aug27, "running", "", 60.0, 40.0)], zone, false, 120)
+      # 0.1, 40s
+    check lookOf(notYet, 2, "0.1") == ""
+    check lookOf(notYet, 2, "40s") == ""
+    let onlyActive = table(@[row(aug27, "running", "", 5000.0, 0.0)], zone, false, 120)
+    check lookOf(onlyActive, 2, "5.0") == ""
+    check lookOf(onlyActive, 2, "0s") == "warn"
   test "the header has no style":
-    for sp in table(@[row(aug27)], zone, false)[0]:
+    for sp in table(@[row(aug27)], zone, false, 120)[0]:
       check sp.styles.len == 0
 
 suite "activities table: marks where there is no colour":
@@ -335,8 +337,9 @@ suite "activities table: marks where there is no colour":
     var picked = row(aug27, "cycling", "road", 5000.0, 600.0)
     picked.selected = true
     let other = row(aug27, "running", "", 3000.0, 900.0)
-    let plainLines = table(@[picked, other], zone, false)
-    let marked = table(@[picked, other], zone, false, marks = true)
+    let plainLines = table(@[picked, other], zone, false, 120)
+    let marked = table(@[picked, other], zone, false, 120, marks = true)
     check marked[0].text == " " & plainLines[0].text
-    check marked[1].text == "[" & plainLines[1].text & "]"
-    check marked[2].text == " " & plainLines[2].text
+    check marked[1].text == " " & plainLines[1].text # (the rule)
+    check marked[2].text == "[" & plainLines[2].text & "]"
+    check marked[3].text == " " & plainLines[3].text

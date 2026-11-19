@@ -489,8 +489,8 @@ built-in `dark` is used instead (how text looks is not worth stopping a command 
   (`<good imported> 3 files`; in the code `styled"..."`, read when compiled, the values plain text) gives text its styles,
   which nest; `tools/look.nim` shows text with a theme.  (The web pages' colours are their own, in their templates:
   they are always on white, whatever the terminal's theme.)
-* A table's cells lined up in columns (`columns`), and a block of lines redrawn in place on a terminal (`live`), which also
-  says how wide the help text may be (`helpWidth()`).""",
+* A block of lines redrawn in place on a terminal (`live`), which also says how wide the output may be (`helpWidth()`).
+  Every table is `core/ruled.nim`: lines between the columns, a rule under the headings, the last column wrapped.""",
       path: "src/nimchoo/packages/ui/",
     ),
     Registered(

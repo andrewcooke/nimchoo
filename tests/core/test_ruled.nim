@@ -1,4 +1,4 @@
-import std/[sequtils, strutils, unicode, unittest]
+import std/[os, sequtils, strutils, unicode, unittest]
 import nimchoo/core/[line, ruled]
 
 func ruledLines(
@@ -30,7 +30,8 @@ suite "ruled tables":
 
   test "a newline in the last cell starts a paragraph, under the same column; an empty cell leaves a row":
     let ls = ruledLines(@["a", "b"], @[@["x", "one\ntwo"], @["y", ""]], 80)
-    check ls[2] == "x │ one" and ls[3] == "  │ two" and ls[4] == "y │"
+    check ls[2] == "x │ one" and ls[3] == "  │ two" and ls[4] == "y"
+      # (an empty last cell: no line before it)
 
   test "the last column is wrapped to the width, never narrower than the minimum, and the rule is as wide as the table":
     let ls =
@@ -59,3 +60,23 @@ suite "ruled tables: cells in styles":
     check lines.mapIt(it.text) ==
       @["a │ b", "──┼──────", "x │ go ff"]
     check span("ff", "cmd") in lines[2]
+
+suite "ruled tables: the only tables":
+  test "no other code lines up columns (with align or alignLeft): every table is ruled":
+    # (the exceptions: the two that make the tables, the log file's own format, a developer's timings, and the diagram of
+    # the layers; and padding a number with zeros, `align($m, 2, '0')`, which is not a column)
+    const allowed = [
+      "core/ruled.nim", "util/args/usage.nim", "core/logfile.nim",
+      "profiling/profiling.nim", "core/inventory.nim",
+    ]
+    var found: seq[string]
+    let top = currentSourcePath().parentDir.parentDir.parentDir / "src"
+    for path in walkDirRec(top):
+      if not path.endsWith(".nim") or allowed.anyIt(path.endsWith(it)):
+        continue
+      for i, l in readFile(path).splitLines.toSeq:
+        if ("alignLeft(" in l or "align(" in l) and ", '0')" notin l:
+          found.add path.relativePath(top) & ":" & $(i + 1)
+    check found.len == 0
+    if found.len > 0:
+      echo "columns lined up by hand (use core/ruled.nim): ", found.join(", ")

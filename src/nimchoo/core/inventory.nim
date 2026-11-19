@@ -253,12 +253,9 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   let at = inv.find(name)
   doAssert at >= 0
   let p = inv.packages[at]
+  var fields: seq[seq[Line]] # (label, value: a table without headings)
   func field(label: string, value: Line): seq[Line] =
-    ## a row of the fields: the label, a line (drawn in the line style), the value wrapped beside it
-    for i, l in value.wrapped(max(30, width - 17)):
-      result.add @[
-        span((if i == 0: label.alignLeft(13) else: " ".repeat(13)) & " │ ")
-      ] & l
+    @[plain(label), value]
   result.add @[
     span("package ", "em"),
     span(p.name, "pkg"),
@@ -270,11 +267,11 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     for l in rst(p.doc, width).split('\n'):
       result.add inv.withPackages(l)
     result.add plain("")
-  result.add field("source", @[span(p.path, "file")])
-  result.add field("depends on", pkgList(p.depends))
-  result.add field("used by", pkgList(p.dependents))
-  result.add field("fragments", plain(listOf(p.fragments)))
-  result.add field("tables", plain(listOf(p.tables)))
+  fields.add field("source", @[span(p.path, "file")])
+  fields.add field("depends on", pkgList(p.depends))
+  fields.add field("used by", pkgList(p.dependents))
+  fields.add field("fragments", plain(listOf(p.fragments)))
+  fields.add field("tables", plain(listOf(p.tables)))
   var reads: Line
   for t in inv.tables:
     if t.owner.normalised != p.name.normalised and (t.everyone or p.name in t.readers):
@@ -283,16 +280,16 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
       reads.add span(t.name & " (")
       reads.add span(t.owner, "pkg")
       reads.add span(")")
-  result.add field("may also read", (if reads.len == 0: plain("-")
+  fields.add field("may also read", (if reads.len == 0: plain("-")
     else: reads))
   if p.commands.len == 0:
-    result.add field("commands", plain("-"))
+    fields.add field("commands", plain("-"))
   for c in p.commands:
-    result.add field(
+    fields.add field(
       "command", @[span("nch " & c.name, "cmd"), span(" - " & c.summary)]
     )
   if p.defines.len == 0:
-    result.add field("defines", plain("-"))
+    fields.add field("defines", plain("-"))
   for d in p.defines:
     var holds = ""
     var added: Line # (who adds to it, in the order the contributions are used)
@@ -309,7 +306,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
         fmt"{d.name} (holds {holds})"
       else:
         d.name
-    result.add field(
+    fields.add field(
       "defines",
       @[span(fmt"{what} - ")] & inv.withPackages(d.summary) & @[span("; added to by ")] &
         (if added.len == 0: plain("nothing") else: added),
@@ -317,7 +314,8 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   var adds: seq[string]
   for c in p.contributes:
     adds.add fmt"{c.point} (priority {c.priority})"
-  result.add field("adds to", plain(listOf(adds)))
+  fields.add field("adds to", plain(listOf(adds)))
+  result.add ruled(@["", ""], fields, width)
 
 func pointLines*(inv: Inventory, width: int): seq[Line] =
   ## Each extension point as a row: who defines it, who adds to it (in the order the contributions are used; a package that

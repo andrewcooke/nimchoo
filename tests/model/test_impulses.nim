@@ -1,7 +1,8 @@
 import nimchoo/packages/db/statement
-import std/[os, options, unittest]
+import std/[os, options, sequtils, unittest]
 import ../support/shims
 import nimchoo/core/globals
+import nimchoo/core/line
 import nimchoo/packages/db/store
 import nimchoo/packages/user/session
 import nimchoo/core/errors
@@ -208,10 +209,11 @@ suite "nch models":
     let s = open(db)
     defer:
       s.close()
-    check modelLines(loadModels(s.db)) ==
+    check modelLines(loadModels(s.db), 120).mapIt(it.text) ==
       @[
-        "model    gamma  zero  one  max_secs  zones_%           fitness_d  fatigue_d",
-        "default      2     1    6        60  68/83/94/105/121         42          7",
+        "model   │ gamma │ zero │ one │ max_secs │ zones_%          │ fitness_d │ fatigue_d",
+        "────────┼───────┼──────┼─────┼──────────┼──────────────────┼───────────┼──────────",
+        "default │     2 │    1 │   6 │       60 │ 68/83/94/105/121 │        42 │         7",
       ]
   test "add a model: it is listed, and nothing is worked out yet":
     let db = fresh("addcmd")

@@ -58,7 +58,7 @@ suite "nch packages: the settings":
 
   test "the settings in force, with where each came from":
     let g = Globals(dbPath: dir / "x.db", user: "bob", offline: true, access: allAccess)
-    let text = configLines(g).plainText
+    let text = configLines(g, 120).plainText
     check "version" in text and "(--db; not made yet)" in text
     check "bob  (`--user`)" in text and "yes (`--offline`)" in text
     check "access" in text and "enforced" in text
