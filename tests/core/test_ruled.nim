@@ -87,9 +87,13 @@ suite "ruled tables: the only tables":
     if found.len > 0:
       echo "columns lined up by hand (use core/ruled.nim): ", found.join(", ")
 
-suite "ruled tables: spaced":
-  test "with spaced, a blank line between rows, the line between the columns going on through it":
-    let ls = ruled(@["", ""], @[@["a", "one"], @["b", "two"]], 80, spaced = true).mapIt(
-        it.text
-      )
-    check ls == @["a │ one", "  │", "b │ two"]
+suite "ruled tables: alternate":
+  test "with alternate, every other row is in the alt version of its styles, all through":
+    let ls = ruled(
+      @["", ""],
+      @[@[plain("a"), @[span("one", "cmd")]], @[plain("b"), @[span("two", "cmd")]]],
+      80,
+      alternate = true,
+    )
+    check ls[0] == @[span("a │ "), span("one", "cmd")]
+    check ls[1] == @[span("b │ ", "alt"), span("two", "alt-cmd")]

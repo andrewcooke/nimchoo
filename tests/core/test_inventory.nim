@@ -145,7 +145,8 @@ suite "the views":
     check cells.anyIt(span("src/nimchoo/packages/b/", "file") in it)
       # (the source path in the style of paths)
       # (the command in the style of commands)
-    check cells.anyIt(span("a", "pkg") in it and span("db", "pkg") in it)
+    check cells.anyIt(span("a", "alt-pkg") in it and span("db", "alt-pkg") in it)
+      # (the second field: on an alternate row, in the alt version of the style)
       # (depends on: the names of packages in their style)
     check "contributed to by" in text and "c ×2 (priority 0, 2)" in text
     check "b/p[int] - " in text # (what --points no longer shows: the detail has it)

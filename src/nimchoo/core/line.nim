@@ -13,19 +13,37 @@ from std/unicode import Rune, runeLen, runeSubStr, runes
 
 {.push raises: [].}
 
-const programStyles* = [
-  "default", ## around everything
-  "em", ## what to read first: titles, headings
-  "hide", ## the bookkeeping, what was not recorded, the lines of tables
-  "select", ## the selection, and nothing else
-  "good", ## done
-  "bad", ## failed, deleted
-  "warn", ## advisory
-  "cmd", ## what a person would type: a command, an option (what is between backticks)
-  "pkg", ## the name of a package
-  "file", ## the path of a file or a directory
-]
-  ## the styles the program uses, each for one thing: the names in the code are checked against these
+const
+  baseStyles = [
+    "default", ## around everything
+    "em", ## what to read first: titles, headings
+    "hide", ## the bookkeeping, what was not recorded, the lines of tables
+    "select", ## the selection, and nothing else
+    "good", ## done
+    "bad", ## failed, deleted
+    "warn", ## advisory
+    "cmd", ## what a person would type: a command, an option (what is between backticks)
+    "pkg", ## the name of a package
+    "file", ## the path of a file or a directory
+  ]
+  altPrefix = "alt"
+    ## every other row of a table that asks for it (`alternated`) is in the `alt` version of each style: `alt` for plain
+    ## text, `alt-cmd` for `cmd` ...
+
+func withAlts(names: openArray[string]): seq[string] =
+  for n in names:
+    result.add n
+  for n in names:
+    result.add(
+      if n == "default":
+        altPrefix
+      else:
+        altPrefix & "-" & n
+    )
+
+const programStyles* = withAlts(baseStyles)
+  ## the styles the program uses, each for one thing, and the `alt` version of each: the names in the code are checked
+  ## against these
 
 type
   StyleName* = distinct string ## the name of a style
@@ -157,6 +175,24 @@ func bracketed*(line: Line, selected: bool): Line =
     @[span("[")] & line & @[span("]")]
   else:
     @[span(" ")] & line
+
+func alternated*(line: Line): Line =
+  ## The line in the `alt` version of each of its styles (`alt-cmd` for `cmd`; `alt` for plain text): a row of a table
+  ## told from its neighbours (`ruled.ruledRows(alternate)`), whatever the theme makes of it.
+  for s in line:
+    var styles: seq[StyleName]
+    for st in s.styles:
+      styles.add StyleName(
+        if $st == "default":
+          altPrefix
+        elif ($st).startsWith(altPrefix):
+          $st
+        else:
+          altPrefix & "-" & $st
+      )
+    if styles.len == 0:
+      styles = @[StyleName(altPrefix)]
+    result.add Span(text: s.text, styles: styles)
 
 func wrapped*(line: Line, width: int): seq[Line] =
   ## The line broken into lines of at most `width` characters at spaces (a longer word has a line of its own, a newline

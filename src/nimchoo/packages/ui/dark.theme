@@ -16,3 +16,16 @@ warn    fg=#a08040
 cmd     fg=#a0a0c0
 pkg     fg=#a0a0c0  bg=#303040
 file    fg=#a0a0c0              weight=normal
+
+# alt: every other row of a table that asks for it (the fields of `nch packages NAME`), in the alt version of each
+# style (alt for plain text); for now each looks as the style it stands for.
+alt        fg=#e0e0e0              weight=bold  underline=no  italic=no
+alt-em     fg=#ffffff
+alt-hide   fg=#808080
+alt-select bg=#283010
+alt-bad    fg=#e06060
+alt-good   fg=#40a040
+alt-warn   fg=#a08040
+alt-cmd    fg=#a0a0c0
+alt-pkg    fg=#a0a0c0  bg=#303040
+alt-file   fg=#a0a0c0              weight=normal

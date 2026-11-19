@@ -29,7 +29,7 @@ func ruledRows*(
     together: set[0 .. 31] = {},
     rowStyles: seq[seq[StyleName]] = @[],
     narrow = 0,
-    spaced = false,
+    alternate = false,
 ): seq[RuledLine] =
   ## The table, `indent` spaces in, as styled lines, each with the row it shows: every column but the last as wide as its
   ## widest cell (and its heading), or wrapped to `narrow` if that is not 0; those in `right` aligned to the right (the last
@@ -38,8 +38,8 @@ func ruledRows*(
   ## newline in it starting a paragraph of its own.  Every row has as many cells as the header (the headings are styled
   ## lines: a column about the selection in its style).  A row with styles in `rowStyles` (by row; none: plain) is in them
   ## all through, the lines between its columns too, outside the styles of its cells: a row of the selection is one band.
-  ## Headings that are all empty are not shown (a list of labels and values: `nch packages NAME`).  With `spaced`, a
-  ## blank line between rows (rows of several lines, told apart).
+  ## Headings that are all empty are not shown (a list of labels and values: `nch packages NAME`).  With `alternate`, every other row is in the `alt`
+  ## version of its styles (`line.alternated`): rows of several lines, told apart.
   doAssert header.len > 0 and rows.allIt(it.len == header.len), "a cell for each column"
   doAssert rowStyles.len in [0, rows.len], "styles for every row, or none"
   let headed = header.anyIt(it.width > 0) # (no headings: no line for them, and no rule)
@@ -72,12 +72,6 @@ func ruledRows*(
   var lines: seq[tuple[row: int, lead, text: Line]]
   var used = 0 # how wide the last column is
   for n, r in all:
-    if spaced and n + first > 0:
-      # (a blank line between two rows, the lines between the columns going on through it)
-      var gap: Line
-      for k in 0 ..< header.high:
-        gap.add span(" ".repeat(widths[k]) & between(k))
-      lines.add (n + first - 1, gap, newSeq[Span]())
     var cells: seq[seq[Line]]
     for k in 0 ..< r.high:
       cells.add cellLines(r[k])
@@ -107,7 +101,9 @@ func ruledRows*(
     if l.row >= 0 and rowStyles.len > 0 and rowStyles[l.row].len > 0:
       for s in line.mitems:
         s.styles = rowStyles[l.row] & s.styles
-    result.add (l.row, @[span(" ".repeat(indent))] & line)
+    if alternate and l.row >= 0 and l.row mod 2 == 1:
+      line = line.alternated
+    result.add (l.row, (if indent > 0: @[span(" ".repeat(indent))] else: @[]) & line)
     if l.row == -1 and header.len > 1 and (i == lines.high or lines[i + 1].row != -1):
       # the rule under the headings: crossed where a line divides the columns, as wide as the table
       var rule = ""
@@ -129,7 +125,7 @@ func ruledRows*(
     together: set[0 .. 31] = {},
     rowStyles: seq[seq[StyleName]] = @[],
     narrow = 0,
-    spaced = false,
+    alternate = false,
 ): seq[RuledLine] =
   ## The same, with headings of plain text.
   ruledRows(
@@ -141,7 +137,7 @@ func ruledRows*(
     together,
     rowStyles,
     narrow,
-    spaced,
+    alternate,
   )
 
 func ruled*(
@@ -153,10 +149,10 @@ func ruled*(
     together: set[0 .. 31] = {},
     rowStyles: seq[seq[StyleName]] = @[],
     narrow = 0,
-    spaced = false,
+    alternate = false,
 ): seq[Line] =
   ## The table as `ruledRows()` makes it, without saying which row each line shows.
-  ruledRows(header, rows, width, indent, right, together, rowStyles, narrow, spaced)
+  ruledRows(header, rows, width, indent, right, together, rowStyles, narrow, alternate)
     .mapIt(it.line)
 
 func ruled*(
@@ -167,7 +163,7 @@ func ruled*(
     right: set[0 .. 31] = {},
     together: set[0 .. 31] = {},
     narrow = 0,
-    spaced = false,
+    alternate = false,
 ): seq[Line] =
   ## A table of plain cells.
   ruled(
@@ -178,5 +174,5 @@ func ruled*(
     right,
     together,
     narrow = narrow,
-    spaced = spaced,
+    alternate = alternate,
   )
