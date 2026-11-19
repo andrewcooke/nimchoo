@@ -47,14 +47,14 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Queued by the author (2026-11-18), in order
 
-* The package list: summaries that name their own command lose it ("..., and nch fit.  Defines fit."); "Defines `nch fit`" (a
-  command is never named alone, always with `nch`).
 * `nch packages NAME` shows the package's path in the source tree.
 * In the documentation, function names are followed by `()` (`helpWidth()`).
 * Titles in `em` ("package ui  (layer 0)", and other obvious titles).
 * The fields at the bottom of `nch packages NAME` as a table, a bar in `hide` between label and value ("added to by" then a row
   of its own, not an indent).
 * `web`'s documentation: drop "**One server for every page**" (the text after says it; `**` shows as is).
+* `nch packages web` says where the cache lives (its documentation, pointing to `nch packages --config` for the directory in
+  force).
 
 ## Features and ideas, unordered
 

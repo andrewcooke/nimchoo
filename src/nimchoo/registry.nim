@@ -19,13 +19,13 @@
 ## * `db <packages/db/package.html>`_ - The database: opening it, its schema as fragments, and the statements that touch it.
 ## * `download <packages/download/package.html>`_ - Fetching what the program needs from the network, the only place it does so.
 ## * `ff <packages/ff/package.html>`_ - Fitness and fatigue curves from the training impulses.
-## * `fit <packages/fit/package.html>`_ - FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.
+## * `fit <packages/fit/package.html>`_ - FIT files: the decoder, and the profile that says what the fields mean.
 ## * `fold <packages/text/fold/package.html>`_ - Comparing text without regard to case or accents.
 ## * `geo <packages/geo/package.html>`_ - Flat geometry for rides, in metres.
 ## * `hashing <packages/util/hashing/package.html>`_ - SHA-256 as the hex text used wherever something is named by its content.
 ## * `heartrate <packages/heartrate/package.html>`_ - The heart-rate channel of an import.
 ## * `importer <packages/importer/package.html>`_ - Putting the activities of FIT files into the database, and describing them.
-## * `log <packages/log/package.html>`_ - Reading the log: `nch log`.
+## * `log <packages/log/package.html>`_ - Reading the log.
 ## * `lookup <packages/util/lookup/package.html>`_ - Table lookups that have to succeed (`must`, `mustMut`).
 ## * `map <packages/map/package.html>`_ - The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ## * `model <packages/model/package.html>`_ - The training impulse: models, and the impulses worked out with them.
@@ -262,10 +262,8 @@ page to the server (`web/pages`).""",
     Registered(
       name: "fit",
       package: pkgFit.package,
-      summary:
-        "FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.",
-      doc:
-        """FIT files: the decoder, the profile that says what the fields mean, and `nch fit`.
+      summary: "FIT files: the decoder, and the profile that says what the fields mean.",
+      doc: """FIT files: the decoder, and the profile that says what the fields mean.
 
 The decoder reads the records of a FIT file into messages and fields (`reader`, `decode`, `basetype`), checked against the
 SDK's own CSV output (`nimble csvreport`).  The profile, which the SDK ships as a spreadsheet (read by `xlsx`), is loaded
@@ -328,8 +326,8 @@ written.
     Registered(
       name: "log",
       package: pkgLog.package,
-      summary: "Reading the log: `nch log`.",
-      doc: """Reading the log: `nch log`.
+      summary: "Reading the log.",
+      doc: """Reading the log.
 
 The log is a plain text file (where it goes is `NCH_LOG`, else the state directory) with a line for each thing a command
 did: the time, the level, the command, an event word (`start`, `imported`, `failed`, `advisory`, `saved`, ...) and a text.

@@ -118,12 +118,12 @@ suite "the views":
       # (the lowest layer first: db depends on nothing)
     check lines.anyIt(
       it.startsWith("b ") and
-        it.endsWith("Package b is for b things.  Defines bee and the point b/p.")
+        it.endsWith("Package b is for b things.  Defines nch bee and the point b/p.")
     )
     check lines.anyIt(it.startsWith("c ") and it.endsWith("Adds to b/p, b/p."))
     # (the name of a command is in the style of commands, the rest is not)
     let b = cells.filterIt(it.cellText.startsWith("b "))[0]
-    check b.filterIt(it.style == commandStyle).mapIt(it.text) == @["bee"]
+    check b.filterIt(it.style == commandStyle).mapIt(it.text) == @["nch bee"]
     check lines.anyIt(it.startsWith("db ") and it.endsWith("Package db is the base."))
 
   test "the detail of a package":
@@ -133,7 +133,7 @@ suite "the views":
     check "depends on" in text and "a db" in text
     check "used by" in text and "tb" in text
     check "ta (a)" in text # (it may read the tables of a)
-    check (typedStart & "bee" & typedEnd & " - does b things") in text
+    check (typedStart & "nch bee" & typedEnd & " - does b things") in text
     check "added to by" in text and "c (priority 0), c (priority 2)" in text
     check "b/p (holds int) - " in text
       # (what --points no longer shows: the detail has it)

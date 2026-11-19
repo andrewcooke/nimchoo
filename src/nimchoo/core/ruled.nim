@@ -81,7 +81,13 @@ func wrapCell*(cell: Cell, width: int): seq[Cell] =
         length = n
         started = true
       elif length + 1 + n <= width:
-        line.add (" ", "")
+        # (the space between two words in the same style is in it too: a phrase in a style is not broken by plain spaces)
+        let between =
+          if line.len > 0 and word.len > 0 and line[^1].style == word[0].style:
+            line[^1].style
+          else:
+            ""
+        line.add (" ", between)
         line.add word
         length += 1 + n
       else:

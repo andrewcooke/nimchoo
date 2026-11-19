@@ -175,7 +175,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Ce
     var what: Cell = @[(p.summary, "")]
     var defines: seq[Cell]
     for c in p.commands:
-      defines.add @[(c.name, commandStyle)]
+      defines.add @[("nch " & c.name, commandStyle)] # (a command is never named alone)
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
       defines.add plainCell(
@@ -239,8 +239,9 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[string] =
   if p.commands.len == 0:
     result.add field("commands", "-")
   for c in p.commands:
-    result.add field("command", typedStart & c.name & typedEnd & " - " & c.summary)
-      # (the name drawn as a command: the marks take no room)
+    result.add field(
+      "command", typedStart & "nch " & c.name & typedEnd & " - " & c.summary
+    ) # (the name drawn as a command: the marks take no room)
   if p.defines.len == 0:
     result.add field("defines", "-")
   for d in p.defines:
