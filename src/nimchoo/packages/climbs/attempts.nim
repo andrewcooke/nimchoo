@@ -288,7 +288,8 @@ proc summaryLines*(
       else:
         plain(h)
     )
-  let table = ruledRows(headings, styled, width, right = right)
+  let table = ruledRows(headings, styled, width, right = right, alternate = false)
+    # (the selection's columns are a band of their own)
   for k, l in table:
     result.add l.line
     let last = k == table.high or table[k + 1].row != l.row
@@ -332,6 +333,7 @@ proc summaryLines*(
       indent = 4,
       right = {0, 1},
       rowStyles = chosen,
+      alternate = false, # (the selected rides are a band of their own)
     ):
       if marks and chosen[e.row].len > 0:
         # (where there is no colour, in brackets, as a day of the calendar: in the indent, so nothing moves)

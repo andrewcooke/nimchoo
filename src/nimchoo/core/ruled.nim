@@ -29,7 +29,7 @@ func ruledRows*(
     together: set[0 .. 31] = {},
     rowStyles: seq[seq[StyleName]] = @[],
     narrow = 0,
-    alternate = false,
+    alternate = true,
 ): seq[RuledLine] =
   ## The table, `indent` spaces in, as styled lines, each with the row it shows: every column but the last as wide as its
   ## widest cell (and its heading), or wrapped to `narrow` if that is not 0; those in `right` aligned to the right (the last
@@ -38,8 +38,9 @@ func ruledRows*(
   ## newline in it starting a paragraph of its own.  Every row has as many cells as the header (the headings are styled
   ## lines: a column about the selection in its style).  A row with styles in `rowStyles` (by row; none: plain) is in them
   ## all through, the lines between its columns too, outside the styles of its cells: a row of the selection is one band.
-  ## Headings that are all empty are not shown (a list of labels and values: `nch packages NAME`).  With `alternate`, every other row is in the `alt`
-  ## version of its styles (`line.alternated`): rows of several lines, told apart.
+  ## Headings that are all empty are not shown (a list of labels and values: `nch packages NAME`).  With `alternate` (as every table
+  ## is unless it says otherwise), every other row is in the `alt` version of its styles (`line.alternated`): rows told
+  ## apart.
   doAssert header.len > 0 and rows.allIt(it.len == header.len), "a cell for each column"
   doAssert rowStyles.len in [0, rows.len], "styles for every row, or none"
   let headed = header.anyIt(it.width > 0) # (no headings: no line for them, and no rule)
@@ -125,7 +126,7 @@ func ruledRows*(
     together: set[0 .. 31] = {},
     rowStyles: seq[seq[StyleName]] = @[],
     narrow = 0,
-    alternate = false,
+    alternate = true,
 ): seq[RuledLine] =
   ## The same, with headings of plain text.
   ruledRows(
@@ -149,7 +150,7 @@ func ruled*(
     together: set[0 .. 31] = {},
     rowStyles: seq[seq[StyleName]] = @[],
     narrow = 0,
-    alternate = false,
+    alternate = true,
 ): seq[Line] =
   ## The table as `ruledRows()` makes it, without saying which row each line shows.
   ruledRows(header, rows, width, indent, right, together, rowStyles, narrow, alternate)
@@ -163,7 +164,7 @@ func ruled*(
     right: set[0 .. 31] = {},
     together: set[0 .. 31] = {},
     narrow = 0,
-    alternate = false,
+    alternate = true,
 ): seq[Line] =
   ## A table of plain cells.
   ruled(

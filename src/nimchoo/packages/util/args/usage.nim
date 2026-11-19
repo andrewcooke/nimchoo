@@ -86,4 +86,5 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
 func tableLines*(header: seq[string], rows: seq[seq[string]], width: int): seq[Line] =
   ## A table for a usage text, indented like the options, with lines between the columns and under the headings
   ## (`core/ruled.nim`).
-  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent)
+  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent, alternate = false)
+    # (a few rows, beside text: no alternate rows)

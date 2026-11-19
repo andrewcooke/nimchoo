@@ -161,8 +161,9 @@ suite "the views":
     let lines = cells.texts
     check cells.anyIt(span("c", "pkg") in it)
     check cells.anyIt(span("b/p", "extn") in it) # (the name of the point in its style)
-    check tableLines(world(), 120).anyIt(span("ta", "table") in it)
-      # (the name of a table in its style)
+    check tableLines(world(), 120).anyIt(
+      span("ta", "table") in it or span("ta", "alt-table") in it
+    ) # (the name of a table in its style)
     check cells.anyIt(span("b/p", "extn") in it)
     check lines[0].startsWith("extension point") and
       "contributed to by (in order)" in lines[0]

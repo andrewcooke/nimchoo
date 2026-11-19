@@ -118,7 +118,14 @@ proc table*(
       else:
         @[]
     )
-  for l in ruledRows(header, cells, width, right = {2, 3}, rowStyles = styles):
+  for l in ruledRows(
+    header,
+    cells,
+    width,
+    right = {2, 3},
+    rowStyles = styles,
+    alternate = false, # (the selection is a band of its own)
+  ):
     result.add(
       if marks:
         bracketed(l.line, l.row >= 0 and rows[l.row].selected)

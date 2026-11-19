@@ -388,7 +388,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     "contributes to extension points",
     (if adds.len == 0: plain("-") else: namedList(adds, styleName"extn")),
   )
-  result.add ruled(@["", ""], fields, width, narrow = 20, alternate = true)
+  result.add ruled(@["", ""], fields, width, narrow = 20)
 
 func pointLines*(inv: Inventory, width: int): seq[Line] =
   ## Each extension point as a row: who defines it, who contributes to it (in the order the contributions are used; a package that
