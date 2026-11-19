@@ -3,6 +3,8 @@
 # reverse=yes|no (foreground and background swapped).
 # A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
 # What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
+# A colour can be made from one above: v(NAME, GAMMA) is NAME's colour with its value (V of HSV, 0-1) raised to GAMMA
+# (more than 1 darker, less than 1 lighter): alt-cmd fg=v(cmd, 1.2).  Only a #rrggbb colour has a value.
 
 default
 em      fg=#000000  weight=bold

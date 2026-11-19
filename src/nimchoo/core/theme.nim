@@ -8,8 +8,13 @@
 ## `underline=yes|no`, `italic=yes|no` and `reverse=yes|no` (foreground and background swapped).  A colour is `#rrggbb`, one of the sixteen terminal colours (`red`,
 ## `bright-red` ...: they follow the terminal's own palette), or `terminal` (the terminal's own text or background colour).
 ## Blank lines and lines starting with `#` are ignored.
+##
+## A colour can also be made from the colour of a style above it: `v(NAME, GAMMA)` is NAME's colour (its foreground in
+## `fg=`, its background in `bg=`, as it is drawn: what NAME leaves out it has from `default`) with its value, the V of
+## HSV from 0 to 1, raised to GAMMA (more than 1 darker, less than 1 lighter; black and white stay as they are).
+## `alt-cmd fg=v(cmd, 1.2)`.  Only a `#rrggbb` colour has a value; it is worked out when the theme is read.
 
-import std/[options, strformat, strutils, tables]
+import std/[math, options, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
 import ./[errors, line]
 
@@ -114,9 +119,90 @@ func parseYes(key, value: string, line: int): bool {.raises: [ThemeError].} =
   else:
     raiseTheme(fmt"{key} is yes or no, not '{value}'", line)
 
-func parseStyle(words: seq[string], line: int): Style {.raises: [ThemeError].} =
-  ## The attributes after the name, each `key=value`, none twice.
-  for word in words:
+func over*(look: Look, style: Style): Look =
+  ## `look` with what `style` changes.
+  result = look
+  if style.fg.isSome:
+    result.fg = style.fg.get
+  if style.bg.isSome:
+    result.bg = style.bg.get
+  if style.weight.isSome:
+    result.weight = style.weight.get
+  if style.underline.isSome:
+    result.underline = style.underline.get
+  if style.italic.isSome:
+    result.italic = style.italic.get
+  if style.reverse.isSome:
+    result.reverse = style.reverse.get
+
+func withValue(c: Colour, gamma: float): Colour =
+  ## `c` (a `#rrggbb`) with its value V (of HSV) raised to `gamma`.  Changing only V keeps the hue and the saturation, and
+  ## so the proportions of red, green and blue: the colour is the same as scaled by V^gamma / V.
+  let v = max([c.r, c.g, c.b]).float / 255.0
+  if v == 0.0:
+    return c
+  let k = pow(v, gamma) / v
+  func scaled(x: uint8): uint8 =
+    uint8(clamp(round(x.float * k), 0.0, 255.0))
+
+  Colour(kind: ckRgb, r: scaled(c.r), g: scaled(c.g), b: scaled(c.b))
+
+func lookOfName(defined: OrderedTable[string, Style], name: string): Look =
+  ## How a style defined above is drawn: the terminal's own look, with `default`, then the style.
+  result = terminalLook.over(defined.getOrDefault(defaultStyle))
+  if name != defaultStyle:
+    result = result.over(defined.getOrDefault(name))
+
+func derived(
+    value, key: string, defined: OrderedTable[string, Style], line: int
+): Colour {.raises: [ThemeError].} =
+  ## The colour of `v(NAME, GAMMA)`: NAME's colour for `key` (fg or bg), its value raised to GAMMA.
+  let inside = value[2 ..^ 2].split(',')
+  if inside.len != 2:
+    raiseTheme(fmt"'{value}' is not v(NAME, GAMMA)", line)
+  let name = inside[0].strip
+  if name notin defined:
+    raiseTheme(fmt"v({name}, ...): there is no style {name} above this line", line)
+  var gamma: float
+  try:
+    gamma = parseFloat(inside[1].strip)
+  except ValueError:
+    raiseTheme(fmt"v({name}, {inside[1].strip}): the gamma is a number", line)
+  if not (gamma > 0.0) or gamma == Inf:
+    raiseTheme(fmt"v({name}, {inside[1].strip}): the gamma is more than 0", line)
+  let look = lookOfName(defined, name)
+  let c = (if key == "fg": look.fg else: look.bg)
+  if c.kind != ckRgb:
+    raiseTheme(
+      fmt"v({name}, ...): the {key} of {name} is not a #rrggbb colour, so it has no value to change",
+      line,
+    )
+  withValue(c, gamma)
+
+func colourOf(
+    value, key: string, defined: OrderedTable[string, Style], line: int
+): Colour {.raises: [ThemeError].} =
+  ## A colour as written: `#rrggbb`, a name, `terminal`, or `v(NAME, GAMMA)`.
+  if value.startsWith("v(") and value.endsWith(")"):
+    derived(value, key, defined, line)
+  else:
+    parseColour(value, line)
+
+func attributeWords(words: seq[string]): seq[string] =
+  ## The words of a line joined where a space is inside brackets (`fg=v(cmd, 1.2)` is one).
+  var depth = 0
+  for w in words:
+    if depth > 0:
+      result[^1].add " " & w
+    else:
+      result.add w
+    depth += w.count('(') - w.count(')')
+
+func parseStyle(
+    words: seq[string], line: int, defined: OrderedTable[string, Style]
+): Style {.raises: [ThemeError].} =
+  ## The attributes after the name, each `key=value`, none twice; `defined` are the styles above (for `v(NAME, GAMMA)`).
+  for word in attributeWords(words):
     let kv = word.split('=', maxsplit = 1)
     if kv.len != 2 or kv[1].len == 0:
       raiseTheme(
@@ -131,9 +217,9 @@ func parseStyle(words: seq[string], line: int): Style {.raises: [ThemeError].} =
 
     case key
     of "fg":
-      once(fg, parseColour(value, line))
+      once(fg, colourOf(value, key, defined, line))
     of "bg":
-      once(bg, parseColour(value, line))
+      once(bg, colourOf(value, key, defined, line))
     of "weight":
       let w =
         case value
@@ -175,23 +261,7 @@ func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
       )
     if name in result.styles:
       raiseTheme(fmt"the style {name} is given twice", line)
-    result.styles[name] = parseStyle(words[1 ..^ 1], line)
-
-func over*(look: Look, style: Style): Look =
-  ## `look` with what `style` changes.
-  result = look
-  if style.fg.isSome:
-    result.fg = style.fg.get
-  if style.bg.isSome:
-    result.bg = style.bg.get
-  if style.weight.isSome:
-    result.weight = style.weight.get
-  if style.underline.isSome:
-    result.underline = style.underline.get
-  if style.italic.isSome:
-    result.italic = style.italic.get
-  if style.reverse.isSome:
-    result.reverse = style.reverse.get
+    result.styles[name] = parseStyle(words[1 ..^ 1], line, result.styles)
 
 func baseLook*(theme: Theme): Look =
   ## The look of text in no style but `default`: the terminal's own, with what `default` changes.

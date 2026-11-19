@@ -69,3 +69,45 @@ suite "ui theme: looks":
     check terminalCodes(terminalLook.over(t.styles["b"])) == "\e[91;44m"
     check terminalCodes(terminalLook.over(t.styles["c"])) == "\e[38;2;1;2;3;48;2;4;5;6m"
     check terminalCodes(terminalLook.over(t.styles["d"])) == "\e[2;3;4;7m"
+
+suite "ui theme: v(NAME, GAMMA)":
+  func fgOf(t: Theme, name: string): Colour =
+    t.styles[name].fg.get
+
+  func rgb(r, g, b: uint8): Colour =
+    Colour(kind: ckRgb, r: r, g: g, b: b)
+
+  test "the value of a colour above, raised to gamma: more than 1 darker, less than 1 lighter":
+    let t = parseTheme(
+      "cmd fg=#a0a0c0\nalt-cmd fg=v(cmd, 1.2)\ngrey fg=#808080\ndark fg=v(grey, 2)\nlight fg=v(dark, 0.5)"
+    )
+    check t.fgOf("alt-cmd") == rgb(0x97, 0x97, 0xb5)
+      # (V 0.753 → 0.711: the hue and saturation kept)
+    check t.fgOf("dark") == rgb(0x40, 0x40, 0x40)
+    check t.fgOf("light") == rgb(0x80, 0x80, 0x80)
+
+  test "black and white, and anything of value 1, stay as they are":
+    let t = parseTheme(
+      "w fg=#ffffff\nr fg=#ff0000\nk fg=#000000\na fg=v(w, 3)\nb fg=v(r, 3)\nc fg=v(k, 0.2)"
+    )
+    check t.fgOf("a") == rgb(255, 255, 255) and t.fgOf("b") == rgb(255, 0, 0) and
+      t.fgOf("c") == rgb(0, 0, 0)
+
+  test "the colour is the one the style is drawn in: what it leaves out comes from default; bg from bg":
+    let t = parseTheme(
+      "default fg=#808080\nx weight=bold\ny fg=v(x, 2)\nz bg=#808080\nw bg=v(z, 2)"
+    )
+    check t.fgOf("y") == rgb(0x40, 0x40, 0x40)
+    check t.styles["w"].bg.get == rgb(0x40, 0x40, 0x40)
+
+  test "a space inside the brackets is part of the colour":
+    check parseTheme("a fg=#808080\nb fg=v(a,2) weight=bold\nc fg=v( a , 2 )").fgOf("c") ==
+      rgb(0x40, 0x40, 0x40)
+
+  test "a name not above, a colour with no value, or a gamma that is not a positive number, is an error on its line":
+    check problem("b fg=v(a, 2)\na fg=#808080").contains("no style a above this line")
+    check problem("a fg=red\nb fg=v(a, 2)").contains("not a #rrggbb colour")
+    check problem("a fg=#808080\nb fg=v(a, 0)").contains("more than 0")
+    check problem("a fg=#808080\nb fg=v(a, x)").contains("is a number")
+    check problem("a fg=#808080\nb fg=v(a)").contains("not v(NAME, GAMMA)")
+    check problem("a fg=#808080\nb fg=v(a, 0)").contains("2") # (the line)
