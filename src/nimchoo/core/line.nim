@@ -26,6 +26,7 @@ const
     "pkg", ## the name of a package
     "file", ## the path of a file or a directory
     "extn", ## the name of an extension point
+    "table", ## the name of a table of the database
   ]
   altPrefix* = "alt-"
     ## every other row of a table that asks for it (`alternated`) is in the alt version of each style: `alt-default` for

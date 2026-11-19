@@ -289,6 +289,9 @@ func docLine(inv: Inventory, text: string, strong: var bool): Line =
       elif inv.points.anyIt(it.name == inside):
         flush()
         result.add span(inside, "extn")
+      elif inv.tables.anyIt(it.name == inside):
+        flush()
+        result.add span(inside, "table")
       else:
         plainText.add text[i .. close]
       i = close + 1
@@ -322,7 +325,11 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   fields.add field("depends on", pkgList(p.depends))
   fields.add field("used by", pkgList(p.dependents))
   fields.add field("fragments", plain(listOf(p.fragments)))
-  fields.add field("own tables", plain(listOf(p.tables)))
+  fields.add field(
+    "own tables",
+    (if p.tables.len == 0: plain("-")
+    else: namedList(p.tables, styleName"table")),
+  )
   var owners: seq[string]
     # (the tables of others it may read, by their owner, in the order of the tables)
   var byOwner: seq[seq[string]]
@@ -339,7 +346,8 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     if k > 0:
       reads.add span("; ")
     reads.add span(o, "pkg")
-    reads.add span(": " & byOwner[k].join(", "))
+    reads.add span(": ")
+    reads.add namedList(byOwner[k], styleName"table")
   fields.add field(
     "access to external tables", (if reads.len == 0: plain("-") else: reads)
   )
@@ -421,7 +429,7 @@ func tableLines*(inv: Inventory, width: int): seq[Line] =
   var rows: seq[seq[Line]]
   for t in inv.tables:
     rows.add @[
-      plain(t.name),
+      @[span(t.name, "table")],
       pkg(t.owner),
       (if t.everyone: plain("every package") else: pkgList(t.readers)),
     ]
