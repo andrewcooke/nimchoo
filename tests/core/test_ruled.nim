@@ -86,3 +86,10 @@ suite "ruled tables: the only tables":
     check found.len == 0
     if found.len > 0:
       echo "columns lined up by hand (use core/ruled.nim): ", found.join(", ")
+
+suite "ruled tables: spaced":
+  test "with spaced, a blank line between rows, the line between the columns going on through it":
+    let ls = ruled(@["", ""], @[@["a", "one"], @["b", "two"]], 80, spaced = true).mapIt(
+        it.text
+      )
+    check ls == @["a │ one", "  │", "b │ two"]
