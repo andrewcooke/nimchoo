@@ -114,7 +114,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.problem)
   of pkOk:
     discard
-  let (csv, files) = (parsed.params.csv, @[parsed.params.file])
+  let (csv, file) = (parsed.params.csv, parsed.params.file)
   var
     lines: seq[string]
     warnings: seq[Warning]
@@ -129,18 +129,19 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           if d.problem.len > 0:
             g.warn d.problem
           d.profile
-      except NchError as e:
-        return failure(g, "nch fit", "cannot use the profile: " & e.msg)
+      except NchError, IOError:
+        return
+          failure(g, "nch fit", "cannot use the profile: " & getCurrentExceptionMsg())
     try:
-      renderInto(p, readBytes(files[0]), csv, lines, warnings)
+      renderInto(p, readBytes(file), csv, lines, warnings)
     except FitError as e:
-      problem = about(files[0], e.msg) # report it after the output so far
+      problem = about(file, e.msg) # report it after the output so far
   except NchError as e:
     return failure(g, "nch fit", e.msg)
   except IOError as e:
-    return failure(g, "nch fit", about(files[0], e.msg))
+    return failure(g, "nch fit", about(file, e.msg))
   except OSError as e:
-    return failure(g, "nch fit", about(files[0], e.msg))
+    return failure(g, "nch fit", about(file, e.msg))
   try:
     for l in lines:
       stdout.write g.inTheme(osOut, l) & "\n"

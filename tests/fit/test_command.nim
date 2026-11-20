@@ -1,4 +1,4 @@
-import std/[os, tables, unittest]
+import std/[os, osproc, strutils, tables, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/core/globals
@@ -139,6 +139,15 @@ suite "nch fit exit codes":
   test "a missing profile file":
     check fitCommand.run(Globals(), @["--profile=" & dir / "missing.xlsx", activity]) ==
       1
+
+  test "a missing profile is the profile's fault, not the FIT file's":
+    let (output, code) = execCmdEx(
+      "./build/nch-test fit --profile " & quoteShell(dir / "missing.xlsx") & " " &
+        quoteShell(activity)
+    )
+    check code == 1
+    check "cannot use the profile" in output
+    check extractFilename(activity) notin output
 
   test "a corrupt fit file":
     let bad = dir / "bad.fit"
