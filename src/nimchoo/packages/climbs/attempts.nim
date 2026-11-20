@@ -329,14 +329,16 @@ proc summaryLines*(
     for e in ruledRows(
       noHeadings,
       inner.mapIt(it.mapIt(plain(it))),
-      width,
-      indent = 4,
+      width - 4,
       right = {0, 1},
       rowStyles = chosen,
       alternate = false, # (the selected rides are a band of their own)
     ):
-      if marks and chosen[e.row].len > 0:
-        # (where there is no colour, in brackets, as a day of the calendar: in the indent, so nothing moves)
-        result.add @[span("   [")] & e.line[1 .. ^1] & @[span("]")]
-      else:
-        result.add e.line
+      # (where there is no colour, a selected ride in brackets, as everywhere: the bracket in the indent, so nothing
+      # moves)
+      result.add(
+        if marks:
+          @[span("   ")] & bracketed(e.line, chosen[e.row].len > 0)
+        else:
+          @[span("    ")] & e.line
+      )

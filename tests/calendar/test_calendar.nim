@@ -26,8 +26,9 @@ proc cellOf(l: Line, k: int): Span =
   l[2 + 2 * k]
 
 proc plainCellOf(l: Line, k: int): Span =
-  ## cell k of a month row without colour: the spans are the label, 37 cells, the year
-  l[1 + k]
+  ## cell k of a month row without colour: after the label (4 columns), each cell is 5 columns
+  let text = l.text
+  span(text[4 + 5 * k ..< 4 + 5 * (k + 1)])
 
 suite "calendar: the layout":
   test "a header of weekday names (Monday first), then a row for each month with an activity":

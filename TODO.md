@@ -12,10 +12,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### A. Cut
 
-4. **Marks without colour.**  Three conventions: the calendar's `[27]`, a whole row of `nch activities` in brackets, the
-   efforts of a climb with a bracket in the indent (and a `*` after a month beside a gap).  Options: (a) keep; (b) one
-   rule, a selected thing in brackets and a space where the bracket would be otherwise (`line.bracketed`), everywhere.
-   Recommended: (b).
 5. **Options for one case.**  Each separate: (a) `--latest` is an alias of `--newest 1` (CLAUDE.md: no aliases): drop it;
    (b) `ruled`'s `together` exists for the `L  U  B  T` columns alone: drop it, they become ordinary columns; (c) `-v`
    means a different thing in each command (more columns; the efforts under each climb; every month; repeats or implied
@@ -93,6 +89,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Features and ideas, unordered
 
+* **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
+  activities' does, with the length and the gain of the climbs listed.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
   (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
   A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for

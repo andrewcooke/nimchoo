@@ -52,25 +52,22 @@ type DayKind = enum
   dkBackground ## a day of the background (an activity), not marked
   dkMarked ## a mark falls on it
 
-func dayCell(day: int, kind: DayKind, s: Screen): Span =
+func dayCell(day: int, kind: DayKind, s: Screen): Line =
   ## A day, by what falls on it.  With colour it is the two digits (the spaces between days are the line's: see
-  ## `calendarLines`).
+  ## `calendarLines`); without, five columns, a marked day in brackets as every selected thing is (`line.bracketed`).
   if s.colour:
     case kind
     of dkMarked:
-      span(two(day), selectedStyle)
+      @[span(two(day), selectedStyle)]
     of dkBackground:
-      span(two(day))
+      @[span(two(day))]
     of dkNone:
-      span(two(day), "hide")
+      @[span(two(day), "hide")]
   else:
-    case kind
-    of dkMarked:
-      span(fmt" [{two(day)}]")
-    of dkBackground:
-      span(fmt"  {two(day)} ")
-    of dkNone:
-      span("  -- ")
+    let text = (if kind == dkNone: "--" else: two(day))
+    let marked = kind == dkMarked
+    @[span(" ")] & bracketed(plain(text), marked) & (if marked: @[]
+    else: @[span(" ")])
 
 proc monthsOf(marks: seq[UnixTime], zone: Timezone): seq[int] =
   ## The months (year * 12 + month - 1) with a mark, in order.
