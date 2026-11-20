@@ -77,13 +77,16 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   model (TODO.md), which would also give those 139 rides climbs.
 * **A1, backticks** (**decided** 2026-11-20): backticks are markup only in the text written in the program (the literal
   pieces of `styled` and `g.say`); values (names, paths) are drawn as they are.  Names are not code.
-* **D3, `landmarks --radius`** (open, the author is thinking, 2026-11-20): it became a wider question, units in input.
-  The options with a unit: distance (`activities --distance` km, `activities`/`climbs --radius` km, `landmarks --radius`
-  metres; no unit written), duration (`activities --active` with `d h m s` written; `models --max-secs` seconds,
-  `--fitness-days`/`--fatigue-days` days), heart rate (`users --fthr` bpm, `models --zones` %).  Ways: (1) a unit required
-  on every distance and duration (`100m`, `1km`, `60s`, `42d`; the option's kind says what `m` means, against CLAUDE.md's
-  "m always means minutes", though the output already writes `+89m` for a gain); (2) a unit optional, a default per kind;
-  (3) no units, one fixed unit per kind (landmarks in km).  None is clearly best.
+* **D3, `landmarks --radius`, became units in input** (**decided** 2026-11-20): every distance and duration carries its
+  unit (`100m`, `1km`, `60s`, `42d`; the option's kind says what `m` means).  The options with one: distance
+  (`activities --distance`, `activities`/`climbs`/`landmarks --radius`), duration (`activities --active`, `models
+  --max-secs`, `--fitness-days`, `--fatigue-days`; their names to change with the units).  A bare number is not refused at
+  once: on a terminal the command asks, `nch activities: --radius 3 has no unit; did you mean` (warn), then the command
+  line with the option's default unit added, quoted again (default), then `[Yn]` (em), Enter meaning yes; not on a
+  terminal, it fails (exit 2) and prints the corrected line.  Not done: putting the line into the shell's history (bash
+  only, a wrapper function; only if the prompt is not enough).  Heart rate stays without a unit (bpm; `--zones` in %).
+  CLAUDE.md's "input never takes a unit for distance, and `m` always means minutes" changes with it.  To settle when
+  built: each option's default unit (km for the rides' distances, m for a landmark's radius?).
 * **E8, an empty selection**: a failure (the map) or a normal line (the calendar)?  Recommend one, the normal line.
 * **E10, `models --delete`**: add it, or correct CLAUDE.md.
 * **B6**: local time in the confirmation, as the table (recommended).
