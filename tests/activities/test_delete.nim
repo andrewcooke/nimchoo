@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[os, unittest]
+import std/[times, os, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/user/session
 import nimchoo/packages/activities/deleterun
@@ -49,6 +49,13 @@ proc extra(s: Session, tag: string, session, startT: int, sport = "") =
     userId = s.userId,
   )
 
+proc fixedZone(westOfUtc: int): Timezone =
+  ## A zone at a fixed offset (seconds west of UTC, as `std/times` counts).
+  proc info(t: Time): ZonedTime =
+    ZonedTime(time: t, utcOffset: westOfUtc, isDst: false)
+
+  newTimezone("fixed", info, info)
+
 suite "delete: the plan":
   test "the activities, their files, the sports and the dates":
     let d = fresh("plan")
@@ -66,9 +73,15 @@ suite "delete: the plan":
     let p = planDelete(s, s.selected)
     check p.ids.len == 2 and p.fileIds.len == 2
     check p.sports == @[("cycling", 1), ("running", 1)]
-    check describe(p) ==
+    check describe(p, utc()) ==
       "2 activities (cycling 1, running 1) from 2018-08-27 to 2018-08-28"
-    check describe(Plan()) == "0 activities"
+    check describe(Plan(), utc()) == "0 activities"
+    # the days are those of the list of activities, in its zone: 2018-08-27 12:00 UTC is still the 27th at UTC-11 and
+    # 2018-08-28 23:46 UTC is the 29th at UTC+3
+    check describe(p, fixedZone(11 * 3600)) ==
+      "2 activities (cycling 1, running 1) from 2018-08-27 to 2018-08-28"
+    check describe(p, fixedZone(-3 * 3600)) ==
+      "2 activities (cycling 1, running 1) from 2018-08-27 to 2018-08-29"
   test "only the user's own activities are planned, whatever ids are given":
     let d = fresh("planown")
     openSession(d, allFragments, access = allAccess).close()
@@ -90,7 +103,7 @@ suite "delete: the plan":
       s.close()
     fill(s, "a")
     s.db.execute("update activity set start_t = 1535371200")
-    check describe(planDelete(s, s.selected)) == "1 activity (no sport 1) on 2018-08-27"
+    check describe(planDelete(s, s.selected), utc()) == "1 activity (- 1) on 2018-08-27"
 
 suite "delete: the command":
   test "without -f nothing is deleted; with -f the activities and what was made from them go, the climbs stay":

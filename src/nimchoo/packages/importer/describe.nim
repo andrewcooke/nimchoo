@@ -51,6 +51,10 @@ func whereText*(place, name: string, noPositions = false): string =
   else:
     ""
 
+proc dateText*(t: UnixTime, zone: Timezone): string =
+  ## "2020-08-14": the day, in the time zone.
+  t.toTime.inZone(zone).format("yyyy-MM-dd")
+
 proc dateTimeText*(startT: UnixTime, zone: Timezone): string =
   ## "2020-08-14 06:01", in the time zone.
   startT.toTime.inZone(zone).format("yyyy-MM-dd HH:mm")

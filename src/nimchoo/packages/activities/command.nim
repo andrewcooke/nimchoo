@@ -463,6 +463,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "no activity meets the criteria: nothing to delete"
         else:
           "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
+        zone,
       )
     if criteria.rename:
       let m = matchingIds(st, criteria, zone)

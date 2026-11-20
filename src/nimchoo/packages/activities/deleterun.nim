@@ -3,6 +3,7 @@
 ## Ctrl-C, and shows how far it has got.  The file of an activity is forgotten too, so importing its folder again brings the
 ## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
 
+import std/times
 import ./cmdname
 import ../../core/globals
 import ../db/store
@@ -31,15 +32,21 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ]
 
 proc runDelete*(
-    g: Globals, st: Session, ids: seq[int64], force: Force, nothing: string
+    g: Globals,
+    st: Session,
+    ids: seq[int64],
+    force: Force,
+    nothing: string,
+    zone: Timezone,
 ): int {.raises: [].} =
+  ## (`zone`: the one the list of activities uses, for the days the message names.)
   ## Delete the activities `ids` (all of the current user's).  `nothing` is what to say if there are none.
   try:
     let plan = planDelete(st, ids)
     if plan.ids.len == 0:
       g.say osOut, nothing & "\n"
       return exitOk
-    let what = describe(plan)
+    let what = describe(plan, zone)
     if force == fNo:
       return
         failure(g, "nch activities", "would delete " & what & "; use `-f` to confirm")
