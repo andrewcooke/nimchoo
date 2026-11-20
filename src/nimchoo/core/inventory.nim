@@ -194,9 +194,8 @@ func namedList(items: seq[string], style: StyleName, between = ", "): Line =
       result.add span(it[name.len .. ^1])
 
 func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
-  ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
-  ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
-  ## what it is for, then what it provides (commands, in `code`; the extension points it defines; those it contributes to).  Only those
+  ## One line for each package, the lowest layer first and, in a layer, the most used first: how many packages it uses and
+  ## is used by (`U/B`, explained under the table), and what it is for, then what it provides (commands, in `code`; the extension points it defines; those it contributes to).  Only those
   ## the filter keeps.  As styled lines.
   var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
@@ -232,25 +231,12 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
       what.add span("  Contributes to ")
       what.add namedList(adds, styleName"code")
       what.add span(".")
-    rows.add @[
-      pkg(p.name),
-      plain($p.layer),
-      plain($p.depends.len),
-      plain($p.dependents.len),
-      plain($p.tables.len),
-      what,
-    ]
-  result = ruled(
-    @["package", "L", "U", "B", "T", "what it is for"],
-    rows,
-    width,
-    right = {1, 2, 3, 4},
-    together = {1, 2, 3},
-  )
+    rows.add @[pkg(p.name), plain(fmt"{p.depends.len}/{p.dependents.len}"), what]
+  result = ruled(@["package", "U/B", "what it is for"], rows, width, right = {1})
   result.add plain("")
   for l in wrap(
-    "L: the layer (0 depends on nothing; each package is one above the highest it uses); U: how many packages it uses " &
-      "directly; B: how many use it directly; T: how many tables it owns.  Lowest layer first, the most used first in a layer.",
+    "U/B: how many packages the package uses / is used by.  Lowest layer first (`nch packages NAME` says which), the " &
+      "most used first in a layer.",
     width,
   ):
     result.add plain(l)

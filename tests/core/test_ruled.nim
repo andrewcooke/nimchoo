@@ -7,12 +7,9 @@ func ruledLines(
     width: int,
     indent = 0,
     right: set[0 .. 31] = {},
-    together: set[0 .. 31] = {},
 ): seq[string] =
   ## The table of plain cells, as text.
-  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent, right, together).mapIt(
-    it.text
-  )
+  ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent, right).mapIt(it.text)
 
 suite "ruled tables":
   test "lines between the columns, a rule under the headings, crossed where they meet":
@@ -40,18 +37,6 @@ suite "ruled tables":
     check ls[1].runeLen == ls.mapIt(it.runeLen).max
     let narrow = ruledLines(@["a", "b"], @[@["x", "word ".repeat(30).strip]], 5)
     check narrow[2].runeLen >= minLastWidth
-
-  test "columns together have two spaces between them, and the rule runs straight under them":
-    let ls = ruledLines(
-      @["name", "L", "U", "what"],
-      @[@["x", "1", "12", "a"]],
-      80,
-      right = {1, 2},
-      together = {1},
-    )
-    check ls[0] == "name │ L   U │ what"
-    check ls[1] == "─────┼───────┼─────"
-    check ls[2] == "x    │ 1  12 │ a"
 
 suite "ruled tables: cells in styles":
   test "a styled cell in a table: the text is that of the plain table, the style kept":

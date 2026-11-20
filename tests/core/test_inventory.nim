@@ -103,11 +103,10 @@ suite "the views":
     let cells = summaryLines(world(), 200)
     let lines = cells.texts
     check lines[0].startsWith("package") and "what it is for" in lines[0] and
-      " │ L  U  B  T │ " in lines[0]
+      " │ U/B │ " in lines[0]
     check lines[1].startsWith("────") and "┼" in lines[1]
       # (the rule under the headings)
-    check lines[^1].startsWith("L: the layer") or
-      lines.anyIt(it.startsWith("L: the layer"))
+    check lines.anyIt(it.startsWith("U/B: how many packages"))
     let named = lines.filterIt(
       it.len > 0 and it[0].isAlphaAscii and not it.startsWith("package") and
         ":" notin it[0 .. min(2, it.high)] and "│" in it

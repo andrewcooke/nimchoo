@@ -13,7 +13,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 ### A. Cut
 
 5. **Options for one case.**  Each separate: (a) `--latest` is an alias of `--newest 1` (CLAUDE.md: no aliases): drop it;
-   (b) `ruled`'s `together` exists for the `L  U  B  T` columns alone: drop it, they become ordinary columns; (c) `-v`
+   (b) done (2026-11-20: the summary's columns are one, U/B, and `together` is gone); (c) `-v`
    means a different thing in each command (more columns; the efforts under each climb; every month; repeats or implied
    dependencies): make it "more about the same rows" everywhere, and give the calendar's its own name (`--all-months`)
    or show every month always; (d) `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly`: settings of one chart,
