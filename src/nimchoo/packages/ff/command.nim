@@ -228,7 +228,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # (the server is shared by every page: nothing of the chart is needed to stop it)
     let dir = cacheDir()
     if dir.isNone:
-      return failure(g, "nch ff", "no cache directory is known (set NCH_CACHE)")
+      return failure(g, "nch ff", ~"no cache directory is known (set NCH_CACHE)")
     return stopWeb(g, commandName, p.web.stopPort, dir.get)
   var st: Session
   try:
@@ -239,21 +239,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let name = p.model.get("default")
     let m = findModel(st.db, name)
     if m.isNone:
-      return failure(g, "nch ff", "no such model: " & name & " (see `nch models`)")
+      return failure(g, "nch ff", ~"no such model: {name} (see `nch models`)")
     if fthrOf(st.db, st.userId).isNone:
       return failure(
         g,
         "nch ff",
-        st.userName &
-          " has no FTHR, which the impulse calculations require (set it with `nch users --edit " &
-          st.userName & " --fthr BPM`)",
+        ~"{st.userName} has no FTHR, which the impulse calculations require (set it with `nch users --edit {st.userName} --fthr BPM`)",
       )
     if not hasHeartRate(st.db, st.userId):
       return failure(
         g,
         "nch ff",
-        "there are no impulses for " & st.userName &
-          " (they need activities with heart rate: import some)",
+        ~"there are no impulses for {st.userName} (they need activities with heart rate: import some)",
       )
     let now = getTime().toUnix
     let tz =
@@ -269,7 +266,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let dir = cacheDir()
     if dir.isNone:
       return failure(
-        g, "nch ff", "no cache directory is known (set NCH_CACHE); use `--stdout`"
+        g, "nch ff", ~"no cache directory is known (set NCH_CACHE); use `--stdout`"
       )
     if p.web.kind == wkServe:
       # the chart is made by the worker, whenever the page is asked for
@@ -286,8 +283,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return failure(
         g,
         "nch ff",
-        "the model's name cannot be made into a file name (letters, digits and . _ , - only): " &
-          name,
+        ~"the model's name cannot be made into a file name (letters, digits and . _ , - only): {name}",
       )
     # (the paths are kept in `let`s: `.get` on a temporary Option that is assigned on to a `var` has
     # left a dangling string here, with this compiler)
@@ -303,19 +299,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly
         )
         if html.isNone:
-          return failure(g, "nch ff", "cannot make a page for " & csvPath)
+          return failure(g, "nch ff", ~"cannot make a page for {csvPath}")
         writeAtomic(pageFile.get, html.get)
     except IOError, OSError:
-      return failure(
-        g, "nch ff", "cannot write to " & dir.get & ": " & getCurrentExceptionMsg()
-      )
+      return
+        failure(g, "nch ff", ~"cannot write to {dir.get}: {getCurrentExceptionMsg()}")
     except TemplateError as e:
       return failure(
         g,
         "nch ff",
-        "cannot make the page: " & e.msg & " (the template is " &
-          "system/templates/ff.html and the libraries are system/libraries.cdn, in the cache directory; " &
-          "delete one to have the built-in one again)",
+        ~"cannot make the page: {e.msg} (the template is system/templates/ff.html and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
       )
     if p.web.kind == wkWorker:
       g.show(osOut, @[span(pageFile.get, "file")])
