@@ -12,12 +12,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### A. Cut
 
-5. **Options for one case.**  Each separate: (a) `--latest` is an alias of `--newest 1` (CLAUDE.md: no aliases): drop it;
-   (b) done (2026-11-20: the summary's columns are one, U/B, and `together` is gone); (c) `-v`
-   means a different thing in each command (more columns; the efforts under each climb; every month; repeats or implied
-   dependencies): make it "more about the same rows" everywhere, and give the calendar's its own name (`--all-months`)
-   or show every month always; (d) `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly`: settings of one chart,
-   to look at with the author before deciding.  Recommended: (a), (b), (c); (d) to look at.
+5. **Options for one case** (decided 2026-11-20): `--latest` stays (it will be common); `together` is gone (the summary's
+   one U/B column).  Left: the calendar keeps leaving out the months with nothing marked (needed for a calendar like
+   Farellones'), but its "N months omitted" warning may go: to look at after B.  `ff`'s `--fitness-scale`,
+   `--fatigue-scale` and `--hourly` are an item of their own (below, Features).
 
 ### B. Share
 
@@ -89,6 +87,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Features and ideas, unordered
 
+* **`ff`'s options** (the author, 2026-11-20: needs a lot of work, as an item of its own): `--fitness-scale`,
+  `--fatigue-scale` and `--hourly` are settings of one chart; look at what they are for before deciding what stays.
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
