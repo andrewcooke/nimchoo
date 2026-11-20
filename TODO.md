@@ -41,7 +41,16 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       every text a person reads is built with `~"..."` and written as a `Line`.  `g.say(o, fmt"...`x`...")` becomes
       `g.show(o, ~"...")`; `failure`, `usageError` and `warn` take a `Line` (done, `core/globals.nim`: the string versions call
       them, and go when no caller is left); table cells and `span(...)` texts with backticks become `~"..."` pieces.  Done:
-      `cache`, `log` (and the shared types above).  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write
+      the shared types above, and the calls of `failure`, `warn`, `usageError` and `g.say` whose text is a literal, a `fmt"..."`
+      or pieces joined with `&` in every `command.nim`, `introspect.nim`, `nch.nim`, `completion.nim` and `web/launch.nim` (a script
+      did them; the rest are below).  **Left** (found with `grep -rnE '"[^"]*`+"`"+r'[^"]*"'` on the source, not in a `~"` or a comment): texts built in
+      helpers and passed on as strings, which need the helper to give a `Line`: `g.say` with a variable (`said`, `line`, `note`:
+      `names`, `climbs`, `user`, `importer` commands), `sayDeleted(g, text)`, `climbs` (`criterion`, `duplicates`, `edit`,
+      `imported`, `mapframes`, `naming`, `overlap`, `work`, `subject`), `importer` (`naming`, `sinks`), `names/places`,
+      `web/launch` (two), `activities/subject` and its `command` (`emptyText`, the selection texts), `map/command` (the frames
+      note), `calendar/command` (the omitted months), `*/subject.nim` (`summary`, `emptyHint`), and the `summary` of
+      each `PointDecl`/package declaration (docs: leave).  Then the string versions of `failure`, `warn`, `usageError`, `warnLine`
+      and `sayDeleted` and `Parsed.problem` can go.  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write
       `(~"x").text`; `~"..."` is an ordinary literal (`fmt"..."` is raw), so a backslash is doubled; one line per `~` (no `\n`);
       inside a template `~"{x}"` cannot see the template's parameters (a `func` outside builds the `Line`: `webopts.nim`).
     * **Stage 3**: the drawer stops reading backticks (drop `typing` and `inTyped` from `Drawer`, and the backtick reading
