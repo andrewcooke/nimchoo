@@ -45,7 +45,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       or pieces joined with `&` in every `command.nim`, `introspect.nim`, `nch.nim`, `completion.nim` and `web/launch.nim` (a script
       did them; the rest are below).  **Left**: only text that is *not* an error or a warning (those are one colour, and backticks in them are drawn as they are, so
       a plain string with backticks in a message needs nothing: `theme.render`, `messageStyles`).  Found with
-      `grep -rnE '"[^"]*`+"`"+r'[^"]*"'` on the source, not in a `~"` or a comment, and then looking at where the text goes: lines that
+      a grep for string literals that hold a backtick, on the source, not in a `~"` or a comment, and then looking at where the text goes: lines that
       reach `g.say` or a live sink (`importer`: `sinks`, `naming`, the `openNames` callbacks; `climbs/command`'s `said` and `line`),
       table cells, the frames' `summary` (also in the page's JSON, so a separate change) and `names/places`.  Then the string versions of `failure`, `warn`, `usageError`, `warnLine`
       and `sayDeleted` and `Parsed.problem` can go.  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write
