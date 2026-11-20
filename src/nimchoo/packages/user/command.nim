@@ -134,53 +134,55 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       if exists(st, n.name):
         return
           failure(g, "nch users", "there is a user called '" & n.name & "' already")
-      addUser(st, n.name)
-      let id = findUser(st, n.name)
       var said = "made the user " & n.name
-      if n.makeDefault:
-        setDefaultUser(st, id)
-        said.add ", the default"
-      if n.fthr.isSome:
-        said.add ", with an FTHR of " & $n.fthr.get
-        setFthr(st, id, n.fthr.get)
+      st.writing(
+        proc() {.closure, raises: [StoreError].} =
+          addUser(st, n.name)
+          let id = findUser(st, n.name)
+          if n.makeDefault:
+            setDefaultUser(st, id)
+            said.add ", the default"
+          if n.fthr.isSome:
+            said.add ", with an FTHR of " & $n.fthr.get
+            setFthr(st, id, n.fthr.get)
+      )
       g.log.log(lvInfo, commandName, leSaved, said)
       g.say osOut, said & "\n"
       return exitOk
     of uaEdit:
       let e = p.edit
       let id = findUser(st, e.name)
-      case e.fthr.kind
-      of fkSet:
-        let old = currentFthr(st, id)
-        setFthr(st, id, e.fthr.bpm)
-        let said =
-          fmt"{e.name}: FTHR is {e.fthr.bpm}" &
-          (if old.isSome and old.get != e.fthr.bpm: recalculated else: "")
-        g.log.log(lvInfo, commandName, leSaved, said)
-        g.say osOut, said & "\n"
-      of fkClear:
-        let old = currentFthr(st, id)
-        clearFthr(st, id)
-        let said =
-          fmt"{e.name}: FTHR forgotten" & (if old.isSome: recalculated else: "")
-        g.log.log(lvInfo, commandName, leSaved, said)
-        g.say osOut, said & "\n"
-      of fkKeep:
-        discard
-      if e.makeDefault:
-        setDefaultUser(st, id)
-        let said = e.name & " is now the default user"
-        g.log.log(lvInfo, commandName, leSaved, said)
-        g.say osOut, said & "\n"
-      if e.rename.isSome:
-        if exists(st, e.rename.get):
-          return failure(
-            g, "nch users", "there is a user called '" & e.rename.get & "' already"
-          )
-        renameUser(st, id, e.rename.get)
-        let said = e.name & " is now called " & e.rename.get
-        g.log.log(lvInfo, commandName, leSaved, said)
-        g.say osOut, said & "\n"
+      # everything that can refuse is asked first, and the changes are made together: all or none
+      if e.rename.isSome and exists(st, e.rename.get):
+        return failure(
+          g, "nch users", "there is a user called '" & e.rename.get & "' already"
+        )
+      var said: seq[string]
+      st.writing(
+        proc() {.closure, raises: [StoreError].} =
+          case e.fthr.kind
+          of fkSet:
+            let old = currentFthr(st, id)
+            setFthr(st, id, e.fthr.bpm)
+            said.add fmt"{e.name}: FTHR is {e.fthr.bpm}" &
+              (if old.isSome and old.get != e.fthr.bpm: recalculated else: "")
+          of fkClear:
+            let old = currentFthr(st, id)
+            clearFthr(st, id)
+            said.add fmt"{e.name}: FTHR forgotten" &
+              (if old.isSome: recalculated else: "")
+          of fkKeep:
+            discard
+          if e.makeDefault:
+            setDefaultUser(st, id)
+            said.add fmt"{e.name} is now the default user"
+          if e.rename.isSome:
+            renameUser(st, id, e.rename.get)
+            said.add fmt"{e.name} is now called {e.rename.get}"
+      )
+      for line in said:
+        g.log.log(lvInfo, commandName, leSaved, line)
+        g.say osOut, line & "\n"
       return exitOk
   except StoreError as e:
     failure(g, "nch users", e.msg)

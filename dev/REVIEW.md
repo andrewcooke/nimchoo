@@ -36,7 +36,7 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 | E3 | **fixed** 2026-11-20: only the first statement of a text is run (latent: no caller does it) | `db/statement.nim` | `a; b` runs `a`, and only `a` is checked by the access model |
 | C1 | `effort.start_m` counts from the stretch, not the ride | `climbs/work.nim` | after a stop by hand, "started N m into the ride" is too small |
 | C2 | the profile interpolates altitude across any gap (its doc said never) | `climbs/profile.nim` | **settled**: no such gap in the author's rides; doc corrected, behaviour left for the terrain model (section 4) |
-| D1 | `users --edit` writes, then fails on `--rename` | `user/command.nim` | FTHR and default changed, exit 1; no transaction |
+| D1 | **fixed** 2026-11-20: `users --edit` writes, then fails on `--rename` | `user/command.nim` | FTHR and default changed, exit 1; no transaction |
 | C3 | `climbs --edit NAME --auto` offline says "is now called unnamed₇" | `climbs/command.nim` | the climb is not named yet |
 | B2 | **fixed** 2026-11-20: the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
 | B4 | **fixed** 2026-11-20: a missing `--profile` is blamed on the FIT file | `fit/command.nim` | "ride.fit: cannot open: nosuch.xlsx" |

@@ -251,6 +251,20 @@ proc rollback*(s: Store) {.raises: [].} =
   except StoreError:
     discard
 
+proc writing*(
+    s: Store, work: proc() {.closure, raises: [StoreError].}
+) {.raises: [StoreError].} =
+  ## Do `work` in one write transaction (`beginWrite`): all of it is kept, or, if it raises, none of it.
+  s.beginWrite()
+  var done = false
+  try:
+    work()
+    s.commit()
+    done = true
+  finally:
+    if not done:
+      s.rollback()
+
 const sqliteOpenReadOnly = 1'i32 ## SQLITE_OPEN_READONLY, of sqlite3.h
 
 when defined(macosx):

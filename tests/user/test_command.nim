@@ -174,6 +174,14 @@ suite "nch users":
     s.close()
     check q(db, "select name from user where is_default = 1", string) == "bob"
 
+  test "several changes, one refused: none is made":
+    let db = fresh("allornone")
+    check user(db, "--add", "bob") == exitOk
+    check edit(db, "bob", "--fthr", "160", "--default", "--rename", "default") ==
+      exitFailure
+    check q(db, "select count(*) from user_profile where fthr is not null", int) == 0
+    check q(db, "select name from user where is_default = 1", string) == "default"
+
   test "several changes in one go":
     let db = fresh("several")
     check user(db, "--add", "bob") == exitOk

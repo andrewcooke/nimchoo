@@ -14,17 +14,19 @@ proc renameUser*(st: Store, id: UserId, name: string) {.raises: [StoreError].} =
   st.db.execute("update user set name = :name where id = :id", name = name, id = id)
 
 proc setDefaultUser*(st: Store, id: UserId) {.raises: [StoreError].} =
-  ## Make `id` the default user (the old one stops being; both or neither).
-  st.beginWrite()
+  ## Make `id` the default user (the old one stops being; both or neither, inside the caller's transaction or alone: a
+  ## savepoint nests).
+  st.db.execScript("savepoint default_user")
   var done = false
   try:
     st.db.execute("update user set is_default = 0 where is_default = 1")
     st.db.execute("update user set is_default = 1 where id = :id", id = id)
-    st.commit()
+    st.db.execScript("release default_user")
     done = true
   finally:
     if not done:
-      st.rollback()
+      st.db.execScript("rollback to default_user")
+      st.db.execScript("release default_user")
 
 proc deleteUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Delete the user and everything they have (`on delete cascade`).  If it was the default another becomes the
