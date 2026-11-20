@@ -200,6 +200,21 @@ suite "import: remembered failures":
     check second.lines[^1].contains("1 known failure (use `--slow` to retry)")
     check st.db.scalar(string, "select failure from seen_file") == "bad_format"
 
+  test "a failure of the moment (a file that cannot be read) is tried again":
+    let d = fresh("moment")
+    let path = d / "locked.fit"
+    writeFile(path, "whatever is in it")
+    setFilePermissions(path, {})
+    let st = open(d / "x.db")
+    defer:
+      st.close()
+    check importReport(st, @[d]).failed == 1
+    let second = importReport(st, @[d])
+    check second.failed == 1
+    check second.known == 0
+    check st.db.scalar(int, "select count(*) from seen_file") == 0
+    setFilePermissions(path, {fpUserRead, fpUserWrite})
+
   test "the kinds of failure are remembered":
     let d = fresh("kinds")
     let noSession = fitFile(defn(0, 20, @[(253, 4, uint32T)]) & b(0) & le32(base))

@@ -297,7 +297,8 @@ proc importPaths*(
     if ev.outcome != oDuplicate:
       # (a file whose content is in already has nothing to say)
       ev.advisories = prep.warnings
-    pending.add c.key, row
+    if ev.outcome != oFailed or ev.failure.remembered:
+      pending.add c.key, row
     if pending.full:
       flushSeen()
     finished ev

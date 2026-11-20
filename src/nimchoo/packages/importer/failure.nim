@@ -1,5 +1,5 @@
-## Why a file could not be imported, in a few kinds: they are remembered in the
-## database (so a known failure is not tried again) and counted on screen.
+## Why a file could not be imported, in a few kinds, counted on screen.  Those the file's content decides are
+## remembered in the database (so a known failure is not tried again: `remembered`); the others are tried again.
 
 import ../../core/errors
 
@@ -14,6 +14,13 @@ type FailureKind* = enum
   fkUnreadable = "unreadable" ## the file could not be read
   fkNotFound = "not_found" ## no such path, or nothing to import in it
   fkStore = "database" ## the database refused
+
+func remembered*(k: FailureKind): bool =
+  ## Whether the failure is the file's own (its content decides it), and so is kept with the file's size and time and
+  ## not tried again; a failure of the moment (the database busy, a file that could not be read) is tried again.
+  case k
+  of fkNoActivity, fkMonitor, fkBadTime, fkBadFormat: true
+  of fkUnreadable, fkNotFound, fkStore: false
 
 func failureOf*(e: ref NchError): FailureKind =
   ## The kind of failure an error stands for.
