@@ -246,6 +246,7 @@ proc importPaths*(
     else:
       prep = prepareFile(profile, channels, askDatabase, Job(index: k, path: c.path))
     var row = Seen(size: c.size, mtime: c.mtime)
+    var noticed: seq[Warning] # (what the import steps said about the file)
     var ev = ImportEvent(kind: evFileDone, index: index, path: c.path)
     let t0 = getMonoTime()
     case prep.outcome
@@ -273,6 +274,7 @@ proc importPaths*(
             extractFilename(c.path), prep.digest, prep.decoded, opts.steps
           )
           row.fileId = r.fileId
+          noticed = r.warnings
           ev.outcome = oImported
           ev.counts = Counts(
             activities: r.activities,
@@ -296,7 +298,7 @@ proc importPaths*(
       row.message = ev.message
     if ev.outcome != oDuplicate:
       # (a file whose content is in already has nothing to say)
-      ev.advisories = prep.warnings
+      ev.advisories = prep.warnings & noticed
     if ev.outcome != oFailed or ev.failure.remembered:
       pending.add c.key, row
     if pending.full:

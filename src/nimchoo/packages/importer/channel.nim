@@ -9,6 +9,7 @@ import ../../core/[errors, extension]
 import ../../core/ids
 import ../db/statement
 import ../fit/time
+import ../util/warnings/warnings
 
 {.push raises: [].}
 
@@ -23,11 +24,11 @@ type
   ImportStep* = object
     label*, labels*: string ## what it writes, one and many: "heart-rate reading(s)"
     channels*: seq[string] ## the `record` fields it wants
-    write*: proc(db: DbConn, activityId: ActivityId, samples: Samples): int {.
-      nimcall, raises: [StoreError]
-    .}
+    write*: proc(
+      db: DbConn, activityId: ActivityId, samples: Samples, warnings: var seq[Warning]
+    ): int {.nimcall, raises: [StoreError].}
       ## write the rows for an activity (inside the transaction that imports it);
-      ## returns how many
+      ## returns how many, and adds to `warnings` what it noticed (the file's advisories)
 
   ExtraCount* = object ## How much of what a step wrote.
     n*: int

@@ -24,7 +24,7 @@ proc intoArrays(activities: seq[ActivityData]) =
     discard encodePositions(a.coords)
     discard visitsOf(a.coords)
     discard routeWkb(a)
-    discard hrseries.encodeReadings(hrstep.readings(a.samples))
+    discard hrseries.encodeReadings(hrstep.readings(a.samples).rows)
 
 suite "importer fuzzing":
   let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")

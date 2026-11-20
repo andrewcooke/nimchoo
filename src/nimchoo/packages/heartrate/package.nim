@@ -11,7 +11,7 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[contribute(importStep, heartrateStep)]
 
 const package* = Package(
-  depends: @["db", "fit", "importer"],
+  depends: @["db", "fit", "importer", "ui", "warnings"],
   fragments: @[
     fragment("001-schema.sql") # heartrate_series: the readings as arrays
   ],

@@ -44,24 +44,23 @@ let hand = fitFile(
 )
 
 suite "heartrate: the readings of an activity":
-  test "rounded, in order; zero and below are no reading":
+  test "rounded, in order; outside 1 to 254 is no heart rate, and is counted":
     var ss: Samples
     ss["heart_rate"] = @[
       Sample(t: UnixTime(1), v: 60),
       Sample(t: UnixTime(2), v: 0),
       Sample(t: UnixTime(3), v: 61.6),
+      Sample(t: UnixTime(4), v: 300),
+      Sample(t: UnixTime(5), v: 254),
     ]
-    check readings(ss) == @[(UnixTime(1), 60), (UnixTime(3), 62)]
-    check readings(Samples()).len == 0
-
-  test "above 255 is no reading (a damaged file), so the arrays can hold every one":
-    var ss: Samples
-    ss["heart_rate"] = @[Sample(t: UnixTime(1), v: 300), Sample(t: UnixTime(2), v: 255)]
-    check readings(ss) == @[(UnixTime(2), 255)]
-    check encodeReadings(readings(ss)).count == 1
+    let r = readings(ss)
+    check r.rows == @[(UnixTime(1), 60), (UnixTime(3), 62), (UnixTime(5), 254)]
+    check r.dropped == 2
+    check encodeReadings(r.rows).count == 3
+    check readings(Samples()).rows.len == 0
 
 suite "heartrate: import":
-  test "a hand-built file: invalid and zero readings are dropped, the last of a second kept":
+  test "a hand-built file: invalid and zero readings are dropped (the zero with a warning), the last of a second kept":
     let s = openDb("hand")
     defer:
       s.close()
@@ -69,6 +68,7 @@ suite "heartrate: import":
     let r = s.imp(hand, ws)
     check r.activities == 1
     check r.extras.len == 1 and r.extras[0].n == 2
+    check r.warnings.len == 1 and r.warnings[0].kind == wkBadReading
     s.db.materialise()
     check s.db.scalar(
       string,

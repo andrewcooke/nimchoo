@@ -27,6 +27,7 @@ type
     fileId*: FileId ## the `file` row: the new one, or the one it duplicates
     activities*, segments*, coords*: int ## rows written (0 if already imported)
     extras*: seq[ExtraCount] ## what the import steps wrote, in the order of the steps
+    warnings*: seq[Warning] ## what the import steps noticed
 
 proc insertActivity(
     st: Stmt, fileId: FileId, a: ActivityData
@@ -192,7 +193,7 @@ proc writeDecoded*(
           routeStmt.run()
       for i, step in steps:
         timed "step: " & step.label:
-          result.extras[i].n += step.write(s.db, activityId, a.samples)
+          result.extras[i].n += step.write(s.db, activityId, a.samples, result.warnings)
       inc result.activities
       result.segments += a.segments.len
       result.coords += a.coords.len

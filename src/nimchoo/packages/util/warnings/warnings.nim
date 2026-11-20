@@ -44,6 +44,8 @@ type
       ## records more than an hour outside their session's time (dropped; one warning to a session, with the count)
     wkPositionOffEarth
       ## a position whose latitude or longitude is out of range (dropped)
+    wkBadReading
+      ## readings that cannot be what the channel measures (dropped; one warning to an activity, with the count)
     # cleaning the positions (importer/clean.nim); one warning of each kind to an activity, with the count
     wkStalePosition ## positions the device wrote again while moving (dropped)
     wkBadPosition ## positions far from where the ride was (a spike or a burst: dropped)
