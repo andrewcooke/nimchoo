@@ -45,8 +45,7 @@ proc runDelete*(
       return exitOk
     let what = describe(plan, zone)
     if force == fNo:
-      return
-        failure(g, "nch activities", "would delete " & what & "; use `-f` to confirm")
+      return failure(g, "nch activities", ~"would delete {what}; use `-f` to confirm")
     pause(g.theme, what, force)
     # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
     var shown = false

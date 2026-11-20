@@ -396,8 +396,9 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
   )
   if names.isNone:
     return failure(
-      g, "nch activities",
-      "no place for the cache, where the names are kept: set NCH_CACHE or HOME",
+      g,
+      "nch activities",
+      ~"no place for the cache, where the names are kept: set NCH_CACHE or HOME",
     )
   try:
     st.forgetNames(ids)
@@ -418,8 +419,7 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
     failure(
       g,
       "nch activities",
-      getCurrentExceptionMsg() &
-        " (the names not made are made by the next `nch import`)",
+      ~"{getCurrentExceptionMsg()} (the names not made are made by the next `nch import`)",
     )
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
