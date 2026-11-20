@@ -77,6 +77,8 @@ suite "lines: wrapping":
     check plain("a.  b").wrapped(80).mapIt(it.text) ==
       @["a.  b"] # (two spaces after a full stop stay)
     check plain("a\nb").wrapped(80).len == 2 # (a newline starts a line)
+    check plain("end.  Next one").wrapped(4).mapIt(it.text) ==
+      @["end.", "Next", "one"] # (no line starts with the second space of a full stop)
 
   test "a phrase in one style keeps the style over its spaces, across lines too":
     let ls = @[span("x "), span("in a style", "em"), span(" y")].wrapped(80)

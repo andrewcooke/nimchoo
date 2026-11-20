@@ -29,7 +29,7 @@ func dbSpec*(): Spec[Raw] =
         Raw,
         ["--delete"],
         delete,
-        "delete the database file, and with it the users and all their data: files, activities, climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete less: `nch activities --all --delete -f` keeps the users, `nch climbs --all --delete -f` keeps the activities.)  The next command that needs a database makes a new one.",
+        ~"delete the database file, and with it the users and all their data: files, activities, climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete less: `nch activities --all --delete -f` keeps the users, `nch climbs --all --delete -f` keeps the activities.)  The next command that needs a database makes a new one.",
       ),
       forceOption(Raw, force, 1),
       helpFlag(Raw),
@@ -38,7 +38,7 @@ func dbSpec*(): Spec[Raw] =
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.force != fNo and not raw.delete:
-    return problemWith[Params]("`-f` goes with `--delete`")
+    return problemWith[Params](~"`-f` goes with `--delete`")
   if raw.delete:
     parsedOk(Params(action: daDelete, force: raw.force))
   else:

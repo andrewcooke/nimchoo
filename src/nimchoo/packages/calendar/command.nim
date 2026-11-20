@@ -24,11 +24,9 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = "usage: nch [--db PATH] [--user NAME] calendar [SUBJECT] [-v]"
-  intro =
-    """A subject (by default the activities of the selection: see `nch activities --select`) on a calendar: a row for each
-month that has a marked day, the days in columns by weekday (weeks start on Monday).  In the selection's colour: a marked day (for the
-activities, one when an activity started); dimmed: none.  The months either side of a gap are marked (a name in the warning
-colour, or a * without colour), as are the months that were left out."""
+  intro = @[
+    ~"A subject (by default the activities of the selection: see `nch activities --select`) on a calendar: a row for each month that has a marked day, the days in columns by weekday (weeks start on Monday).  In the selection's colour: a marked day (for the activities, one when an activity started); dimmed: none.  The months either side of a gap are marked (a name in the warning colour, or a * without colour), as are the months that were left out."
+  ]
 
 func registryLines(
     subjects: seq[Subject], all: seq[CalendarFrame], width: int
@@ -73,7 +71,7 @@ proc choose*(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject the command line asks for and its frame, or what is wrong (the registry says what exists).
   let all = g.extensions.get(subjectPoint)
   if all.len == 0:
-    return problemWith[Chosen]("no subject can be shown on a calendar")
+    return problemWith[Chosen](~"no subject can be shown on a calendar")
   let name = p.subject.get(defaultSubject(all).name)
   var names: seq[string]
   var found = none(Subject)
@@ -83,10 +81,10 @@ proc choose*(g: Globals, p: Params): Parsed[Chosen] =
       found = some(s)
   if found.isNone:
     let known = names.join(", ")
-    return problemWith[Chosen](fmt"no subject '{name}' (the subjects are {known})")
+    return problemWith[Chosen](~"no subject '{name}' (the subjects are {known})")
   let frames = framesOf(g.extensions.get(calendarFramePoint), name)
   if frames.len == 0:
-    return problemWith[Chosen](fmt"{name} cannot be shown on a calendar")
+    return problemWith[Chosen](~"{name} cannot be shown on a calendar")
   parsedOk(Chosen(subject: found.get, frame: frames[0]))
 
 proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
@@ -124,8 +122,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(g, helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return
-      usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

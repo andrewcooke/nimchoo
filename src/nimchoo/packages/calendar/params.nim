@@ -28,20 +28,20 @@ func calendarSpec*(): Spec[Raw] =
         Raw,
         ["-v", "--verbose"],
         verbose,
-        "every month from the first to the last, not only those with an activity (the months either side of a gap are marked otherwise)",
+        ~"every month from the first to the last, not only those with an activity (the months either side of a gap are marked otherwise)",
       ),
       helpFlag(Raw),
     ],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
       if not isWord(arg):
-        return refuse(fmt"'{arg}' is not a name of a subject")
+        return refuse(~"'{arg}' is not a name of a subject")
       p.subjects.add arg
       fine,
   )
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.subjects.len > 1:
-    return problemWith[Params]("expected at most one SUBJECT")
+    return problemWith[Params](~"expected at most one SUBJECT")
   parsedOk(
     Params(
       verbose: raw.verbose,

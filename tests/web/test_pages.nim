@@ -16,7 +16,7 @@ type Holder = object
   web: WebArgs
 
 func `==`(p: Problem, said: string): bool =
-  p.get("") == said
+  (if p.isSome: p.get.plainText else: "") == said
 
 suite "serve web options: shared by the commands":
   let spec = Spec[Holder](opts: webOptions(Holder, web, "the chart", "the CSV file"))

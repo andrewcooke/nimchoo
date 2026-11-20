@@ -32,11 +32,11 @@ func takeJob(p: var Head, action: Action, value: string): Problem =
   ## `--install-completion [SHELL]`, `--show-completion [SHELL]`.
   if p.job.isSome:
     return
-      refuse("only one of `--install-completion` and `--show-completion` may be given")
+      refuse(~"only one of `--install-completion` and `--show-completion` may be given")
   let shell = parseShell(value)
   if shell.isNone:
     return refuse(
-      fmt"no completion for '{value}' (the shells are {shellNames().join("", "")})"
+      ~"no completion for '{value}' (the shells are {shellNames().join(\", \")})"
     )
   p.job = some(Job(action: action, shell: shell.get))
   fine
@@ -54,7 +54,7 @@ func headSpec(): Spec[Head] =
         ["--db"],
         true,
         "PATH",
-        "the database file (default: $NCH_DB, else nch/nch.db in the user's data directory)",
+        ~"the database file (default: $NCH_DB, else nch/nch.db in the user's data directory)",
         completion = Completion(kind: ckFile),
         body = (p.g.dbPath = value; fine),
       ),
@@ -63,7 +63,7 @@ func headSpec(): Spec[Head] =
         ["--user"],
         true,
         "NAME",
-        "whose data to work with (default: the default user)",
+        ~"whose data to work with (default: the default user)",
         completion = completesFrom(completeUsers),
         body = (p.g.user = value; fine),
       ),
@@ -72,7 +72,7 @@ func headSpec(): Spec[Head] =
         ["--offline"],
         false,
         "",
-        "do not use the network (names are made from the places already loaded; the others are left for a run that may use the network)",
+        ~"do not use the network (names are made from the places already loaded; the others are left for a run that may use the network)",
         body = (p.g.offline = true; fine),
       ),
       custom(
@@ -80,7 +80,7 @@ func headSpec(): Spec[Head] =
         ["--theme"],
         true,
         "NAME",
-        "how text looks: a theme, NAME.theme in the cache's system/themes/ (default: $NCH_THEME, else what system/themes/.current links to, else light or dark as $COLORFGBG says, else dark)",
+        ~"how text looks: a theme, NAME.theme in the cache's system/themes/ (default: $NCH_THEME, else what system/themes/.current links to, else light or dark as $COLORFGBG says, else dark)",
         completion = completesFrom(completeThemes),
         body = (p.theme = some(value); fine),
       ),
@@ -88,7 +88,7 @@ func headSpec(): Spec[Head] =
         Head,
         ["--install-completion"],
         "SHELL",
-        "write the script that makes the shell complete `nch` (default: bash) where the shell finds it, so that new shells have it",
+        ~"write the script that makes the shell complete `nch` (default: bash) where the shell finds it, so that new shells have it",
         completion = Completion(kind: ckWords, words: shellNames()),
         body = takeJob(p, acInstall, value),
       ),
@@ -96,7 +96,7 @@ func headSpec(): Spec[Head] =
         Head,
         ["--show-completion"],
         "SHELL",
-        "print that script instead of writing it (to read it, or `eval \"$(nch --show-completion)\"`)",
+        ~"print that script instead of writing it (to read it, or `eval \"$(nch --show-completion)\"`)",
         completion = Completion(kind: ckWords, words: shellNames()),
         body = takeJob(p, acShow, value),
       ),
@@ -104,13 +104,13 @@ func headSpec(): Spec[Head] =
         Head,
         ["--version"],
         version,
-        "print the version and the git commit it was built from",
+        ~"print the version and the git commit it was built from",
       ),
       flag(
         Head,
         ["--config"],
         config,
-        "the settings in force (the database and its schema, the user, the theme, the log, the cache) and the variables of the environment nch reads, with what each is for",
+        ~"the settings in force (the database and its schema, the user, the theme, the log, the cache) and the variables of the environment nch reads, with what each is for",
       ),
       helpFlag(Head),
     ]
@@ -122,7 +122,7 @@ proc usageText(width: int): seq[Line] =
     "usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]",
     width,
     options = headSpec().docs,
-    notes = "For more about a command: `nch COMMAND --help`.",
+    notes = @[~"For more about a command: `nch COMMAND --help`."],
     sections = @[("commands", commandList(allCommands))],
   )
 

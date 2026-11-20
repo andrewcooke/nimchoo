@@ -19,10 +19,8 @@ type Force* = enum
   fYes ## `-f`: delete, after the pause (on a terminal)
   fNow ## `-f -f`: delete without the pause
 
-const forceHelp* =
-  "really do it (nothing is deleted without it).  On a terminal there are then " &
-  $waitSeconds &
-  " seconds in which to press Ctrl-C; given twice (`-f -f`) there is no pause"
+func forceHelp*(): Line =
+  ~"really do it (nothing is deleted without it).  On a terminal there are then {waitSeconds} seconds in which to press Ctrl-C; given twice (`-f -f`) there is no pause"
 
 template forceOption*(P: typedesc, field: untyped, indent: int = 0): Opt[P] =
   ## `-f` / `--force` as an option of a command whose `P` holds a `Force` in `field`: the first time is `fYes`, the second
@@ -32,7 +30,7 @@ template forceOption*(P: typedesc, field: untyped, indent: int = 0): Opt[P] =
     ["-f", "--force"],
     false,
     "",
-    forceHelp,
+    forceHelp(),
     level = indent,
     body = (p.field = (if p.field == fNo: fYes else: fNow); fine),
   )
@@ -44,7 +42,7 @@ template forceOptionIn*(P: typedesc, group, field: untyped, indent: int = 0): Op
     ["-f", "--force"],
     false,
     "",
-    forceHelp,
+    forceHelp(),
     level = indent,
     body = (p.group.field = (if p.group.field == fNo: fYes else: fNow); fine),
   )

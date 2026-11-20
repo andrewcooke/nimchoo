@@ -3,7 +3,7 @@ import nimchoo/packages/util/args/[args, usage]
 import ../../support/styles
 
 func doc(names: openArray[string], metavar, help: string): OptDoc =
-  OptDoc(names: @names, metavar: metavar, help: help)
+  OptDoc(names: @names, metavar: metavar, help: plain(help))
 
 proc shownOptionLines(docs: seq[OptDoc], width: int): seq[string] =
   ## The option lines as they are shown without colour.
@@ -24,7 +24,11 @@ suite "usage: wrapping":
 suite "usage: the option list":
   test "a value that may be left out is in brackets":
     check shownOptionLines(
-      @[OptDoc(names: @["--shell"], metavar: "SHELL", help: "which", arity: aOptional)],
+      @[
+        OptDoc(
+          names: @["--shell"], metavar: "SHELL", help: plain("which"), arity: aOptional
+        )
+      ],
       80,
     ) == @["  --shell [SHELL]  which"]
   test "names, the value, and the help in a column":
@@ -69,9 +73,9 @@ suite "usage: from a spec":
 
     let spec = Spec[P](
       opts: @[
-        flag(P, ["-y", "--yes"], yes, "say yes"),
-        whole(P, ["-n"], n, 1, 9, "a digit", "N", "a number"),
-        flag(P, ["--deep"], yes, "goes with the one before", level = 1),
+        flag(P, ["-y", "--yes"], yes, ~"say yes"),
+        whole(P, ["-n"], n, 1, 9, "a digit", "N", ~"a number"),
+        flag(P, ["--deep"], yes, ~"goes with the one before", level = 1),
       ]
     )
     let shown = shownOptionLines(spec.docs, 80).join("\n")
@@ -146,9 +150,9 @@ suite "usage: what is typed is in cmd":
     let ls = usageOf(
       "usage: nch a",
       80,
-      notes = "the notes",
+      notes = @[plain("the notes")],
       sections = @[("Kinds", @[plain("  x")])],
-      intro = "the introduction",
+      intro = @[plain("the introduction")],
     )
     check ls.plainText == "usage: nch a\n\nthe introduction\n\nthe notes\n\nkinds:\n  x"
     check ls[^2] == @[span("kinds:", "em")]

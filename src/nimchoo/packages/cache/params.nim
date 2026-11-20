@@ -25,7 +25,7 @@ type
 proc takeKinds(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   p.delete = true
   if values.len == 0:
-    return refuse("`" & name & "` needs a kind: " & kindNames() & ", or all")
+    return refuse(~"`{name}` needs a kind: {kindNames()}, or all")
   for v in values:
     var k: Kind
     if v.toLowerAscii == "all":
@@ -34,8 +34,7 @@ proc takeKinds(p: var Raw, name: string, values: seq[string]): Problem {.nimcall
       if k notin p.kinds:
         p.kinds.add k
     else:
-      return
-        refuse("no such kind of cache file: " & v & " (" & kindNames() & ", or all)")
+      return refuse(~"no such kind of cache file: {v} ({kindNames()}, or all)")
   fine
 
 func cacheSpec*(): Spec[Raw] =
@@ -46,7 +45,7 @@ func cacheSpec*(): Spec[Raw] =
         ["--delete"],
         takeKinds,
         "KIND...",
-        "delete the files of those kinds (or `all`)",
+        ~"delete the files of those kinds (or `all`)",
         completion = Completion(kind: ckWords, words: kindWords()),
       ),
       helpFlag(Raw),

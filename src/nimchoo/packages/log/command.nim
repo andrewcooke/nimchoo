@@ -7,7 +7,7 @@ import std/[options, os, sequtils, strutils]
 import ../../core/globals
 import ../util/args/[args, usage]
 import ../../core/logfile
-import ../ui/[live, markup]
+import ../ui/live
 import ../ui/style
 import ./[lines, params]
 
@@ -21,13 +21,12 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = "usage: nch log [COMMAND...] [EVENT...] [--last] [-n N]"
-  intro =
-    """Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, activities, climbs, cache ...) shows the
-lines of those commands, an EVENT (failed, advisory, duplicate ...) shows those events; both together show the events
-of those commands.  Several of one kind mean "any of them".  With no names, everything."""
-  notes =
-    """On a terminal the event words have the styles they have in `nch import` (imported good, failed bad, advisory a
-warning, duplicate dimmed: their colours are the theme's, see `nch --theme`)."""
+  intro = @[
+    ~"Show the log (see NCH_LOG).  Names say what to show: a COMMAND (import, activities, climbs, cache ...) shows the lines of those commands, an EVENT (failed, advisory, duplicate ...) shows those events; both together show the events of those commands.  Several of one kind mean \"any of them\".  With no names, everything."
+  ]
+  notes = @[
+    ~"On a terminal the event words have the styles they have in `nch import` (imported good, failed bad, advisory a warning, duplicate dimmed: their colours are the theme's, see `nch --theme`)."
+  ]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
@@ -68,7 +67,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch log", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch log", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

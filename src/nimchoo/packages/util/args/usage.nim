@@ -40,10 +40,12 @@ func synopsisLines*(text: string): seq[Line] =
     else:
       result.add @[span(l[0 ..< lead]), span(l[lead .. ^1], "code")]
 
-func proseLines*(text: string, width: int): seq[Line] =
-  ## Paragraphs wrapped to `width` (`wrap.prose`), as lines.
-  for l in prose(text, width).split('\n'):
-    result.add plain(l)
+func proseLines*(paragraphs: seq[Line], width: int): seq[Line] =
+  ## Paragraphs (each a `~"..."` line) wrapped to `width` by words, each word keeping its style, a blank line between two.
+  for k, p in paragraphs:
+    if k > 0:
+      result.add plain("")
+    result.add p.wrapped(width)
 
 func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
   ## The lines for the options: two spaces, the names and the value (in `code`), the help in a column, wrapped to `width`.
@@ -58,19 +60,21 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
     let l = label(d)
     let names = l.strip(trailing = false)
     let lead = span(" ".repeat(indent + l.len - names.len))
-    let help = wrap(d.help, helpWidth)
-    if l.len > maxLabel or help.len == 0:
+    let help = d.help.wrapped(helpWidth)
+    let pad = span(" ".repeat(column))
+    if l.len > maxLabel or d.help.len == 0:
       result.add @[lead, span(names, "code")]
       for h in help:
-        result.add plain(" ".repeat(column) & h)
+        if h.len > 0:
+          result.add pad & h
     else:
       for i, h in help:
         if i == 0:
           let first: Line =
-            @[lead, span(names, "code"), span(" ".repeat(labelWidth - l.len + gap) & h)]
+            @[lead, span(names, "code"), span(" ".repeat(labelWidth - l.len + gap))] & h
           result.add first.stripped
         else:
-          result.add plain(" ".repeat(column) & h)
+          result.add @[pad] & h
 
 func tableLines*(header: seq[string], rows: seq[seq[string]], width: int): seq[Line] =
   ## A table for a usage text, indented like the options, with lines between the columns and under the headings
@@ -84,13 +88,14 @@ type Section* = tuple[heading: string, lines: seq[Line]]
 func usageOf*(
     synopsis: string,
     width: int,
-    intro = "",
+    intro: seq[Line] = @[],
     options: seq[OptDoc] = @[],
-    notes = "",
+    notes: seq[Line] = @[],
     sections: seq[Section] = @[],
 ): seq[Line] =
   ## A usage, its parts always in this order, a blank line between each two: the synopsis (`synopsisLines`), the
-  ## introduction and the options (`optionLines`), the notes (both prose, wrapped to `width`), then each section under
+  ## introduction and the options (`optionLines`), the notes (the prose a list of paragraphs, `proseLines`, wrapped to
+  ## `width`), then each section under
   ## its heading, in `em`, lower case, with a colon ("commands:").
   var parts = @[synopsisLines(synopsis)]
   if intro.len > 0:

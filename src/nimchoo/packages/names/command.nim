@@ -35,11 +35,12 @@ const
        nch landmarks --add NAME --near LAT,LON --pick N [--radius METRES]
        nch landmarks --add NAME --at LAT,LON [--radius METRES]
        nch landmarks --delete NAME -f"""
-  intro =
-    """Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle
-holds the place comes before every name GeoNames has.  Without options, list the landmarks."""
-  notes =
-    "Landmarks are shared by all users (as the climbs are), so `--user` goes nowhere here."
+  intro = @[
+    ~"Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle holds the place comes before every name GeoNames has.  Without options, list the landmarks."
+  ]
+  notes = @[
+    ~"Landmarks are shared by all users (as the climbs are), so `--user` goes nowhere here."
+  ]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
@@ -74,7 +75,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch landmarks", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch landmarks", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

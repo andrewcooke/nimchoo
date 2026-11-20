@@ -36,15 +36,12 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 const
   synopsis =
     "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--file [--frames FRAME...] | --stop | [--start] [--port N] [--new-token]]"
-  intro =
-    """Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are
-the subject's frames, the layers in the table below, each made by the package that knows about it: the page lists them, and you
-tick the ones to draw (the browser remembers them for the next time; at first, those marked *).  It serves the page on
-localhost and opens it in a browser (Ctrl-C stops it); with `--file` it makes a GeoJSON file for each frame (those of `--frames`)
-in the cache directory instead, and prints where.  A click on anything drawn says what it is."""
-  notes =
-    """A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The
-address of the page is the subject's (/map/activities), so a bookmark keeps the subject, not the activities."""
+  intro = @[
+    ~"Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are the subject's frames, the layers in the table below, each made by the package that knows about it: the page lists them, and you tick the ones to draw (the browser remembers them for the next time; at first, those marked *).  It serves the page on localhost and opens it in a browser (Ctrl-C stops it); with `--file` it makes a GeoJSON file for each frame (those of `--frames`) in the cache directory instead, and prints where.  A click on anything drawn says what it is."
+  ]
+  notes = @[
+    ~"A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The address of the page is the subject's (/map/activities), so a bookmark keeps the subject, not the activities."
+  ]
 
 func registryLines(subjects: seq[Subject], all: seq[MapFrame], width: int): seq[Line] =
   ## The subjects and their frames, as a table (from the registry), and what the marks mean.
@@ -91,7 +88,7 @@ proc choose(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject and frames the command line asks for, or what is wrong with them (the registry says what exists).
   let all = g.extensions.get(subjectPoint)
   if all.len == 0:
-    return problemWith[Chosen]("no subject can be shown on a map")
+    return problemWith[Chosen](~"no subject can be shown on a map")
   let name = p.subject.get(defaultSubject(all).name)
   var chosen: Chosen
   var found = false
@@ -101,10 +98,10 @@ proc choose(g: Globals, p: Params): Parsed[Chosen] =
       found = true
   if not found:
     let names = all.mapIt(it.name).join(", ")
-    return problemWith[Chosen](fmt"no subject '{name}' (the subjects are {names})")
+    return problemWith[Chosen](~"no subject '{name}' (the subjects are {names})")
   let mine = framesOf(g.extensions.get(mapFramePoint), name)
   if mine.len == 0:
-    return problemWith[Chosen](fmt"no frame of {name} can be shown on a map")
+    return problemWith[Chosen](~"no frame of {name} can be shown on a map")
   let names = mine.mapIt(it.name).join(", ")
   if p.frames.len == 0:
     for f in mine:
@@ -117,7 +114,7 @@ proc choose(g: Globals, p: Params): Parsed[Chosen] =
     let there = mine.filterIt(it.name == want)
     if there.len == 0:
       return problemWith[Chosen](
-        fmt"'{want}' is not a frame of {name} (the frames are {names})"
+        ~"'{want}' is not a frame of {name} (the frames are {names})"
       )
     if there[0] notin chosen.frames:
       chosen.frames.add there[0]
@@ -214,7 +211,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(g, helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch map", usageText(g, helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch map", usageText(g, helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

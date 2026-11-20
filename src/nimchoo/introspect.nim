@@ -63,7 +63,7 @@ func packagesSpec*(): Spec[Raw] =
         ["-U"],
         true,
         "NAME",
-        "only the packages that use package NAME (one of those counted by U in their U/B)",
+        ~"only the packages that use package NAME (one of those counted by U in their U/B)",
         completion = completesFrom(completePackages),
         body = (p.filter.uses = some(value); fine),
       ),
@@ -72,7 +72,7 @@ func packagesSpec*(): Spec[Raw] =
         ["-B"],
         true,
         "NAME",
-        "only the packages that package NAME uses (one of those counted by B in their U/B)",
+        ~"only the packages that package NAME uses (one of those counted by B in their U/B)",
         completion = completesFrom(completePackages),
         body = (p.filter.usedBy = some(value); fine),
       ),
@@ -81,7 +81,7 @@ func packagesSpec*(): Spec[Raw] =
         ["-T"],
         true,
         "TABLE",
-        "only the packages that own TABLE or may read it (`-U`, `-B` and `-T` go together, each narrowing the list further)",
+        ~"only the packages that own TABLE or may read it (`-U`, `-B` and `-T` go together, each narrowing the list further)",
         completion = completesFrom(completeTables),
         body = (p.filter.table = some(value); fine),
       ),
@@ -89,26 +89,26 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["--points"],
         points,
-        "the extension points: who defines each, and who contributes to it, in the order the contributions are used",
+        ~"the extension points: who defines each, and who contributes to it, in the order the contributions are used",
       ),
       flag(
         Raw,
         ["--graph"],
         graph,
-        "the tree of what package NAME depends on, breadth first: what it uses itself, then what those add, and so on",
+        ~"the tree of what package NAME depends on, breadth first: what it uses itself, then what those add, and so on",
       ),
       flag(
         Raw,
         ["--reverse"],
         reverse,
-        "(with `--graph NAME`) the tree of what depends on NAME instead",
+        ~"(with `--graph NAME`) the tree of what depends on NAME instead",
         level = 1,
       ),
       helpFlag(Raw),
     ],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
       if p.name.len > 0:
-        return refuse("only one package can be asked about")
+        return refuse(~"only one package can be asked about")
       p.name = arg
       fine,
   )
@@ -116,18 +116,18 @@ func packagesSpec*(): Spec[Raw] =
 func finish(raw: Raw): Parsed[Params] =
   let chosen = [raw.points, raw.graph]
   if chosen.countIt(it) > 1:
-    return problemWith[Params]("choose one of `--points` and `--graph`")
+    return problemWith[Params](~"choose one of `--points` and `--graph`")
   if raw.name.len > 0 and raw.points:
-    return problemWith[Params]("a package name goes with nothing but `--graph`")
+    return problemWith[Params](~"a package name goes with nothing but `--graph`")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
-    return problemWith[Params]("`--reverse` goes with `--graph` and a package name")
+    return problemWith[Params](~"`--reverse` goes with `--graph` and a package name")
   if raw.graph and raw.name.len == 0:
-    return problemWith[Params]("`--graph` draws the tree of a package: give its name")
+    return problemWith[Params](~"`--graph` draws the tree of a package: give its name")
   let filtered =
     raw.filter.uses.isSome or raw.filter.usedBy.isSome or raw.filter.table.isSome
   if filtered and (chosen.anyIt(it) or raw.name.len > 0):
     return problemWith[Params](
-      "`-U`, `-B` and `-T` narrow the list of packages: they go with no package name and no other view"
+      ~"`-U`, `-B` and `-T` narrow the list of packages: they go with no package name and no other view"
     )
   if raw.points:
     parsedOk(Params(view: vPoints))
@@ -159,11 +159,9 @@ const
        nch packages NAME
        nch packages --points
        nch packages NAME --graph [--reverse]"""
-  intro =
-    """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
-package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it
-provides: commands, the extension points it defines, and those it contributes to.  With the name of a package, its documentation
-and everything else about it."""
+  intro = @[
+    ~"The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it provides: commands, the extension points it defines, and those it contributes to.  With the name of a package, its documentation and everything else about it."
+  ]
 
 proc usageText*(width: int): seq[Line] =
   usageOf(synopsis, width, intro, packagesSpec().docs)
@@ -189,7 +187,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch packages", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch packages", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

@@ -17,14 +17,9 @@ import ../ui/units
 
 const
   synopsis = "usage: nch [--db PATH] [--user NAME] import [-q] [--slow] [-j N] PATH..."
-  intro =
-    """Put the activities in FIT files into the database.  Each PATH is a file, or a directory that is searched
-(recursively, following symbolic links) for *.fit files.  A file whose path, size and modification time are as when it was last looked at is
-skipped without being read (this includes files that could not be imported); a file that cannot be imported is
-reported and the others carry on.  What happened is written to the log (see `nch log --help`).  The new activities
-are then named, from the places they went through (the names are downloaded the first time they are needed).  The
-activities added become your selection, ready for `nch climbs` or `nch map` (if nothing was added the selection is
-left as it was)."""
+  intro = @[
+    ~"Put the activities in FIT files into the database.  Each PATH is a file, or a directory that is searched (recursively, following symbolic links) for *.fit files.  A file whose path, size and modification time are as when it was last looked at is skipped without being read (this includes files that could not be imported); a file that cannot be imported is reported and the others carry on.  What happened is written to the log (see `nch log --help`).  The new activities are then named, from the places they went through (the names are downloaded the first time they are needed).  The activities added become your selection, ready for `nch climbs` or `nch map` (if nothing was added the selection is left as it was)."
+  ]
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch import`, described (for tab completion).
@@ -208,7 +203,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch import", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch import", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

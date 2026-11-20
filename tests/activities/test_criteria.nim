@@ -484,7 +484,7 @@ suite "list: criteria that other packages offer":
     doc: OptDoc(
       names: @["--odd", "-o"],
       metavar: "WORD...",
-      help: "an offered option",
+      help: ~"an offered option",
       arity: aList,
     ),
     resolve: pick,
@@ -543,7 +543,7 @@ suite "list: the usage":
     let extra = OptDoc(
       names: @["--extra"],
       metavar: "WORDS...",
-      help: "something offered by another package",
+      help: ~"something offered by another package",
       arity: aList,
     )
     check "--extra WORDS..." in optionLines(criteriaSpec().docs & extra, 100).plainText

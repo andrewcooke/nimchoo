@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ./cache
 import ../../core/[globals, ruled]
 import ../util/args/[args, usage]
-import ../ui/[live, markup, style, units]
+import ../ui/[live, style, units]
 import ../../core/logfile
 import ../confirm/confirm
 import ./[files, params]
@@ -22,9 +22,9 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 const
   synopsis = """usage: nch cache
        nch cache --delete KIND..."""
-  intro =
-    """Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made
-again when it is needed (so deleting it needs no `-f`, and nothing in the database changes)."""
+  intro = @[
+    ~"Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made again when it is needed (so deleting it needs no `-f`, and nothing in the database changes)."
+  ]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.
@@ -43,7 +43,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch cache", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch cache", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

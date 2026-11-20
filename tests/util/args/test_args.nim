@@ -3,7 +3,7 @@ import nimchoo/packages/util/args/args
 
 func `==`(p: Problem, said: string): bool =
   ## (the tests say what a problem is, in words; no problem is "")
-  p.get("") == said
+  (if p.isSome: p.get.plainText else: "") == said
 
 type P = object
   verbose: bool
@@ -14,14 +14,16 @@ type P = object
 
 let spec = Spec[P](
   opts: @[
-    flag(P, ["-v", "--verbose"], verbose, "more"),
-    text(P, ["--name"], name, "NAME", "the name"),
-    whole(P, ["-n", "--count"], n, 1, 10, "a number of times, 1 to 10", "N", "how many"),
-    number(P, ["--x"], x, 0.0, 1.0, "a fraction", "X", "a fraction"),
+    flag(P, ["-v", "--verbose"], verbose, ~"more"),
+    text(P, ["--name"], name, "NAME", ~"the name"),
+    whole(
+      P, ["-n", "--count"], n, 1, 10, "a number of times, 1 to 10", "N", ~"how many"
+    ),
+    number(P, ["--x"], x, 0.0, 1.0, "a fraction", "X", ~"a fraction"),
   ],
   positional: proc(p: var P, arg: string): Problem {.nimcall, raises: [].} =
     if arg == "bad":
-      return refuse("no 'bad' please")
+      return refuse(~"no 'bad' please")
     p.extra.add arg
     fine,
 )
@@ -60,13 +62,13 @@ suite "cli args: one parser for the commands":
     check parseOptions(@["-"], spec, p) == ""
     check p.extra == @["-"]
   test "without positional arguments they are unexpected, with the hint if there is one":
-    let bare = Spec[P](opts: @[flag(P, ["-v"], verbose, "more")])
+    let bare = Spec[P](opts: @[flag(P, ["-v"], verbose, ~"more")])
     var p = P()
     check parseOptions(@["x"], bare, p) == "unexpected argument x"
     let hinted = Spec[P](
       opts: bare.opts,
-      hint: proc(arg: string): string {.nimcall, raises: [].} =
-        " (try `--name " & arg & "`)",
+      hint: proc(arg: string): Line {.nimcall, raises: [].} =
+        ~" (try `--name {arg}`)",
     )
     check parseOptions(@["x"], hinted, p) == "unexpected argument x (try `--name x`)"
   test "no arguments is fine":
@@ -102,13 +104,13 @@ suite "cli args: --name=value, leading options, options with many values":
               p: var P, name: string, values: seq[string]
           ): Problem {.nimcall, raises: [].} =
             if values.len == 0:
-              return refuse("`" & name & "` needs at least one name")
+              return refuse(~"`{name}` needs at least one name")
             p.extra.add values
             fine,
           "NAME...",
-          "names",
+          ~"names",
         ),
-        flag(P, ["-v"], verbose, "more"),
+        flag(P, ["-v"], verbose, ~"more"),
       ]
     )
     var p = P()
@@ -135,11 +137,12 @@ suite "cli args: what a command line comes to":
     help: bool
     n: int
 
-  let qspec =
-    Spec[Q](opts: @[whole(Q, ["-n"], n, 1, 9, "a digit", "N", "a number"), helpFlag(Q)])
+  let qspec = Spec[Q](
+    opts: @[whole(Q, ["-n"], n, 1, 9, "a digit", "N", ~"a number"), helpFlag(Q)]
+  )
   func finishQ(raw: Q): Parsed[int] =
     if raw.n == 5:
-      return problemWith[int]("five is too many")
+      return problemWith[int](~"five is too many")
     parsedOk(raw.n)
 
   test "valid parameters, a request for help, or a problem":
@@ -153,9 +156,9 @@ suite "cli args: what a command line comes to":
     check combination.problem == "five is too many"
 
   test "an option has a level, and is allowed in an address if it says so":
-    let o = flag(Q, ["--deep"], help, "nested", level = 1, address = adFlag)
+    let o = flag(Q, ["--deep"], help, ~"nested", level = 1, address = adFlag)
     check o.level == 1 and o.address == adFlag and o.doc.level == 1
-    check flag(Q, ["--plain"], help, "no address").address == adNo
+    check flag(Q, ["--plain"], help, ~"no address").address == adNo
 
 suite "cli args: an option whose value may be left out":
   type O = object
@@ -169,10 +172,10 @@ suite "cli args: an option whose value may be left out":
         O,
         ["--shell"],
         "SHELL",
-        "which shell",
+        ~"which shell",
         body = (p.shell = (if value.len == 0: "bash" else: value); fine),
       ),
-      flag(O, ["-v"], verbose, "talk"),
+      flag(O, ["-v"], verbose, ~"talk"),
       helpFlag(O),
     ]
   )

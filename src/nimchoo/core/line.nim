@@ -246,6 +246,9 @@ func wrapped*(line: Line, width: int): seq[Line] =
         current.add Span(text: " ", styles: between)
         current.add word
         length += 1 + n
+      elif n == 0:
+        discard
+          # (the second space after a full stop, at the end of a full line: no line starts with a space)
       else:
         result.add current.stripped
         current = word

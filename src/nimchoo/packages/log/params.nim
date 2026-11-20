@@ -31,8 +31,7 @@ proc takeLogName(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
   elif arg in p.known:
     p.filter.commands.add arg
   else:
-    return
-      refuse("'" & arg & "' is neither a command nor an event (" & names(p.known) & ")")
+    return refuse(~"'{arg}' is neither a command nor an event ({names(p.known)})")
   fine
 
 func logSpec*(): Spec[Raw] =
@@ -44,7 +43,7 @@ func logSpec*(): Spec[Raw] =
         ["--last"],
         false,
         "",
-        "only the latest run of the commands (or of any command): from its \"run\" line to the end",
+        ~"only the latest run of the commands (or of any command): from its \"run\" line to the end",
         body = (p.filter.last = true; fine),
       ),
       custom(
@@ -52,12 +51,12 @@ func logSpec*(): Spec[Raw] =
         ["-n"],
         true,
         "N",
-        "only the last N lines",
+        ~"only the last N lines",
         body = (
           block:
             var n = 0
             if not parseIntIn(value, 1, high(int), n):
-              return refuse("`-n` needs a number of lines, 1 or more")
+              return refuse(~"`-n` needs a number of lines, 1 or more")
             p.filter.count = n
             fine
         ),

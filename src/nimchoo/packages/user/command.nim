@@ -33,10 +33,10 @@ const
        nch users --add NAME [--fthr BPM] [--default]
        nch users --edit NAME [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
        nch users --delete NAME -f"""
-  intro =
-    """Without options, show the users.  One user is always the default: the first, until another is made so.  (The users
-are named after the command, not by `--user` before it.)"""
-  notes = "Names have 1 to 32 letters, digits and _ . - (not starting with -)."
+  intro = @[
+    ~"Without options, show the users.  One user is always the default: the first, until another is made so.  (The users are named after the command, not by `--user` before it.)"
+  ]
+  notes = @[~"Names have 1 to 32 letters, digits and _ . - (not starting with -)."]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
@@ -90,7 +90,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch users", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch users", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

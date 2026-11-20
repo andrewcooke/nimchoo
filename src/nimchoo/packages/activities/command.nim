@@ -35,18 +35,13 @@ const
        nch [--db PATH] [--user NAME] activities --all [--select]
        nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f"""
   # (the prose is wrapped to the window by `prose`: its line breaks are the source's only)
-  intro =
-    """Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are
-told otherwise.  With criteria (or `--all`) all the activities are searched instead, those that meet the criteria
-(combined with "and") are shown, and with `--select` they become the selection (replacing the last one)."""
-  notes =
-    """"latest" is the newest activity among those that meet the criteria that do not use
-"latest": so `--sports cycling --distance latest~10%` is cycling rides within 10% of
-the length of your latest cycling ride.  (`--latest`, the flag, is `--newest 1`.)
-
-"previous" is the one activity that was selected before (`nch activities` shows it): select it
-with `--select`, then `--sports previous --distance previous~10%` finds rides like it.  It is an
-error unless exactly one activity is selected."""
+  intro = @[
+    ~"Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are told otherwise.  With criteria (or `--all`) all the activities are searched instead, those that meet the criteria (combined with \"and\") are shown, and with `--select` they become the selection (replacing the last one)."
+  ]
+  notes = @[
+    ~"\"latest\" is the newest activity among those that meet the criteria that do not use \"latest\": so `--sports cycling --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride.  (`--latest`, the flag, is `--newest 1`.)",
+    ~"\"previous\" is the one activity that was selected before (`nch activities` shows it): select it with `--select`, then `--sports previous --distance previous~10%` finds rides like it.  It is an error unless exactly one activity is selected.",
+  ]
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch activities`, described (for tab completion).

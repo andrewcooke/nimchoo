@@ -41,20 +41,13 @@ const
        nch climbs --edit NAME --unretire
        nch climbs --retired
        nch climbs --duplicates"""
-  intro =
-    """Show the climbs selection (with criteria, or `--all`, the climbs they find among all of them; `--select` keeps those as the
-selection, which `nch map climbs` and `nch calendar climbs` show too; an import selects the climbs of what it imported),
-each the standard way (name, category by the height gained, length, gain, gradient), then how you did on it: your best
-time and when, your best time on the selected rides (see `nch activities --select`; in the selection's colour) and when,
-where that one ranks among your own attempts, and how many times you rode it; "manual" marks a name given by hand.  All
-your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the
-top, stops included.
-
-The climbs are found in the rides, once: an import works out those of every activity that has not been looked at (about
-a minute for two thousand rides), and keeps them; this command works out any that are still lacking.  A ride that goes
-over part of a climb but not all of it makes a climb of its own."""
-  notes =
-    "The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are \"yours\".)"
+  intro = @[
+    ~"Show the climbs selection (with criteria, or `--all`, the climbs they find among all of them; `--select` keeps those as the selection, which `nch map climbs` and `nch calendar climbs` show too; an import selects the climbs of what it imported), each the standard way (name, category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time on the selected rides (see `nch activities --select`; in the selection's colour) and when, where that one ranks among your own attempts, and how many times you rode it; \"manual\" marks a name given by hand.  All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the top, stops included.",
+    ~"The climbs are found in the rides, once: an import works out those of every activity that has not been looked at (about a minute for two thousand rides), and keeps them; this command works out any that are still lacking.  A ride that goes over part of a climb but not all of it makes a climb of its own.",
+  ]
+  notes = @[
+    ~"The climbs are shared by all users.  (`--user` says whose selection is used, and whose attempts are \"yours\".)"
+  ]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
@@ -128,7 +121,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch climbs", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch climbs", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

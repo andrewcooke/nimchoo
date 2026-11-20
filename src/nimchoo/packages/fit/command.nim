@@ -20,7 +20,7 @@ import ../util/warnings/warnings
 
 const
   synopsis = "usage: nch fit [--csv] [--profile PATH] FILE"
-  intro = "Read a FIT file and print its messages."
+  intro = @[~"Read a FIT file and print its messages."]
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch fit`, described (for tab completion).
@@ -111,7 +111,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let (csv, file) = (parsed.params.csv, parsed.params.file)

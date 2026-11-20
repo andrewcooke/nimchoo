@@ -21,14 +21,14 @@ func fitSpec*(): Spec[Raw] =
   Spec[Raw](
     opts: @[
       flag(
-        Raw, ["--csv"], csv, "SDK-format CSV (including definitions) instead of text"
+        Raw, ["--csv"], csv, ~"SDK-format CSV (including definitions) instead of text"
       ),
       text(
         Raw,
         ["--profile"],
         profile,
         "PATH",
-        "use this Profile.xlsx instead of the built-in one",
+        ~"use this Profile.xlsx instead of the built-in one",
         completion = Completion(kind: ckFile),
       ),
       helpFlag(Raw),
@@ -40,7 +40,7 @@ func fitSpec*(): Spec[Raw] =
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.files.len != 1:
-    return problemWith[Params]("expected exactly one FILE")
+    return problemWith[Params](~"expected exactly one FILE")
   parsedOk(
     Params(
       file: raw.files[0],

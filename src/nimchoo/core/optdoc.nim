@@ -2,7 +2,7 @@
 ## declaration (`CommandDecl.options`) can carry the descriptions of its options and `nch __complete` can read them from the
 ## registry; the parser that makes them (`util/args`) re-exports these types.
 
-import ./[errors, globals]
+import ./[errors, globals, line]
 
 {.push raises: [].}
 
@@ -40,7 +40,8 @@ type
     names*: seq[string] ## "-n", "--newest"
     metavar*: string
       ## the value, as the usage shows it: "N", "TEXT...", "LAT,LON" ("" for a flag)
-    help*: string ## prose, wrapped by the usage; a "\n" starts a new paragraph of it
+    help*: Line
+      ## prose (`~"..."`), wrapped by the usage by words, each keeping its style
     arity*: Arity
     completion*: Completion
     level*: int

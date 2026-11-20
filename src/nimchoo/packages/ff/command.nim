@@ -37,17 +37,12 @@ const
     """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--after DAY] [--before DAY]
                                       [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]
                                       [--fitness-scale S] [--fatigue-scale S]"""
-  intro =
-    """Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (Ctrl-C stops it).  With
-`--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of
-the two curves, each with the share of the earlier days on which it was higher ("top 1%" means the value is nearly the
-highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at
-the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities
-(see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start from 0 at the first
-activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."""
-  notes =
-    """The file is made again each time, from the data as they are then; its name is made from the options
-(`ff-default-hourly.csv`), so charts with different options do not overwrite each other."""
+  intro = @[
+    ~"Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (Ctrl-C stops it).  With `--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of the two curves, each with the share of the earlier days on which it was higher (\"top 1%\" means the value is nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start from 0 at the first activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."
+  ]
+  notes = @[
+    ~"The file is made again each time, from the data as they are then; its name is made from the options (`ff-default-hourly.csv`), so charts with different options do not overwrite each other."
+  ]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the notes and the options, wrapped to `width`.
@@ -225,7 +220,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch ff", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch ff", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   var p = parsed.params

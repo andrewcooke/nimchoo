@@ -31,14 +31,19 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     in them); `core/line.plainText` puts backticks round `code` spans (drawing without colour, the log); `theme.render`
     keeps a warning or failure one colour, with backticks.  The drawer (`theme.Drawer.draw`, `Globals.inTheme`) **still
     reads backticks in plain strings at run time**: that is what makes a backtick in a value (a name, a path) markup (A1).
-    * **Stage 2, the sweep**, one package per commit, `nimble fmt` and `nimble test` before each, behaviour unchanged:
+    * **Stage 2a, the shared types** (done; the order changed because help texts and parse problems are shared by every
+      package and cannot go one package at a time): `OptDoc.help`, `Problem`/`refuse`, `Parsed.why`, `Spec.hint`, and the
+      `intro` and `notes` of `usageOf` (a list of paragraphs) are `Line`s, written `~"..."`; the usage wraps them by words
+      (`line.wrapped`) as `ruled` wraps a cell.  `util/args` re-exports `markup`, so `~` is there for every `params.nim`.  Every
+      option's help, every `refuse(...)` and `problemWith(...)` and the introductions and notes are converted.  `Parsed.problem`
+      (text, for tests) is still there; commands pass `parsed.why`.  (`--before`'s help lost its line break: one paragraph.)
+    * **Stage 2b, the sweep**, one package per commit, `nimble fmt` and `nimble test` before each, behaviour unchanged:
       every text a person reads is built with `~"..."` and written as a `Line`.  `g.say(o, fmt"...`x`...")` becomes
-      `g.show(o, ~"...")`; give `g.warn`, `failure` and `usageError` (`core/globals.nim`) a `Line` version and use it;
-      table cells and `span(...)` texts with backticks become `~"..."` pieces.  **Help texts too**: `OptDoc.help`
-      (`core/optdoc.nim`), each option's help in the specs (`util/args`), and the intros and notes of every usage become
-      `Line`s; the usage wraps them as `ruled` wraps a cell (by words, each keeping its style), not as `core/wrap.wrap`
-      wraps a string.  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write `(~"x").text`; `~"..."` is
-      an ordinary literal (`fmt"..."` is raw), so a backslash is doubled; one line per `~` (no `\n`).
+      `g.show(o, ~"...")`; `failure`, `usageError` and `warn` take a `Line` (done, `core/globals.nim`: the string versions call
+      them, and go when no caller is left); table cells and `span(...)` texts with backticks become `~"..."` pieces.  Done:
+      `cache`, `log` (and the shared types above).  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write
+      `(~"x").text`; `~"..."` is an ordinary literal (`fmt"..."` is raw), so a backslash is doubled; one line per `~` (no `\n`);
+      inside a template `~"{x}"` cannot see the template's parameters (a `func` outside builds the `Line`: `webopts.nim`).
     * **Stage 3**: the drawer stops reading backticks (drop `typing` and `inTyped` from `Drawer`, and the backtick reading
       in `inTheme`): plain text is drawn as it is.  Guard tests: a value with a backtick, shown with `~"...{name}..."`,
       is drawn with its backtick in colour; and `tests/core/test_backticks.nim` (which reads the source's literals) also

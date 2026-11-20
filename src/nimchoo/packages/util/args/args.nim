@@ -14,13 +14,14 @@
 ## what a page may be given is made from the same options, so it cannot differ from what the command parses.  Pure.
 
 import std/[math, options, strutils]
-import ../../../core/optdoc
-export optdoc
+import ../../../core/[line, optdoc]
+import ../../ui/markup
+export optdoc, line, markup
 
 {.push raises: [].}
 
 type
-  Problem* = Option[string]
+  Problem* = Option[Line]
     ## what is wrong with an option or a command line; none if nothing
 
   Validator* = proc(value: string): bool {.noSideEffect, nimcall, raises: [].}
@@ -46,7 +47,7 @@ type
     of pkHelp:
       discard
     of pkProblem:
-      why*: string ## what is wrong, as a sentence
+      why*: Line ## what is wrong, as a sentence (`~"..."`)
 
   Apply*[P] = proc(p: var P, name, value: string): Problem {.nimcall, raises: [].}
     ## Take an option (`name` is the way it was spelt); `value` is "" for a flag.
@@ -66,7 +67,7 @@ type
     takesList*: bool ## then `applyList` is used, not `apply`
     applyList*: ApplyList[P]
     metavar*: string
-    help*: string
+    help*: Line
     completion*: Completion
     level*: int
     address*: Address
@@ -77,21 +78,21 @@ type
   Spec*[P] = object
     opts*: seq[Opt[P]]
     positional*: Positional[P] ## nil: only options are allowed
-    hint*: proc(arg: string): string {.nimcall, raises: [].}
+    hint*: proc(arg: string): Line {.nimcall, raises: [].}
       ## nil, or extra words for "unexpected argument X" (like " (to add a model: --add X)")
 
-const fine* = none(string) ## nothing is wrong
+const fine* = none(Line) ## nothing is wrong
 
-func refuse*(why: string): Problem =
+func refuse*(why: Line): Problem =
   ## Something is wrong: say what, in a sentence that does not name the option.
   some(why)
 
-func problemWith*[T](why: string): Parsed[T] =
+func problemWith*[T](why: Line): Parsed[T] =
   Parsed[T](kind: pkProblem, why: why)
 
 func problem*[T](p: Parsed[T]): string =
-  ## What is wrong with the command line, "" if nothing is (for a message, or a test).
-  if p.kind == pkProblem: p.why else: ""
+  ## What is wrong with the command line as text, "" if nothing is (for a test; a message says `why`).
+  if p.kind == pkProblem: p.why.plainText else: ""
 
 func help*[T](p: Parsed[T]): bool =
   ## Whether help was asked for.
@@ -160,10 +161,10 @@ proc walk[P](
         else:
           inc i
           if i >= args.len:
-            return refuse("`" & name & "` needs a value")
+            return refuse(~"`{name}` needs a value")
           v = args[i]
       elif eq > 0:
-        return refuse("`" & name & "` does not take a value")
+        return refuse(~"`{name}` does not take a value")
       let why = o.apply(p, name, v)
       if why.isSome:
         return why
@@ -171,23 +172,21 @@ proc walk[P](
       # the options every command has are given before its name: say so, as that is the likely mistake
       if name == "--user":
         return refuse(
-          "unexpected option `" & a &
-            "` (it goes before the command: `nch --user NAME COMMAND ...`)"
+          ~"unexpected option `{a}` (it goes before the command: `nch --user NAME COMMAND ...`)"
         )
       if name == "--db":
         return refuse(
-          "unexpected option `" & a &
-            "` (it goes before the command: `nch --db PATH COMMAND ...`)"
+          ~"unexpected option `{a}` (it goes before the command: `nch --db PATH COMMAND ...`)"
         )
-      return refuse("unexpected option `" & a & "`")
+      return refuse(~"unexpected option `{a}`")
     elif spec.positional != nil:
       let why = spec.positional(p, a)
       if why.isSome:
         return why
     else:
       return refuse(
-        "unexpected argument " & a & (if spec.hint != nil: spec.hint(a)
-        else: "")
+        ~"unexpected argument {a}" & (if spec.hint != nil: spec.hint(a)
+        else: @[])
       )
     inc i
 
@@ -232,7 +231,8 @@ func docs*[P](spec: Spec[P]): seq[OptDoc] =
 func listOption*[P](
     nameList: openArray[string],
     apply: ApplyList[P],
-    metavar, help: string,
+    metavar: string,
+    help: Line,
     level = 0,
     completion = Completion(),
     valid: Validator = nil,
@@ -251,7 +251,7 @@ func listOption*[P](
 
 func valueIs*(name, what, value: string): Problem =
   ## "--fthr is a whole number of beats per minute, 80 to 230 (not 'x')"
-  refuse("`" & name & "` is " & what & " (not '" & value & "')")
+  refuse(~"`{name}` is {what} (not '{value}')")
 
 func parseFloatIn*(v: string, lo, hi: float, x: var float): bool =
   ## A number from `lo` up to `hi` (both included), not NaN or infinite.
@@ -271,7 +271,8 @@ func parseIntIn*(v: string, lo, hi: int, n: var int): bool =
 
 func described*[P](
     o: Opt[P],
-    metavar, help: string,
+    metavar: string,
+    help: Line,
     level: int = 0,
     completion: Completion = Completion(),
     address: Address = adNo,
@@ -297,7 +298,7 @@ template flag*(
     P: typedesc,
     nameList: openArray[string],
     field: untyped,
-    help: string,
+    help: Line,
     level: int = 0,
     address: Address = adNo,
 ): Opt[P] =
@@ -322,7 +323,8 @@ template text*(
     P: typedesc,
     nameList: openArray[string],
     field: untyped,
-    metavar, help: string,
+    metavar: string,
+    help: Line,
     level: int = 0,
     completion: Completion = Completion(),
     address: Address = adNo,
@@ -350,7 +352,8 @@ template number*(
     nameList: openArray[string],
     field: untyped,
     lo, hi: float,
-    what, metavar, help: string,
+    what, metavar: string,
+    help: Line,
     level: int = 0,
     address: Address = adNo,
     valid: Validator = nil,
@@ -380,7 +383,8 @@ template whole*(
     nameList: openArray[string],
     field: untyped,
     lo, hi: int,
-    what, metavar, help: string,
+    what, metavar: string,
+    help: Line,
     level: int = 0,
     address: Address = adNo,
     valid: Validator = nil,
@@ -409,7 +413,8 @@ template custom*(
     P: typedesc,
     nameList: openArray[string],
     takes: bool,
-    metavar, help: string,
+    metavar: string,
+    help: Line,
     level: int = 0,
     completion: Completion = Completion(),
     address: Address = adNo,
@@ -438,7 +443,8 @@ template custom*(
 template optionalValue*(
     P: typedesc,
     nameList: openArray[string],
-    metavar, help: string,
+    metavar: string,
+    help: Line,
     level: int = 0,
     completion: Completion = Completion(),
     body: untyped,
@@ -465,7 +471,7 @@ template optionalValue*(
 
 template helpFlag*(B: typedesc): Opt[B] =
   ## `-h, --help`, for a builder `B` that has a `help` field.
-  flag(B, ["-h", "--help"], help, "show this help")
+  flag(B, ["-h", "--help"], help, ~"show this help")
 
 proc parseCommand*[B, T](
     args: seq[string],

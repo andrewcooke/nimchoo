@@ -25,10 +25,9 @@ const
   synopsis = """usage: nch [--db PATH] models
        nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]
                              [--zones A,B,C,D,E] [--fitness-days D] [--fatigue-days D]"""
-  intro =
-    """Without options, show the models.  A model is a named set of the variables of the training impulse and of the
-fitness and fatigue curves made from it.  A model is never changed once it is made: add another.  Variables not given
-are those of the `default` model."""
+  intro = @[
+    ~"Without options, show the models.  A model is a named set of the variables of the training impulse and of the fitness and fatigue curves made from it.  A model is never changed once it is made: add another.  Variables not given are those of the `default` model."
+  ]
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
@@ -66,7 +65,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch models", usageText(helpWidth(stderr)), parsed.problem)
+    return usageError(g, "nch models", usageText(helpWidth(stderr)), parsed.why)
   of pkOk:
     discard
   let p = parsed.params

@@ -35,7 +35,7 @@ func validModelName*(s: string): bool =
   true
 
 template variable(
-    nameList: openArray[string], field: untyped, metavar, help: string
+    nameList: openArray[string], field: untyped, metavar: string, help: Line
 ): Opt[Raw] =
   ## A variable of the model: a number, given with `--add`.
   custom(
@@ -57,7 +57,7 @@ template variable(
   )
 
 const zonesWhat =
-  "`--zones` is five percentages of the threshold heart rate, like 68,83,94,105,121"
+  ~"`--zones` is five percentages of the threshold heart rate, like 68,83,94,105,121"
 
 func modelSpec*(): Spec[Raw] =
   ## The options of `nch models`.
@@ -68,14 +68,13 @@ func modelSpec*(): Spec[Raw] =
         ["--add"],
         true,
         "NAME",
-        "make a model called NAME",
+        ~"make a model called NAME",
         body = (
           block:
             p.add = true
             if not validModelName(value):
               return refuse(
-                "'" & value & "' is not a name for a model (1 to " & $maxNameLength &
-                  " letters, digits, _ . -, not starting with - and without --)"
+                ~"'{value}' is not a name for a model (1 to {maxNameLength} letters, digits, _ . -, not starting with - and without --)"
               )
             p.model.name = value
             fine
@@ -85,18 +84,18 @@ func modelSpec*(): Spec[Raw] =
         ["--gamma"],
         gamma,
         "G",
-        "the power in impulse = ((zone - ZERO) / (ONE - ZERO)) ^ G  (default 2)",
+        ~"the power in impulse = ((zone - ZERO) / (ONE - ZERO)) ^ G  (default 2)",
       ),
-      variable(["--zero"], zero, "Z", "the zone with no impulse (default 1)"),
+      variable(["--zero"], zero, "Z", ~"the zone with no impulse (default 1)"),
       variable(
-        ["--one"], one, "O", "the zone with an impulse of 1 per 10 seconds (default 6)"
+        ["--one"], one, "O", ~"the zone with an impulse of 1 per 10 seconds (default 6)"
       ),
       custom(
         Raw,
         ["--max-secs"],
         true,
         "S",
-        "the longest gap in heart rate that is bridged, in seconds (default 60)",
+        ~"the longest gap in heart rate that is bridged, in seconds (default 60)",
         level = 1,
         body = (
           block:
@@ -115,7 +114,7 @@ func modelSpec*(): Spec[Raw] =
         ["--zones"],
         true,
         "A,B,C,D,E",
-        "the upper limits of zones 1 to 5, as percentages of the user's threshold heart rate (default 68,83,94,105,121)",
+        ~"the upper limits of zones 1 to 5, as percentages of the user's threshold heart rate (default 68,83,94,105,121)",
         level = 1,
         body = (
           block:
@@ -135,28 +134,28 @@ func modelSpec*(): Spec[Raw] =
         ["--fitness-days"],
         fitnessDays,
         "D",
-        "the decay time of the fitness curve (default 42)",
+        ~"the decay time of the fitness curve (default 42)",
       ),
       variable(
         ["--fatigue-days"],
         fatigueDays,
         "D",
-        "the decay time of the fatigue curve (default 7)",
+        ~"the decay time of the fatigue curve (default 7)",
       ),
       helpFlag(Raw),
     ],
-    hint: proc(arg: string): string {.nimcall, raises: [].} =
-      " (to add a model: `--add " & arg & "`)",
+    hint: proc(arg: string): Line {.nimcall, raises: [].} =
+      ~" (to add a model: `--add {arg}`)",
   )
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.varsGiven and not raw.add:
-    return problemWith[Params]("the variables can be given only with `--add NAME`")
+    return problemWith[Params](~"the variables can be given only with `--add NAME`")
   if not raw.add:
     return parsedOk(Params(action: maList))
   let why = problem(raw.model)
   if why.len > 0:
-    return problemWith[Params](why)
+    return problemWith[Params](plain(why))
   parsedOk(Params(action: maAdd, model: raw.model))
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =

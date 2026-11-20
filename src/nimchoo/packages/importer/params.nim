@@ -19,12 +19,12 @@ func importSpec*(): Spec[Raw] =
   ## The options of `nch import`.
   Spec[Raw](
     opts: @[
-      flag(Raw, ["-q", "--quiet"], quiet, "report only failures and the summary"),
+      flag(Raw, ["-q", "--quiet"], quiet, ~"report only failures and the summary"),
       flag(
         Raw,
         ["--slow"],
         slow,
-        "read and check every file, even those unchanged since last time (finds files that were moved or copied; retries failures)",
+        ~"read and check every file, even those unchanged since last time (finds files that were moved or copied; retries failures)",
       ),
       whole(
         Raw,
@@ -34,7 +34,7 @@ func importSpec*(): Spec[Raw] =
         256,
         "a number of threads, 1 to 256",
         "N",
-        "use N threads to read and decode the files (the database is written by one thread, in the order of the files, so the result is the same); 1: no threads.  Default: the number of processors, but not more than 8",
+        ~"use N threads to read and decode the files (the database is written by one thread, in the order of the files, so the result is the same); 1: no threads.  Default: the number of processors, but not more than 8",
       ),
       helpFlag(Raw),
     ],
@@ -45,7 +45,7 @@ func importSpec*(): Spec[Raw] =
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.paths.len == 0:
-    return problemWith[Params]("nch import needs at least one path")
+    return problemWith[Params](~"nch import needs at least one path")
   parsedOk(Params(paths: raw.paths, quiet: raw.quiet, slow: raw.slow, jobs: raw.jobs))
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
