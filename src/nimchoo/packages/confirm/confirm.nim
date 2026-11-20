@@ -60,9 +60,13 @@ proc countdown*(
     wait 1000
   l.finish()
 
-proc sayDeleted*(g: Globals, text: string) =
+proc sayDeleted*(g: Globals, what: Line) =
   ## The line that says what was deleted ("done: deleted ..."), what was deleted in `bad`, so that it stands out.
-  g.done(@[span(text, "bad")])
+  g.done(within(what, styleName"bad"))
+
+proc sayDeleted*(g: Globals, text: string) =
+  ## As above, from text.
+  sayDeleted(g, plain(text))
 
 proc sleepMs*(ms: int) {.raises: [].} =
   ## Wait for `ms` milliseconds.
