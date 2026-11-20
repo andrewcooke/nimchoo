@@ -2,7 +2,7 @@
 ## that sums them up.
 
 import std/strformat
-import ../../core/[errors, extension]
+import ../../core/[errors, extension, globals]
 import ../calendar/frames
 import ../db/statement
 import ../fit/time
@@ -26,8 +26,9 @@ proc makeCalendar(st: Session): CalendarData {.raises: [StoreError].} =
     result.marks.add UnixTime(t)
   let attempts = if result.marks.len == 1: "attempt" else: "attempts"
   let noun = if climbs.len == 1: "climb" else: "climbs"
-  result.summary =
-    plain(fmt"done: {result.marks.len} {attempts} on the {climbs.len} selected {noun}")
+  result.summary = doneLine(
+    plain(fmt"{result.marks.len} {attempts} on the {climbs.len} selected {noun}")
+  )
 
 proc contribution*(): Contribution =
   ## The frame of the climbs, offered to the calendar.

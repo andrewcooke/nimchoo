@@ -87,12 +87,9 @@ proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
   let n = skippedMonths(marks, zone)
   if n > 0:
     let months = if n == 1: "month" else: "months"
-    result.add @[
-      span(
-        fmt"warning: {n} {months} with nothing marked omitted; use `--verbose` to show them",
-        "warn",
-      )
-    ]
+    result.add warnLine(
+      fmt"{n} {months} with nothing marked omitted; use `--verbose` to show them"
+    )
 
 proc lines*(
     st: Session,

@@ -178,7 +178,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     else:
       worked = ensureClimbs(st)
     if worked.activities > 0:
-      g.say osErr, doneLine(worked) & "\n"
+      g.done(plain(workedText(worked)))
       g.log.log(
         lvInfo,
         commandName,
@@ -243,15 +243,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # (the last line, as the activities': the count in the selection's style when the climbs listed are the selection)
     let total = countLive(st)
     let isSelection = list.kind == lkSelection or list.select
-    g.show(
-      osOut,
+    g.done(
       @[
-        span("done: "),
         countSpan(ids.len, isSelection, not paint.colour),
         span(
           " of " & insertSep($total, ',') & (if total == 1: " climb" else: " climbs")
         ),
-      ],
+      ]
     )
     exitOk
   except StoreError, DownloadError:

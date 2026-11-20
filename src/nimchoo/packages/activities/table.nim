@@ -16,6 +16,7 @@ import ../geo/position
 import ../importer/describe
 import ../ui/interval
 import ../ui/style
+import ../../core/globals
 import ../../core/ruled
 import ../ui/units
 import ../ui/vocabulary
@@ -176,6 +177,4 @@ func footerLine*(
   ## with no criteria, or just saved with `--select`; with `marks`, in brackets), so that nothing more need be said.
   let text = footer(rows, choices)
   let count = insertSep($rows.len, ',')
-  @[
-    span("done: "), countSpan(rows.len, isSelection, marks), span(text[count.len .. ^1])
-  ]
+  doneLine(@[countSpan(rows.len, isSelection, marks), span(text[count.len .. ^1])])

@@ -118,6 +118,31 @@ proc usageError*(
   g.showAll(osErr, usage)
   exitUsage
 
+func noteLine*(text: string): Line =
+  ## A note ("note: ..."): something worth knowing that is not a problem; plain, on one line.
+  plain("note: " & oneLine(text))
+
+func warnLine*(text: string): Line =
+  ## A warning ("warning: ..."): something advisory, the work done all the same; all in `warn`, on one line.
+  @[span("warning: " & oneLine(text), "warn")]
+
+func doneLine*(what: Line): Line =
+  ## The line that says what was done ("done: 11 of 1,113 activities"): plain, with what it counts in the style that says
+  ## what it is (`select`, `good`, `bad`).
+  @[span("done: ")] & what
+
+proc note*(g: Globals, text: string) =
+  ## Say a note on stderr (`noteLine`), wrapped to the width.
+  g.tell(osErr, noteLine(text))
+
+proc warn*(g: Globals, text: string) =
+  ## Say a warning on stderr (`warnLine`), wrapped to the width.
+  g.tell(osErr, warnLine(text))
+
+proc done*(g: Globals, what: Line) =
+  ## Say what was done on stdout (`doneLine`), wrapped to the width.
+  g.tell(osOut, doneLine(what))
+
 proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
   ## Report that the work failed: one message, on one line (wrapped to the width), all in `bad`.
   g.tell(osErr, @[span(oneLine(command & ": " & problem), "bad")])

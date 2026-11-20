@@ -12,6 +12,7 @@ import std/[os, strutils]
 import ../ui/live
 import ../ui/style
 import ../ui/vocabulary
+import ../../core/globals
 import ./sinks
 import ./events
 
@@ -86,7 +87,7 @@ proc liveSink*(
       l.keep(renderImport(sum, sum.done, ""))
       stdoutWrite readLine(sum) & "\n"
       for note in ev.summary.notes:
-        stderrWrite "note: " & note & "\n"
+        stderrWrite noteLine(note).text & "\n"
       let hint = moreHint(sum, logged)
       if hint.len > 0:
         stderrWrite hint & "\n"

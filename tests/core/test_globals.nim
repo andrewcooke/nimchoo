@@ -1,5 +1,5 @@
 import std/[os, sequtils, strutils, unittest]
-import nimchoo/core/[globals, theme]
+import nimchoo/core/[globals, line, theme]
 
 suite "globals: what is said, in the theme":
   test "without colour, or with a default that changes nothing, the text is as it is":
@@ -66,3 +66,28 @@ suite "globals: messages on one line":
     check oneLine("Permission denied\nAdditional info: /x/\n") ==
       "Permission denied; Additional info: /x/"
     check oneLine("one line") == "one line"
+
+suite "globals: notes, warnings and what was done":
+  test "each has its prefix and its style, on one line":
+    check noteLine("a\nb").text == "note: a; b" and noteLine("x")[0].styles.len == 0
+    check warnLine("x").text == "warning: x" and $warnLine("x")[0].styles[0] == "warn"
+    check doneLine(@[span("3", "select"), span(" of 5")]).text == "done: 3 of 5"
+
+  test "no other code writes the prefixes by hand: they come from noteLine, warnLine and doneLine":
+    var found: seq[string]
+    let top = currentSourcePath().parentDir.parentDir.parentDir / "src"
+    for path in walkDirRec(top):
+      if not path.endsWith(".nim") or path.endsWith("core/globals.nim") or
+          path.endsWith("registry.nim"):
+        continue
+      for i, whole in readFile(path).splitLines.toSeq:
+        let l = whole.split("##")[0] # (a comment may quote an example)
+        for prefix in [
+          "\"note: ", "\"warning: ", "\"done: ", "fmt\"note: ", "fmt\"warning: ",
+          "fmt\"done: ",
+        ]:
+          if prefix in l:
+            found.add path.relativePath(top) & ":" & $(i + 1)
+    check found.len == 0
+    if found.len > 0:
+      echo "prefixes written by hand: ", found.join(", ")

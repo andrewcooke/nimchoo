@@ -30,10 +30,10 @@ suite "climbs report: the display while they are worked out":
     check styleOf(lines[1][0]) == "good" and styleOf(lines[1][2]) == "good"
     check lines[1][1].text == " · " and styleOf(lines[1][1]) == "hide"
   test "the line after the display, as the import has one":
-    check doneLine(Worked(activities: 1650, sectors: 138, efforts: 2661)) ==
-      "done: 1,650 activities: 138 new climbs, 2,661 efforts"
-    check doneLine(Worked(activities: 1, sectors: 1, efforts: 1)) ==
-      "done: 1 activity: 1 new climb, 1 effort"
+    check workedText(Worked(activities: 1650, sectors: 138, efforts: 2661)) ==
+      "1,650 activities: 138 new climbs, 2,661 efforts"
+    check workedText(Worked(activities: 1, sectors: 1, efforts: 1)) ==
+      "1 activity: 1 new climb, 1 effort"
 
 suite "climbs report: the lines":
   test "the sectors, with headings: only the climbs, how often ridden, and the mark of a name given by hand":

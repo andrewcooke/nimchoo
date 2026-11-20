@@ -156,7 +156,7 @@ proc main(): int {.raises: [].} =
   let chosen = loadTheme(cacheDir().get(""), head.theme)
   g.theme = chosen.theme
   if chosen.warning.isSome:
-    g.say osErr, fmt"warning: {chosen.warning.get}" & "\n"
+    g.warn chosen.warning.get
   if why.isSome:
     return usageError(g, "nch", usageText(helpWidth(stderr)), why.get)
   if head.help:
@@ -193,7 +193,7 @@ proc main(): int {.raises: [].} =
     if path.isSome:
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
-        g.say osErr, fmt"warning: {g.log.problem} (continuing without a log)" & "\n"
+        g.warn fmt"{g.log.problem} (continuing without a log)"
   g.log.log(lvInfo, name, leRun, fmt"[{nchCommit}] {rest.join("" "")}")
   result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)

@@ -63,8 +63,8 @@ proc countdown*(
   l.finish()
 
 proc sayDeleted*(g: Globals, text: string) =
-  ## The line that says what was deleted ("done: deleted ..."), bad on a terminal, so that it stands out.
-  g.show(osOut, styled"<bad done: {text}>")
+  ## The line that says what was deleted ("done: deleted ..."), what was deleted in `bad`, so that it stands out.
+  g.done(@[span(text, "bad")])
 
 proc sleepMs*(ms: int) {.raises: [].} =
   ## Wait for `ms` milliseconds.

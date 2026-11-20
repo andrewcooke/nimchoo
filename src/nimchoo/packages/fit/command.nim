@@ -131,7 +131,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           let d = defaultProfile()
           if d.note.len > 0:
-            g.say osErr, "note: " & d.note & "\n"
+            g.note d.note
           d.profile
       except NchError as e:
         return failure(g, "nch fit", "cannot use the profile: " & e.msg)
@@ -151,7 +151,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except IOError as e:
     return failure(g, "nch fit", "cannot write the output: " & e.msg)
   for w in warnings:
-    g.say osErr, "warning: offset " & $w.offset & ": " & w.msg & "\n"
+    g.warn "offset " & $w.offset & ": " & w.msg
   if problem.len > 0:
     failure(g, "nch fit", problem)
   else:

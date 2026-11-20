@@ -135,7 +135,3 @@ func workedText*(worked: Worked): string =
     commas(worked.sectors) &
     (if worked.sectors == 1: " new climb, " else: " new climbs, ") &
     commas(worked.efforts) & (if worked.efforts == 1: " effort" else: " efforts")
-
-func doneLine*(worked: Worked): string =
-  ## The line after the display, as the import's: "done: 1,986 activities: 161 new climbs, 3,635 efforts".
-  "done: " & workedText(worked)
