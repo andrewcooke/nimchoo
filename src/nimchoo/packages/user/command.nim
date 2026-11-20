@@ -99,8 +99,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g,
       "nch users",
       usageText(helpWidth(stderr)),
-      "`--user` goes after the command here: nch users `--edit` " & g.user &
-        " ... (the users are named there)",
+      ~"`--user` goes after the command here: nch users `--edit` {g.user} ... (the users are named there)",
     )
   var st: Session
   try:
@@ -120,9 +119,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let what = describe(has, p.delete.name)
       if p.delete.force == fNo:
         return failure(
-          g,
-          "nch users",
-          "would delete " & what & " from " & st.path & "; use `-f` to confirm",
+          g, "nch users", ~"would delete {what} from {st.path}; use `-f` to confirm"
         )
       pause(g.theme, what, p.delete.force)
       deleteUser(st, id)
@@ -132,8 +129,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of uaAdd:
       let n = p.add
       if exists(st, n.name):
-        return
-          failure(g, "nch users", "there is a user called '" & n.name & "' already")
+        return failure(g, "nch users", ~"there is a user called '{n.name}' already")
       var said = "made the user " & n.name
       st.writing(
         proc() {.closure, raises: [StoreError].} =
@@ -154,9 +150,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let id = findUser(st, e.name)
       # everything that can refuse is asked first, and the changes are made together: all or none
       if e.rename.isSome and exists(st, e.rename.get):
-        return failure(
-          g, "nch users", "there is a user called '" & e.rename.get & "' already"
-        )
+        return
+          failure(g, "nch users", ~"there is a user called '{e.rename.get}' already")
       var said: seq[string]
       st.writing(
         proc() {.closure, raises: [StoreError].} =
