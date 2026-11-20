@@ -45,22 +45,22 @@ const
 
 func registryLines(subjects: seq[Subject], all: seq[MapFrame], width: int): seq[Line] =
   ## The subjects and their frames, as a table (from the registry), and what the marks mean.
-  var rows: seq[seq[string]]
+  var rows: seq[seq[Line]]
   var default = ""
   for s in subjects:
     if s.isDefault:
       default = s.name
     for f in framesOf(all, s.name):
-      rows.add @[s.name, f.name & (if f.shown: "*" else: ""), f.summary]
+      rows.add @[
+        plain(s.name), plain(f.name & (if f.shown: "*" else: "")), plain(f.summary)
+      ]
   if rows.len == 0:
     return
   result = tableLines(@["subject", "frame", "what it is"], rows, width)
   result.add plain("")
-  for l in wrap(
-    fmt"* drawn when `--frames` is not given; the subject is {default} when none is given.",
-    width,
-  ):
-    result.add plain(l)
+  result.add (
+    ~"* drawn when `--frames` is not given; the subject is {default} when none is given."
+  ).wrapped(width)
 
 proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.

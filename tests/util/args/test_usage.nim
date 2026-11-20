@@ -5,6 +5,10 @@ import ../../support/styles
 func doc(names: openArray[string], metavar, help: string): OptDoc =
   OptDoc(names: @names, metavar: metavar, help: plain(help))
 
+func tableLines(header: seq[string], rows: seq[seq[string]], width: int): seq[Line] =
+  ## (the tests write cells as text)
+  tableLines(header, rows.mapIt(it.mapIt(plain(it))), width)
+
 proc shownOptionLines(docs: seq[OptDoc], width: int): seq[string] =
   ## The option lines as they are shown without colour.
   optionLines(docs, width).mapIt(it.text)

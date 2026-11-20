@@ -1,6 +1,7 @@
 ## The climbs as a subject (`subject/subjects`): the user's climbs selection, which the views show with `nch map climbs` and
 ## `nch calendar climbs`.
 
+import ../ui/markup
 import ../../core/[errors, extension]
 import ../subject/subjects
 import ../user/session
@@ -13,10 +14,10 @@ proc selected(st: Session): int {.raises: [StoreError].} =
 
 const climbsSubject* = Subject(
   name: "climbs",
-  summary: "the climbs of the climbs selection (see `nch climbs --select`)",
+  summary: ~"the climbs of the climbs selection (see `nch climbs --select`)",
   isDefault: false,
   selected: selected,
-  emptyHint: "see `nch climbs CRITERIA --select`",
+  emptyHint: ~"see `nch climbs CRITERIA --select`",
 )
 
 proc contribution*(): Contribution =

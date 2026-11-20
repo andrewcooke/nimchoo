@@ -32,13 +32,13 @@ func registryLines(
     subjects: seq[Subject], all: seq[CalendarFrame], width: int
 ): seq[Line] =
   ## The subjects that have a calendar, as a table (from the registry), and which is the default.
-  var rows: seq[seq[string]]
+  var rows: seq[seq[Line]]
   var default = ""
   for s in subjects:
     if s.isDefault:
       default = s.name
     for f in framesOf(all, s.name):
-      rows.add @[s.name, f.summary]
+      rows.add @[plain(s.name), plain(f.summary)]
   if rows.len == 0:
     return
   result = tableLines(@["subject", "what is marked"], rows, width)
@@ -93,7 +93,7 @@ proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
   if n > 0:
     let months = counted(n, "month", "months")
     result.add warnLine(
-      fmt"{months} with nothing marked omitted; use `--verbose` to show them"
+      ~"{months} with nothing marked omitted; use `--verbose` to show them"
     )
 
 proc lines*(

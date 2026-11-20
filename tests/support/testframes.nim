@@ -2,6 +2,7 @@
 ## packages above it (the real ones are tested with their providers: tests/activities/test_mapframes.nim and
 ## tests/climbs/test_mapframes.nim).
 
+import nimchoo/core/line
 import std/[options, strutils]
 import nimchoo/core/[errors, extension]
 import nimchoo/packages/bundle/unpack
@@ -73,10 +74,10 @@ proc testExtensions*(): Extensions =
     subjectPoint,
     Subject(
       name: "things",
-      summary: "the things",
+      summary: plain("the things"),
       isDefault: true,
       selected: selectedCount,
-      emptyHint: "select some things",
+      emptyHint: plain("select some things"),
     ),
   )
   result.add contribute(mapFramePoint, frame("alpha", true, makeAlpha))
