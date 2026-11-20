@@ -10,6 +10,7 @@ import ../names/climb
 import ../names/climbpick
 import ../names/countries
 import ../names/open
+import ../ui/units
 import ./[match, ordinal]
 
 {.push raises: [].}
@@ -23,11 +24,18 @@ type Named* = object
     ## having none near
 
 proc ensureSectorNames*(
-    st: Store, names: Names
+    st: Store, names: Names, only = none(int64)
 ): Named {.raises: [StoreError, DownloadError].} =
-  ## Name the sectors that have no name yet (a null name; "" is a sector looked at that has none near).  If the names
-  ## are needed and cannot be had, a DownloadError: the sectors named so far keep their names and the rest stay null.
-  let todo = st.db.query(int64, "select id from sector where name is null order by id")
+  ## Name the sectors that have no name yet (a null name; "" is a sector looked at that has none near): all of them, or
+  ## `only` that one (`--edit NAME --auto`, which touches no other).  If the names are needed and cannot be had, a
+  ## DownloadError: the sectors named so far keep their names and the rest stay null.
+  let todo =
+    if only.isSome:
+      st.db.query(
+        int64, "select id from sector where name is null and id = :id", id = only.get
+      )
+    else:
+      st.db.query(int64, "select id from sector where name is null order by id")
   for id in todo:
     let route = parseLineString(
       st.db.scalar(
@@ -66,27 +74,32 @@ proc nameClimbs*(
     st: Store,
     command: string,
     say: proc(line: string) {.closure, raises: [].},
+    only = none(int64),
 ): Option[Named] {.raises: [StoreError, DownloadError].} =
   ## Name the climbs that have no name yet, as `command` (what the log calls it): the names for the places are opened
   ## (`openNames`: the cache, `--offline`, the downloads told in the log and, through `say`, on the screen) and, if they can
   ## be had, the climbs are named; a warning for climbs that cannot be read goes to `say` and the log, and what was done to
-  ## the log.  None if there is no cache directory to keep the names in.  Used by `nch climbs` and by the import.
+  ## the log.  None if there is no cache directory to keep the names in.  Used by `nch climbs` and by the import, and for
+  ## `only` one climb by `--edit NAME --auto`.
   let names = openNames(g, st, command, say)
   if names.isNone:
     return none(Named)
-  let named = ensureSectorNames(st, names.get)
+  let named = ensureSectorNames(st, names.get, only)
   if named.damaged.len > 0:
     say warnLine(damagedText(named)).text
     g.log.log(lvWarn, command, leAdvisory, damagedText(named))
   if named.left > 0:
+    let climbs = counted(named.left, "climb", "climbs")
+    let them = if named.left == 1: "it" else: "them"
     let text =
-      fmt"{named.left} climbs left unnamed (`--offline`; the next run that may use the network names them)"
+      fmt"{climbs} left unnamed (`--offline`; the next run that may use the network names {them})"
     say warnLine(text).text
   if named.named + named.nothing > 0:
+    let namedClimbs = counted(named.named, "climb", "climbs")
     g.log.log(
       lvInfo,
       command,
       leDone,
-      fmt"named {named.named} climbs ({named.nothing} with no name near)",
+      fmt"named {namedClimbs} ({count(named.nothing)} with no name near)",
     )
   some(named)

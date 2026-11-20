@@ -3,12 +3,11 @@
 ## does); `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
 ## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
-import std/[options, times]
+import std/[options, strformat, times]
 import ../../core/globals
 import ../db/store
 import ../user/session
 import ../../core/errors
-import ../names/open
 import ../../core/logfile
 import ../ui/live
 import ../ui/[style, vocabulary]
@@ -76,33 +75,35 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
     let retiring = e.change.kind == ckRetire
     setRetired(st, id, retiring)
     said =
-      was & (
-        if retiring:
-        " is retired: hidden from the lists (`nch climbs --retired` shows it; `--unretire` brings it back)"
-        else: " is shown again"
-      )
+      if retiring:
+        fmt"{was} is retired: hidden from the lists (`nch climbs --retired` shows it; `--unretire` brings it back)"
+      else:
+        fmt"{was} is shown again"
   of ckAuto:
     setAuto(st, id)
-    said = was & ": the name is forgotten"
-    let names = openNames(
-      g,
-      st,
-      commandName,
-      proc(line: string) {.closure, raises: [].} =
-        g.say osErr, line & "\n"
-      ,
-    )
-    if names.isSome:
-      try:
-        let named = ensureSectorNames(st, names.get)
-        said = was & " is now called " & shownName(st, id)
-        if named.damaged.len > 0:
-          said.add " (" & damagedText(named) & ")"
-      except DownloadError as e:
-        said.add "; " & e.msg & " (the next `nch climbs` makes one)"
+    try:
+      let named = nameClimbs(
+        g,
+        st,
+        commandName,
+        proc(line: string) {.closure, raises: [].} =
+          g.say osErr, line & "\n"
+        ,
+        only = some(id),
+      )
+      # (what it could not do, nameClimbs has said: offline with the places not in the cache, or a damaged line)
+      said =
+        if named.isSome and named.get.named == 1:
+          fmt"{was} is now called {shownName(st, id)}"
+        elif named.isSome and named.get.nothing == 1:
+          fmt"{was}: the name is forgotten; no place is near it (it is shown as {shownName(st, id)})"
+        else:
+          fmt"{was}: the name is forgotten"
+    except DownloadError as e:
+      said = fmt"{was}: the name is forgotten; {e.msg} (the next `nch climbs` names it)"
   of ckRename:
     rename(st, id, e.change.newName)
-    said = was & " is now called " & shownName(st, id)
+    said = fmt"{was} is now called {shownName(st, id)}"
   g.log.log(lvInfo, commandName, leSaved, said)
   g.say osOut, said & "\n"
   exitOk
@@ -111,12 +112,12 @@ proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreErro
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
   if force == fNo:
-    return failure(g, "nch climbs", "would delete " & what & "; use `-f` to confirm")
+    return failure(g, "nch climbs", fmt"would delete {what}; use `-f` to confirm")
   pause(g.theme, what, force)
   clearClimbs(st)
   st.reclaim()
-  g.log.log(lvInfo, commandName, leDeleted, "deleted " & what & " from " & st.path)
-  sayDeleted(g, "deleted " & what)
+  g.log.log(lvInfo, commandName, leDeleted, fmt"deleted {what} from {st.path}")
+  sayDeleted(g, fmt"deleted {what}")
   exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -180,8 +181,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         lvInfo,
         commandName,
         leDone,
-        "worked out " & $worked.activities & " activities: " & $worked.sectors &
-          " new climbs, " & $worked.efforts & " efforts",
+        fmt"worked out {counted(worked.activities, ""activity"", ""activities"")}: {counted(worked.sectors, ""new climb"", ""new climbs"")}, {counted(worked.efforts, ""effort"", ""efforts"")}",
       )
     # names for the climbs that have none yet: from the places near them, fetched the first time
     discard nameClimbs(
@@ -220,7 +220,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           g.warn retiredText(hidden)
       if ids.len == 0:
         let what = if list.select: " (the climbs selection is now empty)" else: ""
-        g.say osOut, "no climb meets the criteria" & what & "\n"
+        g.say osOut, fmt"no climb meets the criteria{what}" & "\n"
         return exitOk
     for l in summaryLines(
       summaries(st, ids),
@@ -237,7 +237,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.done(
       @[
         countSpan(ids.len, isSelection, not g.colour[osOut]),
-        span(" of " & counted(total, "climb", "climbs")),
+        span(fmt" of {counted(total, ""climb"", ""climbs"")}"),
       ]
     )
     exitOk

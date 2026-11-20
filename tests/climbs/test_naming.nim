@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[os, strutils, unittest]
+import std/[options, os, strutils, unittest]
 import ../support/shims
 import nimchoo/packages/climbs/naming
 import nimchoo/packages/user/session
@@ -44,6 +44,16 @@ suite "climbs: naming the sectors":
     let gets = w.net.gets.len
     check ensureSectorNames(w.st, w.names) == Named() # nothing left to look at
     check w.net.gets.len == gets
+
+  test "one sector can be named alone (`--edit NAME --auto`): the others wait":
+    let w = world("only")
+    defer:
+      w.st.close()
+    sectorAt(w.st, [-70.14, -70.135, -70.13, -70.125, -70.12], -32.83)
+    sectorAt(w.st, [-71.0, -71.01], -40.0)
+    check ensureSectorNames(w.st, w.names, only = some(2'i64)) == Named(nothing: 1)
+    check w.st.db.scalar(int, "select count(*) from sector where name is null") == 1
+    check w.st.db.scalar(int, "select id from sector where name is null") == 1
 
   test "without the network it is an error, and the sectors stay unnamed (null) for the next time":
     let top = getTempDir() / "nch-test-climbs-naming" / "offline"
