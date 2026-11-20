@@ -8,18 +8,18 @@
 # A colour can be made from one above: v(NAME, GAMMA) is NAME's colour with its value (V of HSV, 0-1) raised to GAMMA
 # (more than 1 darker, less than 1 lighter): alt-code fg=v(code, 1.2).  Only a #rrggbb colour has a value.
 
-default fg=#e0e0e0              weight=bold    underline=no  italic=no
+default fg=#a0a0a0              weight=bold    underline=no  italic=no
 em      fg=#ffffff
-hide    fg=#808080
-select              bg=#283010
-bad     fg=#e06060
-good    fg=#40a040
-warn    fg=#a08040
-code    fg=#a0a0c0
-file    fg=#a0a0c0              weight=normal
+hide    fg=v(default, 2.5)
+select  fg=#a0c0ff
+bad     fg=#c03030
+good    fg=#209020
+warn    fg=#cc5500
+code    fg=#a080b0
+file    fg=#a080b0              weight=normal
 
 # alt-X: every other row of a table (all but the selection's and the usages') is in the alt version of each style
 # (alt-default for plain text).  One not given here is the style it stands for: alt-code is code.
-alt-default fg=v(default, 3)
+alt-default fg=v(default, 2)
 alt-code    fg=v(code, 3)
-alt-file    fg=v(file, 3)
+alt-select  fg=v(select, 3)

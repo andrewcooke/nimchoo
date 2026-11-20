@@ -14,7 +14,7 @@
 ## HSV from 0 to 1, raised to GAMMA (more than 1 darker, less than 1 lighter; black and white stay as they are).
 ## `alt-code fg=v(code, 1.2)`.  Only a `#rrggbb` colour has a value; it is worked out when the theme is read.
 
-import std/[math, options, strformat, strutils, tables]
+import std/[math, options, sequtils, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
 import ./[errors, line]
 
@@ -347,6 +347,9 @@ const
   lineStyle* = "hide"
     ## the style that the lines of a table or a tree (the box-drawing characters, `│ ─ ┼ └`) are drawn in, wherever they
     ## are
+  messageStyles* = ["warn", "bad"]
+    ## the styles of warnings and failures: what is in them is drawn all in them, backticks and all (no `typedStyle`
+    ## inside), so that a message is one colour
   typedStyle* = "code"
     ## the style of what is between backticks, wherever it is: literal text, a command, an option, a name in the program (in
     ## colour the backticks are left out: the style marks it; without colour they are the mark)
@@ -364,19 +367,20 @@ type Drawer* = object
   inForce: string ## the codes of the look being drawn
   inTyped: bool ## between backticks
 
-func draw*(d: var Drawer, theme: Theme, look: Look, text: string) =
-  ## Draw `text` in `look`.
+func draw*(d: var Drawer, theme: Theme, look: Look, text: string, typing = true) =
+  ## Draw `text` in `look`; without `typing`, what is between backticks is drawn as it is, backticks and all (a message:
+  ## `messageStyles`).
   let plain = terminalCodes(look)
   let lines = terminalCodes(look.over(theme.styles.getOrDefault(lineStyle)))
   let typed = terminalCodes(look.over(theme.styles.getOrDefault(typedStyle)))
   for r in text.runes:
     var want = plain
-    if r == Rune('`'):
+    if r == Rune('`') and typing:
       d.inTyped = not d.inTyped
       continue # (in colour the style marks it: the backtick is not drawn)
     if r.isLineDrawing:
       want = lines
-    elif d.inTyped:
+    elif d.inTyped and typing:
       want = typed
     if want != d.inForce:
       if d.inForce.len > 0:
@@ -416,6 +420,10 @@ func render*(line: Line, paint: Paint): string =
     return line.text.replace(noBreak, " ")
   var d: Drawer
   for s in line:
-    d.draw(paint.theme, lookOf(paint.theme, s.styles), s.text.replace(noBreak, " "))
+    # (a warning or a failure is one colour: no code inside)
+    let typing = not s.styles.anyIt(($it).replace(altPrefix, "") in messageStyles)
+    d.draw(
+      paint.theme, lookOf(paint.theme, s.styles), s.text.replace(noBreak, " "), typing
+    )
   d.endLine()
   d.text
