@@ -10,6 +10,7 @@
 
 import std/[options, os, strformat, strutils]
 import ./core/[complete, globals, manifest]
+import ./packages/ui/markup
 import ./packages/util/atomic/atomic
 
 {.push raises: [].}
@@ -159,8 +160,7 @@ proc installMain*(g: Globals, s: Shell): int {.raises: [].} =
   let problem = install(s, path)
   if problem.isSome:
     return failure(g, "nch", problem.get)
-  g.say osOut,
-    fmt"wrote {path}: new {s} shells complete nch (this one: source {path})" & "\n"
+  g.show(osOut, ~"wrote {path}: new {s} shells complete nch (this one: source {path})")
   exitOk
 
 proc showMain*(s: Shell): int {.raises: [].} =

@@ -204,12 +204,12 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
       return failure(
         g,
         "nch packages",
-        fmt"no package is called '{asked}': did you mean {close.join("" or "")}?",
+        ~"no package is called '{asked}': did you mean {close.join(\" or \")}?",
       )
     return failure(
       g,
       "nch packages",
-      fmt"no package is called '{asked}' (they are: {inv.packages.mapIt(it.name).sorted.join("" "")})",
+      ~"no package is called '{asked}' (they are: {inv.packages.mapIt(it.name).sorted.join(\" \")})",
     )
   case p.view
   of vList:
@@ -223,7 +223,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
           else:
             ""
         return failure(
-          g, "nch packages", fmt"{option}: no package is called '{name.get}'{hint}"
+          g, "nch packages", ~"{option}: no package is called '{name.get}'{hint}"
         )
     if f.table.isSome and inv.tables.allIt(it.name != f.table.get):
       let close = closeNames(f.table.get, inv.tables.mapIt(it.name))
@@ -233,7 +233,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           ""
       return
-        failure(g, "nch packages", fmt"`-T`: no table is called '{f.table.get}'{hint}")
+        failure(g, "nch packages", ~"`-T`: no table is called '{f.table.get}'{hint}")
     if inv.packages.allIt(not inv.keeps(f, it)):
       g.say osOut, "no package is kept by those filters\n"
     else:

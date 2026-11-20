@@ -186,15 +186,14 @@ proc main(): int {.raises: [].} =
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
-    return
-      usageError(g, "nch", usageText(helpWidth(stderr)), fmt"unknown command {name}")
+    return usageError(g, "nch", usageText(helpWidth(stderr)), ~"unknown command {name}")
   g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
       if g.log.problem.len > 0:
-        g.warn fmt"{g.log.problem} (continuing without a log)"
+        g.warn ~"{g.log.problem} (continuing without a log)"
   g.log.log(lvInfo, name, leRun, fmt"[{nchCommit}] {rest.join("" "")}")
   result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)
