@@ -194,13 +194,13 @@ func namedList(items: seq[string], style: StyleName, between = ", "): Line =
       result.add span(it[name.len .. ^1])
 
 func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
-  ## One line for each package, the lowest layer first and, in a layer, the most used first: how many packages it uses and
-  ## is used by (`U/B`, explained under the table), and what it is for, then what it provides (commands, in `code`; the extension points it defines; those it contributes to).  Only those
+  ## One line for each package, those that use fewest first and, of those, the most used first (the more fundamental
+  ## first): how many packages it uses and is used by (`U/B`, explained under the table), and what it is for, then what it provides (commands, in `code`; the extension points it defines; those it contributes to).  Only those
   ## the filter keeps.  As styled lines.
   var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
     proc(a, b: PackageInfo): int =
-      result = cmp(a.layer, b.layer)
+      result = cmp(a.depends.len, b.depends.len)
       if result == 0:
         result = cmp(b.dependents.len, a.dependents.len)
       if result == 0:
@@ -234,11 +234,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
     rows.add @[pkg(p.name), plain(fmt"{p.depends.len}/{p.dependents.len}"), what]
   result = ruled(@["package", "U/B", "what it is for"], rows, width, right = {1})
   result.add plain("")
-  for l in wrap(
-    "U/B: how many packages the package uses / is used by.  Lowest layer first (`nch packages NAME` says which), the " &
-      "most used first in a layer.",
-    width,
-  ):
+  for l in wrap("U/B: how many packages the package uses / is used by.", width):
     result.add plain(l)
 
 func docLine(inv: Inventory, text: string, strong: var bool): Line =
