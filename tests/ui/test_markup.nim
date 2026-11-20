@@ -1,6 +1,6 @@
 import std/[sequtils, strutils, unittest]
 import nimchoo/core/errors
-import nimchoo/core/theme
+import nimchoo/core/[line, theme]
 import nimchoo/packages/ui/[markup, style]
 
 proc problem(text: string): string =
@@ -71,30 +71,49 @@ suite "ui markup: drawing":
 
   test "each span starts its look and ends with a reset; without colour, only the text":
     let red = parseTheme("red fg=red")
-    check styled(Paint(theme: red, colour: true), "a <red b>\n<red c> d") ==
+    let lines = parseMarkup("a <red b>\n<red c> d")
+    check lines.mapIt(render(it, Paint(theme: red, colour: true))) ==
       @["a \e[31mb\e[0m", "\e[31mc\e[0m d"]
-    check styled(Paint(theme: red, colour: false), "a <red b>\n<red c> d") ==
-      @["a b", "c d"]
+    check lines.mapIt(render(it, Paint(theme: red, colour: false))) == @["a b", "c d"]
 
-suite "ui markup: styled, read when compiled":
+suite "ui markup: ~, read when compiled":
   test "the markup is read, and the values are put in as fmt puts them":
     let n = 3
-    let l = styled"<good imported> {n} files <hide ({1.25:.2f}s)>"
+    let l = ~"<good imported> {n} files <hide ({1.25:.2f}s)>"
     check l.text == "imported 3 files (1.25s)"
     check l.mapIt($it.styles) == @["@[good]", "@[]", "@[hide]"]
 
   test "a value is plain text, whatever it holds":
-    let name = "<bad> x \\<y"
-    let l = styled"<em {name}>"
+    let name = "<bad> x \\<y `z"
+    let l = ~"<em {name}>"
     check l.len == 1 and l[0].text == name and l[0].styles == @[anyStyle("em")]
+    check not l[0].isCode
+
+  test "backticks are literal text: exactly <code ...>, with backticks again in the plain text":
+    let a = ~"use `nch climbs --retired` to see it"
+    let b = ~"use <code nch climbs --retired> to see it"
+    check a == b
+    check a[1].isCode and a[1].text == "nch climbs --retired"
+    check a.text == "use nch climbs --retired to see it"
+    check a.plainText == "use `nch climbs --retired` to see it"
+    check (~"a \\` b").text == "a ` b" # (a backslash before it: a backtick)
+
+  test "in colour, literal text is in its style without backticks; in a warning, one colour with them":
+    let t = parseTheme("code fg=blue\nwarn fg=yellow")
+    let colour = Paint(theme: t, colour: true)
+    check render(~"x `y`", colour) == "x \e[34my\e[0m"
+    check render(~"<warn x `y`>", colour) == "\e[33mx `y`\e[0m"
+    check render(~"<warn x `y`>", Paint(theme: t, colour: false)) == "x `y`"
 
   test "braces are doubled, as in fmt; a line with nothing is empty":
-    check styled"{{x}}".text == "{x}"
-    check styled"".len == 0
+    check (~"{{x}}").text == "{x}"
+    check (~"").len == 0
 
   test "markup that cannot be read, or a style the built-in theme lacks, does not compile":
-    check compiles(styled"<good x>")
-    check not compiles(styled"<goood x>")
-    check not compiles(styled"<good x")
-    check not compiles(styled"x {y")
-    check not compiles(styled"x }")
+    check compiles(~"<good x>")
+    check not compiles(~"<goood x>")
+    check not compiles(~"<good x")
+    check not compiles(~"x {y")
+    check not compiles(~"x }")
+    check not compiles(~"x `y")
+    check not compiles(~"<em x `y> z`")

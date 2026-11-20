@@ -77,8 +77,10 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   model (TODO.md), which would also give those 139 rides climbs.
 * **A1, backticks** (**decided** 2026-11-20, then refined): all output is built with one macro, `~"..."` (an ordinary
   string literal: escapes work), which reads `<style ...>` markup and `` `x` ``, exactly `<code x>`, when the program is
-  compiled; values in `{}` are spans of their own, drawn as they are (no markup is read in them).  Without colour a `code`
-  span is drawn with backticks round it, however it was written.  The drawer no longer reads backticks at run time.  Used
+  compiled; no markup is read in a value in `{}`.  Without colour (and in the log) a `code` span is drawn with backticks
+  round it, however it was written (`plainText`); a table or usage laid out by `width` is then two columns out per piece
+  of literal text, which was decided not to matter (laying out for the mode is the alternative, if it comes to).  Stage 1
+  (the macro, `styled` replaced) **done** 2026-11-20; next the sweep, then the drawer stops reading backticks.  The drawer no longer reads backticks at run time.  Used
   everywhere, help texts included, with a test that refuses output built any other way.  (`f""` and `t""` were
   rejected: `f` and `t` are common names here; `<...>` as quotes is not possible in Nim.)
 * **D3, `landmarks --radius`, became units in input** (**decided** 2026-11-20): every distance and duration carries its

@@ -348,11 +348,8 @@ const
     ## the style that the lines of a table or a tree (the box-drawing characters, `│ ─ ┼ └`) are drawn in, wherever they
     ## are
   messageStyles* = ["warn", "bad"]
-    ## the styles of warnings and failures: what is in them is drawn all in them, backticks and all (no `typedStyle`
+    ## the styles of warnings and failures: what is in them is drawn all in them, backticks and all (no `codeStyle`
     ## inside), so that a message is one colour
-  typedStyle* = "code"
-    ## the style of what is between backticks, wherever it is: literal text, a command, an option, a name in the program (in
-    ## colour the backticks are left out: the style marks it; without colour they are the mark)
 
 func isLineDrawing*(r: Rune): bool =
   ## Whether `r` is a box-drawing character (U+2500 to U+257F).
@@ -361,7 +358,7 @@ func isLineDrawing*(r: Rune): bool =
 type Drawer* = object
   ## Text drawn for a terminal, piece by piece, each piece in a look of its own, with the two rules that hold wherever text
   ## is drawn (`Globals.inTheme`, `style.render`): the lines of a table in `lineStyle`, and what is between backticks in
-  ## `typedStyle`, over the piece's own look.  A look is started where it begins and reset where it ends.  What is between
+  ## `codeStyle`, over the piece's own look.  A look is started where it begins and reset where it ends.  What is between
   ## backticks runs on from one piece to the next and over the end of a line (a phrase can be wrapped).
   text*: string ## what is drawn so far
   inForce: string ## the codes of the look being drawn
@@ -372,7 +369,7 @@ func draw*(d: var Drawer, theme: Theme, look: Look, text: string, typing = true)
   ## `messageStyles`).
   let plain = terminalCodes(look)
   let lines = terminalCodes(look.over(theme.styles.getOrDefault(lineStyle)))
-  let typed = terminalCodes(look.over(theme.styles.getOrDefault(typedStyle)))
+  let typed = terminalCodes(look.over(theme.styles.getOrDefault(codeStyle)))
   for r in text.runes:
     var want = plain
     if r == Rune('`') and typing:
@@ -417,13 +414,25 @@ func render*(line: Line, paint: Paint): string =
   ## The lines of a table or a tree in a span (`│ ─ ├`), and what is between backticks, are in their styles over the span's
   ## own (`Drawer`).  A space that is not to be broken (`line.noBreak`) is drawn as a space.
   if not paint.colour:
-    return line.text.replace(noBreak, " ")
+    return line.plainText.replace(noBreak, " ")
   var d: Drawer
   for s in line:
-    # (a warning or a failure is one colour: no code inside)
-    let typing = not s.styles.anyIt(($it).replace(altPrefix, "") in messageStyles)
-    d.draw(
-      paint.theme, lookOf(paint.theme, s.styles), s.text.replace(noBreak, " "), typing
-    )
+    # (a warning or a failure is one colour: literal text in it keeps its backticks, not its style)
+    let message = s.styles.anyIt(($it).replace(altPrefix, "") in messageStyles)
+    if message and s.isCode:
+      let own = s.styles.filterIt(($it).replace(altPrefix, "") != codeStyle)
+      d.draw(
+        paint.theme,
+        lookOf(paint.theme, own),
+        ('`' & s.text & '`').replace(noBreak, " "),
+        typing = false,
+      )
+    else:
+      d.draw(
+        paint.theme,
+        lookOf(paint.theme, s.styles),
+        s.text.replace(noBreak, " "),
+        typing = not message,
+      )
   d.endLine()
   d.text

@@ -1,8 +1,9 @@
-## Styled text written as markup: `<good imported> 3 files <hide (1.2s)>`.  A `<` opens a style, named by the word after it
-## and ended by one space; the matching `>` closes it.  (Angle brackets, as they are rare in the program's text; `[` is in
-## every synopsis.)  Styles nest, and a nested one changes only the attributes
-## it gives (`core/theme.nim`); `<default ...>` goes back to the look of plain text, whatever is around it.  `\<`, `\>` and
-## `\\` are a bracket and a backslash.
+## Styled text written as markup, the way all output is written: `~"<good imported> {n} files <hide ({t:.1f}s)>"`.  A `<`
+## opens a style, named by the word after it and ended by one space; the matching `>` closes it.  (Angle brackets, as they
+## are rare in the program's text; `[` is in every synopsis.)  Text between backticks is literal text: `` `nch climbs` `` is
+## exactly `<code nch climbs>`.  Styles nest, and a nested one changes only the attributes it gives (`core/theme.nim`);
+## `<default ...>` goes back to the look of plain text, whatever is around it.  A backslash before `<`, `>`, a backtick or a
+## backslash is that character.
 ##
 ## A style may run over a newline: the text is read into lines (`style.Line`), and each span carries its styles, so a line
 ## is drawn on its own (it starts from nothing and ends with a reset), and can be cut or printed without the next.
@@ -11,7 +12,7 @@
 ## name is whatever a theme defines, and one the theme lacks changes nothing.
 
 import std/[macros, strformat, strutils]
-import ../../core/[errors, theme]
+import ../../core/[errors, line]
 import ./style
 
 {.push raises: [].}
@@ -19,7 +20,8 @@ import ./style
 func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
   ## The lines of `text`.
   result = @[newSeq[Span]()]
-  var open: seq[tuple[name: string, at: int]]
+  var open: seq[tuple[name: string, at: int, tick: bool]]
+    # (tick: opened by a backtick, which closes it)
   var buffer = ""
   template flush() =
     if buffer.len > 0:
@@ -33,13 +35,21 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
   while i < text.len:
     case text[i]
     of '\\':
-      if i + 1 < text.len and text[i + 1] in {'<', '>', '\\'}:
+      if i + 1 < text.len and text[i + 1] in {'<', '>', '\\', '`'}:
         buffer.add text[i + 1]
         i += 2
       else:
         raiseMarkup(
-          "a backslash goes only before <, > or \\ (write \\\\ for a backslash)", i + 1
+          "a backslash goes only before <, >, ` or \\ (write \\\\ for a backslash)",
+          i + 1,
         )
+    of '`':
+      flush()
+      if open.len > 0 and open[^1].tick:
+        discard open.pop()
+      else:
+        open.add (codeStyle, i + 1, true)
+      inc i
     of '<':
       var j = i + 1
       while j < text.len and text[j] in {'a' .. 'z', '0' .. '9', '-'}:
@@ -54,11 +64,16 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
           fmt"the name of a style is followed by a space: <{name} text>", j + 1
         )
       flush()
-      open.add (name, i + 1)
+      open.add (name, i + 1, false)
       i = j + 1
     of '>':
       if open.len == 0:
         raiseMarkup("this > closes no style (write \\> for a >)", i + 1)
+      if open[^1].tick:
+        raiseMarkup(
+          "a > inside literal text (write \\> for a >, or close the backtick first)",
+          i + 1,
+        )
       flush()
       discard open.pop()
       inc i
@@ -70,13 +85,10 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
       buffer.add text[i]
       inc i
   if open.len > 0:
+    if open[^1].tick:
+      raiseMarkup("a backtick is not closed (write \\` for a backtick)", open[^1].at)
     raiseMarkup(fmt"<{open[^1].name} is not closed", open[^1].at)
   flush()
-
-func styled*(paint: Paint, text: string): seq[string] {.raises: [MarkupError].} =
-  ## The lines of `text`, written as markup, for a terminal.
-  for line in parseMarkup(text):
-    result.add render(line, paint)
 
 const
   holeStart = '\x01' ## (where a value goes, while the markup around it is read)
@@ -111,11 +123,11 @@ func holes(
       result.markup.add c
       inc i
 
-macro styled*(literal: string{lit}): Line =
-  ## A line written as markup, with values as `fmt` puts them (`styled"<good imported> {n} files <hide ({t:.1f}s)>"`).  The
-  ## markup is read when the program is compiled: a bracket not closed, or a style the program does not use (`programStyles`), is a
-  ## compile error.  A value is plain text, whatever it holds (an activity called `<bad>` is not markup).  One line: a
-  ## newline is an error (one `styled` per line).
+macro `~`*(literal: string{lit}): Line =
+  ## A line written as markup, with values as `fmt` puts them (`~"<good imported> {n} files <hide ({t:.1f}s)>"`).  The
+  ## markup is read when the program is compiled: a bracket or a backtick not closed, or a style the program does not use
+  ## (`programStyles`), is a compile error.  A value is text, whatever it holds: no markup is read in it (an activity called
+  ## `<bad>` or with a backtick in its name is not markup).  One line: a newline is an error (one `~` per line).
   let text = literal.strVal
   var lines: seq[Line]
   var exprs: seq[string]
@@ -124,21 +136,21 @@ macro styled*(literal: string{lit}): Line =
     exprs = h.exprs
     lines = parseMarkup(h.markup)
   except MarkupError as e:
-    error("styled: " & e.msg, literal)
+    error("~: " & e.msg, literal)
   if lines.len != 1:
-    error("styled: one line only (a newline is not allowed)", literal)
+    error("~: one line only (a newline is not allowed)", literal)
   let spans = nnkBracket.newTree()
   for sp in lines[0]:
     var names = nnkBracket.newTree()
     for s in sp.styles:
       if $s notin programStyles:
         error(
-          "styled: there is no style '" & $s & "' (the program uses " &
+          "~: there is no style '" & $s & "' (the program uses " &
             programStyles.join(", ") & ")",
           literal,
         )
       names.add newCall(bindSym"anyStyle", newLit($s))
-    # the text: literal pieces and the values, joined
+    # the text: literal pieces and the values (as `fmt` puts them), joined; no markup is read in a value
     var parts: seq[NimNode]
     var piece = ""
     var i = 0

@@ -93,7 +93,5 @@ proc liveSink*(
       if sp != nil:
         endLine(enFailed, ev.message)
       else:
-        maker(theme).keep(
-          @[styled"<bad cannot download {shortUrl(ev.url)}: {ev.message}>"]
-        )
+        maker(theme).keep(@[~"<bad cannot download {shortUrl(ev.url)}: {ev.message}>"])
       downloaded = false

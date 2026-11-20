@@ -490,13 +490,13 @@ exception).  A new command follows them by using the helpers; it does not make i
 * `good`, `bad`, `warn`: what happened (done; failed or deleted; advisory), one table of words and their styles
   (`vocabulary`), so that "failed" is `bad` wherever it appears.
 * `code`: literal text: a command, an option, a name in the program; what is between backticks, wherever it is
-  (drawn without them in colour: `theme.typedStyle`; a test, `test_backticks`, refuses an option outside them).
+  (drawn without them in colour: `line.codeStyle`; a test, `test_backticks`, refuses an option outside them).
 * `file`: the path of a file or a directory.
 
 What each looks like is the theme's (`dark.theme` and `light.theme` here; the author's in the cache's
 `system/themes/`): a style gives only what it changes, `v(NAME, GAMMA)` makes a colour from one above, and every style
 has an alt version, `alt-X`, defined as X unless the theme says otherwise.  Styled text in the code is `span(text,
-"bad")` or markup, `styled"<good imported> {n} files"` (read when compiled; the values plain text).  `tools/look.nim`
+"bad")` or markup, `~"<good imported> {n} files"` (read when compiled; the values plain text).  `tools/look.nim`
 shows a theme.  (The web pages' colours are their own, in their templates.)
 
 **Messages** (`core/globals.nim`).  Three kinds, each one line, wrapped to the window:

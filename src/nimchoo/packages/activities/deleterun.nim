@@ -26,10 +26,7 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ##     activities 340 · files 120
   let (d, f) = (count(done), count(files))
   let t = counted(total, "activity", "activities")
-  @[
-    styled"<em deleting >{d} / {t}",
-    styled"<bad activities {d}><hide  · ><bad files {f}>",
-  ]
+  @[~"<em deleting >{d} / {t}", ~"<bad activities {d}><hide  · ><bad files {f}>"]
 
 proc runDelete*(
     g: Globals,

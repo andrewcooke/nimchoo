@@ -51,7 +51,7 @@ template forceOptionIn*(P: typedesc, group, field: untyped, indent: int = 0): Op
 
 func countdownLine*(what: string, seconds: int): Line =
   ## "deleting WHAT in 5 s ... (Ctrl-C to cancel)", bad, the seconds emphasised.
-  styled"<bad deleting {what} in <em {seconds}> s ... (Ctrl-C to cancel)>"
+  ~"<bad deleting {what} in <em {seconds}> s ... (Ctrl-C to cancel)>"
 
 proc countdown*(
     l: Live, what: string, seconds: int, wait: proc(ms: int) {.closure, raises: [].}

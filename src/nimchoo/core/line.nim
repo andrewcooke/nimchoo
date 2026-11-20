@@ -2,7 +2,7 @@
 ## text).  A style is a name; what it looks like is the theme's to say (`theme.nim`), so the same line is drawn in whatever
 ## theme is in force, and with or without colour (`ui/style.render()`).  Lines, not strings full of escape codes, so that
 ## they can be measured, wrapped, cut to a width and laid out in tables (`ruled.nim`) without splitting a code.  The one kind
-## of styled text: the usages, the views and the messages are all made of it (markup, `ui/markup.styled"..."`, makes it too).
+## of styled text: the usages, the views and the messages are all made of it (markup, `~"..."` of `ui/markup`, makes it too).
 ##
 ## The styles the program uses are one list (`programStyles`), and a name written in the code is checked against it when it
 ## is compiled (`span("failed", "bad")`, `styleName"select"`): a misspelt style is a compile error.  The built-in themes
@@ -20,6 +20,9 @@ const
     ## headings); `hide` the bookkeeping, what was not recorded, the lines of tables; `select` the selection and nothing
     ## else; `good` done; `bad` failed, deleted; `warn` advisory; `code` literal text (a command, an option, a name in
     ## the program: what is between backticks); `file` the path of a file or a directory
+  codeStyle* = "code"
+    ## the style of literal text (`` `nch climbs` `` in `~"..."` is `<code nch climbs>`): in colour the style marks it;
+    ## without colour, and inside a warning or a failure, backticks round it do (`text`, `theme.render`)
   altPrefix* = "alt-"
     ## every other row of a table that asks for it (`alternated`) is in the alt version of each style: `alt-default` for
     ## plain text, `alt-code` for `code` ...; a theme defines each as the style it stands for unless it says otherwise (`theme.parseTheme`)
@@ -91,10 +94,26 @@ func width*(line: Line): int =
   for s in line:
     result += s.text.runeLen
 
+func isCode*(s: Span): bool =
+  ## Whether the span is literal text (`codeStyle`, or its `alt` version).
+  for st in s.styles:
+    if string(st) == codeStyle or string(st) == altPrefix & codeStyle:
+      return true
+
 func text*(line: Line): string =
-  ## The line without any styling.
+  ## The line's text, without any styling (what it measures and holds).
   for s in line:
     result.add s.text
+
+func plainText*(line: Line): string =
+  ## The line as it is drawn without colour, and as it is logged: literal text (`isCode`) between backticks, its mark when
+  ## there is no colour.  (Two columns wider than `text` for each piece of literal text: a table or a usage laid out by
+  ## `width` is that much out of line without colour; decided 2026-11-20 not to matter.)
+  for s in line:
+    if s.isCode:
+      result.add '`' & s.text & '`'
+    else:
+      result.add s.text
 
 func truncated*(line: Line, maxWidth: int): Line =
   ## The line cut to `maxWidth` columns; if it was cut, it ends in an ellipsis.
