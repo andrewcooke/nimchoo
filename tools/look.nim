@@ -30,11 +30,18 @@ const examples = [
 ]
 
 proc sample(t: Theme): seq[string] =
-  ## Made from the styles the theme defines: each alone and inside each of the others, then each in use (in a sentence,
-  ## across a row of a table, over a newline); then lines like those of nch, if the theme has the styles nch uses.
-  let names = toSeq(t.styles.keys)
+  ## Made from the styles the theme defines: each alone with its alt version (every other row of a table), each inside
+  ## each of the others, then each in use (in a sentence, across two rows of a table, the second in the alt versions,
+  ## over a newline); then lines like those of nch, if the theme has the styles nch uses.  (Every style comes with an
+  ## alt-X, made from it when the theme is read: only the styles the theme names are listed, each with its alt-X.)
+  let names = toSeq(t.styles.keys).filterIt(not it.startsWith("alt-"))
   let width = max(names.mapIt(it.len)) + 2
-  result.add "each style alone, then inside each other style:"
+  result.add "each style alone, and its alt version (every other row of a table):"
+  for name in names:
+    let alt = "alt-" & name
+    result.add fmt"  <{name} {name.alignLeft(width)}> <{alt} {alt}>"
+  result.add ""
+  result.add "each style inside each other style:"
   for name in names:
     var line = fmt"  <{name} {name.alignLeft(width)}>"
     for outer in names:
@@ -42,11 +49,12 @@ proc sample(t: Theme): seq[string] =
         line.add fmt" <{outer} <{name} {name}>>"
     result.add line
   result.add ""
-  result.add "each style in a sentence, across a row, and over a newline:"
+  result.add "each style in a sentence, across two rows of a table, and over a newline:"
   for name in names:
     result.add fmt"  some text with <{name} a few words in {name}> in the middle of it"
-    let row = fmt"  737  2026-11-17  a row in {name}".alignLeft(42) & "36.7km"
-    result.add fmt"<{name} {row}>"
+    for (style, n) in [(name, 737), ("alt-" & name, 738)]:
+      let row = fmt"  {n}  2026-11-17 │ a row in {style}".alignLeft(42) & "36.7km"
+      result.add fmt"<{style} {row}>"
     result.add fmt"  <{name} a style that runs" & "\n  over a newline>"
   result.add ""
   # (nch uses the styles of `baseStyles` (and alt-X, which is X unless the theme says), whatever a theme has: those it lacks draw as the text around them)
