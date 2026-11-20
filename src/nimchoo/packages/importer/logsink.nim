@@ -9,12 +9,11 @@
 import ../../core/logfile
 import ./events
 import ./failure
+import ./cmdname
 import ./sinks
 import ../ui/units
 
 {.push raises: [].}
-
-const command = "activities"
 
 type Entry* = object
   level*: Level
@@ -69,4 +68,4 @@ proc logSink*(l: Log): Sink =
   ## Write the entries of each event to `l`.
   result = proc(ev: ImportEvent) {.closure, raises: [].} =
     for e in logEntries(ev):
-      l.log(e.level, command, e.event, e.text)
+      l.log(e.level, commandName, e.event, e.text)
