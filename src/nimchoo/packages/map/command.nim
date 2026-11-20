@@ -131,22 +131,21 @@ func readsSelection(c: Chosen): bool =
   ## Whether some chosen frame is made from the selection (the others need it not to be empty no more than they need anything).
   c.frames.anyIt(it.readsSelection)
 
-proc emptyFailure(g: Globals, s: Subject): int =
-  failure(g, "nch map", fmt"the selection of {s.name} is empty ({s.emptyHint})")
-
-proc checkSelection(g: Globals, c: Chosen): int =
-  ## The selection is not empty, if a chosen frame reads it (before serving, and before making the page).
+proc checkSelection(g: Globals, c: Chosen): Option[int] =
+  ## Whether to stop, and with what status, before serving or making the files: an empty selection (if a chosen frame
+  ## reads it) is said as a warning and stops with success; none: go on.  (A page already served draws what there is.)
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
-    return failure(g, "nch map", e.msg)
+    return some(failure(g, "nch map", e.msg))
   try:
     if readsSelection(c) and c.subject.selected(st) == 0:
-      return emptyFailure(g, c.subject)
-    exitOk
+      g.warn emptyText(c.subject)
+      return some(exitOk)
+    none(int)
   except StoreError as e:
-    failure(g, "nch map", e.msg)
+    some(failure(g, "nch map", e.msg))
   finally:
     st.close()
 
@@ -164,8 +163,6 @@ proc makeFrames(
     var made: seq[FrameData]
     st.beginRead()
     try:
-      if frames.anyIt(it.readsSelection) and c.subject.selected(st) == 0:
-        return (@[], emptyFailure(g, c.subject))
       for f in frames:
         made.add f.make(st)
     finally:
@@ -187,9 +184,6 @@ proc makeFrames(
 
 proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: int] =
   ## Make the page: every frame of the subject, those shown by default ticked (it fetches the data of each frame it shows).
-  let checked = checkSelection(g, c)
-  if checked != exitOk:
-    return ("", checked)
   try:
     let all = framesOf(g.extensions.get(mapFramePoint), c.subject.name)
     var listed: seq[tuple[frame: MapFrame, shown: bool]]
@@ -239,9 +233,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   of wkStop:
     return stopWeb(g, commandName, p.web.stopPort, dir.get)
   of wkServe:
-    let checked = checkSelection(g, c)
-    if checked != exitOk:
-      return checked
+    let stop = checkSelection(g, c)
+    if stop.isSome:
+      return stop.get
     # the address keeps the look (the frames); the data are those of the selection when the page is asked for
     return serveWeb(
       g,
@@ -274,6 +268,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         return made.status
       g.show(osOut, @[span(made.page, "file")])
   of wkFile:
+    let stop = checkSelection(g, c)
+    if stop.isSome:
+      return stop.get
     let made = makeFrames(g, c, c.frames, userDir(dir.get))
     if made.status != 0:
       return made.status

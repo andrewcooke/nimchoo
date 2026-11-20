@@ -4,6 +4,7 @@
 ## statistics).  The package that manages one contributes it; every view reads the registry of them, so that none has to know
 ## the packages above it.  Exactly one subject is the default (the one a view shows when it is not told: activities).
 
+import std/strformat
 import ../../core/[errors, extension]
 import ../user/session
 
@@ -19,6 +20,10 @@ type
     isDefault*: bool ## the subject a view shows when it is not told
     selected*: SelectedCount ## a view says "the selection is empty" when this is 0
     emptyHint*: string ## what to do about it: "see `nch activities --select`"
+
+func emptyText*(s: Subject): string =
+  ## What a view says, as a warning, when the selection it would show is empty: nothing to show is no failure.
+  fmt"the selection of {s.name} is empty ({s.emptyHint})"
 
 const subjectPoint* = ExtensionPoint[Subject](name: "subject/subjects")
   ## The subjects: contributed by the package that manages the selection of each.

@@ -201,13 +201,13 @@ suite "nch map: a real server":
     check client(w2.token).request(w2.base & "/map").code == Http200
     check w2.stop() == 130
 
-  test "nothing to show: it says so in the terminal and does not start":
+  test "nothing to show: it says so in the terminal and does not start, which is no failure":
     if not built():
       skip()
     let f = fixture("empty", selected = false)
     let (w, output) = start(f.db, f.cache)
     check w.url == ""
-    check w.process.waitForExit(10_000) == 1
+    check w.process.waitForExit(10_000) == 0
     check output.contains("the selection of activities is empty")
     w.process.close()
 

@@ -176,10 +176,11 @@ suite "climbs frames: the climbs subject":
       userId = s.userId,
     )
 
-  test "an empty climbs selection is said, and nothing is made":
+  test "an empty climbs selection is said, and nothing is made (no failure)":
     let w = world(dir, "subject-empty")
     withClimb(w.db)
-    check map(w.db, "climbs") == exitFailure
+    check map(w.db, "climbs") == exitOk
+    check not fileExists(frameFile(w.cache, "climbs", "climbs"))
 
   test "the climbs of the selection, their gates, and the routes of the rides up them":
     let w = world(dir, "subject")

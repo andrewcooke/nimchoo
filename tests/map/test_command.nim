@@ -72,12 +72,13 @@ suite "map: the command, with frames of its own":
   test "a frame that fails stops the map with what it said":
     let w = world("broken")
     check run(w.db, "--frames", "alpha", "broken", "--file") == exitFailure
-  test "an empty selection is an error before anything is made (and before serving)":
+  test "an empty selection is said before anything is made (and before serving), and is no failure":
     let w = world("empty", selected = 0)
-    check run(w.db, "--file") == exitFailure
-    check run(w.db, "--worker") == exitFailure
-    check run(w.db) == exitFailure # (serving: refused at once)
+    check run(w.db, "--file") == exitOk
+    check run(w.db) == exitOk # (serving: not started)
     check files(w.cache).len == 0
+    # a page already served is made from the data as they are, empty or not
+    check run(w.db, "--worker") == exitOk
   test "a map is made again from the data as they are, on every request":
     let w = world("live")
     check run(w.db, "--file") == exitOk

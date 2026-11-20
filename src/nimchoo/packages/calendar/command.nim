@@ -107,9 +107,6 @@ proc lines*(
     screen: Screen,
 ): seq[Line] {.raises: [StoreError].} =
   ## The calendar of the subject over the days of the `backgrounds` (`calendar/background`), and its last lines.
-  if c.frame.readsSelection and c.subject.selected(st) == 0:
-    return
-      @[plain(fmt"the selection of {c.subject.name} is empty ({c.subject.emptyHint})")]
   let made = c.frame.make(st)
   var background: seq[UnixTime]
   for b in backgrounds:
@@ -153,6 +150,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         else:
           0,
     )
+    let c = chosen.params
+    if c.frame.readsSelection and c.subject.selected(st) == 0:
+      g.warn emptyText(c.subject)
+      return exitOk
     for l in lines(
       st, chosen.params, g.extensions.get(calendarBackgroundPoint), p, local(), screen
     ):

@@ -120,11 +120,15 @@ suite "nch calendar: what it shows":
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4
     check not all.texts[^1].startsWith("warning")
 
-  test "an empty selection says what to do":
+  test "an empty selection is a warning, not a failure":
     let s = world("empty")
-    defer:
-      s.close()
     s.db.execute("delete from selection")
-    let ls = s.shown()
-    check ls.texts ==
-      @["the selection of activities is empty (see `nch activities --select`)"]
+    s.close()
+    let quiet = Globals(
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+      dbPath: dir / "empty" / "x.db",
+      offline: true,
+    )
+    check calendarCommand.run(quiet, @[]) == exitOk
