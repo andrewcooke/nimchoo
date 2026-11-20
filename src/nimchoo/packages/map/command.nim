@@ -173,9 +173,8 @@ proc makeFrames(
   except StoreError as e:
     result = (@[], failure(g, "nch map", e.msg))
   except IOError, OSError:
-    result = (
-      @[], failure(g, "nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}")
-    )
+    result =
+      (@[], failure(g, "nch map", ~"cannot write to {dir}: {getCurrentExceptionMsg()}"))
   finally:
     st.close()
 
@@ -190,16 +189,15 @@ proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: i
     writeAtomic(path, pageHtml(listed, c.subject.name, "Map"))
     result = (path, exitOk)
   except IOError, OSError:
-    result = (
-      "", failure(g, "nch map", fmt"cannot write to {dir}: {getCurrentExceptionMsg()}")
-    )
+    result =
+      ("", failure(g, "nch map", ~"cannot write to {dir}: {getCurrentExceptionMsg()}"))
   except TemplateError as e:
     result = (
       "",
       failure(
         g,
         "nch map",
-        fmt"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
+        ~"cannot make the page: {e.msg} (the templates are in system/templates/ and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
       ),
     )
 
@@ -221,11 +219,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let c = chosen.params
   let dir = cacheDir()
   if dir.isNone:
-    return failure(g, "nch map", "no place for the cache: set NCH_CACHE or HOME")
+    return failure(g, "nch map", ~"no place for the cache: set NCH_CACHE or HOME")
   try:
     makeCacheDirs(dir.get)
   except IOError, OSError:
-    return failure(g, "nch map", fmt"cannot make {dir.get}: {getCurrentExceptionMsg()}")
+    return failure(g, "nch map", ~"cannot make {dir.get}: {getCurrentExceptionMsg()}")
   case p.web.kind
   of wkStop:
     return stopWeb(g, commandName, p.web.stopPort, dir.get)
@@ -253,7 +251,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           g,
           "nch map",
           usageText(g, helpWidth(stderr)),
-          fmt"'{p.frame.get}' is not a frame of {c.subject.name}",
+          ~"'{p.frame.get}' is not a frame of {c.subject.name}",
         )
       let made = makeFrames(g, c, one, userDir(dir.get))
       if made.status != 0:
