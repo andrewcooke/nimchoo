@@ -152,7 +152,7 @@ func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
 
 func pkg(name: string): Line =
   ## The name of a package, in its style.
-  @[span(name, "pkg")]
+  @[span(name, "code")]
 
 func pkgList(names: seq[string], between = " "): Line =
   ## Names of packages, each in its style; "-" for none.
@@ -161,7 +161,7 @@ func pkgList(names: seq[string], between = " "): Line =
   for k, n in names:
     if k > 0:
       result.add span(between)
-    result.add span(n, "pkg")
+    result.add span(n, "code")
 
 func counted(items: seq[tuple[name: string, priority: int]]): seq[string] =
   ## Each name once, in the order first given, with how many times it is there ("map/frames ×2") and its priorities when
@@ -196,7 +196,7 @@ func namedList(items: seq[string], style: StyleName, between = ", "): Line =
 func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
   ## One line for each package, the lowest layer first and, in a layer, the most used first: its layer, how many packages
   ## it uses and is used by, how many tables it owns (in narrow columns headed by a letter, explained under the table), and
-  ## what it is for, then what it provides (commands, in `cmd`; the extension points it defines; those it contributes to).  Only those
+  ## what it is for, then what it provides (commands, in `code`; the extension points it defines; those it contributes to).  Only those
   ## the filter keeps.  As styled lines.
   var order = inv.packages.filterIt(inv.keeps(filter, it))
   order.sort(
@@ -214,12 +214,12 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
     var what: Line = @[span(p.summary)]
     var defines: seq[Line]
     for c in p.commands:
-      defines.add @[span("nch " & c.name, "cmd")] # (a command is never named alone)
+      defines.add @[span("nch " & c.name, "code")] # (a command is never named alone)
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
       defines.add @[
         span(if points.len == 1: "the extension point " else: "the extension points ")
-      ] & namedList(points, styleName"extn")
+      ] & namedList(points, styleName"code")
     if defines.len > 0:
       what.add span("  Defines ")
       for k, d in defines:
@@ -230,7 +230,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
     if p.contributes.len > 0:
       let adds = counted(p.contributes.mapIt((it.point, it.priority)))
       what.add span("  Contributes to ")
-      what.add namedList(adds, styleName"extn")
+      what.add namedList(adds, styleName"code")
       what.add span(".")
     rows.add @[
       pkg(p.name),
@@ -282,13 +282,13 @@ func docLine(inv: Inventory, text: string, strong: var bool): Line =
       let inside = text[i + 1 ..< close]
       if inv.find(inside) >= 0:
         flush()
-        result.add span(inside, "pkg")
+        result.add span(inside, "code")
       elif inv.points.anyIt(it.name == inside):
         flush()
-        result.add span(inside, "extn")
+        result.add span(inside, "code")
       elif inv.tables.anyIt(it.name == inside):
         flush()
-        result.add span(inside, "table")
+        result.add span(inside, "code")
       else:
         plainText.add text[i .. close]
       i = close + 1
@@ -308,7 +308,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     @[plain(label), value]
   result.add @[
     span("package ", "em"),
-    span(p.name, "pkg"),
+    span(p.name, "code"),
     span("  "),
     span(fmt"layer {p.layer}", "hide"),
   ]
@@ -325,7 +325,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   fields.add field(
     "own tables",
     (if p.tables.len == 0: plain("-")
-    else: namedList(p.tables, styleName"table")),
+    else: namedList(p.tables, styleName"code")),
   )
   var owners: seq[string]
     # (the tables of others it may read, by their owner, in the order of the tables)
@@ -342,9 +342,9 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   for k, o in owners:
     if k > 0:
       reads.add span("; ")
-    reads.add span(o, "pkg")
+    reads.add span(o, "code")
     reads.add span(": ")
-    reads.add namedList(byOwner[k], styleName"table")
+    reads.add namedList(byOwner[k], styleName"code")
   fields.add field(
     "access to external tables", (if reads.len == 0: plain("-") else: reads)
   )
@@ -352,7 +352,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     fields.add field("commands", plain("-"))
   for c in p.commands:
     fields.add field(
-      "command", @[span("nch " & c.name, "cmd"), span(" - " & c.summary)]
+      "command", @[span("nch " & c.name, "code"), span(" - " & c.summary)]
     )
   if p.defines.len == 0:
     fields.add field("defines extension points", plain("-"))
@@ -370,20 +370,20 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
       if k > 0:
         by.add span(", ")
       let n = c.split(noBreak)[0]
-      by.add span(n, "pkg")
+      by.add span(n, "code")
       by.add span(c[n.len .. ^1])
     let what = (if holds.len > 0: fmt"{d.name}[{holds}]" else: d.name)
     var strong = false
     fields.add field(
       "defines extension points",
-      @[span(unbroken(what), "extn"), span(" - ")] & inv.docLine(d.summary, strong) &
+      @[span(unbroken(what), "code"), span(" - ")] & inv.docLine(d.summary, strong) &
         @[span("; contributed to by ")] & (if by.len == 0: plain("nothing")
       else: by),
     )
   let adds = counted(p.contributes.mapIt((it.point, it.priority)))
   fields.add field(
     "contributes to extension points",
-    (if adds.len == 0: plain("-") else: namedList(adds, styleName"extn")),
+    (if adds.len == 0: plain("-") else: namedList(adds, styleName"code")),
   )
   result.add ruled(@["", ""], fields, width, narrow = 20)
 
@@ -406,11 +406,11 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
     for k, n in names:
       if k > 0:
         added.add span(", ")
-      added.add span(n, "pkg")
+      added.add span(n, "code")
       if counts[k] > 1:
         added.add span(fmt" ×{counts[k]}")
     rows.add @[
-      @[span(pt.name, "extn")],
+      @[span(pt.name, "code")],
       pkg(pt.owner),
       (if added.len == 0: plain("-") else: added),
       plain(pt.summary),

@@ -6,7 +6,7 @@
 ##     activities │ a day is marked when ...
 ##
 ## The lines are box-drawing characters, which the theme draws in its `lineStyle` wherever they are (`theme.nim`).  A cell
-## is a styled line (`line.nim`: a command's name in `cmd`), wrapped by words like text.
+## is a styled line (`line.nim`: a command's name in `code`), wrapped by words like text.
 ## Pure: the width to wrap to is given.
 
 import std/[sequtils, strutils, unicode]

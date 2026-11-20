@@ -24,12 +24,12 @@ suite "globals: what is said, in the theme":
     check d.inTheme(osOut, "a│") == "\e[37ma\e[0m\e[90m│\e[0m"
 
   test "what is between backticks is in the typed style, without the backticks; without colour, as it is":
-    var g = Globals(theme: parseTheme("cmd fg=blue"))
+    var g = Globals(theme: parseTheme("code fg=blue"))
     g.colour[osOut] = true
     check g.inTheme(osOut, "see `nch climbs` now") == "see \e[34mnch climbs\e[0m now"
     check g.inTheme(osErr, "see `nch climbs` now") == "see `nch climbs` now"
   test "a phrase between backticks runs on over the end of a line":
-    var g = Globals(theme: parseTheme("cmd fg=blue"))
+    var g = Globals(theme: parseTheme("code fg=blue"))
     g.colour[osOut] = true
     check g.inTheme(osOut, "see `nch\nclimbs` now") ==
       "see \e[34mnch\e[0m\n\e[34mclimbs\e[0m now"

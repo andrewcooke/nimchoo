@@ -61,7 +61,7 @@ suite "lines: merging":
       ]
     )
     check l.len == 2 and l[0].text == "a   │ b" and styleOf(l[0]) == "select"
-    check merged(@[span("a", "pkg"), span(" │ "), span("b", "pkg")]).len == 3
+    check merged(@[span("a", "code"), span(" │ "), span("b", "code")]).len == 3
 
 suite "lines: marks where there is no colour":
   test "a selected line is in brackets; the others have a space where the bracket would be":
@@ -70,10 +70,10 @@ suite "lines: marks where there is no colour":
 
 suite "lines: wrapping":
   test "a cell is wrapped by words as text is, and each word keeps its style":
-    let line = @[span("one two "), span("three", "cmd"), span(" four")]
+    let line = @[span("one two "), span("three", "code"), span(" four")]
     let ls = line.wrapped(9)
     check ls.mapIt(it.text) == @["one two", "three", "four"]
-    check ls[1] == @[span("three", "cmd")]
+    check ls[1] == @[span("three", "code")]
     check plain("a.  b").wrapped(80).mapIt(it.text) ==
       @["a.  b"] # (two spaces after a full stop stay)
     check plain("a\nb").wrapped(80).len == 2 # (a newline starts a line)
@@ -84,8 +84,8 @@ suite "lines: wrapping":
 
 suite "lines: stripping":
   test "the spaces at the end go, a span of nothing but spaces too (as unicode.strip leaves it)":
-    check @[span("a"), span("b ", "cmd"), span("  ")].stripped ==
-      @[span("a"), span("b", "cmd")]
+    check @[span("a"), span("b ", "code"), span("  ")].stripped ==
+      @[span("a"), span("b", "code")]
     check plain("   ").stripped.len == 0
 
   test "a piece kept whole is not broken where it has spaces":

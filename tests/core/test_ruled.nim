@@ -56,10 +56,10 @@ suite "ruled tables":
 suite "ruled tables: cells in styles":
   test "a styled cell in a table: the text is that of the plain table, the style kept":
     let lines =
-      ruled(@["a", "b"], @[@[plain("x"), @[span("go "), span("ff", "cmd")]]], 80)
+      ruled(@["a", "b"], @[@[plain("x"), @[span("go "), span("ff", "code")]]], 80)
     check lines.mapIt(it.text) ==
       @["a │ b", "──┼──────", "x │ go ff"]
-    check span("ff", "cmd") in lines[2]
+    check span("ff", "code") in lines[2]
 
 suite "ruled tables: narrow columns":
   test "with narrow, the other columns wrap too, and a row is as tall as its tallest cell":
@@ -91,9 +91,9 @@ suite "ruled tables: alternate":
   test "with alternate, every other row is in the alt version of its styles, all through":
     let ls = ruled(
       @["", ""],
-      @[@[plain("a"), @[span("one", "cmd")]], @[plain("b"), @[span("two", "cmd")]]],
+      @[@[plain("a"), @[span("one", "code")]], @[plain("b"), @[span("two", "code")]]],
       80,
       alternate = true,
     )
-    check ls[0] == @[span("a │ "), span("one", "cmd")]
-    check ls[1] == @[span("b │ ", "alt-default"), span("two", "alt-cmd")]
+    check ls[0] == @[span("a │ "), span("one", "code")]
+    check ls[1] == @[span("b │ ", "alt-default"), span("two", "alt-code")]

@@ -90,7 +90,7 @@ func commandList*(commands: seq[CommandDecl]): seq[Line] =
   for c in commands:
     result.add @[
       span("  "),
-      span(c.name, "cmd"),
+      span(c.name, "code"),
       span(" ".repeat(max(1, 12 - c.name.len)) & c.summary),
     ]
 

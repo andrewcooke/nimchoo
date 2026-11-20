@@ -12,9 +12,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### A. Cut
 
-2. **Styles for names.**  Five styles for identifiers (`cmd`, `file`, `pkg`, `extn`, `table`, each with alt-X).  Options:
-   (a) keep them; (b) merge `pkg`, `extn` and `table` into one, `name` (the kind shows from the label of its row or column),
-   leaving `cmd`, `file`, `name`.  Recommended: (b), which reverses a recent request.
 3. **The last line of the activities.**  `footerLine` has four modes (`choices`, `saved`, `isSelection`, "N match
    selected" in `select`).  Options: (a) keep; (b) one form everywhere, "done: 11 of 1,113 activities, 1,057.9km,
    2d10h52m", never "match selected" (the rows' colour, or brackets, show it), and what `--select` saved said in a note of

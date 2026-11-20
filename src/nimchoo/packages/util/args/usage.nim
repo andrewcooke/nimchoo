@@ -28,7 +28,7 @@ func label(d: OptDoc): string =
     )
 
 func synopsisLines*(text: string): seq[Line] =
-  ## The synopsis of a usage: "usage:" in `em`, and each command line in `cmd` (the indent before the others is not).
+  ## The synopsis of a usage: "usage:" in `em`, and each command line in `code` (the indent before the others is not).
   for l in text.splitLines:
     var lead = l.len - l.strip(trailing = false).len
     if l.startsWith("usage: "):
@@ -36,9 +36,9 @@ func synopsisLines*(text: string): seq[Line] =
     if l.strip.len == 0:
       result.add plain(l)
     elif l.startsWith("usage: "):
-      result.add @[span("usage:", "em"), span(" "), span(l[lead .. ^1], "cmd")]
+      result.add @[span("usage:", "em"), span(" "), span(l[lead .. ^1], "code")]
     else:
-      result.add @[span(l[0 ..< lead]), span(l[lead .. ^1], "cmd")]
+      result.add @[span(l[0 ..< lead]), span(l[lead .. ^1], "code")]
 
 func proseLines*(text: string, width: int): seq[Line] =
   ## Paragraphs wrapped to `width` (`wrap.prose`), as lines.
@@ -57,7 +57,7 @@ func usageOf*(parts: varargs[seq[Line]]): seq[Line] =
     result.add p
 
 func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
-  ## The lines for the options: two spaces, the names and the value (in `cmd`), the help in a column, wrapped to `width`.
+  ## The lines for the options: two spaces, the names and the value (in `code`), the help in a column, wrapped to `width`.
   var labelWidth = 0
   for d in docs:
     let n = label(d).len
@@ -71,14 +71,14 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
     let lead = span(" ".repeat(indent + l.len - names.len))
     let help = wrap(d.help, helpWidth)
     if l.len > maxLabel or help.len == 0:
-      result.add @[lead, span(names, "cmd")]
+      result.add @[lead, span(names, "code")]
       for h in help:
         result.add plain(" ".repeat(column) & h)
     else:
       for i, h in help:
         if i == 0:
           let first: Line =
-            @[lead, span(names, "cmd"), span(" ".repeat(labelWidth - l.len + gap) & h)]
+            @[lead, span(names, "code"), span(" ".repeat(labelWidth - l.len + gap) & h)]
           result.add first.stripped
         else:
           result.add plain(" ".repeat(column) & h)

@@ -134,12 +134,12 @@ suite "usage: what is typed is in cmd":
   test "the names and the value of an option":
     let ls = optionLines(@[doc(["-n", "--newest"], "N", "only the N newest")], 80)
     check ls[0] ==
-      @[span("  "), span("-n, --newest N", "cmd"), span("  only the N newest")]
+      @[span("  "), span("-n, --newest N", "code"), span("  only the N newest")]
 
   test "each command line of the synopsis, not the indent; usage: in em":
     let ls = synopsisLines("usage: nch a [-v]\n       nch a --all")
-    check ls[0] == @[span("usage:", "em"), span(" "), span("nch a [-v]", "cmd")]
-    check ls[1] == @[span("       "), span("nch a --all", "cmd")]
+    check ls[0] == @[span("usage:", "em"), span(" "), span("nch a [-v]", "code")]
+    check ls[1] == @[span("       "), span("nch a --all", "code")]
     check ls.plainText == "usage: nch a [-v]\n       nch a --all"
 
   test "the parts of a usage have a blank line between them, and an empty part none":

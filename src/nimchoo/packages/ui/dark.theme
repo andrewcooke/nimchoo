@@ -6,7 +6,7 @@
 # A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
 # What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
 # A colour can be made from one above: v(NAME, GAMMA) is NAME's colour with its value (V of HSV, 0-1) raised to GAMMA
-# (more than 1 darker, less than 1 lighter): alt-cmd fg=v(cmd, 1.2).  Only a #rrggbb colour has a value.
+# (more than 1 darker, less than 1 lighter): alt-code fg=v(code, 1.2).  Only a #rrggbb colour has a value.
 
 default fg=#e0e0e0              weight=bold    underline=no  italic=no
 em      fg=#ffffff
@@ -15,17 +15,11 @@ select              bg=#283010
 bad     fg=#e06060
 good    fg=#40a040
 warn    fg=#a08040
-cmd     fg=#a0a0c0
-pkg     fg=#b0b0b0  bg=#303040
+code    fg=#a0a0c0
 file    fg=#a0a0c0              weight=normal
-extn    fg=#a0a0c0                                           italic=yes
-table   fg=#a0a060
 
 # alt-X: every other row of a table (all but the selection's and the usages') is in the alt version of each style
-# (alt-default for plain text).  One not given here is the style it stands for: alt-cmd is cmd.
+# (alt-default for plain text).  One not given here is the style it stands for: alt-code is code.
 alt-default fg=v(default, 3)
-alt-cmd     fg=v(cmd, 3)
-alt-pkg     fg=v(pkg, 2)     bg=v(pkg, 1.2)
+alt-code    fg=v(code, 3)
 alt-file    fg=v(file, 3)
-alt-extn    fg=v(extn, 2)
-alt-table   fg=v(table, 1.5)

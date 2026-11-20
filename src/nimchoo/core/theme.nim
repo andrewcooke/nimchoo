@@ -12,7 +12,7 @@
 ## A colour can also be made from the colour of a style above it: `v(NAME, GAMMA)` is NAME's colour (its foreground in
 ## `fg=`, its background in `bg=`, as it is drawn: what NAME leaves out it has from `default`) with its value, the V of
 ## HSV from 0 to 1, raised to GAMMA (more than 1 darker, less than 1 lighter; black and white stay as they are).
-## `alt-cmd fg=v(cmd, 1.2)`.  Only a `#rrggbb` colour has a value; it is worked out when the theme is read.
+## `alt-code fg=v(code, 1.2)`.  Only a `#rrggbb` colour has a value; it is worked out when the theme is read.
 
 import std/[math, options, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
@@ -203,7 +203,7 @@ func colourOf(
     parseColour(value, line)
 
 func attributeWords(words: seq[string]): seq[string] =
-  ## The words of a line joined where a space is inside brackets (`fg=v(cmd, 1.2)` is one).
+  ## The words of a line joined where a space is inside brackets (`fg=v(code, 1.2)` is one).
   var depth = 0
   for w in words:
     if depth > 0:
@@ -261,7 +261,7 @@ func parseStyle(
 func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
   ## The theme in `text`, the contents of a theme file.  Each style X comes with `alt-X` (the style of every other row of
   ## a table that asks for it: `line.alternated`), defined as X; a line `alt-X ...` changes what it gives, and the rest
-  ## stays X's (`alt-pkg fg=...` keeps pkg's background), whichever of the two lines comes first.
+  ## stays X's (`alt-code fg=...` keeps code's background), whichever of the two lines comes first.
   var line = 0
   var given: seq[string] # (the names on the lines: an alt-X made from X is not given)
   var altGiven: Table[string, Style] # (what each alt-X line gives, by X)
@@ -347,8 +347,8 @@ const
   lineStyle* = "hide"
     ## the style that the lines of a table or a tree (the box-drawing characters, `│ ─ ┼ └`) are drawn in, wherever they
     ## are
-  typedStyle* = "cmd"
-    ## the style of what is between backticks, wherever it is: a command, an option, a path, what a person would type (in
+  typedStyle* = "code"
+    ## the style of what is between backticks, wherever it is: literal text, a command, an option, a name in the program (in
     ## colour the backticks are left out: the style marks it; without colour they are the mark)
 
 func isLineDrawing*(r: Rune): bool =

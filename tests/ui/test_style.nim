@@ -56,6 +56,6 @@ suite "ui style: the lines of a table or a tree":
     check render(@[span("├── x")], plain) == "├── x"
 
   test "what is between backticks is in the typed style, over the span's own, without the backticks":
-    let p = Paint(theme: parseTheme("cmd fg=blue\nbad weight=bold"), colour: true)
+    let p = Paint(theme: parseTheme("code fg=blue\nbad weight=bold"), colour: true)
     check render(@[span("run `nch db`")], p) == "run \e[34mnch db\e[0m"
     check render(@[span("`x`", "bad")], p) == "\e[1;34mx\e[0m"

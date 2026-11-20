@@ -4,7 +4,7 @@
 # A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
 # What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
 # A colour can be made from one above: v(NAME, GAMMA) is NAME's colour with its value (V of HSV, 0-1) raised to GAMMA
-# (more than 1 darker, less than 1 lighter): alt-cmd fg=v(cmd, 1.2).  Only a #rrggbb colour has a value.
+# (more than 1 darker, less than 1 lighter): alt-code fg=v(code, 1.2).  Only a #rrggbb colour has a value.
 
 default
 em      fg=#000000  weight=bold
@@ -13,11 +13,8 @@ good    fg=#2e7d32
 bad     fg=#c62828
 warn    fg=#b45309
 select  fg=#1f5fbf
-cmd     fg=#5b3fbf
-pkg     fg=#2f5f8f
+code    fg=#5b3fbf
 file    fg=#4a4a7a
-extn    italic=yes
-table   fg=#7a5a2a
 
 # alt-X: every other row of a table (all but the selection's and the usages') is in the alt version of each style
-# (alt-default for plain text).  One not given here is the style it stands for: alt-cmd is cmd.
+# (alt-default for plain text).  One not given here is the style it stands for: alt-code is code.

@@ -125,14 +125,16 @@ suite "the views":
     )
     # (the name of a command is in the style of commands, the rest is not)
     let b = cells.filterIt(it.text.startsWith("b "))[0]
-    check b.filterIt(it.styles == @[styleName"cmd"]).mapIt(it.text) == @["nch bee"]
+    check b.filterIt(it.styles == @[styleName"code"]).mapIt(it.text) ==
+      @["b", "nch bee", "b/p"]
+        # (literal text: the package, its command, its extension point)
     check lines.anyIt(it.startsWith("db ") and it.endsWith("Package db is the base."))
 
   test "the detail of a package":
     let cells = detailLines(world(), "b", 200)
     let text = cells.texts.join("\n")
     check cells[0] ==
-      @[span("package ", "em"), span("b", "pkg"), span("  "), span("layer 2", "hide")]
+      @[span("package ", "em"), span("b", "code"), span("  "), span("layer 2", "hide")]
     check "It has a paragraph more." in text
       # (what is between ** is in em, without them)
     check cells.anyIt(span("paragraph", "em") in it)
@@ -140,17 +142,17 @@ suite "the views":
     check "used by" in text and "tb" in text
     check "db: dbt; a: ta" in text # (it may read the tables of a, and of db: by owner)
     check "nch bee - does b things" in text
-    check cells.anyIt(span("nch bee", "cmd") in it)
+    check cells.anyIt(span("nch bee", "code") in it)
     check cells.anyIt(span("src/nimchoo/packages/b/", "file") in it)
       # (the source path in the style of paths)
       # (the command in the style of commands)
-    check cells.anyIt(span("a", "alt-pkg") in it and span("db", "alt-pkg") in it)
+    check cells.anyIt(span("a", "alt-code") in it and span("db", "alt-code") in it)
       # (the second field: on an alternate row, in the alt version of the style)
       # (depends on: the names of packages in their style)
     check "contributed to by" in text and "c ×2 (priority 0, 2)" in text
     check cells.anyIt(
       it.anyIt(
-        it.text == unbroken("b/p[int]") and $it.styles[^1] in ["extn", "alt-extn"]
+        it.text == unbroken("b/p[int]") and $it.styles[^1] in ["code", "alt-code"]
       )
     ) # (an extension point in its style)
     check "b/p[int] - " in text # (what --points no longer shows: the detail has it)
@@ -158,9 +160,9 @@ suite "the views":
   test "the points":
     let cells = pointLines(world(), 80)
     let lines = cells.texts
-    check cells.anyIt(span("c", "pkg") in it)
-    check cells.anyIt(span("b/p", "extn") in it) # (the name of the point in its style)
-    check cells.anyIt(span("b/p", "extn") in it)
+    check cells.anyIt(span("c", "code") in it)
+    check cells.anyIt(span("b/p", "code") in it) # (the name of the point in its style)
+    check cells.anyIt(span("b/p", "code") in it)
     check lines[0].startsWith("extension point") and
       "contributed to by (in order)" in lines[0]
     check lines[1].startsWith("─") and "┼" in lines[1]

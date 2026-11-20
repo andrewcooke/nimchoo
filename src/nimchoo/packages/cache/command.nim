@@ -31,7 +31,7 @@ proc usageText*(width: int): seq[Line] =
   var kinds = heading("The kinds:")
   for k in Kind:
     kinds.add @[
-      span("  "), span($k, "cmd"), span(" ".repeat(10 - len($k)) & kindHelp[k])
+      span("  "), span($k, "code"), span(" ".repeat(10 - len($k)) & kindHelp[k])
     ]
   usageOf(
     synopsisLines(synopsis),

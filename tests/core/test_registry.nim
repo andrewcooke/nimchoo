@@ -79,7 +79,7 @@ suite "the commands of the packages":
     let lines = commandList(
       collectCommands(@[provides("a", "zed", "alpha"), provides("b", "mid")])
     )
-    check lines.anyIt(span("alpha", "cmd") in it) # (drawn as a command)
+    check lines.anyIt(span("alpha", "code") in it) # (drawn as a command)
     let text = lines.plainText
     check lines.len == 3
     check text.contains("  alpha       does alpha\n")

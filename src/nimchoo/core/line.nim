@@ -14,23 +14,15 @@ from std/unicode import Rune, runeLen, runeSubStr, runes
 {.push raises: [].}
 
 const
-  baseStyles* = [
-    "default", ## around everything
-    "em", ## what to read first: titles, headings
-    "hide", ## the bookkeeping, what was not recorded, the lines of tables
-    "select", ## the selection, and nothing else
-    "good", ## done
-    "bad", ## failed, deleted
-    "warn", ## advisory
-    "cmd", ## what a person would type: a command, an option (what is between backticks)
-    "pkg", ## the name of a package
-    "file", ## the path of a file or a directory
-    "extn", ## the name of an extension point
-    "table", ## the name of a table of the database
-  ]
+  baseStyles* =
+    ["default", "em", "hide", "select", "good", "bad", "warn", "code", "file"]
+    ## the styles the program uses, each for one thing: `default` around everything; `em` what to read first (titles,
+    ## headings); `hide` the bookkeeping, what was not recorded, the lines of tables; `select` the selection and nothing
+    ## else; `good` done; `bad` failed, deleted; `warn` advisory; `code` literal text (a command, an option, a name in
+    ## the program: what is between backticks); `file` the path of a file or a directory
   altPrefix* = "alt-"
     ## every other row of a table that asks for it (`alternated`) is in the alt version of each style: `alt-default` for
-    ## plain text, `alt-cmd` for `cmd` ...; a theme defines each as the style it stands for unless it says otherwise (`theme.parseTheme`)
+    ## plain text, `alt-code` for `code` ...; a theme defines each as the style it stands for unless it says otherwise (`theme.parseTheme`)
 
 func withAlts(names: openArray[string]): seq[string] =
   for n in names:
@@ -174,7 +166,7 @@ func bracketed*(line: Line, selected: bool): Line =
     @[span(" ")] & line
 
 func alternated*(line: Line): Line =
-  ## The line in the alt version of each of its styles (`alt-cmd` for `cmd`; `alt-default` for plain text): a row of a
+  ## The line in the alt version of each of its styles (`alt-code` for `code`; `alt-default` for plain text): a row of a
   ## table told from its neighbours (`ruled.ruledRows(alternate)`), whatever the theme makes of it.
   for s in line:
     var styles: seq[StyleName]

@@ -86,7 +86,7 @@ proc tablesLines(
     for k, r in t.refersTo:
       if k > 0:
         refers.add span(", ")
-      refers.add span(r, "table")
+      refers.add span(r, "code")
     var readers: Line
     if t.owner.isSome and t.owner.get == sharedOwner:
       readers = plain("every package")
@@ -94,10 +94,10 @@ proc tablesLines(
       for k, r in access.readersOf(t.name):
         if k > 0:
           readers.add span(", ")
-        readers.add span(r, "pkg")
+        readers.add span(r, "code")
     rows.add @[
-      @[span(t.name, "table")],
-      (if t.owner.isSome: @[span(t.owner.get, "pkg")] else: plain("-")),
+      @[span(t.name, "code")],
+      (if t.owner.isSome: @[span(t.owner.get, "code")] else: plain("-")),
       plain(insertSep($t.rows, ',')),
       plain(humanBytes(t.bytes)),
       (if refers.len == 0: plain("-") else: refers),
