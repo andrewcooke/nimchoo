@@ -1,6 +1,7 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/importer/extract
+import nimchoo/packages/importer/series
 import nimchoo/packages/importer/stretch
 import nimchoo/packages/fit/reader
 import nimchoo/packages/fit/records
@@ -590,3 +591,39 @@ suite "segments: real files":
               checkpoint path & ": coordinate at " & $c.t
               fail()
     check files > 30
+
+suite "activities: damaged values are dropped before they reach the arrays":
+  test "a position off the Earth is dropped, with a warning":
+    let body =
+      recordDefn & at(base, lat = 0x50000000) & at(base + 1) & at(base + 2) & sessionDefn &
+      session(base, base + 2)
+    let (a, ws) = activities(body)
+    check a[0].coords.len == 2
+    check ws.kinds.count(wkPositionOffEarth) == 1
+    check encodePositions(a[0].coords).count == 2
+
+  test "a record far outside its session (a damaged timestamp) is dropped, with a warning":
+    let body =
+      recordDefn & at(base) & at(base + 1) & at(base + 3_000_000_000) & sessionDefn &
+      session(base, base + 2)
+    let (a, ws) = activities(body)
+    check a[0].coords.len == 2
+    check ws.kinds.count(wkOutsideSession) == 1
+    check encodePositions(a[0].coords).count == 2
+
+  test "a record within an hour of its session is kept":
+    let body =
+      recordDefn & at(base) & at(base + 1) & at(base + 3_600) & sessionDefn &
+      session(base, base + 2)
+    let (a, ws) = activities(body)
+    check a[0].coords.len == 3
+    check ws.kinds.count(wkOutsideSession) == 0
+
+  test "a session lasting more than 30 days refuses the file":
+    try:
+      discard activities(
+        recordDefn & at(base) & sessionDefn & session(base, base + 31 * 86_400)
+      )
+      check false
+    except ImportError as e:
+      check e.kind == ifBadTime

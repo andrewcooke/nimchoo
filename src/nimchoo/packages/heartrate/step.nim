@@ -16,10 +16,11 @@ const field* = "heart_rate"
 
 func readings*(samples: Samples): seq[(UnixTime, int)] =
   ## (time, bpm) in time order.  Zero (and below) means "no reading": the strap
-  ## has lost contact.
+  ## has lost contact; above 255 is no heart rate either (a damaged file: the
+  ## field is a byte, but a file may declare it wider).
   for x in samples.getOrDefault(field):
     let bpm = int(round(x.v))
-    if bpm >= 1:
+    if bpm in 1 .. 255:
       result.add (x.t, bpm)
 
 proc write(

@@ -7,7 +7,12 @@
 ##   the device's power-on, FIT spec): such records are dropped with a warning,
 ##   and a session starting at such a time refuses the file;
 ## * a record goes to the last session starting at or before it (records
-##   before the first session go to the first), so none are lost;
+##   before the first session go to the first), and is dropped, with a warning,
+##   if it is more than `sessionSlackS` outside that session's time (a damaged
+##   timestamp: real rides have none outside, measured 2026-11-20);
+## * a session lasting more than `maxSessionS` refuses the file (its times are
+##   damaged), so an activity's times always fit the arrays (`series.nim`);
+## * a position off the Earth is dropped with a warning;
 ## * records are put in time order, records in the same second keep the last;
 ## * a record without a position makes no coordinate;
 ## * the stretches during which the timer ran (between a timer start and the
@@ -25,6 +30,7 @@ import ../util/warnings/warnings
 import ../fit/reader
 import ../fit/records
 import ../fit/time
+import ../ui/units
 import ../geo/geo
 import ./stretch
 import ./[clean, coord]
@@ -35,6 +41,10 @@ export coord
 const
   minCalendarFit* = FitTime(0x10000000) ## 1998-07-03; earlier times are not UTC
   maxUtcOffsetS = 86_400 ## a local time more than a day from UTC is not a time zone
+  maxSessionS = 30 * 86_400
+    ## a session lasting longer has damaged times (the longest of the author's 1,113 lasts 13.5 days)
+  sessionSlackS = 3_600
+    ## how far outside its session's time a record may be and still belong to it
 
 type
   Segment* = object
@@ -100,6 +110,11 @@ func nameOf(p: Profile, r: Record, field: string): string =
   else:
     ""
 
+func holds(s: ActivityData, t: UnixTime): bool =
+  ## Whether a record at `t` belongs to the session (allowing `sessionSlackS` either side).
+  int64(t) >= int64(s.startT) - sessionSlackS and
+    int64(t) <= int64(s.endT) + sessionSlackS
+
 func sessionOf(
     p: Profile, r: Record, index: int
 ): ActivityData {.raises: [ImportError].} =
@@ -113,6 +128,12 @@ func sessionOf(
   result.startT = fitToUnix(startFit)
   let finish = if r.timestamp.isSome: r.timestamp.get else: startFit
   result.endT = fitToUnix(max(finish, startFit))
+  let lasts = int64(result.endT) - int64(result.startT)
+  if lasts > maxSessionS:
+    raiseImport(
+      ifBadTime,
+      fmt"session {index} lasts {lasts div 86_400} days: its times are damaged",
+    )
   result.sport = nameOf(p, r, "sport")
   result.subSport = nameOf(p, r, "sub_sport")
   result.elapsedS = r.firstNum("total_elapsed_time")
@@ -347,7 +368,13 @@ proc readActivities*(
             continue
           let rc = coordOf(rec, fitToUnix(rec.timestamp.get), count, ev.offset)
           if rc.isSome:
-            raw.add rc.get
+            let c = rc.get.c
+            if abs(c.lat) <= 90.0 and abs(c.lon) <= 180.0:
+              raw.add rc.get
+            else:
+              ws.add wkPositionOffEarth,
+                ev.offset,
+                fmt"a position at {c.lat:.1f},{c.lon:.1f} is not on the Earth (dropped)"
           for name in channels:
             let v = rec.firstNum(name)
             if v.isSome:
@@ -405,11 +432,15 @@ proc readActivities*(
     if result == 0:
       result = cmp(a.session, b.session)
   let coords = sortedUnique(raw, ws)
+  var outside = newSeq[int](sessions.len) # records dropped from each session
   var k = 0 # the session the coordinates are being given to
   for c in coords:
     while k + 1 < sessions.len and sessions[k + 1].startT <= c.t:
       inc k
-    sessions[k].coords.add c
+    if sessions[k].holds(c.t):
+      sessions[k].coords.add c
+    else:
+      inc outside[k]
   # clean the positions of each session (before the stretches are worked out from them)
   var splits = newSeq[seq[UnixTime]](sessions.len)
   for i, s in sessions.mpairs:
@@ -432,8 +463,17 @@ proc readActivities*(
       while after < list.len and list[after].t < limit:
         inc after
       if after > first:
-        sessions[k].samples[name] = list[first ..< after]
+        let kept = list[first ..< after].filterIt(sessions[k].holds(it.t))
+        outside[k] += after - first - kept.len
+        if kept.len > 0:
+          sessions[k].samples[name] = kept
       first = after
+  for k, n in outside:
+    if n > 0:
+      let records = counted(n, "record", "records")
+      ws.add wkOutsideSession,
+        0,
+        fmt"session {sessions[k].session}: {records} more than an hour outside its time (dropped)"
   # timer events go to sessions the way coordinates do; then the segments
   timer.sort do(a, b: TimerEvent) -> int:
     cmp(a.t, b.t)

@@ -54,6 +54,12 @@ suite "heartrate: the readings of an activity":
     check readings(ss) == @[(UnixTime(1), 60), (UnixTime(3), 62)]
     check readings(Samples()).len == 0
 
+  test "above 255 is no reading (a damaged file), so the arrays can hold every one":
+    var ss: Samples
+    ss["heart_rate"] = @[Sample(t: UnixTime(1), v: 300), Sample(t: UnixTime(2), v: 255)]
+    check readings(ss) == @[(UnixTime(2), 255)]
+    check encodeReadings(readings(ss)).count == 1
+
 suite "heartrate: import":
   test "a hand-built file: invalid and zero readings are dropped, the last of a second kept":
     let s = openDb("hand")

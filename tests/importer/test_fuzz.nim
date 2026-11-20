@@ -1,18 +1,30 @@
 ## Mutation fuzzing of the importer's reader: damage real files at random (the mutations of tests/support/fitmutate.nim,
 ## as for `nch fit`); `readActivities` does the arithmetic on times and positions (sessions, timer segments, stretches),
-## and must end in success, a FitError or an ImportError, never in anything else.  Fixed seed; a failing input is saved.
+## and must end in success, a FitError or an ImportError, never in anything else.  What it reads then goes on through
+## what the import makes from it before the database (`intoArrays`: the arrays, the cells, the route, the heart rate),
+## whose checks are Defects: the reader must give them only what they can hold.  Fixed seed; a failing input is saved.
 ##
 ## NCH_FUZZ_ROUNDS (mutations per small file, default 60) sets the length; the large files get a tenth of it.
 
 import std/[os, random, strutils, tables, unittest]
 import nimchoo/core/errors
-import nimchoo/packages/importer/extract
+import nimchoo/packages/importer/[extract, route, series, visits]
+import nimchoo/packages/heartrate/series as hrseries
+import nimchoo/packages/heartrate/step as hrstep
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
 import ../support/[fitmutate, fuzzfiles]
 
 const small = ["sdk", "other", "python-fitparse"]
+
+proc intoArrays(activities: seq[ActivityData]) =
+  ## What the import makes from each activity before it writes it (importer.nim, heartrate/step.nim).
+  for a in activities:
+    discard encodePositions(a.coords)
+    discard visitsOf(a.coords)
+    discard routeWkb(a)
+    discard hrseries.encodeReadings(hrstep.readings(a.samples))
 
 suite "importer fuzzing":
   let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")
@@ -35,7 +47,7 @@ suite "importer fuzzing":
         for channels in [@[], @["heart_rate"]]:
           var ws: seq[Warning]
           try:
-            discard readActivities(p, data, ws, channels)
+            intoArrays(readActivities(p, data, ws, channels))
             inc ok
           except FitError, ImportError:
             inc rejected
@@ -77,6 +89,6 @@ suite "importer fuzzing":
       for channels in [@[], @["heart_rate"]]:
         var ws: seq[Warning]
         try:
-          discard readActivities(p, readBytes(path), ws, channels)
+          intoArrays(readActivities(p, readBytes(path), ws, channels))
         except FitError, ImportError:
           discard

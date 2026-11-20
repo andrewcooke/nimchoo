@@ -29,7 +29,7 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 
 | | what | where | how it shows |
 |---|---|---|---|
-| B1 | a corrupt FIT file reaches `doAssert` at import | `importer/series.nim`, `heartrate/series.nim` | `heart_rate` declared uint16 (bpm 300), a sint64 latitude, one damaged timestamp: `nch import` crashes |
+| B1 | **fixed** 2026-11-20: a corrupt FIT file reaches `doAssert` at import | `importer/series.nim`, `heartrate/series.nim` | `heart_rate` declared uint16 (bpm 300), a sint64 latitude, one damaged timestamp: `nch import` crashes |
 | E2 | no `busy_timeout`; `begin` is deferred | `db/store.nim` | `nch ff` while `nch import` runs: "database is locked" at once |
 | E1 | one failed reply stops the server (plausible: traced in the stdlib, not reproduced) | `web/server.nim` | close a tab while a slow frame is made: the server exits and says "cannot listen" |
 | B3 | a passing failure is remembered as the file's verdict | `importer/batch.nim` | files that failed on "database is locked" are skipped as known failures until `--slow` |

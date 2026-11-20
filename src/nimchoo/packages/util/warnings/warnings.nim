@@ -40,6 +40,10 @@ type
     wkDuplicateTime ## several records in one second (the last is kept)
     wkInvalidTime ## a timestamp that is not a calendar time (dropped)
     wkOutsideSegment ## a coordinate outside every timer segment
+    wkOutsideSession
+      ## records more than an hour outside their session's time (dropped; one warning to a session, with the count)
+    wkPositionOffEarth
+      ## a position whose latitude or longitude is out of range (dropped)
     # cleaning the positions (importer/clean.nim); one warning of each kind to an activity, with the count
     wkStalePosition ## positions the device wrote again while moving (dropped)
     wkBadPosition ## positions far from where the ride was (a spike or a burst: dropped)
