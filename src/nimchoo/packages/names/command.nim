@@ -96,20 +96,20 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of laDelete:
       let d = p.deleted
       if not d.force:
-        g.say osErr, "would delete the landmark " & d.name & ": add `-f` to do it\n"
+        g.show(osErr, ~"would delete the landmark {d.name}: add `-f` to do it")
         return exitFailure
       if not removeLandmark(st, d.name):
         return failure(g, "nch landmarks", ~"there is no landmark called '{d.name}'")
       let said = "deleted the landmark " & d.name
       g.log.log(lvInfo, commandName, leDeleted, said)
-      sayDeleted(g, said)
+      sayDeleted(g, plain(said))
       return exitOk
     of laAddAt:
       let a = p.placed
       addLandmark(st, a.name, a.at.lon, a.at.lat, a.radiusM)
       let said = "made the landmark " & a.name.strip & " at " & positionText(a.at)
       g.log.log(lvInfo, commandName, leSaved, said)
-      g.say osOut, said & "\n"
+      g.show(osOut, plain(said))
       return exitOk
     of laSearch, laNear, laAddPicked:
       let suggest = if p.action == laAddPicked: p.picked.suggestions else: p.suggest
@@ -131,8 +131,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           try:
             discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
           except OfflineError:
-            g.say osErr,
-              "`--offline`: only the names already loaded for that area are suggested\n"
+            g.show(
+              osErr,
+              ~"`--offline`: only the names already loaded for that area are suggested",
+            )
         found = featuresAround(st, suggest.near.lon, suggest.near.lat)
       if p.action == laAddPicked:
         let a = p.picked
@@ -146,15 +148,18 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "made the landmark " & a.name.strip & " at " & s.name & " (" &
           positionText((lon: s.lon, lat: s.lat)) & ")"
         g.log.log(lvInfo, commandName, leSaved, said)
-        g.say osOut, said & "\n"
+        g.show(osOut, plain(said))
         return exitOk
       if found.len == 0:
-        g.say osOut,
+        g.show(
+          osOut,
           (
             if suggest.kind == skSearch:
-            "nothing is called like that among the names loaded (the places you have ridden)\n"
-            else: "no features within 2 km\n"
-          )
+              ~"nothing is called like that among the names loaded (the places you have ridden)"
+            else:
+              ~"no features within 2 km"
+          ),
+        )
         return exitOk
       g.showAll(
         osOut, suggestionLines(found, suggest.kind == skNear, helpWidth(stdout))
@@ -163,8 +168,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of laList:
       let rows = listLandmarks(st)
       if rows.len == 0:
-        g.say osOut,
-          "no landmarks: `nch landmarks --search TEXT` suggests places to make one of\n"
+        g.show(
+          osOut,
+          ~"no landmarks: `nch landmarks --search TEXT` suggests places to make one of",
+        )
       else:
         g.showAll(osOut, landmarkLines(rows, helpWidth(stdout)))
       return exitOk
