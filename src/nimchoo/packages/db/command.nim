@@ -28,8 +28,8 @@ const
        nch [--db PATH] db --delete -f"""
   intro =
     """Without options, say where the database is and how big, and what it holds, table by table: the package that
-owns each, how many rows, how much of the file it takes (with its indexes) and the tables it refers to (who else may
-read each: `nch packages --tables`)."""
+owns each, how many rows, how much of the file it takes (with its indexes), the tables it refers to, and the other
+packages that may read it."""
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
@@ -87,15 +87,24 @@ proc tablesLines(
       if k > 0:
         refers.add span(", ")
       refers.add span(r, "table")
+    var readers: Line
+    if t.owner.isSome and t.owner.get == sharedOwner:
+      readers = plain("every package")
+    elif not access.isNil:
+      for k, r in access.readersOf(t.name):
+        if k > 0:
+          readers.add span(", ")
+        readers.add span(r, "pkg")
     rows.add @[
       @[span(t.name, "table")],
       (if t.owner.isSome: @[span(t.owner.get, "pkg")] else: plain("-")),
       plain(insertSep($t.rows, ',')),
       plain(humanBytes(t.bytes)),
       (if refers.len == 0: plain("-") else: refers),
+      (if readers.len == 0: plain("-") else: readers),
     ]
   result = ruled(
-    @["table", "owner package", "rows", "size", "refers to"],
+    @["table", "owner package", "rows", "size", "refers to", "packages with access"],
     rows,
     width,
     right = {2, 3},

@@ -85,3 +85,12 @@ suite "access: pieces written by other packages":
 
   test "the caller counts as itself, whatever the contributors say":
     check rules().refusal("climbs", acRead, "effort", contributors = @["other"]).isNone
+
+suite "access: who may read a table":
+  test "the packages that depend on its owner, sorted; every other package for a table of db; none for one no package owns":
+    check rules().readersOf("activity") ==
+      @["climbs", "heartrate"]
+        # (heartrate names it with another case: names are compared as nim compares them)
+    check rules().readersOf("effort").len == 0
+    check rules().readersOf("user") == @["climbs", "heartrate", "importer", "other"]
+    check rules().readersOf("nothing").len == 0

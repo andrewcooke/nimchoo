@@ -424,19 +424,6 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
     width,
   )
 
-func tableLines*(inv: Inventory, width: int): seq[Line] =
-  ## Each table, its owner and the packages that may read it.
-  var rows: seq[seq[Line]]
-  for t in inv.tables:
-    rows.add @[
-      @[span(t.name, "table")],
-      pkg(t.owner),
-      (if t.everyone: plain("every package") else: pkgList(t.readers)),
-    ]
-  ruled(@["table", "owner package", "packages with access"], rows, width)
-
-# --- the graphs --------------------------------------------------------------------------------------------------------
-
 func neighbours(inv: Inventory, name: string, reverse: bool): seq[string] =
   let at = inv.find(name)
   if at < 0:

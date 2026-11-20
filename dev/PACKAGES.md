@@ -283,7 +283,7 @@ package documents itself.
 **What each package is for, what it owns and its rules are in the `##` comment at the top of its `package.nim`**, which is
 its page on the documentation site (`nimble docs`; the front page lists them all), and which `nch packages NAME` prints.
 What it depends on is in its `package.nim` and what tables it owns is in its SQL, not repeated here, so that they cannot
-differ; `nch packages`, `--tables`, `--points` and `--graph` show them.  `core/` is not a package: `errors`, `ids`, the
+differ; `nch packages`, `--points` and `--graph` show them, and `nch db` the tables.  `core/` is not a package: `errors`, `ids`, the
 `Package`, `CommandDecl` and `Fragment` types, `Globals` and the exit codes, the log, table ownership, the dependency order
 and the inventory.
 

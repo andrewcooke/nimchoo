@@ -161,21 +161,12 @@ suite "the views":
     let lines = cells.texts
     check cells.anyIt(span("c", "pkg") in it)
     check cells.anyIt(span("b/p", "extn") in it) # (the name of the point in its style)
-    check tableLines(world(), 120).anyIt(
-      span("ta", "table") in it or span("ta", "alt-table") in it
-    ) # (the name of a table in its style)
     check cells.anyIt(span("b/p", "extn") in it)
     check lines[0].startsWith("extension point") and
       "contributed to by (in order)" in lines[0]
     check lines[1].startsWith("─") and "┼" in lines[1]
     check lines.anyIt(it.startsWith("b/p") and " │ b " in it and " │ c ×2 " in it)
       # (c adds twice: named once)
-
-  test "the tables":
-    let lines = tableLines(world(), 120).texts
-    check lines[0].startsWith("table")
-    check lines.anyIt(it.startsWith("dbt") and it.endsWith("every package"))
-    check lines.anyIt(it.startsWith("ta") and it.endsWith("b c"))
 
 suite "the graphs":
   test "the tree of what a package depends on, breadth first: each package in full where it is first needed, ... where something is left out":

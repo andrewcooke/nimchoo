@@ -16,14 +16,13 @@ suite "nch packages: the command line":
     check f.view == vList and f.filter.layer == some(2) and f.filter.uses == some("db") and
       f.filter.usedBy == some("climbs") and f.filter.table == some("effort")
     check parseArgs(@["-L", "x"]).problem.contains("is a layer")
-    check parseArgs(@["-L", "1", "--tables"]).problem.contains("narrow the list")
+    check parseArgs(@["-L", "1", "--points"]).problem.contains("narrow the list")
     check parseArgs(@["-U", "db", "climbs"]).problem.contains("narrow the list")
     let p = parseArgs(@["importer"])
     check p.problem == "" and p.params.view == vDetail and p.params.package == "importer"
 
   test "the other views":
     check parseArgs(@["--points"]).params.view == vPoints
-    check parseArgs(@["--tables"]).params.view == vTables
     check parseArgs(@["--dot"]).params.view == vDot
     check parseArgs(@["--graph"]).params.view == vLayers
     check parseArgs(@["--graph", "db"]).params.view == vTree
@@ -31,7 +30,7 @@ suite "nch packages: the command line":
     check parseArgs(@["--graph", "--reverse", "db"]).params.reverse
 
   test "combinations that mean nothing are refused":
-    check parseArgs(@["--points", "--tables"]).problem.contains("choose one")
+    check parseArgs(@["--points", "--dot"]).problem.contains("choose one")
     check parseArgs(@["importer", "--points"]).problem.contains(
       "goes with nothing but `--graph`"
     )

@@ -15,7 +15,6 @@ type
     vList
     vDetail
     vPoints
-    vTables
     vLayers
     vTree
     vDot
@@ -32,11 +31,11 @@ type
       implied*: bool ## `-v`: the dependencies implied by others too, hidden
     of vList:
       filter*: PackageFilter ## `-L`, `-U`, `-B`, `-T`: which packages
-    of vPoints, vTables, vDot:
+    of vPoints, vDot:
       discard
 
   Raw = object ## what the options fill in
-    help, points, tables, graph, reverse, verbose, dot: bool
+    help, points, graph, reverse, verbose, dot: bool
     name: string
     filter: PackageFilter
 
@@ -114,12 +113,6 @@ func packagesSpec*(): Spec[Raw] =
       ),
       flag(
         Raw,
-        ["--tables"],
-        tables,
-        "the tables: who owns each, and which packages may read it",
-      ),
-      flag(
-        Raw,
         ["--graph"],
         graph,
         "the dependencies as a picture: with NAME, the tree of what that package depends on; without, all the packages by layer",
@@ -154,11 +147,10 @@ func packagesSpec*(): Spec[Raw] =
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  let chosen = [raw.points, raw.tables, raw.graph, raw.dot]
+  let chosen = [raw.points, raw.graph, raw.dot]
   if chosen.countIt(it) > 1:
-    return
-      problemWith[Params]("choose one of `--points`, `--tables`, `--graph` and `--dot`")
-  if raw.name.len > 0 and (raw.points or raw.tables or raw.dot):
+    return problemWith[Params]("choose one of `--points`, `--graph` and `--dot`")
+  if raw.name.len > 0 and (raw.points or raw.dot):
     return problemWith[Params]("a package name goes with nothing but `--graph`")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
     return problemWith[Params]("`--reverse` goes with `--graph` and a package name")
@@ -173,8 +165,6 @@ func finish(raw: Raw): Parsed[Params] =
     )
   if raw.points:
     parsedOk(Params(view: vPoints))
-  elif raw.tables:
-    parsedOk(Params(view: vTables))
   elif raw.dot:
     parsedOk(Params(view: vDot))
   elif raw.graph and raw.name.len > 0:
@@ -201,13 +191,13 @@ func closeNames*(asked: string, names: seq[string]): seq[string] =
   scored.mapIt(it[1])
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch packages [NAME] [--points | --tables | --graph [--reverse] | --dot]`.
+  ## `nch packages [NAME] [--points | --graph [--reverse] | --dot]`.
   parseCommand(args, packagesSpec(), Raw(), finish)
 
 const
   synopsis = """usage: nch packages [-L N] [-U NAME] [-B NAME] [-T TABLE]
        nch packages NAME
-       nch packages --points | --tables | --dot
+       nch packages --points | --dot
        nch packages --graph [--reverse] [-v] [NAME]"""
   intro =
     """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
@@ -310,8 +300,6 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.showAll detailLines(inv, p.package, width)
   of vPoints:
     g.showAll pointLines(inv, width)
-  of vTables:
-    g.showAll tableLines(inv, width)
   of vLayers:
     let paint = paintOf(g, osOut)
     for l in layerLines(inv, width, p.implied):

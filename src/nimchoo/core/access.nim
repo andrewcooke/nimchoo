@@ -6,7 +6,7 @@
 ##
 ## A mistake-catcher, not a security boundary: a package is source that is compiled in (see dev/PACKAGES.md).
 
-import std/[options, sets, strutils, tables]
+import std/[algorithm, options, sets, strutils, tables]
 import ./[names, ownership]
 
 {.push raises: [].}
@@ -48,6 +48,18 @@ func newAccess*(
 func ownerOf*(a: Access, table: string): Option[string] =
   ## The package that owns `table` (none: SQLite's own tables and SpatiaLite's, which nobody made by DDL).
   ownership.ownerOf(table, a.owners)
+
+func readersOf*(a: Access, table: string): seq[string] =
+  ## The packages that may read `table` besides its owner, sorted: those that depend on the owner (all of them, for a
+  ## table of `db`: `sharedOwner`).  Empty for a table no package owns.
+  let owner = a.ownerOf(table)
+  if owner.isNone:
+    return
+  for package, declared in a.depends:
+    if package != owner.get.normalised and
+        (owner.get.normalised == sharedOwner or owner.get.normalised in declared):
+      result.add package
+  result.sort
 
 func baseTable(a: Access, table: string): string =
   ## `table`, or for a SpatiaLite spatial index the table it indexes.

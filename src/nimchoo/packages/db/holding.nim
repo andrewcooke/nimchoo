@@ -1,4 +1,4 @@
-## What a database holds, table by table (`nch db --tables`): the tables of the packages, each with its owner, how many
+## What a database holds, table by table (`nch db`): the tables of the packages, each with its owner, how many
 ## rows, how much of the file it takes (with its indexes and its SpatiaLite spatial index) and the tables its foreign
 ## keys refer to; and, in sum, the tables of SQLite and SpatiaLite and the record of the fragments.  A table that is
 ## neither (left from an older program, say) is listed with no owner.
