@@ -75,9 +75,15 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   point of a stretch or on none (1,438 stretches; 0 gaps inside one; 139 rides with none, 101 of them in 2019), so the
   interpolation never runs.  The doc of `profile.nim` now says what the code does; the behaviour waits for the terrain
   model (TODO.md), which would also give those 139 rides climbs.
-* **A1, backticks**: mark which spans are markup (the literal text of `styled` and `g.say`) and draw values as they are
-  (recommended), or escape backticks in values.
-* **D3, `landmarks --radius`**: km, as the rule says (recommended), or metres as an exception written down.
+* **A1, backticks** (**decided** 2026-11-20): backticks are markup only in the text written in the program (the literal
+  pieces of `styled` and `g.say`); values (names, paths) are drawn as they are.  Names are not code.
+* **D3, `landmarks --radius`** (open, the author is thinking, 2026-11-20): it became a wider question, units in input.
+  The options with a unit: distance (`activities --distance` km, `activities`/`climbs --radius` km, `landmarks --radius`
+  metres; no unit written), duration (`activities --active` with `d h m s` written; `models --max-secs` seconds,
+  `--fitness-days`/`--fatigue-days` days), heart rate (`users --fthr` bpm, `models --zones` %).  Ways: (1) a unit required
+  on every distance and duration (`100m`, `1km`, `60s`, `42d`; the option's kind says what `m` means, against CLAUDE.md's
+  "m always means minutes", though the output already writes `+89m` for a gain); (2) a unit optional, a default per kind;
+  (3) no units, one fixed unit per kind (landmarks in km).  None is clearly best.
 * **E8, an empty selection**: a failure (the map) or a normal line (the calendar)?  Recommend one, the normal line.
 * **E10, `models --delete`**: add it, or correct CLAUDE.md.
 * **B6**: local time in the confirmation, as the table (recommended).
