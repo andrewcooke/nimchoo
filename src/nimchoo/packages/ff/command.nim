@@ -327,8 +327,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.show(osOut, @[span(csvPath, "file")])
       return exitOk
     g.show(osOut, @[span(csvPath, "file")])
-    let paint = paintOf(g, osOut)
-    g.sayRendered osOut, render(latestStats(st, m.get, p, now, tz), paint) & "\n"
+    g.show(osOut, latestStats(st, m.get, p, now, tz))
     exitOk
   except StoreError as e:
     failure(g, "nch ff", e.msg)

@@ -77,10 +77,6 @@ proc say*(g: Globals, o: OutStream, text: string) =
   ## Write plain text to `o`, in the theme (`inTheme`).
   file(o).say g.inTheme(o, text)
 
-proc sayRendered*(g: Globals, o: OutStream, text: string) =
-  ## Write text that is already drawn (`theme.render`: it has its looks) to `o`.
-  file(o).say text
-
 func paintOf*(g: Globals, o: OutStream): Paint =
   ## How lines are drawn on `o`: in the theme in force, in colour if `o` is.
   Paint(theme: g.theme, colour: g.colour[o])

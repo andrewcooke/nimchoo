@@ -478,14 +478,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
         )
       return renameActivities(g, st, m.ids)
-    let paint = paintOf(g, osOut)
-    let r = listActivities(st, criteria, zone, helpWidth(stdout), not paint.colour)
+    let r = listActivities(st, criteria, zone, helpWidth(stdout), not g.colour[osOut])
     if r.saved >= 0:
       g.log.log(
         lvInfo, commandName, leSaved, counted(r.saved, "activity", "activities")
       )
-    for l in r.lines:
-      g.sayRendered osOut, render(l, paint) & "\n"
+    g.showAll(osOut, r.lines)
     exitOk
   except StoreError as e:
     failure(g, "nch activities", e.msg)

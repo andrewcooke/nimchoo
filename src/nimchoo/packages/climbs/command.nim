@@ -222,22 +222,21 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let what = if list.select: " (the climbs selection is now empty)" else: ""
         g.say osOut, "no climb meets the criteria" & what & "\n"
         return exitOk
-    let paint = paintOf(g, osOut)
     for l in summaryLines(
       summaries(st, ids),
       list.attempts.everyone,
       list.attempts.verbose,
       local(),
       helpWidth(stdout),
-      marks = not paint.colour,
+      marks = not g.colour[osOut],
     ):
-      g.sayRendered osOut, render(l, paint) & "\n"
+      g.show(osOut, l)
     # (the last line, as the activities': the count in the selection's style when the climbs listed are the selection)
     let total = countLive(st)
     let isSelection = list.kind == lkSelection or list.select
     g.done(
       @[
-        countSpan(ids.len, isSelection, not paint.colour),
+        countSpan(ids.len, isSelection, not g.colour[osOut]),
         span(" of " & counted(total, "climb", "climbs")),
       ]
     )

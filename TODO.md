@@ -19,9 +19,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
-10. **Drawing.**  6 places draw with `sayRendered(render(l, paint))` to know whether there is colour; they can ask
-    `g.colour` and use `g.showAll`; `sayRendered` goes.
-
 ### C. Write it down
 
 11. **The visual rules, in one place**: the `ui` package's documentation (stale today: it says the style names are those

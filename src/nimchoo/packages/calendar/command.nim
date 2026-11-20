@@ -145,9 +145,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   except StoreError as e:
     return failure(g, "nch calendar", e.msg)
   try:
-    let paint = paintOf(g, osOut)
     let screen = Screen(
-      colour: paint.colour,
+      colour: g.colour[osOut],
       width:
         if isatty(stdout):
           terminalWidth()
@@ -157,7 +156,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     for l in lines(
       st, chosen.params, g.extensions.get(calendarBackgroundPoint), p, local(), screen
     ):
-      g.sayRendered osOut, render(l, paint) & "\n"
+      g.show(osOut, l)
     exitOk
   except StoreError as e:
     failure(g, "nch calendar", e.msg)
