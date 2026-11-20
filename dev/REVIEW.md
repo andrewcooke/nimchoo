@@ -87,9 +87,12 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   only, a wrapper function; only if the prompt is not enough).  Heart rate stays without a unit (bpm; `--zones` in %).
   CLAUDE.md's "input never takes a unit for distance, and `m` always means minutes" changes with it.  To settle when
   built: each option's default unit (km for the rides' distances, m for a landmark's radius?).
-* **E8, an empty selection**: a failure (the map) or a normal line (the calendar)?  Recommend one, the normal line.
-* **E10, `models --delete`**: add it, or correct CLAUDE.md.
-* **B6**: local time in the confirmation, as the table (recommended).
+* **E8, an empty selection** (**decided** 2026-11-20): not a failure.  A warning (`g.warn`: stderr, the warn style) and
+  exit 0, from one helper of `subject` that `map` and `calendar` both call.
+* **E10, `models --delete`** (**decided** 2026-11-20): left out for now; `ff` and its models are to be reworked.  CLAUDE.md
+  stops listing `models` among the commands with `--delete`.
+* **B6** (**decided** 2026-11-20): a bug, not a choice: the confirmation uses the table's helpers (the local date, `-` for
+  no sport, counts with commas).
 
 ## 5. Plan (an order to propose; each step a commit with its test)
 

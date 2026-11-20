@@ -103,7 +103,8 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
 ## the shape of the commands (decided 2026-11-05)
 
 * **a type that lives in the database has a plural command that manages the collection** (`activities`, `climbs`,
-  `users`, `models`, `landmarks`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`.
+  `users`, `models`, `landmarks`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`
+  (`models` has `--add` only: a model is never changed, and deleting waits for the rework of `ff`).
   every `--delete` is confirmed with `-f` (with the countdown and the "would delete ..." message; `-f -f` skips the countdown).  a named type takes a
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
