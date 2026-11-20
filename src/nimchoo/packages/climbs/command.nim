@@ -105,7 +105,7 @@ proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreErro
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
   if force == fNo:
-    return failure(g, "nch climbs", fmt"would delete {what}; use `-f` to confirm")
+    return failure(g, "nch climbs", ~"would delete {what}; use `-f` to confirm")
   pause(g.theme, what, force)
   clearClimbs(st)
   st.reclaim()
@@ -213,7 +213,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           g.warn retiredText(hidden)
       if ids.len == 0:
         let what = if list.select: " (the climbs selection is now empty)" else: ""
-        g.say osOut, fmt"no climb meets the criteria{what}" & "\n"
+        g.show(osOut, ~"no climb meets the criteria{what}")
         return exitOk
     for l in summaryLines(
       summaries(st, ids),
