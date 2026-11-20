@@ -126,16 +126,13 @@ func countOf(items: seq[string]): string =
   $items.len
 
 type PackageFilter* = object
-  ## What narrows the list of packages (`nch packages -L N -U NAME -B NAME -T TABLE`): each given is one more test.
-  layer*: Option[int] ## on this layer
+  ## What narrows the list of packages (`nch packages -U NAME -B NAME -T TABLE`): each given is one more test.
   uses*: Option[string] ## that use this package (it is in their `depends`)
   usedBy*: Option[string] ## that this package uses (they are in its `depends`)
   table*: Option[string] ## that own this table or may read it
 
 func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
   ## Whether the package passes every test of the filter.  The names are those of a package and a table (checked before).
-  if f.layer.isSome and p.layer != f.layer.get:
-    return false
   if f.uses.isSome and f.uses.get.normalised notin p.depends.mapIt(it.normalised):
     return false
   if f.usedBy.isSome:

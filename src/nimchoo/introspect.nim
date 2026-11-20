@@ -25,7 +25,7 @@ type
       root*: string
       reverse*: bool ## what depends on `root`, not what it depends on
     of vList:
-      filter*: PackageFilter ## `-L`, `-U`, `-B`, `-T`: which packages
+      filter*: PackageFilter ## `-U`, `-B`, `-T`: which packages
     of vPoints:
       discard
 
@@ -60,21 +60,6 @@ func packagesSpec*(): Spec[Raw] =
     opts: @[
       custom(
         Raw,
-        ["-L"],
-        true,
-        "N",
-        "only the packages on layer N (the column L)",
-        body = (
-          block:
-            var n = 0
-            if not parseIntIn(value, 0, 1000, n):
-              return refuse(fmt"`-L` is a layer, a number from 0 (not '{value}')")
-            p.filter.layer = some(n)
-            fine
-        ),
-      ),
-      custom(
-        Raw,
         ["-U"],
         true,
         "NAME",
@@ -96,7 +81,7 @@ func packagesSpec*(): Spec[Raw] =
         ["-T"],
         true,
         "TABLE",
-        "only the packages that own TABLE or may read it (`-L`, `-U`, `-B` and `-T` go together, each narrowing the list further)",
+        "only the packages that own TABLE or may read it (`-U`, `-B` and `-T` go together, each narrowing the list further)",
         completion = completesFrom(completeTables),
         body = (p.filter.table = some(value); fine),
       ),
@@ -139,11 +124,10 @@ func finish(raw: Raw): Parsed[Params] =
   if raw.graph and raw.name.len == 0:
     return problemWith[Params]("`--graph` draws the tree of a package: give its name")
   let filtered =
-    raw.filter.layer.isSome or raw.filter.uses.isSome or raw.filter.usedBy.isSome or
-    raw.filter.table.isSome
+    raw.filter.uses.isSome or raw.filter.usedBy.isSome or raw.filter.table.isSome
   if filtered and (chosen.anyIt(it) or raw.name.len > 0):
     return problemWith[Params](
-      "`-L`, `-U`, `-B` and `-T` narrow the list of packages: they go with no package name and no other view"
+      "`-U`, `-B` and `-T` narrow the list of packages: they go with no package name and no other view"
     )
   if raw.points:
     parsedOk(Params(view: vPoints))
@@ -171,7 +155,7 @@ proc parseArgs*(args: seq[string]): Parsed[Params] =
   parseCommand(args, packagesSpec(), Raw(), finish)
 
 const
-  synopsis = """usage: nch packages [-L N] [-U NAME] [-B NAME] [-T TABLE]
+  synopsis = """usage: nch packages [-U NAME] [-B NAME] [-T TABLE]
        nch packages NAME
        nch packages --points
        nch packages NAME --graph [--reverse]"""

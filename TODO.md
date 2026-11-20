@@ -12,11 +12,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### A. Cut
 
-1. **`nch packages`: fewer views.**  Today: summary, detail, `--points`, `--tables`, `--graph` (layers), `--graph NAME`
-   (tree), `--dot`, filters `-L -U -B -T`, `--reverse`, and a `-v` that means one thing in the tree and another in the layers.
-   Options, each separate: (a) `--tables` into `nch db` (it gains "packages with access"; one table view); (b) drop the
-   layers view and both meanings of `-v` (the summary already sorts by layer and shows it); (c) `--dot` to `tools/` (a
-   developer's job); (d) drop `-L`.  Recommended: all four.
 2. **Styles for names.**  Five styles for identifiers (`cmd`, `file`, `pkg`, `extn`, `table`, each with alt-X).  Options:
    (a) keep them; (b) merge `pkg`, `extn` and `table` into one, `name` (the kind shows from the label of its row or column),
    leaving `cmd`, `file`, `name`.  Recommended: (b), which reverses a recent request.

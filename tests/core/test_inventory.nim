@@ -80,9 +80,8 @@ suite "the filters of the list":
     let inv = world()
     inv.packages.filterIt(inv.keeps(f, it)).mapIt(it.name)
 
-  test "-L: a layer; -U: those that use a package; -B: those a package uses":
+  test "-U: those that use a package; -B: those a package uses":
     check kept(PackageFilter()) == @["db", "a", "b", "c"]
-    check kept(PackageFilter(layer: some(1))) == @["a"]
     check kept(PackageFilter(uses: some("a"))) == @["b", "c"]
     check kept(PackageFilter(usedBy: some("c"))) == @["db", "a", "b"]
     check kept(PackageFilter(usedBy: some("a"))) == @["db"]
@@ -94,10 +93,10 @@ suite "the filters of the list":
     check kept(PackageFilter(table: some("dbt"))) == @["db", "a", "b", "c"]
 
   test "together, each narrows the list further":
-    check kept(PackageFilter(uses: some("a"), layer: some(3))) == @["c"]
+    check kept(PackageFilter(uses: some("a"), usedBy: some("c"))) == @["b"]
     check kept(PackageFilter(table: some("tb"), usedBy: some("c"))) == @["b"]
-    let lines = summaryLines(world(), 80, PackageFilter(layer: some(1))).texts
-    check lines.anyIt(it.startsWith("a ")) and not lines.anyIt(it.startsWith("b "))
+    let lines = summaryLines(world(), 80, PackageFilter(uses: some("b"))).texts
+    check lines.anyIt(it.startsWith("c ")) and not lines.anyIt(it.startsWith("b "))
 
 suite "the views":
   test "the summary has a line for each package with what it is for, then what it provides":
