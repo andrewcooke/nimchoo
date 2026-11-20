@@ -145,8 +145,7 @@ proc runImport(
     discard failure(
       g,
       "nch import",
-      getCurrentExceptionMsg() &
-        " (the activities are imported; they are named by the next `nch import`)",
+      ~"{getCurrentExceptionMsg()} (the activities are imported; they are named by the next `nch import`)",
     )
   # what the packages that asked do with the new activities (the selection is made of them)
   try:
@@ -189,10 +188,10 @@ proc runImport(
           discard failure(
             g,
             "nch import",
-            step.failed & " (the activities are imported): " & getCurrentExceptionMsg(),
+            ~"{step.failed} (the activities are imported): {getCurrentExceptionMsg()}",
           )
   except StoreError as e:
-    discard failure(g, "nch import", "the new activities could not be listed: " & e.msg)
+    discard failure(g, "nch import", ~"the new activities could not be listed: {e.msg}")
   if summary.failed > 0 or namingFailed: exitFailure else: exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
