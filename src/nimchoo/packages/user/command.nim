@@ -143,7 +143,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             setFthr(st, id, n.fthr.get)
       )
       g.log.log(lvInfo, commandName, leSaved, said)
-      g.say osOut, said & "\n"
+      g.show(osOut, plain(said))
       return exitOk
     of uaEdit:
       let e = p.edit
@@ -177,7 +177,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       )
       for line in said:
         g.log.log(lvInfo, commandName, leSaved, line)
-        g.say osOut, line & "\n"
+        g.show(osOut, plain(line))
       return exitOk
   except StoreError as e:
     failure(g, "nch users", e.msg)

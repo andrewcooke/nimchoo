@@ -109,7 +109,7 @@ func pageUrl(port: int, path, query, token: string): string =
 
 proc showPage(g: Globals, url: string, start: bool) =
   ## Print the page's address and, unless only starting, open the browser at it.
-  g.say osOut, url & "\n"
+  g.show(osOut, plain(url))
   try:
     stdout.flushFile()
     # (a program reading our output waits for this line)

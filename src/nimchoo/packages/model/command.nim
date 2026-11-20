@@ -86,7 +86,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       insertModel(st.db, p.model)
       let said = "made the model " & p.model.name
       g.log.log(lvInfo, commandName, leSaved, said)
-      g.say osOut, said & "\n"
+      g.show(osOut, plain(said))
       exitOk
   except StoreError as e:
     failure(g, "nch models", e.msg)
