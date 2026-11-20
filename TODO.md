@@ -21,10 +21,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### C. Write it down
 
-11. **The visual rules, in one place**: the `ui` package's documentation (stale today: it says the style names are those
-    of `dark.theme`, and lacks `file`, `pkg`, `extn`, `table` and alt-X).  What each style is for, the forms of messages,
-    counts, lists, headings and help, each rule with the helper that holds it.  Then a whole-system review in a fresh
-    session (a milestone).
+11. **A whole-system review in a fresh session** (a milestone: the cuts and the shared helpers are done, and the rules
+    of the look are written in the `ui` package's documentation, 2026-11-20).
 
 ## Tidy left from the reviews
 
