@@ -43,13 +43,11 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       them, and go when no caller is left); table cells and `span(...)` texts with backticks become `~"..."` pieces.  Done:
       the shared types above, and the calls of `failure`, `warn`, `usageError` and `g.say` whose text is a literal, a `fmt"..."`
       or pieces joined with `&` in every `command.nim`, `introspect.nim`, `nch.nim`, `completion.nim` and `web/launch.nim` (a script
-      did them; the rest are below).  **Left** (found with `grep -rnE '"[^"]*`+"`"+r'[^"]*"'` on the source, not in a `~"` or a comment): texts built in
-      helpers and passed on as strings, which need the helper to give a `Line`: `g.say` with a variable (`said`, `line`, `note`:
-      `names`, `climbs`, `user`, `importer` commands), `sayDeleted(g, text)`, `climbs` (`criterion`, `duplicates`, `edit`,
-      `imported`, `mapframes`, `naming`, `overlap`, `work`, `subject`), `importer` (`naming`, `sinks`), `names/places`,
-      `web/launch` (two), `activities/subject` and its `command` (`emptyText`, the selection texts), `map/command` (the frames
-      note), `calendar/command` (the omitted months), `*/subject.nim` (`summary`, `emptyHint`), and the `summary` of
-      each `PointDecl`/package declaration (docs: leave).  Then the string versions of `failure`, `warn`, `usageError`, `warnLine`
+      did them; the rest are below).  **Left**: only text that is *not* an error or a warning (those are one colour, and backticks in them are drawn as they are, so
+      a plain string with backticks in a message needs nothing: `theme.render`, `messageStyles`).  Found with
+      `grep -rnE '"[^"]*`+"`"+r'[^"]*"'` on the source, not in a `~"` or a comment, and then looking at where the text goes: lines that
+      reach `g.say` or a live sink (`importer`: `sinks`, `naming`, the `openNames` callbacks; `climbs/command`'s `said` and `line`),
+      table cells, the frames' `summary` (also in the page's JSON, so a separate change) and `names/places`.  Then the string versions of `failure`, `warn`, `usageError`, `warnLine`
       and `sayDeleted` and `Parsed.problem` can go.  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write
       `(~"x").text`; `~"..."` is an ordinary literal (`fmt"..."` is raw), so a backslash is doubled; one line per `~` (no `\n`);
       inside a template `~"{x}"` cannot see the template's parameters (a `func` outside builds the `Line`: `webopts.nim`).
