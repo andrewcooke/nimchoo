@@ -503,3 +503,28 @@ suite "database: where it lives":
     check resolveDbPath("").endsWith("nch" / "nch.db")
     if saved.len > 0:
       putEnv("NCH_DB", saved)
+
+suite "database: two writers":
+  test "a writer waits for another: the timeout is set when the database is opened":
+    let s = openStore(tempDb("busy"), @[])
+    check s.db.scalar(int, "pragma busy_timeout") == busyTimeoutMs
+    s.close()
+
+  test "a transaction that will write takes the write lock when it begins; one that reads does not":
+    let path = tempDb("lock")
+    let a = openStore(path, @[])
+    let b = openStore(path, @[])
+    b.db.execScript("pragma busy_timeout = 0")
+      # (not to wait ten seconds for the refusal)
+    a.beginRead()
+    b.beginWrite() # a reader is no obstacle
+    b.rollback()
+    a.rollback()
+    a.beginWrite()
+    expect StoreError:
+      b.beginWrite()
+    a.rollback()
+    b.beginWrite()
+    b.rollback()
+    a.close()
+    b.close()

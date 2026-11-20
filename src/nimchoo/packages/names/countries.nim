@@ -156,7 +156,7 @@ proc ensureCountries*(n: Names) {.raises: [StoreError, DownloadError].} =
     raise n.couldNot("the countries")
   defer:
     n.dropOutlines()
-  n.st.begin()
+  n.st.beginWrite()
   var done = false
   try:
     # a country is matched by its ISO code: Natural Earth's main field is -99 for a few (France, Norway), the real

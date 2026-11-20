@@ -82,7 +82,7 @@ proc flush*(s: Session, b: var SeenBuffer) {.raises: [StoreError].} =
   ## another transaction.
   if b.rows.len == 0:
     return
-  s.begin()
+  s.beginWrite()
   var done = false
   let st = prepareStmt(
     s.db,

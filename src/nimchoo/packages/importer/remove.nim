@@ -90,7 +90,7 @@ proc deleteActivities*(
   ## Delete the activities of the plan, and each file when it is left with none (so the count of files forgotten grows
   ## with the activities).  One transaction: all or nothing.  `progress` is told, after each few activities, how many are
   ## gone and how many files are forgotten.
-  st.begin()
+  st.beginWrite()
   var done = false
   try:
     var at = 0

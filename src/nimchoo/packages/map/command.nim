@@ -162,7 +162,7 @@ proc makeFrames(
     return (@[], failure(g, "nch map", e.msg))
   try:
     var made: seq[FrameData]
-    st.begin()
+    st.beginRead()
     try:
       if frames.anyIt(it.readsSelection) and c.subject.selected(st) == 0:
         return (@[], emptyFailure(g, c.subject))

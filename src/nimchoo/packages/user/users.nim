@@ -15,7 +15,7 @@ proc renameUser*(st: Store, id: UserId, name: string) {.raises: [StoreError].} =
 
 proc setDefaultUser*(st: Store, id: UserId) {.raises: [StoreError].} =
   ## Make `id` the default user (the old one stops being; both or neither).
-  st.begin()
+  st.beginWrite()
   var done = false
   try:
     st.db.execute("update user set is_default = 0 where is_default = 1")

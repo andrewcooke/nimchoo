@@ -24,6 +24,9 @@ export db_sqlite.DbConn, fragment, coreFragment
 
 {.push raises: [].}
 
+const busyTimeoutMs* = 10_000
+  ## how long a writer waits for another to finish before "database is locked" (an import commits a file at a time)
+
 const baseFragments* =
   @[fragment("001-schema.sql")] ## the database's own, applied first, always
 
@@ -207,6 +210,8 @@ proc openStore*(
       if result.db.scalar(int, "pragma page_count") == 0:
         result.db.execScript("pragma auto_vacuum = incremental")
       result.db.execScript("pragma foreign_keys = on")
+      # another nch writing (an import while a page is served) makes a writer wait for it, not fail at once
+      result.db.execScript(fmt"pragma busy_timeout = {busyTimeoutMs}")
       # write-ahead log: a commit does not wait for the disk (the log is synced when it is checkpointed),
       # and readers (the web server's workers) do not wait for a writer.  A power cut can lose the last
       # commits, never corrupt the database; a re-import repeats what was lost.
@@ -225,9 +230,15 @@ proc setAutoCheckpoint*(s: Store, pages: int) {.raises: [StoreError].} =
   ## someone else, see checkpointer.nim; the last connection to close does it anyway).
   s.db.execScript(fmt"pragma wal_autocheckpoint = {pages}")
 
-proc begin*(s: Store) {.raises: [StoreError].} =
-  ## Start a transaction.
+proc beginRead*(s: Store) {.raises: [StoreError].} =
+  ## Start a transaction that only reads: what it reads is one moment of the database.
   s.db.execScript("begin")
+
+proc beginWrite*(s: Store) {.raises: [StoreError].} =
+  ## Start a transaction that will write.  It takes the write lock at once (waiting up to `busyTimeoutMs` for another
+  ## writer): one that read first and took the lock only to write would fail if another had written in between, and no
+  ## waiting can mend that.
+  s.db.execScript("begin immediate")
 
 proc commit*(s: Store) {.raises: [StoreError].} =
   ## End the transaction, keeping its changes.

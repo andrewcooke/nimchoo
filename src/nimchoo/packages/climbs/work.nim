@@ -267,7 +267,7 @@ proc ensureClimbs*(
   var cache: Sectors
   var rides: Rides
   for k, id in todo:
-    st.begin()
+    st.beginWrite()
     var done = false
     try:
       workOn(st, id, cache, rides, result)
@@ -305,7 +305,7 @@ proc countClimbs*(st: Store): Counts {.raises: [StoreError].} =
 proc clearClimbs*(st: Store) {.raises: [StoreError].} =
   ## Delete every sector, with the efforts on them (of every user), the record of what was
   ## looked at and the numbers given to names: the next `ensureClimbs` starts again, as in a new database.
-  st.begin()
+  st.beginWrite()
   var done = false
   try:
     st.db.execute("delete from climbs_done")

@@ -120,7 +120,7 @@ proc writeDecoded*(
   ## Write a decoded file (called `name` in the database, with this content hash) for the
   ## store's user, in one transaction: nothing is written unless all of it is.  The import
   ## steps (heart rate, ...) write their rows for each activity.
-  s.begin()
+  s.beginWrite()
   var committed = false
   try:
     var visitInsert = initMultiInsert(

@@ -127,7 +127,7 @@ proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): 
 
 proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
   ## Work out the impulses that are lacking (in one transaction).
-  st.begin()
+  st.beginWrite()
   var committed = false
   try:
     discard calculateMissing(st.db, st.userId, m)

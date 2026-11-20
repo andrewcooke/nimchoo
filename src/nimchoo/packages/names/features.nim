@@ -201,7 +201,7 @@ proc ensureCells*(
     except OSError:
       discard
     raise n.couldNot("the names of " & iso)
-  n.st.begin()
+  n.st.beginWrite()
   var done = false
   try:
     n.readCells(iso, text, missing)

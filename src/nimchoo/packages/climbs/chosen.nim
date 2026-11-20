@@ -10,7 +10,7 @@ import ../user/session
 
 proc replaceClimbSelection*(st: Session, ids: seq[int64]) {.raises: [StoreError].} =
   ## Make the climbs `ids` the climbs selection of the store's user, in place of the one there was: all or nothing.
-  st.begin()
+  st.beginWrite()
   var done = false
   try:
     st.db.execute(
