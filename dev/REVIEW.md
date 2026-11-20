@@ -35,7 +35,7 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 | B3 | a passing failure is remembered as the file's verdict | `importer/batch.nim` | files that failed on "database is locked" are skipped as known failures until `--slow` |
 | E3 | only the first statement of a text is run (latent: no caller does it) | `db/statement.nim` | `a; b` runs `a`, and only `a` is checked by the access model |
 | C1 | `effort.start_m` counts from the stretch, not the ride | `climbs/work.nim` | after a stop by hand, "started N m into the ride" is too small |
-| C2 | the profile interpolates altitude across any gap (its doc says never) | `climbs/profile.nim` | a climb can be made from a straight line across a barometer dropout |
+| C2 | the profile interpolates altitude across any gap (its doc said never) | `climbs/profile.nim` | **settled**: no such gap in the author's rides; doc corrected, behaviour left for the terrain model (section 4) |
 | D1 | `users --edit` writes, then fails on `--rename` | `user/command.nim` | FTHR and default changed, exit 1; no transaction |
 | C3 | `climbs --edit NAME --auto` offline says "is now called unnamed₇" | `climbs/command.nim` | the climb is not named yet |
 | B2 | the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
@@ -71,8 +71,10 @@ transactions), B11 (the inflating child is sized by the caller's limit).
 
 ## 4. Decisions for the author
 
-* **C2, the altitude across a gap**: no ground truth.  Leave NaN beyond some distance between two altitudes (50 m?), so a
-  climb never crosses a hole; or interpolate and change the doc.  Recommend the first; look at a ride with a dropout.
+* **C2, the altitude across a gap** (**decided** 2026-11-20): measured on the author's database, altitude is on every
+  point of a stretch or on none (1,438 stretches; 0 gaps inside one; 139 rides with none, 101 of them in 2019), so the
+  interpolation never runs.  The doc of `profile.nim` now says what the code does; the behaviour waits for the terrain
+  model (TODO.md), which would also give those 139 rides climbs.
 * **A1, backticks**: mark which spans are markup (the literal text of `styled` and `g.say`) and draw values as they are
   (recommended), or escape backticks in values.
 * **D3, `landmarks --radius`**: km, as the rule says (recommended), or metres as an exception written down.

@@ -6,8 +6,10 @@
 ## The ride has a position and time at each second but no distance, so the distance is worked out
 ## from the positions (over the ground; the altitude is not part of it).  Samples are put every
 ## `stepM` metres by interpolating between the recorded points.  The altitude comes only from the
-## points that have one; where there is none it is not made up (NaN), and a climb never crosses
-## such a gap.  Pure.
+## points that have one, and between two of them it is a straight line however far apart they are;
+## before the first and after the last it is NaN, and a climb never crosses NaN.  (In the author's
+## rides altitude is on every point of a stretch or on none: measured 2026-11-20, dev/REVIEW.md.)
+## Pure.
 
 import std/[math, options]
 import ../importer/coord

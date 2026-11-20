@@ -97,7 +97,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 * **More climb features**: the elevation profile of a climb, the lead/lag comparison, the near-miss report, `exclude`, a way to retire many climbs
   (auto-retire of duplicates was tried and dropped: it retired long climbs into shorter near copies).
 * **Per-sport threshold heart rate and models**, if wanted.
-* **A terrain model (SRTM)**: if added, smooth its heights (`climbs/profile.smoothed` is there for that).
+* **A terrain model (SRTM)**: if added, smooth its heights (`climbs/profile.smoothed` is there for that).  It would give
+  altitude to the 139 rides without any (101 of them in 2019: measured 2026-11-20), which now have no climbs or attempts;
+  how the device's altitude and the model's combine (compare, fix, replace) is to be decided then.
 * **Versions** (dev/HISTORY.md, Task 11): when the version number changes; tie it to releases and the end of squashing.
 * **Tab completion**: zsh (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for the other plural
   commands, and a `--model` of `map`, if they gain them (completion follows the specs).
