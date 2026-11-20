@@ -73,6 +73,14 @@ suite "globals: warnings and what was done":
       $warnLine("x")[0].styles[0] == "warn"
     check doneLine(@[span("3", "select"), span(" of 5")]).text == "done: 3 of 5"
 
+  test "a message from a Line is all in its style, its literal text keeps the backticks":
+    let m = warnLine(@[span("use "), span("nch log", "code")])
+    check m.text == "warning: use nch log"
+    check m.plainText == "warning: use `nch log`"
+    check m.allIt(($it.styles[0]) == "warn")
+    check m[^1].isCode
+    check warnLine(@[span("in "), span("/a\nb", "code")]).text == "warning: in /a; b"
+
   test "no other code writes the prefixes by hand: they come from warnLine and doneLine":
     var found: seq[string]
     let top = currentSourcePath().parentDir.parentDir.parentDir / "src"

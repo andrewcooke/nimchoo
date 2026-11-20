@@ -7,7 +7,7 @@ import std/[options, os, sequtils, strutils]
 import ../../core/globals
 import ../util/args/[args, usage]
 import ../../core/logfile
-import ../ui/live
+import ../ui/[live, markup]
 import ../ui/style
 import ./[lines, params]
 
@@ -33,10 +33,8 @@ proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
   usageOf(synopsis, width, intro, logSpec().docs, notes)
 
-proc show*(
-    path: string, f: Filter, paint: Paint
-): tuple[lines: seq[string], problem: string] =
-  ## The lines to print for the log at `path`, or what is wrong.
+proc show*(path: string, f: Filter): tuple[lines: seq[Line], problem: string] =
+  ## The lines to print for the log at `path` (the level and event words in their styles), or what is wrong.
   if not fileExists(path):
     result.problem = "no log at " & path & " yet"
     return
@@ -60,7 +58,7 @@ proc show*(
       )
     return
   for l in s.lines:
-    result.lines.add render(styled(l), paint)
+    result.lines.add styled(l)
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch log ARGS`; returns the exit status.
@@ -77,12 +75,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let path = envLogPath()
   if path.isNone:
     return failure(
-      g, "nch log",
-      "logging is switched off (NCH_LOG is empty, or there is no home directory)",
+      g,
+      "nch log",
+      ~"logging is switched off (NCH_LOG is empty, or there is no home directory)",
     )
-  let r = show(path.get, p.filter, paintOf(g, osOut))
+  let r = show(path.get, p.filter)
   if r.problem.len > 0:
     return failure(g, "nch log", r.problem)
-  for l in r.lines:
-    g.say osOut, l & "\n"
+  g.showAll(osOut, r.lines)
   exitOk

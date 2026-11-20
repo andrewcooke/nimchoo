@@ -106,32 +106,60 @@ func oneLine*(text: string): string =
       parts.add l.strip
   parts.join("; ")
 
+func oneLine*(line: Line): Line =
+  ## A message on one line, as for a string: where a span's text has newlines (a value, a path), its lines are joined with
+  ## "; ", blank ones left out.
+  for sp in line:
+    if '\n' in sp.text:
+      result.add Span(text: oneLine(sp.text), styles: sp.styles)
+    else:
+      result.add sp
+
 proc usageError*(
-    g: Globals, command: string, usage: seq[Line], problem: string
+    g: Globals, command: string, usage: seq[Line], problem: Line
 ): int {.raises: [].} =
-  ## Report a bad command line: the problem (in `bad`, on one line), then the usage.
-  g.tell(osErr, @[span(oneLine(command & ": " & problem), "bad")])
+  ## Report a bad command line: the problem (in `bad`, on one line, its literal text with backticks), then the usage.
+  g.tell(osErr, within(oneLine(@[span(command & ": ")] & problem), styleName"bad"))
   g.showAll(osErr, usage)
   exitUsage
 
-func warnLine*(text: string): Line =
+proc usageError*(
+    g: Globals, command: string, usage: seq[Line], problem: string
+): int {.raises: [].} =
+  ## As above, with the problem as text.
+  usageError(g, command, usage, plain(problem))
+
+func warnLine*(problem: Line): Line =
   ## A warning ("warning: ..."): something advisory, the work done all the same; all in `warn`, on one line.
-  @[span("warning: " & oneLine(text), "warn")]
+  within(oneLine(@[span("warning: ")] & problem), styleName"warn")
+
+func warnLine*(text: string): Line =
+  ## As above, from text.
+  warnLine(plain(text))
 
 func doneLine*(what: Line): Line =
   ## The line that says what was done ("done: 11 of 1,113 activities"): plain, with what it counts in the style that says
   ## what it is (`select`, `good`, `bad`).
   @[span("done: ")] & what
 
-proc warn*(g: Globals, text: string) =
+proc warn*(g: Globals, problem: Line) =
   ## Say a warning on stderr (`warnLine`), wrapped to the width.
-  g.tell(osErr, warnLine(text))
+  g.tell(osErr, warnLine(problem))
+
+proc warn*(g: Globals, text: string) =
+  ## As above, from text.
+  g.warn plain(text)
 
 proc done*(g: Globals, what: Line) =
   ## Say what was done on stdout (`doneLine`), wrapped to the width.
   g.tell(osOut, doneLine(what))
 
-proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
-  ## Report that the work failed: one message, on one line (wrapped to the width), all in `bad`.
-  g.tell(osErr, @[span(oneLine(command & ": " & problem), "bad")])
+proc failure*(g: Globals, command: string, problem: Line): int {.raises: [].} =
+  ## Report that the work failed: one message, on one line (wrapped to the width), all in `bad`, its literal text with
+  ## backticks.
+  g.tell(osErr, within(oneLine(@[span(command & ": ")] & problem), styleName"bad"))
   exitFailure
+
+proc failure*(g: Globals, command, problem: string): int {.raises: [].} =
+  ## As above, with the problem as text.
+  failure(g, command, plain(problem))

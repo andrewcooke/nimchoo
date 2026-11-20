@@ -85,6 +85,12 @@ func unbroken*(text: string): string =
   ## `text` kept on one line when it is wrapped: an item of a list ("route (importer)").
   text.replace(" ", noBreak)
 
+func within*(line: Line, style: StyleName): Line =
+  ## The line with `style` outside the styles of each span (a message in `bad` or `warn`: `theme.render` draws it in one
+  ## colour, its literal text with backticks).
+  for s in line:
+    result.add Span(text: s.text, styles: @[style] & s.styles)
+
 func plain*(text: string): Line =
   ## A line of text with no style.
   @[span(text)]
