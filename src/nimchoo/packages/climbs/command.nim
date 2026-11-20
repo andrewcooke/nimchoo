@@ -62,16 +62,16 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   ## `--edit NAME` with one thing to change.
   let id = findShown(st, e.climb)
   let was = shownName(st, id)
-  var said: string
+  var said: Line
   case e.change.kind
   of ckRetire, ckUnretire:
     let retiring = e.change.kind == ckRetire
     setRetired(st, id, retiring)
     said =
       if retiring:
-        fmt"{was} is retired: hidden from the lists (`nch climbs --retired` shows it; `--unretire` brings it back)"
+        ~"{was} is retired: hidden from the lists (`nch climbs --retired` shows it; `--unretire` brings it back)"
       else:
-        fmt"{was} is shown again"
+        ~"{was} is shown again"
   of ckAuto:
     setAuto(st, id)
     try:
@@ -87,18 +87,18 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
       # (what it could not do, nameClimbs has said: offline with the places not in the cache, or a damaged line)
       said =
         if named.isSome and named.get.named == 1:
-          fmt"{was} is now called {shownName(st, id)}"
+          ~"{was} is now called {shownName(st, id)}"
         elif named.isSome and named.get.nothing == 1:
-          fmt"{was}: the name is forgotten; no place is near it (it is shown as {shownName(st, id)})"
+          ~"{was}: the name is forgotten; no place is near it (it is shown as {shownName(st, id)})"
         else:
-          fmt"{was}: the name is forgotten"
+          ~"{was}: the name is forgotten"
     except DownloadError as e:
-      said = fmt"{was}: the name is forgotten; {e.msg} (the next `nch climbs` names it)"
+      said = ~"{was}: the name is forgotten; {e.msg} (the next `nch climbs` names it)"
   of ckRename:
     rename(st, id, e.change.newName)
-    said = fmt"{was} is now called {shownName(st, id)}"
-  g.log.log(lvInfo, commandName, leSaved, said)
-  g.say osOut, said & "\n"
+    said = ~"{was} is now called {shownName(st, id)}"
+  g.log.log(lvInfo, commandName, leSaved, said.plainText)
+  g.show(osOut, said)
   exitOk
 
 proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreError].} =
