@@ -84,7 +84,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g,
       "nch landmarks",
       usageText(helpWidth(stderr)),
-      "the landmarks are shared by all users: `--user` has no part in this command",
+      ~"the landmarks are shared by all users: `--user` has no part in this command",
     )
   var st: Store
   try:
@@ -99,8 +99,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g.say osErr, "would delete the landmark " & d.name & ": add `-f` to do it\n"
         return exitFailure
       if not removeLandmark(st, d.name):
-        return
-          failure(g, "nch landmarks", "there is no landmark called '" & d.name & "'")
+        return failure(g, "nch landmarks", ~"there is no landmark called '{d.name}'")
       let said = "deleted the landmark " & d.name
       g.log.log(lvInfo, commandName, leDeleted, said)
       sayDeleted(g, said)
@@ -139,9 +138,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         let a = p.picked
         if a.pick > found.len:
           return failure(
-            g,
-            "nch landmarks",
-            "there is no suggestion " & $a.pick & " (" & $found.len & " found)",
+            g, "nch landmarks", ~"there is no suggestion {a.pick} ({found.len} found)"
           )
         let s = found[a.pick - 1]
         addLandmark(st, a.name, s.lon, s.lat, a.radiusM)
