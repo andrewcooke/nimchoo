@@ -81,9 +81,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       exitOk
     of maAdd:
       if findModel(st.db, p.model.name).isSome:
-        return failure(
-          g, "nch models", "there is a model called '" & p.model.name & "' already"
-        )
+        return
+          failure(g, "nch models", ~"there is a model called '{p.model.name}' already")
       insertModel(st.db, p.model)
       let said = "made the model " & p.model.name
       g.log.log(lvInfo, commandName, leSaved, said)
