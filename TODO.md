@@ -21,8 +21,36 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### C. The review (done 2026-11-20)
 
-11. **The fourth review's plan** (dev/REVIEW.md, section 5; findings in `dev/review-4/`): to go through with the author,
-    with the decisions of its section 4, before any step starts.
+11. **The fourth review's plan** (dev/REVIEW.md, section 5; findings in `dev/review-4/`).  Done: step 1 (robustness) and
+    step 2 (the other bugs) except A1, below.  Next after A1: step 3 (parse at the edge, with units in input: section 4,
+    D3), then the output helpers, one fact, sentinels, dead code (section 3).
+
+12. **A1: all output through `~"..."`** (decided 2026-11-20, dev/REVIEW.md section 4; a mechanical sweep, fit for a
+    cheaper model with this brief).  Stage 1 is done (commit 0c66d1f): `ui/markup.nim` has the macro `~"..."` (markup
+    `<style ...>`; `` `x` `` is exactly `<code x>`, read when compiled; values in `{}` as `fmt` puts them, no markup read
+    in them); `core/line.plainText` puts backticks round `code` spans (drawing without colour, the log); `theme.render`
+    keeps a warning or failure one colour, with backticks.  The drawer (`theme.Drawer.draw`, `Globals.inTheme`) **still
+    reads backticks in plain strings at run time**: that is what makes a backtick in a value (a name, a path) markup (A1).
+    * **Stage 2, the sweep**, one package per commit, `nimble fmt` and `nimble test` before each, behaviour unchanged:
+      every text a person reads is built with `~"..."` and written as a `Line`.  `g.say(o, fmt"...`x`...")` becomes
+      `g.show(o, ~"...")`; give `g.warn`, `failure` and `usageError` (`core/globals.nim`) a `Line` version and use it;
+      table cells and `span(...)` texts with backticks become `~"..."` pieces.  **Help texts too**: `OptDoc.help`
+      (`core/optdoc.nim`), each option's help in the specs (`util/args`), and the intros and notes of every usage become
+      `Line`s; the usage wraps them as `ruled` wraps a cell (by words, each keeping its style), not as `core/wrap.wrap`
+      wraps a string.  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write `(~"x").text`; `~"..."` is
+      an ordinary literal (`fmt"..."` is raw), so a backslash is doubled; one line per `~` (no `\n`).
+    * **Stage 3**: the drawer stops reading backticks (drop `typing` and `inTyped` from `Drawer`, and the backtick reading
+      in `inTheme`): plain text is drawn as it is.  Guard tests: a value with a backtick, shown with `~"...{name}..."`,
+      is drawn with its backtick in colour; and `tests/core/test_backticks.nim` (which reads the source's literals) also
+      refuses a literal with backticks that is not a `~"..."` (except docs, SQL, the completion script, tests).  Then
+      delete what is dead (a plain-string `g.say` that nothing uses for prose; `core/wrap` if unused), mark A1 fixed in
+      dev/REVIEW.md, and update CLAUDE.md "output".
+    * Decided: without colour a table or usage is two columns out per `code` span (`plainText` is wider than `width`);
+      it does not matter.  Laying out for the mode is the alternative, only if the author asks.
+
+13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
+    before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the
+    host (`localhost:PORT`) and the token as the page's address gives them.
 
 ## Tidy left from the reviews
 
