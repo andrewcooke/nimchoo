@@ -139,7 +139,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of caRetired:
       let rows = allSectors(st, retired = true)
       if rows.len == 0:
-        g.say osOut, "no climbs are retired\n"
+        g.show(osOut, ~"no climbs are retired")
       else:
         g.showAll(osOut, sectorLines(rows, helpWidth(stdout)))
       return exitOk

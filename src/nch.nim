@@ -164,7 +164,7 @@ proc main(): int {.raises: [].} =
     g.showAll osOut, usageText(helpWidth(stdout))
     return exitOk
   if head.version:
-    g.say osOut, versionString & "\n"
+    g.show(osOut, plain(versionString))
     return exitOk
   if head.config:
     g.showAll osOut, configLines(g, helpWidth(stdout))

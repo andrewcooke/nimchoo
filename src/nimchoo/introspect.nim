@@ -235,7 +235,7 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
       return
         failure(g, "nch packages", ~"`-T`: no table is called '{f.table.get}'{hint}")
     if inv.packages.allIt(not inv.keeps(f, it)):
-      g.say osOut, "no package is kept by those filters\n"
+      g.show(osOut, ~"no package is kept by those filters")
     else:
       g.showAll(osOut, summaryLines(inv, width, f))
   of vDetail:

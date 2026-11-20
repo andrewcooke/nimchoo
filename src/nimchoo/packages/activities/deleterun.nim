@@ -33,7 +33,7 @@ proc runDelete*(
     st: Session,
     ids: seq[int64],
     force: Force,
-    nothing: string,
+    nothing: Line,
     zone: Timezone,
 ): int {.raises: [].} =
   ## (`zone`: the one the list of activities uses, for the days the message names.)
@@ -41,7 +41,7 @@ proc runDelete*(
   try:
     let plan = planDelete(st, ids)
     if plan.ids.len == 0:
-      g.say osOut, nothing & "\n"
+      g.show(osOut, nothing)
       return exitOk
     let what = describe(plan, zone)
     if force == fNo:

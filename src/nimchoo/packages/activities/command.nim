@@ -122,9 +122,7 @@ proc showSelection*(
   let rows = selectionRows(st, c.verbose)
   if rows.len == 0:
     return @[
-      plain(
-        "nothing is selected: `nch activities --all` lists every activity; with criteria and `--select` some are chosen"
-      )
+      ~"nothing is selected: `nch activities --all` lists every activity; with criteria and `--select` some are chosen"
     ]
   result = listing(
     rows, zone, width, c, some(activityCount(st)), marks = marks, isSelection = true
@@ -410,9 +408,7 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
         ""
     g.tell(
       osOut,
-      plain(
-        fmt"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}"
-      ),
+      ~"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}",
     )
     exitOk
   except StoreError, DownloadError:
@@ -447,7 +443,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if criteria.delete:
       let m = matchingIds(st, criteria, zone)
       for l in m.notes:
-        g.say osOut, l.text & "\n"
+        g.show(osOut, l)
       let searched = criteria.all or criteria.given
       return runDelete(
         g,
@@ -455,23 +451,23 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         m.ids,
         criteria.force,
         if searched:
-          "no activity meets the criteria: nothing to delete"
+          ~"no activity meets the criteria: nothing to delete"
         else:
-          "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
+          ~"nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
         zone,
       )
     if criteria.rename:
       let m = matchingIds(st, criteria, zone)
       for l in m.notes:
-        g.say osOut, l.text & "\n"
+        g.show(osOut, l)
       if m.ids.len == 0:
         return failure(
           g,
           "nch activities",
           if criteria.all or criteria.given:
-            "no activity meets the criteria: nothing to rename"
+            ~"no activity meets the criteria: nothing to rename"
           else:
-            "nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
+            ~"nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
         )
       return renameActivities(g, st, m.ids)
     let r = listActivities(st, criteria, zone, helpWidth(stdout), not g.colour[osOut])
