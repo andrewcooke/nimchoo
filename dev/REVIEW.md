@@ -38,14 +38,14 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 | C2 | the profile interpolates altitude across any gap (its doc said never) | `climbs/profile.nim` | **settled**: no such gap in the author's rides; doc corrected, behaviour left for the terrain model (section 4) |
 | D1 | `users --edit` writes, then fails on `--rename` | `user/command.nim` | FTHR and default changed, exit 1; no transaction |
 | C3 | `climbs --edit NAME --auto` offline says "is now called unnamed₇" | `climbs/command.nim` | the climb is not named yet |
-| B2 | the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
-| B4 | a missing `--profile` is blamed on the FIT file | `fit/command.nim` | "ride.fit: cannot open: nosuch.xlsx" |
+| B2 | **fixed** 2026-11-20: the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
+| B4 | **fixed** 2026-11-20: a missing `--profile` is blamed on the FIT file | `fit/command.nim` | "ride.fit: cannot open: nosuch.xlsx" |
 | A1 | a backtick in a value is read as markup | `core/theme.nim` | in colour, the rest of the line (or text) drawn as `code` |
 | D8, C13 | `nan`/`inf` radius and positions accepted; `--all --radius` accepted | `activities/criteria.nim`, `geo`, `names` | `landmarks --add X --at 1,2 --radius nan`: a raw SQLite error |
 | D9 | two of three circle boxes miss the date line | `names/suggest.nim`, `names/lookup.nim` | `landmarks --near` near 180° misses the other side |
 | B6 | the delete confirmation shows dates in UTC, the table in local time | `importer/remove.nim` | the same ride described with two dates |
 
-Smaller: C6 (`--duplicates` help says "more than half", the test is 80%), E13 (`ff --file` reads the impulses in two
+Smaller: C6 (**fixed**: `--duplicates` help says "more than half", the test is 80%), E13 (`ff --file` reads the impulses in two
 transactions), B11 (the inflating child is sized by the caller's limit).
 
 ## 3. The classes, and what fixes each
