@@ -4,6 +4,64 @@ Open work only, as one list in the order the author chose (2026-11-12).  Finishe
 reasoning behind decisions); the reviews are in dev/REVIEW.md (the third, with the second as its appendix B and the first as A).
 When something here is done, delete it (in the same commit).  Design steps are discussed with the author before they start.
 
+## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
+
+The presentation grew by many small requests, each done where it was asked, so similar things differ between commands.
+First cut what exists for one view (A), then make what is left share one helper each (B), each with a test that refuses the
+next instance, and write the visual rules down in one place (C).  Every item is open: options, then a recommendation.
+
+### A. Cut
+
+1. **`nch packages`: fewer views.**  Today: summary, detail, `--points`, `--tables`, `--graph` (layers), `--graph NAME`
+   (tree), `--dot`, filters `-L -U -B -T`, `--reverse`, and a `-v` that means one thing in the tree and another in the layers.
+   Options, each separate: (a) `--tables` into `nch db` (it gains "packages with access"; one table view); (b) drop the
+   layers view and both meanings of `-v` (the summary already sorts by layer and shows it); (c) `--dot` to `tools/` (a
+   developer's job); (d) drop `-L`.  Recommended: all four.
+2. **Styles for names.**  Five styles for identifiers (`cmd`, `file`, `pkg`, `extn`, `table`, each with alt-X).  Options:
+   (a) keep them; (b) merge `pkg`, `extn` and `table` into one, `name` (the kind shows from the label of its row or column),
+   leaving `cmd`, `file`, `name`.  Recommended: (b), which reverses a recent request.
+3. **The last line of the activities.**  `footerLine` has four modes (`choices`, `saved`, `isSelection`, "N match
+   selected" in `select`).  Options: (a) keep; (b) one form everywhere, "done: 11 of 1,113 activities, 1,057.9km,
+   2d10h52m", never "match selected" (the rows' colour, or brackets, show it), and what `--select` saved said in a note of
+   its own.  Recommended: (b).
+4. **Marks without colour.**  Three conventions: the calendar's `[27]`, a whole row of `nch activities` in brackets, the
+   efforts of a climb with a bracket in the indent (and a `*` after a month beside a gap).  Options: (a) keep; (b) one
+   rule, a selected thing in brackets and a space where the bracket would be otherwise (`line.bracketed`), everywhere.
+   Recommended: (b).
+5. **Options for one case.**  Each separate: (a) `--latest` is an alias of `--newest 1` (CLAUDE.md: no aliases): drop it;
+   (b) `ruled`'s `together` exists for the `L  U  B  T` columns alone: drop it, they become ordinary columns; (c) `-v`
+   means a different thing in each command (more columns; the efforts under each climb; every month; repeats or implied
+   dependencies): make it "more about the same rows" everywhere, and give the calendar's its own name (`--all-months`)
+   or show every month always; (d) `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly`: settings of one chart,
+   to look at with the author before deciding.  Recommended: (a), (b), (c); (d) to look at.
+
+### B. Share
+
+6. **Messages.**  "note: " by hand in 9 places, "warning: " in 8 (some in `warn`, some plain), "done: " in 16 in four
+   styles.  Proposed: `g.note(text)`, `g.warn(text)`, `g.done(line)` beside `failure()` (one prefix, style, stream,
+   wrapping each), and a test that refuses the prefixes anywhere else.  Open: the style of each (`note` plain, `warning`
+   in `warn`, `done` plain with what it counts?).
+7. **Counts, plurals and lists.**  `insertSep(…, ',')` in 8 places and three private `commas`; `if n == 1: "x" else: "xs"`
+   in 7 places and a `plural` in the importer; lists of names separated by spaces in some views and commas in others.
+   Proposed: `counted(1113, "activity")` ("1,113 activities") in `ui/units`; one list helper, commas everywhere; a test
+   that refuses `insertSep` outside it.
+8. **The help.**  The parts come in different orders (the notes before the options in `ff` and `map`); extra sections
+   differ ("commands:", "The kinds:", a table after the options).  Proposed: `usageOf` takes named parts (synopsis,
+   introduction, options, notes, sections with their headings) and fixes the order and the form of headings.  Open: the
+   order (introduction, options, notes, sections?).
+9. **The scaffolding of a command.**  The 15 `run` procs repeat parsing, help, usage errors, opening the store and
+   catching `StoreError`; 60 calls write "nch NAME" by hand.  Proposed: `failure` and `usageError` take the command's
+   name (`commandName`) and add "nch "; perhaps one helper for the start of `run`.
+10. **Drawing.**  6 places draw with `sayRendered(render(l, paint))` to know whether there is colour; they can ask
+    `g.colour` and use `g.showAll`; `sayRendered` goes.
+
+### C. Write it down
+
+11. **The visual rules, in one place**: the `ui` package's documentation (stale today: it says the style names are those
+    of `dark.theme`, and lacks `file`, `pkg`, `extn`, `table` and alt-X).  What each style is for, the forms of messages,
+    counts, lists, headings and help, each rule with the helper that holds it.  Then a whole-system review in a fresh
+    session (a milestone).
+
 ## Tidy left from the reviews
 
 1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
