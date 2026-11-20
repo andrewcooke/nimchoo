@@ -51,12 +51,18 @@ func registryLines(
 proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the introduction, the options and the subjects that have a calendar, wrapped to `width`.
   usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(calendarSpec().docs, width),
-    registryLines(
-      g.extensions.get(subjectPoint), g.extensions.get(calendarFramePoint), width
-    ),
+    synopsis,
+    width,
+    intro,
+    calendarSpec().docs,
+    sections = @[
+      (
+        "subjects",
+        registryLines(
+          g.extensions.get(subjectPoint), g.extensions.get(calendarFramePoint), width
+        ),
+      )
+    ],
   )
 
 type Chosen* = object ## the subject and its frame

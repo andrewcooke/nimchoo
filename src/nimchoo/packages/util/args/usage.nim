@@ -1,7 +1,7 @@
 ## The option list of a command's usage text, made from the descriptions of its options (`OptDoc`), so that it cannot
 ## differ from what the parser accepts; and the tables a usage shows of what the registry holds (`tableLines`: the subjects
 ## and frames of `map`).  A command's usage is styled lines (`core/line.nim`): its synopsis and introduction, written by
-## hand, then this list, then any closing prose, put together by `usageOf`.  Pure: the width to wrap to is given.
+## hand, then this list, then any closing prose and sections, put together by `usageOf` in one order.  Pure: the width to wrap to is given.
 
 import std/[sequtils, strutils]
 import ../../../core/[line, ruled, wrap]
@@ -45,17 +45,6 @@ func proseLines*(text: string, width: int): seq[Line] =
   for l in prose(text, width).split('\n'):
     result.add plain(l)
 
-func heading*(text: string): seq[Line] =
-  ## A heading in a usage ("commands:"), in `em`.
-  @[@[span(text, "em")]]
-
-func usageOf*(parts: varargs[seq[Line]]): seq[Line] =
-  ## A usage made of its parts (the synopsis, the introduction, the options ...), a blank line between each two.
-  for k, p in parts:
-    if k > 0 and p.len > 0:
-      result.add plain("")
-    result.add p
-
 func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
   ## The lines for the options: two spaces, the names and the value (in `code`), the help in a column, wrapped to `width`.
   var labelWidth = 0
@@ -88,3 +77,31 @@ func tableLines*(header: seq[string], rows: seq[seq[string]], width: int): seq[L
   ## (`core/ruled.nim`).
   ruled(header, rows.mapIt(it.mapIt(plain(it))), width, indent, alternate = false)
     # (a few rows, beside text: no alternate rows)
+
+type Section* = tuple[heading: string, lines: seq[Line]]
+  ## a part of a usage after the notes, under its heading ("commands", "kinds"): a table, a list
+
+func usageOf*(
+    synopsis: string,
+    width: int,
+    intro = "",
+    options: seq[OptDoc] = @[],
+    notes = "",
+    sections: seq[Section] = @[],
+): seq[Line] =
+  ## A usage, its parts always in this order, a blank line between each two: the synopsis (`synopsisLines`), the
+  ## introduction and the options (`optionLines`), the notes (both prose, wrapped to `width`), then each section under
+  ## its heading, in `em`, lower case, with a colon ("commands:").
+  var parts = @[synopsisLines(synopsis)]
+  if intro.len > 0:
+    parts.add proseLines(intro, width)
+  if options.len > 0:
+    parts.add optionLines(options, width)
+  if notes.len > 0:
+    parts.add proseLines(notes, width)
+  for s in sections:
+    parts.add @[@[span(s.heading.toLowerAscii & ":", "em")]] & s.lines
+  for k, p in parts:
+    if k > 0:
+      result.add plain("")
+    result.add p

@@ -31,12 +31,7 @@ warning, duplicate dimmed: their colours are the theme's, see `nch --theme`)."""
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(logSpec().docs, width),
-    proseLines(notes, width),
-  )
+  usageOf(synopsis, width, intro, logSpec().docs, notes)
 
 proc show*(
     path: string, f: Filter, paint: Paint

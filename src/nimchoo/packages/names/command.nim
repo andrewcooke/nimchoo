@@ -43,12 +43,7 @@ holds the place comes before every name GeoNames has.  Without options, list the
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(landmarkSpec().docs, width),
-    proseLines(notes, width),
-  )
+  usageOf(synopsis, width, intro, landmarkSpec().docs, notes)
 
 func suggestionLines(rows: seq[Suggestion], withDistance: bool, width: int): seq[Line] =
   ## The places found, numbered, as a table (`core/ruled.nim`); how far each is, when near a point.

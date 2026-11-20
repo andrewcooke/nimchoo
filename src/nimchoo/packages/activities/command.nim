@@ -55,12 +55,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 proc usageText*(width: int, offered: seq[Criterion] = @[]): seq[Line] =
   ## The usage: the synopsis, the introduction, the options (made from their descriptions) and the notes, all wrapped to
   ## `width` (the synopsis lines are not).
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(criteriaSpec(offered).docs, width),
-    proseLines(notes, width),
-  )
+  usageOf(synopsis, width, intro, criteriaSpec(offered).docs, notes)
 
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"

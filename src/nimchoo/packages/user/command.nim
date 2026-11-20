@@ -40,12 +40,7 @@ are named after the command, not by `--user` before it.)"""
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(userSpec().docs, width),
-    proseLines(notes, width),
-  )
+  usageOf(synopsis, width, intro, userSpec().docs, notes)
 
 proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
   st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0

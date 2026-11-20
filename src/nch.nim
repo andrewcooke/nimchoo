@@ -119,10 +119,11 @@ func headSpec(): Spec[Head] =
 proc usageText(width: int): seq[Line] =
   ## The usage: the options every command takes, and the commands.
   usageOf(
-    synopsisLines("usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]"),
-    optionLines(headSpec().docs, width),
-    heading("commands:") & commandList(allCommands),
-    @[plain("For more about a command: `nch COMMAND --help`.")],
+    "usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]",
+    width,
+    options = headSpec().docs,
+    notes = "For more about a command: `nch COMMAND --help`.",
+    sections = @[("commands", commandList(allCommands))],
   )
 
 proc main(): int {.raises: [].} =

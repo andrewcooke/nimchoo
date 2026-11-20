@@ -19,10 +19,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
-8. **The help.**  The parts come in different orders (the notes before the options in `ff` and `map`); extra sections
-   differ ("commands:", "The kinds:", a table after the options).  Proposed: `usageOf` takes named parts (synopsis,
-   introduction, options, notes, sections with their headings) and fixes the order and the form of headings.  Open: the
-   order (introduction, options, notes, sections?).
 9. **The scaffolding of a command.**  The 15 `run` procs repeat parsing, help, usage errors, opening the store and
    catching `StoreError`; 60 calls write "nch NAME" by hand.  Proposed: `failure` and `usageError` take the command's
    name (`commandName`) and add "nch "; perhaps one helper for the start of `run`.

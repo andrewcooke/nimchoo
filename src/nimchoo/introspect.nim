@@ -166,11 +166,7 @@ provides: commands, the extension points it defines, and those it contributes to
 and everything else about it."""
 
 proc usageText*(width: int): seq[Line] =
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(packagesSpec().docs, width),
-  )
+  usageOf(synopsis, width, intro, packagesSpec().docs)
 
 # --- the settings ------------------------------------------------------------------------------------------------------
 
@@ -259,8 +255,7 @@ proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const packagesCommand* = CommandDecl(
   name: "packages",
-  summary:
-    "the packages, their dependencies, tables and extension points; the settings in force",
+  summary: "the packages: what each is for, their dependencies and extension points",
   run: packagesMain,
   options: packagesOptions,
 )

@@ -32,11 +32,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(importSpec().docs, width),
-  )
+  usageOf(synopsis, width, intro, importSpec().docs)
 
 {.push raises: [].}
 

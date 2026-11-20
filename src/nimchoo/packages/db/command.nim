@@ -33,9 +33,7 @@ packages that may read it."""
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
-  usageOf(
-    synopsisLines(synopsis), proseLines(intro, width), optionLines(dbSpec().docs, width)
-  )
+  usageOf(synopsis, width, intro, dbSpec().docs)
 
 proc size(path: string): int64 =
   ## The database file with its journal files.

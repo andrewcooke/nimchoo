@@ -68,13 +68,19 @@ func registryLines(subjects: seq[Subject], all: seq[MapFrame], width: int): seq[
 proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.
   usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    proseLines(notes, width),
-    optionLines(mapSpec().docs, width),
-    registryLines(
-      g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint), width
-    ),
+    synopsis,
+    width,
+    intro,
+    mapSpec().docs,
+    notes,
+    @[
+      (
+        "subjects and frames",
+        registryLines(
+          g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint), width
+        ),
+      )
+    ],
   )
 
 type Chosen = object

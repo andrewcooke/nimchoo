@@ -142,6 +142,13 @@ suite "usage: what is typed is in cmd":
     check ls[1] == @[span("       "), span("nch a --all", "code")]
     check ls.plainText == "usage: nch a [-v]\n       nch a --all"
 
-  test "the parts of a usage have a blank line between them, and an empty part none":
-    let ls = usageOf(@[plain("a")], newSeq[Line](), @[plain("b"), plain("c")])
-    check ls.plainText == "a\n\nb\nc"
+  test "the parts of a usage come in one order, a blank line between each two, an empty part left out; a section under its heading, lower case":
+    let ls = usageOf(
+      "usage: nch a",
+      80,
+      notes = "the notes",
+      sections = @[("Kinds", @[plain("  x")])],
+      intro = "the introduction",
+    )
+    check ls.plainText == "usage: nch a\n\nthe introduction\n\nthe notes\n\nkinds:\n  x"
+    check ls[^2] == @[span("kinds:", "em")]

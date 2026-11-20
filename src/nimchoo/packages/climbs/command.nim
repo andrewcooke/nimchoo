@@ -59,12 +59,7 @@ over part of a climb but not all of it makes a climb of its own."""
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
-  usageOf(
-    synopsisLines(synopsis),
-    proseLines(intro, width),
-    optionLines(climbSpec().docs, width),
-    proseLines(notes, width),
-  )
+  usageOf(synopsis, width, intro, climbSpec().docs, notes)
 
 func retiredText(n: int): string =
   ## Said when a list leaves out the retired climbs.

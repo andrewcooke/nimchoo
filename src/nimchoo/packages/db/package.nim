@@ -42,7 +42,7 @@ const package* = Package(
   commands: @[
     CommandDecl(
       name: command.commandName,
-      summary: "the database file: where it is and how big, or delete it",
+      summary: "the database: where it is, how big, what each table holds; or delete it",
       run: command.run,
       options: command.options,
     )
