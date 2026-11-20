@@ -3,7 +3,7 @@
 ## does); `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
 ## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
-import std/[options, times]
+import std/[options, strutils, times]
 import ../../core/globals
 import ../db/store
 import ../user/session
@@ -11,7 +11,7 @@ import ../../core/errors
 import ../names/open
 import ../../core/logfile
 import ../ui/live
-import ../ui/[markup, style]
+import ../ui/[style, vocabulary]
 import ../confirm/confirm
 import ../util/args/[args, usage]
 import ./params
@@ -240,11 +240,19 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       marks = not paint.colour,
     ):
       g.sayRendered osOut, render(l, paint) & "\n"
-    if list.kind == lkFound and list.select:
-      let noun = if ids.len == 1: "climb" else: "climbs"
-      g.show(
-        osOut, styled"done: {ids.len} {noun}, <select saved as the climbs selection>"
-      )
+    # (the last line, as the activities': the count in the selection's style when the climbs listed are the selection)
+    let total = countLive(st)
+    let isSelection = list.kind == lkSelection or list.select
+    g.show(
+      osOut,
+      @[
+        span("done: "),
+        countSpan(ids.len, isSelection, not paint.colour),
+        span(
+          " of " & insertSep($total, ',') & (if total == 1: " climb" else: " climbs")
+        ),
+      ],
+    )
     exitOk
   except StoreError, DownloadError:
     failure(g, "nch climbs", getCurrentExceptionMsg())

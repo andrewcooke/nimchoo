@@ -117,13 +117,13 @@ proc listing(
     width: int,
     c: Criteria,
     choices: Option[int],
-    saved = none(int),
     marks = false,
     isSelection = false,
 ): seq[Line] =
-  ## The table and its last line (`marks`: the selection in brackets, where there is no colour).
+  ## The table and its last line (`marks`: the selection in brackets, where there is no colour; `isSelection`: the rows
+  ## are the selection).
   result = table(rows, zone, c.verbose, width, marks)
-  result.add footerLine(rows, choices, selectedStyle, saved, isSelection)
+  result.add footerLine(rows, choices, isSelection, marks)
 
 proc showSelection*(
     st: Session, c: Criteria, zone: Timezone, width: int, marks = false
@@ -390,13 +390,7 @@ proc listActivities*(
       r.selected = false
   let total = activityCount(st)
   result.lines.add listing(
-    rows,
-    zone,
-    width,
-    c,
-    some(total),
-    (if c.select: some(rows.len) else: none(int)),
-    marks,
+    rows, zone, width, c, some(total), marks, isSelection = c.select
   )
   result.saved = if c.select: rows.len else: -1
 

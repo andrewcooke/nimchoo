@@ -10,7 +10,7 @@
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.
 
-import std/[algorithm, math, options, sequtils, strformat, strutils, tables, times]
+import std/[algorithm, math, options, strformat, strutils, tables, times]
 import ../fit/time
 import ../geo/position
 import ../importer/describe
@@ -169,35 +169,13 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     result.add fmt" ({text.join("", "")})"
 
 func footerLine*(
-    rows: seq[ListRow],
-    choices = none(int),
-    style = selectedStyle,
-    saved = none(int),
-    isSelection = false,
+    rows: seq[ListRow], choices = none(int), isSelection = false, marks = false
 ): Line =
-  ## The last line (`footer`) as styled spans, after "done: " like the end of an import: if some of
-  ## the activities are in the selection, ", 35 match selected" follows the count, the words (not the comma) in the style
-  ## the selected ones have in the display (the rows of the table, the days of the calendar):
-  ## "done: 1112 of 1112 activities, 35 match selected, 57,529.0km, 114d08h22m".
-  ## With `saved` (the listing was kept as the selection) it says so there, in one line with the rest:
-  ## "done: 1 of 1112 activities, 1 saved as the selection, 95.4km, 5h24m".  When the rows are the selection
-  ## (`isSelection`), that every one is selected goes without saying: "done: 11 of 1,113 activities, 1,057.9km, 2d10h52m".
+  ## The last line (`footer`) as styled spans, after "done: " like the end of an import: "done: 11 of 1,113 activities,
+  ## 1,057.9km, 2d10h52m", the count in the selection's style when the rows listed are the selection (`isSelection`:
+  ## with no criteria, or just saved with `--select`; with `marks`, in brackets), so that nothing more need be said.
   let text = footer(rows, choices)
-  let selected = rows.countIt(it.selected)
-  if (selected == 0 or isSelection) and saved.isNone:
-    return plain(fmt"done: {text}")
-  let split = text.find(", ") # the count comes first; the rest follows a comma
-  let head =
-    if split < 0:
-      text
-    else:
-      text[0 ..< split]
-  let said =
-    if saved.isSome:
-      fmt"{saved.get} saved as the selection"
-    else:
-      fmt"{selected} match selected"
-  result =
-    @[span(fmt"done: {head}, "), span(said, style)] # (the comma is not in the style)
-  if split >= 0:
-    result.add span(text[split .. ^1])
+  let count = insertSep($rows.len, ',')
+  @[
+    span("done: "), countSpan(rows.len, isSelection, marks), span(text[count.len .. ^1])
+  ]

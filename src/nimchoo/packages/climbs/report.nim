@@ -35,6 +35,10 @@ proc countRetired*(st: Store): int {.raises: [StoreError].} =
   ## How many climbs are retired (hidden).
   st.db.scalar(int, "select count(*) from sector where retired = 1")
 
+proc countLive*(st: Store): int {.raises: [StoreError].} =
+  ## How many climbs are not retired (those a list is chosen from).
+  st.db.scalar(int, "select count(*) from sector where retired = 0")
+
 proc allSectors*(st: Store, retired = false): seq[SectorRow] {.raises: [StoreError].} =
   ## The sectors that are not retired (or, with `retired`, only those that are), the biggest climb first.  The names are
   ## numbered among all of them, retired ones too.

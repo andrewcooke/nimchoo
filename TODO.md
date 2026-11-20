@@ -12,10 +12,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### A. Cut
 
-3. **The last line of the activities.**  `footerLine` has four modes (`choices`, `saved`, `isSelection`, "N match
-   selected" in `select`).  Options: (a) keep; (b) one form everywhere, "done: 11 of 1,113 activities, 1,057.9km,
-   2d10h52m", never "match selected" (the rows' colour, or brackets, show it), and what `--select` saved said in a note of
-   its own.  Recommended: (b).
 4. **Marks without colour.**  Three conventions: the calendar's `[27]`, a whole row of `nch activities` in brackets, the
    efforts of a climb with a bracket in the indent (and a `*` after a month beside a gap).  Options: (a) keep; (b) one
    rule, a selected thing in brackets and a space where the bracket would be otherwise (`line.bracketed`), everywhere.

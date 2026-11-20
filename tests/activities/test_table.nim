@@ -52,35 +52,23 @@ func texts(ls: seq[Line]): seq[string] =
     result.add l.text
 
 suite "list table: the last line":
-  test "nothing selected: the plain line":
-    let rows =
-      @[row(0, "cycling", "", 1500.0, 600.0), row(1, "cycling", "", 500.0, 60.0)]
-    check footerLine(rows, some 5).text == "done: " & footer(rows, some 5)
-    check footerLine(rows, some 5).allIt(styleOf(it) == "")
-  test "some selected: the count in the select style, after the number of activities":
+  test "found, not the selection: the plain line, whatever rows are selected":
     let rows = @[
       row(0, "cycling", "", 1500.0, 600.0, selected = true),
       row(1, "cycling", "", 500.0, 60.0),
-      row(2, "cycling", "", 500.0, 60.0, selected = true),
     ]
-    let l = footerLine(rows, some 5)
-    check l.text == "done: 3 of 5 activities, 2 match selected, 2.5km, 12m00s"
-    check l.filterIt(styleOf(it) == "select").mapIt(it.text) == @["2 match selected"]
-    check footerLine(rows).text.startsWith("done: 3 activities, 2 match selected, ")
-  test "saving: said once, in the select style, in place of the count of those selected":
+    check footerLine(rows, some 5).text == "done: " & footer(rows, some 5)
+    check footerLine(rows, some 5).allIt(styleOf(it) == "")
+    check "selected" notin footerLine(rows, some 5).text # (the rows' colour says which)
+  test "the selection (listed, or just saved): the count in the select style, and nothing more said":
     let rows = @[row(0, selected = true), row(1, selected = true)]
-    let l = footerLine(rows, some 5, saved = some 2)
-    check l.text.startsWith("done: 2 of 5 activities, 2 saved as the selection")
-    check "match selected" notin l.text
-    check l.filterIt(styleOf(it) == "select").mapIt(it.text) ==
-      @["2 saved as the selection"]
-    check footerLine(@[], some 5, saved = some 0).text ==
-      "done: 0 of 5 activities, 0 saved as the selection"
-  test "all selected, and a count with no totals":
-    let rows = @[row(0, selected = true)]
-    check footerLine(rows, some 1).text.startsWith(
-      "done: 1 of 1 activities, 1 match selected"
-    )
+    let l = footerLine(rows, some 1113, isSelection = true)
+    check l.text.startsWith("done: 2 of 1,113 activities")
+    check l.filterIt(styleOf(it) == "select").mapIt(it.text) == @["2"]
+    check footerLine(rows, some 1113, isSelection = true, marks = true).text.startsWith(
+      "done: [2] of 1,113 activities"
+    ) # (where there is no colour, in brackets)
+  test "a count with no totals":
     check footerLine(@[], some 3).text == "done: 0 of 3 activities"
 
 suite "list table: pieces":

@@ -7,7 +7,6 @@ import ../../core/[errors, extension]
 import ../db/statement
 import ../fit/time
 import ../calendar/frames
-import ../ui/vocabulary
 import ../user/session
 import ./[rows, table]
 
@@ -17,8 +16,7 @@ proc makeCalendar(st: Session): CalendarData {.raises: [StoreError].} =
   let rows = selectionRows(st, false)
   CalendarData(
     marks: rows.mapIt(it.startT),
-    summary:
-      footerLine(rows, some(activityCount(st)), selectedStyle, isSelection = true),
+    summary: footerLine(rows, some(activityCount(st)), isSelection = true),
   )
 
 proc activityStarts(st: Session): seq[UnixTime] {.raises: [StoreError].} =

@@ -630,16 +630,13 @@ suite "list: what is shown":
     check r.lines.texts[0].endsWith("path")
     check r.lines.texts[2].endsWith("paris")
 
-  test "saving says so, and --show shows what was saved":
+  test "saving: the count is in the select style (what is listed is now the selection), and the selection shows it":
     let db = world("shownsave")
     let r = shown(db, "--newest", "1", "--select")
     check r.saved == 1
-    check r.lines.texts[^1].startsWith("done: 1 of ") and
-      ", 1 saved as the selection, " in r.lines.texts[^1]
-    check "match selected" notin r.lines.texts[^1] # (said once)
-    check r.lines[^1].anyIt(
-      styleOf(it) == "select" and it.text == "1 saved as the selection"
-    )
+    check r.lines.texts[^1].startsWith("done: 1 of ")
+    check "selected" notin r.lines.texts[^1] and "saved" notin r.lines.texts[^1]
+    check r.lines[^1].anyIt(styleOf(it) == "select" and it.text == "1")
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
