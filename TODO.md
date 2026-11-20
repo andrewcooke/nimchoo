@@ -19,10 +19,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
-7. **Counts, plurals and lists.**  `insertSep(…, ',')` in 8 places and three private `commas`; `if n == 1: "x" else: "xs"`
-   in 7 places and a `plural` in the importer; lists of names separated by spaces in some views and commas in others.
-   Proposed: `counted(1113, "activity")` ("1,113 activities") in `ui/units`; one list helper, commas everywhere; a test
-   that refuses `insertSep` outside it.
 8. **The help.**  The parts come in different orders (the notes before the options in `ff` and `map`); extra sections
    differ ("commands:", "The kinds:", a table after the options).  Proposed: `usageOf` takes named parts (synopsis,
    introduction, options, notes, sections with their headings) and fixes the order and the form of headings.  Open: the

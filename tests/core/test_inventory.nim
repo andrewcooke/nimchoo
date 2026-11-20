@@ -137,7 +137,7 @@ suite "the views":
     check "It has a paragraph more." in text
       # (what is between ** is in em, without them)
     check cells.anyIt(span("paragraph", "em") in it)
-    check "depends on" in text and "a db" in text
+    check "depends on" in text and "a, db" in text
     check "used by" in text and "tb" in text
     check "db: dbt; a: ta" in text # (it may read the tables of a, and of db: by owner)
     check "nch bee - does b things" in text

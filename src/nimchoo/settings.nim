@@ -190,7 +190,9 @@ proc configLines*(g: Globals, width: int): seq[Line] =
     of amOff: "off"
     ,
   )
-  rows.add row("commands", generated.commands.mapIt(it.name).join(" ") & " packages")
+  rows.add row(
+    "commands", (generated.commands.mapIt(it.name) & @["packages"]).join(", ")
+  )
   result = ruled(@["", ""], rows, width)
   result.add plain("")
   result.add environmentLines(width)

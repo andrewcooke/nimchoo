@@ -120,7 +120,7 @@ func listOf(items: seq[string]): string =
   if items.len == 0:
     "-"
   else:
-    items.join(" ")
+    items.join(", ")
 
 func countOf(items: seq[string]): string =
   $items.len
@@ -154,7 +154,7 @@ func pkg(name: string): Line =
   ## The name of a package, in its style.
   @[span(name, "code")]
 
-func pkgList(names: seq[string], between = " "): Line =
+func pkgList(names: seq[string], between = ", "): Line =
   ## Names of packages, each in its style; "-" for none.
   if names.len == 0:
     return plain("-")
