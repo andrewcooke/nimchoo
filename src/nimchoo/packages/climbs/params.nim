@@ -5,8 +5,8 @@ import ../geo/position
 import ../confirm/confirm
 import ../util/args/args
 import ./completion
-import ./[display, match]
-import std/[options, strformat, strutils, unicode]
+import ./[display, match, overlap]
+import std/[math, options, strformat, strutils, unicode]
 
 {.push raises: [].}
 
@@ -287,7 +287,7 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--duplicates"],
         duplicates,
-        fmt"list the climbs that largely overlap (more than half of each lies within {int(gateRadius)}m of the other), the most ridden first, with the command to hide each of the others",
+        fmt"list the climbs that largely overlap (more than {int(round((1 - nearCopyLimit) * 100))}% of each lies within {int(gateRadius)}m of the other), the most ridden first, with the command to hide each of the others",
       ),
       helpFlag(Raw),
     ],
