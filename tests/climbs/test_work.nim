@@ -235,6 +235,24 @@ suite "climbs: stretches of riding":
     for line in violations(s.db):
       check not line.startsWith("every effort lies within one stretch")
 
+  test "an effort's start is measured from the start of the ride, not of its stretch":
+    let whole = fresh("startwhole")
+    defer:
+      whole.close()
+    addRide(whole, "default", "one", 1_000_000, 5.0, eastbound(5.0))
+    discard ensureClimbs(whole)
+    let broken = fresh("startbroken")
+    defer:
+      broken.close()
+    addRide(
+      broken, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[100]
+    )
+    discard ensureClimbs(broken)
+    let a = whole.db.scalar(float, "select start_m from effort")
+    let b = broken.db.scalar(float, "select start_m from effort")
+    check a > 400
+    check abs(a - b) < 20 # (the step across the break, not ridden, is left out)
+
   test "an earlier ride with a break is matched, stretch by stretch, against a later sector":
     let s = fresh("earlier")
     defer:

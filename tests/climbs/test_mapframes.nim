@@ -92,7 +92,7 @@ suite "climbs frames: gates and efforts":
     let e = eff["features"][0]
     check e["properties"]["name"].getStr == "Cerro" and
       e["properties"]["activity"].getInt == 1
-    check e["properties"]["elapsed_s"].getFloat == 60.0
+    check e["properties"]["elapsed"].getStr == "1m00s"
     check e["geometry"]["coordinates"].len == 61
       # (t from 1 to 61: the times of the effort)
     let gates = parseFile(frameFile(w.cache, "gates"))
@@ -105,8 +105,8 @@ suite "climbs frames: gates and efforts":
     withRideAlongClimb(w.db)
     check map(w.db, "--frames", "efforts", "gates") == exitOk
     check parseFile(frameFile(w.cache, "efforts"))["features"][0]["properties"][
-      "elapsed_s"
-    ].getFloat == 60.0
+      "elapsed"
+    ].getStr == "1m00s"
     let gateBefore =
       parseFile(frameFile(w.cache, "gates"))["features"][0]["geometry"]["coordinates"]
     let s = openSession(w.db, allFragments, access = allAccess)
@@ -117,8 +117,8 @@ suite "climbs frames: gates and efforts":
     s.close()
     check map(w.db, "--frames", "efforts", "gates") == exitOk
     check parseFile(frameFile(w.cache, "efforts"))["features"][0]["properties"][
-      "elapsed_s"
-    ].getFloat == 59.0 # (the effort moved)
+      "elapsed"
+    ].getStr == "59s" # (the effort moved)
     check parseFile(frameFile(w.cache, "gates"))["features"][0]["geometry"][
       "coordinates"
     ] != gateBefore # (and the gate with the climb)

@@ -39,6 +39,6 @@
   const n = routes.length;
   return {
     bounds: layer.getBounds(), rank: 1,
-    caption: n ? n + ' routes' + (n > 1 && spreadM ? ' (each moved up to ' + spreadM + ' m to the side)' : '') : ''
+    caption: n ? n + ' routes' + (n > 1 && spreadM ? ' (each moved up to ' + spreadM + 'm to the side)' : '') : ''
   };
 }

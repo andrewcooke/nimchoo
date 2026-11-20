@@ -32,7 +32,8 @@ type
 
   Effort* = object ## One pass of a ride over a sector.
     startT*, finishT*: float ## Unix seconds, at the gates
-    startDist*: float ## metres along the ride given, at the start gate
+    startDist*: float
+      ## metres along the path given, at the start gate (`overRide` makes it the ride's)
 
 func elapsed*(e: Effort): float =
   ## Seconds from the start of the effort to its finish, to the millisecond: the positions are a second apart and the gates

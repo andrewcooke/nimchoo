@@ -14,8 +14,7 @@
     onEachFeature: (f, l) => {
       const p = f.properties || {}, c = f.geometry.coordinates;
       const facts = h.text(p.name || '') + '<br>' + h.text(p.start || '') + ' to ' + h.text(p.finish || '') + '<br>' +
-                    Math.floor(p.elapsed_s / 60) + ' min ' + Math.round(p.elapsed_s % 60) + ' s; started ' + p.start_m +
-                    ' m into the ride (activity ' + p.activity + ')';
+                    h.text(p.elapsed || '') + '; started ' + h.text(p.started || '') + ' into the ride (activity ' + p.activity + ')';
       l.bindPopup(facts);
       if (c.length > 0) {
         const dot = (xy, colour, what) => dots.push(L.circleMarker([xy[1], xy[0]], { radius: s.radius, color: colour, fillColor: colour, fillOpacity: 1, weight: 1 })

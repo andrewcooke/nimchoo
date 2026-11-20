@@ -6,6 +6,7 @@ import std/[json, math, strutils]
 import ../../core/ids
 import ../activities/mapfeatures
 import ../fit/time
+import ../ui/[interval, units]
 
 {.push raises: [].}
 
@@ -54,7 +55,8 @@ proc gateFeature*(g: GateLine): string =
 
 proc effortFeature*(e: EffortLine): string =
   ## One feature, on one line: the part of the ride as a LineString.  Properties: kind ("effort"), activity, id (of the climb),
-  ## name, start and finish (UTC, ISO 8601), elapsed_s, start_m (how far along the ride the start gate was crossed).
+  ## name, start and finish (UTC, ISO 8601), elapsed (as every interval is written, `22m05s`) and started (how far along the
+  ## ride the start gate was crossed, as every distance is written, `3.2km`): the drawing shows them as they are.
   var coords: seq[string]
   for p in e.points:
     coords.add "[" & formatFloat(p.lon, ffDecimal, 6) & "," &
@@ -62,7 +64,7 @@ proc effortFeature*(e: EffortLine): string =
   "{\"type\":\"Feature\",\"properties\":{\"kind\":\"effort\",\"activity\":" &
     $e.activityId & ",\"id\":" & $e.climbId & ",\"name\":" & escapeJson(e.name) &
     ",\"start\":" & escapeJson(isoUtc(UnixTime(int64(round(e.startT))))) & ",\"finish\":" &
-    escapeJson(isoUtc(UnixTime(int64(round(e.finishT))))) & ",\"elapsed_s\":" &
-    formatFloat(e.elapsedS, ffDecimal, 1) & ",\"start_m\":" & $int(round(e.startM)) &
+    escapeJson(isoUtc(UnixTime(int64(round(e.finishT))))) & ",\"elapsed\":" &
+    escapeJson(interval(e.elapsedS)) & ",\"started\":" & escapeJson(km(e.startM)) &
     "},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[" & coords.join(",") &
     "]}}"

@@ -26,14 +26,15 @@ import ../importer/coord
 import ../importer/track
 import ../util/lookup/lookup
 import ../util/profiling/profiling
+import ../geo/geo
 import ./[detect, match, ordinal, overlap, profile]
 import ../ui/units
 
 {.push raises: [].}
 
 const
-  algorithmVersion* = 4
-    ## 4: a ride is read as its stretches of riding (importer/stretch.nim), and a climb or an effort never crosses a break.  3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
+  algorithmVersion* = 5
+    ## 5: an effort's start is measured from the start of the ride, not of its stretch.  4: a ride is read as its stretches of riding (importer/stretch.nim), and a climb or an effort never crosses a break.  3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
   ridePointLimit = 3_000_000 ## about 70 MB
 
 type
@@ -66,10 +67,22 @@ func pointCount(ride: seq[Path]): int =
   for p in ride:
     result += p.len
 
+func lengthOf(p: Path): float =
+  ## Metres along the path, over the ground.
+  for i in 1 ..< p.lon.len:
+    result += haversine(p.lon[i - 1], p.lat[i - 1], p.lon[i], p.lat[i])
+
 func overRide(sector: Path, ride: seq[Path]): seq[Effort] =
-  ## The passes of a ride over a sector: those of each stretch (a pass lies within one).
+  ## The passes of a ride over a sector: those of each stretch (a pass lies within one), with how far along the ride
+  ## each starts (the stretches before it, and the way along its own; not the gaps between stretches, which were not
+  ## ridden).
+  var before = 0.0
   for p in ride:
-    result.add overPaths(sector, p)
+    for e in overPaths(sector, p):
+      var e = e
+      e.startDist += before
+      result.add e
+    before += lengthOf(p)
 
 proc rideOf(
     st: Store, rides: var Rides, id: ActivityId

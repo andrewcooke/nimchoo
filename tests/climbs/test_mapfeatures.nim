@@ -70,5 +70,5 @@ suite "climbs features":
       p["id"].getInt == 7
     check p["start"].getStr == "2018-08-27T12:00:00Z" and
       p["finish"].getStr == "2018-08-27T12:01:01Z"
-    check p["elapsed_s"].getFloat == 60.2 and p["start_m"].getInt == 1253
+    check p["elapsed"].getStr == "1m00s" and p["started"].getStr == "1.3km"
     check j["geometry"]["coordinates"].len == 3
