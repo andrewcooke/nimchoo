@@ -75,8 +75,12 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   point of a stretch or on none (1,438 stretches; 0 gaps inside one; 139 rides with none, 101 of them in 2019), so the
   interpolation never runs.  The doc of `profile.nim` now says what the code does; the behaviour waits for the terrain
   model (TODO.md), which would also give those 139 rides climbs.
-* **A1, backticks** (**decided** 2026-11-20): backticks are markup only in the text written in the program (the literal
-  pieces of `styled` and `g.say`); values (names, paths) are drawn as they are.  Names are not code.
+* **A1, backticks** (**decided** 2026-11-20, then refined): all output is built with one macro, `~"..."` (an ordinary
+  string literal: escapes work), which reads `<style ...>` markup and `` `x` ``, exactly `<code x>`, when the program is
+  compiled; values in `{}` are spans of their own, drawn as they are (no markup is read in them).  Without colour a `code`
+  span is drawn with backticks round it, however it was written.  The drawer no longer reads backticks at run time.  Used
+  everywhere, help texts included, with a test that refuses output built any other way.  (`f""` and `t""` were
+  rejected: `f` and `t` are common names here; `<...>` as quotes is not possible in Nim.)
 * **D3, `landmarks --radius`, became units in input** (**decided** 2026-11-20): every distance and duration carries its
   unit (`100m`, `1km`, `60s`, `42d`; the option's kind says what `m` means).  The options with one: distance
   (`activities --distance`, `activities`/`climbs`/`landmarks --radius`), duration (`activities --active`, `models
