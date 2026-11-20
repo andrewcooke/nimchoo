@@ -98,7 +98,7 @@ proc tablesLines(
     rows.add @[
       @[span(t.name, "code")],
       (if t.owner.isSome: @[span(t.owner.get, "code")] else: plain("-")),
-      plain(insertSep($t.rows, ',')),
+      plain(count(t.rows)),
       plain(humanBytes(t.bytes)),
       (if refers.len == 0: plain("-") else: refers),
       (if readers.len == 0: plain("-") else: readers),

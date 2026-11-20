@@ -52,9 +52,7 @@ func describe*(use: Use): string =
   ## "12 files (3.4MB)", "1 file (12kB)", "no files".
   if use.count == 0:
     return "no files"
-  $use.count & (if use.count == 1: " file" else: " files") & " (" & humanBytes(
-    use.bytes
-  ) & ")"
+  counted(use.count, "file", "files") & " (" & humanBytes(use.bytes) & ")"
 
 proc walkFiles(dir: string, extension = ""): seq[string] =
   ## The files below `dir` (all levels), or those directly in it with the extension; none if there is no such directory.

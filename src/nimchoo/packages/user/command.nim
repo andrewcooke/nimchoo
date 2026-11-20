@@ -5,7 +5,7 @@
 ## What else a user has (the activities, say) is said by the packages above this one, through the extension point
 ## `user/has`: each is a column of the list and a part of what a delete says it will remove.
 
-import std/[options, strformat, strutils]
+import std/[options, strformat]
 import ../../core/[extension, globals, ruled]
 import ../db/statement
 import ../db/store
@@ -18,6 +18,7 @@ import ./[has, params]
 import ./users
 import ./[profile, wipe]
 import ./session
+import ../ui/units
 
 {.push raises: [].}
 
@@ -61,9 +62,6 @@ proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
   else:
     none(int)
 
-func commas(n: int): string =
-  insertSep($n, ',')
-
 proc userLines*(
     st: Store, has: seq[UserHas], width: int
 ): seq[Line] {.raises: [StoreError].} =
@@ -80,7 +78,7 @@ proc userLines*(
   ):
     var row = @[r.name, (if r.fthr.isSome: $r.fthr.get else: "-")]
     for h in has:
-      row.add commas(h.count(st.db, UserId(r.id)))
+      row.add count(h.count(st.db, UserId(r.id)))
     row.add (if r.isDefault: "yes" else: "")
     rows.add row
   header.add "default"

@@ -10,6 +10,7 @@ import ../../core/logfile
 import ./events
 import ./failure
 import ./sinks
+import ../ui/units
 
 {.push raises: [].}
 
@@ -27,7 +28,7 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
   ## The log lines for an event.
   case ev.kind
   of evStart:
-    result.add entry(lvInfo, leStart, plural(ev.total, "file", "files"))
+    result.add entry(lvInfo, leStart, counted(ev.total, "file", "files"))
   of evFileStart:
     discard
   of evFileDone:
@@ -36,9 +37,9 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
       result.add entry(
         lvInfo,
         leImported,
-        ev.path & "  " & plural(ev.counts.activities, "activity", "activities") & ", " &
-          plural(ev.counts.segments, "segment", "segments") & ", " &
-          plural(ev.counts.coords, "coordinate", "coordinates") & extrasText(ev.counts),
+        ev.path & "  " & counted(ev.counts.activities, "activity", "activities") & ", " &
+          counted(ev.counts.segments, "segment", "segments") & ", " &
+          counted(ev.counts.coords, "coordinate", "coordinates") & extrasText(ev.counts),
       )
     of oDuplicate:
       result.add entry(

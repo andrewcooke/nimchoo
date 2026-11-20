@@ -15,6 +15,7 @@ import ./events
 import ./cmdname
 import ../ui/vocabulary
 import ./failure
+import ../ui/units
 
 {.push raises: [].}
 
@@ -68,9 +69,9 @@ func failureBreakdown*(s: Summary): string =
 func summaryLine*(s: Summary): string =
   ## "1113 files, 1112 imported, 1 duplicate, 0 failed, 85 advisories": what is
   ## zero is left out, except imported and failed.
-  result = plural(s.done, "file", "files") & ", " & $s.imported & " imported"
+  result = counted(s.done, "file", "files") & ", " & $s.imported & " imported"
   if s.duplicates > 0:
-    result.add ", " & plural(s.duplicates, "duplicate", "duplicates")
+    result.add ", " & counted(s.duplicates, "duplicate", "duplicates")
   if s.unchanged > 0:
     result.add ", " & $s.unchanged & " unchanged"
   if s.monitor > 0:
@@ -80,10 +81,10 @@ func summaryLine*(s: Summary): string =
   if kinds.len > 0:
     result.add " (" & kinds & ")"
   if s.known > 0:
-    result.add ", " & plural(s.known, "known failure", "known failures") &
+    result.add ", " & counted(s.known, "known failure", "known failures") &
       " (use `--slow` to retry)"
   if s.advisories > 0:
-    result.add ", " & plural(s.advisories, "advisory", "advisories")
+    result.add ", " & counted(s.advisories, "advisory", "advisories")
 
 func moreHint*(s: Summary, logged: bool): string =
   ## How to see more: `nch log` with the words of what happened, such as
@@ -115,11 +116,10 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
         result.stdout.add fileLine(
           "imported  ",
           ev.path,
-          "  (" & plural(ev.counts.activities, "activity", "activities") & ", " &
-            plural(ev.counts.segments, "segment", "segments") & ", " &
-            plural(ev.counts.coords, "coordinate", "coordinates") & extrasText(
-            ev.counts
-          ) & ")",
+          "  (" & counted(ev.counts.activities, "activity", "activities") & ", " &
+            counted(ev.counts.segments, "segment", "segments") & ", " &
+            counted(ev.counts.coords, "coordinate", "coordinates") &
+            extrasText(ev.counts) & ")",
         )
     of oDuplicate:
       if not quiet:

@@ -2,7 +2,7 @@
 ## asked (the point `afterImport`) do their part: `selection` makes the new activities the selection.  (The module is
 ## not called `import` because that is a Nim keyword.)
 
-import std/[cpuinfo, options, strutils]
+import std/[cpuinfo, options]
 import ../../core/[errors, extension, globals, logfile]
 import ../db/[statement, store]
 import ../download/fetch
@@ -13,6 +13,7 @@ import ../user/session
 import ./cmdname
 export cmdname
 import ./[after, batch, channel, display, events, logsink, naming, params, sinks]
+import ../ui/units
 
 const
   synopsis = "usage: nch [--db PATH] [--user NAME] import [-q] [--slow] [-j N] PATH..."
@@ -110,8 +111,7 @@ proc runImport(
       if names.isSome:
         # (a spinner while it goes on, on a terminal; the downloads it makes are said by their own lines)
         let tell = names.get.sink
-        let what =
-          insertSep($todo, ',') & (if todo == 1: " activity" else: " activities")
+        let what = counted(todo, "activity", "activities")
         tell(DownloadEvent(kind: deWorking, label: "naming " & what))
         var told = false
         defer:
@@ -127,7 +127,7 @@ proc runImport(
               "named " & what & ": " & $counts.named & " with a name, " &
               $counts.startOnly & " with only a start place, " & $counts.nothing &
               " with neither" &
-              (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: "") &
+              (if gps > 0: "; " & counted(gps, "GPS error", "GPS errors") else: "") &
               (if counts.left > 0: "; " & counts.leftText else: ""),
           )
         )
@@ -136,7 +136,7 @@ proc runImport(
             lvWarn,
             commandName,
             leAdvisory,
-            e.where & "  " & plural(e.searches, "search", "searches") &
+            e.where & "  " & counted(e.searches, "search", "searches") &
               " for a place not made: positions too far apart (GPS errors)",
           )
         g.log.log(
@@ -146,7 +146,7 @@ proc runImport(
           "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
             $counts.startOnly & " with only a start place, " & $counts.nothing &
             " with neither" &
-            (if gps > 0: "; " & plural(gps, "GPS error", "GPS errors") else: "") &
+            (if gps > 0: "; " & counted(gps, "GPS error", "GPS errors") else: "") &
             (if counts.left > 0: "; " & counts.leftText else: ""),
         )
   except StoreError, DownloadError:

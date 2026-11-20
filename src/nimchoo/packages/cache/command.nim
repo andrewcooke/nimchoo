@@ -65,7 +65,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let u = useOf(dir.get, k)
       cells.add @[
         $k,
-        (if u.count == 0: "-" else: insertSep($u.count, ',')),
+        (if u.count == 0: "-" else: count(u.count)),
         (if u.count == 0: "-" else: humanBytes(u.bytes)),
       ]
     g.showAll(

@@ -6,10 +6,10 @@
 ## and the `case` in `style` must cover every value, so a word without a style does
 ## not compile.  A new event is one new value here (and its style).
 
-import std/[options, strutils]
+import std/options
 import ../../core/logfile
 export logfile.LogEvent
-import ./style
+import ./[style, units]
 
 {.push raises: [].}
 
@@ -20,7 +20,7 @@ const selectedStyle* = styleName"select"
 func countSpan*(n: int, selected, marks: bool): Span =
   ## How many a list holds, for its last line ("done: 11 of 1,113 activities"): in the selection's style when what is
   ## listed is the selection (and, with `marks`, where there is no colour, in brackets, as a selected day or row is).
-  let text = insertSep($n, ',')
+  let text = count(n)
   if not selected:
     span(text)
   elif marks:

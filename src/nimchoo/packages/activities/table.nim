@@ -148,11 +148,11 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
     bySport.inc(if r.sport.len > 0: r.sport else: "unknown")
   let ofAll =
     if choices.isSome:
-      " of " & insertSep($choices.get, ',')
+      " of " & count(choices.get)
     else:
       ""
   let noun = if rows.len == 1 and choices.isNone: "activity" else: "activities"
-  result = insertSep($rows.len, ',') & fmt"{ofAll} {noun}"
+  result = count(rows.len) & fmt"{ofAll} {noun}"
   if rows.len == 0:
     return
   result.add fmt", {km(metres)}, {interval(seconds)}"
@@ -176,5 +176,5 @@ func footerLine*(
   ## 1,057.9km, 2d10h52m", the count in the selection's style when the rows listed are the selection (`isSelection`:
   ## with no criteria, or just saved with `--select`; with `marks`, in brackets), so that nothing more need be said.
   let text = footer(rows, choices)
-  let count = insertSep($rows.len, ',')
+  let count = count(rows.len)
   doneLine(@[countSpan(rows.len, isSelection, marks), span(text[count.len .. ^1])])

@@ -3,7 +3,7 @@
 ## does); `--edit NAME` changes one (its name, or whether it is hidden); `--retired` and `--duplicates` are lists for tidying.  The climbs of the activities that have not been looked at are worked out by an
 ## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
-import std/[options, strutils, times]
+import std/[options, times]
 import ../../core/globals
 import ../db/store
 import ../user/session
@@ -22,6 +22,7 @@ import ./edit
 import ./naming
 import ./report
 import ./work
+import ../ui/units
 
 {.push raises: [].}
 
@@ -65,9 +66,10 @@ proc usageText*(width: int): seq[Line] =
     proseLines(notes, width),
   )
 
-func noteRetired(count: int): string =
-  $count & (if count == 1: " climb is retired" else: " climbs are retired") &
-    " (hidden; `nch climbs --retired` shows them): the numbers in the names include them\n"
+func retiredText(n: int): string =
+  ## Said when a list leaves out the retired climbs.
+  count(n) & (if n == 1: " climb is retired" else: " climbs are retired") &
+    " (hidden; `nch climbs --retired` shows them): the numbers in the names include them"
 
 proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   ## `--edit NAME` with one thing to change.
@@ -215,17 +217,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       ids = found.ids
       if list.select:
         st.replaceClimbSelection(ids)
-        g.log.log(
-          lvInfo,
-          commandName,
-          leSaved,
-          $ids.len & (if ids.len == 1: " climb" else: " climbs"),
-        )
+        g.log.log(lvInfo, commandName, leSaved, counted(ids.len, "climb", "climbs"))
       if not list.criteria.given:
         # (--all: every climb, and how many are hidden)
         let hidden = countRetired(st)
         if hidden > 0:
-          g.say osErr, noteRetired(hidden)
+          g.warn retiredText(hidden)
       if ids.len == 0:
         let what = if list.select: " (the climbs selection is now empty)" else: ""
         g.say osOut, "no climb meets the criteria" & what & "\n"
@@ -246,9 +243,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.done(
       @[
         countSpan(ids.len, isSelection, not paint.colour),
-        span(
-          " of " & insertSep($total, ',') & (if total == 1: " climb" else: " climbs")
-        ),
+        span(" of " & counted(total, "climb", "climbs")),
       ]
     )
     exitOk

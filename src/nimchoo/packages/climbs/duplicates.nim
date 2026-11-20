@@ -13,6 +13,7 @@ import ../util/lookup/lookup
 import ../db/store
 import ../../core/errors
 import ./[describe, display, match, overlap, report]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -150,8 +151,7 @@ func duplicateLines*(groups: seq[Group], width: int): seq[Line] =
         )
       ) &
         @[
-          fmt"{m.unique}/{m.efforts}" &
-            (if m.efforts == 1: " effort unique" else: " efforts unique"),
+          fmt"{m.unique}/" & counted(m.efforts, "effort", "efforts") & " unique",
           (if m.retired: "retired" else: ""),
         ]
     result.add ruled(

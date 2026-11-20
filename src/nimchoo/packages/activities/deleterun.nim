@@ -3,7 +3,6 @@
 ## Ctrl-C, and shows how far it has got.  The file of an activity is forgotten too, so importing its folder again brings the
 ## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
 
-import std/strutils
 import ./cmdname
 import ../../core/globals
 import ../db/store
@@ -14,6 +13,7 @@ import ../ui/[markup, style]
 import ../confirm/confirm
 import ../importer/remove
 import ../user/session
+import ../ui/units
 
 {.push raises: [].}
 
@@ -23,11 +23,10 @@ func deletingLines*(done, total, files: int): seq[Line] =
   ##
   ##     deleting 340 / 1,381 activities
   ##     activities 340 · files 120
-  let (d, t, f) =
-    (insertSep($done, ','), insertSep($total, ','), insertSep($files, ','))
-  let noun = if total == 1: "activity" else: "activities"
+  let (d, f) = (count(done), count(files))
+  let t = counted(total, "activity", "activities")
   @[
-    styled"<em deleting >{d} / {t} {noun}",
+    styled"<em deleting >{d} / {t}",
     styled"<bad activities {d}><hide  · ><bad files {f}>",
   ]
 
@@ -68,10 +67,10 @@ proc runDelete*(
         live.finish()
     var said = "deleted " & what
     if done.files > 0:
-      said.add "; " & $done.files & (if done.files == 1: " file" else: " files") &
+      said.add "; " & counted(done.files, "file", "files") &
         " forgotten (importing them again would bring the activities back)"
     if done.kept > 0:
-      said.add "; " & $done.kept & (if done.kept == 1: " file" else: " files") &
+      said.add "; " & counted(done.kept, "file", "files") &
         " kept, with other activities in"
     g.log.log(lvInfo, commandName, leDeleted, said & " from " & st.path)
     sayDeleted(g, said)

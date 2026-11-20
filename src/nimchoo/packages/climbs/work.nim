@@ -27,6 +27,7 @@ import ../importer/track
 import ../util/lookup/lookup
 import ../util/profiling/profiling
 import ./[detect, match, ordinal, overlap, profile]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -287,8 +288,8 @@ func describe*(c: Counts): string =
   ## "43 sectors and 220 efforts (of every user)", and what would be lost that cannot be made again:
   ## "43 sectors and 220 efforts (of every user); 2 names given by hand are lost".
   result =
-    $c.sectors & (if c.sectors == 1: " sector" else: " sectors") & " and " & $c.efforts &
-    (if c.efforts == 1: " effort" else: " efforts") & " (of every user)"
+    counted(c.sectors, "sector", "sectors") & " and " &
+    counted(c.efforts, "effort", "efforts") & " (of every user)"
   if c.manual > 0:
     result.add "; " & $c.manual & (
       if c.manual == 1: " name given by hand is lost"

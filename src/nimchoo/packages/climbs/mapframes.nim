@@ -15,6 +15,7 @@ import ../activities/[mapfeatures as activityFeatures, mapframes as activityFram
 import ../selection/selection
 import ../user/session
 import ./[attempts, chosen, mapfeatures, match, report]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -124,7 +125,7 @@ proc unworked(st: Session, ids: seq[int64]): seq[string] {.raises: [StoreError].
   )
   if n > 0:
     let noun = if n == 1: "activity has" else: "activities have"
-    result.add fmt"{n} {noun} no climbs worked out (run `nch climbs` to work them out)"
+    result.add fmt"{count(n)} {noun} no climbs worked out (run `nch climbs` to work them out)"
 
 proc makeClimbs(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)

@@ -16,10 +16,6 @@ import ../../core/errors
 const userTables* = ["file", "seen_file", "selection", "climb_selection"]
   ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
 
-func counted*(n: int, one, many: string): string =
-  ## "1 activity", "74 activities".
-  fmt"{n} {(if n == 1: one else: many)}"
-
 func describe*(parts: seq[string], user: string): string =
   ## What is to go when a user is removed: "74 activities and user bob", "3 activities, 2 notes and user bob" (the
   ## parts are what the packages say the user has: `user/has`), "user bob" if they say nothing.

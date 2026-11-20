@@ -9,6 +9,7 @@ import ../db/store
 import ../../core/errors
 import ../ui/[markup, style]
 import ./[describe, display, work]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -112,17 +113,14 @@ func sectorLines*(rows: seq[SectorRow], width: int): seq[Line] =
 
 # --- the display while the climbs are worked out
 
-func commas(n: int): string =
-  insertSep($n, ',')
-
 func climbingLines*(done, total: int, worked: Worked): seq[Line] =
   ## The two lines that follow the work, as the import's do: the first plain ("climbing" emphasised), the second
   ## the counts good, joined by hidden dots.  The last frame is left on the screen.
   ##
   ##     climbing 120 / 1,986 activities
   ##     climbs 12 · efforts 40
-  let (d, t) = (commas(done), commas(total))
-  let (c, e) = (commas(worked.sectors), commas(worked.efforts))
+  let (d, t) = (count(done), count(total))
+  let (c, e) = (count(worked.sectors), count(worked.efforts))
   @[
     styled"<em climbing >{d} / {t} activities",
     styled"<good climbs {c}><hide  · ><good efforts {e}>",
@@ -130,8 +128,8 @@ func climbingLines*(done, total: int, worked: Worked): seq[Line] =
 
 func workedText*(worked: Worked): string =
   ## What was worked out, in words: "1,986 activities: 161 new climbs, 3,635 efforts".
-  commas(worked.activities) &
+  count(worked.activities) &
     (if worked.activities == 1: " activity: " else: " activities: ") &
-    commas(worked.sectors) &
+    count(worked.sectors) &
     (if worked.sectors == 1: " new climb, " else: " new climbs, ") &
-    commas(worked.efforts) & (if worked.efforts == 1: " effort" else: " efforts")
+    counted(worked.efforts, "effort", "efforts")

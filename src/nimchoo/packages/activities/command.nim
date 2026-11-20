@@ -487,10 +487,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let r = listActivities(st, criteria, zone, helpWidth(stdout), not paint.colour)
     if r.saved >= 0:
       g.log.log(
-        lvInfo,
-        commandName,
-        leSaved,
-        $r.saved & (if r.saved == 1: " activity" else: " activities"),
+        lvInfo, commandName, leSaved, counted(r.saved, "activity", "activities")
       )
     for l in r.lines:
       g.sayRendered osOut, render(l, paint) & "\n"

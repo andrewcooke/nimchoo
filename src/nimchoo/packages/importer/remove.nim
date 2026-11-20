@@ -9,6 +9,7 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../user/session
+import ../ui/units
 
 {.push raises: [].}
 
@@ -67,7 +68,7 @@ proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
 proc describe*(p: Plan): string =
   ## "12 activities (cycling 9, running 3) from 2018-07-01 to 2026-10-30".
   let n = p.ids.len
-  result = $n & (if n == 1: " activity" else: " activities")
+  result = counted(n, "activity", "activities")
   if n == 0:
     return
   var sp: seq[string]

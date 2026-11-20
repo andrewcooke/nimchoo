@@ -12,6 +12,7 @@ import ../ui/[live, style]
 import ../user/session
 import ../util/args/[args, usage]
 import ./[calendar, frames, params]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -86,9 +87,9 @@ proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
   ## The last line of a calendar of the months with data, if it left some out.
   let n = skippedMonths(marks, zone)
   if n > 0:
-    let months = if n == 1: "month" else: "months"
+    let months = counted(n, "month", "months")
     result.add warnLine(
-      fmt"{n} {months} with nothing marked omitted; use `--verbose` to show them"
+      fmt"{months} with nothing marked omitted; use `--verbose` to show them"
     )
 
 proc lines*(

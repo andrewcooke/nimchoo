@@ -12,6 +12,7 @@ import ../map/[frames, geojson]
 import ../selection/selection
 import ./mapfeatures
 import ../user/session
+import ../ui/units
 
 {.push raises: [].}
 
@@ -68,11 +69,11 @@ proc makeRoutes(st: Session): FrameData {.raises: [StoreError].} =
   let routes = routesOf(st, ids)
   let n = ids.len
   if routes.len == 0:
-    result.warnings.add fmt"none of the {n} activities has a route (no positions in the files)"
+    result.warnings.add fmt"none of the {count(n)} activities has a route (no positions in the files)"
   elif routes.len < n:
     let missing = n - routes.len
     let verb = if missing == 1: "has" else: "have"
-    result.warnings.add fmt"{missing} of the {n} selected activities {verb} no route (no positions in the files)"
+    result.warnings.add fmt"{count(missing)} of the {count(n)} selected activities {verb} no route (no positions in the files)"
   result.geojson = featureCollection(routes.mapIt(routeFeature(it)))
 
 proc makeHeat(st: Session): FrameData {.raises: [StoreError].} =

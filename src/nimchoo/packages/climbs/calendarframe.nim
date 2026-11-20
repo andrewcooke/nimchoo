@@ -9,6 +9,7 @@ import ../fit/time
 import ../ui/style
 import ../user/session
 import ./chosen
+import ../ui/units
 
 {.push raises: [].}
 
@@ -24,11 +25,9 @@ proc makeCalendar(st: Session): CalendarData {.raises: [StoreError].} =
     climbs = jsonList(climbs),
   ):
     result.marks.add UnixTime(t)
-  let attempts = if result.marks.len == 1: "attempt" else: "attempts"
-  let noun = if climbs.len == 1: "climb" else: "climbs"
-  result.summary = doneLine(
-    plain(fmt"{result.marks.len} {attempts} on the {climbs.len} selected {noun}")
-  )
+  let attempts = counted(result.marks.len, "attempt", "attempts")
+  let selected = counted(climbs.len, "selected climb", "selected climbs")
+  result.summary = doneLine(plain(fmt"{attempts} on the {selected}"))
 
 proc contribution*(): Contribution =
   ## The frame of the climbs, offered to the calendar.

@@ -7,10 +7,11 @@
 
 import std/[options, strformat]
 import ../../core/errors
-import ../importer/[after, sinks]
+import ../importer/after
 import ../user/session
 import ../ui/vocabulary
 import ./[attempts, chosen, naming, report, work]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -45,7 +46,7 @@ proc workOutClimbs(
   if named.isSome and named.get.named + named.get.nothing > 0:
     result.add ImportReport(
       text:
-        "named " & plural(named.get.named + named.get.nothing, "climb", "climbs") & ": " &
+        "named " & counted(named.get.named + named.get.nothing, "climb", "climbs") & ": " &
         $named.get.named & " with a name, " & $named.get.nothing & " with none near"
     )
 

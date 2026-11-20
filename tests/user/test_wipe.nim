@@ -1,4 +1,5 @@
 import std/[os, unittest]
+import nimchoo/packages/ui/units
 import nimchoo/packages/db/statement
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess

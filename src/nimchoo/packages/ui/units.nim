@@ -7,10 +7,18 @@ import std/[math, strutils]
 
 const notRecorded* = "-" ## said of a value that is not there
 
+func count*(n: int64): string =
+  ## "1,113": a count, with commas from 1,000 (every count the program shows is written so).
+  insertSep($n, ',')
+
+func counted*(n: int64, one, many: string): string =
+  ## "1 activity", "1,113 activities": a count and what it counts, singular for one.
+  count(n) & " " & (if n == 1: one else: many)
+
 func kmNumber*(metres: float): string =
   ## "102.7": kilometres to a tenth, with commas from 1,000.
   let tenths = int(round(metres / 100.0))
-  insertSep($(tenths div 10), ',') & "." & $(tenths mod 10)
+  count(tenths div 10) & "." & $(tenths mod 10)
 
 func km*(metres: float): string =
   ## "102.7km": the unit follows the number with no space.

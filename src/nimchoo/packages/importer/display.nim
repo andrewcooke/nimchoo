@@ -15,20 +15,18 @@ import ../ui/vocabulary
 import ../../core/globals
 import ./sinks
 import ./events
+import ../ui/units
 
 {.push raises: [].}
 
 const dot = " · "
-
-func commas(n: int): string =
-  insertSep($n, ',')
 
 func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   ## The lines for the run so far: file number `index` (the one being looked
   ## at, `current`, if any) of `sum.total`.  What is zero is left out, except
   ## imported and failed.
   var first: Line =
-    @[span("importing ", "em"), span(commas(index) & " / " & commas(sum.total))]
+    @[span("importing ", "em"), span(count(index) & " / " & count(sum.total))]
   if current.len > 0:
     first.add span("   " & current, "hide")
   var second: Line
@@ -38,23 +36,23 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
     second.add sp
 
   # the styles are those of the events of the same name (packages/ui/vocabulary.nim)
-  part span("imported " & commas(sum.imported), leImported)
+  part span("imported " & count(sum.imported), leImported)
   if sum.duplicates > 0:
-    part span("duplicates " & commas(sum.duplicates), leDuplicate)
+    part span("duplicates " & count(sum.duplicates), leDuplicate)
   if sum.unchanged > 0:
-    part span("unchanged " & commas(sum.unchanged), leUnchanged)
+    part span("unchanged " & count(sum.unchanged), leUnchanged)
   if sum.monitor > 0:
-    part span("monitor " & commas(sum.monitor), leUnchanged)
+    part span("monitor " & count(sum.monitor), leUnchanged)
   if sum.known > 0:
-    part span("known failures " & commas(sum.known), leUnchanged)
+    part span("known failures " & count(sum.known), leUnchanged)
   if sum.failed > 0:
     part span(
-      "failed " & commas(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed
+      "failed " & count(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed
     )
   else:
     part span("failed 0", leUnchanged) # (nothing to see: dim)
   if sum.advisories > 0:
-    part span("advisories " & commas(sum.advisories), leAdvisory)
+    part span("advisories " & count(sum.advisories), leAdvisory)
   @[first, second]
 
 func readLine*(sum: Summary): string =
