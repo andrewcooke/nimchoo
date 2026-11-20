@@ -12,6 +12,7 @@ import std/[net, options, os, osproc, strformat, strutils]
 import ../cache/cache
 import ../../core/[extension, globals, line]
 import ../db/store
+import ../ui/markup
 import ../../core/logfile
 import ../ui/interrupt
 import ../ui/vocabulary
@@ -115,7 +116,7 @@ proc showPage(g: Globals, url: string, start: bool) =
   except IOError:
     discard
   if not start and not openBrowser(url):
-    g.warn "could not open a browser; open the address above"
+    g.warn ~"could not open a browser; open the address above"
 
 proc serveWeb*(
     g: Globals, command: string, o: WebOptions, cacheDir, path, query: string
@@ -137,13 +138,13 @@ proc serveWeb*(
         return failure(
           g,
           name,
-          fmt"a server from an older nch (before `--stop`) is running on port {o.port}: press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, then try again",
+          ~"a server from an older nch (before `--stop`) is running on port {o.port}: press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, then try again",
         )
       if running.get.code != 200:
         return failure(
           g,
           name,
-          fmt"something on port {o.port} answers but not to our token (a server started before `--new-token`?): press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, or use `--port N`",
+          ~"something on port {o.port} answers but not to our token (a server started before `--new-token`?): press Ctrl-C where it runs, or `fuser -k {o.port}/tcp`, or use `--port N`",
         )
       let theirs = running.get.body.split('\n', maxsplit = 1)
       let mine = identity.split('\n', maxsplit = 1)
@@ -156,19 +157,19 @@ proc serveWeb*(
         return failure(
           g,
           name,
-          fmt"a server for another database or user ({what}) is running on port {o.port}: `{name} --stop` it first, or use `--port N`",
+          ~"a server for another database or user ({what}) is running on port {o.port}: `{name} --stop` it first, or use `--port N`",
         )
       if o.newToken:
         return failure(
           g,
           name,
-          fmt"a server is running on port {o.port}: `{name} --stop` it before making a new token",
+          ~"a server is running on port {o.port}: `{name} --stop` it before making a new token",
         )
       if theirs[0] != mine[0]:
-        g.warn fmt"the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one"
+        g.warn ~"the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one"
       showPage(g, pageUrl(o.port, path, query, known.token), o.start)
       if o.start:
-        g.say osErr, fmt"(the server was already running, on port {o.port})" & "\n"
+        g.show(osErr, ~"(the server was already running, on port {o.port})")
       return exitOk
   let t = loadToken(cacheDir, o.newToken)
   if t.problem.len > 0:
@@ -211,7 +212,7 @@ proc serveWeb*(
       ),
     )
   of seFailed:
-    failure(g, name, fmt"the server stopped: {ended.why}")
+    failure(g, name, ~"the server stopped: {ended.why}")
 
 proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
   ## `--stop`: ask the server of ours on the port to stop.
@@ -221,20 +222,20 @@ proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
     return failure(g, name, known.problem)
   let r = ask(port, known.token, stopPath)
   if r.isNone:
-    g.say osErr, fmt"no server is running on port {port}" & "\n"
+    g.show(osErr, ~"no server is running on port {port}")
     exitOk
   elif r.get.code == 404:
     failure(
       g,
       name,
-      fmt"the server on port {port} is from an nch that cannot be stopped this way (before `--stop`): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
+      ~"the server on port {port} is from an nch that cannot be stopped this way (before `--stop`): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   elif r.get.code != 200:
     failure(
       g,
       name,
-      fmt"the server on port {port} does not answer to our token (it was started before `--new-token`?): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
+      ~"the server on port {port} does not answer to our token (it was started before `--new-token`?): press Ctrl-C where it runs, or `fuser -k {port}/tcp`",
     )
   else:
-    g.say osErr, fmt"stopped the server on port {port}" & "\n"
+    g.show(osErr, ~"stopped the server on port {port}")
     exitOk
