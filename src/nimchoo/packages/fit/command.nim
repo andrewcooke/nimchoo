@@ -131,7 +131,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           d.profile
       except NchError, IOError:
         return
-          failure(g, "nch fit", "cannot use the profile: " & getCurrentExceptionMsg())
+          failure(g, "nch fit", ~"cannot use the profile: {getCurrentExceptionMsg()}")
     try:
       renderInto(p, readBytes(file), csv, lines, warnings)
     except FitError as e:
@@ -146,9 +146,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     for l in lines:
       stdout.write g.inTheme(osOut, l) & "\n"
   except IOError as e:
-    return failure(g, "nch fit", "cannot write the output: " & e.msg)
+    return failure(g, "nch fit", ~"cannot write the output: {e.msg}")
   for w in warnings:
-    g.warn "offset " & $w.offset & ": " & w.msg
+    g.warn ~"offset {w.offset}: {w.msg}"
   if problem.len > 0:
     failure(g, "nch fit", problem)
   else:
