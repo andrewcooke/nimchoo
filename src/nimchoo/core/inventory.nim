@@ -433,23 +433,13 @@ func neighbours(inv: Inventory, name: string, reverse: bool): seq[string] =
   else:
     inv.packages[at].depends
 
-type TreeLine* = object ## A line of a tree of packages.
-  text*: string
-  again*: bool ## the package was drawn above (drawn hidden: `nch packages`)
-
-func treeLines*(
-    inv: Inventory, root: string, reverse = false, repeats = true
-): seq[TreeLine] =
+func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
   ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes, breadth first:
-  ## each package is drawn in full at the shallowest place it is needed (the first a breadth-first walk from `root`
-  ## meets it), so what `root` uses itself is all directly under it, what those use that is not already there under
-  ## them, and so on.  Anywhere else it is marked `again`, followed by "..." if something under it is left out (a
-  ## package with nothing under it is just its name); without `repeats` it is left out altogether.  Under each package
-  ## those drawn in full there come first, the others after them.
-  type Node = tuple[depth: int, name: string, again, cut: bool]
-  var nodes: seq[Node]
+  ## each package is drawn once, at the shallowest place it is needed (the first a breadth-first walk from `root` meets
+  ## it), so what `root` uses itself is all directly under it, what those use that is not already there under them, and
+  ## so on.
   let start = inv.packages[inv.find(root)].name
-  var home: Table[string, string] # package -> the package it is drawn in full under
+  var home: Table[string, string] # package -> the package it is drawn under
   var met = toHashSet([start.normalised])
   var queue = @[start]
   var at = 0
@@ -462,6 +452,8 @@ func treeLines*(
         home[k.normalised] = u.normalised
         queue.add k
 
+  type Node = tuple[depth: int, name: string]
+  var nodes: seq[Node]
   func draw(
       inv: Inventory,
       name: string,
@@ -470,20 +462,13 @@ func treeLines*(
       nodes: var seq[Node],
       reverse: bool,
   ) =
-    nodes.add (depth, name, false, false)
-    let kids = neighbours(inv, name, reverse)
-    let here = kids.filterIt(home.getOrDefault(it.normalised) == name.normalised)
-    for k in here:
-      draw(inv, k, depth + 1, home, nodes, reverse)
-    for k in kids:
-      if home.getOrDefault(k.normalised) != name.normalised:
-        nodes.add (depth + 1, k, true, neighbours(inv, k, reverse).len > 0)
+    nodes.add (depth, name)
+    for k in neighbours(inv, name, reverse):
+      if home.getOrDefault(k.normalised) == name.normalised:
+        draw(inv, k, depth + 1, home, nodes, reverse)
 
   draw(inv, start, 0, home, nodes, reverse)
-  if not repeats:
-    nodes = nodes.filterIt(not it.again)
-  # the connectors, from what is drawn: a package is the last under its parent if no later one has its depth before one that
-  # is less deep
+  # the connectors: a package is the last under its parent if no later one has its depth before one that is less deep
   func later(nodes: seq[Node], i, depth: int): bool =
     for j in i + 1 .. nodes.high:
       if nodes[j].depth < depth:
@@ -496,7 +481,7 @@ func treeLines*(
     # for each depth: whether the package drawn there has a later sibling (a line goes on down)
   for i, n in nodes:
     if n.depth == 0:
-      result.add TreeLine(text: n.name, again: n.again)
+      result.add n.name
       open = @[false]
       continue
     let more = later(nodes, i, n.depth)
@@ -505,12 +490,7 @@ func treeLines*(
       prefix.add(if open[d]: "│   " else: "    ")
     open.setLen(n.depth + 1)
     open[n.depth] = more
-    result.add TreeLine(
-      text:
-        prefix & (if more: "├── " else: "└── ") & n.name &
-        (if n.cut: "..." else: ""),
-      again: n.again,
-    )
+    result.add prefix & (if more: "├── " else: "└── ") & n.name
 
 func reducedDepends(inv: Inventory): Table[string, seq[string]] =
   ## For each package the packages it depends on directly and not through another it depends on (the edges that
@@ -534,57 +514,6 @@ func reducedDepends(inv: Inventory): Table[string, seq[string]] =
       if not implied:
         kept.add d
     result[p.name.normalised] = kept
-
-type LayerPiece* = tuple[text: string, implied: bool]
-  ## a piece of a line of the layers: a dependency implied by another (drawn hidden: `nch packages --graph -v`), or not
-
-func layerLines*(inv: Inventory, width: int, implied = false): seq[seq[LayerPiece]] =
-  ## The packages by layer, the highest first, each with the packages it depends on directly and not through another
-  ## dependency (and, with `implied`, those too, marked): the picture of how the program is built up.
-  let reduced = reducedDepends(inv)
-  var top = 0
-  var nameWidth = 0
-  for p in inv.packages:
-    top = max(top, p.layer)
-    nameWidth = max(nameWidth, p.name.len)
-  let room = max(20, width - nameWidth - 8)
-  for l in countdown(top, 0):
-    let here = inv.packages.filterIt(it.layer == l).sortedByIt(it.name.normalised)
-    if here.len == 0:
-      continue
-    result.add @[
-      (fmt"layer {l}" & (if l == 0: "  (depend on nothing)" else: ""), false)
-    ]
-    for p in here:
-      let kept = reduced.getOrDefault(p.name.normalised)
-      var deps: seq[LayerPiece]
-      for d in kept:
-        deps.add (d, false)
-      if implied:
-        for d in p.depends:
-          if kept.allIt(it.normalised != d.normalised):
-            deps.add (d, true)
-      if deps.len == 0:
-        result.add @[("  ", false), (p.name, false)]
-        continue
-      # the names, wrapped to the room after the arrow; each keeps its mark
-      var line: seq[LayerPiece] = @[
-        ("  ", false),
-        (p.name, false),
-        (" ".repeat(nameWidth - p.name.len) & "  ← ", false),
-      ]
-      var used = 0
-      for (d, imp) in deps:
-        if used > 0 and used + 1 + d.len > room:
-          result.add line
-          line = @[(" ".repeat(nameWidth + 7), false)]
-          used = 0
-        if used > 0:
-          line.add (" ", false)
-          used += 1
-        line.add (d, imp)
-        used += d.len
-      result.add line
 
 func dotText*(inv: Inventory): string =
   ## The dependencies as a Graphviz graph (`nch packages --dot | dot -Tsvg > packages.svg`): an arrow from a package

@@ -24,7 +24,7 @@ suite "nch packages: the command line":
   test "the other views":
     check parseArgs(@["--points"]).params.view == vPoints
     check parseArgs(@["--dot"]).params.view == vDot
-    check parseArgs(@["--graph"]).params.view == vLayers
+    check parseArgs(@["--graph"]).problem.contains("give its name")
     check parseArgs(@["--graph", "db"]).params.view == vTree
     check parseArgs(@["db", "--graph"]).params.root == "db"
     check parseArgs(@["--graph", "--reverse", "db"]).params.reverse

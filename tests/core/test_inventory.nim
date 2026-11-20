@@ -1,6 +1,6 @@
 ## What `nch packages` shows (core/inventory.nim), on made-up packages and on the real registry.
 
-import std/[algorithm, options, sequtils, strutils, unittest]
+import std/[options, sequtils, strutils, unittest]
 import nimchoo/core/[errors, extension, fragment, inventory, line, manifest, registry]
 import nimchoo/registry as generated
 import ../support/styles
@@ -169,43 +169,18 @@ suite "the views":
       # (c adds twice: named once)
 
 suite "the graphs":
-  test "the tree of what a package depends on, breadth first: each package in full where it is first needed, ... where something is left out":
-    let tree = treeLines(world(), "c")
-    check tree.mapIt(it.text) ==
-      @[
-        "c", "├── a", "│   └── db", "├── b", "│   ├── a...",
-        "│   └── db", "└── db",
-      ]
-        # (c uses a, b and db itself: all three are drawn in full under it; under a and b they are repeats, and a has
-        # db under it, so it is followed by ...)
-    check tree.mapIt(it.again) == @[false, false, true, false, true, true, false]
-
-  test "without the repeats each package is drawn once, and the lines join up":
-    check treeLines(world(), "c", repeats = false).mapIt(it.text) ==
+  test "the tree of what a package depends on, breadth first: each package once, where it is first needed":
+    check treeLines(world(), "c") ==
       @["c", "├── a", "├── b", "└── db"]
+        # (c uses a, b and db itself: all three are directly under it, and nothing is left under a or b)
 
   test "the tree of what depends on a package":
-    check treeLines(world(), "a", reverse = true).mapIt(it.text) ==
-      @["a", "├── b", "│   └── c", "└── c"]
+    check treeLines(world(), "a", reverse = true) == @[
+      "a", "├── b", "└── c"
+    ]
 
   test "a package with nothing under it is a single line":
-    check treeLines(world(), "db").mapIt(it.text) == @["db"]
-
-  test "with the implied ones, every dependency is there, the implied ones marked":
-    let lines = layerLines(world(), 80, implied = true)
-    let c = lines.filterIt(it.mapIt(it.text).join("").startsWith("  c "))[0]
-    check c[1].text == "c"
-      # (the name a piece of its own: drawn in pkg, without the spaces)
-    check c.filterIt(not it.implied and it.text == "b").len == 1
-    check c.filterIt(it.implied).mapIt(it.text).sorted == @["a", "db"]
-
-  test "the layers: highest first, each package with the dependencies that are not implied by others":
-    let lines = layerLines(world(), 80).mapIt(it.mapIt(it.text).join(""))
-    check lines[0] == "layer 3"
-    check lines[1].startsWith("  c") and lines[1].endsWith("← b")
-      # (c names a and db too, but b implies them)
-    check "layer 0  (depend on nothing)" in lines
-    check lines.anyIt(it == "  db")
+    check treeLines(world(), "db") == @["db"]
 
   test "Graphviz text: one rank for each layer, an arrow for each dependency that carries information":
     let dot = dotText(world())
@@ -226,24 +201,14 @@ suite "the real registry":
         check inv.packages[inv.find(d)].layer < p.layer
         check p.name in inv.packages[inv.find(d)].dependents
 
-  test "a tree draws each package in full once; a repeat is marked ..., or has nothing under it":
+  test "a tree draws each package once":
     for p in inv.packages:
-      var full: seq[string]
-      for line in treeLines(inv, p.name):
-        let l = line.text
-        let name =
-          l.splitWhitespace.filterIt(it[0].isAlphaAscii)[0].strip(chars = {'.'})
-        if line.again:
-          check l.endsWith("...") or inv.packages[inv.find(name)].depends.len == 0
-        else:
-          check name notin full
-          full.add name
+      let names = treeLines(inv, p.name).mapIt(it.splitWhitespace[^1])
+      check names.deduplicate.len == names.len
 
-  test "every table has an owner that is a package, and the layers print without error":
+  test "every table has an owner that is a package, and the graph prints without error":
     for t in inv.tables:
       check inv.find(t.owner) >= 0
-    check layerLines(inv, 100).len > inv.packages.len
-    check layerLines(inv, 100, implied = true).len >= layerLines(inv, 100).len
     check dotText(inv).endsWith("}\n")
 
   test "the points of the registry are all listed, with their contributors":

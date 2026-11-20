@@ -15,7 +15,6 @@ type
     vList
     vDetail
     vPoints
-    vLayers
     vTree
     vDot
 
@@ -26,16 +25,13 @@ type
     of vTree:
       root*: string
       reverse*: bool ## what depends on `root`, not what it depends on
-      repeats*: bool ## `-v`: the packages drawn above too, hidden
-    of vLayers:
-      implied*: bool ## `-v`: the dependencies implied by others too, hidden
     of vList:
       filter*: PackageFilter ## `-L`, `-U`, `-B`, `-T`: which packages
     of vPoints, vDot:
       discard
 
   Raw = object ## what the options fill in
-    help, points, graph, reverse, verbose, dot: bool
+    help, points, graph, reverse, dot: bool
     name: string
     filter: PackageFilter
 
@@ -115,20 +111,13 @@ func packagesSpec*(): Spec[Raw] =
         Raw,
         ["--graph"],
         graph,
-        "the dependencies as a picture: with NAME, the tree of what that package depends on; without, all the packages by layer",
+        "the tree of what package NAME depends on, breadth first: what it uses itself, then what those add, and so on",
       ),
       flag(
         Raw,
         ["--reverse"],
         reverse,
         "(with `--graph NAME`) the tree of what depends on NAME instead",
-        level = 1,
-      ),
-      flag(
-        Raw,
-        ["-v", "--verbose"],
-        verbose,
-        "(with `--graph`) everything: with NAME each package again wherever it is needed, besides where it is drawn in full (else once, at the shallowest place); without, the dependencies implied by others too, dimmed (else only those that are not)",
         level = 1,
       ),
       flag(
@@ -154,8 +143,8 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params]("a package name goes with nothing but `--graph`")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
     return problemWith[Params]("`--reverse` goes with `--graph` and a package name")
-  if raw.verbose and not raw.graph:
-    return problemWith[Params]("`-v` goes with `--graph`")
+  if raw.graph and raw.name.len == 0:
+    return problemWith[Params]("`--graph` draws the tree of a package: give its name")
   let filtered =
     raw.filter.layer.isSome or raw.filter.uses.isSome or raw.filter.usedBy.isSome or
     raw.filter.table.isSome
@@ -167,12 +156,8 @@ func finish(raw: Raw): Parsed[Params] =
     parsedOk(Params(view: vPoints))
   elif raw.dot:
     parsedOk(Params(view: vDot))
-  elif raw.graph and raw.name.len > 0:
-    parsedOk(
-      Params(view: vTree, root: raw.name, reverse: raw.reverse, repeats: raw.verbose)
-    )
   elif raw.graph:
-    parsedOk(Params(view: vLayers, implied: raw.verbose))
+    parsedOk(Params(view: vTree, root: raw.name, reverse: raw.reverse))
   elif raw.name.len > 0:
     parsedOk(Params(view: vDetail, package: raw.name))
   else:
@@ -198,7 +183,7 @@ const
   synopsis = """usage: nch packages [-L N] [-U NAME] [-B NAME] [-T TABLE]
        nch packages NAME
        nch packages --points | --dot
-       nch packages --graph [--reverse] [-v] [NAME]"""
+       nch packages NAME --graph [--reverse]"""
   intro =
     """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
 package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it
@@ -217,25 +202,13 @@ proc usageText*(width: int): seq[Line] =
 # --- the command -------------------------------------------------------------------------------------------------------
 
 func namedInTree(text: string): Line =
-  ## A line of a tree ("├── activities", "│   └── climbs ..."): the name of the package in its style.
+  ## A line of a tree ("├── activities", "│   └── climbs"): the name of the package in its style.
   var start = 0
   for k, c in text:
     if c in Letters:
       start = k
       break
-  var finish = text.len
-  if text.endsWith(" ..."):
-    finish = text.len - 4
-  @[span(text[0 ..< start]), span(text[start ..< finish], styleName"pkg")] &
-    (if finish < text.len: @[span(text[finish .. ^1])] else: @[])
-
-proc showAll(g: Globals, lines: seq[string]) =
-  for l in lines:
-    g.say osOut, l & "\n"
-
-proc showAll(g: Globals, lines: seq[Line]) =
-  for l in lines:
-    g.show(osOut, l)
+  @[span(text[0 ..< start]), span(text[start .. ^1], styleName"pkg")]
 
 proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch packages ARGS`; returns the exit status.
@@ -295,34 +268,14 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     if inv.packages.allIt(not inv.keeps(f, it)):
       g.say osOut, "no package is kept by those filters\n"
     else:
-      g.showAll summaryLines(inv, width, f)
+      g.showAll(osOut, summaryLines(inv, width, f))
   of vDetail:
-    g.showAll detailLines(inv, p.package, width)
+    g.showAll(osOut, detailLines(inv, p.package, width))
   of vPoints:
-    g.showAll pointLines(inv, width)
-  of vLayers:
-    let paint = paintOf(g, osOut)
-    for l in layerLines(inv, width, p.implied):
-      # (a dependency implied by another is hidden)
-      g.sayRendered osOut,
-        render(
-          l.mapIt(
-            if it.implied:
-              span(it.text, "hide")
-            elif inv.find(it.text) >= 0:
-              span(it.text, styleName"pkg") # (the name of a package)
-            else:
-              span(it.text)
-          ),
-          paint,
-        ) & "\n"
-    if p.implied:
-      g.showAll(@["", "(dimmed: a dependency also reached through another one)"])
+    g.showAll(osOut, pointLines(inv, width))
   of vTree:
-    let tree = treeLines(inv, p.root, p.reverse, p.repeats)
-    let paint = paintOf(g, osOut)
-    for l in tree:
-      g.show(osOut, namedInTree(l.text))
+    for l in treeLines(inv, p.root, p.reverse):
+      g.show(osOut, namedInTree(l))
   of vDot:
     g.say osOut, dotText(inv)
   exitOk
