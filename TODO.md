@@ -1,7 +1,7 @@
 # TODO
 
 Open work only, as one list in the order the author chose (2026-11-12).  Finished work is in git and in dev/HISTORY.md (with the
-reasoning behind decisions); the reviews are in dev/REVIEW.md (the third, with the second as its appendix B and the first as A).
+reasoning behind decisions); the reviews are in dev/REVIEW.md (the fourth on top, the others as appendices C, B and A).
 When something here is done, delete it (in the same commit).  Design steps are discussed with the author before they start.
 
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
@@ -19,10 +19,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
-### C. Write it down
+### C. The review (done 2026-11-20)
 
-11. **A whole-system review in a fresh session** (a milestone: the cuts and the shared helpers are done, and the rules
-    of the look are written in the `ui` package's documentation, 2026-11-20).
+11. **The fourth review's plan** (dev/REVIEW.md, section 5; findings in `dev/review-4/`): to go through with the author,
+    with the decisions of its section 4, before any step starts.
 
 ## Tidy left from the reviews
 

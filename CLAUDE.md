@@ -31,9 +31,10 @@ the choochoo directory parallel to this one).  what i want to do is:
 * TODO.md holds **open work only**.  when something is done, delete it from TODO.md in the same commit.
 * dev/HISTORY.md holds finished tasks and the reasoning behind decisions (TODO.md until 2026-11-08).  read it for *why*
   something was decided; its names of commands and files are those of their time, so it is not current guidance.
-* dev/REVIEW.md is the third review (2026-11-11: spatial data as cells, a proposal with measurements) on top; the second
-  (2026-11-09: fuzzing, the access model, commands in their packages, tools) is its appendix B and the first
-  (2026-11-08) its appendix A.
+* dev/REVIEW.md is the fourth review (2026-11-20: the whole system after the consistency pass; the readers' findings in
+  detail are `dev/review-4/part-a.md` to `part-e.md`) on top; the third (2026-11-11: spatial data as cells) is its appendix C,
+  the second (2026-11-09: fuzzing, the access model, commands in their packages, tools) appendix B and the first
+  (2026-11-08) appendix A.
 
 ## rules
 

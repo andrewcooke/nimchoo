@@ -1,4 +1,97 @@
-# nimchoo: spatial data as cells (third review, 2026-11-11)
+# nimchoo: the whole system after the consistency pass (fourth review, 2026-11-20)
+
+Scope.  TODO.md item 11: a whole-system review at a milestone (the cuts, the shared helpers and the rules of the look in the
+`ui` package's documentation are done).  Five readers, one per fifth of the source (28k lines), each against CLAUDE.md's
+rules: bugs, broken rules, drift, dead code.  Their reports, with file:line, evidence and a fix for each finding, are
+`dev/review-4/part-a.md` (core, ui, util) to `part-e.md` (db, web, views); this section is the summary and the plan.  The
+bugs (section 2) were checked again against the code; the rest is as the readers found it (each says confirmed or
+plausible).  Nothing was built or run.  Cited below as A1, B3, ... (part, number).
+
+## 1. Summary
+
+The structure holds: packages, the access model, the registry, `Sql` with values by name, `g.say`/`g.show`, usage made from
+the options.  What drifted is below it, in three ways that show up in every part:
+
+1. **Input is checked, not parsed, at the edges that were added late.**  Values from a FIT file reach `doAssert`s (B1, the
+   worst finding); `nan` and `inf` pass as a radius or a position (C13, D8); `--port`'s "not given" is the default port
+   (E11).  The fuzzers stop before the code that asserts.
+2. **Sentinels where the rules want `Option` or a variant** ("" for none or for ok, -1/0 for not asked): in every part
+   (A10, B8, C8, C12, D7, D12, E5, E12).  `Criteria` (D7) is the largest: a bag of booleans and sentinels.
+3. **Shared helpers half adopted.**  The consistency pass made them; some commands never moved: "done: N of TOTAL" has no
+   helper and three commands lack it (A4, D5); `landmarks --delete` has its own `-f` (D2); `nch log` colours its own output
+   (E4); `cache` pads its own table (C10); warnings lose their style through `say ...text` (C4, D4); the web steps are
+   written out in `map` and in `ff` (E7); a position, `--from`, `--near` and `--radius` are read twice (C7) and the box
+   round a circle is computed three times (D9).
+
+And one thing missing from the database layer: **no busy timeout** (E2), so any two commands that write at once fail.
+
+## 2. Bugs (checked against the code)
+
+| | what | where | how it shows |
+|---|---|---|---|
+| B1 | a corrupt FIT file reaches `doAssert` at import | `importer/series.nim`, `heartrate/series.nim` | `heart_rate` declared uint16 (bpm 300), a sint64 latitude, one damaged timestamp: `nch import` crashes |
+| E2 | no `busy_timeout`; `begin` is deferred | `db/store.nim` | `nch ff` while `nch import` runs: "database is locked" at once |
+| E1 | one failed reply stops the server (plausible: traced in the stdlib, not reproduced) | `web/server.nim` | close a tab while a slow frame is made: the server exits and says "cannot listen" |
+| B3 | a passing failure is remembered as the file's verdict | `importer/batch.nim` | files that failed on "database is locked" are skipped as known failures until `--slow` |
+| E3 | only the first statement of a text is run (latent: no caller does it) | `db/statement.nim` | `a; b` runs `a`, and only `a` is checked by the access model |
+| C1 | `effort.start_m` counts from the stretch, not the ride | `climbs/work.nim` | after a stop by hand, "started N m into the ride" is too small |
+| C2 | the profile interpolates altitude across any gap (its doc says never) | `climbs/profile.nim` | a climb can be made from a straight line across a barometer dropout |
+| D1 | `users --edit` writes, then fails on `--rename` | `user/command.nim` | FTHR and default changed, exit 1; no transaction |
+| C3 | `climbs --edit NAME --auto` offline says "is now called unnamed₇" | `climbs/command.nim` | the climb is not named yet |
+| B2 | the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
+| B4 | a missing `--profile` is blamed on the FIT file | `fit/command.nim` | "ride.fit: cannot open: nosuch.xlsx" |
+| A1 | a backtick in a value is read as markup | `core/theme.nim` | in colour, the rest of the line (or text) drawn as `code` |
+| D8, C13 | `nan`/`inf` radius and positions accepted; `--all --radius` accepted | `activities/criteria.nim`, `geo`, `names` | `landmarks --add X --at 1,2 --radius nan`: a raw SQLite error |
+| D9 | two of three circle boxes miss the date line | `names/suggest.nim`, `names/lookup.nim` | `landmarks --near` near 180° misses the other side |
+| B6 | the delete confirmation shows dates in UTC, the table in local time | `importer/remove.nim` | the same ride described with two dates |
+
+Smaller: C6 (`--duplicates` help says "more than half", the test is 80%), E13 (`ff --file` reads the impulses in two
+transactions), B11 (the inflating child is sized by the caller's limit).
+
+## 3. The classes, and what fixes each
+
+1. **Parse at the edge** (B1, C13, D8, D3, E11).  `coordOf` and `readings` refuse values off the Earth or outside a byte,
+   with a warning; samples outside the session's span are dropped; the importer's fuzzer goes on through the encoders.  One
+   reader of a positive finite number and one of a position (`geo`), and one parsed piece for `--from`/`--near`/`--radius`
+   (C7) used by activities, climbs and landmarks (which then take km and place names, D3).  `box`/`boxes` move to `geo`
+   (D9).
+2. **The database** (E2, E3, D1, B3).  `busy_timeout` in `openStore` and a `begin immediate` for writing transactions;
+   refuse a text with a tail; `users --edit` checks first and writes in one transaction; `FailureKind` says which kinds are
+   remembered.
+3. **The output helpers, everywhere** (A4, D5, D2, E4, C4, D4, C10, C11, E7, B5, D6, A7, A9, A11).  A helper for the last
+   line, used by every list; `landmarks` through `confirm`; `nch log` through `g.show`; warnings as `Line`s; one "cannot
+   download" line; one web step shared by `map` and `ff`; counts through `count`.  Each with the guard test the rules ask for
+   (the one for padding misses the usage's command list, A7).
+4. **One fact, one place** (A2 arity, A3 the database path, A8 who reads a table, B2 the log's command name, E5 the log's
+   line format, E6 the CSP and `libraries.cdn`, E9 choosing a subject, C5 matching a climb's name).
+5. **Sentinels to `Option`/variants**, package by package (A10, B8, C8, C12, D7, D12, E5, E12; and B9, ids as `int64`).
+6. **Dead code and stale text** in one sweep (A5, A6, A13, B10, C14, C15, D10, D13, E10, E14): including `ListRow.user`,
+   a sub-query per row (D10), and CLAUDE.md, which says `models` has `--delete` (E10) and leaves `importer/pool.nim` out of
+   the module-level state (B7).
+
+## 4. Decisions for the author
+
+* **C2, the altitude across a gap**: no ground truth.  Leave NaN beyond some distance between two altitudes (50 m?), so a
+  climb never crosses a hole; or interpolate and change the doc.  Recommend the first; look at a ride with a dropout.
+* **A1, backticks**: mark which spans are markup (the literal text of `styled` and `g.say`) and draw values as they are
+  (recommended), or escape backticks in values.
+* **D3, `landmarks --radius`**: km, as the rule says (recommended), or metres as an exception written down.
+* **E8, an empty selection**: a failure (the map) or a normal line (the calendar)?  Recommend one, the normal line.
+* **E10, `models --delete`**: add it, or correct CLAUDE.md.
+* **B6**: local time in the confirmation, as the table (recommended).
+
+## 5. Plan (an order to propose; each step a commit with its test)
+
+1. B1 and the fuzzer through the encoders; E2; E1; E3; B3 (robustness: what can lose work or stop a command).
+2. The other bugs of section 2, one commit each.
+3. Class 1 (parse at the edge, the shared position pieces).
+4. Class 3 (output helpers), then class 4 (one fact).
+5. Class 5 (sentinels), one package per commit, the largest (`Criteria`) as a design step of its own.
+6. Class 6 (dead and stale).
+
+---
+
+# Appendix C: spatial data as cells (the third review, 2026-11-11)
 
 Scope.  The question TODO.md left for the next whole-system review: step 7 (push work into SQL) kept ending "prototype in
 SQL, measure, Nim wins" (HISTORY.md, 2026-11-11), and the author suspected a local minimum, a better design that needs a
@@ -7,7 +100,7 @@ larger change than one step at a time.  Read: HISTORY.md (the step-7 measurement
 SQL on a copy of the author's database (1,112 activities, 6.2 M `coords` rows, 15,298 GeoNames features, 183 climbs, 4,493
 efforts).  **Nothing in the program has changed**; this is a proposal, with the measurements that support it.
 
-## 1. Summary
+### 1. Summary
 
 There is a better design, and it is not "more SpatiaLite".  **Where a ride went is stored as the cells of a grid it passed
 through**, so that spatial questions about places (what is near a route, which rides pass a climb) are joins on integers,
@@ -15,7 +108,7 @@ which SQLite does well.  Work that follows the order of a ride in time (its shap
 crossings) stays in Nim, done once at import on the per-activity arrays, and its results are stored.  This also removes the
 conflict in TODO step 9: arrays are opaque to SQL, and with cells SQL no longer needs the samples.
 
-## 2. Why step 7 kept losing
+### 2. Why step 7 kept losing
 
 Every fast Nim path is a grid: `shapeOf` puts the route into 50 m cells, the via search uses `RouteGrid` with 2.5 km cells,
 the GeoNames features are loaded by 1-degree cells.  Every SQL prototype used SpatiaLite's geometry functions pair by pair
@@ -24,7 +117,7 @@ measurement compared Nim *with* a grid to SQL *without* one: the grid won, not N
 in the database, because each step was the conversion of one function, not a change of what is stored.  That is the local
 minimum.
 
-## 3. The prototypes (measured 2026-11-11)
+### 3. The prototypes (measured 2026-11-11)
 
 The grid: latitude and longitude, cells 1/1024 of a degree (about 109 m × 91 m at Santiago); a cell is one integer,
 `(iy << 32) | ix` with `ix = floor((lon + 180) × 1024)`, `iy = floor((lat + 90) × 1024)`.  Each level halves the cell, so a
@@ -47,7 +140,7 @@ turning point), which are one indexed query each; Sonnet measured them (HISTORY.
 
 The queries are in §8, so that the numbers can be made again.
 
-## 4. The design
+### 4. The design
 
 **Two kinds of work, each where it suits:**
 
@@ -84,7 +177,7 @@ the same name for the same route), a way of classifying rides that the current d
 or S2, which need a C library loaded into SQLite.  Known limits of the plain grid, accepted: cells narrow towards the poles,
 and cells either side of ±180° are not neighbours by arithmetic.
 
-## 5. Decisions to make before building
+### 5. Decisions to make before building
 
 1. **Where naming lives.**  Today `importer` names each activity (`importer/naming.nim` calls `names/activity.nim`), so
    `importer` depends on `names`.  The via query joins `route_cell` (importer's) with the place tables (names'), so the package
@@ -105,7 +198,7 @@ and cells either side of ±180° are not neighbours by arithmetic.
 4. **One rebuild, together with step 9.**  The arrays and `route_cell` are both written at import; doing them together means
    one change of the importer and one rebuild.
 
-## 6. Plan (replaces TODO items 2, 4, 5, 6 of the proposed order; each a discussion first, then steps)
+### 6. Plan (replaces TODO items 2, 4, 5, 6 of the proposed order; each a discussion first, then steps)
 
 1. The decisions of §5, with the author; `/oppose` on this section.
 2. The cell id in `geo` (pure, tested: neighbours, shift to a coarser level, the centre) and registered in SQLite.
@@ -119,12 +212,12 @@ and cells either side of ±180° are not neighbours by arithmetic.
 7. `route`: a simplified line for drawing, or gone; `--near` by cells; the map from the arrays or the simplified line.
 8. Then the features of §4 as the author wants them (heat map, new roads, grouping rides).
 
-## 7. What stays as it is
+### 7. What stays as it is
 
 The climbs' geometry and their overlap tests in SpatiaLite; the lookups round one point (start place, destination,
 landmarks at a point); the GeoNames loading by 1-degree cells (`coverage`) with the countries; the series algorithms in Nim.
 
-## 8. The prototype queries (SQLite 3.53 with math functions; SpatiaLite loaded to read `X()`, `Y()`)
+### 8. The prototype queries (SQLite 3.53 with math functions; SpatiaLite loaded to read `X()`, `Y()`)
 
 ```sql
 -- the visits of every ride to cells of 1/1024 degree (13 s over 6.2 M rows; at import, Nim does it per ride)
