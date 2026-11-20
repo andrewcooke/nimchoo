@@ -31,7 +31,7 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 |---|---|---|---|
 | B1 | **fixed** 2026-11-20: a corrupt FIT file reaches `doAssert` at import | `importer/series.nim`, `heartrate/series.nim` | `heart_rate` declared uint16 (bpm 300), a sint64 latitude, one damaged timestamp: `nch import` crashes |
 | E2 | **fixed** 2026-11-20: no `busy_timeout`; `begin` is deferred | `db/store.nim` | `nch ff` while `nch import` runs: "database is locked" at once |
-| E1 | one failed reply stops the server (plausible: traced in the stdlib, not reproduced) | `web/server.nim` | close a tab while a slow frame is made: the server exits and says "cannot listen" |
+| E1 | **fixed** 2026-11-20 (no test: needs a real socket): one failed reply stops the server (plausible: traced in the stdlib, not reproduced) | `web/server.nim` | close a tab while a slow frame is made: the server exits and says "cannot listen" |
 | B3 | a passing failure is remembered as the file's verdict | `importer/batch.nim` | files that failed on "database is locked" are skipped as known failures until `--slow` |
 | E3 | only the first statement of a text is run (latent: no caller does it) | `db/statement.nim` | `a; b` runs `a`, and only `a` is checked by the access model |
 | C1 | `effort.start_m` counts from the stretch, not the ride | `climbs/work.nim` | after a stop by hand, "started N m into the ride" is too small |

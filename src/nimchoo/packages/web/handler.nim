@@ -80,7 +80,8 @@ func withSecurity(r: Reply): Reply =
   result.headers.add ("X-Content-Type-Options", "nosniff")
   result.headers.add ("Cache-Control", "no-cache")
 
-func reply(code: int, body: string, contentType = textType): Reply =
+func reply*(code: int, body: string, contentType = textType): Reply =
+  ## A reply of `code` with `body` (plain text unless said).
   Reply(code: code, headers: @[("Content-Type", contentType)], body: body)
 
 func contentTypeOf(fileName: string): string =

@@ -183,7 +183,7 @@ proc serveWeb*(
     identity: identity,
   )
   exitOnInterrupt()
-  let problem = serveForever(
+  let ended = serveForever(
     cfg,
     getAppFilename(),
     o.port,
@@ -197,17 +197,21 @@ proc serveWeb*(
       )
       g.log.log(lvInfo, command, leServed, fmt"listening on 127.0.0.1:{port}"),
   )
-  if problem.isNone:
+  case ended.kind
+  of seAsked:
     g.log.log(lvInfo, command, leServed, "stopped (asked to)")
-    return exitOk
-  failure(
-    g,
-    name,
-    fmt"cannot listen on 127.0.0.1:{o.port}: {problem.get}" & (
-      if o.port == defaultPort: " (another program has the port? try `--port N`)"
-      else: ""
-    ),
-  )
+    exitOk
+  of seCannotListen:
+    failure(
+      g,
+      name,
+      fmt"cannot listen on 127.0.0.1:{o.port}: {ended.why}" & (
+        if o.port == defaultPort: " (another program has the port? try `--port N`)"
+        else: ""
+      ),
+    )
+  of seFailed:
+    failure(g, name, fmt"the server stopped: {ended.why}")
 
 proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
   ## `--stop`: ask the server of ours on the port to stop.
