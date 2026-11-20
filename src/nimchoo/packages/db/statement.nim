@@ -48,15 +48,30 @@ proc prepareStmtAs*(
     db: DbConn, sql: string, package: string, contributors: seq[string] = @[]
 ): Stmt {.raises: [StoreError].} =
   ## Compile one statement written in `package` ("": not checked); `?` marks the values to bind (numbered
-  ## from 1).  The access rules (`access.nim`) are asked while it is compiled.
+  ## from 1).  The access rules (`access.nim`) are asked while it is compiled.  A text that holds no statement, or more
+  ## than one, is refused: SQLite would compile the first and ignore the rest, unrun and unchecked (a script is
+  ## `execScript`).
   var raw: PStmt
+  var tail: cstring
   enter(package, contributors)
-  let rc = prepare_v2(db, cstring(sql), cint(sql.len), raw, nil)
+  let rc = prepare_v2(db, cstring(sql), cint(sql.len), raw, addr tail)
+  var more = false
+    # (what follows the first statement compiles to something: only comments and `;` may)
+  if rc == SQLITE_OK and not tail.isNil and tail[0] != '\0':
+    var next: PStmt
+    more = prepare_v2(db, tail, -1, next, nil) != SQLITE_OK or not next.isNil
+    if not next.isNil:
+      discard finalize(next)
   let refused = leave()
   if rc != SQLITE_OK:
     if refused.len > 0:
       raiseStore(fmt"{refused}: {sql}")
     fail(db, fmt"cannot prepare '{sql}'")
+  if more:
+    discard finalize(raw)
+    raiseStore(fmt"more than one statement (a script is `execScript`): {sql}")
+  if raw.isNil:
+    raiseStore(fmt"no statement in '{sql}'")
   Stmt(raw: raw, db: db)
 
 template prepareStmt*(db: DbConn, sql: string): untyped =

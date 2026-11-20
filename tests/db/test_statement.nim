@@ -196,3 +196,20 @@ suite "statement: only :names, and they are checked when the program is compiled
       db.close()
     check db.scalar(int, "select '?' = :q", q = "?") == 1
     check db.scalar(string, "select '12:30' || :t", t = "!") == "12:30!"
+
+suite "statement: one statement to a text":
+  test "a text of two statements is refused, not run in part":
+    let db = memory()
+    expect StoreError:
+      discard
+        prepareStmtAs(db, "delete from t where n = 3; delete from t where n = 4", "")
+    check db.scalar(int, "select count(*) from t") == 2
+
+  test "a text of no statement is refused":
+    let db = memory()
+    expect StoreError:
+      discard prepareStmtAs(db, "-- only a comment", "")
+
+  test "a closing semicolon or comment is no second statement":
+    let db = memory()
+    check db.scalar(int, "select count(*) from t; -- both rows") == 2
