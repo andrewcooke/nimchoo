@@ -25,7 +25,8 @@ import
   ./core/test_complete,
   ./test_introspect,
   ./test_settings,
-  ./test_completion
+  ./test_completion,
+  ./tools/test_dot
 import ./cache/test_cache
 import ./subject/test_subjects
 import ./util/zip/test_zipbytes

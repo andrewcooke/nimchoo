@@ -16,7 +16,6 @@ type
     vDetail
     vPoints
     vTree
-    vDot
 
   Params* = object ## what `nch packages` is asked to show
     case view*: View
@@ -27,11 +26,11 @@ type
       reverse*: bool ## what depends on `root`, not what it depends on
     of vList:
       filter*: PackageFilter ## `-L`, `-U`, `-B`, `-T`: which packages
-    of vPoints, vDot:
+    of vPoints:
       discard
 
   Raw = object ## what the options fill in
-    help, points, graph, reverse, dot: bool
+    help, points, graph, reverse: bool
     name: string
     filter: PackageFilter
 
@@ -120,12 +119,6 @@ func packagesSpec*(): Spec[Raw] =
         "(with `--graph NAME`) the tree of what depends on NAME instead",
         level = 1,
       ),
-      flag(
-        Raw,
-        ["--dot"],
-        dot,
-        "the dependencies as a Graphviz graph: `nch packages --dot | dot -Tsvg > packages.svg`",
-      ),
       helpFlag(Raw),
     ],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
@@ -136,10 +129,10 @@ func packagesSpec*(): Spec[Raw] =
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  let chosen = [raw.points, raw.graph, raw.dot]
+  let chosen = [raw.points, raw.graph]
   if chosen.countIt(it) > 1:
-    return problemWith[Params]("choose one of `--points`, `--graph` and `--dot`")
-  if raw.name.len > 0 and (raw.points or raw.dot):
+    return problemWith[Params]("choose one of `--points` and `--graph`")
+  if raw.name.len > 0 and raw.points:
     return problemWith[Params]("a package name goes with nothing but `--graph`")
   if raw.reverse and not (raw.graph and raw.name.len > 0):
     return problemWith[Params]("`--reverse` goes with `--graph` and a package name")
@@ -154,8 +147,6 @@ func finish(raw: Raw): Parsed[Params] =
     )
   if raw.points:
     parsedOk(Params(view: vPoints))
-  elif raw.dot:
-    parsedOk(Params(view: vDot))
   elif raw.graph:
     parsedOk(Params(view: vTree, root: raw.name, reverse: raw.reverse))
   elif raw.name.len > 0:
@@ -176,13 +167,13 @@ func closeNames*(asked: string, names: seq[string]): seq[string] =
   scored.mapIt(it[1])
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch packages [NAME] [--points | --graph [--reverse] | --dot]`.
+  ## `nch packages [NAME] [--points | --graph [--reverse]]`.
   parseCommand(args, packagesSpec(), Raw(), finish)
 
 const
   synopsis = """usage: nch packages [-L N] [-U NAME] [-B NAME] [-T TABLE]
        nch packages NAME
-       nch packages --points | --dot
+       nch packages --points
        nch packages NAME --graph [--reverse]"""
   intro =
     """The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a
@@ -276,8 +267,6 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vTree:
     for l in treeLines(inv, p.root, p.reverse):
       g.show(osOut, namedInTree(l))
-  of vDot:
-    g.say osOut, dotText(inv)
   exitOk
 
 proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =

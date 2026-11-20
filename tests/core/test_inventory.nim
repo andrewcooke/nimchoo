@@ -182,13 +182,6 @@ suite "the graphs":
   test "a package with nothing under it is a single line":
     check treeLines(world(), "db") == @["db"]
 
-  test "Graphviz text: one rank for each layer, an arrow for each dependency that carries information":
-    let dot = dotText(world())
-    check dot.startsWith("digraph packages {")
-    check "\"c\" -> \"b\";" in dot
-    check "\"c\" -> \"a\";" notin dot
-    check "{ rank=same; \"db\"; }" in dot
-
 suite "the real registry":
   let inv = inventoryOf(
     generated.packages, generated.extensions, generated.points, generated.schema
@@ -206,10 +199,9 @@ suite "the real registry":
       let names = treeLines(inv, p.name).mapIt(it.splitWhitespace[^1])
       check names.deduplicate.len == names.len
 
-  test "every table has an owner that is a package, and the graph prints without error":
+  test "every table has an owner that is a package":
     for t in inv.tables:
       check inv.find(t.owner) >= 0
-    check dotText(inv).endsWith("}\n")
 
   test "the points of the registry are all listed, with their contributors":
     check inv.points.len == generated.points.len

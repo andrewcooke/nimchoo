@@ -23,14 +23,14 @@ suite "nch packages: the command line":
 
   test "the other views":
     check parseArgs(@["--points"]).params.view == vPoints
-    check parseArgs(@["--dot"]).params.view == vDot
+    check parseArgs(@["--dot"]).problem.contains("--dot") # (a tool now: tools/dot.nim)
     check parseArgs(@["--graph"]).problem.contains("give its name")
     check parseArgs(@["--graph", "db"]).params.view == vTree
     check parseArgs(@["db", "--graph"]).params.root == "db"
     check parseArgs(@["--graph", "--reverse", "db"]).params.reverse
 
   test "combinations that mean nothing are refused":
-    check parseArgs(@["--points", "--dot"]).problem.contains("choose one")
+    check parseArgs(@["--points", "--graph", "db"]).problem.contains("choose one")
     check parseArgs(@["importer", "--points"]).problem.contains(
       "goes with nothing but `--graph`"
     )
