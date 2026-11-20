@@ -149,7 +149,7 @@ proc runImport(
     namingFailed = true
     discard failure(
       g,
-      "nch activities",
+      "nch import",
       getCurrentExceptionMsg() &
         " (the activities are imported; they are named by the next `nch import`)",
     )

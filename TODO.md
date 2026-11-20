@@ -19,9 +19,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
-9. **The scaffolding of a command.**  The 15 `run` procs repeat parsing, help, usage errors, opening the store and
-   catching `StoreError`; 60 calls write "nch NAME" by hand.  Proposed: `failure` and `usageError` take the command's
-   name (`commandName`) and add "nch "; perhaps one helper for the start of `run`.
 10. **Drawing.**  6 places draw with `sayRendered(render(l, paint))` to know whether there is colour; they can ask
     `g.colour` and use `g.showAll`; `sayRendered` goes.
 
@@ -75,6 +72,11 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Features and ideas, unordered
 
+* **Lines for the calendar** (the author, 2026-11-20): `nch calendar` drawn with lines, as the tables are (a rule under
+  the weekday names, lines between the month, the days and the year?).  To look at with the author.
+* **`nch climbs`: simpler, and more** (the author, 2026-11-20): simplified (the list mixes the selected and the
+  not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
+  extended (the best and the most recent attempts).  To design with the author.
 * **`ff`'s options** (the author, 2026-11-20: needs a lot of work, as an item of its own): `--fitness-scale`,
   `--fatigue-scale` and `--hourly` are settings of one chart; look at what they are for before deciding what stays.
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the

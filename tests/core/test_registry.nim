@@ -343,3 +343,24 @@ suite "fragments":
     check collectFragments(@[a, withFragments("b", @[b], "a")]).len == 2
     expect PackageError:
       discard collectFragments(@[a, withFragments("b", @[b])])
+
+suite "the commands: their names in messages":
+  test "a package names only its own command in its messages (\"nch climbs\" in climbs), never another's":
+    let top = currentSourcePath().parentDir.parentDir.parentDir
+    let commands = generated.commands.mapIt(it.name)
+    var found: seq[string]
+    for p in generated.packages:
+      let own = p.package.commands.mapIt(it.name)
+      if own.len == 0:
+        continue # (a library: it names what it is given)
+      for path in walkDirRec(top / p.path):
+        if not path.endsWith(".nim"):
+          continue
+        for i, whole in readFile(path).splitLines.toSeq:
+          let l = whole.split("##")[0]
+          for c in commands:
+            if ("\"nch " & c & "\"") in l and c notin own:
+              found.add path.relativePath(top) & ":" & $(i + 1) & ": nch " & c
+    check found.len == 0
+    if found.len > 0:
+      echo "another package's command named: ", found.join(", ")
