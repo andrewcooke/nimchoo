@@ -128,13 +128,13 @@ proc unworked(st: Session, ids: seq[int64]): seq[string] {.raises: [StoreError].
 
 proc makeClimbs(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
-  result.notes = unworked(st, ids)
+  result.warnings = unworked(st, ids)
   result.geojson =
     featureCollection(climbsOf(st, climbsOfActivities(st, ids)).mapIt(climbFeature(it)))
 
 proc makeGates(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
-  result.notes = unworked(st, ids)
+  result.warnings = unworked(st, ids)
   result.geojson =
     featureCollection(gatesOf(st, climbsOfActivities(st, ids)).mapIt(gateFeature(it)))
 
@@ -164,12 +164,12 @@ proc makeChosenRoutes(st: Session): FrameData {.raises: [StoreError].} =
   let rides = ridesUp(st, chosenClimbs(st))
   let routes = routesOf(st, rides)
   if rides.len == 0:
-    result.notes.add "you have ridden none of the selected climbs"
+    result.warnings.add "you have ridden none of the selected climbs"
   result.geojson = featureCollection(routes.mapIt(routeFeature(it)))
 
 proc makeEfforts(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
-  result.notes = unworked(st, ids)
+  result.warnings = unworked(st, ids)
   result.geojson = featureCollection(effortsOf(st, ids).mapIt(effortFeature(it)))
 
 const

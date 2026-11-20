@@ -143,8 +143,8 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
       result.stdout.add fileLine("failed    ", ev.path, ": " & ev.message)
     result.stderr.add advisoryLines(ev.path, ev.advisories)
   of evFinish:
-    for note in ev.summary.notes:
-      result.stderr.add noteLine(note)
+    for note in ev.summary.warnings:
+      result.stderr.add warnLine(note)
     result.stdout.add plain("read: " & summaryLine(ev.summary))
     let hint = moreHint(ev.summary, logged)
     if hint.len > 0:

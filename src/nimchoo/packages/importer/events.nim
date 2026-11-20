@@ -29,7 +29,8 @@ type
     imported*, duplicates*, unchanged*, failed*, known*, monitor*: int
     advisories*: int ## things noticed in files (see packages/util/warnings), not files
     failures*: array[FailureKind, int] ## `failed`, by kind
-    notes*: seq[string] ## things to say about the run itself
+    warnings*: seq[string]
+      ## what went wrong with the run itself, the work done all the same
 
   EventKind* = enum
     evStart

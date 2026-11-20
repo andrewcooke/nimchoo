@@ -67,13 +67,13 @@ suite "globals: messages on one line":
       "Permission denied; Additional info: /x/"
     check oneLine("one line") == "one line"
 
-suite "globals: notes, warnings and what was done":
+suite "globals: warnings and what was done":
   test "each has its prefix and its style, on one line":
-    check noteLine("a\nb").text == "note: a; b" and noteLine("x")[0].styles.len == 0
-    check warnLine("x").text == "warning: x" and $warnLine("x")[0].styles[0] == "warn"
+    check warnLine("a\nb").text == "warning: a; b" and
+      $warnLine("x")[0].styles[0] == "warn"
     check doneLine(@[span("3", "select"), span(" of 5")]).text == "done: 3 of 5"
 
-  test "no other code writes the prefixes by hand: they come from noteLine, warnLine and doneLine":
+  test "no other code writes the prefixes by hand: they come from warnLine and doneLine":
     var found: seq[string]
     let top = currentSourcePath().parentDir.parentDir.parentDir / "src"
     for path in walkDirRec(top):

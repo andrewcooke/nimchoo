@@ -19,10 +19,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
-6. **Messages.**  "note: " by hand in 9 places, "warning: " in 8 (some in `warn`, some plain), "done: " in 16 in four
-   styles.  Proposed: `g.note(text)`, `g.warn(text)`, `g.done(line)` beside `failure()` (one prefix, style, stream,
-   wrapping each), and a test that refuses the prefixes anywhere else.  Open: the style of each (`note` plain, `warning`
-   in `warn`, `done` plain with what it counts?).
 7. **Counts, plurals and lists.**  `insertSep(…, ',')` in 8 places and three private `commas`; `if n == 1: "x" else: "xs"`
    in 7 places and a `plural` in the importer; lists of names separated by spaces in some views and commas in others.
    Proposed: `counted(1113, "activity")` ("1,113 activities") in `ui/units`; one list helper, commas everywhere; a test

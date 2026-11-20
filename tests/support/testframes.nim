@@ -23,7 +23,7 @@ proc makeAlpha(st: Session): FrameData {.raises: [StoreError].} =
       "},\"geometry\":{\"type\":\"Point\",\"coordinates\":[" & $i & ",0]}}"
   FrameData(
     geojson: "{\"type\":\"FeatureCollection\",\"features\":[" & fs.join(",") & "]}\n",
-    notes: @["a note from alpha"],
+    warnings: @["a warning from alpha"],
   )
 
 proc makeBeta(st: Session): FrameData {.raises: [StoreError].} =

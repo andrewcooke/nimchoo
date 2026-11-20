@@ -133,13 +133,13 @@ suite "bundle: the profile and the notice":
     useTestCache()
   test "the default profile is unpacked, and is the built-in one":
     let d = defaultProfile()
-    check d.note == ""
+    check d.problem == "" and profileInUse() == "the built-in one"
     check fileExists(systemDir(top) / "Profile.xlsx")
     check readFile(systemDir(top) / "Profile.xlsx") ==
       readFile("src/nimchoo/packages/fit/Profile.xlsx")
     check parseManifest(readFile(top / manifestName))["Profile.xlsx"] ==
       sha256Hex(readFile("src/nimchoo/packages/fit/Profile.xlsx"))
-  test "the author's profile is used, with a note; one that cannot be read is not, with a note":
+  test "the author's profile is used (as --config says); one that cannot be read is not, with the problem":
     discard defaultProfile()
     # a good one: the same spreadsheet with a byte on the end, which readers of zip files allow
     writeFile(
@@ -147,13 +147,12 @@ suite "bundle: the profile and the notice":
       readFile("src/nimchoo/packages/fit/Profile.xlsx") & "\0",
     )
     let mine = defaultProfile()
-    check mine.note.startsWith("using the profile ") and
-      mine.note.endsWith("(not the built-in one)")
+    check mine.problem == "" and profileInUse().endsWith("(not the built-in one)")
     # a bad one: the built-in is used instead
     writeFile(systemDir(top) / "Profile.xlsx", "this is not a spreadsheet")
     let bad = defaultProfile()
-    check bad.note.contains("cannot be used") and
-      bad.note.contains("using the built-in one")
+    check bad.problem.contains("cannot be used") and
+      bad.problem.contains("using the built-in one")
     check bad.profile.messages.len > 0
     expect NchError:
       discard loadDefaultProfile() # (the other one says so as an error)

@@ -52,7 +52,7 @@ suite "activities frames: the routes":
     let s2 = openSession(w.db, allFragments, access = newAllAccess(amEnforce))
     defer:
       s2.close()
-    check frameOf("routes").make(s2).notes ==
+    check frameOf("routes").make(s2).warnings ==
       @["none of the 1 activities has a route (no positions in the files)"]
   test "only the user's own selection is drawn":
     let w = world(dir, "others")

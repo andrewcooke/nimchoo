@@ -86,8 +86,8 @@ proc liveSink*(
     of evFinish:
       l.keep(renderImport(sum, sum.done, ""))
       stdoutWrite readLine(sum) & "\n"
-      for note in ev.summary.notes:
-        stderrWrite noteLine(note).text & "\n"
+      for note in ev.summary.warnings:
+        stderrWrite warnLine(note).text & "\n"
       let hint = moreHint(sum, logged)
       if hint.len > 0:
         stderrWrite hint & "\n"

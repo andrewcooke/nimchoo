@@ -54,7 +54,7 @@ suite "import log: entries":
       @[Entry(level: lvInfo, event: leStart, text: "3 files")]
     let fin = logEntries(
       ImportEvent(
-        kind: evFinish, summary: Summary(done: 3, unchanged: 3, notes: @["odd"])
+        kind: evFinish, summary: Summary(done: 3, unchanged: 3, warnings: @["odd"])
       )
     )
     check fin.mapIt(it.level) == @[lvWarn, lvInfo]

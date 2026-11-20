@@ -117,7 +117,7 @@ proc importPaths*(
     try:
       table = loadSeen(st)
     except StoreError as e:
-      result.notes.add "cannot read what was seen before, checking every " & "file: " &
+      result.warnings.add "cannot read what was seen before, checking every " & "file: " &
         e.msg
   var pending: SeenBuffer
   var importedFrom: Table[ids.FileId, string]
@@ -127,7 +127,7 @@ proc importPaths*(
       st.flush(pending)
     except StoreError as e:
       pending = SeenBuffer()
-      result.notes.add "cannot record the files seen: " & e.msg
+      result.warnings.add "cannot record the files seen: " & e.msg
 
   # the files that need work; the others are announced as they come
   var work: seq[int] # their places among the files
@@ -137,12 +137,12 @@ proc importPaths*(
 
   var cached: Option[Profile]
   var profileBytes = ""
-  var profileNote = "" # said at the end if the author's profile is in use (or unusable)
+  var profileProblem = "" # said at the end if the author's profile cannot be used
   let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
     if cached.isNone:
       if opts.profile.isNil:
         let d = defaultProfile()
-        profileNote = d.note
+        profileProblem = d.problem
         profileBytes = d.bytes
         cached = some(d.profile)
       else:
@@ -163,7 +163,7 @@ proc importPaths*(
     try:
       known = knownDigests(st)
     except StoreError as e:
-      result.notes.add "cannot read which files are in the database, checking each one: " &
+      result.warnings.add "cannot read which files are in the database, checking each one: " &
         e.msg
     discard profile() # (the workers load their own copy of this spreadsheet)
     pool = startPool(
@@ -316,6 +316,6 @@ proc importPaths*(
       stderr.write report()
     except IOError:
       discard
-  if profileNote.len > 0:
-    result.notes.add profileNote
+  if profileProblem.len > 0:
+    result.warnings.add profileProblem
   emit ImportEvent(kind: evFinish, summary: result)

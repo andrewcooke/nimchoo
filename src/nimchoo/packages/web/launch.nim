@@ -115,7 +115,7 @@ proc showPage(g: Globals, url: string, start: bool) =
   except IOError:
     discard
   if not start and not openBrowser(url):
-    g.note "could not open a browser; open the address above"
+    g.warn "could not open a browser; open the address above"
 
 proc serveWeb*(
     g: Globals, command: string, o: WebOptions, cacheDir, path, query: string
@@ -165,7 +165,7 @@ proc serveWeb*(
           fmt"a server is running on port {o.port}: `{name} --stop` it before making a new token",
         )
       if theirs[0] != mine[0]:
-        g.note fmt"the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one"
+        g.warn fmt"the server on port {o.port} is from another build ({theirs[0]}): `{name} --stop` it and start again to use this one"
       showPage(g, pageUrl(o.port, path, query, known.token), o.start)
       if o.start:
         g.say osErr, fmt"(the server was already running, on port {o.port})" & "\n"

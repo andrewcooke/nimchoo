@@ -165,8 +165,8 @@ proc makeFrames(
     finally:
       st.rollback()
     for k, f in frames:
-      for note in made[k].notes:
-        g.note note
+      for w in made[k].warnings:
+        g.warn w
       let path = cacheFile(dir, fileStem(c.subject.name, f.name), "geojson").get
       writeAtomic(path, made[k].geojson)
       result.paths.add path

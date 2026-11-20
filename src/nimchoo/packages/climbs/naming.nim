@@ -81,7 +81,7 @@ proc nameClimbs*(
   if named.left > 0:
     let text =
       fmt"{named.left} climbs left unnamed (`--offline`; the next run that may use the network names them)"
-    say noteLine(text).text
+    say warnLine(text).text
   if named.named + named.nothing > 0:
     g.log.log(
       lvInfo,

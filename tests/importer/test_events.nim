@@ -245,8 +245,8 @@ suite "import events: sinks":
       "5 files, 0 imported, 3 unchanged, 0 failed, 2 known failures (use `--slow` to retry)"
     check summaryLine(Summary(done: 1, known: 1)).contains("1 known failure (")
 
-  test "notes about the run go to stderr at the end":
+  test "warnings about the run go to stderr at the end":
     let lines = plainLines(
-      ImportEvent(kind: evFinish, summary: Summary(notes: @["something odd"])), false
+      ImportEvent(kind: evFinish, summary: Summary(warnings: @["something odd"])), false
     )
-    check lines.stderr.texts == @["note: something odd"]
+    check lines.stderr.texts == @["warning: something odd"]

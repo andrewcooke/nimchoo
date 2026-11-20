@@ -60,7 +60,7 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
         lvWarn, leAdvisory, ev.path & "  offset " & $w.offset & ": " & w.msg
       )
   of evFinish:
-    for note in ev.summary.notes:
+    for note in ev.summary.warnings:
       result.add entry(lvWarn, leNote, note)
     result.add entry(lvInfo, leDone, summaryLine(ev.summary))
 

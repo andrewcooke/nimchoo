@@ -6,6 +6,7 @@ import std/[options, os, sequtils, strformat, strutils]
 import ./core/[access, errors, globals, logfile, ruled]
 import ./packages/cache/cache
 import ./packages/db/store
+import ./packages/fit/default
 import ./packages/ui/[style, units]
 import ./packages/user/session
 import ./packages/util/version/version
@@ -170,6 +171,7 @@ proc configLines*(g: Globals, width: int): seq[Line] =
   rows.add row("schema", fragmentLines(path).join("\n"))
   rows.add row("user", userText(g, path))
   rows.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
+  rows.add row("FIT profile", profileInUse())
   rows.add row(
     "theme",
     if g.theme.name.len > 0:

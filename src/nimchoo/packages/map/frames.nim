@@ -33,7 +33,7 @@ import ../user/session
 type
   FrameData* = object ## What a frame made.
     geojson*: string ## a GeoJSON FeatureCollection, the whole file
-    notes*: seq[string]
+    warnings*: seq[string]
       ## said to the user, a line each ("worked out the climbs of 3 activities: 2 new climbs")
 
   MakeFrame* = proc(st: Session): FrameData {.nimcall, raises: [StoreError].}

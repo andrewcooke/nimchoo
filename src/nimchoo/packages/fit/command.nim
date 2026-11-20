@@ -130,8 +130,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           loadProfile(parsed.params.profile.get)
         else:
           let d = defaultProfile()
-          if d.note.len > 0:
-            g.note d.note
+          if d.problem.len > 0:
+            g.warn d.problem
           d.profile
       except NchError as e:
         return failure(g, "nch fit", "cannot use the profile: " & e.msg)
