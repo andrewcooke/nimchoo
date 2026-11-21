@@ -9,10 +9,11 @@
 ## `bright-red` ...: they follow the terminal's own palette), or `terminal` (the terminal's own text or background colour).
 ## Blank lines and lines starting with `#` are ignored.
 ##
-## A colour can also be made from the colour of a style above it: `v(NAME, GAMMA)` is NAME's colour (its foreground in
-## `fg=`, its background in `bg=`, as it is drawn: what NAME leaves out it has from `default`) with its value, the V of
-## HSV from 0 to 1, raised to GAMMA (more than 1 darker, less than 1 lighter; black and white stay as they are).
-## `alt-code fg=v(code, 1.2)`.  Only a `#rrggbb` colour has a value; it is worked out when the theme is read.
+## A colour can also be taken from a style above it: `NAME.fg` and `NAME.bg` are NAME's foreground and background as it
+## is drawn (what NAME leaves out it has from `default`): `select bg=code.fg`.  And `v(COLOUR, GAMMA)` is a colour with
+## its value, the V of HSV from 0 to 1, raised to GAMMA (more than 1 darker, less than 1 lighter; black and white stay as
+## they are): `alt-code fg=v(code.fg, 1.2)`, `v(#a0a0c0, 2)`, `v(v(code.bg, 2), 0.8)`.  Only a `#rrggbb` colour has a value;
+## it is worked out when the theme is read.
 
 import std/[math, options, sequtils, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
@@ -90,6 +91,7 @@ func isStyleName*(s: string): bool =
   s.len > 0 and s[0] in {'a' .. 'z'} and s.allCharsInSet({'a' .. 'z', '0' .. '9', '-'})
 
 func parseColour(value: string, line: int): Colour {.raises: [ThemeError].} =
+  ## `#rrggbb`, one of the sixteen names, or `terminal`.
   if value == "terminal":
     return Colour(kind: ckTerminal)
   let i = basicNames.find(value)
@@ -106,7 +108,7 @@ func parseColour(value: string, line: int): Colour {.raises: [ThemeError].} =
     except ValueError:
       raiseAssert "six hex digits were checked"
   raiseTheme(
-    fmt"'{value}' is not a colour (#rrggbb, terminal, or one of {basicNames.join("" "")})",
+    fmt"'{value}' is not a colour (#rrggbb, NAME.fg, NAME.bg, v(COLOUR, GAMMA), terminal, or one of {basicNames.join("" "")})",
     line,
   )
 
@@ -167,43 +169,61 @@ func lookOfName(defined: OrderedTable[string, Style], name: string): Look =
   if name != defaultStyle:
     result = result.over(defined.getOrDefault(name))
 
-func derived(
-    value, key: string, defined: OrderedTable[string, Style], line: int
+func ofStyle(
+    name, part: string, defined: OrderedTable[string, Style], line: int
 ): Colour {.raises: [ThemeError].} =
-  ## The colour of `v(NAME, GAMMA)`: NAME's colour for `key` (fg or bg), its value raised to GAMMA.
-  let inside = value[2 ..^ 2].split(',')
-  if inside.len != 2:
-    raiseTheme(fmt"'{value}' is not v(NAME, GAMMA)", line)
-  let name = inside[0].strip
+  ## NAME's colour for `part` (fg or bg), as it is drawn.
   if name notin defined:
-    raiseTheme(fmt"v({name}, ...): there is no style {name} above this line", line)
+    raiseTheme(fmt"{name}.{part}: there is no style {name} above this line", line)
+  let look = lookOfName(defined, name)
+  if part == "fg": look.fg else: look.bg
+
+func colourOf(
+  value: string, defined: OrderedTable[string, Style], line: int
+): Colour {.raises: [ThemeError].}
+
+func derived(
+    value: string, defined: OrderedTable[string, Style], line: int
+): Colour {.raises: [ThemeError].} =
+  ## The colour of `v(COLOUR, GAMMA)`: COLOUR with its value raised to GAMMA.
+  let comma = value.rfind(',')
+  if comma < 0:
+    raiseTheme(fmt"'{value}' is not v(COLOUR, GAMMA)", line)
+  let arg = value[2 ..< comma].strip
+  let gammaText = value[comma + 1 ..^ 2].strip
   var gamma: float
   try:
-    gamma = parseFloat(inside[1].strip)
+    gamma = parseFloat(gammaText)
   except ValueError:
-    raiseTheme(fmt"v({name}, {inside[1].strip}): the gamma is a number", line)
+    raiseTheme(fmt"v({arg}, {gammaText}): the gamma is a number", line)
   if not (gamma > 0.0) or gamma == Inf:
-    raiseTheme(fmt"v({name}, {inside[1].strip}): the gamma is more than 0", line)
-  let look = lookOfName(defined, name)
-  let c = (if key == "fg": look.fg else: look.bg)
+    raiseTheme(fmt"v({arg}, {gammaText}): the gamma is more than 0", line)
+  let c = colourOf(arg, defined, line)
   if c.kind != ckRgb:
     raiseTheme(
-      fmt"v({name}, ...): the {key} of {name} is not a #rrggbb colour, so it has no value to change",
+      fmt"v({arg}, ...): {arg} is not a #rrggbb colour, so it has no value to change",
       line,
     )
   withValue(c, gamma)
 
 func colourOf(
-    value, key: string, defined: OrderedTable[string, Style], line: int
+    value: string, defined: OrderedTable[string, Style], line: int
 ): Colour {.raises: [ThemeError].} =
-  ## A colour as written: `#rrggbb`, a name, `terminal`, or `v(NAME, GAMMA)`.
+  ## A colour as written: `#rrggbb`, a name, `terminal`, `NAME.fg`, `NAME.bg`, or `v(COLOUR, GAMMA)`.
   if value.startsWith("v(") and value.endsWith(")"):
-    derived(value, key, defined, line)
-  else:
-    parseColour(value, line)
+    return derived(value, defined, line)
+  let dot = value.rfind('.')
+  if dot > 0 and isStyleName(value[0 ..< dot]):
+    let part = value[dot + 1 ..^ 1]
+    if part notin ["fg", "bg"]:
+      raiseTheme(fmt"'{value}': a style's colour is NAME.fg or NAME.bg", line)
+    return ofStyle(value[0 ..< dot], part, defined, line)
+  if value in defined and value notin basicNames:
+    raiseTheme(fmt"'{value}' is a style: its colour is {value}.fg or {value}.bg", line)
+  parseColour(value, line)
 
 func attributeWords(words: seq[string]): seq[string] =
-  ## The words of a line joined where a space is inside brackets (`fg=v(code, 1.2)` is one).
+  ## The words of a line joined where a space is inside brackets (`fg=v(code.fg, 1.2)` is one).
   var depth = 0
   for w in words:
     if depth > 0:
@@ -215,7 +235,7 @@ func attributeWords(words: seq[string]): seq[string] =
 func parseStyle(
     words: seq[string], line: int, defined: OrderedTable[string, Style]
 ): Style {.raises: [ThemeError].} =
-  ## The attributes after the name, each `key=value`, none twice; `defined` are the styles above (for `v(NAME, GAMMA)`).
+  ## The attributes after the name, each `key=value`, none twice; `defined` are the styles above (for `NAME.fg` and `NAME.bg`).
   for word in attributeWords(words):
     let kv = word.split('=', maxsplit = 1)
     if kv.len != 2 or kv[1].len == 0:
@@ -231,9 +251,9 @@ func parseStyle(
 
     case key
     of "fg":
-      once(fg, colourOf(value, key, defined, line))
+      once(fg, colourOf(value, defined, line))
     of "bg":
-      once(bg, colourOf(value, key, defined, line))
+      once(bg, colourOf(value, defined, line))
     of "weight":
       let w =
         case value

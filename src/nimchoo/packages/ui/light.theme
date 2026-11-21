@@ -3,8 +3,9 @@
 # reverse=yes|no (foreground and background swapped).
 # A colour is #rrggbb, terminal (the terminal's own), or one of the sixteen of the terminal's palette (red, bright-red ...).
 # What a style leaves out it keeps from the style around it; what default leaves out is the terminal's own.
-# A colour can be made from one above: v(NAME, GAMMA) is NAME's colour with its value (V of HSV, 0-1) raised to GAMMA
-# (more than 1 darker, less than 1 lighter): alt-code fg=v(code, 1.2).  Only a #rrggbb colour has a value.
+# A colour can be taken from a style above: NAME.fg and NAME.bg are its colours as drawn (select bg=code.fg).  And
+# v(COLOUR, GAMMA) is a colour with its value (V of HSV, 0-1) raised to GAMMA (more than 1 darker, less than 1 lighter):
+# alt-code fg=v(code.fg, 1.2), v(#a0a0c0, 2), v(code.bg, 2).  Only a #rrggbb colour has a value.
 
 default
 em      fg=#000000  weight=bold

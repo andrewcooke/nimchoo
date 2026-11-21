@@ -70,7 +70,7 @@ suite "ui theme: looks":
     check terminalCodes(terminalLook.over(t.styles["c"])) == "\e[38;2;1;2;3;48;2;4;5;6m"
     check terminalCodes(terminalLook.over(t.styles["d"])) == "\e[2;3;4;7m"
 
-suite "ui theme: v(NAME, GAMMA)":
+suite "ui theme: NAME.fg, NAME.bg and v(COLOUR, GAMMA)":
   func fgOf(t: Theme, name: string): Colour =
     t.styles[name].fg.get
 
@@ -79,7 +79,7 @@ suite "ui theme: v(NAME, GAMMA)":
 
   test "the value of a colour above, raised to gamma: more than 1 darker, less than 1 lighter":
     let t = parseTheme(
-      "cmd fg=#a0a0c0\nalt-cmd fg=v(cmd, 1.2)\ngrey fg=#808080\ndark fg=v(grey, 2)\nlight fg=v(dark, 0.5)"
+      "cmd fg=#a0a0c0\nalt-cmd fg=v(cmd.fg, 1.2)\ngrey fg=#808080\ndark fg=v(grey.fg, 2)\nlight fg=v(dark.fg, 0.5)"
     )
     check t.fgOf("alt-cmd") == rgb(0x97, 0x97, 0xb5)
       # (V 0.753 → 0.711: the hue and saturation kept)
@@ -88,29 +88,59 @@ suite "ui theme: v(NAME, GAMMA)":
 
   test "black and white, and anything of value 1, stay as they are":
     let t = parseTheme(
-      "w fg=#ffffff\nr fg=#ff0000\nk fg=#000000\na fg=v(w, 3)\nb fg=v(r, 3)\nc fg=v(k, 0.2)"
+      "w fg=#ffffff\nr fg=#ff0000\nk fg=#000000\na fg=v(w.fg, 3)\nb fg=v(r.fg, 3)\nc fg=v(k.fg, 0.2)"
     )
     check t.fgOf("a") == rgb(255, 255, 255) and t.fgOf("b") == rgb(255, 0, 0) and
       t.fgOf("c") == rgb(0, 0, 0)
 
   test "the colour is the one the style is drawn in: what it leaves out comes from default; bg from bg":
     let t = parseTheme(
-      "default fg=#808080\nx weight=bold\ny fg=v(x, 2)\nz bg=#808080\nw bg=v(z, 2)"
+      "default fg=#808080\nx weight=bold\ny fg=v(x.fg, 2)\nz bg=#808080\nw bg=v(z.bg, 2)"
     )
     check t.fgOf("y") == rgb(0x40, 0x40, 0x40)
     check t.styles["w"].bg.get == rgb(0x40, 0x40, 0x40)
 
   test "a space inside the brackets is part of the colour":
-    check parseTheme("a fg=#808080\nb fg=v(a,2) weight=bold\nc fg=v( a , 2 )").fgOf("c") ==
-      rgb(0x40, 0x40, 0x40)
+    check parseTheme("a fg=#808080\nb fg=v(a.fg,2) weight=bold\nc fg=v( a.fg , 2 )")
+      .fgOf("c") == rgb(0x40, 0x40, 0x40)
 
   test "a name not above, a colour with no value, or a gamma that is not a positive number, is an error on its line":
-    check problem("b fg=v(a, 2)\na fg=#808080").contains("no style a above this line")
-    check problem("a fg=red\nb fg=v(a, 2)").contains("not a #rrggbb colour")
-    check problem("a fg=#808080\nb fg=v(a, 0)").contains("more than 0")
-    check problem("a fg=#808080\nb fg=v(a, x)").contains("is a number")
-    check problem("a fg=#808080\nb fg=v(a)").contains("not v(NAME, GAMMA)")
-    check problem("a fg=#808080\nb fg=v(a, 0)").contains("2") # (the line)
+    check problem("b fg=v(a.fg, 2)\na fg=#808080").contains(
+      "no style a above this line"
+    )
+    check problem("a fg=red\nb fg=v(a.fg, 2)").contains("not a #rrggbb colour")
+    check problem("a fg=#808080\nb fg=v(a.fg, 0)").contains("more than 0")
+    check problem("a fg=#808080\nb fg=v(a.fg, x)").contains("is a number")
+    check problem("a fg=#808080\nb fg=v(a)").contains("not v(COLOUR, GAMMA)")
+    check problem("a fg=#808080\nb fg=v(a.fg, 0)").contains("2") # (the line)
+
+  test "NAME.fg and NAME.bg are a style's colours as drawn, either one in fg= or bg=":
+    let t = parseTheme(
+      "default fg=#808080\na bg=#102030\nb fg=a.bg bg=a.fg\nc fg=red\nd bg=c.fg\ne fg=default.fg"
+    )
+    check t.fgOf("b") == rgb(0x10, 0x20, 0x30)
+    check t.styles["b"].bg.get == rgb(0x80, 0x80, 0x80) # (a's from default)
+    check t.styles["d"].bg.get == Colour(kind: ckBasic, index: 1)
+    check t.fgOf("e") == rgb(0x80, 0x80, 0x80)
+
+  test "v() takes a colour: #rrggbb, NAME.fg or NAME.bg, or another v()":
+    let t = parseTheme(
+      "a fg=#808080 bg=#ffffff\nb fg=v(#808080, 2)\nc fg=v(a.bg, 1)\nd bg=v(a.fg, 2)\ne fg=v(v(a.fg, 2), 0.5)"
+    )
+    check t.fgOf("b") == rgb(0x40, 0x40, 0x40)
+    check t.fgOf("c") == rgb(255, 255, 255)
+    check t.styles["d"].bg.get == rgb(0x40, 0x40, 0x40)
+    check t.fgOf("e") == rgb(0x80, 0x80, 0x80)
+
+  test "a style's colour is NAME.fg or NAME.bg: a bare name is an error, and so is any other part":
+    check problem("default fg=#808080\nhide fg=v(default, 2.5)").contains(
+      "'default' is a style: its colour is default.fg or default.bg"
+    )
+    check problem("a fg=#808080\nb fg=a").contains("a.fg or a.bg")
+    check problem("a fg=#808080\nb fg=a.weight").contains("NAME.fg or NAME.bg")
+    check problem("b fg=a.fg\na fg=#808080").contains("no style a above this line")
+    check problem("b fg=v(red, 2)").contains("red is not a #rrggbb colour")
+    check problem("b fg=v(#80808, 2)").contains("is not a colour")
 
 suite "ui theme: alt":
   test "each style comes with its alt-X, defined as X; an alt-X line changes what it gives, the rest stays X's":
@@ -126,7 +156,7 @@ suite "ui theme: alt":
       t.styles["alt-pkg"].bg.get == t.styles["pkg"].bg.get
 
   test "an alt-X can be used in v() below X, and is given only once":
-    check parseTheme("cmd fg=#808080\nx fg=v(alt-cmd, 2)").styles["x"].fg.get ==
+    check parseTheme("cmd fg=#808080\nx fg=v(alt-cmd.fg, 2)").styles["x"].fg.get ==
       Colour(kind: ckRgb, r: 0x40, g: 0x40, b: 0x40)
     check problem("cmd fg=#808080\nalt-cmd fg=red\nalt-cmd fg=blue").contains(
       "given twice"

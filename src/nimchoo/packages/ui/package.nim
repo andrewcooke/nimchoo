@@ -18,7 +18,7 @@
 ## * `file`: the path of a file or a directory.
 ##
 ## What each looks like is the theme's (`dark.theme` and `light.theme` here; the author's in the cache's
-## `system/themes/`): a style gives only what it changes, `v(NAME, GAMMA)` makes a colour from one above, and every style
+## `system/themes/`): a style gives only what it changes, `NAME.fg` and `v(COLOUR, GAMMA)` make a colour from one above, and every style
 ## has an alt version, `alt-X`, defined as X unless the theme says otherwise.  Styled text in the code is `span(text,
 ## "bad")` or markup, `~"<good imported> {n} files"` (read when compiled; the values plain text).  `tools/look.nim`
 ## shows a theme.  (The web pages' colours are their own, in their templates.)
