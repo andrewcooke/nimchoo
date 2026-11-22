@@ -170,7 +170,7 @@ are seen among the days you rode.""",
 The climbs are found in the rides once (after an import, which works out those of every activity not yet looked at, about a
 minute for two thousand rides; the import and `nch climbs` do any that are still lacking; `nch map` only says so) and kept in `sector`, `effort` and `climbs_done`, the tables this package owns.
 A ride that goes over part of a climb but not all of it makes a climb of its own.  Climbs are shared by all users; a climb
-is never deleted one at a time (`--edit NAME --retire` hides one), only all together (`climbs --all --delete -f`).
+is never deleted one at a time (`--edit NAME --retire` hides one), only all together (`climbs --all --delete`).
 
 **Describing a climb** (decided 2026-11-05): `Cerro San Luis₄  4 0.5km +89m 17.8%` (name, category, length, gain,
 gradient).  A name shared by several climbs carries a **kept number as a subscript** (`sector.name_n`, given when the climb
@@ -202,7 +202,7 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
   on.  The SQL is read when the program is compiled, so it is inside the `nch` binary.  Opening a database applies the
   fragments it has not had, each in a transaction, and records them in the table `fragment` (name, applied_at, sha256).
   A fragment that is recorded with another checksum is refused ("made by a different version of nch"), and so is one the
-  program does not have ("from a newer version"); the message says to start again with `nch db --delete -f`.
+  program does not have ("from a newer version"); the message says to start again with `nch db --delete`.
   **Never edit a fragment that any database has had, and never delete one**: add a numbered file (`alter table`, `update`).
   SQLite cannot drop a column that has a foreign key or an index without rebuilding the table.  Fragments are plain DDL;
   data is inserted from Nim (a fragment may have a seed).  Every table must say `strict`.  A geometry column is declared
@@ -210,7 +210,7 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
   `AddGeometryColumn` does not work on a strict table.  New files are made with `auto_vacuum = incremental`; `reclaim()`
   gives the space back after a big delete.
 * **Squashing (decided 2026-11-05).**  While only the author has a database, at a milestone, each package's fragments may
-  be merged into its `001-schema.sql` and the database rebuilt (`nch db --delete -f`, then import again; the cache
+  be merged into its `001-schema.sql` and the database rebuilt (`nch db --delete`, then import again; the cache
   survives).  Once anyone else has a database, never squash again.  Before deleting the old fragments compare the schema
   they make with the squashed one (every table, column, index and foreign key, from a fresh database each way).  What a
   rebuild loses that cannot be made again from the FIT files: the users and their FTHR, models, the saved selection,
@@ -228,7 +228,7 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
 * **Recording what is read**: `startRecording()` and `stopRecording()` (`access.nim`) note the tables the authorizer sees read,
   so that a test can check what a view declares it reads (`map/frames`).
 * The `db` package owns the table `fragment` and SpatiaLite's metadata.  The user is the `user` package's.  `nch db` says
-  where the database is and how big; `nch db --delete -f` deletes it.""",
+  where the database is and how big; `nch db --delete` deletes it.""",
       path: "src/nimchoo/packages/db/",
     ),
     Registered(

@@ -33,7 +33,7 @@ const
   synopsis =
     """usage: nch [--db PATH] [--user NAME] activities [CRITERIA] [--select] [-v]
        nch [--db PATH] [--user NAME] activities --all [--select]
-       nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete -f"""
+       nch [--db PATH] [--user NAME] activities [CRITERIA | --all] --delete"""
   # (the prose is wrapped to the window by `prose`: its line breaks are the source's only)
   intro = @[
     ~"Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are told otherwise.  With criteria (or `--all`) all the activities are searched instead, those that meet the criteria (combined with \"and\") are shown, and with `--select` they become the selection (replacing the last one)."

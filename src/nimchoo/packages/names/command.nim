@@ -33,7 +33,7 @@ const
        nch landmarks --add NAME --search TEXT --pick N [--size DISTANCE]
        nch landmarks --add NAME --near LAT,LON|PLACE --pick N [--size DISTANCE]
        nch landmarks --add NAME --at LAT,LON|PLACE [--size DISTANCE]
-       nch landmarks --delete NAME -f"""
+       nch landmarks --delete NAME"""
   intro = @[
     ~"Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle holds the place comes before every name GeoNames has.  Without options, list the landmarks."
   ]

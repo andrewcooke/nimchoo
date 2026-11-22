@@ -151,7 +151,7 @@ func userSpec*(): Spec[Raw] =
         ["--delete"],
         true,
         "NAME",
-        ~"delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  It asks first (`-y` answers yes).  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
+        ~"delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  It asks first (`-y` answers yes).  (To keep the user and delete only their data: `nch activities --all --delete` with `--user NAME` before it.)",
         completion = completesFrom(completeUsers),
         body = (p.deleting = true; p.name = value; fine),
       ),
@@ -225,5 +225,5 @@ func finish(raw: Raw): Parsed[Params] =
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## `nch users` (list), `--add NAME [--fthr N] [--default]`,
-  ## `--edit NAME` with `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`, `--delete NAME -f`.
+  ## `--edit NAME` with `--fthr N`, `--clear-fthr`, `--rename NEW`, `--default`, `--delete NAME`.
   parseCommand(args, userSpec(), Raw(), finish)

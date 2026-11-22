@@ -23,7 +23,7 @@ proc userAs(db, who: string, args: varargs[string]): int =
   userCommand.run(
     Globals(
       dbPath: some(db),
-      user: some(who),
+      user: (if who.len > 0: some(who) else: none(string)),
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,

@@ -134,7 +134,7 @@ suite "database: opening and bringing the schema up to date":
     except StoreError as e:
       check "different version of nch" in e.msg
       check "m/001.sql" in e.msg
-      check "nch db --delete -f" in e.msg
+      check "nch db --delete" in e.msg
     # and the unchanged one is fine
     openStore(path, @[frag("m/001.sql", "create table t(x integer);")]).close()
 
@@ -152,7 +152,7 @@ suite "database: opening and bringing the schema up to date":
       openStore(path, @[v2]).close() # other data: refused
       check false
     except StoreError as e:
-      check "different version of nch" in e.msg and "nch db --delete -f" in e.msg
+      check "different version of nch" in e.msg and "nch db --delete" in e.msg
 
   test "a changed fragment that has a seed is noticed too":
     let path = tempDb("changedseeded")

@@ -55,7 +55,7 @@ proc gatesOf(st: Session, sectors: seq[int64]): seq[GateLine] {.raises: [StoreEr
     if route.isNone:
       raiseStore(
         fmt"climb {id} has a route that cannot be read (damaged data): " &
-          "run `nch climbs --all --delete -f` and ask for the climbs again"
+          "run `nch climbs --all --delete` and ask for the climbs again"
       )
     let g = gateLines(route.get)
     if g.isSome:

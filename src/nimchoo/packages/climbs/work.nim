@@ -151,7 +151,7 @@ proc sectorsThrough(
         # (not an empty route: the rides would then be stored as having no efforts on it)
         raiseStore(
           "climb " & $id & " has a route that cannot be read (damaged data): " &
-            "run `nch climbs --all --delete -f` and ask for the climbs again"
+            "run `nch climbs --all --delete` and ask for the climbs again"
         )
       cache[id] = route.get
     result.add id
@@ -273,7 +273,7 @@ proc ensureClimbs*(
   ) != 0:
     raiseStore(
       "the climbs were worked out by another version of the method: " &
-        "run `nch climbs --all --delete -f` and ask for them again"
+        "run `nch climbs --all --delete` and ask for them again"
     )
   let todo = st.db.query(
     ActivityId,

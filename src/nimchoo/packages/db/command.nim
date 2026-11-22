@@ -23,7 +23,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] db
-       nch [--db PATH] db --delete -f"""
+       nch [--db PATH] db --delete"""
   intro = @[
     ~"Without options, say where the database is and how big, and what it holds, table by table: the package that owns each, how many rows, how much of the file it takes (with its indexes), the tables it refers to, and the other packages that may read it."
   ]

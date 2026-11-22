@@ -30,7 +30,7 @@ const
   synopsis = """usage: nch users
        nch users --add NAME [--fthr BPM] [--default]
        nch users --edit NAME [--fthr BPM | --clear-fthr] [--rename NEW] [--default]
-       nch users --delete NAME -f"""
+       nch users --delete NAME"""
   intro = @[
     ~"Without options, show the users.  One user is always the default: the first, until another is made so.  (The users are named after the command, not by `--user` before it.)"
   ]

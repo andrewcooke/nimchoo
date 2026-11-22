@@ -68,7 +68,7 @@ proc nearCopies*(st: Store): seq[tuple[a, b: int64]] {.raises: [StoreError].} =
   )
   if damaged > 0:
     raiseStore(
-      "a climb has a route that cannot be read (damaged data): run `nch climbs --all --delete -f` and ask for the climbs again"
+      "a climb has a route that cannot be read (damaged data): run `nch climbs --all --delete` and ask for the climbs again"
     )
   for r in st.db.query(
     tuple[a, b: int64],
