@@ -160,7 +160,10 @@ proc installMain*(g: Globals, s: Shell): int {.raises: [].} =
   let problem = install(s, path)
   if problem.isSome:
     return failure(g, "nch", problem.get)
-  g.show(osOut, ~"wrote {path}: new {s} shells complete nch (this one: source {path})")
+  g.show(
+    osOut,
+    ~"wrote <file {path}>: new {s} shells complete nch (this one: source <file {path}>)",
+  )
   exitOk
 
 proc showMain*(s: Shell): int {.raises: [].} =
