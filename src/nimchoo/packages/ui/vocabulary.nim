@@ -8,6 +8,7 @@
 
 import std/options
 import ../../core/logfile
+export logfile.parseEvent
 export logfile.LogEvent
 import ./[style, units]
 
@@ -59,13 +60,6 @@ func style*(e: LogEvent): StyleName =
     styleName"warn"
   of leDuplicate, leUnchanged, leStart, leRun, leExit, leDone, leNote, leServed:
     styleName"hide"
-
-func parseEvent*(s: string): Option[LogEvent] =
-  ## The event whose word is `s`.
-  for e in LogEvent:
-    if $e == s:
-      return some(e)
-  none(LogEvent)
 
 func span*(text: string, e: LogEvent): Span =
   ## `text` in the style of the event.

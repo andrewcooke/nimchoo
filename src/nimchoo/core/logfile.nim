@@ -90,6 +90,60 @@ proc logLine*(
   t.utc.format(fmt) & " " & $level & " " & command.alignLeft(commandWidth) & "  " &
     ($event).alignLeft(eventWidth) & "  " & text.replace('\n', ' ').replace('\r', ' ')
 
+type LogFields* = object
+  ## A line of the log taken apart (`parseLogLine`): where its level and event words are, for colouring.
+  level*: Level
+  command*: string
+  event*: LogEvent
+  levelStart*, levelEnd*, eventStart*, eventEnd*: int
+
+const stampLength = 20 ## "2026-11-02T23:10:34Z"
+
+func parseEvent*(s: string): Option[LogEvent] =
+  ## The event whose word is `s`.
+  for e in LogEvent:
+    if $e == s:
+      return some(e)
+  none(LogEvent)
+
+func parseLevel(word: string): Option[Level] =
+  for l in Level:
+    if ($l).strip == word:
+      return some(l)
+  none(Level)
+
+func parseLogLine*(raw: string): Option[LogFields] =
+  ## The fields of a line as `logLine` writes it (time, level, command, event, then the text); none for a line of any other
+  ## shape (from an older version).  The reader of what the writer writes, beside it, so that they cannot drift.
+  var tokens: seq[tuple[word: string, start, stop: int]]
+  var i = 0
+  while i < raw.len and tokens.len < 4:
+    while i < raw.len and raw[i] == ' ':
+      inc i
+    let start = i
+    while i < raw.len and raw[i] != ' ':
+      inc i
+    if i > start:
+      tokens.add (raw[start ..< i], start, i)
+  if tokens.len < 4 or tokens[0].word.len != stampLength or
+      not tokens[0].word.endsWith("Z"):
+    return none(LogFields)
+  let level = parseLevel(tokens[1].word)
+  let event = parseEvent(tokens[3].word)
+  if level.isNone or event.isNone:
+    return none(LogFields)
+  some(
+    LogFields(
+      level: level.get,
+      command: tokens[2].word,
+      event: event.get,
+      levelStart: tokens[1].start,
+      levelEnd: tokens[1].stop,
+      eventStart: tokens[3].start,
+      eventEnd: tokens[3].stop,
+    )
+  )
+
 proc rotate*(path: string, maxBytes = defaultMaxBytes, keep = defaultKeep) =
   ## If the log is over `maxBytes`: `path` becomes `path.1`, `.1` becomes
   ## `.2`, and so on; what would become `.keep+1` is deleted.  Best effort.

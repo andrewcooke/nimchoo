@@ -9,6 +9,7 @@
 
 import std/[options, strutils]
 import ../ui/[markup, style]
+import ../../core/logfile
 import ../ui/vocabulary
 
 {.push raises: [].}
@@ -31,39 +32,18 @@ type
     lines*: seq[LogLine]
     noRun*: bool ## `last` was asked for, but there is no run to show
 
-func isLevel(s: string): bool =
-  s in ["INFO", "WARN", "ERROR"]
-
 func parseLine*(raw: string): LogLine =
-  ## Take a line apart: time, level, command, event, then the text.
+  ## Take a line apart (`core/logfile.parseLogLine`, which reads what the writer writes).
   result = LogLine(raw: raw)
-  var tokens: seq[tuple[word: string, start, stop: int]]
-  var i = 0
-  while i < raw.len and tokens.len < 4:
-    while i < raw.len and raw[i] == ' ':
-      inc i
-    let start = i
-    while i < raw.len and raw[i] != ' ':
-      inc i
-    if i > start:
-      tokens.add (raw[start ..< i], start, i)
-  if tokens.len < 4:
+  let f = parseLogLine(raw)
+  if f.isNone:
     return
-  if not (
-    tokens[0].word.len == 20 and tokens[0].word.endsWith("Z") and isLevel(
-      tokens[1].word
-    )
-  ):
-    return
-  let e = parseEvent(tokens[3].word)
-  if e.isNone:
-    return
-  result.command = tokens[2].word
-  result.event = e
-  result.levelStart = tokens[1].start
-  result.levelEnd = tokens[1].stop
-  result.eventStart = tokens[3].start
-  result.eventEnd = tokens[3].stop
+  result.command = f.get.command
+  result.event = some(f.get.event)
+  result.levelStart = f.get.levelStart
+  result.levelEnd = f.get.levelEnd
+  result.eventStart = f.get.eventStart
+  result.eventEnd = f.get.eventEnd
 
 func matches(l: LogLine, f: Filter): bool =
   if f.commands.len > 0 and l.command notin f.commands:

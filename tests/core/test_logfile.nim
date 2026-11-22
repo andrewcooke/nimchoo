@@ -112,3 +112,23 @@ suite "log: rotation":
     l.close()
     check lines(path).len == 1
     check readFile(path & ".1").len == 300
+
+suite "logfile: what is written is read back":
+  test "every level and event, any command and text, comes back with its word's place":
+    for level in Level:
+      for event in LogEvent:
+        let raw =
+          logLine(fromUnix(1_700_000_000), level, "import", event, "text with  spaces")
+        let f = parseLogLine(raw).get
+        check f.level == level and f.event == event and f.command == "import"
+        check raw[f.levelStart ..< f.levelEnd] == ($level).strip
+        check raw[f.eventStart ..< f.eventEnd] == $event
+  test "a command longer than its column pushes the rest along, and is still found":
+    let raw = logLine(fromUnix(1_700_000_000), lvInfo, "a-long-command", leRun, "x")
+    check parseLogLine(raw).get.command == "a-long-command"
+  test "other shapes are not lines":
+    for other in [
+      "", "2026-11-01T15:58:42Z INFO  import  /x.fit  already imported",
+      "INFO import run x", "2026-11-02T10:00:00Z NOTE  import    run        x", "x",
+    ]:
+      check parseLogLine(other).isNone
