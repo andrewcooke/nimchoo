@@ -51,6 +51,10 @@ is the first family's.
 * **`--edit NAME` selects; the attribute options are the new values** (as `users` does now).  Filters are for listing and
   deleting.  Rejected: filters always, with a separate `--set attr=value` (bulk edits; a second syntax, and an edit that
   matches more than meant); and position deciding (filters before the action, values after: one option, two meanings).
+* **Names are unique** within a type (the database says so: a unique index on the key), so the name is the one attribute
+  that can only be set for one thing: setting it where the edit could reach a group is an error, said before anything is
+  changed (the author, 2026-11-22).  With `--edit NAME` selecting exactly one thing this holds already; the rule matters
+  if editing by selection is ever added, and the declaration marks the key attribute so that the shared code knows it.
 * **`--delete` deletes the selection** given by the filters (as for activities), after the question (below) shows what
   it matched.
 * **Activities and climbs stay as they are** (criteria, data-derived), sharing pieces: ranges, name patterns, `--from` /
