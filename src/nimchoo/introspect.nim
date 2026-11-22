@@ -177,7 +177,7 @@ func namedInTree(text: string): Line =
     if c in Letters:
       start = k
       break
-  @[span(text[0 ..< start]), span(text[start .. ^1], styleName"code")]
+  ~"{text[0 ..< start]}`{text[start .. ^1]}`"
 
 proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch packages ARGS`; returns the exit status.
