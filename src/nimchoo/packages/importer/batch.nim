@@ -139,7 +139,9 @@ proc importPaths*(
   var profileBytes = ""
   var profileProblem = none(string)
     # said at the end if the author's profile cannot be used
-  let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
+  let profile: ProfileSource = proc(): Profile {.
+      closure, raises: [ProfileError, XlsxError]
+  .} =
     if cached.isNone:
       if opts.profile.isNil:
         let d = defaultProfile()
@@ -166,12 +168,16 @@ proc importPaths*(
     except StoreError as e:
       result.warnings.add "cannot read which files are in the database, checking each one: " &
         e.msg
-    discard profile() # (the workers load their own copy of this spreadsheet)
-    pool = startPool(
-      min(opts.jobs, work.len),
-      Config(profileBytes: profileBytes, channels: channels, known: known),
-    )
-    pooled = pool.started > 0
+    try:
+      discard profile() # (the workers load their own copy of this spreadsheet)
+      pool = startPool(
+        min(opts.jobs, work.len),
+        Config(profileBytes: profileBytes, channels: channels, known: known),
+      )
+      pooled = pool.started > 0
+    except NchError as e:
+      # (no workers: each file is then reported with the same problem, as it is not the file's fault)
+      result.warnings.add "cannot load the profile: " & e.msg
   # How much is with the workers (or finished and waiting for its turn): at most `maxFiles` files
   # and `maxBytes` of FIT files (the decoded files take two or three times that in memory).  A wide
   # window means less waiting for a slow file at the front; counting bytes lets any number of tiny
@@ -188,7 +194,9 @@ proc importPaths*(
       submitted == consumed or inFlight + found.files[work[submitted]].size <= maxBytes
     )
     :
-      pool.submit Job(index: work[submitted], path: found.files[work[submitted]].path)
+      pool.submit Job(
+        stop: false, index: work[submitted], path: found.files[work[submitted]].path
+      )
       inFlight += found.files[work[submitted]].size
       inc submitted
 
@@ -245,7 +253,9 @@ proc importPaths*(
       inFlight -= c.size
       feed()
     else:
-      prep = prepareFile(profile, channels, askDatabase, Job(index: k, path: c.path))
+      prep = prepareFile(
+        profile, channels, askDatabase, Job(stop: false, index: k, path: c.path)
+      )
     var fileId: Option[ids.FileId]
       # (what the file was imported as, or its content already was)
     var noticed: seq[Warning] # (what the import steps said about the file)

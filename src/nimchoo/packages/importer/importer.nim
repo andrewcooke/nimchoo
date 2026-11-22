@@ -72,7 +72,8 @@ proc insertVisits(
     st.run()
     i += n
 
-type ProfileSource* = proc(): Profile {.closure, raises: [].}
+type ProfileSource* = proc(): Profile {.closure, raises: [ProfileError, XlsxError].}
+  ## the FIT profile to decode with; it can fail (a worker loads its own copy): the file is then not at fault
   ## Gives the profile; called only when a file has to be decoded.
 
 type Decoded* = object
@@ -211,7 +212,7 @@ proc importFileWith*(
     data: seq[byte],
     ws: var seq[Warning],
     steps: seq[ImportStep] = @[],
-): ImportResult {.raises: [FitError, ImportError, StoreError].} =
+): ImportResult {.raises: [FitError, ImportError, StoreError, ProfileError, XlsxError].} =
   ## Import the FIT file `data` (called `name` in the database) for the
   ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
   ## whole file imports.  A file already imported (same content) is recognised

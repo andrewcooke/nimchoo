@@ -10,7 +10,6 @@ import std/[options, sets, typedthreads]
 import ../../core/errors
 import ../fit/load
 import ../util/profiling/profiling
-import ./failure
 import ./importer
 import ./work
 
@@ -44,28 +43,19 @@ proc worker(id: int) {.thread.} =
     let isKnown: KnownCheck = proc(digest: string): bool {.closure, raises: [].} =
       digest in config.known
     var profile: Option[Profile] # (loaded when a file first needs it)
-    var problem = ""
-    let source: ProfileSource = proc(): Profile {.closure, raises: [].} =
+    let source: ProfileSource = proc(): Profile {.
+        closure, raises: [ProfileError, XlsxError]
+    .} =
       if profile.isNone:
-        try:
-          profile = some(loadProfileFromBytes(config.profileBytes))
-        except NchError as e:
-          problem = e.msg
-          profile = some(Profile()) # (every file is then reported: see below)
+        profile = some(loadProfileFromBytes(config.profileBytes))
+        # (a profile that cannot be loaded raises, for every file that needs it: that is `fkProfile`, which is not remembered)
       profile.get
     while true:
       let job = jobs.recv()
-      if job.index < 0:
+      if job.stop:
         break
       var m = Message()
       m.prepared = prepareFile(source, config.channels, isKnown, job)
-      if problem.len > 0 and m.prepared.outcome == poDecoded:
-        m.prepared = Prepared(
-          index: job.index,
-          outcome: poFailed,
-          failure: fkBadFormat,
-          message: "cannot load the profile: " & problem,
-        )
       results.send m
     results.send Message(finished: true, phases: takePhases())
 
@@ -100,7 +90,7 @@ proc finish*(p: var Pool) =
   ## Stop the workers, add their timers to this thread's, and wait for them to end.  (Results that
   ## nobody asked for are thrown away.)
   for _ in 0 ..< p.started:
-    jobs.send Job(index: -1)
+    jobs.send Job(stop: true)
   var ended = 0
   while ended < p.started:
     let m = results.recv()

@@ -15,13 +15,14 @@ type FailureKind* = enum
   fkUnreadable = "unreadable" ## the file could not be read
   fkNotFound = "not_found" ## no such path, or nothing to import in it
   fkStore = "database" ## the database refused
+  fkProfile = "profile" ## the FIT profile could not be loaded: not the file's fault
 
 func remembered*(k: FailureKind): bool =
   ## Whether the failure is the file's own (its content decides it), and so is kept with the file's size and time and
   ## not tried again; a failure of the moment (the database busy, a file that could not be read) is tried again.
   case k
   of fkNoActivity, fkMonitor, fkBadTime, fkBadFormat: true
-  of fkUnreadable, fkNotFound, fkStore: false
+  of fkUnreadable, fkNotFound, fkStore, fkProfile: false
 
 func failureOf*(e: ref NchError): FailureKind =
   ## The kind of failure an error stands for.
@@ -34,6 +35,8 @@ func failureOf*(e: ref NchError): FailureKind =
     fkBadFormat
   elif e of StoreError:
     fkStore
+  elif e of ProfileError or e of XlsxError:
+    fkProfile
   else:
     fkBadFormat
 
@@ -47,6 +50,7 @@ func label*(k: FailureKind): string =
   of fkUnreadable: "unreadable"
   of fkNotFound: "not found"
   of fkStore: "database"
+  of fkProfile: "profile"
 
 func kindOf*(label: string): Option[FailureKind] =
   ## The kind with this stored label (`$kind`); none for a label that is not one.

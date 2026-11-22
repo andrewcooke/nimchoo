@@ -220,7 +220,7 @@ four kinds of things go wrong, and each has one mechanism:
   modules: relative inside `src/`, `nimchoo/...` in tests.
 * `func` for pure functions, `proc` for anything with effects.  results are returned, not written to out
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
-  default.  no module-level mutable state (exceptions today: `packages/util/profiling`, and the stop flag of `packages/db/checkpointer.nim`, an atomic).
+  default.  no module-level mutable state (exceptions today: `packages/util/profiling`, the stop flag of `packages/db/checkpointer.nim`, an atomic, and the channels and the settings of the workers in `packages/importer/pool.nim`: Nim's `Channel` must be global).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
 * **options that take a list** (decided 2026-11-12): the option has a **plural** name (`--sports`, `--names`, `--starts`, `--paths`,
   `--climbs`, `--frames`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
