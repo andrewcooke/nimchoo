@@ -1,4 +1,4 @@
-import std/[sequtils, strutils, times, unittest]
+import std/[options, sequtils, strutils, times, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/packages/calendar/calendar
 import nimchoo/packages/ui/style
@@ -219,7 +219,7 @@ suite "calendar: time zones":
 suite "calendar: too narrow a screen":
   test "a warning first, then every line cut to the screen":
     let rs = @[row(at(2018, mAug, 27))]
-    let ls = calendarLines(rs, @[], utc(), false, Screen(colour: true, width: 60))
+    let ls = calendarLines(rs, @[], utc(), false, Screen(colour: true, width: some(60)))
     check ls.len == 3
     check styleOf(ls[0][0]) == "warn" and
       ls[0].text.startsWith("the calendar needs 121 columns and the screen has 60")
@@ -227,9 +227,11 @@ suite "calendar: too narrow a screen":
       check l.width == 60 and l.text.endsWith("…")
   test "wide enough, or no limit: no warning, no cutting":
     let rs = @[row(at(2018, mAug, 27))]
-    check calendarLines(rs, @[], utc(), false, Screen(colour: true, width: 121)).len == 2
-    check calendarLines(rs, @[], utc(), false, Screen(colour: true, width: 0)).len == 2
-    check calendarLines(rs, @[], utc(), false, Screen(colour: false, width: 150)).len ==
+    check calendarLines(rs, @[], utc(), false, Screen(colour: true, width: some(121))).len ==
+      2
+    check calendarLines(rs, @[], utc(), false, Screen(colour: true, width: none(int))).len ==
+      2
+    check calendarLines(rs, @[], utc(), false, Screen(colour: false, width: some(150))).len ==
       3 # plain is 185 wide
 
 suite "calendar: a marked day is a band":

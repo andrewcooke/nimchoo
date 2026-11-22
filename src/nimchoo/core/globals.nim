@@ -40,6 +40,8 @@ type Globals* = object ## Options given before the command name, for every comma
     ## what the styles of text look like (`nch` chooses it: the `themes` package; empty: the terminal's own text)
   width*: array[OutStream, int]
     ## how wide a message may be on each stream, to wrap it (`tell`; `nch` fills it: `ui/live.helpWidth()`); 0: no wrap
+  terminal*: array[OutStream, bool]
+    ## whether each stream is a terminal (`nch` fills it; in tests, neither is): what a width is measured against
   colour*: array[OutStream, bool]
     ## whether each stream is drawn in colour (`nch` fills it: a terminal that is not dumb, and NO_COLOR not set; in tests,
     ## neither is)

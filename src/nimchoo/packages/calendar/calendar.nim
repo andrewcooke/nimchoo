@@ -16,7 +16,7 @@
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
 ## with a mark `" [34]"`, a day of the background `"  34 "`, a day with neither `"  -- "`.
 
-import std/[algorithm, sequtils, sets, strformat, strutils, times]
+import std/[algorithm, options, sequtils, sets, strformat, strutils, times]
 import ../fit/time
 import ../ui/[markup, style]
 import ../ui/vocabulary
@@ -25,7 +25,7 @@ import ../ui/vocabulary
 
 type Screen* = object
   colour*: bool ## colours can be used (else marks)
-  width*: int ## columns; 0: no limit
+  width*: Option[int] ## columns of the terminal; none: no limit (a file, a pipe)
 
 const
   monthNames =
@@ -154,7 +154,7 @@ proc calendarLines*(
           line[i] = span(" ", selectedStyle)
     line.add ~"  {year}"
     result.add line
-  if screen.width > 0 and calendarWidth(screen) > screen.width:
-    result = result.mapIt(it.truncated(screen.width))
-    result.insert ~"<warn the calendar needs {calendarWidth(screen)} columns and the screen has {screen.width}: the lines are cut>",
+  if screen.width.isSome and calendarWidth(screen) > screen.width.get:
+    result = result.mapIt(it.truncated(screen.width.get))
+    result.insert ~"<warn the calendar needs {calendarWidth(screen)} columns and the screen has {screen.width.get}: the lines are cut>",
       0

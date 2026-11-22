@@ -4,7 +4,7 @@
 ## command can use (which database, which user) come before the command name
 ## and are parsed here.
 
-import std/[algorithm, options, os, sequtils, strformat, strutils]
+import std/[algorithm, options, os, sequtils, strformat, strutils, terminal]
 import nimchoo/core/[globals, manifest, registry as packageRegistry]
 import nimchoo/[completion, introspect, settings]
 import nimchoo/packages/cache/cache
@@ -153,6 +153,7 @@ proc main(): int {.raises: [].} =
   var g = head.g
   g.extensions = registry.extensions
   g.access = allAccess
+  g.terminal = [isatty(stdout), isatty(stderr)]
   g.colour = [canColourStdout(), canColour()]
   g.width = [helpWidth(stdout), helpWidth(stderr)]
   let chosen = loadTheme(cacheDir(), head.theme)

@@ -4,7 +4,7 @@
 ## takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them first (see
 ## `nch activities --select`).
 
-import std/[options, strformat, terminal, times]
+import std/[options, strformat, times]
 import ../../core/[errors, extension, globals]
 import ../fit/time
 import ../subject/subjects
@@ -138,10 +138,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let screen = Screen(
       colour: g.colour[osOut],
       width:
-        if isatty(stdout):
-          terminalWidth()
+        if g.terminal[osOut]:
+          some(g.textWidth(osOut))
         else:
-          0,
+          none(int),
     )
     let c = chosen.params
     if c.frame.readsSelection and c.subject.selected(st) == 0:
