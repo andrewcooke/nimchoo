@@ -107,7 +107,7 @@ suite "climbs params: criteria":
     let p = parseArgs(
       @[
         "--names", "Farellones", "62", "--ridden", "--from", "-33.42,-70.63",
-        "--radius", "5", "--categories", "hc", "1", "--select", "-v",
+        "--radius", "5km", "--categories", "hc", "1", "--select", "-v",
       ]
     )
     check p.problem == ""
@@ -124,6 +124,14 @@ suite "climbs params: criteria":
       c.passKm == defaultPassKm and c.start.isNone
     check parseArgs(@["--from", "0,0"]).params.list.criteria.startKm == defaultStartKm
 
+  test "the radius has its unit; with none it is the question, km added":
+    let q = parseArgs(@["--near", "0,0", "--radius", "3"])
+    check q.kind == pkUnit and q.fix.args == @["--near", "0,0", "--radius", "3km"]
+    check parseArgs(@["--near", "0,0", "--radius", "500m"]).params.list.criteria.passKm ==
+      0.5
+    for bad in ["-1km", "nan", "3mi", "infkm"]:
+      check parseArgs(@["--near", "0,0", "--radius", bad]).problem.contains("radius")
+
   test "--save is --select; --select keeps what --all finds too":
     check parseArgs(@["--ridden", "--save"]).params.list.select
     check parseArgs(@["--all", "--select"]).params.list.select
@@ -135,7 +143,11 @@ suite "climbs params: criteria":
       "goes with `--from` or `--near`"
     )
     check parseArgs(@["--near", "1x,2"]).problem.contains("cannot read the position")
-    check parseArgs(@["--near", "0,0", "--radius", "0"]).problem.contains("more than 0")
+    check parseArgs(@["--near", "0,0", "--radius", "0km"]).problem.contains(
+      "more than 0"
+    )
+    check parseArgs(@["--near", "0,0", "--radius", "0"]).problem.contains("radius")
+      # (a bare 0 is read as 0km, and refused: there is no use asking)
     check parseArgs(@["--categories", "5"]).problem.contains("not a category")
     check parseArgs(@["--ridden", "--retired"]).problem.contains("do not go with")
     check parseArgs(@["--ridden", "--edit", "X", "--retire"]).problem.contains(

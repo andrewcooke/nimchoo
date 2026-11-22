@@ -4,6 +4,7 @@
 import ../geo/position
 import ../confirm/confirm
 import ../util/args/args
+import ../ui/units
 import ./completion
 import ./[display, match, overlap]
 import std/[math, options, strformat, strutils, unicode]
@@ -153,13 +154,12 @@ func takeNear(p: var Raw, v: string, passes: bool): Problem =
   fine
 
 func takeRadius(p: var Raw, v: string): Problem =
-  try:
-    let r = parseFloat(v)
-    if r <= 0:
-      return refuse(~"the radius must be more than 0km")
-    p.radiusKm = some(r)
-  except ValueError:
-    return refuse(~"cannot read the radius '{v}' (kilometres)")
+  let r = parseDistance(v)
+  if r.isNone:
+    return refuse(
+      ~"cannot read the radius '{v}' (a distance more than 0, with its unit: `3km` or `500m`)"
+    )
+  p.radiusKm = some(r.get.inKm)
   fine
 
 func climbSpec*(): Spec[Raw] =
@@ -198,11 +198,12 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--radius"],
         true,
-        "KM",
-        ~"the radius for `--from` and `--near` in kilometres",
+        "DISTANCE",
+        ~"the radius for `--from` and `--near`, with its unit (`3km`, `500m`; a bare number is taken as km, after asking)",
         level = 1,
         body = takeRadius(p, value),
-      ),
+      )
+        .withUnit("km"),
       listOption[Raw](
         ["--categories"],
         takeCategories,
