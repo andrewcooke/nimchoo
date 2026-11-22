@@ -123,7 +123,7 @@ proc loop(s: ptr Shared) {.thread.} =
         live.finish()
         break
       of enFailed:
-        live.keep(@[~"<bad cannot download {shortUrl(url)}: {message}>"])
+        live.keep(@[failedLine(url, message)])
         break
       sleep(pollMs)
 

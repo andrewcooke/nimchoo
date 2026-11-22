@@ -14,7 +14,8 @@ import ../util/lookup/lookup
 import ../util/zip/zipbytes
 import ../util/zip/zipchild
 import ../util/atomic/atomic
-import ../ui/units
+import ../../core/line
+import ../ui/[markup, units]
 import ./sources
 when defined(posix):
   import std/posix
@@ -91,6 +92,10 @@ func shortUrl*(url: string): string =
   else:
     url
 
+func failedLine*(url, message: string): Line =
+  ## "cannot download example.com/x.zip: timed out", in `bad`: the one line for a download that failed, wherever it is shown.
+  ~"<bad cannot download {shortUrl(url)}: {message}>"
+
 func describe*(ev: DownloadEvent): string =
   ## One line for people.
   case ev.kind
@@ -105,7 +110,7 @@ func describe*(ev: DownloadEvent): string =
   of deFinished, deWorking, deWorkDone:
     ""
   of deFailed:
-    "cannot download " & shortUrl(ev.url) & ": " & ev.message
+    failedLine(ev.url, ev.message).plainText
 
 # --- the real network and disk
 

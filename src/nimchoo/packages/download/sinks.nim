@@ -3,7 +3,7 @@
 
 import ../../core/logfile
 import ../ui/live
-import ../ui/[markup, style, units]
+import ../ui/[style, units]
 import ./[fetch, spinner]
 
 {.push raises: [].}
@@ -36,7 +36,12 @@ proc screenSink*(write: proc(line: Line) {.closure, raises: [].}): Sink =
   ## Say each event, as a line (the progress is not: there is no animation without a terminal).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
     if ev.kind notin {deProgress, deReading, deFinished, deWorking, deWorkDone}:
-      write plain(describe(ev))
+      write(
+        if ev.kind == deFailed:
+          failedLine(ev.url, ev.message)
+        else:
+          plain(describe(ev))
+      )
 
 proc liveSink*(
     theme: Theme,
@@ -93,5 +98,5 @@ proc liveSink*(
       if sp != nil:
         endLine(enFailed, ev.message)
       else:
-        maker(theme).keep(@[~"<bad cannot download {shortUrl(ev.url)}: {ev.message}>"])
+        maker(theme).keep(@[failedLine(ev.url, ev.message)])
       downloaded = false

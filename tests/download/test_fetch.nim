@@ -7,7 +7,7 @@ import nimchoo/packages/download/fetch
 import nimchoo/packages/download/sinks
 import nimchoo/packages/download/sources
 import nimchoo/packages/download/spinner
-import nimchoo/core/logfile
+import nimchoo/core/[line, logfile]
 import nimchoo/packages/ui/live
 import nimchoo/packages/ui/style
 import ../support/zips
@@ -225,6 +225,26 @@ suite "download: the same events in the log and on the screen":
         "downloaded " & shortUrl(chile) & " (1.4MB)",
         "cannot download " & shortUrl(chile) & ": cannot reach",
       ]
+
+suite "download: the failure line":
+  test "one line, in bad, for the screen sink as for the others":
+    var lines: seq[Line]
+    let sink = screenSink(
+      proc(l: Line) {.closure, raises: [].} =
+        lines.add l
+    )
+    sink(
+      DownloadEvent(
+        kind: deFailed,
+        source: "geonames",
+        url: "https://a.org/x.zip",
+        message: "timed out",
+      )
+    )
+    check lines.len == 1 and
+      lines[0].plainText == "cannot download a.org/x.zip: timed out"
+    check lines[0] == failedLine("https://a.org/x.zip", "timed out")
+    check lines[0][0].styles == @[styleName"bad"]
 
 var written: seq[string]
   ## what the test terminal was given (the spinner's thread writes it; read after it is stopped)
