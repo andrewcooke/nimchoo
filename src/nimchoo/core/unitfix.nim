@@ -4,13 +4,14 @@
 ## parser (`util/args`) reads it as if the option's default unit were there and says so, as the fourth outcome of a
 ## command's `parseArgs` (`pkUnit`, beside valid, help and a problem), carrying the **corrected arguments**.  What to do
 ## about it is the same for every command, so it is written once, here: `unitRetry` is what a command's `run` calls for
-## that outcome (as it calls `usageError` for a problem).  On a terminal it asks, and on yes the command runs again with the
-## corrected arguments; anywhere else it fails with the usage exit code and prints the corrected line, which can be run as it is.
+## that outcome (as it calls `usageError` for a problem).  It asks (`core/ask`: default yes, `-y` answers at once), and on yes the command runs
+## again with the corrected arguments; on no, or with no terminal and no `-y`, it gives the usage exit code, the corrected line
+## having been shown.
 ##
 ## `askUnit` takes whether there is a terminal and where an answer comes from, so that a test can drive it.
 
-import std/[options, os, posix, strformat, strutils, termios, terminal]
-import ./[globals, line]
+import std/[options, os, strformat, strutils, terminal]
+import ./[ask, globals, line]
 
 {.push raises: [].}
 
@@ -25,6 +26,7 @@ type
     missing*: seq[Unitless]
     original*: seq[string] ## the arguments as they were typed
     args*: seq[string] ## the same, with the unit added where it was missing
+    yes*: bool ## `-y` was given: the question is answered yes
 
 func insertedIn(typed, corrected: string): seq[bool] =
   ## For each character of `corrected`, whether it was added to `typed` (which is a subsequence of it: only text was inserted).
@@ -97,57 +99,14 @@ func questionLines*(leading: seq[string], command: string, fix: UnitFix): seq[Li
   ]
 
 proc askUnit*(
-    g: Globals,
-    command: string,
-    fix: UnitFix,
-    terminal: bool,
-    key: proc(): Option[char] {.raises: [].},
+    g: Globals, command: string, fix: UnitFix, terminal: bool, key: KeyReader
 ): Option[seq[string]] =
-  ## Say what is missing and what was meant (`questionLines`).  On a `terminal` ask, `[Yn]` after the command line, and read one
-  ## key with `key` (none: the input ended): `y`, `Y` or Enter means yes, and the corrected arguments are given back; `n`, `N`,
-  ## Ctrl-C, Ctrl-D and the end of the input mean no; any other key is ignored.  No terminal: nothing is asked and the result
-  ## is none, the corrected line having been printed.
-  let lines = questionLines(g.leading, command, fix)
-  g.show(osErr, lines[0])
-  if not terminal:
-    g.show(osErr, lines[1])
-    return none(seq[string])
-  g.prompt(osErr, lines[1] & @[span(" "), span("[Yn]", "warn"), span(" ")])
-  var yes = false
-  while true:
-    let k = key()
-    if k.isNone or k.get in {'n', 'N', '\3', '\4'}:
-      break
-    if k.get in {'y', 'Y', '\r', '\n'}:
-      yes = true
-      break
-  g.show(osErr, plain(if yes: "y" else: "n"))
-  if yes:
+  ## Say what is missing and what was meant (`questionLines`) and `ask` (default yes, `[Yn]` after the command line): the
+  ## corrected arguments if the answer is yes (with `-y`, at once), none otherwise.  `terminal` and `key` are for tests.
+  if ask(g, questionLines(g.leading, command, fix), true, fix.yes, terminal, key):
     some(fix.args)
   else:
     none(seq[string])
-
-proc readKey(): Option[char] =
-  ## One key from the terminal, with no Enter and no echo; the terminal is put back as it was, whatever happens.  Ctrl-C
-  ## comes as a key (the signal is off while waiting) so that it is an answer, not the end of the program with the terminal
-  ## left as it was set.
-  var saved: Termios
-  if tcGetAttr(0, addr saved) != 0:
-    return none(char)
-  var raw = saved
-  raw.c_lflag = raw.c_lflag and not (ICANON or ECHO or ISIG)
-  raw.c_cc[VMIN] = 1.char
-  raw.c_cc[VTIME] = 0.char
-  if tcSetAttr(0, TCSANOW, addr raw) != 0:
-    return none(char)
-  try:
-    var c: char
-    if read(0, addr c, 1) == 1:
-      result = some(c)
-    else:
-      result = none(char)
-  finally:
-    discard tcSetAttr(0, TCSANOW, addr saved)
 
 proc unitRetry*(
     g: Globals,

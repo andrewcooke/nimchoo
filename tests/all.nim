@@ -17,6 +17,7 @@ import
   ./core/test_logfile,
   ./core/test_theme,
   ./core/test_globals,
+  ./core/test_ask,
   ./core/test_unitfix,
   ./near/test_near,
   ./core/test_line,

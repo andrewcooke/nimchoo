@@ -47,6 +47,7 @@ type
 
   Parsed*[T] = object
     ## What a command line came to: a valid command (`params`), a request for help, or a problem to say.
+    yes*: bool ## `-y` was given: every question is answered yes (`core/ask`)
     case kind*: ParseKind
     of pkOk:
       params*: T
@@ -94,8 +95,13 @@ type
     positional*: Positional[P] ## nil: only options are allowed
     hint*: proc(arg: string): Line {.nimcall, raises: [].}
       ## nil, or extra words for "unexpected argument X" (like " (to add a model: --add X)")
+    noYes*: bool
+      ## the spec of the options before the command: `-y` is accepted by every command (as `-h`), not there
 
-const fine* = none(Line) ## nothing is wrong
+const
+  fine* = none(Line) ## nothing is wrong
+  yesNames* = ["-y", "--yes"]
+    ## accepted by every command (declared here, once): answer every question yes
 
 func refuse*(why: Line): Problem =
   ## Something is wrong: say what, in a sentence that does not name the option.
@@ -145,13 +151,18 @@ type Bare = object ## where a number without its unit was given
   fixed: string ## the value with the unit added
   item: Unitless
 
+type Walked = object
+  ## What the walk noticed besides the options: numbers with no unit, and `-y`.
+  bare: seq[Bare]
+  yes: bool
+
 proc walk[P](
     args: seq[string],
     spec: Spec[P],
     p: var P,
     leading: bool,
     next: var int,
-    bare: var seq[Bare],
+    seen: var Walked,
 ): Problem =
   var i = 0
   while i < args.len:
@@ -159,6 +170,10 @@ proc walk[P](
     if leading and not (a.len > 1 and a.startsWith("-")):
       next = i
       return
+    if not leading and a in yesNames:
+      seen.yes = true
+      inc i
+      continue
     # `--name=value` is the same as `--name value`
     let eq =
       if a.startsWith("--"):
@@ -212,7 +227,7 @@ proc walk[P](
           else:
             plainAddUnit(v, o.unit)
         if fixed.isSome:
-          bare.add Bare(
+          seen.bare.add Bare(
             at: i,
             inName: eq > 0,
             fixed: fixed.get,
@@ -258,19 +273,22 @@ func corrected(args: seq[string], bare: seq[Bare]): UnitFix =
         fixed
 
 proc parseOptionsFixing*[P](
-    args: seq[string], spec: Spec[P], p: var P, fix: var UnitFix
+    args: seq[string], spec: Spec[P], p: var P, fix: var UnitFix, yes: var bool
 ): Problem =
   ## Walk the arguments.  Returns the first problem found.  A bare number given to an option that has a default unit
   ## (`withUnit`) is read with the unit added, and `fix` says what was changed (`fix.missing` is empty if nothing was).
   var next = 0
-  var bare: seq[Bare]
-  result = walk(args, spec, p, false, next, bare)
-  fix = corrected(args, bare)
+  var seen: Walked
+  result = walk(args, spec, p, false, next, seen)
+  fix = corrected(args, seen.bare)
+  fix.yes = seen.yes
+  yes = seen.yes
 
 proc parseOptions*[P](args: seq[string], spec: Spec[P], p: var P): Problem =
   ## Walk the arguments.  Returns the first problem found.  (For a spec with no option that wants a unit.)
   var fix: UnitFix
-  parseOptionsFixing(args, spec, p, fix)
+  var yes: bool
+  parseOptionsFixing(args, spec, p, fix, yes)
 
 proc parseLeading*[P](
     args: seq[string], spec: Spec[P], p: var P, next: var int
@@ -279,8 +297,8 @@ proc parseLeading*[P](
   ## (the command, for the options every command has); `next` is where that is, `args.len` if
   ## there is none.  Returns the first problem found.
   next = args.len
-  var bare: seq[Bare]
-  walk(args, spec, p, true, next, bare)
+  var seen: Walked
+  walk(args, spec, p, true, next, seen)
 
 func doc*[P](o: Opt[P]): OptDoc =
   ## The description of the option.
@@ -297,6 +315,12 @@ func docs*[P](spec: Spec[P]): seq[OptDoc] =
   ## The descriptions of the options, in order.
   for o in spec.opts:
     result.add o.doc
+  if not spec.noYes:
+    result.add OptDoc(
+      names: @yesNames,
+      help: ~"answer yes to every question (what would be deleted, a unit filled in): the question is still shown, and the answer; with no terminal, nothing is asked and nothing is deleted without it",
+      arity: aFlag,
+    )
 
 func listOption*[P](
     nameList: openArray[string],
@@ -552,7 +576,8 @@ proc parseCommand*[B, T](
   ## command's own step that turns what was read into valid parameters, or says what is wrong with the combination.
   var raw = start
   var fix: UnitFix
-  let why = parseOptionsFixing(args, spec, raw, fix)
+  var yes: bool
+  let why = parseOptionsFixing(args, spec, raw, fix, yes)
   if why.isSome:
     return problemWith[T](why.get)
   if raw.help:
@@ -560,3 +585,4 @@ proc parseCommand*[B, T](
   result = finish(raw)
   if result.kind == pkOk and fix.missing.len > 0:
     result = Parsed[T](kind: pkUnit, fix: fix)
+  result.yes = yes

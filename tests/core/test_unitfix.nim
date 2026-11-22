@@ -76,6 +76,11 @@ suite "unitfix: a number with no unit, and the question":
     let g = Globals(offline: true)
     for no in ["n", "N", "\3", "\4", "", "x1 n", "xz"]:
       check askUnit(g, "nch activities", fix, true, keys(no)).isNone
+  test "with -y the corrected arguments come back at once, without a key":
+    let g = Globals(offline: true)
+    var yes = fix
+    yes.yes = true
+    check askUnit(g, "nch activities", yes, false, keys("")) == some(fix.args)
   test "not on a terminal, nothing is asked and it fails":
     let g = Globals(offline: true)
     var asked = false

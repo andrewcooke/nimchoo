@@ -48,6 +48,7 @@ proc completeThemes(g: Globals, typed: string): seq[string] {.nimcall, raises: [
 func headSpec(): Spec[Head] =
   ## The options every command takes, given before its name.
   Spec[Head](
+    noYes: true,
     opts: @[
       custom(
         Head,
@@ -113,7 +114,7 @@ func headSpec(): Spec[Head] =
         ~"the settings in force (the database and its schema, the user, the theme, the log, the cache) and the variables of the environment nch reads, with what each is for",
       ),
       helpFlag(Head),
-    ]
+    ],
   )
 
 proc usageText(width: int): seq[Line] =

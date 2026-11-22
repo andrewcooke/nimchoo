@@ -267,3 +267,20 @@ suite "args: an option's arity is one fact":
     check lst.arity == aList and lst.doc.arity == aList
     for o in spec.opts:
       check o.doc.arity == o.arity
+
+suite "args: -y is accepted by every command":
+  test "anywhere among the options, and the parse says so":
+    let a = parseCommand(@["--far", "3km", "-y"], dspec, D(), finishD)
+    check a.kind == pkOk and a.yes
+    check parseCommand(@["--yes", "--name", "x"], dspec, D(), finishD).yes
+    check not parseCommand(@["--name", "x"], dspec, D(), finishD).yes
+    check parseCommand(@["-y", "--far", "3"], dspec, D(), finishD).fix.yes
+  test "the spec describes it, so help and completion have it; the options before the command do not":
+    check "-y" in dspec.docs[^1].names and "--yes" in dspec.docs[^1].names
+    check dspec.docs[^1].arity == aFlag
+    var head = dspec
+    head.noYes = true
+    check head.docs.len == dspec.docs.len - 1
+    var n = 0
+    var p: D
+    check parseLeading(@["-y"], head, p, n).isSome # (not before the command)
