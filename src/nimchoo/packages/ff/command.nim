@@ -311,10 +311,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         ~"cannot make the page: {e.msg} (the template is system/templates/ff.html and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
       )
     if p.web.kind == wkWorker:
-      g.show(osOut, @[span(pageFile.get, "file")])
-      g.show(osOut, @[span(csvPath, "file")])
+      g.show(osOut, ~"<file {pageFile.get}>")
+      g.show(osOut, ~"<file {csvPath}>")
       return exitOk
-    g.show(osOut, @[span(csvPath, "file")])
+    g.show(osOut, ~"<file {csvPath}>")
     g.show(osOut, latestStats(st, m.get, p, now, tz))
     exitOk
   except StoreError as e:
