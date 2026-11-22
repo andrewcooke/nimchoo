@@ -33,6 +33,34 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
 
+15. **Step 4 of the review: the output helpers, then one fact** (dev/REVIEW.md, section 5 and section 3, classes 3 and 4; the
+    detail of each finding, with file, evidence and fix, is in `dev/review-4/part-*.md`: A = part-a.md ...).  Check each
+    against the code first (the `~"..."` sweep may have done it); remove a line when it is done and mark the finding fixed in
+    dev/REVIEW.md.
+    * Output helpers (class 3):
+      * A4/D5: one helper for the last line "done: N of TOTAL", used by every list (activities, climbs, users, landmarks,
+        packages, `activities --rename`); a guard test that every list command ends with it, if a simple one can be written;
+      * D2: `landmarks --delete` through the shared confirmation (`confirm`: countdown, `-f -f`, "would delete ...");
+      * D4/C4: warnings that lose their style (`say(warnLine(...).text)`): probably done by the sweep;
+      * C10: `nch cache` builds its table by padding by hand: use `ruled`;
+      * C11: the "cannot download" line is made in three places: one helper;
+      * E7: `map` and `ff` each write the web steps by hand and differ (four "no cache directory" messages): one shared path
+        for "serve or write the page" with one set of messages, in the web package;
+      * B5/D6: counts without commas (`$n`) in the importer and the activities footer: `units.count`/`counted`; the footer says
+        "unknown" where `--sports none` says "none";
+      * A9: `g.width`/`g.colour` are set once but many places call `helpWidth()` again: use `g.width` where there is a Globals;
+      * A11: two word wrappers, one counting bytes: one, counting characters;
+      * E4: `nch log` through `g.show`: probably done by the sweep.
+    * One fact, one place (class 4):
+      * A2: an option's arity is three booleans in `Opt` and an `Arity` in `OptDoc`: `Opt` holds the `Arity`;
+      * A3: `nch --config` works out the database path and its source apart from `resolveDbPath`: one function;
+      * A8: who may read a table is worked out in the access model and in the inventory: one;
+      * E5: the log's line format is in `core/logfile.nim` and `log/lines.nim`: one, with a round-trip test (its sentinels are
+        step 5);
+      * E6: the page's Content-Security-Policy hard-codes the hosts `libraries.cdn` lists: make it from the file;
+      * E9: choosing a subject by name is written in map and calendar: one, in the subject package;
+      * C5: matching a typed climb name is written three times: one.
+
 13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
     before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the
     host (`localhost:PORT`) and the token as the page's address gives them.
