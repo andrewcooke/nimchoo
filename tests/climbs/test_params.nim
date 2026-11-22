@@ -1,4 +1,6 @@
-import std/[options, strutils, unittest]
+import std/[strutils, unittest]
+import nimchoo/packages/near/near
+import nimchoo/packages/ui/units
 import nimchoo/packages/climbs/params
 import nimchoo/packages/confirm/confirm
 import nimchoo/packages/util/args/args
@@ -115,14 +117,15 @@ suite "climbs params: criteria":
     check l.kind == lkFound and l.select and l.attempts.verbose
     let c = l.criteria
     check c.names == @["Farellones", "62"] and c.ridden and c.categories == @["HC", "1"]
-    check c.start.isSome and c.start.get.kind == nrPoint and c.start.get.lat == -33.42 and
-      c.start.get.lon == -70.63 and c.startKm == 5.0 and c.passes.isNone
+    check c.start.kind == nkPoint and c.start.lat == -33.42 and c.start.lon == -70.63 and
+      c.startKm == 5.0 and c.passes.kind == nkNone
 
   test "--near takes a place's name, and the radius has a default":
     let c = parseArgs(@["--near", "Providencia"]).params.list.criteria
-    check c.passes.get.kind == nrPlace and c.passes.get.place == "Providencia" and
-      c.passKm == defaultPassKm and c.start.isNone
-    check parseArgs(@["--from", "0,0"]).params.list.criteria.startKm == defaultStartKm
+    check c.passes.kind == nkPlace and c.passes.place == "Providencia" and
+      c.passKm == defaultPassRadius.inKm and c.start.kind == nkNone
+    check parseArgs(@["--from", "0,0"]).params.list.criteria.startKm ==
+      defaultStartRadius.inKm
 
   test "the radius has its unit; with none it is the question, km added":
     let q = parseArgs(@["--near", "0,0", "--radius", "3"])
@@ -132,6 +135,10 @@ suite "climbs params: criteria":
     for bad in ["-1km", "nan", "3mi", "infkm"]:
       check parseArgs(@["--near", "0,0", "--radius", bad]).problem.contains("radius")
 
+  test "--all --radius is refused, and --radius alone":
+    check parseArgs(@["--all", "--radius", "3km"]).problem.contains(
+      "goes with `--from` or `--near`"
+    )
   test "--save is --select; --select keeps what --all finds too":
     check parseArgs(@["--ridden", "--save"]).params.list.select
     check parseArgs(@["--all", "--select"]).params.list.select

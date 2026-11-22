@@ -1,3 +1,4 @@
+import nimchoo/packages/ui/units
 import nimchoo/packages/db/sqltext
 import nimchoo/core/extension
 from nimchoo/registry import extensions
@@ -88,8 +89,8 @@ suite "list: the command line":
     let passing = cmdline("--near", "Farellones").params
     check passing.passes.kind == nkPlace and passing.passes.place == "Farellones" and
       passing.start.kind == nkNone
-    check passing.passKm == defaultPassKm and passing.startKm == defaultStartKm
-      # (each its own default)
+    check passing.passKm == defaultPassRadius.inKm and
+      passing.startKm == defaultStartRadius.inKm # (each its own default)
     check cmdline("--near", "latest").params.passes.kind == nkLatest
   test "latest is the newest one; oldest; but not both":
     check cmdline("--latest").params.newest == 1
@@ -98,13 +99,23 @@ suite "list: the command line":
     for bad in ["0", "-1", "x", "1.5"]:
       check cmdline("--newest", bad).problem.contains("number of activities")
     check cmdline("--oldest").problem.contains("needs a value")
+  test "--all does not go with --radius, as it does not with --from latest":
+    check cmdline("--all", "--from", "latest").problem.contains(
+      "does not go with criteria"
+    )
+    check cmdline("--all", "--radius", "3km").problem.contains(
+      "does not go with criteria"
+    )
+    check cmdline("--all", "--near", "Farellones").problem.contains(
+      "does not go with criteria"
+    )
   test "--radius on its own means --from latest":
     let c = cmdline("--radius", "5km").params
     check c.start.kind == nkLatest and c.startKm == 5.0
     check cmdline("--radius", "5km").problem == ""
   test "a radius with its unit: km or m; with no unit it is a question, with the corrected arguments":
-    check cmdline("--radius", "500m").params.radiusKm == some(0.5)
-    check cmdline("--radius", "1.5km").params.radiusKm == some(1.5)
+    check cmdline("--radius", "500m").params.radius == some(Distance(500.0))
+    check cmdline("--radius", "1.5km").params.radius == some(Distance(1500.0))
     let u = cmdline("--from", "latest", "--radius", "3")
     check u.kind == pkUnit
     check u.fix.args == @["--from", "latest", "--radius", "3km"]
@@ -308,7 +319,9 @@ suite "list: the box and the sql":
     check boxes(0.0, 179.0, 1.0).len == 1 # (a small circle that does not cross)
   test "--from: the index of the start points, and the distance from the start":
     let q = matchSql(
-      @[UserId(1)], Criteria(radiusKm: some(5.0)), Points(start: some((38.7, -9.1)))
+      @[UserId(1)],
+      Criteria(radius: some(Distance(5000.0))),
+      Points(start: some((38.7, -9.1))),
     )
     let m = q.text
     check m.contains("f_table_name = 'activity'") and
@@ -320,7 +333,9 @@ suite "list: the box and the sql":
       q.value("startM") == arg(5000.0)
     check not m.contains("route")
     let across = matchSql(
-      @[UserId(1)], Criteria(radiusKm: some(50.0)), Points(start: some((-17.0, 179.9)))
+      @[UserId(1)],
+      Criteria(radius: some(Distance(50000.0))),
+      Points(start: some((-17.0, 179.9))),
     )
     check across.text.count("SpatialIndex") == 2 and across.text.contains(" or ")
     check across.has("startBox0West") and across.has("startBox1North")
@@ -374,7 +389,7 @@ suite "list: the box and the sql":
         afterT: some(UnixTime(5)),
         beforeT: some(UnixTime(9)),
         newest: 2,
-        radiusKm: some(5.0),
+        radius: some(Distance(5000.0)),
       ),
       Points(start: some((38.7, -9.1))),
       sqlOf("a.id, a.start_t"),

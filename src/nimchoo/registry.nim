@@ -30,6 +30,7 @@
 ## * `map <packages/map/package.html>`_ - The map: a view of a subject, drawn from the frames that the packages managing it contribute.
 ## * `model <packages/model/package.html>`_ - The training impulse: models, and the impulses worked out with them.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
+## * `near <packages/near/package.html>`_ - `--from`, `--near` and `--radius`: where a thing is, for the commands that search by place.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (activities, later climbs and FF statistics).
@@ -63,6 +64,7 @@ import ./packages/log/package as pkgLog
 import ./packages/map/package as pkgMap
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
+import ./packages/near/package as pkgNear
 import ./packages/selection/package as pkgSelection
 import ./packages/subject/package as pkgSubject
 import ./packages/text/fold/package as pkgFold
@@ -409,6 +411,23 @@ for a bad connection: the program needs the internet for names and says so.  Thi
 name: a ride that turns round inside a landmark's circle is "<landmark> and back", a climb that tops out in it is called by
 it.  Suggestions are found from the features and the rides.""",
       path: "src/nimchoo/packages/names/",
+    ),
+    Registered(
+      name: "near",
+      package: pkgNear.package,
+      summary:
+        "`--from`, `--near` and `--radius`: where a thing is, for the commands that search by place.",
+      doc:
+        """`--from`, `--near` and `--radius`: where a thing is, for the commands that search by place.
+
+A position (`LAT,LON`, `geo/position`) or a place's name (a landmark, else the biggest place of that name among the names
+loaded: resolved by the command that runs, `names/places`), and, for `activities`, `latest` and `previous` (an activity found
+when the command runs).  `--from` is where a thing starts and `--near` is where its route or line passes; `--radius` is a
+distance with its unit, 10km round a start and 1km round a route unless it says, and it only goes with them (for
+`activities`, on its own it means `--from latest`).  The option specs, their help, the defaults and the reading are here
+(`near.nim`: `nearOptions`), so that `activities` and `climbs` cannot differ; `landmarks` reads its own `--near` and `--at`
+with the same `parseSpot`.""",
+      path: "src/nimchoo/packages/near/",
     ),
     Registered(
       name: "selection",

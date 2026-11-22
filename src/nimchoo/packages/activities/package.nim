@@ -31,7 +31,7 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 const package* = Package(
   depends: @[
     "args", "bundle", "calendar", "confirm", "db", "fit", "fold", "geo", "importer",
-    "map", "names", "selection", "subject", "ui", "user",
+    "near", "map", "names", "selection", "subject", "ui", "user",
   ],
   commands: @[
     CommandDecl(

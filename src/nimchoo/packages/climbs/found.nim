@@ -2,11 +2,12 @@
 ## are matched as they are shown, with their numbers, so those are found first: `attempts.namedClimbs`).  Retired climbs are
 ## never found, as they are in no list.
 
-import std/[json, options, strformat]
+import std/[json, strformat]
 import ../../core/errors
 import ../db/[sqltext, statement]
 import ../geo/position
 import ../names/places
+import ../near/near
 import ../user/session
 import ./[attempts, params]
 
@@ -31,18 +32,20 @@ proc foundClimbs*(st: Session, c: ClimbCriteria): Found {.raises: [StoreError].}
     )
       .with("owner", st.userId)
   for (near, passes) in [(c.start, false), (c.passes, true)]:
-    if near.isNone:
+    if near.kind == nkNone:
       continue
-    let n = near.get
+    let n = near
     var (lat, lon) = (0.0, 0.0)
     var said = ""
     case n.kind
-    of nrPoint:
+    of nkPoint:
       (lat, lon) = (n.lat, n.lon)
-    of nrPlace:
+    of nkPlace:
       let p = placeNamed(st, n.place)
       (lat, lon) = (p.lat, p.lon)
       said = fmt" ({p.said})"
+    of nkNone, nkLatest, nkPrevious:
+      raiseAssert "climbs read no latest or previous"
     let km = if passes: c.passKm else: c.startKm
     let what = if passes: "passing near" else: "starting near"
     result.notes.add fmt"{what} {positionText((lon: lon, lat: lat))}{said}, within {km:g}km"

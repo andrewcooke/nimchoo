@@ -6,29 +6,17 @@ import std/[math, options, strformat, strutils, times]
 import ../fit/time
 import ../confirm/confirm
 import ../util/args/args
+import ../near/near
 import ../ui/units
 import ../db/sqltext
 import ../../core/ids
-import ../geo/position
 import ../text/fold/fold
 import ./[completion, criterion, ranges]
-export ranges, criterion
+export ranges, criterion, near
 
 {.push raises: [].}
 
 type
-  NearKind* = enum
-    nkNone
-    nkPoint
-    nkPlace ## a place by its name, found when the command runs (`names/places`)
-    nkLatest
-    nkPrevious
-
-  Spot* = object ## a point as given to `--from` or `--near`
-    kind*: NearKind
-    lat*, lon*: float ## for nkPoint
-    place*: string ## for nkPlace: the name as given
-
   Points* = object
     ## the points `--from` and `--near` came to, once a place, `latest` and `previous` are worked out: (lat, lon)
     start*, passes*: Option[(float, float)]
@@ -76,7 +64,7 @@ type
       ## --invert: the activities that do NOT meet the criteria (before --newest / --oldest)
     start*: Spot ## --from: where the activity starts
     passes*: Spot ## --near: a point its route passes
-    radiusKm*: Option[float] ## --radius (none: each its default)
+    radius*: Option[Distance] ## --radius (none: each its default)
 
   Relative* = object
     ## `latest~10%`: around an activity that is found when the command runs.
@@ -86,13 +74,10 @@ type
   Box* = object
     minX*, minY*, maxX*, maxY*: float ## degrees
 
-const
-  defaultStartKm* = 10.0 ## the radius of --from: a start within this
-  defaultPassKm* = 1.0 ## the radius of --near: a route that comes this close has passed
-  timeFormats = [
-    "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
-    "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
-  ] ## (a date alone is its midnight: as if written with T00:00:00)
+const timeFormats = [
+  "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
+  "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+] ## (a date alone is its midnight: as if written with T00:00:00)
 
 proc parseWhen*(s: string, zone: Timezone): Option[UnixTime] =
   ## An instant typed by the user, in `zone`, as Unix seconds: exactly what is written, a date being the start of its day
@@ -119,7 +104,7 @@ type ListState = object
   help: bool
   zone: Timezone
   offered: seq[Criterion] ## the criteria other packages offer
-  radiusGiven: bool ## --radius was given
+  where: Where ## --from, --near and --radius
   onGiven, rangeGiven: bool ## --on was given; --after or --before was
   criteriaGiven: bool ## some option other than those that say what to display
 
@@ -339,52 +324,13 @@ func takeGps(p: var ListState, wanted: GpsFilter): Problem =
   p.c.gps = wanted
   fine
 
-func parseSpot(v: string): Option[Spot] =
-  ## LAT,LON, a place's name, `latest` or `previous`.
-  if parseReference(v) == refLatest:
-    return some(Spot(kind: nkLatest))
-  if parseReference(v) == refPrevious:
-    return some(Spot(kind: nkPrevious))
-  let pos = parsePosition(v)
-  if pos.isSome:
-    return some(Spot(kind: nkPoint, lat: pos.get.lat, lon: pos.get.lon))
-  if v.strip.len > 0 and v[0] notin {'0' .. '9', '-', '+', '.'}:
-    # (a name: what looks like a number is a position written wrongly, and says so)
-    return some(Spot(kind: nkPlace, place: v.strip))
-  none(Spot)
-
-func takeSpot(p: var ListState, v: string, passes: bool): Problem =
-  ## --from SPOT (where the activity starts), --near SPOT (a point its route passes).
-  p.criteriaGiven = true
-  let spot = parseSpot(v)
-  if spot.isNone:
-    return refuse(
-      ~"cannot read the position '{v}' (use 38.72,-9.14, a place's name, latest or previous)"
-    )
-  if passes:
-    p.c.passes = spot.get
-  else:
-    p.c.start = spot.get
-  fine
-
-func takeRadius(p: var ListState, v: string): Problem =
-  p.criteriaGiven = true
-  let r = parseDistance(v)
-  if r.isNone:
-    return refuse(
-      ~"cannot read the radius '{v}' (a distance more than 0, with its unit: `3km` or `500m`)"
-    )
-  p.c.radiusKm = some(r.get.inKm)
-  p.radiusGiven = true
-  fine
-
 func startKm*(c: Criteria): float =
   ## The radius of --from.
-  c.radiusKm.get(defaultStartKm)
+  startKm(c.radius)
 
 func passKm*(c: Criteria): float =
   ## The radius of --near.
-  c.radiusKm.get(defaultPassKm)
+  passKm(c.radius)
 
 func hasFilter*(c: Criteria): bool =
   ## Whether any criterion that picks activities is given (not the limits, the users or the display).
@@ -501,31 +447,6 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
-        ["--from"],
-        true,
-        "LAT,LON|PLACE",
-        ~"activities that start within the radius (default: {defaultStartKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: `--from providencia`); `--from latest`: of where the latest activity started (or \"previous\")",
-        body = takeSpot(p, value, false),
-      ),
-      custom(
-        ListState,
-        ["--near"],
-        true,
-        "LAT,LON|PLACE",
-        ~"activities whose route passes within the radius (default: {defaultPassKm:g}km) of the point, or of a place (as `--from`: `--near farellones`), or of where the latest activity started (or \"previous\")",
-        body = takeSpot(p, value, true),
-      ),
-      custom(
-        ListState,
-        ["--radius"],
-        true,
-        "DISTANCE",
-        ~"the radius for `--from` and `--near`, with its unit (`3km`, `500m`; a bare number is taken as km, after asking); on its own it means `--from latest`",
-        body = takeRadius(p, value),
-      )
-        .withUnit("km"),
-      custom(
-        ListState,
         ["--invert"],
         false,
         "",
@@ -598,6 +519,11 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
     inc at
   for k, o in offered:
     result.opts.insert(contributedOption(o), at + k)
+  var inv = 0
+  while inv < result.opts.len and "--invert" notin result.opts[inv].names:
+    inc inv
+  for k, o in nearOptions(ListState, where, "activities", true):
+    result.opts.insert(o, inv + k)
 
 func finish(st: ListState): Parsed[Criteria] =
   ## What was read, if the options go together.
@@ -605,7 +531,13 @@ func finish(st: ListState): Parsed[Criteria] =
     problemWith[Criteria](why)
 
   var c = st.c
-  c.given = st.criteriaGiven
+  var w = st.where
+  discard w.settle(true)
+    # (--radius alone: around where the latest started; never refused here)
+  c.start = w.start
+  c.passes = w.passes
+  c.radius = w.radius
+  c.given = st.criteriaGiven or w.given
   if c.all and c.hasFilter:
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
@@ -622,8 +554,6 @@ func finish(st: ListState): Parsed[Criteria] =
     return bad(
       ~"`--select` keeps the activities listed as the selection, so it needs criteria or `--all`"
     )
-  if st.radiusGiven and c.start.kind == nkNone and c.passes.kind == nkNone:
-    c.start = Spot(kind: nkLatest) # --radius alone: around where the latest started
   if c.invert and not c.hasFilter:
     return bad(
       ~"`--invert` needs a criterion to invert (`--sports`, `--names`, `--distance` ...)"

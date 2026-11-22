@@ -15,6 +15,7 @@ import nimchoo/packages/names/lookup
 import nimchoo/packages/activities/criteria
 import nimchoo/packages/climbs/criterion as climbsCriterion
 import nimchoo/packages/activities/ranges
+import nimchoo/packages/ui/units
 
 ## The queries that run for every file, every ride or every cell must find their rows through an index (a primary key,
 ## a unique key, or the spatial index), never by reading a whole table: one that does is correct on a test database and
@@ -107,7 +108,7 @@ suite "query plans: no query reads a whole table":
       afterT: some(UnixTime(1)),
       beforeT: some(UnixTime(2)),
       gps: gfWith,
-      radiusKm: some(5.0),
+      radius: some(Distance(5000.0)),
     )
     let here = some((38.7, -9.1))
     let nowhere = Points()
@@ -118,16 +119,16 @@ suite "query plans: no query reads a whole table":
       ("paths", Criteria(paths: @["bowman"]), nowhere),
       ("a range", Criteria(distanceM: NumRange(lo: some 1.0)), nowhere),
       ("no gps", Criteria(gps: gfWithout), nowhere),
-      ("from", Criteria(radiusKm: some(5.0)), Points(start: here)),
+      ("from", Criteria(radius: some(Distance(5000.0))), Points(start: here)),
       (
         "from, across the date line",
-        Criteria(radiusKm: some(50.0)),
+        Criteria(radius: some(Distance(50000.0))),
         Points(start: some((-17.0, 179.9))),
       ),
       ("near (a route passing)", Criteria(), Points(passes: here)),
       (
         "near, across the date line",
-        Criteria(radiusKm: some(50.0)),
+        Criteria(radius: some(Distance(50000.0))),
         Points(passes: some((-17.0, 179.9))),
       ),
       ("newest", Criteria(newest: 3), nowhere),

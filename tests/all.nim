@@ -18,6 +18,7 @@ import
   ./core/test_theme,
   ./core/test_globals,
   ./core/test_unitfix,
+  ./near/test_near,
   ./core/test_line,
   ./core/test_ruled,
   ./core/test_backticks,
