@@ -1,9 +1,13 @@
-import std/[sequtils, strutils, unicode, unittest]
+import std/[options, sequtils, strutils, unicode, unittest]
 import nimchoo/packages/util/args/[args, usage]
 import ../../support/styles
 
 func doc(names: openArray[string], metavar, help: string): OptDoc =
-  OptDoc(names: @names, metavar: metavar, help: plain(help))
+  OptDoc(
+    names: @names,
+    metavar: (if metavar.len > 0: some(metavar) else: none(string)),
+    help: plain(help),
+  )
 
 func tableLines(header: seq[string], rows: seq[seq[string]], width: int): seq[Line] =
   ## (the tests write cells as text)
@@ -34,7 +38,10 @@ suite "usage: the option list":
     check shownOptionLines(
       @[
         OptDoc(
-          names: @["--shell"], metavar: "SHELL", help: plain("which"), arity: aOptional
+          names: @["--shell"],
+          metavar: some("SHELL"),
+          help: plain("which"),
+          arity: aOptional,
         )
       ],
       80,

@@ -3,7 +3,7 @@
 ## and frames of `map`).  A command's usage is styled lines (`core/line.nim`): its synopsis and introduction, written by
 ## hand, then this list, then any closing prose and sections, put together by `usageOf` in one order.  Pure: the width to wrap to is given.
 
-import std/[strutils, unicode]
+import std/[options, strutils, unicode]
 import ../../../core/[line, ruled, wrap]
 import ./args
 export wrap, line
@@ -19,12 +19,12 @@ const
 func label(d: OptDoc): string =
   ## The names and the value, indented two more for each level (an option that goes with the one before it).
   result = " ".repeat(2 * d.level) & d.names.join(", ")
-  if d.metavar.len > 0:
+  if d.metavar.isSome:
     result.add(
       if d.arity == aOptional:
-        " [" & d.metavar & "]"
+        " [" & d.metavar.get & "]"
       else:
-        " " & d.metavar
+        " " & d.metavar.get
     )
 
 func synopsisLines*(text: string): seq[Line] =

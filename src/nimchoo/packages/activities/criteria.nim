@@ -182,7 +182,7 @@ func contributedOption(o: Criterion): Opt[ListState] =
         p: var ListState, name, value: string
     ): Problem {.nimcall, raises: [].} =
       takeContributed(p, name, (if value.len > 0: @[value] else: @[])),
-    metavar: o.doc.metavar,
+    metavar: o.doc.metavar.get(""),
     help: o.doc.help,
     completion: o.doc.completion,
   )

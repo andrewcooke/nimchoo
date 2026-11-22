@@ -178,7 +178,7 @@ suite "tab completion: the real commands":
     for c in commands:
       for d in c.options(Globals()):
         check d.names.len > 0
-        check (d.arity == aFlag) == (d.metavar.len == 0)
+        check (d.arity == aFlag) == d.metavar.isNone
 
   test "the commands offered are those of the registry":
     let o = complete(headDocs(), commands, Globals(), @[""])

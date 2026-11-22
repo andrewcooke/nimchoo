@@ -648,7 +648,7 @@ suite "list: criteria that other packages offer":
   let offered = Criterion(
     doc: OptDoc(
       names: @["--odd", "-o"],
-      metavar: "WORD...",
+      metavar: some("WORD..."),
       help: ~"an offered option",
       arity: aList,
     ),
@@ -712,7 +712,7 @@ suite "list: the usage":
   test "an option of another package would be listed and parsed from its description":
     let extra = OptDoc(
       names: @["--extra"],
-      metavar: "WORDS...",
+      metavar: some("WORDS..."),
       help: ~"something offered by another package",
       arity: aList,
     )

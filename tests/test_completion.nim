@@ -85,7 +85,7 @@ suite "nch __complete":
     let head = @[
       OptDoc(
         names: @["--db"],
-        metavar: "PATH",
+        metavar: some("PATH"),
         arity: aOne,
         completion: Completion(kind: ckFile),
       )

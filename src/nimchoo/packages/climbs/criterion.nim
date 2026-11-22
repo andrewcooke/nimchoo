@@ -2,7 +2,7 @@
 ## whose name holds the text.  It is contributed to the point `activities/criteria` (see package.nim); the condition reads
 ## `effort`, a table of this package, which `activities` could not read by itself.
 
-import std/strutils
+import std/[options, strutils]
 import ../../core/errors
 import ../activities/criterion
 import ../db/sqltext
@@ -46,7 +46,7 @@ proc resolveClimbs(
 let climbCriterion* = Criterion(
   doc: OptDoc(
     names: @["--climbs"],
-    metavar: "TEXT...",
+    metavar: some("TEXT..."),
     help: ~"activities that have an effort on a climb whose name (as `nch climbs --all` shows it) contains any of the TEXTs: `--climbs farellones` (all of them), `--climbs farellones₂` (or \"farellones 2\") (one); a whole number that no name holds is a climb's number (`--climbs 62`); retired climbs too.  It is an error if no climb has the text",
     arity: aList,
     completion: completesFrom(completeClimbWords),

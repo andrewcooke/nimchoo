@@ -2,6 +2,7 @@
 ## declaration (`CommandDecl.options`) can carry the descriptions of its options and `nch __complete` can read them from the
 ## registry; the parser that makes them (`util/args`) re-exports these types.
 
+import std/options
 import ./[errors, globals, line]
 
 {.push raises: [].}
@@ -38,8 +39,8 @@ type
   OptDoc* = object
     ## what an option is, for people (the usage) and for the shell (completion)
     names*: seq[string] ## "-n", "--newest"
-    metavar*: string
-      ## the value, as the usage shows it: "N", "TEXT...", "LAT,LON" ("" for a flag)
+    metavar*: Option[string]
+      ## the value, as the usage shows it: "N", "TEXT...", "LAT,LON" (none for a flag)
     help*: Line
       ## prose (`~"..."`), wrapped by the usage by words, each keeping its style
     arity*: Arity

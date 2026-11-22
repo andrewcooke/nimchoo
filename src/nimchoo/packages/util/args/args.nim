@@ -304,7 +304,7 @@ func doc*[P](o: Opt[P]): OptDoc =
   ## The description of the option.
   OptDoc(
     names: o.names,
-    metavar: o.metavar,
+    metavar: (if o.arity == aFlag: none(string) else: some(o.metavar)),
     help: o.help,
     arity: o.arity,
     completion: o.completion,
