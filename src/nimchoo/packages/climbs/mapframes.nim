@@ -14,7 +14,7 @@ import ../map/[frames, geojson]
 import ../activities/[mapfeatures as activityFeatures, mapframes as activityFrames]
 import ../selection/selection
 import ../user/session
-import ./[attempts, chosen, mapfeatures, match, report]
+import ./[attempts, chosen, display, mapfeatures, match, report]
 import ../ui/units
 
 {.push raises: [].}
@@ -33,7 +33,7 @@ proc climbsOf(st: Session, sectors: seq[int64]): seq[Climb] {.raises: [StoreErro
     ):
       result.add Climb(
         id: id,
-        name: names.getOrDefault(id, "unnamed"),
+        name: names.getOrDefault(id, unnamed),
         category: r.category,
         lengthM: r.lengthM,
         gainM: r.gainM,
@@ -59,7 +59,7 @@ proc gatesOf(st: Session, sectors: seq[int64]): seq[GateLine] {.raises: [StoreEr
       )
     let g = gateLines(route.get)
     if g.isSome:
-      let name = names.getOrDefault(id, "unnamed")
+      let name = names.getOrDefault(id, unnamed)
       result.add GateLine(climbId: id, name: name, start: true, ends: g.get.start)
       result.add GateLine(climbId: id, name: name, start: false, ends: g.get.finish)
 
@@ -102,7 +102,7 @@ proc effortsOf(st: Session, ids: seq[int64]): seq[EffortLine] {.raises: [StoreEr
     var line = EffortLine(
       activityId: ActivityId(e.activityId),
       climbId: e.sectorId,
-      name: names.getOrDefault(e.sectorId, "unnamed"),
+      name: names.getOrDefault(e.sectorId, unnamed),
       startT: e.startT,
       finishT: e.finishT,
       elapsedS: e.elapsedS,
@@ -149,7 +149,7 @@ proc makeChosenGates(st: Session): FrameData {.raises: [StoreError].} =
   result.geojson =
     featureCollection(gatesOf(st, chosenClimbs(st)).mapIt(gateFeature(it)))
 
-proc ridesUp*(st: Session, sectors: seq[int64]): seq[int64] {.raises: [StoreError].} =
+proc ridesUp(st: Session, sectors: seq[int64]): seq[int64] {.raises: [StoreError].} =
   ## The user's activities that have an effort on any of the climbs, oldest first.
   st.db.query(
     int64,

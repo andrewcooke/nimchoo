@@ -97,7 +97,7 @@ proc checkNames(
       for (name, n) in have:
         shown.add name & " " & $n
       raiseStore(
-        "no activity of those users has the " & what & " '" & w & "' (they have: " &
+        "no activity has the " & what & " '" & w & "' (you have: " &
           (if shown.len > 0: shown.join(", ") else: "no activities") & ")"
       )
 
@@ -265,7 +265,6 @@ proc resolveCriteria(
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
   var c = criteria
-  let userIds = @[st.userId]
   var extra = Sql()
   for o in c.contributed:
     let r = o.resolve(st, o.values)
@@ -287,7 +286,7 @@ proc resolveCriteria(
     let found = latestAmong(
       st,
       matchSql(
-        userIds,
+        st.userId,
         base,
         Points(),
         sqlOf("a.id as id, ") & rowColumns(false, st.userId),
@@ -344,7 +343,7 @@ proc matchingIds*(
     result.notes = r.notes
     query =
       "select id from (" &
-      matchSql(@[st.userId], r.c, r.points, sqlOf("a.id as id"), r.extra) & ")"
+      matchSql(st.userId, r.c, r.points, sqlOf("a.id as id"), r.extra) & ")"
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
@@ -361,7 +360,7 @@ proc listActivities*(
   let c = r.c
   result.lines = r.notes
   let match = matchSql(
-    @[st.userId],
+    st.userId,
     c,
     r.points,
     sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId),

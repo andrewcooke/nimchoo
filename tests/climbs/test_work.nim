@@ -6,7 +6,7 @@ import nimchoo/core/errors
 import ../support/[climbdata, invariants, userdata]
 
 suite "climbs: working them out":
-  test "a ride with a climb makes a sector and an effort; asking again does nothing":
+  test "a ride with a climb makes a climb and an effort; asking again does nothing":
     let s = fresh("first")
     defer:
       s.close()
@@ -158,11 +158,11 @@ suite "climbs: working them out":
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     discard ensureClimbs(s)
     check countClimbs(s).manual == 0
-    check describe(countClimbs(s)) == "1 sector and 1 effort (of every user)"
+    check describe(countClimbs(s)) == "1 climb and 1 effort (of every user)"
     s.db.execute("update sector set name = 'Mine', manual = 1")
     check countClimbs(s) == Counts(sectors: 1, efforts: 1, manual: 1)
     check describe(countClimbs(s)) ==
-      "1 sector and 1 effort (of every user); 1 name given by hand is lost"
+      "1 climb and 1 effort (of every user); 1 name given by hand is lost"
     check describe(Counts(sectors: 9, efforts: 20, manual: 3)).endsWith(
       "; 3 names given by hand are lost"
     )
@@ -257,7 +257,7 @@ suite "climbs: stretches of riding":
     let s = fresh("earlier")
     defer:
       s.close()
-    # the first ride is broken in the middle of the climb: it makes no 3 km sector and no effort across the break;
+    # the first ride is broken in the middle of the climb: it makes no 3 km climb and no effort across the break;
     # the second ride is whole and makes the sector; the first, being earlier and near it, gets no effort on it,
     # because the pass is not within one of its stretches
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[600])

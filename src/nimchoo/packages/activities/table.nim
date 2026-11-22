@@ -29,7 +29,6 @@ type ListRow* = object
   startT*: UnixTime
   sport*, subSport*: string ## "" if not recorded
   distanceM*, activeS*: Option[float]
-  file*, user*: string ## the file's name; who it belongs to
   path*: string ## where the file was imported from (its name if not known)
   place*: string ## where it started, as text ("" if not known)
   name*: string ## what it is called ("" if nothing)

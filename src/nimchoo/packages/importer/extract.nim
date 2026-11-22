@@ -1,7 +1,7 @@
 ## Activities from a FIT file: one per session, each with its summary and its
 ## coordinates.  Pure: it reads and decodes, and knows nothing of databases.
 ##
-## Rules (see TODO.md, "Schema direction"):
+## Rules (the reasons are in dev/HISTORY.md, "Schema direction"):
 ## * a file with no `session` message is refused;
 ## * timestamps below `minCalendarFit` are not calendar times (they count from
 ##   the device's power-on, FIT spec): such records are dropped with a warning,

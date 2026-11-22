@@ -24,7 +24,7 @@ const allCommands = (registry.commands & @[packagesCommand]).sortedByIt(it.name)
 
 type Head = object ## The options before the command name.
   g: Globals
-  help, version, config, offline: bool
+  help, version, config: bool
   theme: Option[string] ## `--theme`
   job: Option[Job] ## `--install-completion` or `--show-completion`
 
@@ -120,7 +120,7 @@ func headSpec(): Spec[Head] =
 proc usageText(width: int): seq[Line] =
   ## The usage: the options every command takes, and the commands.
   usageOf(
-    "usage: nch [--db PATH] [--user NAME] COMMAND [ARGS]",
+    "usage: nch [--db PATH] [--user NAME] [--offline] [--theme NAME] COMMAND [ARGS]",
     width,
     options = headSpec().docs,
     notes = @[~"For more about a command: `nch COMMAND --help`."],

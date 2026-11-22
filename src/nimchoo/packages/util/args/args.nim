@@ -385,8 +385,7 @@ func described*[P](
   result.valid = valid
 
 # Building options.  The field is named in the template and so is a plain field access: the proc
-# made is an ordinary one (no closure), as `Apply` needs.  Each kind comes twice: with the option's description (the
-# way to write an option) and without (`documented` adds it afterwards: for the commands not yet converted).
+# made is an ordinary one (no closure), as `Apply` needs.  Each kind carries the option's description.
 
 template flag*(
     P: typedesc,

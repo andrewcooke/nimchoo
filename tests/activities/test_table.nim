@@ -16,8 +16,6 @@ func row(
     sub = "",
     distance = -1.0,
     active = -1.0,
-    file = "f.fit",
-    user = "default",
     path = "/x/f.fit",
     place = "",
     position = "",
@@ -38,8 +36,6 @@ func row(
         some(active)
       else:
         none(float),
-    file: file,
-    user: user,
     path: path,
     place: place,
     name: name,
@@ -147,8 +143,8 @@ suite "list table: the table":
     )
   test "verbose adds the sub-sport and the path, last":
     let rows = @[
-      row(mar4, "cycling", "road", 1000.0, 60.0, "a.fit", "alice", "/x/a.fit"),
-      row(aug27, "running", "", 2000.0, 120.0, "bb.fit", "bob", "/y/bb.fit"),
+      row(mar4, "cycling", "road", 1000.0, 60.0, "/x/a.fit"),
+      row(aug27, "running", "", 2000.0, 120.0, "/y/bb.fit"),
     ]
     let plain = table(rows, zone, false, 120).texts
     check plain[0] ==
@@ -169,20 +165,13 @@ suite "list table: the table":
         "",
         1000.0,
         60.0,
-        "a.fit",
-        "alice",
         "/x/a.fit",
         "Valparaíso",
         "-33.0360,-71.6296",
         name = "Quillota and back",
       ),
-      row(
-        aug27, "cycling", "", 2000.0, 120.0, "b.fit", "alice", "/y/b.fit", "Zürich",
-        "47.3667,8.5500",
-      ),
-      row(
-        aug27, "swimming", "", 2000.0, 120.0, "c.fit", "alice", "/z/c.fit", "", "no GPS"
-      ),
+      row(aug27, "cycling", "", 2000.0, 120.0, "/y/b.fit", "Zürich", "47.3667,8.5500"),
+      row(aug27, "swimming", "", 2000.0, 120.0, "/z/c.fit", "", "no GPS"),
     ]
     let t = table(rows, zone, true, 120).texts
     check t[2].endsWith("1m00s │ Valparaíso / Quillota and back │ /x/a.fit")

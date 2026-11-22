@@ -1,6 +1,6 @@
 ## What the packages are, as a program can tell about itself: who depends on whom, which tables each owns and may read,
 ## which commands it provides, which extension points it defines and what each contributes.  Made from the registry
-## (`inventoryOf`), then drawn as lists, trees, layers or a Graphviz graph for `nch packages`.  Pure: no database, no
+## (`inventoryOf`), then drawn as a list, a tree or the extension points for `nch packages`.  Pure: no database, no
 ## terminal, so every view is tested with made-up packages.
 
 import std/[algorithm, options, sequtils, sets, strformat, strutils, tables]
@@ -127,9 +127,6 @@ func listOf(items: seq[string]): string =
     "-"
   else:
     items.join(", ")
-
-func countOf(items: seq[string]): string =
-  $items.len
 
 type PackageFilter* = object
   ## What narrows the list of packages (`nch packages -U NAME -B NAME -T TABLE`): each given is one more test.

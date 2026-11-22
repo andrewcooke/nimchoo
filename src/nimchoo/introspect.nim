@@ -160,13 +160,11 @@ const
        nch packages --points
        nch packages NAME --graph [--reverse]"""
   intro = @[
-    ~"The program describing itself: its packages in dependency order, each with what it is for, its layer (0 for a package that depends on nothing), how many packages it uses and is used by, how many tables it owns, and what it provides: commands, the extension points it defines, and those it contributes to.  With the name of a package, its documentation and everything else about it."
+    ~"The program describing itself: its packages, the ones that use the fewest others first, each with how many packages it uses and is used by (U/B) and what it is for; `-U`, `-B` and `-T` keep those that use a package, are used by one, or touch a table.  With the name of a package, its documentation and everything else about it: its layer, its tables, the commands it provides, the extension points it defines and those it contributes to."
   ]
 
 proc usageText*(width: int): seq[Line] =
   usageOf(synopsis, width, intro, packagesSpec().docs)
-
-# --- the settings ------------------------------------------------------------------------------------------------------
 
 # --- the command -------------------------------------------------------------------------------------------------------
 

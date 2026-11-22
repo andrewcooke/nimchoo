@@ -167,15 +167,6 @@ suite "download: fetching":
     net.free = none(int64)
     check fetchSource(envOf(net), sinkOf(net), fresh("unknown"), geonamesCountry, "CL").isSome
 
-  test "what the downloads take":
-    let net = newNet()
-    net.bodies[chile] = makeZip([("CL.txt", "x")])
-    let dir = fresh("usage")
-    check dataUsage(dir) == DataUsage()
-    discard fetchSource(envOf(net), sinkOf(net), dir, geonamesCountry, "CL")
-    check dataUsage(dir).files == 1 and
-      dataUsage(dir).bytes == int64(net.bodies.getOrDefault(chile).len)
-
 suite "download: the same events in the log and on the screen":
   test "downloaded is info, failed is an error; the screen gets a line each":
     let path = getTempDir() / "nch-test-download" / "log" / "nch.log"

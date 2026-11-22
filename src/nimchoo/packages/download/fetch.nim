@@ -81,10 +81,6 @@ type
 
   Sink* = proc(ev: DownloadEvent) {.closure, raises: [].}
 
-  DataUsage* = object
-    files*: int
-    bytes*: int64
-
 func shortUrl*(url: string): string =
   ## The address without "https://" (or "http://"), for the screen.
   if url.startsWith("https://"):
@@ -307,14 +303,3 @@ proc fetchSource*(
     )
   )
   some(path)
-
-# --- what is there
-
-proc dataUsage*(dataDir: string): DataUsage =
-  ## How many files, and how many bytes, the downloads take.
-  try:
-    for path in walkDirRec(dataDir):
-      inc result.files
-      result.bytes += getFileSize(path)
-  except OSError:
-    discard

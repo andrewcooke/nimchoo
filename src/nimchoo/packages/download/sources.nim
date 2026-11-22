@@ -1,5 +1,5 @@
 ## Everything nch downloads, listed in one place: where from, what the file is, how big it may be.
-## (Data that must travel with the program, or be pinned, is not downloaded: see TODO.md, task 13.)
+## (Data that must travel with the program, or be pinned, is not downloaded.)
 ## A pattern's `{arg}` is replaced by the argument given when the source is fetched (a country code).
 
 import std/options

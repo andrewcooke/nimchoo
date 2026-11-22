@@ -17,8 +17,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
   sqlOf(
     "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
       "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
-      "coalesce(a.timer_s, -1) as active, f.name as file, " &
-      "(select name from user where id = f.user_id) as user, " &
+      "coalesce(a.timer_s, -1) as active, " &
       # whether the user has it in their selection
       "a.id in (select activity_id from selection where user_id = :me) as chosen, " & (
       if verbose:
@@ -35,7 +34,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
     .with("me", userId)
 
 const rowFields* =
-  "start_t, sport, sub, dist, active, file, user, chosen, path, pname, aname, slat, slon"
+  "start_t, sport, sub, dist, active, chosen, path, pname, aname, slat, slon"
   ## the columns of a row, in the order `readRows` reads them
 
 proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
@@ -45,7 +44,6 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       startT: int64,
       sport, subSport: string,
       dist, active: float,
-      file, user: string,
       chosen: bool,
       path, place, name: string,
       lat, lon: Option[float],
@@ -58,8 +56,6 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       subSport: r.subSport,
       distanceM: (if r.dist >= 0: some(r.dist) else: none(float)),
       activeS: (if r.active >= 0: some(r.active) else: none(float)),
-      file: r.file,
-      user: r.user,
       selected: r.chosen,
       path: r.path,
       place: r.place,

@@ -8,8 +8,8 @@
 ## A style may run over a newline: the text is read into lines (`style.Line`), and each span carries its styles, so a line
 ## is drawn on its own (it starts from nothing and ends with a reset), and can be cut or printed without the next.
 ##
-## Reading the markup needs no theme, so it can be checked before a theme is known.  There is no fixed set of styles: a
-## name is whatever a theme defines, and one the theme lacks changes nothing.
+## Reading the markup needs no theme, and every style name is checked against `programStyles` when the program is compiled
+## (a name no theme defines changes nothing when drawn).
 
 import std/[macros, strformat, strutils]
 import ../../core/[errors, line]

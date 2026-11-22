@@ -1,5 +1,5 @@
-## How numbers are written with their units, for the descriptions every module makes of its own things (see AGENTS.md,
-## "describing things"): the unit follows the number with no space ("36.7km", as in "4h41m", see interval.nim).  Pure.
+## How numbers are written with their units, for the descriptions every module makes of its own things (the rules are in the
+## `ui` package's documentation): the unit follows the number with no space ("36.7km", as in "4h41m", see interval.nim).  Pure.
 
 import std/[math, options, strutils]
 

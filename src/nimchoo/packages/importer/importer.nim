@@ -84,7 +84,7 @@ type Decoded* = object
   routes*: seq[Option[string]]
 
 func channelsOf*(steps: seq[ImportStep]): seq[string] =
-  ## The record fields the import steps want besides the position (see db/channel.nim), once each.
+  ## The record fields the import steps want besides the position (see channel.nim), once each.
   for step in steps:
     for ch in step.channels:
       if ch notin result:

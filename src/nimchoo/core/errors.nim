@@ -2,7 +2,7 @@
 ## bad profile) raises a subtype of `NchError`, carrying where the problem is
 ## as fields as well as in the message.  (Bugs are not errors: they are
 ## Defects, from `doAssert`/`raiseAssert` and the built-in checks.  Ordinary
-## absence is an `Option`.  See "Conventions" in TODO.md.)
+## absence is an `Option`.  See "Conventions" in CLAUDE.md.)
 
 {.push raises: [].}
 

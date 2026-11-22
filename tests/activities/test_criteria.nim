@@ -304,7 +304,7 @@ suite "list: the command line":
 suite "list: the box and the sql":
   test "--from: the index of the start points, and the distance from the start":
     let q = matchSql(
-      @[UserId(1)],
+      UserId(1),
       Criteria(radius: some(Distance(5000.0))),
       Points(start: some((38.7, -9.1))),
     )
@@ -318,14 +318,14 @@ suite "list: the box and the sql":
       q.value("startM") == arg(5000.0)
     check not m.contains("route")
     let across = matchSql(
-      @[UserId(1)],
+      UserId(1),
       Criteria(radius: some(Distance(50000.0))),
       Points(start: some((-17.0, 179.9))),
     )
     check across.text.count("SpatialIndex") == 2 and across.text.contains(" or ")
     check across.has("startBox0West") and across.has("startBox1North")
   test "--near: the index of the routes, and the distance from the route":
-    let q = matchSql(@[UserId(1)], Criteria(), Points(passes: some((38.7, -9.1))))
+    let q = matchSql(UserId(1), Criteria(), Points(passes: some((38.7, -9.1))))
     let m = q.text
     check m.contains("f_table_name = 'route'") and
       m.contains("f_geometry_column = 'geom'")
@@ -345,26 +345,26 @@ suite "list: the box and the sql":
     check parseArgs(@["--no-gps", "--gps"], utcZone).problem.contains(
       "cannot be used together"
     )
-    let with = matchSql(@[UserId(1)], Criteria(gps: gfWith), Points()).text
+    let with = matchSql(UserId(1), Criteria(gps: gfWith), Points()).text
     check with.contains(
       " and exists (select 1 from track k where k.activity_id = a.id)"
     )
-    let without = matchSql(@[UserId(1)], Criteria(gps: gfWithout), Points()).text
+    let without = matchSql(UserId(1), Criteria(gps: gfWithout), Points()).text
     check without.contains(
       " and not exists (select 1 from track k where k.activity_id = a.id)"
     )
-    check not matchSql(@[UserId(1)], Criteria(), Points()).text.contains("coords")
+    check not matchSql(UserId(1), Criteria(), Points()).text.contains("coords")
 
   test "the sql has what was asked for, and nothing else":
-    let q = matchSql(@[UserId(1), UserId(2)], Criteria(), Points())
+    let q = matchSql(UserId(2), Criteria(), Points())
     let plain = q.text
     check plain ==
-      "select a.id from activity a join file f on f.id = a.file_id where f.user_id in (select value from json_each(:users))"
-    check q.args.len == 1 and q.value("users") == arg("[1,2]")
+      "select a.id from activity a join file f on f.id = a.file_id where f.user_id = :user"
+    check q.args.len == 1 and q.value("user") == arg(2'i64)
     check not plain.contains("start_t") and not plain.contains("route") and
       not plain.contains("limit")
     let fullQ = matchSql(
-      @[UserId(1)],
+      UserId(1),
       Criteria(
         afterT: some(UnixTime(5)),
         beforeT: some(UnixTime(9)),
@@ -385,7 +385,7 @@ suite "list: the box and the sql":
     check fullQ.value("startM") == arg(5000.0)
     check full.endsWith("order by a.start_t desc limit :newest")
     check fullQ.value("newest") == arg(2)
-    let oldest = matchSql(@[UserId(1)], Criteria(oldest: 4), Points())
+    let oldest = matchSql(UserId(1), Criteria(oldest: 4), Points())
     check oldest.text.endsWith("order by a.start_t asc limit :oldest")
     check oldest.value("oldest") == arg(4)
   test "sports are bound values, none means NULL, nothing without values":
@@ -403,11 +403,11 @@ suite "list: the box and the sql":
     check hostile.text == " and (a.sport in (:sport0))"
     check hostile.value("sport0") == arg("x'; drop table user; --")
     let m = matchSql(
-      @[UserId(1)], Criteria(sports: @["cycling"], subSports: @["none"]), Points()
+      UserId(1), Criteria(sports: @["cycling"], subSports: @["none"]), Points()
     )
     check m.text.contains("a.sport in (:sport0)") and
       m.text.contains("a.sub_sport is null")
-    check not matchSql(@[UserId(1)], Criteria(), Points()).text.contains("sport")
+    check not matchSql(UserId(1), Criteria(), Points()).text.contains("sport")
   test "ranges become inclusive comparisons, only for the ends given":
     check rangeSql("a.distance_m", "distance", NumRange()).text == ""
     let lo = rangeSql("a.distance_m", "distance", NumRange(lo: some 40000.0))
@@ -420,13 +420,13 @@ suite "list: the box and the sql":
     check both.text == " and a.timer_s >= :activeLo and a.timer_s <= :activeHi"
     check both.value("activeHi") == arg(120.5) # (exact: not rounded to 3 decimals)
     let m = matchSql(
-      @[UserId(1)],
+      UserId(1),
       Criteria(distanceM: NumRange(lo: some 1000.0), activeS: NumRange(hi: some 60.0)),
       Points(),
     )
     check m.text.contains("a.distance_m >= :distanceLo") and
       m.text.contains("a.timer_s <= :activeHi")
-    check not matchSql(@[UserId(1)], Criteria(), Points()).text.contains("distance_m")
+    check not matchSql(UserId(1), Criteria(), Points()).text.contains("distance_m")
 
 suite "list: --names and --starts":
   proc parsed(args: varargs[string]): Criteria =
@@ -451,7 +451,7 @@ suite "list: --names and --starts":
     check parseArgs(@["--names"], utcZone).problem.len > 0
   test "the sql: the folded text found in the column, none for nothing, an exact value for what latest came to":
     let c = parsed("--names", "toyo", "none", "--starts", "o'higgins")
-    let m = matchSql(@[UserId(1)], c, Points())
+    let m = matchSql(UserId(1), c, Points())
     let q = m.text
     check q.contains("instr(fold(a.name), :nameT0) > 0") and
       q.contains("(a.name is null or a.name = '')")
@@ -461,27 +461,27 @@ suite "list: --names and --starts":
     var e = Criteria()
     e.namesExact = @["El Toyo and back", ""]
     e.startsExact = @["Providencia"]
-    let rq = matchSql(@[UserId(1)], e, Points())
+    let rq = matchSql(UserId(1), e, Points())
     let r = rq.text
     check r.contains("a.name = :nameE0") and
       r.contains("(a.name is null or a.name = '')")
     check rq.value("nameE0") == arg("El Toyo and back")
     check r.contains("a.start_place = :startE0") and
       rq.value("startE0") == arg("Providencia")
-    check not matchSql(@[UserId(1)], Criteria(), Points()).text.contains("fold(")
+    check not matchSql(UserId(1), Criteria(), Points()).text.contains("fold(")
 
 suite "list: --paths":
   test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
     let c = parseArgs(@["--paths", "bowman", "run", "2026-10"], utcZone).params
     check c.paths == @["bowman", "run", "2026-10"]
-    let m = matchSql(@[UserId(1)], c, Points())
+    let m = matchSql(UserId(1), c, Points())
     let q = m.text
     check q.contains("instr(fold(f.name), :path0) > 0") and
       q.contains(
         "from seen_file s where s.file_id = f.id and instr(fold(s.path), :path0) > 0"
       )
     check m.value("path0") == arg("bowman") and m.has("path2")
-    check not matchSql(@[UserId(1)], Criteria(), Points()).text.contains("seen_file")
+    check not matchSql(UserId(1), Criteria(), Points()).text.contains("seen_file")
   test "latest is just text here; a path needs some text and is a criterion":
     check parseArgs(@["--paths", "latest"], utcZone).params.paths == @["latest"]
     check parseArgs(@["--paths"], utcZone).problem.len > 0
@@ -499,19 +499,18 @@ suite "list: --invert":
   test "the sql negates all of the criteria together, treating an unknown as no match":
     let c =
       parseArgs(@["--sports", "cycling", "--names", "toyo", "--invert"], utcZone).params
-    let q = matchSql(@[UserId(1)], c, Points()).text
+    let q = matchSql(UserId(1), c, Points()).text
     check q.contains(
       " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :nameT0) > 0"
     )
     check q.endsWith("), 0)")
-    let plain = matchSql(
-      @[UserId(1)], parseArgs(@["--sports", "cycling"], utcZone).params, Points()
-    )
+    let plain =
+      matchSql(UserId(1), parseArgs(@["--sports", "cycling"], utcZone).params, Points())
     check not plain.text.contains("coalesce")
   test "the limits come after the inverting, and latest is found before it":
     let c =
       parseArgs(@["--sports", "cycling", "--invert", "--newest", "2"], utcZone).params
-    check matchSql(@[UserId(1)], c, Points()).text.endsWith(
+    check matchSql(UserId(1), c, Points()).text.endsWith(
       " order by a.start_t desc limit :newest"
     )
     let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).params
@@ -549,7 +548,7 @@ suite "list: criteria that other packages offer":
       optionLines(criteriaSpec(@[offered]).docs, 100).plainText
   test "the conditions are joined by the command, with and":
     let c = Criteria()
-    let q = matchSql(@[UserId(1)], c, Points(), extra = sqlOf(" and (a.id = 7)"))
+    let q = matchSql(UserId(1), c, Points(), extra = sqlOf(" and (a.id = 7)"))
     check q.text.contains(" and (a.id = 7)")
 
 suite "list: --delete":

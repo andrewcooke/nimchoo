@@ -200,7 +200,7 @@ proc summaryLines*(
   ## A table of the climbs (`core/ruled.nim`), each the standard way, then how the user did on it:
   ##
   ##     climb                 cat  length   gain  gradient             best    best selected  rank  attempts
-  ##     Cerro San Luis (4/5)  4     0.5km   +89m     17.8%  8:25 2019-03-02  9:41 2020-08-14     3         4
+  ##     Cerro San Luis₄  4       0.5km   +89m     17.8%  8:25 2019-03-02  9:41 2020-08-14     3         4
   ##
   ## the best time of all the user's attempts, with its date, and (in the selection's colour) the best of those on the
   ## selected rides, with its date, and where that one ranks among all the user's own attempts, then how many there are.  Or, with `everyone`, the people: how many have ridden it, the fastest and who,

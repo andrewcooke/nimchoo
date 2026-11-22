@@ -715,24 +715,17 @@ func nearSql(
     result.with(name & "Lon", lon).with(name & "Lat", lat).with(name & "M", km * 1000)
 
 func matchSql*(
-    userIds: seq[UserId],
-    c: Criteria,
-    points: Points,
-    columns = sqlOf("a.id"),
-    extra = Sql(),
+    userId: UserId, c: Criteria, points: Points, columns = sqlOf("a.id"), extra = Sql()
 ): Sql =
-  ## A query for the activities of `userIds` that meet the criteria, giving
+  ## A query for the activities of the user `userId` that meet the criteria, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
   ## criteria become SQL, used to list them, to count them and to save them.
   ## `extra` is the conditions of the criteria other packages offer, each " and (...)" (`resolveOffered`).
   ## `points` are the points `--from` and `--near` came to.  Every value is bound by name (`sqltext.nim`).
-  var ids: seq[int64]
-  for id in userIds:
-    ids.add int64(id)
   result =
     "select " & columns & " from activity a join file f on f.id = a.file_id " &
-    "where f.user_id in (select value from json_each(:users))"
-  result = result.with("users", jsonList(ids))
+    "where f.user_id = :user"
+  result = result.with("user", int64(userId))
   var filt = Sql()
     # the criteria, each as " and ...": with --invert, the whole is negated
   filt = filt & inValues("a.sport", "sport", c.sports)

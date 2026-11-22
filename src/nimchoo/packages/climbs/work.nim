@@ -34,7 +34,7 @@ import ../ui/units
 
 const
   algorithmVersion* = 5
-    ## 5: an effort's start is measured from the start of the ride, not of its stretch.  4: a ride is read as its stretches of riding (importer/stretch.nim), and a climb or an effort never crosses a break.  3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
+    ## 5: an effort's start is measured from the start of the ride, not of its stretch.  4: a ride is read as its stretches of riding (importer/track.nim), and a climb or an effort never crosses a break.  3: the profile every 5 m and not smoothed.  2: a climb that is a repeat of a stored one but earned the ride no effort on it is a sector of its own
   ridePointLimit = 3_000_000 ## about 70 MB
 
 type
@@ -301,10 +301,10 @@ type Counts* = object
   manual*: int ## of the sectors, those with a name given by hand
 
 func describe*(c: Counts): string =
-  ## "43 sectors and 220 efforts (of every user)", and what would be lost that cannot be made again:
-  ## "43 sectors and 220 efforts (of every user); 2 names given by hand are lost".
+  ## "43 climbs and 220 efforts (of every user)", and what would be lost that cannot be made again:
+  ## "43 climbs and 220 efforts (of every user); 2 names given by hand are lost".
   result =
-    counted(c.sectors, "sector", "sectors") & " and " &
+    counted(c.sectors, "climb", "climbs") & " and " &
     counted(c.efforts, "effort", "efforts") & " (of every user)"
   if c.manual > 0:
     result.add "; " & $c.manual & (

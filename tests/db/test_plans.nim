@@ -139,13 +139,13 @@ suite "query plans: no query reads a whole table":
     each.add ("all, inverted", inverted, Points(start: here, passes: here))
     # (a criterion that another package offers: the climbs; its condition is joined by `and`)
     let climbs = sqlOf(" and (") & onClimbs(@[1'i64]) & sqlOf(")")
-    check scans(plan(st.db, matchSql(@[UserId(1)], all, nowhere, extra = climbs).text)).len ==
+    check scans(plan(st.db, matchSql(UserId(1), all, nowhere, extra = climbs).text)).len ==
       0
     check scans(
-      plan(st.db, matchSql(@[UserId(1)], Criteria(), nowhere, extra = climbs).text)
+      plan(st.db, matchSql(UserId(1), Criteria(), nowhere, extra = climbs).text)
     ).len == 0
     for (what, c, points) in each:
-      let p = plan(st.db, matchSql(@[UserId(1)], c, points).text)
+      let p = plan(st.db, matchSql(UserId(1), c, points).text)
       checkpoint what
       check scans(p).len == 0
       if points.start.isSome or points.passes.isSome:
