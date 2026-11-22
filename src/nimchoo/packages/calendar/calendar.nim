@@ -18,7 +18,7 @@
 
 import std/[algorithm, sequtils, sets, strformat, strutils, times]
 import ../fit/time
-import ../ui/style
+import ../ui/[markup, style]
 import ../ui/vocabulary
 
 {.push raises: [].}
@@ -58,16 +58,15 @@ func dayCell(day: int, kind: DayKind, s: Screen): Line =
   if s.colour:
     case kind
     of dkMarked:
-      @[span(two(day), selectedStyle)]
+      ~"<{selectedStyle} {two(day)}>"
     of dkBackground:
-      @[span(two(day))]
+      ~"{two(day)}"
     of dkNone:
-      @[span(two(day), "hide")]
+      ~"<hide {two(day)}>"
   else:
     let text = (if kind == dkNone: "--" else: two(day))
     let marked = kind == dkMarked
-    @[span(" ")] & bracketed(plain(text), marked) & (if marked: @[]
-    else: @[span(" ")])
+    ~" " & bracketed(plain(text), marked) & (if marked: @[] else: ~" ")
 
 proc monthsOf(marks: seq[UnixTime], zone: Timezone): seq[int] =
   ## The months (year * 12 + month - 1) with a mark, in order.
@@ -105,10 +104,11 @@ proc calendarLines*(
   if allMonths:
     months = toSeq(months[0] .. months[^1])
   let cw = cellWidth(screen)
-  var header: Line = @[span(" ".repeat(labelWidth))]
+  let margin = " ".repeat(labelWidth)
+  var header: Line = ~"{margin}"
   for k in 0 ..< cells:
     let name = weekdayNames[k mod 7]
-    header.add span((if screen.colour: fmt"{name} " else: fmt"  {name} "))
+    header.add (if screen.colour: ~"{name} " else: ~"  {name} ")
   result.add header
   for m in months:
     let year = m div 12
@@ -121,17 +121,17 @@ proc calendarLines*(
       months.find(m) < months.high and months[months.find(m) + 1] - m > 1
     var line: Line =
       if screen.colour:
-        @[(if gap: span(monthNames[m mod 12], "warn") else: span(monthNames[m mod 12]))]
+        (if gap: ~"<warn {monthNames[m mod 12]}>" else: ~"{monthNames[m mod 12]}")
       elif gap:
-        @[span(fmt"{monthNames[m mod 12]}*")]
+        ~"{monthNames[m mod 12]}*"
       else:
-        @[span(fmt"{monthNames[m mod 12]} ")]
+        ~"{monthNames[m mod 12]} "
     for k in 0 ..< cells:
       let day = k - offset + 1
       if screen.colour:
-        line.add span(" ") # (the space before each day: see below)
+        line.add ~" " # (the space before each day: see below)
       if day < 1 or day > days:
-        line.add span(" ".repeat(if screen.colour: 2 else: cw))
+        line.add ~"{' '.repeat(if screen.colour: 2 else: cw)}"
       else:
         let key = year * 10000 + (m mod 12 + 1) * 100 + day
         let kind =
@@ -143,7 +143,7 @@ proc calendarLines*(
             dkNone
         line.add dayCell(day, kind, screen)
     if screen.colour:
-      line.add span(" ")
+      line.add ~" "
       # a space next to a marked day is marked too, so that a marked day, or a run of them, is a band (" 05 06 "), not
       # the digits and the space after them
       for i in 1 ..< line.high:
@@ -152,13 +152,9 @@ proc calendarLines*(
           line[i + 1].styles == @[selectedStyle]
         ):
           line[i] = span(" ", selectedStyle)
-    line.add span(fmt"  {year}")
+    line.add ~"  {year}"
     result.add line
   if screen.width > 0 and calendarWidth(screen) > screen.width:
     result = result.mapIt(it.truncated(screen.width))
-    result.insert @[
-      span(
-        fmt"the calendar needs {calendarWidth(screen)} columns and the screen has {screen.width}: the lines are cut",
-        "warn",
-      )
-    ], 0
+    result.insert ~"<warn the calendar needs {calendarWidth(screen)} columns and the screen has {screen.width}: the lines are cut>",
+      0
