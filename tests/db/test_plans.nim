@@ -15,7 +15,6 @@ import nimchoo/packages/names/lookup
 import nimchoo/packages/activities/criteria
 import nimchoo/packages/climbs/criterion as climbsCriterion
 import nimchoo/packages/activities/ranges
-import nimchoo/packages/ui/units
 
 ## The queries that run for every file, every ride or every cell must find their rows through an index (a primary key,
 ## a unique key, or the spatial index), never by reading a whole table: one that does is correct on a test database and
@@ -95,66 +94,62 @@ suite "query plans: no query reads a whole table":
       checkpoint what
       check scans(plan(st.db, text)).len == 0
   test "the criteria of a listing, each alone and all together":
-    let none = none((float, float))
-    let all = Criteria(
-      sports: @["cycling"],
-      subSports: @["road"],
-      names: @["toyo"],
-      namesExact: @["El Toyo"],
-      starts: @["lisboa"],
-      paths: @["bowman"],
-      distanceM: NumRange(lo: some 1.0, hi: some 2.0),
-      activeS: NumRange(lo: some 1.0),
-      afterT: some(UnixTime(1)),
-      beforeT: some(UnixTime(2)),
-      gps: gfWith,
-      radius: some(Distance(5000.0)),
-    )
-    let here = some((38.7, -9.1))
-    let nowhere = Points()
-    var each: seq[(string, Criteria, Points)] = @[
-      ("none", Criteria(), nowhere),
-      ("sports", Criteria(sports: @["cycling"]), nowhere),
-      ("names", Criteria(names: @["toyo"]), nowhere),
-      ("paths", Criteria(paths: @["bowman"]), nowhere),
-      ("a range", Criteria(distanceM: NumRange(lo: some 1.0)), nowhere),
-      ("no gps", Criteria(gps: gfWithout), nowhere),
-      ("from", Criteria(radius: some(Distance(5000.0))), Points(start: here)),
+    let sports = Resolved(kind: rtSports, values: @["cycling"])
+    let names = Resolved(kind: rtNames, typed: @["toyo"], exact: @["El Toyo"])
+    let paths = Resolved(kind: rtPaths, paths: @["bowman"])
+    let from1 = Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0)
+    let near1 = Resolved(kind: rtNear, lat: 38.7, lon: -9.1, km: 1.0)
+    let all = @[
+      sports,
+      Resolved(kind: rtSubSports, values: @["road"]),
+      names,
+      Resolved(kind: rtStarts, typed: @["lisboa"]),
+      paths,
+      Resolved(kind: rtDistance, range: NumRange(lo: some 1.0, hi: some 2.0)),
+      Resolved(kind: rtActive, range: NumRange(lo: some 1.0)),
+      Resolved(kind: rtAfter, at: UnixTime(1)),
+      Resolved(kind: rtBefore, at: UnixTime(2)),
+      Resolved(kind: rtGps, gps: gpsWith),
+      from1,
+      near1,
+    ]
+    let each: seq[(string, seq[Resolved], bool)] = @[
+      ("none", @[], false),
+      ("sports", @[sports], false),
+      ("names", @[names], false),
+      ("paths", @[paths], false),
+      ("a range", @[Resolved(kind: rtDistance, range: NumRange(lo: some 1.0))], false),
+      ("no gps", @[Resolved(kind: rtGps, gps: gpsWithout)], false),
+      ("from", @[from1], true),
       (
         "from, across the date line",
-        Criteria(radius: some(Distance(50000.0))),
-        Points(start: some((-17.0, 179.9))),
+        @[Resolved(kind: rtFrom, lat: -17.0, lon: 179.9, km: 50.0)],
+        true,
       ),
-      ("near (a route passing)", Criteria(), Points(passes: here)),
+      ("near (a route passing)", @[near1], true),
       (
         "near, across the date line",
-        Criteria(radius: some(Distance(50000.0))),
-        Points(passes: some((-17.0, 179.9))),
+        @[Resolved(kind: rtNear, lat: -17.0, lon: 179.9, km: 50.0)],
+        true,
       ),
-      ("all", all, Points(start: here, passes: here)),
+      ("all", all, true),
     ]
     # (inverted, and limited: the newest 3, the oldest 3)
-    let both = Points(start: here, passes: here)
-    check scans(plan(st.db, matchSql(UserId(1), all, both, invert = true).text)).len == 0
+    check scans(plan(st.db, matchSql(UserId(1), all, invert = true).text)).len == 0
     for kind in [lkNewest, lkOldest]:
       check scans(
         plan(
           st.db,
-          matchSql(
-            UserId(1), Criteria(), nowhere, limit = some(Limit(kind: kind, count: 3))
-          ).text,
+          matchSql(UserId(1), @[], limit = some(Limit(kind: kind, count: 3))).text,
         )
       ).len == 0
     # (a criterion that another package offers: the climbs; its condition is joined by `and`)
-    let climbs = sqlOf(" and (") & onClimbs(@[1'i64]) & sqlOf(")")
-    check scans(plan(st.db, matchSql(UserId(1), all, nowhere, extra = climbs).text)).len ==
-      0
-    check scans(
-      plan(st.db, matchSql(UserId(1), Criteria(), nowhere, extra = climbs).text)
-    ).len == 0
-    for (what, c, points) in each:
-      let p = plan(st.db, matchSql(UserId(1), c, points).text)
+    let climbs = Resolved(kind: rtCondition, condition: onClimbs(@[1'i64]))
+    check scans(plan(st.db, matchSql(UserId(1), all & climbs).text)).len == 0
+    check scans(plan(st.db, matchSql(UserId(1), @[climbs]).text)).len == 0
+    for (what, filters, spatial) in each:
+      let p = plan(st.db, matchSql(UserId(1), filters).text)
       checkpoint what
       check scans(p).len == 0
-      if points.start.isSome or points.passes.isSome:
+      if spatial:
         check usesSpatialIndex(p)

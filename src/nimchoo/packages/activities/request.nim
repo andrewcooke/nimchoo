@@ -1,58 +1,142 @@
-## What `nch activities` is asked to do, as a value that cannot say what makes no sense: an **action** (show them, delete them,
-## name them again) on a **scope** (the selection, every activity, or those that match criteria).  The command line is parsed
-## into one (`criteria.parseArgs`); the combinations the options could be given in that mean nothing (`--delete -v`, `--rename
-## --select`, `--all` with a criterion, `--newest` with `--oldest`) are refused there and are not representable here.  Pure.
+## What `nch activities` is asked to do, as a value that cannot say what makes no sense.
+##
+## An **action** (show them, delete them, name them again) on a **scope** (the selection, every activity, or those that match
+## **filters**).  The command line is parsed into one (`criteria.parseArgs`); the combinations the options could be given in that
+## mean nothing (`--delete -v`, `--rename --select`, `--all` with a criterion, `--newest` with `--oldest`) are refused there and
+## are not representable here.
+##
+## Two stages of filters, two types.  A `Filter` is a criterion as it was typed: a value that may refer to `latest` or `previous`
+## (an activity found when the command runs), a number that may be an activity's, the words another package resolves.  A
+## `Resolved` filter has its values (`criteria.matchSql` takes only these, so no reference can reach the SQL).  `refersTo` and
+## `withoutLatest` are each one `case` over the kind of filter with no `else`: a new criterion does not compile until every place
+## handles it.  Pure.
 
 import std/options
 import ../fit/time
-import ../near/near
+import ../db/sqltext
 import ../ui/units
 import ./[criterion, ranges]
 
 {.push raises: [].}
 
 type
-  Points* = object
-    ## the points `--from` and `--near` came to, once a place, `latest` and `previous` are worked out: (lat, lon)
-    start*, passes*: Option[(float, float)]
+  Listed* = object
+    ## `--sports`, `--sub-sports`, `--names`, `--starts`: the values given, and perhaps the one of another activity.
+    values*: seq[string]
+    refers*: Option[Referent]
 
-  GpsFilter* = enum
-    gfAny
-    gfWith
-    gfWithout
-      ## --gps: only activities with at least one position; --no-gps: only those without any
+  Spread* = object
+    ## `--distance`, `--active`: a range, or around that of another activity.
+    case byReference*: bool
+    of false:
+      range*: NumRange
+    of true:
+      refers*: Referent
+      tol*: Tol
 
-  Relative* = object
-    ## `latest~10%`: around an activity that is found when the command runs.
-    refers*: Reference
-    tol*: Tol
+  PlaceKind* = enum
+    plPoint
+    plPlace
+    plReferent
 
-  Criteria* = object
-    ## Which activities, as the options that pick them were given.  (None given: every field is as `Criteria()`.)
-    distanceM*, activeS*: NumRange ## --distance, --active (metres, seconds; open: any)
-    distanceRel*, activeRel*: Option[Relative]
-      ## --distance latest~T / previous~T, --active ...
-    sportRef*, subSportRef*: Reference ## --sports latest / previous, --sub-sports ...
-    sports*, subSports*: seq[string]
-      ## only these (lower case; "none": not recorded); empty: any
-    nameRef*, startRef*: Reference ## --names latest / previous, --starts ...
-    names*, starts*: seq[string]
-      ## --names, --starts: text found in the name (the start place), whatever its case and
-      ## accents; "none": nothing; empty: any
-    namesExact*, startsExact*: seq[string]
-      ## what `latest` / `previous` came to: the whole value ("" is none)
-    nameIds*: seq[int64]
-      ## the activities a whole number in `--names` meant, when no name held it (worked out when the command runs)
-    paths*: seq[string]
-      ## --paths: text found in a path the file was imported from (or in its name)
-    contributed*: seq[Contributed]
-      ## the options that other packages offer (`--climbs`), as given: they are resolved when the command runs
-    afterT*: Option[UnixTime] ## the activity starts at or after this instant
-    beforeT*: Option[UnixTime] ## the activity starts before this instant
-    gps*: GpsFilter
-    start*: Spot ## --from: where the activity starts
-    passes*: Spot ## --near: a point its route passes
-    radius*: Option[Distance] ## --radius (none: each its default)
+  Place* = object ## `--from`, `--near`: where.
+    case kind*: PlaceKind
+    of plPoint:
+      lat*, lon*: float
+    of plPlace:
+      name*: string
+        ## a landmark, else the biggest place of that name among the names loaded
+    of plReferent:
+      refers*: Referent ## where that activity started
+
+  Gps* = enum
+    gpsWith ## --gps: only activities with at least one position
+    gpsWithout ## --no-gps: only those without any
+
+  FilterKind* = enum
+    ftSports
+    ftSubSports
+    ftNames
+    ftStarts
+    ftPaths
+    ftContributed
+    ftDistance
+    ftActive
+    ftAfter
+    ftBefore
+    ftGps
+    ftFrom
+    ftNear
+
+  Filter* = object ## One criterion, as given.
+    case kind*: FilterKind
+    of ftSports, ftSubSports, ftNames, ftStarts:
+      listed*: Listed ## lower case for the sports; "none": not recorded
+    of ftPaths:
+      paths*: seq[string]
+        ## text found in a path the file was imported from (or in its name)
+    of ftContributed:
+      contributed*: Contributed
+        ## an option that another package offers (`--climbs`), as given
+    of ftDistance, ftActive:
+      spread*: Spread ## metres, seconds
+    of ftAfter, ftBefore:
+      at*: UnixTime ## the activity starts at or after (before) this instant
+    of ftGps:
+      gps*: Gps
+    of ftFrom, ftNear:
+      place*: Place
+      radius*: Option[Distance] ## none: each its default (`near.startKm`, `passKm`)
+
+  ResolvedKind* = enum
+    ## In the order the conditions are written in the SQL.
+    rtSports
+    rtSubSports
+    rtNames
+    rtStarts
+    rtPaths
+    rtCondition
+    rtDistance
+    rtActive
+    rtGps
+    rtAfter
+    rtBefore
+    rtFrom
+    rtNear
+
+  Resolved* = object
+    ## One criterion with its values: nothing in it refers to an activity that is yet to be found.
+    case kind*: ResolvedKind
+    of rtSports, rtSubSports:
+      values*: seq[string] ## lower case; "none": not recorded
+    of rtNames, rtStarts:
+      typed*: seq[string]
+        ## text found in the value, whatever its case and accents; "none": nothing
+      exact*: seq[string]
+        ## the whole value (what `latest` or `previous` came to; "" is none)
+      ids*: seq[int64] ## the activities a whole number meant (names only)
+    of rtPaths:
+      paths*: seq[string]
+    of rtCondition:
+      condition*: Sql
+        ## from the package that offers the criterion: true for the activities that meet it
+    of rtDistance, rtActive:
+      range*: NumRange ## metres, seconds (open: any)
+    of rtGps:
+      gps*: Gps
+    of rtAfter, rtBefore:
+      at*: UnixTime
+    of rtFrom, rtNear:
+      lat*, lon*: float
+      km*: float ## the radius
+
+  Anchor* = object
+    ## What an activity that a criterion refers to (the latest, the previous) is, as far as a criterion can use it.
+    sport*, subSport*: string ## "": not recorded
+    distanceM*, activeS*: Option[float]
+    name*, startPlace*: string ## "": none
+    start*: Option[(float, float)]
+      ## where it started (latitude, longitude); none if it has no positions
 
   LimitKind* = enum
     lkNewest
@@ -79,7 +163,7 @@ type
   ScopeKind* = enum
     scSelection ## no criteria and no `--all`: the selection kept in the database
     scAll ## --all: every activity (not just the selection)
-    scMatching ## those that meet the criteria
+    scMatching ## those that meet the filters
 
   Scope* = object
     case kind*: ScopeKind
@@ -88,9 +172,10 @@ type
     of scAll:
       allLimit*: Option[Limit] ## `--all --newest 3`
     of scMatching:
-      criteria*: Criteria
+      filters*: seq[Filter]
+        ## each kind at most once, except the contributed ones; not empty unless there is a limit
       invert*: bool
-        ## --invert: the activities that do NOT meet the criteria (before the limit); there is a criterion to invert
+        ## --invert: the activities that do NOT meet the filters (before the limit); there is a filter to invert
       limit*: Option[Limit]
 
   Request* = object
@@ -111,14 +196,65 @@ func searches*(s: Scope): bool =
   ## Whether the activities are searched for among all of them (not the selection kept).
   s.kind != scSelection
 
-func criteriaOf*(s: Scope): Criteria =
-  ## The criteria of a scope that has them (none given, for the others).
+func filtersOf*(s: Scope): seq[Filter] =
+  ## The filters of a scope that has them (none for the others).
   case s.kind
   of scMatching:
-    s.criteria
+    s.filters
   of scSelection, scAll:
-    Criteria()
+    @[]
 
 func inverts*(s: Scope): bool =
-  ## Whether the activities that do NOT meet the criteria are meant.
+  ## Whether the activities that do NOT meet the filters are meant.
   s.kind == scMatching and s.invert
+
+func refersTo*(f: Filter, r: Referent): bool =
+  ## Whether the criterion is measured against the activity `r` stands for.
+  case f.kind
+  of ftSports, ftSubSports, ftNames, ftStarts:
+    f.listed.refers == some(r)
+  of ftDistance, ftActive:
+    f.spread.byReference and f.spread.refers == r
+  of ftFrom, ftNear:
+    f.place.kind == plReferent and f.place.refers == r
+  of ftPaths, ftContributed, ftAfter, ftBefore, ftGps:
+    false
+
+func usesLatest*(filters: seq[Filter]): bool =
+  ## Whether a criterion refers to "latest".
+  for f in filters:
+    if f.refersTo(rfLatest):
+      return true
+
+func usesPrevious*(filters: seq[Filter]): bool =
+  ## Whether a criterion refers to "previous".
+  for f in filters:
+    if f.refersTo(rfPrevious):
+      return true
+
+func withoutLatest*(f: Filter): Option[Filter] =
+  ## The criterion without what refers to `latest` (none if that was all of it): the activities that meet what is left are
+  ## those among which "latest" is found.
+  case f.kind
+  of ftSports, ftSubSports, ftNames, ftStarts:
+    if f.listed.refers == some(rfLatest):
+      if f.listed.values.len == 0:
+        none(Filter)
+      else:
+        var rest = f
+        rest.listed.refers = none(Referent)
+        some(rest)
+    else:
+      some(f)
+  of ftDistance, ftActive:
+    if f.refersTo(rfLatest):
+      none(Filter)
+    else:
+      some(f)
+  of ftFrom, ftNear:
+    if f.refersTo(rfLatest):
+      none(Filter)
+    else:
+      some(f)
+  of ftPaths, ftContributed, ftAfter, ftBefore, ftGps:
+    some(f)

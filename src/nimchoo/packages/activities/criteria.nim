@@ -1,8 +1,7 @@
-## What `nch activities` is asked for: the command line parsed into criteria, and the
-## criteria turned into SQL.  Pure: no database, no clock, no terminal (the time
-## zone is a parameter), so all of it is tested directly.
+## What `nch activities` is asked for: the command line parsed into a `Request` (`request.nim`), and the resolved filters
+## turned into SQL.  Pure: no database, no clock, no terminal (the time zone is a parameter), so all of it is tested directly.
 
-import std/[math, options, strformat, strutils, times]
+import std/[algorithm, math, options, strformat, strutils, times]
 import ../fit/time
 import ../util/args/args
 import ../near/near
@@ -42,17 +41,27 @@ proc parseOnDay*(s: string, zone: Timezone): Option[tuple[start, next: UnixTime]
   except TimeParseError, TimeFormatParseError, ValueError, OverflowDefect:
     none(tuple[start, next: UnixTime])
 
-type ListState = object
-  ## What the options of `nch activities` fill in as they are read (`finish` makes the `Request` of it).
-  c: Criteria
-  all, select, delete, rename, verbose, invert: bool
-  newest, oldest: int ## 0: not given
-  help: bool
-  zone: Timezone
-  offered: seq[Criterion] ## the criteria other packages offer
-  where: Where ## --from, --near and --radius
-  onGiven, rangeGiven: bool ## --on was given; --after or --before was
-  criteriaGiven: bool ## some option other than those that say what to display
+type
+  Collected = object
+    ## The criteria as the options give them, one field to each (`finish` makes the `Filter`s of them).
+    sports, subSports, names, starts: Listed
+    paths: seq[string]
+    contributed: seq[Contributed]
+    distance, active: Option[Spread]
+    afterT, beforeT: Option[UnixTime]
+    gps: Option[Gps]
+
+  ListState = object
+    ## What the options of `nch activities` fill in as they are read (`finish` makes the `Request` of it).
+    c: Collected
+    all, select, delete, rename, verbose, invert: bool
+    newest, oldest: int ## 0: not given
+    help: bool
+    zone: Timezone
+    offered: seq[Criterion] ## the criteria other packages offer
+    where: Where ## --from, --near and --radius
+    onGiven, rangeGiven: bool ## --on was given; --after or --before was
+    criteriaGiven: bool ## some option other than those that say what to display
 
 func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
   ## --newest N, -n N, --oldest N.
@@ -72,6 +81,18 @@ func splitNames(values: seq[string], lower: bool): seq[string] =
     if v.len > 0:
       result.add (if lower: v.toLowerAscii else: v)
 
+func takeReferent(l: var Listed, value: string): bool =
+  ## A word that is `latest` or `previous` goes to the reference, another is a value; true if it would be the second
+  ## reference (they cannot be used together).
+  let r = parseReferent(value)
+  if r.isNone:
+    l.values.add value
+    return false
+  if l.refers.isSome and l.refers != r:
+    return true
+  l.refers = r
+  false
+
 proc takeSports(
     p: var ListState, name: string, values: seq[string]
 ): Problem {.nimcall.} =
@@ -80,12 +101,8 @@ proc takeSports(
   if names.len == 0:
     return refuse(~"`{name}` needs at least one name")
   for n in names:
-    if parseReference(n) != refNone:
-      if p.c.sportRef != refNone and p.c.sportRef != parseReference(n):
-        return refuse(~"`--sports`: latest and previous cannot be used together")
-      p.c.sportRef = parseReference(n)
-    else:
-      p.c.sports.add n
+    if takeReferent(p.c.sports, n):
+      return refuse(~"`--sports`: latest and previous cannot be used together")
   fine
 
 proc takeSubSports(
@@ -96,20 +113,12 @@ proc takeSubSports(
   if names.len == 0:
     return refuse(~"`{name}` needs at least one name")
   for n in names:
-    if parseReference(n) != refNone:
-      if p.c.subSportRef != refNone and p.c.subSportRef != parseReference(n):
-        return refuse(~"`--sub-sports`: latest and previous cannot be used together")
-      p.c.subSportRef = parseReference(n)
-    else:
-      p.c.subSports.add n
+    if takeReferent(p.c.subSports, n):
+      return refuse(~"`--sub-sports`: latest and previous cannot be used together")
   fine
 
 proc takeTexts(
-    p: var ListState,
-    name: string,
-    values: seq[string],
-    texts: var seq[string],
-    ref0: var Reference,
+    p: var ListState, name: string, values: seq[string], listed: var Listed
 ): Problem =
   p.criteriaGiven = true
   var found: seq[string]
@@ -119,23 +128,19 @@ proc takeTexts(
   if found.len == 0:
     return refuse(~"`{name}` needs some text")
   for t in found:
-    if parseReference(t) != refNone:
-      if ref0 != refNone and ref0 != parseReference(t):
-        return refuse(~"`{name}`: latest and previous cannot be used together")
-      ref0 = parseReference(t)
-    else:
-      texts.add t
+    if takeReferent(listed, t):
+      return refuse(~"`{name}`: latest and previous cannot be used together")
   fine
 
 proc takeNames(
     p: var ListState, name: string, values: seq[string]
 ): Problem {.nimcall.} =
-  takeTexts(p, name, values, p.c.names, p.c.nameRef)
+  takeTexts(p, name, values, p.c.names)
 
 proc takeStarts(
     p: var ListState, name: string, values: seq[string]
 ): Problem {.nimcall.} =
-  takeTexts(p, name, values, p.c.starts, p.c.startRef)
+  takeTexts(p, name, values, p.c.starts)
 
 proc takePaths(
     p: var ListState, name: string, values: seq[string]
@@ -198,10 +203,12 @@ proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
       return refuse(
         ~"cannot read the distance '{v}' (use 42km~2km, 500m~50m, latest~10% or previous~10%)"
       )
-    if ar.get.centre.isSome:
-      p.c.distanceM = around(ar.get.centre.get, ar.get.tol)
-    else:
-      p.c.distanceRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
+    p.c.distance = some(
+      if ar.get.byReference:
+        Spread(byReference: true, refers: ar.get.refers, tol: ar.get.tol)
+      else:
+        Spread(byReference: false, range: around(ar.get.centre, ar.get.tol))
+    )
   else:
     let r = parseRange(v, metresEnd)
     if r.isNone:
@@ -210,7 +217,7 @@ proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
       return refuse(
         ~"cannot read the distance range '{v}' (use 40km-, 10-50km, -5km, 500m-, 42~2km, latest~10% or previous~10%)"
       )
-    p.c.distanceM = r.get
+    p.c.distance = some(Spread(byReference: false, range: r.get))
   fine
 
 proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
@@ -221,10 +228,12 @@ proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
       return refuse(
         ~"cannot read the active time '{v}' (use 2h~15m, latest~10% or previous~10%)"
       )
-    if ar.get.centre.isSome:
-      p.c.activeS = around(ar.get.centre.get, ar.get.tol)
-    else:
-      p.c.activeRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
+    p.c.active = some(
+      if ar.get.byReference:
+        Spread(byReference: true, refers: ar.get.refers, tol: ar.get.tol)
+      else:
+        Spread(byReference: false, range: around(ar.get.centre, ar.get.tol))
+    )
   else:
     let r = parseRange(v, secondsEnd)
     if r.isNone:
@@ -233,7 +242,7 @@ proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
       return refuse(
         ~"cannot read the active time range '{v}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
       )
-    p.c.activeS = r.get
+    p.c.active = some(Spread(byReference: false, range: r.get))
   fine
 
 proc takeWhen(p: var ListState, v: string, before: bool): Problem =
@@ -260,31 +269,13 @@ proc takeOn(p: var ListState, v: string): Problem =
   p.c.beforeT = some(d.get.next)
   fine
 
-func takeGps(p: var ListState, wanted: GpsFilter): Problem =
+func takeGps(p: var ListState, wanted: Gps): Problem =
   ## --gps and --no-gps, which contradict each other.
   p.criteriaGiven = true
-  if p.c.gps notin {gfAny, wanted}:
+  if p.c.gps.isSome and p.c.gps.get != wanted:
     return refuse(~"`--gps` and `--no-gps` cannot be used together")
-  p.c.gps = wanted
+  p.c.gps = some(wanted)
   fine
-
-func startKm*(c: Criteria): float =
-  ## The radius of --from.
-  startKm(c.radius)
-
-func passKm*(c: Criteria): float =
-  ## The radius of --near.
-  passKm(c.radius)
-
-func hasFilter*(c: Criteria): bool =
-  ## Whether any criterion that picks activities is given (not the limits, the users or the display).
-  c.sports.len > 0 or c.subSports.len > 0 or c.names.len > 0 or c.starts.len > 0 or
-    c.paths.len > 0 or c.contributed.len > 0 or c.sportRef != refNone or
-    c.subSportRef != refNone or c.nameRef != refNone or c.startRef != refNone or
-    c.distanceM.lo.isSome or c.distanceM.hi.isSome or c.activeS.lo.isSome or
-    c.activeS.hi.isSome or c.distanceRel.isSome or c.activeRel.isSome or c.afterT.isSome or
-    c.beforeT.isSome or c.gps != gfAny or c.start.kind != nkNone or
-    c.passes.kind != nkNone
 
 proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   ## The options of `nch activities`, in the order the usage lists them, each with its help; the criteria that other
@@ -379,7 +370,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"only activities that have positions (a GPS track)",
-        body = takeGps(p, gfWith),
+        body = takeGps(p, gpsWith),
       ),
       custom(
         ListState,
@@ -387,7 +378,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"only activities that have none (indoor rides, treadmill runs ...)",
-        body = takeGps(p, gfWithout),
+        body = takeGps(p, gpsWithout),
       ),
       custom(
         ListState,
@@ -468,20 +459,62 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   for k, o in nearOptions(ListState, where, "activities", true):
     result.opts.insert(o, inv + k)
 
+func placeOf(spot: Spot): Option[Place] =
+  ## What `--from` or `--near` said (none: it was not given).
+  case spot.kind
+  of nkNone:
+    none(Place)
+  of nkPoint:
+    some(Place(kind: plPoint, lat: spot.lat, lon: spot.lon))
+  of nkPlace:
+    some(Place(kind: plPlace, name: spot.place))
+  of nkLatest:
+    some(Place(kind: plReferent, refers: rfLatest))
+  of nkPrevious:
+    some(Place(kind: plReferent, refers: rfPrevious))
+
+func filtersOf(c: Collected, w: Where): seq[Filter] =
+  ## The criteria that were given, each once.
+  if c.sports.values.len > 0 or c.sports.refers.isSome:
+    result.add Filter(kind: ftSports, listed: c.sports)
+  if c.subSports.values.len > 0 or c.subSports.refers.isSome:
+    result.add Filter(kind: ftSubSports, listed: c.subSports)
+  if c.names.values.len > 0 or c.names.refers.isSome:
+    result.add Filter(kind: ftNames, listed: c.names)
+  if c.starts.values.len > 0 or c.starts.refers.isSome:
+    result.add Filter(kind: ftStarts, listed: c.starts)
+  if c.paths.len > 0:
+    result.add Filter(kind: ftPaths, paths: c.paths)
+  for o in c.contributed:
+    result.add Filter(kind: ftContributed, contributed: o)
+  if c.distance.isSome:
+    result.add Filter(kind: ftDistance, spread: c.distance.get)
+  if c.active.isSome:
+    result.add Filter(kind: ftActive, spread: c.active.get)
+  if c.afterT.isSome:
+    result.add Filter(kind: ftAfter, at: c.afterT.get)
+  if c.beforeT.isSome:
+    result.add Filter(kind: ftBefore, at: c.beforeT.get)
+  if c.gps.isSome:
+    result.add Filter(kind: ftGps, gps: c.gps.get)
+  let start = placeOf(w.start)
+  if start.isSome:
+    result.add Filter(kind: ftFrom, place: start.get, radius: w.radius)
+  let passes = placeOf(w.passes)
+  if passes.isSome:
+    result.add Filter(kind: ftNear, place: passes.get, radius: w.radius)
+
 func finish(st: ListState): Parsed[Request] =
   ## What was read, if the options go together: the action on the scope.  (What the types cannot say is refused here.)
   func bad(why: Line): Parsed[Request] =
     problemWith[Request](why)
 
-  var c = st.c
   var w = st.where
   discard w.settle(true)
     # (--radius alone: around where the latest started; never refused here)
-  c.start = w.start
-  c.passes = w.passes
-  c.radius = w.radius
+  let filters = filtersOf(st.c, w)
   let given = st.criteriaGiven or w.given
-  if st.all and c.hasFilter:
+  if st.all and filters.len > 0:
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
@@ -495,7 +528,7 @@ func finish(st: ListState): Parsed[Request] =
     return bad(
       ~"`--select` keeps the activities listed as the selection, so it needs criteria or `--all`"
     )
-  if st.invert and not c.hasFilter:
+  if st.invert and filters.len == 0:
     return bad(
       ~"`--invert` needs a criterion to invert (`--sports`, `--names`, `--distance` ...)"
     )
@@ -504,7 +537,7 @@ func finish(st: ListState): Parsed[Request] =
   if st.onGiven and st.rangeGiven:
     return
       bad(~"`--on` is a day of its own: it does not go with `--after` or `--before`")
-  if c.afterT.isSome and c.beforeT.isSome and c.afterT.get >= c.beforeT.get:
+  if st.c.afterT.isSome and st.c.beforeT.isSome and st.c.afterT.get >= st.c.beforeT.get:
     return bad(~"`--after` is not before `--before`")
   let limit =
     if st.newest > 0:
@@ -524,7 +557,7 @@ func finish(st: ListState): Parsed[Request] =
     if st.all:
       Scope(kind: scAll, allLimit: limit)
     elif given:
-      Scope(kind: scMatching, criteria: c, invert: st.invert, limit: limit)
+      Scope(kind: scMatching, filters: filters, invert: st.invert, limit: limit)
     else:
       Scope(kind: scSelection)
   parsedOk(Request(action: action, scope: scope))
@@ -540,43 +573,6 @@ proc parseArgs*(
   parseCommand(
     args, criteriaSpec(offered), ListState(zone: zone, offered: offered), finish
   )
-
-func refersTo*(c: Criteria, r: Reference): bool =
-  ## Whether any criterion is measured against the activity `r` stands for.
-  let near = if r == refLatest: nkLatest else: nkPrevious
-  c.start.kind == near or c.passes.kind == near or
-    (c.distanceRel.isSome and c.distanceRel.get.refers == r) or
-    (c.activeRel.isSome and c.activeRel.get.refers == r) or c.sportRef == r or
-    c.subSportRef == r or c.nameRef == r or c.startRef == r
-
-func usesLatest*(c: Criteria): bool =
-  ## Whether a criterion refers to "latest".
-  c.refersTo(refLatest)
-func usesPrevious*(c: Criteria): bool =
-  ## Whether a criterion refers to "previous".
-  c.refersTo(refPrevious)
-
-func withoutLatest*(c: Criteria): Criteria =
-  ## The criteria that do not mention `latest` (those that mention `previous` have been
-  ## resolved by then): the activities that meet these are those among which "latest" is found (before they are
-  ## inverted, and whatever the limit).
-  result = c
-  if result.start.kind == nkLatest:
-    result.start = Spot()
-  if result.passes.kind == nkLatest:
-    result.passes = Spot()
-  if result.distanceRel.isSome and result.distanceRel.get.refers == refLatest:
-    result.distanceRel = none(Relative)
-  if result.activeRel.isSome and result.activeRel.get.refers == refLatest:
-    result.activeRel = none(Relative)
-  if result.sportRef == refLatest:
-    result.sportRef = refNone
-  if result.subSportRef == refLatest:
-    result.subSportRef = refNone
-  if result.nameRef == refLatest:
-    result.nameRef = refNone
-  if result.startRef == refLatest:
-    result.startRef = refNone
 
 func inValues*(column, name: string, values: seq[string]): Sql =
   ## " and (a.sport in (:sport0, :sport1))": the values, as `:name0`, `:name1` ...; "none" stands for NULL (not
@@ -677,57 +673,68 @@ func nearSql(
 
 func matchSql*(
     userId: UserId,
-    c: Criteria,
-    points: Points,
+    filters: seq[Resolved],
     columns = sqlOf("a.id"),
-    extra = Sql(),
     invert = false,
     limit = none(Limit),
 ): Sql =
-  ## A query for the activities of the user `userId` that meet the criteria, giving
+  ## A query for the activities of the user `userId` that meet the filters, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
-  ## criteria become SQL, used to list them, to count them and to save them.
-  ## `extra` is the conditions of the criteria other packages offer, each " and (...)" (`resolveOffered`).
-  ## `points` are the points `--from` and `--near` came to.  Every value is bound by name (`sqltext.nim`).
+  ## criteria become SQL, used to list them, to count them and to save them.  Every value is bound by name (`sqltext.nim`).
+  ## The filters are only `Resolved` ones: nothing in them is still to be found out.
   result =
     "select " & columns & " from activity a join file f on f.id = a.file_id " &
     "where f.user_id = :user"
   result = result.with("user", int64(userId))
+  var ordered = filters
+  ordered.sort(
+    proc(a, b: Resolved): int =
+      cmp(ord(a.kind), ord(b.kind))
+  )
   var filt = Sql()
     # the criteria, each as " and ...": with --invert, the whole is negated
-  filt = filt & inValues("a.sport", "sport", c.sports)
-  filt = filt & inValues("a.sub_sport", "subSport", c.subSports)
-  filt = filt & textSql("a.name", "name", c.names, c.namesExact, c.nameIds)
-  filt = filt & textSql("a.start_place", "start", c.starts, c.startsExact)
-  filt = filt & pathSql(c.paths)
-  filt = filt & extra
-  filt = filt & rangeSql("a.distance_m", "distance", c.distanceM)
-  filt = filt & rangeSql("a.timer_s", "active", c.activeS)
-  case c.gps
-  of gfWith:
-    filt = filt & " and exists (select 1 from track k where k.activity_id = a.id)"
-  of gfWithout:
-    filt = filt & " and not exists (select 1 from track k where k.activity_id = a.id)"
-  of gfAny:
-    discard
-  if c.afterT.isSome:
-    filt = filt & sqlOf(" and a.start_t >= :afterT").with("afterT", int64(c.afterT.get))
-  if c.beforeT.isSome:
-    filt =
-      filt & sqlOf(" and a.start_t < :beforeT").with("beforeT", int64(c.beforeT.get))
-  if points.start.isSome:
-    # activities that START within the radius: the spatial index finds those in a box, and the distance on the ground
-    # decides (an activity without a start is never near)
-    filt =
-      filt & nearSql(points.start.get, c.startKm, "a.id", "activity", "start", "start") &
-      " and ST_Distance(a.start, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
-  if points.passes.isSome:
-    # activities whose ROUTE passes within the radius: the index of the routes (a route's row is its activity's id) finds
-    # those whose box meets the circle's, and the distance on the ground from the point to the line decides
-    filt =
-      filt & nearSql(points.passes.get, c.passKm, "a.id", "route", "geom", "pass") &
-      " and exists (select 1 from route r where r.activity_id = a.id" &
-      " and ST_Distance(r.geom, MakePoint(:passLon, :passLat, 4326), 1) <= :passM)"
+  for f in ordered:
+    case f.kind
+    of rtSports:
+      filt = filt & inValues("a.sport", "sport", f.values)
+    of rtSubSports:
+      filt = filt & inValues("a.sub_sport", "subSport", f.values)
+    of rtNames:
+      filt = filt & textSql("a.name", "name", f.typed, f.exact, f.ids)
+    of rtStarts:
+      filt = filt & textSql("a.start_place", "start", f.typed, f.exact)
+    of rtPaths:
+      filt = filt & pathSql(f.paths)
+    of rtCondition:
+      filt = filt & sqlOf(" and (") & f.condition & sqlOf(")")
+    of rtDistance:
+      filt = filt & rangeSql("a.distance_m", "distance", f.range)
+    of rtActive:
+      filt = filt & rangeSql("a.timer_s", "active", f.range)
+    of rtGps:
+      case f.gps
+      of gpsWith:
+        filt = filt & " and exists (select 1 from track k where k.activity_id = a.id)"
+      of gpsWithout:
+        filt =
+          filt & " and not exists (select 1 from track k where k.activity_id = a.id)"
+    of rtAfter:
+      filt = filt & sqlOf(" and a.start_t >= :afterT").with("afterT", int64(f.at))
+    of rtBefore:
+      filt = filt & sqlOf(" and a.start_t < :beforeT").with("beforeT", int64(f.at))
+    of rtFrom:
+      # activities that START within the radius: the spatial index finds those in a box, and the distance on the ground
+      # decides (an activity without a start is never near)
+      filt =
+        filt & nearSql((f.lat, f.lon), f.km, "a.id", "activity", "start", "start") &
+        " and ST_Distance(a.start, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
+    of rtNear:
+      # activities whose ROUTE passes within the radius: the index of the routes (a route's row is its activity's id) finds
+      # those whose box meets the circle's, and the distance on the ground from the point to the line decides
+      filt =
+        filt & nearSql((f.lat, f.lon), f.km, "a.id", "route", "geom", "pass") &
+        " and exists (select 1 from route r where r.activity_id = a.id" &
+        " and ST_Distance(r.geom, MakePoint(:passLon, :passLat, 4326), 1) <= :passM)"
   # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
   result =
     result & (

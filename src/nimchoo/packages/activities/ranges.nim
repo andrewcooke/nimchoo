@@ -14,12 +14,11 @@ import ../ui/units
 {.push raises: [].}
 
 type
-  Reference* = enum
+  Referent* = enum
     ## An activity a criterion is measured against, found when the command runs: the
     ## newest of those that meet the other criteria, or the one that was selected before.
-    refNone
-    refLatest
-    refPrevious
+    rfLatest
+    rfPrevious
 
   EndParser* = proc(s: string): Option[float] {.nimcall, noSideEffect, raises: [].}
 
@@ -29,11 +28,13 @@ type
     percent*: bool
 
   Around* = object
-    ## `centre~tolerance`; the centre is a value, or (`refers` is not refNone) an activity
-    ## found when the command runs.
-    centre*: Option[float]
-    refers*: Reference
+    ## `centre~tolerance`; the centre is a value, or an activity found when the command runs.
     tol*: Tol
+    case byReference*: bool
+    of false:
+      centre*: float
+    of true:
+      refers*: Referent
 
   NumRange* = object ## Metres or seconds.
     lo*, hi*: Option[float]
@@ -201,12 +202,15 @@ func parseTol*(s: string, parseEnd: EndParser): Option[Tol] =
   else:
     none(Tol)
 
-func parseReference*(s: string): Reference =
-  ## "latest" and "previous" (any case); refNone for anything else.
+func parseReferent*(s: string): Option[Referent] =
+  ## "latest" and "previous" (any case); none for anything else.
   case s.toLowerAscii
-  of "latest": refLatest
-  of "previous": refPrevious
-  else: refNone
+  of "latest":
+    some(rfLatest)
+  of "previous":
+    some(rfPrevious)
+  else:
+    none(Referent)
 
 func parseAround*(s: string, parseEnd: EndParser): Option[Around] =
   ## "42~2", "2h~15m", "latest~10%", "previous~5": exactly one "~", a centre (a value, or
@@ -214,20 +218,16 @@ func parseAround*(s: string, parseEnd: EndParser): Option[Around] =
   let parts = s.split('~')
   if parts.len != 2:
     return none(Around)
-  var a: Around
-  a.refers = parseReference(parts[0])
-  if a.refers != refNone:
-    a.centre = none(float)
-  else:
-    let c = parseEnd(parts[0])
-    if c.isNone:
-      return none(Around)
-    a.centre = c
   let t = parseTol(parts[1], parseEnd)
-  if t.isNone:
+  let referent = parseReferent(parts[0])
+  if referent.isSome:
+    if t.isNone:
+      return none(Around)
+    return some(Around(byReference: true, refers: referent.get, tol: t.get))
+  let c = parseEnd(parts[0])
+  if c.isNone or t.isNone:
     return none(Around)
-  a.tol = t.get
-  some(a)
+  some(Around(byReference: false, centre: c.get, tol: t.get))
 
 func around*(centre: float, t: Tol): NumRange =
   ## The range `centre` plus and minus the tolerance (a percentage is of the centre);

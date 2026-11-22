@@ -98,8 +98,11 @@ const packages*: seq[Registered] = inDependencyOrder(
 without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 other views (`climbs`, `map`, `calendar`) take the selection.
 
-* **Criteria** (`criteria.nim`): the command line parsed into a `Criteria`, and the `Criteria` turned into SQL in one place
-  (`matchSql()`), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
+* **A request** (`request.nim`): what the command line asks, as a value that cannot say what means nothing: an action (list, delete,
+  rename) on a scope (the selection, every activity, those that match filters, with an optional newest or oldest limit).  A
+  `Filter` is a criterion as typed (it may refer to `latest` or `previous`); resolving it (`command.nim`) gives a `Resolved` one.
+* **Criteria** (`criteria.nim`): the command line parsed into a `Request`, and the `Resolved` filters turned into SQL in one place
+  (`matchSql()`, which takes no reference), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
   the other criteria; the one that was selected before).  `--invert` negates all of them taken together.
 * **The point `activities/criteria`**: a package may offer an option that picks activities (a `Criterion`: the option's
   description, and `resolve()`, which gives an SQL condition on the activity `a` and its file `f`).  `climbs` offers `--climbs`.

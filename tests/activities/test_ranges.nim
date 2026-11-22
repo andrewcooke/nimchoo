@@ -54,8 +54,8 @@ suite "ranges: units that are left out are filled in (and the program asks)":
   test "what is filled in is a range the readers take":
     check parseRange(fillUnits("10-50", "km", km).get, metresEnd) ==
       some(NumRange(lo: some 10000.0, hi: some 50000.0))
-    check parseAround(fillUnits("42km~200", "km", km).get, metresEnd) ==
-      some(Around(centre: some 42000.0, tol: Tol(amount: 200.0)))
+    let a = parseAround(fillUnits("42km~200", "km", km).get, metresEnd).get
+    check not a.byReference and a.centre == 42000.0 and a.tol == Tol(amount: 200.0)
   test "a compound unit is not borrowed, and nothing else is changed":
     check fillUnits("2h30m~15", "h", t).isNone
     check fillUnits("2h30m-3", "h", t).isNone
@@ -109,23 +109,21 @@ suite "ranges: around":
       check parseTol(bad, metresEnd).isNone
     check parseTol("90", secondsEnd).isNone # (a time needs its unit)
   test "centre ~ tolerance, the centre a value or latest":
-    check parseAround("42km~2km", metresEnd) ==
-      some(Around(centre: some 42000.0, tol: Tol(amount: 2000.0)))
-    check parseAround("2h~15m", secondsEnd) ==
-      some(Around(centre: some 7200.0, tol: Tol(amount: 900.0)))
-    check parseAround("latest~10%", metresEnd) ==
-      some(
-        Around(
-          centre: none float, refers: refLatest, tol: Tol(amount: 10.0, percent: true)
-        )
-      )
-    check parseAround("LATEST~5km", metresEnd).get.centre.isNone
-    check parseAround("previous~5km", metresEnd).get.refers == refPrevious
+    let value = parseAround("42km~2km", metresEnd).get
+    check not value.byReference and value.centre == 42000.0 and
+      value.tol == Tol(amount: 2000.0)
+    let time = parseAround("2h~15m", secondsEnd).get
+    check not time.byReference and time.centre == 7200.0 and
+      time.tol == Tol(amount: 900.0)
+    let latest = parseAround("latest~10%", metresEnd).get
+    check latest.byReference and latest.refers == rfLatest and
+      latest.tol == Tol(amount: 10.0, percent: true)
+    check parseAround("LATEST~5km", metresEnd).get.refers == rfLatest
+    check parseAround("previous~5km", metresEnd).get.refers == rfPrevious
     check parseAround("Previous~10%", secondsEnd).get.tol.percent
       # (a percentage needs no unit)
     check parseAround("Previous~10", secondsEnd).isNone # (an amount of time does)
-    check parseAround("42km~2km", metresEnd).get.refers == refNone
-    check parseAround("0.5km~0.05km", metresEnd).get.centre == some 500.0
+    check parseAround("0.5km~0.05km", metresEnd).get.centre == 500.0
     check parseAround("500m~50m", metresEnd).isSome
   test "not around":
     for bad in [
@@ -133,10 +131,10 @@ suite "ranges: around":
     ]:
       check parseAround(bad, metresEnd).isNone
   test "the words for a reference":
-    check parseReference("latest") == refLatest
-    check parseReference("PREVIOUS") == refPrevious
+    check parseReferent("latest") == some(rfLatest)
+    check parseReferent("PREVIOUS") == some(rfPrevious)
     for other in ["", "last", "prev", "latest ", "none"]:
-      check parseReference(other) == refNone
+      check parseReferent(other).isNone
   test "the range around a centre: an amount or a percentage of it, not below zero":
     check around(42000.0, Tol(amount: 2000.0)) ==
       NumRange(lo: some 40000.0, hi: some 44000.0)

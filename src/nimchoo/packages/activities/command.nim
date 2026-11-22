@@ -25,6 +25,7 @@ import ../util/args/[args, usage]
 import ./[rows, table]
 import ./criteria
 import ../text/fold/fold
+import ../util/lookup/lookup
 import ../user/session
 
 {.push raises: [].}
@@ -173,66 +174,147 @@ proc previousSelected(
     row: rows[0],
   )
 
-proc resolve(
-    st: Store,
-    c: var Criteria,
-    which: Reference,
-    id: ActivityId,
-    row: ListRow,
-    points: var Points,
-    sources: var tuple[start, passes: string],
-) {.raises: [StoreError].} =
-  ## Replace the criteria measured against `which` by what they mean for this activity.
-  let nameOf = if which == refLatest: "latest" else: "previous"
-  if c.sportRef == which:
-    c.sports.add (if row.sport.len > 0: row.sport else: "none")
-    c.sportRef = refNone
-  if c.subSportRef == which:
-    c.subSports.add (if row.subSport.len > 0: row.subSport else: "none")
-    c.subSportRef = refNone
-  if c.nameRef == which or c.startRef == which:
-    # the name and the start place of that activity, whole (they are not in the row unless it was listed with -v)
-    let r = st.db.scalar(
-      tuple[name, start: string],
-      "select coalesce(name, ''), coalesce(start_place, '') from activity where id = :id",
-      id = id,
+type
+  Env = object
+    ## What the filters need besides themselves, found before they are resolved: the activities they refer to, what a number
+    ## in `--names` meant, the conditions of the criteria other packages offer, and the places named.
+    anchors: array[Referent, Option[Anchor]]
+    nameTexts: Option[seq[string]]
+      ## `--names` without the numbers that meant an activity
+    nameIds: seq[int64]
+    conditions: Table[string, Sql] ## by the option that offered them
+    places: Table[string, tuple[lat, lon: float, said: string]]
+
+  Search = object
+    ## The filters with `latest` and `previous` worked out, and the notes that say which activities they came to.
+    filters: seq[Resolved]
+    invert: bool
+    limit: Option[Limit]
+    notes: seq[Line]
+
+func nameOf(r: Referent): string =
+  case r
+  of rfLatest: "latest"
+  of rfPrevious: "previous"
+
+proc anchorOf(
+    st: Store, id: ActivityId, row: ListRow
+): Anchor {.raises: [StoreError].} =
+  ## What a criterion can use of the activity: its row, its name and start place whole (they are not in the row unless it was
+  ## listed with -v) and where it started.
+  let r = st.db.scalar(
+    tuple[name, start: string],
+    "select coalesce(name, ''), coalesce(start_place, '') from activity where id = :id",
+    id = id,
+  )
+  Anchor(
+    sport: row.sport,
+    subSport: row.subSport,
+    distanceM: row.distanceM,
+    activeS: row.activeS,
+    name: r.name,
+    startPlace: r.start,
+    start: startOf(st, id),
+  )
+
+proc anchor(env: Env, r: Referent): Anchor =
+  ## The activity `r` stands for (found before the filters are resolved: a missing one is a bug).
+  doAssert env.anchors[r].isSome,
+    "the activity a criterion refers to was not looked for"
+  env.anchors[r].get
+
+proc resolveFilter(f: Filter, env: Env): Resolved {.raises: [StoreError].} =
+  ## The filter with its values: what it refers to is taken from `env`.  (A criterion that needs a value the activity does not
+  ## have is an error that says so.)
+  case f.kind
+  of ftSports:
+    var values = f.listed.values
+    if f.listed.refers.isSome:
+      let sport = env.anchor(f.listed.refers.get).sport
+      values.add (if sport.len > 0: sport else: noSport)
+    Resolved(kind: rtSports, values: values)
+  of ftSubSports:
+    var values = f.listed.values
+    if f.listed.refers.isSome:
+      let sub = env.anchor(f.listed.refers.get).subSport
+      values.add (if sub.len > 0: sub else: noSport)
+    Resolved(kind: rtSubSports, values: values)
+  of ftNames:
+    Resolved(
+      kind: rtNames,
+      typed: env.nameTexts.get(f.listed.values),
+      exact:
+        (if f.listed.refers.isSome: @[env.anchor(f.listed.refers.get).name]
+        else: @[]),
+      ids: env.nameIds,
     )
-    let name = r.name
-    let start = r.start
-    if c.nameRef == which:
-      c.namesExact.add name
-      c.nameRef = refNone
-    if c.startRef == which:
-      c.startsExact.add start
-      c.startRef = refNone
-  if c.distanceRel.isSome and c.distanceRel.get.refers == which:
-    if row.distanceM.isNone:
-      raiseStore("the " & nameOf & " activity has no recorded distance")
-    c.distanceM = around(row.distanceM.get, c.distanceRel.get.tol)
-    c.distanceRel = none(Relative)
-  if c.activeRel.isSome and c.activeRel.get.refers == which:
-    if row.activeS.isNone:
-      raiseStore("the " & nameOf & " activity has no recorded active time")
-    c.activeS = around(row.activeS.get, c.activeRel.get.tol)
-    c.activeRel = none(Relative)
-  let refers = if which == refLatest: nkLatest else: nkPrevious
-  if c.start.kind == refers or c.passes.kind == refers:
-    let at = startOf(st, id)
-    if at.isNone:
-      raiseStore(fmt"the {nameOf} activity has no start position (to measure from)")
-    let said = fmt"the start of the {nameOf} activity"
-    if c.start.kind == refers:
-      (points.start, sources.start, c.start) = (at, said, Spot())
-    if c.passes.kind == refers:
-      (points.passes, sources.passes, c.passes) = (at, said, Spot())
+  of ftStarts:
+    Resolved(
+      kind: rtStarts,
+      typed: f.listed.values,
+      exact: (
+        if f.listed.refers.isSome:
+          @[env.anchor(f.listed.refers.get).startPlace]
+        else:
+          @[]
+      ),
+    )
+  of ftPaths:
+    Resolved(kind: rtPaths, paths: f.paths)
+  of ftContributed:
+    Resolved(kind: rtCondition, condition: env.conditions.must(f.contributed.option))
+  of ftDistance:
+    if not f.spread.byReference:
+      Resolved(kind: rtDistance, range: f.spread.range)
+    else:
+      let d = env.anchor(f.spread.refers).distanceM
+      if d.isNone:
+        raiseStore(
+          "the " & nameOf(f.spread.refers) & " activity has no recorded distance"
+        )
+      Resolved(kind: rtDistance, range: around(d.get, f.spread.tol))
+  of ftActive:
+    if not f.spread.byReference:
+      Resolved(kind: rtActive, range: f.spread.range)
+    else:
+      let t = env.anchor(f.spread.refers).activeS
+      if t.isNone:
+        raiseStore(
+          "the " & nameOf(f.spread.refers) & " activity has no recorded active time"
+        )
+      Resolved(kind: rtActive, range: around(t.get, f.spread.tol))
+  of ftAfter:
+    Resolved(kind: rtAfter, at: f.at)
+  of ftBefore:
+    Resolved(kind: rtBefore, at: f.at)
+  of ftGps:
+    Resolved(kind: rtGps, gps: f.gps)
+  of ftFrom, ftNear:
+    var at: (float, float)
+    case f.place.kind
+    of plPoint:
+      at = (f.place.lat, f.place.lon)
+    of plPlace:
+      let p = env.places.must(f.place.name)
+      at = (p.lat, p.lon)
+    of plReferent:
+      let start = env.anchor(f.place.refers).start
+      if start.isNone:
+        raiseStore(
+          fmt"the {nameOf(f.place.refers)} activity has no start position (to measure from)"
+        )
+      at = start.get
+    if f.kind == ftFrom:
+      Resolved(kind: rtFrom, lat: at[0], lon: at[1], km: startKm(f.radius))
+    else:
+      Resolved(kind: rtNear, lat: at[0], lon: at[1], km: passKm(f.radius))
 
 proc numbersAsIds(
-    st: Session, c: var Criteria, notes: var seq[Line]
-) {.raises: [StoreError].} =
+    st: Session, texts: seq[string], notes: var seq[Line]
+): tuple[texts: seq[string], ids: seq[int64]] {.raises: [StoreError].} =
   ## A whole number in `--names` that no activity's name holds is the number of an activity (`--names 737`): a name that
   ## has the digits wins, so a number can always be searched for as text by being in a name.  A note says which it was.
-  var texts: seq[string]
-  for t in c.names:
+  for t in texts:
     var n: int
     let whole =
       t.len > 0 and t.allIt(it in {'0' .. '9'}) and parseIntIn(t, 1, high(int), n)
@@ -249,99 +331,91 @@ proc numbersAsIds(
           owner = st.userId,
           id = n,
         ) > 0:
-      c.nameIds.add int64(n)
+      result.ids.add int64(n)
       notes.add plain(fmt"no activity name has '{t}': using activity {n}")
     else:
-      texts.add t
-  c.names = texts
+      result.texts.add t
 
-type Search = object
-  ## The criteria with `latest` and `previous` worked out, the conditions of the criteria other packages offer, and the
-  ## notes that say which activities they came to.
-  c: Criteria
-  invert: bool
-  limit: Option[Limit]
-  extra: Sql ## the offered criteria, each " and (...)"
-  points: Points ## where --from and --near came to
-  notes: seq[Line]
-
-proc resolveCriteria(
+proc resolveScope(
     st: Session, scope: Scope, zone: Timezone
 ): Search {.raises: [StoreError].} =
   ## `previous` (in --from, --near, --distance, --active, --sports, --sub-sports) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
-  ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
+  ## criteria that do not mention `latest` (nor name a place).  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
-  var c = criteriaOf(scope)
-  var extra = Sql()
-  for o in c.contributed:
-    let r = o.resolve(st, o.values)
-    extra = extra & sqlOf(" and (") & r.condition & sqlOf(")")
-    for n in r.notes:
-      if n.len > 0:
-        result.notes.add plain(n)
-  numbersAsIds(st, c, result.notes)
-  checkNames(st, "sport", "sport", c.sports)
-  checkNames(st, "sub-sport", "sub_sport", c.subSports)
-  var points: Points
-  var sources: tuple[start, passes: string]
-  if usesPrevious(c):
+  let filters = scope.filtersOf
+  var env: Env
+  for f in filters:
+    case f.kind
+    of ftContributed:
+      let r = f.contributed.resolve(st, f.contributed.values)
+      env.conditions[f.contributed.option] = r.condition
+      for n in r.notes:
+        if n.len > 0:
+          result.notes.add plain(n)
+    of ftNames:
+      let found = numbersAsIds(st, f.listed.values, result.notes)
+      env.nameTexts = some(found.texts)
+      env.nameIds = found.ids
+    of ftSports:
+      checkNames(st, "sport", "sport", f.listed.values)
+    of ftSubSports:
+      checkNames(st, "sub-sport", "sub_sport", f.listed.values)
+    of ftFrom, ftNear:
+      if f.place.kind == plPlace and f.place.name notin env.places:
+        let p = placeNamed(st, f.place.name)
+        env.places[f.place.name] = (lat: p.lat, lon: p.lon, said: p.said)
+    of ftStarts, ftPaths, ftDistance, ftActive, ftAfter, ftBefore, ftGps:
+      discard
+  if usesPrevious(filters):
     let prev = previousSelected(st)
     result.notes.add plain("previous: " & activityText(prev.row, zone))
-    resolve(st, c, refPrevious, prev.id, prev.row, points, sources)
-  if usesLatest(c):
-    let base = withoutLatest(c)
+    env.anchors[rfPrevious] = some(anchorOf(st, prev.id, prev.row))
+  if usesLatest(filters):
+    var base: seq[Resolved]
+    for f in filters:
+      if f.kind notin {ftFrom, ftNear}:
+        # (where the activity started is not asked of the activities `latest` is found among)
+        let rest = f.withoutLatest
+        if rest.isSome:
+          base.add resolveFilter(rest.get, env)
     let found = latestAmong(
       st,
-      matchSql(
-        st.userId,
-        base,
-        Points(),
-        sqlOf("a.id as id, ") & rowColumns(false, st.userId),
-        extra,
-      ),
+      matchSql(st.userId, base, sqlOf("a.id as id, ") & rowColumns(false, st.userId)),
     )
     if found.isNone:
       raiseStore(
         "`latest` is the newest activity that meets the other criteria, and none does"
       )
     result.notes.add plain("latest: " & activityText(found.get.row, zone))
-    resolve(st, c, refLatest, found.get.id, found.get.row, points, sources)
-  for (spot, at, said) in [
-    (addr c.start, addr points.start, addr sources.start),
-    (addr c.passes, addr points.passes, addr sources.passes),
-  ]:
-    case spot[].kind
-    of nkPoint:
-      at[] = some((spot[].lat, spot[].lon))
-    of nkPlace:
-      let p = placeNamed(st, spot[].place)
-      at[] = some((p.lat, p.lon))
-      said[] = p.said
-    of nkNone, nkLatest, nkPrevious:
-      discard # (latest and previous are worked out above)
-  for (what, at, said, km) in [
-    ("starting near", points.start, sources.start, c.startKm),
-    ("passing near", points.passes, sources.passes, c.passKm),
-  ]:
-    if at.isSome:
-      let where = positionText((lon: at.get[1], lat: at.get[0]))
+    env.anchors[rfLatest] = some(anchorOf(st, found.get.id, found.get.row))
+  for f in filters:
+    result.filters.add resolveFilter(f, env)
+  for (f, r) in zip(filters, result.filters):
+    if f.kind in {ftFrom, ftNear}:
+      let what = if f.kind == ftFrom: "starting near" else: "passing near"
+      let where = positionText((lon: r.lon, lat: r.lat))
+      let said =
+        case f.place.kind
+        of plPoint:
+          ""
+        of plPlace:
+          env.places.must(f.place.name).said
+        of plReferent:
+          fmt"the start of the {nameOf(f.place.refers)} activity"
       let why =
         if said.len > 0:
           fmt" ({said})"
         else:
           ""
-      result.notes.add plain(fmt"{what} {where}{why}, within {radiusText(km)}km")
-  result.c = c
+      result.notes.add plain(fmt"{what} {where}{why}, within {radiusText(r.km)}km")
   result.invert = scope.inverts
   result.limit = scope.limitOf
-  result.extra = extra
-  result.points = points
 
 proc matchingIds*(
     st: Session, scope: Scope, zone: Timezone
 ): tuple[ids: seq[int64], notes: seq[Line]] {.raises: [StoreError].} =
-  ## The ids of the current user's activities the criteria mean: the selection if there are no criteria and no `--all`,
+  ## The ids of the current user's activities the scope means: the selection if there are no criteria and no `--all`,
   ## else the activities found among all of them.  (And the notes that say which activity `latest` or `previous` was.)
   var query: Sql
   if not scope.searches:
@@ -349,13 +423,11 @@ proc matchingIds*(
         "owner", st.userId
       )
   else:
-    let r = resolveCriteria(st, scope, zone)
+    let r = resolveScope(st, scope, zone)
     result.notes = r.notes
     query =
       "select id from (" &
-      matchSql(
-        st.userId, r.c, r.points, sqlOf("a.id as id"), r.extra, r.invert, r.limit
-      ) & ")"
+      matchSql(st.userId, r.filters, sqlOf("a.id as id"), r.invert, r.limit) & ")"
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
@@ -369,14 +441,12 @@ proc listActivities*(
     # no criteria: the selection
     result.lines = showSelection(st, verbose, zone, width, marks)
     return
-  let r = resolveCriteria(st, request.scope, zone)
+  let r = resolveScope(st, request.scope, zone)
   result.lines = r.notes
   let match = matchSql(
     st.userId,
-    r.c,
-    r.points,
+    r.filters,
     sqlOf("a.id as id, ") & rowColumns(verbose, st.userId),
-    r.extra,
     r.invert,
     r.limit,
   )

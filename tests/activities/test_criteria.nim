@@ -4,7 +4,7 @@ import nimchoo/core/extension
 from nimchoo/registry import extensions
 import nimchoo/core/errors
 import nimchoo/packages/user/session
-import std/[options, strutils, times, unittest]
+import std/[options, sequtils, strutils, times, unittest]
 from std/unicode import runeLen
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
@@ -26,6 +26,28 @@ func has(q: Sql, name: string): bool =
   for a in q.args:
     if a.name == name:
       return true
+
+func find(fs: seq[Filter], kind: FilterKind): Filter =
+  ## The filter of that kind (a test that asks for one that is not there is wrong).
+  for f in fs:
+    if f.kind == kind:
+      return f
+  raiseAssert "no filter of kind " & $kind
+
+func hasKind(fs: seq[Filter], kind: FilterKind): bool =
+  fs.anyIt(it.kind == kind)
+
+func withoutLatest(fs: seq[Filter]): seq[Filter] =
+  for f in fs:
+    let rest = f.withoutLatest
+    if rest.isSome:
+      result.add rest.get
+
+func startKm(fs: seq[Filter]): float =
+  near.startKm(fs.find(ftFrom).radius)
+
+func passKm(fs: seq[Filter]): float =
+  near.passKm(fs.find(ftNear).radius)
 
 suite "list: times":
   test "a date is the start of its day in the given zone, as if written with T00:00:00":
@@ -58,8 +80,8 @@ suite "list: the command line":
   proc cmdline(args: varargs[string]): Parsed[Request] =
     parseArgs(@args, utcZone)
 
-  proc crit(args: varargs[string]): Criteria =
-    cmdline(args).params.scope.criteria
+  proc fs(args: varargs[string]): seq[Filter] =
+    cmdline(args).params.scope.filtersOf
 
   test "--select and --all":
     check cmdline().params.scope.kind == scSelection and
@@ -83,7 +105,7 @@ suite "list: the command line":
       some(Limit(kind: lkNewest, count: 3))
     expect FieldDefect:
       discard
-        cmdline("--all").params.scope.criteria # (every activity: no criteria to hold)
+        cmdline("--all").params.scope.filters # (every activity: no filters to hold)
     expect FieldDefect:
       discard cmdline().params.scope.limit
     check cmdline("--sports", "cycling", "--invert", "-n", "2").params.scope.limitOf ==
@@ -104,24 +126,25 @@ suite "list: the command line":
       "--from", "38.7,-9.1", "--radius", "5km",
     ).params
     check r.action.select and r.scope.limit == some(Limit(kind: lkNewest, count: 3))
-    let c = r.scope.criteria
-    check c.afterT == some(UnixTime(1533081600)) and
-      c.beforeT == some(UnixTime(1535760000)) # (August, the dates their midnights)
-    let on = cmdline("--on", "2018-08-27").params.scope.criteria
-    check on.afterT == some(UnixTime(1535328000)) and
-      on.beforeT == some(UnixTime(1535414400))
-    check c.start.kind == nkPoint and c.start.lat == 38.7 and c.start.lon == -9.1 and
-      c.startKm == 5.0 and c.passKm == 5.0 and c.passes.kind == nkNone
-    check crit("--from", "latest").start.kind == nkLatest
-    let named = cmdline("--from", "Lo Barnechea").params.scope.criteria
-    check named.start.kind == nkPlace and named.start.place == "Lo Barnechea"
+    let c = r.scope.filters
+    check c.find(ftAfter).at == UnixTime(1533081600) and
+      c.find(ftBefore).at == UnixTime(1535760000) # (August, the dates their midnights)
+    let on = fs("--on", "2018-08-27")
+    check on.find(ftAfter).at == UnixTime(1535328000) and
+      on.find(ftBefore).at == UnixTime(1535414400)
+    let from1 = c.find(ftFrom)
+    check from1.place.kind == plPoint and from1.place.lat == 38.7 and
+      from1.place.lon == -9.1 and from1.radius == some(Distance(5000.0))
+    check not c.hasKind(ftNear)
+    check fs("--from", "latest").find(ftFrom).place.refers == rfLatest
+    let named = fs("--from", "Lo Barnechea").find(ftFrom).place
+    check named.kind == plPlace and named.name == "Lo Barnechea"
     check cmdline("--from", "38.7").problem.contains("cannot read the position")
-    let passing = cmdline("--near", "Farellones").params.scope.criteria
-    check passing.passes.kind == nkPlace and passing.passes.place == "Farellones" and
-      passing.start.kind == nkNone
-    check passing.passKm == defaultPassRadius.inKm and
-      passing.startKm == defaultStartRadius.inKm # (each its own default)
-    check crit("--near", "latest").passes.kind == nkLatest
+    let passing = fs("--near", "Farellones")
+    check passing.find(ftNear).place.kind == plPlace and
+      passing.find(ftNear).place.name == "Farellones" and not passing.hasKind(ftFrom)
+    check passing.find(ftNear).radius.isNone # (each its own default: see "the radius")
+    check fs("--near", "latest").find(ftNear).place.refers == rfLatest
   test "latest is the newest one; oldest; but not both":
     check cmdline("--latest").params.scope.limit == some(
       Limit(kind: lkNewest, count: 1)
@@ -143,12 +166,13 @@ suite "list: the command line":
       "does not go with criteria"
     )
   test "--radius on its own means --from latest":
-    let c = cmdline("--radius", "5km").params.scope.criteria
-    check c.start.kind == nkLatest and c.startKm == 5.0
+    let c = fs("--radius", "5km")
+    check c.find(ftFrom).place.refers == rfLatest and c.startKm == 5.0 and
+      not c.hasKind(ftNear)
     check cmdline("--radius", "5km").problem == ""
   test "a radius with its unit: km or m; with no unit it is a question, with the corrected arguments":
-    check crit("--radius", "500m").radius == some(Distance(500.0))
-    check crit("--radius", "1.5km").radius == some(Distance(1500.0))
+    check fs("--radius", "500m").find(ftFrom).radius == some(Distance(500.0))
+    check fs("--radius", "1.5km").find(ftFrom).radius == some(Distance(1500.0))
     let u = cmdline("--from", "latest", "--radius", "3")
     check u.kind == pkUnit
     check u.fix.args == @["--from", "latest", "--radius", "3km"]
@@ -160,9 +184,10 @@ suite "list: the command line":
     let c = cmdline(
       "--sports", "Cycling", "running", "Swimming", "--sub-sports", "ROAD", "--sports",
       "walking",
-    ).params.scope.criteria
-    check c.sports == @["cycling", "running", "swimming", "walking"]
-    check c.subSports == @["road"]
+    ).params.scope.filters
+    check c.find(ftSports).listed.values ==
+      @["cycling", "running", "swimming", "walking"]
+    check c.find(ftSubSports).listed.values == @["road"]
     check cmdline("--sports").problem.contains("at least one name")
     check cmdline("--sub-sports", "--select").problem.contains("at least one name")
   test "-v is a display option, not a criterion; --file is gone":
@@ -177,15 +202,17 @@ suite "list: the command line":
     check cmdline("-n").problem.contains("needs a value")
     check cmdline("-n", "2", "--oldest", "2").problem.contains("together")
   test "--distance and --active are ranges; a value that starts with a dash is a value":
-    let c = cmdline("--distance", "-5km", "--active", "1h30m-4h").params.scope.criteria
-    check c.distanceM == NumRange(hi: some 5000.0)
-    check c.activeS == NumRange(lo: some 5400.0, hi: some 14400.0)
+    let c = fs("--distance", "-5km", "--active", "1h30m-4h")
+    check c.find(ftDistance).spread.range == NumRange(hi: some 5000.0)
+    check c.find(ftActive).spread.range == NumRange(lo: some 5400.0, hi: some 14400.0)
     for same in ["10km-50km", "10km-50000m"]:
-      check crit("--distance", same).distanceM ==
+      check fs("--distance", same).find(ftDistance).spread.range ==
         NumRange(lo: some 10000.0, hi: some 50000.0)
-    check crit("--distance", "0.5km-").distanceM == NumRange(lo: some 500.0)
-    check crit("--distance", "500m-").distanceM == NumRange(lo: some 500.0)
-    check crit("--active", "30m-90m").activeS ==
+    check fs("--distance", "0.5km-").find(ftDistance).spread.range ==
+      NumRange(lo: some 500.0)
+    check fs("--distance", "500m-").find(ftDistance).spread.range ==
+      NumRange(lo: some 500.0)
+    check fs("--active", "30m-90m").find(ftActive).spread.range ==
       NumRange(lo: some 1800.0, hi: some 5400.0)
   test "a unit left out is filled in and asked about, never taken as it is":
     for (given, asked) in [
@@ -197,38 +224,43 @@ suite "list: the command line":
     ]:
       let r = cmdline("--distance", given)
       check r.kind == pkUnit and r.fix.args == @["--distance", asked]
-    check crit("--distance", "42km~2000m").distanceM ==
+    check fs("--distance", "42km~2000m").find(ftDistance).spread.range ==
       NumRange(lo: some 40000.0, hi: some 44000.0)
   test "--distance and --active around a value, or around latest":
-    let c =
-      cmdline("--distance", "42km~2km", "--active", "2h~15m").params.scope.criteria
-    check c.distanceM == NumRange(lo: some 40000.0, hi: some 44000.0)
-    check c.activeS == NumRange(lo: some 6300.0, hi: some 8100.0)
+    let c = fs("--distance", "42km~2km", "--active", "2h~15m")
+    check c.find(ftDistance).spread.range == NumRange(
+      lo: some 40000.0, hi: some 44000.0
+    )
+    check c.find(ftActive).spread.range == NumRange(lo: some 6300.0, hi: some 8100.0)
     check not c.usesLatest
-    let l = cmdline("--distance", "latest~10%", "--active", "latest~15m").params.scope.criteria
-    check l.distanceRel ==
-      some(Relative(refers: refLatest, tol: Tol(amount: 10.0, percent: true)))
-    check l.activeRel == some(Relative(refers: refLatest, tol: Tol(amount: 900.0)))
-    check l.distanceM.isOpen and l.activeS.isOpen # (not known until latest is found)
-    check l.usesLatest
+    let l = fs("--distance", "latest~10%", "--active", "latest~15m")
+    check l.find(ftDistance).spread.byReference and
+      l.find(ftDistance).spread.refers == rfLatest and
+      l.find(ftDistance).spread.tol == Tol(amount: 10.0, percent: true)
+    check l.find(ftActive).spread.tol == Tol(amount: 900.0)
+    check l.usesLatest # (the range is not known until latest is found)
   test "latest as a sport and a sub-sport":
-    let c = cmdline("--sports", "latest", "--sub-sports", "Latest", "road").params.scope.criteria
-    check c.sportRef == refLatest and c.subSportRef == refLatest
-    check c.sports.len == 0 and c.subSports == @["road"]
-    check crit("--sports", "latest", "cycling").sports == @["cycling"]
+    let c = fs("--sports", "latest", "--sub-sports", "Latest", "road")
+    check c.find(ftSports).listed.refers == some(rfLatest) and
+      c.find(ftSubSports).listed.refers == some(rfLatest)
+    check c.find(ftSports).listed.values.len == 0 and
+      c.find(ftSubSports).listed.values == @["road"]
+    check fs("--sports", "latest", "cycling").find(ftSports).listed.values ==
+      @["cycling"]
   test "previous: in the same places, and kept apart from latest":
-    let c = cmdline(
+    let c = fs(
       "--sports", "previous", "--sub-sports", "previous", "--distance", "previous~10%",
       "--active", "Previous~15m", "--from", "previous",
-    ).params.scope.criteria
-    check c.sportRef == refPrevious and c.subSportRef == refPrevious
-    check c.distanceRel ==
-      some(Relative(refers: refPrevious, tol: Tol(amount: 10.0, percent: true)))
-    check c.activeRel == some(Relative(refers: refPrevious, tol: Tol(amount: 900.0)))
-    check c.start.kind == nkPrevious
+    )
+    check c.find(ftSports).listed.refers == some(rfPrevious) and
+      c.find(ftSubSports).listed.refers == some(rfPrevious)
+    check c.find(ftDistance).spread.refers == rfPrevious and
+      c.find(ftDistance).spread.tol == Tol(amount: 10.0, percent: true)
+    check c.find(ftActive).spread.refers == rfPrevious and
+      c.find(ftActive).spread.tol == Tol(amount: 900.0)
+    check c.find(ftFrom).place.refers == rfPrevious
     check c.usesPrevious and not c.usesLatest
-    let mixed =
-      cmdline("--sports", "previous", "--distance", "latest~5km").params.scope.criteria
+    let mixed = fs("--sports", "previous", "--distance", "latest~5km")
     check mixed.usesPrevious and mixed.usesLatest
     check cmdline("--sports", "latest", "previous").problem.contains(
       "cannot be used together"
@@ -237,34 +269,36 @@ suite "list: the command line":
       "cannot be used together"
     )
     check cmdline("--sports", "previous", "previous").problem == ""
-    check crit("--near", "previous").passes.kind == nkPrevious
-    check crit("--near", "previous").usesPrevious
+    check fs("--near", "previous").find(ftNear).place.refers == rfPrevious
+    check fs("--near", "previous").usesPrevious
     check cmdline("--near", "38.7").problem.contains("latest or previous")
-    check crit("--radius", "5km").start.kind == nkLatest # (alone: still latest)
+    check fs("--radius", "5km").find(ftFrom).place.refers == rfLatest
+      # (alone: still latest)
   test "latest is found among the criteria that do not mention it, previous ones included":
-    let c = cmdline(
-      "--sports", "previous", "--distance", "latest~5km", "--near", "previous"
-    ).params.scope.criteria
+    let c = fs("--sports", "previous", "--distance", "latest~5km", "--near", "previous")
     let base = c.withoutLatest
     check not base.usesLatest
     check base.usesPrevious # (resolved before, in the command)
-    check base.passes.kind == nkPrevious and base.sportRef == refPrevious
+    check base.find(ftNear).place.refers == rfPrevious and
+      base.find(ftSports).listed.refers == some(rfPrevious)
+    check not base.hasKind(ftDistance) # (all of it referred to latest)
   test "--from and --near latest use latest too, and the others that do not do not":
-    check crit("--near", "latest").usesLatest
-    check crit("--from", "latest").usesLatest
-    check crit("--radius", "5km").usesLatest
-    check not crit("--near", "1,2").usesLatest
-    check not crit("--sports", "cycling", "--distance", "5km-", "-n", "1").usesLatest
+    check fs("--near", "latest").usesLatest
+    check fs("--from", "latest").usesLatest
+    check fs("--radius", "5km").usesLatest
+    check not fs("--near", "1,2").usesLatest
+    check not fs("--sports", "cycling", "--distance", "5km-", "-n", "1").usesLatest
   test "without latest: what latest is found among":
-    let c = cmdline(
+    let c = fs(
       "--sports", "latest", "cycling", "--distance", "latest~5km", "--active",
       "latest~5%", "--near", "latest", "--sub-sports", "latest", "-n", "3", "--after",
       "2018-01-01", "--distance", "latest~2km",
-    ).params.scope.criteria
+    )
     let base = c.withoutLatest
     check not base.usesLatest
-    check base.sports == @["cycling"] # (what was named stays)
-    check base.afterT == c.afterT # (and the other criteria)
+    check base.find(ftSports).listed.values == @["cycling"] # (what was named stays)
+    check base.find(ftAfter).at == c.find(ftAfter).at # (and the other criteria)
+    check not base.hasKind(ftSubSports) and not base.hasKind(ftNear)
   test "--distance and --active problems":
     check cmdline("--distance", "5").problem.contains(
       "cannot read the distance range '5'"
@@ -305,9 +339,9 @@ suite "list: the command line":
     check cmdline("--distance", "40km-").kind == pkOk
     check cmdline("--distance", "-5").kind == pkUnit
   test "the radius: 10 km from a start, 1 km from a route, unless --radius says":
-    check crit("--from", "1,2").startKm == 10.0
-    check crit("--near", "1,2").passKm == 1.0
-    check crit("--near", "1,2", "--radius", "3km").passKm == 3.0
+    check fs("--from", "1,2").startKm == 10.0
+    check fs("--near", "1,2").passKm == 1.0
+    check fs("--near", "1,2", "--radius", "3km").passKm == 3.0
   test "--all is every activity: it does not go with criteria, but with the limits":
     check cmdline("--all", "--sports", "cycling").problem.contains(
       "does not go with criteria"
@@ -338,11 +372,8 @@ suite "list: the command line":
 
 suite "list: the box and the sql":
   test "--from: the index of the start points, and the distance from the start":
-    let q = matchSql(
-      UserId(1),
-      Criteria(radius: some(Distance(5000.0))),
-      Points(start: some((38.7, -9.1))),
-    )
+    let q =
+      matchSql(UserId(1), @[Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0)])
     let m = q.text
     check m.contains("f_table_name = 'activity'") and
       m.contains("f_geometry_column = 'start'")
@@ -352,15 +383,13 @@ suite "list: the box and the sql":
     check q.value("startLon") == arg(-9.1) and q.value("startLat") == arg(38.7) and
       q.value("startM") == arg(5000.0)
     check not m.contains("route")
-    let across = matchSql(
-      UserId(1),
-      Criteria(radius: some(Distance(50000.0))),
-      Points(start: some((-17.0, 179.9))),
-    )
+    let across =
+      matchSql(UserId(1), @[Resolved(kind: rtFrom, lat: -17.0, lon: 179.9, km: 50.0)])
     check across.text.count("SpatialIndex") == 2 and across.text.contains(" or ")
     check across.has("startBox0West") and across.has("startBox1North")
   test "--near: the index of the routes, and the distance from the route":
-    let q = matchSql(UserId(1), Criteria(), Points(passes: some((38.7, -9.1))))
+    let q =
+      matchSql(UserId(1), @[Resolved(kind: rtNear, lat: 38.7, lon: -9.1, km: 1.0)])
     let m = q.text
     check m.contains("f_table_name = 'route'") and
       m.contains("f_geometry_column = 'geom'")
@@ -370,9 +399,11 @@ suite "list: the box and the sql":
     check q.value("passM") == arg(1000.0) # (the default)
     check not m.contains("a.start,")
   test "--gps and --no-gps":
-    check parseArgs(@["--gps"], utcZone).params.scope.criteria.gps == gfWith
-    check parseArgs(@["--no-gps"], utcZone).params.scope.criteria.gps == gfWithout
-    check criteriaOf(parseArgs(@[], utcZone).params.scope).gps == gfAny
+    check parseArgs(@["--gps"], utcZone).params.scope.filters.find(ftGps).gps == gpsWith
+    check parseArgs(@["--no-gps"], utcZone).params.scope.filters.find(ftGps).gps ==
+      gpsWithout
+    check parseArgs(@["--sports", "cycling"], utcZone).params.scope.filters
+      .hasKind(ftGps).not
     check parseArgs(@["--gps", "--gps"], utcZone).problem == ""
     check parseArgs(@["--gps", "--no-gps"], utcZone).problem.contains(
       "cannot be used together"
@@ -380,18 +411,18 @@ suite "list: the box and the sql":
     check parseArgs(@["--no-gps", "--gps"], utcZone).problem.contains(
       "cannot be used together"
     )
-    let with = matchSql(UserId(1), Criteria(gps: gfWith), Points()).text
+    let with = matchSql(UserId(1), @[Resolved(kind: rtGps, gps: gpsWith)]).text
     check with.contains(
       " and exists (select 1 from track k where k.activity_id = a.id)"
     )
-    let without = matchSql(UserId(1), Criteria(gps: gfWithout), Points()).text
+    let without = matchSql(UserId(1), @[Resolved(kind: rtGps, gps: gpsWithout)]).text
     check without.contains(
       " and not exists (select 1 from track k where k.activity_id = a.id)"
     )
-    check not matchSql(UserId(1), Criteria(), Points()).text.contains("coords")
+    check not matchSql(UserId(1), @[]).text.contains("coords")
 
   test "the sql has what was asked for, and nothing else":
-    let q = matchSql(UserId(2), Criteria(), Points())
+    let q = matchSql(UserId(2), @[])
     let plain = q.text
     check plain ==
       "select a.id from activity a join file f on f.id = a.file_id where f.user_id = :user"
@@ -400,12 +431,11 @@ suite "list: the box and the sql":
       not plain.contains("limit")
     let fullQ = matchSql(
       UserId(1),
-      Criteria(
-        afterT: some(UnixTime(5)),
-        beforeT: some(UnixTime(9)),
-        radius: some(Distance(5000.0)),
-      ),
-      Points(start: some((38.7, -9.1))),
+      @[
+        Resolved(kind: rtAfter, at: UnixTime(5)),
+        Resolved(kind: rtBefore, at: UnixTime(9)),
+        Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0),
+      ],
       sqlOf("a.id, a.start_t"),
       limit = some(Limit(kind: lkNewest, count: 2)),
     )
@@ -420,9 +450,7 @@ suite "list: the box and the sql":
     check fullQ.value("startM") == arg(5000.0)
     check full.endsWith("order by a.start_t desc limit :newest")
     check fullQ.value("newest") == arg(2)
-    let oldest = matchSql(
-      UserId(1), Criteria(), Points(), limit = some(Limit(kind: lkOldest, count: 4))
-    )
+    let oldest = matchSql(UserId(1), @[], limit = some(Limit(kind: lkOldest, count: 4)))
     check oldest.text.endsWith("order by a.start_t asc limit :oldest")
     check oldest.value("oldest") == arg(4)
   test "sports are bound values, none means NULL, nothing without values":
@@ -440,11 +468,15 @@ suite "list: the box and the sql":
     check hostile.text == " and (a.sport in (:sport0))"
     check hostile.value("sport0") == arg("x'; drop table user; --")
     let m = matchSql(
-      UserId(1), Criteria(sports: @["cycling"], subSports: @["none"]), Points()
+      UserId(1),
+      @[
+        Resolved(kind: rtSports, values: @["cycling"]),
+        Resolved(kind: rtSubSports, values: @["none"]),
+      ],
     )
     check m.text.contains("a.sport in (:sport0)") and
       m.text.contains("a.sub_sport is null")
-    check not matchSql(UserId(1), Criteria(), Points()).text.contains("sport")
+    check not matchSql(UserId(1), @[]).text.contains("sport")
   test "ranges become inclusive comparisons, only for the ends given":
     check rangeSql("a.distance_m", "distance", NumRange()).text == ""
     let lo = rangeSql("a.distance_m", "distance", NumRange(lo: some 40000.0))
@@ -458,27 +490,72 @@ suite "list: the box and the sql":
     check both.value("activeHi") == arg(120.5) # (exact: not rounded to 3 decimals)
     let m = matchSql(
       UserId(1),
-      Criteria(distanceM: NumRange(lo: some 1000.0), activeS: NumRange(hi: some 60.0)),
-      Points(),
+      @[
+        Resolved(kind: rtDistance, range: NumRange(lo: some 1000.0)),
+        Resolved(kind: rtActive, range: NumRange(hi: some 60.0)),
+      ],
     )
     check m.text.contains("a.distance_m >= :distanceLo") and
       m.text.contains("a.timer_s <= :activeHi")
-    check not matchSql(UserId(1), Criteria(), Points()).text.contains("distance_m")
+    check not matchSql(UserId(1), @[]).text.contains("distance_m")
+
+suite "list: the two stages of a filter":
+  test "a reference cannot reach the sql: matchSql takes only resolved filters":
+    check not compiles(
+      matchSql(
+        UserId(1), @[Filter(kind: ftSports, listed: Listed(refers: some(rfLatest)))]
+      )
+    )
+    check compiles(matchSql(UserId(1), @[Resolved(kind: rtSports, values: @["x"])]))
+  test "every kind of filter says whether it refers to an activity, and what is left of it without latest":
+    let latest = some(rfLatest)
+    let spread = Spread(byReference: true, refers: rfLatest, tol: Tol(amount: 5.0))
+    let refers = @[
+      Filter(kind: ftSports, listed: Listed(values: @["cycling"], refers: latest)),
+      Filter(kind: ftSubSports, listed: Listed(refers: latest)),
+      Filter(kind: ftNames, listed: Listed(refers: latest)),
+      Filter(kind: ftStarts, listed: Listed(values: @["x"], refers: latest)),
+      Filter(kind: ftDistance, spread: spread),
+      Filter(kind: ftActive, spread: spread),
+      Filter(kind: ftFrom, place: Place(kind: plReferent, refers: rfLatest)),
+      Filter(kind: ftNear, place: Place(kind: plReferent, refers: rfLatest)),
+    ]
+    for f in refers:
+      check f.refersTo(rfLatest) and not f.refersTo(rfPrevious)
+      let rest = f.withoutLatest
+      # (what is named stays; what was only the reference goes)
+      check rest.isNone or not rest.get.refersTo(rfLatest)
+      check (rest.isSome) == (f.kind in {ftSports, ftStarts})
+    let plain = @[
+      Filter(kind: ftSports, listed: Listed(values: @["cycling"])),
+      Filter(kind: ftPaths, paths: @["x"]),
+      Filter(kind: ftAfter, at: UnixTime(1)),
+      Filter(kind: ftBefore, at: UnixTime(2)),
+      Filter(kind: ftGps, gps: gpsWith),
+      Filter(kind: ftDistance, spread: Spread(byReference: false)),
+      Filter(kind: ftFrom, place: Place(kind: plPoint, lat: 1.0, lon: 2.0)),
+    ]
+    for f in plain:
+      check not f.refersTo(rfLatest) and not f.refersTo(rfPrevious)
+      check f.withoutLatest.isSome
 
 suite "list: --names and --starts":
-  proc parsed(args: varargs[string]): Criteria =
-    parseArgs(@args, utcZone).params.scope.criteria
+  proc parsed(args: varargs[string]): seq[Filter] =
+    parseArgs(@args, utcZone).params.scope.filtersOf
 
   test "the words are alternatives; a name with spaces is one; a comma is part of a word":
     let c =
       parsed("--names", "toyo", "farellones", "--starts", "providencia", "ñuñoa")
-    check parsed("--names", "a,b").names == @["a,b"]
-    check c.names == @["toyo", "farellones"] and c.starts == @["providencia", "ñuñoa"]
-    check parsed("--names", "el toyo").names == @["el toyo"]
+    check parsed("--names", "a,b").find(ftNames).listed.values == @["a,b"]
+    check c.find(ftNames).listed.values == @["toyo", "farellones"] and
+      c.find(ftStarts).listed.values == @["providencia", "ñuñoa"]
+    check parsed("--names", "el toyo").find(ftNames).listed.values == @["el toyo"]
   test "latest and previous are references, not text; they cannot be mixed":
     let c = parsed("--names", "latest", "--starts", "previous")
-    check c.nameRef == refLatest and c.startRef == refPrevious and c.names.len == 0 and
-      c.starts.len == 0
+    check c.find(ftNames).listed.refers == some(rfLatest) and
+      c.find(ftStarts).listed.refers == some(rfPrevious)
+    check c.find(ftNames).listed.values.len == 0 and
+      c.find(ftStarts).listed.values.len == 0
     check c.usesLatest and c.usesPrevious
     check not c.withoutLatest.usesLatest
     check parseArgs(@["--names", "latest", "previous"], utcZone).problem.contains(
@@ -487,42 +564,51 @@ suite "list: --names and --starts":
   test "a name needs some text; it is a criterion ":
     check parseArgs(@["--names"], utcZone).problem.len > 0
   test "the sql: the folded text found in the column, none for nothing, an exact value for what latest came to":
-    let c = parsed("--names", "toyo", "none", "--starts", "o'higgins")
-    let m = matchSql(UserId(1), c, Points())
+    let m = matchSql(
+      UserId(1),
+      @[
+        Resolved(kind: rtNames, typed: @["toyo", "none"]),
+        Resolved(kind: rtStarts, typed: @["o'higgins"]),
+      ],
+    )
     let q = m.text
     check q.contains("instr(fold(a.name), :nameT0) > 0") and
       q.contains("(a.name is null or a.name = '')")
     check m.value("nameT0") == arg("toyo") # (folded)
     check q.contains("instr(fold(a.start_place), :startT0) > 0")
     check m.value("startT0") == arg("o'higgins") # (bound as it is: no quotes to double)
-    var e = Criteria()
-    e.namesExact = @["El Toyo and back", ""]
-    e.startsExact = @["Providencia"]
-    let rq = matchSql(UserId(1), e, Points())
+    let rq = matchSql(
+      UserId(1),
+      @[
+        Resolved(kind: rtNames, exact: @["El Toyo and back", ""]),
+        Resolved(kind: rtStarts, exact: @["Providencia"]),
+      ],
+    )
     let r = rq.text
     check r.contains("a.name = :nameE0") and
       r.contains("(a.name is null or a.name = '')")
     check rq.value("nameE0") == arg("El Toyo and back")
     check r.contains("a.start_place = :startE0") and
       rq.value("startE0") == arg("Providencia")
-    check not matchSql(UserId(1), Criteria(), Points()).text.contains("fold(")
+    check not matchSql(UserId(1), @[]).text.contains("fold(")
 
 suite "list: --paths":
   test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
     let c =
-      parseArgs(@["--paths", "bowman", "run", "2026-10"], utcZone).params.scope.criteria
-    check c.paths == @["bowman", "run", "2026-10"]
-    let m = matchSql(UserId(1), c, Points())
+      parseArgs(@["--paths", "bowman", "run", "2026-10"], utcZone).params.scope.filters
+    check c.find(ftPaths).paths == @["bowman", "run", "2026-10"]
+    let m =
+      matchSql(UserId(1), @[Resolved(kind: rtPaths, paths: c.find(ftPaths).paths)])
     let q = m.text
     check q.contains("instr(fold(f.name), :path0) > 0") and
       q.contains(
         "from seen_file s where s.file_id = f.id and instr(fold(s.path), :path0) > 0"
       )
     check m.value("path0") == arg("bowman") and m.has("path2")
-    check not matchSql(UserId(1), Criteria(), Points()).text.contains("seen_file")
+    check not matchSql(UserId(1), @[]).text.contains("seen_file")
   test "latest is just text here; a path needs some text and is a criterion":
-    check parseArgs(@["--paths", "latest"], utcZone).params.scope.criteria.paths ==
-      @["latest"]
+    check parseArgs(@["--paths", "latest"], utcZone).params.scope.filters
+      .find(ftPaths).paths == @["latest"]
     check parseArgs(@["--paths"], utcZone).problem.len > 0
 
 suite "list: --invert":
@@ -536,24 +622,24 @@ suite "list: --invert":
     check parseArgs(@["--invert", "--distance", "40km-"], utcZone).problem == ""
     check parseArgs(@["--invert", "--names", "latest"], utcZone).problem == ""
   test "the sql negates all of the criteria together, treating an unknown as no match":
-    let c = parseArgs(@["--sports", "cycling", "--names", "toyo", "--invert"], utcZone).params.scope
-    let q = matchSql(UserId(1), c.criteria, Points(), invert = c.invert).text
+    let filters = @[
+      Resolved(kind: rtSports, values: @["cycling"]),
+      Resolved(kind: rtNames, typed: @["toyo"]),
+    ]
+    let q = matchSql(UserId(1), filters, invert = true).text
     check q.contains(
       " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :nameT0) > 0"
     )
     check q.endsWith("), 0)")
-    let plain = matchSql(
-      UserId(1),
-      parseArgs(@["--sports", "cycling"], utcZone).params.scope.criteria,
-      Points(),
-    )
-    check not plain.text.contains("coalesce")
+    check not matchSql(UserId(1), filters).text.contains("coalesce")
   test "the limits come after the inverting, and latest is found before it":
-    let c = parseArgs(@["--sports", "cycling", "--invert", "--newest", "2"], utcZone).params.scope
-    check matchSql(UserId(1), c.criteria, Points(), invert = c.invert, limit = c.limit).text
+    let filters = @[Resolved(kind: rtSports, values: @["cycling"])]
+    check matchSql(
+      UserId(1), filters, invert = true, limit = some(Limit(kind: lkNewest, count: 2))
+    ).text
       .endsWith(" order by a.start_t desc limit :newest")
     let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).params.scope
-    check r.criteria.usesLatest and r.invert and not r.criteria.withoutLatest.usesLatest
+    check r.filters.usesLatest and r.invert and not r.filters.withoutLatest.usesLatest
 
 suite "list: criteria that other packages offer":
   func pick(st: Session, values: seq[string]): Resolution {.raises: [StoreError].} =
@@ -572,10 +658,10 @@ suite "list: criteria that other packages offer":
   test "an offered option is parsed with the others, and kept as given for its package to resolve":
     let c = parseArgs(
       @["--odd", "a", "b", "-o", "c", "--sports", "cycling"], utcZone, @[offered]
-    ).params.scope.criteria
-    check c.contributed.len == 1 and c.contributed[0].option == "--odd"
-    check c.contributed[0].values == @["a", "b", "c"]
-    check c.sports == @["cycling"]
+    ).params.scope.filters
+    check c.find(ftContributed).contributed.option == "--odd"
+    check c.find(ftContributed).contributed.values == @["a", "b", "c"]
+    check c.find(ftSports).listed.values == @["cycling"]
   test "it is a criterion: it needs words, and it can be inverted":
     check parseArgs(@["--odd"], utcZone, @[offered]).problem.len > 0
     check parseArgs(@["--invert", "--odd", "x"], utcZone, @[offered]).problem == ""
@@ -586,9 +672,13 @@ suite "list: criteria that other packages offer":
     check "--odd, -o WORD..." in
       optionLines(criteriaSpec(@[offered]).docs, 100).plainText
   test "the conditions are joined by the command, with and":
-    let c = Criteria()
-    let q = matchSql(UserId(1), c, Points(), extra = sqlOf(" and (a.id = 7)"))
+    let q =
+      matchSql(UserId(1), @[Resolved(kind: rtCondition, condition: sqlOf("a.id = 7"))])
     check q.text.contains(" and (a.id = 7)")
+  test "the conditions come in a fixed order, whatever the order of the filters":
+    let a = Resolved(kind: rtActive, range: NumRange(lo: some 1.0))
+    let s = Resolved(kind: rtSports, values: @["cycling"])
+    check matchSql(UserId(1), @[a, s]).text == matchSql(UserId(1), @[s, a]).text
 
 suite "list: --delete":
   test "--delete is an action, not a criterion; -y answers its question":
