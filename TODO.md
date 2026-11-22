@@ -43,6 +43,22 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * A7: the guard test for padding by hand misses the usage's command list;
     * A11: `wrap` (strings) and `line.wrapped` (Lines) are still two algorithms, now both counting characters.
 
+16. **One question, `ask`, and `-y`** (decided with the author 2026-11-22; before the editable objects, which use it).  One
+    function in `core` (where the unit question's key reading is) asks every confirmation: `ask(g, question, default)`.
+    With `-y` the answer is yes at once (the question is still printed, followed by `y`, so the screen and the log show
+    what was accepted); on a terminal the question, then `[Yn]` or `[yN]` (the upper case letter is the default), one key
+    (`y`/`Y`, `n`/`N`, Enter the default, Ctrl-C no); not on a terminal and without `-y`, no, with the question and "use
+    `-y` to accept".  `-y` is declared once in `util/args` and every command accepts it, as `-h` (not a global option
+    before the command).  Its callers: the unit question (default yes, `[Yn]`) and every `--delete` (default no, `[yN]`,
+    the question saying what would go).  **`-f`, `-f -f` and the countdown of the `confirm` package go** (the author:
+    "replace countdown etc with [Yn] too"): the question is the pause, `-y` the "I am sure"; a script without `-y` never
+    deletes.  Then CLAUDE.md ("every `--delete` is confirmed with `-f` ...") and the help.
+
+17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`).  One shared piece for
+    the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
+    filters (patterns, ranges with units, places), `--add`, `--edit NAME`, `--delete` of the selection (with `ask`), the
+    table and completion are made from it.  With the `ff` rework: `landmarks` first, then `users`, then `models`.
+
 13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
     before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the
     host (`localhost:PORT`) and the token as the page's address gives them.
