@@ -42,7 +42,7 @@ type
   Resolved* = object
     data*: string
     source*: Source
-    path*: string ## the file in `system/` ("" if there is none)
+    path*: Option[string] ## the file in `system/` (none if there is none)
     hash*: string ## the SHA-256 of `data` (already worked out, so a caller need not)
 
 const
@@ -101,14 +101,15 @@ proc record(top, name, hash: string) =
   except IOError, OSError:
     discard
 
-proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
-  ## The data to use for a bundled file, unpacking it into `top`'s `system/` if need be.  `top` is
-  ## the cache directory; "" means there is none (use the program's copy).
+proc resolve*(cache: Option[string], b: Bundle): Resolved {.gcsafe.} =
+  ## The data to use for a bundled file, unpacking it into the cache directory's `system/` if need be.  `cache` is
+  ## the cache directory; none means there is none (use the program's copy).
   let bundled = sha256Hex(b.data)
   let program = Resolved(data: b.data, source: soBundled, hash: bundled)
     # (the program's copy)
-  if top.len == 0:
+  if cache.isNone:
     return program
+  let top = cache.get
   let path = systemDir(top) / b.name
   var current: Option[string]
   var onDisk = ""
@@ -124,26 +125,25 @@ proc resolve*(top: string, b: Bundle): Resolved {.gcsafe.} =
       recorded = some(v)
   case decide(current, recorded, bundled)
   of acCustom:
-    return Resolved(data: onDisk, source: soCustom, path: path, hash: current.get)
+    return Resolved(data: onDisk, source: soCustom, path: some(path), hash: current.get)
   of acCurrent:
     if recorded != some(bundled):
       record(top, b.name, bundled)
-    return Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)
+    return Resolved(data: b.data, source: soUnpacked, path: some(path), hash: bundled)
   of acUnpack, acRefresh:
     if b.name != noticeBundle.name:
-      discard resolve(top, noticeBundle) # (the notice goes with them)
+      discard resolve(cache, noticeBundle) # (the notice goes with them)
     try:
       writeAtomic(path, b.data)
     except IOError, OSError:
       return program # cannot write: the program's copy will do
     record(top, b.name, bundled)
-    return Resolved(data: b.data, source: soUnpacked, path: path, hash: bundled)
+    return Resolved(data: b.data, source: soUnpacked, path: some(path), hash: bundled)
 
 proc unpackNotice*(top: string) =
   ## Put NOTICE in `top`'s `system/` part, if it is not already there.
-  discard resolve(top, noticeBundle)
+  discard resolve(some(top), noticeBundle)
 
 proc resolve*(b: Bundle): Resolved =
   ## ... in the cache directory the environment points to (see cache.nim).
-  let dir = cacheDir()
-  resolve(if dir.isSome: dir.get else: "", b)
+  resolve(cacheDir(), b)

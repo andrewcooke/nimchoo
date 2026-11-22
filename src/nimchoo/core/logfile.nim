@@ -46,7 +46,7 @@ type
     f: File
     now: Clock
     path*: string ## where it is
-    problem*: string ## why the log is disabled ("" if it is not)
+    problem*: Option[string] ## why the log is disabled (none if it is not)
 
 const
   defaultMaxBytes* = 5_000_000
@@ -174,9 +174,9 @@ proc openLog*(
     createDir parentDir(path)
     rotate path, maxBytes, keep
     if not open(result.f, path, fmAppend):
-      result.problem = "cannot open " & path
+      result.problem = some("cannot open " & path)
   except OSError, IOError:
-    result.problem = "cannot open " & path & ": " & getCurrentExceptionMsg()
+    result.problem = some("cannot open " & path & ": " & getCurrentExceptionMsg())
 
 func enabled*(l: Log): bool =
   ## Whether there is a log file to write to.

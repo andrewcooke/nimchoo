@@ -137,7 +137,8 @@ proc importPaths*(
 
   var cached: Option[Profile]
   var profileBytes = ""
-  var profileProblem = "" # said at the end if the author's profile cannot be used
+  var profileProblem = none(string)
+    # said at the end if the author's profile cannot be used
   let profile: ProfileSource = proc(): Profile {.closure, raises: [].} =
     if cached.isNone:
       if opts.profile.isNil:
@@ -319,6 +320,6 @@ proc importPaths*(
       stderr.write report()
     except IOError:
       discard
-  if profileProblem.len > 0:
-    result.warnings.add profileProblem
+  if profileProblem.isSome:
+    result.warnings.add profileProblem.get
   emit ImportEvent(kind: evFinish, summary: result)

@@ -127,8 +127,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           loadProfile(parsed.params.profile.get)
         else:
           let d = defaultProfile()
-          if d.problem.len > 0:
-            g.warn d.problem
+          if d.problem.isSome:
+            g.warn d.problem.get
           d.profile
       except NchError, IOError:
         return

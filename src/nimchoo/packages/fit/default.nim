@@ -2,6 +2,7 @@
 ## `--profile`.  It is also kept as a file in the cache's `system/` part (see bundle/unpack.nim):
 ## a file the author puts there instead (say a newer SDK's) is used in its place.
 
+import std/options
 import ../bundle/unpack
 import ./load
 
@@ -19,12 +20,12 @@ proc profileInUse*(): string =
   ## Which profile is used when none is asked for, as `nch --config` says it: the built-in one, or the author's (its path).
   let r = resolve(profileBundle)
   if r.source == soCustom:
-    r.path & " (not the built-in one)"
+    r.path.get & " (not the built-in one)"
   else:
     "the built-in one"
 
-proc defaultProfile*(): tuple[profile: Profile, problem: string, bytes: string] =
-  ## `loadDefaultProfile`, but if the author's profile cannot be used the built-in one is, and `problem` says why (""
+proc defaultProfile*(): tuple[profile: Profile, problem: Option[string], bytes: string] =
+  ## `loadDefaultProfile`, but if the author's profile cannot be used the built-in one is, and `problem` says why (none
   ## otherwise: which one is in use is `nch --config`'s to say, `profileInUse`).
   let r = resolve(profileBundle)
   result.bytes = r.data # (the spreadsheet in use: another thread can load its own copy)
@@ -38,5 +39,7 @@ proc defaultProfile*(): tuple[profile: Profile, problem: string, bytes: string] 
       result.profile = loadProfileFromBytes(embedded)
     except NchError as e2:
       raiseAssert "the built-in profile does not load: " & e2.msg # a bug
-    result.problem =
-      "the profile " & r.path & " cannot be used (" & e.msg & "): using the built-in one"
+    result.problem = some(
+      "the profile " & r.path.get & " cannot be used (" & e.msg &
+        "): using the built-in one"
+    )

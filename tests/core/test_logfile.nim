@@ -44,7 +44,7 @@ suite "log: files":
     let d = fresh("append")
     let path = d / "sub" / "nch.log" # directory is created
     let a = openLog(path, now = fixed)
-    check a.problem == ""
+    check a.problem.isNone
     a.log(lvInfo, "map", leNote, "one")
     a.close()
     let b = openLog(path, now = fixed)
@@ -78,7 +78,7 @@ suite "log: files":
     writeFile(d / "file", "")
     let l = openLog(d / "file" / "nch.log") # parent is a file
     check not l.enabled
-    check l.problem.startsWith("cannot open")
+    check l.problem.get.startsWith("cannot open")
     l.log(lvInfo, "map", leNote, "x") # and nothing happens
     l.close()
 

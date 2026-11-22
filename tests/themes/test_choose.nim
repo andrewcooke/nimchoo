@@ -54,26 +54,26 @@ suite "themes: which one is chosen":
 suite "themes: reading the one chosen":
   test "the built-in themes are unpacked, and one is used as it is in the cache":
     fresh()
-    let r = loadTheme(cache, some("light"))
+    let r = loadTheme(some(cache), some("light"))
     check r.warning.isNone
     check r.theme.name == "light"
     check fileExists(themesDir(cache) / "dark.theme")
     check fileExists(themesDir(cache) / "light.theme")
     writeFile(themesDir(cache) / "light.theme", "default\nem underline=yes\n")
-    let edited = loadTheme(cache, some("light"))
+    let edited = loadTheme(some(cache), some("light"))
     check edited.theme.styles["em"].underline == some(true)
     check "good" notin edited.theme.styles
 
   test "a theme of the author's own is a file in the directory":
     fresh()
-    discard loadTheme(cache, none(string))
+    discard loadTheme(some(cache), none(string))
     writeFile(themesDir(cache) / "mine.theme", "em fg=#123456\n")
-    let r = loadTheme(cache, some("mine"))
+    let r = loadTheme(some(cache), some("mine"))
     check r.warning.isNone
     check r.theme.name == "mine"
     check r.theme.origin == "--theme"
-    check "mine" in themeNames(cache)
-    check themeNames(cache)[0 .. 1] == @["dark", "light"]
+    check "mine" in themeNames(some(cache))
+    check themeNames(some(cache))[0 .. 1] == @["dark", "light"]
 
   test "a theme that cannot be used gives the fallback and a warning":
     fresh()
@@ -85,14 +85,14 @@ suite "themes: reading the one chosen":
       if text.len > 0:
         createDir(themesDir(cache))
         writeFile(themesDir(cache) / (name & ".theme"), text)
-      let r = loadTheme(cache, some(name))
+      let r = loadTheme(some(cache), some(name))
       check r.theme.name == fallback
       check r.theme.origin == "the fallback"
       check r.warning.isSome
       check says in r.warning.get
 
   test "without a cache, the built-in themes are still there":
-    let r = loadTheme("", some("light"))
+    let r = loadTheme(none(string), some("light"))
     check r.warning.isNone
     check r.theme.name == "light"
     check "good" in r.theme.styles

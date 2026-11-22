@@ -81,15 +81,17 @@ func isThemeName*(s: string): bool =
   ## A name of a theme: letters, digits, hyphens and underscores (it is the name of a file).
   s.len > 0 and s.allCharsInSet({'a' .. 'z', 'A' .. 'Z', '0' .. '9', '-', '_'})
 
-proc themeText(cache, name: string): string {.raises: [ThemeError].} =
+proc themeText(cache: Option[string], name: string): string {.raises: [ThemeError].} =
   ## The text of the theme `name`: the built-in one (as unpacked, or as edited), or the file of that name.
   for b in builtIn:
     if b.name == "themes/" & name & themeExtension:
       return resolve(cache, b).data
   if not isThemeName(name):
     raiseTheme(fmt"'{name}' is not a name of a theme")
-  let path = themesDir(cache) / (name & themeExtension)
-  if cache.len == 0 or not fileExists(path):
+  if cache.isNone:
+    raiseTheme(fmt"there is no theme '{name}' (there is no cache directory)")
+  let path = themesDir(cache.get) / (name & themeExtension)
+  if not fileExists(path):
     raiseTheme(fmt"there is no theme '{name}' (no {path})")
   try:
     readFile(path)
@@ -108,7 +110,7 @@ proc builtInTheme(name: string): Theme =
       return
   raiseAssert fmt"no built-in theme {name}"
 
-proc given(cache: string, flag: Option[string]): Given =
+proc given(cache: Option[string], flag: Option[string]): Given =
   ## What the command line, the environment and the cache say.
   result.flag = flag
   for (field, variable) in [
@@ -117,8 +119,8 @@ proc given(cache: string, flag: Option[string]): Given =
     let v = getEnv(variable)
     if v.len > 0:
       field[] = some(v)
-  if cache.len > 0:
-    let link = themesDir(cache) / currentLink
+  if cache.isSome:
+    let link = themesDir(cache.get) / currentLink
     try:
       if symlinkExists(link):
         result.link = some(expandSymlink(link))
@@ -126,9 +128,9 @@ proc given(cache: string, flag: Option[string]): Given =
       discard
 
 proc loadTheme*(
-    cache: string, flag: Option[string]
+    cache: Option[string], flag: Option[string]
 ): tuple[theme: Theme, warning: Option[string]] =
-  ## The theme in force, given the cache directory (""; none) and `--theme` (none if not given), with the built-in themes
+  ## The theme in force, given the cache directory (if there is one) and `--theme` (none if not given), with the built-in themes
   ## unpacked to the cache; if the one chosen cannot be used, the fallback and why.
   for b in builtIn:
     discard
@@ -151,14 +153,14 @@ proc loadTheme*(
     result.theme.origin = "the fallback"
     result.warning = some(fmt"{which}: {e.msg} (using the built-in {fallback})")
 
-proc themeNames*(cache: string): seq[string] =
+proc themeNames*(cache: Option[string]): seq[string] =
   ## The themes there are: the built-in ones, and the files `NAME.theme` in `system/themes/`.
   for b in builtIn:
     result.add splitFile(b.name).name
-  if cache.len == 0:
+  if cache.isNone:
     return
   try:
-    for kind, path in walkDir(themesDir(cache)):
+    for kind, path in walkDir(themesDir(cache.get)):
       let (_, name, ext) = splitFile(path)
       if kind in {pcFile, pcLinkToFile} and ext == themeExtension and isThemeName(name) and
           name notin result:

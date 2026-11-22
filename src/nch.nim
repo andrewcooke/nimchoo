@@ -43,7 +43,7 @@ func takeJob(p: var Head, action: Action, value: string): Problem =
 
 proc completeThemes(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
   ## The themes whose names start with what is typed.
-  themeNames(cacheDir().get("")).filterIt(it.startsWith(typed))
+  themeNames(cacheDir()).filterIt(it.startsWith(typed))
 
 func headSpec(): Spec[Head] =
   ## The options every command takes, given before its name.
@@ -155,7 +155,7 @@ proc main(): int {.raises: [].} =
   g.access = allAccess
   g.colour = [canColourStdout(), canColour()]
   g.width = [helpWidth(stdout), helpWidth(stderr)]
-  let chosen = loadTheme(cacheDir().get(""), head.theme)
+  let chosen = loadTheme(cacheDir(), head.theme)
   g.theme = chosen.theme
   if chosen.warning.isSome:
     g.warn chosen.warning.get
@@ -195,8 +195,8 @@ proc main(): int {.raises: [].} =
     let path = envLogPath()
     if path.isSome:
       g.log = openLog(path.get)
-      if g.log.problem.len > 0:
-        g.warn ~"{g.log.problem} (continuing without a log)"
+      if g.log.problem.isSome:
+        g.warn ~"{g.log.problem.get} (continuing without a log)"
   g.log.log(lvInfo, name, leRun, fmt"[{nchCommit}] {rest.join("" "")}")
   result = provided[0].run(g, rest)
   g.log.log(lvInfo, name, leExit, $result)
