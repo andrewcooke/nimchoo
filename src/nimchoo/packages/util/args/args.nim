@@ -248,6 +248,7 @@ proc walk[P](
 
 func corrected(args: seq[string], bare: seq[Bare]): UnitFix =
   ## The arguments with the default unit added to each bare number.
+  result.original = args
   result.args = args
   for b in bare:
     result.missing.add b.item

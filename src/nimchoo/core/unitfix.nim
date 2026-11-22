@@ -23,31 +23,77 @@ type
   UnitFix* = object
     ## What a command line needs: the options that were given bare numbers, and the arguments with each default unit added.
     missing*: seq[Unitless]
-    args*: seq[string]
+    original*: seq[string] ## the arguments as they were typed
+    args*: seq[string] ## the same, with the unit added where it was missing
 
-func commandLine*(leading: seq[string], command: string, args: seq[string]): string =
+func insertedIn(typed, corrected: string): seq[bool] =
+  ## For each character of `corrected`, whether it was added to `typed` (which is a subsequence of it: only text was inserted).
+  var at = 0
+  for c in corrected:
+    if at < typed.len and typed[at] == c:
+      result.add false
+      inc at
+    else:
+      result.add true
+
+func argument(typed, corrected: string): Line =
+  ## One argument as a shell wants it back: quoted as a whole if need be, with the characters that were added in `em`.
+  let added = insertedIn(typed, corrected)
+  let quoted = quoteShell(corrected) != corrected
+  var parts: Line
+  proc put(parts: var Line, text: string, em: bool) =
+    if text.len == 0:
+      return
+    if parts.len > 0 and (parts[^1].styles.len > 0) == em:
+      parts[^1].text.add text
+    elif em:
+      parts.add span(text, "em")
+    else:
+      parts.add span(text)
+
+  if quoted:
+    parts.put("'", false)
+  for k, c in corrected:
+    if quoted and c == '\'':
+      parts.put("'\"'\"'", false)
+    else:
+      parts.put($c, added[k])
+  if quoted:
+    parts.put("'", false)
+  parts
+
+func commandLine*(leading: seq[string], command: string, fix: UnitFix): Line =
   ## `nch --offline activities --radius 3km`: the program, the arguments before the command (`leading`), the command (`nch
-  ## activities`: the program's name and the command's) and its arguments, each quoted again as a shell wants them.
+  ## activities`: the program's name and the command's) and its arguments, each quoted again as a shell wants them.  What was
+  ## added to an argument (the unit) is in `em`, so that a person sees what was changed.
   let words = command.splitWhitespace
-  var parts = words[0 .. 0]
+  var text = words[0 .. 0]
   for a in leading:
-    parts.add quoteShell(a)
-  parts.add words[1 .. ^1]
-  for a in args:
-    parts.add quoteShell(a)
-  parts.join(" ")
+    text.add quoteShell(a)
+  text.add words[1 .. ^1]
+  result = plain(text.join(" "))
+  let known = fix.original.len == fix.args.len
+  for k, a in fix.args:
+    result.add span(" ")
+    result.add argument(
+      if known:
+        fix.original[k]
+      else:
+        a,
+      a,
+    )
 
 func questionLines*(leading: seq[string], command: string, fix: UnitFix): seq[Line] =
-  ## The question, in three styles, in two lines: what is missing (`warn`), then the command line with the default unit added
-  ## (default) and, on a terminal, the choice after it on the same line (`em`: added by `askUnit`).
+  ## The question, in two lines: what is missing (`warn`), then the command line with the unit added (default, the unit
+  ## itself in `em`); on a terminal `[Yn]` (`warn`) follows it on the same line (`askUnit`).
   var named: seq[string]
   for m in fix.missing:
     named.add m.option & " " & m.value
   let what = named.join(", ")
-  let tail = if fix.missing.len == 1: "has no unit" else: "have no unit"
+  let tail = if fix.missing.len == 1: "is missing a unit" else: "are missing units"
   @[
     @[span(fmt"{command}: {what} {tail}; did you mean", "warn")],
-    plain(fmt"  {commandLine(leading, command, fix.args)}"),
+    @[span("  ")] & commandLine(leading, command, fix),
   ]
 
 proc askUnit*(
@@ -66,7 +112,7 @@ proc askUnit*(
   if not terminal:
     g.show(osErr, lines[1])
     return none(seq[string])
-  g.prompt(osErr, lines[1] & @[span(" "), span("[Yn]", "em"), span(" ")])
+  g.prompt(osErr, lines[1] & @[span(" "), span("[Yn]", "warn"), span(" ")])
   var yes = false
   while true:
     let k = key()
