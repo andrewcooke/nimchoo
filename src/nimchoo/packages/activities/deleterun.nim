@@ -45,7 +45,7 @@ proc runDelete*(
     var live = Live()
     let screen = canLive()
     if screen:
-      live = newTerminalLive(g.theme)
+      live = newTerminalLive(paintOf(g, osErr))
     let done = deleteActivities(
       st,
       plan,

@@ -164,8 +164,9 @@ proc restoreCursor() {.noconv.} =
   else:
     quit(130)
 
-proc newTerminalLive*(theme: Theme): Live =
-  ## A live region on stderr in `theme`, using the real clock and terminal size.
+proc newTerminalLive*(paint: Paint): Live =
+  ## A live region on stderr drawn as `paint` says (the theme, and whether in colour: `g.paintOf(osErr)`), using the real
+  ## clock and terminal size.
   setControlCHook(restoreCursor)
   newLive(
     write = proc(s: string) {.closure, raises: [].} =
@@ -178,5 +179,5 @@ proc newTerminalLive*(theme: Theme): Live =
       getMonoTime().ticks div 1_000_000,
     size = proc(): tuple[w, h: int] {.closure, raises: [].} =
       (orDefault(terminalWidth(), 80), orDefault(terminalHeight(), 24)),
-    paint = Paint(theme: theme, colour: canColour()),
+    paint = paint,
   )

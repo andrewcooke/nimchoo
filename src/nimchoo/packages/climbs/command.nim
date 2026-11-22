@@ -151,7 +151,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     var worked: Worked
     if canLive():
       # two lines that follow the work and stay on the screen at the end (as the import's do)
-      let live = newTerminalLive(g.theme)
+      let live = newTerminalLive(paintOf(g, osErr))
       var shown = false
       worked = ensureClimbs(
         st,

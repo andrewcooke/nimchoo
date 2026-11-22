@@ -67,7 +67,7 @@ proc runImport(
   let screen =
     if not opts.quiet and canLive():
       liveSink(
-        newTerminalLive(g.theme),
+        newTerminalLive(paintOf(g, osErr)),
         logged,
         proc(l: Line) {.closure, raises: [].} =
           g.show(osOut, l),
@@ -152,7 +152,7 @@ proc runImport(
           if opts.quiet or not canLive():
             return
           if live.isNone:
-            live = some(newTerminalLive(g.theme))
+            live = some(newTerminalLive(paintOf(g, osErr)))
           if final:
             if drawn:
               live.get.keep(lines)

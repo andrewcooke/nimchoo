@@ -44,7 +44,8 @@ type
     bytes: int64
     label, url, message, text: Text
     looks: array[LineStyle, Look] ## of the styles the line uses, in the theme in force
-    maker: proc(theme: Theme): Live {.nimcall, raises: [].}
+    maker: proc(paint: Paint): Live {.nimcall, raises: [].}
+    colour: bool ## whether the line is drawn in colour
 
   Spinner* = ref object
     shared: ptr Shared
@@ -93,7 +94,7 @@ proc loop(s: ptr Shared) {.thread.} =
     theme.styles[defaultStyle] = asStyle(s.looks[lsPlain])
     theme.styles["hide"] = asStyle(s.looks[lsHide])
     theme.styles["bad"] = asStyle(s.looks[lsBad])
-    let live = s.maker(theme)
+    let live = s.maker(Paint(theme: theme, colour: s.colour))
     let start = getMonoTime()
     while true:
       acquire(s.lock)
@@ -128,21 +129,22 @@ proc loop(s: ptr Shared) {.thread.} =
       sleep(pollMs)
 
 proc startSpinner*(
-    maker: proc(theme: Theme): Live {.nimcall, raises: [].},
-    theme: Theme,
+    maker: proc(paint: Paint): Live {.nimcall, raises: [].},
+    paint: Paint,
     label, url: string,
     text = "",
 ): Spinner =
-  ## Start drawing the line in `theme`; `maker` makes the `Live` (in the thread).  If the thread cannot be made nothing is
+  ## Start drawing the line as `paint` says; `maker` makes the `Live` (in the thread).  If the thread cannot be made nothing is
   ## drawn.
   result = Spinner()
   let s = cast[ptr Shared](allocShared0(sizeof(Shared)))
   initLock(s.lock)
   s.maker = maker
+  s.colour = paint.colour
   s.looks = [
-    lookOf(theme, @[]),
-    lookOf(theme, @[styleName"hide"]),
-    lookOf(theme, @[styleName"bad"]),
+    lookOf(paint.theme, @[]),
+    lookOf(paint.theme, @[styleName"hide"]),
+    lookOf(paint.theme, @[styleName"bad"]),
   ]
   put(s.label, label)
   put(s.url, url)

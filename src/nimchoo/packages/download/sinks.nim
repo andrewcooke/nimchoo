@@ -44,8 +44,8 @@ proc screenSink*(write: proc(line: Line) {.closure, raises: [].}): Sink =
       )
 
 proc liveSink*(
-    theme: Theme,
-    maker: proc(theme: Theme): Live {.nimcall, raises: [].} = newTerminalLive,
+    paint: Paint,
+    maker: proc(paint: Paint): Live {.nimcall, raises: [].} = newTerminalLive,
 ): Sink =
   ## Say a download on one line that turns a spinner (see spinner.nim) while the file comes and while it is read, and that
   ## stays on the screen at the end.  A file that is already in the cache and is only read gets the line and the spinner
@@ -68,7 +68,7 @@ proc liveSink*(
       downloaded = false
       label = ev.label
       url = ev.url
-      sp = startSpinner(maker, theme, label, url)
+      sp = startSpinner(maker, paint, label, url)
     of deProgress:
       discard # (the size is said when the line is done)
     of deDownloaded:
@@ -78,19 +78,19 @@ proc liveSink*(
     of deReading:
       if sp == nil:
         downloaded = false
-        sp = startSpinner(maker, theme, ev.label, ev.url)
+        sp = startSpinner(maker, paint, ev.label, ev.url)
     of deFinished:
       endLine(if downloaded: enKeep else: enClear)
       downloaded = false
       if job.len > 0:
-        sp = startSpinner(maker, theme, "", "", job) # (the job goes on)
+        sp = startSpinner(maker, paint, "", "", job) # (the job goes on)
     of deWorking:
       endLine(enClear)
       job = ev.label
-      sp = startSpinner(maker, theme, "", "", job)
+      sp = startSpinner(maker, paint, "", "", job)
     of deWorkDone:
       if sp == nil and ev.message.len > 0:
-        sp = startSpinner(maker, theme, "", "", job)
+        sp = startSpinner(maker, paint, "", "", job)
       endLine(if ev.message.len > 0: enKeep else: enClear, ev.message)
       job = ""
       downloaded = false
@@ -98,5 +98,5 @@ proc liveSink*(
       if sp != nil:
         endLine(enFailed, ev.message)
       else:
-        maker(theme).keep(@[failedLine(ev.url, ev.message)])
+        maker(paint).keep(@[failedLine(ev.url, ev.message)])
       downloaded = false

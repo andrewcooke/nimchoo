@@ -240,7 +240,7 @@ suite "download: the failure line":
 var written: seq[string]
   ## what the test terminal was given (the spinner's thread writes it; read after it is stopped)
 
-proc testMaker(theme: Theme): Live {.nimcall, raises: [].} =
+proc testMaker(paint: Paint): Live {.nimcall, raises: [].} =
   ## A `Live` that writes into `written`, with no first delay, so that frames are drawn at once.
   {.cast(gcsafe).}:
     newLive(
@@ -251,7 +251,7 @@ proc testMaker(theme: Theme): Live {.nimcall, raises: [].} =
         getMonoTime().ticks div 1_000_000,
       size = proc(): tuple[w, h: int] {.closure, raises: [].} =
         (120, 24),
-      paint = Paint(theme: theme, colour: false),
+      paint = paint,
       firstDelay = 0,
       interval = 10,
     )
@@ -299,7 +299,7 @@ suite "download: the line while a file comes":
     var moved = false
     for attempt in 1 .. 8:
       written = @[]
-      let sp = startSpinner(testMaker, Theme(), "locations in CL", url)
+      let sp = startSpinner(testMaker, Paint(), "locations in CL", url)
       sp.setSize(1000)
       sleep(350 * attempt)
       sp.stop(enKeep)
@@ -311,18 +311,18 @@ suite "download: the line while a file comes":
       written[^1]
     check not written[^1].contains(frames[0]) and not written[^1].contains(frames[5])
     written = @[]
-    let gone = startSpinner(testMaker, Theme(), "x", url)
+    let gone = startSpinner(testMaker, Paint(), "x", url)
     sleep(100)
     gone.stop(enClear)
     check "need" notin written[^1]
     written = @[]
-    let bad = startSpinner(testMaker, Theme(), "x", url)
+    let bad = startSpinner(testMaker, Paint(), "x", url)
     bad.stop(enFailed, "cannot reach")
     check "cannot download download.geonames.org/export/dump/CL.zip: cannot reach" in
       written[^1]
   test "the live sink: a download keeps its line, a file only read gets none, a failure is said":
     written = @[]
-    let sink = liveSink(Theme(), testMaker)
+    let sink = liveSink(Paint(), testMaker)
     sink(
       DownloadEvent(
         kind: deStarting, source: "geonames", url: url, label: "locations in CL"
@@ -369,7 +369,7 @@ suite "download: a job of the command's own, with a spinner":
     check progressLine("", "", 0, 3, false, "naming 1,112 activities").text ==
       "naming 1,112 activities " & frames[3]
     written = @[]
-    let sp = startSpinner(testMaker, Theme(), "", "", "naming 3 activities")
+    let sp = startSpinner(testMaker, Paint(), "", "", "naming 3 activities")
     sleep(250)
     sp.stop(enKeep, "named 3 activities")
     check spinnerChars().len >= 2 and
@@ -377,7 +377,7 @@ suite "download: a job of the command's own, with a spinner":
     check "named 3 activities" in written[^1] and not written[^1].contains("naming")
   test "the live sink: the job's line steps aside for a download and comes back; the end leaves the message, or nothing":
     written = @[]
-    let sink = liveSink(Theme(), testMaker)
+    let sink = liveSink(Paint(), testMaker)
     sink(DownloadEvent(kind: deWorking, label: "naming 2 activities"))
     sleep(120)
     sink(
