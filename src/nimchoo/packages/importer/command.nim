@@ -180,7 +180,7 @@ proc runImport(
           for said in step.run(st, ids, ctx):
             g.log.log(lvInfo, commandName, leSaved, said.text)
             if not opts.quiet:
-              g.done(@[span(said.text, said.style)])
+              g.done(~"<{said.style} {said.text}>")
         except StoreError, DownloadError:
           if live.isSome:
             live.get.finish() # (the display of a step that stopped)

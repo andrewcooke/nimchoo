@@ -45,18 +45,16 @@ func advisoryLines*(path: string, ws: seq[Warning]): seq[Line] =
       continue
     shown.add w.kind
     let more = count.getOrDefault(w.kind) - 1
-    result.add @[
-      span("advisory: "),
-      span(path, "file"),
-      span(
-        ": offset " & $w.offset & ": " & w.msg &
-          (if more > 0: " (and " & $more & " more like it)" else: "")
-      ),
-    ]
+    let extra =
+      if more > 0:
+        " (and " & $more & " more like it)"
+      else:
+        ""
+    result.add ~"advisory: <file {path}>: offset {w.offset}: {w.msg}{extra}"
 
 func fileLine(before, path, after: string): Line =
   ## A line about a file: its path in `file`.
-  @[span(before), span(path, "file"), span(after)]
+  ~"{before}<file {path}>{after}"
 
 func failureBreakdown*(s: Summary): string =
   ## "no activity 4, bad format 1": the failures by kind ("" if none).
@@ -126,7 +124,7 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
       if not quiet:
         if ev.sameAs.len > 0:
           result.stdout.add fileLine("duplicate ", ev.path, "  (same content as ") &
-            @[span(ev.sameAs, "file"), span(")")]
+            ~"<file {ev.sameAs}>)"
         else:
           result.stdout.add fileLine("duplicate ", ev.path, "  (already imported)")
     of oUnchanged:
@@ -146,7 +144,7 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   of evFinish:
     for note in ev.summary.warnings:
       result.stderr.add warnLine(note)
-    result.stdout.add @[span("read: ")] & summaryLine(ev.summary)
+    result.stdout.add ~"read: " & summaryLine(ev.summary)
     let hint = moreHint(ev.summary, logged)
     if hint.len > 0:
       result.stderr.add hint
