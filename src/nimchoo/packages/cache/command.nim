@@ -30,9 +30,8 @@ proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.
   var kinds: seq[Line]
   for k in Kind:
-    kinds.add @[
-      span("  "), span($k, "code"), span(" ".repeat(10 - len($k)) & kindHelp[k])
-    ]
+    let pad = " ".repeat(10 - len($k))
+    kinds.add ~"  `{k}`{pad}{kindHelp[k]}"
   usageOf(synopsis, width, intro, cacheSpec().docs, sections = @[("kinds", kinds)])
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
