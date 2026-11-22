@@ -29,10 +29,12 @@ const
 
 type
   FetchResult* = object
-    ok*: bool
     status*: int
-    body*: string
-    message*: string ## why not, if not ok
+    case ok*: bool
+    of true:
+      body*: string
+    of false:
+      message*: string ## why not
 
   Tick* = proc(done, total: int64) {.closure, raises: [].}
     ## told how much has come (`total` 0: not known)
@@ -197,22 +199,23 @@ proc fail(sink: Sink, src: Source, url, why: string): Option[string] =
   sink(DownloadEvent(kind: deFailed, source: src.name, url: url, message: why))
   none(string)
 
-proc checkContent(src: Source, arg, body: string): string =
-  ## "" if what came is what was asked for, else what is wrong with it.
+proc checkContent(src: Source, arg, body: string): Option[string] =
+  ## What is wrong with what came, if anything is: that it is not what was asked for.
   if body.len == 0:
-    return "the file is empty"
-  if src.zipEntry.len == 0:
-    return ""
-  let want = entryFor(src, arg)
+    return some("the file is empty")
+  let entry = entryFor(src, arg)
+  if entry.isNone:
+    return none(string)
+  let want = entry.get
   try:
     let entries = listEntries(body)
     if want notin entries:
-      return "the zip has no " & want
+      return some("the zip has no " & want)
     if entries.must(want).size == 0:
-      return "the zip's " & want & " is empty"
+      return some("the zip's " & want & " is empty")
   except ZipError as e:
-    return "not a zip file (" & e.msg & ")"
-  ""
+    return some("not a zip file (" & e.msg & ")")
+  none(string)
 
 proc fetchSource*(
     env: Env, sink: Sink, dataDir: string, src: Source, arg = ""
@@ -286,8 +289,8 @@ proc fetchSource*(
         humanBytes(src.maxBytes) & " allowed",
     )
   let problem = checkContent(src, arg, r.body)
-  if problem.len > 0:
-    return fail(sink, src, url, problem)
+  if problem.isSome:
+    return fail(sink, src, url, problem.get)
   try:
     createDir(dir)
     writeAtomic(path, r.body)

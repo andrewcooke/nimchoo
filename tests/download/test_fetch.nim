@@ -63,11 +63,11 @@ suite "download: the sources":
   test "the patterns take the argument":
     check urlFor(geonamesCountry, "CL") == chile
     check fileFor(geonamesCountry, "CL") == "CL.zip"
-    check entryFor(geonamesCountry, "CL") == "CL.txt"
+    check entryFor(geonamesCountry, "CL") == some("CL.txt")
     check urlFor(naturalEarthCountries) ==
       "https://naturalearth.s3.amazonaws.com/50m_cultural/ne_50m_admin_0_countries.zip"
-    check entryFor(naturalEarthCountries) == "ne_50m_admin_0_countries.shp"
-    check entryFor(geonamesCountryInfo) == ""
+    check entryFor(naturalEarthCountries) == some("ne_50m_admin_0_countries.shp")
+    check entryFor(geonamesCountryInfo).isNone
 
 suite "download: fetching":
   test "a file is fetched, checked, kept, and said once; the second time it is just there":

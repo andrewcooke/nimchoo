@@ -185,7 +185,10 @@ proc ensureCells*(
   var text: string
   try:
     text = readEntry(
-      readFile(path.get), entryFor(geonamesCountry, iso), maxCountryFile, n.env.inflater
+      readFile(path.get),
+      entryFor(geonamesCountry, iso).get,
+      maxCountryFile,
+      n.env.inflater,
     )
   except ZipError, IOError, OSError:
     n.sink(

@@ -2,13 +2,16 @@
 ## (Data that must travel with the program, or be pinned, is not downloaded: see TODO.md, task 13.)
 ## A pattern's `{arg}` is replaced by the argument given when the source is fetched (a country code).
 
+import std/options
+
 {.push raises: [].}
 
 type Source* = object
   name*: string ## also the directory of its files under `data/` in the cache
   url*: string ## the address, with `{arg}` where the argument goes
   file*: string ## the name of the file kept
-  zipEntry*: string ## the entry the zip must hold ("" if the file is not a zip)
+  zipEntry*: Option[string]
+    ## the entry the zip must hold (none if the file is not a zip)
   maxBytes*: int64 ## a bigger file is refused (before it is fetched, if the server says)
   attribution*: string ## the licence and who to credit (also in NOTICE)
   why*: string
@@ -22,7 +25,7 @@ const
     name: "geonames",
     url: "https://download.geonames.org/export/dump/{arg}.zip",
     file: "{arg}.zip",
-    zipEntry: "{arg}.txt",
+    zipEntry: some("{arg}.txt"),
     maxBytes: 200 * 1024 * 1024,
     attribution: geonamesCredit,
     why: "names of places and mountains in {arg} to name climbs and activities",
@@ -35,7 +38,7 @@ const
     url:
       "https://naturalearth.s3.amazonaws.com/50m_cultural/ne_50m_admin_0_countries.zip",
     file: "ne_50m_admin_0_countries.zip",
-    zipEntry: "ne_50m_admin_0_countries.shp",
+    zipEntry: some("ne_50m_admin_0_countries.shp"),
     maxBytes: 20 * 1024 * 1024,
     attribution: "Natural Earth (https://www.naturalearthdata.com), public domain",
     why: "country shapes, to infer country from position",
@@ -48,7 +51,7 @@ const
     name: "geonames",
     url: "https://download.geonames.org/export/dump/countryInfo.txt",
     file: "countryInfo.txt",
-    zipEntry: "",
+    zipEntry: none(string),
     maxBytes: 5 * 1024 * 1024,
     attribution: geonamesCredit,
     why: "the list of countries, for their names and codes",
@@ -74,9 +77,12 @@ func urlFor*(s: Source, arg = ""): string =
 func fileFor*(s: Source, arg = ""): string =
   ## The file name, with `arg` put in.
   fill(s.file, arg)
-func entryFor*(s: Source, arg = ""): string =
-  ## The name of the entry in the zip, with `arg` put in.
-  fill(s.zipEntry, arg)
+func entryFor*(s: Source, arg = ""): Option[string] =
+  ## The name of the entry in the zip, with `arg` put in (none if the file is not a zip).
+  if s.zipEntry.isSome:
+    some(fill(s.zipEntry.get, arg))
+  else:
+    none(string)
 func whyFor*(s: Source, arg = ""): string =
   ## Why it is wanted (said when it is fetched), with `arg` put in.
   fill(s.why, arg)
