@@ -57,7 +57,26 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       never edited (C14); `calendar/command` asks the terminal for its width itself and ignores `TERM=dumb` (E14); messages still
       built with `&` and `$` in `db/command`, `ff/command` and `model/command` (E14).
 
-17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`).  One shared piece for
+19. **D7: activities' `Criteria`, redesigned** (option 2, chosen by the author 2026-11-22; dev/REVIEW.md D7,
+    `dev/review-4/part-d.md` #7).  Today one flat object of about 30 fields mixes what to do, which activities and the
+    criteria; meaningless combinations are refused afterwards by checks in `finish`; every criterion that can refer to
+    `latest`/`previous` is listed by hand in `refersTo`, `withoutLatest` and `matchSql`; sentinels (`newest`/`oldest` 0,
+    `""` for none, `refNone`).  Two steps, behaviour unchanged (a refusal may be worded differently):
+    * **What to do and which activities**: a `Request` of an **action** variant (list, with `verbose` and `select`;
+      delete; rename) and a **scope** variant (the selection; all; matching: the criteria, `invert`, an optional limit
+      that is newest N or oldest N).  The combinations `finish` refuses by hand cannot be written; what is left of
+      `finish` is what the types cannot say.
+    * **The criteria as a list of variants**: `Filter`, one case per kind (sports, sub-sports, names, starts, paths,
+      distance, active, after/before, gps, from/near, and the contributed ones); a value that may refer to `latest` or
+      `previous` is "given" or "refers to".  Two stages, two types: parsing gives `Filter`s; resolving (finding latest and
+      previous, the ids a number in `--names` meant, the contributed criteria) gives `Resolved` ones with concrete
+      values, and **`matchSql` takes only `Resolved`**, so no reference reaches the SQL.  `refersTo`, `withoutLatest` and
+      `matchSql` are each one `case` over the kind with no `else`, so a new criterion does not compile until every place
+      handles it.  The filter kinds that the editable objects (17) share (a range with units, a name pattern, near a
+      place) move to a common package when those are built, not before.
+
+17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`), next after D7,
+    **with tags** (needed for `ff`; to be described by the author).  One shared piece for
     the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
     filters (patterns, ranges with units, places), `--add`, `--edit NAME`, `--delete` of the selection (with `ask`), the
     table and completion are made from it.  With the `ff` rework: `landmarks` first, then `users`, then `models`.
