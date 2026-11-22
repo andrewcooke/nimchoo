@@ -84,15 +84,11 @@ func collectCommands*(
       result.add c
   result = result.sortedByIt(it.name)
 
-func commandList*(commands: seq[CommandDecl]): seq[Line] =
-  ## The lines of the usage text that name the commands (they are in the order given, by name), each name in `cmd`, the
-  ## summaries in a column.
+func commandDocs*(commands: seq[CommandDecl]): seq[OptDoc] =
+  ## The commands as the usage text lists them (in the order given, by name): each a name and what it is for, laid out as
+  ## the options are (`usage.optionLines`), so nothing is lined up by hand.
   for c in commands:
-    result.add @[
-      span("  "),
-      span(c.name, "code"),
-      span(" ".repeat(max(1, 12 - c.name.len)) & c.summary),
-    ]
+    result.add OptDoc(names: @[c.name], help: plain(c.summary), arity: aFlag)
 
 func collectPoints*(
     packages: seq[Registered]

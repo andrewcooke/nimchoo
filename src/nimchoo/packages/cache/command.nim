@@ -27,11 +27,16 @@ const
 
 proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the kinds, wrapped to `width`.
-  var kinds: seq[Line]
+  var kinds: seq[OptDoc]
   for k in Kind:
-    let pad = " ".repeat(10 - len($k))
-    kinds.add ~"  `{k}`{pad}{kindHelp[k]}"
-  usageOf(synopsis, width, intro, cacheSpec().docs, sections = @[("kinds", kinds)])
+    kinds.add OptDoc(names: @[$k], help: plain(kindHelp[k]), arity: aFlag)
+  usageOf(
+    synopsis,
+    width,
+    intro,
+    cacheSpec().docs,
+    sections = @[("kinds", optionLines(kinds, width))],
+  )
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch cache ARGS`; returns the exit status.

@@ -2,7 +2,6 @@
 
 import std/[algorithm, os, sequtils, strutils, unittest]
 import nimchoo/core/[extension, globals, line, manifest, registry]
-import ../support/styles
 import nimchoo/packages/importer/channel
 import nimchoo/core/errors
 import nimchoo/registry as generated
@@ -75,16 +74,12 @@ suite "the commands of the packages":
     except PackageError as e:
       check "'x'" in e.msg and "'a'" in e.msg and "'b'" in e.msg
 
-  test "the usage list has a line for every command, in order, with its summary":
-    let lines = commandList(
+  test "the usage list has an entry for every command, in order, with its summary":
+    let docs = commandDocs(
       collectCommands(@[provides("a", "zed", "alpha"), provides("b", "mid")])
     )
-    check lines.anyIt(span("alpha", "code") in it) # (drawn as a command)
-    let text = lines.plainText
-    check lines.len == 3
-    check text.contains("  alpha       does alpha\n")
-    check text.find("alpha") < text.find("mid") and text.find("mid") < text.find("zed")
-
+    check docs.mapIt(it.names[0]) == @["alpha", "mid", "zed"]
+    check docs[0].help.plainText == "does alpha"
   test "each package says where it is: its directory, which holds its package.nim":
     let top = currentSourcePath().parentDir.parentDir.parentDir
     for p in generated.packages:

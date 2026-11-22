@@ -124,7 +124,7 @@ proc usageText(width: int): seq[Line] =
     width,
     options = headSpec().docs,
     notes = @[~"For more about a command: `nch COMMAND --help`."],
-    sections = @[("commands", commandList(allCommands))],
+    sections = @[("commands", optionLines(commandDocs(allCommands), width))],
   )
 
 proc main(): int {.raises: [].} =

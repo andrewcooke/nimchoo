@@ -53,12 +53,12 @@ suite "ruled tables: narrow columns":
     check ls == @["defines   │ x", "extension │", "points    │"]
 
 suite "ruled tables: the only tables":
-  test "no other code lines up columns (with align or alignLeft): every table is ruled":
-    # (the exceptions: the two that make the tables, the log file's own format, a developer's timings, and the diagram of
-    # the layers; and padding a number with zeros, `align($m, 2, '0')`, which is not a column)
+  test "no other code lines up columns (with align, alignLeft or a run of spaces): every table is ruled":
+    # (the exceptions: the two that make the tables, the log file's own format, a developer's timings, the diagram of
+    # the layers, and the calendar's grid (a margin as wide as its labels, not a table); and padding a number with zeros, `align($m, 2, '0')`, which is not a column)
     const allowed = [
       "core/ruled.nim", "util/args/usage.nim", "core/logfile.nim",
-      "profiling/profiling.nim", "core/inventory.nim",
+      "profiling/profiling.nim", "core/inventory.nim", "calendar/calendar.nim",
     ]
     var found: seq[string]
     let top = currentSourcePath().parentDir.parentDir.parentDir / "src"
@@ -66,7 +66,8 @@ suite "ruled tables: the only tables":
       if not path.endsWith(".nim") or allowed.anyIt(path.endsWith(it)):
         continue
       for i, l in readFile(path).splitLines.toSeq:
-        if ("alignLeft(" in l or "align(" in l) and ", '0')" notin l:
+        if ("alignLeft(" in l or "align(" in l or "\" \".repeat(" in l) and
+            ", '0')" notin l:
           found.add path.relativePath(top) & ":" & $(i + 1)
     check found.len == 0
     if found.len > 0:
