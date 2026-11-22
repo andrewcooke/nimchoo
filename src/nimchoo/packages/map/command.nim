@@ -256,12 +256,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let made = makeFrames(g, c, one, userDir(dir.get))
       if made.status != 0:
         return made.status
-      g.show(osOut, @[span(made.paths[0], "file")])
+      g.show(osOut, ~"<file {made.paths[0]}>")
     else:
       let made = makePage(g, c, userDir(dir.get))
       if made.status != 0:
         return made.status
-      g.show(osOut, @[span(made.page, "file")])
+      g.show(osOut, ~"<file {made.page}>")
   of wkFile:
     let stop = checkSelection(g, c)
     if stop.isSome:
@@ -270,5 +270,5 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if made.status != 0:
       return made.status
     for path in made.paths:
-      g.show(osOut, @[span(path, "file")])
+      g.show(osOut, ~"<file {path}>")
   exitOk
