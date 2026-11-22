@@ -159,15 +159,15 @@ proc main(): int {.raises: [].} =
   if chosen.warning.isSome:
     g.warn chosen.warning.get
   if why.isSome:
-    return usageError(g, "nch", usageText(helpWidth(stderr)), why.get)
+    return usageError(g, "nch", usageText(g.textWidth(osErr)), why.get)
   if head.help:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   if head.version:
     g.show(osOut, plain(versionString))
     return exitOk
   if head.config:
-    g.showAll osOut, configLines(g, helpWidth(stdout))
+    g.showAll osOut, configLines(g, g.textWidth(osOut))
     return exitOk
   if head.job.isSome:
     let job = head.job.get
@@ -177,16 +177,17 @@ proc main(): int {.raises: [].} =
     of acShow:
       return showMain(job.shell)
   if i >= args.len:
-    g.showAll osErr, usageText(helpWidth(stderr))
+    g.showAll osErr, usageText(g.textWidth(osErr))
     return exitUsage
   let rest = args[i + 1 .. ^1]
   if args[i] == "help":
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
-    return usageError(g, "nch", usageText(helpWidth(stderr)), ~"unknown command {name}")
+    return
+      usageError(g, "nch", usageText(g.textWidth(osErr)), ~"unknown command {name}")
   g.leading = args[0 ..< i]
   g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)

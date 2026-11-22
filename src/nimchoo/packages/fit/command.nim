@@ -5,7 +5,6 @@ import ../util/bytes/bytes
 import ./time
 import ../../core/globals
 import ../util/args/[args, usage]
-import ../ui/live
 import ./params
 import ./csvout
 import ./reader
@@ -108,10 +107,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch fit", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch fit", parsed.fix, run)
   of pkOk:

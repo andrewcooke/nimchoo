@@ -14,6 +14,7 @@ import std/[monotimes, os]
 when defined(posix):
   import std/posix
 from std/terminal import isatty, terminalWidth, terminalHeight
+import ../../core/globals
 import ./style
 
 {.push raises: [].}
@@ -143,15 +144,13 @@ func orDefault(n, default: int): int =
   ## A terminal that does not report its size reports 0.
   if n > 0: n else: default
 
-const pipedHelpWidth* = 120 ## the width of help text that is not going to a terminal
-
 proc helpWidth*(f: File): int =
   ## How wide the help text may be on `f`: the width of the terminal if it is one (80 if it will not say), else
-  ## `pipedHelpWidth`, for a file or a pipe has no width.
+  ## `globals.pipedWidth`, for a file or a pipe has no width.
   if isatty(f) and getEnv("TERM") != "dumb":
     orDefault(terminalWidth(), 80)
   else:
-    pipedHelpWidth
+    pipedWidth
 
 proc restoreCursor() {.noconv.} =
   ## Ctrl-C: give the terminal back, then stop.  (The handler cannot see any

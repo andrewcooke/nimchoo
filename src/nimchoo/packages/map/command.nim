@@ -16,7 +16,7 @@ import ../util/atomic/atomic
 import ../../core/[extension, globals]
 import ../../core/errors
 import ../subject/subjects
-import ../ui/[live, style]
+import ../ui/[style]
 import ../util/args/[args, usage]
 import ../web/launch
 import ../web/pages
@@ -197,10 +197,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(g, helpWidth(stdout))
+    g.showAll osOut, usageText(g, g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch map", usageText(g, helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch map", usageText(g, g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch map", parsed.fix, run)
   of pkOk:
@@ -208,7 +208,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let p = parsed.params
   let chosen = choose(g, p)
   if chosen.kind != pkOk:
-    return usageError(g, "nch map", usageText(g, helpWidth(stderr)), chosen.problem)
+    return usageError(g, "nch map", usageText(g, g.textWidth(osErr)), chosen.problem)
   let c = chosen.params
   let dir = cacheDir()
   if dir.isNone:
@@ -243,7 +243,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         return usageError(
           g,
           "nch map",
-          usageText(g, helpWidth(stderr)),
+          usageText(g, g.textWidth(osErr)),
           ~"'{p.frame.get}' is not a frame of {c.subject.name}",
         )
       let made = makeFrames(g, c, one, userDir(dir.get))

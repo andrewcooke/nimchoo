@@ -19,7 +19,6 @@ import ../util/args/[args, usage]
 import ../web/launch
 import ../web/pages
 import ../web/webopts
-import ../ui/live
 import ../ui/[style, units]
 import ./[curve, page, params, stats]
 import ../user/session
@@ -217,10 +216,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch ff", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch ff", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch ff", parsed.fix, run)
   of pkOk:

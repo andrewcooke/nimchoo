@@ -188,10 +188,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch import", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch import", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch import", parsed.fix, run)
   of pkOk:

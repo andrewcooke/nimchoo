@@ -94,3 +94,17 @@ suite "globals: warnings and what was done":
     check found.len == 0
     if found.len > 0:
       echo "prefixes written by hand: ", found.join(", ")
+
+suite "globals: the width of a window":
+  test "g.width says how wide text may be; with none, a pipe's":
+    var g = Globals()
+    check g.textWidth(osOut) == pipedWidth and g.textWidth(osErr) == pipedWidth
+    g.width = [100, 60]
+    check g.textWidth(osOut) == 100 and g.textWidth(osErr) == 60
+  test "only `nch` asks the terminal: a command takes the width from its Globals":
+    let src = currentSourcePath().parentDir.parentDir.parentDir / "src" / "nimchoo"
+    var found: seq[string]
+    for path in walkDirRec(src / "packages"):
+      if path.endsWith("command.nim") and "helpWidth(" in readFile(path):
+        found.add path
+    check found.len == 0

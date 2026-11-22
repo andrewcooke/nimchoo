@@ -10,7 +10,7 @@ import ../util/args/[args, usage]
 import ../ui/units
 import ../../core/errors
 import ../../core/logfile
-import ../ui/[live, style]
+import ../ui/[style]
 import ../confirm/confirm
 import ./statement
 import ./[holding, params, store]
@@ -119,10 +119,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch db", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch db", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch db", parsed.fix, run)
   of pkOk:
@@ -136,7 +136,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.show(osOut, ~"<file {path}> ({humanBytes(size(path))}{freeSpace(path)})")
     g.show(osOut, plain(""))
     try:
-      g.showAll(osOut, tablesLines(g, path, helpWidth(stdout)))
+      g.showAll(osOut, tablesLines(g, path, g.textWidth(osOut)))
     except StoreError as e:
       return failure(g, "nch db", e.msg)
     return exitOk

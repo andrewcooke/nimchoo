@@ -7,7 +7,6 @@ import std/[options, os, sequtils, strutils]
 import ../../core/globals
 import ../util/args/[args, usage]
 import ../../core/logfile
-import ../ui/live
 import ../ui/style
 import ./[lines, params]
 
@@ -64,10 +63,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args, g.commandNames)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch log", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch log", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch log", parsed.fix, run)
   of pkOk:

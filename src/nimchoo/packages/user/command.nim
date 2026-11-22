@@ -11,7 +11,6 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../../core/logfile
-import ../ui/live
 import ../confirm/confirm
 import ../util/args/[args, usage]
 import ./[has, params]
@@ -90,10 +89,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch users", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch users", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch users", parsed.fix, run)
   of pkOk:
@@ -103,7 +102,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return usageError(
       g,
       "nch users",
-      usageText(helpWidth(stderr)),
+      usageText(g.textWidth(osErr)),
       ~"`--user` goes after the command here: nch users `--edit` {g.user} ... (the users are named there)",
     )
   var st: Session
@@ -114,7 +113,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     case p.action
     of uaList:
-      g.showAll(osOut, userLines(st, g.extensions.get(userHas), helpWidth(stdout)))
+      g.showAll(osOut, userLines(st, g.extensions.get(userHas), g.textWidth(osOut)))
       g.done(listDone(userCount(st), none(int), "user", "users"))
       return exitOk
     of uaDelete:

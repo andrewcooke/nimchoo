@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ./cache
 import ../../core/[globals, ruled]
 import ../util/args/[args, usage]
-import ../ui/[live, style, units]
+import ../ui/[style, units]
 import ../../core/logfile
 import ../confirm/confirm
 import ./[files, params]
@@ -39,10 +39,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch cache", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch cache", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch cache", parsed.fix, run)
   of pkOk:
@@ -62,7 +62,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         (if u.count == 0: "-" else: humanBytes(u.bytes)),
       ]
     g.showAll(
-      osOut, ruled(@["kind", "files", "size"], cells, helpWidth(stdout), right = {1, 2})
+      osOut,
+      ruled(@["kind", "files", "size"], cells, g.textWidth(osOut), right = {1, 2}),
     )
     return exitOk
   var what: seq[string]

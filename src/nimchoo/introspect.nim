@@ -184,17 +184,17 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch packages", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch packages", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch packages", parsed.fix, packagesMain)
   of pkOk:
     discard
   let p = parsed.params
   let inv = inventory()
-  let width = helpWidth(stdout)
+  let width = g.textWidth(osOut)
   let asked =
     case p.view
     of vDetail: p.package

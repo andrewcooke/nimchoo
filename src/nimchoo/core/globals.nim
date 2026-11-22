@@ -43,10 +43,20 @@ type Globals* = object ## Options given before the command name, for every comma
     ## whether each stream is drawn in colour (`nch` fills it: a terminal that is not dumb, and NO_COLOR not set; in tests,
     ## neither is)
 
+const pipedWidth* = 120
+  ## the width of text that is not going to a terminal (a file or a pipe has none)
+
 const
   exitOk* = 0
   exitFailure* = 1 ## the work failed (unusable input, I/O error)
   exitUsage* = 2 ## the command line was wrong
+
+func textWidth*(g: Globals, o: OutStream): int =
+  ## How wide help, a usage or a table may be on `o`: the terminal's (`g.width`, which `nch` fills), else `pipedWidth`.
+  if g.width[o] > 0:
+    g.width[o]
+  else:
+    pipedWidth
 
 proc say*(f: File, text: string) {.raises: [].} =
   ## Write to a standard stream.  If even that fails there is nothing more

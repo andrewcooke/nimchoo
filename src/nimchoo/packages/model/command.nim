@@ -5,7 +5,7 @@
 import std/options
 import ../../core/[globals, ruled]
 import ../db/store
-import ../ui/[live, units]
+import ../ui/[units]
 import ../util/args/[args, usage]
 import ../../core/errors
 import ../../core/logfile
@@ -62,10 +62,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch models", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch models", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch models", parsed.fix, run)
   of pkOk:
@@ -79,7 +79,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   try:
     case p.action
     of maList:
-      g.showAll(osOut, modelLines(loadModels(st.db), helpWidth(stdout)))
+      g.showAll(osOut, modelLines(loadModels(st.db), g.textWidth(osOut)))
       exitOk
     of maAdd:
       if findModel(st.db, p.model.name).isSome:

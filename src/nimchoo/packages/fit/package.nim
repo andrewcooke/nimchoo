@@ -9,7 +9,7 @@ import ../../core/manifest
 import ./command
 
 const package* = Package(
-  depends: @["args", "bundle", "bytes", "lookup", "ui", "warnings", "xlsx"],
+  depends: @["args", "bundle", "bytes", "lookup", "warnings", "xlsx"],
   fragments: @[],
   commands: @[
     CommandDecl(

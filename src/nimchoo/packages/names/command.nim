@@ -13,7 +13,6 @@ import ./lookup
 import ./open
 import ../../core/logfile
 import ../confirm/confirm
-import ../ui/live
 import ../util/args/[args, usage]
 import ./params
 import ./places
@@ -87,10 +86,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch landmarks", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch landmarks", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch landmarks", parsed.fix, run)
   of pkOk:
@@ -100,7 +99,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return usageError(
       g,
       "nch landmarks",
-      usageText(helpWidth(stderr)),
+      usageText(g.textWidth(osErr)),
       ~"the landmarks are shared by all users: `--user` has no part in this command",
     )
   var st: Store
@@ -185,7 +184,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
         return exitOk
       g.showAll(
-        osOut, suggestionLines(found, suggest.kind == skNear, helpWidth(stdout))
+        osOut, suggestionLines(found, suggest.kind == skNear, g.textWidth(osOut))
       )
       g.done(listDone(found.len, none(int), "feature", "features"))
       return exitOk
@@ -197,7 +196,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           ~"no landmarks: `nch landmarks --search TEXT` suggests places to make one of",
         )
       else:
-        g.showAll(osOut, landmarkLines(rows, helpWidth(stdout)))
+        g.showAll(osOut, landmarkLines(rows, g.textWidth(osOut)))
         g.done(listDone(rows.len, none(int), "landmark", "landmarks"))
       return exitOk
   except StoreError, DownloadError:

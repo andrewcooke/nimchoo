@@ -8,7 +8,7 @@ import std/[options, strformat, strutils, terminal, times]
 import ../../core/[errors, extension, globals]
 import ../fit/time
 import ../subject/subjects
-import ../ui/[live, style]
+import ../ui/[style]
 import ../user/session
 import ../util/args/[args, usage]
 import ./[calendar, frames, params]
@@ -119,10 +119,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(g, helpWidth(stdout))
+    g.showAll osOut, usageText(g, g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch calendar", usageText(g, g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch calendar", parsed.fix, run)
   of pkOk:
@@ -132,7 +132,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   case chosen.kind
   of pkHelp, pkProblem:
     return
-      usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), chosen.problem)
+      usageError(g, "nch calendar", usageText(g, g.textWidth(osErr)), chosen.problem)
   of pkUnit:
     raiseAssert "choose gives no unit to ask about"
   of pkOk:

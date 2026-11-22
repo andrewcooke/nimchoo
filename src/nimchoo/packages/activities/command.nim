@@ -19,7 +19,6 @@ import ../db/store
 import ./deleterun as deleteRun
 import ../../core/errors
 import ../../core/logfile
-import ../ui/live
 import ../ui/style
 import ../ui/vocabulary
 import ../util/args/[args, usage]
@@ -415,11 +414,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args, zone, offered)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout), offered)
+    g.showAll osOut, usageText(g.textWidth(osOut), offered)
     return exitOk
   of pkProblem:
     return usageError(
-      g, "nch activities", usageText(helpWidth(stderr), offered), parsed.problem
+      g, "nch activities", usageText(g.textWidth(osErr), offered), parsed.problem
     )
   of pkUnit:
     return unitRetry(g, "nch activities", parsed.fix, run)
@@ -461,7 +460,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
         return exitOk
       return renameActivities(g, st, m.ids)
-    let r = listActivities(st, criteria, zone, helpWidth(stdout), not g.colour[osOut])
+    let r = listActivities(st, criteria, zone, g.textWidth(osOut), not g.colour[osOut])
     if r.saved >= 0:
       g.log.log(
         lvInfo, commandName, leSaved, counted(r.saved, "activity", "activities")

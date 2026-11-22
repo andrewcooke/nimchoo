@@ -117,10 +117,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let parsed = parseArgs(args)
   case parsed.kind
   of pkHelp:
-    g.showAll osOut, usageText(helpWidth(stdout))
+    g.showAll osOut, usageText(g.textWidth(osOut))
     return exitOk
   of pkProblem:
-    return usageError(g, "nch climbs", usageText(helpWidth(stderr)), parsed.why)
+    return usageError(g, "nch climbs", usageText(g.textWidth(osErr)), parsed.why)
   of pkUnit:
     return unitRetry(g, "nch climbs", parsed.fix, run)
   of pkOk:
@@ -135,14 +135,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # the lists for tidying, and the changes, need no working out of climbs
     case p.action
     of caDuplicates:
-      g.showAll(osOut, duplicateLines(duplicateGroups(st), helpWidth(stdout)))
+      g.showAll(osOut, duplicateLines(duplicateGroups(st), g.textWidth(osOut)))
       return exitOk
     of caRetired:
       let rows = allSectors(st, retired = true)
       if rows.len == 0:
         g.show(osOut, ~"no climbs are retired")
       else:
-        g.showAll(osOut, sectorLines(rows, helpWidth(stdout)))
+        g.showAll(osOut, sectorLines(rows, g.textWidth(osOut)))
       return exitOk
     of caEdit:
       return editClimb(g, st, p.edit)
@@ -218,7 +218,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       list.attempts.everyone,
       list.attempts.verbose,
       local(),
-      helpWidth(stdout),
+      g.textWidth(osOut),
       marks = not g.colour[osOut],
     ):
       g.show(osOut, l)
