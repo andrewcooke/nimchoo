@@ -64,14 +64,14 @@ func progressLine*(
   ## With `text` the line is that text and the spinner (a job of the command's own, like "naming 1,112 activities").
   result =
     if text.len > 0:
-      @[span(text)]
+      ~"{text}"
     else:
       ~"need {label}: <hide {shortUrl(url)}>"
   if finished:
     if bytes > 0:
-      result.add span(" (" & humanBytes(bytes) & ")")
+      result.add ~" ({humanBytes(bytes)})"
   else:
-    result.add span(" " & frames[frame mod frames.len])
+    result.add ~" {frames[frame mod frames.len]}"
 
 proc put(t: var Text, s: string) =
   let n = min(s.len, cap - 1)
