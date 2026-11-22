@@ -33,8 +33,23 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
 
-17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`), next after D7,
-    **with tags** (needed for `ff`; to be described by the author).  One shared piece for
+20. **The selection by explicit operations** (decided 2026-11-22, `dev/tags.md` "Decided"): `--also` (the result is added to
+    the selection) and `--within` (the query looks only inside it) beside `--select` (replaces it); queries still search
+    everything and actions without criteria still work on the selection.  Steps: `activities` (the request's scope and how
+    a result is saved), then `climbs` (its own selection), then CLAUDE.md and the help.
+
+21. **Tags** (the author's `dev/tags.md`, with what was decided below it).  In order, each a step:
+    1. the `tags` package: `activity_tag(activity_id, tag)`, the tag type (what it may hold), matching in SQL on a
+       normalised copy (case and accents, `*`), and the `tag` style (`programStyles`, the built-in themes: reverse);
+    2. `--tags` for `activities` (contributed, "and"), and the tags shown in the list;
+    3. the sport as a tag at import (`sport:cycling:road`; an import step), then `--sports` and `--sub-sports` go and the
+       list's count by sport reads the tags (ignoring the sub-sport);
+    4. import paths with templates (`{name}`, `{}`, `*`, `~`): the import step learns the file's path and what the template
+       caught;
+    5. `nch tags`: the list with counts, `--names`, `--within`, `--add`, `--delete` (asks), `--rename OLD NEW`;
+    6. later, with `nch efforts`: efforts inherit their activity's tags.
+
+17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`), after tags (21).  One shared piece for
     the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
     filters (patterns, ranges with units, places), `--add`, `--edit NAME`, `--delete` of the selection (with `ask`), the
     table and completion are made from it.  With the `ff` rework: `landmarks` first, then `users`, then `models`.
