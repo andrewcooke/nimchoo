@@ -37,6 +37,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 14. **Step 3 of the review: input parsed at the edge, with units** (designed with the author 2026-11-22; dev/REVIEW.md
     sections 3.1 and 4, D3; findings C7, C13, D3, D8, D9, E11).  To be approved by the author before it starts; then a
     cheaper model can build it from this brief, one commit per point, `nimble fmt` and `nimble test` before each.
+    * **Done 2026-11-22: the first two points** (the readers: `ui/units.parseDistance`, `parseTimeSpan`, `geo/position` refuses nan/inf;
+      the fourth outcome `pkUnit` and `core/unitfix.unitRetry`, wired to `activities --radius` only).  The rest below is open.
     * **Readers** (one each, in `geo` or a small package of their own, as the package rules say): a **distance** with its
       unit (`100m`, `1.5km`), a **duration** with its unit (`d h m s`, as `interval` writes them: `60s`, `42d`, `2h30m`),
       both finite and positive (no `nan`, `inf`, `-1`); a **position** is `geo/position` (`LAT,LON`), which must refuse

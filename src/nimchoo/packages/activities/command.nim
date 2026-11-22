@@ -429,6 +429,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return usageError(
       g, "nch activities", usageText(helpWidth(stderr), offered), parsed.problem
     )
+  of pkUnit:
+    return unitRetry(g, "nch activities", parsed.fix, run)
   of pkOk:
     discard
   let criteria = parsed.params

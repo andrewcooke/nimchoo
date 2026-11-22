@@ -221,6 +221,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   of pkProblem:
     return usageError(g, "nch ff", usageText(helpWidth(stderr)), parsed.why)
+  of pkUnit:
+    return unitRetry(g, "nch ff", parsed.fix, run)
   of pkOk:
     discard
   var p = parsed.params

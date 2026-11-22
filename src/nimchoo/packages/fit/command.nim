@@ -112,6 +112,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   of pkProblem:
     return usageError(g, "nch fit", usageText(helpWidth(stderr)), parsed.why)
+  of pkUnit:
+    return unitRetry(g, "nch fit", parsed.fix, run)
   of pkOk:
     discard
   let (csv, file) = (parsed.params.csv, parsed.params.file)

@@ -6,6 +6,7 @@ import std/[math, options, strformat, strutils, times]
 import ../fit/time
 import ../confirm/confirm
 import ../util/args/args
+import ../ui/units
 import ../db/sqltext
 import ../../core/ids
 import ../geo/position
@@ -360,13 +361,12 @@ func takeSpot(p: var ListState, v: string, passes: bool): Problem =
 
 func takeRadius(p: var ListState, v: string): Problem =
   p.criteriaGiven = true
-  try:
-    let r = parseFloat(v)
-    if r <= 0:
-      return refuse(~"the radius must be more than 0km")
-    p.c.radiusKm = some(r)
-  except ValueError:
-    return refuse(~"cannot read the radius '{v}' (kilometres)")
+  let r = units.parseDistance(v)
+  if r.isNone:
+    return refuse(
+      ~"cannot read the radius '{v}' (a distance more than 0, with its unit: `3km` or `500m`)"
+    )
+  p.c.radiusKm = some(r.get.inKm)
   p.radiusGiven = true
   fine
 
@@ -509,10 +509,11 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ListState,
         ["--radius"],
         true,
-        "KM",
-        ~"the radius for `--from` and `--near` in kilometres; on its own it means `--from latest`",
+        "DISTANCE",
+        ~"the radius for `--from` and `--near`, with its unit (`3km`, `500m`; a bare number is taken as km, after asking); on its own it means `--from latest`",
         body = takeRadius(p, value),
-      ),
+      )
+        .withUnit("km"),
       custom(
         ListState,
         ["--invert"],
@@ -630,7 +631,7 @@ proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Criteria] =
   ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
-  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius KM`;
+  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.

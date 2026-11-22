@@ -9,14 +9,15 @@
 ##
 ## An option's `apply` returns `fine` if all is well, else `refuse(what is wrong)` (a sentence that does not
 ## name the option: the parser adds `--name is ...` where it can, see `valueIs`).  A command's `parseArgs` gives a
-## `Parsed[T]`: help asked for, a problem, or parameters that are valid (a variant on the action, built by the command's
+## `Parsed[T]`: help asked for, a problem, a number given without its unit (`pkUnit`: the options that have a default unit,
+## `withUnit`, read a bare number as if it had that unit and say so; `core/unitfix.nim` has what a command does about it), or parameters that are valid (a variant on the action, built by the command's
 ## own `finish`).  An option may be allowed in an address (`address`, with a check for its value): the server's list of
 ## what a page may be given is made from the same options, so it cannot differ from what the command parses.  Pure.
 
 import std/[math, options, strutils]
-import ../../../core/[line, optdoc]
-import ../../ui/markup
-export optdoc, line, markup
+import ../../../core/[line, optdoc, unitfix]
+import ../../ui/[markup, units]
+export optdoc, line, markup, unitfix
 
 {.push raises: [].}
 
@@ -38,6 +39,7 @@ type
     pkOk
     pkHelp
     pkProblem
+    pkUnit
 
   Parsed*[T] = object
     ## What a command line came to: a valid command (`params`), a request for help, or a problem to say.
@@ -48,6 +50,10 @@ type
       discard
     of pkProblem:
       why*: Line ## what is wrong, as a sentence (`~"..."`)
+    of pkUnit:
+      fix*: UnitFix
+        ## valid once the default unit is added to the numbers that had none: what they were, and the corrected arguments
+        ## (`core/unitfix.unitRetry` asks, and runs the command again with them)
 
   Apply*[P] = proc(p: var P, name, value: string): Problem {.nimcall, raises: [].}
     ## Take an option (`name` is the way it was spelt); `value` is "" for a flag.
@@ -71,6 +77,9 @@ type
     completion*: Completion
     level*: int
     address*: Address
+    unit*: string
+      ## the unit a bare number is taken to have (`km`): "" if the option does not want a unit.  The command line is then
+      ## a `pkUnit` (`UnitFix`), not an error: a person is asked whether that was meant
     valid*: Validator ## for `adValue`: what the value may be
 
   Positional*[P] = proc(p: var P, arg: string): Problem {.nimcall, raises: [].}
@@ -86,6 +95,11 @@ const fine* = none(Line) ## nothing is wrong
 func refuse*(why: Line): Problem =
   ## Something is wrong: say what, in a sentence that does not name the option.
   some(why)
+
+func withUnit*[P](o: Opt[P], unit: string): Opt[P] =
+  ## The option reads a bare number as a number of `unit` (and the parse comes out as `pkUnit`, so that the person is asked).
+  result = o
+  result.unit = unit
 
 func problemWith*[T](why: Line): Parsed[T] =
   Parsed[T](kind: pkProblem, why: why)
@@ -110,8 +124,18 @@ func find[P](spec: Spec[P], name: string): int =
       return k
   -1
 
+type Bare = object ## where a number without its unit was given
+  at: int ## the index in the arguments of the value (or of `--name=value`)
+  inName: bool ## it was `--name=value`
+  item: Unitless
+
 proc walk[P](
-    args: seq[string], spec: Spec[P], p: var P, leading: bool, next: var int
+    args: seq[string],
+    spec: Spec[P],
+    p: var P,
+    leading: bool,
+    next: var int,
+    bare: var seq[Bare],
 ): Problem =
   var i = 0
   while i < args.len:
@@ -165,6 +189,14 @@ proc walk[P](
           v = args[i]
       elif eq > 0:
         return refuse(~"`{name}` does not take a value")
+      if o.unit.len > 0 and o.takesValue and v.len > 0:
+        var x: float
+        var rest: string
+        if unitNumber(v, x, rest) and rest.len == 0:
+          bare.add Bare(
+            at: i, inName: eq > 0, item: Unitless(option: name, value: v, unit: o.unit)
+          )
+          v = v & o.unit # (read as if it had been typed)
       let why = o.apply(p, name, v)
       if why.isSome:
         return why
@@ -190,10 +222,32 @@ proc walk[P](
       )
     inc i
 
-proc parseOptions*[P](args: seq[string], spec: Spec[P], p: var P): Problem =
-  ## Walk the arguments.  Returns the first problem found.
+func corrected(args: seq[string], bare: seq[Bare]): UnitFix =
+  ## The arguments with the default unit added to each bare number.
+  result.args = args
+  for b in bare:
+    result.missing.add b.item
+    let fixed = b.item.value & b.item.unit
+    result.args[b.at] =
+      if b.inName:
+        b.item.option & "=" & fixed
+      else:
+        fixed
+
+proc parseOptionsFixing*[P](
+    args: seq[string], spec: Spec[P], p: var P, fix: var UnitFix
+): Problem =
+  ## Walk the arguments.  Returns the first problem found.  A bare number given to an option that has a default unit
+  ## (`withUnit`) is read with the unit added, and `fix` says what was changed (`fix.missing` is empty if nothing was).
   var next = 0
-  walk(args, spec, p, false, next)
+  var bare: seq[Bare]
+  result = walk(args, spec, p, false, next, bare)
+  fix = corrected(args, bare)
+
+proc parseOptions*[P](args: seq[string], spec: Spec[P], p: var P): Problem =
+  ## Walk the arguments.  Returns the first problem found.  (For a spec with no option that wants a unit.)
+  var fix: UnitFix
+  parseOptionsFixing(args, spec, p, fix)
 
 proc parseLeading*[P](
     args: seq[string], spec: Spec[P], p: var P, next: var int
@@ -202,7 +256,8 @@ proc parseLeading*[P](
   ## (the command, for the options every command has); `next` is where that is, `args.len` if
   ## there is none.  Returns the first problem found.
   next = args.len
-  walk(args, spec, p, true, next)
+  var bare: seq[Bare]
+  walk(args, spec, p, true, next, bare)
 
 func doc*[P](o: Opt[P]): OptDoc =
   ## The description of the option.
@@ -482,9 +537,12 @@ proc parseCommand*[B, T](
   ## Read the arguments into a builder `B` (which has a `help` field, set by `helpFlag`), then `finish` it: the
   ## command's own step that turns what was read into valid parameters, or says what is wrong with the combination.
   var raw = start
-  let why = parseOptions(args, spec, raw)
+  var fix: UnitFix
+  let why = parseOptionsFixing(args, spec, raw, fix)
   if why.isSome:
     return problemWith[T](why.get)
   if raw.help:
     return helpAsked[T]()
-  finish(raw)
+  result = finish(raw)
+  if result.kind == pkOk and fix.missing.len > 0:
+    result = Parsed[T](kind: pkUnit, fix: fix)

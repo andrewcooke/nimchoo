@@ -188,6 +188,8 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   of pkProblem:
     return usageError(g, "nch packages", usageText(helpWidth(stderr)), parsed.why)
+  of pkUnit:
+    return unitRetry(g, "nch packages", parsed.fix, packagesMain)
   of pkOk:
     discard
   let p = parsed.params

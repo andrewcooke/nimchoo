@@ -71,7 +71,7 @@ suite "list: the command line":
   test "the options":
     let c = cmdline(
       "--select", "--newest", "3", "--after", "2018-08-01", "--before", "2018-09-01",
-      "--from", "38.7,-9.1", "--radius", "5",
+      "--from", "38.7,-9.1", "--radius", "5km",
     ).params
     check c.select and c.newest == 3 and c.oldest == 0
     check c.afterT == some(UnixTime(1533081600)) and
@@ -99,9 +99,19 @@ suite "list: the command line":
       check cmdline("--newest", bad).problem.contains("number of activities")
     check cmdline("--oldest").problem.contains("needs a value")
   test "--radius on its own means --from latest":
-    let c = cmdline("--radius", "5").params
+    let c = cmdline("--radius", "5km").params
     check c.start.kind == nkLatest and c.startKm == 5.0
-    check cmdline("--radius", "5").problem == ""
+    check cmdline("--radius", "5km").problem == ""
+  test "a radius with its unit: km or m; with no unit it is a question, with the corrected arguments":
+    check cmdline("--radius", "500m").params.radiusKm == some(0.5)
+    check cmdline("--radius", "1.5km").params.radiusKm == some(1.5)
+    let u = cmdline("--from", "latest", "--radius", "3")
+    check u.kind == pkUnit
+    check u.fix.args == @["--from", "latest", "--radius", "3km"]
+    check u.fix.missing.len == 1 and u.fix.missing[0].option == "--radius"
+    check cmdline("--radius=3").fix.args == @["--radius=3km"]
+    for bad in ["0", "-1", "0km", "-1km", "nan", "inf", "3mi", "x", "km"]:
+      check cmdline("--radius", bad).problem.contains("radius")
   test "sports and sub-sports, lower-cased, several, repeated":
     let c = cmdline(
       "--sports", "Cycling", "running", "Swimming", "--sub-sports", "ROAD", "--sports",
@@ -170,7 +180,8 @@ suite "list: the command line":
     check cmdline("--near", "previous").params.passes.kind == nkPrevious
     check cmdline("--near", "previous").params.usesPrevious
     check cmdline("--near", "38.7").problem.contains("latest or previous")
-    check cmdline("--radius", "5").params.start.kind == nkLatest # (alone: still latest)
+    check cmdline("--radius", "5km").params.start.kind == nkLatest
+      # (alone: still latest)
   test "latest is found among the criteria that do not mention it, previous ones included":
     let c = cmdline(
       "--sports", "previous", "--distance", "latest~5", "--near", "previous"
@@ -182,7 +193,7 @@ suite "list: the command line":
   test "--from and --near latest use latest too, and the others that do not do not":
     check cmdline("--near", "latest").params.usesLatest
     check cmdline("--from", "latest").params.usesLatest
-    check cmdline("--radius", "5").params.usesLatest
+    check cmdline("--radius", "5km").params.usesLatest
     check not cmdline("--near", "1,2").params.usesLatest
     check not cmdline("--sports", "cycling", "--distance", "5-", "-n", "1").params.usesLatest
   test "without latest: what latest is found among":
@@ -216,7 +227,7 @@ suite "list: the command line":
   test "the radius: 10 km from a start, 1 km from a route, unless --radius says":
     check cmdline("--from", "1,2").params.startKm == 10.0
     check cmdline("--near", "1,2").params.passKm == 1.0
-    check cmdline("--near", "1,2", "--radius", "3").params.passKm == 3.0
+    check cmdline("--near", "1,2", "--radius", "3km").params.passKm == 3.0
   test "--all is every activity: it does not go with criteria, but with the limits":
     check cmdline("--all", "--sports", "cycling").problem.contains(
       "does not go with criteria"
@@ -228,7 +239,7 @@ suite "list: the command line":
 
   test "problems":
     check cmdline("--radius", "x", "--near", "1,2").problem.contains("radius")
-    check cmdline("--radius", "0", "--near", "1,2").problem.contains("more than 0")
+    check cmdline("--radius", "0km", "--near", "1,2").problem.contains("more than 0")
     check cmdline("--near", "38.7").problem.contains("position")
     check cmdline("--after", "soon").problem.contains("cannot read the time")
     check cmdline("--after", "2018-09-01", "--before", "2018-08-01").problem.contains(

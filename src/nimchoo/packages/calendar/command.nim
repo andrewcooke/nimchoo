@@ -123,6 +123,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   of pkProblem:
     return usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), parsed.why)
+  of pkUnit:
+    return unitRetry(g, "nch calendar", parsed.fix, run)
   of pkOk:
     discard
   let p = parsed.params
@@ -131,6 +133,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   of pkHelp, pkProblem:
     return
       usageError(g, "nch calendar", usageText(g, helpWidth(stderr)), chosen.problem)
+  of pkUnit:
+    raiseAssert "choose gives no unit to ask about"
   of pkOk:
     discard
   var st: Session

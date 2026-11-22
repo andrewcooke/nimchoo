@@ -85,6 +85,14 @@ proc show*(g: Globals, o: OutStream, line: Line) =
   ## Write a styled line to `o`, drawn as `o` is.
   file(o).say render(line, paintOf(g, o)) & "\n"
 
+proc prompt*(g: Globals, o: OutStream, line: Line) =
+  ## Write a styled line to `o` with no end of line, for a question whose answer is typed after it.
+  file(o).say render(line, paintOf(g, o))
+  try:
+    file(o).flushFile
+  except IOError:
+    discard
+
 proc showAll*(g: Globals, o: OutStream, lines: seq[Line]) =
   ## Write styled lines to `o` (a usage, a table), drawn as `o` is.
   for l in lines:

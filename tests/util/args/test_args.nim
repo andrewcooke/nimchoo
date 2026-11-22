@@ -1,5 +1,6 @@
 import std/[options, unittest]
 import nimchoo/packages/util/args/args
+import nimchoo/packages/ui/units
 
 func `==`(p: Problem, said: string): bool =
   ## (the tests say what a problem is, in words; no problem is "")
@@ -199,3 +200,54 @@ suite "cli args: an option whose value may be left out":
 
   test "it describes itself as optional":
     check ospec.docs[0].arity == aOptional
+
+type D = object
+  help: bool
+  far: float
+  name: string
+
+let dspec = Spec[D](
+  opts: @[
+    custom(
+      D,
+      ["--far"],
+      true,
+      "DISTANCE",
+      ~"a distance",
+      body = (
+        let d = parseDistance(value)
+        if d.isNone:
+          return refuse(~"a distance with its unit")
+        p.far = d.get.inKm
+        fine
+      ),
+    )
+      .withUnit("km"),
+    text(D, ["--name"], name, "NAME", ~"the name"),
+    helpFlag(D),
+  ]
+)
+
+func finishD(raw: D): Parsed[D] =
+  parsedOk(raw)
+
+suite "args: a number given without its unit":
+  test "with its unit it is valid and nothing is corrected":
+    let r = parseCommand(@["--far", "3km"], dspec, D(), finishD)
+    check r.kind == pkOk and r.params.far == 3.0
+  test "without it is read with the default unit, and the corrected arguments are carried":
+    let r = parseCommand(@["--name", "a b", "--far", "3", "-h"], dspec, D(), finishD)
+    check r.kind == pkHelp # (help wins, as for any other)
+    let u = parseCommand(@["--name", "a b", "--far", "3"], dspec, D(), finishD)
+    check u.kind == pkUnit
+    check u.fix.args == @["--name", "a b", "--far", "3km"]
+    check u.fix.missing == @[Unitless(option: "--far", value: "3", unit: "km")]
+  test "the --name=value form is corrected in place":
+    let u = parseCommand(@["--far=2.5", "--name", "x"], dspec, D(), finishD)
+    check u.kind == pkUnit and u.fix.args == @["--far=2.5km", "--name", "x"]
+  test "a problem is still a problem, with or without a unit":
+    check parseCommand(@["--far", "3", "--bogus"], dspec, D(), finishD).kind == pkProblem
+    check parseCommand(@["--far", "-3"], dspec, D(), finishD).kind == pkProblem
+    check parseCommand(@["--far", "0"], dspec, D(), finishD).kind == pkProblem
+    check parseCommand(@["--far", "nan"], dspec, D(), finishD).kind == pkProblem
+    check parseCommand(@["--far", "3mi"], dspec, D(), finishD).kind == pkProblem
