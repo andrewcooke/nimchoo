@@ -206,6 +206,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       steps: g.extensions.get(importStep),
       quiet: p.quiet,
       slow: p.slow,
-      jobs: (if p.jobs > 0: p.jobs else: defaultJobs()),
+      jobs: p.jobs.get(defaultJobs()),
     ),
   )
