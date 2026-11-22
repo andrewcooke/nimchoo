@@ -187,6 +187,7 @@ proc main(): int {.raises: [].} =
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
     return usageError(g, "nch", usageText(helpWidth(stderr)), ~"unknown command {name}")
+  g.leading = args[0 ..< i]
   g.commandNames = allCommands.mapIt(it.name)
   if name != "log": # (reading the log is not logged)
     let path = envLogPath()

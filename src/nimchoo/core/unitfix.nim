@@ -9,7 +9,7 @@
 ##
 ## `askUnit` takes whether there is a terminal and where an answer comes from, so that a test can drive it.
 
-import std/[options, os, strformat, strutils, terminal]
+import std/[options, os, posix, strformat, strutils, termios, terminal]
 import ./[globals, line]
 
 {.push raises: [].}
@@ -25,16 +25,21 @@ type
     missing*: seq[Unitless]
     args*: seq[string]
 
-func commandLine*(command: string, args: seq[string]): string =
-  ## `nch activities --radius 3km`: the command and its arguments, each quoted again as a shell wants them.
-  var parts = @[command]
+func commandLine*(leading: seq[string], command: string, args: seq[string]): string =
+  ## `nch --offline activities --radius 3km`: the program, the arguments before the command (`leading`), the command (`nch
+  ## activities`: the program's name and the command's) and its arguments, each quoted again as a shell wants them.
+  let words = command.splitWhitespace
+  var parts = words[0 .. 0]
+  for a in leading:
+    parts.add quoteShell(a)
+  parts.add words[1 .. ^1]
   for a in args:
     parts.add quoteShell(a)
   parts.join(" ")
 
-func questionLines*(command: string, fix: UnitFix): seq[Line] =
-  ## The question, in three styles, one line each: what is missing (`warn`), the command line with the default unit added
-  ## (default), and the choice (`em`; the third has no end of line: the answer follows it).
+func questionLines*(leading: seq[string], command: string, fix: UnitFix): seq[Line] =
+  ## The question, in three styles, in two lines: what is missing (`warn`), then the command line with the default unit added
+  ## (default) and, on a terminal, the choice after it on the same line (`em`: added by `askUnit`).
   var named: seq[string]
   for m in fix.missing:
     named.add m.option & " " & m.value
@@ -42,8 +47,7 @@ func questionLines*(command: string, fix: UnitFix): seq[Line] =
   let tail = if fix.missing.len == 1: "has no unit" else: "have no unit"
   @[
     @[span(fmt"{command}: {what} {tail}; did you mean", "warn")],
-    plain(fmt"  {commandLine(command, fix.args)}"),
-    @[span("[Yn]", "em"), span(" ")],
+    plain(fmt"  {commandLine(leading, command, fix.args)}"),
   ]
 
 proc askUnit*(
@@ -51,28 +55,53 @@ proc askUnit*(
     command: string,
     fix: UnitFix,
     terminal: bool,
-    answer: proc(): Option[string] {.raises: [].},
+    key: proc(): Option[char] {.raises: [].},
 ): Option[seq[string]] =
-  ## Say what is missing and what was meant (`questionLines`).  On a `terminal` ask, and read the answer with `answer` (none:
-  ## the input ended): Enter or `y` means yes, and the corrected arguments are given back; anything else, and no terminal,
-  ## gives none.
-  let lines = questionLines(command, fix)
+  ## Say what is missing and what was meant (`questionLines`).  On a `terminal` ask, `[Yn]` after the command line, and read one
+  ## key with `key` (none: the input ended): `y`, `Y` or Enter means yes, and the corrected arguments are given back; `n`, `N`,
+  ## Ctrl-C, Ctrl-D and the end of the input mean no; any other key is ignored.  No terminal: nothing is asked and the result
+  ## is none, the corrected line having been printed.
+  let lines = questionLines(g.leading, command, fix)
   g.show(osErr, lines[0])
-  g.show(osErr, lines[1])
   if not terminal:
+    g.show(osErr, lines[1])
     return none(seq[string])
-  g.prompt(osErr, lines[2])
-  let reply = answer()
-  if reply.isSome and reply.get.strip.toLowerAscii in ["", "y", "yes"]:
+  g.prompt(osErr, lines[1] & @[span(" "), span("[Yn]", "em"), span(" ")])
+  var yes = false
+  while true:
+    let k = key()
+    if k.isNone or k.get in {'n', 'N', '\3', '\4'}:
+      break
+    if k.get in {'y', 'Y', '\r', '\n'}:
+      yes = true
+      break
+  g.show(osErr, plain(if yes: "y" else: "n"))
+  if yes:
     some(fix.args)
   else:
     none(seq[string])
 
-proc readAnswer(): Option[string] =
+proc readKey(): Option[char] =
+  ## One key from the terminal, with no Enter and no echo; the terminal is put back as it was, whatever happens.  Ctrl-C
+  ## comes as a key (the signal is off while waiting) so that it is an answer, not the end of the program with the terminal
+  ## left as it was set.
+  var saved: Termios
+  if tcGetAttr(0, addr saved) != 0:
+    return none(char)
+  var raw = saved
+  raw.c_lflag = raw.c_lflag and not (ICANON or ECHO or ISIG)
+  raw.c_cc[VMIN] = 1.char
+  raw.c_cc[VTIME] = 0.char
+  if tcSetAttr(0, TCSANOW, addr raw) != 0:
+    return none(char)
   try:
-    some(stdin.readLine)
-  except IOError, EOFError:
-    none(string)
+    var c: char
+    if read(0, addr c, 1) == 1:
+      result = some(c)
+    else:
+      result = none(char)
+  finally:
+    discard tcSetAttr(0, TCSANOW, addr saved)
 
 proc unitRetry*(
     g: Globals,
@@ -82,7 +111,7 @@ proc unitRetry*(
 ): int =
   ## What a command's `run` does for `pkUnit`: ask (`askUnit`, on the real terminal), then run again with the corrected
   ## arguments, or give the usage exit code.
-  let again = askUnit(g, command, fix, isatty(stdin) and isatty(stderr), readAnswer)
+  let again = askUnit(g, command, fix, isatty(stdin) and isatty(stderr), readKey)
   if again.isSome:
     run(g, again.get)
   else:

@@ -26,6 +26,9 @@ type Globals* = object ## Options given before the command name, for every comma
     ## database that is missing, or made by another version, is a `StoreError`.  For tab completion (`nch __complete`),
     ## which must change nothing.
   fragments*: seq[Fragment] ## the schema: the fragments of all modules
+  leading*: seq[string]
+    ## the arguments before the command's name (`--db PATH`, `--user NAME`, `--offline`), as they were typed (`nch` fills it): what a
+    ## corrected command line (`unitfix`) must keep, for it to run on the same database as the user
   commandNames*: seq[string]
     ## the names of all the commands (what `nch log` accepts as a filter)
   log*: Log ## the log file; nil (disabled) unless `nch` opened it
