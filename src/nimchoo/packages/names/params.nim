@@ -243,5 +243,5 @@ func finish(raw: Raw): Parsed[Params] =
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## `nch landmarks` (list), `--search TEXT`, `--near LAT,LON`, `--add NAME (--search TEXT | --near LAT,LON) --pick N`,
-  ## `--add NAME --at LAT,LON`, each with `--radius METRES`; `--delete NAME`.
+  ## `--add NAME --at LAT,LON|PLACE`, each with `--size DISTANCE`; `--delete NAME`.
   parseCommand(args, landmarkSpec(), Raw(radiusM: defaultRadiusM), finish)

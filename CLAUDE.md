@@ -229,7 +229,9 @@ four kinds of things go wrong, and each has one mechanism:
   in that order (`--from`, `--near`, `--at`), as it is shown (`geo/position`: one reader, one writer); **`--from` is where a
   thing starts and `--near` is where its route or line passes** (activities, climbs: decided 2026-11-18; `nch landmarks
   --near` searches for places near a point); each also takes a place's name (a landmark, else the biggest place of
-  that name among the names loaded: `names/places.nim`), and says which place it used.  in `--names` (activities and climbs) and `--climbs` a whole number
+  that name among the names loaded: `names/places.nim`), and says which place it used.  `--from`, `--near` and `--radius` of
+  activities and climbs are written once (the `near` package: reading, help, defaults 10km and 1km); `--radius` goes with them
+  (on its own it is `--from latest` for activities), and `landmarks --near` and `--at` read a point and a place's name with the same `near.parseSpot`.  in `--names` (activities and climbs) and `--climbs` a whole number
   that no name holds is the **number** of an activity or a climb (`nch activities --names 737`): a name that holds it wins.
 * **options describe themselves** (`util/args`: every option carries its names, value placeholder and help, which the compiler requires), and the option list of a command's usage is made from the descriptions (`util/args/usage.nim`, wrapped to the terminal's width, `ui/live.helpWidth`: 120 when piped), so it cannot differ from what the parser accepts.  a command's `parseArgs` gives a `Parsed[T]`: valid parameters (a variant on the action: a combination that means nothing cannot be represented), help asked for, or a problem.
 * **printing uses `std/strformat`** (`fmt"climb {id} has {n} efforts"`, `fmt"{x:.1f}km"`): the whole sentence is seen at
@@ -242,7 +244,14 @@ four kinds of things go wrong, and each has one mechanism:
 ### output
 
 * how numbers, intervals and styles are written is in the `ui` package's documentation.  a table column carries its unit
-  in its header; input never takes a unit for distance (decimal km), and `m` always means minutes.
+  in its header.  **every distance and duration in input carries its unit** (`3km`, `500m`; `90s`, `2h30m`, `42d`: read by
+  `ui/units.parseDistance` and `parseTimeSpan`, finite and above zero, lower case); `m` is metres in a distance and minutes in a
+  duration, the option's kind says which.  **a unit the program fills in is always confirmed** (decided 2026-11-22): a bare number is the
+  fourth outcome of `parseArgs` (`pkUnit`, with the corrected arguments) and `core/unitfix.unitRetry` asks `did you mean ... [Yn]`
+  (one key; not on a terminal it prints the corrected line and exits 2); how a unit is filled in only decides what is suggested
+  (`withUnit` with the option's default unit: km for a ride's distance, h for `--active`, m for a landmark's `--size`, s for
+  `--max-gap`, d for the decays; in a range `ranges.fillUnits`: a spread takes the centre's unit or the one below it if its number
+  is larger, `a-b` borrows the other side's, none given: the default).  a range with every unit written goes through.
 * **everything a person reads is in the theme** (decided 2026-11-18): a command writes with `g.say(osOut, text)` (plain
   text, in the theme's `default`), `g.show(osOut, line)` (a `Line` of styled spans) and `failure(g, ...)`; styled text
   in the code is `~"<good imported> {n} files, see `nch log`"` (`ui/markup`: markup read when compiled, backticks are

@@ -56,7 +56,7 @@ func problem*(m: Model): string =
   if not (m.zero < m.one):
     return "zero must be less than one"
   if m.maxSecs < 1:
-    return "max-secs must be at least 1"
+    return "max-gap must be at least 1 second"
   if m.zones[0] <= 0:
     return "the zone edges must be above 0"
   for i in 1 .. 4:

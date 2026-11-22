@@ -41,8 +41,8 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 | B2 | **fixed** 2026-11-20: the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
 | B4 | **fixed** 2026-11-20: a missing `--profile` is blamed on the FIT file | `fit/command.nim` | "ride.fit: cannot open: nosuch.xlsx" |
 | A1 | a backtick in a value is read as markup (**fixed** 2026-11-22) | `core/theme.nim` | in colour, the rest of the line (or text) drawn as `code` |
-| D8, C13 | `nan`/`inf` radius and positions accepted; `--all --radius` accepted | `activities/criteria.nim`, `geo`, `names` | `landmarks --add X --at 1,2 --radius nan`: a raw SQLite error |
-| D9 | two of three circle boxes miss the date line | `names/suggest.nim`, `names/lookup.nim` | `landmarks --near` near 180° misses the other side |
+| D8, C13 | **fixed** 2026-11-22: `nan`/`inf` radius and positions accepted; `--all --radius` accepted | `activities/criteria.nim`, `geo`, `names` | `landmarks --add X --at 1,2 --radius nan`: a raw SQLite error |
+| D9 | **fixed** 2026-11-22: two of three circle boxes miss the date line | `names/suggest.nim`, `names/lookup.nim` | `landmarks --near` near 180° misses the other side |
 | B6 | **fixed** 2026-11-20: the delete confirmation shows dates in UTC, the table in local time | `importer/remove.nim` | the same ride described with two dates |
 
 Smaller: C6 (**fixed**: `--duplicates` help says "more than half", the test is 80%), E13 (`ff --file` reads the impulses in two
@@ -50,7 +50,7 @@ transactions), B11 (the inflating child is sized by the caller's limit).
 
 ## 3. The classes, and what fixes each
 
-1. **Parse at the edge** (B1, C13, D8, D3, E11).  `coordOf` and `readings` refuse values off the Earth or outside a byte,
+1. **Parse at the edge** (B1, C13, D8, D3, E11; **done** 2026-11-22 apart from B1, which was fixed on 2026-11-20: C7 is the `near` package, C13 and D8 the readers of `ui/units` and `geo/position` with `--all --radius` refused, D3 the units, D9 `geo/box`, E11 `--port` as an `Option`).  `coordOf` and `readings` refuse values off the Earth or outside a byte,
    with a warning; samples outside the session's span are dropped; the importer's fuzzer goes on through the encoders.  One
    reader of a positive finite number and one of a position (`geo`), and one parsed piece for `--from`/`--near`/`--radius`
    (C7) used by activities, climbs and landmarks (which then take km and place names, D3).  `box`/`boxes` move to `geo`
@@ -86,7 +86,7 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   in an error or a warning keeps its backticks as they are (messages are one colour), so `failure(g, name, e.msg)` stays.
   The frames' `summary` (also in the page's JSON) is still text.  (`f""` and `t""` were
   rejected: `f` and `t` are common names here; `<...>` as quotes is not possible in Nim.)
-* **D3, `landmarks --radius`, became units in input** (**decided** 2026-11-20): every distance and duration carries its
+* **D3, `landmarks --radius`, became units in input** (**decided** 2026-11-20, **done** 2026-11-22: `landmarks --size`, the rule that every filled-in unit is confirmed, the options renamed `--max-gap`, `--fitness-decay`, `--fatigue-decay`): every distance and duration carries its
   unit (`100m`, `1km`, `60s`, `42d`; the option's kind says what `m` means).  The options with one: distance
   (`activities --distance`, `activities`/`climbs`/`landmarks --radius`), duration (`activities --active`, `models
   --max-secs`, `--fitness-days`, `--fatigue-days`; their names to change with the units).  A bare number is not refused at
