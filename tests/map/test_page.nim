@@ -18,7 +18,11 @@ proc real(name: string): MapFrame =
 
 proc pageHtml(title: string): string =
   ## The page of the activities, with the routes ticked and the heat not.
-  pageHtml(@[(real("routes"), true), (real("heat"), false)], "activities", title)
+  var heat = real("heat")
+  heat.shown = false
+  var routes = real("routes")
+  routes.shown = true
+  pageHtml(@[routes, heat], "activities", title)
 
 suite "map page: the text":
   test "it loads Leaflet with the integrity hashes, and the data from the server":
@@ -238,6 +242,6 @@ suite "map page: the drawings of the frames are files too":
     let routes = real("routes")
     var again = routes
     again.name = "again"
-    let h = pageHtml(@[(routes, true), (again, true)], "activities", "t")
+    let h = pageHtml(@[routes, again], "activities", "t")
     check h.count("drawers[\"activities-map-routes\"] = (") == 1
     check h.contains("\"name\":\"again\"")

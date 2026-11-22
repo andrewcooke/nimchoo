@@ -37,7 +37,7 @@ const
                                       [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]
                                       [--fitness-scale S] [--fatigue-scale S]"""
   intro = @[
-    ~"Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (Ctrl-C stops it).  With `--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of the two curves, each with the share of the earlier days on which it was higher (\"top 1%\" means the value is nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start from 0 at the first activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."
+    ~"Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (one server serves every page, and keeps running after the command returns: `--stop` stops it).  With `--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of the two curves, each with the share of the earlier days on which it was higher (\"top 1%\" means the value is nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start from 0 at the first activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."
   ]
   notes = @[
     ~"The file is made again each time, from the data as they are then; its name is made from the options (`ff-default-hourly.csv`), so charts with different options do not overwrite each other."
@@ -132,20 +132,18 @@ proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
       st.rollback()
 
 proc makeCsv(
-    st: Session, m: Model, p: Params, now: int64, tz: Timezone
-): string {.raises: [StoreError].} =
-  ## The CSV, after working out the impulses that are lacking.
-  ensureImpulses(st, m)
-  csv(hourlyImpulses(st.db, st.userId, m.id), m, p, now, tz)
+    impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone
+): string =
+  ## The CSV of the impulses (worked out and read once, `ensureImpulses` and `hourlyImpulses`: the file and the line about the
+  ## latest values come from the same state of the database).
+  csv(impulses, m, p, now, tz)
 
 proc latestStats(
-    st: Session, m: Model, p: Params, now: int64, tz: Timezone
-): Line {.raises: [StoreError].} =
+    impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone
+): Line =
   ## The line about the latest values (see stats.nim): for today, as of the last whole hour (the
   ## label is the date and time); for an earlier last day (`--before` the next), at the end of it (the date).
   ## `p.lastDay` is set.
-  ensureImpulses(st, m)
-  let impulses = hourlyImpulses(st.db, st.userId, m.id)
   let today = civilOf(now, tz)
   let nowHour = floorDiv(now, bucketSeconds) * bucketSeconds
   var asOf: int64
@@ -261,8 +259,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         local()
     if p.lastDay.isNone:
       p.lastDay = some(civilOf(now, tz)) # (the last day: today, when the chart is made)
+    var impulses: seq[Hourly]
+    if p.stdout or p.web.kind != wkServe:
+      # (the chart that is served is made by the worker, when the page is asked for)
+      ensureImpulses(st, m.get)
+      impulses = hourlyImpulses(st.db, st.userId, m.get.id)
     if p.stdout:
-      g.say osOut, makeCsv(st, m.get, p, now, tz)
+      g.say osOut, makeCsv(impulses, m.get, p, now, tz)
       return exitOk
     let dir = cacheDir()
     if dir.isNone:
@@ -292,7 +295,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let csvPath = csvFile.get
     try:
       makeCacheDirs(dir.get)
-      writeAtomic(csvPath, makeCsv(st, m.get, p, now, tz))
+      writeAtomic(csvPath, makeCsv(impulses, m.get, p, now, tz))
       if p.web.kind == wkWorker:
         let html = pageHtml(
           extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly
@@ -307,7 +310,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.show(osOut, ~"<file {csvPath}>")
       return exitOk
     g.show(osOut, ~"<file {csvPath}>")
-    g.show(osOut, latestStats(st, m.get, p, now, tz))
+    g.show(osOut, latestStats(impulses, m.get, p, now, tz))
     exitOk
   except StoreError as e:
     failure(g, "nch ff", e.msg)

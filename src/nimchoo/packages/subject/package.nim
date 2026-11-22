@@ -1,4 +1,4 @@
-## Subjects: what the views are views of (activities, later climbs and FF statistics).
+## Subjects: what the views are views of (the activities, the climbs).
 
 import ../../core/[extension, manifest]
 import ./subjects

@@ -133,7 +133,7 @@ func userSpec*(): Spec[Raw] =
           block:
             if not validUserName(value):
               return refuse(
-                ~"'{value}' is not a name for a user (1 to {maxNameLength} letters, digits, _ . -, not starting with -)"
+                ~"'{value}' is not a name for a user (1 to {maxNameLength}{notAName}"
               )
             p.rename = value
             fine

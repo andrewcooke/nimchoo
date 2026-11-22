@@ -37,7 +37,7 @@ const
   synopsis =
     "usage: nch [--db PATH] [--user NAME] map [SUBJECT] [--file [--frames FRAME...] | --stop | [--start] [--port N] [--new-token]]"
   intro = @[
-    ~"Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are the subject's frames, the layers in the table below, each made by the package that knows about it: the page lists them, and you tick the ones to draw (the browser remembers them for the next time; at first, those marked *).  It serves the page on localhost and opens it in a browser (Ctrl-C stops it); with `--file` it makes a GeoJSON file for each frame (those of `--frames`) in the cache directory instead, and prints where.  A click on anything drawn says what it is."
+    ~"Show a subject on a map: by default the activities of the selection (see `nch activities --select`).  What is drawn are the subject's frames, the layers in the table below, each made by the package that knows about it: the page lists them, and you tick the ones to draw (the browser remembers them for the next time; at first, those marked *).  It serves the page on localhost and opens it in a browser (one server serves every page, and keeps running after the command returns: `--stop` stops it); with `--file` it makes a GeoJSON file for each frame (those of `--frames`) in the cache directory instead, and prints where.  A click on anything drawn says what it is."
   ]
   notes = @[
     ~"A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The address of the page is the subject's (/map/activities), so a bookmark keeps the subject, not the activities."
@@ -173,10 +173,7 @@ proc makeFrames(
 proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: int] =
   ## Make the page: every frame of the subject, those shown by default ticked (it fetches the data of each frame it shows).
   try:
-    let all = framesOf(g.extensions.get(mapFramePoint), c.subject.name)
-    var listed: seq[tuple[frame: MapFrame, shown: bool]]
-    for f in all:
-      listed.add (f, f.shown) # (at first; the browser remembers what is ticked)
+    let listed = framesOf(g.extensions.get(mapFramePoint), c.subject.name)
     let path = cacheFile(dir, fmt"map-{c.subject.name}", "html").get
     writeAtomic(path, pageHtml(listed, c.subject.name, "Map"))
     result = (path, exitOk)

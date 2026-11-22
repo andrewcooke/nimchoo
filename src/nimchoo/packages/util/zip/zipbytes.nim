@@ -92,9 +92,9 @@ proc extractEntry*(
   of 8:
     let data =
       if inflate.isNil:
-        inflateHere(raw, e.size, limit)
+        inflateHere(raw, e.size, e.size)
       else:
-        inflate(raw, e.size, limit)
+        inflate(raw, e.size, e.size)
     if data.len != e.size:
       raiseZip("zip entry has the wrong size")
     data

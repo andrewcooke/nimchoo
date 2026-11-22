@@ -1,7 +1,6 @@
 ## What a view is a view of: the type of a subject and the extension point they are contributed to.
 ##
-## A subject is a kind of thing the user chooses and then looks at in different views (activities, later climbs and FF
-## statistics).  The package that manages one contributes it; every view reads the registry of them, so that none has to know
+## A subject is a kind of thing the user chooses and then looks at in different views (the activities, the climbs).  The package that manages one contributes it; every view reads the registry of them, so that none has to know
 ## the packages above it.  Exactly one subject is the default (the one a view shows when it is not told: activities).
 
 import std/[options, sequtils, strutils]

@@ -1,5 +1,5 @@
 ## `nch activities`: the activities, and the selection.  With no criteria it shows the selection, the activities that
-## the commands which work on activities (climbs, map, delete ...) use by default; with criteria or `--all` it
+## the commands which work on activities (climbs, map ...) use by default; with criteria or `--all` it
 ## searches all the activities, and `--select` keeps what is listed as the selection.  The selection is kept in the
 ## database (table `selection`), for the current user, and replaced whenever `--select` is given.
 ##

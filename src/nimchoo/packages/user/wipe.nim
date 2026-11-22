@@ -2,8 +2,8 @@
 ## is `core/ask`; deleting the row is `users`.
 ##
 ## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough to remove the
-## user.  A later module that stores per-user data adds its table to `userTables`; a test checks that none is
-## forgotten.
+## user.  A test checks that every table with a `user_id` column has it as a foreign key with `on delete cascade`, so that
+## no table is forgotten.
 
 import std/[options, strformat]
 import std/strutils
@@ -12,9 +12,6 @@ import ../db/store
 import ../../core/errors
 
 {.push raises: [].}
-
-const userTables* = ["file", "seen_file", "selection", "climb_selection"]
-  ## the tables with a `user_id` that emptying a user clears (`user_profile` stays: it is the user's)
 
 func describe*(parts: seq[string], user: string): string =
   ## What is to go when a user is removed: "74 activities and user bob", "3 activities, 2 notes and user bob" (the

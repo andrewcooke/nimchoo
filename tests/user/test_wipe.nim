@@ -42,8 +42,12 @@ suite "wipe: what belongs to a user":
           withUser.add table
     check "file" in withUser and "seen_file" in withUser # (the query finds the tables)
     for t in withUser:
-      check t in userTables or t == "user_profile"
-        # (a new table has to be put in the list)
+      # (deleting the user row clears the table: nothing is kept in step by hand)
+      check s.db.scalar(
+        int,
+        "select count(*) from pragma_foreign_key_list(:table) where \"from\" = 'user_id' and \"table\" = 'user' and on_delete = 'CASCADE'",
+        table = t,
+      ) == 1
 
   test "removing takes the user and everything under them":
     let d = fresh("remove")

@@ -32,7 +32,7 @@
 ## * `near <packages/near/package.html>`_ - `--from`, `--near` and `--radius`: where a thing is, for the commands that search by place.
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
-## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (activities, later climbs and FF statistics).
+## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (the activities, the climbs).
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
 ## * `themes <packages/themes/package.html>`_ - The themes in the cache, and which theme is in force.
 ## * `ui <packages/ui/package.html>`_ - How the program looks: the rules of everything a person reads, and the helpers that keep them.
@@ -434,10 +434,8 @@ It is what `climbs`, `map`, `calendar` and the like use.
     Registered(
       name: "subject",
       package: pkgSubject.package,
-      summary:
-        "Subjects: what the views are views of (activities, later climbs and FF statistics).",
-      doc:
-        """Subjects: what the views are views of (activities, later climbs and FF statistics).""",
+      summary: "Subjects: what the views are views of (the activities, the climbs).",
+      doc: """Subjects: what the views are views of (the activities, the climbs).""",
       path: "src/nimchoo/packages/subject/",
     ),
     Registered(
@@ -554,7 +552,7 @@ Very lightweight: people sharing a computer.  This package owns the tables `user
 heart rate, `fthr`), and every other package's per-user table refers to `user` and so depends on this package.  Exactly one
 user is the default, the one a command works on without `--user`; the first is made when a database is first opened, and
 if the default is deleted another becomes it.  Deleting a user deletes everything they have, by `on delete cascade`
-(`wipe.userTables` lists the tables, and a test checks that none is forgotten).
+(a test checks that every table with a `user_id` has it as a foreign key with `on delete cascade`).
 
 * `openSession()` finds the user a command works for and gives a `Session` (the store, the user's id and name); a `Session`
   converts to a `Store`, so only code that needs the user says `Session`.

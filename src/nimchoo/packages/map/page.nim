@@ -117,9 +117,9 @@ proc renderPage*(
   )
 
 proc pageHtml*(
-    listed: seq[tuple[frame: MapFrame, shown: bool]], subject, title: string
+    listed: seq[MapFrame], subject, title: string
 ): string {.raises: [TemplateError].} =
-  ## The page of a subject: every frame of it (`listed`, those to show ticked), from the templates, the styles and drawings of
+  ## The page of a subject: every frame of it (`listed`, those that are `shown` ticked), from the templates, the styles and drawings of
   ## the frames and the libraries in use (the author's if they have put their own in the cache's `system/` part).  The page
   ## fetches the data of each frame it shows from its own address.
   var css: string
@@ -130,7 +130,7 @@ proc pageHtml*(
   var frames: seq[PageFrame]
   var drawers: seq[(string, string)]
   var wanted: seq[string] # the libraries the drawings use, each once
-  for (f, _) in listed:
+  for f in listed:
     for l in f.libraries:
       if l notin wanted:
         wanted.add l
@@ -145,7 +145,7 @@ proc pageHtml*(
       )
     scripts.add "<script src=\"" & htmlEscape(url[0][1]) & "\" integrity=\"" &
       htmlEscape(hash[0][1]) & "\" crossorigin=\"\"></script>\n"
-  for (f, shown) in listed:
+  for f in listed:
     var drawer = ""
     if f.script.isSome:
       drawer = f.script.get.stemOf
@@ -154,7 +154,7 @@ proc pageHtml*(
     frames.add PageFrame(
       name: f.name,
       summary: f.summary,
-      shown: shown,
+      shown: f.shown, # (at first: the browser remembers what is ticked)
       style: frameStyle(f),
       drawer: drawer,
     )

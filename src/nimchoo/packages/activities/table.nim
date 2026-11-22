@@ -5,7 +5,7 @@
 ##     start             sport    distance  active  place / name
 ##     2018-03-04 09:12  cycling   102.7km   4h41m  Providencia / Lo Barnechea and back
 ##     2018-07-26 17:40  cycling     5.5km  22m05s  Providencia
-##     2 activities, 108.2km, 5h03m
+##     done: 2 of 1,310 activities, 108.2km, 5h03m
 ##
 ## `active` is the time the timer ran (as Strava's moving time), not the time from
 ## start to finish.  Nothing here is stored: the rows are read from the activities.

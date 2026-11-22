@@ -4,7 +4,7 @@
 ## heart rate, `fthr`), and every other package's per-user table refers to `user` and so depends on this package.  Exactly one
 ## user is the default, the one a command works on without `--user`; the first is made when a database is first opened, and
 ## if the default is deleted another becomes it.  Deleting a user deletes everything they have, by `on delete cascade`
-## (`wipe.userTables` lists the tables, and a test checks that none is forgotten).
+## (a test checks that every table with a `user_id` has it as a foreign key with `on delete cascade`).
 ##
 ## * `openSession()` finds the user a command works for and gives a `Session` (the store, the user's id and name); a `Session`
 ##   converts to a `Store`, so only code that needs the user says `Session`.

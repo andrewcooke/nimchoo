@@ -25,6 +25,16 @@ suite "zip files in memory":
     expect ZipError:
       discard extractEntry(z[0 ..< 20], es["a.txt"]) # the data are gone
 
+  test "an entry that inflates to more than it declares is refused as too large (the declared size is the ceiling)":
+    let z = makeZip([("a.txt", repeat("x", 10_000))])
+    var lying = listEntries(z)["a.txt"]
+    lying.size = 100
+    var said = ""
+    try:
+      discard extractEntry(z, lying)
+    except ZipError as e:
+      said = e.msg
+    check said.contains("too large")
   test "an entry with the wrong size, or a compression we cannot do":
     let z = makeZip([("a.txt", "hello")], deflate = false)
     var es = listEntries(z)
