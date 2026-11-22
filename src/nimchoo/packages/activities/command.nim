@@ -456,14 +456,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       for l in m.notes:
         g.show(osOut, l)
       if m.ids.len == 0:
-        return failure(
-          g,
-          "nch activities",
+        g.warn(
           if criteria.all or criteria.given:
             ~"no activity meets the criteria: nothing to rename"
           else:
-            ~"nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
+            ~"nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`"
         )
+        return exitOk
       return renameActivities(g, st, m.ids)
     let r = listActivities(st, criteria, zone, helpWidth(stdout), not g.colour[osOut])
     if r.saved >= 0:

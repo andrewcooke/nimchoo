@@ -41,7 +41,7 @@ proc runDelete*(
   try:
     let plan = planDelete(st, ids)
     if plan.ids.len == 0:
-      g.show(osOut, nothing)
+      g.warn nothing # (as an empty selection is everywhere: a warning, not a failure)
       return exitOk
     let what = describe(plan, zone)
     if force == fNo:

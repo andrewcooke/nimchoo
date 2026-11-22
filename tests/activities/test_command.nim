@@ -1003,7 +1003,9 @@ suite "nch activities --rename":
       extensions: extensions,
       offline: true,
     )
-    check listCommand.run(g, @["--rename"]) == exitFailure # (nothing selected)
+    check listCommand.run(g, @["--rename"]) == exitOk
+      # (nothing selected: a warning, as for --delete)
     check listCommand.run(g, @["--sports", "rowing", "--rename"]) == exitFailure
+      # (a sport nobody has is a mistake of its own)
     check listCommand.run(g, @["--all", "--rename", "--select"]) == exitUsage
     check listCommand.run(g, @["--all", "--rename", "-v"]) == exitUsage
