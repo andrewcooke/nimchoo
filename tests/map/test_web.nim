@@ -99,6 +99,20 @@ proc client(cookie = "", host = ""): HttpClient =
 proc built(): bool =
   fileExists(exe)
 
+when defined(posix):
+  proc resetAfterSending(w: Web, path: string) =
+    ## Ask for `path` and, before the reply, drop the connection with a reset (SO_LINGER 0): the browser that closed its tab.
+    let port = parseInt(w.base.split(':')[^1])
+    let s = newSocket()
+    s.connect("localhost", Port(port))
+    s.send(
+      "GET " & path & " HTTP/1.1\r\nHost: localhost:" & $port & "\r\nCookie: nch=" &
+        w.token & "\r\nConnection: close\r\n\r\n"
+    )
+    var l = Tlinger(l_onoff: 1, l_linger: 0)
+    discard setsockopt(s.getFd, SOL_SOCKET, SO_LINGER, addr l, SockLen(sizeof(l)))
+    s.close()
+
 suite "nch map: a real server":
   test "the address, the cookie, the page, the data":
     if not built():
@@ -139,6 +153,24 @@ suite "nch map: a real server":
     check withCookie.request(w.base & "/files/server-token").code == Http404
     check w.stop() == 130
 
+  test "a connection reset before the reply (a closed tab) does not stop the server":
+    if not built():
+      skip()
+    when defined(posix):
+      let f = fixture("reset")
+      let (w, _) = start(f.db, f.cache)
+      check w.url.len > 0
+      for k in 1 .. 3:
+        # (a frame needs a worker, so the reply is made after the connection has gone)
+        w.resetAfterSending("/map/activities?frame=routes")
+      sleep(1500)
+      check w.process.running
+      let c = client(w.token)
+      check c.request(w.base & "/map/activities?frame=routes").code == Http200
+      check c.request(w.base & "/map").code == Http200
+      check w.stop() == 130
+    else:
+      skip()
   test "without the token or with the wrong Host: forbidden":
     if not built():
       skip()

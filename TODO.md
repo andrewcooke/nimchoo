@@ -43,28 +43,24 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * A7: the guard test for padding by hand misses the usage's command list;
     * A11: `wrap` (strings) and `line.wrapped` (Lines) are still two algorithms, now both counting characters.
 
-18. **Step 5 of the review: sentinels to `Option` and variants** (dev/REVIEW.md, section 3, class 5; detail in
-    `dev/review-4/part-*.md`; not D7, `Criteria`, which is a design step of its own).  Remove a line when it is done:
-    * A10: `Globals.dbPath` and `user` (`""`), `Log.problem`, the cache passed to the themes, `core/errors` fields (`offset` -1,
-      `sheet` ""), `metavar` "" for a flag, `access` caller "";
-    * B8: `importer/seen` (a variant: imported file | failed kind and message), `bundle/unpack` (`Resolved.path`, `resolve(top: "")`),
-      `fit/default` problem, `importer/params.jobs`, `evFileDone` (a variant on the outcome), `fit` field numbers -1;
-    * B9: `ActivityId`, `FileId` and `UnixTime` in the importer's signatures (`after`, `remove`, `command`);
-    * B7: `importer/pool` module-level state, `Prepared` and `Job` as variants, no empty `Profile()` for a failed one;
-    * C8: `climbs` `nameProblem` ("" is ok), `Climb.category` (`Option[Category]`), `sector.name` null against '';
-    * C12: `download` `checkContent`, `FetchResult` (a variant), `zipEntry`;
-    * D12: `Globals.user`/`openSession` user as `Option`, one `findUser`;
-    * E5: `LogLine` (a variant) and `Filter.count` (`Option`);
-    * E12: `web/token` (`loadToken`, `randomToken`), `db/access.leave`, `freeSpace`, `ff/page.renderPage` (`doAssert`).
+18. **Steps 5 and 6 of the review: what is left** (dev/REVIEW.md, section 3, classes 5 and 6; detail in `dev/review-4/part-*.md`;
+    the rest of both steps is done; not D7, `Criteria`, which is a design step of its own).  Remove a line when it is done:
+    * sentinels (class 5): `core/errors` fields (`offset` -1, `sheet` "", `row`/`line`/`column` 0), `OptDoc.metavar` "" for a flag,
+      the authorizer's `caller` "" (by design: code outside the packages is not checked, but it is not in the types);
+      `importer/events` `evFileDone` (a variant on `Outcome`: counts, failure and sameAs are there whatever the outcome); `fit` field
+      numbers -1 (`tokens.timestampField`, `decode`, `records`: hot paths, measure); `sector.name` null against '' (a schema
+      question); D12: `wipe.findUser`, `users.exists` and `openSession` each look a user up with their own text;
+    * dead code and stale text (class 6): three enums share the tag `ac` (`access.Action`, `completion.Action`, `bundle`) and two
+      exported types are called `Action` (A13); `--install-completion` says the path with `g.say`, not as a `file` (A13);
+      `ownership.tableEvents` and `parentTables` parse `create table NAME` twice (A13); the comments of the climbs fragment
+      (`001-schema.sql`: "(n/m) numbering", `nch sector --edit`, "or 005 by hand") go right at the next squash, fragments being
+      never edited (C14); `calendar/command` asks the terminal for its width itself and ignores `TERM=dumb` (E14); messages still
+      built with `&` and `$` in `db/command`, `ff/command` and `model/command` (E14).
 
 17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`).  One shared piece for
     the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
     filters (patterns, ranges with units, places), `--add`, `--edit NAME`, `--delete` of the selection (with `ask`), the
     table and completion are made from it.  With the `ff` rework: `landmarks` first, then `users`, then `models`.
-
-13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
-    before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the
-    host (`localhost:PORT`) and the token as the page's address gives them.
 
 ## Tidy left from the reviews
 
