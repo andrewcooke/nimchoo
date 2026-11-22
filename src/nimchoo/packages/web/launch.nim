@@ -130,7 +130,7 @@ proc serveWeb*(
   let identity = serverIdentity(args)
   if o.port != 0:
     let known = loadToken(cacheDir, false)
-    if known.problem.len > 0:
+    if not known.ok:
       return failure(g, name, known.problem)
     let running = ask(o.port, known.token, statusPath)
     if running.isSome:
@@ -172,7 +172,7 @@ proc serveWeb*(
         g.show(osErr, ~"(the server was already running, on port {o.port})")
       return exitOk
   let t = loadToken(cacheDir, o.newToken)
-  if t.problem.len > 0:
+  if not t.ok:
     return failure(g, name, t.problem)
   let cfg = ServerConfig(
     token: t.token,
@@ -217,7 +217,7 @@ proc stopWeb*(g: Globals, command: string, port: int, cacheDir: string): int =
   ## `--stop`: ask the server of ours on the port to stop.
   let name = "nch " & command
   let known = loadToken(cacheDir, false)
-  if known.problem.len > 0:
+  if not known.ok:
     return failure(g, name, known.problem)
   let r = ask(port, known.token, stopPath)
   if r.isNone:

@@ -17,39 +17,40 @@ let libs = parseLibraries(librariesBundle.data).toTable
 
 suite "ff: the page":
   test "it draws the file, with the libraries from the CDN under their integrity hashes":
-    let h = pageHtml(csv, "Fitness and fatigue, model default", false).get
+    let h = pageHtml(csv, "Fitness and fatigue, model default", false)
     check h.contains("fetch('/files/" & csv & "')")
     check h.contains("https://unpkg.com/d3@7.9.0/dist/d3.min.js")
     check h.contains("integrity=\"" & libs["d3-js-hash"] & "\"") and
       h.contains("integrity=\"" & libs["plot-js-hash"] & "\"")
     check h.contains("plot@0.6.17")
     check h.contains("const hourly = false;")
-    check pageHtml(csv, "x", true).get.contains("const hourly = true;")
+    check pageHtml(csv, "x", true).contains("const hourly = true;")
     check "{{" notin h and "}}}" notin h # (every tag was filled in)
   test "the page does nothing the content-security policy forbids":
     # no eval or Function(): d3.csvParse (with a row function) uses Function(), so csvParseRows is used
-    let h = pageHtml(csv, "t", false).get
+    let h = pageHtml(csv, "t", false)
     check "csvParse(" notin h and "csvParseRows(" in h
     check "eval(" notin h and "new Function" notin h and
       "Function(" notin h.replace("csvParse(", "")
   test "you can drag to zoom and double-click to go back; the curves have their colours":
-    let h = pageHtml(csv, "t", false).get
+    let h = pageHtml(csv, "t", false)
     for needle in [
       "pointerdown", "pointermove", "pointerup", "dblclick", "drag to zoom"
     ]:
       check needle in h
     check h.find("fitness: '#2f9e44'") > 0 and h.find("fatigue: '#e03131'") > 0
   test "the title is text, not markup":
-    let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false).get
+    let h = pageHtml(csv, "<script>alert(1)</script> & \"x\"", false)
     check not h.contains("<script>alert") and h.contains("&lt;script&gt;")
   test "only a CSV of the cache can be named":
     for bad in [
       "../x.csv", "x.geojson", "ff-lusab-babad-fuzoh.html", "a/b.csv",
       "ff-lusab-babad-fuzoh.csv.exe", "",
     ]:
-      check pageHtml(bad, "t", false).isNone
+      expect AssertionDefect:
+        discard pageHtml(bad, "t", false)
   test "the page loads only from places the server's policy allows":
-    let h = pageHtml(csv, "t", false).get
+    let h = pageHtml(csv, "t", false)
     for line in h.splitLines:
       if line.contains("src=\""):
         check line.contains("https://unpkg.com/")
@@ -66,11 +67,12 @@ suite "ff: the template is a file":
     writeFile(
       systemDir(top) / "templates" / "ff.html", "{{title}} {{{hourly}}} {{plot-js}}\n"
     )
-    check pageHtml(csv, "T", true).get == "T true " & libs["plot-js"] & "\n"
-    check pageHtml(csv, "T", false).get.startsWith("T false ")
+    check pageHtml(csv, "T", true) == "T true " & libs["plot-js"] & "\n"
+    check pageHtml(csv, "T", false).startsWith("T false ")
   test "the pure form":
-    check renderPage("{{data}}", @[], csv, "t", false) == some(csv)
-    check renderPage("{{data}}", @[], "x.geojson", "t", false).isNone
+    check renderPage("{{data}}", @[], csv, "t", false) == csv
+    expect AssertionDefect:
+      discard renderPage("{{data}}", @[], "x.geojson", "t", false)
 
 suite "ff: --file, --worker, serving and the address":
   test "options":

@@ -41,8 +41,8 @@ proc size(path: string): int64 =
     except OSError:
       discard
 
-proc freeSpace(path: string): string =
-  ## ", 12 MB free" when a deleted row's space is waiting to be reused or given back; "" if none or unknown.
+proc freeSpace(path: string): Option[string] =
+  ## ", 12 MB free" when a deleted row's space is waiting to be reused or given back; none if there is none or it is unknown.
   try:
     let db = open(path, "", "", "")
     defer:
@@ -50,7 +50,7 @@ proc freeSpace(path: string): string =
     let free =
       db.scalar(int64, "pragma freelist_count") * db.scalar(int64, "pragma page_size")
     if free > 0:
-      result = ", " & humanBytes(free) & " free"
+      result = some(", " & humanBytes(free) & " free")
   except DbError, StoreError:
     discard
 
@@ -131,7 +131,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     g.show(osOut, ~"no database at <file {path}>")
     return exitOk
   if p.action == daShow:
-    g.show(osOut, ~"<file {path}> ({humanBytes(size(path))}{freeSpace(path)})")
+    let free = freeSpace(path).get("")
+    g.show(osOut, ~"<file {path}> ({humanBytes(size(path))}{free})")
     g.show(osOut, plain(""))
     try:
       g.showAll(osOut, tablesLines(g, path, g.textWidth(osOut)))

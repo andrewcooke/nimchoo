@@ -6,8 +6,9 @@ let dir = getTempDir() / "nch-test-token"
 suite "serve token":
   test "made on first use: 32 hex digits, in a file only the user can read":
     removeDir(dir)
-    let (t, problem) = loadToken(dir / "cache")
-    check problem == ""
+    let made = loadToken(dir / "cache")
+    check made.ok
+    let t = made.token
     check isToken(t)
     let path = dir / "cache" / tokenFileName
     check fileExists(path)
@@ -41,7 +42,7 @@ suite "serve token":
     createDir(dir)
     writeFile(dir / "file", "")
     let r = loadToken(dir / "file" / "cache")
-    check r.token == "" and r.problem.contains("cannot keep the server's token")
+    check not r.ok and r.problem.contains("cannot keep the server's token")
   test "what is a token":
     check isToken("0123456789abcdef0123456789abcdef")
     for bad in [

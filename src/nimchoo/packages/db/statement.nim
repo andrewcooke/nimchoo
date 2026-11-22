@@ -64,8 +64,8 @@ proc prepareStmtAs*(
       discard finalize(next)
   let refused = leave()
   if rc != SQLITE_OK:
-    if refused.len > 0:
-      raiseStore(fmt"{refused}: {sql}")
+    if refused.isSome:
+      raiseStore(fmt"{refused.get}: {sql}")
     fail(db, fmt"cannot prepare '{sql}'")
   if more:
     discard finalize(raw)
@@ -189,8 +189,8 @@ proc execScriptAs*(
   let refused = leave()
   if rc != SQLITE_OK:
     let message =
-      if refused.len > 0:
-        refused
+      if refused.isSome:
+        refused.get
       elif err.isNil:
         $errmsg(db)
       else:

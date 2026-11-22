@@ -116,10 +116,13 @@ proc enter*(package: string, contributors: seq[string] = @[]) {.raises: [].} =
   denial = ""
   written.setLen 0
 
-proc leave*(): string {.raises: [].} =
-  ## The statement is prepared; why the authorizer refused it, "" if it did not.
+proc leave*(): Option[string] {.raises: [].} =
+  ## The statement is prepared; why the authorizer refused it, if it did.
   caller = ""
-  denial
+  if denial.len > 0:
+    some(denial)
+  else:
+    none(string)
 
 proc startRecording*() {.raises: [].} =
   ## Note the tables that the statements prepared from now on read (for a test of what a view reads: the authorizer sees

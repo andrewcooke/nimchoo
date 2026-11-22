@@ -9,7 +9,7 @@
 ## be shifted by the browser: the axis is in UTC); hours are instants and are drawn in the
 ## browser's timezone, which is the computer's.
 
-import std/[options, strutils]
+import std/strutils
 import ../bundle/unpack
 import ../cache/cache
 import ../web/libraries
@@ -22,24 +22,22 @@ const templateBundle* = Bundle(name: "templates/ff.html", data: pageTemplate)
 
 proc renderPage*(
     source: string, libs: seq[(string, Value)], dataName, title: string, hourly: bool
-): Option[string] {.raises: [TemplateError].} =
-  ## The page from a template text and the libraries; none if `dataName` is not a CSV file of the
-  ## cache directory (which is what makes it safe to put in the page).  Pure.
-  if not isCacheFileName(dataName) or not dataName.endsWith(".csv"):
-    return none(string)
-  some(
-    render(
-      source,
-      context(
-        libs &
-          @[("title", text(title)), ("data", text(dataName)), ("hourly", flag(hourly))]
-      ),
-    )
+): string {.raises: [TemplateError].} =
+  ## The page from a template text and the libraries.  `dataName` is a CSV file of the cache directory (which is what makes
+  ## it safe to put in the page): the name is made by `ff` itself, so one that is not is a bug.  Pure.
+  doAssert isCacheFileName(dataName) and dataName.endsWith(".csv"),
+    "the data of a page is a CSV of the cache directory: " & dataName
+  render(
+    source,
+    context(
+      libs &
+        @[("title", text(title)), ("data", text(dataName)), ("hourly", flag(hourly))]
+    ),
   )
 
 proc pageHtml*(
     dataName, title: string, hourly: bool
-): Option[string] {.raises: [TemplateError].} =
+): string {.raises: [TemplateError].} =
   ## The page for the CSV file `dataName`, from the template and the libraries in use (the author's
   ## if they have put their own in the cache's `system/` part).
   renderPage(resolve(templateBundle).data, libraryValues(), dataName, title, hourly)
