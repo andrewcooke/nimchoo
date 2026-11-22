@@ -2,20 +2,23 @@
 ## shows: `--near`, `--at`).  One reader and one writer for every command, and a type with named fields, so that the order of latitude and
 ## longitude cannot be mixed up after it is read.  Pure.
 
-import std/[options, strformat, strutils]
+import std/[math, options, strformat, strutils]
 
 {.push raises: [].}
 
 type Position* = tuple[lon, lat: float] ## in degrees
 
 func parsePosition*(s: string): Option[Position] =
-  ## "38.72,-9.14": latitude, then longitude, each in range (spaces around them do not matter); none otherwise.
+  ## "38.72,-9.14": latitude, then longitude, each in range and finite (`nan` and `inf` are refused; spaces around them do not matter); none otherwise.
   let parts = s.split(',')
   if parts.len != 2:
     return none(Position)
   try:
     let lat = parseFloat(parts[0].strip)
     let lon = parseFloat(parts[1].strip)
+    if classify(lat) notin {fcNormal, fcSubnormal, fcZero, fcNegZero} or
+        classify(lon) notin {fcNormal, fcSubnormal, fcZero, fcNegZero}:
+      return none(Position)
     if lat < -90.0 or lat > 90.0 or lon < -180.0 or lon > 180.0:
       return none(Position)
     some((lon: lon, lat: lat))

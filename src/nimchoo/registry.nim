@@ -518,7 +518,9 @@ the count in `select` when what is listed is the selection (`vocabulary.countSpa
 **Numbers with units** (`units`, `interval`).  The unit follows the number with no space (`36.7km`, `+89m`, `17.8%`);
 a value that is not recorded is a dash.  Intervals in `d h m s`, no leading zero unit, the first unpadded and later ones
 two digits (`45s`, `22m05s`, `4h41m`, `2d03h07m`); seconds only under an hour.  A table column carries its unit in its
-header.
+header.  What a person types is read back by `units.parseDistance` (`1.5km`, `100m`) and `parseTimeSpan` (`60s`, `2h30m`),
+which want the unit and a finite number above zero (`Distance` in metres, `TimeSpan` in seconds; `m` is metres in a
+distance and minutes in a duration: the option's kind says which).
 
 **Tables** (`core/ruled.nim`).  Every table: lines between the columns, a rule under the headings, the last column
 wrapped to the window, and every other row in the alt styles unless the table says otherwise (the selection's tables

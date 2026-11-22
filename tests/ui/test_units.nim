@@ -1,5 +1,5 @@
-import std/[os, strutils, unittest]
-import nimchoo/packages/ui/units
+import std/[options, os, strutils, unittest]
+import nimchoo/packages/ui/[interval, units]
 
 suite "units: a number and its unit":
   test "distances in km, one decimal, commas from 1,000; the unit follows with no space":
@@ -36,3 +36,33 @@ suite "units: counts":
     check found.len == 0
     if found.len > 0:
       echo "commas written by hand: ", found.join(", ")
+
+suite "units: a distance and a duration read with their units":
+  test "a distance is a number and km or m, in metres":
+    check parseDistance("100m").get.inMetres == 100.0
+    check parseDistance("1.5km").get.inMetres == 1500.0
+    check parseDistance("0.25km").get.inKm == 0.25
+    check parseDistance("10km") == parseDistance("10000m")
+  test "a distance with no unit, an unknown one, or not positive and finite is none":
+    for bad in [
+      "", "3", "km", "m", "-1km", "0km", "0m", "0.0m", "nankm", "infkm", "nan", "inf",
+      "1e3km", "+1km", "1,5km", "1.2.3km", "3 km", "3mi", "3KM", "3h", ".km", "1e999km",
+    ]:
+      check parseDistance(bad).isNone
+    check parseDistance("9".repeat(400) & "km").isNone # too big for a float
+  test "a duration is d h m s, the largest first, as interval writes them":
+    check parseTimeSpan("60s").get.inSeconds == 60.0
+    check parseTimeSpan("42d").get.inDays == 42.0
+    check parseTimeSpan("2h30m").get.inSeconds == 9000.0
+    check parseTimeSpan("2d03h07m").get.inSeconds == 2 * 86400.0 + 3 * 3600.0 + 420.0
+    check parseTimeSpan("1.5h").get.inSeconds == 5400.0
+    check parseTimeSpan("5m").get.inSeconds == 300.0
+  test "what interval writes is read back":
+    for secs in [45.0, 1325.0, 16860.0, 183600.0]:
+      check parseTimeSpan(interval(secs)).get.inSeconds == secs
+  test "a duration with no unit, an unknown one, out of order or not positive is none":
+    for bad in [
+      "", "60", "s", "h30m", "-1s", "0s", "0d00h", "nans", "infs", "30m2h", "1s1s",
+      "2h30", "1w", "1H", "1 h", "1h 30m", "1e3s", "+1s", "1..5s", "1,5h",
+    ]:
+      check parseTimeSpan(bad).isNone
