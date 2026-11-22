@@ -5,7 +5,7 @@
 ##
 ## This module is newer than `model`: it works out the impulses that are lacking, and reads them.
 
-import std/[math, options, os, strutils, times]
+import std/[math, options, os, strformat, strutils, times]
 import ../../core/globals
 import ../cache/cache
 import ../util/atomic/atomic
@@ -110,14 +110,14 @@ proc rows*(
         continue
     elif label < firstDay:
       continue
-    result.add label & "," & formatFloat(
-      fitness[k].value * p.fitnessScale, ffDecimal, 4
-    ) & "," & formatFloat(fatigue[k].value * p.fatigueScale, ffDecimal, 4)
+    let fit = formatFloat(fitness[k].value * p.fitnessScale, ffDecimal, 4)
+    let fat = formatFloat(fatigue[k].value * p.fatigueScale, ffDecimal, 4)
+    result.add fmt"{label},{fit},{fat}"
 
 proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): string =
   result = "time,fitness,fatigue\n"
   for l in rows(impulses, m, p, now, tz):
-    result.add l & "\n"
+    result.add fmt"{l}\n"
 
 proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
   ## Work out the impulses that are lacking (in one transaction).
@@ -153,8 +153,7 @@ proc latestStats(
     asOf = nowHour - bucketSeconds
     day = today
     label =
-      localDate(today, utc()) & " " &
-      fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm")
+      fmt"""{localDate(today, utc())} {fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm")}"""
   else:
     day = p.lastDay.get
     asOf =
@@ -298,7 +297,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       writeAtomic(csvPath, makeCsv(impulses, m.get, p, now, tz))
       if p.web.kind == wkWorker:
         let html = pageHtml(
-          extractFilename(csvPath), "Fitness and fatigue, model " & name, p.hourly
+          extractFilename(csvPath), fmt"Fitness and fatigue, model {name}", p.hourly
         )
         writeAtomic(pageFile.get, html)
     except IOError, OSError:

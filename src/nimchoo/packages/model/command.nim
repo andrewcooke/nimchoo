@@ -2,7 +2,7 @@
 ## (see calc.nim), and the making of new ones.  Models belong to no user.  The impulses of a
 ## model are worked out when they are wanted (see `nch ff`), not when the model is added.
 ##
-import std/options
+import std/[options, strformat]
 import ../../core/[globals, ruled]
 import ../db/store
 import ../ui/[units]
@@ -50,7 +50,7 @@ proc modelLines*(ms: seq[Model], width: int): seq[Line] =
       plainNumber(m.gamma),
       plainNumber(m.zero),
       plainNumber(m.one),
-      $m.maxSecs,
+      count(m.maxSecs),
       zones(m),
       plainNumber(m.fitnessDays),
       plainNumber(m.fatigueDays),
@@ -86,9 +86,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         return
           failure(g, "nch models", ~"there is a model called '{p.model.name}' already")
       insertModel(st.db, p.model)
-      let said = "made the model " & p.model.name
+      let said = fmt"made the model {p.model.name}"
       g.log.log(lvInfo, commandName, leSaved, said)
-      g.show(osOut, plain(said))
+      g.done(plain(said))
       exitOk
   except StoreError as e:
     failure(g, "nch models", e.msg)

@@ -2,7 +2,7 @@
 ## table by table (`holding.nim`); `--delete` deletes it, and
 ## with it the data of every user (the cache, which can be made again, is `nch cache`).  It asks first (`core/ask`: `[yN]`; `-y` answers yes; with no terminal and no `-y`, nothing is deleted).
 
-import std/[options, os]
+import std/[options, os, strformat]
 import db_connector/db_sqlite
 import ../../core/[access, ask, globals, ruled]
 import ../util/args/[args, usage]
@@ -62,7 +62,7 @@ proc tablesLines(
   try:
     db = open(path, "", "", "")
   except DbError as e:
-    raiseStore("cannot open " & path & ": " & e.msg)
+    raiseStore(fmt"cannot open {path}: {e.msg}")
   defer:
     try:
       db.close()
@@ -107,9 +107,7 @@ proc tablesLines(
   if h.others > 0:
     result.add plain("")
     result.add plain(
-      "and " & $h.others &
-        " tables of SQLite and SpatiaLite and the record of the fragments, " &
-        humanBytes(h.othersBytes)
+      fmt"and {h.others} tables of SQLite and SpatiaLite and the record of the fragments, {humanBytes(h.othersBytes)}"
     )
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -140,8 +138,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return failure(g, "nch db", e.msg)
     return exitOk
   let what =
-    "the database " & path & " (" & humanBytes(size(path)) &
-    ") with the data of every user"
+    fmt"the database {path} ({humanBytes(size(path))}) with the data of every user"
   if not confirmDelete(g, what, parsed.yes):
     return exitFailure
   try:
@@ -149,6 +146,6 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       removeFile path & suffix
   except OSError as e:
     return failure(g, "nch db", ~"cannot delete {path}: {e.msg}")
-  g.log.log(lvInfo, commandName, leDeleted, "deleted " & what)
+  g.log.log(lvInfo, commandName, leDeleted, fmt"deleted {what}")
   sayDeleted(g, ~"deleted {what}")
   exitOk
