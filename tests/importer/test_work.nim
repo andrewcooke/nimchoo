@@ -10,7 +10,7 @@ let dir = getTempDir() / "nch-test-work"
 let noProfile: ProfileSource = proc(): Profile {.
     closure, raises: [ProfileError, XlsxError]
 .} =
-  raiseProfile("no such profile", "Types", 0)
+  raiseProfile("no such profile", "Types", 1)
 
 let notKnown: KnownCheck = proc(digest: string): bool {.closure, raises: [].} =
   false

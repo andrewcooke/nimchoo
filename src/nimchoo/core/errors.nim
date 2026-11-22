@@ -4,17 +4,19 @@
 ## Defects, from `doAssert`/`raiseAssert` and the built-in checks.  Ordinary
 ## absence is an `Option`.  See "Conventions" in CLAUDE.md.)
 
+import std/options
+
 {.push raises: [].}
 
 type
   NchError* = object of CatchableError ## Base of all errors raised on unusable input.
 
   FitError* = object of NchError ## A FIT file that cannot be read (further).
-    offset*: int ## byte offset in the file, or -1 if not known
+    offset*: Option[int] ## byte offset in the file, if known
 
   ProfileError* = object of NchError ## A profile spreadsheet that cannot be used.
-    sheet*: string ## "" if not about a particular sheet
-    row*: int ## 1-based spreadsheet row, 0 if not known
+    sheet*: Option[string] ## the sheet, if it is about a particular one
+    row*: Option[int] ## 1-based spreadsheet row, if known
 
   XlsxError* = object of NchError ## A file that is not a readable xlsx file.
 
@@ -35,7 +37,7 @@ type
 
   TemplateError* = object of NchError
     ## A page template that cannot be used (a tag not closed, a name the values do not have).
-    line*: int ## 1-based line of the template, 0 if not known
+    line*: Option[int] ## 1-based line of the template, if known
 
   ImportFailure* = enum
     ifNoActivity ## the file has no activity in it (no session message)
@@ -53,17 +55,21 @@ type
 
 proc raiseFit*(msg: string) {.noreturn, raises: [FitError].} =
   ## Raise a FitError that has no offset.
-  raise (ref FitError)(msg: msg, offset: -1)
+  raise (ref FitError)(msg: msg, offset: none(int))
 
 proc raiseFit*(offset: int, msg: string) {.noreturn, raises: [FitError].} =
   ## Raise a FitError at a byte offset; the offset is added to the message.
-  raise (ref FitError)(msg: msg & " (at offset " & $offset & ")", offset: offset)
+  raise (ref FitError)(msg: msg & " (at offset " & $offset & ")", offset: some(offset))
+
+proc raiseProfile*(msg: string) {.noreturn, raises: [ProfileError].} =
+  ## Raise a ProfileError that is not about a particular place.
+  raise (ref ProfileError)(msg: msg)
 
 proc raiseProfile*(
-    msg: string, sheet = "", row = 0
+    msg: string, sheet: string, row: int
 ) {.noreturn, raises: [ProfileError].} =
-  ## Raise a ProfileError, optionally for a 1-based `row` of `sheet`.
-  raise (ref ProfileError)(msg: msg, sheet: sheet, row: row)
+  ## Raise a ProfileError for a 1-based `row` of `sheet`.
+  raise (ref ProfileError)(msg: msg, sheet: some(sheet), row: some(row))
 
 proc raiseXlsx*(msg: string) {.noreturn, raises: [XlsxError].} =
   ## Raise an XlsxError.
@@ -87,30 +93,32 @@ proc raiseImport*(
   ## Raise an ImportError of the given kind.
   raise (ref ImportError)(msg: msg, kind: kind)
 
-proc raiseTemplate*(msg: string, line = 0) {.noreturn, raises: [TemplateError].} =
-  ## Raise a TemplateError.
-  raise (ref TemplateError)(
-    msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line
-  )
+proc raiseTemplate*(msg: string) {.noreturn, raises: [TemplateError].} =
+  ## Raise a TemplateError that is not about a particular line.
+  raise (ref TemplateError)(msg: msg)
+
+proc raiseTemplate*(msg: string, line: int) {.noreturn, raises: [TemplateError].} =
+  ## Raise a TemplateError for a 1-based `line` of the template.
+  raise (ref TemplateError)(msg: "line " & $line & ": " & msg, line: some(line))
 
 type
   ThemeError* = object of NchError
     ## A theme file that cannot be used (a bad colour, an unknown attribute).
-    line*: int ## 1-based line of the file, 0 if not known
+    line*: Option[int] ## 1-based line of the file, if known
 
   MarkupError* = object of NchError
     ## Styled text that cannot be read (a bracket not closed, an unknown style).
-    column*: int
-      ## 1-based position in the text (in bytes, counting every line), 0 if not known
+    column*: Option[int]
+      ## 1-based position in the text (in bytes, counting every line), if known
 
-proc raiseTheme*(msg: string, line = 0) {.noreturn, raises: [ThemeError].} =
-  ## Raise a ThemeError, optionally for a 1-based `line` of the file.
-  raise (ref ThemeError)(
-    msg: (if line > 0: "line " & $line & ": " else: "") & msg, line: line
-  )
+proc raiseTheme*(msg: string) {.noreturn, raises: [ThemeError].} =
+  ## Raise a ThemeError that is not about a particular line.
+  raise (ref ThemeError)(msg: msg)
 
-proc raiseMarkup*(msg: string, column = 0) {.noreturn, raises: [MarkupError].} =
-  ## Raise a MarkupError, optionally at a 1-based `column` of the text.
-  raise (ref MarkupError)(
-    msg: (if column > 0: "at " & $column & ": " else: "") & msg, column: column
-  )
+proc raiseTheme*(msg: string, line: int) {.noreturn, raises: [ThemeError].} =
+  ## Raise a ThemeError for a 1-based `line` of the file.
+  raise (ref ThemeError)(msg: "line " & $line & ": " & msg, line: some(line))
+
+proc raiseMarkup*(msg: string, column: int) {.noreturn, raises: [MarkupError].} =
+  ## Raise a MarkupError at a 1-based `column` of the text.
+  raise (ref MarkupError)(msg: "at " & $column & ": " & msg, column: some(column))

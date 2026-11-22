@@ -1,5 +1,5 @@
 {.push warning[UnreachableCode]: off.} # (`expect` around procedures that never return)
-import std/[sets, strutils, unittest]
+import std/[options, sets, strutils, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/fit/header
 import nimchoo/packages/fit/load
@@ -24,12 +24,12 @@ suite "errors":
     try:
       raiseFit("plain")
     except FitError as e:
-      check e.offset == -1
+      check e.offset.isNone
       check e.msg == "plain"
     try:
       raiseFit(12, "bad")
     except FitError as e:
-      check e.offset == 12
+      check e.offset == some(12)
       check e.msg == "bad (at offset 12)"
 
   test "the tokenizer reports the offset as a field":
@@ -39,12 +39,12 @@ suite "errors":
         discard
       check false # a FitError was expected
     except FitError as e:
-      check e.offset == 12 # just after the 12 byte header
+      check e.offset == some(12) # just after the 12 byte header
       check "no definition" in e.msg
 
   test "ProfileError carries the sheet and row":
     try:
       raiseProfile("bad", "Types", 7)
     except ProfileError as e:
-      check e.sheet == "Types"
-      check e.row == 7
+      check e.sheet == some("Types")
+      check e.row == some(7)
