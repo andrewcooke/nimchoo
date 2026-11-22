@@ -104,12 +104,12 @@ func parseShell*(word: string): Option[Shell] =
       return some(s)
 
 type
-  Action* = enum
-    acInstall ## write the script where the shell finds it
-    acShow ## print it
+  ScriptAction* = enum
+    saInstall ## write the script where the shell finds it
+    saShow ## print it
 
   Job* = object ## what `--install-completion` or `--show-completion` asks for
-    action*: Action
+    action*: ScriptAction
     shell*: Shell
 
 func shellScript*(s: Shell): string =

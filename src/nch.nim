@@ -28,7 +28,7 @@ type Head = object ## The options before the command name.
   theme: Option[string] ## `--theme`
   job: Option[Job] ## `--install-completion` or `--show-completion`
 
-func takeJob(p: var Head, action: Action, value: string): Problem =
+func takeJob(p: var Head, action: ScriptAction, value: string): Problem =
   ## `--install-completion [SHELL]`, `--show-completion [SHELL]`.
   if p.job.isSome:
     return
@@ -91,7 +91,7 @@ func headSpec(): Spec[Head] =
         "SHELL",
         ~"write the script that makes the shell complete `nch` (default: bash) where the shell finds it, so that new shells have it",
         completion = Completion(kind: ckWords, words: shellNames()),
-        body = takeJob(p, acInstall, value),
+        body = takeJob(p, saInstall, value),
       ),
       optionalValue(
         Head,
@@ -99,7 +99,7 @@ func headSpec(): Spec[Head] =
         "SHELL",
         ~"print that script instead of writing it (to read it, or `eval \"$(nch --show-completion)\"`)",
         completion = Completion(kind: ckWords, words: shellNames()),
-        body = takeJob(p, acShow, value),
+        body = takeJob(p, saShow, value),
       ),
       flag(
         Head,
@@ -173,9 +173,9 @@ proc main(): int {.raises: [].} =
   if head.job.isSome:
     let job = head.job.get
     case job.action
-    of acInstall:
+    of saInstall:
       return installMain(g, job.shell)
-    of acShow:
+    of saShow:
       return showMain(job.shell)
   if i >= args.len:
     g.showAll osErr, usageText(g.textWidth(osErr))

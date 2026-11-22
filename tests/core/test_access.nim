@@ -23,68 +23,68 @@ func rules(): Access =
 
 suite "access: the rule":
   test "a package may read and write its own tables":
-    check rules().refusal("climbs", acRead, "effort").isNone
-    check rules().refusal("climbs", acWrite, "effort").isNone
-    check rules().refusal("climbs", acDefine, "effort").isNone
+    check rules().refusal("climbs", opRead, "effort").isNone
+    check rules().refusal("climbs", opWrite, "effort").isNone
+    check rules().refusal("climbs", opDefine, "effort").isNone
 
   test "it may read the tables of a package it depends on, but not write or define them":
-    check rules().refusal("climbs", acRead, "activity").isNone
-    check rules().refusal("climbs", acWrite, "activity").isSome
-    check rules().refusal("climbs", acDefine, "activity").isSome
+    check rules().refusal("climbs", opRead, "activity").isNone
+    check rules().refusal("climbs", opWrite, "activity").isSome
+    check rules().refusal("climbs", opDefine, "activity").isSome
 
   test "it may not read the tables of a package it does not depend on":
-    let why = rules().refusal("other", acRead, "effort")
+    let why = rules().refusal("other", opRead, "effort")
     check why.isSome
     check "'other'" in why.get and "'effort'" in why.get and "'climbs'" in why.get
 
   test "the tables of db are readable by every package, and writable by db alone":
-    check rules().refusal("other", acRead, "user").isNone
-    check rules().refusal("other", acWrite, "user").isSome
-    check rules().refusal("db", acWrite, "user").isNone
+    check rules().refusal("other", opRead, "user").isNone
+    check rules().refusal("other", opWrite, "user").isSome
+    check rules().refusal("db", opWrite, "user").isNone
 
   test "names are compared as Nim compares them":
-    check rules().refusal("heartrate", acRead, "activity").isNone
-    check rules().refusal("cLimbs", acWrite, "effort").isNone
+    check rules().refusal("heartrate", opRead, "activity").isNone
+    check rules().refusal("cLimbs", opWrite, "effort").isNone
 
   test "a spatial index belongs to the owner of its table":
-    check rules().refusal("climbs", acRead, "idx_activity_start_node").isNone
-    check rules().refusal("climbs", acWrite, "idx_activity_start_node").isSome
-    check rules().refusal("other", acRead, "idx_activity_start").isSome
+    check rules().refusal("climbs", opRead, "idx_activity_start_node").isNone
+    check rules().refusal("climbs", opWrite, "idx_activity_start_node").isSome
+    check rules().refusal("other", opRead, "idx_activity_start").isSome
 
   test "tables nobody made by DDL (SQLite's own, SpatiaLite's) are free, and so is code outside the packages":
-    check rules().refusal("climbs", acWrite, "sqlite_master").isNone
-    check rules().refusal("", acWrite, "activity").isNone
+    check rules().refusal("climbs", opWrite, "sqlite_master").isNone
+    check rules().refusal("", opWrite, "activity").isNone
 
   test "what a cascade does to the tables that refer to a written table is allowed, however far down":
     let a = rules()
-    check a.refusal("importer", acWrite, "effort", written = @["activity"]).isNone
-    check a.refusal("importer", acRead, "note", written = @["activity"]).isNone
-    check a.refusal("importer", acWrite, "effort").isSome
-    check a.refusal("importer", acWrite, "effort", written = @["note"]).isSome
+    check a.refusal("importer", opWrite, "effort", written = @["activity"]).isNone
+    check a.refusal("importer", opRead, "note", written = @["activity"]).isNone
+    check a.refusal("importer", opWrite, "effort").isSome
+    check a.refusal("importer", opWrite, "effort", written = @["note"]).isSome
       # (a child is not a parent)
-    check a.refusal("other", acRead, "idx_effort_geom", written = @["activity"]).isNone
+    check a.refusal("other", opRead, "idx_effort_geom", written = @["activity"]).isNone
 
 suite "access: pieces written by other packages":
   test "a read is allowed if a package that wrote a piece may make it":
-    check rules().refusal("other", acRead, "effort").isSome
-    check rules().refusal("other", acRead, "effort", contributors = @["climbs"]).isNone
+    check rules().refusal("other", opRead, "effort").isSome
+    check rules().refusal("other", opRead, "effort", contributors = @["climbs"]).isNone
     check rules()
-      .refusal("other", acRead, "effort", contributors = @["importer"]).isSome
+      .refusal("other", opRead, "effort", contributors = @["importer"]).isSome
       # (a contributor that may not read it either)
 
   test "a write or a change of definition is the caller's alone":
-    check rules().refusal("other", acWrite, "effort", contributors = @["climbs"]).isSome
+    check rules().refusal("other", opWrite, "effort", contributors = @["climbs"]).isSome
     check rules()
-      .refusal("other", acDefine, "effort", contributors = @["climbs"]).isSome
+      .refusal("other", opDefine, "effort", contributors = @["climbs"]).isSome
     check rules()
-      .refusal("climbs", acWrite, "activity", contributors = @["importer"]).isSome
+      .refusal("climbs", opWrite, "activity", contributors = @["importer"]).isSome
 
   test "the refusal names the packages that wrote pieces":
-    let why = rules().refusal("other", acRead, "effort", contributors = @["importer"])
+    let why = rules().refusal("other", opRead, "effort", contributors = @["importer"])
     check "importer" in why.get
 
   test "the caller counts as itself, whatever the contributors say":
-    check rules().refusal("climbs", acRead, "effort", contributors = @["other"]).isNone
+    check rules().refusal("climbs", opRead, "effort", contributors = @["other"]).isNone
 
 suite "access: who may read a table":
   test "the packages that depend on its owner, sorted; every other package for a table of db; none for one no package owns":

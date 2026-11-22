@@ -18,10 +18,10 @@ type
     amOff ## nothing is checked
     amEnforce ## what is refused is a `StoreError`
 
-  Action* = enum
-    acRead
-    acWrite ## insert, update, delete
-    acDefine ## create, alter, drop
+  Operation* = enum
+    opRead
+    opWrite ## insert, update, delete
+    opDefine ## create, alter, drop
 
   Access* = ref object ## The rules, made once when `nch` starts and never changed.
     mode*: AccessMode
@@ -97,7 +97,7 @@ func isLookedUpBy(a: Access, table: string, written: seq[string]): bool =
 func refusal*(
     a: Access,
     caller: string,
-    action: Action,
+    action: Operation,
     table: string,
     written: seq[string] = @[],
     contributors: seq[string] = @[],
@@ -111,21 +111,21 @@ func refusal*(
   ## tables of the contributor.
   if caller.len == 0:
     return none(string)
-  if action == acRead:
+  if action == opRead:
     for c in contributors:
       if c.normalised != caller.normalised and
-          a.refusal(c, acRead, table, written).isNone:
+          a.refusal(c, opRead, table, written).isNone:
         return none(string)
   let owner = a.ownerOf(table)
   if owner.isNone or owner.get.normalised == caller.normalised:
     return none(string)
   if written.len > 0 and (
-    a.refersTo(table, written) or (action == acRead and a.isLookedUpBy(table, written))
+    a.refersTo(table, written) or (action == opRead and a.isLookedUpBy(table, written))
   ):
     return none(string)
   let theirs = owner.get
   case action
-  of acRead:
+  of opRead:
     if theirs == sharedOwner or
         theirs.normalised in a.depends.getOrDefault(caller.normalised):
       return none(string)
@@ -138,9 +138,9 @@ func refusal*(
         else: ""
       )
     )
-  of acWrite:
+  of opWrite:
     some("package '" & caller & "' writes table '" & table & "' of '" & theirs & "'")
-  of acDefine:
+  of opDefine:
     some(
       "package '" & caller & "' changes the definition of table '" & table & "' of '" &
         theirs & "'"

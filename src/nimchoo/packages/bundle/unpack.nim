@@ -27,12 +27,12 @@ type
     name*: string ## the file's name in `system/`
     data*: string ## what the program carries
 
-  Action* = enum
-    acUnpack ## the file is missing: unpack it
-    acRefresh
+  FileAction* = enum
+    faUnpack ## the file is missing: unpack it
+    faRefresh
       ## the file is as unpacked before, and the program has a newer one: replace it
-    acCurrent ## the file is what the program carries
-    acCustom ## the file is not what was unpacked: use it, never overwrite it
+    faCurrent ## the file is what the program carries
+    faCustom ## the file is not what was unpacked: use it, never overwrite it
 
   Source* = enum
     soBundled ## the program's copy (the cache could not be used)
@@ -52,17 +52,17 @@ const
     ## file in `system/` so that it can be read, and unpacked whenever anything else is.  Nothing
     ## reads it back.
 
-func decide*(fileHash, recorded: Option[string], bundled: string): Action =
+func decide*(fileHash, recorded: Option[string], bundled: string): FileAction =
   ## What to do about a bundled file, given the hash of the file in `system/` (none if it is not
   ## there), the hash recorded when it was unpacked (none if nothing is recorded) and the hash of
   ## the program's copy.
   if fileHash.isNone:
-    return acUnpack
+    return faUnpack
   if fileHash.get == bundled:
-    return acCurrent
+    return faCurrent
   if recorded.isSome and recorded.get == fileHash.get:
-    return acRefresh
-  acCustom
+    return faRefresh
+  faCustom
 
 func parseManifest*(text: string): Table[string, string] =
   ## `hash  name` lines (lines that are not that are ignored).
@@ -88,7 +88,7 @@ proc readManifest(top: string): Table[string, string] =
 
 proc record(top, name, hash: string) =
   ## Write the hash of what was unpacked.  (A failure only means the file counts as the author's
-  ## next time, which is why a file equal to the program's own is always `acCurrent` first.)  An entry
+  ## next time, which is why a file equal to the program's own is always `faCurrent` first.)  An entry
   ## whose file is no longer there is left out: one the program still carries is unpacked and recorded
   ## again when it is wanted, so what goes is what the program no longer carries (a renamed theme).
   var entries: Table[string, string]
@@ -124,13 +124,13 @@ proc resolve*(cache: Option[string], b: Bundle): Resolved {.gcsafe.} =
     if k == b.name:
       recorded = some(v)
   case decide(current, recorded, bundled)
-  of acCustom:
+  of faCustom:
     return Resolved(data: onDisk, source: soCustom, path: some(path), hash: current.get)
-  of acCurrent:
+  of faCurrent:
     if recorded != some(bundled):
       record(top, b.name, bundled)
     return Resolved(data: b.data, source: soUnpacked, path: some(path), hash: bundled)
-  of acUnpack, acRefresh:
+  of faUnpack, faRefresh:
     if b.name != noticeBundle.name:
       discard resolve(cache, noticeBundle) # (the notice goes with them)
     try:

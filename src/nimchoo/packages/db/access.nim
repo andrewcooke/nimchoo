@@ -69,26 +69,26 @@ proc authorize(
   if not database.isNil and $database == "temp":
     return sqliteOk
   var table: cstring
-  var what: Action
+  var what: Operation
   case action
   of SQLITE_READ:
     table = arg1
-    what = acRead
+    what = opRead
   of SQLITE_INSERT, actUpdate, actDelete:
     table = arg1
-    what = acWrite
+    what = opWrite
     if not table.isNil:
       written.add $table
   of actCreateTable, actDropTable, actCreateVtable, actDropVtable:
     table = arg1
-    what = acDefine
+    what = opDefine
   of actAlterTable, actCreateIndex, actDropIndex:
     table = arg2
-    what = acDefine
+    what = opDefine
   of actCreateTrigger, actDropTrigger:
     # (a trigger belongs to the package that made it and may be on any table that package may read)
     table = arg2
-    what = acRead
+    what = opRead
   else:
     return sqliteOk
   if table.isNil:

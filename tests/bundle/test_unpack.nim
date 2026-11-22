@@ -19,17 +19,17 @@ suite "bundle: what to do about a file":
   let h2 = sha256Hex("two")
   let h3 = sha256Hex("three")
   test "missing: unpack":
-    check decide(none string, none string, h1) == acUnpack
-    check decide(none string, some h2, h1) == acUnpack
+    check decide(none string, none string, h1) == faUnpack
+    check decide(none string, some h2, h1) == faUnpack
   test "the file is the program's own: nothing to do, whatever the manifest says":
-    check decide(some h1, some h1, h1) == acCurrent
-    check decide(some h1, none string, h1) == acCurrent
-    check decide(some h1, some h2, h1) == acCurrent
+    check decide(some h1, some h1, h1) == faCurrent
+    check decide(some h1, none string, h1) == faCurrent
+    check decide(some h1, some h2, h1) == faCurrent
   test "as it was unpacked, but the program has another: replace it":
-    check decide(some h2, some h2, h1) == acRefresh
+    check decide(some h2, some h2, h1) == faRefresh
   test "anything else was put there by the author":
-    check decide(some h3, some h2, h1) == acCustom # changed since it was unpacked
-    check decide(some h3, none string, h1) == acCustom # nothing is known about it
+    check decide(some h3, some h2, h1) == faCustom # changed since it was unpacked
+    check decide(some h3, none string, h1) == faCustom # nothing is known about it
 
 suite "bundle: the manifest":
   test "written sorted, read back":
