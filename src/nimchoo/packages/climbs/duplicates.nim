@@ -21,7 +21,7 @@ type
   Member* = object
     id*: int64
     name*: string ## as shown ("name₃")
-    category*: string
+    category*: Option[string]
     lengthM*, gainM*, gradient*: float
     efforts*: int
     unique*: int
@@ -41,7 +41,7 @@ type DuplicateRow =
     lengthM, gainM: float,
     retired: bool,
     efforts: int,
-    category: string,
+    category: Option[string],
     gradient: float,
   ]
 
@@ -54,7 +54,7 @@ proc duplicateGroups*(st: Store): seq[Group] {.raises: [StoreError].} =
   for r in st.db.query(
     DuplicateRow,
     """select s.id, s.length_m, s.gain_m, s.retired,
-         (select count(*) from effort e where e.sector_id = s.id), coalesce(s.category, ''), s.gradient
+         (select count(*) from effort e where e.sector_id = s.id), s.category, s.gradient
          from sector s order by s.id""",
   ):
     at[r.id] = members.len

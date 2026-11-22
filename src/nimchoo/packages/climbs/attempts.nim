@@ -75,7 +75,9 @@ proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreErr
 
 type
   ClimbRow =
-    tuple[id: int64, lengthM, gainM, gradient: float, category: string, manual: bool]
+    tuple[
+      id: int64, lengthM, gainM, gradient: float, category: Option[string], manual: bool
+    ]
   AttemptRow =
     tuple[
       sectorId, startT: int64,
@@ -108,7 +110,7 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     sums[id] = Summary()
   for r in st.db.query(
     ClimbRow,
-    "select id, length_m, gain_m, gradient, coalesce(category, ''), manual from sector " &
+    "select id, length_m, gain_m, gradient, category, manual from sector " &
       "where id in (select value from json_each(:ids))",
     ids = wanted,
   ):

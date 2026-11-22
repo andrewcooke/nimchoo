@@ -5,14 +5,12 @@ import ../util/args/args
 import ../ui/units
 import ../near/near
 import ./completion
-import ./[display, match, overlap]
+import ./[detect, display, match, overlap]
 import std/[math, options, strformat, strutils, unicode]
 
 {.push raises: [].}
 
-const
-  maxNameLength* = 60
-  categoryNames* = ["HC", "1", "2", "3", "4"] ## as the database has them
+const maxNameLength* = 60
 
 type
   ClimbAction* = enum
@@ -82,20 +80,21 @@ type
     names, categories: seq[string]
     where: Where ## `--from`, `--near`, `--radius`
 
-func nameProblem*(s: string): string =
-  ## "" if `s` can be the name of a climb, else what is wrong.
+func nameProblem*(s: string): Option[string] =
+  ## What is wrong with `s` as the name of a climb; none if it can be one.
   let t = s.strip
   if t.len == 0:
-    return "a name cannot be empty"
+    return some("a name cannot be empty")
   if t.runeLen > maxNameLength:
-    return fmt"a name has at most {maxNameLength} characters"
+    return some(fmt"a name has at most {maxNameLength} characters")
   for c in t:
     if c < ' ' or c == '\x7f':
-      return "a name cannot hold control characters"
+      return some("a name cannot hold control characters")
   if endsWithSubscript(t):
-    return
+    return some(
       "a name cannot end in a subscript number: the program adds that itself when climbs share a name"
-  ""
+    )
+  none(string)
 
 proc takeNames(p: var Raw, name: string, values: seq[string]): Problem {.nimcall.} =
   for v in values:
@@ -192,8 +191,8 @@ func climbSpec*(): Spec[Raw] =
           block:
             p.rename = value.strip
             let why = nameProblem(value)
-            if why.len > 0:
-              return refuse(plain(why))
+            if why.isSome:
+              return refuse(plain(why.get))
             fine
         ),
       ),

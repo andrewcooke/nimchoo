@@ -12,7 +12,7 @@
 ## than 10 % of its gain) is cut at the descent and the parts are searched again.  Climbs steeper
 ## than 40 % are errors in the data and are dropped.  Pure.
 
-import std/math
+import std/[math, options]
 import ./profile
 
 {.push raises: [].}
@@ -32,13 +32,21 @@ type Climb* = object
   gain*: float ## metres
   length*: float ## metres
   gradient*: float ## percent
-  category*: string ## "4" (the smallest), "3", "2", "1" or "HC"; "" if too small
+  category*: Option[string]
+    ## "4" (the smallest), "3", "2", "1" or "HC"; none if too small
 
-func categoryFor*(gain: float): string =
+const categoryNames* = block:
+  ## The categories as the database has them, the biggest first (made from `categories`: one list).
+  var names: array[categories.len, string]
+  for i, (_, name) in categories:
+    names[categories.high - i] = name
+  names
+
+func categoryFor*(gain: float): Option[string] =
   ## By the gain, as strava does: 80 m is a 4, 160 a 3, 320 a 2, 640 a 1 and 800 hors catégorie.
   for (height, name) in categories:
     if gain >= height:
-      result = name
+      result = some(name)
 
 type Found = tuple[score: float, lo, hi: int] # lo = -1 if nothing
 

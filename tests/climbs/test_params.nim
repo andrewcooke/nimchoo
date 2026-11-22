@@ -1,4 +1,4 @@
-import std/[strutils, unittest]
+import std/[options, strutils, unittest]
 import nimchoo/packages/near/near
 import nimchoo/packages/ui/units
 import nimchoo/packages/climbs/params
@@ -31,17 +31,17 @@ suite "climbs: the command line":
     check parseArgs(@["--edit", " ", "--auto"]).problem.contains("needs the name")
     check parseArgs(@["Cerro"]).problem.contains("`--edit Cerro --rename NEW`")
   test "names that are refused":
-    check nameProblem("Cerro Calán") == ""
-    check nameProblem("  ").contains("empty")
-    check nameProblem("x".repeat(61)).contains("at most")
-    check nameProblem("a\nb").contains("control")
-    check nameProblem("Cuesta₂").contains("subscript")
-    check nameProblem("Cuesta (the 2/3 one)") == ""
+    check nameProblem("Cerro Calán").isNone
+    check nameProblem("  ").get.contains("empty")
+    check nameProblem("x".repeat(61)).get.contains("at most")
+    check nameProblem("a\nb").get.contains("control")
+    check nameProblem("Cuesta₂").get.contains("subscript")
+    check nameProblem("Cuesta (the 2/3 one)").isNone
     check parseArgs(@["--edit", "X", "--rename", "Cuesta₂"]).problem.contains(
       "subscript"
     )
   test "an old-style (n/m) at the end is just text now":
-    check nameProblem("Cuesta (2/3)") == ""
+    check nameProblem("Cuesta (2/3)").isNone
 
 suite "climbs: retiring":
   test "retire and unretire go with --edit; --retired and --duplicates are lists":

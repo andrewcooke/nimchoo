@@ -26,8 +26,8 @@ proc climbsOf(st: Session, sectors: seq[int64]): seq[Climb] {.raises: [StoreErro
   let names = shownNames(st)
   for id in sectors:
     for r in st.db.query(
-      tuple[lengthM, gainM, gradient: float, category, geometry: string],
-      """select length_m, gain_m, gradient, coalesce(category, ''), AsGeoJSON(route, 5)
+      tuple[lengthM, gainM, gradient: float, category: Option[string], geometry: string],
+      """select length_m, gain_m, gradient, category, AsGeoJSON(route, 5)
           from sector where id = :id""",
       id = id,
     ):

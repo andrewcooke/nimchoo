@@ -1,8 +1,12 @@
-import std/unittest
+import std/[options, unittest]
 import nimchoo/packages/climbs/describe
 
 let san = ClimbInfo(
-  name: "Cerro San Luis₄", category: "4", lengthM: 500.0, gainM: 89.4, gradient: 17.8
+  name: "Cerro San Luis₄",
+  category: some("4"),
+  lengthM: 500.0,
+  gainM: 89.4,
+  gradient: 17.8,
 )
 
 suite "climbs: saying a climb":
@@ -14,7 +18,7 @@ suite "climbs: saying a climb":
     check climbLine(
       ClimbInfo(
         name: "Farellones₁",
-        category: "HC",
+        category: some("HC"),
         lengthM: 16710.0,
         gainM: 1211.0,
         gradient: 7.2,

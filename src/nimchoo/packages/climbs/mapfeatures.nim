@@ -2,7 +2,7 @@
 ## says what it is in a property `kind` ("climb", "gate", "effort") and carries only facts, never colours or widths: the frame's
 ## drawing decides how things look.  Pure.
 
-import std/[json, math, strutils]
+import std/[json, math, options, strutils]
 import ../../core/ids
 import ../activities/mapfeatures
 import ../fit/time
@@ -28,7 +28,7 @@ type EffortLine* = object
 type Climb* = object
   id*: int64
   name*: string ## as shown: "Farellones₃"
-  category*: string ## "" if none
+  category*: Option[string] ## none if it has none
   lengthM*, gainM*, gradient*: float
   geometry*: string ## GeoJSON text of the climb's line (with heights)
 
@@ -36,8 +36,8 @@ proc climbFeature*(c: Climb): string =
   ## One feature, on one line.  Properties: kind ("climb"), id, name, category (if it has one), length_m, gain_m, gradient
   ## (percent).
   var props = "\"kind\":\"climb\",\"id\":" & $c.id & ",\"name\":" & escapeJson(c.name)
-  if c.category.len > 0:
-    props.add ",\"category\":" & escapeJson(c.category)
+  if c.category.isSome:
+    props.add ",\"category\":" & escapeJson(c.category.get)
   props.add ",\"length_m\":" & $int(c.lengthM + 0.5) & ",\"gain_m\":" &
     $int(c.gainM + 0.5) & ",\"gradient\":" & formatFloat(c.gradient, ffDecimal, 1)
   "{\"type\":\"Feature\",\"properties\":{" & props & "},\"geometry\":" & c.geometry & "}"

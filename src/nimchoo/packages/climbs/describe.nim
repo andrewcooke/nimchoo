@@ -7,14 +7,14 @@
 ## No space between a number and its unit.  `climbCells` gives the parts, to be lined up in the columns of a table;
 ## `climbLine` one line.  Pure.
 
-import std/strutils
+import std/[options, strutils]
 import ../ui/units
 
 {.push raises: [].}
 
 type ClimbInfo* = object
   name*: string ## as shown ("Cerro San Luis (4/5)"), cut to fit if need be by the caller
-  category*: string ## "4", "3", "2", "1" or "HC"; "" if too small to have one
+  category*: Option[string] ## "4", "3", "2", "1" or "HC"; none if too small to have one
   lengthM*, gainM*, gradient*: float ## metres, metres, percent
 
 func gainText*(metres: float): string =
@@ -29,7 +29,7 @@ func climbCells*(c: ClimbInfo): seq[string] =
   ## The parts of a climb, to be lined up in columns: name, category, length, gain, gradient.
   @[
     c.name,
-    if c.category.len > 0: c.category else: notRecorded,
+    c.category.get(notRecorded),
     km(c.lengthM),
     gainText(c.gainM),
     gradientText(c.gradient),

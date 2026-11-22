@@ -1,6 +1,6 @@
 ## The climbs, their gates and the efforts as GeoJSON features (climbs/mapfeatures.nim).
 
-import std/[json, unittest]
+import std/[json, options, unittest]
 import nimchoo/packages/climbs/mapfeatures
 import nimchoo/core/ids
 
@@ -13,7 +13,7 @@ suite "climbs features":
         Climb(
           id: 70,
           name: "Farellones₁",
-          category: "HC",
+          category: some("HC"),
           lengthM: 16710.4,
           gainM: 1210.6,
           gradient: 7.24,

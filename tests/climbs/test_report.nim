@@ -1,4 +1,4 @@
-import std/[strutils, unicode, unittest]
+import std/[options, strutils, unicode, unittest]
 import nimchoo/packages/climbs/report
 import nimchoo/packages/climbs/work
 import nimchoo/packages/db/store
@@ -45,7 +45,7 @@ suite "climbs report: the lines":
           lengthM: 14900,
           gainM: 1109,
           gradient: 7.4,
-          category: "HC",
+          category: some("HC"),
           efforts: 1,
           name: "unnamed",
           manual: true,
@@ -55,7 +55,7 @@ suite "climbs report: the lines":
           lengthM: 4900,
           gainM: 245,
           gradient: 5.0,
-          category: "3",
+          category: some("3"),
           efforts: 0,
           name: "unnamed",
         ),
@@ -75,7 +75,7 @@ suite "climbs report: the lines":
           lengthM: 14900,
           gainM: 1109,
           gradient: 7.4,
-          category: "HC",
+          category: some("HC"),
           name: "near Farellones₁",
           efforts: 1,
         )

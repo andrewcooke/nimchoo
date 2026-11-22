@@ -42,7 +42,7 @@ suite "climbs: from a ride to a stored climb and back":
     let cs = findClimbs(p)
     check cs.len == 1
     check abs(cs[0].gain - 119.0) < 3.0 and abs(cs[0].gradient - 4.0) < 0.2
-    check cs[0].category == "4"
+    check cs[0].category == some("4")
     let sector = climbPath(p, cs[0])
     check sector.len > 250 # about 3 km every 5 m
     # the same ride finds the climb at the right times

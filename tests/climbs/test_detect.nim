@@ -1,4 +1,4 @@
-import std/[math, unittest]
+import std/[math, options, unittest]
 import nimchoo/packages/climbs/detect
 import nimchoo/packages/climbs/profile
 
@@ -24,14 +24,16 @@ func noisy(e: seq[float], amplitude: float): seq[float] =
 
 suite "climbs: categories":
   test "by the gain, as strava does":
-    check categoryFor(79.9) == ""
-    check categoryFor(80) == "4"
-    check categoryFor(159) == "4"
-    check categoryFor(160) == "3"
-    check categoryFor(320) == "2"
-    check categoryFor(640) == "1"
-    check categoryFor(800) == "HC"
-    check categoryFor(2000) == "HC"
+    check categoryNames == ["HC", "1", "2", "3", "4"]
+      # (made from the thresholds: one list)
+    check categoryFor(79.9).isNone
+    check categoryFor(80) == some("4")
+    check categoryFor(159) == some("4")
+    check categoryFor(160) == some("3")
+    check categoryFor(320) == some("2")
+    check categoryFor(640) == some("1")
+    check categoryFor(800) == some("HC")
+    check categoryFor(2000) == some("HC")
 
 suite "climbs: finding them":
   test "a flat road, or a gentle slope, has none":
@@ -50,7 +52,7 @@ suite "climbs: finding them":
     check abs(cs[0].gain - 99.0) < 2.0 # (brought in by a sample at each end)
     check abs(cs[0].length - 1980.0) < 30.0
     check abs(cs[0].gradient - 5.0) < 0.2
-    check cs[0].category == "4"
+    check cs[0].category == some("4")
 
   test "two hills apart are two climbs, in order":
     let e = shape(
@@ -100,7 +102,7 @@ suite "climbs: finding them":
     let cs = findClimbs(e, step)
     check cs.len == 1
     check abs(cs[0].gain - 480.0) < 6.0
-    check cs[0].category == "2"
+    check cs[0].category == some("2")
     check abs(cs[0].first - 50) <= 12 and abs(cs[0].last - 1250) <= 12
 
   test "a little noise does not change what is found":

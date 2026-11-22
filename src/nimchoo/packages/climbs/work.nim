@@ -231,7 +231,10 @@ proc workOn(
         insertSector.bindReal(1, climb.length)
         insertSector.bindReal(2, climb.gain)
         insertSector.bindReal(3, climb.gradient)
-        insertSector.bindOptText(4, climb.category)
+        if climb.category.isSome:
+          insertSector.bindText(4, climb.category.get)
+        else:
+          insertSector.bindNull(4)
         insertSector.bindInt(5, foundAt)
         insertSector.bindText(6, lineStringText(route))
         insertSector.run()

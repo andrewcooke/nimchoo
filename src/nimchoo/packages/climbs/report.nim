@@ -17,7 +17,7 @@ import ../ui/units
 type SectorRow* = object
   id*: int64
   lengthM*, gainM*, gradient*: float
-  category*: string
+  category*: Option[string]
   name*: string ## as shown: "name₃", "unnamed" if it has none
   efforts*: int
   manual*: bool ## the name was given by a person
@@ -76,7 +76,7 @@ proc allSectors*(st: Store, retired = false): seq[SectorRow] {.raises: [StoreErr
   let names = shownNames(st)
   for r in st.db.query(
     SectorRow,
-    """select s.id, s.length_m, s.gain_m, s.gradient, coalesce(s.category, ''), '',
+    """select s.id, s.length_m, s.gain_m, s.gradient, s.category, '',
               (select count(*) from effort e where e.sector_id = s.id), s.manual, s.retired
          from sector s where s.retired = :retired order by s.gain_m desc, s.id""",
     retired = retired,
@@ -116,7 +116,7 @@ func cut*(name: string, width = nameWidth): string =
     base.runeSubStr(0, room - 3) & "..." & suffix
 
 func climbOf*(
-    name: string, category: string, lengthM, gainM, gradient: float
+    name: string, category: Option[string], lengthM, gainM, gradient: float
 ): ClimbInfo =
   ## The description of a climb (see ClimbInfo) from its columns.
   ClimbInfo(
