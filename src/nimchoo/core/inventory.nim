@@ -193,6 +193,40 @@ func namedList(items: seq[string], style: StyleName, between = ", "): Line =
     if name.len < it.len:
       result.add span(it[name.len .. ^1])
 
+type DocState = object
+  ## Where a line of documentation starts: inside `**` or backticks (a phrase can be wrapped over lines).
+  strong, code: bool
+
+func docLine(text: string, state: var DocState): Line =
+  ## A line of documentation (RST): what is between backticks (`map`, `nch climbs`) as literal text (`code`, without the
+  ## backticks: they are the mark only without colour), and what is between `**` in `em`, without them.  `state` says
+  ## where the line starts, and is left saying where it ends.
+  var plainText = ""
+  template flush() =
+    if plainText.len > 0:
+      var styles: seq[string]
+      if state.strong:
+        styles.add "em"
+      if state.code:
+        styles.add "code"
+      result.add Span(text: plainText, styles: styles.mapIt(anyStyle(it)))
+      plainText = ""
+
+  var i = 0
+  while i < text.len:
+    if not state.code and text.continuesWith("**", i):
+      flush()
+      state.strong = not state.strong
+      i += 2
+    elif text[i] == '`':
+      flush()
+      state.code = not state.code
+      inc i
+    else:
+      plainText.add text[i]
+      inc i
+  flush()
+
 func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Line] =
   ## One line for each package, those that use fewest first and, of those, the most used first (the more fundamental
   ## first): how many packages it uses and is used by (`U/B`, explained under the table), and what it is for, then what it provides (commands, in `code`; the extension points it defines; those it contributes to).  Only those
@@ -210,7 +244,8 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
   for p in order:
     # what it provides follows what it is for: "Defines users and the extension point user/has.  Contributes to web/pages.", the names of
     # commands in the style of commands
-    var what: Line = @[span(p.summary)]
+    var state: DocState
+    var what: Line = docLine(p.summary, state)
     var defines: seq[Line]
     for c in p.commands:
       defines.add @[span("nch " & c.name, "code")] # (a command is never named alone)
@@ -237,48 +272,6 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
   for l in wrap("U/B: how many packages the package uses / is used by.", width):
     result.add plain(l)
 
-func docLine(inv: Inventory, text: string, strong: var bool): Line =
-  ## A line of documentation (RST): each name of a package between backticks (`map`) in the style of packages, without
-  ## the backticks (what else is between backticks stays as it is: drawn as what is typed), and what is between `**` in
-  ## `em`, without them.  `strong` says whether the line starts inside `**`, and is left saying whether it ends inside
-  ## (a phrase can be wrapped over lines).
-  var plainText = ""
-  template flush() =
-    if plainText.len > 0:
-      result.add(
-        if strong:
-          span(plainText, "em")
-        else:
-          span(plainText)
-      )
-      plainText = ""
-
-  var i = 0
-  while i < text.len:
-    if text.continuesWith("**", i):
-      flush()
-      strong = not strong
-      i += 2
-    elif text[i] == '`' and text.find('`', i + 1) > i:
-      let close = text.find('`', i + 1)
-      let inside = text[i + 1 ..< close]
-      if inv.find(inside) >= 0:
-        flush()
-        result.add span(inside, "code")
-      elif inv.points.anyIt(it.name == inside):
-        flush()
-        result.add span(inside, "code")
-      elif inv.tables.anyIt(it.name == inside):
-        flush()
-        result.add span(inside, "code")
-      else:
-        plainText.add text[i .. close]
-      i = close + 1
-    else:
-      plainText.add text[i]
-      inc i
-  flush()
-
 func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   ## Everything about one package, as styled lines: the title, the documentation, and the fields in two columns (what each
   ## is, wrapped narrow, and what it holds).  `name` must be that of a package.
@@ -296,9 +289,9 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   ]
   if p.doc.len > 0:
     result.add plain("")
-    var strong = false
+    var state: DocState
     for l in rst(p.doc, width).split('\n'):
-      result.add inv.docLine(l, strong)
+      result.add docLine(l, state)
     result.add plain("")
   fields.add field("source", @[span(p.path, "file")])
   fields.add field("depends on", pkgList(p.depends))
@@ -355,10 +348,10 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
       by.add span(n, "code")
       by.add span(c[n.len .. ^1])
     let what = (if holds.len > 0: fmt"{d.name}[{holds}]" else: d.name)
-    var strong = false
+    var state: DocState
     fields.add field(
       "defines extension points",
-      @[span(unbroken(what), "code"), span(" - ")] & inv.docLine(d.summary, strong) &
+      @[span(unbroken(what), "code"), span(" - ")] & docLine(d.summary, state) &
         @[span("; contributed to by ")] & (if by.len == 0: plain("nothing")
       else: by),
     )
@@ -395,7 +388,11 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
       @[span(pt.name, "code")],
       pkg(pt.owner),
       (if added.len == 0: plain("-") else: added),
-      plain(pt.summary),
+      (
+        block:
+          var state: DocState
+          docLine(pt.summary, state)
+      ),
     ]
   ruled(
     @["extension point", "defined by", "contributed to by (in order)", "what it is"],

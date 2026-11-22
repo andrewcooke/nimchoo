@@ -22,7 +22,8 @@ proc world(): Inventory {.raises: [].} =
       name: "b",
       path: "src/nimchoo/packages/b/",
       summary: "Package b is for b things.",
-      doc: "Package b is for b things.\n\nIt has a **paragraph** more.",
+      doc:
+        "Package b is for b things.\n\nIt has a **paragraph** more, and `a phrase that is long enough to be wrapped over two lines of the detail`.",
       package: Package(
         depends: @["a", "db"],
         defines: @[PointDecl(name: "b/p", summary: "a number")],
@@ -134,7 +135,7 @@ suite "the views":
     let text = cells.texts.join("\n")
     check cells[0] ==
       @[span("package ", "em"), span("b", "code"), span("  "), span("layer 2", "hide")]
-    check "It has a paragraph more." in text
+    check "It has a paragraph more, and" in text
       # (what is between ** is in em, without them)
     check cells.anyIt(span("paragraph", "em") in it)
     check "depends on" in text and "a, db" in text
@@ -155,6 +156,13 @@ suite "the views":
       )
     ) # (an extension point in its style)
     check "b/p[int] - " in text # (what --points no longer shows: the detail has it)
+
+  test "literal text in the documentation is code, also when it is wrapped over lines":
+    let cells = detailLines(world(), "b", 60)
+    let coded = cells.mapIt(it.filterIt(it.isCode).mapIt(it.text).join).join(" ")
+    check "a phrase that is long enough to be wrapped over two lines of the detail" in
+      coded.splitWhitespace.join(" ")
+    check not cells.anyIt(it.text.contains('`'))
 
   test "the points":
     let cells = pointLines(world(), 80)
