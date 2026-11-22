@@ -93,7 +93,7 @@ func questionLines*(leading: seq[string], command: string, fix: UnitFix): seq[Li
   let tail = if fix.missing.len == 1: "is missing a unit" else: "are missing units"
   @[
     @[span(fmt"{command}: {what} {tail}; did you mean", "warn")],
-    @[span("  ")] & commandLine(leading, command, fix),
+    @[span(">", "warn"), span(" ")] & commandLine(leading, command, fix),
   ]
 
 proc askUnit*(

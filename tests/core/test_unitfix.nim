@@ -60,8 +60,9 @@ suite "unitfix: a number with no unit, and the question":
     check q.len == 2
     check q[0].plainText == "nch activities: --radius 3 is missing a unit; did you mean"
     check q[0][0].styles == @[styleName"warn"]
-    check q[1].plainText == "  nch --offline activities --from 'Las Condes' --radius 3km"
+    check q[1].plainText == "> nch --offline activities --from 'Las Condes' --radius 3km"
     check q[1].emphasised.endsWith("--radius 3[km]")
+    check q[1][0].text == ">" and q[1][0].styles == @[styleName"warn"]
   test "several options are named together":
     var two = fix
     two.missing.add Unitless(option: "--distance", value: "40", unit: "km")
