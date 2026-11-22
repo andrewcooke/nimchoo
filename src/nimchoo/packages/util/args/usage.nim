@@ -3,7 +3,7 @@
 ## and frames of `map`).  A command's usage is styled lines (`core/line.nim`): its synopsis and introduction, written by
 ## hand, then this list, then any closing prose and sections, put together by `usageOf` in one order.  Pure: the width to wrap to is given.
 
-import std/strutils
+import std/[strutils, unicode]
 import ../../../core/[line, ruled, wrap]
 import ./args
 export wrap, line
@@ -51,7 +51,7 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
   ## The lines for the options: two spaces, the names and the value (in `code`), the help in a column, wrapped to `width`.
   var labelWidth = 0
   for d in docs:
-    let n = label(d).len
+    let n = label(d).runeLen
     if n <= maxLabel:
       labelWidth = max(labelWidth, n)
   let column = indent + labelWidth + gap
@@ -59,10 +59,10 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
   for d in docs:
     let l = label(d)
     let names = l.strip(trailing = false)
-    let lead = " ".repeat(indent + l.len - names.len)
+    let lead = " ".repeat(indent + l.runeLen - names.runeLen)
     let help = d.help.wrapped(helpWidth)
     let pad = " ".repeat(column)
-    if l.len > maxLabel or d.help.len == 0:
+    if l.runeLen > maxLabel or d.help.len == 0:
       result.add ~"{lead}`{names}`"
       for h in help:
         if h.len > 0:
@@ -70,7 +70,7 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
     else:
       for i, h in help:
         if i == 0:
-          let between = " ".repeat(labelWidth - l.len + gap)
+          let between = " ".repeat(labelWidth - l.runeLen + gap)
           let first: Line = ~"{lead}`{names}`{between}" & h
           result.add first.stripped
         else:

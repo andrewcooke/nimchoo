@@ -1,6 +1,7 @@
-## Words wrapped to a width: for the usage texts, and for the lists `nch packages` prints.  Pure.
+## Words wrapped to a width: for the usage texts, and for the lists `nch packages` prints.  Widths are in characters, as
+## `line.wrapped` counts them (not bytes: an accent or `₂` is one).  Pure.
 
-import std/strutils
+import std/[strutils, unicode]
 
 {.push raises: [].}
 
@@ -12,7 +13,7 @@ func wrap*(text: string, width: int): seq[string] =
     for word in paragraph.split(' '):
       if line.len == 0:
         line = word
-      elif line.len + 1 + word.len <= width:
+      elif line.runeLen + 1 + word.runeLen <= width:
         line.add " " & word
       else:
         result.add line.strip(leading = false)

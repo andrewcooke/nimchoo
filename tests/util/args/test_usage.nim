@@ -17,6 +17,10 @@ suite "usage: wrapping":
   test "lines are broken at spaces, not beyond the width":
     check wrap("one two three four", 9) == @["one two", "three", "four"]
     check wrap("a b", 80) == @["a b"]
+    # (characters, not bytes: "farellones₂" and "Arrayán" are 11 and 7 wide)
+    check wrap("farellones₂ cabra", 17) == @["farellones₂ cabra"]
+    check wrap("El Arrayán sube", 15) == @["El Arrayán sube"]
+    check wrap("El Arrayán sube", 14) == @["El Arrayán", "sube"]
   test "a word longer than the width has a line of its own":
     check wrap("a verylongword b", 5) == @["a", "verylongword", "b"]
   test "a newline starts a new line":
