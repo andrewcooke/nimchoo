@@ -62,7 +62,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * **`--port`** (E11): "not given" is not the default port (an `Option`), so `--file --port 62466` is refused as
       `--file --port 8000` is.
     * Then CLAUDE.md ("input never takes a unit for distance, and `m` always means minutes", the option conventions),
-      the help texts and the memory of the author's habits: every distance and duration in input carries its unit.
+      and the help texts: every distance and duration in input carries its unit.
 
 13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
     before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the
