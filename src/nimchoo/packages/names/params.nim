@@ -6,7 +6,8 @@ import ./completion
 import std/[options, strutils]
 import ./landmarks
 import ../geo/position
-export position.Position
+import ../near/near
+export position.Position, near.Spot, near.NearKind
 
 {.push raises: [].}
 
@@ -28,7 +29,7 @@ type
     of skSearch:
       text*: string
     of skNear:
-      near*: Position
+      near*: Spot ## a position or a place's name (resolved by the command)
 
   PickedLandmark* = object ## `--add NAME` at suggestion `pick` of `from`
     name*: string
@@ -38,7 +39,7 @@ type
 
   PlacedLandmark* = object ## `--add NAME --at LAT,LON`
     name*: string
-    at*: Position
+    at*: Spot
     radiusM*: float
 
   DeletedLandmark* = object
@@ -61,7 +62,7 @@ type
   Raw = object ## what the options fill in
     help, force, adding, deleting: bool
     name, search: string
-    near, at: Option[Position]
+    near, at: Option[Spot]
     pick: int
     radiusM: float
 
@@ -80,14 +81,15 @@ func landmarkSpec*(): Spec[Raw] =
         Raw,
         ["--near"],
         true,
-        "LAT,LON",
-        ~"suggest the features within 2 km of a position, nearest first, numbered (the names for that area are fetched if need be)",
+        "LAT,LON|PLACE",
+        ~"suggest the features within 2 km of a position or of a place (a landmark, else the biggest place of that name among those the names were loaded for), nearest first, numbered (the names for that area are fetched if need be)",
         body = (
           block:
-            p.near = parsePosition(value)
+            p.near = parseSpot(value, false)
             if p.near.isNone:
-              return
-                refuse(~"`--near` is a position as LAT,LON in degrees (not '{value}')")
+              return refuse(
+                ~"`--near` is a position as LAT,LON in degrees, or a place's name (not '{value}')"
+              )
             fine
         ),
       ),
@@ -121,15 +123,16 @@ func landmarkSpec*(): Spec[Raw] =
         Raw,
         ["--at"],
         true,
-        "LAT,LON",
-        ~"the position of the landmark, if not at a suggestion",
+        "LAT,LON|PLACE",
+        ~"the position of the landmark, if not at a suggestion: a position, or a place's name (as `--near`)",
         level = 1,
         body = (
           block:
-            p.at = parsePosition(value)
+            p.at = parseSpot(value, false)
             if p.at.isNone:
-              return
-                refuse(~"`--at` is a position as LAT,LON in degrees (not '{value}')")
+              return refuse(
+                ~"`--at` is a position as LAT,LON in degrees, or a place's name (not '{value}')"
+              )
             fine
         ),
       ),

@@ -62,6 +62,14 @@ suite "nch landmarks":
     check q(db, "select name from landmark", string) == "Yerba Loca"
     check abs(q(db, "select lon from landmark", float) + 70.364) < 1e-9
     check q(db, "select radius_m from landmark", float) == 1500.0
+  test "--at and --near take a place's name: a landmark, else a place of the names loaded":
+    let db = fresh("placed")
+    check landmark(db, "--add", "Casa", "--at", "-33.4,-70.6") == exitOk
+    check landmark(db, "--add", "Cerca", "--at", "casa") == exitOk
+    check q(db, "select lon from landmark where name = 'Cerca'", float) == -70.6
+    check landmark(db, "--near", "Casa") == exitOk
+    check landmark(db, "--add", "Nowhere", "--at", "no such place") == exitFailure
+    check q(db, "select count(*) from landmark", int) == 2
   test "a number that is not among the suggestions, and a name used twice, are failures; nothing is made":
     let db = fresh("fail")
     check landmark(db, "--add", "X", "--search", "yerba", "--pick", "9") == exitFailure

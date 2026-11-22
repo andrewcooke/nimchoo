@@ -41,6 +41,12 @@ suite "landmark: the command line":
       check parseArgs(@["--add", "X", "--at", "1,2", "--size", bad]).problem.contains(
         "--size"
       )
+  test "--near and --at take a place's name too":
+    let a = parseArgs(@["--add", "X", "--at", "Providencia"]).params
+    check a.placed.at == Spot(kind: nkPlace, place: "Providencia")
+    check parseArgs(@["--near", "Farellones"]).params.suggest.near.kind == nkPlace
+    check parseArgs(@["--near", "1x,2"]).problem.contains("--near")
+    check parseArgs(@["--add", "X", "--at", "5"]).problem.contains("--at")
   test "mistakes":
     check parseArgs(@["--add", "X"]).problem.contains("needs one of")
     check parseArgs(@["--add", "X", "--search", "y"]).problem.contains("--pick")

@@ -16,6 +16,7 @@ import ../confirm/confirm
 import ../ui/live
 import ../util/args/[args, usage]
 import ./params
+import ./places
 import ./landmarks
 import ./suggest
 
@@ -30,10 +31,10 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 const
   synopsis = """usage: nch landmarks
        nch landmarks --search TEXT
-       nch landmarks --near LAT,LON
+       nch landmarks --near LAT,LON|PLACE
        nch landmarks --add NAME --search TEXT --pick N [--size DISTANCE]
-       nch landmarks --add NAME --near LAT,LON --pick N [--size DISTANCE]
-       nch landmarks --add NAME --at LAT,LON [--size DISTANCE]
+       nch landmarks --add NAME --near LAT,LON|PLACE --pick N [--size DISTANCE]
+       nch landmarks --add NAME --at LAT,LON|PLACE [--size DISTANCE]
        nch landmarks --delete NAME -f"""
   intro = @[
     ~"Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle holds the place comes before every name GeoNames has.  Without options, list the landmarks."
@@ -66,6 +67,20 @@ func landmarkLines(rows: seq[Landmark], width: int): seq[Line] =
   for l in rows:
     cells.add @[l.name, positionText((lon: l.lon, lat: l.lat)), km(l.radiusM)]
   ruled(@["landmark", "position", "radius"], cells, width, right = {2})
+
+proc resolved(
+    st: Store, spot: Spot
+): tuple[pos: Position, said: string] {.raises: [StoreError].} =
+  ## A position as given: itself, or the place of that name (a landmark, else the biggest of that name among the names loaded:
+  ## `places.placeNamed`), with a note of which, in brackets, to say.
+  case spot.kind
+  of nkPoint:
+    (pos: (lon: spot.lon, lat: spot.lat), said: "")
+  of nkPlace:
+    let p = placeNamed(st, spot.place)
+    (pos: (lon: p.lon, lat: p.lat), said: " (" & p.said & ")")
+  of nkNone, nkLatest, nkPrevious:
+    raiseAssert "landmarks read a position or a place's name only"
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch landmarks ARGS`; returns the exit status.
@@ -108,8 +123,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     of laAddAt:
       let a = p.placed
-      addLandmark(st, a.name, a.at.lon, a.at.lat, a.radiusM)
-      let said = "made the landmark " & a.name.strip & " at " & positionText(a.at)
+      let at = resolved(st, a.at)
+      addLandmark(st, a.name, at.pos.lon, at.pos.lat, a.radiusM)
+      let said =
+        "made the landmark " & a.name.strip & " at " & positionText(at.pos) & at.said
       g.log.log(lvInfo, commandName, leSaved, said)
       g.show(osOut, plain(said))
       return exitOk
@@ -121,6 +138,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         found = searchByName(st, suggest.text)
       of skNear:
         # the names round the position are read (and fetched) first
+        let near = resolved(st, suggest.near)
+        if near.said.len > 0:
+          g.show(osErr, plain(near.said.strip(chars = {' ', '(', ')'})))
         let names = openNames(
           g,
           st,
@@ -130,13 +150,13 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
         if names.isSome:
           try:
-            discard names.get.prepare([suggest.near.lon], [suggest.near.lat], 2000.0)
+            discard names.get.prepare([near.pos.lon], [near.pos.lat], 2000.0)
           except OfflineError:
             g.show(
               osErr,
               ~"`--offline`: only the names already loaded for that area are suggested",
             )
-        found = featuresAround(st, suggest.near.lon, suggest.near.lat)
+        found = featuresAround(st, near.pos.lon, near.pos.lat)
       if p.action == laAddPicked:
         let a = p.picked
         if a.pick > found.len:
