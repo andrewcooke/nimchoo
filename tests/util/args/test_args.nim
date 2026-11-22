@@ -251,3 +251,20 @@ suite "args: a number given without its unit":
     check parseCommand(@["--far", "0"], dspec, D(), finishD).kind == pkProblem
     check parseCommand(@["--far", "nan"], dspec, D(), finishD).kind == pkProblem
     check parseCommand(@["--far", "3mi"], dspec, D(), finishD).kind == pkProblem
+
+suite "args: an option's arity is one fact":
+  test "each kind of option says its arity, and the description has the same":
+    check spec.opts[0].arity == aFlag and spec.opts[1].arity == aOne
+    check ospec.docs[0].arity == aOptional and ospec.opts[0].arity == aOptional
+    let lst = listOption[P](
+      ["--xs"],
+      proc(
+          p: var P, name: string, values: seq[string]
+      ): Problem {.nimcall, raises: [].} =
+        fine,
+      "X...",
+      ~"some",
+    )
+    check lst.arity == aList and lst.doc.arity == aList
+    for o in spec.opts:
+      check o.doc.arity == o.arity

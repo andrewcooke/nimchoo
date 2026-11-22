@@ -226,9 +226,7 @@ func contributedOption(o: Criterion): Opt[ListState] =
   ## The option of an offered criterion, as the parser has them.
   result = Opt[ListState](
     names: o.doc.names,
-    takesList: o.doc.arity == aList,
-    takesValue: o.doc.arity in {aOne, aOptional},
-    valueOptional: o.doc.arity == aOptional,
+    arity: o.doc.arity,
     applyList: takeContributed,
     apply: proc(
         p: var ListState, name, value: string

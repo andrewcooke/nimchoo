@@ -69,12 +69,10 @@ type
 
   Opt*[P] = object
     names*: seq[string] ## "-h", "--help"
-    takesValue*: bool
-    valueOptional*: bool
-      ## (with `takesValue`) the value may be left out: the next word is it unless that is an option; `apply` is then
-      ## given "" (`nch --install-completion [SHELL]`)
+    arity*: Arity
+      ## no value, one, one that may be left out (the next word is it unless that is an option: `apply` is then given "", as
+      ## `nch --install-completion [SHELL]`), or a list (`applyList` is used, not `apply`): the one fact, which `doc` hands on
     apply*: Apply[P]
-    takesList*: bool ## then `applyList` is used, not `apply`
     applyList*: ApplyList[P]
     metavar*: string
     help*: Line
@@ -180,7 +178,7 @@ proc walk[P](
     if k >= 0:
       let o = spec.opts[k]
       var v = ""
-      if o.takesList:
+      if o.arity == aList:
         var values: seq[string]
         if eq > 0:
           values.add a[eq + 1 .. ^1]
@@ -193,10 +191,10 @@ proc walk[P](
           return why
         inc i
         continue
-      if o.takesValue:
+      if o.arity in {aOne, aOptional}:
         if eq > 0:
           v = a[eq + 1 .. ^1]
-        elif o.valueOptional:
+        elif o.arity == aOptional:
           if i + 1 < args.len and not args[i + 1].startsWith("-"):
             inc i
             v = args[i]
@@ -207,7 +205,7 @@ proc walk[P](
           v = args[i]
       elif eq > 0:
         return refuse(~"`{name}` does not take a value")
-      if o.unit.len > 0 and o.takesValue and v.len > 0:
+      if o.unit.len > 0 and o.arity in {aOne, aOptional} and v.len > 0:
         let fixed =
           if o.addUnit != nil:
             o.addUnit(v, o.unit)
@@ -290,15 +288,7 @@ func doc*[P](o: Opt[P]): OptDoc =
     names: o.names,
     metavar: o.metavar,
     help: o.help,
-    arity:
-      if o.takesList:
-        aList
-      elif o.takesValue and o.valueOptional:
-        aOptional
-      elif o.takesValue:
-        aOne
-      else:
-        aFlag,
+    arity: o.arity,
     completion: o.completion,
     level: o.level,
   )
@@ -320,7 +310,7 @@ func listOption*[P](
   ## An option with any number of values, described.  Its name is plural and its values are separated by spaces.
   Opt[P](
     names: @nameList,
-    takesList: true,
+    arity: aList,
     applyList: apply,
     metavar: metavar,
     help: help,
@@ -386,7 +376,7 @@ template flag*(
   described(
     Opt[P](
       names: @nameList,
-      takesValue: false,
+      arity: aFlag,
       apply: proc(p: var P, name, value: string): Problem {.nimcall, raises: [].} =
         p.field = true
         fine,
@@ -414,7 +404,7 @@ template text*(
   described(
     Opt[P](
       names: @nameList,
-      takesValue: true,
+      arity: aOne,
       apply: proc(p: var P, name, value: string): Problem {.nimcall, raises: [].} =
         p.field = value
         fine,
@@ -442,7 +432,7 @@ template number*(
   described(
     Opt[P](
       names: @nameList,
-      takesValue: true,
+      arity: aOne,
       apply: proc(p: var P, name, value: string): Problem {.nimcall, raises: [].} =
         var x = 0.0
         if not parseFloatIn(value, lo, hi, x):
@@ -473,7 +463,7 @@ template whole*(
   described(
     Opt[P](
       names: @nameList,
-      takesValue: true,
+      arity: aOne,
       apply: proc(p: var P, name, value: string): Problem {.nimcall, raises: [].} =
         var n = 0
         if not parseIntIn(value, lo, hi, n):
@@ -506,7 +496,7 @@ template custom*(
   described(
     Opt[P](
       names: @nameList,
-      takesValue: takes,
+      arity: (if takes: aOne else: aFlag),
       apply: proc(
           p {.inject.}: var P, name {.inject.}, value {.inject.}: string
       ): Problem {.nimcall, raises: [].} =
@@ -534,8 +524,7 @@ template optionalValue*(
   described(
     Opt[P](
       names: @nameList,
-      takesValue: true,
-      valueOptional: true,
+      arity: aOptional,
       apply: proc(
           p {.inject.}: var P, name {.inject.}, value {.inject.}: string
       ): Problem {.nimcall, raises: [].} =
