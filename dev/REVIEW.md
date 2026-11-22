@@ -40,7 +40,7 @@ And one thing missing from the database layer: **no busy timeout** (E2), so any 
 | C3 | **fixed** 2026-11-20: `climbs --edit NAME --auto` offline says "is now called unnamed₇" | `climbs/command.nim` | the climb is not named yet |
 | B2 | **fixed** 2026-11-20: the import's file events are logged as `activities` | `importer/logsink.nim` | the hint `nch log import failed ... --last` finds nothing |
 | B4 | **fixed** 2026-11-20: a missing `--profile` is blamed on the FIT file | `fit/command.nim` | "ride.fit: cannot open: nosuch.xlsx" |
-| A1 | a backtick in a value is read as markup | `core/theme.nim` | in colour, the rest of the line (or text) drawn as `code` |
+| A1 | a backtick in a value is read as markup (**fixed** 2026-11-22) | `core/theme.nim` | in colour, the rest of the line (or text) drawn as `code` |
 | D8, C13 | `nan`/`inf` radius and positions accepted; `--all --radius` accepted | `activities/criteria.nim`, `geo`, `names` | `landmarks --add X --at 1,2 --radius nan`: a raw SQLite error |
 | D9 | two of three circle boxes miss the date line | `names/suggest.nim`, `names/lookup.nim` | `landmarks --near` near 180° misses the other side |
 | B6 | **fixed** 2026-11-20: the delete confirmation shows dates in UTC, the table in local time | `importer/remove.nim` | the same ride described with two dates |
@@ -80,8 +80,11 @@ transactions), B11 (the inflating child is sized by the caller's limit).
   compiled; no markup is read in a value in `{}`.  Without colour (and in the log) a `code` span is drawn with backticks
   round it, however it was written (`plainText`); a table or usage laid out by `width` is then two columns out per piece
   of literal text, which was decided not to matter (laying out for the mode is the alternative, if it comes to).  Stage 1
-  (the macro, `styled` replaced) **done** 2026-11-20; next the sweep, then the drawer stops reading backticks.  The drawer no longer reads backticks at run time.  Used
-  everywhere, help texts included, with a test that refuses output built any other way.  (`f""` and `t""` were
+  (the macro, `styled` replaced) **done** 2026-11-20; the sweep (help texts, problems and usages as Lines, every message,
+  the importer's and the namers' lines) **done** 2026-11-21 and 22, and the drawer no longer reads backticks (stage 3,
+  3c94bbf): a backtick in a value is drawn as it is (`tests/ui/test_style.nim`).  Not converted, on purpose: a plain string
+  in an error or a warning keeps its backticks as they are (messages are one colour), so `failure(g, name, e.msg)` stays.
+  The frames' `summary` (also in the page's JSON) is still text.  (`f""` and `t""` were
   rejected: `f` and `t` are common names here; `<...>` as quotes is not possible in Nim.)
 * **D3, `landmarks --radius`, became units in input** (**decided** 2026-11-20): every distance and duration carries its
   unit (`100m`, `1km`, `60s`, `42d`; the option's kind says what `m` means).  The options with one: distance

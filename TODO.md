@@ -25,40 +25,14 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     step 2 (the other bugs) except A1, below.  Next after A1: step 3 (parse at the edge, with units in input: section 4,
     D3), then the output helpers, one fact, sentinels, dead code (section 3).
 
-12. **A1: all output through `~"..."`** (decided 2026-11-20, dev/REVIEW.md section 4; a mechanical sweep, fit for a
-    cheaper model with this brief).  Stage 1 is done (commit 0c66d1f): `ui/markup.nim` has the macro `~"..."` (markup
-    `<style ...>`; `` `x` `` is exactly `<code x>`, read when compiled; values in `{}` as `fmt` puts them, no markup read
-    in them); `core/line.plainText` puts backticks round `code` spans (drawing without colour, the log); `theme.render`
-    keeps a warning or failure one colour, with backticks.  The drawer (`theme.Drawer.draw`, `Globals.inTheme`) **still
-    reads backticks in plain strings at run time**: that is what makes a backtick in a value (a name, a path) markup (A1).
-    * **Stage 2a, the shared types** (done; the order changed because help texts and parse problems are shared by every
-      package and cannot go one package at a time): `OptDoc.help`, `Problem`/`refuse`, `Parsed.why`, `Spec.hint`, and the
-      `intro` and `notes` of `usageOf` (a list of paragraphs) are `Line`s, written `~"..."`; the usage wraps them by words
-      (`line.wrapped`) as `ruled` wraps a cell.  `util/args` re-exports `markup`, so `~` is there for every `params.nim`.  Every
-      option's help, every `refuse(...)` and `problemWith(...)` and the introductions and notes are converted.  `Parsed.problem`
-      (text, for tests) is still there; commands pass `parsed.why`.  (`--before`'s help lost its line break: one paragraph.)
-    * **Stage 2b, the sweep**, one package per commit, `nimble fmt` and `nimble test` before each, behaviour unchanged:
-      every text a person reads is built with `~"..."` and written as a `Line`.  `g.say(o, fmt"...`x`...")` becomes
-      `g.show(o, ~"...")`; `failure`, `usageError` and `warn` take a `Line` (done, `core/globals.nim`: the string versions call
-      them, and go when no caller is left); table cells and `span(...)` texts with backticks become `~"..."` pieces.  Done:
-      the shared types above, and the calls of `failure`, `warn`, `usageError` and `g.say` whose text is a literal, a `fmt"..."`
-      or pieces joined with `&` in every `command.nim`, `introspect.nim`, `nch.nim`, `completion.nim` and `web/launch.nim` (a script
-      did them; the rest are below).  **Left**: only text that is *not* an error or a warning (those are one colour, and backticks in them are drawn as they are, so
-      a plain string with backticks in a message needs nothing: `theme.render`, `messageStyles`).  Found with
-      a grep for string literals that hold a backtick, on the source, not in a `~"` or a comment, and then looking at where the text goes: lines that
-      reach `g.say` or a live sink (`importer`: `sinks`, `naming`, the `openNames` callbacks; `climbs/command`'s `said` and `line`),
-      table cells, the frames' `summary` (also in the page's JSON, so a separate change) and `names/places`.  Then the string versions of `failure`, `warn`, `usageError`, `warnLine`
-      and `sayDeleted` and `Parsed.problem` can go.  Traps: `~` is a prefix operator, so `~"x".text` is `~("x".text)`: write
-      `(~"x").text`; `~"..."` is an ordinary literal (`fmt"..."` is raw), so a backslash is doubled; one line per `~` (no `\n`);
-      inside a template `~"{x}"` cannot see the template's parameters (a `func` outside builds the `Line`: `webopts.nim`).
-    * **Stage 3**: the drawer stops reading backticks (drop `typing` and `inTyped` from `Drawer`, and the backtick reading
-      in `inTheme`): plain text is drawn as it is.  Guard tests: a value with a backtick, shown with `~"...{name}..."`,
-      is drawn with its backtick in colour; and `tests/core/test_backticks.nim` (which reads the source's literals) also
-      refuses a literal with backticks that is not a `~"..."` (except docs, SQL, the completion script, tests).  Then
-      delete what is dead (a plain-string `g.say` that nothing uses for prose; `core/wrap` if unused), mark A1 fixed in
-      dev/REVIEW.md, and update CLAUDE.md "output".
-    * Decided: without colour a table or usage is two columns out per `code` span (`plainText` is wider than `width`);
-      it does not matter.  Laying out for the mode is the alternative, only if the author asks.
+12. **A1: all output through `~"..."`: done** (2026-11-22; dev/REVIEW.md, section 4).  The drawer no longer reads backticks;
+    help texts, parse problems, usages, messages and the importer's and namers' lines are `Line`s.  Left, small:
+    * the frames' `summary` (map, calendar, climbs, activities: `MapFrame`, `CalendarFrame`) is text, also put in the page's
+      JSON; its few backticks (`climbs/mapframes.nim`) are shown as they are (not coloured) until it is a `Line`;
+    * `climbs/mapframes.nim:128`, `climbs/imported.nim`, `importer/failure` and similar helpers build strings with backticks
+      for the log or for `ImportReport.text`: check on a terminal that nothing shows a backtick that should be a style;
+    * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
+      time (an exception's message), which is one colour.
 
 13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
     before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the

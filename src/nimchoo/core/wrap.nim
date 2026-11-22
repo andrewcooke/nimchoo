@@ -19,14 +19,6 @@ func wrap*(text: string, width: int): seq[string] =
         line = word
     result.add line.strip(leading = false)
 
-func prose*(text: string, width: int): string =
-  ## Paragraphs of text wrapped to `width`: the paragraphs are separated by a blank line, and a line break inside one is
-  ## only where the source was broken, so it becomes a space.  (For the introduction and the notes of a usage.)
-  var paragraphs: seq[string]
-  for p in text.strip(chars = {'\n'}).split("\n\n"):
-    paragraphs.add wrap(p.replace('\n', ' '), width).join("\n")
-  paragraphs.join("\n\n")
-
 func rst*(text: string, width: int): string =
   ## Documentation (RST: paragraphs separated by a blank line, and lists whose items start with `* `) wrapped to
   ## `width`: the text of a paragraph or an item is joined and wrapped again, an item with its text under the first word.

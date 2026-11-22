@@ -247,8 +247,10 @@ four kinds of things go wrong, and each has one mechanism:
   text, in the theme's `default`), `g.show(osOut, line)` (a `Line` of styled spans) and `failure(g, ...)`; styled text
   in the code is `~"<good imported> {n} files, see `nch log`"` (`ui/markup`: markup read when compiled, backticks are
   `<code ...>`, a style the built-in theme lacks is a compile error; each value is a span of its own, drawn as it is), or
-  `span(text, "bad")`.  (decided 2026-11-20: all output moves to `~"..."`, help texts included; the run-time reading of
-  backticks in plain text goes when the sweep is done: dev/REVIEW.md, A1.)  never `stdout.say`/`echo`: a test fails
+  `span(text, "bad")`.  help texts, the problems of the parser and the introductions of a usage are `Line`s too.  a
+  backtick in a plain text is just a character (nothing reads it at run time: dev/REVIEW.md, A1), so what is typed is
+  always a `code` span, and a plain string with backticks in an error or a warning (messages are one colour) is drawn as it
+  is.  never `stdout.say`/`echo`: a test fails
   (`tests/core/test_globals.nim`), except for output meant for programs (the completion scripts).
 
 ### tests
