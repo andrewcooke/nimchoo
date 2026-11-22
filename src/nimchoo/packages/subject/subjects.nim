@@ -5,6 +5,7 @@
 ## the packages above it.  Exactly one subject is the default (the one a view shows when it is not told: activities).
 
 import ../../core/[errors, extension, line]
+import ../ui/markup
 import ../user/session
 
 {.push raises: [].}
@@ -22,7 +23,7 @@ type
 
 func emptyText*(s: Subject): Line =
   ## What a view says, as a warning, when the selection it would show is empty: nothing to show is no failure.
-  @[span("the selection of " & s.name & " is empty (")] & s.emptyHint & @[span(")")]
+  ~"the selection of {s.name} is empty (" & s.emptyHint & ~")"
 
 const subjectPoint* = ExtensionPoint[Subject](name: "subject/subjects")
   ## The subjects: contributed by the package that manages the selection of each.

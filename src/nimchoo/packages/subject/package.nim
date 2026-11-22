@@ -4,7 +4,7 @@ import ../../core/[extension, manifest]
 import ./subjects
 
 const package* = Package(
-  depends: @["user"],
+  depends: @["ui", "user"],
   defines: @[
     PointDecl(
       name: subjectPoint.name,
