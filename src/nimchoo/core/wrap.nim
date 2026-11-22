@@ -1,24 +1,17 @@
-## Words wrapped to a width: for the usage texts, and for the lists `nch packages` prints.  Widths are in characters, as
-## `line.wrapped` counts them (not bytes: an accent or `₂` is one).  Pure.
+## Words wrapped to a width: for the documentation of the packages and the lists `nch packages` prints.  The wrapping itself
+## is `line.wrapped`'s (the program has one algorithm: widths are in characters, not bytes: an accent or `₂` is one).  Pure.
 
-import std/[strutils, unicode]
+import std/strutils
+import ./line
 
 {.push raises: [].}
 
 func wrap*(text: string, width: int): seq[string] =
   ## `text` broken into lines of at most `width` characters at spaces (a longer word has a line of its own).  A
-  ## newline in the text starts a new line.  Two spaces after a full stop stay two, unless the line ends there.
-  for paragraph in text.split('\n'):
-    var line = ""
-    for word in paragraph.split(' '):
-      if line.len == 0:
-        line = word
-      elif line.runeLen + 1 + word.runeLen <= width:
-        line.add " " & word
-      else:
-        result.add line.strip(leading = false)
-        line = word
-    result.add line.strip(leading = false)
+  ## newline in the text starts a new line.  Two spaces after a full stop stay two, unless the line ends there.  (The one
+  ## algorithm of the program, `line.wrapped`, with no styles.)
+  for l in plain(text).wrapped(width):
+    result.add l.plainText
 
 func rst*(text: string, width: int): string =
   ## Documentation (RST: paragraphs separated by a blank line, and lists whose items start with `* `) wrapped to
