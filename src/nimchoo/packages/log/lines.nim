@@ -8,7 +8,7 @@
 ## but match no filter.  Pure: no files, no terminal.
 
 import std/[options, strutils]
-import ../ui/style
+import ../ui/[markup, style]
 import ../ui/vocabulary
 
 {.push raises: [].}
@@ -108,12 +108,5 @@ func styled*(l: LogLine): Line =
   ## the event.
   if l.event.isNone:
     return plain(l.raw)
-  @[
-    span(l.raw[0 ..< l.levelStart]),
-    span(
-      l.raw[l.levelStart ..< l.levelEnd], levelStyle(l.raw[l.levelStart ..< l.levelEnd])
-    ),
-    span(l.raw[l.levelEnd ..< l.eventStart]),
-    span(l.raw[l.eventStart ..< l.eventEnd], l.event.get),
-    span(l.raw[l.eventEnd .. ^1]),
-  ]
+  let level = levelStyle(l.raw[l.levelStart ..< l.levelEnd])
+  ~"{l.raw[0 ..< l.levelStart]}<{level} {l.raw[l.levelStart ..< l.levelEnd]}>{l.raw[l.levelEnd ..< l.eventStart]}<{l.event.get} {l.raw[l.eventStart ..< l.eventEnd]}>{l.raw[l.eventEnd .. ^1]}"
