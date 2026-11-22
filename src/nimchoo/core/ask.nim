@@ -72,3 +72,12 @@ proc ask*(
 proc ask*(g: Globals, question: seq[Line], default, yes: bool): bool =
   ## `ask` on the real terminal: stdin and stderr are terminals.
   ask(g, question, default, yes, isatty(stdin) and isatty(stderr), readKey)
+
+func deleteQuestion*(what: string): seq[Line] =
+  ## "delete WHAT?", in `bad`: what would go, said in the question.
+  @[@[span("delete " & what & "?", "bad")]]
+
+proc confirmDelete*(g: Globals, what: string, yes: bool): bool =
+  ## Ask whether to delete `what` (default no, `[yN]`; with `-y` yes at once; with no terminal no).  The one confirmation of every
+  ## `--delete`.
+  ask(g, deleteQuestion(what), false, yes)

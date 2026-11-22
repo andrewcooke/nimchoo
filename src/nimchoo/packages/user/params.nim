@@ -1,6 +1,5 @@
 ## The command line of `nch users`, parsed.  Pure.
 
-import ../confirm/confirm
 import ../util/args/args
 import ./completion
 import std/[options, sequtils, strutils]
@@ -44,7 +43,6 @@ type
 
   DeleteUser* = object
     name*: string
-    force*: Force ## really do it
 
   Params* = object
     case action*: UserAction
@@ -59,7 +57,6 @@ type
 
   Raw = object ## what the options fill in
     help, makeDefault, clearFthr: bool
-    force: Force
     adding, editing, deleting: bool
     name, rename: string
     fthr: Option[int]
@@ -154,11 +151,10 @@ func userSpec*(): Spec[Raw] =
         ["--delete"],
         true,
         "NAME",
-        ~"delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  Needs `-f`.  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
+        ~"delete the user and everything they have (files, activities, ...); if they were the default another user becomes it.  It asks first (`-y` answers yes).  (To keep the user and delete only their data: `nch activities --all --delete -f` with `--user NAME` before it.)",
         completion = completesFrom(completeUsers),
         body = (p.deleting = true; p.name = value; fine),
       ),
-      forceOption(Raw, force, 1),
       helpFlag(Raw),
     ],
     hint: proc(arg: string): Line {.nimcall, raises: [].} =
@@ -189,14 +185,12 @@ func finish(raw: Raw): Parsed[Params] =
     )
   if raw.deleting and changes:
     return problemWith[Params](
-      ~"`--delete` cannot be combined with the other options (only `-f`)"
+      ~"`--delete` cannot be combined with the other options (only `-y`)"
     )
   if changes and not (raw.adding or raw.editing):
     return problemWith[Params](
       ~"`--fthr`, `--clear-fthr`, `--rename` and `--default` go with `--add NAME` or `--edit NAME`"
     )
-  if raw.force != fNo and not raw.deleting:
-    return problemWith[Params](~"`-f` goes with `--delete`")
   if raw.adding:
     parsedOk(
       Params(
@@ -225,9 +219,7 @@ func finish(raw: Raw): Parsed[Params] =
       )
     )
   elif raw.deleting:
-    parsedOk(
-      Params(action: uaDelete, delete: DeleteUser(name: raw.name, force: raw.force))
-    )
+    parsedOk(Params(action: uaDelete, delete: DeleteUser(name: raw.name)))
   else:
     parsedOk(Params(action: uaList))
 

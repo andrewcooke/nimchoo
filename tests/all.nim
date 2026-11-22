@@ -162,7 +162,6 @@ import ./user/test_wipe
 import ./user/test_params
 import ./user/test_completion as userCompletion
 import ./user/test_command
-import ./confirm/test_confirm
 import ./importer/test_count
 import ./bundle/test_unpack
 import ./themes/test_choose

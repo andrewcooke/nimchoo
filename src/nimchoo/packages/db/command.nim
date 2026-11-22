@@ -1,17 +1,15 @@
 ## `nch db`: the database file.  With no arguments it says where it is, how big, and what it holds,
-## table by table (`holding.nim`); `--delete -f` deletes it, and
-## with it the data of every user (the cache, which can be made again, is `nch cache`).  Does nothing without
-## -f; on a terminal it then counts down, in the bad style, so there is time to press Ctrl-C (`-f -f`: no countdown).
+## table by table (`holding.nim`); `--delete` deletes it, and
+## with it the data of every user (the cache, which can be made again, is `nch cache`).  It asks first (`core/ask`: `[yN]`; `-y` answers yes; with no terminal and no `-y`, nothing is deleted).
 
 import std/[options, os]
 import db_connector/db_sqlite
-import ../../core/[access, globals, ruled]
+import ../../core/[access, ask, globals, ruled]
 import ../util/args/[args, usage]
 import ../ui/units
 import ../../core/errors
 import ../../core/logfile
 import ../ui/[style]
-import ../confirm/confirm
 import ./statement
 import ./[holding, params, store]
 
@@ -143,9 +141,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let what =
     "the database " & path & " (" & humanBytes(size(path)) &
     ") with the data of every user"
-  if p.force == fNo:
-    return failure(g, "nch db", ~"would delete {what}; use `-f` to confirm")
-  pause(g.theme, what, p.force)
+  if not confirmDelete(g, what, parsed.yes):
+    return exitFailure
   try:
     for suffix in ["", "-journal", "-wal", "-shm"]:
       removeFile path & suffix

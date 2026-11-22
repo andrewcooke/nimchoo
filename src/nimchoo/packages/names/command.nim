@@ -5,14 +5,13 @@
 import std/[options, strutils]
 import ../geo/position
 import ../../core/ruled
-import ../../core/globals
+import ../../core/[ask, globals]
 import ../ui/[units, vocabulary]
 import ../db/store
 import ../../core/errors
 import ./lookup
 import ./open
 import ../../core/logfile
-import ../confirm/confirm
 import ../util/args/[args, usage]
 import ./params
 import ./places
@@ -111,11 +110,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     case p.action
     of laDelete:
       let d = p.deleted
-      if d.force == fNo:
-        return failure(
-          g, "nch landmarks", ~"would delete the landmark {d.name}; use `-f` to confirm"
-        )
-      pause(g.theme, "the landmark " & d.name, d.force)
+      if not confirmDelete(g, "the landmark " & d.name, parsed.yes):
+        return exitFailure
       if not removeLandmark(st, d.name):
         return failure(g, "nch landmarks", ~"there is no landmark called '{d.name}'")
       let said = "deleted the landmark " & d.name

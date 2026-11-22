@@ -37,7 +37,7 @@ import ../../core/manifest
 import ./command
 
 const package* = Package(
-  depends: @["args", "confirm", "fold", "geo", "hashing", "lookup", "ui"],
+  depends: @["args", "fold", "geo", "hashing", "lookup", "ui"],
   fragments: @[],
   commands: @[
     CommandDecl(

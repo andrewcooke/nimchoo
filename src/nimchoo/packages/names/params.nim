@@ -1,7 +1,6 @@
 ## The command line of `nch landmarks`, parsed.  Pure.
 
 import ../util/args/args
-import ../confirm/confirm
 import ../ui/units
 import ./completion
 import std/[options, strutils]
@@ -45,7 +44,6 @@ type
 
   DeletedLandmark* = object
     name*: string
-    force*: Force ## `-f`: really do it (`-f -f`: with no pause)
 
   Params* = object
     case action*: LandmarkAction
@@ -62,7 +60,6 @@ type
 
   Raw = object ## what the options fill in
     help, adding, deleting: bool
-    force: Force
     name, search: string
     near, at: Option[Spot]
     pick: int
@@ -162,11 +159,10 @@ func landmarkSpec*(): Spec[Raw] =
         ["--delete"],
         true,
         "NAME",
-        ~"delete the landmark (needs `-f`)",
+        ~"delete the landmark (it asks first; `-y` answers yes)",
         completion = completesFrom(completeLandmarks),
         body = (p.deleting = true; p.name = value; fine),
       ),
-      forceOption(Raw, force, 1),
       helpFlag(Raw),
     ],
     hint: proc(arg: string): Line {.nimcall, raises: [].} =
@@ -177,8 +173,6 @@ func finish(raw: Raw): Parsed[Params] =
   func bad(why: Line): Parsed[Params] =
     problemWith[Params](why)
 
-  if raw.force != fNo and not raw.deleting:
-    return bad(~"`-f` goes with `--delete`")
   if raw.adding and raw.deleting:
     return bad(~"`--add` and `--delete` cannot be used together")
   let sources =
@@ -187,11 +181,7 @@ func finish(raw: Raw): Parsed[Params] =
   if raw.deleting:
     if sources > 0 or raw.pick > 0:
       return bad(~"`--delete` goes with a name only")
-    return parsedOk(
-      Params(
-        action: laDelete, deleted: DeletedLandmark(name: raw.name, force: raw.force)
-      )
-    )
+    return parsedOk(Params(action: laDelete, deleted: DeletedLandmark(name: raw.name)))
   if raw.adding:
     if sources != 1:
       return bad(

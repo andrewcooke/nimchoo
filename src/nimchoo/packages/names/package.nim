@@ -17,8 +17,7 @@ import ./command
 
 const package* = Package(
   depends: @[
-    "args", "cache", "confirm", "db", "download", "fold", "geo", "near", "profiling",
-    "ui", "zip",
+    "args", "cache", "db", "download", "fold", "geo", "near", "profiling", "ui", "zip"
   ],
   fragments: @[
     fragment("001-schema.sql")

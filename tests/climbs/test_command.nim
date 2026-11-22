@@ -60,7 +60,7 @@ suite "nch climbs":
     check climbsCommand.run(globals(path), @["--names", "nonesuch"]) == exitOk
     check climbsCommand.run(globals(path), @["--names", "unnamed", "--all"]) == exitOk
 
-  test "--all --delete: nothing without -f; with -f the climbs and their efforts go, the rides stay, and they come back":
+  test "--all --delete: nothing without -y; with -y the climbs and their efforts go, the rides stay, and they come back":
     let s = fresh("command-delete")
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0))
     let path = s.path
@@ -70,7 +70,7 @@ suite "nch climbs":
     let before = openSession(path, allFragments, access = allAccess)
     check before.count("sector") == 1
     before.close()
-    check climbsCommand.run(globals(path), @["--all", "--delete", "-f"]) == exitOk
+    check climbsCommand.run(globals(path), @["--all", "--delete", "-y"]) == exitOk
     let after = openSession(path, allFragments, access = allAccess)
     check after.count("sector") == 0 and after.count("effort") == 0 and
       after.count("climbs_done") == 0
@@ -81,7 +81,7 @@ suite "nch climbs":
     defer:
       again.close()
     check again.count("sector") == 1
-    check climbsCommand.run(globals(path), @["--delete", "-f"]) == exitUsage
+    check climbsCommand.run(globals(path), @["--delete", "-y"]) == exitUsage
 
   test "a selection with no climbs in it is not an error":
     let s = fresh("command-none")

@@ -5,13 +5,12 @@
 
 import std/times
 import ./cmdname
-import ../../core/globals
+import ../../core/[ask, globals]
 import ../db/store
 import ../../core/errors
 import ../../core/logfile
 import ../ui/live
 import ../ui/[markup, style]
-import ../confirm/confirm
 import ../importer/remove
 import ../user/session
 import ../ui/units
@@ -29,12 +28,7 @@ func deletingLines*(done, total, files: int): seq[Line] =
   @[~"<em deleting >{d} / {t}", ~"<bad activities {d}><hide  · ><bad files {f}>"]
 
 proc runDelete*(
-    g: Globals,
-    st: Session,
-    ids: seq[int64],
-    force: Force,
-    nothing: Line,
-    zone: Timezone,
+    g: Globals, st: Session, ids: seq[int64], yes: bool, nothing: Line, zone: Timezone
 ): int {.raises: [].} =
   ## (`zone`: the one the list of activities uses, for the days the message names.)
   ## Delete the activities `ids` (all of the current user's).  `nothing` is what to say if there are none.
@@ -44,9 +38,8 @@ proc runDelete*(
       g.warn nothing # (as an empty selection is everywhere: a warning, not a failure)
       return exitOk
     let what = describe(plan, zone)
-    if force == fNo:
-      return failure(g, "nch activities", ~"would delete {what}; use `-f` to confirm")
-    pause(g.theme, what, force)
+    if not confirmDelete(g, what, yes):
+      return exitFailure
     # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
     var shown = false
     var live = Live()

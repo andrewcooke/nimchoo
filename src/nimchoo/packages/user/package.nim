@@ -18,7 +18,7 @@ import ../../core/manifest
 import ./[command, has]
 
 const package* = Package(
-  depends: @["args", "confirm", "db", "ui"],
+  depends: @["args", "db", "ui"],
   fragments: @[
     fragment("001-schema.sql") # user, user_profile
   ],

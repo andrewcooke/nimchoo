@@ -1,5 +1,4 @@
 import std/[options, strutils, unittest]
-import nimchoo/packages/confirm/confirm
 import nimchoo/packages/user/params
 import nimchoo/packages/util/args/args
 
@@ -90,19 +89,15 @@ suite "user: the command line":
     check parseArgs(@["--add", "bob", "-h"]).problem == "" # (help wins over the rest)
 
 suite "user params: --delete":
-  test "--delete NAME, with -f":
-    let p = parseArgs(@["--delete", "bob", "-f"])
+  test "--delete NAME, and -y answers the question":
+    let p = parseArgs(@["--delete", "bob", "-y"])
     check p.problem == "" and p.params.action == uaDelete and
-      p.params.delete.name == "bob" and p.params.delete.force == fYes
-    check parseArgs(@["--delete", "bob"]).params.delete.force == fNo
-    check parseArgs(@["--delete", "bob", "-f", "-f"]).params.delete.force == fNow
-    check parseArgs(@["--delete"]).problem.contains("needs a value")
-  test "--delete stands alone, and -f goes with it":
-    check parseArgs(@["--delete", "bob", "--fthr", "150", "-f"]).problem.contains(
+      p.params.delete.name == "bob" and p.yes
+    check not parseArgs(@["--delete", "bob"]).yes
+  test "--delete stands alone":
+    check parseArgs(@["--delete", "bob", "--fthr", "150", "-y"]).problem.contains(
       "cannot be combined"
     )
     check parseArgs(@["--delete", "bob", "--rename", "x"]).problem.contains(
       "cannot be combined"
     )
-    check parseArgs(@["-f"]).problem.contains("goes with `--delete`")
-    check parseArgs(@["--add", "bob", "-f"]).problem.contains("goes with `--delete`")

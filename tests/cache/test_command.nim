@@ -30,31 +30,31 @@ suite "nch cache":
     check run() == exitOk
     check fileExists(d / "cache" / "user" / "ff--check-cd.csv") and
       fileExists(d / "cache" / "data" / "geonames" / "CL.zip")
-  test "--delete KIND deletes that kind only, with no -f":
+  test "--delete KIND deletes that kind only, with -y":
     let d = fresh("one")
-    check run("--delete", "csv") == exitOk
+    check run("-y", "--delete", "csv") == exitOk
     check not fileExists(d / "cache" / "user" / "ff--check-cd.csv")
     check fileExists(d / "cache" / "user" / "heatmap--check-ab.geojson") and
       fileExists(d / "cache" / "system" / "libraries.cdn")
-    check run("--delete", "csv") == exitOk # nothing left: fine
+    check run("--delete", "csv") == exitOk # nothing left: nothing asked
   test "several kinds, and all":
     let d = fresh("several")
-    check run("--delete", "geojson", "downloads") == exitOk
+    check run("-y", "--delete", "geojson", "downloads") == exitOk
     check not fileExists(d / "cache" / "user" / "heatmap--check-ab.geojson") and
       not dirExists(d / "cache" / "data")
     check fileExists(d / "cache" / "system" / "libraries.cdn")
-    check run("--delete", "all") == exitOk
+    check run("-y", "--delete", "all") == exitOk
     check not dirExists(d / "cache" / "system") and
       not fileExists(d / "cache" / "user" / "ff--check-cd.csv")
     check fileExists(d / "cache" / "server-token")
   test "the database is neither touched nor made":
     let d = fresh("nodb")
-    check run("--delete", "all") == exitOk
+    check run("-y", "--delete", "all") == exitOk
     check not fileExists("unused.db")
   test "bad arguments":
     discard fresh("bad")
     check run("--delete") == exitUsage
-    check run("--delete", "data") == exitUsage
+    check run("-y", "--delete", "data") == exitUsage
     check run("--nonesuch") == exitUsage
     check run("csv") == exitUsage
     check run("--help") == exitOk

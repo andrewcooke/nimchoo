@@ -15,7 +15,6 @@
 ## * `child <packages/util/child/package.html>`_ - Running a child process and collecting what it says.
 ## * `childasync <packages/util/childasync/package.html>`_ - Running a child process from an event loop, so that other requests are served meanwhile.
 ## * `climbs <packages/climbs/package.html>`_ - Climbs: found in the rides, named, and ranked.
-## * `confirm <packages/confirm/package.html>`_ - Deleting with a pause: the countdown that gives time to press Ctrl-C.
 ## * `db <packages/db/package.html>`_ - The database: opening it, its schema as fragments, and the statements that touch it.
 ## * `download <packages/download/package.html>`_ - Fetching what the program needs from the network, the only place it does so.
 ## * `ff <packages/ff/package.html>`_ - Fitness and fatigue curves from the training impulses.
@@ -52,7 +51,6 @@ import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/calendar/package as pkgCalendar
 import ./packages/climbs/package as pkgClimbs
-import ./packages/confirm/package as pkgConfirm
 import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
 import ./packages/ff/package as pkgFf
@@ -97,7 +95,7 @@ const packages*: seq[Registered] = inDependencyOrder(
 `nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities, and
 `--select` keeps what is listed as the selection.  **The selection's style (`select`) is the selection after the command**: the selection, all of it;
 `--all`, the selected ones among them; `--select`, everything listed; criteria alone change nothing, so none.  `--all` means everything, not just the selection.  Nothing is deleted
-without `-f` (it says what it would delete, with a countdown on a terminal).  Criteria belong to this command alone; the
+without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 other views (`climbs`, `map`, `calendar`) take the selection.
 
 * **Criteria** (`criteria.nim`): the command line parsed into a `Criteria`, and the `Criteria` turned into SQL in one place
@@ -139,8 +137,8 @@ overwritten once changed; delete one to get the built-in version again.""",
 A command with a graphical result makes its file here (a GeoJSON file and a page for the map, CSV for `ff`), named by the
 command and its options spelt out (`map-activities-routes.geojson`) and made again on every request: a file is never
 "current", it is what the last request made.  The server
-(`web`) serves these files.  `nch cache` says what is there, by kind, and how big; `nch cache --delete KIND` deletes (no
-`-f`: everything in it can be made again).""",
+(`web`) serves these files.  `nch cache` says what is there, by kind, and how big; `nch cache --delete KIND` deletes (it asks
+first, as every delete does; everything in it can be made again).""",
       path: "src/nimchoo/packages/cache/",
     ),
     Registered(
@@ -190,18 +188,6 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
 `chosen.nim`), which `nch climbs` lists and the views show (`nch map climbs`, `nch calendar climbs`: `mapframes.nim`,
 `calendarframe.nim`).""",
       path: "src/nimchoo/packages/climbs/",
-    ),
-    Registered(
-      name: "confirm",
-      package: pkgConfirm.package,
-      summary: "Deleting with a pause: the countdown that gives time to press Ctrl-C.",
-      doc: """Deleting with a pause: the countdown that gives time to press Ctrl-C.
-
-Nothing is deleted without `--force`, and on a terminal there are then a few seconds to cancel (`activities --delete`,
-`users --delete`, `db --delete`, `climbs --all --delete`); given twice (`-f -f`) there is no pause.  The option is written
-once here (`forceOption()`, with the `Force` it sets: no, yes, now), so that every command that deletes has the same, and so is
-the pause (`pause()`).  The line that says what was deleted is here too.""",
-      path: "src/nimchoo/packages/confirm/",
     ),
     Registered(
       name: "db",

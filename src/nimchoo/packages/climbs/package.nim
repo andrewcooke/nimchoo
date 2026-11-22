@@ -36,9 +36,8 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 
 const package* = Package(
   depends: @[
-    "activities", "args", "bundle", "calendar", "confirm", "db", "fit", "fold", "geo",
-    "importer", "lookup", "map", "names", "near", "profiling", "selection", "subject",
-    "ui", "user",
+    "activities", "args", "bundle", "calendar", "db", "fit", "fold", "geo", "importer",
+    "lookup", "map", "names", "near", "profiling", "selection", "subject", "ui", "user",
   ],
   fragments: @[
     fragment("001-schema.sql"),

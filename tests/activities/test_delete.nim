@@ -106,7 +106,7 @@ suite "delete: the plan":
     check describe(planDelete(s, s.selected), utc()) == "1 activity (- 1) on 2018-08-27"
 
 suite "delete: the command":
-  test "without -f nothing is deleted; with -f the activities and what was made from them go, the climbs stay":
+  test "without -y nothing is deleted; with -y the activities and what was made from them go, the climbs stay":
     let d = fresh("basic")
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
@@ -126,7 +126,7 @@ suite "delete: the command":
     let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 2 and before.count("effort") == 2
     before.close()
-    check run(d, "-f") == exitOk
+    check run(d, "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -146,7 +146,7 @@ suite "delete: the command":
       "delete from selection where activity_id = (select a.id from activity a join file f on f.id = a.file_id where f.name = 'b')"
     )
     s.close()
-    check run(d, "-f") == exitOk
+    check run(d, "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -164,7 +164,7 @@ suite "delete: the command":
     fill(bob, "bobs")
     bob.close()
     s.close()
-    check runAs(d, "bob", "-f") == exitOk
+    check runAs(d, "bob", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -179,7 +179,7 @@ suite "delete: the command":
       "delete from selection where activity_id = (select min(id) from activity)"
     ) # only the second is selected
     s.close()
-    check run(d, "-f") == exitOk
+    check run(d, "-y") == exitOk
     let mid = openSession(d, allFragments, access = allAccess)
     check mid.count("activity") == 1 and mid.count("file") == 1 and
       mid.count("seen_file") == 1 # (the file stays)
@@ -188,7 +188,7 @@ suite "delete: the command":
       userId = mid.userId,
     )
     mid.close()
-    check run(d, "-f") == exitOk
+    check run(d, "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -200,7 +200,7 @@ suite "delete: the command":
     fill(s, "a")
     s.db.execute("delete from selection")
     s.close()
-    check run(d, "-f") == exitOk
+    check run(d, "-y") == exitOk
     let again = openSession(d, allFragments, access = allAccess)
     defer:
       again.close()
@@ -219,11 +219,11 @@ suite "delete: the command":
     )
     s.db.execute("delete from selection")
     s.close()
-    check run(d, "--sports", "cycling") == exitFailure # no -f: nothing done
+    check run(d, "--sports", "cycling") == exitFailure # no -y: nothing done
     let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 3
     before.close()
-    check run(d, "--sports", "cycling", "-f") == exitOk
+    check run(d, "--sports", "cycling", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -241,7 +241,7 @@ suite "delete: the command":
     bob.close()
     s.db.execute("delete from selection")
     s.close()
-    check run(d, "--all", "-f") == exitOk
+    check run(d, "--all", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -253,9 +253,9 @@ suite "delete: the command":
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     s.close()
-    check run(d, "--sports", "swimming", "-f") == exitFailure
+    check run(d, "--sports", "swimming", "-y") == exitFailure
       # (nobody has the sport: refused, as for any listing)
-    check run(d, "--after", "2030-01-01", "-f") == exitOk
+    check run(d, "--after", "2030-01-01", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -265,7 +265,6 @@ suite "delete: the command":
     check run(d, "--help") == exitOk
     check run(d, "--nonesuch") == exitUsage
     check run(d, "x") == exitUsage
-    check activitiesCommand.run(globals(d), @["-f"]) == exitUsage # -f goes with --delete
     check activitiesCommand.run(globals(d), @["--all", "--delete", "--select"]) ==
       exitUsage
     check activitiesCommand.run(globals(d), @["--all", "--delete", "-v"]) == exitUsage

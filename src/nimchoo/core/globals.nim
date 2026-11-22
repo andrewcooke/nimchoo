@@ -175,6 +175,14 @@ proc done*(g: Globals, what: Line) =
   ## Say what was done on stdout (`doneLine`), wrapped to the width.
   g.tell(osOut, doneLine(what))
 
+proc sayDeleted*(g: Globals, what: Line) =
+  ## The line that says what was deleted ("done: deleted ..."), what was deleted in `bad`, so that it stands out.
+  g.done(within(what, styleName"bad"))
+
+proc sayDeleted*(g: Globals, text: string) =
+  ## As above, from text.
+  sayDeleted(g, plain(text))
+
 proc failure*(g: Globals, command: string, problem: Line): int {.raises: [].} =
   ## Report that the work failed: one message, on one line (wrapped to the width), all in `bad`, its literal text with
   ## backticks.

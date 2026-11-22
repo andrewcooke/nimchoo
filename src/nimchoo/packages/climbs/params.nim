@@ -1,7 +1,6 @@
 ## The command line of `nch climbs`, parsed.  Pure.  With no criteria it lists the climbs selection; criteria (or `--all`)
 ## search every climb, and `--select` keeps what they find as the selection, as `nch activities` does.
 
-import ../confirm/confirm
 import ../util/args/args
 import ../ui/units
 import ../near/near
@@ -73,14 +72,11 @@ type
       list*: Listing
     of caEdit:
       edit*: Edit
-    of caDeleteAll:
-      force*: Force ## really do it
-    of caRetired, caDuplicates:
+    of caDeleteAll, caRetired, caDuplicates:
       discard
 
   Raw = object ## what the options fill in
     help, all, editing, auto, retire, unretire, retired, duplicates, delete: bool
-    force: Force
     verbose, everyone, ridden, invert, select: bool
     name, rename: string
     names, categories: seq[string]
@@ -173,10 +169,9 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--delete"],
         delete,
-        ~"(with `--all`) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  Needs `-f`.  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
+        ~"(with `--all`) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  It asks first (`-y` answers yes).  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
         level = 1,
       ),
-      forceOption(Raw, force, 2),
       custom(
         Raw,
         ["--edit"],
@@ -292,8 +287,6 @@ func finish(raw: Raw): Parsed[Params] =
   if (if raw.retired: 1 else: 0) + (if raw.duplicates: 1 else: 0) +
       (if raw.all: 1 else: 0) > 1:
     return bad(~"`--all`, `--retired` and `--duplicates` cannot be used together")
-  if raw.force != fNo and not raw.delete:
-    return bad(~"`-f` goes with `--delete`")
   if raw.delete:
     if not raw.all:
       return bad(
@@ -323,7 +316,7 @@ func finish(raw: Raw): Parsed[Params] =
     )
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:
-    parsedOk(Params(action: caDeleteAll, force: raw.force))
+    parsedOk(Params(action: caDeleteAll))
   elif raw.editing:
     let change =
       if raw.rename.len > 0:

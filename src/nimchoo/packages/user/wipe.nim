@@ -1,5 +1,5 @@
-## What goes when a user is removed (`nch users --delete`), and the words that say it.  The pause before any delete
-## (the countdown) is in `confirm`; deleting the row is `users`.
+## What goes when a user is removed (`nch users --delete`), and the words that say it.  The question before any delete
+## is `core/ask`; deleting the row is `users`.
 ##
 ## Everything belongs to a user through `on delete cascade`, so deleting the user row is enough to remove the
 ## user.  A later module that stores per-user data adds its table to `userTables`; a test checks that none is

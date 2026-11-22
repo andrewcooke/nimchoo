@@ -4,14 +4,13 @@
 ## import (`imported.nim`) and, for any still lacking, by this command, and kept (see work.nim).  The climbs are shared by all users.
 
 import std/[options, strformat, times]
-import ../../core/globals
+import ../../core/[ask, globals]
 import ../db/store
 import ../user/session
 import ../../core/errors
 import ../../core/logfile
 import ../ui/live
 import ../ui/[style, vocabulary]
-import ../confirm/confirm
 import ../util/args/[args, usage]
 import ./params
 import ./attempts
@@ -100,12 +99,11 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   g.show(osOut, said)
   exitOk
 
-proc deleteClimbs(g: Globals, st: Store, force: Force): int {.raises: [StoreError].} =
+proc deleteClimbs(g: Globals, st: Store, yes: bool): int {.raises: [StoreError].} =
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
-  if force == fNo:
-    return failure(g, "nch climbs", ~"would delete {what}; use `-f` to confirm")
-  pause(g.theme, what, force)
+  if not confirmDelete(g, what, yes):
+    return exitFailure
   clearClimbs(st)
   st.reclaim()
   g.log.log(lvInfo, commandName, leDeleted, fmt"deleted {what} from {st.path}")
@@ -147,7 +145,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of caEdit:
       return editClimb(g, st, p.edit)
     of caDeleteAll:
-      return deleteClimbs(g, st, p.force)
+      return deleteClimbs(g, st, parsed.yes)
     of caList:
       discard
     var worked: Worked

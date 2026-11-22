@@ -6,12 +6,11 @@
 ## `user/has`: each is a column of the list and a part of what a delete says it will remove.
 
 import std/[options, strformat]
-import ../../core/[extension, globals, ruled]
+import ../../core/[ask, extension, globals, ruled]
 import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../../core/logfile
-import ../confirm/confirm
 import ../util/args/[args, usage]
 import ./[has, params]
 import ./users
@@ -122,11 +121,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       for h in g.extensions.get(userHas):
         has.add counted(h.count(st.db, id), h.one, h.heading)
       let what = describe(has, p.delete.name)
-      if p.delete.force == fNo:
-        return failure(
-          g, "nch users", ~"would delete {what} from {st.path}; use `-f` to confirm"
-        )
-      pause(g.theme, what, p.delete.force)
+      if not confirmDelete(g, what & " from " & st.path, parsed.yes):
+        return exitFailure
       deleteUser(st, id)
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
       sayDeleted(g, "deleted " & what)

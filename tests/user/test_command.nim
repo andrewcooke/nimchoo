@@ -246,7 +246,7 @@ suite "nch users":
     check s.userName == "bob"
 
 suite "nch users --delete":
-  test "without -f nothing is deleted; with -f the user and everything of theirs go":
+  test "without -y nothing is deleted; with -y the user and everything of theirs go":
     let db = fresh("remove")
     check user(db, "--add", "bob") == exitOk
     let bob = openSession(db, allFragments, "bob", access = allAccess)
@@ -254,7 +254,7 @@ suite "nch users --delete":
     bob.close()
     check user(db, "--delete", "bob") == exitFailure
     check q(db, "select count(*) from user where name = 'bob'", int) == 1
-    check user(db, "--delete", "bob", "-f") == exitOk
+    check user(db, "--delete", "bob", "-y") == exitOk
     check q(db, "select count(*) from user where name = 'bob'", int) == 0
     check q(db, "select count(*) from file", int) == 0
     check q(db, "select count(*) from activity", int) == 0
@@ -264,11 +264,11 @@ suite "nch users --delete":
   test "removing the default user makes another the default":
     let db = fresh("removedefault")
     check user(db, "--add", "bob") == exitOk
-    check user(db, "--delete", "default", "-f") == exitOk
+    check user(db, "--delete", "default", "-y") == exitOk
     check q(db, "select name from user where is_default = 1", string) == "bob"
 
   test "an unknown user is an error, and nothing is deleted":
     let db = fresh("removeunknown")
     check user(db) == exitOk
-    check user(db, "--delete", "nobody", "-f") == exitFailure
+    check user(db, "--delete", "nobody", "-y") == exitFailure
     check q(db, "select count(*) from user", int) == 1

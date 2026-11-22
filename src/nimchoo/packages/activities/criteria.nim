@@ -4,7 +4,6 @@
 
 import std/[math, options, strformat, strutils, times]
 import ../fit/time
-import ../confirm/confirm
 import ../util/args/args
 import ../near/near
 import ../geo/box
@@ -35,7 +34,6 @@ type
     select*: bool ## --select: keep what is listed as the selection
     delete*: bool ## --delete: delete the activities (an action, not a criterion)
     rename*: bool ## --rename: name the activities again (an action, not a criterion)
-    force*: Force ## -f: really do it (with --delete)
     verbose*: bool ## -v: show more of each activity (a display option)
     newest*, oldest*: int
       ## only the N newest (oldest) of those that meet the other
@@ -497,10 +495,9 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--delete"],
         false,
         "",
-        ~"delete the activities (with no criteria and no `--all`, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  Nothing is deleted without `-f` (it says what it would delete)",
+        ~"delete the activities (with no criteria and no `--all`, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  It asks first, saying what would be deleted (`-y` answers yes; with no terminal and no `-y` nothing is deleted)",
         body = (p.c.delete = true; fine),
       ),
-      forceOptionIn(ListState, c, force),
       custom(
         ListState,
         ["-v", "--verbose"],
@@ -541,8 +538,6 @@ func finish(st: ListState): Parsed[Criteria] =
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
-  if c.force != fNo and not c.delete:
-    return bad(~"`-f` goes with `--delete`")
   if c.delete and (c.select or c.verbose):
     return bad(~"`--delete` shows nothing: it does not go with `--select` or `-v`")
   if c.rename and (c.delete or c.select or c.verbose):

@@ -440,7 +440,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g,
         st,
         m.ids,
-        criteria.force,
+        parsed.yes,
         if searched:
           ~"no activity meets the criteria: nothing to delete"
         else:

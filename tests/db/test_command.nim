@@ -1,6 +1,5 @@
 import std/[os, unittest]
 import nimchoo/core/globals
-import nimchoo/packages/confirm/confirm
 import nimchoo/packages/db/command as dbCommand
 import nimchoo/packages/db/params
 import nimchoo/packages/user/session
@@ -22,32 +21,29 @@ suite "nch db":
     openSession(d, allFragments, access = allAccess).close()
     check dbCommand.run(globals(d), @[]) == exitOk
     check fileExists(d)
-  test "--delete without -f does nothing":
+  test "--delete without -y does nothing":
     let d = fresh("noforce")
     openSession(d, allFragments, access = allAccess).close()
     check dbCommand.run(globals(d), @["--delete"]) == exitFailure
     check fileExists(d)
-  test "--delete -f removes the file and its journal files":
+  test "--delete -y removes the file and its journal files":
     let d = fresh("force")
     openSession(d, allFragments, access = allAccess).close()
     writeFile(d & "-journal", "")
-    check dbCommand.run(globals(d), @["--delete", "-f"]) == exitOk
+    check dbCommand.run(globals(d), @["--delete", "-y"]) == exitOk
     check not fileExists(d) and not fileExists(d & "-journal")
-  test "-f once is the pause, twice is none; the file goes either way":
-    check parseArgs(@["--delete", "-f"]).params.force == fYes
-    check parseArgs(@["--delete", "-f", "-f"]).params.force == fNow
-    check parseArgs(@["--delete"]).params.force == fNo
+  test "-y accepts the question, and the file goes":
+    check parseArgs(@["--delete", "-y"]).yes and not parseArgs(@["--delete"]).yes
     let d = fresh("twice")
     openSession(d, allFragments, access = allAccess).close()
-    check dbCommand.run(globals(d), @["--delete", "-f", "-f"]) == exitOk
+    check dbCommand.run(globals(d), @["--delete", "-y"]) == exitOk
     check not fileExists(d)
   test "no database: nothing to delete, and nothing is made":
     let d = fresh("none")
-    check dbCommand.run(globals(d), @["--delete", "-f"]) == exitOk
+    check dbCommand.run(globals(d), @["--delete", "-y"]) == exitOk
     check not fileExists(d)
   test "bad arguments":
     let d = fresh("bad")
-    check dbCommand.run(globals(d), @["-f"]) == exitUsage
     check dbCommand.run(globals(d), @["--nonesuch"]) == exitUsage
     check dbCommand.run(globals(d), @["x"]) == exitUsage
     check dbCommand.run(globals(d), @["--help"]) == exitOk

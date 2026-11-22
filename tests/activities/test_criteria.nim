@@ -9,7 +9,6 @@ from std/unicode import runeLen
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/activities/criteria
-import nimchoo/packages/confirm/confirm
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
 import ../support/styles
@@ -554,13 +553,12 @@ suite "list: criteria that other packages offer":
     check q.text.contains(" and (a.id = 7)")
 
 suite "list: --delete":
-  test "--delete is an action, not a criterion; -f goes with it":
-    let c = parseArgs(@["--delete", "-f"], utcZone).params
-    check c.delete and c.force == fYes and not c.given and not c.all
-    check parseArgs(@["--delete", "-f", "-f"], utcZone).params.force == fNow
+  test "--delete is an action, not a criterion; -y answers its question":
+    let r = parseArgs(@["--delete", "-y"], utcZone)
+    check r.params.delete and r.yes and not r.params.given and not r.params.all
+    check not parseArgs(@["--delete"], utcZone).yes
     check parseArgs(@["--sports", "cycling", "--delete"], utcZone).params.given
-    check parseArgs(@["--all", "--delete", "-f"], utcZone).problem == ""
-    check parseArgs(@["-f"], utcZone).problem.contains("goes with `--delete`")
+    check parseArgs(@["--all", "--delete", "-y"], utcZone).problem == ""
     check parseArgs(@["--delete", "--select"], utcZone).problem.contains(
       "shows nothing"
     )

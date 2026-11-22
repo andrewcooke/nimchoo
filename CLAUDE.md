@@ -69,7 +69,7 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   `depends`, `fragments`, `commands`, `defines` (its extension points, each with a summary) and `contributes`.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `theme.nim` (what a theme says: `Globals` carries the one in force), `Globals` and the exit
   codes, the log, `ownership.nim`, `registry.nim` (the dependency order), `inventory.nim` (what `nch packages` shows),
-  `optdoc.nim` (`OptDoc`, what an option is), `ruled.nim` (every table: lines between the columns, a rule under the headings; a test refuses columns lined up any other way), `line.nim` (the styled line, and the style names the program uses) and `complete.nim` (what tab completion offers, from the options' descriptions).
+  `optdoc.nim` (`OptDoc`, what an option is), `ruled.nim` (every table: lines between the columns, a rule under the headings; a test refuses columns lined up any other way), `line.nim` (the styled line, and the style names the program uses), `ask.nim` (the one question every confirmation is, with `-y`) and `complete.nim` (what tab completion offers, from the options' descriptions).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the packages
   found, in dependency order, with their documentation; it is checked in, and a test fails if it is stale.  a cycle, a
   missing dependency, a package or command name used twice, or a contribution to a point nobody defines stops the build.
@@ -105,7 +105,7 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
 * **a type that lives in the database has a plural command that manages the collection** (`activities`, `climbs`,
   `users`, `models`, `landmarks`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`
   (`models` has `--add` only: a model is never changed, and deleting waits for the rework of `ff`).
-  every `--delete` is confirmed with `-f` (with the countdown and the "would delete ..." message; `-f -f` skips the countdown).  a named type takes a
+  every `--delete` asks first (`core/ask`: the question says what would go, `[yN]`, one key; **`-y`** answers yes, accepted by every command; with no terminal and no `-y` the answer is no, so a script never deletes by accident; there is no `-f` and no countdown).  a named type takes a
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.

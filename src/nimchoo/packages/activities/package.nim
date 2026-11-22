@@ -3,7 +3,7 @@
 ## `nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities, and
 ## `--select` keeps what is listed as the selection.  **The selection's style (`select`) is the selection after the command**: the selection, all of it;
 ## `--all`, the selected ones among them; `--select`, everything listed; criteria alone change nothing, so none.  `--all` means everything, not just the selection.  Nothing is deleted
-## without `-f` (it says what it would delete, with a countdown on a terminal).  Criteria belong to this command alone; the
+## without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 ## other views (`climbs`, `map`, `calendar`) take the selection.
 ##
 ## * **Criteria** (`criteria.nim`): the command line parsed into a `Criteria`, and the `Criteria` turned into SQL in one place
@@ -30,8 +30,8 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
 
 const package* = Package(
   depends: @[
-    "args", "bundle", "cache", "calendar", "confirm", "db", "fit", "fold", "geo",
-    "importer", "near", "map", "names", "selection", "subject", "ui", "user",
+    "args", "bundle", "cache", "calendar", "db", "fit", "fold", "geo", "importer",
+    "near", "map", "names", "selection", "subject", "ui", "user",
   ],
   commands: @[
     CommandDecl(

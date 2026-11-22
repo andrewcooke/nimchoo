@@ -2,13 +2,12 @@
 ## make).  With no arguments it says what there is, by kind, and how big; `--delete KIND...` deletes.  All of it
 ## is fetched, unpacked or made again when needed, so deleting needs no -f.
 
-import std/[options, strutils]
+import std/[options, sequtils, strutils]
 import ./cache
-import ../../core/[globals, ruled]
+import ../../core/[ask, globals, ruled]
 import ../util/args/[args, usage]
 import ../ui/[style, units]
 import ../../core/logfile
-import ../confirm/confirm
 import ./[files, params]
 
 {.push raises: [].}
@@ -23,7 +22,7 @@ const
   synopsis = """usage: nch cache
        nch cache --delete KIND..."""
   intro = @[
-    ~"Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made again when it is needed (so deleting it needs no `-f`, and nothing in the database changes)."
+    ~"Without options, say what is in the cache directory, by kind, and how big.  The cache holds only what is made again when it is needed (so deleting it loses nothing, and nothing in the database changes; it asks first, as every delete does)."
   ]
 
 proc usageText*(width: int): seq[Line] =
@@ -66,6 +65,14 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       ruled(@["kind", "files", "size"], cells, g.textWidth(osOut), right = {1, 2}),
     )
     return exitOk
+  var would: seq[string]
+  for k in p.kinds:
+    would.add $k & ": " & describe(useOf(dir.get, k))
+  if p.kinds.allIt(useOf(dir.get, it).count == 0):
+    g.done(plain("nothing to delete: " & would.join("; ")))
+    return exitOk
+  if not confirmDelete(g, would.join("; ") & " from " & dir.get, parsed.yes):
+    return exitFailure
   var what: seq[string]
   for k in p.kinds:
     let u = deleteKind(dir.get, k)

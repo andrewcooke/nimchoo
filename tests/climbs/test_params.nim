@@ -2,7 +2,6 @@ import std/[strutils, unittest]
 import nimchoo/packages/near/near
 import nimchoo/packages/ui/units
 import nimchoo/packages/climbs/params
-import nimchoo/packages/confirm/confirm
 import nimchoo/packages/util/args/args
 
 suite "climbs: the command line":
@@ -72,14 +71,11 @@ suite "climbs: retiring":
     )
 
 suite "climbs params: --delete":
-  test "--delete needs --all, and -f goes with it":
-    let c = parseArgs(@["--all", "--delete", "-f"])
-    check c.problem == "" and c.params.action == caDeleteAll and c.params.force == fYes
-    check parseArgs(@["--all", "--delete", "-f", "-f"]).params.force == fNow
+  test "--delete needs --all, and -y answers it":
+    let c = parseArgs(@["--all", "--delete", "-y"])
+    check c.problem == "" and c.params.action == caDeleteAll and c.yes
       # (twice: no pause)
-    check parseArgs(@["--all", "--delete", "--force", "--force"]).params.force == fNow
     check parseArgs(@["--delete"]).problem.contains("needs `--all`")
-    check parseArgs(@["--all", "-f"]).problem.contains("goes with `--delete`")
     check parseArgs(@["--all", "--delete", "--retired"]).problem.len > 0
     check parseArgs(@["--all", "--delete", "--edit", "X", "--retire"]).problem.len > 0
 

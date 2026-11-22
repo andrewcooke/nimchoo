@@ -1,6 +1,5 @@
 ## The command line of `nch db`, parsed.  Pure.
 
-import ../confirm/confirm
 import ../util/args/args
 
 {.push raises: [].}
@@ -12,14 +11,11 @@ type
 
   Params* = object
     case action*: DbAction
-    of daShow:
+    of daShow, daDelete:
       discard
-    of daDelete:
-      force*: Force ## really do it
 
   Raw = object ## what the options fill in
     help, delete: bool
-    force: Force
 
 func dbSpec*(): Spec[Raw] =
   ## The options of `nch db`.
@@ -29,21 +25,18 @@ func dbSpec*(): Spec[Raw] =
         Raw,
         ["--delete"],
         delete,
-        ~"delete the database file, and with it the users and all their data: files, activities, climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete less: `nch activities --all --delete -f` keeps the users, `nch climbs --all --delete -f` keeps the activities.)  The next command that needs a database makes a new one.",
+        ~"delete the database file, and with it the users and all their data: files, activities, climbs, landmarks, names.  (The cache survives, so nothing is downloaded again.  To delete less: `nch activities --all --delete` keeps the users, `nch climbs --all --delete` keeps the activities.)  The next command that needs a database makes a new one.",
       ),
-      forceOption(Raw, force, 1),
       helpFlag(Raw),
     ]
   )
 
 func finish(raw: Raw): Parsed[Params] =
-  if raw.force != fNo and not raw.delete:
-    return problemWith[Params](~"`-f` goes with `--delete`")
   if raw.delete:
-    parsedOk(Params(action: daDelete, force: raw.force))
+    parsedOk(Params(action: daDelete))
   else:
     parsedOk(Params(action: daShow))
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
-  ## `nch db`, `nch db --delete [-f]`.
+  ## `nch db`, `nch db --delete`.
   parseCommand(args, dbSpec(), Raw(), finish)
