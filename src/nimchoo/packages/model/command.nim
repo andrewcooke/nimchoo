@@ -23,8 +23,8 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] models
-       nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-secs S]
-                             [--zones A,B,C,D,E] [--fitness-days D] [--fatigue-days D]"""
+       nch [--db PATH] models --add NAME [--gamma G] [--zero Z] [--one O] [--max-gap D]
+                             [--zones A,B,C,D,E] [--fitness-decay D] [--fatigue-decay D]"""
   intro = @[
     ~"Without options, show the models.  A model is a named set of the variables of the training impulse and of the fitness and fatigue curves made from it.  A model is never changed once it is made: add another.  Variables not given are those of the `default` model."
   ]

@@ -1,7 +1,8 @@
 ## The command line of `nch models`, parsed.  Pure.
 
-import std/strutils
+import std/[math, options, strutils]
 import ../util/args/args
+import ../ui/units
 import ./calc
 
 {.push raises: [].}
@@ -56,6 +57,15 @@ template variable(
     ),
   )
 
+func takeDecay(days: var float, name, value: string, given: var bool): Problem =
+  ## A decay time: a duration with its unit, kept in days.
+  let t = parseTimeSpan(value)
+  if t.isNone:
+    return valueIs(name, "a duration with its unit (`42d`, `36h`)", value)
+  days = t.get.inDays
+  given = true
+  fine
+
 const zonesWhat =
   ~"`--zones` is five percentages of the threshold heart rate, like 68,83,94,105,121"
 
@@ -92,23 +102,24 @@ func modelSpec*(): Spec[Raw] =
       ),
       custom(
         Raw,
-        ["--max-secs"],
+        ["--max-gap"],
         true,
-        "S",
-        ~"the longest gap in heart rate that is bridged, in seconds (default 60)",
+        "DURATION",
+        ~"the longest gap in heart rate that is bridged, with its unit (default 60s; `2m`; whole seconds; a bare number is taken as seconds, after asking)",
         level = 1,
         body = (
           block:
-            var n = 0
-            try:
-              n = parseInt(value)
-            except ValueError:
-              return valueIs(name, "a whole number of seconds", value)
-            p.model.maxSecs = n
+            let t = parseTimeSpan(value)
+            if t.isNone or t.get.inSeconds != floor(t.get.inSeconds):
+              return valueIs(
+                name, "a duration in whole seconds with its unit (`60s`, `2m`)", value
+              )
+            p.model.maxSecs = int(t.get.inSeconds)
             p.varsGiven = true
             fine
         ),
-      ),
+      )
+        .withUnit("s"),
       custom(
         Raw,
         ["--zones"],
@@ -130,18 +141,26 @@ func modelSpec*(): Spec[Raw] =
             fine
         ),
       ),
-      variable(
-        ["--fitness-days"],
-        fitnessDays,
-        "D",
-        ~"the decay time of the fitness curve (default 42)",
-      ),
-      variable(
-        ["--fatigue-days"],
-        fatigueDays,
-        "D",
-        ~"the decay time of the fatigue curve (default 7)",
-      ),
+      custom(
+        Raw,
+        ["--fitness-decay"],
+        true,
+        "DURATION",
+        ~"the decay time of the fitness curve, with its unit (default 42d; a bare number is taken as days, after asking)",
+        level = 1,
+        body = takeDecay(p.model.fitnessDays, name, value, p.varsGiven),
+      )
+        .withUnit("d"),
+      custom(
+        Raw,
+        ["--fatigue-decay"],
+        true,
+        "DURATION",
+        ~"the decay time of the fatigue curve, with its unit (default 7d; a bare number is taken as days, after asking)",
+        level = 1,
+        body = takeDecay(p.model.fatigueDays, name, value, p.varsGiven),
+      )
+        .withUnit("d"),
       helpFlag(Raw),
     ],
     hint: proc(arg: string): Line {.nimcall, raises: [].} =
