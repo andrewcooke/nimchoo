@@ -40,9 +40,6 @@ proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the notes, wrapped to `width`.
   usageOf(synopsis, width, intro, userSpec().docs, notes)
 
-proc exists(st: Store, name: string): bool {.raises: [StoreError].} =
-  st.db.scalar(int, "select count(*) from user where name = :name", name = name) != 0
-
 const recalculated = " (what is worked out from the FTHR is worked out again)"
   ## said when the FTHR changes: the packages that work things out from it (`model`) do it again, by themselves
 
@@ -129,7 +126,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     of uaAdd:
       let n = p.add
-      if exists(st, n.name):
+      if st.db.lookupUser(n.name).isSome:
         return failure(g, "nch users", ~"there is a user called '{n.name}' already")
       var said = "made the user " & n.name
       st.writing(
@@ -150,7 +147,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let e = p.edit
       let id = findUser(st, e.name)
       # everything that can refuse is asked first, and the changes are made together: all or none
-      if e.rename.isSome and exists(st, e.rename.get):
+      if e.rename.isSome and st.db.lookupUser(e.rename.get).isSome:
         return
           failure(g, "nch users", ~"there is a user called '{e.rename.get}' already")
       var said: seq[string]

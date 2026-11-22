@@ -7,9 +7,9 @@
 
 import std/[options, strformat]
 import std/strutils
-import ../db/statement
 import ../db/store
 import ../../core/errors
+import ./session
 
 {.push raises: [].}
 
@@ -23,7 +23,7 @@ func describe*(parts: seq[string], user: string): string =
 
 proc findUser*(st: Store, name: string): UserId {.raises: [StoreError].} =
   ## The id of the user called `name`; an error if there is none.
-  let id = st.db.queryOne(UserId, "select id from user where name = :name", name = name)
+  let id = st.db.lookupUser(name)
   if id.isNone:
     raiseStore("no such user: " & name)
   id.get

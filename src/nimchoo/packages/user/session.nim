@@ -32,6 +32,10 @@ converter toStore*(s: Session): Store =
 proc close*(s: Session) {.raises: [].} =
   close(s.store)
 
+proc lookupUser*(db: DbConn, name: string): Option[UserId] {.raises: [StoreError].} =
+  ## The id of the user called `name`: the one place a user is looked up by name.
+  db.queryOne(UserId, "select id from user where name = :name", name = name)
+
 proc openSession*(
     path: string,
     fragments: seq[Fragment],
@@ -62,9 +66,7 @@ proc openSession*(
       if user.isNone:
         st.db.queryOne(UserId, "select id from user where is_default = 1")
       else:
-        st.db.queryOne(
-          UserId, "select id from user where name = :name", name = user.get
-        )
+        st.db.lookupUser(user.get)
     if id.isNone:
       raiseStore(
         if user.isNone:
