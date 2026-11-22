@@ -43,23 +43,34 @@ func tableName(token: string): string =
   if dot >= 0:
     result = result[dot + 1 ..^ 1].strip(chars = {'"', '`', '[', ']', '\''})
 
+func statementWords(statement: string): seq[string] =
+  ## The words of an SQL statement, the brackets and the commas taken for spaces.
+  statement.replace('(', ' ').replace(')', ' ').replace(',', ' ').splitWhitespace
+
+func createdTable(words: seq[string]): Option[string] =
+  ## The table `create [virtual] table [if not exists] NAME` makes.
+  if words.len < 3 or words[0].toLowerAscii != "create":
+    return none(string)
+  var i = 1
+  if words[i].toLowerAscii == "virtual":
+    inc i
+  if i < words.len and words[i].toLowerAscii == "table":
+    inc i
+    if i + 2 < words.len and words[i].toLowerAscii == "if" and
+        words[i + 1].toLowerAscii == "not" and words[i + 2].toLowerAscii == "exists":
+      i += 3
+    if i < words.len:
+      return some(words[i].tableName)
+  none(string)
+
 func tableEvents*(sql: string): seq[TableEvent] =
   ## The tables a script makes and renames, in order.  Indexes, views and triggers are not tables here;
   ## an index belongs to the owner of its table, so it is no question of ownership.
   for statement in sql.withoutComments.split(';'):
-    let words = statement.replace('(', ' ').replace(',', ' ').splitWhitespace
-    var i = 0
-    if words.len >= 3 and words[0].toLowerAscii == "create":
-      i = 1
-      if words[i].toLowerAscii == "virtual":
-        inc i
-      if i < words.len and words[i].toLowerAscii == "table":
-        inc i
-        if i + 2 < words.len and words[i].toLowerAscii == "if" and
-            words[i + 1].toLowerAscii == "not" and words[i + 2].toLowerAscii == "exists":
-          i += 3
-        if i < words.len:
-          result.add TableEvent(kind: teCreate, name: words[i].tableName)
+    let words = statementWords(statement)
+    let created = createdTable(words)
+    if created.isSome:
+      result.add TableEvent(kind: teCreate, name: created.get)
     elif words.len >= 6 and words[0].toLowerAscii == "alter" and
         words[1].toLowerAscii == "table" and words[3].toLowerAscii == "rename" and
         words[4].toLowerAscii == "to":
@@ -72,21 +83,11 @@ func parentTables*(fragments: seq[Fragment]): Table[string, seq[string]] =
   ## in the fragments.  A test compares it with what SQLite says (`pragma foreign_key_list`).
   for f in fragments:
     for statement in f.sql.withoutComments.split(';'):
-      let words =
-        statement.replace('(', ' ').replace(')', ' ').replace(',', ' ').splitWhitespace
+      let words = statementWords(statement)
       var child = ""
-      if words.len >= 3 and words[0].toLowerAscii == "create":
-        var i = 1
-        if words[i].toLowerAscii == "virtual":
-          inc i
-        if i < words.len and words[i].toLowerAscii == "table":
-          inc i
-          if i + 2 < words.len and words[i].toLowerAscii == "if" and
-              words[i + 1].toLowerAscii == "not" and
-              words[i + 2].toLowerAscii == "exists":
-            i += 3
-          if i < words.len:
-            child = words[i].tableName
+      let created = createdTable(words)
+      if created.isSome:
+        child = created.get
       elif words.len >= 3 and words[0].toLowerAscii == "alter" and
           words[1].toLowerAscii == "table":
         child = words[2].tableName
