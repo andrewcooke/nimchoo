@@ -12,6 +12,7 @@ import
   ./core/test_inventory,
   ./core/test_imports,
   ./core/test_fmt,
+  ./core/test_spans,
   ./core/test_ownership,
   ./core/test_logfile,
   ./core/test_theme,
