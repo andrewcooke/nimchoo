@@ -46,7 +46,7 @@ suite "tokenizer: hand-built files":
     check d.size == 1 + 4 + 1
     check d.fields[0].offset == 1
     check d.fields[1].offset == 5
-    check d.timestampField == 0
+    check d.timestampField == some(0)
     check toks[2].len == 6
     check toks[2].timestamp == some(FitTime(1000))
     check not toks[2].compressed
@@ -226,8 +226,8 @@ suite "tokenizer: real files":
     var seen = 0
     for tok in t.tokens:
       if tok.kind == tokData and tok.timestamp.isSome and
-          t.defs[tok.defn].timestampField >= 0 and
-          t.defs[tok.defn].fields[t.defs[tok.defn].timestampField].number != 253:
+          t.defs[tok.defn].timestampField.isSome and
+          t.defs[tok.defn].fields[t.defs[tok.defn].timestampField.get].number != 253:
         inc seen
     check seen > 0
     check t.warnings.len == 0

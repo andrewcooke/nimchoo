@@ -117,7 +117,7 @@ suite "decode: plain fields":
     check rec.fv("heart_rate").kind == vkInt
     check rec.fv("heart_rate").ints == @[150'i64]
     check rec.fv("heart_rate").units == "bpm"
-    check rec.fv("heart_rate").number == 3
+    check rec.fv("heart_rate").number == some(3)
     check rec.fv("distance").floats == @[123.45] # 12345 / 100
     check rec.fv("enhanced_altitude").floats == @[100.0] # 3000 / 5 - 500
     check rec.fv("position_lat").ints == @[-5'i64]
@@ -153,7 +153,7 @@ suite "decode: composite fields":
     check recs[0].names == @["enhanced_altitude", "enhanced_speed"]
     check recs[0].fv("enhanced_altitude").floats == @[100.0]
     check recs[0].fv("enhanced_speed").floats == @[2.5]
-    check recs[0].fv("enhanced_altitude").number == 78
+    check recs[0].fv("enhanced_altitude").number == some(78)
 
   test "nested: outermost scale wins":
     # speed 1000 -> speed -> enhanced_speed, scaled by 100 (not 1000)
@@ -311,7 +311,7 @@ suite "decode: unknown parts":
     let body = defn(0, 20, @[(3, 1, uint8T), (200, 1, uint8T)]) & b(0, 99, 7)
     let (_, recs) = decodeAll(body)
     check recs[0].names == @["heart_rate", ""]
-    check recs[0].fields[1].number == 200
+    check recs[0].fields[1].number == some(200)
     check recs[0].fields[1].ints == @[7'i64]
     check recs[0].fields[1].typeName == "uint8"
 
@@ -345,7 +345,7 @@ suite "decode: developer fields":
     check f.ints == @[321'i64]
     check f.units == "W"
     check f.typeName == "uint16"
-    check f.number == 1
+    check f.number == some(1)
 
   test "undescribed developer field is skipped with a warning":
     let body =

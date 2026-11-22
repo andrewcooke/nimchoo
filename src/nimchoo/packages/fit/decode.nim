@@ -43,7 +43,7 @@ type
     meta: Meta
     scale, offset: float
     accumulate: bool
-    number: int
+    number: Option[int]
     defBase: Option[BaseType]
     endian: Endianness
     ov: Override
@@ -93,7 +93,7 @@ type
 
   Spec = object
     meta: Meta
-    number: int
+    number: Option[int]
     kind: TypeKind
     base: BaseType
     scale, offset: float
@@ -370,7 +370,6 @@ proc decodeField(
       )
       let target {.cursor.} = p.messages.must(plan.msgName).fields.must(c.target)
         # (looked at, not copied)
-      let tnum = if target.number.isSome: target.number.get else: -1
       var made: seq[FieldValue]
       d.decodeField(
         p,
@@ -378,7 +377,7 @@ proc decodeField(
         target,
         Piece(
           meta: d.metaFor(plan.msgNum, target),
-          number: tnum,
+          number: target.number,
           endian: littleEndian,
           ov: ov2,
           fromBits: true,
@@ -466,7 +465,7 @@ proc buildPlan(d: var Decoder, p: Profile, def: Definition): DefPlan =
     var s = slot
     if not s.known and s.def.base.isSome:
       s.piece.meta = newMeta("", "", $s.def.base.get, tkBase, s.def.base.get)
-    s.piece.number = s.def.number
+    s.piece.number = some(s.def.number)
     s.piece.defBase = s.def.base
     s.piece.endian = def.endian
     if s.def.number in numbers:
@@ -623,7 +622,7 @@ proc decode*(
   proc unknown(slot: Slot): Spec =
     Spec(
       meta: slot.piece.meta,
-      number: slot.def.number,
+      number: some(slot.def.number),
       kind: tkBase,
       base: slot.def.base.get,
       scale: 1,
@@ -633,11 +632,11 @@ proc decode*(
     )
 
   # a compressed timestamp header with no timestamp field in the definition
-  if tok.compressed and t.defs[idx].timestampField < 0 and tok.timestamp.isSome:
+  if tok.compressed and t.defs[idx].timestampField.isNone and tok.timestamp.isSome:
     result.fields.add FieldValue(
       kind: vkInt,
       meta: timestampMeta,
-      number: timestampFieldNo,
+      number: some(timestampFieldNo),
       bits: 32,
       ints: @[int64(tok.timestamp.get)],
     )
@@ -705,7 +704,7 @@ proc decode*(
     let df = d.devFields.must(key)
     let sp = Spec(
       meta: df.meta,
-      number: dv.number,
+      number: some(dv.number),
       kind: tkBase,
       base: df.base,
       scale: df.scale,

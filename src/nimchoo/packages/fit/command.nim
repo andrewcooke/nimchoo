@@ -65,7 +65,7 @@ proc textLine*(p: Profile, r: Record): string =
     result.add(if i == 0: " " else: "  ")
     let name =
       if f.name.len == 0:
-        "?" & $f.number
+        "?" & (if f.number.isSome: $f.number.get else: "")
       elif f.dev:
         "dev." & f.name
       else:

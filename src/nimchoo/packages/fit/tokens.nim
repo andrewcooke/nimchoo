@@ -35,7 +35,8 @@ type
     fields*: seq[FieldDef]
     devFields*: seq[DevFieldDef]
     size*: int ## bytes per data message, header included
-    timestampField*: int ## index into fields (253 or timestamp_16), or -1
+    timestampField*: Option[int]
+      ## index into fields (253 or timestamp_16), if there is one
 
   TokenKind* = enum
     tokHeader
@@ -67,14 +68,15 @@ type
     ts16: HashSet[(int, int)] ## (message number, field number) of timestamp_16
     phase: Phase
     pos, dataEnd, fileEnd: int
-    active: array[16, int] ## local type -> index into defs, or -1
+    active: array[16, Option[int]]
+      ## local type -> index into defs, if there is a definition
     timestamp: Option[FitTime]
 
 proc initTokenizer*(data: sink seq[byte], ts16: HashSet[(int, int)]): Tokenizer =
   ## `ts16` is `timestamp16Fields(profile)` (or empty if not needed).
   result = Tokenizer(data: data, ts16: ts16, phase: phHeader)
   for i in 0 ..< 16:
-    result.active[i] = -1
+    result.active[i] = none(int)
 
 proc fail(offset: int, msg: string) {.noreturn, raises: [FitError].} =
   raiseFit(offset, msg)
@@ -109,7 +111,7 @@ proc readFileHeader(t: var Tokenizer): Token {.raises: [FitError].} =
   t.pos = start + h.size
   t.phase = phRecords
   for i in 0 ..< 16:
-    t.active[i] = -1 # definitions do not carry over
+    t.active[i] = none(int) # definitions do not carry over
   t.timestamp = none(FitTime) # nor does the time: a chained file has its own
   Token(kind: tokHeader, offset: start, len: h.size, header: h)
 
@@ -148,7 +150,10 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
   if p + 3 * m > t.dataEnd:
     fail(pos, "truncated definition")
   var d = Definition(
-    local: int(h0 and 0x0f), endian: endian, globalNum: globalNum, timestampField: -1
+    local: int(h0 and 0x0f),
+    endian: endian,
+    globalNum: globalNum,
+    timestampField: none(int),
   )
   var offset = 1 # the header byte
   for i in 0 ..< n:
@@ -159,9 +164,9 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
     if base.isNone:
       t.warnings.add wkUnknownBaseType,
         q, "unknown base type " & $t.data[q + 2] & " for field " & $number
-    if d.timestampField < 0 and
+    if d.timestampField.isNone and
         (number == timestampFieldNo or (globalNum, number) in t.ts16):
-      d.timestampField = i
+      d.timestampField = some(i)
     d.fields.add FieldDef(number: number, size: size, base: base, offset: offset)
     offset += size
   for j in 0 ..< m:
@@ -173,7 +178,7 @@ proc readDefinition(t: var Tokenizer): Token {.raises: [FitError].} =
     offset += size
   d.size = offset
   t.defs.add d
-  t.active[d.local] = t.defs.high
+  t.active[d.local] = some(t.defs.high)
   Token(kind: tokDefinition, offset: pos, len: p + 3 * m - pos, defn: t.defs.high)
 
 proc setTimestamp(t: var Tokenizer, seconds: int64, at: int) =
@@ -189,9 +194,9 @@ proc updateTimestamp(t: var Tokenizer, idx, pos: int) =
   ## Update the current time from the timestamp field of data message `idx`
   ## starting at `pos`.
   let tf = t.defs[idx].timestampField
-  if tf < 0:
+  if tf.isNone:
     return
-  let f = t.defs[idx].fields[tf]
+  let f = t.defs[idx].fields[tf.get]
   let endian = t.defs[idx].endian
   let at = pos + f.offset
   if f.number == timestampFieldNo:
@@ -216,9 +221,10 @@ proc readData(
     t: var Tokenizer, local: int, compressed: bool
 ): Token {.raises: [FitError].} =
   let pos = t.pos
-  let idx = t.active[local]
-  if idx < 0:
+  let active = t.active[local]
+  if active.isNone:
     fail(pos, "no definition for local message type " & $local)
+  let idx = active.get
   let size = t.defs[idx].size
   if pos + size > t.dataEnd:
     fail(pos, "truncated data message (" & $(t.dataEnd - pos) & "/" & $size & " bytes)")

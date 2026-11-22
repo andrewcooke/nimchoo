@@ -30,7 +30,7 @@ type
 
   FieldValue* = object
     meta*: Meta
-    number*: int ## field number (components: the target's; -1 if none)
+    number*: Option[int] ## field number (components: the target's; none if it has none)
     dev*: bool ## developer field
     bits*: int ## width in bits of the source it was decoded from
     case kind*: ValueKind
