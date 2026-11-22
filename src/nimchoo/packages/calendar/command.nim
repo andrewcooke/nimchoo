@@ -4,7 +4,7 @@
 ## takes no criteria, like `climbs` and `map`: to see a calendar of some activities, select them first (see
 ## `nch activities --select`).
 
-import std/[options, strformat, strutils, terminal, times]
+import std/[options, strformat, terminal, times]
 import ../../core/[errors, extension, globals]
 import ../fit/time
 import ../subject/subjects
@@ -70,22 +70,14 @@ type Chosen* = object ## the subject and its frame
 proc choose*(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject the command line asks for and its frame, or what is wrong (the registry says what exists).
   let all = g.extensions.get(subjectPoint)
-  if all.len == 0:
-    return problemWith[Chosen](~"no subject can be shown on a calendar")
-  let name = p.subject.get(defaultSubject(all).name)
-  var names: seq[string]
-  var found = none(Subject)
-  for s in all:
-    names.add s.name
-    if s.name == name:
-      found = some(s)
-  if found.isNone:
-    let known = names.join(", ")
-    return problemWith[Chosen](~"no subject '{name}' (the subjects are {known})")
+  let subject = findSubject(all, p.subject)
+  if subject.isNone:
+    return problemWith[Chosen](noSubject(all, p.subject, "a calendar"))
+  let name = subject.get.name
   let frames = framesOf(g.extensions.get(calendarFramePoint), name)
   if frames.len == 0:
     return problemWith[Chosen](~"{name} cannot be shown on a calendar")
-  parsedOk(Chosen(subject: found.get, frame: frames[0]))
+  parsedOk(Chosen(subject: subject.get, frame: frames[0]))
 
 proc skippedWarning(marks: seq[UnixTime], zone: Timezone): seq[Line] =
   ## The last line of a calendar of the months with data, if it left some out.

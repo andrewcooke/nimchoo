@@ -3,6 +3,7 @@
 
 import ../../src/nimchoo/packages/ff/params as ffParams
 import ../../src/nimchoo/packages/map/params as mapParams
+import ../../src/nimchoo/packages/subject/subjects
 import ../../src/nimchoo/packages/web/request
 
 let

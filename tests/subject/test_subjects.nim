@@ -1,6 +1,8 @@
 ## The subjects registry (subject/subjects.nim) and the activities as the default subject.
 
-import std/[os, sequtils, unittest]
+import std/[options, os, sequtils, unittest]
+import nimchoo/core/line
+import nimchoo/packages/util/args/args
 import nimchoo/core/extension
 import nimchoo/packages/db/statement
 import nimchoo/packages/subject/subjects
@@ -55,3 +57,23 @@ suite "subjects: the activities' selection":
     defer:
       bob.close()
     check activities.selected(bob) == 0
+
+suite "subjects: choosing one by name, for every view":
+  let all = @[Subject(name: "activities", isDefault: true), Subject(name: "climbs")]
+  test "a name is lower case letters and digits":
+    check isWord("climbs") and isWord("a1")
+    for bad in ["", "Climbs", "a-b", "a b"]:
+      check not isWord(bad)
+  test "the positional SUBJECT is taken, once at a time":
+    var names: seq[string]
+    check takeSubject(names, "climbs").isNone and names == @["climbs"]
+    check takeSubject(names, "No").isSome and names == @["climbs"]
+  test "none given is the default; a name is found; another is not":
+    check findSubject(all, none(string)).get.name == "activities"
+    check findSubject(all, some("climbs")).get.name == "climbs"
+    check findSubject(all, some("nothing")).isNone
+  test "what is said when there is none is the same for every view":
+    check noSubject(all, some("nothing"), "a map").plainText ==
+      "no subject 'nothing' (the subjects are activities, climbs)"
+    check noSubject(@[], none(string), "a calendar").plainText ==
+      "no subject can be shown on a calendar"

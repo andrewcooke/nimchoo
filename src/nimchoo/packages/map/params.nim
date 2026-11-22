@@ -4,9 +4,10 @@
 ## marked as allowed in an address (`/map/activities?frame=heat`), so the list of what a page may be given is made from here
 ## (`web/request.pageOf`).
 
-import std/[options, sequtils, strutils]
+import std/[options, strutils]
 import ../../core/[extension, globals]
 import ../util/args/args
+import ../subject/subjects
 import ../web/webopts
 import ./frames
 
@@ -27,10 +28,6 @@ type
     frames: seq[string]
     frame: string
     web: WebArgs
-
-func isWord*(value: string): bool =
-  ## A name of a subject or a frame: lower case letters and digits.
-  value.len > 0 and value.allIt(it in {'a' .. 'z', '0' .. '9'})
 
 func completeFrames(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
   ## The names of the frames that start with what is typed (of every subject: the words before it are not known here).
@@ -72,10 +69,7 @@ func mapSpec*(): Spec[Raw] =
       ] & webOptions(Raw, web, "the map", "a GeoJSON file for each frame") &
       @[helpFlag(Raw)],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
-      if not isWord(arg):
-        return refuse(~"'{arg}' is not a name of a subject")
-      p.subjects.add arg
-      fine,
+      takeSubject(p.subjects, arg),
   )
 
 func finish(raw: Raw): Parsed[Params] =
@@ -83,7 +77,7 @@ func finish(raw: Raw): Parsed[Params] =
   if mode.kind == pkProblem:
     return problemWith[Params](mode.why)
   if raw.subjects.len > 1:
-    return problemWith[Params](~"expected at most one SUBJECT")
+    return problemWith[Params](tooManySubjects)
   if raw.frame.len > 0 and mode.params.kind != wkWorker:
     return problemWith[Params](~"`--frame` is for the page: it goes with `--worker`")
   if raw.frames.len > 0 and mode.params.kind != wkFile:

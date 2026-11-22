@@ -2,8 +2,9 @@
 ## (the default one if it is left out); which subjects exist is the registry's to say (`subject/subjects`), so the command
 ## checks the name, not the parser.
 
-import std/[options, sequtils, strformat]
+import std/[options, strformat]
 import ../util/args/args
+import ../subject/subjects
 
 {.push raises: [].}
 
@@ -15,10 +16,6 @@ type
   Raw = object ## what the options fill in
     help, verbose: bool
     subjects: seq[string]
-
-func isWord(value: string): bool =
-  ## A name of a subject: lower case letters and digits.
-  value.len > 0 and value.allIt(it in {'a' .. 'z', '0' .. '9'})
 
 func calendarSpec*(): Spec[Raw] =
   ## The options of `nch calendar`.
@@ -33,15 +30,12 @@ func calendarSpec*(): Spec[Raw] =
       helpFlag(Raw),
     ],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
-      if not isWord(arg):
-        return refuse(~"'{arg}' is not a name of a subject")
-      p.subjects.add arg
-      fine,
+      takeSubject(p.subjects, arg),
   )
 
 func finish(raw: Raw): Parsed[Params] =
   if raw.subjects.len > 1:
-    return problemWith[Params](~"expected at most one SUBJECT")
+    return problemWith[Params](tooManySubjects)
   parsedOk(
     Params(
       verbose: raw.verbose,

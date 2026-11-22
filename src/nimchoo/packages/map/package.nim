@@ -21,6 +21,7 @@
 
 import ../../core/[extension, manifest]
 import ../web/request
+import ../subject/subjects
 import ./[command, frames, params]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =

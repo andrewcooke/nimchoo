@@ -87,18 +87,11 @@ type Chosen = object
 proc choose(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject and frames the command line asks for, or what is wrong with them (the registry says what exists).
   let all = g.extensions.get(subjectPoint)
-  if all.len == 0:
-    return problemWith[Chosen](~"no subject can be shown on a map")
-  let name = p.subject.get(defaultSubject(all).name)
-  var chosen: Chosen
-  var found = false
-  for s in all:
-    if s.name == name:
-      chosen.subject = s
-      found = true
-  if not found:
-    let names = all.mapIt(it.name).join(", ")
-    return problemWith[Chosen](~"no subject '{name}' (the subjects are {names})")
+  let subject = findSubject(all, p.subject)
+  if subject.isNone:
+    return problemWith[Chosen](noSubject(all, p.subject, "a map"))
+  let name = subject.get.name
+  var chosen = Chosen(subject: subject.get)
   let mine = framesOf(g.extensions.get(mapFramePoint), name)
   if mine.len == 0:
     return problemWith[Chosen](~"no frame of {name} can be shown on a map")
