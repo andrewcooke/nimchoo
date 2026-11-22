@@ -230,7 +230,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     # (the server is shared by every page: nothing of the chart is needed to stop it)
     let dir = cacheDir()
     if dir.isNone:
-      return failure(g, "nch ff", ~"no cache directory is known (set NCH_CACHE)")
+      return failure(g, "nch ff", noCacheDir)
     return stopWeb(g, commandName, p.web.stopPort, dir.get)
   var st: Session
   try:
@@ -267,9 +267,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return exitOk
     let dir = cacheDir()
     if dir.isNone:
-      return failure(
-        g, "nch ff", ~"no cache directory is known (set NCH_CACHE); use `--stdout`"
-      )
+      return failure(g, "nch ff", ~"{noCacheDir}; use `--stdout`")
     if p.web.kind == wkServe:
       # the chart is made by the worker, whenever the page is asked for
       return serveWeb(
@@ -304,14 +302,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           return failure(g, "nch ff", ~"cannot make a page for {csvPath}")
         writeAtomic(pageFile.get, html.get)
     except IOError, OSError:
-      return
-        failure(g, "nch ff", ~"cannot write to {dir.get}: {getCurrentExceptionMsg()}")
+      return cannotWrite(g, "nch ff", dir.get)
     except TemplateError as e:
-      return failure(
-        g,
-        "nch ff",
-        ~"cannot make the page: {e.msg} (the template is system/templates/ff.html and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
-      )
+      return templateFailure(g, "nch ff", e.msg)
     if p.web.kind == wkWorker:
       g.show(osOut, ~"<file {pageFile.get}>")
       g.show(osOut, ~"<file {csvPath}>")

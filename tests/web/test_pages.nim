@@ -1,5 +1,7 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/packages/util/args/[args, usage]
+import nimchoo/core/globals
+import nimchoo/packages/cache/cache
 import nimchoo/packages/web/pages
 import nimchoo/packages/web/request
 import nimchoo/packages/web/webopts
@@ -74,3 +76,12 @@ suite "serve web options: shared by the commands":
     let text = optionLines(docs, 100).plainText.splitWhitespace.join(" ")
     for o in ["the chart", "CSV file", $defaultPort]:
       check o in text
+
+suite "serve pages: the failures every page command says the same way":
+  test "no cache directory is one message, naming every variable that is read":
+    for name in ["NCH_CACHE", "XDG_CACHE_HOME", "HOME"]:
+      check name in noCacheDir
+  test "a page that cannot be made or written is a failure of the command":
+    let g = Globals(offline: true)
+    check templateFailure(g, "nch map", "no value for x (line 3)") == exitFailure
+    check cannotWrite(g, "nch ff", "/nowhere") == exitFailure

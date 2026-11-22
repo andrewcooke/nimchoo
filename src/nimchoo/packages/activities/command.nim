@@ -12,6 +12,7 @@ import ../../core/[extension, globals]
 import ../db/statement
 import ../importer/naming
 import ../geo/position
+import ../cache/cache
 import ../names/[open, places]
 import ../selection/selection
 import ../db/store
@@ -392,11 +393,7 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
       g.show(osErr, line),
   )
   if names.isNone:
-    return failure(
-      g,
-      "nch activities",
-      ~"no place for the cache, where the names are kept: set NCH_CACHE or HOME",
-    )
+    return failure(g, "nch activities", noCacheDir)
   try:
     st.forgetNames(ids)
     let n = ensureActivityNames(st, names.get)

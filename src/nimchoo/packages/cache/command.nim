@@ -50,11 +50,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let p = parsed.params
   let dir = cacheDir()
   if dir.isNone:
-    return failure(
-      g,
-      "nch cache",
-      ~"there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)",
-    )
+    return failure(g, "nch cache", noCacheDir)
   if p.action == caShow:
     g.show(osOut, ~"the cache is in <file {dir.get}>")
     var cells: seq[seq[string]]

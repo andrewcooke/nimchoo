@@ -83,6 +83,10 @@ func cachePath*(nchCache, xdgCache, home: Option[string]): Option[string] =
     return some(home.get / ".cache" / "nch")
   none(string)
 
+const noCacheDir* =
+  "there is no cache directory (set NCH_CACHE, XDG_CACHE_HOME or HOME)"
+  ## what every command says when `cacheDir` is none: the one message, with every variable that is read
+
 proc cacheDir*(): Option[string] =
   ## `cachePath` for the real environment.
   cachePath(envOpt("NCH_CACHE"), envOpt("XDG_CACHE_HOME"), envOpt("HOME"))
