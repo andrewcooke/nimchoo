@@ -66,6 +66,10 @@ func inventoryOf*(
       dependents.mgetOrPut(d.normalised, @[]).add p.name
     layer[p.name.normalised] = l
   let owners = tableOwners(fragments)
+  var declared: Table[string, seq[string]]
+  for p in packages:
+    declared[p.name] = p.package.depends
+  let access = newAccess(amEnforce, owners, declared)
   for p in packages:
     var info = PackageInfo(
       name: p.name,
@@ -104,8 +108,10 @@ func inventoryOf*(
   for t, o in owners:
     var info = TableInfo(name: t, owner: o, everyone: o == sharedOwner)
     if not info.everyone:
+      # (who may read it is the access model's to say: the one rule, which `nch db` shows too)
+      let readers = access.readersOf(t)
       for p in packages:
-        if p.package.depends.anyIt(it.normalised == o.normalised):
+        if p.name.normalised in readers:
           info.readers.add p.name
       info.readers.sort
     result.tables.add info

@@ -1,7 +1,9 @@
 ## What `nch packages` shows (core/inventory.nim), on made-up packages and on the real registry.
 
-import std/[options, sequtils, strutils, unittest]
-import nimchoo/core/[errors, extension, fragment, inventory, line, manifest, registry]
+import std/[algorithm, options, sequtils, strutils, unittest]
+import
+  nimchoo/core/
+    [access, errors, extension, fragment, inventory, line, manifest, registry]
 import nimchoo/registry as generated
 import ../support/styles
 
@@ -216,3 +218,12 @@ suite "the real registry":
     check inv.points.anyIt(
       it.name == "importer/after" and it.contributors[0].package == "selection"
     )
+
+suite "the inventory and the access model say the same":
+  test "who may read each table of the real registry is what `nch db` shows":
+    let inv = inventoryOf(
+      generated.packages, generated.extensions, generated.points, generated.schema
+    )
+    for t in inv.tables:
+      if not t.everyone:
+        check t.readers == generated.allAccess.readersOf(t.name).sorted
