@@ -3,7 +3,7 @@
 ## with it the data of every user (the cache, which can be made again, is `nch cache`).  Does nothing without
 ## -f; on a terminal it then counts down, in the bad style, so there is time to press Ctrl-C (`-f -f`: no countdown).
 
-import std/[options, os, strutils]
+import std/[options, os]
 import db_connector/db_sqlite
 import ../../core/[access, globals, ruled]
 import ../util/args/[args, usage]
@@ -82,19 +82,19 @@ proc tablesLines(
     var refers: Line
     for k, r in t.refersTo:
       if k > 0:
-        refers.add span(", ")
-      refers.add span(r, "code")
+        refers.add ~", "
+      refers.add ~"`{r}`"
     var readers: Line
     if t.owner.isSome and t.owner.get == sharedOwner:
       readers = plain("every package")
     elif not access.isNil:
       for k, r in access.readersOf(t.name):
         if k > 0:
-          readers.add span(", ")
-        readers.add span(r, "code")
+          readers.add ~", "
+        readers.add ~"`{r}`"
     rows.add @[
-      @[span(t.name, "code")],
-      (if t.owner.isSome: @[span(t.owner.get, "code")] else: plain("-")),
+      ~"`{t.name}`",
+      (if t.owner.isSome: ~"`{t.owner.get}`" else: plain("-")),
       plain(count(t.rows)),
       plain(humanBytes(t.bytes)),
       (if refers.len == 0: plain("-") else: refers),
@@ -128,13 +128,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   let p = parsed.params
   let path = resolveDbPath(g.dbPath)
   if not fileExists(path):
-    g.show(osOut, @[span("no database at "), span(path, "file")])
+    g.show(osOut, ~"no database at <file {path}>")
     return exitOk
   if p.action == daShow:
-    g.show(
-      osOut,
-      @[span(path, "file"), span(" (" & humanBytes(size(path)) & freeSpace(path) & ")")],
-    )
+    g.show(osOut, ~"<file {path}> ({humanBytes(size(path))}{freeSpace(path)})")
     g.show(osOut, plain(""))
     try:
       g.showAll(osOut, tablesLines(g, path, helpWidth(stdout)))
