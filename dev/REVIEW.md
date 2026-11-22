@@ -62,7 +62,11 @@ transactions), B11 (the inflating child is sized by the caller's limit).
    line, used by every list; `landmarks` through `confirm`; `nch log` through `g.show`; warnings as `Line`s; one "cannot
    download" line; one web step shared by `map` and `ff`; counts through `count`.  Each with the guard test the rules ask for
    (the one for padding misses the usage's command list, A7).
-4. **One fact, one place** (A2 arity, A3 the database path, A8 who reads a table, B2 the log's command name, E5 the log's
+   **Done** 2026-11-22 (step 4): A4, D5, D2, D4, C4, E4 (the last two by the `~"..."` sweep), C10 (already ruled), C11, B5, D6,
+   A9 (the width: `g.textWidth`; the live display still decides colour for itself), A11 (one counting, characters; two wrappers
+   remain, for strings and for Lines), E7 (the messages: `noCacheDir`, `cannotWrite`, `templateFailure`; not the dispatch, see
+   TODO 15).  A7 is open.
+4. **One fact, one place** (**done** 2026-11-22 apart from B2, done earlier: A2 arity, A3 the database path, A8 who reads a table, B2 the log's command name, E5 the log's
    line format, E6 the CSP and `libraries.cdn`, E9 choosing a subject, C5 matching a climb's name).
 5. **Sentinels to `Option`/variants**, package by package (A10, B8, C8, C12, D7, D12, E5, E12; and B9, ids as `int64`).
 6. **Dead code and stale text** in one sweep (A5, A6, A13, B10, C14, C15, D10, D13, E10, E14): including `ListRow.user`,
