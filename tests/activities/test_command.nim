@@ -269,15 +269,15 @@ suite "list: the command":
     setNumbers(db, "lisbon1", "10000", "3600")
     setNumbers(db, "paris", "30000", "7200")
     setNumbers(db, "lisbon2", "null", "null")
-    discard save(db, "--distance", "20-")
+    discard save(db, "--distance", "20km-")
     check chosen(db) == @["paris"]
-    discard save(db, "--distance", "-10")
+    discard save(db, "--distance", "-10km")
     check chosen(db) == @["lisbon1"] # (10 km counts; the unrecorded does not)
-    discard save(db, "--distance", "10-30")
+    discard save(db, "--distance", "10-30km")
     check chosen(db) == @["lisbon1", "paris"]
-    discard save(db, "--distance", "10.001-29.999")
+    discard save(db, "--distance", "10.001-29.999km")
     check chosen(db).len == 0
-    discard save(db, "--distance", "0-")
+    discard save(db, "--distance", "1m-")
     check chosen(db) == @["lisbon1", "paris"] # (bob's has no distance at all)
 
   test "by active time":
@@ -297,11 +297,11 @@ suite "list: the command":
     setNumbers(db, "lisbon1", "10000", "3600")
     setNumbers(db, "paris", "30000", "7200")
     setNumbers(db, "lisbon2", "50000", "10800")
-    discard save(db, "--distance", "40-", "-n", "1")
+    discard save(db, "--distance", "40km-", "-n", "1")
     check chosen(db) == @["lisbon2"]
-    discard save(db, "--distance", "5-", "--sports", "cycling", "--active", "-1h30m")
+    discard save(db, "--distance", "5km-", "--sports", "cycling", "--active", "-1h30m")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--distance", "5-", "-n", "2")
+    discard save(db, "--distance", "5km-", "-n", "2")
     check chosen(db) == @["lisbon2", "paris"]
 
   proc numbered(name: string): string =
@@ -322,7 +322,7 @@ suite "list: the command":
     check chosen(db) == @["lisbon2"] # 40-60 km
     discard save(db, "--sports", "cycling", "--distance", "latest~90%")
     check chosen(db) == @["lisbon1", "lisbon2"] # 5-95 km
-    discard save(db, "--distance", "latest~5")
+    discard save(db, "--distance", "latest~5km")
     check chosen(db) == @["paris"] # the latest is paris: 25-35 km
     discard save(db, "--active", "latest~1h30m")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"] # 30m-3h30m
@@ -432,11 +432,11 @@ suite "list: the command":
     let db = numbered("latest5")
     discard save(db, "--all")
     check save(
-      db, "--sports", "cycling", "--after", "2030-01-01", "--distance", "latest~5"
+      db, "--sports", "cycling", "--after", "2030-01-01", "--distance", "latest~5km"
     ) == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
     setNumbers(db, "paris", "null", "null")
-    check save(db, "--distance", "latest~5") == exitFailure
+    check save(db, "--distance", "latest~5km") == exitFailure
       # paris is the latest and has no distance
     check save(db, "--active", "latest~5m") == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
@@ -446,9 +446,9 @@ suite "list: the command":
   test "bad ranges are a usage error and change nothing":
     let db = world("badrange")
     discard save(db, "--all")
-    check list(db, "--distance", "5") == exitUsage
-    check list(db, "--active", "90-") == exitUsage
-    check save(db, "--distance", "50-10") == exitUsage
+    check list(db, "--distance", "5mi") == exitUsage
+    check list(db, "--active", "90x-") == exitUsage
+    check save(db, "--distance", "50-10km") == exitUsage
     check chosen(db) == @["lisbon1", "paris"]
 
   test "dates":

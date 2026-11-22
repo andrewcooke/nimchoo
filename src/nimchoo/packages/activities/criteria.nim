@@ -253,48 +253,55 @@ func contributedOption(o: Criterion): Opt[ListState] =
     completion: o.doc.completion,
   )
 
-proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
+func rangeUnit(v, unit: string): Option[string] =
+  ## `--distance 40-` -> `40km-`, `--active 90-` -> `90h-`: for `withUnit`.
+  addDefaultUnit(v, unit)
+
+proc takeDistance(p: var ListState, name, text: string): Problem {.nimcall.} =
   p.criteriaGiven = true
+  let v = sharedUnit(text)
   if '~' in v:
-    let ar = parseAround(v, parseDistance)
+    let ar = parseAround(v, metresEnd)
     if ar.isNone:
       return refuse(
-        ~"cannot read the distance '{v}' (use 42~2, 0.5~0.1, latest~10% or previous~10%; kilometres)"
+        ~"cannot read the distance '{text}' (use 42~2km, 500m~50m, latest~10% or previous~10%)"
       )
     if ar.get.centre.isSome:
       p.c.distanceM = around(ar.get.centre.get, ar.get.tol)
     else:
       p.c.distanceRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
   else:
-    let r = parseRange(v, parseDistance)
+    let r = parseRange(v, metresEnd)
     if r.isNone:
-      if isBackwards(v, parseDistance):
-        return refuse(~"the distance range '{v}' is backwards (smaller end first)")
+      if isBackwards(v, metresEnd):
+        return refuse(~"the distance range '{text}' is backwards (smaller end first)")
       return refuse(
-        ~"cannot read the distance range '{v}' (use 40-, 10-50, -5, 0.5-, 42~2, latest~10% or previous~10%; kilometres)"
+        ~"cannot read the distance range '{text}' (use 40km-, 10-50km, -5km, 500m-, 42~2km, latest~10% or previous~10%)"
       )
     p.c.distanceM = r.get
   fine
 
-proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
+proc takeActive(p: var ListState, name, text: string): Problem {.nimcall.} =
   p.criteriaGiven = true
+  let v = sharedUnit(text)
   if '~' in v:
-    let ar = parseAround(v, parseInterval)
+    let ar = parseAround(v, secondsEnd)
     if ar.isNone:
       return refuse(
-        ~"cannot read the active time '{v}' (use 2h~15m, latest~10% or previous~10%)"
+        ~"cannot read the active time '{text}' (use 2h~15m, latest~10% or previous~10%)"
       )
     if ar.get.centre.isSome:
       p.c.activeS = around(ar.get.centre.get, ar.get.tol)
     else:
       p.c.activeRel = some(Relative(refers: ar.get.refers, tol: ar.get.tol))
   else:
-    let r = parseRange(v, parseInterval)
+    let r = parseRange(v, secondsEnd)
     if r.isNone:
-      if isBackwards(v, parseInterval):
-        return refuse(~"the active time range '{v}' is backwards (shorter end first)")
+      if isBackwards(v, secondsEnd):
+        return
+          refuse(~"the active time range '{text}' is backwards (shorter end first)")
       return refuse(
-        ~"cannot read the active time range '{v}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
+        ~"cannot read the active time range '{text}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
       )
     p.c.activeS = r.get
   fine
@@ -361,7 +368,7 @@ func takeSpot(p: var ListState, v: string, passes: bool): Problem =
 
 func takeRadius(p: var ListState, v: string): Problem =
   p.criteriaGiven = true
-  let r = units.parseDistance(v)
+  let r = parseDistance(v)
   if r.isNone:
     return refuse(
       ~"cannot read the radius '{v}' (a distance more than 0, with its unit: `3km` or `500m`)"
@@ -438,17 +445,19 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--distance"],
         true,
         "RANGE",
-        ~"distance in km: 40- (40 or more), 10-50, -5 (up to 5); 0.5- for half a km; 42~2 (between 40 and 44), latest~10%, previous~10%",
+        ~"distance, with its unit (`km` or `m`; given once is enough: `10-50km`): 40km- (40 or more), 10-50km, -5km (up to 5), 500m-; 42~2km (between 40 and 44), latest~10%, previous~10%; with no unit it is taken as km, after asking",
         body = takeDistance(p, name, value),
-      ),
+      )
+        .withUnit("km", rangeUnit),
       custom(
         ListState,
         ["--active"],
         true,
         "RANGE",
-        ~"active time: 1h-, 30m-2h, -45m (units d h m s, as printed); 2h~15m, latest~10%, previous~10%",
+        ~"active time: 1h-, 30m-2h, -45m (units d h m s, as printed; given once is enough in a range: `30-90m`); 2h~15m, latest~10%, previous~10%; with no unit it is taken as hours, after asking",
         body = takeActive(p, name, value),
-      ),
+      )
+        .withUnit("h", rangeUnit),
       custom(
         ListState,
         ["--after"],

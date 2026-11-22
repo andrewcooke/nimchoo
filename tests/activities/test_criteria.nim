@@ -132,17 +132,22 @@ suite "list: the command line":
     check cmdline("-n").problem.contains("needs a value")
     check cmdline("-n", "2", "--oldest", "2").problem.contains("together")
   test "--distance and --active are ranges; a value that starts with a dash is a value":
-    let c = cmdline("--distance", "-5", "--active", "1h30m-4h").params
+    let c = cmdline("--distance", "-5km", "--active", "1h30m-4h").params
     check c.distanceM == NumRange(hi: some 5000.0)
     check c.activeS == NumRange(lo: some 5400.0, hi: some 14400.0)
-    check cmdline("--distance", "10-50").params.distanceM ==
-      NumRange(lo: some 10000.0, hi: some 50000.0)
-    check cmdline("--distance", "0.5-").params.distanceM == NumRange(lo: some 500.0)
-    check cmdline("--distance", "500m-").problem.contains(
-      "cannot read the distance range"
-    ) # (m is minutes)
+    for same in ["10-50km", "10km-50", "10km-50km", "10km-50000m"]:
+      check cmdline("--distance", same).params.distanceM ==
+        NumRange(lo: some 10000.0, hi: some 50000.0)
+    check cmdline("--distance", "0.5km-").params.distanceM == NumRange(lo: some 500.0)
+    check cmdline("--distance", "500m-").params.distanceM == NumRange(lo: some 500.0)
+    check cmdline("--active", "30-90m").params.activeS ==
+      NumRange(lo: some 1800.0, hi: some 5400.0)
+  test "a unit given once serves a range or an around, on either side":
+    for same in ["42~2km", "42km~2", "42km~2000m"]:
+      check cmdline("--distance", same).params.distanceM ==
+        NumRange(lo: some 40000.0, hi: some 44000.0)
   test "--distance and --active around a value, or around latest":
-    let c = cmdline("--distance", "42~2", "--active", "2h~15m").params
+    let c = cmdline("--distance", "42~2km", "--active", "2h~15m").params
     check c.distanceM == NumRange(lo: some 40000.0, hi: some 44000.0)
     check c.activeS == NumRange(lo: some 6300.0, hi: some 8100.0)
     check not c.usesLatest
@@ -168,7 +173,7 @@ suite "list: the command line":
     check c.activeRel == some(Relative(refers: refPrevious, tol: Tol(amount: 900.0)))
     check c.start.kind == nkPrevious
     check c.usesPrevious and not c.usesLatest
-    let mixed = cmdline("--sports", "previous", "--distance", "latest~5").params
+    let mixed = cmdline("--sports", "previous", "--distance", "latest~5km").params
     check mixed.usesPrevious and mixed.usesLatest
     check cmdline("--sports", "latest", "previous").problem.contains(
       "cannot be used together"
@@ -184,7 +189,7 @@ suite "list: the command line":
       # (alone: still latest)
   test "latest is found among the criteria that do not mention it, previous ones included":
     let c = cmdline(
-      "--sports", "previous", "--distance", "latest~5", "--near", "previous"
+      "--sports", "previous", "--distance", "latest~5km", "--near", "previous"
     ).params
     let base = c.withoutLatest
     check not base.usesLatest
@@ -195,12 +200,12 @@ suite "list: the command line":
     check cmdline("--from", "latest").params.usesLatest
     check cmdline("--radius", "5km").params.usesLatest
     check not cmdline("--near", "1,2").params.usesLatest
-    check not cmdline("--sports", "cycling", "--distance", "5-", "-n", "1").params.usesLatest
+    check not cmdline("--sports", "cycling", "--distance", "5km-", "-n", "1").params.usesLatest
   test "without latest: what latest is found among":
     let c = cmdline(
-      "--sports", "latest", "cycling", "--distance", "latest~5", "--active",
+      "--sports", "latest", "cycling", "--distance", "latest~5km", "--active",
       "latest~5%", "--near", "latest", "--sub-sports", "latest", "-n", "3", "--after",
-      "2018-01-01", "--distance", "latest~2",
+      "2018-01-01", "--distance", "latest~2km",
     ).params
     let base = c.withoutLatest
     check not base.usesLatest
@@ -212,10 +217,13 @@ suite "list: the command line":
       "cannot read the distance range '5'"
     )
     check cmdline("--distance", "1-2-3").problem.contains("cannot read")
-    check cmdline("--distance", "50-10").problem.contains("backwards")
-    check cmdline("--active", "90-").problem.contains(
+    check cmdline("--distance", "50-10km").problem.contains("backwards")
+    check cmdline("--distance", "0km-").problem.contains("cannot read")
+    check cmdline("--distance", "5mi-").problem.contains("cannot read")
+    check cmdline("--distance", "latest~5mi").problem.contains("cannot read")
+    check cmdline("--active", "2h30m-3").problem.contains(
       "cannot read the active time range"
-    )
+    ) # (which of the units of 2h30m is meant for the 3?)
     check cmdline("--active", "2h-1h").problem.contains("backwards")
     check cmdline("--distance").problem.contains("needs a value")
     check cmdline("--distance", "latest~").problem.contains("cannot read the distance")
@@ -223,7 +231,27 @@ suite "list: the command line":
     check cmdline("--active", "latest~x").problem.contains(
       "cannot read the active time"
     )
-    check cmdline("--active", "2h~15").problem.contains("cannot read the active time")
+    check cmdline("--active", "2h~15").params.activeS ==
+      NumRange(lo: some 0.0, hi: some 61200.0) # (15h: the unit is shared)
+  test "--distance and --active with no unit anywhere are the question, the unit added to the first number":
+    for (args, fixed) in [
+      (@["--distance", "40-"], @["--distance", "40km-"]),
+      (@["--distance", "10-50"], @["--distance", "10km-50"]),
+      (@["--distance", "42~2"], @["--distance", "42km~2"]),
+      (@["--distance", "latest~5"], @["--distance", "latest~5km"]),
+      (@["--active", "90-"], @["--active", "90h-"]),
+      (@["--active", "1~2"], @["--active", "1h~2"]),
+      (
+        @["--sports", "cycling", "--distance=40-"],
+        @["--sports", "cycling", "--distance=40km-"],
+      ),
+    ]:
+      let r = parseArgs(args, utcZone)
+      check r.kind == pkUnit
+      check r.fix.args == fixed
+    check cmdline("--distance", "40-", "--active", "1-").fix.missing.len == 2
+    check cmdline("--distance", "40km-").kind == pkOk
+    check cmdline("--distance", "-5").kind == pkUnit
   test "the radius: 10 km from a start, 1 km from a route, unless --radius says":
     check cmdline("--from", "1,2").params.startKm == 10.0
     check cmdline("--near", "1,2").params.passKm == 1.0
@@ -464,7 +492,7 @@ suite "list: --invert":
       "needs a criterion"
     ) # (limits are not criteria)
     check parseArgs(@["--invert", "--gps"], utcZone).problem == ""
-    check parseArgs(@["--invert", "--distance", "40-"], utcZone).problem == ""
+    check parseArgs(@["--invert", "--distance", "40km-"], utcZone).problem == ""
     check parseArgs(@["--invert", "--names", "latest"], utcZone).problem == ""
   test "the sql negates all of the criteria together, treating an unknown as no match":
     let c =

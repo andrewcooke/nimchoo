@@ -2,13 +2,13 @@
 ## "around" ranges `42~2` (40 to 44), `2h~15m`, `latest~10%`, for distances and for active
 ## times.  Pure.
 ##
-## A distance is in kilometres, as a decimal number (`5`, `2.5`, `0.5`; no unit, and never
-## `m`, which means minutes).  A time is
-## written as the program prints it (see packages/ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`,
-## units d h m s, largest first, each at most once, with a unit on every number.
+## An end has its unit, read by the shared readers (`ui/units`): a distance `40km` or `500m`, a time as the program prints it
+## (see packages/ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`.  **A unit needs to be given only once** in a range, on either
+## side (`sharedUnit`): `42~2km`, `10km-50`; with none anywhere, the command asks (`addDefaultUnit`).
 ## Both ends of a range are inclusive, and either may be left out (not both).
 
 import std/[math, options, sequtils, strutils]
+import ../ui/units
 
 {.push raises: [].}
 
@@ -41,48 +41,87 @@ func isOpen*(r: NumRange): bool =
   ## Whether the range has no ends: anything is in it.
   r.lo.isNone and r.hi.isNone
 
-func parseDistance*(s: string): Option[float] =
-  ## "5", "2.5", "0.5" -> kilometres (a decimal number, no exponent, no unit).  Result in
-  ## metres.  There is no `m` suffix (`m` always means minutes) and no `km`: a distance
-  ## below a kilometre is written 0.5.
-  let text = s.strip.toLowerAscii
-  if text.len == 0 or text[0] notin {'0' .. '9'}:
-    return none(float)
-  if text.anyIt(it notin {'0' .. '9', '.'}) or text.count('.') > 1:
-    return none(float) # (not 1e3)
-  try:
-    some(parseFloat(text) * 1000.0)
-  except ValueError:
+func metresEnd*(s: string): Option[float] =
+  ## An end of a distance range (`40km`, `500m`) in metres: the shared reader (`ui/units`).
+  let d = units.parseDistance(s.strip)
+  if d.isSome:
+    some(d.get.inMetres)
+  else:
     none(float)
 
-func parseInterval*(s: string): Option[float] =
-  ## "1h30m", "45s", "2d03h07m" -> seconds; none if it is not in that notation.
-  const units = "dhms"
-  const seconds = [86400.0, 3600.0, 60.0, 1.0]
-  let text = s.strip.toLowerAscii
-  if text.len == 0:
-    return none(float)
-  var total = 0.0
-  var number = 0 # the digits read since the last unit
-  var count = 0 # how many digits
-  var last = -1 # the index in `units` of the last unit seen
-  for c in text:
-    if c in {'0' .. '9'}:
-      number = number * 10 + (ord(c) - ord('0'))
-      inc count
-      if count > 9:
-        return none(float)
-    else:
-      let u = units.find(c)
-      if u < 0 or count == 0 or u <= last:
-        return none(float)
-      total += float(number) * seconds[u]
-      number = 0
-      count = 0
-      last = u
-  if count > 0:
-    return none(float) # a number with no unit
-  some(total)
+func secondsEnd*(s: string): Option[float] =
+  ## An end of a time range (`1h30m`, `45s`, as the program prints them) in seconds: the shared reader (`ui/units`).
+  let t = parseTimeSpan(s.strip)
+  if t.isSome:
+    some(t.get.inSeconds)
+  else:
+    none(float)
+
+type Side = object
+  ## One side of a range or of an `around`: `42km`, `15m`, `10%`, `latest`, `2h30m`, or nothing.
+  text: string
+  number: string
+    ## the digits (and point) it starts with; "" if it does not start with a number
+  unit: string ## what follows the number
+
+func side(s: string): Side =
+  var x: float
+  var rest: string
+  if unitNumber(s, x, rest):
+    let u = rest.len
+    Side(text: s, number: s[0 ..< s.len - u], unit: rest)
+  else:
+    Side(text: s)
+
+func sides(s: string): Option[tuple[sep: char, parts: seq[Side]]] =
+  ## The two sides of `a~b` or of `a-b` (`-b` and `a-` too), and the separator; none if it is neither.
+  let sep = if '~' in s: '~' else: '-'
+  let parts = s.split(sep)
+  if parts.len != 2:
+    return none(tuple[sep: char, parts: seq[Side]])
+  some((sep: sep, parts: parts.mapIt(side(it))))
+
+func isAmount(x: Side): bool =
+  ## Whether the side is a number that may carry a unit (not `latest`, a percentage or nothing).
+  x.number.len > 0 and x.unit != "%"
+
+func isSingleUnit(x: Side): bool =
+  x.isAmount and x.unit.len > 0 and x.unit.allIt(it notin {'0' .. '9', '.'})
+
+func sharedUnit*(s: string): string =
+  ## A unit needs to be given only once in a range: `42~2km`, `42km~2` and `42km~2000m` are the same, and so are `10-50km`,
+  ## `10km-50` and `10km-50km`.  The side with no unit takes that of the other if it is a single one (`km`, `m`, `h`: not
+  ## `2h30m`, which would not say which of its units is meant).  Anything else is left as it was, for the reader to refuse.
+  let sd = sides(s)
+  if sd.isNone:
+    return s
+  let p = sd.get.parts
+  var parts = @[p[0].text, p[1].text]
+  for k in 0 .. 1:
+    if p[k].isAmount and p[k].unit.len == 0 and p[1 - k].isSingleUnit:
+      parts[k] = p[k].text & p[1 - k].unit
+  parts.join($sd.get.sep)
+
+func addDefaultUnit*(s: string, unit: string): Option[string] =
+  ## When no number of a range or an `around` has a unit (`40-`, `10-50`, `42~2`, `latest~5`), the text with `unit` added to
+  ## the first number (`40km-`: a unit given once is enough); none if some number has a unit or there is no number to
+  ## add it to (the text is then for the reader to accept or refuse).
+  let sd = sides(s)
+  if sd.isNone:
+    return none(string)
+  let p = sd.get.parts
+  var first = -1
+  for k in 0 .. 1:
+    if p[k].isAmount:
+      if p[k].unit.len > 0:
+        return none(string)
+      if first < 0:
+        first = k
+  if first < 0:
+    return none(string)
+  var parts = @[p[0].text, p[1].text]
+  parts[first] = parts[first] & unit
+  some(parts.join($sd.get.sep))
 
 func isBackwards*(s: string, parseEnd: EndParser): bool =
   ## Whether `s` is a range whose ends can be read but whose first end is larger.

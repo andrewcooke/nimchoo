@@ -28,6 +28,10 @@ type
   Validator* = proc(value: string): bool {.noSideEffect, nimcall, raises: [].}
     ## What a value may be: true if this one may.
 
+  AddUnit* =
+    proc(value, unit: string): Option[string] {.nimcall, noSideEffect, raises: [].}
+    ## The value with the default `unit` added where it is missing; none if it needs none.
+
   Address* = enum
     adNo ## not given in the address of a page
     adFlag ## `?name=1` becomes `--name`
@@ -80,6 +84,9 @@ type
     unit*: string
       ## the unit a bare number is taken to have (`km`): "" if the option does not want a unit.  The command line is then
       ## a `pkUnit` (`UnitFix`), not an error: a person is asked whether that was meant
+    addUnit*: AddUnit
+      ## nil: a bare number is the text with the unit after it.  Else how to add `unit` to a value that has none, when that is
+      ## not just the end of the value (a range, `40-`: `40km-`); none: the value has a unit, or none can be added
     valid*: Validator ## for `adValue`: what the value may be
 
   Positional*[P] = proc(p: var P, arg: string): Problem {.nimcall, raises: [].}
@@ -96,10 +103,20 @@ func refuse*(why: Line): Problem =
   ## Something is wrong: say what, in a sentence that does not name the option.
   some(why)
 
-func withUnit*[P](o: Opt[P], unit: string): Opt[P] =
+func withUnit*[P](o: Opt[P], unit: string, addUnit: AddUnit = nil): Opt[P] =
   ## The option reads a bare number as a number of `unit` (and the parse comes out as `pkUnit`, so that the person is asked).
+  ## For a value that is more than a number (a range), `addUnit` says how the unit is added.
   result = o
   result.unit = unit
+  result.addUnit = addUnit
+
+func plainAddUnit(value, unit: string): Option[string] =
+  var x: float
+  var rest: string
+  if unitNumber(value, x, rest) and rest.len == 0:
+    some(value & unit)
+  else:
+    none(string)
 
 func problemWith*[T](why: Line): Parsed[T] =
   Parsed[T](kind: pkProblem, why: why)
@@ -127,6 +144,7 @@ func find[P](spec: Spec[P], name: string): int =
 type Bare = object ## where a number without its unit was given
   at: int ## the index in the arguments of the value (or of `--name=value`)
   inName: bool ## it was `--name=value`
+  fixed: string ## the value with the unit added
   item: Unitless
 
 proc walk[P](
@@ -190,13 +208,19 @@ proc walk[P](
       elif eq > 0:
         return refuse(~"`{name}` does not take a value")
       if o.unit.len > 0 and o.takesValue and v.len > 0:
-        var x: float
-        var rest: string
-        if unitNumber(v, x, rest) and rest.len == 0:
+        let fixed =
+          if o.addUnit != nil:
+            o.addUnit(v, o.unit)
+          else:
+            plainAddUnit(v, o.unit)
+        if fixed.isSome:
           bare.add Bare(
-            at: i, inName: eq > 0, item: Unitless(option: name, value: v, unit: o.unit)
+            at: i,
+            inName: eq > 0,
+            fixed: fixed.get,
+            item: Unitless(option: name, value: v, unit: o.unit),
           )
-          v = v & o.unit # (read as if it had been typed)
+          v = fixed.get # (read as if it had been typed)
       let why = o.apply(p, name, v)
       if why.isSome:
         return why
@@ -227,7 +251,7 @@ func corrected(args: seq[string], bare: seq[Bare]): UnitFix =
   result.args = args
   for b in bare:
     result.missing.add b.item
-    let fixed = b.item.value & b.item.unit
+    let fixed = b.fixed
     result.args[b.at] =
       if b.inName:
         b.item.option & "=" & fixed
