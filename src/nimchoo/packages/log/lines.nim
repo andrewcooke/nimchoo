@@ -17,16 +17,13 @@ import ../ui/vocabulary
 type
   LogLine* = object
     raw*: string
-    command*: string ## "" if the line is not in the current format
-    event*: Option[LogEvent] ## none if not
-    eventStart*, eventEnd*: int ## where the event word is in `raw`
-    levelStart*, levelEnd*: int ## where the level word (INFO, WARN, ERROR) is
+    fields*: Option[LogFields] ## none if the line is not in the current format
 
   Filter* = object
     commands*: seq[string] ## only these commands (none: any)
     events*: set[LogEvent] ## only these events (empty: any)
     last*: bool ## only the latest run (see `select` below)
-    count*: int ## only the last N lines (0: all)
+    count*: Option[int] ## only the last N lines (none: all)
 
   Selected* = object
     lines*: seq[LogLine]
@@ -34,21 +31,12 @@ type
 
 func parseLine*(raw: string): LogLine =
   ## Take a line apart (`core/logfile.parseLogLine`, which reads what the writer writes).
-  result = LogLine(raw: raw)
-  let f = parseLogLine(raw)
-  if f.isNone:
-    return
-  result.command = f.get.command
-  result.event = some(f.get.event)
-  result.levelStart = f.get.levelStart
-  result.levelEnd = f.get.levelEnd
-  result.eventStart = f.get.eventStart
-  result.eventEnd = f.get.eventEnd
+  LogLine(raw: raw, fields: parseLogLine(raw))
 
 func matches(l: LogLine, f: Filter): bool =
-  if f.commands.len > 0 and l.command notin f.commands:
+  if f.commands.len > 0 and (l.fields.isNone or l.fields.get.command notin f.commands):
     return false
-  if f.events != {} and (l.event.isNone or l.event.get notin f.events):
+  if f.events != {} and (l.fields.isNone or l.fields.get.event notin f.events):
     return false
   true
 
@@ -61,7 +49,8 @@ func select*(lines: seq[LogLine], f: Filter): Selected =
     var found = false
     for i in countdown(lines.high, 0):
       let l = lines[i]
-      if l.event == some(leRun) and (f.commands.len == 0 or l.command in f.commands):
+      if l.fields.isSome and l.fields.get.event == leRun and
+          (f.commands.len == 0 or l.fields.get.command in f.commands):
         start = i
         found = true
         break
@@ -70,8 +59,8 @@ func select*(lines: seq[LogLine], f: Filter): Selected =
   for i in start .. lines.high:
     if lines[i].matches(f):
       result.lines.add lines[i]
-  if f.count > 0 and result.lines.len > f.count:
-    result.lines = result.lines[result.lines.len - f.count .. ^1]
+  if f.count.isSome and result.lines.len > f.count.get:
+    result.lines = result.lines[result.lines.len - f.count.get .. ^1]
 
 func levelStyle*(level: string): StyleName =
   ## ERROR bad, WARN a warning, INFO hidden: the quiet ordinary lines, and the ones that need a look.
@@ -86,7 +75,8 @@ func levelStyle*(level: string): StyleName =
 func styled*(l: LogLine): Line =
   ## The line, with the level word in its style (bad ERROR, warning WARN, hidden INFO) and the event word in the style of
   ## the event.
-  if l.event.isNone:
+  if l.fields.isNone:
     return plain(l.raw)
-  let level = levelStyle(l.raw[l.levelStart ..< l.levelEnd])
-  ~"{l.raw[0 ..< l.levelStart]}<{level} {l.raw[l.levelStart ..< l.levelEnd]}>{l.raw[l.levelEnd ..< l.eventStart]}<{l.event.get} {l.raw[l.eventStart ..< l.eventEnd]}>{l.raw[l.eventEnd .. ^1]}"
+  let f = l.fields.get
+  let level = levelStyle(l.raw[f.levelStart ..< f.levelEnd])
+  ~"{l.raw[0 ..< f.levelStart]}<{level} {l.raw[f.levelStart ..< f.levelEnd]}>{l.raw[f.levelEnd ..< f.eventStart]}<{f.event} {l.raw[f.eventStart ..< f.eventEnd]}>{l.raw[f.eventEnd .. ^1]}"

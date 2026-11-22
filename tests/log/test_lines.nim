@@ -27,13 +27,13 @@ func raws(s: Selected): seq[string] =
 suite "log lines: parsing":
   test "a line of the current format":
     let l = parseLine(dup1)
-    check l.command == "import"
-    check l.event == some(leDuplicate)
-    check dup1[l.eventStart ..< l.eventEnd] == "duplicate"
+    check l.fields.get.command == "import"
+    check l.fields.get.event == leDuplicate
+    check dup1[l.fields.get.eventStart ..< l.fields.get.eventEnd] == "duplicate"
   test "all levels, and a long command":
-    check parseLine("2026-11-02T10:00:01Z WARN  heatmap   advisory  x").event ==
-      some(leAdvisory)
-    check parseLine("2026-11-02T10:00:01Z ERROR a-longer-command  failed  x").command ==
+    check parseLine("2026-11-02T10:00:01Z WARN  heatmap   advisory  x").fields.get.event ==
+      leAdvisory
+    check parseLine("2026-11-02T10:00:01Z ERROR a-longer-command  failed  x").fields.get.command ==
       "a-longer-command"
   test "lines of other shapes are kept, with no command or event":
     for raw in [
@@ -42,9 +42,9 @@ suite "log lines: parsing":
     ]:
       let l = parseLine(raw)
       check l.raw == raw
-      check l.event.isNone and l.command == ""
+      check l.fields.isNone
   test "an event word with other letters round it is not an event":
-    check parseLine("2026-11-02T10:00:01Z INFO  import    failed:    x").event.isNone
+    check parseLine("2026-11-02T10:00:01Z INFO  import    failed:    x").fields.isNone
 
 suite "log lines: selecting":
   let all = parsed(run1, start1, fail1, dup1, exit1, sel, selExit, run2, adv2, old)
@@ -80,10 +80,10 @@ suite "log lines: selecting":
     check select(@[], Filter(last: true)).noRun
     check not select(@[], Filter()).noRun
   test "the last N lines":
-    check select(all, Filter(count: 2)).raws == @[adv2, old]
-    check select(all, Filter(commands: @["import"], count: 1)).raws == @[adv2]
-    check select(all, Filter(count: 50)).raws.len == 10
-    check select(all, Filter(events: {leRun}, count: 2)).raws == @[sel, run2]
+    check select(all, Filter(count: some(2))).raws == @[adv2, old]
+    check select(all, Filter(commands: @["import"], count: some(1))).raws == @[adv2]
+    check select(all, Filter(count: some(50))).raws.len == 10
+    check select(all, Filter(events: {leRun}, count: some(2))).raws == @[sel, run2]
 
 suite "log lines: styling":
   test "the event word has the style of the event, the rest is plain":

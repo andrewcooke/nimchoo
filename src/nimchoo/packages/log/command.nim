@@ -50,7 +50,7 @@ proc show*(path: string, f: Filter): tuple[lines: seq[Line], problem: string] =
         if f.commands.len > 0: f.commands.join(" or ")
         else: "any command"
       ) & " in the log" & (
-        if all.anyIt(it.event.isNone):
+        if all.anyIt(it.fields.isNone):
         " (lines from before the log's current format are not recognised)"
         else: ""
       )

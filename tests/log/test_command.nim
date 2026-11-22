@@ -1,4 +1,4 @@
-import std/[os, sequtils, strutils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/packages/log/command as logCommand
 import nimchoo/packages/log/params
 import nimchoo/packages/util/args/args
@@ -35,7 +35,7 @@ suite "nch log: the command line":
     check p.problem == ""
     check p.params.filter.commands == @["activities", "map"]
     check p.params.filter.events == {leFailed, leAdvisory}
-    check p.params.filter.last and p.params.filter.count == 5
+    check p.params.filter.last and p.params.filter.count == some(5)
   test "no arguments: no filter":
     check parseArgs(@[], commands).params.filter == Filter()
   test "problems":

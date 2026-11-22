@@ -57,7 +57,7 @@ func logSpec*(): Spec[Raw] =
             var n = 0
             if not parseIntIn(value, 1, high(int), n):
               return refuse(~"`-n` needs a number of lines, 1 or more")
-            p.filter.count = n
+            p.filter.count = some(n)
             fine
         ),
       ),
