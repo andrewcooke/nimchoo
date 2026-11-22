@@ -259,27 +259,30 @@ proc importPaths*(
     var fileId: Option[ids.FileId]
       # (what the file was imported as, or its content already was)
     var noticed: seq[Warning] # (what the import steps said about the file)
-    var ev = ImportEvent(kind: evFileDone, index: index, path: c.path)
+    var outcome: Outcome
+    var counts: Counts
+    var failure: FailureKind # (of a failed file)
+    var message, sameAs: string
     let t0 = getMonoTime()
     case prep.outcome
     of poFailed:
-      ev.outcome = if prep.failure == fkMonitor: oMonitor else: oFailed
-      ev.failure = prep.failure
-      ev.message = prep.message
+      outcome = if prep.failure == fkMonitor: oMonitor else: oFailed
+      failure = prep.failure
+      message = prep.message
     of poKnown, poDecoded:
       try:
         # (the database has the last word: it also knows what was written earlier in this run)
         let have = knownFile(st, prep.digest)
         if have.isSome:
           fileId = some(have.get)
-          ev.outcome = oDuplicate
-          ev.sameAs = importedFrom.getOrDefault(have.get)
-          if ev.sameAs.len == 0:
-            ev.sameAs = pathOfFile(st, have.get)
+          outcome = oDuplicate
+          sameAs = importedFrom.getOrDefault(have.get)
+          if sameAs.len == 0:
+            sameAs = pathOfFile(st, have.get)
         elif prep.outcome == poKnown:
-          ev.outcome = oFailed
-          ev.failure = fkStore
-          ev.message =
+          outcome = oFailed
+          failure = fkStore
+          message =
             "the file's contents were in the database when the import began and are not now"
         else:
           let r = st.writeDecoded(
@@ -287,8 +290,8 @@ proc importPaths*(
           )
           fileId = some(r.fileId)
           noticed = r.warnings
-          ev.outcome = oImported
-          ev.counts = Counts(
+          outcome = oImported
+          counts = Counts(
             activities: r.activities,
             segments: r.segments,
             coords: r.coords,
@@ -296,38 +299,43 @@ proc importPaths*(
           )
           importedFrom[r.fileId] = c.path
       except StoreError as e:
-        ev.outcome = oFailed
-        ev.failure = fkStore
-        ev.message = e.msg
-    if ev.outcome != oFailed:
+        outcome = oFailed
+        failure = fkStore
+        message = e.msg
+    if outcome != oFailed:
       fileDone(
         prep.bytes,
         prep.nanos + (getMonoTime() - t0).inNanoseconds,
-        ev.outcome == oImported,
+        outcome == oImported,
       )
     let row =
-      if ev.outcome in {oFailed, oMonitor}:
+      if outcome in {oFailed, oMonitor}:
         some(
           Seen(
             size: c.size,
             mtime: c.mtime,
             kind: skFailure,
-            failure: ev.failure,
-            message: ev.message,
+            failure: failure,
+            message: message,
           )
         )
       elif fileId.isSome:
         some(Seen(size: c.size, mtime: c.mtime, kind: skFile, fileId: fileId.get))
       else:
         none(Seen)
-    if ev.outcome != oDuplicate:
-      # (a file whose content is in already has nothing to say)
-      ev.advisories = prep.warnings & noticed
-    if row.isSome and (ev.outcome != oFailed or ev.failure.remembered):
+    # (a file whose content is in already has nothing to say)
+    let advisories =
+      if outcome != oDuplicate:
+        prep.warnings & noticed
+      else:
+        @[]
+    if row.isSome and (outcome != oFailed or failure.remembered):
       pending.add c.key, row.get
     if pending.full:
       flushSeen()
-    finished ev
+    finished fileDoneEvent(
+      index, c.path, outcome, advisories, counts, failure, message, sameAs
+    )
   if pooled:
     pool.finish()
   if checkpoints.running:

@@ -205,21 +205,18 @@ suite "import events: sinks":
 
   test "plain lines for each outcome":
     func done(o: Outcome, msg = ""): ImportEvent =
-      ImportEvent(
-        kind: evFileDone,
-        index: 1,
-        path: "p.fit",
-        outcome: o,
-        counts: Counts(activities: 1, segments: 2, coords: 3),
-        failure: fkBadFormat,
-        message: msg,
+      fileDoneEvent(
+        1,
+        "p.fit",
+        o,
+        counts = Counts(activities: 1, segments: 2, coords: 3),
+        message = msg,
       )
     check plainLines(done(oImported), false).stdout.texts ==
       @["imported  p.fit  (1 activity, 2 segments, 3 coordinates)"]
     check plainLines(done(oDuplicate), false).stdout.texts ==
       @["duplicate p.fit  (already imported)"]
-    var same = done(oDuplicate)
-    same.sameAs = "q/p.fit"
+    let same = fileDoneEvent(1, "p.fit", oDuplicate, sameAs = "q/p.fit")
     check plainLines(same, false).stdout.texts ==
       @["duplicate p.fit  (same content as q/p.fit)"]
     check plainLines(done(oUnchanged), false).stdout.texts == @["unchanged p.fit"]
@@ -232,7 +229,7 @@ suite "import events: sinks":
 
   test "quiet keeps only failures and the summary":
     func done(o: Outcome): ImportEvent =
-      ImportEvent(kind: evFileDone, index: 1, path: "p.fit", outcome: o)
+      fileDoneEvent(1, "p.fit", o)
     for o in [oImported, oDuplicate, oUnchanged, oKnownFailure]:
       check plainLines(done(o), true).stdout.len == 0
     check plainLines(done(oFailed), true).stdout.len == 1

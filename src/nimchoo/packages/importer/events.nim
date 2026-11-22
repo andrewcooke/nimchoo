@@ -48,16 +48,91 @@ type
     of evFileDone:
       index*: int ## 1-based
       path*: string
-      outcome*: Outcome
-      counts*: Counts ## for oImported
-      failure*: FailureKind ## for oFailed and oKnownFailure
-      message*: string ## the reason, for those
-      sameAs*: string ## for oDuplicate: where that content was imported from
       advisories*: seq[Warning] ## oddities found in the file (not errors)
+      case outcome*: Outcome
+      of oImported:
+        counts*: Counts
+      of oDuplicate:
+        sameAs*: string ## where that content was imported from ("" if not known)
+      of oUnchanged:
+        discard
+      of oKnownFailure, oMonitor, oFailed:
+        failure*: FailureKind
+        message*: string ## the reason
     of evFinish:
       summary*: Summary
 
-  Sink* = proc(ev: ImportEvent) {.closure, raises: [].}
+func fileDoneEvent*(
+    index: int,
+    path: string,
+    outcome: Outcome,
+    advisories: seq[Warning] = @[],
+    counts = Counts(),
+    failure = fkBadFormat,
+    message = "",
+    sameAs = "",
+): ImportEvent =
+  ## The event of a file that is done: only what belongs to its outcome is kept (`counts` of an imported file, `sameAs` of a
+  ## duplicate, `failure` and `message` of those that failed or are known to), so that none is made that says more.
+  case outcome
+  of oImported:
+    ImportEvent(
+      kind: evFileDone,
+      index: index,
+      path: path,
+      advisories: advisories,
+      outcome: oImported,
+      counts: counts,
+    )
+  of oDuplicate:
+    ImportEvent(
+      kind: evFileDone,
+      index: index,
+      path: path,
+      advisories: advisories,
+      outcome: oDuplicate,
+      sameAs: sameAs,
+    )
+  of oUnchanged:
+    ImportEvent(
+      kind: evFileDone,
+      index: index,
+      path: path,
+      advisories: advisories,
+      outcome: oUnchanged,
+    )
+  of oKnownFailure:
+    ImportEvent(
+      kind: evFileDone,
+      index: index,
+      path: path,
+      advisories: advisories,
+      outcome: oKnownFailure,
+      failure: failure,
+      message: message,
+    )
+  of oMonitor:
+    ImportEvent(
+      kind: evFileDone,
+      index: index,
+      path: path,
+      advisories: advisories,
+      outcome: oMonitor,
+      failure: failure,
+      message: message,
+    )
+  of oFailed:
+    ImportEvent(
+      kind: evFileDone,
+      index: index,
+      path: path,
+      advisories: advisories,
+      outcome: oFailed,
+      failure: failure,
+      message: message,
+    )
+
+type Sink* = proc(ev: ImportEvent) {.closure, raises: [].}
 
 func fanOut*(sinks: seq[Sink]): Sink =
   ## One sink that passes each event to all of `sinks`, in order.

@@ -38,14 +38,13 @@ proc fresh(name: string): string =
   createDir(result)
 
 func done(o: Outcome): ImportEvent =
-  ImportEvent(
-    kind: evFileDone,
-    index: 1,
-    path: "p.fit",
-    outcome: o,
-    counts: Counts(activities: 1, segments: 2, coords: 3),
-    failure: fkNoActivity,
-    message: "why",
+  fileDoneEvent(
+    1,
+    "p.fit",
+    o,
+    counts = Counts(activities: 1, segments: 2, coords: 3),
+    failure = fkNoActivity,
+    message = "why",
   )
 
 suite "import log: entries":
