@@ -34,6 +34,36 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
 
+14. **Step 3 of the review: input parsed at the edge, with units** (designed with the author 2026-11-22; dev/REVIEW.md
+    sections 3.1 and 4, D3; findings C7, C13, D3, D8, D9, E11).  To be approved by the author before it starts; then a
+    cheaper model can build it from this brief, one commit per point, `nimble fmt` and `nimble test` before each.
+    * **Readers** (one each, in `geo` or a small package of their own, as the package rules say): a **distance** with its
+      unit (`100m`, `1.5km`), a **duration** with its unit (`d h m s`, as `interval` writes them: `60s`, `42d`, `2h30m`),
+      both finite and positive (no `nan`, `inf`, `-1`); a **position** is `geo/position` (`LAT,LON`), which must refuse
+      `nan` too.  `m` is metres in a distance and minutes in a duration: the option's kind says which.
+    * **Units are required.**  A bare number is a fourth outcome of `parseArgs` (beside valid, help and a problem): "valid
+      with the unit added", with the corrected arguments.  **One shared helper in `core`** handles it for every command
+      (as `usageError` handles a problem): on a terminal it asks, in three styles, `nch activities: --radius 3 has no
+      unit; did you mean` (warn), the command line with the default unit added and each argument quoted again (default),
+      `[Yn]` (em), Enter meaning yes, and on yes the command runs with the corrected arguments; not on a terminal it fails
+      with exit 2 and prints the corrected line.  Default units: km for the rides' distances (`--distance`, `--radius`),
+      m for a landmark's size; the durations' as their old units (seconds, days).
+    * **The options**: `activities --distance` (its ranges: `40km-`, `10km-50km`, `42km~2km`, `latest~10%`) and `--active`
+      (already `d h m s`); `--radius` of `activities` and `climbs`; `models --max-secs` becomes **`--max-gap`**,
+      `--fitness-days` **`--fitness-decay`**, `--fatigue-days` **`--fatigue-decay`** (durations); `landmarks --radius`
+      becomes **`--size`** (the landmark's own circle: not a search radius), read as a distance.  Heart rate stays bpm
+      without a unit, `--zones` in %.
+    * **One `--from`/`--near`/`--radius` piece** (C7): the option specs, help, defaults (10km for `--from`, 1km for
+      `--near`), the reading of a place's name and the check that `--radius` goes with them, written once and used by
+      `activities` and `climbs` (now each has its own copy).  `--all --radius` is refused as `--all --from latest` is (D8).
+      `landmarks` uses the readers (its `--near` and `--at` take a place's name, as the conventions say) but not the piece.
+    * **The box round a circle** (D9): `activities/criteria.box`/`boxes` (poles and the date line handled) move to `geo`,
+      with one metres-a-degree, and `names/suggest.nim` and `names/lookup.nim` use them.
+    * **`--port`** (E11): "not given" is not the default port (an `Option`), so `--file --port 62466` is refused as
+      `--file --port 8000` is.
+    * Then CLAUDE.md ("input never takes a unit for distance, and `m` always means minutes", the option conventions),
+      the help texts and the memory of the author's habits: every distance and duration in input carries its unit.
+
 13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
     before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the
     host (`localhost:PORT`) and the token as the page's address gives them.
