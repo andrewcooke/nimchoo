@@ -12,7 +12,7 @@
 ## Short queries with fixed text need no `Sql`: `query(db, T, "... where id = :id", id = 3)` takes the same `:names` and the
 ## values by name (`statement.nim`); a `?` in the text is an error.
 
-import std/options
+import std/[options, sequtils]
 import ../../core/ids
 import ./access
 
@@ -169,3 +169,7 @@ func jsonList*(ids: openArray[int64]): string =
       result.add ','
     result.add $id
   result.add ']'
+
+func jsonList*[T: AnyId](ids: openArray[T]): string =
+  ## The same for the ids of rows (`ActivityId`, `FileId` ...).
+  jsonList(ids.mapIt(int64(it)))

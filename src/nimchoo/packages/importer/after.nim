@@ -33,7 +33,7 @@ type
     say*: Say
 
   AfterImport* = object
-    run*: proc(st: Session, ids: seq[int64], ctx: AfterContext): seq[ImportReport] {.
+    run*: proc(st: Session, ids: seq[ActivityId], ctx: AfterContext): seq[ImportReport] {.
       nimcall, raises: [StoreError, DownloadError]
     .}
       ## do it, showing how far it has got; what it has to say, a line each (none: nothing)

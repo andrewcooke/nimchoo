@@ -1,3 +1,4 @@
+import nimchoo/core/ids
 import std/[os, sequtils, strutils, unittest]
 import ../support/env
 import nimchoo/core/[extension, globals]
@@ -43,13 +44,14 @@ suite "climbs: after an import":
     let a = s.addActivity("a")
     let b = s.addActivity("b")
     check s.db.scalar(int, "select count(*) from climbs_done") == 0
-    let first = workNewClimbs.run(s, @[a], ctx)
+    let first = workNewClimbs.run(s, @[ActivityId(a)], ctx)
     check first.len == 2 and
       first[0].text == "climbs for 2 activities: 0 new climbs, 0 efforts"
       # (all that were lacking, not only the one named: a re-import catches up)
     check first[1].text == "selected no climbs (the new activities went up none)"
     check s.db.scalar(int, "select count(*) from climbs_done") == 2
-    check workNewClimbs.run(s, @[b], ctx).len == 1 # (the selection, still said)
+    check workNewClimbs.run(s, @[ActivityId(b)], ctx).len == 1
+      # (the selection, still said)
 
   test "it shows how far it has got, and the last frame is the final one":
     let s = fresh("show")
@@ -66,7 +68,7 @@ suite "climbs: after an import":
           text.add sp.text
         text.add "\n"
       frames.add (text, final)
-    discard workNewClimbs.run(s, @[a], shown)
+    discard workNewClimbs.run(s, @[ActivityId(a)], shown)
     check frames.len >= 2
     check frames[^1].final and not frames[0].final
     check frames[^1].text == "climbing 2 / 2 activities\nclimbs 0 · efforts 0\n"
@@ -81,12 +83,12 @@ suite "climbs: after an import":
     defer:
       s.close()
     let a = s.addActivity("a")
-    check workNewClimbs.run(s, @[a], ctx).len == 2
+    check workNewClimbs.run(s, @[ActivityId(a)], ctx).len == 2
     var frames = 0
     var shown = ctx
     shown.show = proc(lines: seq[Line], final: bool) {.closure, raises: [].} =
       inc frames
-    check workNewClimbs.run(s, @[a], shown).len == 1 # (only the selection)
+    check workNewClimbs.run(s, @[ActivityId(a)], shown).len == 1 # (only the selection)
     check frames == 0
   test "climbs with no name are named, as nch climbs does, and said":
     let s = fresh("naming")
@@ -98,12 +100,12 @@ suite "climbs: after an import":
       values (1000, 90, 9, '4', GeomFromText('LINESTRING Z(-70.60 -33.40 10, -70.59 -33.40 100)', 4326))"""
     )
     check s.db.scalar(int, "select count(*) from sector where name is null") == 1
-    let said = workNewClimbs.run(s, @[a], ctx)
+    let said = workNewClimbs.run(s, @[ActivityId(a)], ctx)
     check said.len == 2 and said[0].text.startsWith("climbs for ")
     # (offline, with nothing in the test cache: not named, and not marked as having no name near; the names are tested in
     # test_naming.nim)
     check s.db.scalar(int, "select count(*) from sector where name is null") == 1
-    check workNewClimbs.run(s, @[a], ctx).len == 1
+    check workNewClimbs.run(s, @[ActivityId(a)], ctx).len == 1
       # (nothing new to say but the selection)
 
   test "the climbs of the new activities are the climbs selection, in the selection's style":
@@ -112,10 +114,10 @@ suite "climbs: after an import":
       s.close()
     addRide(s, "default", "old", 1_000_000, 5.0, eastbound(5.0))
     let old = s.db.scalar(int64, "select max(id) from activity")
-    discard workNewClimbs.run(s, @[old], ctx)
+    discard workNewClimbs.run(s, @[ActivityId(old)], ctx)
     check chosenClimbs(s).len == 1
     addRide(s, "default", "flat", 2_000_000, 5.0, @[0.0, 5.0, 10.0])
     let flat = s.db.scalar(int64, "select max(id) from activity")
-    let said = workNewClimbs.run(s, @[flat], ctx)
+    let said = workNewClimbs.run(s, @[ActivityId(flat)], ctx)
     check chosenClimbs(s).len == 0 # (they went up none: it is empty)
     check said[^1].style == selectedStyle

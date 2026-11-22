@@ -1,7 +1,8 @@
 ## The new activities become the selection: what `selection` does once an import has finished (the point
 ## `importer/after`), so that the commands that work on the selection are ready to use on the ride just imported.
 
-import std/strformat
+import std/[sequtils, strformat]
+import ../../core/ids
 import ../../core/errors
 import ../importer/after
 import ../ui/vocabulary
@@ -11,9 +12,9 @@ import ./selection
 {.push raises: [].}
 
 proc selectImported(
-    st: Session, ids: seq[int64], ctx: AfterContext
+    st: Session, ids: seq[ActivityId], ctx: AfterContext
 ): seq[ImportReport] {.raises: [StoreError].} =
-  st.replaceSelection(ids)
+  st.replaceSelection(ids.mapIt(int64(it)))
   let what =
     if ids.len == 1:
       "the new activity"

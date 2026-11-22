@@ -1,3 +1,4 @@
+import nimchoo/core/ids
 import std/[os, unittest]
 import nimchoo/core/extension
 import nimchoo/core/globals
@@ -40,9 +41,9 @@ suite "selection: after an import":
     let b = s.addActivity("b")
     let c = s.addActivity("c")
     let ctx = quietContext(Globals(offline: true))
-    let first = selectNewActivities.run(s, @[a], ctx)
+    let first = selectNewActivities.run(s, @[ActivityId(a)], ctx)
     check first.len == 1 and first[0].text == "selected the new activity"
     check first[0].style == selectedStyle
-    let second = selectNewActivities.run(s, @[b, c], ctx)
+    let second = selectNewActivities.run(s, @[ActivityId(b), ActivityId(c)], ctx)
     check second.len == 1 and second[0].text == "selected the 2 new activities"
     check s.db.query(int64, "select activity_id from selection order by 1") == @[b, c]

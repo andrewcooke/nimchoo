@@ -95,7 +95,7 @@ suite "delete: the plan":
       bob.close()
     fill(bob, "bobs")
     let p = planDelete(s, @[1'i64, 2'i64])
-    check p.ids == @[1'i64]
+    check p.ids == @[ActivityId(1)]
   test "one activity, one day; no sport recorded":
     let d = fresh("one")
     let s = openSession(d, allFragments, access = allAccess)

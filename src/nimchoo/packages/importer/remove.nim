@@ -17,10 +17,10 @@ import ./describe
 
 type
   Plan* = object
-    ids*: seq[int64] ## the activities to delete (the current user's)
-    fileOf*: seq[int64] ## the file of each (parallel to `ids`)
-    fileIds*: seq[int64] ## their files (each once)
-    first*, last*: int64 ## when the first and the last of them began (Unix seconds)
+    ids*: seq[ActivityId] ## the activities to delete (the current user's)
+    fileOf*: seq[FileId] ## the file of each (parallel to `ids`)
+    fileIds*: seq[FileId] ## their files (each once)
+    first*, last*: UnixTime ## when the first and the last of them began
     sports*: seq[(string, int)]
       ## how many of each sport ("" is not recorded), the most first
 
@@ -31,11 +31,11 @@ type
 
 proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
   ## What deleting these activities (of the current user) would take: their files, the sports and the dates.
-  var files: seq[int64]
+  var files: seq[FileId]
   var sports = initTable[string, int]()
   # id, file, start, sport
   var rows = st.db.query(
-    (int64, int64, int64, string),
+    (ActivityId, FileId, int64, string),
     "select a.id, a.file_id, a.start_t, coalesce(a.sport, '') from activity a " &
       "join file f on f.id = a.file_id where f.user_id = :userId and " &
       "a.id in (select value from json_each(:ids))",
@@ -43,10 +43,10 @@ proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
     ids = jsonList(ids),
   )
   rows.sort(
-    proc(a, b: (int64, int64, int64, string)): int =
+    proc(a, b: (ActivityId, FileId, int64, string)): int =
       result = cmp(a[2], b[2])
       if result == 0:
-        result = cmp(a[0], b[0])
+        result = cmp(int64(a[0]), int64(b[0]))
   )
   for (id, file, t, sport) in rows:
     result.ids.add id
@@ -54,8 +54,8 @@ proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
     if file notin files:
       files.add file
     if result.ids.len == 1:
-      result.first = t
-    result.last = t
+      result.first = UnixTime(t)
+    result.last = UnixTime(t)
     sports.mgetOrPut(sport, 0) += 1
   result.fileIds = files
   for sport, n in sports:
@@ -78,8 +78,8 @@ proc describe*(p: Plan, zone: Timezone): string =
   for (sport, k) in p.sports:
     sp.add sportText(sport, "", false) & " " & count(k)
   result.add " (" & sp.join(", ") & ")"
-  let a = dateText(UnixTime(p.first), zone)
-  let b = dateText(UnixTime(p.last), zone)
+  let a = dateText(p.first, zone)
+  let b = dateText(p.last, zone)
   result.add (if a == b: " on " & a else: " from " & a & " to " & b)
 
 const chunk* = 25
@@ -104,7 +104,7 @@ proc deleteActivities*(
         ids = jsonList(p.ids[at ..< stop]),
       )
       # the files of these activities that have none left (one that still has an activity in a later chunk is met again then)
-      var files: seq[int64]
+      var files: seq[FileId]
       for k in at ..< stop:
         if p.fileOf[k] notin files:
           files.add p.fileOf[k]

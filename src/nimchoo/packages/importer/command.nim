@@ -41,10 +41,12 @@ proc newestActivity(st: Store): int64 {.raises: [StoreError].} =
   ## The highest activity id there is (0 if none): what is imported after it is new.
   st.db.scalar(int64, "select coalesce(max(id), 0) from activity")
 
-proc newActivities(st: Session, after: int64): seq[int64] {.raises: [StoreError].} =
+proc newActivities(
+    st: Session, after: int64
+): seq[ActivityId] {.raises: [StoreError].} =
   ## The activities of this user added after the activity `after`: what this import made.
   st.db.query(
-    int64,
+    ActivityId,
     """select a.id from activity a join file f on f.id = a.file_id
         where a.id > :after and f.user_id = :userId order by a.id""",
     after = after,

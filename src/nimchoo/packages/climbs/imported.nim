@@ -5,8 +5,8 @@
 ## cannot be asked for by name.)  Those still work out what is lacking before they show anything (it is idempotent: a second pass
 ## looks at nothing), so a database made before this, or an import whose last step failed, is caught up by them.
 
-import std/[options, strformat]
-import ../../core/errors
+import std/[options, sequtils, strformat]
+import ../../core/[errors, ids]
 import ../importer/after
 import ../user/session
 import ../ui/vocabulary
@@ -16,7 +16,7 @@ import ../ui/units
 {.push raises: [].}
 
 proc workOutClimbs(
-    st: Session, ids: seq[int64], ctx: AfterContext
+    st: Session, ids: seq[ActivityId], ctx: AfterContext
 ): seq[ImportReport] {.raises: [StoreError, DownloadError].} =
   ## Find the climbs of every activity not yet looked at (not only `ids`: a re-import catches up too), the two lines of
   ## `nch climbs` following it (`climbingLines`), then name those that have no name yet, as `nch climbs` does (`nameClimbs`).
@@ -29,7 +29,7 @@ proc workOutClimbs(
     ctx.show(climbingLines(worked.activities, worked.activities, worked), true)
     result.add ImportReport(text: "climbs for " & workedText(worked))
   # the climbs of the new activities are the climbs selection, as they are the activities' (none: it is empty)
-  let chosen = climbsOfActivities(st, ids)
+  let chosen = climbsOfActivities(st, ids.mapIt(int64(it)))
   st.replaceClimbSelection(chosen)
   result.add ImportReport(
     text:
