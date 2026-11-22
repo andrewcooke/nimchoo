@@ -2,6 +2,7 @@ import nimchoo/packages/user/session
 import nimchoo/packages/db/statement
 import std/[sequtils, strutils, times, unittest]
 import nimchoo/packages/climbs/[attempts, found, params]
+import nimchoo/packages/climbs/report
 import nimchoo/packages/climbs/display
 import nimchoo/packages/climbs/work
 import nimchoo/packages/ui/style
@@ -103,6 +104,20 @@ suite "attempts: from the tables":
     check namedClimbs(s, @["99999"]).len == 0
     s.db.execute("update sector set name = 'Ruta " & $id & "', manual = 1")
     check namedClimbs(s, @[$id]) == @[id] # (found by name now)
+
+suite "attempts: matching typed names to climbs, the one rule":
+  test "each text gets its climbs (none: no climb has it); retired ones only when asked":
+    let s = world("attempts-rule")
+    defer:
+      s.close()
+    s.db.execute("update sector set name = 'Cuesta Chacabuco', manual = 1")
+    let id = s.db.scalar(int64, "select id from sector")
+    check climbsNamed(s, @["chacabuco", "nothing"], retiredToo = false) ==
+      @[("chacabuco", @[id]), ("nothing", newSeq[int64]())]
+    s.db.execute("update sector set retired = 1")
+    check climbsNamed(s, @["cuesta"], retiredToo = false)[0].ids.len == 0
+    check climbsNamed(s, @["cuesta"], retiredToo = true)[0].ids == @[id]
+    check climbsNamed(s, @["farellones 2"], retiredToo = true)[0].ids.len == 0
 
 suite "attempts: the lines":
   test "the summary of the user's attempts: the best of the selected rides in the selection's colour; with -v the attempts":

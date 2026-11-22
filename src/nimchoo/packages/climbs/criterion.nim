@@ -2,14 +2,13 @@
 ## whose name holds the text.  It is contributed to the point `activities/criteria` (see package.nim); the condition reads
 ## `effort`, a table of this package, which `activities` could not read by itself.
 
-import std/[options, strutils, tables]
+import std/strutils
 import ../../core/errors
 import ../activities/criterion
 import ../db/sqltext
-import ../text/fold/fold
 import ../user/session
 import ../util/args/args
-import ./[completion, display, report]
+import ./[completion, report]
 
 {.push raises: [].}
 
@@ -33,25 +32,15 @@ proc resolveClimbs(
   if texts.len == 0:
     raiseStore("`--climbs` needs some text")
   var ids: seq[int64]
-  let shown = shownNames(st)
-  for t in texts:
-    var found = false
-    for id, name in shown:
-      for form in ordinalForms(t):
-        if foldText(name).contains(foldText(form)):
-          found = true
-          if id notin ids:
-            ids.add id
-    if not found:
-      let n = climbNumber(t)
-      if n.isSome and n.get in shown:
-        found = true
-        ids.add n.get
-    if not found:
+  for (t, hits) in climbsNamed(st, texts, retiredToo = true):
+    if hits.len == 0:
       raiseStore(
         "no climb has '" & t &
           "' in its name or is numbered so (`nch climbs --all` lists them)"
       )
+    for id in hits:
+      if id notin ids:
+        ids.add id
   result.condition = onClimbs(ids)
 
 let climbCriterion* = Criterion(

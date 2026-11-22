@@ -2,13 +2,14 @@
 ## them.  Distances are metres in the database and kilometres on the screen; a time is gate to
 ## gate, stops included.  The formatting is pure.
 
-import std/[strutils, tables, unicode]
+import std/[options, sequtils, strutils, tables, unicode]
 import ../../core/ruled
 import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../ui/[markup, style]
 import ./[describe, display, work]
+import ../text/fold/fold
 import ../ui/units
 
 {.push raises: [].}
@@ -31,6 +32,35 @@ proc shownNames*(st: Store): Table[int64, string] {.raises: [StoreError].} =
   let texts = displayNames(climbs)
   for i, c in climbs:
     result[c.id] = texts[i]
+
+type NamedClimbs* = tuple[text: string, ids: seq[int64]]
+  ## the climbs a text typed by the user meant (none: no climb has it)
+
+proc climbsNamed*(
+    st: Store, texts: seq[string], retiredToo: bool
+): seq[NamedClimbs] {.raises: [StoreError].} =
+  ## Match typed texts to climbs: the one rule for `climbs --names` and `activities --climbs`.  A climb's name as shown
+  ## ("Farellones₂") holds the text, case and accents ignored ("farellones 2" and "farellones2" mean "farellones₂": `ordinalForms`);
+  ## a text no name holds that is a whole number is a climb's number (`climbNumber`).  Retired climbs only with `retiredToo`.
+  ## The ids of each text are the biggest climb first.
+  let names = shownNames(st)
+  let ids = st.db.query(
+    int64,
+    "select id from sector where " & (if retiredToo: "1" else: "retired = 0") &
+      " order by gain_m desc, id",
+  )
+  for t in texts:
+    let wanted = ordinalForms(t).mapIt(foldText(it))
+    var hits: seq[int64]
+    for id in ids:
+      let shown = foldText(names.getOrDefault(id, ""))
+      if wanted.anyIt(it in shown):
+        hits.add id
+    if hits.len == 0:
+      let n = climbNumber(t)
+      if n.isSome and n.get in ids:
+        hits.add n.get
+    result.add (t, hits)
 
 proc countRetired*(st: Store): int {.raises: [StoreError].} =
   ## How many climbs are retired (hidden).

@@ -6,7 +6,7 @@
 ## Which climbs are shown is not decided here: the selected rides' climbs, or those whose name holds some text.
 ## Whatever the climbs, all their attempts count, those of the selected rides and the others.
 
-import std/[algorithm, options, sequtils, strutils, tables, times]
+import std/[algorithm, options, sequtils, tables, times]
 import ../../core/ruled
 import ../db/statement
 import ../db/store
@@ -14,7 +14,6 @@ import ../../core/errors
 import ../fit/time
 import ../importer/describe
 import ../util/lookup/lookup
-import ../text/fold/fold
 import ../ui/[markup, style]
 import ../ui/units
 import ../ui/vocabulary
@@ -63,26 +62,12 @@ proc namedClimbs*(st: Store, texts: seq[string]): seq[int64] {.raises: [StoreErr
   ## The climbs (not retired) whose name as shown ("Farellones₂") holds any of the texts, case and accents ignored, the
   ## biggest first.  "farellones 2" and "farellones2" mean "farellones₂" as well (`ordinalForms`).  A whole number that
   ## no name holds is a climb's number (`climbNumber`).
-  let names = shownNames(st)
   var found: seq[int64]
-  let ids = st.db.query(
-    int64, "select id from sector where retired = 0 order by gain_m desc, id"
-  )
-  for t in texts:
-    var wanted: seq[string]
-    for f in ordinalForms(t):
-      wanted.add foldText(f)
-    var hits: seq[int64]
-    for id in ids:
-      let shown = foldText(names.getOrDefault(id, ""))
-      if wanted.anyIt(it in shown):
-        hits.add id
-    if hits.len == 0:
-      let n = climbNumber(t)
-      if n.isSome and n.get in ids:
-        hits.add n.get
+  for (_, hits) in climbsNamed(st, texts, retiredToo = false):
     found.add hits
-  for id in ids:
+  for id in st.db.query(
+    int64, "select id from sector where retired = 0 order by gain_m desc, id"
+  ):
     if id in found:
       result.add id
 
