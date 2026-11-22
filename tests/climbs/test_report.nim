@@ -26,6 +26,7 @@ suite "climbs report: the display while they are worked out":
     check lines.len == 2
     check lines[0].text == "climbing 120 / 1,986 activities"
     check styleOf(lines[0][0]) == "em" and styleOf(lines[0][1]) == ""
+    check lines[0][0].text == "climbing 120" # (the number is in the title's style too)
     check lines[1].text == "climbs 12 · efforts 40"
     check styleOf(lines[1][0]) == "good" and styleOf(lines[1][2]) == "good"
     check lines[1][1].text == " · " and styleOf(lines[1][1]) == "hide"

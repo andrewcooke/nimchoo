@@ -68,6 +68,9 @@ suite "import display: the lines":
 
   test "at the end there is no current file":
     check renderImport(Summary(total: 5, done: 5), 5, "").texts[0] == "importing 5 / 5"
+    let first = renderImport(Summary(total: 5, done: 5), 5, "")[0]
+    check first[0].text == "importing 5" and $first[0].styles[0] == "em"
+      # (the number is in the title's style too)
 
   test "the done line is the summary":
     var s = Summary(done: 3, imported: 2, failed: 1)

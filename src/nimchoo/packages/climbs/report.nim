@@ -122,7 +122,7 @@ func climbingLines*(done, total: int, worked: Worked): seq[Line] =
   let (d, t) = (count(done), count(total))
   let (c, e) = (count(worked.sectors), count(worked.efforts))
   @[
-    ~"<em climbing >{d} / {t} activities",
+    ~"<em climbing {d}> / {t} activities",
     ~"<good climbs {c}><hide  · ><good efforts {e}>",
   ]
 

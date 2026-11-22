@@ -23,7 +23,7 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   ## The lines for the run so far: file number `index` (the one being looked
   ## at, `current`, if any) of `sum.total`.  What is zero is left out, except
   ## imported and failed.
-  var first = ~"<em importing >{count(index)} / {count(sum.total)}"
+  var first = ~"<em importing {count(index)}> / {count(sum.total)}"
   if current.len > 0:
     first.add ~"<hide    {current}>"
   var second: Line
