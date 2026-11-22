@@ -57,7 +57,7 @@ suite "nch landmarks":
     check landmark(db, "--search", "yerba") == exitOk
     # both are 0 population; by name: "Cerro Yerba Loca" is 1, "Estero de la Yerba Loca" is 2
     check landmark(
-      db, "--add", "Yerba Loca", "--search", "yerba", "--pick", "2", "--radius", "1500"
+      db, "--add", "Yerba Loca", "--search", "yerba", "--pick", "2", "--size", "1500m"
     ) == exitOk
     check q(db, "select name from landmark", string) == "Yerba Loca"
     check abs(q(db, "select lon from landmark", float) + 70.364) < 1e-9

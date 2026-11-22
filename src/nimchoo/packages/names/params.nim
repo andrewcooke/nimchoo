@@ -1,6 +1,7 @@
 ## The command line of `nch landmarks`, parsed.  Pure.
 
 import ../util/args/args
+import ../ui/units
 import ./completion
 import std/[options, strutils]
 import ./landmarks
@@ -95,7 +96,7 @@ func landmarkSpec*(): Spec[Raw] =
         ["--add"],
         true,
         "NAME",
-        ~"make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same `--search` or `--near`) or at a position you give (`--at LAT,LON`); its circle has the radius of `--radius` (100 to 20,000 metres; default 1,000)",
+        ~"make a landmark called NAME, at the position of suggestion N (`--pick N`, from the same `--search` or `--near`) or at a position you give (`--at LAT,LON`); its circle has the radius of `--size` (100m to 20km; default 1km)",
         body = (p.adding = true; p.name = value; fine),
       ),
       custom(
@@ -134,20 +135,23 @@ func landmarkSpec*(): Spec[Raw] =
       ),
       custom(
         Raw,
-        ["--radius"],
+        ["--size"],
         true,
-        "METRES",
-        ~"the radius of the landmark's circle",
+        "DISTANCE",
+        ~"the radius of the landmark's own circle, with its unit (`500m`, `1.5km`; a bare number is taken as metres, after asking)",
         level = 1,
         body = (
           block:
-            try:
-              p.radiusM = parseFloat(value)
-            except ValueError:
-              return refuse(~"`--radius` is metres (not '{value}')")
+            let d = parseDistance(value)
+            if d.isNone:
+              return valueIs(
+                name, "a distance with its unit, more than 0 (`500m`, `1.5km`)", value
+              )
+            p.radiusM = d.get.inMetres
             fine
         ),
-      ),
+      )
+        .withUnit("m"),
       custom(
         Raw,
         ["--delete"],
@@ -224,7 +228,7 @@ func finish(raw: Raw): Parsed[Params] =
   if sources > 1:
     return bad(~"`--search` and `--near` cannot be used together")
   if raw.radiusM != defaultRadiusM:
-    return bad(~"`--radius` goes with `--add`")
+    return bad(~"`--size` goes with `--add`")
   if raw.search.len > 0:
     parsedOk(
       Params(action: laSearch, suggest: Suggest(kind: skSearch, text: raw.search))

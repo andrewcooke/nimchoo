@@ -31,9 +31,9 @@ const
   synopsis = """usage: nch landmarks
        nch landmarks --search TEXT
        nch landmarks --near LAT,LON
-       nch landmarks --add NAME --search TEXT --pick N [--radius METRES]
-       nch landmarks --add NAME --near LAT,LON --pick N [--radius METRES]
-       nch landmarks --add NAME --at LAT,LON [--radius METRES]
+       nch landmarks --add NAME --search TEXT --pick N [--size DISTANCE]
+       nch landmarks --add NAME --near LAT,LON --pick N [--size DISTANCE]
+       nch landmarks --add NAME --at LAT,LON [--size DISTANCE]
        nch landmarks --delete NAME -f"""
   intro = @[
     ~"Your own names for places.  Where something is named (a climb, a ride that turns round), a landmark whose circle holds the place comes before every name GeoNames has.  Without options, list the landmarks."
