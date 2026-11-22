@@ -15,7 +15,7 @@ import ../fit/time
 import ../geo/position
 import ../importer/describe
 import ../ui/interval
-import ../ui/style
+import ../ui/[markup, style]
 import ../../core/globals
 import ../../core/ruled
 import ../ui/units
@@ -106,7 +106,7 @@ proc table*(
           style = some(styleName"warn")
       line.add(
         if style.isSome:
-          @[span(text, style.get)]
+          ~"<{style.get} {text}>"
         else:
           plain(text)
       )
@@ -177,4 +177,4 @@ func footerLine*(
   ## with no criteria, or just saved with `--select`; with `marks`, in brackets), so that nothing more need be said.
   let text = footer(rows, choices)
   let count = count(rows.len)
-  doneLine(@[countSpan(rows.len, isSelection, marks), span(text[count.len .. ^1])])
+  doneLine(@[countSpan(rows.len, isSelection, marks)] & ~"{text[count.len .. ^1]}")

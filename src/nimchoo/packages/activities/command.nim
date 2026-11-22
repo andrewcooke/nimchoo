@@ -402,7 +402,7 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
     let n = ensureActivityNames(st, names.get)
     var left: Line
     if n.left > 0:
-      left = @[span("; ")] & n.leftText
+      left = ~"; " & n.leftText
     g.tell(
       osOut,
       ~"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither" &
