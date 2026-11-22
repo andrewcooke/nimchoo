@@ -13,7 +13,7 @@ import ../../core/[globals, line]
 import ../util/warnings/warnings
 import ./events
 import ./cmdname
-import ../ui/vocabulary
+import ../ui/[markup, vocabulary]
 import ./failure
 import ../ui/units
 
@@ -66,32 +66,32 @@ func failureBreakdown*(s: Summary): string =
       parts.add k.label & " " & $s.failures[k]
   parts.join(", ")
 
-func summaryLine*(s: Summary): string =
+func summaryLine*(s: Summary): Line =
   ## "1113 files, 1112 imported, 1 duplicate, 0 failed, 85 advisories": what is
   ## zero is left out, except imported and failed.
-  result = counted(s.done, "file", "files") & ", " & $s.imported & " imported"
+  var text = counted(s.done, "file", "files") & ", " & $s.imported & " imported"
   if s.duplicates > 0:
-    result.add ", " & counted(s.duplicates, "duplicate", "duplicates")
+    text.add ", " & counted(s.duplicates, "duplicate", "duplicates")
   if s.unchanged > 0:
-    result.add ", " & $s.unchanged & " unchanged"
+    text.add ", " & $s.unchanged & " unchanged"
   if s.monitor > 0:
-    result.add ", " & $s.monitor & " monitor"
-  result.add ", " & $s.failed & " failed"
+    text.add ", " & $s.monitor & " monitor"
+  text.add ", " & $s.failed & " failed"
   let kinds = failureBreakdown(s)
   if kinds.len > 0:
-    result.add " (" & kinds & ")"
+    text.add " (" & kinds & ")"
+  result = plain(text)
   if s.known > 0:
-    result.add ", " & counted(s.known, "known failure", "known failures") &
-      " (use `--slow` to retry)"
+    result.add ~", {counted(s.known, \"known failure\", \"known failures\")} (use `--slow` to retry)"
   if s.advisories > 0:
-    result.add ", " & counted(s.advisories, "advisory", "advisories")
+    result.add plain(", " & counted(s.advisories, "advisory", "advisories"))
 
-func moreHint*(s: Summary, logged: bool): string =
+func moreHint*(s: Summary, logged: bool): Line =
   ## How to see more: `nch log` with the words of what happened, such as
-  ## "more: `nch log import failed duplicate --last`" (the latest import only).  ""
+  ## "more: `nch log import failed duplicate --last`" (the latest import only).  Empty
   ## if there is nothing to look into or no log.
   if not logged:
-    return ""
+    return @[]
   var words: seq[string]
   if s.failed > 0:
     words.add $leFailed
@@ -100,8 +100,9 @@ func moreHint*(s: Summary, logged: bool): string =
   if s.advisories > 0:
     words.add $leAdvisory
   if words.len == 0:
-    return ""
-  "more: `nch log " & commandName & " " & words.join(" ") & " --last`"
+    return @[]
+  let named = words.join(" ")
+  ~"more: `nch log {commandName} {named} --last`"
 
 func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   ## The lines to print for an event.  Failures, advisories and the summary are
@@ -145,10 +146,10 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   of evFinish:
     for note in ev.summary.warnings:
       result.stderr.add warnLine(note)
-    result.stdout.add plain("read: " & summaryLine(ev.summary))
+    result.stdout.add @[span("read: ")] & summaryLine(ev.summary)
     let hint = moreHint(ev.summary, logged)
     if hint.len > 0:
-      result.stderr.add plain(hint)
+      result.stderr.add hint
 
 proc plainSink*(g: Globals, quiet: bool, logged = false): Sink =
   ## Print the plain lines as the events come.  `logged`: there is a log, so the

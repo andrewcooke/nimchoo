@@ -6,7 +6,7 @@
 ## re-import of thousands would fill the log); the `done` line counts them.  `-q`
 ## affects the screen only; the log is always complete.
 
-import ../../core/logfile
+import ../../core/[line, logfile]
 import ./events
 import ./failure
 import ./cmdname
@@ -62,7 +62,7 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
   of evFinish:
     for note in ev.summary.warnings:
       result.add entry(lvWarn, leNote, note)
-    result.add entry(lvInfo, leDone, summaryLine(ev.summary))
+    result.add entry(lvInfo, leDone, summaryLine(ev.summary).plainText)
 
 proc logSink*(l: Log): Sink =
   ## Write the entries of each event to `l`.

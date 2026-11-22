@@ -55,15 +55,15 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
     part span("advisories " & count(sum.advisories), leAdvisory)
   @[first, second]
 
-func readLine*(sum: Summary): string =
+func readLine*(sum: Summary): Line =
   ## The line after the display: the summary of the files read.  It does not say "done:", because what follows (the
   ## names, the selection) is not over yet.
-  "read: " & summaryLine(sum)
+  @[span("read: ")] & summaryLine(sum)
 
 proc liveSink*(
     l: Live,
     logged: bool,
-    stdoutWrite, stderrWrite: proc(s: string) {.closure, raises: [].},
+    stdoutWrite, stderrWrite: proc(l: Line) {.closure, raises: [].},
 ): Sink =
   ## Show the run on `l`.  When it ends the last frame stays on screen, then
   ## `stdoutWrite` gets the done line, and `stderrWrite` any notes and the hint
@@ -83,12 +83,12 @@ proc liveSink*(
       index = ev.index
     of evFinish:
       l.keep(renderImport(sum, sum.done, ""))
-      stdoutWrite readLine(sum) & "\n"
+      stdoutWrite readLine(sum)
       for note in ev.summary.warnings:
-        stderrWrite warnLine(note).text & "\n"
+        stderrWrite warnLine(note)
       let hint = moreHint(sum, logged)
       if hint.len > 0:
-        stderrWrite hint & "\n"
+        stderrWrite hint
       return
     if l.due():
       l.show(renderImport(sum, index, current))

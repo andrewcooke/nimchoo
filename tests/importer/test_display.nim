@@ -72,20 +72,23 @@ suite "import display: the lines":
   test "the done line is the summary":
     var s = Summary(done: 3, imported: 2, failed: 1)
     s.failures[fkBadFormat] = 1
-    check readLine(s) == "read: 3 files, 2 imported, 1 failed (bad format 1)"
-    check readLine(Summary(done: 1, imported: 1)) == "read: 1 file, 1 imported, 0 failed"
+    check readLine(s).plainText == "read: 3 files, 2 imported, 1 failed (bad format 1)"
+    check readLine(Summary(done: 1, imported: 1)).plainText ==
+      "read: 1 file, 1 imported, 0 failed"
 
   test "the hint says what to look at, only for what happened":
-    check moreHint(Summary(done: 1, imported: 1), true) == ""
-    check moreHint(Summary(failed: 1), true) == "more: `nch log import failed --last`"
-    check moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true) ==
+    check moreHint(Summary(done: 1, imported: 1), true).plainText == ""
+    check moreHint(Summary(failed: 1), true).plainText ==
+      "more: `nch log import failed --last`"
+    check moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true).plainText ==
       "more: `nch log import failed duplicate advisory --last`"
-    check moreHint(Summary(duplicates: 1), true) ==
+    check moreHint(Summary(duplicates: 1), true).plainText ==
       "more: `nch log import duplicate --last`"
-    check moreHint(Summary(failed: 1), false) == "" # no log, no hint
+    check moreHint(Summary(failed: 1), false).plainText == "" # no log, no hint
 
   test "what the hint says is a command line that `nch log` accepts":
-    let hint = moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true)
+    let hint =
+      moreHint(Summary(duplicates: 1, advisories: 2, failed: 1), true).plainText
     check hint.startsWith("more: `nch log ") and hint.endsWith("`")
     let p = logParams.parseArgs(
       hint["more: `nch log ".len ..^ 2].splitWhitespace, @["import", "map"]
@@ -156,10 +159,10 @@ suite "import display: a run":
     let shown = liveSink(
       fakeLive(f),
       true,
-      proc(s: string) {.closure, raises: [].} =
-        f.outs.add(s),
-      proc(s: string) {.closure, raises: [].} =
-        f.errs.add(s),
+      proc(l: Line) {.closure, raises: [].} =
+        f.outs.add(l.plainText & "\n"),
+      proc(l: Line) {.closure, raises: [].} =
+        f.errs.add(l.plainText & "\n"),
     )
     importPaths(st, @[d], ImportOptions(), fanOut(@[ticker, shown]))
 

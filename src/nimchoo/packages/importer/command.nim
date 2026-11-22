@@ -67,10 +67,10 @@ proc runImport(
       liveSink(
         newTerminalLive(g.theme),
         logged,
-        proc(s: string) {.closure, raises: [].} =
-          g.say(osOut, s),
-        proc(s: string) {.closure, raises: [].} =
-          g.say(osErr, s),
+        proc(l: Line) {.closure, raises: [].} =
+          g.show(osOut, l),
+        proc(l: Line) {.closure, raises: [].} =
+          g.show(osErr, l),
       )
     else:
       plainSink(g, opts.quiet, logged)
@@ -119,7 +119,8 @@ proc runImport(
               $counts.startOnly & " with only a start place, " & $counts.nothing &
               " with neither" &
               (if gps > 0: "; " & counted(gps, "GPS error", "GPS errors") else: "") &
-              (if counts.left > 0: "; " & counts.leftText else: ""),
+              (if counts.left > 0: "; " & counts.leftText.plainText
+              else: ""),
           )
         )
         for e in counts.gpsErrors:
@@ -138,7 +139,7 @@ proc runImport(
             $counts.startOnly & " with only a start place, " & $counts.nothing &
             " with neither" &
             (if gps > 0: "; " & counted(gps, "GPS error", "GPS errors") else: "") &
-            (if counts.left > 0: "; " & counts.leftText else: ""),
+            (if counts.left > 0: "; " & counts.leftText.plainText else: ""),
         )
   except StoreError, DownloadError:
     namingFailed = true

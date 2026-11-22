@@ -1,3 +1,4 @@
+import nimchoo/core/line
 import ../support/arrays
 import nimchoo/packages/importer/coord
 import nimchoo/packages/fit/time
@@ -141,7 +142,7 @@ suite "import: naming the activities":
     names.offline = true
     let r = ensureActivityNames(w.st, names)
     check r.left == 1 and r.nothing == 0 and r.named == 0
-    check r.leftText.contains("1 left unnamed")
+    check r.leftText.plainText.contains("1 left unnamed")
     check w.net.gets.len == 0
     check pending(w.st) == @[1'i64] # (not stored as "nothing")
     check ensureActivityNames(w.st, w.names).named == 1

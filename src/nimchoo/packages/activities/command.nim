@@ -401,14 +401,13 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
   try:
     st.forgetNames(ids)
     let n = ensureActivityNames(st, names.get)
-    let left =
-      if n.left > 0:
-        fmt"; {n.leftText}"
-      else:
-        ""
+    var left: Line
+    if n.left > 0:
+      left = @[span("; ")] & n.leftText
     g.tell(
       osOut,
-      ~"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither{left}",
+      ~"named {n.total} activities again: {n.named} with a name, {n.startOnly} with only a start place, {n.nothing} with neither" &
+        left,
     )
     exitOk
   except StoreError, DownloadError:

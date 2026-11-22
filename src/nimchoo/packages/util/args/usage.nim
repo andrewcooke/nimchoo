@@ -3,7 +3,7 @@
 ## and frames of `map`).  A command's usage is styled lines (`core/line.nim`): its synopsis and introduction, written by
 ## hand, then this list, then any closing prose and sections, put together by `usageOf` in one order.  Pure: the width to wrap to is given.
 
-import std/[sequtils, strutils]
+import std/strutils
 import ../../../core/[line, ruled, wrap]
 import ./args
 export wrap, line

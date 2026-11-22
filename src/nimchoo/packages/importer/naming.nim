@@ -7,7 +7,8 @@
 import std/strformat
 import ../db/statement
 import ../db/store
-import ../../core/errors
+import ../../core/[errors, line]
+import ../ui/markup
 import ../names/activity
 import ../names/countries
 import ../names/lookup
@@ -38,12 +39,12 @@ func gpsErrorCount*(n: Named): int =
   for e in n.gpsErrors:
     result += e.searches
 
-func leftText*(n: Named): string =
+func leftText*(n: Named): Line =
   ## What to say about activities left unnamed because of `--offline`: empty if there are none.
   if n.left > 0:
-    fmt"{n.left} left unnamed (`--offline`)"
+    ~"{n.left} left unnamed (`--offline`)"
   else:
-    ""
+    @[]
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
