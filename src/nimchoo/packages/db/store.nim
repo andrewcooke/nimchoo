@@ -60,15 +60,28 @@ type Store* = object
   conn: Conn
   path*: string ## the database file (":memory:" for one in memory)
 
-proc resolveDbPath*(option: string): string =
-  ## The database file: the `--db` option, else `$NCH_DB`, else
+type DbSource* = enum
+  dsOption ## `--db`
+  dsEnvironment ## `$NCH_DB`
+  dsDefault ## `nch/nch.db` in the user's data directory
+
+proc defaultDbPath*(): string =
   ## `nch/nch.db` in the user's data directory.
+  getDataDir() / "nch" / "nch.db"
+
+proc dbPathAndSource*(option: string): tuple[path: string, source: DbSource] =
+  ## The database file and where it came from: the `--db` option, else `$NCH_DB`, else the default.  The one place that
+  ## decides (`nch --config` says the source too).
   if option.len > 0:
-    return option
+    return (option, dsOption)
   let env = getEnv("NCH_DB")
   if env.len > 0:
-    return env
-  getDataDir() / "nch" / "nch.db"
+    return (env, dsEnvironment)
+  (defaultDbPath(), dsDefault)
+
+proc resolveDbPath*(option: string): string =
+  ## The database file (`dbPathAndSource`).
+  dbPathAndSource(option).path
 
 proc loadSpatialite(db: DbConn) {.raises: [StoreError].} =
   ## Load the SpatiaLite extension (geometry types and functions).  It is needed

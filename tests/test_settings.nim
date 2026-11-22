@@ -13,15 +13,22 @@ suite "nch --config: the settings":
 
   test "the settings in force, with where each came from":
     let g = Globals(dbPath: dir / "x.db", user: "bob", offline: true, access: allAccess)
-    let text = configLines(g, 120).plainText
+    let text =
+      configLines(g, 120, @["activities", "packages", "thirdcommand"]).plainText
     check "version" in text and "(--db; not made yet)" in text
     check "bob (there is no database yet)" in text and "yes (`--offline`)" in text
     check "access" in text and "enforced" in text
-    check "NCH_DB" in text and "packages" in text
+    check "NCH_DB" in text and "thirdcommand" in text # (the commands are the ones given)
     check "there is no database yet" in text
     check "NO_COLOR" in text and "not set (default)" in text
       # (the environment, with its defaults)
 
+  test "the database's path and where it came from are decided in one place":
+    check dbPathAndSource("x.db") == (path: "x.db", source: dsOption)
+    check dbPathAndSource("").source in {dsEnvironment, dsDefault}
+    check dbPathAndSource("").path == resolveDbPath("")
+    if dbPathAndSource("").source == dsDefault:
+      check dbPathAndSource("").path == defaultDbPath()
   test "the fragments of the database are compared with the program's":
     removeDir dir
     createDir dir

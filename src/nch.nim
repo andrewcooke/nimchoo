@@ -167,7 +167,7 @@ proc main(): int {.raises: [].} =
     g.show(osOut, plain(versionString))
     return exitOk
   if head.config:
-    g.showAll osOut, configLines(g, g.textWidth(osOut))
+    g.showAll osOut, configLines(g, g.textWidth(osOut), allCommands.mapIt(it.name))
     return exitOk
   if head.job.isSome:
     let job = head.job.get

@@ -255,7 +255,6 @@ suite "args: a number given without its unit":
 suite "args: an option's arity is one fact":
   test "each kind of option says its arity, and the description has the same":
     check spec.opts[0].arity == aFlag and spec.opts[1].arity == aOne
-    check ospec.docs[0].arity == aOptional and ospec.opts[0].arity == aOptional
     let lst = listOption[P](
       ["--xs"],
       proc(

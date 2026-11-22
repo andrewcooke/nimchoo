@@ -67,12 +67,7 @@ proc environment(): seq[EnvVar] =
     (if home.isSome: some(home.get / p) else: none(string))
 
   @[
-    (
-      "NCH_DB",
-      "the database file (`--db` comes first)",
-      some(getDataDir() / "nch" / "nch.db"),
-      true,
-    ),
+    ("NCH_DB", "the database file (`--db` comes first)", some(defaultDbPath()), true),
     (
       "NCH_LOG",
       "the log file; set and empty: no log",
@@ -137,7 +132,7 @@ proc environmentLines(width: int): seq[Line] =
     rows.add @[plain(v.name), value, plain(v.what)]
   ruled(@["variable", "value", "what it is for"], rows, width)
 
-proc configLines*(g: Globals, width: int): seq[Line] =
+proc configLines*(g: Globals, width: int, commands: seq[string]): seq[Line] =
   ## The settings in force, and where each came from (a path in `file`), as a table without headings; then the
   ## variables of the environment.
   var rows: seq[seq[Line]]
@@ -153,14 +148,12 @@ proc configLines*(g: Globals, width: int): seq[Line] =
     else:
       plain(otherwise)
   rows.add row("version", versionString)
-  let path = resolveDbPath(g.dbPath)
+  let (path, origin) = dbPathAndSource(g.dbPath)
   let source =
-    if g.dbPath.len > 0:
-      "--db"
-    elif getEnv("NCH_DB").len > 0:
-      "$NCH_DB"
-    else:
-      "the default"
+    case origin
+    of dsOption: "--db"
+    of dsEnvironment: "$NCH_DB"
+    of dsDefault: "the default"
   var state = "not made yet"
   try:
     if fileExists(path):
@@ -190,9 +183,7 @@ proc configLines*(g: Globals, width: int): seq[Line] =
     of amOff: "off"
     ,
   )
-  rows.add row(
-    "commands", (generated.commands.mapIt(it.name) & @["packages"]).join(", ")
-  )
+  rows.add row("commands", commands.join(", "))
   result = ruled(@["", ""], rows, width)
   result.add plain("")
   result.add environmentLines(width)
