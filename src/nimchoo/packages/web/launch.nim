@@ -30,8 +30,8 @@ type WebOptions* = object
 proc workerOptions(g: Globals): seq[string] =
   ## The global options the worker needs to look at the same data as this process.
   result = @["--db", resolveDbPath(g.dbPath)]
-  if g.user.len > 0:
-    result.add @["--user", g.user]
+  if g.user.isSome:
+    result.add @["--user", g.user.get]
 
 func serverIdentity(args: seq[string]): string =
   ## What a server says it is (`/status`): the build of nch on the first line, the options its workers get on the second.

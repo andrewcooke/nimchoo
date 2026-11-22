@@ -19,7 +19,12 @@ proc tempDb(name: string): string =
 
 proc open(path: string, user = defaultUser): Session =
   ## The whole schema.
-  openSession(path, allFragments, user, access = allAccess)
+  openSession(
+    path,
+    allFragments,
+    (if user.len > 0: some(user) else: none(string)),
+    access = allAccess,
+  )
 
 proc count(s: Store, table: string): int =
   s.db.scalar(int, "select count(*) from " & table)
@@ -290,7 +295,7 @@ suite "database: opening read-only":
   test "Globals.readOnly makes openStore and openSession read-only":
     let path = tempDb("globals")
     open(path).close()
-    var g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
+    var g = Globals(dbPath: some(path), fragments: allFragments, access: allAccess)
     g.readOnly = true
     let s = openStore(g)
     expect StoreError:
@@ -301,7 +306,9 @@ suite "database: opening read-only":
     t.close()
     expect StoreError:
       discard openSession(
-        Globals(dbPath: dir / "missing-g.db", fragments: allFragments, readOnly: true)
+        Globals(
+          dbPath: some(dir / "missing-g.db"), fragments: allFragments, readOnly: true
+        )
       )
     check not fileExists(dir / "missing-g.db")
 
@@ -497,10 +504,10 @@ suite "database: where it lives":
   test "the option wins, then the environment, then the data directory":
     let saved = getEnv("NCH_DB")
     putEnv("NCH_DB", "/from/env.db")
-    check resolveDbPath("/from/option.db") == "/from/option.db"
-    check resolveDbPath("") == "/from/env.db"
+    check resolveDbPath(some("/from/option.db")) == "/from/option.db"
+    check resolveDbPath(none(string)) == "/from/env.db"
     delEnv("NCH_DB")
-    check resolveDbPath("").endsWith("nch" / "nch.db")
+    check resolveDbPath(none(string)).endsWith("nch" / "nch.db")
     if saved.len > 0:
       putEnv("NCH_DB", saved)
 

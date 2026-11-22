@@ -1,3 +1,4 @@
+import std/options
 ## A database in a temporary directory and the `Globals` that tab completion uses to read it (read-only, offline), for the
 ## tests of the providers.
 
@@ -16,8 +17,8 @@ proc freshDb*(name: string): Session =
 proc completing*(s: Session, user = ""): Globals =
   ## What `nch __complete` gives the providers, for the database of `s`.
   Globals(
-    dbPath: s.path,
-    user: user,
+    dbPath: some(s.path),
+    user: (if user.len > 0: some(user) else: none(string)),
     fragments: allFragments,
     access: allAccess,
     offline: true,

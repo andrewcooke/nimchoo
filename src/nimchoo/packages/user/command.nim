@@ -97,12 +97,12 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   of pkOk:
     discard
   let p = parsed.params
-  if g.user.len > 0:
+  if g.user.isSome:
     return usageError(
       g,
       "nch users",
       usageText(g.textWidth(osErr)),
-      ~"`--user` goes after the command here: nch users `--edit` {g.user} ... (the users are named there)",
+      ~"`--user` goes after the command here: nch users `--edit` {g.user.get} ... (the users are named there)",
     )
   var st: Session
   try:

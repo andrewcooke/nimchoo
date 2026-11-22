@@ -2,7 +2,7 @@
 ## the first; the positions of that ride; the cells two rides went through.  Shared by the tests of the frames of `activities` and of
 ## `climbs` (tests/activities/test_mapframes.nim, tests/climbs/test_mapframes.nim).
 
-import std/[json, os, strutils]
+import std/[options, json, os, strutils]
 import nimchoo/core/globals
 import nimchoo/packages/db/statement
 import nimchoo/packages/fit/time
@@ -63,8 +63,8 @@ proc world*(top, name: string): tuple[db, cache: string] =
 proc globalsOf*(db: string, user = ""): Globals =
   ## The globals of the real program for the database.
   Globals(
-    dbPath: db,
-    user: user,
+    dbPath: some(db),
+    user: (if user.len > 0: some(user) else: none(string)),
     fragments: allFragments,
     access: allAccess,
     extensions: extensions,

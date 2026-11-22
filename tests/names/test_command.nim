@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[os, unittest]
+import std/[options, os, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/db/store
@@ -34,7 +34,7 @@ proc fresh(name: string): string =
 
 proc landmark(db: string, args: varargs[string]): int =
   landmarkCommand.run(
-    Globals(dbPath: db, fragments: allFragments, access: allAccess, offline: true),
+    Globals(dbPath: some(db), fragments: allFragments, access: allAccess, offline: true),
     @args,
   )
 
@@ -96,6 +96,11 @@ suite "nch landmarks":
     check landmark(db, "--add", "X") == exitUsage
     check landmark(db, "--pick", "1") == exitUsage
     check landmarkCommand.run(
-      Globals(dbPath: db, user: "default", fragments: allFragments, access: allAccess),
+      Globals(
+        dbPath: some(db),
+        user: some("default"),
+        fragments: allFragments,
+        access: allAccess,
+      ),
       @[],
     ) == exitUsage

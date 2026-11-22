@@ -1,7 +1,7 @@
 ## What the shell is offered (core/complete.nim): the commands, the options, the values of an option, from the
 ## descriptions of the options alone.
 
-import std/[sequtils, strutils, unittest]
+import std/[options, sequtils, strutils, unittest]
 import nimchoo/core/[complete, errors, globals, manifest, optdoc]
 from nimchoo/registry import commands
 
@@ -14,7 +14,7 @@ proc userProvider(
     g: Globals, typed: string
 ): seq[string] {.nimcall, raises: [StoreError].} =
   ## Offers the users `bob` and `alice` that start with what is typed, and the database `g` points at, to see it is passed.
-  for u in ["bob", "alice", g.user, "bob"]:
+  for u in ["bob", "alice", g.user.get(""), "bob"]:
     if u.len > 0 and u.startsWith(typed):
       result.add u
 
@@ -91,8 +91,9 @@ suite "tab completion: values from the program's data":
     check offered("--user", "z") == newSeq[string]()
 
   test "the provider gets the Globals the caller made":
-    let o =
-      complete(headDocs(), sizeCommands(), Globals(user: "carol"), @["--user", "c"])
+    let o = complete(
+      headDocs(), sizeCommands(), Globals(user: some("carol")), @["--user", "c"]
+    )
     check o.words == @["carol"]
 
   test "a provider that fails offers nothing, and nothing is raised":

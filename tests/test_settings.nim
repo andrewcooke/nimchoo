@@ -1,6 +1,6 @@
 ## `nch --config` (`settings.nim`).
 
-import std/[os, strutils, unittest]
+import std/[options, os, strutils, unittest]
 import nimchoo/core/globals
 import nimchoo/settings
 from nimchoo/registry import allAccess, allFragments, schema
@@ -12,7 +12,9 @@ suite "nch --config: the settings":
   let dir = getTempDir() / "nch-test-introspect"
 
   test "the settings in force, with where each came from":
-    let g = Globals(dbPath: dir / "x.db", user: "bob", offline: true, access: allAccess)
+    let g = Globals(
+      dbPath: some(dir / "x.db"), user: some("bob"), offline: true, access: allAccess
+    )
     let text =
       configLines(g, 120, @["activities", "packages", "thirdcommand"]).plainText
     check "version" in text and "(--db; not made yet)" in text
@@ -24,11 +26,11 @@ suite "nch --config: the settings":
       # (the environment, with its defaults)
 
   test "the database's path and where it came from are decided in one place":
-    check dbPathAndSource("x.db") == (path: "x.db", source: dsOption)
-    check dbPathAndSource("").source in {dsEnvironment, dsDefault}
-    check dbPathAndSource("").path == resolveDbPath("")
-    if dbPathAndSource("").source == dsDefault:
-      check dbPathAndSource("").path == defaultDbPath()
+    check dbPathAndSource(some("x.db")) == (path: "x.db", source: dsOption)
+    check dbPathAndSource(none(string)).source in {dsEnvironment, dsDefault}
+    check dbPathAndSource(none(string)).path == resolveDbPath(none(string))
+    if dbPathAndSource(none(string)).source == dsDefault:
+      check dbPathAndSource(none(string)).path == defaultDbPath()
   test "the fragments of the database are compared with the program's":
     removeDir dir
     createDir dir

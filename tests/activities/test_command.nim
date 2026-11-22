@@ -1,7 +1,7 @@
 import ../support/arrays
 import nimchoo/packages/importer/coord
 import nimchoo/packages/fit/time
-import std/[algorithm, os, sequtils, strutils, times, unittest]
+import std/[options, algorithm, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/db/statement
@@ -99,7 +99,10 @@ proc world(name: string, together = false): string =
 proc list(db: string, args: varargs[string]): int =
   listCommand.run(
     Globals(
-      dbPath: db, fragments: allFragments, access: allAccess, extensions: extensions
+      dbPath: some(db),
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
     ),
     @args,
   )
@@ -180,15 +183,15 @@ suite "list: the command":
     check chosen(db) == @["lisbon1", "paris"] # (not bob's lisbon2)
     check listCommand.run(
       Globals(
-        dbPath: db,
-        user: "bob",
+        dbPath: some(db),
+        user: some("bob"),
         fragments: allFragments,
         access: allAccess,
         extensions: extensions,
       ),
       @["--all", "--select"],
     ) == exitOk
-    let b = openSession(db, allFragments, "bob", access = allAccess)
+    let b = openSession(db, allFragments, some("bob"), access = allAccess)
     defer:
       b.close()
     check b.db.scalar(
@@ -704,7 +707,7 @@ suite "list: what is shown":
     let db = world("shownlog")
     let path = dir / "shownlog" / "nch.log"
     let g = Globals(
-      dbPath: db,
+      dbPath: some(db),
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,
@@ -982,7 +985,7 @@ suite "nch activities --rename":
     s.db.execute("update activity set name = 'Old name', start_place = 'Old place'")
     s.close()
     let g = Globals(
-      dbPath: db,
+      dbPath: some(db),
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,
@@ -997,7 +1000,7 @@ suite "nch activities --rename":
   test "with nothing selected or nothing found it says so; it does not go with --select, --delete or -v":
     let db = world("renamenone")
     let g = Globals(
-      dbPath: db,
+      dbPath: some(db),
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,

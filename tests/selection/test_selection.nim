@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[os, unittest]
+import std/[options, os, unittest]
 import nimchoo/packages/user/session
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/selection/selection
@@ -46,7 +46,7 @@ suite "selection: reading it":
     s.add "aa"
     s.db.execute("insert into user(name) values ('bob')")
     let bob =
-      openSession(dir / "owner" / "x.db", allFragments, "bob", access = allAccess)
+      openSession(dir / "owner" / "x.db", allFragments, some("bob"), access = allAccess)
     defer:
       bob.close()
     check selectedIds(bob).len == 0

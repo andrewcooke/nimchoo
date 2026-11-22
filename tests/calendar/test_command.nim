@@ -128,7 +128,7 @@ suite "nch calendar: what it shows":
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,
-      dbPath: dir / "empty" / "x.db",
+      dbPath: some(dir / "empty" / "x.db"),
       offline: true,
     )
     check calendarCommand.run(quiet, @[]) == exitOk

@@ -5,7 +5,7 @@
 ## line and without a stack trace, and returns `exitFailure`.  Anything else
 ## that escapes is a bug and is left to crash with a trace.
 
-import std/strutils
+import std/[options, strutils]
 import ./[access, extension, fragment, line, theme]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
@@ -17,8 +17,9 @@ type OutStream* = enum ## where a command's text goes
   osErr ## stderr: what is said about it (problems, progress, notes)
 
 type Globals* = object ## Options given before the command name, for every command.
-  dbPath*: string ## the database file; "" for the default
-  user*: string ## whose data to work with; "" for the default user
+  dbPath*: Option[string]
+    ## the database file (`--db`); none: the default (`store.dbPathAndSource`)
+  user*: Option[string] ## whose data to work with (`--user`); none: the default user
   offline*: bool
     ## do not use the network: the names service answers "nothing" everywhere
   readOnly*: bool

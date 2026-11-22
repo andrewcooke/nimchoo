@@ -35,11 +35,11 @@ proc close*(s: Session) {.raises: [].} =
 proc openSession*(
     path: string,
     fragments: seq[Fragment],
-    user = "",
+    user = none(string),
     access: Access = nil,
     readOnly = false,
 ): Session {.raises: [StoreError].} =
-  ## Open the database at `path` (as `openStore`) and find `user` ("": the default user, made if there are no
+  ## Open the database at `path` (as `openStore`) and find `user` (none: the default user, made if there are no
   ## users).  Raises StoreError if that cannot be done or the user does not exist.  With `readOnly` (as
   ## `openReadOnly`) nothing is made or changed: a database with no users, or no default, is an error.
   let st =
@@ -59,16 +59,18 @@ proc openSession*(
         "update user set is_default = 1 where id = (select min(id) from user)"
       )
     let id =
-      if user.len == 0:
+      if user.isNone:
         st.db.queryOne(UserId, "select id from user where is_default = 1")
       else:
-        st.db.queryOne(UserId, "select id from user where name = :name", name = user)
+        st.db.queryOne(
+          UserId, "select id from user where name = :name", name = user.get
+        )
     if id.isNone:
       raiseStore(
-        if user.len == 0:
+        if user.isNone:
           "the database has no default user"
         else:
-          "no such user: " & user
+          "no such user: " & user.get
       )
     result = Session(
       store: st,

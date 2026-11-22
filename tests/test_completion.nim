@@ -106,7 +106,7 @@ suite "nch __complete: it changes nothing":
     openSession(db, allFragments, access = allAccess).close()
     let before = readFile(db)
     let g = Globals(
-      dbPath: db,
+      dbPath: some(db),
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,

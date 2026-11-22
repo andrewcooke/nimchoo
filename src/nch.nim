@@ -57,7 +57,7 @@ func headSpec(): Spec[Head] =
         "PATH",
         ~"the database file (default: $NCH_DB, else nch/nch.db in the user's data directory)",
         completion = Completion(kind: ckFile),
-        body = (p.g.dbPath = value; fine),
+        body = (p.g.dbPath = some(value); fine),
       ),
       custom(
         Head,
@@ -66,7 +66,7 @@ func headSpec(): Spec[Head] =
         "NAME",
         ~"whose data to work with (default: the default user)",
         completion = completesFrom(completeUsers),
-        body = (p.g.user = value; fine),
+        body = (p.g.user = some(value); fine),
       ),
       custom(
         Head,

@@ -1,4 +1,4 @@
-import std/[os, strutils, unittest]
+import std/[options, os, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/packages/climbs/command
@@ -35,7 +35,7 @@ proc fresh(name: string, climbs: openArray[(string, float)]): string =
 
 proc climbs(db: string, args: varargs[string]): int =
   command.run(
-    Globals(dbPath: db, fragments: allFragments, access: allAccess, offline: true),
+    Globals(dbPath: some(db), fragments: allFragments, access: allAccess, offline: true),
     @args,
   )
 
@@ -133,8 +133,8 @@ suite "nch climbs: names, and the list of all":
     let db = fresh("user", [("Cuesta", 100.0)])
     check command.run(
       Globals(
-        dbPath: db,
-        user: "default",
+        dbPath: some(db),
+        user: some("default"),
         fragments: allFragments,
         access: allAccess,
         offline: true,
@@ -143,8 +143,8 @@ suite "nch climbs: names, and the list of all":
     ) == exitOk
     check command.run(
       Globals(
-        dbPath: db,
-        user: "default",
+        dbPath: some(db),
+        user: some("default"),
         fragments: allFragments,
         access: allAccess,
         offline: true,

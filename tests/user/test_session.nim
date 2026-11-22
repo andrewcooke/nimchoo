@@ -1,4 +1,4 @@
-import std/[os, unittest]
+import std/[options, os, unittest]
 import nimchoo/packages/db/[statement, store]
 import nimchoo/packages/user/session
 import nimchoo/core/errors
@@ -13,7 +13,12 @@ proc tempDb(name: string): string =
 
 proc open(path: string, user = defaultUser): Session =
   ## The whole schema.
-  openSession(path, allFragments, user, access = allAccess)
+  openSession(
+    path,
+    allFragments,
+    (if user.len > 0: some(user) else: none(string)),
+    access = allAccess,
+  )
 
 suite "session: the user a command works for":
   test "a new database has the schema and the default user, flagged as such":
@@ -73,8 +78,8 @@ suite "session: read-only":
     let s = openSession(path, allFragments, access = allAccess, readOnly = true)
     check s.userName == defaultUser
     s.close()
-    let b = openSession(path, allFragments, "bob", allAccess, readOnly = true)
+    let b = openSession(path, allFragments, some("bob"), allAccess, readOnly = true)
     check b.userName == "bob"
     b.close()
     expect StoreError:
-      discard openSession(path, allFragments, "carol", allAccess, readOnly = true)
+      discard openSession(path, allFragments, some("carol"), allAccess, readOnly = true)

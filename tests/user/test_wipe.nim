@@ -1,4 +1,4 @@
-import std/[os, unittest]
+import std/[options, os, unittest]
 import nimchoo/packages/ui/units
 import nimchoo/packages/db/statement
 import nimchoo/packages/user/session
@@ -49,7 +49,7 @@ suite "wipe: what belongs to a user":
     let d = fresh("remove")
     openSession(d / "x.db", allFragments, access = allAccess).close()
     addUser(d / "x.db", "bob")
-    let bob = openSession(d / "x.db", allFragments, "bob", access = allAccess)
+    let bob = openSession(d / "x.db", allFragments, some("bob"), access = allAccess)
     fill(bob, "bobs")
     deleteUser(bob, findUser(bob, "bob"))
     check bob.db.scalar(int, "select count(*) from user where name = 'bob'") == 0

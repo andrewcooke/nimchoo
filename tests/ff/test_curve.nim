@@ -168,7 +168,7 @@ suite "nch ff":
     removeFile(path)
     removeDir(cache)
     putEnv("NCH_CACHE", cache)
-    let g = Globals(dbPath: path, fragments: allFragments, access: allAccess)
+    let g = Globals(dbPath: some(path), fragments: allFragments, access: allAccess)
     check ffCommand.run(g, @["--before", "2018-09-06", "--file"]) == exitFailure
       # nothing yet
     let s = openSession(path, allFragments, access = allAccess)

@@ -53,7 +53,7 @@ suite "subjects: the activities' selection":
     s.addSelected("b")
     check activities.selected(s) == 2
     s.db.execute("insert into user(name) values ('bob')")
-    let bob = openSession(dir / "sel.db", allFragments, "bob", access = allAccess)
+    let bob = openSession(dir / "sel.db", allFragments, some("bob"), access = allAccess)
     defer:
       bob.close()
     check activities.selected(bob) == 0

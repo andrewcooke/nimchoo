@@ -31,7 +31,12 @@ proc fresh(name: string): string =
   removeFile(result)
 
 proc open(path: string, user = ""): Session =
-  openSession(path, allFragments, user, access = allAccess)
+  openSession(
+    path,
+    allFragments,
+    (if user.len > 0: some(user) else: none(string)),
+    access = allAccess,
+  )
 
 proc importRide(s: Session, name = "ride.fit"): ImportResult =
   var ws: seq[Warning]
@@ -49,7 +54,12 @@ proc setFthr(s: Session, fthr: int) =
   )
 
 proc globals(db: string, user = ""): Globals =
-  Globals(dbPath: db, user: user, fragments: allFragments, access: allAccess)
+  Globals(
+    dbPath: some(db),
+    user: (if user.len > 0: some(user) else: none(string)),
+    fragments: allFragments,
+    access: allAccess,
+  )
 
 suite "model: the models in the database":
   test "a new database has the default model, as the program defines it":

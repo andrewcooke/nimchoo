@@ -1,4 +1,4 @@
-import std/[os, sequtils, strutils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/packages/importer/logsink
 import nimchoo/packages/importer/events
 import nimchoo/packages/importer/failure
@@ -101,7 +101,7 @@ suite "import log: the command":
     writeFile(d / "src" / "bad.fit", "junk")
     let path = d / "nch.log"
     let g = Globals(
-      dbPath: d / "x.db",
+      dbPath: some(d / "x.db"),
       fragments: allFragments,
       access: allAccess,
       log: openLog(path),
@@ -124,7 +124,10 @@ suite "import log: the command":
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let path = d / "nch.log"
     var g = Globals(
-      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+      dbPath: some(d / "x.db"),
+      fragments: allFragments,
+      access: allAccess,
+      offline: true,
     )
     discard importCmd(g, @["-q", d / "src"])
     g.log = openLog(path)
@@ -140,7 +143,10 @@ suite "import log: the command":
     let d = fresh("nolog")
     bytesToFile(d / "src" / "a.fit", tiny(base + 1))
     let g = Globals(
-      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+      dbPath: some(d / "x.db"),
+      fragments: allFragments,
+      access: allAccess,
+      offline: true,
     )
     check importCmd(g, @["-q", d / "src"]) == exitOk
     check not fileExists(d / "nch.log")

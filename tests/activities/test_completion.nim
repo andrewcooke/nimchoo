@@ -1,3 +1,4 @@
+import std/options
 ## Completing the sports of `nch activities` (src/nimchoo/packages/activities/completion.nim).
 
 import std/unittest
@@ -41,7 +42,7 @@ suite "completing sports":
     let s = freshDb("sports-users")
     s.addActivity("a", "cycling", "")
     s.addUser("bob")
-    let b = openSession(s.path, allFragments, "bob", allAccess)
+    let b = openSession(s.path, allFragments, some("bob"), allAccess)
     b.addActivity("b", "running", "")
     b.close()
     let mine = s.completing()

@@ -69,17 +69,17 @@ proc defaultDbPath*(): string =
   ## `nch/nch.db` in the user's data directory.
   getDataDir() / "nch" / "nch.db"
 
-proc dbPathAndSource*(option: string): tuple[path: string, source: DbSource] =
+proc dbPathAndSource*(option: Option[string]): tuple[path: string, source: DbSource] =
   ## The database file and where it came from: the `--db` option, else `$NCH_DB`, else the default.  The one place that
   ## decides (`nch --config` says the source too).
-  if option.len > 0:
-    return (option, dsOption)
+  if option.isSome:
+    return (option.get, dsOption)
   let env = getEnv("NCH_DB")
   if env.len > 0:
     return (env, dsEnvironment)
   (defaultDbPath(), dsDefault)
 
-proc resolveDbPath*(option: string): string =
+proc resolveDbPath*(option: Option[string]): string =
   ## The database file (`dbPathAndSource`).
   dbPathAndSource(option).path
 

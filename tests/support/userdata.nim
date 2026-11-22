@@ -1,3 +1,4 @@
+import std/options
 ## Helpers for tests that delete a user's data: fill a user with one of everything, count rows,
 ## make a second user.
 
@@ -54,7 +55,11 @@ proc fill*(s: Session, tag: string) =
 
 proc globals*(db: string, user = ""): Globals =
   Globals(
-    dbPath: db, user: user, fragments: allFragments, access: allAccess, offline: true
+    dbPath: some(db),
+    user: (if user.len > 0: some(user) else: none(string)),
+    fragments: allFragments,
+    access: allAccess,
+    offline: true,
   ) # (no test uses the network)
 
 proc addUser*(path, name: string) =

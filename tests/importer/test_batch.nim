@@ -2,7 +2,7 @@
 ## modification time are unchanged is skipped without being read.
 
 import nimchoo/packages/db/statement
-import std/[os, strutils, times, unittest]
+import std/[options, os, strutils, times, unittest]
 import ../support/shims
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/command as importCommand
@@ -254,7 +254,10 @@ suite "import: remembered failures":
     let d = fresh("status")
     writeFile(d / "bad.fit", "broken")
     let g = Globals(
-      dbPath: d / "x.db", fragments: allFragments, access: allAccess, offline: true
+      dbPath: some(d / "x.db"),
+      fragments: allFragments,
+      access: allAccess,
+      offline: true,
     )
     check importCmd(g, @["-q", d]) == exitFailure # new failure
     check importCmd(g, @["-q", d]) == exitOk # known now

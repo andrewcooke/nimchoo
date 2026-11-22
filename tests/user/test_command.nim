@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[os, sequtils, strutils, unittest]
+import std/[options, os, sequtils, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/core/globals
 import nimchoo/core/line
@@ -22,8 +22,8 @@ proc userAs(db, who: string, args: varargs[string]): int =
   ## nch --user WHO user ARGS (which the user command refuses: the user is named after it)
   userCommand.run(
     Globals(
-      dbPath: db,
-      user: who,
+      dbPath: some(db),
+      user: some(who),
       fragments: allFragments,
       access: allAccess,
       extensions: extensions,
@@ -226,7 +226,7 @@ suite "nch users":
     let db = fresh("log")
     let path = dir / "log" / "nch.log"
     let g = Globals(
-      dbPath: db, fragments: allFragments, access: allAccess, log: openLog(path)
+      dbPath: some(db), fragments: allFragments, access: allAccess, log: openLog(path)
     )
     check userCommand.run(g, @["--add", "bob", "--fthr", "150"]) == exitOk
     check userCommand.run(g, @[]) == exitOk
@@ -240,7 +240,7 @@ suite "nch users":
   test "other commands see a made user":
     let db = fresh("others")
     check user(db, "--add", "bob") == exitOk
-    let s = openSession(db, allFragments, "bob", access = allAccess)
+    let s = openSession(db, allFragments, some("bob"), access = allAccess)
     defer:
       s.close()
     check s.userName == "bob"
@@ -249,7 +249,7 @@ suite "nch users --delete":
   test "without -y nothing is deleted; with -y the user and everything of theirs go":
     let db = fresh("remove")
     check user(db, "--add", "bob") == exitOk
-    let bob = openSession(db, allFragments, "bob", access = allAccess)
+    let bob = openSession(db, allFragments, some("bob"), access = allAccess)
     fill(bob, "bobs")
     bob.close()
     check user(db, "--delete", "bob") == exitFailure

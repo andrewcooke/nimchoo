@@ -1,6 +1,6 @@
 ## Completing the names of users (src/nimchoo/packages/user/completion.nim).
 
-import std/[os, unittest]
+import std/[options, os, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/user/[completion, session, users]
 import ../support/completiondb
@@ -37,7 +37,7 @@ suite "completing users":
     s.close()
     discard completeUsers(g, "")
     var missing = g
-    missing.dbPath = g.dbPath & ".missing"
+    missing.dbPath = some(g.dbPath.get & ".missing")
     expect StoreError:
       discard completeUsers(missing, "")
-    check not fileExists(missing.dbPath)
+    check not fileExists(missing.dbPath.get)

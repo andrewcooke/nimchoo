@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[algorithm, os, sequtils, strutils, unittest]
+import std/[options, algorithm, os, sequtils, strutils, unittest]
 import ../support/shims
 import nimchoo/packages/importer/batch
 import nimchoo/packages/importer/command as importCommand
@@ -44,8 +44,8 @@ proc open(path: string): Session =
 
 proc globals(db: string, user = ""): Globals =
   Globals(
-    dbPath: db,
-    user: user,
+    dbPath: some(db),
+    user: (if user.len > 0: some(user) else: none(string)),
     fragments: allFragments,
     access: allAccess,
     extensions: extensions,

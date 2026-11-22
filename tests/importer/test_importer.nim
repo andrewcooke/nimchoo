@@ -28,7 +28,12 @@ let p = loadProfile(profilePath)
 
 proc openAll(path: string, user = defaultUser): Session =
   ## The whole schema.
-  openSession(path, allFragments, user, access = allAccess)
+  openSession(
+    path,
+    allFragments,
+    (if user.len > 0: some(user) else: none(string)),
+    access = allAccess,
+  )
 
 let dir = getTempDir() / "nch-test-import"
 

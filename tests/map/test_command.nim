@@ -1,7 +1,7 @@
 ## `nch map` with a subject and frames that belong to no package (tests/support/testframes.nim): the map needs nothing of the
 ## packages above it.  The real frames are tested with their providers.
 
-import std/[json, os, strutils, times, unittest]
+import std/[options, json, os, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/cache/cache
 import nimchoo/packages/db/statement
@@ -37,7 +37,10 @@ proc world(name: string, selected = 2): tuple[db, cache: string] =
 
 proc globals(db: string): Globals =
   Globals(
-    dbPath: db, fragments: allFragments, access: allAccess, extensions: testExtensions()
+    dbPath: some(db),
+    fragments: allFragments,
+    access: allAccess,
+    extensions: testExtensions(),
   )
 
 proc run(db: string, args: varargs[string]): int =

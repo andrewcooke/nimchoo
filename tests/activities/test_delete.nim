@@ -1,5 +1,5 @@
 import nimchoo/packages/db/statement
-import std/[times, os, unittest]
+import std/[options, times, os, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/user/session
 import nimchoo/packages/activities/deleterun
@@ -90,7 +90,7 @@ suite "delete: the plan":
     defer:
       s.close()
     fill(s, "mine")
-    let bob = openSession(d, allFragments, "bob", access = allAccess)
+    let bob = openSession(d, allFragments, some("bob"), access = allAccess)
     defer:
       bob.close()
     fill(bob, "bobs")
@@ -160,7 +160,7 @@ suite "delete: the command":
     addUser(d, "bob")
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "mine")
-    let bob = openSession(d, allFragments, "bob", access = allAccess)
+    let bob = openSession(d, allFragments, some("bob"), access = allAccess)
     fill(bob, "bobs")
     bob.close()
     s.close()
@@ -236,7 +236,7 @@ suite "delete: the command":
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     fill(s, "b")
-    let bob = openSession(d, allFragments, "bob", access = allAccess)
+    let bob = openSession(d, allFragments, some("bob"), access = allAccess)
     fill(bob, "bobs")
     bob.close()
     s.db.execute("delete from selection")

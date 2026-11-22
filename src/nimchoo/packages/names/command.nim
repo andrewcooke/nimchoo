@@ -94,7 +94,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   of pkOk:
     discard
   let p = parsed.params
-  if g.user.len > 0:
+  if g.user.isSome:
     return usageError(
       g,
       "nch landmarks",

@@ -45,9 +45,7 @@ proc fragmentLines*(path: string): seq[string] =
 proc userText(g: Globals, path: string): string =
   ## The user the commands work on: its name, and "(default)" if it is the default one.
   if not fileExists(path):
-    return
-      (if g.user.len > 0: g.user else: "the default user") &
-      " (there is no database yet)"
+    return g.user.get("the default user") & " (there is no database yet)"
   var ro = g
   ro.readOnly = true
   try:
