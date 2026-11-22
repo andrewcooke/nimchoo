@@ -112,9 +112,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     case p.action
     of laDelete:
       let d = p.deleted
-      if not d.force:
-        g.show(osErr, ~"would delete the landmark {d.name}: add `-f` to do it")
-        return exitFailure
+      if d.force == fNo:
+        return failure(
+          g, "nch landmarks", ~"would delete the landmark {d.name}; use `-f` to confirm"
+        )
+      pause(g.theme, "the landmark " & d.name, d.force)
       if not removeLandmark(st, d.name):
         return failure(g, "nch landmarks", ~"there is no landmark called '{d.name}'")
       let said = "deleted the landmark " & d.name

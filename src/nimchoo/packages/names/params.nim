@@ -1,6 +1,7 @@
 ## The command line of `nch landmarks`, parsed.  Pure.
 
 import ../util/args/args
+import ../confirm/confirm
 import ../ui/units
 import ./completion
 import std/[options, strutils]
@@ -44,7 +45,7 @@ type
 
   DeletedLandmark* = object
     name*: string
-    force*: bool ## really do it
+    force*: Force ## `-f`: really do it (`-f -f`: with no pause)
 
   Params* = object
     case action*: LandmarkAction
@@ -60,7 +61,8 @@ type
       deleted*: DeletedLandmark
 
   Raw = object ## what the options fill in
-    help, force, adding, deleting: bool
+    help, adding, deleting: bool
+    force: Force
     name, search: string
     near, at: Option[Spot]
     pick: int
@@ -164,7 +166,7 @@ func landmarkSpec*(): Spec[Raw] =
         completion = completesFrom(completeLandmarks),
         body = (p.deleting = true; p.name = value; fine),
       ),
-      flag(Raw, ["-f", "--force"], force, ~"really do it", level = 1),
+      forceOption(Raw, force, 1),
       helpFlag(Raw),
     ],
     hint: proc(arg: string): Line {.nimcall, raises: [].} =
@@ -175,7 +177,7 @@ func finish(raw: Raw): Parsed[Params] =
   func bad(why: Line): Parsed[Params] =
     problemWith[Params](why)
 
-  if raw.force and not raw.deleting:
+  if raw.force != fNo and not raw.deleting:
     return bad(~"`-f` goes with `--delete`")
   if raw.adding and raw.deleting:
     return bad(~"`--add` and `--delete` cannot be used together")

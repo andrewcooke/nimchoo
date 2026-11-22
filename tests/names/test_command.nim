@@ -89,7 +89,7 @@ suite "nch landmarks":
     check landmark(db, "--delete", "nothing", "-f") == exitFailure
     check landmark(db, "--delete", "casa") == exitFailure # (without -f nothing is done)
     check q(db, "select count(*) from landmark", int) == 1
-    check landmark(db, "--delete", "casa", "-f") == exitOk
+    check landmark(db, "--delete", "casa", "-f", "-f") == exitOk
     check q(db, "select count(*) from landmark", int) == 0
   test "bad arguments are a usage error; --user before the command is refused":
     let db = fresh("usage")

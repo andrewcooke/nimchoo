@@ -1,6 +1,7 @@
 import std/[strutils, unittest]
 import nimchoo/packages/names/params
 import nimchoo/packages/util/args/args
+import nimchoo/packages/confirm/confirm
 
 suite "landmark: the command line":
   test "no arguments lists":
@@ -30,7 +31,7 @@ suite "landmark: the command line":
   test "removing":
     let r = parseArgs(@["--delete", "Casa"])
     check r.problem.len == 0 and r.params.action == laDelete and
-      r.params.deleted.name == "Casa" and not r.params.deleted.force
+      r.params.deleted.name == "Casa" and r.params.deleted.force == fNo
   test "the size has its unit: m or km; with none it is the question, m added":
     check parseArgs(@["--add", "X", "--at", "1,2", "--size", "1.5km"]).params.placed.radiusM ==
       1500.0
@@ -47,6 +48,10 @@ suite "landmark: the command line":
     check parseArgs(@["--near", "Farellones"]).params.suggest.near.kind == nkPlace
     check parseArgs(@["--near", "1x,2"]).problem.contains("--near")
     check parseArgs(@["--add", "X", "--at", "5"]).problem.contains("--at")
+  test "-f is the shared one: once to delete, twice to delete with no pause":
+    check parseArgs(@["--delete", "Casa", "-f"]).params.deleted.force == fYes
+    check parseArgs(@["--delete", "Casa", "-f", "-f"]).params.deleted.force == fNow
+    check parseArgs(@["-f"]).problem.contains("`-f` goes with `--delete`")
   test "mistakes":
     check parseArgs(@["--add", "X"]).problem.contains("needs one of")
     check parseArgs(@["--add", "X", "--search", "y"]).problem.contains("--pick")
