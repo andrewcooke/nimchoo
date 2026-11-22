@@ -6,7 +6,7 @@ import std/[options, strutils]
 import ../geo/position
 import ../../core/ruled
 import ../../core/globals
-import ../ui/units
+import ../ui/[units, vocabulary]
 import ../db/store
 import ../../core/errors
 import ./lookup
@@ -128,7 +128,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let said =
         "made the landmark " & a.name.strip & " at " & positionText(at.pos) & at.said
       g.log.log(lvInfo, commandName, leSaved, said)
-      g.show(osOut, plain(said))
+      g.done(plain(said))
       return exitOk
     of laSearch, laNear, laAddPicked:
       let suggest = if p.action == laAddPicked: p.picked.suggestions else: p.suggest
@@ -169,7 +169,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           "made the landmark " & a.name.strip & " at " & s.name & " (" &
           positionText((lon: s.lon, lat: s.lat)) & ")"
         g.log.log(lvInfo, commandName, leSaved, said)
-        g.show(osOut, plain(said))
+        g.done(plain(said))
         return exitOk
       if found.len == 0:
         g.show(
@@ -185,6 +185,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.showAll(
         osOut, suggestionLines(found, suggest.kind == skNear, helpWidth(stdout))
       )
+      g.done(listDone(found.len, none(int), "feature", "features"))
       return exitOk
     of laList:
       let rows = listLandmarks(st)
@@ -195,6 +196,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
       else:
         g.showAll(osOut, landmarkLines(rows, helpWidth(stdout)))
+        g.done(listDone(rows.len, none(int), "landmark", "landmarks"))
       return exitOk
   except StoreError, DownloadError:
     failure(g, "nch landmarks", getCurrentExceptionMsg())

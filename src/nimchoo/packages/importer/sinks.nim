@@ -27,11 +27,7 @@ func extrasText*(c: Counts): string =
   ## ", 2,099 heart-rate readings" for what import steps wrote (nothing if they wrote none).
   for x in c.extras:
     if x.n > 0:
-      result.add ", " & $x.n & " " & (if x.n == 1: x.one else: x.many)
-
-func plural*(n: int, one, many: string): string =
-  ## "1 file", "3 files".
-  $n & " " & (if n == 1: one else: many)
+      result.add ", " & counted(x.n, x.one, x.many)
 
 func advisoryLines*(path: string, ws: seq[Warning]): seq[Line] =
   ## One line per kind of advisory in a file: the first of its kind, and how
@@ -47,7 +43,7 @@ func advisoryLines*(path: string, ws: seq[Warning]): seq[Line] =
     let more = count.getOrDefault(w.kind) - 1
     let extra =
       if more > 0:
-        " (and " & $more & " more like it)"
+        " (and " & count(more) & " more like it)"
       else:
         ""
     result.add ~"advisory: <file {path}>: offset {w.offset}: {w.msg}{extra}"
@@ -61,20 +57,20 @@ func failureBreakdown*(s: Summary): string =
   var parts: seq[string]
   for k in FailureKind:
     if k != fkMonitor and s.failures[k] > 0:
-      parts.add k.label & " " & $s.failures[k]
+      parts.add k.label & " " & count(s.failures[k])
   parts.join(", ")
 
 func summaryLine*(s: Summary): Line =
-  ## "1113 files, 1112 imported, 1 duplicate, 0 failed, 85 advisories": what is
+  ## "1,113 files, 1,112 imported, 1 duplicate, 0 failed, 85 advisories": what is
   ## zero is left out, except imported and failed.
-  var text = counted(s.done, "file", "files") & ", " & $s.imported & " imported"
+  var text = counted(s.done, "file", "files") & ", " & count(s.imported) & " imported"
   if s.duplicates > 0:
     text.add ", " & counted(s.duplicates, "duplicate", "duplicates")
   if s.unchanged > 0:
-    text.add ", " & $s.unchanged & " unchanged"
+    text.add ", " & count(s.unchanged) & " unchanged"
   if s.monitor > 0:
-    text.add ", " & $s.monitor & " monitor"
-  text.add ", " & $s.failed & " failed"
+    text.add ", " & count(s.monitor) & " monitor"
+  text.add ", " & count(s.failed) & " failed"
   let kinds = failureBreakdown(s)
   if kinds.len > 0:
     text.add " (" & kinds & ")"
@@ -83,6 +79,11 @@ func summaryLine*(s: Summary): Line =
     result.add ~", {counted(s.known, \"known failure\", \"known failures\")} (use `--slow` to retry)"
   if s.advisories > 0:
     result.add plain(", " & counted(s.advisories, "advisory", "advisories"))
+
+func readLine*(sum: Summary): Line =
+  ## The line after the files are read: their summary.  It does not say "done:", because what follows (the names, the
+  ## selection) is not over yet.  The same on the screen and in the plain output.
+  ~"read: " & summaryLine(sum)
 
 func moreHint*(s: Summary, logged: bool): Line =
   ## How to see more: `nch log` with the words of what happened, such as
@@ -144,7 +145,7 @@ func plainLines*(ev: ImportEvent, quiet: bool, logged = false): Lines =
   of evFinish:
     for note in ev.summary.warnings:
       result.stderr.add warnLine(note)
-    result.stdout.add ~"read: " & summaryLine(ev.summary)
+    result.stdout.add readLine(ev.summary)
     let hint = moreHint(ev.summary, logged)
     if hint.len > 0:
       result.stderr.add hint

@@ -150,6 +150,9 @@ suite "import events: failures by kind":
     check evs.dones.mapIt(it.outcome) == @[oMonitor, oFailed]
     check sum.monitor == 1 and sum.failed == 1 and sum.failures[fkMonitor] == 0
     check summaryLine(sum).plainText.contains(", 1 monitor, 1 failed")
+    check summaryLine(
+      Summary(done: 3000, imported: 1113, unchanged: 1196, failed: 1200)
+    ).plainText == "3,000 files, 1,113 imported, 1,196 unchanged, 1,200 failed"
     check plainLines(evs.dones[0], quiet = false).stdout.len == 0
       # (nothing printed for it)
     let (again, sum2) = run(st, @[d])

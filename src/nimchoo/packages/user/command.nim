@@ -18,7 +18,7 @@ import ./[has, params]
 import ./users
 import ./[profile, wipe]
 import ./session
-import ../ui/units
+import ../ui/[units, vocabulary]
 
 {.push raises: [].}
 
@@ -82,6 +82,9 @@ proc userLines*(
     right.incl c
   ruled(header, rows, width, right = right)
 
+proc userCount(st: Store): int {.raises: [StoreError].} =
+  st.db.scalar(int, "select count(*) from user")
+
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch users ARGS`; returns the exit status.
   let parsed = parseArgs(args)
@@ -112,6 +115,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     case p.action
     of uaList:
       g.showAll(osOut, userLines(st, g.extensions.get(userHas), helpWidth(stdout)))
+      g.done(listDone(userCount(st), none(int), "user", "users"))
       return exitOk
     of uaDelete:
       let id = findUser(st, p.delete.name)
@@ -145,7 +149,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             setFthr(st, id, n.fthr.get)
       )
       g.log.log(lvInfo, commandName, leSaved, said)
-      g.show(osOut, plain(said))
+      g.done(plain(said))
       return exitOk
     of uaEdit:
       let e = p.edit
@@ -179,7 +183,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       )
       for line in said:
         g.log.log(lvInfo, commandName, leSaved, line)
-        g.show(osOut, plain(line))
+        g.done(plain(line))
       return exitOk
   except StoreError as e:
     failure(g, "nch users", e.msg)

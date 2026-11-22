@@ -50,11 +50,6 @@ func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
     part ~"<{leAdvisory} advisories {count(sum.advisories)}>"
   @[first, second]
 
-func readLine*(sum: Summary): Line =
-  ## The line after the display: the summary of the files read.  It does not say "done:", because what follows (the
-  ## names, the selection) is not over yet.
-  ~"read: " & summaryLine(sum)
-
 proc liveSink*(
     l: Live,
     logged: bool,

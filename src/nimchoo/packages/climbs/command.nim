@@ -226,8 +226,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let total = countLive(st)
     let isSelection = list.kind == lkSelection or list.select
     g.done(
-      @[countSpan(ids.len, isSelection, not g.colour[osOut])] &
-        ~" of {counted(total, \"climb\", \"climbs\")}"
+      listDone(
+        ids.len, some(total), "climb", "climbs", isSelection, not g.colour[osOut]
+      )
     )
     exitOk
   except StoreError, DownloadError:

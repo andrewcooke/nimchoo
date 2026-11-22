@@ -72,10 +72,13 @@ type
     refers*: Reference
     tol*: Tol
 
-const timeFormats = [
-  "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
-  "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
-] ## (a date alone is its midnight: as if written with T00:00:00)
+const
+  noSport* = "none"
+    ## what `--sports` calls an activity whose sport is not recorded (and what the footer counts it as)
+  timeFormats = [
+    "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
+    "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+  ] ## (a date alone is its midnight: as if written with T00:00:00)
 
 proc parseWhen*(s: string, zone: Timezone): Option[UnixTime] =
   ## An instant typed by the user, in `zone`, as Unix seconds: exactly what is written, a date being the start of its day
@@ -629,7 +632,7 @@ func inValues*(column, name: string, values: seq[string]): Sql =
   var marks, parts: seq[string]
   var orNull = false
   for v in values:
-    if v == "none":
+    if v == noSport:
       orNull = true
     else:
       let n = name & $marks.len

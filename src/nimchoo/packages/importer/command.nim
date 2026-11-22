@@ -112,14 +112,7 @@ proc runImport(
         let gps = counts.gpsErrorCount
         tell(
           DownloadEvent(
-            kind: deWorkDone,
-            message:
-              "named " & what & ": " & $counts.named & " with a name, " &
-              $counts.startOnly & " with only a start place, " & $counts.nothing &
-              " with neither" &
-              (if gps > 0: "; " & counted(gps, "GPS error", "GPS errors") else: "") &
-              (if counts.left > 0: "; " & counts.leftText.plainText
-              else: ""),
+            kind: deWorkDone, message: "named " & what & ": " & counts.detailText
           )
         )
         for e in counts.gpsErrors:
@@ -134,11 +127,8 @@ proc runImport(
           lvInfo,
           commandName,
           leDone,
-          "named " & $counts.total & " activities: " & $counts.named & " with a name, " &
-            $counts.startOnly & " with only a start place, " & $counts.nothing &
-            " with neither" &
-            (if gps > 0: "; " & counted(gps, "GPS error", "GPS errors") else: "") &
-            (if counts.left > 0: "; " & counts.leftText.plainText else: ""),
+          "named " & counted(counts.total, "activity", "activities") & ": " &
+            counts.detailText,
         )
   except StoreError, DownloadError:
     namingFailed = true

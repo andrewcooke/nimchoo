@@ -28,6 +28,25 @@ func countSpan*(n: int, selected, marks: bool): Span =
   else:
     span(text, selectedStyle)
 
+func listDone*(
+    n: int,
+    total: Option[int],
+    one, many: string,
+    selected = false,
+    marks = false,
+    extra = "",
+): Line =
+  ## The last line of a list, after "done: " (`g.done`): "11 of 1,113 activities" (how many, of how many there are to
+  ## choose from, if known), or "3 users"; the noun agrees with the last number said.  `extra` follows as it is (", 1,057.9km").
+  ## One helper for every list, so that every list ends alike.
+  let last = if total.isSome: total.get else: n
+  let tail =
+    if total.isSome:
+      " of " & counted(last, one, many)
+    else:
+      " " & (if last == 1: one else: many)
+  @[countSpan(n, selected, marks), span(tail & extra)]
+
 func style*(e: LogEvent): StyleName =
   ## How an event is shown: imported good, failed and deleted bad, advisory a warning, duplicate, unchanged and the
   ## bookkeeping words hidden.

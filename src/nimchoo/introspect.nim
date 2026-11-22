@@ -4,7 +4,7 @@
 
 import std/[algorithm, editdistance, options, sequtils, strformat, strutils]
 import ./core/[errors, globals, inventory, manifest]
-import ./packages/ui/[live, style]
+import ./packages/ui/[live, style, vocabulary]
 import ./packages/util/args/[args, usage]
 import ./registry as generated
 
@@ -236,10 +236,10 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
           ""
       return
         failure(g, "nch packages", ~"`-T`: no table is called '{f.table.get}'{hint}")
-    if inv.packages.allIt(not inv.keeps(f, it)):
-      g.show(osOut, ~"no package is kept by those filters")
-    else:
+    let kept = inv.packages.countIt(inv.keeps(f, it))
+    if kept > 0:
       g.showAll(osOut, summaryLines(inv, width, f))
+    g.done(listDone(kept, some(inv.packages.len), "package", "packages"))
   of vDetail:
     g.showAll(osOut, detailLines(inv, p.package, width))
   of vPoints:

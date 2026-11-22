@@ -1,4 +1,5 @@
-import std/[options, sets, unittest]
+import std/[options, os, sets, strutils, unittest]
+import nimchoo/core/line
 import nimchoo/packages/ui/style
 import nimchoo/packages/ui/vocabulary
 
@@ -37,3 +38,33 @@ suite "vocabulary: the styles":
     check style(leAdvisory) != style(leDuplicate)
   test "the selection has a style of its own":
     check $selectedStyle == "select"
+
+suite "vocabulary: the last line of a list":
+  test "how many, of how many if known, the noun agreeing with the last number":
+    check listDone(11, some 1113, "activity", "activities").plainText ==
+      "11 of 1,113 activities"
+    check listDone(1, some 1, "climb", "climbs").plainText == "1 of 1 climb"
+    check listDone(3, none(int), "user", "users").plainText == "3 users"
+    check listDone(1, none(int), "user", "users").plainText == "1 user"
+    check listDone(0, some 30, "package", "packages").plainText == "0 of 30 packages"
+    check listDone(2, none(int), "activity", "activities", extra = ", 1.0km").plainText ==
+      "2 activities, 1.0km"
+  test "the count is in the selection's style when the list is the selection":
+    check listDone(2, none(int), "x", "xs", selected = true)[0].styles ==
+      @[selectedStyle]
+    check listDone(2, none(int), "x", "xs")[0].styles.len == 0
+  test "every list command ends with it":
+    # (a source check, as the rule is one of the helpers: a list that builds its own last line is the next drift)
+    for (file, lister) in [
+      ("packages/user/command.nim", "userLines"),
+      ("packages/names/command.nim", "landmarkLines"),
+      ("packages/names/command.nim", "suggestionLines"),
+      ("introspect.nim", "summaryLines"),
+      ("packages/climbs/command.nim", "countLive"),
+      ("packages/activities/table.nim", "footerLine"),
+    ]:
+      let text = readFile(
+        currentSourcePath().parentDir.parentDir.parentDir / "src" / "nimchoo" / file
+      )
+      check lister in text
+      check "listDone" in text

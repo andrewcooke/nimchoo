@@ -8,7 +8,7 @@ import std/strformat
 import ../db/statement
 import ../db/store
 import ../../core/[errors, line]
-import ../ui/markup
+import ../ui/[markup, units]
 import ../names/activity
 import ../names/countries
 import ../names/lookup
@@ -45,6 +45,17 @@ func leftText*(n: Named): Line =
     ~"{n.left} left unnamed (`--offline`)"
   else:
     @[]
+
+func detailText*(n: Named): string =
+  ## "3 with a name, 2 with only a start place, 1 with neither; 2 GPS errors; 4 left unnamed (`--offline`)": what naming did,
+  ## said alike on the screen, in the log and by `nch activities --rename`.
+  result =
+    fmt"{count(n.named)} with a name, {count(n.startOnly)} with only a start place, {count(n.nothing)} with neither"
+  let gps = n.gpsErrorCount
+  if gps > 0:
+    result.add "; " & counted(gps, "GPS error", "GPS errors")
+  if n.left > 0:
+    result.add "; " & n.leftText.plainText
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.

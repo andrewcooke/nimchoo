@@ -80,7 +80,7 @@ proc makeHeat(st: Session): FrameData {.raises: [StoreError].} =
   let ids = selectedIds(st)
   let heat = heatOf(st, ids)
   if heat.len == 0:
-    result.warnings.add fmt"none of the {ids.len} activities has been through a cell (no positions in the files)"
+    result.warnings.add fmt"none of the {count(ids.len)} activities has been through a cell (no positions in the files)"
   result.geojson = featureCollection(heat.mapIt(heatFeature(it)))
 
 const

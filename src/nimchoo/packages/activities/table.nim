@@ -12,6 +12,7 @@
 
 import std/[algorithm, math, options, strformat, strutils, tables, times]
 import ../fit/time
+import ./criteria
 import ../geo/position
 import ../importer/describe
 import ../ui/interval
@@ -134,10 +135,11 @@ proc table*(
         l.line
     )
 
-func footer*(rows: seq[ListRow], choices = none(int)): string =
-  ## "42 of 1,310 activities, 2,013.4km, 4d02h12m (13 running, 2 swimming)": how many (with commas, as every count)
-  ## (of how many there are to choose from, if known), the total distance and active
-  ## time (of those that have them), and how many of each sport if there are several.
+func footerDetail*(rows: seq[ListRow]): string =
+  ## ", 2,013.4km, 4d02h12m (13 running, 2 swimming)": the total distance and active time (of those that have them), and how
+  ## many of each sport if there are several (a sport not recorded is "none", as `--sports none` says it); "" for no rows.
+  if rows.len == 0:
+    return ""
   var metres, seconds = 0.0
   var bySport: CountTable[string]
   for r in rows:
@@ -145,17 +147,8 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
       metres += r.distanceM.get
     if r.activeS.isSome:
       seconds += r.activeS.get
-    bySport.inc(if r.sport.len > 0: r.sport else: "unknown")
-  let ofAll =
-    if choices.isSome:
-      " of " & count(choices.get)
-    else:
-      ""
-  let noun = if rows.len == 1 and choices.isNone: "activity" else: "activities"
-  result = count(rows.len) & fmt"{ofAll} {noun}"
-  if rows.len == 0:
-    return
-  result.add fmt", {km(metres)}, {interval(seconds)}"
+    bySport.inc(if r.sport.len > 0: r.sport else: noSport)
+  result = fmt", {km(metres)}, {interval(seconds)}"
   if bySport.len > 1:
     var parts: seq[(string, int)]
     for k, v in bySport:
@@ -166,7 +159,7 @@ func footer*(rows: seq[ListRow], choices = none(int)): string =
         result = cmp(a[0], b[0])
     var text: seq[string]
     for (k, v) in parts:
-      text.add fmt"{v} {k}"
+      text.add fmt"{count(v)} {k}"
     result.add fmt" ({text.join("", "")})"
 
 func footerLine*(
@@ -175,6 +168,14 @@ func footerLine*(
   ## The last line (`footer`) as styled spans, after "done: " like the end of an import: "done: 11 of 1,113 activities,
   ## 1,057.9km, 2d10h52m", the count in the selection's style when the rows listed are the selection (`isSelection`:
   ## with no criteria, or just saved with `--select`; with `marks`, in brackets), so that nothing more need be said.
-  let text = footer(rows, choices)
-  let count = count(rows.len)
-  doneLine(@[countSpan(rows.len, isSelection, marks)] & ~"{text[count.len .. ^1]}")
+  doneLine(
+    listDone(
+      rows.len,
+      choices,
+      "activity",
+      "activities",
+      isSelection,
+      marks,
+      footerDetail(rows),
+    )
+  )

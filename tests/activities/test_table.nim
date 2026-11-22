@@ -57,7 +57,7 @@ suite "list table: the last line":
       row(0, "cycling", "", 1500.0, 600.0, selected = true),
       row(1, "cycling", "", 500.0, 60.0),
     ]
-    check footerLine(rows, some 5).text == "done: " & footer(rows, some 5)
+    check footerLine(rows, some 5).text == "done: 2 of 5 activities, 2.0km, 11m00s"
     check footerLine(rows, some 5).allIt(styleOf(it) == "")
     check "selected" notin footerLine(rows, some 5).text # (the rows' colour says which)
   test "the selection (listed, or just saved): the count in the select style, and nothing more said":
@@ -220,21 +220,30 @@ suite "list table: positions":
     check startText(some(-33.4), none(float)) == "no GPS"
 
 suite "list table: the last line":
-  test "how many, and of how many":
-    check footer(@[], some 74) == "0 of 74 activities"
-    check footer(@[row(0)], some 1).startsWith("1 of 1 activities")
-    check footer(@[row(0)]).startsWith("1 activity")
-    check footer(@[row(0), row(1)]).startsWith("2 activities")
+  test "how many, and of how many; the noun agrees with the last number":
+    check footerLine(@[], some 74).text == "done: 0 of 74 activities"
+    check footerLine(@[row(0)], some 1).text.startsWith("done: 1 of 1 activity")
+    check footerLine(@[row(0)]).text.startsWith("done: 1 activity")
+    check footerLine(@[row(0), row(1)]).text.startsWith("done: 2 activities")
+    check footerLine(@[row(0)], some 2).text.startsWith("done: 1 of 2 activities")
   test "totals count only what is recorded":
-    check footer(
+    check footerLine(
       @[row(0, distance = 1500.0, active = 600.0), row(1), row(2, distance = 500.0)]
-    ) == "3 activities, 2.0km, 10m00s"
-  test "a count by sport only when there are several, most first, ties by name":
-    check footer(@[row(0, "cycling"), row(1, "cycling")]) == "2 activities, 0.0km, 0s"
-    check footer(
+    ).text == "done: 3 activities, 2.0km, 10m00s"
+  test "a count by sport only when there are several, most first, ties by name, with commas":
+    check footerLine(@[row(0, "cycling"), row(1, "cycling")]).text ==
+      "done: 2 activities, 0.0km, 0s"
+    check footerLine(
       @[row(0, "running"), row(1, "cycling"), row(2, "running"), row(3, "swimming")]
-    ) == "4 activities, 0.0km, 0s (2 running, 1 cycling, 1 swimming)"
-    check footer(@[row(0, ""), row(1, "cycling")]).endsWith("(1 cycling, 1 unknown)")
+    ).text == "done: 4 activities, 0.0km, 0s (2 running, 1 cycling, 1 swimming)"
+    check footerLine(@[row(0, ""), row(1, "cycling")]).text.endsWith(
+      "(1 cycling, 1 none)"
+    ) # (as `--sports none` says it)
+    var many: seq[ListRow]
+    for k in 0 ..< 1200:
+      many.add row(k, "cycling")
+    many.add row(1200, "running")
+    check footerLine(many).text.endsWith("(1,200 cycling, 1 running)")
 
 suite "list table: looks":
   test "a row in the selection is in the select style all through; the others are not":
