@@ -36,9 +36,9 @@ func synopsisLines*(text: string): seq[Line] =
     if l.strip.len == 0:
       result.add plain(l)
     elif l.startsWith("usage: "):
-      result.add @[span("usage:", "em"), span(" "), span(l[lead .. ^1], "code")]
+      result.add ~"<em usage:> `{l[lead .. ^1]}`"
     else:
-      result.add @[span(l[0 ..< lead]), span(l[lead .. ^1], "code")]
+      result.add ~"{l[0 ..< lead]}`{l[lead .. ^1]}`"
 
 func proseLines*(paragraphs: seq[Line], width: int): seq[Line] =
   ## Paragraphs (each a `~"..."` line) wrapped to `width` by words, each word keeping its style, a blank line between two.
@@ -59,22 +59,22 @@ func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
   for d in docs:
     let l = label(d)
     let names = l.strip(trailing = false)
-    let lead = span(" ".repeat(indent + l.len - names.len))
+    let lead = " ".repeat(indent + l.len - names.len)
     let help = d.help.wrapped(helpWidth)
-    let pad = span(" ".repeat(column))
+    let pad = " ".repeat(column)
     if l.len > maxLabel or d.help.len == 0:
-      result.add @[lead, span(names, "code")]
+      result.add ~"{lead}`{names}`"
       for h in help:
         if h.len > 0:
-          result.add pad & h
+          result.add ~"{pad}" & h
     else:
       for i, h in help:
         if i == 0:
-          let first: Line =
-            @[lead, span(names, "code"), span(" ".repeat(labelWidth - l.len + gap))] & h
+          let between = " ".repeat(labelWidth - l.len + gap)
+          let first: Line = ~"{lead}`{names}`{between}" & h
           result.add first.stripped
         else:
-          result.add @[pad] & h
+          result.add ~"{pad}" & h
 
 func tableLines*(header: seq[string], rows: seq[seq[Line]], width: int): seq[Line] =
   ## A table for a usage text, indented like the options, with lines between the columns and under the headings
@@ -105,7 +105,7 @@ func usageOf*(
   if notes.len > 0:
     parts.add proseLines(notes, width)
   for s in sections:
-    parts.add @[@[span(s.heading.toLowerAscii & ":", "em")]] & s.lines
+    parts.add @[~"<em {s.heading.toLowerAscii}:>"] & s.lines
   for k, p in parts:
     if k > 0:
       result.add plain("")
