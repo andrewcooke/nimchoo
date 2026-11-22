@@ -22,7 +22,7 @@ type
     ## often they are drawn, and whether at all: only on a terminal); `final` is the last frame, which stays on the screen.
     ## Library code does not print, so this is how the import's two live lines are drawn for it.
 
-  Say* = proc(line: string) {.closure, raises: [].}
+  Say* = proc(line: Line) {.closure, raises: [].}
     ## A line for the screen (the downloads a step makes say theirs through it).
 
   AfterContext* = object
@@ -43,7 +43,7 @@ proc noShow*(lines: seq[Line], final: bool) {.raises: [].} =
   ## A `Show` that shows nothing (for a contribution that is run where there is no display, as in a test).
   discard
 
-proc noSay*(line: string) {.raises: [].} =
+proc noSay*(line: Line) {.raises: [].} =
   ## A `Say` that says nothing.
   discard
 

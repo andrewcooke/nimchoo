@@ -388,9 +388,8 @@ proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [
     g,
     st,
     commandName,
-    proc(line: string) {.closure, raises: [].} =
-      g.say osErr, line & "\n"
-    ,
+    proc(line: Line) {.closure, raises: [].} =
+      g.show(osErr, line),
   )
   if names.isNone:
     return failure(

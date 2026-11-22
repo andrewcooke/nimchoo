@@ -186,8 +186,8 @@ suite "download: the same events in the log and on the screen":
       @[
         logSink(l, "climbs"),
         screenSink(
-          proc(line: string) {.closure, raises: [].} =
-            said.add line
+          proc(line: Line) {.closure, raises: [].} =
+            said.add line.text
         ),
       ]
     )

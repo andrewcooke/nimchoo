@@ -123,9 +123,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           g,
           st,
           commandName,
-          proc(line: string) {.closure, raises: [].} =
-            g.say osErr, line & "\n"
-          ,
+          proc(line: Line) {.closure, raises: [].} =
+            g.show(osErr, line),
         )
         if names.isSome:
           try:

@@ -10,7 +10,7 @@ import ../names/climb
 import ../names/climbpick
 import ../names/countries
 import ../names/open
-import ../ui/units
+import ../ui/[markup, units]
 import ./[match, ordinal]
 
 {.push raises: [].}
@@ -73,7 +73,7 @@ proc nameClimbs*(
     g: Globals,
     st: Store,
     command: string,
-    say: proc(line: string) {.closure, raises: [].},
+    say: proc(line: Line) {.closure, raises: [].},
     only = none(int64),
 ): Option[Named] {.raises: [StoreError, DownloadError].} =
   ## Name the climbs that have no name yet, as `command` (what the log calls it): the names for the places are opened
@@ -86,14 +86,14 @@ proc nameClimbs*(
     return none(Named)
   let named = ensureSectorNames(st, names.get, only)
   if named.damaged.len > 0:
-    say warnLine(damagedText(named)).text
+    say warnLine(damagedText(named))
     g.log.log(lvWarn, command, leAdvisory, damagedText(named))
   if named.left > 0:
     let climbs = counted(named.left, "climb", "climbs")
     let them = if named.left == 1: "it" else: "them"
-    let text =
-      fmt"{climbs} left unnamed (`--offline`; the next run that may use the network names {them})"
-    say warnLine(text).text
+    say warnLine(
+      ~"{climbs} left unnamed (`--offline`; the next run that may use the network names {them})"
+    )
   if named.named + named.nothing > 0:
     let namedClimbs = counted(named.named, "climb", "climbs")
     g.log.log(

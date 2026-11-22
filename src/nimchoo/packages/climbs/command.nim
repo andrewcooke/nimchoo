@@ -79,9 +79,8 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
         g,
         st,
         commandName,
-        proc(line: string) {.closure, raises: [].} =
-          g.say osErr, line & "\n"
-        ,
+        proc(line: Line) {.closure, raises: [].} =
+          g.show(osErr, line),
         only = some(id),
       )
       # (what it could not do, nameClimbs has said: offline with the places not in the cache, or a damaged line)
@@ -181,9 +180,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g,
       st,
       commandName,
-      proc(line: string) {.closure, raises: [].} =
-        g.say osErr, line & "\n"
-      ,
+      proc(line: Line) {.closure, raises: [].} =
+        g.show(osErr, line),
     )
     let list = p.list
     var ids: seq[int64]

@@ -32,11 +32,11 @@ proc logSink*(l: Log, command: string): Sink =
     of deFailed:
       l.log(lvError, command, leFailed, ev.url & "  " & ev.message)
 
-proc screenSink*(write: proc(line: string) {.closure, raises: [].}): Sink =
+proc screenSink*(write: proc(line: Line) {.closure, raises: [].}): Sink =
   ## Say each event, as a line (the progress is not: there is no animation without a terminal).
   result = proc(ev: DownloadEvent) {.closure, raises: [].} =
     if ev.kind notin {deProgress, deReading, deFinished, deWorking, deWorkDone}:
-      write describe(ev)
+      write plain(describe(ev))
 
 proc liveSink*(
     theme: Theme,

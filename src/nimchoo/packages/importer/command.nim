@@ -95,9 +95,8 @@ proc runImport(
         g,
         st,
         commandName,
-        proc(line: string) {.closure, raises: [].} =
-          g.say osErr, line & "\n"
-        ,
+        proc(line: Line) {.closure, raises: [].} =
+          g.show(osErr, line),
       )
       if names.isSome:
         # (a spinner while it goes on, on a terminal; the downloads it makes are said by their own lines)
@@ -175,9 +174,8 @@ proc runImport(
           let ctx = AfterContext(
             g: g,
             show: show,
-            say: proc(line: string) {.closure, raises: [].} =
-              g.say osErr, line & "\n"
-            ,
+            say: proc(line: Line) {.closure, raises: [].} =
+              g.showAll(osErr, @[line]),
           )
           for said in step.run(st, ids, ctx):
             g.log.log(lvInfo, commandName, leSaved, said.text)

@@ -4,7 +4,7 @@
 
 import std/options
 import ../cache/cache
-import ../../core/globals
+import ../../core/[globals, line]
 import ../db/store
 import ../download/fetch
 import ../download/sinks
@@ -17,7 +17,7 @@ proc openNames*(
     g: Globals,
     st: Store,
     command: string,
-    say: proc(line: string) {.closure, raises: [].},
+    say: proc(line: Line) {.closure, raises: [].},
 ): Option[Names] =
   ## The names for `st`, as `command` (the name the log uses).  None if there is no cache directory to keep them in.
   ## `say` is where the downloads are told on the screen (a line each).
