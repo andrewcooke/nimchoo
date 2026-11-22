@@ -6,7 +6,9 @@
 ## without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 ## other views (`climbs`, `map`, `calendar`) take the selection.
 ##
-## * **Criteria** (`criteria.nim`): the command line parsed into a `Criteria`, and the `Criteria` turned into SQL in one place
+## * **A request** (`request.nim`): what the command line asks, as a value that cannot say what means nothing: an action (list, delete,
+##   rename) on a scope (the selection, every activity, those that match criteria, with an optional newest or oldest limit).
+## * **Criteria** (`criteria.nim`): the command line parsed into a `Request`, and the `Criteria` turned into SQL in one place
 ##   (`matchSql()`), used to list, count and save.  `latest` and `previous` refer to an activity (the newest of those that meet
 ##   the other criteria; the one that was selected before).  `--invert` negates all of them taken together.
 ## * **The point `activities/criteria`**: a package may offer an option that picks activities (a `Criterion`: the option's

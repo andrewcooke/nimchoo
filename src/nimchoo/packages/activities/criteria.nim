@@ -7,68 +7,13 @@ import ../fit/time
 import ../util/args/args
 import ../near/near
 import ../geo/box
-import ../ui/units
 import ../db/sqltext
 import ../../core/ids
 import ../text/fold/fold
-import ./[completion, criterion, ranges]
-export ranges, criterion, near
+import ./[completion, criterion, ranges, request]
+export ranges, criterion, near, request
 
 {.push raises: [].}
-
-type
-  Points* = object
-    ## the points `--from` and `--near` came to, once a place, `latest` and `previous` are worked out: (lat, lon)
-    start*, passes*: Option[(float, float)]
-
-  GpsFilter* = enum
-    gfAny
-    gfWith
-    gfWithout
-      ## --gps: only activities with at least one position; --no-gps: only those without any
-
-  Criteria* = object
-    all*: bool ## --all: every activity (not the selection)
-    given*: bool
-      ## some criterion or limit was given: the activities are searched for, not the selection
-    select*: bool ## --select: keep what is listed as the selection
-    delete*: bool ## --delete: delete the activities (an action, not a criterion)
-    rename*: bool ## --rename: name the activities again (an action, not a criterion)
-    verbose*: bool ## -v: show more of each activity (a display option)
-    newest*, oldest*: int
-      ## only the N newest (oldest) of those that meet the other
-      ## criteria, by start time; 0: no limit
-    distanceM*, activeS*: NumRange ## --distance, --active (metres, seconds; open: any)
-    distanceRel*, activeRel*: Option[Relative]
-      ## --distance latest~T / previous~T, --active ...
-    sportRef*, subSportRef*: Reference ## --sports latest / previous, --sub-sports ...
-    sports*, subSports*: seq[string]
-      ## only these (lower case; "none": not recorded); empty: any
-    nameRef*, startRef*: Reference ## --names latest / previous, --starts ...
-    names*, starts*: seq[string]
-      ## --names, --starts: text found in the name (the start place), whatever its case and
-      ## accents; "none": nothing; empty: any
-    namesExact*, startsExact*: seq[string]
-      ## what `latest` / `previous` came to: the whole value ("" is none)
-    nameIds*: seq[int64]
-      ## the activities a whole number in `--names` meant, when no name held it (worked out when the command runs)
-    paths*: seq[string]
-      ## --paths: text found in a path the file was imported from (or in its name)
-    contributed*: seq[Contributed]
-      ## the options that other packages offer (`--climbs`), as given: they are resolved when the command runs
-    afterT*: Option[UnixTime] ## the activity starts at or after this instant
-    beforeT*: Option[UnixTime] ## the activity starts before this instant
-    gps*: GpsFilter
-    invert*: bool
-      ## --invert: the activities that do NOT meet the criteria (before --newest / --oldest)
-    start*: Spot ## --from: where the activity starts
-    passes*: Spot ## --near: a point its route passes
-    radius*: Option[Distance] ## --radius (none: each its default)
-
-  Relative* = object
-    ## `latest~10%`: around an activity that is found when the command runs.
-    refers*: Reference
-    tol*: Tol
 
 const
   noSport* = "none"
@@ -98,8 +43,10 @@ proc parseOnDay*(s: string, zone: Timezone): Option[tuple[start, next: UnixTime]
     none(tuple[start, next: UnixTime])
 
 type ListState = object
-  ## What the options of `nch activities` fill in as they are read.
+  ## What the options of `nch activities` fill in as they are read (`finish` makes the `Request` of it).
   c: Criteria
+  all, select, delete, rename, verbose, invert: bool
+  newest, oldest: int ## 0: not given
   help: bool
   zone: Timezone
   offered: seq[Criterion] ## the criteria other packages offer
@@ -114,9 +61,9 @@ func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
     return refuse(~"`{name}` needs a number of activities, 1 or more (not '{value}')")
   p.criteriaGiven = true
   if oldest:
-    p.c.oldest = n
+    p.oldest = n
   else:
-    p.c.newest = n
+    p.newest = n
   fine
 
 func splitNames(values: seq[string], lower: bool): seq[string] =
@@ -350,7 +297,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"every activity, not just the selection",
-        body = (p.c.all = true; fine),
+        body = (p.all = true; fine),
       ),
       listOption[ListState](
         ["--sports"],
@@ -448,7 +395,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; `--newest` and `--oldest` apply after.  Needs a criterion",
-        body = (p.criteriaGiven = true; p.c.invert = true; fine),
+        body = (p.criteriaGiven = true; p.invert = true; fine),
       ),
       custom(
         ListState,
@@ -472,7 +419,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"the same as `--newest 1`",
-        body = (p.criteriaGiven = true; p.c.newest = 1; fine),
+        body = (p.criteriaGiven = true; p.newest = 1; fine),
       ),
       custom(
         ListState,
@@ -480,7 +427,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"make what is listed the selection (needs criteria or `--all`)",
-        body = (p.c.select = true; fine),
+        body = (p.select = true; fine),
       ),
       custom(
         ListState,
@@ -488,7 +435,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"name the activities again (with no criteria and no `--all`, those of the selection): where each started and what it is called, from the places and your landmarks as they are now (after `nch landmarks --add`, say)",
-        body = (p.c.rename = true; fine),
+        body = (p.rename = true; fine),
       ),
       custom(
         ListState,
@@ -496,7 +443,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"delete the activities (with no criteria and no `--all`, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  It asks first, saying what would be deleted (`-y` answers yes; with no terminal and no `-y` nothing is deleted)",
-        body = (p.c.delete = true; fine),
+        body = (p.delete = true; fine),
       ),
       custom(
         ListState,
@@ -504,7 +451,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         false,
         "",
         ~"show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), and the path of its file",
-        body = (p.c.verbose = true; fine),
+        body = (p.verbose = true; fine),
       ),
       helpFlag(ListState),
     ]
@@ -521,10 +468,10 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   for k, o in nearOptions(ListState, where, "activities", true):
     result.opts.insert(o, inv + k)
 
-func finish(st: ListState): Parsed[Criteria] =
-  ## What was read, if the options go together.
-  func bad(why: Line): Parsed[Criteria] =
-    problemWith[Criteria](why)
+func finish(st: ListState): Parsed[Request] =
+  ## What was read, if the options go together: the action on the scope.  (What the types cannot say is refused here.)
+  func bad(why: Line): Parsed[Request] =
+    problemWith[Request](why)
 
   var c = st.c
   var w = st.where
@@ -533,47 +480,65 @@ func finish(st: ListState): Parsed[Criteria] =
   c.start = w.start
   c.passes = w.passes
   c.radius = w.radius
-  c.given = st.criteriaGiven or w.given
-  if c.all and c.hasFilter:
+  let given = st.criteriaGiven or w.given
+  if st.all and c.hasFilter:
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
-  if c.delete and (c.select or c.verbose):
+  if st.delete and (st.select or st.verbose):
     return bad(~"`--delete` shows nothing: it does not go with `--select` or `-v`")
-  if c.rename and (c.delete or c.select or c.verbose):
+  if st.rename and (st.delete or st.select or st.verbose):
     return bad(
       ~"`--rename` shows nothing: it does not go with `--delete`, `--select` or `-v`"
     )
-  if c.select and not (c.given or c.all):
+  if st.select and not (given or st.all):
     return bad(
       ~"`--select` keeps the activities listed as the selection, so it needs criteria or `--all`"
     )
-  if c.invert and not c.hasFilter:
+  if st.invert and not c.hasFilter:
     return bad(
       ~"`--invert` needs a criterion to invert (`--sports`, `--names`, `--distance` ...)"
     )
-  if c.newest > 0 and c.oldest > 0:
+  if st.newest > 0 and st.oldest > 0:
     return bad(~"`--newest` and `--oldest` cannot be used together")
   if st.onGiven and st.rangeGiven:
     return
       bad(~"`--on` is a day of its own: it does not go with `--after` or `--before`")
   if c.afterT.isSome and c.beforeT.isSome and c.afterT.get >= c.beforeT.get:
     return bad(~"`--after` is not before `--before`")
-  parsedOk(c)
+  let limit =
+    if st.newest > 0:
+      some(Limit(kind: lkNewest, count: st.newest))
+    elif st.oldest > 0:
+      some(Limit(kind: lkOldest, count: st.oldest))
+    else:
+      none(Limit)
+  let action =
+    if st.delete:
+      Action(kind: akDelete)
+    elif st.rename:
+      Action(kind: akRename)
+    else:
+      Action(kind: akList, verbose: st.verbose, select: st.select)
+  let scope =
+    if st.all:
+      Scope(kind: scAll, allLimit: limit)
+    elif given:
+      Scope(kind: scMatching, criteria: c, invert: st.invert, limit: limit)
+    else:
+      Scope(kind: scSelection)
+  parsedOk(Request(action: action, scope: scope))
 
 proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
-): Parsed[Criteria] =
+): Parsed[Request] =
   ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
   ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
   ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
   parseCommand(
-    args,
-    criteriaSpec(offered),
-    ListState(c: Criteria(), zone: zone, offered: offered),
-    finish,
+    args, criteriaSpec(offered), ListState(zone: zone, offered: offered), finish
   )
 
 func refersTo*(c: Criteria, r: Reference): bool =
@@ -593,8 +558,8 @@ func usesPrevious*(c: Criteria): bool =
 
 func withoutLatest*(c: Criteria): Criteria =
   ## The criteria that do not mention `latest` (those that mention `previous` have been
-  ## resolved by then), and not `--newest/--oldest` either: the activities that meet these
-  ## are those among which "latest" is found.
+  ## resolved by then): the activities that meet these are those among which "latest" is found (before they are
+  ## inverted, and whatever the limit).
   result = c
   if result.start.kind == nkLatest:
     result.start = Spot()
@@ -612,10 +577,6 @@ func withoutLatest*(c: Criteria): Criteria =
     result.nameRef = refNone
   if result.startRef == refLatest:
     result.startRef = refNone
-  result.invert = false
-    # (`latest` is found among the activities that meet the criteria, before they are inverted)
-  result.newest = 0
-  result.oldest = 0
 
 func inValues*(column, name: string, values: seq[string]): Sql =
   ## " and (a.sport in (:sport0, :sport1))": the values, as `:name0`, `:name1` ...; "none" stands for NULL (not
@@ -715,7 +676,13 @@ func nearSql(
     result.with(name & "Lon", lon).with(name & "Lat", lat).with(name & "M", km * 1000)
 
 func matchSql*(
-    userId: UserId, c: Criteria, points: Points, columns = sqlOf("a.id"), extra = Sql()
+    userId: UserId,
+    c: Criteria,
+    points: Points,
+    columns = sqlOf("a.id"),
+    extra = Sql(),
+    invert = false,
+    limit = none(Limit),
 ): Sql =
   ## A query for the activities of the user `userId` that meet the criteria, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
@@ -764,14 +731,18 @@ func matchSql*(
   # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
   result =
     result & (
-      if c.invert:
+      if invert:
         " and not coalesce((1" & filt & "), 0)"
       else:
         filt
     )
-  if c.newest > 0:
-    result =
-      result & sqlOf(" order by a.start_t desc limit :newest").with("newest", c.newest)
-  if c.oldest > 0:
-    result =
-      result & sqlOf(" order by a.start_t asc limit :oldest").with("oldest", c.oldest)
+  if limit.isSome:
+    case limit.get.kind
+    of lkNewest:
+      result =
+        result &
+        sqlOf(" order by a.start_t desc limit :newest").with("newest", limit.get.count)
+    of lkOldest:
+      result =
+        result &
+        sqlOf(" order by a.start_t asc limit :oldest").with("oldest", limit.get.count)

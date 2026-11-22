@@ -131,12 +131,20 @@ suite "query plans: no query reads a whole table":
         Criteria(radius: some(Distance(50000.0))),
         Points(passes: some((-17.0, 179.9))),
       ),
-      ("newest", Criteria(newest: 3), nowhere),
       ("all", all, Points(start: here, passes: here)),
     ]
-    var inverted = all
-    inverted.invert = true
-    each.add ("all, inverted", inverted, Points(start: here, passes: here))
+    # (inverted, and limited: the newest 3, the oldest 3)
+    let both = Points(start: here, passes: here)
+    check scans(plan(st.db, matchSql(UserId(1), all, both, invert = true).text)).len == 0
+    for kind in [lkNewest, lkOldest]:
+      check scans(
+        plan(
+          st.db,
+          matchSql(
+            UserId(1), Criteria(), nowhere, limit = some(Limit(kind: kind, count: 3))
+          ).text,
+        )
+      ).len == 0
     # (a criterion that another package offers: the climbs; its condition is joined by `and`)
     let climbs = sqlOf(" and (") & onClimbs(@[1'i64]) & sqlOf(")")
     check scans(plan(st.db, matchSql(UserId(1), all, nowhere, extra = climbs).text)).len ==

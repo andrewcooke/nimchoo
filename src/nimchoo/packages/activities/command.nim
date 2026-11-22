@@ -105,27 +105,33 @@ proc listing(
     rows: seq[ListRow],
     zone: Timezone,
     width: int,
-    c: Criteria,
+    verbose: bool,
     choices: Option[int],
     marks = false,
     isSelection = false,
 ): seq[Line] =
   ## The table and its last line (`marks`: the selection in brackets, where there is no colour; `isSelection`: the rows
   ## are the selection).
-  result = table(rows, zone, c.verbose, width, marks)
+  result = table(rows, zone, verbose, width, marks)
   result.add footerLine(rows, choices, isSelection, marks)
 
 proc showSelection*(
-    st: Session, c: Criteria, zone: Timezone, width: int, marks = false
+    st: Session, verbose: bool, zone: Timezone, width: int, marks = false
 ): seq[Line] {.raises: [StoreError].} =
   ## The stored selection of the store's user, as a listing.
-  let rows = selectionRows(st, c.verbose)
+  let rows = selectionRows(st, verbose)
   if rows.len == 0:
     return @[
       ~"nothing is selected: `nch activities --all` lists every activity; with criteria and `--select` some are chosen"
     ]
   result = listing(
-    rows, zone, width, c, some(activityCount(st)), marks = marks, isSelection = true
+    rows,
+    zone,
+    width,
+    verbose,
+    some(activityCount(st)),
+    marks = marks,
+    isSelection = true,
   )
 
 proc latestAmong(
@@ -249,22 +255,24 @@ proc numbersAsIds(
       texts.add t
   c.names = texts
 
-type Resolved = object
+type Search = object
   ## The criteria with `latest` and `previous` worked out, the conditions of the criteria other packages offer, and the
   ## notes that say which activities they came to.
   c: Criteria
+  invert: bool
+  limit: Option[Limit]
   extra: Sql ## the offered criteria, each " and (...)"
   points: Points ## where --from and --near came to
   notes: seq[Line]
 
 proc resolveCriteria(
-    st: Session, criteria: Criteria, zone: Timezone
-): Resolved {.raises: [StoreError].} =
+    st: Session, scope: Scope, zone: Timezone
+): Search {.raises: [StoreError].} =
   ## `previous` (in --from, --near, --distance, --active, --sports, --sub-sports) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
   ## criteria that do not mention `latest`.  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
-  var c = criteria
+  var c = criteriaOf(scope)
   var extra = Sql()
   for o in c.contributed:
     let r = o.resolve(st, o.values)
@@ -325,61 +333,69 @@ proc resolveCriteria(
           ""
       result.notes.add plain(fmt"{what} {where}{why}, within {radiusText(km)}km")
   result.c = c
+  result.invert = scope.inverts
+  result.limit = scope.limitOf
   result.extra = extra
   result.points = points
 
 proc matchingIds*(
-    st: Session, criteria: Criteria, zone: Timezone
+    st: Session, scope: Scope, zone: Timezone
 ): tuple[ids: seq[int64], notes: seq[Line]] {.raises: [StoreError].} =
   ## The ids of the current user's activities the criteria mean: the selection if there are no criteria and no `--all`,
   ## else the activities found among all of them.  (And the notes that say which activity `latest` or `previous` was.)
   var query: Sql
-  if not (criteria.all or criteria.given):
+  if not scope.searches:
     query = sqlOf("select activity_id from selection where user_id = :owner").with(
         "owner", st.userId
       )
   else:
-    let r = resolveCriteria(st, criteria, zone)
+    let r = resolveCriteria(st, scope, zone)
     result.notes = r.notes
     query =
       "select id from (" &
-      matchSql(st.userId, r.c, r.points, sqlOf("a.id as id"), r.extra) & ")"
+      matchSql(
+        st.userId, r.c, r.points, sqlOf("a.id as id"), r.extra, r.invert, r.limit
+      ) & ")"
   result.ids = st.db.query(int64, query & " order by 1")
 
 proc listActivities*(
-    st: Session, criteria: Criteria, zone: Timezone, width: int, marks = false
-): tuple[lines: seq[Line], saved: int] {.raises: [StoreError].} =
-  ## List the activities that meet the criteria, or the selection if there are none (and keep them as the selection if
-  ## asked); `saved` is how many were kept, -1 if not asked.
-  if not (criteria.all or criteria.given):
+    st: Session, request: Request, zone: Timezone, width: int, marks = false
+): tuple[lines: seq[Line], saved: Option[int]] {.raises: [StoreError].} =
+  ## List the activities of the scope, the selection if that is what it is (and keep them as the selection if asked); `saved`
+  ## is how many were kept, if they were.
+  doAssert request.action.kind == akList
+  let verbose = request.action.verbose
+  if not request.scope.searches:
     # no criteria: the selection
-    result.lines = showSelection(st, criteria, zone, width, marks)
-    result.saved = -1
+    result.lines = showSelection(st, verbose, zone, width, marks)
     return
-  let r = resolveCriteria(st, criteria, zone)
-  let c = r.c
+  let r = resolveCriteria(st, request.scope, zone)
   result.lines = r.notes
   let match = matchSql(
     st.userId,
-    c,
+    r.c,
     r.points,
-    sqlOf("a.id as id, ") & rowColumns(c.verbose, st.userId),
+    sqlOf("a.id as id, ") & rowColumns(verbose, st.userId),
     r.extra,
+    r.invert,
+    r.limit,
   )
-  if c.select:
+  let select = request.action.select
+  if select:
     st.replaceSelection(st.db.query(int64, sqlOf("select id from (") & match & ")"))
   var rows =
     readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
-  if not (c.select or c.all):
+  if not (select or request.scope.kind == scAll):
     # the select style is the selection after this command: criteria without --select change nothing, so nothing listed is in it (with
     # --select everything listed is; with --all, the activities that are selected among them all)
     for r in rows.mitems:
       r.selected = false
   let total = activityCount(st)
   result.lines.add listing(
-    rows, zone, width, c, some(total), marks, isSelection = c.select
+    rows, zone, width, verbose, some(total), marks, isSelection = select
   )
-  result.saved = if c.select: rows.len else: -1
+  if select:
+    result.saved = some(rows.len)
 
 proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [].} =
   ## `--rename`: forget the names of the activities and make them again, as an import does.
@@ -423,18 +439,19 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return unitRetry(g, "nch activities", parsed.fix, run)
   of pkOk:
     discard
-  let criteria = parsed.params
+  let request = parsed.params
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
     return failure(g, "nch activities", e.msg)
   try:
-    if criteria.delete:
-      let m = matchingIds(st, criteria, zone)
+    case request.action.kind
+    of akDelete:
+      let m = matchingIds(st, request.scope, zone)
       for l in m.notes:
         g.show(osOut, l)
-      let searched = criteria.all or criteria.given
+      let searched = request.scope.searches
       return runDelete(
         g,
         st,
@@ -446,25 +463,26 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
           ~"nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`",
         zone,
       )
-    if criteria.rename:
-      let m = matchingIds(st, criteria, zone)
+    of akRename:
+      let m = matchingIds(st, request.scope, zone)
       for l in m.notes:
         g.show(osOut, l)
       if m.ids.len == 0:
         g.warn(
-          if criteria.all or criteria.given:
+          if request.scope.searches:
             ~"no activity meets the criteria: nothing to rename"
           else:
             ~"nothing is selected: `nch activities CRITERIA --select` chooses activities, or give criteria or `--all`"
         )
         return exitOk
       return renameActivities(g, st, m.ids)
-    let r = listActivities(st, criteria, zone, g.textWidth(osOut), not g.colour[osOut])
-    if r.saved >= 0:
-      g.log.log(
-        lvInfo, commandName, leSaved, counted(r.saved, "activity", "activities")
-      )
-    g.showAll(osOut, r.lines)
-    exitOk
+    of akList:
+      let r = listActivities(st, request, zone, g.textWidth(osOut), not g.colour[osOut])
+      if r.saved.isSome:
+        g.log.log(
+          lvInfo, commandName, leSaved, counted(r.saved.get, "activity", "activities")
+        )
+      g.showAll(osOut, r.lines)
+      exitOk
   except StoreError as e:
     failure(g, "nch activities", e.msg)

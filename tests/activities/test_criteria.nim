@@ -55,45 +55,79 @@ suite "list: times":
       check parseWhen(bad, utcZone).isNone
 
 suite "list: the command line":
-  proc cmdline(args: varargs[string]): Parsed[Criteria] =
+  proc cmdline(args: varargs[string]): Parsed[Request] =
     parseArgs(@args, utcZone)
 
-  test "--select and --all":
-    check not cmdline().params.select and not cmdline().params.all and
-      not cmdline().params.given
-    check parseArgs(@["--all", "--select"], utcZone).params.select and
-      cmdline("--all").params.all
-    check cmdline("--sports", "cycling", "--select").params.select and
-      cmdline("--sports", "cycling").params.given
-    check cmdline("--select").problem.contains("needs criteria or `--all`")
-    check cmdline("--newest", "1").params.given # (a limit searches all, too)
+  proc crit(args: varargs[string]): Criteria =
+    cmdline(args).params.scope.criteria
 
+  test "--select and --all":
+    check cmdline().params.scope.kind == scSelection and
+      cmdline().params.action.kind == akList and not cmdline().params.action.select
+    check cmdline("--all", "--select").params.action.select and
+      cmdline("--all").params.scope.kind == scAll
+    check cmdline("--sports", "cycling", "--select").params.action.select and
+      cmdline("--sports", "cycling").params.scope.kind == scMatching
+    check cmdline("--select").problem.contains("needs criteria or `--all`")
+    check cmdline("--newest", "1").params.scope.kind == scMatching
+      # (a limit searches all, too)
+
+  test "a request is an action on a scope: what means nothing cannot be written":
+    let d = cmdline("--all", "--delete").params
+    check d.action.kind == akDelete and d.scope.kind == scAll
+    expect FieldDefect:
+      discard d.action.verbose # (a delete shows nothing: there is no -v to ask)
+    expect FieldDefect:
+      discard cmdline("--rename").params.action.select
+    check cmdline("--all", "-n", "3").params.scope.allLimit ==
+      some(Limit(kind: lkNewest, count: 3))
+    expect FieldDefect:
+      discard
+        cmdline("--all").params.scope.criteria # (every activity: no criteria to hold)
+    expect FieldDefect:
+      discard cmdline().params.scope.limit
+    check cmdline("--sports", "cycling", "--invert", "-n", "2").params.scope.limitOf ==
+      some(Limit(kind: lkNewest, count: 2))
+    # what the options can say and the request cannot, is refused when it is made
+    for bad in [
+      @["--delete", "-v"],
+      @["--delete", "--select", "--all"],
+      @["--rename", "--delete"],
+      @["--rename", "-v"],
+      @["--all", "--sports", "cycling"],
+      @["-n", "1", "--oldest", "1"],
+    ]:
+      check parseArgs(bad, utcZone).kind == pkProblem
   test "the options":
-    let c = cmdline(
+    let r = cmdline(
       "--select", "--newest", "3", "--after", "2018-08-01", "--before", "2018-09-01",
       "--from", "38.7,-9.1", "--radius", "5km",
     ).params
-    check c.select and c.newest == 3 and c.oldest == 0
+    check r.action.select and r.scope.limit == some(Limit(kind: lkNewest, count: 3))
+    let c = r.scope.criteria
     check c.afterT == some(UnixTime(1533081600)) and
       c.beforeT == some(UnixTime(1535760000)) # (August, the dates their midnights)
-    let on = cmdline("--on", "2018-08-27").params
+    let on = cmdline("--on", "2018-08-27").params.scope.criteria
     check on.afterT == some(UnixTime(1535328000)) and
       on.beforeT == some(UnixTime(1535414400))
     check c.start.kind == nkPoint and c.start.lat == 38.7 and c.start.lon == -9.1 and
       c.startKm == 5.0 and c.passKm == 5.0 and c.passes.kind == nkNone
-    check cmdline("--from", "latest").params.start.kind == nkLatest
-    let named = cmdline("--from", "Lo Barnechea").params
+    check crit("--from", "latest").start.kind == nkLatest
+    let named = cmdline("--from", "Lo Barnechea").params.scope.criteria
     check named.start.kind == nkPlace and named.start.place == "Lo Barnechea"
     check cmdline("--from", "38.7").problem.contains("cannot read the position")
-    let passing = cmdline("--near", "Farellones").params
+    let passing = cmdline("--near", "Farellones").params.scope.criteria
     check passing.passes.kind == nkPlace and passing.passes.place == "Farellones" and
       passing.start.kind == nkNone
     check passing.passKm == defaultPassRadius.inKm and
       passing.startKm == defaultStartRadius.inKm # (each its own default)
-    check cmdline("--near", "latest").params.passes.kind == nkLatest
+    check crit("--near", "latest").passes.kind == nkLatest
   test "latest is the newest one; oldest; but not both":
-    check cmdline("--latest").params.newest == 1
-    check cmdline("--oldest", "2").params.oldest == 2
+    check cmdline("--latest").params.scope.limit == some(
+      Limit(kind: lkNewest, count: 1)
+    )
+    check cmdline("--oldest", "2").params.scope.limit ==
+      some(Limit(kind: lkOldest, count: 2))
     check cmdline("--newest", "2", "--oldest", "2").problem.contains("together")
     for bad in ["0", "-1", "x", "1.5"]:
       check cmdline("--newest", bad).problem.contains("number of activities")
@@ -109,12 +143,12 @@ suite "list: the command line":
       "does not go with criteria"
     )
   test "--radius on its own means --from latest":
-    let c = cmdline("--radius", "5km").params
+    let c = cmdline("--radius", "5km").params.scope.criteria
     check c.start.kind == nkLatest and c.startKm == 5.0
     check cmdline("--radius", "5km").problem == ""
   test "a radius with its unit: km or m; with no unit it is a question, with the corrected arguments":
-    check cmdline("--radius", "500m").params.radius == some(Distance(500.0))
-    check cmdline("--radius", "1.5km").params.radius == some(Distance(1500.0))
+    check crit("--radius", "500m").radius == some(Distance(500.0))
+    check crit("--radius", "1.5km").radius == some(Distance(1500.0))
     let u = cmdline("--from", "latest", "--radius", "3")
     check u.kind == pkUnit
     check u.fix.args == @["--from", "latest", "--radius", "3km"]
@@ -126,31 +160,32 @@ suite "list: the command line":
     let c = cmdline(
       "--sports", "Cycling", "running", "Swimming", "--sub-sports", "ROAD", "--sports",
       "walking",
-    ).params
+    ).params.scope.criteria
     check c.sports == @["cycling", "running", "swimming", "walking"]
     check c.subSports == @["road"]
     check cmdline("--sports").problem.contains("at least one name")
     check cmdline("--sub-sports", "--select").problem.contains("at least one name")
   test "-v is a display option, not a criterion; --file is gone":
-    check cmdline("-v").params.verbose and cmdline("--verbose").params.verbose
+    check cmdline("-v").params.action.verbose and
+      cmdline("--verbose").params.action.verbose
     check cmdline("-v").problem == ""
-    check cmdline("--verbose").params.verbose
+    check cmdline("--verbose").params.action.verbose
     check cmdline("--file").problem.contains("unexpected")
   test "-n is --newest":
-    check cmdline("-n", "3").params.newest == 3
+    check cmdline("-n", "3").params.scope.limit == some(Limit(kind: lkNewest, count: 3))
     check cmdline("-n", "0").problem.contains("number of activities")
     check cmdline("-n").problem.contains("needs a value")
     check cmdline("-n", "2", "--oldest", "2").problem.contains("together")
   test "--distance and --active are ranges; a value that starts with a dash is a value":
-    let c = cmdline("--distance", "-5km", "--active", "1h30m-4h").params
+    let c = cmdline("--distance", "-5km", "--active", "1h30m-4h").params.scope.criteria
     check c.distanceM == NumRange(hi: some 5000.0)
     check c.activeS == NumRange(lo: some 5400.0, hi: some 14400.0)
     for same in ["10km-50km", "10km-50000m"]:
-      check cmdline("--distance", same).params.distanceM ==
+      check crit("--distance", same).distanceM ==
         NumRange(lo: some 10000.0, hi: some 50000.0)
-    check cmdline("--distance", "0.5km-").params.distanceM == NumRange(lo: some 500.0)
-    check cmdline("--distance", "500m-").params.distanceM == NumRange(lo: some 500.0)
-    check cmdline("--active", "30m-90m").params.activeS ==
+    check crit("--distance", "0.5km-").distanceM == NumRange(lo: some 500.0)
+    check crit("--distance", "500m-").distanceM == NumRange(lo: some 500.0)
+    check crit("--active", "30m-90m").activeS ==
       NumRange(lo: some 1800.0, hi: some 5400.0)
   test "a unit left out is filled in and asked about, never taken as it is":
     for (given, asked) in [
@@ -162,36 +197,38 @@ suite "list: the command line":
     ]:
       let r = cmdline("--distance", given)
       check r.kind == pkUnit and r.fix.args == @["--distance", asked]
-    check cmdline("--distance", "42km~2000m").params.distanceM ==
+    check crit("--distance", "42km~2000m").distanceM ==
       NumRange(lo: some 40000.0, hi: some 44000.0)
   test "--distance and --active around a value, or around latest":
-    let c = cmdline("--distance", "42km~2km", "--active", "2h~15m").params
+    let c =
+      cmdline("--distance", "42km~2km", "--active", "2h~15m").params.scope.criteria
     check c.distanceM == NumRange(lo: some 40000.0, hi: some 44000.0)
     check c.activeS == NumRange(lo: some 6300.0, hi: some 8100.0)
     check not c.usesLatest
-    let l = cmdline("--distance", "latest~10%", "--active", "latest~15m").params
+    let l = cmdline("--distance", "latest~10%", "--active", "latest~15m").params.scope.criteria
     check l.distanceRel ==
       some(Relative(refers: refLatest, tol: Tol(amount: 10.0, percent: true)))
     check l.activeRel == some(Relative(refers: refLatest, tol: Tol(amount: 900.0)))
     check l.distanceM.isOpen and l.activeS.isOpen # (not known until latest is found)
     check l.usesLatest
   test "latest as a sport and a sub-sport":
-    let c = cmdline("--sports", "latest", "--sub-sports", "Latest", "road").params
+    let c = cmdline("--sports", "latest", "--sub-sports", "Latest", "road").params.scope.criteria
     check c.sportRef == refLatest and c.subSportRef == refLatest
     check c.sports.len == 0 and c.subSports == @["road"]
-    check cmdline("--sports", "latest", "cycling").params.sports == @["cycling"]
+    check crit("--sports", "latest", "cycling").sports == @["cycling"]
   test "previous: in the same places, and kept apart from latest":
     let c = cmdline(
       "--sports", "previous", "--sub-sports", "previous", "--distance", "previous~10%",
       "--active", "Previous~15m", "--from", "previous",
-    ).params
+    ).params.scope.criteria
     check c.sportRef == refPrevious and c.subSportRef == refPrevious
     check c.distanceRel ==
       some(Relative(refers: refPrevious, tol: Tol(amount: 10.0, percent: true)))
     check c.activeRel == some(Relative(refers: refPrevious, tol: Tol(amount: 900.0)))
     check c.start.kind == nkPrevious
     check c.usesPrevious and not c.usesLatest
-    let mixed = cmdline("--sports", "previous", "--distance", "latest~5km").params
+    let mixed =
+      cmdline("--sports", "previous", "--distance", "latest~5km").params.scope.criteria
     check mixed.usesPrevious and mixed.usesLatest
     check cmdline("--sports", "latest", "previous").problem.contains(
       "cannot be used together"
@@ -200,36 +237,34 @@ suite "list: the command line":
       "cannot be used together"
     )
     check cmdline("--sports", "previous", "previous").problem == ""
-    check cmdline("--near", "previous").params.passes.kind == nkPrevious
-    check cmdline("--near", "previous").params.usesPrevious
+    check crit("--near", "previous").passes.kind == nkPrevious
+    check crit("--near", "previous").usesPrevious
     check cmdline("--near", "38.7").problem.contains("latest or previous")
-    check cmdline("--radius", "5km").params.start.kind == nkLatest
-      # (alone: still latest)
+    check crit("--radius", "5km").start.kind == nkLatest # (alone: still latest)
   test "latest is found among the criteria that do not mention it, previous ones included":
     let c = cmdline(
       "--sports", "previous", "--distance", "latest~5km", "--near", "previous"
-    ).params
+    ).params.scope.criteria
     let base = c.withoutLatest
     check not base.usesLatest
     check base.usesPrevious # (resolved before, in the command)
     check base.passes.kind == nkPrevious and base.sportRef == refPrevious
   test "--from and --near latest use latest too, and the others that do not do not":
-    check cmdline("--near", "latest").params.usesLatest
-    check cmdline("--from", "latest").params.usesLatest
-    check cmdline("--radius", "5km").params.usesLatest
-    check not cmdline("--near", "1,2").params.usesLatest
-    check not cmdline("--sports", "cycling", "--distance", "5km-", "-n", "1").params.usesLatest
+    check crit("--near", "latest").usesLatest
+    check crit("--from", "latest").usesLatest
+    check crit("--radius", "5km").usesLatest
+    check not crit("--near", "1,2").usesLatest
+    check not crit("--sports", "cycling", "--distance", "5km-", "-n", "1").usesLatest
   test "without latest: what latest is found among":
     let c = cmdline(
       "--sports", "latest", "cycling", "--distance", "latest~5km", "--active",
       "latest~5%", "--near", "latest", "--sub-sports", "latest", "-n", "3", "--after",
       "2018-01-01", "--distance", "latest~2km",
-    ).params
+    ).params.scope.criteria
     let base = c.withoutLatest
     check not base.usesLatest
     check base.sports == @["cycling"] # (what was named stays)
     check base.afterT == c.afterT # (and the other criteria)
-    check base.newest == 0 and base.oldest == 0 # (newest is applied afterwards)
   test "--distance and --active problems":
     check cmdline("--distance", "5").problem.contains(
       "cannot read the distance range '5'"
@@ -270,9 +305,9 @@ suite "list: the command line":
     check cmdline("--distance", "40km-").kind == pkOk
     check cmdline("--distance", "-5").kind == pkUnit
   test "the radius: 10 km from a start, 1 km from a route, unless --radius says":
-    check cmdline("--from", "1,2").params.startKm == 10.0
-    check cmdline("--near", "1,2").params.passKm == 1.0
-    check cmdline("--near", "1,2", "--radius", "3km").params.passKm == 3.0
+    check crit("--from", "1,2").startKm == 10.0
+    check crit("--near", "1,2").passKm == 1.0
+    check crit("--near", "1,2", "--radius", "3km").passKm == 3.0
   test "--all is every activity: it does not go with criteria, but with the limits":
     check cmdline("--all", "--sports", "cycling").problem.contains(
       "does not go with criteria"
@@ -335,9 +370,9 @@ suite "list: the box and the sql":
     check q.value("passM") == arg(1000.0) # (the default)
     check not m.contains("a.start,")
   test "--gps and --no-gps":
-    check parseArgs(@["--gps"], utcZone).params.gps == gfWith
-    check parseArgs(@["--no-gps"], utcZone).params.gps == gfWithout
-    check parseArgs(@[], utcZone).params.gps == gfAny
+    check parseArgs(@["--gps"], utcZone).params.scope.criteria.gps == gfWith
+    check parseArgs(@["--no-gps"], utcZone).params.scope.criteria.gps == gfWithout
+    check criteriaOf(parseArgs(@[], utcZone).params.scope).gps == gfAny
     check parseArgs(@["--gps", "--gps"], utcZone).problem == ""
     check parseArgs(@["--gps", "--no-gps"], utcZone).problem.contains(
       "cannot be used together"
@@ -368,11 +403,11 @@ suite "list: the box and the sql":
       Criteria(
         afterT: some(UnixTime(5)),
         beforeT: some(UnixTime(9)),
-        newest: 2,
         radius: some(Distance(5000.0)),
       ),
       Points(start: some((38.7, -9.1))),
       sqlOf("a.id, a.start_t"),
+      limit = some(Limit(kind: lkNewest, count: 2)),
     )
     let full = fullQ.text
     check full.startsWith("select a.id, a.start_t from activity a")
@@ -385,7 +420,9 @@ suite "list: the box and the sql":
     check fullQ.value("startM") == arg(5000.0)
     check full.endsWith("order by a.start_t desc limit :newest")
     check fullQ.value("newest") == arg(2)
-    let oldest = matchSql(UserId(1), Criteria(oldest: 4), Points())
+    let oldest = matchSql(
+      UserId(1), Criteria(), Points(), limit = some(Limit(kind: lkOldest, count: 4))
+    )
     check oldest.text.endsWith("order by a.start_t asc limit :oldest")
     check oldest.value("oldest") == arg(4)
   test "sports are bound values, none means NULL, nothing without values":
@@ -430,7 +467,7 @@ suite "list: the box and the sql":
 
 suite "list: --names and --starts":
   proc parsed(args: varargs[string]): Criteria =
-    parseArgs(@args, utcZone).params
+    parseArgs(@args, utcZone).params.scope.criteria
 
   test "the words are alternatives; a name with spaces is one; a comma is part of a word":
     let c =
@@ -472,7 +509,8 @@ suite "list: --names and --starts":
 
 suite "list: --paths":
   test "the words are alternatives; the sql looks in the file's name and in every path it was seen at":
-    let c = parseArgs(@["--paths", "bowman", "run", "2026-10"], utcZone).params
+    let c =
+      parseArgs(@["--paths", "bowman", "run", "2026-10"], utcZone).params.scope.criteria
     check c.paths == @["bowman", "run", "2026-10"]
     let m = matchSql(UserId(1), c, Points())
     let q = m.text
@@ -483,12 +521,13 @@ suite "list: --paths":
     check m.value("path0") == arg("bowman") and m.has("path2")
     check not matchSql(UserId(1), Criteria(), Points()).text.contains("seen_file")
   test "latest is just text here; a path needs some text and is a criterion":
-    check parseArgs(@["--paths", "latest"], utcZone).params.paths == @["latest"]
+    check parseArgs(@["--paths", "latest"], utcZone).params.scope.criteria.paths ==
+      @["latest"]
     check parseArgs(@["--paths"], utcZone).problem.len > 0
 
 suite "list: --invert":
   test "it is a criterion on its own, and needs something to invert":
-    check parseArgs(@["--sports", "cycling", "--invert"], utcZone).params.invert
+    check parseArgs(@["--sports", "cycling", "--invert"], utcZone).params.scope.invert
     check parseArgs(@["--invert"], utcZone).problem.contains("needs a criterion")
     check parseArgs(@["--invert", "--newest", "2"], utcZone).problem.contains(
       "needs a criterion"
@@ -497,24 +536,24 @@ suite "list: --invert":
     check parseArgs(@["--invert", "--distance", "40km-"], utcZone).problem == ""
     check parseArgs(@["--invert", "--names", "latest"], utcZone).problem == ""
   test "the sql negates all of the criteria together, treating an unknown as no match":
-    let c =
-      parseArgs(@["--sports", "cycling", "--names", "toyo", "--invert"], utcZone).params
-    let q = matchSql(UserId(1), c, Points()).text
+    let c = parseArgs(@["--sports", "cycling", "--names", "toyo", "--invert"], utcZone).params.scope
+    let q = matchSql(UserId(1), c.criteria, Points(), invert = c.invert).text
     check q.contains(
       " and not coalesce((1 and (a.sport in (:sport0)) and (instr(fold(a.name), :nameT0) > 0"
     )
     check q.endsWith("), 0)")
-    let plain =
-      matchSql(UserId(1), parseArgs(@["--sports", "cycling"], utcZone).params, Points())
+    let plain = matchSql(
+      UserId(1),
+      parseArgs(@["--sports", "cycling"], utcZone).params.scope.criteria,
+      Points(),
+    )
     check not plain.text.contains("coalesce")
   test "the limits come after the inverting, and latest is found before it":
-    let c =
-      parseArgs(@["--sports", "cycling", "--invert", "--newest", "2"], utcZone).params
-    check matchSql(UserId(1), c, Points()).text.endsWith(
-      " order by a.start_t desc limit :newest"
-    )
-    let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).params
-    check r.usesLatest and not r.withoutLatest.invert and not r.withoutLatest.usesLatest
+    let c = parseArgs(@["--sports", "cycling", "--invert", "--newest", "2"], utcZone).params.scope
+    check matchSql(UserId(1), c.criteria, Points(), invert = c.invert, limit = c.limit).text
+      .endsWith(" order by a.start_t desc limit :newest")
+    let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).params.scope
+    check r.criteria.usesLatest and r.invert and not r.criteria.withoutLatest.usesLatest
 
 suite "list: criteria that other packages offer":
   func pick(st: Session, values: seq[string]): Resolution {.raises: [StoreError].} =
@@ -533,7 +572,7 @@ suite "list: criteria that other packages offer":
   test "an offered option is parsed with the others, and kept as given for its package to resolve":
     let c = parseArgs(
       @["--odd", "a", "b", "-o", "c", "--sports", "cycling"], utcZone, @[offered]
-    ).params
+    ).params.scope.criteria
     check c.contributed.len == 1 and c.contributed[0].option == "--odd"
     check c.contributed[0].values == @["a", "b", "c"]
     check c.sports == @["cycling"]
@@ -554,9 +593,11 @@ suite "list: criteria that other packages offer":
 suite "list: --delete":
   test "--delete is an action, not a criterion; -y answers its question":
     let r = parseArgs(@["--delete", "-y"], utcZone)
-    check r.params.delete and r.yes and not r.params.given and not r.params.all
+    check r.params.action.kind == akDelete and r.yes and
+      r.params.scope.kind == scSelection
     check not parseArgs(@["--delete"], utcZone).yes
-    check parseArgs(@["--sports", "cycling", "--delete"], utcZone).params.given
+    check parseArgs(@["--sports", "cycling", "--delete"], utcZone).params.scope.kind ==
+      scMatching
     check parseArgs(@["--all", "--delete", "-y"], utcZone).problem == ""
     check parseArgs(@["--delete", "--select"], utcZone).problem.contains(
       "shows nothing"
@@ -603,5 +644,5 @@ suite "list: the criteria of the packages":
 
 suite "list: --save":
   test "--save is another name for --select":
-    check parseArgs(@["--all", "--save"], utcZone).params.select
-    check parseArgs(@["--all", "--select"], utcZone).params.select
+    check parseArgs(@["--all", "--save"], utcZone).params.action.select
+    check parseArgs(@["--all", "--select"], utcZone).params.action.select

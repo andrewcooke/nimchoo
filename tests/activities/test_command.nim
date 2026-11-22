@@ -582,7 +582,9 @@ suite "list: the command":
     check chosen(db) == @["lisbon1", "paris"]
 
 suite "list: what is shown":
-  proc shown(db: string, args: varargs[string]): tuple[lines: seq[Line], saved: int] =
+  proc shown(
+      db: string, args: varargs[string]
+  ): tuple[lines: seq[Line], saved: Option[int]] =
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
@@ -593,7 +595,7 @@ suite "list: what is shown":
   test "a table of the activities, oldest first, with a last line":
     let db = world("shown")
     let r = shown(db, "--all")
-    check r.saved == -1
+    check r.saved.isNone
     check r.lines.texts[0] ==
       "start            │ sport   │ distance │ active │ place / name"
     check r.lines.texts[2] == "2018-07-01 12:00 │ cycling │   12.3km │  1h01m"
@@ -620,7 +622,7 @@ suite "list: what is shown":
     defer:
       st.close()
     let p = parseArgs(@[], utc())
-    check showSelection(st, p.params, utc(), 120).blueRows ==
+    check showSelection(st, false, utc(), 120).blueRows ==
       @[true] # the selection: all are
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
@@ -637,14 +639,14 @@ suite "list: what is shown":
   test "saving: the count is in the select style (what is listed is now the selection), and the selection shows it":
     let db = world("shownsave")
     let r = shown(db, "--newest", "1", "--select")
-    check r.saved == 1
+    check r.saved == some(1)
     check r.lines.texts[^1].startsWith("done: 1 of ")
     check "selected" notin r.lines.texts[^1] and "saved" notin r.lines.texts[^1]
     check r.lines[^1].anyIt(styleOf(it) == "select" and it.text == "1")
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
-    let again = showSelection(st, Criteria(), utc(), 120)
+    let again = showSelection(st, false, utc(), 120)
     check again.texts[2].startsWith("2018-08-27 12:00 │ running")
     check again.texts[^1].startsWith("done: 1 of 2 activities,") and
       "match selected" notin again.texts[^1] # (no "of": nothing was chosen from)
@@ -654,7 +656,7 @@ suite "list: what is shown":
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
-    check showSelection(st, Criteria(), utc(), 120).texts[0].startsWith(
+    check showSelection(st, false, utc(), 120).texts[0].startsWith(
       "nothing is selected"
     )
     check shown(db, "--after", "2030-01-01").lines.texts == @["done: 0 of 2 activities"]
