@@ -15,7 +15,7 @@ import ../fit/time
 import ../importer/describe
 import ../util/lookup/lookup
 import ../text/fold/fold
-import ../ui/style
+import ../ui/[markup, style]
 import ../ui/units
 import ../ui/vocabulary
 import ./[describe, display, report]
@@ -275,7 +275,7 @@ proc summaryLines*(
     for c, cell in row:
       line.add(
         if c in selectedCols:
-          @[span(cell, selectedStyle)]
+          ~"<{selectedStyle} {cell}>"
         else:
           plain(cell)
       )
@@ -284,7 +284,7 @@ proc summaryLines*(
   for c, h in header:
     headings.add(
       if c in selectedCols:
-        @[span(h, selectedStyle)]
+        ~"<{selectedStyle} {h}>"
       else:
         plain(h)
     )
@@ -338,7 +338,7 @@ proc summaryLines*(
       # moves)
       result.add(
         if marks:
-          @[span("   ")] & bracketed(e.line, chosen[e.row].len > 0)
+          ~"   " & bracketed(e.line, chosen[e.row].len > 0)
         else:
-          @[span("    ")] & e.line
+          ~"    " & e.line
       )
