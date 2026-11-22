@@ -102,4 +102,4 @@ func finish(raw: Raw): Parsed[Params] =
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## `[SUBJECT] [--frames FRAME...] [--file | --worker | --stop | --port N --start --new-token] [-h]`.
-  parseCommand(args, mapSpec(), Raw(web: initWebArgs()), finish)
+  parseCommand(args, mapSpec(), Raw(web: WebArgs()), finish)

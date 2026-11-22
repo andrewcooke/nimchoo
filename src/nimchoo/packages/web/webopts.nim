@@ -2,7 +2,7 @@
 ## for serving, which is what the command does when it is not told otherwise: one server for every page, see launch.nim): parsed and described in one place, so
 ## that the commands cannot differ.  Pure.
 
-import std/sequtils
+import std/[options, sequtils]
 import ../util/args/args
 import ./request
 
@@ -16,7 +16,9 @@ type
     start*: bool ## serving, but do not open the browser
     stop*: bool ## `--stop`: stop the server
     newToken*: bool ## serving, with a new secret token (the old bookmarks stop working)
-    port*: int ## serving on this port (0: any free one)
+    port*: Option[int]
+      ## `--port`: serving on this port (0: any free one); none: it was not given, which is not the default port, so that
+      ## `--file --port 8000` is refused whatever the number
 
   WebKind* = enum
     wkServe ## the default: show the page in the browser, served on localhost
@@ -35,16 +37,12 @@ type
     of wkFile, wkWorker:
       discard
 
-func initWebArgs*(): WebArgs =
-  ## The defaults: the default port, the rest off.
-  WebArgs(port: defaultPort)
-
-proc takePort*(name, value: string, port: var int): Problem =
+proc takePort*(name, value: string, port: var Option[int]): Problem =
   ## The value of `--port`: a port number.
   var n = 0
   if not parseIntIn(value, 0, 65535, n):
     return valueIs(name, "a port number, 0 to 65535", value)
-  port = n
+  port = some(n)
   fine
 
 func fileHelp(page, data: string): Line =
@@ -111,16 +109,23 @@ func webMode*(w: WebArgs): Parsed[WebMode] =
   if w.stop and (w.start or w.newToken):
     return
       problemWith[WebMode](~"`--stop` cannot be used with `--start` or `--new-token`")
-  let serving = w.start or w.newToken or w.port != defaultPort
+  let serving = w.start or w.newToken or w.port.isSome
   if (w.file or w.worker) and serving:
     return problemWith[WebMode](
       ~"`--start`, `--new-token` and `--port` are for serving the page: they cannot be used with `--file` or `--worker`"
     )
   if w.stop:
-    parsedOk(WebMode(kind: wkStop, stopPort: w.port))
+    parsedOk(WebMode(kind: wkStop, stopPort: w.port.get(defaultPort)))
   elif w.file:
     parsedOk(WebMode(kind: wkFile))
   elif w.worker:
     parsedOk(WebMode(kind: wkWorker))
   else:
-    parsedOk(WebMode(kind: wkServe, start: w.start, newToken: w.newToken, port: w.port))
+    parsedOk(
+      WebMode(
+        kind: wkServe,
+        start: w.start,
+        newToken: w.newToken,
+        port: w.port.get(defaultPort),
+      )
+    )

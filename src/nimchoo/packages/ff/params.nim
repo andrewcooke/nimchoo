@@ -144,7 +144,7 @@ func finish(raw: Raw): Parsed[Params] =
   if mode.kind == pkProblem:
     return problemWith[Params](mode.why)
   if raw.stdout and
-      (raw.web.start or raw.web.stop or raw.web.newToken or raw.web.port != defaultPort):
+      (raw.web.start or raw.web.stop or raw.web.newToken or raw.web.port.isSome):
     return problemWith[Params](
       ~"`--start`, `--stop`, `--new-token` and `--port` are for the server of the page: they cannot be used with `--stdout`"
     )
@@ -165,5 +165,5 @@ func finish(raw: Raw): Parsed[Params] =
 proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## The options of `nch ff`.
   parseCommand(
-    args, ffSpec(), Raw(web: initWebArgs(), fitnessScale: 1, fatigueScale: 1), finish
+    args, ffSpec(), Raw(web: WebArgs(), fitnessScale: 1, fatigueScale: 1), finish
   )

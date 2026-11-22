@@ -21,9 +21,9 @@ func `==`(p: Problem, said: string): bool =
 suite "serve web options: shared by the commands":
   let spec = Spec[Holder](opts: webOptions(Holder, web, "the chart", "the CSV file"))
   test "each option is taken, with its value":
-    var h = Holder(web: initWebArgs())
+    var h = Holder(web: WebArgs())
     check parseOptions(@["--start", "--port", "0", "--new-token"], spec, h) == ""
-    check h.web.start and h.web.newToken and h.web.port == 0
+    check h.web.start and h.web.newToken and h.web.port == some(0)
     check parseOptions(@["--file", "--worker"], spec, h) == ""
     check h.web.file and h.web.worker
     check parseOptions(@["--web"], spec, h) == "unexpected option `--web`"
@@ -32,20 +32,20 @@ suite "serve web options: shared by the commands":
       # (not ours)
   test "bad ports":
     for bad in [@["--port"], @["--port", "x"], @["--port", "-1"], @["--port", "65536"]]:
-      var h = Holder(web: initWebArgs())
+      var h = Holder(web: WebArgs())
       check parseOptions(bad, spec, h).isSome
   test "what the options ask for, or what is wrong with the combination":
-    check webMode(initWebArgs()).params.kind == wkServe # (the page is the default)
-    var w = initWebArgs()
+    check webMode(WebArgs()).params.kind == wkServe # (the page is the default)
+    var w = WebArgs()
     w.file = true
     check webMode(w).params.kind == wkFile
     w.worker = true
     check webMode(w).problem.contains("cannot be used together")
-    w = initWebArgs()
+    w = WebArgs()
     w.worker = true
     check webMode(w).params.kind == wkWorker
     for setting in [0, 1, 2]:
-      w = initWebArgs()
+      w = WebArgs()
       w.file = true
       case setting
       of 0:
@@ -53,13 +53,20 @@ suite "serve web options: shared by the commands":
       of 1:
         w.newToken = true
       else:
-        w.port = 0
+        w.port = some(0)
       check webMode(w).problem.contains("for serving the page")
-    w = initWebArgs()
+    w = WebArgs()
     w.start = true
-    w.port = 0
+    w.port = some(0)
     let m = webMode(w).params
     check m.kind == wkServe and m.start and m.port == 0 and not m.newToken
+  test "--port is refused with --file whatever the number: not given is not the default port":
+    for port in [$defaultPort, "62466", "0"]:
+      var h = Holder(web: WebArgs())
+      check parseOptions(@["--file", "--port", port], spec, h) == ""
+      check webMode(h.web).problem.contains("for serving the page")
+    check webMode(WebArgs(file: true)).kind == pkOk
+    check webMode(WebArgs()).params.port == defaultPort
   test "the options describe themselves":
     let docs = spec.docs
     for o in ["--file", "--worker", "--port", "--start", "--new-token"]:
