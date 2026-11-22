@@ -35,7 +35,7 @@ suite "climbs: duplicates":
       lines.anyIt(it.contains("0/1 effort unique"))
       # (the long ride also matched the short climb)
     check lines.filterIt(it.startsWith("hide:")) ==
-      @["hide: `nch climbs --edit 'NAME' --retire`"]
+      @["hide: nch climbs --edit 'NAME' --retire"]
         # one line, at the end, with NAME as the stand-in
     check lines[^1].startsWith("hide:")
     check groups[0].members[1].hideable and not groups[0].members[0].hideable
@@ -80,8 +80,8 @@ suite "climbs: duplicates, one line that shows how to hide":
     ]
     let lines = duplicateLines(groups, 120).mapIt(it.text)
     check lines.filterIt(it.startsWith("hide:")) ==
-      @["hide: `nch climbs --edit 'NAME' --retire`"]
-    check lines[^1] == "hide: `nch climbs --edit 'NAME' --retire`"
+      @["hide: nch climbs --edit 'NAME' --retire"]
+    check lines[^1] == "hide: nch climbs --edit 'NAME' --retire"
   test "nothing that can be hidden (all retired, or none a copy of a more ridden one): no hide line":
     let lines = duplicateLines(
         @[

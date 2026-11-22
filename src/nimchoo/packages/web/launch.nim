@@ -192,9 +192,7 @@ proc serveWeb*(
       showPage(g, pageUrl(port, path, query, t.token), o.start)
       g.tell(
         osOut,
-        plain(
-          fmt"(the server stays running for the pages of `nch` in this terminal: Ctrl-C or `{name} --stop` stops it)"
-        ),
+        ~"(the server stays running for the pages of `nch` in this terminal: Ctrl-C or `{name} --stop` stops it)",
       )
       g.log.log(lvInfo, command, leServed, fmt"listening on 127.0.0.1:{port}"),
   )

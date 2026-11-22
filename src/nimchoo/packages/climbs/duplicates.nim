@@ -7,7 +7,7 @@
 
 import std/[algorithm, math, options, strformat, tables]
 import ../../core/ruled
-import ../ui/style
+import ../ui/[markup, style]
 import ../db/statement
 import ../util/lookup/lookup
 import ../db/store
@@ -162,5 +162,5 @@ func duplicateLines*(groups: seq[Group], width: int): seq[Line] =
         anyToHide = true
   if anyToHide:
     result.add plain("")
-    result.add plain("hide: `nch climbs --edit 'NAME' --retire`")
+    result.add ~"hide: `nch climbs --edit 'NAME' --retire`"
       # (NAME: any climb above that is a copy of one with more efforts)

@@ -376,29 +376,21 @@ func isLineDrawing*(r: Rune): bool =
   int32(r) in 0x2500'i32 .. 0x257F'i32
 
 type Drawer* = object
-  ## Text drawn for a terminal, piece by piece, each piece in a look of its own, with the two rules that hold wherever text
-  ## is drawn (`Globals.inTheme`, `style.render`): the lines of a table in `lineStyle`, and what is between backticks in
-  ## `codeStyle`, over the piece's own look.  A look is started where it begins and reset where it ends.  What is between
-  ## backticks runs on from one piece to the next and over the end of a line (a phrase can be wrapped).
+  ## Text drawn for a terminal, piece by piece, each piece in a look of its own, with the rule that holds wherever text is
+  ## drawn (`Globals.inTheme`, `style.render`): the lines of a table in `lineStyle`.  A look is started where it begins and
+  ## reset where it ends.  A backtick is a character like any other: what is typed is a `code` span of a `Line` (`~"..."`),
+  ## never found in a text (a name with a backtick in it is drawn with it).
   text*: string ## what is drawn so far
   inForce: string ## the codes of the look being drawn
-  inTyped: bool ## between backticks
 
-func draw*(d: var Drawer, theme: Theme, look: Look, text: string, typing = true) =
-  ## Draw `text` in `look`; without `typing`, what is between backticks is drawn as it is, backticks and all (a message:
-  ## `messageStyles`).
+func draw*(d: var Drawer, theme: Theme, look: Look, text: string) =
+  ## Draw `text` in `look`.
   let plain = terminalCodes(look)
   let lines = terminalCodes(look.over(theme.styles.getOrDefault(lineStyle)))
-  let typed = terminalCodes(look.over(theme.styles.getOrDefault(codeStyle)))
   for r in text.runes:
     var want = plain
-    if r == Rune('`') and typing:
-      d.inTyped = not d.inTyped
-      continue # (in colour the style marks it: the backtick is not drawn)
     if r.isLineDrawing:
       want = lines
-    elif d.inTyped and typing:
-      want = typed
     if want != d.inForce:
       if d.inForce.len > 0:
         d.text.add "\e[0m"
@@ -407,7 +399,7 @@ func draw*(d: var Drawer, theme: Theme, look: Look, text: string, typing = true)
     d.text.add $r
 
 func endLine*(d: var Drawer) =
-  ## The end of a line: a reset, so that nothing runs on (what is between backticks goes on in the next line).
+  ## The end of a line: a reset, so that nothing runs on.
   if d.inForce.len > 0:
     d.text.add "\e[0m"
     d.inForce = ""
@@ -431,8 +423,8 @@ func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
 func render*(line: Line, paint: Paint): string =
   ## The line as text for a terminal: each look is started (if in colour) where it begins and reset where it ends, and the
   ## line ends with a reset, so that nothing runs on to the next line.  Spans side by side that look the same share one.
-  ## The lines of a table or a tree in a span (`│ ─ ├`), and what is between backticks, are in their styles over the span's
-  ## own (`Drawer`).  A space that is not to be broken (`line.noBreak`) is drawn as a space.
+  ## The lines of a table or a tree in a span (`│ ─ ├`) are in their style over the span's own (`Drawer`); a `code` span
+  ## is a span of its own (in a message it has its backticks, so that the message is one colour).  A space that is not to be broken (`line.noBreak`) is drawn as a space.
   if not paint.colour:
     return line.plainText.replace(noBreak, " ")
   var d: Drawer
@@ -445,14 +437,8 @@ func render*(line: Line, paint: Paint): string =
         paint.theme,
         lookOf(paint.theme, own),
         ('`' & s.text & '`').replace(noBreak, " "),
-        typing = false,
       )
     else:
-      d.draw(
-        paint.theme,
-        lookOf(paint.theme, s.styles),
-        s.text.replace(noBreak, " "),
-        typing = not message,
-      )
+      d.draw(paint.theme, lookOf(paint.theme, s.styles), s.text.replace(noBreak, " "))
   d.endLine()
   d.text

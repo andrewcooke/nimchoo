@@ -1,6 +1,6 @@
 import std/[tables, unittest]
 import nimchoo/core/theme
-import nimchoo/packages/ui/style
+import nimchoo/packages/ui/[markup, style]
 
 suite "ui style: rendering":
   let paint = Paint(
@@ -55,10 +55,13 @@ suite "ui style: the lines of a table or a tree":
     plain.colour = false
     check render(@[span("├── x")], plain) == "├── x"
 
-  test "what is between backticks is in the typed style, over the span's own, without the backticks":
+  test "a code span is in the typed style, over the span's own; a backtick in a value is drawn as it is":
     let p = Paint(theme: parseTheme("code fg=blue\nem weight=bold"), colour: true)
-    check render(@[span("run `nch db`")], p) == "run \e[34mnch db\e[0m"
-    check render(@[span("`x`", "em")], p) == "\e[1;34mx\e[0m"
+    check render(@[span("run "), span("nch db", "code")], p) == "run \e[34mnch db\e[0m"
+    check render(@[span("x", "em", "code")], p) == "\e[1;34mx\e[0m"
+    check render(@[span("a name with `ticks`")], p) == "a name with `ticks`"
+    let name = "a`b"
+    check render(~"the activity `{name}`", p) == "the activity \e[34ma`b\e[0m"
 
 suite "ui style: messages are one colour":
   test "in a warning or a failure what is between backticks is drawn as it is, in the message's style":
@@ -66,5 +69,5 @@ suite "ui style: messages are one colour":
       Paint(theme: parseTheme("code fg=blue\nwarn fg=red\nbad fg=red"), colour: true)
     check render(@[span("use `nch db`", "warn")], p) == "\e[31muse `nch db`\e[0m"
     check render(@[span("use `nch db`", "alt-bad")], p) == "\e[31muse `nch db`\e[0m"
-    check render(@[span("use `nch db`")], p) == "use \e[34mnch db\e[0m"
+    check render(@[span("use "), span("nch db", "code")], p) == "use \e[34mnch db\e[0m"
       # (elsewhere, code)

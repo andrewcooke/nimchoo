@@ -54,8 +54,8 @@ proc say*(f: File, text: string) {.raises: [].} =
     discard
 
 func inTheme*(g: Globals, o: OutStream, text: string): string =
-  ## `text`, plain, as it goes to `o`: in colour, in the theme's `default` look, with the lines of a table and what is between
-  ## backticks in their styles (`theme.Drawer`), and a reset at the end of each line, so that nothing runs on; so that all
+  ## `text`, plain, as it goes to `o`: in colour, in the theme's `default` look, with the lines of a table in their style
+  ## (`theme.Drawer`), and a reset at the end of each line, so that nothing runs on; so that all
   ## the text of a command looks alike.
   if not g.colour[o]:
     return text
