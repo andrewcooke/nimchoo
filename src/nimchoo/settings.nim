@@ -7,7 +7,7 @@ import ./core/[access, errors, globals, logfile, ruled]
 import ./packages/cache/cache
 import ./packages/db/store
 import ./packages/fit/default
-import ./packages/ui/[style, units]
+import ./packages/ui/[markup, style, units]
 import ./packages/user/session
 import ./packages/util/version/version
 import ./registry as generated
@@ -127,11 +127,11 @@ proc environmentLines(width: int): seq[Line] =
     let value =
       if given.isSome:
         (
-          if v.isPath and given.get.len > 0: @[span(given.get, "file")]
+          if v.isPath and given.get.len > 0: ~"<file {given.get}>"
           else: plain(given.get)
         )
       elif v.default.isSome:
-        @[span(v.default.get, "file"), span(" (default)")]
+        ~"<file {v.default.get}> (default)"
       else:
         plain("not set (default)")
     rows.add @[plain(v.name), value, plain(v.what)]
@@ -149,7 +149,7 @@ proc configLines*(g: Globals, width: int): seq[Line] =
 
   func pathOr(path: Option[string], otherwise: string): Line =
     if path.isSome:
-      @[span(path.get, "file")]
+      ~"<file {path.get}>"
     else:
       plain(otherwise)
   rows.add row("version", versionString)
@@ -167,7 +167,7 @@ proc configLines*(g: Globals, width: int): seq[Line] =
       state = humanBytes(getFileSize(path))
   except OSError:
     state = "cannot be read"
-  rows.add row("database", @[span(path, "file"), span(fmt"  ({source}; {state})")])
+  rows.add row("database", ~"<file {path}>  ({source}; {state})")
   rows.add row("schema", fragmentLines(path).join("\n"))
   rows.add row("user", userText(g, path))
   rows.add row("offline", if g.offline: "yes (`--offline`)" else: "no")
