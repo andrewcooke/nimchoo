@@ -33,30 +33,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
 
-15. **Step 4 of the review: what is left** (dev/REVIEW.md, section 3, classes 3 and 4; detail in `dev/review-4/part-*.md`; done
-    2026-11-22: the rest of the step).  Remove a line when it is done:
-    * E7, the dispatch: `map` and `ff` each write "stop / serve / worker / file" by hand (the messages are shared now); one shared
-      path in `web` that a page command gives a `makeFiles` proc needs a design choice (what the commands make differs: frames
-      against a CSV and a page; `ff` opens its session first);
-    * A9, colour: the live display decides colour itself (`newTerminalLive(theme)` calls `canColour()`); it should take
-      `paintOf(g, osErr)`, which changes the type of the maker the download sinks and the tests pass;
-    * A7: the guard test for padding by hand misses the usage's command list;
-    * A11: `wrap` (strings) and `line.wrapped` (Lines) are still two algorithms, now both counting characters.
-
-18. **Steps 5 and 6 of the review: what is left** (dev/REVIEW.md, section 3, classes 5 and 6; detail in `dev/review-4/part-*.md`;
-    the rest of both steps is done).  Remove a line when it is done:
-    * sentinels (class 5): `core/errors` fields (`offset` -1, `sheet` "", `row`/`line`/`column` 0), `OptDoc.metavar` "" for a flag,
-      the authorizer's `caller` "" (by design: code outside the packages is not checked, but it is not in the types);
-      `importer/events` `evFileDone` (a variant on `Outcome`: counts, failure and sameAs are there whatever the outcome); `fit` field
-      numbers -1 (`tokens.timestampField`, `decode`, `records`: hot paths, measure); `sector.name` null against '' (a schema
-      question); D12: `wipe.findUser`, `users.exists` and `openSession` each look a user up with their own text;
-    * dead code and stale text (class 6): three enums share the tag `ac` (`access.Action`, `completion.Action`, `bundle`) and two
-      exported types are called `Action` (A13); `--install-completion` says the path with `g.say`, not as a `file` (A13);
-      `ownership.tableEvents` and `parentTables` parse `create table NAME` twice (A13); the comments of the climbs fragment
-      (`001-schema.sql`: "(n/m) numbering", `nch sector --edit`, "or 005 by hand") go right at the next squash, fragments being
-      never edited (C14); `calendar/command` asks the terminal for its width itself and ignores `TERM=dumb` (E14); messages still
-      built with `&` and `$` in `db/command`, `ff/command` and `model/command` (E14).
-
 17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`), next after D7,
     **with tags** (needed for `ff`; to be described by the author).  One shared piece for
     the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
@@ -74,6 +50,15 @@ next instance, and write the visual rules down in one place (C).  Every item is 
    `nch climbs`, retire them for a longer nearby climb with clean ends, move or narrow their gates, match the sequence of curves,
    or require progress along the climb (`gatetruth` already does that, for judging).  Look at examples with
    `nch map --frames routes efforts gates`.
+
+7. **Left on purpose from the review** (dev/REVIEW.md; each with its reason):
+   * **E7, the dispatch of `map` and `ff`** (stop, serve, worker, file: written by hand in each; their messages are shared): to be
+     merged in the `ff` rework, as `ff`'s page will change then;
+   * the authorizer's **`caller` ""** (`db/access.nim`: code outside the packages is not checked): by design, though it is not in the
+     types;
+   * the comments of the climbs fragment (`001-schema.sql`: "(n/m) numbering", `nch sector --edit`, "or 005 by hand"): fragments are
+     never edited once a database has had them, so they go at the next squash; also `sector.name` null against '' (a schema
+     question).
 
 ## Larger changes (designs not started)
 

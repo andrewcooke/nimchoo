@@ -1,6 +1,6 @@
 ## Bad profile spreadsheets give a ProfileError that says where.
 
-import std/[strutils, tables, unittest]
+import std/[options, strutils, tables, unittest]
 import nimchoo/packages/fit/load
 import ../support/xlsxbuilder
 
@@ -46,8 +46,8 @@ proc expectError(
     discard load(typeRows, messageRows)
     check false # a ProfileError was expected
   except ProfileError as e:
-    check e.sheet == sheet
-    check e.row == row
+    check e.sheet == (if sheet.len > 0: some(sheet) else: none(string))
+    check e.row == (if row > 0: some(row) else: none(int))
     check text in e.msg
 
 suite "profile errors":

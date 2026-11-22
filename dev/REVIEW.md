@@ -65,15 +65,15 @@ transactions), B11 (the inflating child is sized by the caller's limit).
    **Done** 2026-11-22 (step 4): A4, D5, D2, D4, C4, E4 (the last two by the `~"..."` sweep), C10 (already ruled), C11, B5, D6,
    A9 (the width: `g.textWidth`; the live display still decides colour for itself), A11 (one counting, characters; two wrappers
    remain, for strings and for Lines), E7 (the messages: `noCacheDir`, `cannotWrite`, `templateFailure`; not the dispatch, see
-   TODO 15).  A7 is open.
+   TODO 7).  A7 and A9 (colour) and A11 (one wrapper) are done 2026-11-22.
 4. **One fact, one place** (**done** 2026-11-22 apart from B2, done earlier: A2 arity, A3 the database path, A8 who reads a table, B2 the log's command name, E5 the log's
    line format, E6 the CSP and `libraries.cdn`, E9 choosing a subject, C5 matching a climb's name).
 5. **Sentinels to `Option`/variants**, package by package (A10, B8, C8, C12, D7, D12, E5, E12; and B9, ids as `int64`).
-   **Done** 2026-11-22 (step 5), and D7 (activities' `Criteria`: a `Request` of an action on a scope, filters as variants in two stages; done 2026-11-22), apart from the lines in TODO 18: the database and user
+   **Done** 2026-11-22 (step 5), and D7 (activities' `Criteria`: a `Request` of an action on a scope, filters as variants in two stages; done 2026-11-22), apart from what TODO 7 leaves on purpose (the authorizer's `caller`, `sector.name`): the database and user
    of `Globals`, the log's, the profile's and the cache's `""` (A10, D12), `Seen`, `Prepared`, `Job`, the empty stand-in profile and
    `--jobs` (B8, B7), `ActivityId`/`FileId`/`UnixTime` in the importer (B9), `FetchResult`, `checkContent`, `zipEntry` (C12), the
    category and `nameProblem` (C8), `LogLine` and `Filter.count` (E5), the token, the authorizer and `freeSpace` (E12).
-6. **Dead code and stale text** in one sweep (**done** 2026-11-22 apart from the lines in TODO 18: A5, A6, A13, B10, C14, C15, D10,
+6. **Dead code and stale text** in one sweep (**done** 2026-11-22 apart from what TODO 7 leaves on purpose (the authorizer's `caller`, `sector.name`): A5, A6, A13, B10, C14, C15, D10,
    D13, E14, E13, B11; E1 now has a test) (A5, A6, A13, B10, C14, C15, D10, D13, E10, E14): including `ListRow.user`,
    a sub-query per row (D10), and CLAUDE.md, which says `models` has `--delete` (E10) and leaves `importer/pool.nim` out of
    the module-level state (B7).

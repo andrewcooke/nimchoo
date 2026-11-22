@@ -76,6 +76,24 @@ suite "globals: warnings and what was done":
     check m[^1].isCode
     check warnLine(@[span("in "), span("/a\nb", "code")]).text == "warning: in /a; b"
 
+  test "no fmt\"...\" holds a \\n: it is a raw string, so that is a backslash and an n, not a newline":
+    var found: seq[string]
+    let top = currentSourcePath().parentDir.parentDir.parentDir / "src"
+    for path in walkDirRec(top):
+      if not path.endsWith(".nim"):
+        continue
+      for i, whole in readFile(path).splitLines.toSeq:
+        let l = whole.split("##")[0]
+        var at = l.find("fmt\"")
+        while at >= 0:
+          let close = l.find('"', at + 4)
+          if close > 0 and "\\n" in l[at + 4 ..< close]:
+            found.add path & ":" & $(i + 1)
+          at = l.find("fmt\"", at + 4)
+    check found.len == 0
+    for f in found:
+      checkpoint f
+
   test "no other code writes the prefixes by hand: they come from warnLine and doneLine":
     var found: seq[string]
     let top = currentSourcePath().parentDir.parentDir.parentDir / "src"

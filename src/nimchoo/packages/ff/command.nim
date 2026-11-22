@@ -117,7 +117,7 @@ proc rows*(
 proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): string =
   result = "time,fitness,fatigue\n"
   for l in rows(impulses, m, p, now, tz):
-    result.add fmt"{l}\n"
+    result.add l & "\n"
 
 proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
   ## Work out the impulses that are lacking (in one transaction).
