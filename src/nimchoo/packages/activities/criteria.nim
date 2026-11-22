@@ -253,18 +253,21 @@ func contributedOption(o: Criterion): Opt[ListState] =
     completion: o.doc.completion,
   )
 
-func rangeUnit(v, unit: string): Option[string] =
-  ## `--distance 40-` -> `40km-`, `--active 90-` -> `90h-`: for `withUnit`.
-  addDefaultUnit(v, unit)
+func distanceFill(v, unit: string): Option[string] =
+  ## `--distance 40-` -> `40km-`, `42km~200` -> `42km~200m`: for `withUnit`.
+  fillUnits(v, unit, distanceUnitsBelow)
 
-proc takeDistance(p: var ListState, name, text: string): Problem {.nimcall.} =
+func timeFill(v, unit: string): Option[string] =
+  ## `--active 90-` -> `90h-`, `2h~15` -> `2h~15m`: for `withUnit`.
+  fillUnits(v, unit, timeUnitsBelow)
+
+proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
   p.criteriaGiven = true
-  let v = sharedUnit(text)
   if '~' in v:
     let ar = parseAround(v, metresEnd)
     if ar.isNone:
       return refuse(
-        ~"cannot read the distance '{text}' (use 42~2km, 500m~50m, latest~10% or previous~10%)"
+        ~"cannot read the distance '{v}' (use 42km~2km, 500m~50m, latest~10% or previous~10%)"
       )
     if ar.get.centre.isSome:
       p.c.distanceM = around(ar.get.centre.get, ar.get.tol)
@@ -274,21 +277,20 @@ proc takeDistance(p: var ListState, name, text: string): Problem {.nimcall.} =
     let r = parseRange(v, metresEnd)
     if r.isNone:
       if isBackwards(v, metresEnd):
-        return refuse(~"the distance range '{text}' is backwards (smaller end first)")
+        return refuse(~"the distance range '{v}' is backwards (smaller end first)")
       return refuse(
-        ~"cannot read the distance range '{text}' (use 40km-, 10-50km, -5km, 500m-, 42~2km, latest~10% or previous~10%)"
+        ~"cannot read the distance range '{v}' (use 40km-, 10-50km, -5km, 500m-, 42~2km, latest~10% or previous~10%)"
       )
     p.c.distanceM = r.get
   fine
 
-proc takeActive(p: var ListState, name, text: string): Problem {.nimcall.} =
+proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
   p.criteriaGiven = true
-  let v = sharedUnit(text)
   if '~' in v:
     let ar = parseAround(v, secondsEnd)
     if ar.isNone:
       return refuse(
-        ~"cannot read the active time '{text}' (use 2h~15m, latest~10% or previous~10%)"
+        ~"cannot read the active time '{v}' (use 2h~15m, latest~10% or previous~10%)"
       )
     if ar.get.centre.isSome:
       p.c.activeS = around(ar.get.centre.get, ar.get.tol)
@@ -298,10 +300,9 @@ proc takeActive(p: var ListState, name, text: string): Problem {.nimcall.} =
     let r = parseRange(v, secondsEnd)
     if r.isNone:
       if isBackwards(v, secondsEnd):
-        return
-          refuse(~"the active time range '{text}' is backwards (shorter end first)")
+        return refuse(~"the active time range '{v}' is backwards (shorter end first)")
       return refuse(
-        ~"cannot read the active time range '{text}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
+        ~"cannot read the active time range '{v}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
       )
     p.c.activeS = r.get
   fine
@@ -445,19 +446,19 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--distance"],
         true,
         "RANGE",
-        ~"distance, with its unit (`km` or `m`; given once is enough: `10-50km`): 40km- (40 or more), 10-50km, -5km (up to 5), 500m-; 42~2km (between 40 and 44), latest~10%, previous~10%; with no unit it is taken as km, after asking",
+        ~"distance, with its unit (`km` or `m`; a unit left out is filled in, after asking: `10-50` as `10km-50km`, `42km~200` as `42km~200m`): 40km- (40 or more), 10km-50km, -5km (up to 5), 500m-; 42km~2km (between 40 and 44), latest~10%, previous~10%",
         body = takeDistance(p, name, value),
       )
-        .withUnit("km", rangeUnit),
+        .withUnit("km", distanceFill),
       custom(
         ListState,
         ["--active"],
         true,
         "RANGE",
-        ~"active time: 1h-, 30m-2h, -45m (units d h m s, as printed; given once is enough in a range: `30-90m`); 2h~15m, latest~10%, previous~10%; with no unit it is taken as hours, after asking",
+        ~"active time: 1h-, 30m-2h, -45m (units d h m s, as printed; a unit left out is filled in, after asking: `30-90m` as `30m-90m`, `2h~15` as `2h~15m`, a bare number as hours); 2h~15m, latest~10%, previous~10%",
         body = takeActive(p, name, value),
       )
-        .withUnit("h", rangeUnit),
+        .withUnit("h", timeFill),
       custom(
         ListState,
         ["--after"],

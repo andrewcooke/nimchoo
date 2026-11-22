@@ -43,6 +43,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       unit (`100m`, `1.5km`), a **duration** with its unit (`d h m s`, as `interval` writes them: `60s`, `42d`, `2h30m`),
       both finite and positive (no `nan`, `inf`, `-1`); a **position** is `geo/position` (`LAT,LON`), which must refuse
       `nan` too.  `m` is metres in a distance and minutes in a duration: the option's kind says which.
+    * **The rule for units in ranges** (the author, 2026-11-22): whenever the program fills in a unit it asks; a range with every unit
+      written goes through (`ranges.fillUnits` says what is suggested: a spread takes the centre's unit, or the one below if its
+      number is larger, `42km~200` -> `42km~200m`; `a-b` borrows the other side's; neither: the default).
     * **Units are required.**  A bare number is a fourth outcome of `parseArgs` (beside valid, help and a problem): "valid
       with the unit added", with the corrected arguments.  **One shared helper in `core`** handles it for every command
       (as `usageError` handles a problem): on a terminal it asks, in three styles, `nch activities: --radius 3 has no

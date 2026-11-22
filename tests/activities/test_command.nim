@@ -273,9 +273,9 @@ suite "list: the command":
     check chosen(db) == @["paris"]
     discard save(db, "--distance", "-10km")
     check chosen(db) == @["lisbon1"] # (10 km counts; the unrecorded does not)
-    discard save(db, "--distance", "10-30km")
+    discard save(db, "--distance", "10km-30km")
     check chosen(db) == @["lisbon1", "paris"]
-    discard save(db, "--distance", "10.001-29.999km")
+    discard save(db, "--distance", "10.001km-29.999km")
     check chosen(db).len == 0
     discard save(db, "--distance", "1m-")
     check chosen(db) == @["lisbon1", "paris"] # (bob's has no distance at all)

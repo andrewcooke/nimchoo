@@ -135,19 +135,27 @@ suite "list: the command line":
     let c = cmdline("--distance", "-5km", "--active", "1h30m-4h").params
     check c.distanceM == NumRange(hi: some 5000.0)
     check c.activeS == NumRange(lo: some 5400.0, hi: some 14400.0)
-    for same in ["10-50km", "10km-50", "10km-50km", "10km-50000m"]:
+    for same in ["10km-50km", "10km-50000m"]:
       check cmdline("--distance", same).params.distanceM ==
         NumRange(lo: some 10000.0, hi: some 50000.0)
     check cmdline("--distance", "0.5km-").params.distanceM == NumRange(lo: some 500.0)
     check cmdline("--distance", "500m-").params.distanceM == NumRange(lo: some 500.0)
-    check cmdline("--active", "30-90m").params.activeS ==
+    check cmdline("--active", "30m-90m").params.activeS ==
       NumRange(lo: some 1800.0, hi: some 5400.0)
-  test "a unit given once serves a range or an around, on either side":
-    for same in ["42~2km", "42km~2", "42km~2000m"]:
-      check cmdline("--distance", same).params.distanceM ==
-        NumRange(lo: some 40000.0, hi: some 44000.0)
+  test "a unit left out is filled in and asked about, never taken as it is":
+    for (given, asked) in [
+      ("42~2km", "42km~2km"),
+      ("42km~2", "42km~2km"),
+      ("42km~2000", "42km~2000m"),
+      ("10-50km", "10km-50km"),
+      ("10km-50", "10km-50km"),
+    ]:
+      let r = cmdline("--distance", given)
+      check r.kind == pkUnit and r.fix.args == @["--distance", asked]
+    check cmdline("--distance", "42km~2000m").params.distanceM ==
+      NumRange(lo: some 40000.0, hi: some 44000.0)
   test "--distance and --active around a value, or around latest":
-    let c = cmdline("--distance", "42~2km", "--active", "2h~15m").params
+    let c = cmdline("--distance", "42km~2km", "--active", "2h~15m").params
     check c.distanceM == NumRange(lo: some 40000.0, hi: some 44000.0)
     check c.activeS == NumRange(lo: some 6300.0, hi: some 8100.0)
     check not c.usesLatest
@@ -231,16 +239,15 @@ suite "list: the command line":
     check cmdline("--active", "latest~x").problem.contains(
       "cannot read the active time"
     )
-    check cmdline("--active", "2h~15").params.activeS ==
-      NumRange(lo: some 0.0, hi: some 61200.0) # (15h: the unit is shared)
+    check cmdline("--active", "2h~15").fix.args == @["--active", "2h~15m"]
   test "--distance and --active with no unit anywhere are the question, the unit added to the first number":
     for (args, fixed) in [
       (@["--distance", "40-"], @["--distance", "40km-"]),
-      (@["--distance", "10-50"], @["--distance", "10km-50"]),
-      (@["--distance", "42~2"], @["--distance", "42km~2"]),
+      (@["--distance", "10-50"], @["--distance", "10km-50km"]),
+      (@["--distance", "42~2"], @["--distance", "42km~2km"]),
       (@["--distance", "latest~5"], @["--distance", "latest~5km"]),
       (@["--active", "90-"], @["--active", "90h-"]),
-      (@["--active", "1~2"], @["--active", "1h~2"]),
+      (@["--active", "1~2"], @["--active", "1h~2h"]),
       (
         @["--sports", "cycling", "--distance=40-"],
         @["--sports", "cycling", "--distance=40km-"],

@@ -3,8 +3,9 @@
 ## times.  Pure.
 ##
 ## An end has its unit, read by the shared readers (`ui/units`): a distance `40km` or `500m`, a time as the program prints it
-## (see packages/ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`.  **A unit needs to be given only once** in a range, on either
-## side (`sharedUnit`): `42~2km`, `10km-50`; with none anywhere, the command asks (`addDefaultUnit`).
+## (see packages/ui/interval.nim): `45s`, `22m`, `1h30m`, `2d`.  A unit may be left out of a range, but **whenever the program
+## fills one in it asks** (`fillUnits`: `42~2km` is suggested as `42km~2km`, `10-50` as `10km-50km`): only a range with
+## every unit written goes through.
 ## Both ends of a range are inclusive, and either may be left out (not both).
 
 import std/[math, options, sequtils, strutils]
@@ -88,40 +89,70 @@ func isAmount(x: Side): bool =
 func isSingleUnit(x: Side): bool =
   x.isAmount and x.unit.len > 0 and x.unit.allIt(it notin {'0' .. '9', '.'})
 
-func sharedUnit*(s: string): string =
-  ## A unit needs to be given only once in a range: `42~2km`, `42km~2` and `42km~2000m` are the same, and so are `10-50km`,
-  ## `10km-50` and `10km-50km`.  The side with no unit takes that of the other if it is a single one (`km`, `m`, `h`: not
-  ## `2h30m`, which would not say which of its units is meant).  Anything else is left as it was, for the reader to refuse.
-  let sd = sides(s)
-  if sd.isNone:
-    return s
-  let p = sd.get.parts
-  var parts = @[p[0].text, p[1].text]
-  for k in 0 .. 1:
-    if p[k].isAmount and p[k].unit.len == 0 and p[1 - k].isSingleUnit:
-      parts[k] = p[k].text & p[1 - k].unit
-  parts.join($sd.get.sep)
+type UnitsBelow* = openArray[tuple[unit, below: string]]
+  ## for each unit, the next one down (`km` -> `m`; the last has none: it is its own)
 
-func addDefaultUnit*(s: string, unit: string): Option[string] =
-  ## When no number of a range or an `around` has a unit (`40-`, `10-50`, `42~2`, `latest~5`), the text with `unit` added to
-  ## the first number (`40km-`: a unit given once is enough); none if some number has a unit or there is no number to
-  ## add it to (the text is then for the reader to accept or refuse).
+const
+  distanceUnitsBelow* = [("km", "m"), ("m", "m")]
+  timeUnitsBelow* = [("d", "h"), ("h", "m"), ("m", "s"), ("s", "s")]
+
+func below(units: UnitsBelow, unit: string): string =
+  for (u, b) in units:
+    if u == unit:
+      return b
+  unit
+
+func fillUnits*(s: string, default: string, units: UnitsBelow): Option[string] =
+  ## Where a range or an `around` lacks a unit, the text with it filled in; none if every unit is there or nothing can be
+  ## filled (the reader then accepts or refuses the text).  The program asks about every unit it fills in (`pkUnit`); this is
+  ## what it suggests:
+  ##
+  ## * `a~b`: a spread with no unit takes the centre's if its number is not larger than the centre's (`42km~2` -> `42km~2km`),
+  ##   else the unit below it (`42km~200` -> `42km~200m`); a centre with no unit takes the spread's (`42~2km` -> `42km~2km`);
+  ##   neither has one: the default on both (`40~2` -> `40km~2km`); a centre `latest` or `previous` has a spread alone
+  ##   (`latest~5` -> `latest~5km`; a percentage needs no unit);
+  ## * `a-b`: a side with no unit takes the other's (`10-50km` -> `10km-50km`); neither: the default on both; an open range
+  ##   (`40-`, `-5`) has the default.
+  ##
+  ## Only a single unit is borrowed (not `2h30m`): which of its units would be meant?
   let sd = sides(s)
   if sd.isNone:
     return none(string)
   let p = sd.get.parts
-  var first = -1
-  for k in 0 .. 1:
-    if p[k].isAmount:
-      if p[k].unit.len > 0:
-        return none(string)
-      if first < 0:
-        first = k
-  if first < 0:
-    return none(string)
   var parts = @[p[0].text, p[1].text]
-  parts[first] = parts[first] & unit
-  some(parts.join($sd.get.sep))
+  var filled = false
+  func put(parts: var seq[string], k: int, unit: string, filled: var bool) =
+    parts[k] = p[k].text & unit
+    filled = true
+
+  let bare =
+    [p[0].isAmount and p[0].unit.len == 0, p[1].isAmount and p[1].unit.len == 0]
+  if sd.get.sep == '~' and p[0].number.len == 0 and p[0].text.len > 0:
+    # (a reference: only the spread can lack a unit)
+    if bare[1]:
+      parts.put(1, default, filled)
+  elif bare[0] or bare[1]:
+    for k in 0 .. 1:
+      if not bare[k]:
+        continue
+      if p[1 - k].isSingleUnit:
+        let u = p[1 - k].unit
+        if sd.get.sep == '~' and k == 1:
+          # a spread: the centre's unit, or the one below it if the spread's number is larger
+          var big = false
+          try:
+            big = parseFloat(p[1].number) > parseFloat(p[0].number)
+          except ValueError:
+            discard
+          parts.put(k, (if big: below(units, u) else: u), filled)
+        else:
+          parts.put(k, u, filled)
+      elif bare[1 - k] or p[1 - k].text.len == 0:
+        parts.put(k, default, filled)
+  if filled:
+    some(parts.join($sd.get.sep))
+  else:
+    none(string)
 
 func isBackwards*(s: string, parseEnd: EndParser): bool =
   ## Whether `s` is a range whose ends can be read but whose first end is larger.

@@ -17,40 +17,50 @@ suite "ranges: the ends are read by the shared readers":
     for bad in ["", "90", "1h30", "h", "1x", "30m1h", "1h1h", "-1h", "1h 30m", "0s"]:
       check secondsEnd(bad).isNone
 
-suite "ranges: a unit is given once":
-  test "a side with no unit takes the single unit of the other":
-    for same in ["42~2km", "42km~2", "42km~2000m"]:
-      check parseAround(sharedUnit(same), metresEnd) ==
-        some(Around(centre: some 42000.0, tol: Tol(amount: 2000.0)))
-    check parseAround(sharedUnit("42~2000m"), metresEnd).get.centre == some 42.0
-    for same in ["10-50km", "10km-50", "10km-50km"]:
-      check parseRange(sharedUnit(same), metresEnd) ==
-        some(NumRange(lo: some 10000.0, hi: some 50000.0))
-    check parseRange(sharedUnit("40km-"), metresEnd) == some(NumRange(lo: some 40000.0))
-    check parseRange(sharedUnit("-5km"), metresEnd) == some(NumRange(hi: some 5000.0))
-    check parseRange(sharedUnit("30-90m"), secondsEnd) ==
-      some(NumRange(lo: some 1800.0, hi: some 5400.0))
-    check parseAround(sharedUnit("2~15m"), secondsEnd).get.centre == some 120.0
-  test "a compound unit, a percentage or a word is not shared":
-    check sharedUnit("2h30m-3") == "2h30m-3"
-    check sharedUnit("latest~10%") == "latest~10%"
-    check sharedUnit("5-10%") == "5-10%"
-    check parseRange(sharedUnit("2h30m-3"), secondsEnd).isNone
-  test "with no unit anywhere the default is added to the first number":
-    check addDefaultUnit("40-", "km") == some("40km-")
-    check addDefaultUnit("-5", "km") == some("-5km")
-    check addDefaultUnit("10-50", "km") == some("10km-50")
-    check addDefaultUnit("42~2", "km") == some("42km~2")
-    check addDefaultUnit("latest~5", "km") == some("latest~5km")
-    check addDefaultUnit("90-", "h") == some("90h-")
-    check parseRange(sharedUnit(addDefaultUnit("10-50", "km").get), metresEnd) ==
+suite "ranges: units that are left out are filled in (and the program asks)":
+  const km = distanceUnitsBelow
+  const t = timeUnitsBelow
+  test "a range with every unit written needs nothing":
+    for done in ["42km~200m", "10km-50km", "40km-", "-5km", "latest~10%", "latest~5km"]:
+      check fillUnits(done, "km", km).isNone
+    check fillUnits("2h~15m", "h", t).isNone
+  test "a spread takes the centre's unit, or the one below it if its number is larger":
+    check fillUnits("42km~2", "km", km) == some("42km~2km")
+    check fillUnits("42km~42", "km", km) == some("42km~42km")
+    check fillUnits("42km~200", "km", km) == some("42km~200m")
+    check fillUnits("500m~50", "km", km) == some("500m~50m")
+    check fillUnits("500m~900", "km", km) == some("500m~900m") # (nothing below metres)
+    check fillUnits("2h~1", "h", t) == some("2h~1h")
+    check fillUnits("2h~15", "h", t) == some("2h~15m")
+    check fillUnits("2d~5", "h", t) == some("2d~5h")
+    check fillUnits("2m~30", "h", t) == some("2m~30s")
+    check fillUnits("30s~90", "h", t) == some("30s~90s")
+  test "a centre with no unit takes the spread's; with neither the default is on both":
+    check fillUnits("42~2km", "km", km) == some("42km~2km")
+    check fillUnits("2~15m", "h", t) == some("2m~15m")
+    check fillUnits("40~2", "km", km) == some("40km~2km")
+    check fillUnits("2~1", "h", t) == some("2h~1h")
+  test "latest and previous have a spread alone, with the default":
+    check fillUnits("latest~5", "km", km) == some("latest~5km")
+    check fillUnits("previous~15", "h", t) == some("previous~15h")
+  test "a-b: a side takes the other's unit; neither, the default; open, the default":
+    check fillUnits("10-50km", "km", km) == some("10km-50km")
+    check fillUnits("10km-50", "km", km) == some("10km-50km")
+    check fillUnits("10-50", "km", km) == some("10km-50km")
+    check fillUnits("30-90m", "h", t) == some("30m-90m")
+    check fillUnits("40-", "km", km) == some("40km-")
+    check fillUnits("-5", "km", km) == some("-5km")
+    check fillUnits("90-", "h", t) == some("90h-")
+  test "what is filled in is a range the readers take":
+    check parseRange(fillUnits("10-50", "km", km).get, metresEnd) ==
       some(NumRange(lo: some 10000.0, hi: some 50000.0))
-  test "no default when a unit is there, or there is no number":
-    for done in [
-      "40km-", "10-50km", "42~2km", "latest~10%", "latest", "-", "~", "5", "x-y",
-      "1-2-3",
-    ]:
-      check addDefaultUnit(done, "km").isNone
+    check parseAround(fillUnits("42km~200", "km", km).get, metresEnd) ==
+      some(Around(centre: some 42000.0, tol: Tol(amount: 200.0)))
+  test "a compound unit is not borrowed, and nothing else is changed":
+    check fillUnits("2h30m~15", "h", t).isNone
+    check fillUnits("2h30m-3", "h", t).isNone
+    for other in ["5", "", "-", "latest", "1-2-3", "x-y"]:
+      check fillUnits(other, "km", km).isNone
 
 suite "ranges: a-b, a-, -b":
   test "both ends, inclusive":
