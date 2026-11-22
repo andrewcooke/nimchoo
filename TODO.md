@@ -33,6 +33,12 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       for the log or for `ImportReport.text`: check on a terminal that nothing shows a backtick that should be a style;
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
+    * **lines built by hand from `span(...)`** (about 80 calls) become `~"..."` too: `importer/display.nim` is the example
+      (2026-11-22).  A style chosen by a value is written `<{e} ...>`, anything with a `style` function (a log event: the
+      vocabulary says its style, so `~"<{leImported} imported {n}>"`, never `<good ...>` written by hand for an event; a
+      `StyleName`).  A line built up in a loop (parts joined by dots, the cells of a table, the alternating rows) stays a
+      join, of `~` pieces.  One package per commit; then a test that refuses `span(` with a literal style name outside
+      `core/` and `ui/` (the builders).  A cheaper model can do it from this brief.
 
 13. **E1 has no test** (dev/REVIEW.md): `tests/map/test_web.nim` starts a real server; add one that resets a connection
     before its reply (SO_LINGER 0) on a page that needs a worker, then checks the server still answers.  It needs the

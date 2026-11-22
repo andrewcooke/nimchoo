@@ -246,7 +246,8 @@ four kinds of things go wrong, and each has one mechanism:
 * **everything a person reads is in the theme** (decided 2026-11-18): a command writes with `g.say(osOut, text)` (plain
   text, in the theme's `default`), `g.show(osOut, line)` (a `Line` of styled spans) and `failure(g, ...)`; styled text
   in the code is `~"<good imported> {n} files, see `nch log`"` (`ui/markup`: markup read when compiled, backticks are
-  `<code ...>`, a style the built-in theme lacks is a compile error; each value is a span of its own, drawn as it is), or
+  `<code ...>`, a style the built-in theme lacks is a compile error; a style can be a value, `<{leImported} ...>`, anything
+  with a `style` function; nothing in a value is read as markup), or
   `span(text, "bad")`.  help texts, the problems of the parser and the introductions of a usage are `Line`s too.  a
   backtick in a plain text is just a character (nothing reads it at run time: dev/REVIEW.md, A1), so what is typed is
   always a `code` span, and a plain string with backticks in an error or a warning (messages are one colour) is drawn as it

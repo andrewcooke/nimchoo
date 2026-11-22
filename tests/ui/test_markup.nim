@@ -1,7 +1,8 @@
 import std/[sequtils, strutils, unittest]
 import nimchoo/core/errors
 import nimchoo/core/[line, theme]
-import nimchoo/packages/ui/[markup, style]
+import nimchoo/packages/ui/[markup, style, vocabulary]
+import nimchoo/core/logfile
 
 proc problem(text: string): string =
   try:
@@ -108,6 +109,15 @@ suite "ui markup: ~, read when compiled":
   test "braces are doubled, as in fmt; a line with nothing is empty":
     check (~"{{x}}").text == "{x}"
     check (~"").len == 0
+
+  test "a style can be a value: a log event (its style from the vocabulary) or a StyleName":
+    let n = 3
+    let l = ~"<{leImported} imported {n}>, <{leFailed} failed 0>"
+    check l.text == "imported 3, failed 0"
+    check l[0].styles == @[style(leImported)] and l[2].styles == @[style(leFailed)]
+    let chosen = styleName"select"
+    check (~"<{chosen} x <em y>>")[1].styles == @[chosen, styleName"em"]
+    check not compiles(~"<{42} x>") # (an int has no style)
 
   test "markup that cannot be read, or a style the built-in theme lacks, does not compile":
     check compiles(~"<good x>")

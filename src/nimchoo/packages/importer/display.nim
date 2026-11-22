@@ -8,8 +8,8 @@
 ## `renderImport` is a pure function of the counts, so it is tested without a
 ## terminal; the sink only keeps the counts and asks the Live when to draw.
 
-import std/[os, strutils]
-import ../ui/live
+import std/os
+import ../ui/[live, markup]
 import ../ui/style
 import ../ui/vocabulary
 import ../../core/globals
@@ -19,46 +19,41 @@ import ../ui/units
 
 {.push raises: [].}
 
-const dot = " · "
-
 func renderImport*(sum: Summary, index: int, current: string): seq[Line] =
   ## The lines for the run so far: file number `index` (the one being looked
   ## at, `current`, if any) of `sum.total`.  What is zero is left out, except
   ## imported and failed.
-  var first: Line =
-    @[span("importing ", "em"), span(count(index) & " / " & count(sum.total))]
+  var first = ~"<em importing >{count(index)} / {count(sum.total)}"
   if current.len > 0:
-    first.add span("   " & current, "hide")
+    first.add ~"<hide    {current}>"
   var second: Line
-  template part(sp: Span) =
+  template part(l: Line) =
     if second.len > 0:
-      second.add span(dot, "hide")
-    second.add sp
+      second.add ~"<hide  · >"
+    second.add l
 
   # the styles are those of the events of the same name (packages/ui/vocabulary.nim)
-  part span("imported " & count(sum.imported), leImported)
+  part ~"<{leImported} imported {count(sum.imported)}>"
   if sum.duplicates > 0:
-    part span("duplicates " & count(sum.duplicates), leDuplicate)
+    part ~"<{leDuplicate} duplicates {count(sum.duplicates)}>"
   if sum.unchanged > 0:
-    part span("unchanged " & count(sum.unchanged), leUnchanged)
+    part ~"<{leUnchanged} unchanged {count(sum.unchanged)}>"
   if sum.monitor > 0:
-    part span("monitor " & count(sum.monitor), leUnchanged)
+    part ~"<{leUnchanged} monitor {count(sum.monitor)}>"
   if sum.known > 0:
-    part span("known failures " & count(sum.known), leUnchanged)
+    part ~"<{leUnchanged} known failures {count(sum.known)}>"
   if sum.failed > 0:
-    part span(
-      "failed " & count(sum.failed) & " (" & failureBreakdown(sum) & ")", leFailed
-    )
+    part ~"<{leFailed} failed {count(sum.failed)} ({failureBreakdown(sum)})>"
   else:
-    part span("failed 0", leUnchanged) # (nothing to see: dim)
+    part ~"<{leUnchanged} failed 0>" # (nothing to see: dim)
   if sum.advisories > 0:
-    part span("advisories " & count(sum.advisories), leAdvisory)
+    part ~"<{leAdvisory} advisories {count(sum.advisories)}>"
   @[first, second]
 
 func readLine*(sum: Summary): Line =
   ## The line after the display: the summary of the files read.  It does not say "done:", because what follows (the
   ## names, the selection) is not over yet.
-  @[span("read: ")] & summaryLine(sum)
+  ~"read: " & summaryLine(sum)
 
 proc liveSink*(
     l: Live,

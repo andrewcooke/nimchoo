@@ -17,6 +17,15 @@ import ./style
 
 {.push raises: [].}
 
+const
+  holeStart = '\x01' ## (where a value goes, while the markup around it is read)
+  holeEnd = '\x02'
+
+func style*(s: StyleName): StyleName =
+  ## A style given as a value (`~"<{s} ...>"`) is that style; anything else with a `style` function (a log event,
+  ## `vocabulary.style`) can be given too.
+  s
+
 func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
   ## The lines of `text`.
   result = @[newSeq[Span]()]
@@ -52,10 +61,14 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
       inc i
     of '<':
       var j = i + 1
-      while j < text.len and text[j] in {'a' .. 'z', '0' .. '9', '-'}:
-        inc j
+      if j < text.len and text[j] == holeStart:
+        # a style given as a value (`<{e} ...>`): the macro puts it in
+        j = text.find(holeEnd, j) + 1
+      else:
+        while j < text.len and text[j] in {'a' .. 'z', '0' .. '9', '-'}:
+          inc j
       let name = text[i + 1 ..< j]
-      if not isStyleName(name):
+      if not isStyleName(name) and not name.startsWith(holeStart):
         raiseMarkup(
           "a < starts a style, so the name of one follows it (write \\< for a <)", i + 1
         )
@@ -90,10 +103,6 @@ func parseMarkup*(text: string): seq[Line] {.raises: [MarkupError].} =
     raiseMarkup(fmt"<{open[^1].name} is not closed", open[^1].at)
   flush()
 
-const
-  holeStart = '\x01' ## (where a value goes, while the markup around it is read)
-  holeEnd = '\x02'
-
 func holes(
     text: string
 ): tuple[markup: string, exprs: seq[string]] {.raises: [MarkupError].} =
@@ -126,7 +135,8 @@ func holes(
 macro `~`*(literal: string{lit}): Line =
   ## A line written as markup, with values as `fmt` puts them (`~"<good imported> {n} files <hide ({t:.1f}s)>"`).  The
   ## markup is read when the program is compiled: a bracket or a backtick not closed, or a style the program does not use
-  ## (`programStyles`), is a compile error.  A value is text, whatever it holds: no markup is read in it (an activity called
+  ## (`programStyles`), is a compile error.  A style can also be a value, `<{e} ...>`: whatever has a `style` function,
+  ## checked when compiled (a log event, whose style the vocabulary says: `~"<{leImported} imported {n}>"`; a `StyleName`).  A value is text, whatever it holds: no markup is read in it (an activity called
   ## `<bad>` or with a backtick in its name is not markup).  One line: a newline is an error (one `~` per line).
   let text = literal.strVal
   var lines: seq[Line]
@@ -143,6 +153,15 @@ macro `~`*(literal: string{lit}): Line =
   for sp in lines[0]:
     var names = nnkBracket.newTree()
     for s in sp.styles:
+      if ($s).startsWith(holeStart):
+        let k = parseInt(($s)[1 ..^ 2])
+        var e: NimNode
+        try:
+          e = parseExpr(exprs[k])
+        except ValueError:
+          error("~: cannot read the style {" & exprs[k] & "}", literal)
+        names.add newCall(ident"style", e)
+        continue
       if $s notin programStyles:
         error(
           "~: there is no style '" & $s & "' (the program uses " &
