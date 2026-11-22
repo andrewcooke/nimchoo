@@ -209,7 +209,7 @@ proc importPaths*(
     emit ImportEvent(kind: evFileStart, startIndex: index, startPath: c.path)
     let before = table.getOrDefault(c.key)
     if c.key in table and before.matches(c.size, c.mtime):
-      if before.failed and kindOf(before.failure) == fkMonitor:
+      if before.failed and before.failure == fkMonitor:
         finished ImportEvent(
           kind: evFileDone,
           index: index,
@@ -223,7 +223,7 @@ proc importPaths*(
           index: index,
           path: c.path,
           outcome: oKnownFailure,
-          failure: kindOf(before.failure),
+          failure: before.failure,
           message: before.message,
         )
       else:
@@ -246,7 +246,8 @@ proc importPaths*(
       feed()
     else:
       prep = prepareFile(profile, channels, askDatabase, Job(index: k, path: c.path))
-    var row = Seen(size: c.size, mtime: c.mtime)
+    var fileId: Option[ids.FileId]
+      # (what the file was imported as, or its content already was)
     var noticed: seq[Warning] # (what the import steps said about the file)
     var ev = ImportEvent(kind: evFileDone, index: index, path: c.path)
     let t0 = getMonoTime()
@@ -260,7 +261,7 @@ proc importPaths*(
         # (the database has the last word: it also knows what was written earlier in this run)
         let have = knownFile(st, prep.digest)
         if have.isSome:
-          row.fileId = have.get
+          fileId = some(have.get)
           ev.outcome = oDuplicate
           ev.sameAs = importedFrom.getOrDefault(have.get)
           if ev.sameAs.len == 0:
@@ -274,7 +275,7 @@ proc importPaths*(
           let r = st.writeDecoded(
             extractFilename(c.path), prep.digest, prep.decoded, opts.steps
           )
-          row.fileId = r.fileId
+          fileId = some(r.fileId)
           noticed = r.warnings
           ev.outcome = oImported
           ev.counts = Counts(
@@ -294,14 +295,26 @@ proc importPaths*(
         prep.nanos + (getMonoTime() - t0).inNanoseconds,
         ev.outcome == oImported,
       )
-    if ev.outcome in {oFailed, oMonitor}:
-      row.failure = $ev.failure
-      row.message = ev.message
+    let row =
+      if ev.outcome in {oFailed, oMonitor}:
+        some(
+          Seen(
+            size: c.size,
+            mtime: c.mtime,
+            kind: skFailure,
+            failure: ev.failure,
+            message: ev.message,
+          )
+        )
+      elif fileId.isSome:
+        some(Seen(size: c.size, mtime: c.mtime, kind: skFile, fileId: fileId.get))
+      else:
+        none(Seen)
     if ev.outcome != oDuplicate:
       # (a file whose content is in already has nothing to say)
       ev.advisories = prep.warnings & noticed
-    if ev.outcome != oFailed or ev.failure.remembered:
-      pending.add c.key, row
+    if row.isSome and (ev.outcome != oFailed or ev.failure.remembered):
+      pending.add c.key, row.get
     if pending.full:
       flushSeen()
     finished ev

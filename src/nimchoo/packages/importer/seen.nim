@@ -8,16 +8,25 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../user/session
+import ./failure
 
 {.push raises: [].}
 
 const batchSize* = 200
 
 type
+  SeenKind* = enum
+    skFile ## it was imported (or its content was already there)
+    skFailure ## it failed, in a way that is the file's own
+
   Seen* = object
     size*, mtime*: int64 ## bytes; Unix seconds
-    fileId*: FileId ## the file it was imported as (0 if it failed)
-    failure*, message*: string ## the kind (see failure.nim) and text, if it failed
+    case kind*: SeenKind
+    of skFile:
+      fileId*: FileId ## the file it was imported as
+    of skFailure:
+      failure*: FailureKind ## (see failure.nim)
+      message*: string
 
   SeenTable* = Table[string, Seen] ## by path
 
@@ -30,24 +39,37 @@ func matches*(row: Seen, size, mtime: int64): bool =
 
 func failed*(row: Seen): bool =
   ## Whether the file failed when it was seen.
-  row.failure.len > 0
+  row.kind == skFailure
 
 proc loadSeen*(s: Session): SeenTable {.raises: [StoreError].} =
   ## Everything known about the paths of the store's user.
   for row in s.db.query(
-    tuple[path: string, size, mtime, fileId: int64, failure, message: string],
-    """select path, size, mtime, coalesce(file_id, 0),
-        coalesce(failure, ''), coalesce(message, '') from seen_file
+    tuple[
+      path: string,
+      size, mtime: int64,
+      fileId: Option[int64],
+      failure, message: Option[string],
+    ],
+    """select path, size, mtime, file_id, failure, message from seen_file
         where user_id = :userId""",
     userId = s.userId,
   ):
-    result[row.path] = Seen(
-      size: row.size,
-      mtime: row.mtime,
-      fileId: FileId(row.fileId),
-      failure: row.failure,
-      message: row.message,
-    )
+    # (a row that says neither what it was imported as nor how it failed, or whose kind is not one we know, is not kept: the
+    # file is looked at again)
+    if row.failure.isSome:
+      let kind = kindOf(row.failure.get)
+      if kind.isSome:
+        result[row.path] = Seen(
+          size: row.size,
+          mtime: row.mtime,
+          kind: skFailure,
+          failure: kind.get,
+          message: row.message.get(""),
+        )
+    elif row.fileId.isSome:
+      result[row.path] = Seen(
+        size: row.size, mtime: row.mtime, kind: skFile, fileId: FileId(row.fileId.get)
+      )
 
 proc add*(b: var SeenBuffer, path: string, row: Seen) =
   ## Keep a row to be written.
@@ -95,12 +117,15 @@ proc flush*(s: Session, b: var SeenBuffer) {.raises: [StoreError].} =
       st.bindText(2, path)
       st.bindInt(3, row.size)
       st.bindInt(4, row.mtime)
-      if int64(row.fileId) > 0:
+      case row.kind
+      of skFile:
         st.bindInt(5, row.fileId)
-      else:
+        st.bindNull(6)
+        st.bindNull(7)
+      of skFailure:
         st.bindNull(5)
-      st.bindOptText(6, row.failure)
-      st.bindOptText(7, row.message)
+        st.bindText(6, $row.failure)
+        st.bindOptText(7, row.message)
       st.run()
     s.commit()
     done = true

@@ -1,6 +1,7 @@
 ## Why a file could not be imported, in a few kinds, counted on screen.  Those the file's content decides are
 ## remembered in the database (so a known failure is not tried again: `remembered`); the others are tried again.
 
+import std/options
 import ../../core/errors
 
 {.push raises: [].}
@@ -47,9 +48,9 @@ func label*(k: FailureKind): string =
   of fkNotFound: "not found"
   of fkStore: "database"
 
-func kindOf*(label: string): FailureKind =
-  ## The kind with this stored label (`$kind`); unknown labels count as bad format.
+func kindOf*(label: string): Option[FailureKind] =
+  ## The kind with this stored label (`$kind`); none for a label that is not one.
   for k in FailureKind:
     if $k == label:
-      return k
-  fkBadFormat
+      return some(k)
+  none(FailureKind)
