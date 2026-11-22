@@ -7,6 +7,7 @@ import ../fit/time
 import ../confirm/confirm
 import ../util/args/args
 import ../near/near
+import ../geo/box
 import ../ui/units
 import ../db/sqltext
 import ../../core/ids
@@ -70,9 +71,6 @@ type
     ## `latest~10%`: around an activity that is found when the command runs.
     refers*: Reference
     tol*: Tol
-
-  Box* = object
-    minX*, minY*, maxX*, maxY*: float ## degrees
 
 const timeFormats = [
   "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
@@ -582,39 +580,6 @@ proc parseArgs*(
     finish,
   )
 
-func box*(lat, lon, radiusKm: float): Box =
-  ## A box in degrees that holds the circle of `radiusKm` around the point: for the
-  ## spatial index, which is asked for a box.  (A circle over a pole, or over the
-  ## antimeridian, gets the whole range of longitudes.)
-  let dLat = radiusKm / 110.5
-  let c = cos(degToRad(lat))
-  let dLon =
-    if c < 0.01 or abs(lat) + dLat >= 90:
-      360.0
-    else:
-      radiusKm / (110.5 * c)
-  Box(
-    minX: max(-180.0, lon - dLon),
-    maxX: min(180.0, lon + dLon),
-    minY: max(-90.0, lat - dLat),
-    maxY: min(90.0, lat + dLat),
-  )
-
-func boxes*(lat, lon, radiusKm: float): seq[Box] =
-  ## `box`, and where the circle goes past the date line (longitude 180 / -180) the part on the
-  ## other side as a second box.
-  let b = box(lat, lon, radiusKm)
-  result.add b
-  let c = cos(degToRad(lat))
-  let dLat = radiusKm / 110.5
-  if c < 0.01 or abs(lat) + dLat >= 90:
-    return # (all longitudes already)
-  let dLon = radiusKm / (110.5 * c)
-  if lon - dLon < -180.0:
-    result.add Box(minX: lon - dLon + 360.0, maxX: 180.0, minY: b.minY, maxY: b.maxY)
-  if lon + dLon > 180.0:
-    result.add Box(minX: -180.0, maxX: lon + dLon - 360.0, minY: b.minY, maxY: b.maxY)
-
 func refersTo*(c: Criteria, r: Reference): bool =
   ## Whether any criterion is measured against the activity `r` stands for.
   let near = if r == refLatest: nkLatest else: nkPrevious
@@ -737,7 +702,7 @@ func nearSql(
   ## the test of the distance that follows.
   let (lat, lon) = centre
   var probes: seq[string]
-  for k, b in boxes(lat, lon, km):
+  for k, b in circleBoxes(lon, lat, km * 1000.0):
     let n = name & "Box" & $k
     probes.add inBox(
       idColumn,

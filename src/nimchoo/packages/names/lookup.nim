@@ -8,6 +8,7 @@ import std/math
 import ../db/statement
 import ../db/store
 import ../../core/errors
+import ../geo/box except Box
 import ./[countries, features]
 
 {.push raises: [].}
@@ -40,31 +41,11 @@ type
     isPlace*: bool ## a populated place (class P)
     lon*, lat*: float
 
-func boxAround*(lons, lats: openArray[float], marginM: float): Box =
-  ## The box round the positions, widened by the margin: the margin is metres, so a degree of longitude counts for less
-  ## towards the poles (the box then reaches further in degrees of longitude, up to the whole circle).
-  var b = (lon0: Inf, lat0: Inf, lon1: -Inf, lat1: -Inf)
-  for i in 0 ..< lons.len:
-    b = (
-      min(b.lon0, lons[i]),
-      min(b.lat0, lats[i]),
-      max(b.lon1, lons[i]),
-      max(b.lat1, lats[i]),
-    )
-  let dLat = marginM / 111_000.0
-  let worst = max(abs(b.lat0), abs(b.lat1)) + dLat
-    # the latitude where a degree of longitude is shortest
-  let dLon =
-    if worst >= 89.0:
-      360.0
-    else:
-      dLat / max(cos(degToRad(worst)), 0.02)
-  (
-    lon0: b.lon0 - dLon,
-    lat0: max(-90.0, b.lat0 - dLat),
-    lon1: b.lon1 + dLon,
-    lat1: min(90.0, b.lat1 + dLat),
-  )
+func boxAround*(lons, lats: openArray[float], marginM: float): features.Box =
+  ## The box round the positions, widened by the margin (`geo/box`): the margin is metres, so a degree of longitude counts for
+  ## less towards the poles.  Its longitudes may pass 180 or -180 (the cells wrap: `features.cellsOf`).
+  let b = widened(lons, lats, marginM)
+  (lon0: b.minX, lat0: b.minY, lon1: b.maxX, lat1: b.maxY)
 
 proc countriesIn(
     n: Names, box: Box
@@ -113,12 +94,13 @@ proc featuresNear*(
   ## The features in the box round the positions, widened by the margin (whatever country they are in).
   if lons.len == 0:
     return
-  let box = boxAround(lons, lats, marginM)
-  n.st.db.query(
-    Found,
-    featuresInBoxSql,
-    west = box.lon0,
-    south = box.lat0,
-    east = box.lon1,
-    north = box.lat1,
-  )
+  # (the box may go past the date line: the part on the other side is searched too)
+  for b in split(widened(lons, lats, marginM)):
+    result.add n.st.db.query(
+      Found,
+      featuresInBoxSql,
+      west = b.minX,
+      south = b.minY,
+      east = b.maxX,
+      north = b.maxY,
+    )

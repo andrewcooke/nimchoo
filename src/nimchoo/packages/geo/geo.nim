@@ -7,7 +7,10 @@ import std/[math, options, tables]
 
 {.push raises: [].}
 
-const earthRadius* = 6_371_008.8 ## metres
+const
+  earthRadius* = 6_371_008.8 ## metres
+  metresPerDegree* = earthRadius * PI / 180.0
+    ## how far a degree of latitude is (and of longitude at the equator): the one figure for turning metres into degrees
 
 type
   XY* = object
@@ -19,8 +22,12 @@ type
 
 func projection*(lon0, lat0: float): Projection =
   ## A flat map of the neighbourhood of a point (metres east and north of it).
-  let perDegree = earthRadius * PI / 180.0
-  Projection(lon0: lon0, lat0: lat0, kx: perDegree * cos(degToRad(lat0)), ky: perDegree)
+  Projection(
+    lon0: lon0,
+    lat0: lat0,
+    kx: metresPerDegree * cos(degToRad(lat0)),
+    ky: metresPerDegree,
+  )
 
 func project*(p: Projection, lon, lat: float): XY =
   ## The position in metres from the projection's origin.

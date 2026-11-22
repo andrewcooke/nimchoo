@@ -124,3 +124,11 @@ suite "landmark: suggestions":
     s.feature(2, "South", "T", "MT", 10.0, -75.0)
     check s.featuresAround(-179.99, 65.0, 500.0).len == 1
     check s.featuresAround(10.0, -75.0, 500.0).len == 1
+  test "a circle over the date line finds the features on both sides of it":
+    let s = fresh("dateline")
+    defer:
+      s.close()
+    s.feature(1, "East side", "T", "MT", 179.995, -17.0)
+    s.feature(2, "West side", "T", "MT", -179.995, -17.0)
+    check s.featuresAround(179.999, -17.0, 3000.0).len == 2
+    check s.featuresAround(-179.999, -17.0, 3000.0).len == 2

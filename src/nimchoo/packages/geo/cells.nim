@@ -80,8 +80,6 @@ func shifted*(c: Cell, dx, dy: int): Option[Cell] =
     return none(Cell)
   some(cell(x, y))
 
-const metresPerDegree = earthRadius * PI / 180.0
-
 func cellHeightM*(bits = 0): float =
   ## How far a cell of the level is from south to north, in metres (the same everywhere).
   metresPerDegree * float(1 shl bits) / float(cellsPerDegree)

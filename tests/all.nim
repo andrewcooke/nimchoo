@@ -41,7 +41,7 @@ import ./util/child/test_child
 import ./text/templating/test_templating
 import ./util/version/test_version
 import ./util/atomic/test_atomic
-import ./geo/[test_geo, test_cells, test_position]
+import ./geo/[test_geo, test_box, test_cells, test_position]
 import
   ./fit/[
     test_basetype, test_header, test_time, test_tokens, test_decode, test_sdkcsv,

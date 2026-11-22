@@ -1,4 +1,5 @@
 import std/[math, strutils, unittest]
+import nimchoo/packages/db/statement
 import nimchoo/core/errors
 import ../support/shims
 import nimchoo/packages/db/store
@@ -69,6 +70,22 @@ suite "names: looking things up":
       if f.name == "Cerro San Cristóbal":
         check not f.isPlace and f.code == "HLL"
     check w.names.featuresNear([], []).len == 0
+  test "the features near positions beside the date line are found on both sides of it":
+    let w = world("dateline")
+    defer:
+      w.st.close()
+    w.st.db.execute(
+      "insert into country(iso, name, geoname_id) values ('FJ', 'Fiji', 2)"
+    )
+    for (id, name, lon) in [(1, "East side", 179.995), (2, "West side", -179.995)]:
+      w.st.db.execute(
+        "insert into feature(id, country, name, class, code, population, geom) values (:id, 'FJ', :name, 'T', 'MT', 0, MakePoint(cast(:lon as real), -17.0, 4326))",
+        id = id,
+        name = name,
+        lon = lon,
+      )
+    check w.names.featuresNear([179.999], [-17.0]).len == 2
+    check w.names.featuresNear([-179.999], [-17.0]).len == 2
   test "the box margin is metres: wider in degrees of longitude at high latitudes, and never past the whole circle":
     let eq = boxAround([0.0], [0.0], 6000.0)
     let north = boxAround([0.0], [60.0], 6000.0)

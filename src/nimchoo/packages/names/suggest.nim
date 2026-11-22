@@ -6,7 +6,7 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../text/fold/fold
-import ../geo/geo
+import ../geo/[box, geo]
 
 {.push raises: [].}
 
@@ -51,20 +51,19 @@ proc featuresAround*(
     st: Store, lon, lat: float, radiusM = 2000.0
 ): seq[Suggestion] {.raises: [StoreError].} =
   ## Features within the radius of the position, nearest first.
-  let dLat = radiusM / 111_000.0
-  let dLon = dLat / max(cos(degToRad(min(89.0, abs(lat) + dLat))), 0.02)
-  for r in st.db.query(
-    Row,
-    featuresAroundSql,
-    west = lon - dLon,
-    south = lat - dLat,
-    east = lon + dLon,
-    north = lat + dLat,
-  ):
-    var s = suggestion(r)
-    s.distanceM = haversine(lon, lat, s.lon, s.lat)
-    if s.distanceM <= radiusM:
-      result.add s
+  for b in circleBoxes(lon, lat, radiusM):
+    for r in st.db.query(
+      Row,
+      featuresAroundSql,
+      west = b.minX,
+      south = b.minY,
+      east = b.maxX,
+      north = b.maxY,
+    ):
+      var s = suggestion(r)
+      s.distanceM = haversine(lon, lat, s.lon, s.lat)
+      if s.distanceM <= radiusM:
+        result.add s
   result.sort(
     proc(a, b: Suggestion): int =
       cmp(a.distanceM, b.distanceM)
