@@ -17,7 +17,7 @@ import ../../core/logfile
 import ../ui/interrupt
 import ../ui/vocabulary
 import ../util/version/version
-import ./[handler, request, server, token]
+import ./[handler, libraries, request, server, token]
 
 {.push raises: [].}
 
@@ -182,6 +182,7 @@ proc serveWeb*(
     log: g.log,
     logCommand: command,
     identity: identity,
+    policy: contentPolicy(libraries()),
   )
   exitOnInterrupt()
   let ended = serveForever(

@@ -41,6 +41,8 @@ type
     baseArgs*: seq[string] ## the options before the command (--db ..., --user ...)
     log*: Log
     logCommand*: string
+    policy*: string
+      ## the Content-Security-Policy of every reply (`libraries.contentPolicy`)
     identity*: string
       ## what the server is, as `/status` says it: the build of nch and the options its workers get (`serverIdentity`)
 
@@ -65,16 +67,12 @@ type
     stop*: bool ## the server stops once this is sent (`/stop`)
 
 const
-  policy =
-    "default-src 'none'; script-src 'self' 'unsafe-inline' https://unpkg.com; " &
-    "style-src 'self' 'unsafe-inline' https://unpkg.com; " &
-    "img-src 'self' data: https://tile.openstreetmap.org https://unpkg.com; " &
-    "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
   htmlType = "text/html; charset=utf-8"
   textType = "text/plain; charset=utf-8"
 
-func withSecurity(r: Reply): Reply =
-  ## Headers for every reply: what the page may load, and no guessing of content types.
+func withSecurity(r: Reply, policy: string): Reply =
+  ## Headers for every reply: what the page may load (`policy`, made from the libraries file: `libraries.contentPolicy`), and
+  ## no guessing of content types.
   result = r
   result.headers.add ("Content-Security-Policy", policy)
   result.headers.add ("X-Content-Type-Options", "nosniff")
@@ -191,7 +189,7 @@ proc answer(cfg: ServerConfig, port: int, req: Incoming): Step =
 
 proc conclude(cfg: ServerConfig, req: Incoming, raw: Reply): Reply =
   ## The reply with the security headers, and a line in the log (never the token).
-  result = withSecurity(raw)
+  result = withSecurity(raw, cfg.policy)
   let shown = block:
     let t = parseTarget(req.target)
     if t.isSome:

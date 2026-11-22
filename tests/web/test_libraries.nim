@@ -20,6 +20,23 @@ suite "libraries: the file of CDN libraries":
       check libs[name & "-hash"].startsWith("sha256-") and
         libs[name & "-hash"].len == 7 + 44
     check libs["tiles"] == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+  test "the policy is made from the file: the hosts it lists, and no others":
+    let builtIn = contentPolicy(parseLibraries(librariesBundle.data))
+    check "script-src 'self' 'unsafe-inline' https://unpkg.com;" in builtIn
+    check "style-src 'self' 'unsafe-inline' https://unpkg.com;" in builtIn
+    check "img-src 'self' data: https://unpkg.com https://tile.openstreetmap.org;" in
+      builtIn
+    check "connect-src 'self'" in builtIn and "default-src 'none'" in builtIn
+    # (another CDN and another tile server, as the file's author may write them)
+    let other = contentPolicy(
+      parseLibraries(
+        "leaflet-js = https://cdn.jsdelivr.net/npm/leaflet/dist/leaflet.js\nleaflet-css = https://cdn.jsdelivr.net/x.css\ntiles = http://tiles.example.org:8080/{z}/{x}/{y}.png\nleaflet-js-hash = sha256-abc\n"
+      )
+    )
+    check "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;" in other
+    check "img-src 'self' data: https://cdn.jsdelivr.net http://tiles.example.org:8080;" in
+      other
+    check "unpkg" notin other and "openstreetmap" notin other and "*" notin other
   test "they are values for a template":
     let ctx = context(libraryValues("a-b = 1\nc = <&>\n"))
     check render("{{a-b}} {{c}} {{{c}}}", ctx) == "1 &lt;&amp;&gt; <&>"

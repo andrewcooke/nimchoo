@@ -1,8 +1,8 @@
 # The libraries the web pages load from a CDN, as `name = value` lines.  Each name can be used in
 # a page template (as {{name}}).  The browser checks each file against its hash and refuses one that
 # has changed, so to use another version, change its address and its hash together.
-# (The pages may load scripts and styles only from unpkg.com, and tiles from tile.openstreetmap.org:
-# that is fixed in the server, see serve/handler.nim.)
+# (The pages may load scripts from the hosts of the -js addresses, styles from those of the -css addresses and images from the
+# hosts of every address, tiles included: the server makes its Content-Security-Policy from this file, libraries.nim.)
 
 # Leaflet 1.9.4: the map of `nch map`
 leaflet-js = https://unpkg.com/leaflet@1.9.4/dist/leaflet.js

@@ -1,5 +1,5 @@
 import std/[os, strutils, unittest]
-import nimchoo/packages/web/handler
+import nimchoo/packages/web/[handler, libraries]
 import nimchoo/packages/web/request
 import nimchoo/core/logfile
 import ../support/webpages
@@ -41,6 +41,7 @@ proc setup(
     pages: testPages,
     baseArgs: @["--db", "/x/y.db"],
     logCommand: "map",
+    policy: contentPolicy(parseLibraries(librariesBundle.data)),
   )
   if withLog:
     cfg.log = openLog(dir / name / "nch.log")
