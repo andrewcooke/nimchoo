@@ -43,6 +43,20 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * A7: the guard test for padding by hand misses the usage's command list;
     * A11: `wrap` (strings) and `line.wrapped` (Lines) are still two algorithms, now both counting characters.
 
+18. **Step 5 of the review: sentinels to `Option` and variants** (dev/REVIEW.md, section 3, class 5; detail in
+    `dev/review-4/part-*.md`; not D7, `Criteria`, which is a design step of its own).  Remove a line when it is done:
+    * A10: `Globals.dbPath` and `user` (`""`), `Log.problem`, the cache passed to the themes, `core/errors` fields (`offset` -1,
+      `sheet` ""), `metavar` "" for a flag, `access` caller "";
+    * B8: `importer/seen` (a variant: imported file | failed kind and message), `bundle/unpack` (`Resolved.path`, `resolve(top: "")`),
+      `fit/default` problem, `importer/params.jobs`, `evFileDone` (a variant on the outcome), `fit` field numbers -1;
+    * B9: `ActivityId`, `FileId` and `UnixTime` in the importer's signatures (`after`, `remove`, `command`);
+    * B7: `importer/pool` module-level state, `Prepared` and `Job` as variants, no empty `Profile()` for a failed one;
+    * C8: `climbs` `nameProblem` ("" is ok), `Climb.category` (`Option[Category]`), `sector.name` null against '';
+    * C12: `download` `checkContent`, `FetchResult` (a variant), `zipEntry`;
+    * D12: `Globals.user`/`openSession` user as `Option`, one `findUser`;
+    * E5: `LogLine` (a variant) and `Filter.count` (`Option`);
+    * E12: `web/token` (`loadToken`, `randomToken`), `db/access.leave`, `freeSpace`, `ff/page.renderPage` (`doAssert`).
+
 17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`).  One shared piece for
     the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
     filters (patterns, ranges with units, places), `--add`, `--edit NAME`, `--delete` of the selection (with `ask`), the
