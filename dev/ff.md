@@ -19,6 +19,12 @@ decided is marked so; the rest is open.
 * **Fitness and fatigue never depend on the activity selection.**  A model may say which activities count, by tags
   (`sport:cycling*`: all cycling, nothing else), never by a choice of particular activities.  So a model's attributes are
   its parameters and its tag patterns (an editable object, TODO 17).
+* **`nch ff` manages the models** (2026-11-23): the plural command of the model, the subject (list, add, edit, delete,
+  select), is `nch ff`, not `nch models`; the chart that `nch ff` draws now moves to `nch plot`.
+* **A models selection, kept per user**, as the activities' and the climbs' (`--select`, `--also`, `--within`, the same
+  steps), which the views show (a view's page is live and takes no list in its address, so it shows a kept selection).
+  **Unlike those, models are there from the start and selected**: the built-in models exist, and a new user has them
+  selected.
 * **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
   structure such as `cycling:hard` by convention) and matched as tags are (case and accents aside, `*` for anything), so
   views and commands select models with patterns of names.  The names are not tags: nothing connects a model called
@@ -57,8 +63,7 @@ hourly table `impulse` goes.
 
 ## Open
 
-* What selecting a model means (one selection of models per user, as the activities' and the climbs'?), and how a model
-  "inherits" from another (a base model, and only what differs).
+* How a model "inherits" from another (a base model, and only what differs).
 * Which models are built in.
 * The `plot` view and its frames (series), replacing `ff`'s own page (and E7, its dispatch, merged then); what `ff --file`
   becomes.
