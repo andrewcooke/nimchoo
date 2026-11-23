@@ -145,10 +145,10 @@ suite "list: the command line":
       passing.find(ftNear).place.name == "Farellones" and not passing.hasKind(ftFrom)
     check passing.find(ftNear).radius.isNone # (each its own default: see "the radius")
     check fs("--near", "latest").find(ftNear).place.refers == rfLatest
-  test "latest is the newest one; oldest; but not both":
-    check cmdline("--latest").params.scope.limit == some(
-      Limit(kind: lkNewest, count: 1)
-    )
+  test "newest; oldest; but not both; --latest is gone (latest is a special value)":
+    check cmdline("--newest", "1").params.scope.limit ==
+      some(Limit(kind: lkNewest, count: 1))
+    check cmdline("--latest").problem.len > 0
     check cmdline("--oldest", "2").params.scope.limit ==
       some(Limit(kind: lkOldest, count: 2))
     check cmdline("--newest", "2", "--oldest", "2").problem.contains("together")

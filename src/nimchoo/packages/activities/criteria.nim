@@ -406,14 +406,6 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
-        ["--latest"],
-        false,
-        "",
-        ~"the same as `--newest 1`",
-        body = (p.criteriaGiven = true; p.newest = 1; fine),
-      ),
-      custom(
-        ListState,
         ["--select"],
         false,
         "",
@@ -606,7 +598,7 @@ proc parseArgs*(
 ): Parsed[Request] =
   ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
   ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
-  ## `--newest N` (or `-n N`), `--oldest N`, `--latest` (= `--newest 1`), `--invert`, `--all` (every activity), `--select`
+  ## `--newest N` (or `-n N`), `--oldest N`, `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
   parseCommand(

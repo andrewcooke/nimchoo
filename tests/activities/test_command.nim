@@ -203,7 +203,7 @@ suite "list: the command":
     let db = world("replace")
     discard save(db, "--all")
     check chosen(db).len == 2
-    discard save(db, "--latest")
+    discard save(db, "--newest", "1")
     check chosen(db) == @["paris"]
     discard save(db, "--before", "2018-08-01")
     check chosen(db) == @["lisbon1"]
@@ -465,6 +465,12 @@ suite "list: the command":
     let r =
       listActivities(st, parseArgs(@["--sports", "previous"], utc()).params, utc(), 120)
     check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00  running")
+  test "--near takes part in finding latest, as every criterion that does not use it":
+    let db = world("nearlatest", true)
+    # near Lisbon the latest is lisbon2 (cycling); of all, paris (running)
+    discard save(db, "--near", "38.72,-9.14", "--radius", "20km", "--sports", "latest")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+
   test "newest is not part of finding latest":
     let db = numbered("latest4")
     discard save(db, "-n", "1", "--distance", "latest~10%")
@@ -599,7 +605,7 @@ suite "list: the command":
 
   test "criteria are combined":
     let db = world("and", true)
-    discard save(db, "--from", "38.73,-9.13", "--latest")
+    discard save(db, "--from", "38.73,-9.13", "--newest", "1")
     check chosen(db) == @["lisbon2"] # (the newest of those near Lisbon, not of all)
     discard save(db, "--from", "38.73,-9.13", "--before", "2018-08-02")
     check chosen(db) == @["lisbon1"]

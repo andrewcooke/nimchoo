@@ -109,10 +109,12 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.  **what
-  a search lists is found in steps, written in the usage** (decided 2026-11-23, `dev/tags.md`): 1. all; 2. `--within`: only
-  the selection; 3. the filters ("and"; `--invert` turns them round; `latest`/`previous` are found here, among step 2's);
-  4. `--newest`/`--oldest`; 5. `--also`: the selection added; 6. shown (or `--delete`/`--rename`, not with `--also`);
-  7. `--select`: the selection replaced by it.  with no criteria step 2 is taken (`--all` says not to).  `--select` always
+  a search lists is found in steps, written in the author's words in the usage of `activities`** (decided 2026-11-23,
+  `dev/tags.md`): all; `previous` (the selection, if one activity); `--within`: only the selection; the filters that do
+  not use `latest`; `latest` (the most recent remaining); the filters that use it; `--invert` (those of the step before
+  the filters that they left out); `--newest`/`--oldest`; `--also`: the selection added; `--delete`/`--rename` (and stop:
+  not with `--also` or `--select`); `--select`: the selection replaced; shown.  with no criteria the steps are skipped and
+  the selection is listed; `--all` is the criterion that keeps everything.  `--select` always
   means "what is listed is the selection now"; `--within` and `--also` are modifiers (alone, they show without keeping).
   the same for every command with a selection (activities, climbs).
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject

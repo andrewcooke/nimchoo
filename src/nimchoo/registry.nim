@@ -93,8 +93,7 @@ const packages*: seq[Registered] = inDependencyOrder(
       doc: """The activities: listing them, choosing the selection, and deleting.
 
 `nch activities` with no arguments shows the selection; with criteria (or `--all`), what is listed is found in the steps
-the usage numbers (all; `--within`: the selection only; the filters; `--newest`/`--oldest`; `--also`: the selection
-added; shown; `--select`: kept as the selection).  **The selection's style (`select`) marks the activities listed that are
+the usage numbers (`nch activities -h`: written once, there).  **The selection's style (`select`) marks the activities listed that are
 in the selection after the command.**  `--all` means everything, not just the selection.  Nothing is deleted
 without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 other views (`climbs`, `map`, `calendar`) take the selection.

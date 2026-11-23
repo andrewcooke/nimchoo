@@ -90,9 +90,10 @@ notes from previous discussion:
 ## Decided (with the author, 2026-11-22)
 
 * **Selection** (after an adversarial review of "the selection as the default for everything", refined 2026-11-23): a
-  search looks at everything; what it lists is found in steps, written in the usage: 1. all; 2. `--within`: only the
-  selection; 3. the filters ("and"); 4. `--newest`/`--oldest`; 5. `--also`: the selection added; 6. shown;
-  7. `--select`: the selection replaced by it.  `--select` has one meaning (what is listed is the selection now);
+  search looks at everything; what it lists is found in twelve steps, written in the author's words in the usage of
+  `nch activities` (2026-11-23: `previous` first, `--within`, the filters not using `latest`, `latest`, those using it,
+  `--invert`, the limits, `--also`, `--delete`/`--rename`, `--select`, shown).  `--latest` (the flag, `--newest 1`) is
+  gone: it read as the special value.  `--select` has one meaning (what is listed is the selection now);
   `--within` and `--also` are modifiers (alone they show without keeping: a preview); `--save` is gone.  `--all` stays:
   with no criteria step 2 is taken, and `--all` says not to.  For every command that selects (activities, climbs, tags,
   a future efforts).

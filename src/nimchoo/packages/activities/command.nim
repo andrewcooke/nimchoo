@@ -39,17 +39,22 @@ const
   intro = @[
     ~"Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are told otherwise.  With criteria (or `--all`), what is shown is found in these steps:",
     ~"1. Start with all your activities.",
-    ~"2. If `--within`, keep only those in the current selection.",
-    ~"3. Apply the filters (the criteria), combined with \"and\".",
-    ~"4. Apply `--newest` and `--oldest`.",
-    ~"5. If `--also`, add the current selection.",
-    ~"6. Display the result.",
-    ~"7. If `--select`, replace the current selection with it.",
-    ~"In step 3, `--invert` turns the filters round (those that do not meet them), and \"latest\" and \"previous\" are found among the activities of step 2.  With no criteria, step 2 is taken: `nch activities` alone shows the selection, and `--all` shows every activity.  `--delete` and `--rename` act on the result in place of step 6 (not with `--also`).  The selection's style marks the activities listed that are in the selection when the command is done.",
+    ~"2. The special value `previous` is the current selection, if it is one activity.",
+    ~"3. If `--within`, keep only those in the current selection.",
+    ~"4. Apply the filters (criteria) that do not use `latest`, combined with \"and\".",
+    ~"5. The special value `latest` is the most recent activity remaining.",
+    ~"6. Apply the filters that use `latest`, combined with \"and\".",
+    ~"7. If `--invert`, use instead the activities of step 3 that steps 4 and 6 left out.",
+    ~"8. Apply `--newest` and `--oldest`.",
+    ~"9. If `--also`, add the current selection.",
+    ~"10. If `--delete` or `--rename`, delete or rename the result, and stop.",
+    ~"11. If `--select`, replace the current selection with the result.",
+    ~"12. Display the result (selected activities are highlighted).",
+    ~"`latest` and `previous` can be referred to in criteria (`--sports latest`, `--distance latest~10%` ...).  `--delete` and `--rename` cannot be used with `--also` or `--select`.",
+    ~"If no criteria are given, the steps are skipped and the current selection is listed.  `--all` is the criterion that keeps everything: it runs the steps above, so `--all --newest 3` lists your three newest activities.",
   ]
   notes = @[
-    ~"\"latest\" is the newest activity among those that meet the criteria that do not use \"latest\": so `--sports cycling --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride.  (`--latest`, the flag, is `--newest 1`.)",
-    ~"\"previous\" is the one activity that was selected before (`nch activities` shows it): select it with `--select`, then `--sports previous --distance previous~10%` finds rides like it.  It is an error unless exactly one activity is selected.",
+    ~"So `--sports cycling --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride; select one ride with `--select`, then `--sports previous --distance previous~10%` finds rides like it.  `previous` is an error unless exactly one activity is selected."
   ]
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
@@ -351,7 +356,7 @@ proc resolveScope(
 ): Search {.raises: [StoreError].} =
   ## `previous` (in --from, --near, --distance, --active, --sports, --sub-sports) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
-  ## criteria that do not mention `latest` (nor name a place).  `previous` is found first, so a criterion that
+  ## criteria that do not mention `latest` (steps 2, 4 and 5 of the usage).  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
   let filters = scope.filtersOf
   result.among = scope.amongOf
@@ -385,11 +390,10 @@ proc resolveScope(
   if usesLatest(filters):
     var base: seq[Resolved]
     for f in filters:
-      if f.kind notin {ftFrom, ftNear}:
-        # (where the activity started is not asked of the activities `latest` is found among)
-        let rest = f.withoutLatest
-        if rest.isSome:
-          base.add resolveFilter(rest.get, env)
+      # (step 4 of the usage: every filter that does not use `latest`)
+      let rest = f.withoutLatest
+      if rest.isSome:
+        base.add resolveFilter(rest.get, env)
     let found = latestAmong(
       st,
       matchSql(
