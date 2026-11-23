@@ -12,7 +12,7 @@ from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/packages/activities/command as listCommand
 import nimchoo/packages/names/landmarks
 import nimchoo/packages/activities/criteria
-import nimchoo/packages/tags/tag
+import nimchoo/packages/tags/[step, tag]
 import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
@@ -54,6 +54,9 @@ proc addActivity(
     subSport = subSport,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
+  let sportT = sportTag(sport, subSport) # (as an import gives it)
+  if sportT.isSome:
+    s.addTags(ActivityId(a), [sportT.get])
   s.db.execute(
     "update activity set start = MakePoint(:lon, :lat, 4326) where id = :id",
     lon = lon,
@@ -176,7 +179,7 @@ suite "list: the command":
     check chosen(db) == @["lisbon1"]
     discard save(db, "--no-gps")
     check chosen(db) == @["paris"]
-    discard save(db, "--no-gps", "--sports", "cycling") # (with the other criteria)
+    discard save(db, "--no-gps", "--tags", "sport:cycling*") # (with the other criteria)
     check chosen(db).len == 0
     check list(db, "--gps", "--no-gps") == exitUsage
     check list(db, "--no-gps", "--gps") == exitUsage
@@ -185,7 +188,7 @@ suite "list: the command":
     let db = world("selectneeds")
     discard save(db, "--all")
     check list(db, "--select") == exitUsage
-    check list(db, "--all", "--sports", "cycling") == exitUsage
+    check list(db, "--all", "--tags", "sport:cycling*") == exitUsage
     check list(db, "--all", "--newest", "1") == exitOk
     check chosen(db) == @["lisbon1", "paris"]
 
@@ -228,33 +231,34 @@ suite "list: the command":
 
   test "--also adds the selection to what is found; with --select it is added to the selection":
     let db = world("also", true)
-    discard save(db, "--sports", "running")
+    discard save(db, "--tags", "sport:running*")
     check chosen(db) == @["paris"]
-    check list(db, "--sub-sports", "road", "--also") == exitOk # (shown, not kept)
+    check list(db, "--tags", "sport:*:road", "--also") == exitOk # (shown, not kept)
     check chosen(db) == @["paris"]
-    check list(db, "--sub-sports", "road", "--also", "--select") == exitOk
+    check list(db, "--tags", "sport:*:road", "--also", "--select") == exitOk
     check chosen(db) == @["lisbon1", "paris"]
-    check list(db, "--sub-sports", "road", "--also", "--select") == exitOk
+    check list(db, "--tags", "sport:*:road", "--also", "--select") == exitOk
       # (one already in it stays once)
     check chosen(db) == @["lisbon1", "paris"]
 
   test "--within searches only the selection; with --select it narrows the selection":
     let db = world("within", true)
-    discard save(db, "--sports", "cycling")
+    discard save(db, "--tags", "sport:cycling*")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    check list(db, "--within", "--sports", "running") == exitOk
+    check list(db, "--within", "--tags", "sport:running*") == exitOk
       # (finds none, keeps nothing)
     check chosen(db) == @["lisbon1", "lisbon2"]
-    check list(db, "--within", "--sub-sports", "road", "--select") == exitOk
+    check list(db, "--within", "--tags", "sport:*:road", "--select") == exitOk
     check chosen(db) == @["lisbon1"]
 
   test "--within: `latest` is the latest activity of the selection":
     let db = world("withinlatest", true)
-    discard save(db, "--sports", "cycling")
-    # the latest of all is paris (running); of the selection, lisbon2 (cycling)
-    check list(db, "--within", "--sports", "latest", "--select") == exitOk
+    discard save(db, "--tags", "sport:cycling*")
+    # the latest of all is paris; of the selection, lisbon2 (in Lisbon)
+    check list(db, "--within", "--from", "latest", "--radius", "50km", "--select") ==
+      exitOk
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--sports", "latest")
+    discard save(db, "--from", "latest", "--radius", "50km")
     check chosen(db) == @["paris"]
 
   test "--also and --within go only where they mean something":
@@ -276,41 +280,42 @@ suite "list: the command":
     discard save(db, "--after", "2018-08-01", "--newest", "5")
     check chosen(db) == @["lisbon2", "paris"]
 
-  test "by sport; several mean any of them; case does not matter":
+  test "by the sport's tag (as an import gives it); several patterns mean all of them":
     let db = world("sport", true)
-    discard save(db, "--sports", "cycling")
+    discard save(db, "--tags", "sport:cycling*")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--sports", "running")
+    discard save(db, "--tags", "SPORT:running*") # (case does not matter)
     check chosen(db) == @["paris"]
-    discard save(db, "--sports", "Running", "CYCLING")
+    discard save(db, "--tags", "sport:*")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
+    discard
+      save(db, "--tags", "sport:running*", "sport:cycling*") # ("and": none has both)
+    check chosen(db).len == 0
 
-  test "by sub-sport; none means not recorded":
+  test "by the sub-sport, in the same tag; no sub-sport, the sport alone":
     let db = world("subsport", true)
-    discard save(db, "--sub-sports", "road")
+    discard save(db, "--tags", "sport:*:road")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--sub-sports", "none")
+    discard save(db, "--tags", "sport:cycling") # (exactly: lisbon2 has no sub-sport)
     check chosen(db) == @["lisbon2"]
-    discard save(db, "--sub-sports", "none", "trail")
-    check chosen(db) == @["lisbon2", "paris"]
+    discard save(db, "--tags", "sport:*:trail")
+    check chosen(db) == @["paris"]
 
   test "sport combined with the other criteria, and before --newest":
     let db = world("sportand", true)
-    discard save(db, "--sports", "cycling", "--newest", "1")
+    discard save(db, "--tags", "sport:cycling*", "--newest", "1")
     check chosen(db) == @["lisbon2"] # (the newest cycling, not the newest)
-    discard save(db, "--sports", "cycling", "--sub-sports", "road")
+    discard save(db, "--tags", "sport:cycling*", "--tags", "sport:*:road")
     check chosen(db) == @["lisbon1"]
-    discard
-      save(db, "--sports", "cycling", "--from", "38.73,-9.13", "--before", "2018-08-02")
+    discard save(
+      db, "--tags", "sport:cycling*", "--from", "38.73,-9.13", "--before", "2018-08-02"
+    )
     check chosen(db) == @["lisbon1"]
 
-  test "a sport nobody has is refused, naming those there are":
+  test "a tag nobody has finds nothing, which is no failure":
     let db = world("nosport", true)
-    discard save(db, "--sports", "cycling")
-    check save(db, "--sports", "swimming") == exitFailure
-    check save(db, "--sub-sports", "nothing") == exitFailure
-    check chosen(db) == @["lisbon1", "lisbon2"] # (nothing changed)
-    check list(db, "--sports", "cycling", "swimming") == exitFailure
+    check list(db, "--tags", "sport:swimming*") == exitOk
+    check list(db, "--tags", "sport:cycling*", "swimming") == exitOk
 
   proc setNumbers(db, tag: string, distanceM, timerS: string) =
     ## Give the activity of the file `tag` its distance and timer time (NULL: "null").
@@ -359,7 +364,8 @@ suite "list: the command":
     setNumbers(db, "lisbon2", "50000", "10800")
     discard save(db, "--distance", "40km-", "-n", "1")
     check chosen(db) == @["lisbon2"]
-    discard save(db, "--distance", "5km-", "--sports", "cycling", "--active", "-1h30m")
+    discard
+      save(db, "--distance", "5km-", "--tags", "sport:cycling*", "--active", "-1h30m")
     check chosen(db) == @["lisbon1"]
     discard save(db, "--distance", "5km-", "-n", "2")
     check chosen(db) == @["lisbon2", "paris"]
@@ -373,35 +379,32 @@ suite "list: the command":
 
   test "latest is the newest of those that meet the other criteria":
     let db = numbered("latest1")
-    # overall the newest is paris (running); among the cycling ones it is lisbon2 (bob's)
-    discard save(db, "--sports", "latest")
+    # overall the newest is paris (running, 30 km); among the cycling ones it is lisbon2 (bob's)
+    discard save(db, "--distance", "latest~1km")
     check chosen(db) == @["paris"]
-    discard save(db, "--sports", "cycling", "--sub-sports", "latest")
-    check chosen(db) == @["lisbon2"] # (no sub-sport recorded: "none")
-    discard save(db, "--sports", "cycling", "--distance", "latest~20%")
+    discard save(db, "--tags", "sport:cycling*", "--from", "latest", "--radius", "1km")
+    check chosen(db) == @["lisbon2"] # (lisbon1 starts 6 km away)
+    discard save(db, "--tags", "sport:cycling*", "--distance", "latest~20%")
     check chosen(db) == @["lisbon2"] # 40-60 km
-    discard save(db, "--sports", "cycling", "--distance", "latest~90%")
+    discard save(db, "--tags", "sport:cycling*", "--distance", "latest~90%")
     check chosen(db) == @["lisbon1", "lisbon2"] # 5-95 km
     discard save(db, "--distance", "latest~5km")
     check chosen(db) == @["paris"] # the latest is paris: 25-35 km
     discard save(db, "--active", "latest~1h30m")
     check chosen(db) == @["lisbon1", "lisbon2", "paris"] # 30m-3h30m
 
-  test "rides like the latest: sport, distance and time together":
+  test "rides like the latest: distance and time together":
     let db = numbered("latest2")
-    discard save(
-      db, "--sports", "latest", "--distance", "latest~10%", "--active", "latest~10%"
-    )
+    discard save(db, "--distance", "latest~10%", "--active", "latest~10%")
     check chosen(db) == @["paris"]
     discard save(
-      db, "--after", "2018-08-01", "--before", "2018-08-21", "--sports", "latest",
-      "--distance", "latest~10%",
+      db, "--after", "2018-08-01", "--before", "2018-08-21", "--distance", "latest~10%"
     )
     check chosen(db) == @["lisbon2"] # the latest in that month is bob's
 
   test "--from latest respects the other criteria":
     let db = numbered("latest3")
-    discard save(db, "--sports", "cycling", "--from", "latest", "--radius", "5km")
+    discard save(db, "--tags", "sport:cycling*", "--from", "latest", "--radius", "5km")
     check chosen(db) ==
       @["lisbon2"] # (the latest cycling ride, not the latest ride; 5 km round it)
     discard save(db, "--radius", "5km") # alone: --from latest, of everything: paris
@@ -409,14 +412,14 @@ suite "list: the command":
 
   test "previous is the one activity that was selected before":
     let db = numbered("previous1")
-    discard save(db, "--sub-sports", "none") # the one ride: lisbon2 (bob's)
+    discard save(db, "--tags", "sport:cycling") # the one ride: lisbon2 (bob's)
     check chosen(db) == @["lisbon2"]
-    discard save(db, "--sports", "previous")
-    check chosen(db) == @["lisbon1", "lisbon2"] # its sport: cycling
-    discard save(db, "--sub-sports", "none")
+    discard save(db, "--from", "previous", "--radius", "10km")
+    check chosen(db) == @["lisbon1", "lisbon2"] # those that start near where it started
+    discard save(db, "--tags", "sport:cycling")
     discard save(db, "--distance", "previous~20%")
     check chosen(db) == @["lisbon2"] # 40-60 km: itself
-    discard save(db, "--sub-sports", "none")
+    discard save(db, "--tags", "sport:cycling")
     discard save(db, "--distance", "previous~90%", "--active", "previous~1h")
     check chosen(db) ==
       @["lisbon2", "paris"]
@@ -424,15 +427,17 @@ suite "list: the command":
 
   test "previous is read before the selection is replaced":
     let db = numbered("previous2")
-    discard save(db, "--sub-sports", "none")
-    check save(db, "--sports", "previous", "--distance", "previous~90%") == exitOk
+    discard save(db, "--tags", "sport:cycling")
+    check save(
+      db, "--from", "previous", "--radius", "10km", "--distance", "previous~90%"
+    ) == exitOk
     check chosen(db) == @["lisbon1", "lisbon2"] # now two are selected
-    check save(db, "--sports", "previous") == exitFailure # so it cannot be run again
+    check save(db, "--names", "previous") == exitFailure # so it cannot be run again
     check chosen(db) == @["lisbon1", "lisbon2"] # and nothing changed
 
   test "previous needs exactly one selected":
     let db = numbered("previous3")
-    check list(db, "--sports", "previous") == exitFailure # none
+    check list(db, "--names", "previous") == exitFailure # none
     discard save(db, "--all")
     check list(db, "--distance", "previous~10%") == exitFailure # three
     check list(db, "--from", "previous") == exitFailure
@@ -440,38 +445,41 @@ suite "list: the command":
 
   test "--from previous":
     let db = numbered("previous4")
-    discard save(db, "--sports", "cycling", "--oldest", "1") # the one ride: lisbon1
+    discard
+      save(db, "--tags", "sport:cycling*", "--oldest", "1") # the one ride: lisbon1
     discard save(db, "--from", "previous", "--radius", "5km")
     check chosen(db) == @["lisbon1"] # (lisbon2 started 6.9 km away)
-    discard save(db, "--sports", "cycling", "--oldest", "1")
+    discard save(db, "--tags", "sport:cycling*", "--oldest", "1")
     discard save(db, "--from", "previous", "--radius", "10km")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--sports", "running") # paris
+    discard save(db, "--tags", "sport:running*") # paris
     check chosen(db) == @["paris"]
     let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
       "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
-    discard save(db, "--sub-sports", "none")
-      # lisbon2 has no start    check save(db, "--from", "previous") == exitFailure
+    discard save(db, "--tags", "sport:cycling") # lisbon2, which has no start
+    check save(db, "--from", "previous") == exitFailure
     check chosen(db) == @["lisbon2"]
 
   test "previous with latest: previous first, then latest among what is left":
     let db = numbered("previous5")
+    discard save(db, "--tags", "sport:cycling*", "--oldest", "1")
+      # the one ride: lisbon1 (cycling)
+    # rides starting near it: the newest is lisbon2 (50 km); within 20% of that: 40-60
     discard
-      save(db, "--sports", "cycling", "--oldest", "1") # the one ride: lisbon1 (cycling)
-    # cycling rides: the newest is lisbon2 (50 km); within 20% of that: 40-60
-    discard save(db, "--sports", "previous", "--distance", "latest~20%")
+      save(db, "--from", "previous", "--radius", "10km", "--distance", "latest~20%")
     check chosen(db) == @["lisbon2"]
 
   test "a reference that has no recorded numbers":
     let db = numbered("previous6")
     setNumbers(db, "lisbon2", "null", "null")
-    discard save(db, "--sub-sports", "none")
+    discard save(db, "--tags", "sport:cycling")
     check save(db, "--distance", "previous~10%") == exitFailure
     check save(db, "--active", "previous~10m") == exitFailure
-    check save(db, "--sports", "previous") == exitOk # its sport is known
+    check save(db, "--from", "previous", "--radius", "10km") == exitOk
+      # its start is known
     check chosen(db) == @["lisbon1", "lisbon2"]
 
   test "the line says which one it used":
@@ -481,12 +489,13 @@ suite "list: the command":
     defer:
       st.close()
     let r =
-      listActivities(st, parseArgs(@["--sports", "previous"], utc()).params, utc(), 120)
+      listActivities(st, parseArgs(@["--names", "previous"], utc()).params, utc(), 120)
     check r.lines.texts[0].startsWith("previous: 2018-08-27 12:00  running")
   test "--near takes part in finding latest, as every criterion that does not use it":
     let db = world("nearlatest", true)
-    # near Lisbon the latest is lisbon2 (cycling); of all, paris (running)
-    discard save(db, "--near", "38.72,-9.14", "--radius", "20km", "--sports", "latest")
+    # near Lisbon the latest is lisbon2 (no sub-sport: sport:cycling); of all, paris (running)
+    discard
+      save(db, "--near", "38.72,-9.14", "--radius", "20km", "--distance", "latest~1km")
     check chosen(db) == @["lisbon1", "lisbon2"]
 
   test "newest is not part of finding latest":
@@ -498,7 +507,8 @@ suite "list: the command":
     let db = numbered("latest5")
     discard save(db, "--all")
     check save(
-      db, "--sports", "cycling", "--after", "2030-01-01", "--distance", "latest~5km"
+      db, "--tags", "sport:cycling*", "--after", "2030-01-01", "--distance",
+      "latest~5km",
     ) == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
     setNumbers(db, "paris", "null", "null")
@@ -506,8 +516,8 @@ suite "list: the command":
       # paris is the latest and has no distance
     check save(db, "--active", "latest~5m") == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
-    check save(db, "--sports", "swimming", "--sports", "latest") == exitFailure
-      # nobody has it
+    check save(db, "--tags", "sport:swimming*", "--distance", "latest~1km") ==
+      exitFailure # nobody has it: there is no latest
 
   test "bad ranges are a usage error and change nothing":
     let db = world("badrange")
@@ -614,7 +624,7 @@ suite "list: the command":
       "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
-    check save(db, "--sub-sports", "none", "--from", "latest") == exitFailure
+    check save(db, "--tags", "sport:cycling", "--from", "latest") == exitFailure
       # (bob's has no start
     check chosen(db) ==
       @["paris"]
@@ -674,11 +684,12 @@ suite "list: what is shown":
           result.add l.anyIt(styleOf(it) == "select")
 
     check shown(db, "--all").lines.blueRows == @[false, false] # nothing selected yet
-    discard save(db, "--sports", "cycling") # the selection: the cycling one
+    discard save(db, "--tags", "sport:cycling*") # the selection: the cycling one
     check shown(db, "--all").lines.blueRows == @[true, false]
-    check shown(db, "--sports", "running").lines.blueRows == @[false]
-    check shown(db, "--sports", "cycling").lines.blueRows == @[true] # (it is selected)
-    check "match selected" notin shown(db, "--sports", "cycling").lines.texts[^1]
+    check shown(db, "--tags", "sport:running*").lines.blueRows == @[false]
+    check shown(db, "--tags", "sport:cycling*").lines.blueRows ==
+      @[true] # (it is selected)
+    check "match selected" notin shown(db, "--tags", "sport:cycling*").lines.texts[^1]
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
@@ -687,9 +698,11 @@ suite "list: what is shown":
       @[true] # the selection: all are
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
-    check shown(db, "--sports", "running").lines.blueRows ==
+    check shown(db, "--tags", "sport:running*").lines.blueRows ==
       @[true] # (selected now, by the --select above)
-    check shown(db, "--sports", "running", "--also").lines.blueRows == @[true, true]
+    check shown(db, "--tags", "sport:running*", "--also").lines.blueRows == @[
+      true, true
+    ]
 
   test "--tags: activities with a tag matching each pattern; -v shows them, in tag, the selection's colour round them":
     let db = world("tags", true)
@@ -873,11 +886,12 @@ suite "list: --names and --starts":
   test "previous: the same whole name (or start place) as the selected activity":
     let db = world("refs", true)
     named(db)
-    discard save(db, "--sports", "cycling", "--oldest", "1") # lisbon1 is the selection
+    discard
+      save(db, "--tags", "sport:cycling*", "--oldest", "1") # lisbon1 is the selection
     check chosen(db) == @["lisbon1"]
     discard save(db, "--names", "previous")
     check chosen(db) == @["lisbon1", "lisbon2"] # both are "São Pedro and back"
-    discard save(db, "--sports", "cycling", "--oldest", "1")
+    discard save(db, "--tags", "sport:cycling*", "--oldest", "1")
     discard save(db, "--starts", "previous")
     check chosen(db) == @["lisbon1"] # Lisboa only: not Almada
   test "latest: the newest activity that meets the other criteria, whole":
@@ -896,7 +910,7 @@ suite "list: --names and --starts":
     s.close()
     discard save(db, "--names", "o'higgins")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--sports", "cycling", "--oldest", "1")
+    discard save(db, "--tags", "sport:cycling*", "--oldest", "1")
     discard save(db, "--names", "previous") # the whole name, quote and all
     check chosen(db) == @["lisbon1"]
     discard save(db, "--names", "x'; drop table activity; --")
@@ -956,7 +970,7 @@ suite "list: --paths":
     seen(db, "paris", "/x/bike/b.fit")
     discard save(db, "--paths", "/x/bike")
     check chosen(db) == @["lisbon1", "paris"]
-    discard save(db, "--paths", "/x/bike", "--sports", "running")
+    discard save(db, "--paths", "/x/bike", "--tags", "sport:running*")
     check chosen(db) == @["paris"]
   test "-v has a path column, last":
     let db = world("pathcolumn")
@@ -970,18 +984,18 @@ suite "list: --paths":
 suite "list: --invert":
   test "everything that fails to match, including what has nothing recorded":
     let db = world("invert", true)
-    discard save(db, "--sports", "cycling")
+    discard save(db, "--tags", "sport:cycling*")
     check chosen(db) == @["lisbon1", "lisbon2"]
-    discard save(db, "--sports", "cycling", "--invert")
+    discard save(db, "--tags", "sport:cycling*", "--invert")
     check chosen(db) == @["paris"]
-    discard save(db, "--sub-sports", "road", "--invert")
+    discard save(db, "--tags", "sport:*:road", "--invert")
       # (lisbon2 has no sub-sport: it fails to match)
     check chosen(db) == @["lisbon2", "paris"]
   test "all the criteria together: not (cycling and in July)":
     let db = world("invertall", true)
-    discard save(db, "--sports", "cycling", "--before", "2018-08-01")
+    discard save(db, "--tags", "sport:cycling*", "--before", "2018-08-01")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--sports", "cycling", "--before", "2018-08-01", "--invert")
+    discard save(db, "--tags", "sport:cycling*", "--before", "2018-08-01", "--invert")
     check chosen(db) == @["lisbon2", "paris"]
   test "names, starts and gps are inverted too; an activity not named yet fails to match":
     let db = world("invertnames", true)
@@ -993,10 +1007,10 @@ suite "list: --invert":
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
   test "--newest takes the newest of the inverted; latest is found before inverting":
     let db = world("invertlimits", true)
-    discard save(db, "--sports", "cycling", "--invert", "--newest", "1")
+    discard save(db, "--tags", "sport:cycling*", "--invert", "--newest", "1")
     check chosen(db) == @["paris"]
-    discard save(db, "--sports", "latest", "--invert")
-      # latest is paris (running): everything else
+    discard save(db, "--from", "latest", "--radius", "50km", "--invert")
+      # latest is paris: everything else
     check chosen(db) == @["lisbon1", "lisbon2"]
   test "--invert alone is refused":
     let db = world("invertalone")
@@ -1050,14 +1064,14 @@ suite "list: --climbs":
     s.close()
     discard save(db, "--climbs", "sintra₁")
     check chosen(db) == @["lisbon1"]
-    discard save(db, "--climbs", "sintra", "--sports", "running")
+    discard save(db, "--climbs", "sintra", "--tags", "sport:running*")
     check chosen(db).len == 0
     discard save(db, "--climbs", "sintra", "--invert")
     check chosen(db) == @["paris"]
   test "text that is in no climb's name is an error, and nothing is changed":
     let db = world("climbnone")
     climbs(db)
-    discard save(db, "--sports", "cycling")
+    discard save(db, "--tags", "sport:cycling*")
     check list(db, "--climbs", "nowhere", "--select") == exitFailure
     check chosen(db) == @["lisbon1"]
 
@@ -1091,7 +1105,7 @@ suite "nch activities --rename":
     )
     check listCommand.run(g, @["--rename"]) == exitOk
       # (nothing selected: a warning, as for --delete)
-    check listCommand.run(g, @["--sports", "rowing", "--rename"]) == exitFailure
-      # (a sport nobody has is a mistake of its own)
+    check listCommand.run(g, @["--tags", "sport:rowing*", "--rename"]) == exitOk
+      # (a tag nobody has: nothing found, a warning)
     check listCommand.run(g, @["--all", "--rename", "--select"]) == exitUsage
     check listCommand.run(g, @["--all", "--rename", "-v"]) == exitUsage

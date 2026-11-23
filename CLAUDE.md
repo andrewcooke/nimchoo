@@ -230,10 +230,10 @@ four kinds of things go wrong, and each has one mechanism:
   parameters (except `var` collectors and iterators).  plain value objects; kinds are variant objects.  `let` by
   default.  no module-level mutable state (exceptions today: `packages/util/profiling`, the stop flag of `packages/db/checkpointer.nim`, an atomic, and the channels and the settings of the workers in `packages/importer/pool.nim`: Nim's `Channel` must be global).
 * templates only where a proc cannot do it; no macros unless they remove real repetition.
-* **options that take a list** (decided 2026-11-12): the option has a **plural** name (`--sports`, `--names`, `--starts`, `--paths`,
+* **options that take a list** (decided 2026-11-12): the option has a **plural** name (`--tags`, `--names`, `--starts`, `--paths`,
   `--climbs`, `--frames`; `--delete KIND...` of `cache` is an action and keeps its name), its values are **separated by
   spaces** (`--names 'El Toyo' Farellones 123`: a text with spaces is quoted, a comma is part of a value), and its placeholder
-  is the item and an ellipsis (`--sports SPORT...`); a list option is never in the address of a page.  a **position** is one point, always **`LAT,LON`**
+  is the item and an ellipsis (`--tags TAG...`); a list option is never in the address of a page.  a **position** is one point, always **`LAT,LON`**
   in that order (`--from`, `--near`, `--at`), as it is shown (`geo/position`: one reader, one writer); **`--from` is where a
   thing starts and `--near` is where its route or line passes** (activities, climbs: decided 2026-11-18; `nch landmarks
   --near` searches for places near a point); each also takes a place's name (a landmark, else the biggest place of

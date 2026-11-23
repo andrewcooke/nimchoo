@@ -24,7 +24,7 @@ export Among
 
 type
   Listed* = object
-    ## `--sports`, `--sub-sports`, `--names`, `--starts`: the values given, and perhaps the one of another activity.
+    ## `--names`, `--starts`: the values given, and perhaps the one of another activity.
     values*: seq[string]
     refers*: Option[Referent]
 
@@ -57,8 +57,6 @@ type
     gpsWithout ## --no-gps: only those without any
 
   FilterKind* = enum
-    ftSports
-    ftSubSports
     ftNames
     ftStarts
     ftPaths
@@ -74,8 +72,8 @@ type
 
   Filter* = object ## One criterion, as given.
     case kind*: FilterKind
-    of ftSports, ftSubSports, ftNames, ftStarts:
-      listed*: Listed ## lower case for the sports; "none": not recorded
+    of ftNames, ftStarts:
+      listed*: Listed
     of ftPaths:
       paths*: seq[string]
         ## text found in a path the file was imported from (or in its name)
@@ -96,8 +94,6 @@ type
 
   ResolvedKind* = enum
     ## In the order the conditions are written in the SQL.
-    rtSports
-    rtSubSports
     rtNames
     rtStarts
     rtPaths
@@ -114,8 +110,6 @@ type
   Resolved* = object
     ## One criterion with its values: nothing in it refers to an activity that is yet to be found.
     case kind*: ResolvedKind
-    of rtSports, rtSubSports:
-      values*: seq[string] ## lower case; "none": not recorded
     of rtNames, rtStarts:
       typed*: seq[string]
         ## text found in the value, whatever its case and accents; "none": nothing
@@ -141,7 +135,6 @@ type
 
   Anchor* = object
     ## What an activity that a criterion refers to (the latest, the previous) is, as far as a criterion can use it.
-    sport*, subSport*: string ## "": not recorded
     distanceM*, activeS*: Option[float]
     name*, startPlace*: string ## "": none
     start*: Option[(float, float)]
@@ -229,7 +222,7 @@ func inverts*(s: Scope): bool =
 func refersTo*(f: Filter, r: Referent): bool =
   ## Whether the criterion is measured against the activity `r` stands for.
   case f.kind
-  of ftSports, ftSubSports, ftNames, ftStarts:
+  of ftNames, ftStarts:
     f.listed.refers == some(r)
   of ftDistance, ftActive:
     f.spread.byReference and f.spread.refers == r
@@ -254,7 +247,7 @@ func withoutLatest*(f: Filter): Option[Filter] =
   ## The criterion without what refers to `latest` (none if that was all of it): the activities that meet what is left are
   ## those among which "latest" is found.
   case f.kind
-  of ftSports, ftSubSports, ftNames, ftStarts:
+  of ftNames, ftStarts:
     if f.listed.refers == some(rfLatest):
       if f.listed.values.len == 0:
         none(Filter)

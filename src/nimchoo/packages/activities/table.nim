@@ -12,7 +12,6 @@
 
 import std/[algorithm, math, options, strformat, strutils, tables, times]
 import ../fit/time
-import ./criteria
 import ../geo/position
 import ../importer/describe
 import ../ui/interval
@@ -145,7 +144,7 @@ proc table*(
 
 func footerDetail*(rows: seq[ListRow]): string =
   ## ", 2,013.4km, 4d02h12m (13 running, 2 swimming)": the total distance and active time (of those that have them), and how
-  ## many of each sport if there are several (a sport not recorded is "none", as `--sports none` says it); "" for no rows.
+  ## many of each sport if there are several (a sport not recorded is "none"); "" for no rows.
   if rows.len == 0:
     return ""
   var metres, seconds = 0.0
@@ -155,7 +154,7 @@ func footerDetail*(rows: seq[ListRow]): string =
       metres += r.distanceM.get
     if r.activeS.isSome:
       seconds += r.activeS.get
-    bySport.inc(if r.sport.len > 0: r.sport else: noSport)
+    bySport.inc(if r.sport.len > 0: r.sport else: "none")
   result = fmt", {km(metres)}, {interval(seconds)}"
   if bySport.len > 1:
     var parts: seq[(string, int)]

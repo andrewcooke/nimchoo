@@ -13,6 +13,7 @@ from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
 import nimchoo/packages/names/lookup
 import nimchoo/packages/activities/criteria
+import nimchoo/packages/tags/tag
 import nimchoo/packages/climbs/criterion as climbsCriterion
 import nimchoo/packages/activities/ranges
 
@@ -94,14 +95,14 @@ suite "query plans: no query reads a whole table":
       checkpoint what
       check scans(plan(st.db, text)).len == 0
   test "the criteria of a listing, each alone and all together":
-    let sports = Resolved(kind: rtSports, values: @["cycling"])
+    let tags =
+      Resolved(kind: rtTags, tags: @[parsePattern("sport:cycling*").pattern.get])
     let names = Resolved(kind: rtNames, typed: @["toyo"], exact: @["El Toyo"])
     let paths = Resolved(kind: rtPaths, paths: @["bowman"])
     let from1 = Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0)
     let near1 = Resolved(kind: rtNear, lat: 38.7, lon: -9.1, km: 1.0)
     let all = @[
-      sports,
-      Resolved(kind: rtSubSports, values: @["road"]),
+      tags,
       names,
       Resolved(kind: rtStarts, typed: @["lisboa"]),
       paths,
@@ -115,7 +116,7 @@ suite "query plans: no query reads a whole table":
     ]
     let each: seq[(string, seq[Resolved], bool)] = @[
       ("none", @[], false),
-      ("sports", @[sports], false),
+      ("tags", @[tags], false),
       ("names", @[names], false),
       ("paths", @[paths], false),
       ("a range", @[Resolved(kind: rtDistance, range: NumRange(lo: some 1.0))], false),

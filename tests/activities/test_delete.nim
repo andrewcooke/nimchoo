@@ -3,6 +3,8 @@ import std/[options, times, os, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/user/session
 import nimchoo/packages/activities/deleterun
+import nimchoo/packages/tags/[step, tag]
+import nimchoo/core/ids
 import nimchoo/packages/importer/remove
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/ui/style
@@ -217,13 +219,16 @@ suite "delete: the command":
     s.db.execute(
       "update activity set sport = 'cycling' where file_id <> (select id from file where name = 'run')"
     )
+    # (the tags an import gives them)
+    for (a, sport) in s.db.query((int64, string), "select id, sport from activity"):
+      s.addTags(ActivityId(a), [sportTag(sport, "").get])
     s.db.execute("delete from selection")
     s.close()
-    check run(d, "--sports", "cycling") == exitFailure # no -y: nothing done
+    check run(d, "--tags", "sport:cycling*") == exitFailure # no -y: nothing done
     let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 3
     before.close()
-    check run(d, "--sports", "cycling", "-y") == exitOk
+    check run(d, "--tags", "sport:cycling*", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:
       after.close()
@@ -253,8 +258,8 @@ suite "delete: the command":
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
     s.close()
-    check run(d, "--sports", "swimming", "-y") == exitFailure
-      # (nobody has the sport: refused, as for any listing)
+    check run(d, "--tags", "sport:swimming*", "-y") == exitOk
+      # (nobody has the tag: nothing found, said)
     check run(d, "--after", "2030-01-01", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
     defer:

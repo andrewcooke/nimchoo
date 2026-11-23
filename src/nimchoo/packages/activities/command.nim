@@ -50,11 +50,11 @@ const
     ~"10. If `--delete` or `--rename`, delete or rename the result, and stop.",
     ~"11. If `--select`, replace the current selection with the result.",
     ~"12. Display the result (selected activities are highlighted).",
-    ~"`latest` and `previous` can be referred to in criteria (`--sports latest`, `--distance latest~10%` ...).  `--delete` and `--rename` cannot be used with `--also` or `--select`.",
+    ~"`latest` and `previous` can be referred to in criteria (`--distance latest~10%`, `--from latest`, `--names previous` ...).  `--delete` and `--rename` cannot be used with `--also` or `--select`.",
     ~"If no criteria are given, the steps are skipped and the current selection is listed.  `--all` is the criterion that keeps everything: it runs the steps above, so `--all --newest 3` lists your three newest activities.",
   ]
   notes = @[
-    ~"So `--sports cycling --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride; select one ride with `--select`, then `--sports previous --distance previous~10%` finds rides like it.  `previous` is an error unless exactly one activity is selected."
+    ~"So `--tags 'sport:cycling*' --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride; select one ride with `--select`, then `--distance previous~10% --active previous~10%` finds rides like it.  `previous` is an error unless exactly one activity is selected."
   ]
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
@@ -85,35 +85,6 @@ proc startOf(
   )
   if c.lat.isSome and c.lon.isSome:
     result = some((c.lat.get, c.lon.get))
-
-proc present(st: Session, column: string): seq[(string, int)] {.raises: [StoreError].} =
-  ## The values of a column (sport or sub_sport: a name of ours, which cannot be bound) among the activities of
-  ## the user, with how many each has, most first; "none" for not recorded.
-  st.db.query(
-    (string, int),
-    "select coalesce(a." & column & ", 'none'), count(*) " &
-      "from activity a join file f on f.id = a.file_id where f.user_id = :userId " &
-      "group by 1 order by 2 desc, 1",
-    userId = st.userId,
-  )
-
-proc checkNames(
-    st: Session, what, column: string, wanted: seq[string]
-) {.raises: [StoreError].} =
-  ## Refuse a sport (or sub-sport) the users' activities do not have, and say which
-  ## they do have.
-  if wanted.len == 0:
-    return
-  let have = present(st, column)
-  for w in wanted:
-    if have.allIt(it[0] != w):
-      var shown: seq[string]
-      for (name, n) in have:
-        shown.add name & " " & $n
-      raiseStore(
-        "no activity has the " & what & " '" & w & "' (you have: " &
-          (if shown.len > 0: shown.join(", ") else: "no activities") & ")"
-      )
 
 proc listing(
     rows: seq[ListRow],
@@ -223,8 +194,6 @@ proc anchorOf(
     id = id,
   )
   Anchor(
-    sport: row.sport,
-    subSport: row.subSport,
     distanceM: row.distanceM,
     activeS: row.activeS,
     name: r.name,
@@ -242,18 +211,6 @@ proc resolveFilter(f: Filter, env: Env): Resolved {.raises: [StoreError].} =
   ## The filter with its values: what it refers to is taken from `env`.  (A criterion that needs a value the activity does not
   ## have is an error that says so.)
   case f.kind
-  of ftSports:
-    var values = f.listed.values
-    if f.listed.refers.isSome:
-      let sport = env.anchor(f.listed.refers.get).sport
-      values.add (if sport.len > 0: sport else: noSport)
-    Resolved(kind: rtSports, values: values)
-  of ftSubSports:
-    var values = f.listed.values
-    if f.listed.refers.isSome:
-      let sub = env.anchor(f.listed.refers.get).subSport
-      values.add (if sub.len > 0: sub else: noSport)
-    Resolved(kind: rtSubSports, values: values)
   of ftNames:
     Resolved(
       kind: rtNames,
@@ -356,7 +313,7 @@ proc numbersAsIds(
 proc resolveScope(
     st: Session, scope: Scope, zone: Timezone
 ): Search {.raises: [StoreError].} =
-  ## `previous` (in --from, --near, --distance, --active, --sports, --sub-sports) is the one activity
+  ## `previous` (in --from, --near, --distance, --active, --names, --starts) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
   ## criteria that do not mention `latest` (as the usage's steps say).  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
@@ -375,10 +332,6 @@ proc resolveScope(
       let found = numbersAsIds(st, f.listed.values, result.notes)
       env.nameTexts = some(found.texts)
       env.nameIds = found.ids
-    of ftSports:
-      checkNames(st, "sport", "sport", f.listed.values)
-    of ftSubSports:
-      checkNames(st, "sub-sport", "sub_sport", f.listed.values)
     of ftFrom, ftNear:
       if f.place.kind == plPlace and f.place.name notin env.places:
         let p = placeNamed(st, f.place.name)

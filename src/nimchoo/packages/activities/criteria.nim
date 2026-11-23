@@ -15,13 +15,10 @@ export ranges, criterion, near, request
 
 {.push raises: [].}
 
-const
-  noSport* = "none"
-    ## what `--sports` calls an activity whose sport is not recorded (and what the footer counts it as)
-  timeFormats = [
-    "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
-    "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
-  ] ## (a date alone is its midnight: as if written with T00:00:00)
+const timeFormats = [
+  "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm",
+  "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+] ## (a date alone is its midnight: as if written with T00:00:00)
 
 proc parseWhen*(s: string, zone: Timezone): Option[UnixTime] =
   ## An instant typed by the user, in `zone`, as Unix seconds: exactly what is written, a date being the start of its day
@@ -45,7 +42,7 @@ proc parseOnDay*(s: string, zone: Timezone): Option[tuple[start, next: UnixTime]
 type
   Collected = object
     ## The criteria as the options give them, one field to each (`finish` makes the `Filter`s of them).
-    sports, subSports, names, starts: Listed
+    names, starts: Listed
     paths: seq[string]
     tags: seq[TagPattern]
     contributed: seq[Contributed]
@@ -94,30 +91,6 @@ func takeReferent(l: var Listed, value: string): bool =
     return true
   l.refers = r
   false
-
-proc takeSports(
-    p: var ListState, name: string, values: seq[string]
-): Problem {.nimcall.} =
-  p.criteriaGiven = true
-  let names = splitNames(values, true)
-  if names.len == 0:
-    return refuse(~"`{name}` needs at least one name")
-  for n in names:
-    if takeReferent(p.c.sports, n):
-      return refuse(~"`--sports`: latest and previous cannot be used together")
-  fine
-
-proc takeSubSports(
-    p: var ListState, name: string, values: seq[string]
-): Problem {.nimcall.} =
-  p.criteriaGiven = true
-  let names = splitNames(values, true)
-  if names.len == 0:
-    return refuse(~"`{name}` needs at least one name")
-  for n in names:
-    if takeReferent(p.c.subSports, n):
-      return refuse(~"`--sub-sports`: latest and previous cannot be used together")
-  fine
 
 proc takeTexts(
     p: var ListState, name: string, values: seq[string], listed: var Listed
@@ -307,20 +280,6 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         body = (p.all = true; fine),
       ),
       listOption[ListState](
-        ["--sports"],
-        takeSports,
-        "SPORT...",
-        ~"only these sports (cycling, running, swimming ...); \"none\" means not recorded; \"latest\" or \"previous\": that activity's sport",
-        completion = completesFrom(completeSports),
-      ),
-      listOption[ListState](
-        ["--sub-sports"],
-        takeSubSports,
-        "SPORT...",
-        ~"only these sub-sports (road, trail, open_water ...).  Many files say \"generic\" or nothing, so this misses some rides",
-        completion = completesFrom(completeSubSports),
-      ),
-      listOption[ListState](
         ["--names"],
         takeNames,
         "TEXT...",
@@ -342,7 +301,8 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--tags"],
         takeTags,
         "TAG...",
-        ~"activities that have a tag matching each (all of them: \"and\"), whatever its case or accents; `*` is anything: `--tags bike:cotic`, `--tags 'sport:cycling*'` (quoted, or the shell reads the `*`)",
+        ~"activities that have a tag matching each (all of them: \"and\"), whatever its case or accents; `*` is anything: `--tags bike:cotic`, `--tags 'sport:cycling*'` (quoted, or the shell reads the `*`).  An import gives each activity its sport as a tag: `sport:cycling:road`, or `sport:cycling` when the file says nothing more",
+        completion = completesFrom(completeTags),
       ),
       custom(
         ListState,
@@ -505,10 +465,6 @@ func placeOf(spot: Spot): Option[Place] =
 
 func filtersOf(c: Collected, w: Where): seq[Filter] =
   ## The criteria that were given, each once.
-  if c.sports.values.len > 0 or c.sports.refers.isSome:
-    result.add Filter(kind: ftSports, listed: c.sports)
-  if c.subSports.values.len > 0 or c.subSports.refers.isSome:
-    result.add Filter(kind: ftSubSports, listed: c.subSports)
   if c.names.values.len > 0 or c.names.refers.isSome:
     result.add Filter(kind: ftNames, listed: c.names)
   if c.starts.values.len > 0 or c.starts.refers.isSome:
@@ -578,7 +534,7 @@ func finish(st: ListState): Parsed[Request] =
     )
   if st.invert and filters.len == 0:
     return bad(
-      ~"`--invert` needs a criterion to invert (`--sports`, `--names`, `--distance` ...)"
+      ~"`--invert` needs a criterion to invert (`--tags`, `--names`, `--distance` ...)"
     )
   if st.newest > 0 and st.oldest > 0:
     return bad(~"`--newest` and `--oldest` cannot be used together")
@@ -620,7 +576,7 @@ func finish(st: ListState): Parsed[Request] =
 proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Request] =
-  ## The command line of `nch activities`.  Options with values: `--sports A B`, `--sub-sports A B`, `--names`, `--starts`,
+  ## The command line of `nch activities`.  Options with values: `--tags A B`, `--names`, `--starts`,
   ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
   ## `--newest N` (or `-n N`), `--oldest N`, `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
@@ -628,26 +584,6 @@ proc parseArgs*(
   parseCommand(
     args, criteriaSpec(offered), ListState(zone: zone, offered: offered), finish
   )
-
-func inValues*(column, name: string, values: seq[string]): Sql =
-  ## " and (a.sport in (:sport0, :sport1))": the values, as `:name0`, `:name1` ...; "none" stands for NULL (not
-  ## recorded).  Nothing if there are no values.
-  if values.len == 0:
-    return
-  var marks, parts: seq[string]
-  var orNull = false
-  for v in values:
-    if v == noSport:
-      orNull = true
-    else:
-      let n = name & $marks.len
-      marks.add ":" & n
-      result.args.add (n, arg(v))
-  if marks.len > 0:
-    parts.add column & " in (" & marks.join(", ") & ")"
-  if orNull:
-    parts.add column & " is null"
-  result.text = " and (" & parts.join(" or ") & ")"
 
 func textSql*(
     column, name: string, typed, exact: seq[string], ids: seq[int64] = @[]
@@ -758,10 +694,6 @@ func matchSql*(
     # the criteria, each as " and ...": with --invert, the whole is negated
   for f in ordered:
     case f.kind
-    of rtSports:
-      filt = filt & inValues("a.sport", "sport", f.values)
-    of rtSubSports:
-      filt = filt & inValues("a.sub_sport", "subSport", f.values)
     of rtNames:
       filt = filt & textSql("a.name", "name", f.typed, f.exact, f.ids)
     of rtStarts:
