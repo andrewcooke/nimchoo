@@ -4,6 +4,21 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Models, the first editable type (done 2026-11-23, step 2 of the `ff` rework)
+
+`nch models` lists, adds (`--add NAME [--base NAME]`: the base's values, then those given), edits (`--edit NAME
+[--rename NEW]`) and deletes (what `--names PATTERN...` lists, after `ask`) the models, and keeps a models selection
+per user with the steps of `subject/steps` (`--all`, `--select`, `--also`, `--within`).  Decided with the author: the
+command stays `nch models` until step 3 renames it `ff`; the built-in `default` never changes (copy it); the chart keeps
+`--model NAME` until step 3.  A model gained its scales (`fitness-scale` 1, `fatigue-scale` 5, so the chart's options
+went) and its tag patterns (`ff_model_pattern`: an activity counts if it has a tag matching each; `impulses.userLumps`
+filters, so patterns change no impulse).  An edit that changes what the model makes of the heart rate (gamma, zero, one,
+max-gap, zones) deletes its impulses (`calc.sameImpulse`).  Names are written and matched as tags are (unique case and
+accents aside: `ff_model.folded`); the chart's cache file is named by the model's number, since a name may hold `:`.
+The built-in models are selected for every user (a trigger on `user`, and the seed).  The shared piece is the
+`editable` package (dev/editable-objects.md, "Built": a typed declaration, the SQL left to the type).  Also:
+`calc.problem` is an `Option` (it returned "" for none).  `model/001-schema.sql` was edited in place: rebuild.
+
 ## The impulse per stretch, exact curves (done 2026-11-23, step 1 of the `ff` rework)
 
 As decided in dev/ff.md: the impulse is kept per stretch of riding (`segment`), one lump at its impulse-weighted centre,

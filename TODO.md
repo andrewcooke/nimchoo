@@ -39,11 +39,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     directory, `~/fit/bike/{bike}`; tags only for files imported the first time) and step 5 (`nch tags`).  Left:
     6. later, with `nch efforts`: efforts inherit their activity's tags.
 
-17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`): built with step 2 of the
-    `ff` rework, models first (2026-11-23), then landmarks and users.  One shared piece for
-    the named things made by hand (landmarks, users, models): each type declares its attributes once, and the options,
-    filters (patterns, ranges with units, places), `--add`, `--edit NAME`, `--delete` of the selection (with `ask`), the
-    table and completion are made from it.  With the `ff` rework: `landmarks` first, then `users`, then `models`.
+17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`): the `editable`
+    package, built 2026-11-23 with models its first user (`nch models`).  Left: `landmarks` (gains `--edit`, delete of what
+    is listed, and the first filters beyond `--names`: places and ranges with units) and `users` (the hooks: one default
+    user, a new FTHR); if the declaration has to bend for them, it is wrong.
 
 ## Tidy left from the reviews
 
@@ -130,14 +129,12 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
   extended (the best and the most recent attempts).  To design with the author.
 * **The `ff` rework** (design note `dev/ff.md`, 2026-11-23: the model is the subject; FF by a model's tags, never the
-  activity selection).  Step 1 done (2026-11-23: the impulse per stretch, at its centre; the curves exact, on no grid).
-  The steps left:
-  2. `nch ff` manages the models: the models selection (built-in `default`, selected from the start), `--base` (copied),
-     editing (impulses worked out again), deleting, the nine parameters and the tag patterns; names matched as tags are.
-     **The editable objects (17) are built here, models their first user** (the author, 2026-11-23: it keeps the focus on
-     `ff`); landmarks and users follow;
-  3. the `plot` view (`nch plot ff`: fitness, fatigue and form of each selected model; the activities' impulse per day),
-     replacing `ff`'s chart and its options (`--hourly`, `--utc`, `--model`, the scales), and E7 with it;
+  activity selection).  Step 1 done (2026-11-23: the impulse per stretch, at its centre; the curves exact, on no grid);
+  step 2 done (2026-11-23: models managed as the first editable type, by `nch models` until step 3; the models selection;
+  the scales are the model's).  The steps left:
+  3. `nch models` becomes `nch ff` (the author, 2026-11-23: renamed once the chart has left it); the `plot` view (`nch plot ff`: fitness, fatigue and form of each selected model; the activities' impulse per day),
+     replacing `ff`'s chart and its options (`--hourly`, `--utc`, `--model`; the chart's file is named by the model's
+     number meanwhile, `ff-model-1-...`), and E7 with it;
   4. the calendar's background frames (a value as a colour between the theme's `hot` and `cold`, 3 samples a day).
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.

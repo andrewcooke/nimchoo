@@ -1,7 +1,7 @@
 ## `nch ff`: the fitness and fatigue curves of the current user (see curve.nim), shown as a chart in the browser, or as CSV in
 ## the cache directory for plotting elsewhere (`--file`) or on standard output (`--stdout`): one row per day (the
 ## value at the end of the day, in the computer's timezone), or per hour.  A chart is a live view: the file is named by the
-## options (`ff-default-hourly.csv`) and made again on every request, from the data as they are.
+## options (`ff-model-1-hourly.csv`) and made again on every request, from the data as they are.
 ##
 ## This module is newer than `model`: it works out the impulses that are lacking, and reads them (one lump a stretch of
 ## riding, at its centre), and the curves are exact at the times shown (the ends of days or hours, and now).
@@ -20,7 +20,7 @@ import ../util/args/[args, usage]
 import ../web/launch
 import ../web/pages
 import ../web/webopts
-import ../ui/[style, units]
+import ../ui/style
 import ./[curve, page, params, stats]
 import ../user/session
 
@@ -35,13 +35,12 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 const
   synopsis =
     """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--after DAY] [--before DAY]
-                                      [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]
-                                      [--fitness-scale S] [--fatigue-scale S]"""
+                                      [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]"""
   intro = @[
-    ~"Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (one server serves every page, and keeps running after the command returns: `--stop` stops it).  With `--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of the two curves, each with the share of the earlier days on which it was higher (\"top 1%\" means the value is nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times of the model.  They start from 0 at the first activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."
+    ~"Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (one server serves every page, and keeps running after the command returns: `--stop` stops it).  With `--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of the two curves, each with the share of the earlier days on which it was higher (\"top 1%\" means the value is nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times and the scales of the model, counting the activities whose tags it chooses.  They start from 0 at the first activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."
   ]
   notes = @[
-    ~"The file is made again each time, from the data as they are then; its name is made from the options (`ff-default-hourly.csv`), so charts with different options do not overwrite each other."
+    ~"The file is made again each time, from the data as they are then; its name is made from the options (`ff-model-1-hourly.csv`), so charts with different options do not overwrite each other."
   ]
 
 proc usageText*(width: int): seq[Line] =
@@ -88,8 +87,8 @@ proc rows*(
         continue
     elif label < firstDay:
       continue
-    let fit = formatFloat(fitness[k] * p.fitnessScale, ffDecimal, 4)
-    let fat = formatFloat(fatigue[k] * p.fatigueScale, ffDecimal, 4)
+    let fit = formatFloat(fitness[k] * m.fitnessScale, ffDecimal, 4)
+    let fat = formatFloat(fatigue[k] * m.fatigueScale, ffDecimal, 4)
     result.add fmt"{label},{fit},{fat}"
 
 proc csv(lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone): string =
@@ -134,7 +133,7 @@ proc latestStats(
     label = localDate(day, utc())
   if lumps.len == 0 or lumps[0].t > asOf:
     return
-      statLine(label, none(Standing), none(Standing), p.fitnessScale, p.fatigueScale)
+      statLine(label, none(Standing), none(Standing), m.fitnessScale, m.fatigueScale)
   let times = dayEnds(lumps[0].t, day - secondsPerDay, tz) & @[asOf]
   proc standingFor(tauDays: float): Option[Standing] =
     let v = curveAt(lumps, tauDays, times)
@@ -144,8 +143,8 @@ proc latestStats(
     label,
     standingFor(m.fitnessDays),
     standingFor(m.fatigueDays),
-    p.fitnessScale,
-    p.fatigueScale,
+    m.fitnessScale,
+    m.fatigueScale,
   )
 
 proc webQuery*(p: Params): string =
@@ -162,16 +161,12 @@ proc webQuery*(p: Params): string =
     q.add "hourly=1"
   if p.utc:
     q.add "utc=1"
-  if p.fitnessScale != 1:
-    q.add "fitness-scale=" & plainNumber(p.fitnessScale)
-  if p.fatigueScale != 1:
-    q.add "fatigue-scale=" & plainNumber(p.fatigueScale)
   q.join("&")
 
-proc stemOf(p: Params, model: string): string =
-  ## What the files are named: the command, the model and the options given (`ff-default-hourly-to-2026-11-14`).  Charts with
-  ## other options are other files.
-  var parts = @[commandName, model]
+proc stemOf(p: Params, model: ModelId): string =
+  ## What the files are named: the command, the model's number (a name may hold what a file name may not) and the options
+  ## given (`ff-model-1-to-2026-11-14-hourly`).  Charts with other options are other files.
+  var parts = @[commandName, fmt"model-{model}"]
   if p.firstDay.isSome:
     parts.add "from-" & localDate(p.firstDay.get, utc())
   if p.lastDay.isSome:
@@ -180,10 +175,6 @@ proc stemOf(p: Params, model: string): string =
     parts.add "hourly"
   if p.utc:
     parts.add "utc"
-  if p.fitnessScale != 1:
-    parts.add "fitness-scale-" & plainNumber(p.fitnessScale)
-  if p.fatigueScale != 1:
-    parts.add "fatigue-scale-" & plainNumber(p.fatigueScale)
   parts.join("-")
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
@@ -215,7 +206,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     let name = p.model.get("default")
     let m = findModel(st.db, name)
     if m.isNone:
-      return failure(g, "nch ff", ~"no such model: {name} (see `nch models`)")
+      return failure(g, "nch ff", ~"no such model: {name} (see `nch models --all`)")
     if fthrOf(st.db, st.userId).isNone:
       return failure(
         g,
@@ -240,7 +231,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     if p.stdout or p.web.kind != wkServe:
       # (the chart that is served is made by the worker, when the page is asked for)
       ensureImpulses(st, m.get)
-      impulses = userLumps(st.db, st.userId, m.get.id)
+      impulses = userLumps(st.db, st.userId, m.get)
     if p.stdout:
       g.say osOut, makeCsv(impulses, m.get, p, now, tz)
       return exitOk
@@ -257,13 +248,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         commandName,
         webQuery(parsed.params),
       )
-    let stem = stemOf(parsed.params, name)
-    if not isFileStem(stem):
-      return failure(
-        g,
-        "nch ff",
-        ~"the model's name cannot be made into a file name (letters, digits and . _ , - only): {name}",
-      )
+    let stem = stemOf(parsed.params, m.get.id)
     # (the paths are kept in `let`s: `.get` on a temporary Option that is assigned on to a `var` has
     # left a dangling string here, with this compiler)
     let files = userDir(dir.get)

@@ -102,3 +102,21 @@ GeoNames, an extra action beside the generated ones).
 **The access model**: a statement is checked against the tables of the package it is written in, so shared code writing
 the `user` table would be refused.  The declaration carries its owner and the shared code prepares its statements as that
 package (`prepareStmtAs`): the owner declared the writing, so "a table is written by its owner" still holds.
+
+### Built (2026-11-23, models first)
+
+The `editable` package, with `nch models` its first user (`model/params.modelKind` is the declaration).  What differs
+from the sketch above, and why:
+
+* **The declaration is typed Nim, not columns.**  An attribute is its option (made by `valueAttr` or `listAttr`: how the
+  text is read into a field of the type, checked when it is given), how the value given is copied onto a thing, its
+  heading and how it is shown.  The SQL stays with the type's package: a model's zones are five columns and its tag
+  patterns a table of their own, which columns named in the declaration could not say.  The access model needs nothing
+  new (no `prepareStmtAs`): the type's package runs its own statements.
+* **Filters: `--names PATTERN...` only**, matched as tags are (models need no other).  Ranges and places come with
+  `landmarks`.
+* **The selection is not editable's**: a type that is also a subject (models) adds the steps of `subject/steps` to the
+  same parse (the parse state has a `steps` field for it); landmarks and users have none.
+* **`--delete` deletes what is listed** (with no criteria, the selection), after `ask`; a built-in thing is left out,
+  with a warning.  **`--edit NAME [--rename NEW]`** changes the values given; `--add NAME [--base NAME]` copies the base
+  (the type's blank when there is none) and then the values given.

@@ -1,9 +1,12 @@
--- The variables of the training-impulse calculation, as named sets (models), and the impulses
--- made with them.  A model is never edited once it exists (a new one is added), because the
--- impulses made with it would no longer match.  Models belong to no user.
+-- The models: named sets of the variables of the training impulse and of the fitness and
+-- fatigue curves made from it, with the tags of the activities that count (see calc.nim).
+-- Models belong to no user.  A built-in model (the program's: `default`) is never changed or
+-- deleted; the others are edited with `nch models --edit`.
 create table ff_model (
   id integer primary key,
-  name text not null unique,                        -- for display
+  name text not null,
+  folded text not null unique,                      -- the name as it is matched: lower case, no accents
+  built_in integer not null default 0 check (built_in in (0, 1)),
   -- the impulse of an instant: ((zone - zero) / (one - zero)) ^ gamma, clipped at 0
   gamma real not null check (gamma > 0),
   zero real not null,
@@ -15,11 +18,39 @@ create table ff_model (
   zone3 real not null,
   zone4 real not null,
   zone5 real not null,
-  -- the decay time of the curves made from the impulses
+  -- the decay times of the curves made from the impulses, and their weights in form
+  -- (form = fitness_scale * fitness - fatigue_scale * fatigue)
   fitness_days real not null check (fitness_days > 0),
   fatigue_days real not null check (fatigue_days > 0),
+  fitness_scale real not null check (fitness_scale > 0),
+  fatigue_scale real not null check (fatigue_scale > 0),
   check (zero < one),
   check (0 < zone1 and zone1 < zone2 and zone2 < zone3 and zone3 < zone4 and zone4 < zone5)) strict;
+
+-- Which activities count in a model: those with a tag matching every pattern (as `--tags` of
+-- `nch activities` matches; `folded` is the pattern as it is matched).  A model with none
+-- counts every activity.
+create table ff_model_pattern (
+  model_id integer not null references ff_model(id) on delete cascade,
+  pattern text not null,
+  folded text not null,
+  primary key (model_id, folded)) strict, without rowid;
+
+-- The models a user has chosen: the models subject (`nch models CRITERIA --select`), as
+-- `activity_selection` is the activities'.  The built-in models are selected for every user
+-- from the start (the trigger below, and the seed for the users there are already).
+create table model_selection (
+  user_id integer not null references user(id) on delete cascade,
+  model_id integer not null references ff_model(id) on delete cascade,
+  primary key (user_id, model_id)) strict, without rowid;
+
+-- A foreign key needs an index of its own (the primary key starts with the user).
+create index model_selection_model on model_selection(model_id);
+
+create trigger model_selection_new_user after insert on user
+begin
+  insert into model_selection(user_id, model_id) select new.id, id from ff_model where built_in = 1;
+end;
 
 -- The impulse of each stretch of riding of an activity (`segment`, its `n`), as one lump at
 -- its centre (`centre_t`: Unix seconds, the time weighted by the impulse), in units of "per 10

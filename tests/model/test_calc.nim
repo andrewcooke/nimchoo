@@ -1,6 +1,7 @@
-import std/[math, unittest]
+import std/[math, options, unittest]
 import nimchoo/packages/fit/time
 import nimchoo/packages/model/calc
+import nimchoo/packages/tags/tag
 
 proc near(a, b: float, eps = 1e-9): bool =
   abs(a - b) <= eps
@@ -145,21 +146,32 @@ suite "model: the impulse of the readings":
 
 suite "model: variables":
   test "the defaults are the original's and are acceptable":
-    check problem(defaultModel()) == ""
+    check problem(defaultModel()).isNone
     check defaultModel().zones == [68.0, 83, 94, 105, 121]
   test "unacceptable ones are described":
     var x = defaultModel()
     x.zero = 6
-    check problem(x) != ""
+    check problem(x).isSome
     x = defaultModel()
     x.gamma = 0
-    check problem(x) != ""
+    check problem(x).isSome
     x = defaultModel()
     x.zones = [68.0, 83, 83, 105, 121]
-    check problem(x) != ""
+    check problem(x).isSome
     x = defaultModel()
     x.maxSecs = 0
-    check problem(x) != ""
+    check problem(x).isSome
     x = defaultModel()
     x.fatigueDays = -1
-    check problem(x) != ""
+    check problem(x).isSome
+    x = defaultModel()
+    x.fatigueScale = 0
+    check problem(x).isSome
+  test "what changes the impulses: not the decays, the scales or the patterns":
+    var x = defaultModel()
+    x.fitnessDays = 10
+    x.fatigueScale = 2
+    x.patterns = @[TagPattern("sport:cycling*")]
+    check sameImpulse(defaultModel(), x)
+    x.zones[4] = 130
+    check not sameImpulse(defaultModel(), x)

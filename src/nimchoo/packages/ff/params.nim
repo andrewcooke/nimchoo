@@ -3,6 +3,7 @@
 import std/[options, strformat, strutils, times]
 import ../util/args/args
 import ../model/completion
+from ../model/params import isModelName
 import ../web/[request, webopts]
 import ./curve
 
@@ -16,7 +17,6 @@ type
       ## seconds at its start in UTC (it is a day of the timezone used)
     hourly*: bool
     utc*: bool ## days and times in UTC, not the computer's timezone
-    fitnessScale*, fatigueScale*: float
     stdout*: bool ## print the CSV, not write a file
     web*: WebMode ## `--file`, `--worker` and the options of serving
 
@@ -24,7 +24,6 @@ type
     help, hourly, utc, stdout: bool
     model: string
     firstDay, lastDay: Option[int64]
-    fitnessScale, fatigueScale: float
     web: WebArgs
 
 proc parseDay*(s: string): Option[int64] =
@@ -35,10 +34,6 @@ proc parseDay*(s: string): Option[int64] =
     return some(parse(s, "yyyy-MM-dd", utc()).toTime.toUnix)
   except TimeParseError, ValueError:
     discard
-
-const
-  positive = 5.0e-324 # (the smallest number above 0)
-  scaleText = "a number above 0"
 
 func ffSpec*(): Spec[Raw] =
   ## The options of `nch ff`, with the web options.  The ones a page may be given in its address say so: the server's
@@ -54,7 +49,7 @@ func ffSpec*(): Spec[Raw] =
           ~"the model to use (default: `default`)",
           completion = completesFrom(completeModels),
           address = adValue,
-          valid = anyWord,
+          valid = isModelName,
         ),
         custom(
           Raw,
@@ -105,34 +100,7 @@ func ffSpec*(): Spec[Raw] =
           address = adFlag,
         ),
         flag(Raw, ["--stdout"], stdout, ~"print the CSV instead of making a file"),
-      ] & webOptions(Raw, web, "the chart", "the CSV file") &
-      @[
-        number(
-          Raw,
-          ["--fitness-scale"],
-          fitnessScale,
-          positive,
-          1.0e12,
-          scaleText,
-          "S",
-          ~"multiply the fitness by S (default 1)",
-          address = adValue,
-          valid = plainNumber,
-        ),
-        number(
-          Raw,
-          ["--fatigue-scale"],
-          fatigueScale,
-          positive,
-          1.0e12,
-          scaleText,
-          "S",
-          ~"multiply the fatigue by S (default 1; the original program used 5, to make the two curves look alike)",
-          address = adValue,
-          valid = plainNumber,
-        ),
-        helpFlag(Raw),
-      ]
+      ] & webOptions(Raw, web, "the chart", "the CSV file") & @[helpFlag(Raw)]
   )
 
 func finish(raw: Raw): Parsed[Params] =
@@ -155,8 +123,6 @@ func finish(raw: Raw): Parsed[Params] =
       lastDay: raw.lastDay,
       hourly: raw.hourly,
       utc: raw.utc,
-      fitnessScale: raw.fitnessScale,
-      fatigueScale: raw.fatigueScale,
       stdout: raw.stdout,
       web: mode.params,
     )
@@ -164,6 +130,4 @@ func finish(raw: Raw): Parsed[Params] =
 
 proc parseArgs*(args: seq[string]): Parsed[Params] =
   ## The options of `nch ff`.
-  parseCommand(
-    args, ffSpec(), Raw(web: WebArgs(), fitnessScale: 1, fatigueScale: 1), finish
-  )
+  parseCommand(args, ffSpec(), Raw(web: WebArgs()), finish)

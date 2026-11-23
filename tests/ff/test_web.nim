@@ -75,8 +75,8 @@ suite "nch ff --worker":
     check lines.len == 2
     check lines[0].startsWith(f.cache) and lines[0].endsWith(".html")
     check lines[1].startsWith(f.cache) and lines[1].endsWith(".csv")
-    check lines[0] == f.cache / "user" / "ff-default-to-2018-09-05-utc.html"
-    check lines[1] == f.cache / "user" / "ff-default-to-2018-09-05-utc.csv"
+    check lines[0] == f.cache / "user" / "ff-model-1-to-2018-09-05-utc.html"
+    check lines[1] == f.cache / "user" / "ff-model-1-to-2018-09-05-utc.csv"
     check dirExists(f.cache / "system") # (the other part is made too)
     check readFile(lines[0]).contains("plot.umd.min.js")
     let csv = readFile(lines[1]).splitLines

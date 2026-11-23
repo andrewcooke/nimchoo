@@ -176,7 +176,7 @@ suite "serve handler: pages":
 suite "serve handler: the second command":
   test "ff: its page is made again for each request, and its CSV is served as text/csv":
     let s = setup("ff")
-    let ffStem = "ff-default-to-2018-09-05-hourly"
+    let ffStem = "ff-model-1-to-2018-09-05-hourly"
     writeFile(s.cache / (ffStem & ".html"), "<html>the chart</html>")
     writeFile(s.cache / (ffStem & ".csv"), "time,fitness,fatigue\n")
     s.fake.result = WorkerResult(

@@ -12,8 +12,9 @@
 ## (a zone-6 effort for 10 seconds is 1).  The original works on a 10-second grid for the sake of
 ## pandas; this integrates exactly, so an irregular recording interval has no effect.
 
-import std/math
+import std/[math, options]
 import ../fit/time
+import ../tags/tag
 import ../../core/ids
 
 {.push raises: [].}
@@ -29,6 +30,11 @@ type
     zones*: array[5, float]
       ## upper limits of zones 1 to 5, percent of the threshold heart rate
     fitnessDays*, fatigueDays*: float
+    fitnessScale*, fatigueScale*: float
+      ## the weights of the curves in form: `fitnessScale * fitness - fatigueScale * fatigue`
+    patterns*: seq[TagPattern]
+      ## the activities that count: those with a tag matching every one (none: all of them)
+    builtIn*: bool ## the program's: never changed or deleted
 
   Stretch* = tuple[startT, endT: int64]
     ## a stretch of riding: its first and last second (Unix seconds, plain: arithmetic)
@@ -47,23 +53,33 @@ func defaultModel*(): Model =
     zones: [68.0, 83, 94, 105, 121],
     fitnessDays: 42,
     fatigueDays: 7,
+    fitnessScale: 1,
+    fatigueScale: 5,
+    builtIn: true,
   )
 
-func problem*(m: Model): string =
-  ## Why a model cannot be used ("" if it can).
+func sameImpulse*(a, b: Model): bool =
+  ## Whether the two give the same impulses (the decays, the scales and the patterns do not change them).
+  a.gamma == b.gamma and a.zero == b.zero and a.one == b.one and a.maxSecs == b.maxSecs and
+    a.zones == b.zones
+
+func problem*(m: Model): Option[string] =
+  ## Why a model cannot be used (none if it can).
   if not (m.gamma > 0):
-    return "gamma must be above 0"
+    return some("gamma must be above 0")
   if not (m.zero < m.one):
-    return "zero must be less than one"
+    return some("zero must be less than one")
   if m.maxSecs < 1:
-    return "max-gap must be at least 1 second"
+    return some("max-gap must be at least 1 second")
   if m.zones[0] <= 0:
-    return "the zone edges must be above 0"
+    return some("the zone edges must be above 0")
   for i in 1 .. 4:
     if not (m.zones[i - 1] < m.zones[i]):
-      return "the zone edges must increase"
+      return some("the zone edges must increase")
   if not (m.fitnessDays > 0 and m.fatigueDays > 0):
-    return "the decay times must be above 0"
+    return some("the decay times must be above 0")
+  if not (m.fitnessScale > 0 and m.fatigueScale > 0):
+    return some("the scales must be above 0")
 
 func zoneOf*(bpm, fthr: float, edges: array[5, float]): float =
   ## The heart-rate zone, from 1 to 6: 1 up to the first edge, then rising from one whole number

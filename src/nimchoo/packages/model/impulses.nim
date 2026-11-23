@@ -117,15 +117,18 @@ proc hasHeartRate*(db: DbConn, userId: UserId): bool {.raises: [StoreError].} =
   ) == 1
 
 proc userLumps*(
-    db: DbConn, userId: UserId, modelId: ModelId
+    db: DbConn, userId: UserId, m: Model
 ): seq[Lump] {.raises: [StoreError].} =
-  ## The user's impulses for a model, over all their activities, in time order (those of zero left out: they add nothing).
+  ## The user's impulses for a model, over the activities that count in it (those with a tag matching each of its
+  ## patterns), in time order (those of zero left out: they add nothing).
   db.query(
     Lump,
     """select i.centre_t, i.value from impulse i
         join activity a on a.id = i.activity_id join file f on f.id = a.file_id
         where f.user_id = :userId and i.model_id = :modelId and i.value > 0
+          and not exists (select 1 from ff_model_pattern p where p.model_id = :modelId
+            and not exists (select 1 from activity_tag t where t.activity_id = a.id and t.folded glob p.folded))
         order by i.centre_t""",
     userId = userId,
-    modelId = modelId,
+    modelId = m.id,
   )

@@ -104,7 +104,8 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
 
 * **a type that lives in the database has a plural command that manages the collection** (`activities`, `climbs`,
   `users`, `models`, `landmarks`, `tags`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`
-  (`models` has `--add` only: a model is never changed, and deleting waits for the rework of `ff`).
+  (`models`, the first editable type, `dev/editable-objects.md`: `--add NAME [--base NAME]`, `--edit NAME [--rename NEW]`, and
+  `--delete` of what `--names PATTERN...` lists; the built-in `default` never changes).
   every `--delete` asks first (`core/ask`: the question says what would go, `[yN]`, one key; **`-y`** answers yes, accepted by every command; with no terminal and no `-y` the answer is no, so a script never deletes by accident; there is no `-f` and no countdown).  a named type takes a
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
