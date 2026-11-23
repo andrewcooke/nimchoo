@@ -195,7 +195,7 @@ suite "nch import: the command":
         s.close()
       for t in s.db.query(
         int64,
-        "select a.start_t from selection l join activity a on a.id = l.activity_id order by 1",
+        "select a.start_t from activity_selection l join activity a on a.id = l.activity_id order by 1",
       ):
         result.add $t
 

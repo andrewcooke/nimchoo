@@ -35,7 +35,7 @@ proc world(name: string): Session =
     result.addTags(id, tags.mapIt(parseTag(it).tag.get))
     if n != "b":
       result.db.execute(
-        "insert into selection(user_id, activity_id) values (:user, :id)",
+        "insert into activity_selection(user_id, activity_id) values (:user, :id)",
         user = result.userId,
         id = id,
       )

@@ -27,7 +27,7 @@ proc rowsSql(st: Session, scope: TagScope): Sql =
     )
     .with("owner", st.userId)
   let selected =
-    " and t.activity_id in (select activity_id from selection where user_id = :owner)"
+    " and t.activity_id in (select activity_id from activity_selection where user_id = :owner)"
   case scope.kind
   of tsSelection:
     result = result & selected
@@ -52,7 +52,7 @@ proc activitiesSql(st: Session, scope: TagScope): Sql =
   ## The activities the scope means: the selected ones, all of the user's, or those that have a tag it finds.
   case scope.kind
   of tsSelection:
-    sqlOf("select activity_id from selection where user_id = :owner").with(
+    sqlOf("select activity_id from activity_selection where user_id = :owner").with(
       "owner", st.userId
     )
   of tsAll:

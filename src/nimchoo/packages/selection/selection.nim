@@ -13,9 +13,11 @@ proc replaceSelection*(st: Session, ids: seq[int64]) {.raises: [StoreError].} =
   st.beginWrite()
   var done = false
   try:
-    st.db.execute("delete from selection where user_id = :userId", userId = st.userId)
     st.db.execute(
-      """insert into selection(user_id, activity_id)
+      "delete from activity_selection where user_id = :userId", userId = st.userId
+    )
+    st.db.execute(
+      """insert into activity_selection(user_id, activity_id)
           select :userId, value from json_each(:ids)""",
       userId = st.userId,
       ids = jsonList(ids),
@@ -31,20 +33,22 @@ proc addToSelection*(st: Session, ids: seq[int64]): int {.raises: [StoreError].}
   st.writing(
     proc() {.closure, raises: [StoreError].} =
       st.db.execute(
-        """insert or ignore into selection(user_id, activity_id)
+        """insert or ignore into activity_selection(user_id, activity_id)
             select :userId, value from json_each(:ids)""",
         userId = st.userId,
         ids = jsonList(ids),
       )
   )
   st.db.scalar(
-    int, "select count(*) from selection where user_id = :userId", userId = st.userId
+    int,
+    "select count(*) from activity_selection where user_id = :userId",
+    userId = st.userId,
   )
 
 proc selectedIds*(st: Session): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
   st.db.query(
     int64,
-    "select activity_id from selection where user_id = :userId order by 1",
+    "select activity_id from activity_selection where user_id = :userId order by 1",
     userId = st.userId,
   )

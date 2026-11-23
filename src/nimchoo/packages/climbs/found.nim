@@ -31,7 +31,7 @@ proc foundClimbs*(
     )
   if c.ridden:
     conditions.add sqlOf(
-      """exists (select 1 from effort e join selection x on x.activity_id = e.activity_id
+      """exists (select 1 from effort e join activity_selection x on x.activity_id = e.activity_id
                     where e.sector_id = s.id and x.user_id = :owner)"""
     )
       .with("owner", st.userId)

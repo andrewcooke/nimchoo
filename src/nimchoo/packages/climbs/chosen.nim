@@ -1,5 +1,5 @@
 ## The climbs selection: the climbs a user has chosen (`climb_selection`), what `nch climbs` lists and the climbs subject's
-## views show, as `selection` is the activities'.  Chosen by `nch climbs CRITERIA --select` and by an import.
+## views show, as `activity_selection` is the activities'.  Chosen by `nch climbs CRITERIA --select` and by an import.
 
 import ../db/statement
 import ../db/store

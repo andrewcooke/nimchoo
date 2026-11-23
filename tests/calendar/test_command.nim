@@ -37,7 +37,7 @@ proc world(name: string): Session =
   result.addActivity("ride", july1, "cycling")
   result.addActivity("run", aug27, "running")
   result.db.execute(
-    "insert into selection(user_id, activity_id) select :userId, min(id) from activity",
+    "insert into activity_selection(user_id, activity_id) select :userId, min(id) from activity",
     userId = result.userId,
   )
 
@@ -109,7 +109,7 @@ suite "nch calendar: what it shows":
       "update activity set start_t = 1520640000 where id = (select min(id) from activity)"
     ) # 2018-03-10
     s.db.execute(
-      "insert or ignore into selection(user_id, activity_id) select :userId, id from activity",
+      "insert or ignore into activity_selection(user_id, activity_id) select :userId, id from activity",
       userId = s.userId,
     ) # (both are selected now)
     let ls = s.shown()
@@ -122,7 +122,7 @@ suite "nch calendar: what it shows":
 
   test "an empty selection is a warning, not a failure":
     let s = world("empty")
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     s.close()
     let quiet = Globals(
       fragments: allFragments,

@@ -1,7 +1,7 @@
 ## `nch activities`: the activities, and the selection.  With no criteria it shows the selection, the activities that
 ## the commands which work on activities (climbs, map ...) use by default; with criteria or `--all` it
 ## searches all the activities, and `--select` keeps what is listed as the selection.  The selection is kept in the
-## database (table `selection`), for the current user, and replaced whenever `--select` is given.
+## database (table `activity_selection`), for the current user, and replaced whenever `--select` is given.
 ##
 ## This module is newer than `importer` and reads its tables (activity, file, coords, route) directly.
 
@@ -135,7 +135,9 @@ proc previousSelected(
   ## The one activity of the stored selection (what `previous` means).  An error unless
   ## there is exactly one.
   let n = st.db.scalar(
-    int, "select count(*) from selection where user_id = :userId", userId = st.userId
+    int,
+    "select count(*) from activity_selection where user_id = :userId",
+    userId = st.userId,
   )
   if n != 1:
     raiseStore(
@@ -144,7 +146,8 @@ proc previousSelected(
     )
   let rows = readRows(
     st,
-    "select " & rowColumns(false, st.userId) & " from selection s join activity a " &
+    "select " & rowColumns(false, st.userId) &
+      " from activity_selection s join activity a " &
       "on a.id = s.activity_id join file f on f.id = a.file_id where s.user_id = :owner".sqlOf.with(
         "owner", st.userId
       ),
@@ -152,7 +155,7 @@ proc previousSelected(
   (
     id: st.db.scalar(
       ActivityId,
-      "select activity_id from selection where user_id = :userId",
+      "select activity_id from activity_selection where user_id = :userId",
       userId = st.userId,
     ),
     row: rows[0],
@@ -394,9 +397,8 @@ proc matchingIds*(
   ## else the activities found among all of them.  (And the notes that say which activity `latest` or `previous` was.)
   var query: Sql
   if not scope.searches:
-    query = sqlOf("select activity_id from selection where user_id = :owner").with(
-        "owner", st.userId
-      )
+    query = sqlOf("select activity_id from activity_selection where user_id = :owner")
+      .with("owner", st.userId)
   else:
     let r = resolveScope(st, scope, zone)
     result.notes = r.notes
@@ -427,7 +429,7 @@ proc listActivities*(
     listed =
       listed &
       sqlOf(
-        " or a.id in (select activity_id from selection where user_id = :alsoOwner)"
+        " or a.id in (select activity_id from activity_selection where user_id = :alsoOwner)"
       )
       .with("alsoOwner", st.userId)
   let shown =

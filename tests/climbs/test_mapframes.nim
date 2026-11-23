@@ -197,7 +197,7 @@ suite "climbs frames: the climbs subject":
     withClimb(w.db)
     chooseClimb(w.db)
     let s = openSession(w.db, allFragments, access = allAccess)
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     s.close()
     check map(w.db, "climbs", "--frames", "climbs") == exitOk
     check kinds(parseFile(frameFile(w.cache, "climbs", "climbs"))) == @["climb"]

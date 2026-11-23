@@ -79,7 +79,10 @@ suite "query plans: no query reads a whole table":
       ("the positions of an activity", track.headSql),
       ("the arrays of the positions", track.arraysSql),
       ("the stretches of an activity", segmentsSql),
-      ("the selection of a user", "select activity_id from selection where user_id = ?"),
+      (
+        "the selection of a user",
+        "select activity_id from activity_selection where user_id = ?",
+      ),
       (
         "the cells read",
         "select count(*) from coverage where country = ? and cell_lon = ? and cell_lat = ?",

@@ -46,4 +46,5 @@ suite "selection: after an import":
     check first[0].style == selectedStyle
     let second = selectNewActivities.run(s, @[ActivityId(b), ActivityId(c)], ctx)
     check second.len == 1 and second[0].text == "selected the 2 new activities"
-    check s.db.query(int64, "select activity_id from selection order by 1") == @[b, c]
+    check s.db.query(int64, "select activity_id from activity_selection order by 1") ==
+      @[b, c]

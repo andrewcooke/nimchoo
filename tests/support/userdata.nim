@@ -48,7 +48,7 @@ proc fill*(s: Session, tag: string) =
     fileId = f,
   )
   s.db.execute(
-    "insert into selection(user_id, activity_id) values (:userId, :activityId)",
+    "insert into activity_selection(user_id, activity_id) values (:userId, :activityId)",
     userId = u,
     activityId = a,
   )
@@ -68,4 +68,5 @@ proc addUser*(path, name: string) =
   c.execute("insert or ignore into user(name) values (:name)", name = name)
   c.close()
 
-const tables* = ["file", "activity", "track", "segment", "seen_file", "selection"]
+const tables* =
+  ["file", "activity", "track", "segment", "seen_file", "activity_selection"]

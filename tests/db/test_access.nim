@@ -36,7 +36,7 @@ suite "access: statements":
     check "'climbs'" in why and "'activity'" in why and "'importer'" in why
     check "delete from activity" in why
     check s.refusal(
-      "climbs", "insert into selection(user_id, activity_id) values (1, 1)"
+      "climbs", "insert into activity_selection(user_id, activity_id) values (1, 1)"
     ) != ""
     s.close()
 
@@ -159,13 +159,13 @@ suite "access: the tables read are recorded (a test of what a view declares)":
     defer:
       s.close()
     startRecording()
-    discard s.db.scalar(int, "select count(*) from selection")
+    discard s.db.scalar(int, "select count(*) from activity_selection")
     discard s.db.query(
       int64,
       "select a.id from activity a join file f on f.id = a.file_id where f.user_id = :userId",
       userId = s.userId,
     )
-    check stopRecording() == @["activity", "file", "selection"]
+    check stopRecording() == @["activity", "activity_selection", "file"]
     check s.db.scalar(int, "select count(*) from file") == 0
     check stopRecording().len == 0 # (not recording: nothing)
   test "SpatiaLite's own table of reference systems is not a table read":

@@ -174,8 +174,9 @@ proc makeEfforts(st: Session): FrameData {.raises: [StoreError].} =
   result.geojson = featureCollection(effortsOf(st, ids).mapIt(effortFeature(it)))
 
 const
-  climbTables = @["activity", "climbs_done", "effort", "sector", "selection", "track"]
-    ## what the three frames of the activities read (they work nothing out)
+  climbTables = @[
+    "activity", "climbs_done", "effort", "sector", "activity_selection", "track"
+  ] ## what the three frames of the activities read (they work nothing out)
   chosenTables =
     @["climb_selection", "sector"] ## what the climbs subject's climbs and gates read
   climbsStyle = Bundle(

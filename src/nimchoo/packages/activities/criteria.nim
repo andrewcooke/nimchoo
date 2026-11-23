@@ -684,7 +684,8 @@ func matchSql*(
     discard
   of amSelection:
     result =
-      result & " and a.id in (select activity_id from selection where user_id = :user)"
+      result &
+      " and a.id in (select activity_id from activity_selection where user_id = :user)"
   var ordered = filters
   ordered.sort(
     proc(a, b: Resolved): int =

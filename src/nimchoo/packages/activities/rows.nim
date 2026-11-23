@@ -19,7 +19,8 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
       "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
       "coalesce(a.timer_s, -1) as active, " &
       # whether the user has it in their selection
-      "a.id in (select activity_id from selection where user_id = :me) as chosen, " & (
+      "a.id in (select activity_id from activity_selection where user_id = :me) as chosen, " &
+    (
       if verbose:
       "coalesce((select min(path) from seen_file where file_id = f.id), f.name) as path, "
       else: "f.name as path, "
@@ -85,6 +86,6 @@ proc selectionRows*(st: Session, verbose: bool): seq[ListRow] {.raises: [StoreEr
   readRows(
     st,
     "select " & rowColumns(verbose, st.userId) &
-      " from selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id " &
+      " from activity_selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id " &
       "where s.user_id = :owner order by a.start_t, a.id".sqlOf.with("owner", st.userId),
   )

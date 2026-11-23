@@ -13,7 +13,9 @@ import nimchoo/packages/user/session
 
 proc selectedCount(st: Session): int {.raises: [StoreError].} =
   st.db.scalar(
-    int, "select count(*) from selection where user_id = :userId", userId = st.userId
+    int,
+    "select count(*) from activity_selection where user_id = :userId",
+    userId = st.userId,
   )
 
 proc makeAlpha(st: Session): FrameData {.raises: [StoreError].} =
@@ -44,7 +46,7 @@ proc frame(name: string, shown: bool, make: MakeFrame): MapFrame =
     summary: "the " & name & " frame",
     shown: shown,
     readsSelection: true,
-    tables: @["selection"],
+    tables: @["activity_selection"],
     make: make,
     style: Bundle(
       name: "templates/test-map-" & name & ".json", data: "{ \"color\": \"#e03131\" }"

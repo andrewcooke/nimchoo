@@ -139,7 +139,7 @@ proc chosen(db: string): seq[string] =
     s.close()
   result = s.db.query(
     string,
-    """select f.name from selection l join activity a
+    """select f.name from activity_selection l join activity a
       on a.id = l.activity_id join file f on f.id = a.file_id where l.user_id = :userId""",
     userId = s.userId,
   )
@@ -217,7 +217,7 @@ suite "list: the command":
       b.close()
     check b.db.scalar(
       int,
-      "select count(*) from selection where user_id = (select id from user where name = 'bob')",
+      "select count(*) from activity_selection where user_id = (select id from user where name = 'bob')",
     ) == 1
 
   test "each run replaces the selection":

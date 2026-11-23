@@ -25,7 +25,7 @@ proc add(s: Session, sha: string, session = 0) =
     session = session,
   )
   s.db.execute(
-    "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+    "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",
     userId = s.userId,
   )
 

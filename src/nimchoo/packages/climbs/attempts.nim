@@ -122,7 +122,7 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     AttemptRow,
     """select e.sector_id, a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
               coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
-              a.id in (select activity_id from selection where user_id = :userId),
+              a.id in (select activity_id from activity_selection where user_id = :userId),
               rank() over (partition by e.sector_id order by e.elapsed_s),
               count(*) over (partition by e.sector_id)
          from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id

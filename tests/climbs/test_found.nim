@@ -33,7 +33,7 @@ suite "climbs: the climbs that criteria find":
       s.close()
     check foundClimbs(s, ClimbCriteria(ridden: true)).ids.len == 0
     s.db.execute(
-      "insert into selection(user_id, activity_id) select :userId, min(id) from activity",
+      "insert into activity_selection(user_id, activity_id) select :userId, min(id) from activity",
       userId = s.userId,
     )
     check foundClimbs(s, ClimbCriteria(ridden: true)).ids.len == 1

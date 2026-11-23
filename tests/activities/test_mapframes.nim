@@ -41,9 +41,9 @@ suite "activities frames: the routes":
   test "none with a route is a note and an empty frame, not a failure":
     let w = world(dir, "noroute")
     let s = openSession(w.db, allFragments, access = allAccess)
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     s.db.execute(
-      "insert into selection(user_id, activity_id) values (:userId, 3)",
+      "insert into activity_selection(user_id, activity_id) values (:userId, 3)",
       userId = s.userId,
     )
     s.close()
@@ -70,7 +70,7 @@ suite "activities frames: the routes":
       "insert into route(activity_id, geom) select max(id), GeomFromText('MULTILINESTRING((0 0, 1 1))', 4326) from activity"
     )
     s.db.execute(
-      "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+      "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",
       userId = bob,
     )
     s.close()
@@ -143,7 +143,7 @@ suite "activities frames: the map, with the real registry":
     s.db.execute(
       "update route set geom = GeomFromText('MULTILINESTRING((-9.14 38.72, -9.13 38.72))', 4326) where activity_id = 1"
     )
-    s.db.execute("delete from selection where activity_id = 2")
+    s.db.execute("delete from activity_selection where activity_id = 2")
     s.close()
     check map(w.db, "--frames", "routes") == exitOk
     let j = parseFile(path)

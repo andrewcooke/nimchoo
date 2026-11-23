@@ -55,7 +55,7 @@ proc world*(top, name: string): tuple[db, cache: string] =
         wkt = route,
       )
     s.db.execute(
-      "insert into selection(user_id, activity_id) values (:userId, :activityId)",
+      "insert into activity_selection(user_id, activity_id) values (:userId, :activityId)",
       userId = s.userId,
       activityId = a,
     )

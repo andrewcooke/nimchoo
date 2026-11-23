@@ -27,7 +27,7 @@ proc addSelected(s: Session, tag: string) =
     "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file"
   )
   s.db.execute(
-    "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+    "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",
     userId = s.userId,
   )
 

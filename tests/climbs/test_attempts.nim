@@ -22,7 +22,7 @@ proc world(name: string): Session =
   addRide(s, "default", "three", 3_000_000, 6.0, eastbound(6.0))
   discard ensureClimbs(s)
   s.db.execute(
-    "insert into selection(user_id, activity_id) select :userId, id from activity where start_t = 1000000",
+    "insert into activity_selection(user_id, activity_id) select :userId, id from activity where start_t = 1000000",
     userId = s.userId,
   )
   s
@@ -60,7 +60,7 @@ suite "attempts: from the tables":
     addRide(s, "bob", "same", 3_000_000, 5.0, eastbound(5.0))
     discard ensureClimbs(s)
     s.db.execute(
-      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      "insert into activity_selection(user_id, activity_id) select :userId, id from activity",
       userId = s.userId,
     )
     let sum = summaries(s, ridden(s))[0]
@@ -75,10 +75,10 @@ suite "attempts: from the tables":
     let s = world("attempts-none")
     defer:
       s.close()
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     check ridden(s).len == 0
     s.db.execute(
-      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      "insert into activity_selection(user_id, activity_id) select :userId, id from activity",
       userId = s.userId,
     )
     check ridden(s).len == 1
@@ -93,7 +93,7 @@ suite "attempts: from the tables":
     check namedClimbs(s, @["chacabuco"]).len == 1
     check namedClimbs(s, @["CUESTA"]).len == 1
     check namedClimbs(s, @["nothing", "cuesta"]).len == 1
-    s.db.execute("delete from selection") # (the selection is not looked at)
+    s.db.execute("delete from activity_selection") # (the selection is not looked at)
     check namedClimbs(s, @["cuesta"]).len == 1
   test "--names: a whole number that no name holds is a climb's number; a name that holds it wins":
     let s = world("attempts-number")
@@ -171,7 +171,7 @@ suite "attempts: the lines":
     let s = world("lines-none-selected")
     defer:
       s.close()
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     let table = summaryLines(
       summaries(s, namedClimbs(s, @["unnamed"])), false, false, utc(), 120
     ).texts

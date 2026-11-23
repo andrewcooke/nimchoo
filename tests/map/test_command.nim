@@ -31,7 +31,7 @@ proc world(name: string, selected = 2): tuple[db, cache: string] =
       t = i * 1000,
     )
     s.db.execute(
-      "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+      "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",
       userId = s.userId,
     )
 
@@ -88,7 +88,7 @@ suite "map: the command, with frames of its own":
     let path = w.cache / "map-things-alpha.geojson"
     setLastModificationTime(path, fromUnix(1_000_000_000))
     let s = openSession(w.db, allFragments, access = allAccess)
-    s.db.execute("delete from selection where activity_id = 1")
+    s.db.execute("delete from activity_selection where activity_id = 1")
     s.close()
     check run(w.db, "--file") == exitOk
     check getLastModificationTime(path).toUnix != 1_000_000_000

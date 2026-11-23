@@ -31,7 +31,7 @@ proc selected(s: Session): seq[int64] =
   ## The ids of the user's selection.
   s.db.query(
     int64,
-    "select activity_id from selection where user_id = :userId order by 1",
+    "select activity_id from activity_selection where user_id = :userId order by 1",
     userId = s.userId,
   )
 
@@ -47,7 +47,7 @@ proc extra(s: Session, tag: string, session, startT: int, sport = "") =
     sport = sport,
   )
   s.db.execute(
-    "insert into selection(user_id, activity_id) select :userId, max(id) from activity",
+    "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",
     userId = s.userId,
   )
 
@@ -133,8 +133,8 @@ suite "delete: the command":
     defer:
       after.close()
     for t in [
-      "activity", "track", "segment", "selection", "effort", "climbs_done", "file",
-      "seen_file",
+      "activity", "track", "segment", "activity_selection", "effort", "climbs_done",
+      "file", "seen_file",
     ]:
       check after.count(t) == 0
     check after.count("sector") == 1 and
@@ -145,7 +145,7 @@ suite "delete: the command":
     fill(s, "a")
     fill(s, "b")
     s.db.execute(
-      "delete from selection where activity_id = (select a.id from activity a join file f on f.id = a.file_id where f.name = 'b')"
+      "delete from activity_selection where activity_id = (select a.id from activity a join file f on f.id = a.file_id where f.name = 'b')"
     )
     s.close()
     check run(d, "-y") == exitOk
@@ -178,7 +178,7 @@ suite "delete: the command":
     fill(s, "tri")
     s.extra("tri", 1, 100, "swimming")
     s.db.execute(
-      "delete from selection where activity_id = (select min(id) from activity)"
+      "delete from activity_selection where activity_id = (select min(id) from activity)"
     ) # only the second is selected
     s.close()
     check run(d, "-y") == exitOk
@@ -186,7 +186,7 @@ suite "delete: the command":
     check mid.count("activity") == 1 and mid.count("file") == 1 and
       mid.count("seen_file") == 1 # (the file stays)
     mid.db.execute(
-      "insert into selection(user_id, activity_id) select :userId, id from activity",
+      "insert into activity_selection(user_id, activity_id) select :userId, id from activity",
       userId = mid.userId,
     )
     mid.close()
@@ -200,7 +200,7 @@ suite "delete: the command":
     let d = fresh("none")
     let s = openSession(d, allFragments, access = allAccess)
     fill(s, "a")
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     s.close()
     check run(d, "-y") == exitOk
     let again = openSession(d, allFragments, access = allAccess)
@@ -222,7 +222,7 @@ suite "delete: the command":
     # (the tags an import gives them)
     for (a, sport) in s.db.query((int64, string), "select id, sport from activity"):
       s.addTags(ActivityId(a), [sportTag(sport, "").get])
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     s.close()
     check run(d, "--tags", "sport:cycling*") == exitFailure # no -y: nothing done
     let before = openSession(d, allFragments, access = allAccess)
@@ -244,7 +244,7 @@ suite "delete: the command":
     let bob = openSession(d, allFragments, some("bob"), access = allAccess)
     fill(bob, "bobs")
     bob.close()
-    s.db.execute("delete from selection")
+    s.db.execute("delete from activity_selection")
     s.close()
     check run(d, "--all", "-y") == exitOk
     let after = openSession(d, allFragments, access = allAccess)
@@ -306,7 +306,7 @@ suite "delete: progress":
       # activity 31: a second session of tri, in the second chunk
     fill(s, "keeper") # activity 32: its file will keep another activity
     s.extra("keeper", 1, 200, "running") # activity 33
-    s.db.execute("delete from selection where activity_id = 33")
+    s.db.execute("delete from activity_selection where activity_id = 33")
     var seen: seq[(int, int, int)]
     let done = deleteActivities(
       s,

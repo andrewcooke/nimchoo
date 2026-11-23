@@ -30,7 +30,7 @@ proc world(name: string): string =
       t = t,
     )
   s.db.execute(
-    "insert into selection(user_id, activity_id) select :userId, min(id) from activity",
+    "insert into activity_selection(user_id, activity_id) select :userId, min(id) from activity",
     userId = s.userId,
   )
 
