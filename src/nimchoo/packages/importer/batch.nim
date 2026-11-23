@@ -19,7 +19,7 @@ import ./importer
 import ./pool
 import ./work
 import ./seen
-import ./walk
+import ./[paths, walk]
 
 {.push raises: [].}
 
@@ -35,6 +35,8 @@ type
     path: string ## as found, for display
     key: string ## absolute and normalised: what is remembered
     size, mtime: int64
+    labels: seq[PathLabel]
+      ## what the template of its import path caught (none for a plain path)
 
   Problem = object
     path, message: string
@@ -43,7 +45,9 @@ type
     files: seq[Candidate]
     problems: seq[Problem] ## paths that do not exist, empty directories
 
-proc candidate(path: string): Candidate {.raises: [OSError].} =
+proc candidate(
+    path: string, labels: seq[PathLabel] = @[]
+): Candidate {.raises: [OSError].} =
   ## The file at `path`, statted.
   let info = getFileInfo(path)
   let key =
@@ -52,29 +56,43 @@ proc candidate(path: string): Candidate {.raises: [OSError].} =
     except ValueError:
       path
   Candidate(
-    path: path, key: key, size: int64(info.size), mtime: info.lastWriteTime.toUnix
+    path: path,
+    key: key,
+    size: int64(info.size),
+    mtime: info.lastWriteTime.toUnix,
+    labels: labels,
   )
 
 proc collect(args: seq[string]): Found =
-  ## The files to import: files as given, FIT files found in directories;
-  ## each once, sorted by path.
+  ## The files to import: files as given, FIT files found in directories, those a template means (`paths.nim`), with what
+  ## it caught; each once (the first path that reaches it, with what that caught), sorted by path.
   var known: seq[string]
   for arg in args:
-    var here: seq[string]
+    var here: seq[Matched]
     try:
-      if dirExists(arg):
-        here = fitFiles(arg)
+      if arg.isTemplate:
+        let t = parseTemplate(arg)
+        if t.problem.isSome:
+          result.problems.add Problem(path: arg, message: t.problem.get)
+        else:
+          here = t.t.get.expand
+          if here.len == 0:
+            result.problems.add Problem(path: arg, message: "no .fit files match")
+      elif dirExists(arg):
+        for f in fitFiles(arg):
+          here.add Matched(path: f)
         if here.len == 0:
           result.problems.add Problem(path: arg, message: "no .fit files found")
       elif fileExists(arg):
-        here.add arg
+        here.add Matched(path: arg)
       else:
         result.problems.add Problem(path: arg, message: "no such file or directory")
     except OSError as e:
       result.problems.add Problem(path: arg, message: e.msg)
-    for path in here:
+    for m in here:
+      let path = m.path
       try:
-        let c = candidate(path)
+        let c = candidate(path, m.labels)
         if c.key notin known:
           known.add c.key
           result.files.add c
@@ -286,7 +304,7 @@ proc importPaths*(
             "the file's contents were in the database when the import began and are not now"
         else:
           let r = st.writeDecoded(
-            extractFilename(c.path), prep.digest, prep.decoded, opts.steps
+            extractFilename(c.path), prep.digest, prep.decoded, opts.steps, c.labels
           )
           fileId = some(r.fileId)
           noticed = r.warnings

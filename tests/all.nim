@@ -91,6 +91,7 @@ import
   ]
 import ./importer/test_command as importCommandTests
 import ./importer/test_params
+import ./importer/test_paths
 import ./importer/test_display
 import ./importer/test_logsink
 import ./selection/[test_imported, test_selection]

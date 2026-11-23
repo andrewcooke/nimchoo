@@ -44,6 +44,8 @@ type
       ## records more than an hour outside their session's time (dropped; one warning to a session, with the count)
     wkPositionOffEarth
       ## a position whose latitude or longitude is out of range (dropped)
+    wkPathTag
+      ## what a template of an import path caught cannot be a tag (no tag was given; the file was imported)
     wkBadReading
       ## readings that cannot be what the channel measures (dropped; one warning to an activity, with the count)
     # cleaning the positions (importer/clean.nim); one warning of each kind to an activity, with the count

@@ -107,9 +107,11 @@ notes from previous discussion:
   are not interesting).
 * **Tags given by hand** are lost when the database is rebuilt: nch is a command-line tool, and whoever wants a set of
   tags scripts it (`~/rebuild.sh`) and runs it again after an import.  No file of tags kept beside the database.
-* **Import paths with templates**: `nch import '~/fit/{bike}/*/{}.fit'` (quoted: the program expands `~` and `*`):
-  `{name}` gives `name:VALUE`, `{}` gives `VALUE` (of a file name, its stem), `*` matches anything and gives no tag.  An
-  import only adds tags.
+* **Import paths with templates** (built 2026-11-23, `importer/paths.nim`): in a part of a path, `{name}` gives
+  `name:VALUE`, `{}` gives `VALUE`, `*` matches anything and gives no tag, mixed with text (`{}.fit`, `2025-*`).  A
+  template may end at a directory (`nch import ~/fit/bike/{bike}`, the author's use: every file under each directory gets
+  its tag; unquoted, the shell leaves `{bike}` alone).  A caught value that cannot be a tag is a warning, and no tag.
+  Tags are given only to files imported for the first time (a rebuild starts from an empty database).
 * **`nch tags`**: not an editable object (no attributes) but as like one as possible: the tags with their counts,
   `--names` patterns to choose them, `--within` to count those of the selection; `--add TAG...` and `--delete TAG...` on
   the activities that criteria give, or the selection (`--delete` asks); `--rename OLD NEW`.

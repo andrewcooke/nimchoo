@@ -4,7 +4,7 @@
 ## `heart_rate`); the importer collects them in the one pass over the file and, for each
 ## activity, calls the step's `write` with the values in time order.
 
-import std/tables
+import std/[options, tables]
 import ../../core/[errors, extension]
 import ../../core/ids
 import ../db/statement
@@ -21,14 +21,25 @@ type
   Samples* = Table[string, seq[Sample]]
     ## The readings of an activity, by FIT field name: in time order, one per second at most.
 
+  PathLabel* = object
+    ## What a template of an import path caught from a file's path (`paths.nim`): `{bike}` caught "cotic" is the key
+    ## "bike" and the value "cotic"; `{}` has no key.
+    key*: Option[string]
+    value*: string
+
   ImportStep* = object
     label*, labels*: string ## what it writes, one and many: "heart-rate reading(s)"
     channels*: seq[string] ## the `record` fields it wants
     write*: proc(
-      db: DbConn, activityId: ActivityId, samples: Samples, warnings: var seq[Warning]
+      db: DbConn,
+      activityId: ActivityId,
+      samples: Samples,
+      labels: seq[PathLabel],
+      warnings: var seq[Warning],
     ): int {.nimcall, raises: [StoreError].}
-      ## write the rows for an activity (inside the transaction that imports it);
-      ## returns how many, and adds to `warnings` what it noticed (the file's advisories)
+      ## write the rows for an activity (inside the transaction that imports it), given what the template of the
+      ## path caught (`labels`, none for a plain path); returns how many, and adds to `warnings` what it noticed (the
+      ## file's advisories)
 
   ExtraCount* = object ## How much of what a step wrote.
     n*: int

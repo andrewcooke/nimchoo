@@ -117,7 +117,11 @@ proc knownDigests*(s: Session): HashSet[string] {.raises: [StoreError].} =
     result.incl digest
 
 proc writeDecoded*(
-    s: Session, name, digest: string, d: Decoded, steps: seq[ImportStep]
+    s: Session,
+    name, digest: string,
+    d: Decoded,
+    steps: seq[ImportStep],
+    labels: seq[PathLabel] = @[],
 ): ImportResult {.raises: [StoreError].} =
   ## Write a decoded file (called `name` in the database, with this content hash) for the
   ## store's user, in one transaction: nothing is written unless all of it is.  The import
@@ -194,7 +198,8 @@ proc writeDecoded*(
           routeStmt.run()
       for i, step in steps:
         timed "step: " & step.label:
-          result.extras[i].n += step.write(s.db, activityId, a.samples, result.warnings)
+          result.extras[i].n +=
+            step.write(s.db, activityId, a.samples, labels, result.warnings)
       inc result.activities
       result.segments += a.segments.len
       result.coords += a.coords.len
@@ -212,6 +217,7 @@ proc importFileWith*(
     data: seq[byte],
     ws: var seq[Warning],
     steps: seq[ImportStep] = @[],
+    labels: seq[PathLabel] = @[],
 ): ImportResult {.raises: [FitError, ImportError, StoreError, ProfileError, XlsxError].} =
   ## Import the FIT file `data` (called `name` in the database) for the
   ## store's user.  Warnings are added to `ws`.  Nothing is written unless the
@@ -224,4 +230,4 @@ proc importFileWith*(
   if known.isSome:
     return ImportResult(outcome: ioDuplicate, fileId: known.get)
   let d = decodeFile(profile(), data, channelsOf(steps), ws)
-  writeDecoded(s, name, digest, d, steps)
+  writeDecoded(s, name, digest, d, steps, labels)

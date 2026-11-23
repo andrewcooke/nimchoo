@@ -29,7 +29,11 @@ func readings*(samples: Samples): tuple[rows: seq[(UnixTime, int)], dropped: int
       inc result.dropped
 
 proc write(
-    db: DbConn, activityId: ActivityId, samples: Samples, warnings: var seq[Warning]
+    db: DbConn,
+    activityId: ActivityId,
+    samples: Samples,
+    labels: seq[PathLabel],
+    warnings: var seq[Warning],
 ): int {.nimcall, raises: [StoreError].} =
   let (rows, dropped) = readings(samples)
   if dropped > 0:

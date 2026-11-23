@@ -313,7 +313,7 @@ This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `r
 activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the heart rate is in `heartrate`); other data refers to it by time and never by array index, and the arrays are never changed once
 written.
 
-* **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one).  A file whose path, size and
+* **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one), or a template (`paths.nim`: `{name}`, `{}` and `*` in its parts) whose catches are given to the import steps with each file (`PathLabel`: `tags` makes tags of them).  A file whose path, size and
   modification time are as when it was last seen is skipped unread (`--slow` reads everything); a file with content already
   imported is a duplicate; a file that cannot be read is reported and the others carry on.  One transaction per file, files
   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the

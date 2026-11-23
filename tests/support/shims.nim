@@ -51,6 +51,7 @@ proc importFile*(
     data: seq[byte],
     ws: var seq[Warning],
     steps: seq[ImportStep] = @[],
+    labels: seq[PathLabel] = @[],
 ): ImportResult {.raises: [FitError, ImportError, StoreError, ProfileError, XlsxError].} =
   ## `importFileWith` for a profile already in hand.
   importFileWith(
@@ -61,4 +62,5 @@ proc importFile*(
     data,
     ws,
     steps,
+    labels,
   )

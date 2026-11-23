@@ -7,7 +7,7 @@ import std/[algorithm, os, sets, strutils]
 
 {.push raises: [].}
 
-proc isFit(path: string): bool =
+proc isFit*(path: string): bool =
   ## Whether the file name ends in `.fit` (any case).
   path.splitFile.ext.toLowerAscii == ".fit"
 
