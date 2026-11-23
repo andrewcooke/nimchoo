@@ -14,6 +14,7 @@ import nimchoo/packages/ff/params
 import nimchoo/packages/util/args/args
 import nimchoo/packages/ff/command as ffCommand
 import nimchoo/packages/model/calc
+import nimchoo/packages/fit/time
 
 proc near(a, b: float, eps = 1e-9): bool =
   abs(a - b) <= eps
@@ -31,37 +32,58 @@ template fixedZone(zoneName: string, east: int): Timezone =
   )
 
 suite "ff: the decay":
-  test "one impulse fades by the hour, as exp(-hours / tau)":
-    let r = response(@[(0'i64, 1.0)], 1, 3600 * 48) # tau of one day
-    check r.len == 49 and r[0] == (0'i64, 1.0)
-    for k in [1, 5, 24, 48]:
-      check near(r[k].value, exp(-float(k) / 24))
-      check r[k].hourT == int64(k) * 3600
-  test "it is the sum of what each impulse has left":
-    let imp = @[(0'i64, 3.0), (3600'i64 * 2, 5.0), (3600'i64 * 7, 0.5)]
-    let r = response(imp, 7, 3600 * 100)
-    for h in [0, 2, 3, 7, 50, 100]:
+  test "one lump fades as exp(-time / tau)":
+    let r = curveAt(@[(0'i64, 1.0)], 1, [0'i64, 3600, 86400, 86400 * 2]) # tau of one day
+    check r[0] == 1.0 and near(r[1], exp(-1.0 / 24)) and near(r[2], exp(-1.0)) and
+      near(r[3], exp(-2.0))
+  test "it is the sum of what each lump has left, at any time":
+    let imp = @[(17'i64, 3.0), (7300'i64, 5.0), (25001'i64, 0.5)]
+    let times = @[17'i64, 18, 7299, 7300, 99999, 360000]
+    let r = curveAt(imp, 7, times)
+    for k, t in times:
       var want = 0.0
-      for (t, x) in imp:
-        let j = int(t div 3600)
-        if j <= h:
-          want += x * exp(-float(h - j) / (7 * 24))
-      check near(r[h].value, want, 1e-9)
-  test "it starts at the first impulse, not before":
-    let r = response(@[(3600'i64 * 10, 2.0)], 7, 3600 * 12)
-    check r.len == 3 and r[0] == (3600'i64 * 10, 2.0)
-  test "nothing if there is nothing, or it all comes later":
-    check response(@[], 7, 3600).len == 0
-    check response(@[(7200'i64, 1.0)], 7, 3600).len == 0
-  test "a longer decay time is slower, and the two are the same shape":
+      for (at, x) in imp:
+        if at <= t:
+          want += x * exp(-float(t - at) / (7 * 86400))
+      check near(r[k], want, 1e-9)
+  test "before the first lump it is 0; at a lump, the lump counts":
+    check curveAt(@[(100'i64, 2.0)], 7, [0'i64, 99, 100]) == @[0.0, 0.0, 2.0]
+  test "nothing if there is nothing":
+    check curveAt(@[], 7, [0'i64, 3600]) == @[0.0, 0.0]
+  test "a longer decay time is slower":
     let imp = @[(0'i64, 1.0)]
-    check response(imp, 42, 3600 * 24)[24].value > response(imp, 7, 3600 * 24)[24].value
-    check near(decayPerHour(7), exp(-1.0 / 168))
-  test "the day's end is its last hour":
-    let r = response(@[(0'i64, 1.0)], 7, 86400 * 3 - 3600)
-    let d = dayEnds(r, utc())
-    check d.len == 3 and d[0].hourT == 86400 - 3600 and d[2].hourT == 86400 * 3 - 3600
-    check near(d[0].value, exp(-23.0 / 168))
+    check curveAt(imp, 42, [86400'i64])[0] > curveAt(imp, 7, [86400'i64])[0]
+  test "the ends of the days, from the day of the first instant to the last day":
+    check dayEnds(5000, 86400 * 2, utc()) == @[86400'i64, 86400 * 2, 86400 * 3]
+    check dayEnds(86400 * 3, 86400 * 2, utc()).len == 0
+    let santiago = fixedZone("-03", -3 * 3600)
+    check dayEnds(3600, -86400, santiago) ==
+      @[3 * 3600'i64] # (01:00 UTC on 1 January is 22:00 on 31 December in Santiago)
+  test "the ends of the clock's hours, from the hour of the first instant":
+    check hourEnds(5000, 3 * 3600) == @[7200'i64, 10800]
+    check hourEnds(3600, 3600).len == 0 and hourEnds(3599, 3600) == @[3600'i64]
+
+suite "ff: one lump a stretch is as good as a fine integration":
+  test "two hours of varied heart rate, in three stretches with pauses":
+    let m = defaultModel()
+    var readings: seq[(UnixTime, int)]
+    for t in 0 .. 7200:
+      if t in 2000 .. 2300 or t in 5000 .. 5100: # (pauses, with no heart rate)
+        continue
+      readings.add (UnixTime(t), 120 + int(40 * sin(float(t) / 300)))
+    let stretches = @[(0'i64, 1999'i64), (2301'i64, 4999'i64), (5101'i64, 7200'i64)]
+    let lumps = stretchImpulse(readings, stretches, 154, m)
+    # the reference: a lump for every 10 seconds
+    var tens: seq[Stretch]
+    for t in countup(0'i64, 7200, 10):
+      tens.add (t, t + 9)
+    let fine = stretchImpulse(readings, tens, 154, m)
+    let times = @[7200'i64, 7200 + 3600, 7200 + 86400, 7200 + 86400 * 10]
+    for tau in [m.fatigueDays, m.fitnessDays]:
+      let a = curveAt(lumps, tau, times)
+      let b = curveAt(fine, tau, times)
+      for k in 0 ..< times.len:
+        check abs(a[k] - b[k]) <= 1e-4 * b[k]
 
 suite "ff: the command line":
   test "defaults, and everything given":
@@ -93,7 +115,7 @@ suite "ff: the command line":
 
 suite "ff: the rows":
   let m = defaultModel()
-  let imp = @[(86400'i64 * 10, 10.0)] # day 10, hour 0 (UTC)
+  let imp = @[(86400'i64 * 10, 10.0)] # day 10, 00:00 (UTC)
   let u = utc()
   let santiago = fixedZone("-03", -3 * 3600) # (a fixed offset: -03:00)
   let india = fixedZone("+0530", 5 * 3600 + 1800) # +05:30
@@ -102,8 +124,8 @@ suite "ff: the rows":
     let r = rows(imp, m, p, 0, u)
     check r.len == 3
     check r[0] ==
-      "1970-01-11," & formatFloat(10 * exp(-23.0 / (42 * 24)), ffDecimal, 4) & "," &
-      formatFloat(50 * exp(-23.0 / (7 * 24)), ffDecimal, 4)
+      "1970-01-11," & formatFloat(10 * exp(-24.0 / (42 * 24)), ffDecimal, 4) & "," &
+      formatFloat(50 * exp(-24.0 / (7 * 24)), ffDecimal, 4)
     check r[2].startsWith("1970-01-13,")
   test "--from drops the early days; --to defaults to today":
     let p = Params(firstDay: some(86400'i64 * 11), fitnessScale: 1, fatigueScale: 1)
@@ -115,17 +137,19 @@ suite "ff: the rows":
     )
     let r = rows(imp, m, p, 0, u)
     check r.len == 24
-    check r[0].startsWith("1970-01-11T01:00:00Z,10.0000,10.0000")
+    check r[0] ==
+      "1970-01-11T01:00:00Z," & formatFloat(10 * exp(-1.0 / (42 * 24)), ffDecimal, 4) &
+      "," & formatFloat(10 * exp(-1.0 / (7 * 24)), ffDecimal, 4)
     check r[23].startsWith("1970-01-12T00:00:00Z,")
   test "in another timezone the days end at its midnight":
-    # the impulse is at 21:00 on the 10th in Santiago (midnight UTC on the 11th); the 10th ends three hours later
+    # the lump is at 21:00 on the 10th in Santiago (midnight UTC on the 11th); the 10th ends three hours later
     let p = Params(lastDay: some(86400'i64 * 9), fitnessScale: 1, fatigueScale: 1)
     let r = rows(imp, m, p, 0, santiago)
     check r ==
       @[
-        "1970-01-10," & formatFloat(10 * exp(-2.0 / (42 * 24)), ffDecimal, 4) & "," &
-          formatFloat(10 * exp(-2.0 / (7 * 24)), ffDecimal, 4)
-      ] # (three hours in: two decays)
+        "1970-01-10," & formatFloat(10 * exp(-3.0 / (42 * 24)), ffDecimal, 4) & "," &
+          formatFloat(10 * exp(-3.0 / (7 * 24)), ffDecimal, 4)
+      ]
     let none = rows(
       imp,
       m,
@@ -147,18 +171,20 @@ suite "ff: the rows":
     )
     check h.len == 3 and h[0].startsWith("1970-01-10T22:00:00-03:00,") and
       h[2].startsWith("1970-01-11T00:00:00-03:00,")
+  test "no lumps, no rows":
+    check rows(@[], m, Params(fitnessScale: 1, fatigueScale: 1), 86400 * 5, u).len == 0
   test "today is today where you are":
     let p = Params(fitnessScale: 1, fatigueScale: 1)
     # 02:00 UTC on the 13th is still the 12th in Santiago
     check rows(imp, m, p, 86400'i64 * 12 + 7200, u)[^1].startsWith("1970-01-13,")
     check rows(imp, m, p, 86400'i64 * 12 + 7200, santiago)[^1].startsWith("1970-01-12,")
-  test "a half-hour timezone uses the last whole hour before its midnight":
-    # the 11th ends at 18:30 UTC on the 11th; the last whole hour ends at 18:00, 17 hours after the impulse's hour starts
+  test "a half-hour timezone's day ends at its midnight":
+    # the 11th ends at 18:30 UTC on the 11th, 18.5 hours after the lump
     let p = Params(lastDay: some(86400'i64 * 10), fitnessScale: 1, fatigueScale: 1)
     check rows(imp, m, p, 0, india) ==
       @[
-        "1970-01-11," & formatFloat(10 * exp(-17.0 / (42 * 24)), ffDecimal, 4) & "," &
-          formatFloat(10 * exp(-17.0 / (7 * 24)), ffDecimal, 4)
+        "1970-01-11," & formatFloat(10 * exp(-18.5 / (42 * 24)), ffDecimal, 4) & "," &
+          formatFloat(10 * exp(-18.5 / (7 * 24)), ffDecimal, 4)
       ]
 
 suite "nch ff":
@@ -198,7 +224,7 @@ suite "nch ff":
     let first = readFile(files[0])
     check first.startsWith("time,fitness,fatigue\n2018-08-27,")
     let t = openSession(path, allFragments, access = allAccess)
-    check t.db.scalar(int, "select count(*) from impulse") == 2
+    check t.db.scalar(int, "select count(*) from impulse") == 1
       # (worked out by the command)
     t.db.execute("delete from impulse")
     t.close()
@@ -207,7 +233,7 @@ suite "nch ff":
     check ffCommand.run(g, @["--before", "2018-09-06", "--utc", "--file"]) == exitOk
     check readFile(files[0]) == first
     let u2 = openSession(path, allFragments, access = allAccess)
-    check u2.db.scalar(int, "select count(*) from impulse") == 2
+    check u2.db.scalar(int, "select count(*) from impulse") == 1
     u2.close()
     # other options, other files
     check ffCommand.run(g, @["--before", "2018-09-06", "--utc", "--hourly", "--file"]) ==

@@ -34,6 +34,10 @@ proc fixture(name: string): tuple[db, cache: string] =
     fileId = f,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
+  s.db.execute(
+    "insert into segment(activity_id, n, start_t, end_t) values (:a, 0, 1535373814, 1535374414)",
+    a = a,
+  )
   var rows: seq[(UnixTime, int)]
   for k in 0 ..< 600:
     rows.add (UnixTime(1535373814 + k), 160)

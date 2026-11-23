@@ -255,8 +255,8 @@ that turns while the program waits).  Tests never use the network: every `Global
       summary: "Fitness and fatigue curves from the training impulses.",
       doc: """Fitness and fatigue curves from the training impulses.
 
-`nch ff` adds up the hourly impulses of the user (`model`), each effort fading away exponentially, into one row per day (or
-hour) of fitness and fatigue, and serves a page that draws it in the browser (Observable Plot and d3, loaded from a CDN with
+`nch ff` adds up the impulses of the user (`model`: one a stretch of riding), each fading away exponentially, exactly,
+into one row per day (or hour) of fitness and fatigue, and serves a page that draws it in the browser (Observable Plot and d3, loaded from a CDN with
 the integrity hashes of the exact files); `--file` makes the data as CSV in the cache for plotting elsewhere, and `--stdout`
 prints it.  `ff` is not about the selection: it always uses all the activities.  A chart is a live view: made again from the
 data as they are every time the page is asked for, in a file named by the options (`ff-default-hourly.csv`).  Offers its
@@ -380,8 +380,9 @@ Offers its page to the server (`web/pages`).""",
       doc: """The training impulse: models, and the impulses worked out with them.
 
 A model is a named set of variables (`nch models`); models belong to no user, and the program carries a default.  The
-impulse of an activity is worked out from its heart rate, hour by hour, with a model and the user's FTHR (`calc` is the
-arithmetic, pure; `impulses` stores them in `impulse`, with `ff_model`, the tables this package owns).  They are worked out
+impulse of an activity is worked out from its heart rate with a model and the user's FTHR, one lump for each stretch of
+riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in `impulse`,
+with `ff_model`, the tables this package owns).  They are worked out
 when `ff` needs them, and deleted when the FTHR they were worked out with changes (a trigger of the table), so they are
 worked out again.""",
       path: "src/nimchoo/packages/model/",

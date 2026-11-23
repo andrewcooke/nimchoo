@@ -113,8 +113,8 @@ suite "model: impulses, worked out when wanted":
     s.setFthr(154)
     discard s.importRide()
     check calculateMissing(s.db, s.userId, s.defaultM) ==
-      Calculated(activities: 1, hours: 2)
-    check s.q("select count(*) from impulse", int) == 2
+      Calculated(activities: 1, stretches: 1)
+    check s.q("select count(*) from impulse", int) == 1
     # the same ride on the original's 10-second grid gives 72.53 (this is exact: within 1%)
     let total = s.q("select sum(value) from impulse", float)
     check abs(total - 72.53) / 72.53 < 0.01
@@ -127,7 +127,7 @@ suite "model: impulses, worked out when wanted":
     check calculateMissing(s.db, s.userId, s.defaultM) == Calculated()
     s.setFthr(154)
     check calculateMissing(s.db, s.userId, s.defaultM) ==
-      Calculated(activities: 1, hours: 2)
+      Calculated(activities: 1, stretches: 1)
   test "an activity with no heart rate has no impulse":
     let s = open(fresh("nohr"))
     defer:
@@ -150,19 +150,19 @@ suite "model: impulses, worked out when wanted":
     b.setFthr(150)
     discard b.importRide("bobs.fit")
     discard calculateMissing(b.db, b.userId, b.defaultM)
-    check b.q("select count(*) from impulse", int) == 4
-    b.setFthr(150)
-    check b.q("select count(*) from impulse", int) == 4 # (unchanged)
-    b.setFthr(160)
     check b.q("select count(*) from impulse", int) == 2
+    b.setFthr(150)
+    check b.q("select count(*) from impulse", int) == 2 # (unchanged)
+    b.setFthr(160)
+    check b.q("select count(*) from impulse", int) == 1
     check b.q(
       "select count(*) from impulse i join activity a on a.id = i.activity_id join file f on f.id = a.file_id join user u on u.id = f.user_id where u.name = 'default'",
       int,
-    ) == 2
+    ) == 1
     b.db.execute(
       "update user_profile set fthr = null where user_id = :userId", userId = b.userId
     )
-    check b.q("select count(*) from impulse", int) == 2
+    check b.q("select count(*) from impulse", int) == 1
   test "a higher FTHR means less impulse":
     let s = open(fresh("higher"))
     defer:
@@ -186,10 +186,10 @@ suite "model: impulses, worked out when wanted":
     check s.q("select count(*) from impulse", int) == 0
     discard calculateMissing(s.db, s.userId, s.defaultM)
     check calculateMissing(s.db, s.userId, findModel(s.db, "other").get) ==
-      Calculated(activities: 1, hours: 2)
-    check s.q("select count(*) from impulse", int) == 4
-    s.db.execute("delete from ff_model where name = 'other'")
+      Calculated(activities: 1, stretches: 1)
     check s.q("select count(*) from impulse", int) == 2
+    s.db.execute("delete from ff_model where name = 'other'")
+    check s.q("select count(*) from impulse", int) == 1
     s.db.execute("delete from activity")
     check s.q("select count(*) from impulse", int) == 0
 
@@ -255,7 +255,7 @@ suite "nch users: the FTHR and the impulses":
     let t = open(db)
     check t.q("select count(*) from impulse", int) == 0
     discard calculateMissing(t.db, t.userId, t.defaultM)
-    check t.q("select count(*) from impulse", int) == 2
+    check t.q("select count(*) from impulse", int) == 1
     t.close()
     check userCommand.run(globals(db), @["--edit", "default", "--fthr", "160"]) == exitOk
     let u = open(db)

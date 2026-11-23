@@ -4,6 +4,22 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The impulse per stretch, exact curves (done 2026-11-23, step 1 of the `ff` rework)
+
+As decided in dev/ff.md: the impulse is kept per stretch of riding (`segment`), one lump at its impulse-weighted centre,
+and fitness and fatigue are exact sums of decaying lumps at the times wanted, on no grid.  `model/calc.stretchImpulse`
+replaces the hourly buckets; heart rate in a pause goes to the nearer stretch (cut half way through the gap), each piece
+between two readings counts at its middle, and every stretch gets a row (0, at its middle, when there is no impulse), so
+an activity with heart rate but no impulse is worked out once instead of on every run.  The table `impulse` is
+`(activity_id, model_id, n, centre_t, value)`; `model/impulses.userLumps` reads a user's lumps for `ff` (which no longer
+reads `activity` and `file` in SQL, so no longer depends on `importer`).  `ff/curve.curveAt` gives the curve at any
+times; the rows are the ends of the timezone's days (a half-hour timezone's too, no longer the last whole hour before)
+or of the clock's hours, and the latest values are as of now rather than of the last whole hour.  `tools/ffcompare.nim`
+(the measurement, in dev/ff.md) went with the buckets it used.  On the author's database (997 activities with heart rate,
+1,724 stretches, worked out in 0.3 s) the day-ends moved by at most 2.0 in fitness and 4.5 in fatigue, the hourly grid's
+error as measured.  `model/001-schema.sql` was edited in place (a squash of `model`): rebuild with `nch db --delete`, then
+import.
+
 ## Styled text, done once (done 2026-11-19)
 
 The styling had grown six ways of saying a piece's style: `ui/style` spans (names checked when compiled), markup,

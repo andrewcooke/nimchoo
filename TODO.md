@@ -130,9 +130,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
   extended (the best and the most recent attempts).  To design with the author.
 * **The `ff` rework** (design note `dev/ff.md`, 2026-11-23: the model is the subject; FF by a model's tags, never the
-  activity selection; the impulse per stretch of riding, measured: 40 times closer than the hourly impulses).  The steps:
-  1. the impulse per stretch, at its centre, and the curves as exact sums on no grid (the hourly table `impulse` goes);
-     `nch ff` draws as now meanwhile;
+  activity selection).  Step 1 done (2026-11-23: the impulse per stretch, at its centre; the curves exact, on no grid).
+  The steps left:
   2. `nch ff` manages the models: the models selection (built-in `default`, selected from the start), `--base` (copied),
      editing (impulses worked out again), deleting, the nine parameters and the tag patterns; names matched as tags are.
      **The editable objects (17) are built here, models their first user** (the author, 2026-11-23: it keeps the focus on

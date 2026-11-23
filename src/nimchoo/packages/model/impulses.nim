@@ -16,7 +16,7 @@ import ./calc
 {.push raises: [].}
 
 type Calculated* = object
-  activities*, hours*: int ## activities worked out, impulse rows written
+  activities*, stretches*: int ## activities worked out, impulse rows written
 
 proc readings(
     db: DbConn, activityId: ActivityId
@@ -35,29 +35,46 @@ proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   else:
     none(int)
 
+proc stretchesOf(
+    db: DbConn, activityId: ActivityId
+): seq[tuple[n: int64, stretch: Stretch]] {.raises: [StoreError].} =
+  ## The activity's stretches of riding, in time order, with their numbers.
+  for (n, s0, s1) in db.query(
+    tuple[n, startT, endT: int64],
+    "select n, start_t, end_t from segment where activity_id = :activityId order by start_t",
+    activityId = activityId,
+  ):
+    result.add (n, (s0, s1))
+
 proc calculateActivity*(
     db: DbConn, activityId: ActivityId, fthr: int, m: Model
 ): int {.raises: [StoreError].} =
-  ## Work out and store one activity's impulses for a model (replacing any); returns the
-  ## number of hours.
-  let rows = hourlyImpulse(readings(db, activityId), fthr, m)
+  ## Work out and store one activity's impulses for a model (replacing any), one a stretch; returns the number of
+  ## stretches.
+  let stretches = stretchesOf(db, activityId)
+  var spans: seq[Stretch]
+  for (_, s) in stretches:
+    spans.add s
+  let lumps = stretchImpulse(readings(db, activityId), spans, fthr, m)
   db.execute(
     "delete from impulse where activity_id = :activityId and model_id = :modelId",
     activityId = activityId,
     modelId = m.id,
   )
-  if rows.len == 0:
+  if lumps.len == 0:
     return 0
   let st = prepareStmt(
-    db, "insert into impulse(activity_id, model_id, hour_t, value) values (?, ?, ?, ?)"
+    db,
+    "insert into impulse(activity_id, model_id, n, centre_t, value) values (?, ?, ?, ?, ?)",
   )
-  for (hour, v) in rows:
+  for k, (t, v) in lumps:
     st.bindInt(1, activityId)
     st.bindInt(2, m.id)
-    st.bindInt(3, hour)
-    st.bindReal(4, v)
+    st.bindInt(3, stretches[k].n)
+    st.bindInt(4, t)
+    st.bindReal(5, v)
     st.run()
-  rows.len
+  lumps.len
 
 proc missing(
     db: DbConn, userId: UserId, modelId: ModelId
@@ -78,14 +95,14 @@ proc calculateMissing*(
     db: DbConn, userId: UserId, m: Model
 ): Calculated {.raises: [StoreError].} =
   ## Work out the impulses the user's activities lack for a model.  Nothing if the user has no
-  ## threshold heart rate.  (An activity whose heart rate yields no hour at all is tried again
-  ## each time; that costs little.)  Called when impulses are wanted, by the commands that show them.
+  ## threshold heart rate.  (Every stretch gets a row, of zero if need be, so an activity is worked
+  ## out once.)  Called when impulses are wanted, by the commands that show them.
   let fthr = fthrOf(db, userId)
   if fthr.isNone:
     return
   for id in missing(db, userId, m.id):
     let n = calculateActivity(db, id, fthr.get, m)
-    result.hours += n
+    result.stretches += n
     if n > 0:
       inc result.activities
 
@@ -98,3 +115,17 @@ proc hasHeartRate*(db: DbConn, userId: UserId): bool {.raises: [StoreError].} =
           and exists (select 1 from heartrate_series h where h.activity_id = a.id))""",
     userId = userId,
   ) == 1
+
+proc userLumps*(
+    db: DbConn, userId: UserId, modelId: ModelId
+): seq[Lump] {.raises: [StoreError].} =
+  ## The user's impulses for a model, over all their activities, in time order (those of zero left out: they add nothing).
+  db.query(
+    Lump,
+    """select i.centre_t, i.value from impulse i
+        join activity a on a.id = i.activity_id join file f on f.id = a.file_id
+        where f.user_id = :userId and i.model_id = :modelId and i.value > 0
+        order by i.centre_t""",
+    userId = userId,
+    modelId = modelId,
+  )

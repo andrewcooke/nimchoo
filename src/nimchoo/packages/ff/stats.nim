@@ -5,9 +5,20 @@
 
 import std/[options, strutils]
 import ../ui/style
-import ./curve
 
 {.push raises: [].}
+
+type Standing* = object ## A value of a curve, and how it compares with the days before.
+  value*: float
+  earlier*: int ## days before (with a value) to compare with
+  higher*: int ## how many of those had a higher value
+
+func standing*(value: float, earlier: openArray[float]): Standing =
+  ## A value, and how many of the earlier days' values (each at the end of its day) were higher.
+  result = Standing(value: value, earlier: earlier.len)
+  for e in earlier:
+    if e > value:
+      inc result.higher
 
 func top*(s: Standing): string =
   ## The share of the earlier days that were higher, as "top 4%": the smaller, the nearer the

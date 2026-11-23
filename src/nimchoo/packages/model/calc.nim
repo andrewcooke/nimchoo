@@ -1,13 +1,16 @@
-## The training impulse of a stretch of heart rate.  Pure.
+## The training impulse of an activity's heart rate, by stretch of riding.  Pure.
 ##
 ## From the readings (time, beats per minute) of an activity: the heart-rate zone at each
 ## reading, a number from 1 to 6 (from the threshold heart rate and the zone edges); the zone
 ## between two readings is a straight line in time; the impulse of an instant is
-## `((zone - zero) / (one - zero)) ^ gamma`, clipped at 0; and the impulse of an hour is the
-## integral of that over the time the readings cover.  Two readings further apart than
-## `max_secs` cover nothing.  The unit is the Python original's: the impulse "per 10 seconds"
-## (a zone-6 effort for 10 seconds is 1).  The original works on a 10-second grid for the
-## sake of pandas; this integrates exactly, so an irregular recording interval has no effect.
+## `((zone - zero) / (one - zero)) ^ gamma`, clipped at 0; and the impulse of a stretch of riding
+## (the importer's `segment`) is the integral of that over the time the readings cover, kept as one
+## lump at its centre (the time weighted by the impulse).  Fitness and fatigue are then exact sums
+## of decaying lumps: measured against an impulse worked out by the minute, the largest difference
+## in a day-end's fatigue over the author's history is 0.1 (dev/ff.md).  Two readings further apart
+## than `max_secs` cover nothing.  The unit is the Python original's: the impulse "per 10 seconds"
+## (a zone-6 effort for 10 seconds is 1).  The original works on a 10-second grid for the sake of
+## pandas; this integrates exactly, so an irregular recording interval has no effect.
 
 import std/math
 import ../fit/time
@@ -15,13 +18,7 @@ import ../../core/ids
 
 {.push raises: [].}
 
-const
-  bucketSeconds* = 3600'i64
-    ## The impulses are kept by the hour.  Not a variable: changing it would leave every stored
-    ## impulse on the wrong grid.  (A lump counts as at the end of its hour when the curves are
-    ## made, as in the original; the error against the true time is at most hour / decay time of
-    ## the lump, 0.6% for the 7-day curve, 0.3% on average.)
-  unitSeconds* = 10.0 ## the impulse is "per 10 seconds"
+const unitSeconds* = 10.0 ## the impulse is "per 10 seconds"
 
 type
   Model* = object
@@ -33,8 +30,11 @@ type
       ## upper limits of zones 1 to 5, percent of the threshold heart rate
     fitnessDays*, fatigueDays*: float
 
-  Hourly* = tuple[hourT: int64, value: float]
-    ## the start of the hour, Unix seconds (plain: the curves are arithmetic on a grid of hours)
+  Stretch* = tuple[startT, endT: int64]
+    ## a stretch of riding: its first and last second (Unix seconds, plain: arithmetic)
+
+  Lump* = tuple[t: int64, value: float]
+    ## an impulse counted at one instant (Unix seconds)
 
 func defaultModel*(): Model =
   ## The values the original uses (the zone edges are British Cycling's).
@@ -101,36 +101,53 @@ func powIntegral*(u0, u1, dt, g: float): float =
     return length * pow((a + b) / 2, g)
   length * (pow(b, g + 1) - pow(a, g + 1)) / ((g + 1) * (b - a))
 
-func bucketImpulse*(
-    readings: openArray[(UnixTime, int)], fthr: int, m: Model, bucket = bucketSeconds
-): seq[Hourly] =
-  ## The impulse in each bucket of `bucket` seconds (an hour: what is stored) that the readings (in time order) cover, in
-  ## order.  A bucket with readings but nothing above the zero level has value 0, so a row for it records that the activity
-  ## was worked out.  (Another size is for measuring: `tools/ffcompare.nim`.)
-  for k in 1 ..< readings.len:
-    let (u0t, h0) = readings[k - 1]
-    let (u1t, h1) = readings[k]
-    let (t0, t1) = (int64(u0t), int64(u1t)) # (plain seconds for the arithmetic)
-    if t1 <= t0 or t1 - t0 > m.maxSecs:
+func stretchImpulse*(
+    readings: openArray[(UnixTime, int)],
+    stretches: openArray[Stretch],
+    fthr: int,
+    m: Model,
+): seq[Lump] =
+  ## The impulse of each stretch (in time order), at its centre: one lump a stretch, in the same order.  The heart rate
+  ## between two stretches (a pause) goes to the nearer, the cut being half way through the gap; before the first and
+  ## after the last, to those.  Each piece between two readings counts at its middle (readings are a second or so apart).
+  ## A stretch with no impulse has a lump of 0 at its middle, so that every stretch has one.  Nothing if there are no
+  ## stretches.
+  if stretches.len == 0:
+    return
+  var cuts = newSeq[float](stretches.len - 1)
+  for k in 0 ..< cuts.len:
+    cuts[k] = 0.5 * float(stretches[k].endT + stretches[k + 1].startT)
+  var total = newSeq[float](stretches.len)
+  var weighted = newSeq[float](stretches.len) # the sum of impulse times time
+  var k = 0 # the stretch the current time is in
+  for i in 1 ..< readings.len:
+    let (u0t, h0) = readings[i - 1]
+    let (u1t, h1) = readings[i]
+    let (t0, t1) = (float(int64(u0t)), float(int64(u1t)))
+    if t1 <= t0 or t1 - t0 > float(m.maxSecs):
       continue
     let u0 = level(zoneOf(float(h0), float(fthr), m.zones), m)
     let u1 = level(zoneOf(float(h1), float(fthr), m.zones), m)
     var cur = t0
     var uCur = u0
     while cur < t1:
-      let hour = floorDiv(cur, bucket) * bucket
-      let nxt = min(t1, hour + bucket)
-      let uNxt = u0 + (u1 - u0) * float(nxt - t0) / float(t1 - t0)
-      let part = powIntegral(uCur, uNxt, float(nxt - cur), m.gamma) / unitSeconds
-      if result.len > 0 and result[^1].hourT == hour:
-        result[^1].value += part
-      else:
-        result.add (hour, part)
+      while k < cuts.len and cur >= cuts[k]:
+        inc k
+      let nxt =
+        if k < cuts.len:
+          min(t1, cuts[k])
+        else:
+          t1
+      let uNxt = u0 + (u1 - u0) * (nxt - t0) / (t1 - t0)
+      let part = powIntegral(uCur, uNxt, nxt - cur, m.gamma) / unitSeconds
+      total[k] += part
+      weighted[k] += part * 0.5 * (cur + nxt)
       cur = nxt
       uCur = uNxt
-
-func hourlyImpulse*(
-    readings: openArray[(UnixTime, int)], fthr: int, m: Model
-): seq[Hourly] =
-  ## The impulse in each hour that the readings (in time order) cover, in order (`bucketImpulse` by the hour).
-  bucketImpulse(readings, fthr, m, bucketSeconds)
+  for j, s in stretches:
+    let centre =
+      if total[j] > 0:
+        weighted[j] / total[j]
+      else:
+        0.5 * float(s.startT + s.endT)
+    result.add (int64(round(centre)), total[j])

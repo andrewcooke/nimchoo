@@ -21,16 +21,19 @@ create table ff_model (
   check (zero < one),
   check (0 < zone1 and zone1 < zone2 and zone2 < zone3 and zone3 < zone4 and zone4 < zone5)) strict;
 
--- The impulse of an activity in each hour (Unix seconds at the start of the hour, UTC), in
--- units of "per 10 seconds".  An activity with heart rate has a row for each hour the heart
--- rate covers (zero if it never rose above the zero level); one without, or of a user with
--- no threshold heart rate, has none.
+-- The impulse of each stretch of riding of an activity (`segment`, its `n`), as one lump at
+-- its centre (`centre_t`: Unix seconds, the time weighted by the impulse), in units of "per 10
+-- seconds" (see calc.nim).  An activity with heart rate has a row for each of its stretches (zero,
+-- at the stretch's middle, if the heart rate never rose above the zero level there), so that a
+-- row says it was worked out; one without heart rate, or of a user with no threshold heart rate,
+-- has none.
 create table impulse (
   activity_id integer not null references activity(id) on delete cascade,
   model_id integer not null references ff_model(id) on delete cascade,
-  hour_t integer not null,
+  n integer not null,
+  centre_t integer not null,
   value real not null check (value >= 0),
-  primary key (activity_id, model_id, hour_t)) strict, without rowid;
+  primary key (activity_id, model_id, n)) strict, without rowid;
 
 -- Every impulse depends on the user's threshold heart rate, so if it changes (a very rare
 -- event) the user's impulses go and are calculated again from scratch.

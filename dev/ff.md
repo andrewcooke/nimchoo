@@ -70,14 +70,14 @@ decided is marked so; the rest is open.
 * **The impulse is the activity's**, and follows the activity selection: impulse per day is a calendar frame of the
   activities subject; it can be a column of their lists.
 
-## How it is worked out now, and the question
+## How it was worked out before step 1, and the question
 
-* The impulse is kept by the clock hour (UTC): each hour a ride covers gets the impulse of its readings in that hour (table
-  `impulse`).  The curves step by the hour, `y[h] = y[h-1] * exp(-1h/tau) + x[h]`, each hour's impulse a lump at its end;
+* The impulse was kept by the clock hour (UTC): each hour a ride covers gets the impulse of its readings in that hour (table
+  `impulse`).  The curves stepped by the hour, `y[h] = y[h-1] * exp(-1h/tau) + x[h]`, each hour's impulse a lump at its end;
   days are read off the hourly series.
 * Proposed then: one impulse per activity, as a delta at one moment of it; measured below, and decided per stretch.
 
-## Measured (2026-11-23, `tools/ffcompare.nim`: the author's 997 rides with heart rate, 3,830 day-ends, default model)
+## Measured (2026-11-23, `tools/ffcompare.nim`, deleted with step 1 (in git): the author's 997 rides with heart rate, 3,830 day-ends, default model)
 
 Against the impulse worked out by the minute (as good as exact), the largest and the mean difference of each day-end's value
 (fatigue averages 311 and peaks at 1,523; fitness averages 1,886 and peaks at 4,063):
@@ -97,7 +97,7 @@ None of the author's rides is under way at midnight.
 
 **Decided** (2026-11-23): the impulse is kept **per stretch**, at its impulse-weighted centre; an activity's impulse is the
 sum of its stretches'; fitness and fatigue are exact sums of decaying lumps, at whatever times are wanted, on no grid; the
-hourly table `impulse` goes.
+hourly table `impulse` goes.  **Built** (2026-11-23: dev/HISTORY.md, "The impulse per stretch").
 
 ## Open
 

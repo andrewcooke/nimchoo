@@ -3,7 +3,8 @@
 ## value at the end of the day, in the computer's timezone), or per hour.  A chart is a live view: the file is named by the
 ## options (`ff-default-hourly.csv`) and made again on every request, from the data as they are.
 ##
-## This module is newer than `model`: it works out the impulses that are lacking, and reads them.
+## This module is newer than `model`: it works out the impulses that are lacking, and reads them (one lump a stretch of
+## riding, at its centre), and the curves are exact at the times shown (the ends of days or hours, and now).
 
 import std/[math, options, os, strformat, strutils, times]
 import ../../core/globals
@@ -47,47 +48,25 @@ proc usageText*(width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the notes and the options, wrapped to `width`.
   usageOf(synopsis, width, intro, ffSpec().docs, notes)
 
-proc hourlyImpulses(
-    db: DbConn, userId: UserId, modelId: ModelId
-): seq[Hourly] {.raises: [StoreError].} =
-  ## The user's impulse in each hour, over all their activities.
-  db.query(
-    Hourly,
-    """select i.hour_t, sum(i.value) from impulse i
-        join activity a on a.id = i.activity_id join file f on f.id = a.file_id
-        where f.user_id = :userId and i.model_id = :modelId group by i.hour_t order by i.hour_t""",
-    userId = userId,
-    modelId = modelId,
-  )
-
-proc civilOf(t: int64, tz: Timezone): int64 =
-  ## The date at an instant in a timezone, as Unix seconds at its start in UTC (the form of
-  ## `Params.firstDay`).
-  let d = fromUnix(t).inZone(tz)
-  dateTime(d.year, d.month, d.monthday, 0, 0, 0, 0, utc()).toTime.toUnix
-
-proc dayStart(civil: int64, tz: Timezone): int64 =
-  ## The instant a calendar date starts in a timezone.
-  let d = fromUnix(civil).utc
-  dateTime(d.year, d.month, d.monthday, 0, 0, 0, 0, tz).toTime.toUnix
-
 proc rows*(
-    impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone
+    lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone
 ): seq[string] =
-  ## The CSV lines (without the header) for the impulses.  Days are those of the timezone; a
-  ## daily row is labelled with the date, an hourly one with the time at the end of the hour.
+  ## The CSV lines (without the header) for the impulses (in time order).  Days are those of the timezone; a daily row is
+  ## the value at the end of the day, labelled with the date, an hourly one that at the end of the hour, labelled with it.
+  if lumps.len == 0:
+    return
   let toCivil =
     if p.lastDay.isSome:
       p.lastDay.get
     else:
       civilOf(now, tz)
-  let midnight = dayStart(toCivil + secondsPerDay, tz) # the end of the last day
-  let last = floorDiv(midnight, bucketSeconds) * bucketSeconds - bucketSeconds
-  var fitness = response(impulses, m.fitnessDays, last)
-  var fatigue = response(impulses, m.fatigueDays, last)
-  if not p.hourly:
-    fitness = dayEnds(fitness, tz)
-    fatigue = dayEnds(fatigue, tz)
+  let times =
+    if p.hourly:
+      hourEnds(lumps[0].t, dayStart(toCivil + secondsPerDay, tz))
+    else:
+      dayEnds(lumps[0].t, toCivil, tz)
+  let fitness = curveAt(lumps, m.fitnessDays, times)
+  let fatigue = curveAt(lumps, m.fatigueDays, times)
   let firstDay =
     if p.firstDay.isSome:
       localDate(p.firstDay.get, utc())
@@ -98,8 +77,7 @@ proc rows*(
       dayStart(p.firstDay.get, tz)
     else:
       low(int64)
-  for k in 0 ..< fitness.len:
-    let finish = fitness[k].hourT + bucketSeconds
+  for k, finish in times:
     let label =
       if p.hourly:
         fromUnix(finish).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
@@ -110,13 +88,13 @@ proc rows*(
         continue
     elif label < firstDay:
       continue
-    let fit = formatFloat(fitness[k].value * p.fitnessScale, ffDecimal, 4)
-    let fat = formatFloat(fatigue[k].value * p.fatigueScale, ffDecimal, 4)
+    let fit = formatFloat(fitness[k] * p.fitnessScale, ffDecimal, 4)
+    let fat = formatFloat(fatigue[k] * p.fatigueScale, ffDecimal, 4)
     result.add fmt"{label},{fit},{fat}"
 
-proc csv(impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone): string =
+proc csv(lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone): string =
   result = "time,fitness,fatigue\n"
-  for l in rows(impulses, m, p, now, tz):
+  for l in rows(lumps, m, p, now, tz):
     result.add l & "\n"
 
 proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
@@ -131,41 +109,41 @@ proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
     if not committed:
       st.rollback()
 
-proc makeCsv(
-    impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone
-): string =
-  ## The CSV of the impulses (worked out and read once, `ensureImpulses` and `hourlyImpulses`: the file and the line about the
+proc makeCsv(lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone): string =
+  ## The CSV of the impulses (worked out and read once, `ensureImpulses` and `userLumps`: the file and the line about the
   ## latest values come from the same state of the database).
-  csv(impulses, m, p, now, tz)
+  csv(lumps, m, p, now, tz)
 
 proc latestStats(
-    impulses: seq[Hourly], m: Model, p: Params, now: int64, tz: Timezone
+    lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone
 ): Line =
-  ## The line about the latest values (see stats.nim): for today, as of the last whole hour (the
-  ## label is the date and time); for an earlier last day (`--before` the next), at the end of it (the date).
-  ## `p.lastDay` is set.
+  ## The line about the latest values (see stats.nim): for today, as of now (the label is the date and time); for an
+  ## earlier last day (`--before` the next), at the end of it (the date).  Each is compared with the ends of the days
+  ## before.  `p.lastDay` is set.
   let today = civilOf(now, tz)
-  let nowHour = floorDiv(now, bucketSeconds) * bucketSeconds
-  var asOf: int64
-  var day: int64
+  var asOf, day: int64
   var label: string
   if p.lastDay.get >= today:
-    asOf = nowHour - bucketSeconds
+    asOf = now
     day = today
     label =
-      fmt"""{localDate(today, utc())} {fromUnix(asOf + bucketSeconds).inZone(tz).format("HH:mm")}"""
+      fmt"""{localDate(today, utc())} {fromUnix(now).inZone(tz).format("HH:mm")}"""
   else:
     day = p.lastDay.get
-    asOf =
-      floorDiv(dayStart(day + secondsPerDay, tz), bucketSeconds) * bucketSeconds -
-      bucketSeconds
+    asOf = dayStart(day + secondsPerDay, tz)
     label = localDate(day, utc())
-  let fitness = response(impulses, m.fitnessDays, asOf)
-  let fatigue = response(impulses, m.fatigueDays, asOf)
+  if lumps.len == 0 or lumps[0].t > asOf:
+    return
+      statLine(label, none(Standing), none(Standing), p.fitnessScale, p.fatigueScale)
+  let times = dayEnds(lumps[0].t, day - secondsPerDay, tz) & @[asOf]
+  proc standingFor(tauDays: float): Option[Standing] =
+    let v = curveAt(lumps, tauDays, times)
+    some(standing(v[^1], v[0 ..^ 2]))
+
   statLine(
     label,
-    standingAt(fitness, asOf, dayStart(day, tz), tz),
-    standingAt(fatigue, asOf, dayStart(day, tz), tz),
+    standingFor(m.fitnessDays),
+    standingFor(m.fatigueDays),
     p.fitnessScale,
     p.fatigueScale,
   )
@@ -258,11 +236,11 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         local()
     if p.lastDay.isNone:
       p.lastDay = some(civilOf(now, tz)) # (the last day: today, when the chart is made)
-    var impulses: seq[Hourly]
+    var impulses: seq[Lump]
     if p.stdout or p.web.kind != wkServe:
       # (the chart that is served is made by the worker, when the page is asked for)
       ensureImpulses(st, m.get)
-      impulses = hourlyImpulses(st.db, st.userId, m.get.id)
+      impulses = userLumps(st.db, st.userId, m.get.id)
     if p.stdout:
       g.say osOut, makeCsv(impulses, m.get, p, now, tz)
       return exitOk

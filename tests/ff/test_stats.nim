@@ -1,48 +1,17 @@
-import std/[math, options, sequtils, times, unittest]
-import nimchoo/packages/ff/curve
+import std/[options, sequtils, unittest]
 import nimchoo/packages/ff/stats
-import nimchoo/packages/model/calc
 import nimchoo/packages/ui/style
 
-proc near(a, b: float, eps = 1e-9): bool =
-  abs(a - b) <= eps
-
-# a value for every hour of ten days (UTC), rising for five days and falling for five
-proc series(): seq[Hourly] =
-  for h in 0 ..< 240:
-    let day = h div 24
-    let v =
-      if day < 5:
-        float(day) * 10.0 + 10
-      else:
-        float(9 - day) * 10.0 + 10 # 10 20 30 40 50 | 40 30 20 10 0 ... by day
-    result.add (int64(h) * 3600, v)
-
 suite "ff stats: standing among the earlier days":
-  let u = utc()
   test "the value, and how many of the days before were higher":
-    let s = series()
-    # the last hour of day 7: its value is 20; the earlier days (0 to 6) ended at 10 20 30 40 50 40 30
-    let asOf = int64(7 * 24 + 23) * 3600
-    let st = standingAt(s, asOf, int64(7 * 24) * 3600, u).get
-    check st.value == float(9 - 7) * 10.0 + 10
-    check st.earlier == 7 and st.higher == 4 # 30, 40, 50, 40 are higher than 20
+    let st = standing(20, [10.0, 20, 30, 40, 50, 40, 30])
+    check st.value == 20 and st.earlier == 7 and st.higher == 5
+      # 30, 40, 50, 40, 30 are higher than 20; an equal one is not
   test "the highest value so far: none were higher; the lowest: all":
-    let s = series()
-    let top = standingAt(s, int64(4 * 24 + 23) * 3600, int64(4 * 24) * 3600, u).get
-    check top.higher == 0 and top.earlier == 4
-    let low = standingAt(s, int64(9 * 24 + 23) * 3600, int64(9 * 24) * 3600, u).get
-    check low.higher == 8 and low.earlier == 9 # (day 0 ended equal: not higher)
-  test "the first day has nothing to compare with; an hour that is not there has no standing":
-    let s = series()
-    check standingAt(s, 5 * 3600, 0, u).get.earlier == 0
-    check standingAt(s, int64(999) * 3600, 0, u).isNone
-  test "equal values are not higher":
-    var s: seq[Hourly]
-    for h in 0 ..< 72:
-      s.add (int64(h) * 3600, 5.0)
-    let st = standingAt(s, int64(2 * 24 + 5) * 3600, int64(2 * 24) * 3600, u).get
-    check st.earlier == 2 and st.higher == 0
+    check standing(60, [10.0, 50]).higher == 0
+    check standing(5, [10.0, 50]).higher == 2
+  test "the first day has nothing to compare with":
+    check standing(5, []) == Standing(value: 5, earlier: 0, higher: 0)
 
 suite "ff stats: the line":
   test "wording of the share":
