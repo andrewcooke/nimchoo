@@ -59,8 +59,10 @@ is the first family's.
   it matched.
 * **Activities and climbs stay as they are** (criteria, data-derived), sharing pieces: ranges, name patterns, `--from` /
   `--near` (`near`).
-* **When:** with the `ff` rework.  First `landmarks` alone (it gains `--edit` and delete by selection), then `users`
-  (which tests the hooks), then `models` as the third.  If the declaration has to bend for the second type, it is wrong.
+* **When:** with the `ff` rework, **models first** (the author, 2026-11-23: it keeps the focus on `ff`; `dev/ff.md`: the
+  command is `nch ff`, a models selection, a base copied, nine parameters and tag patterns), then `landmarks` (it gains
+  `--edit` and delete by selection) and `users` (which tests the hooks).  If the declaration has to bend for the second
+  type, it is wrong.
 
 ### How it is built
 
