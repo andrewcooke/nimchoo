@@ -36,6 +36,13 @@ decided is marked so; the rest is open.
   over 60 s counts as nothing, 42 and 7 days), counting every activity.  The author will try others once it runs (as the
   themes were tried); considered: by sport (`cycling`, `running`, by tags), by decay times, by formula (Edwards' TRIMP is
   `gamma 1`, zero `0`).
+* **`plot`, the third view** (2026-11-23), built as `map` and `calendar` are: `nch plot [SUBJECT]` draws series over time on
+  a live page, the frames being series contributed by the packages that manage the subject; `--file` writes one CSV a frame
+  (as `map --file` writes GeoJSON), replacing `ff --file` (`ff --stdout` goes); the page draws with Observable Plot (as
+  `ff`'s does now).  The models subject is called **`ff`** in the views (`nch plot ff`, `nch calendar ff`): the name of the
+  command that manages it, as for activities and climbs.  It contributes fitness and fatigue (and form) for each selected
+  model; the activities subject contributes its own series (impulse per day first; others later, such as distances).  E7
+  (the dispatch that `map` and `ff` each write by hand) goes with it.
 * **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
   structure such as `cycling:hard` by convention) and matched as tags are (case and accents aside, `*` for anything), so
   views and commands select models with patterns of names.  The names are not tags: nothing connects a model called
@@ -74,8 +81,6 @@ hourly table `impulse` goes.
 
 ## Open
 
-* The `plot` view and its frames (series), replacing `ff`'s own page (and E7, its dispatch, merged then); what `ff --file`
-  becomes.
 * The calendar frames: impulse per day (activities); fitness, fatigue, form (models).
 * Form (fitness minus fatigue); hours or days; what `--fitness-scale`, `--fatigue-scale` and `--hourly` were for.
 * Power estimates are a separate matter (where tags come in too, by the author: not FF).
