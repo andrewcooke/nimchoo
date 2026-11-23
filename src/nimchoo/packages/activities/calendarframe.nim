@@ -1,14 +1,15 @@
 ## The frame of the activities on a calendar (`calendar/frames`): the days of the selected activities, and the line that sums
-## them up, as `nch activities` ends its listing; and the background of every calendar (`calendar/background`): the days any
-## of the user's activities started on.
+## them up, as `nch activities` ends its listing; the days drawn under every calendar (`calendar/days`): the days any of
+## the user's activities started on; and a shade (`calendar/shades`): the impulse of the selected activities each day, by
+## the first selected model (as on the plot: `plotframes.selectedImpulses`).
 
-import std/[options, sequtils]
+import std/[options, sequtils, strformat]
 import ../../core/[errors, extension]
 import ../db/statement
 import ../fit/time
 import ../calendar/frames
 import ../user/session
-import ./[rows, table]
+import ./[plotframes, rows, table]
 
 {.push raises: [].}
 
@@ -29,11 +30,11 @@ proc activityStarts(st: Session): seq[UnixTime] {.raises: [StoreError].} =
   ):
     result.add UnixTime(t)
 
-proc background*(): Contribution =
+proc days*(): Contribution =
   ## The days of all the user's activities, offered to the calendar to draw under every frame.
   contribute(
-    calendarBackgroundPoint,
-    CalendarBackground(
+    calendarDaysPoint,
+    CalendarDays(
       summary: "the days any of your activities started on",
       tables: @["activity", "file"],
       make: activityStarts,
@@ -50,5 +51,36 @@ proc contribution*(): Contribution =
       readsSelection: true,
       tables: @["activity", "file", "activity_selection"],
       make: makeCalendar,
+    ),
+  )
+
+proc makeImpulseShade(
+    st: Session, intervals: seq[Interval]
+): ShadeData {.nimcall, raises: [StoreError].} =
+  ## The impulse of the selected activities in each interval (the intervals are in time order, the impulses too).
+  let got = selectedImpulses(st)
+  if got.model.isNone:
+    result.warnings = got.warnings
+    return
+  result.label = fmt"impulse of the selected activities, by {got.model.get.name}"
+  result.values = newSeq[float](intervals.len)
+  var k = 0
+  for (t, v) in got.lumps:
+    while k < intervals.len and intervals[k].t1 <= t:
+      inc k
+    if k < intervals.len and t >= intervals[k].t0:
+      result.values[k] += v
+
+proc shade*(): Contribution =
+  ## The impulse of the selected activities, offered to the calendar as a shade.
+  contribute(
+    calendarShadePoint,
+    CalendarShade(
+      name: "impulse",
+      summary:
+        "the impulse of the selected activities each day, by the first selected model",
+      kind: skDaily,
+      tables: impulseTables,
+      make: makeImpulseShade,
     ),
   )

@@ -30,8 +30,12 @@ import ../../core/[extension, manifest]
 import ./[calendarframe, command, criterion, mapframes, plotframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[subject.contribution(), calendarframe.contribution(), calendarframe.background()] &
-    mapframes.contributions() & plotframes.contributions()
+  @[
+    subject.contribution(),
+    calendarframe.contribution(),
+    calendarframe.days(),
+    calendarframe.shade(),
+  ] & mapframes.contributions() & plotframes.contributions()
 
 const package* = Package(
   depends: @[

@@ -4,6 +4,22 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The calendar shaded by a value (done 2026-11-23, step 4 of the `ff` rework: the rework is done)
+
+`nch calendar [SUBJECT] --shade NAME`: the background of each day shows a value (the point `calendar/shades`: `ff` gives
+fitness, fatigue and form of the first selected model, each third of a day at its end; `activities` the impulse of the
+selected activities, a day each), scaled from the lowest shown to the highest, with a legend line (what, the two ends and
+a strip of the colours).  The subject's days stay in the foreground.  Exact colours, without a second way of styling:
+the author's idea of a style named `NAME,FRACTION` (`line.shaded`), which `theme.lookOf` alone resolves, interpolating in
+HSV between the theme's `NAME-lo` and `NAME-hi`, else `default-lo` and `default-hi` (both built-in themes have these; a
+theme read checks the pairs); so truncating, wrapping, table bands and the alt rows pass it through (tested).  My first
+proposals (16 named levels; a field on the span) were weighed with the author: the field would have been dropped by every
+function that rebuilds spans.  `--detail N` replaces `-v` (and the `--full` planned): 1 the months with a mark, 2 every
+month in their range, 3 to this month; the default is 3 for a curve, else 1.  `calendar/background` is now
+`calendar/days`.  Without colour, or with a theme lacking the colours of a shade, `--shade` fails saying why (a theme
+edited in the cache is never replaced by a newer built-in one, so it does not gain `default-lo`).  `tools/look.nim`
+shows each shade of a theme with the program's own interpolation.
+
 ## The plot view, and `nch ff` manages the models (done 2026-11-23, step 3 of the `ff` rework)
 
 `nch plot [SUBJECT]`, the third view (`plot` package, point `plot/frames`): a live page that draws a subject's frames, a

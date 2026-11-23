@@ -93,3 +93,16 @@ suite "lines: stripping":
   test "a piece kept whole is not broken where it has spaces":
     let ls = @[span("aaaa " & unbroken("route (importer)") & " b")].wrapped(10)
     check ls.mapIt(it.text) == @["aaaa", unbroken("route (importer)"), "b"]
+
+suite "lines: shades pass through":
+  test "a shade's name is a style like any other: cutting, merging, wrapping, alternating and bands keep it":
+    let a = shaded("fitness", 0.37)
+    let b = shaded("fitness", 0.38)
+    check $a == "fitness,0.37" and $shaded("x", 1.5) == "x,1.00" and
+      $shaded("x", -1) == "x,0.00"
+    let l = @[span("ab", a), span("cd", b)]
+    check truncated(l, 3)[0].styles == @[a]
+    check merged(l).len == 2 # (two shades are two looks)
+    check wrapped(l, 80)[0].mapIt(it.styles) == @[@[a], @[b]]
+    check alternated(l)[0].styles.mapIt($it) == @["alt-fitness,0.37"]
+    check within(l, styleName"select")[0].styles == @[styleName"select", a]

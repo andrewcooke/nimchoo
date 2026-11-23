@@ -14,7 +14,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 5. **Options for one case** (decided 2026-11-20): `--latest` stays (it will be common); `together` is gone (the summary's
    one U/B column).  Left: the calendar keeps leaving out the months with nothing marked (needed for a calendar like
-   Farellones'), but its "N months omitted" warning may go: to look at after B.  `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly` are settled in `dev/ff.md`.
+   Farellones'), but its "N months omitted" warning may go: to look at after B (it now points to `--detail 2`).  `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly` are settled in `dev/ff.md`.
 
 ### B. Share
 
@@ -117,20 +117,11 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Features and ideas, unordered
 
-* **`nch calendar --full`** in place of `-v` (the author, 2026-11-23): with none, rows with nothing in them are skipped (as
-  now); with `--full`, every row from the first non-empty to the last; with `--full --full`, every row from the first file
-  to today.  For the activities' calendar (a calendar of `ff`, being continuous, is always whole).  The warning "N months
-  ... omitted" says `--full`.
 * **Lines for the calendar** (the author, 2026-11-20): `nch calendar` drawn with lines, as the tables are (a rule under
   the weekday names, lines between the month, the days and the year?).  To look at with the author.
 * **`nch climbs`: simpler, and more** (the author, 2026-11-20): simplified (the list mixes the selected and the
   not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
   extended (the best and the most recent attempts).  To design with the author.
-* **The `ff` rework** (design note `dev/ff.md`, 2026-11-23: the model is the subject; FF by a model's tags, never the
-  activity selection).  Step 1 done (2026-11-23: the impulse per stretch, at its centre; the curves exact, on no grid);
-  step 2 done (2026-11-23: models managed as the first editable type; the models selection; the scales are the model's);
-  step 3 done (2026-11-23: `nch plot`, with E7; `nch ff` manages the models, the chart is gone).  The step left:
-  4. the calendar's background frames (a value as a colour between the theme's `hot` and `cold`, 3 samples a day).
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
@@ -150,7 +141,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   when the latest attempt is of a selected ride, once display step 6 has said what `nch climbs` lists.  The author also asked
   whether "the selection chooses the climbs, never the attempts" is right; it is built that way.
 * **Tags** on activities (by hand: equipment, "bike A"), if wanted: a package that contributes a `--tag` criterion.
-* **A calendar of fitness** (dev/HISTORY.md, Task 14): the `nch calendar` grid with the background showing fitness, fatigue or form, each day in thirds.
 * **More climb features**: the elevation profile of a climb, the lead/lag comparison, the near-miss report, `exclude`, a way to retire many climbs
   (auto-retire of duplicates was tried and dropped: it retired long climbs into shorter near copies).
 * **Per-sport threshold heart rate and models**, if wanted.

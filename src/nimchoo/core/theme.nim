@@ -14,6 +14,11 @@
 ## its value, the V of HSV from 0 to 1, raised to GAMMA (more than 1 darker, less than 1 lighter; black and white stay as
 ## they are): `alt-code fg=v(code.fg, 1.2)`, `v(#a0a0c0, 2)`, `v(v(code.bg, 2), 0.8)`.  Only a `#rrggbb` colour has a value;
 ## it is worked out when the theme is read.
+##
+## **Shades**: a style named `NAME,FRACTION` (`fitness,0.37`: made by the program, never written in a theme) is drawn between
+## the styles `NAME-lo` (at 0) and `NAME-hi` (at 1), its colours interpolated in HSV (`between`), its other attributes
+## `NAME-lo`'s; a theme without `NAME-lo` and `NAME-hi` has the shade drawn between `default-lo` and `default-hi`.  The colours
+## of a `-lo`/`-hi` pair are `#rrggbb` and given in both or in neither (checked when the theme is read).
 
 import std/[math, options, sequtils, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
@@ -61,6 +66,9 @@ type
 
 const
   defaultStyle* = "default" ## the style around all text
+  shadeSeparator* = ',' ## between a shade's style and its fraction: `fitness,0.37`
+  loSuffix* = "-lo" ## the end of a shade at 0: `fitness-lo`
+  hiSuffix* = "-hi" ## the end of a shade at 1
   basicNames = [
     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
     "bright-black", "bright-red", "bright-green", "bright-yellow", "bright-blue",
@@ -148,6 +156,66 @@ func withValue(c: Colour, gamma: float): Colour =
     uint8(clamp(round(x.float * k), 0.0, 255.0))
 
   Colour(kind: ckRgb, r: scaled(c.r), g: scaled(c.g), b: scaled(c.b))
+
+type Hsv = tuple[h, s, v: float] ## h in degrees, 0 to 360; s and v 0 to 1
+
+func toHsv(c: Colour): Hsv =
+  let (r, g, b) = (c.r.float / 255, c.g.float / 255, c.b.float / 255)
+  let hi = max([r, g, b])
+  let d = hi - min([r, g, b])
+  result.v = hi
+  result.s = (if hi == 0: 0.0 else: d / hi)
+  if d > 0:
+    let h =
+      if hi == r:
+        (g - b) / d
+      elif hi == g:
+        (b - r) / d + 2
+      else:
+        (r - g) / d + 4
+    result.h = floorMod(h * 60, 360)
+
+func toColour(c: Hsv): Colour =
+  let f = c.h / 60
+  let i = int(floor(f)) mod 6
+  let x = f - floor(f)
+  let (p, q, t) = (c.v * (1 - c.s), c.v * (1 - c.s * x), c.v * (1 - c.s * (1 - x)))
+  let (r, g, b) =
+    case i
+    of 0:
+      (c.v, t, p)
+    of 1:
+      (q, c.v, p)
+    of 2:
+      (p, c.v, t)
+    of 3:
+      (p, q, c.v)
+    of 4:
+      (t, p, c.v)
+    else:
+      (c.v, p, q)
+  func byte(x: float): uint8 =
+    uint8(clamp(round(x * 255), 0.0, 255.0))
+
+  Colour(kind: ckRgb, r: byte(r), g: byte(g), b: byte(b))
+
+func between*(a, b: Colour, k: float): Colour =
+  ## The colour `k` (0 to 1) of the way from `a` to `b` (both `#rrggbb`: a bug otherwise), each of h, s and v separately;
+  ## h the shorter way round (a grey has no hue, so it takes the other's).
+  doAssert a.kind == ckRgb and b.kind == ckRgb
+  var (x, y) = (toHsv(a), toHsv(b))
+  if x.s == 0:
+    x.h = y.h
+  if y.s == 0:
+    y.h = x.h
+  var dh = y.h - x.h
+  if dh > 180:
+    dh -= 360
+  elif dh < -180:
+    dh += 360
+  toColour(
+    (floorMod(x.h + k * dh, 360.0), x.s + k * (y.s - x.s), x.v + k * (y.v - x.v))
+  )
 
 func over(base, top: Style): Style =
   ## `base` with what `top` gives instead.
@@ -308,6 +376,27 @@ func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
     else:
       result.styles[name] = style
       result.styles[altPrefix & name] = style.over(altGiven.getOrDefault(name))
+  # the ends of a shade: a pair, each colour #rrggbb and given in both or in neither
+  for name in result.styles.keys:
+    if name.endsWith(loSuffix):
+      let pair = name[0 ..^ (loSuffix.len + 1)] & hiSuffix
+      if pair notin result.styles:
+        raiseTheme(fmt"{name} has no {pair}: the two ends of a shade go together", 0)
+      let (lo, hi) =
+        (result.styles.getOrDefault(name), result.styles.getOrDefault(pair))
+      for (a, b, part) in [(lo.fg, hi.fg, "fg"), (lo.bg, hi.bg, "bg")]:
+        if a.isSome != b.isSome:
+          raiseTheme(
+            fmt"{name} and {pair}: {part} is given in one and not the other", 0
+          )
+        if a.isSome and (a.get.kind != ckRgb or b.get.kind != ckRgb):
+          raiseTheme(fmt"{name} and {pair}: a shade's colours are #rrggbb ({part})", 0)
+    elif name.endsWith(hiSuffix) and
+        (name[0 ..^ (hiSuffix.len + 1)] & loSuffix) notin result.styles:
+      raiseTheme(
+        fmt"{name} has no {name[0 ..^ (hiSuffix.len + 1)]}{loSuffix}: the two ends of a shade go together",
+        0,
+      )
 
 func baseLook*(theme: Theme): Look =
   ## The look of text in no style but `default`: the terminal's own, with what `default` changes.
@@ -409,6 +498,43 @@ type Paint* = object
   theme*: Theme
   colour*: bool
 
+func shadeOf*(name: string): Option[tuple[base: string, k: float]] =
+  ## A shade's name, `fitness,0.37`, as the style it is of and the fraction (0 to 1); none for any other name.
+  let comma = name.find(shadeSeparator)
+  if comma <= 0:
+    return
+  try:
+    let k = parseFloat(name[comma + 1 ..^ 1])
+    if k >= 0 and k <= 1:
+      return some((name[0 ..< comma], k))
+  except ValueError:
+    discard
+
+func hasShade*(theme: Theme, name: string): bool =
+  ## Whether the theme can draw the shade `name`: it has `NAME-lo` and `NAME-hi`, or `default-lo` and `default-hi`.
+  (name & loSuffix) in theme.styles or (defaultStyle & loSuffix) in theme.styles
+
+func styleOf(theme: Theme, name: string): Style =
+  ## What a style changes: the theme's, or a shade's, interpolated between its ends (or `default`'s, when the theme has no
+  ## ends of its own for it; an `alt-` shade between the `alt-` ends).
+  let shade = shadeOf(name)
+  if shade.isNone:
+    return theme.styles.getOrDefault(name)
+  let (base, k) = shade.get
+  let alt = (if base.startsWith(altPrefix): altPrefix else: "")
+  var ends = base
+  if (ends & loSuffix) notin theme.styles:
+    ends = alt & defaultStyle
+  let (lo, hi) = (
+    theme.styles.getOrDefault(ends & loSuffix),
+    theme.styles.getOrDefault(ends & hiSuffix),
+  )
+  result = lo
+  if lo.fg.isSome and hi.fg.isSome:
+    result.fg = some(between(lo.fg.get, hi.fg.get, k))
+  if lo.bg.isSome and hi.bg.isSome:
+    result.bg = some(between(lo.bg.get, hi.bg.get, k))
+
 func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
   ## How text in `styles` looks: the theme's base look with each style over it in turn (`default` goes back to the base;
   ## a style the theme lacks changes nothing).
@@ -418,7 +544,7 @@ func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
     if $s == defaultStyle:
       result = base
     else:
-      result = result.over(theme.styles.getOrDefault($s))
+      result = result.over(styleOf(theme, $s))
 
 func render*(line: Line, paint: Paint): string =
   ## The line as text for a terminal: each look is started (if in colour) where it begins and reset where it ends, and the

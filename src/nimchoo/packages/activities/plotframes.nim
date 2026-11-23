@@ -11,9 +11,19 @@ import ../user/session
 
 {.push raises: [].}
 
-proc makeImpulse(
-    st: Session, period: Period
-): PlotData {.nimcall, raises: [StoreError].} =
+const impulseTables* = @[
+  "activity", "activity_selection", "activity_tag", "ff_model", "ff_model_pattern",
+  "file", "heartrate_series", "impulse", "model_selection", "segment", "user_profile",
+]
+  ## what the impulse of the selected activities reads (with the impulses worked out first)
+
+proc selectedImpulses*(
+    st: Session
+): tuple[model: Option[Model], lumps: seq[Lump], warnings: seq[Line]] {.
+    raises: [StoreError]
+.} =
+  ## The impulses of the selected activities, worked out with the first selected model (those lacking worked out first),
+  ## in time order; no model, and a warning, if none is selected.  (The plot's frame and the calendar's shade.)
   let ms = selectedModels(st.db, st.userId)
   if ms.len == 0:
     result.warnings.add plain(
@@ -29,18 +39,29 @@ proc makeImpulse(
     proc() {.closure, raises: [StoreError].} =
       discard calculateMissing(st.db, st.userId, m)
   )
-  var byDay: Table[int64, float] # the start of the day -> the sum of its impulses
-  for (t, v) in st.db.query(
+  result.model = some(m)
+  result.lumps = st.db.query(
     Lump,
     """select i.centre_t, i.value from impulse i
         where i.model_id = :model and i.value > 0
-          and i.activity_id in (select activity_id from activity_selection where user_id = :user)""",
+          and i.activity_id in (select activity_id from activity_selection where user_id = :user)
+        order by i.centre_t""",
     model = m.id,
     user = st.userId,
-  ):
+  )
+
+proc makeImpulse(
+    st: Session, period: Period
+): PlotData {.nimcall, raises: [StoreError].} =
+  let got = selectedImpulses(st)
+  result.warnings = got.warnings
+  if got.model.isNone:
+    return
+  var byDay: Table[int64, float] # the start of the day -> the sum of its impulses
+  for (t, v) in got.lumps:
     let day = dayStart(civilOf(t, period.zone), period.zone)
     byDay.mgetOrPut(day, 0.0) += v
-  var s = Series(name: m.name)
+  var s = Series(name: got.model.get.name)
   for d, v in byDay.pairs:
     if period.inPeriod(d):
       s.points.add (d, v)
@@ -59,11 +80,7 @@ proc contributions*(): seq[Contribution] =
           "the impulse of the selected activities each day, by the first selected model",
         shown: true,
         readsSelection: true,
-        tables: @[
-          "activity", "activity_selection", "activity_tag", "ff_model",
-          "ff_model_pattern", "file", "heartrate_series", "impulse", "model_selection",
-          "segment", "user_profile",
-        ],
+        tables: impulseTables,
         unit: "impulse per day",
         mark: mkBar,
         make: makeImpulse,

@@ -121,7 +121,8 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject
   contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), `plot [SUBJECT]` draws the
   series over time that they contribute (`plot/frames`: `nch plot ff`, the fitness, fatigue and form of the selected models), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
-  subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
+  subject), `--shade NAME` colouring the background by a value over time (`calendar/shades`: fitness, fatigue, form,
+  impulse; the theme's `NAME-lo` to `NAME-hi`, else `default-lo` to `default-hi`) and `--detail N` saying which months; the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
   again from the data as they are on every request; the page is the default and `--file` writes the files only (the web
   options are done once for every view: `web/view`).
 * **commands about things outside the database are singular**: `map`, `plot`, `calendar`, `fit`, `log`, `cache`, `db`; and `import`,

@@ -60,7 +60,7 @@ import
   ]
 import ./db/test_command
 import ./heartrate/test_step
-import ./ff/[test_calc, test_curve, test_impulses, test_stats]
+import ./ff/[test_calc, test_calendarshades, test_curve, test_impulses, test_stats]
 import ./ff/test_params as ffParamsTest
 import ./editable/test_editable
 import ./ff/test_completion as ffCompletion

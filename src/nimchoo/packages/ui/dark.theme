@@ -25,3 +25,7 @@ tag     reverse=yes
 alt-default fg=v(default.fg, 2)
 alt-code    fg=v(code.fg, 3)
 alt-select  fg=v(select.fg, 3)
+# the ends of a shade (a value as a colour: the calendar's --shade), cold to hot; fitness-lo and fitness-hi (and fatigue,
+# form, impulse) would give one shade ends of its own
+default-lo  bg=#1a2a5a
+default-hi  bg=#7a2a1a

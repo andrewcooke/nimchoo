@@ -1,6 +1,7 @@
 import std/[options, strutils, tables, unittest]
 import nimchoo/core/errors
-import nimchoo/core/theme
+import nimchoo/core/[line, theme]
+import nimchoo/packages/ui/style
 
 proc problem(text: string): string =
   try:
@@ -161,3 +162,35 @@ suite "ui theme: alt":
     check problem("cmd fg=#808080\nalt-cmd fg=red\nalt-cmd fg=blue").contains(
       "given twice"
     )
+
+suite "ui theme: shades":
+  let t = parseTheme(
+    "default fg=#a0a0a0\n" & "default-lo bg=#000000\n" & "default-hi bg=#ffffff\n" &
+      "form-lo bg=#ff0000 weight=bold\n" & "form-hi bg=#0000ff weight=bold\n"
+  )
+  test "a shade is drawn between its ends, else default's; its other attributes are its low end's":
+    let grey = lookOf(t, @[anyStyle("fitness,0.50")])
+    check grey.bg == Colour(kind: ckRgb, r: 128, g: 128, b: 128) and
+      grey.fg == Colour(kind: ckRgb, r: 160, g: 160, b: 160)
+    check lookOf(t, @[anyStyle("fitness,0.00")]).bg ==
+      Colour(kind: ckRgb, r: 0, g: 0, b: 0)
+    let form = lookOf(t, @[anyStyle("form,1.00")])
+    check form.bg == Colour(kind: ckRgb, r: 0, g: 0, b: 255) and form.weight == wtBold
+    check lookOf(t, @[anyStyle("alt-form,0.00")]).bg ==
+      Colour(kind: ckRgb, r: 255, g: 0, b: 0)
+  test "what is not a shade is an ordinary name (and one the theme lacks changes nothing)":
+    check shadeOf("fitness,0.5") == some(("fitness", 0.5))
+    check shadeOf("fitness").isNone and shadeOf("fitness,2").isNone and
+      shadeOf(",0.5").isNone
+    check lookOf(t, @[anyStyle("fitness,x")]).bg == baseLook(t).bg
+  test "the ends go together, in #rrggbb, each colour in both or neither":
+    check problem("a-lo bg=#000000\n").contains("has no a-hi")
+    check problem("a-hi bg=#000000\n").contains("has no a-lo")
+    check problem("a-lo bg=red\na-hi bg=blue\n").contains("#rrggbb")
+    check problem("a-lo bg=#000000\na-hi fg=#000000\n").contains(
+      "given in one and not the other"
+    )
+  test "the built-in themes have default-lo and default-hi":
+    for (name, text) in builtInThemes:
+      let th = parseTheme(text)
+      check "default-lo" in th.styles and "default-hi" in th.styles

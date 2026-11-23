@@ -20,3 +20,7 @@ tag     reverse=yes
 
 # alt-X: every other row of a table (all but the selection's and the usages') is in the alt version of each style
 # (alt-default for plain text).  One not given here is the style it stands for: alt-code is code.
+# the ends of a shade (a value as a colour: the calendar's --shade), cold to hot; fitness-lo and fitness-hi (and fatigue,
+# form, impulse) would give one shade ends of its own
+default-lo  bg=#d0dcf5
+default-hi  bg=#f5d0c8

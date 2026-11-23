@@ -41,7 +41,8 @@ decided is marked so; the rest is open.
 * **`plot`, the third view** (2026-11-23), built as `map` and `calendar` are: `nch plot [SUBJECT]` draws series over time on
   a live page, the frames being series contributed by the packages that manage the subject; `--file` writes one CSV a frame
   (as `map --file` writes GeoJSON), replacing `ff --file` (`ff --stdout` goes); the page draws with Observable Plot (as
-  `ff`'s does now).  The models subject is called **`ff`** in the views (`nch plot ff`, `nch calendar ff`): the name of the
+  `ff`'s does now).  The models subject is called **`ff`** in the views (`nch plot ff`; on the calendar, as built, a shade
+  instead: `nch calendar --shade fitness`): the name of the
   command that manages it, as for activities and climbs.  It contributes fitness and fatigue (and form) for each selected
   model; the activities subject contributes its own series (impulse per day first; others later, such as distances).  E7
   (the dispatch that `map` and `ff` each write by hand) goes with it.  **Built** (2026-11-23): the author's choices then
@@ -55,6 +56,13 @@ decided is marked so; the rest is open.
   the cell: in colour a cell is 3 columns (the date's two digits and a space; the brackets are only the mark without
   colour), so 3 samples a day, every 8 hours (2 if the space stays plain).
   Several things at once in a cell: no idea yet, not now.  Open: which model's frame when several are selected; a legend.
+  **Built** (2026-11-23, step 4, with the author): `nch calendar [SUBJECT] --shade NAME` (the subject's days in the
+  foreground as before; the shades `fitness`, `fatigue`, `form` of the first selected model and `impulse` of the selected
+  activities, contributed to `calendar/shades`); the colour is exact, a style `NAME,FRACTION` (the author's idea) that
+  only the theme's drawing resolves, between `NAME-lo` and `NAME-hi` or `default-lo` and `default-hi`, so every function
+  on lines passes it through; scaled from the lowest value shown to the highest, a legend line saying what and how much;
+  a curve at the end of each third of a day, the impulse the whole day; `--detail N` (1 months with marks, 2 the range,
+  3 to now; default 3 for a curve, else 1) in place of `-v` and the planned `--full`.
 * **The scales are the model's** (2026-11-23): in the model this comes from (Banister's) performance, which is what form
   stands for, is `k1 * fitness - k2 * fatigue`, the weights being parameters of the model as the decay times are.  So
   `fitness-scale` (k1, default 1) and `fatigue-scale` (k2, default 5, the original's) move from the chart into the model;

@@ -61,9 +61,9 @@ suite "activities frame on a calendar":
     for t in read:
       check t in frame().tables
 
-suite "activities: the background of every calendar":
-  proc background(): CalendarBackground =
-    let all = extensions.get(calendarBackgroundPoint)
+suite "activities: the days under every calendar":
+  proc background(): CalendarDays =
+    let all = extensions.get(calendarDaysPoint)
     doAssert all.len == 1
     all[0]
 

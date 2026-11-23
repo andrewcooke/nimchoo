@@ -159,14 +159,16 @@ first, as every delete does; everything in it can be made again).""",
         """A subject on a calendar: by default the days the selected activities started on.
 
 `nch calendar [SUBJECT]` draws a row for each month that has a marked day, the days in columns by weekday (weeks start on
-Monday).  `-v` shows every month from the first to the last.  It takes no criteria, like `climbs` and `map`: to see a
+Monday).  `--detail N` says which months: those with a marked day (1), every month from the first to the last (2), or to this
+month (3); the default depends on what is shown.  `--shade NAME` colours the background by a value over time
+(`calendar/shades`: fitness, fatigue, form, impulse), from the theme's `NAME-lo` to `NAME-hi`.  It takes no criteria, like `climbs` and `map`: to see a
 calendar of some activities, select them first (`nch activities CRITERIA --select`).  Without colour (a pipe, `NO_COLOR`)
 the cells are wider and carry marks, so nothing is lost.
 
 The calendar is a view and knows no subject: it defines the point `calendar/frames` (`frames.nim`), to which the package
 that manages a subject contributes the frame of it (`activities`: the days of the selected activities, and the line that
 sums them up), and reads the subjects from `subject/subjects`.  A subject has at most one calendar frame.  Under every
-frame it draws the days of `calendar/background` (`activities`: the days any activity started on), so that the marked days
+frame it draws the days of `calendar/days` (`activities`: the days any activity started on), so that the marked days
 are seen among the days you rode.""",
       path: "src/nimchoo/packages/calendar/",
     ),
@@ -288,7 +290,8 @@ a subject adds the steps of its selection (`subject/steps`) to the same parse: t
   deletes what is listed.  A model's name is written and matched as a tag is (`tags`), but is not one.
 * **The models selection** (`model_selection`) is a subject's, called `ff` in the views (`subject.nim`; the steps of
   `subject/steps`, `--names` its criteria): `nch plot ff` draws the fitness, fatigue and form of each selected model
-  (`plotframes.nim`; the curves are `curve.nim`, their latest values `stats.nim`).  The built-in models are selected for every user from the start (a
+  (`plotframes.nim`; the curves are `curve.nim`, their latest values `stats.nim`), and `nch calendar --shade fitness`
+  (or fatigue, form) shades the days by the first selected model's (`calendarshades.nim`).  The built-in models are selected for every user from the start (a
   trigger on `user`, and the seed).
 * **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
   stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in

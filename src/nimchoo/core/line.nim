@@ -63,6 +63,12 @@ func anyStyle*(name: string): StyleName =
   ## The style `name`, whatever it is: for markup read while the program runs (a theme may define styles of its own).
   StyleName(name)
 
+func shaded*(name: string, k: float): StyleName =
+  ## The shade `k` (0 to 1, clipped) of the way along the style `name`'s ends (`theme.nim`): `fitness,0.37`.  Two decimals:
+  ## a hundred steps, more than an eye tells apart, and names that read well in a test.
+  doAssert name.len > 0 and ',' notin name
+  StyleName(name & "," & formatFloat(clamp(k, 0.0, 1.0), ffDecimal, 2))
+
 func span*(text: string): Span =
   ## A piece of plain text.
   Span(text: text)

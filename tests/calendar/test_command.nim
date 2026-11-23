@@ -1,8 +1,9 @@
 import std/[options, os, sequtils, strutils, times, unittest]
 from std/unicode import runeLen
-import nimchoo/core/globals
+import nimchoo/core/[globals, theme]
 import nimchoo/packages/calendar/[calendar, command as calendarCommand, frames, params]
 import nimchoo/core/extension
+import nimchoo/packages/fit/time
 import nimchoo/packages/db/statement
 import nimchoo/packages/ui/style
 import nimchoo/packages/user/session
@@ -52,15 +53,29 @@ proc shown(s: Session, args: varargs[string]): seq[Line] =
   ## The lines `nch calendar ARGS` shows, in UTC.
   let p = parseArgs(@args).params
   lines(
-    s, choose(g, p).params, g.extensions.get(calendarBackgroundPoint), p, utc(), screen
+    s,
+    choose(g, p).params,
+    g.extensions.get(calendarDaysPoint),
+    p,
+    utc(),
+    screen,
+    UnixTime(2_000_000_000),
   )
 
 suite "nch calendar: the command line":
-  test "-v; --all is gone (the calendar is of the selection)":
-    check parseArgs(@[]).params.verbose == false
-    let p = parseArgs(@["-v"])
-    check p.problem == "" and p.params.verbose
+  test "--detail 1 to 3, and a shade; -v and --all are gone":
+    check parseArgs(@[]).params.detail.isNone and parseArgs(@[]).params.shade.isNone
+    let p = parseArgs(@["--detail", "2", "--shade", "fitness"])
+    check p.problem == "" and p.params.detail == some(dtRange) and
+      p.params.shade == some("fitness")
+    check parseArgs(@["--detail", "4"]).problem.contains("1, 2 or 3")
+    check parseArgs(@["-v"]).problem.len > 0
     check parseArgs(@["--all"]).problem.len > 0
+  test "a shade is the registry's: an unknown one says what there are":
+    let p = choose(g, parseArgs(@["--shade", "nonesuch"]).params)
+    check "no shade 'nonesuch'" in p.problem and "fitness" in p.problem and
+      "impulse" in p.problem
+    check calendarCommand.run(g, @["--shade", "nonesuch"]) == exitUsage
   test "a subject, at most one; no criteria, no other options":
     check parseArgs(@["activities"]).params.subject.get == "activities"
     check parseArgs(@[]).params.subject.isNone
@@ -114,9 +129,9 @@ suite "nch calendar: what it shows":
     ) # (both are selected now)
     let ls = s.shown()
     check ls.texts[^1] ==
-      "warning: 4 months with nothing marked omitted; use --verbose to show them"
+      "warning: 4 months with nothing marked omitted; --detail 2 shows them"
     check styleOf(ls[^1][0]) == "warn"
-    let all = s.shown("-v")
+    let all = s.shown("--detail", "2")
     check all.texts.filterIt(it[0 .. 3] in ["Apr ", "May ", "Jun ", "Jul "]).len == 4
     check not all.texts[^1].startsWith("warning")
 
@@ -132,3 +147,21 @@ suite "nch calendar: what it shows":
       offline: true,
     )
     check calendarCommand.run(quiet, @[]) == exitOk
+
+suite "nch calendar --shade: what it needs":
+  test "colour, and a theme with the colours of a shade; else a failure that says so":
+    let path = getTempDir() / "nch-test-calendar-shade.db"
+    removeFile(path)
+    var h = Globals(
+      dbPath: some(path),
+      fragments: allFragments,
+      access: allAccess,
+      extensions: extensions,
+    )
+    check calendarCommand.run(h, @["--shade", "fitness"]) == exitFailure # (no colour)
+    h.colour = [true, true]
+    check calendarCommand.run(h, @["--shade", "fitness"]) == exitFailure
+      # (colour, but a theme with no default-lo or fitness-lo)
+    h.theme = parseTheme("default-lo bg=#000000\ndefault-hi bg=#ffffff\n")
+    check calendarCommand.run(h, @["--shade", "fitness"]) == exitOk
+      # (nothing is selected: said, and no failure)
