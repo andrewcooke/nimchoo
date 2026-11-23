@@ -119,6 +119,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 * **`nch climbs`: simpler, and more** (the author, 2026-11-20): simplified (the list mixes the selected and the
   not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
   extended (the best and the most recent attempts).  To design with the author.
+* **The `ff` rework** (design note `dev/ff.md`, started 2026-11-23: the model is the subject; FF by a model's tags, never
+  the activity selection; the impulse per activity).  First step: measure the hourly impulses against one impulse per
+  activity on the author's data.
 * **`ff`'s options** (the author, 2026-11-20: needs a lot of work, as an item of its own): `--fitness-scale`,
   `--fatigue-scale` and `--hourly` are settings of one chart; look at what they are for before deciding what stays.
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the

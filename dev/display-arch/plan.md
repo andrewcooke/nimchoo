@@ -266,7 +266,8 @@ D1 to D4 and D7 to D10 are decided; D5 waits for its step (7); D6 is moot (no ca
 * **D4. The climbs selection** (step 6): decided 2026-11-17: `nch climbs` with no arguments lists the climbs selection (as
   `nch activities` lists the activities'); an import makes the climbs of the activities it imported the climbs selection
   (as it makes them the activities' selection).
-* **D5. FF statistics** (step 7), above.
+* **D5. FF statistics** (step 7), above: being designed in `dev/ff.md` (2026-11-23: the model is the subject; FF never depends on
+  the activity selection, only on a model's tags; the impulse is the activity's).
 * **D8. `nch climbs --all`** (step 6): decided 2026-11-18: every climb, in the same listing as the selection (as `--all`
   means everywhere), not the old catalogue, whose "manual" mark moves to the listing (its count of efforts by everyone is
   `--everyone`'s riders).
