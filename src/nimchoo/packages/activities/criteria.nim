@@ -414,10 +414,10 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
       ),
       custom(
         ListState,
-        ["--select", "--save"],
+        ["--select"],
         false,
         "",
-        ~"make what is listed the selection, in place of the one there was (needs criteria or `--all`)",
+        ~"what is listed becomes the selection, in place of the one there was (step 7; needs criteria or `--all`)",
         body = (p.select = true; fine),
       ),
       custom(
@@ -425,7 +425,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--also"],
         false,
         "",
-        ~"add what is listed to the selection (the activities of this search or those selected before)",
+        ~"add the selection to what the criteria find (step 5): with `--select`, they are added to the selection",
         body = (p.also = true; fine),
       ),
       custom(
@@ -433,7 +433,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--within"],
         false,
         "",
-        ~"search only the selection (with `--select`, the selection is narrowed to what is found)",
+        ~"search only the selection (step 2): with `--select`, the selection is narrowed to what is found",
         body = (p.within = true; fine),
       ),
       custom(
@@ -534,16 +534,15 @@ func finish(st: ListState): Parsed[Request] =
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
-  if st.delete and (st.select or st.also or st.verbose):
-    return
-      bad(~"`--delete` shows nothing: it does not go with `--select`, `--also` or `-v`")
-  if st.rename and (st.delete or st.select or st.also or st.verbose):
+  if st.delete and (st.select or st.verbose):
+    return bad(~"`--delete` shows nothing: it does not go with `--select` or `-v`")
+  if st.rename and (st.delete or st.select or st.verbose):
     return bad(
-      ~"`--rename` shows nothing: it does not go with `--delete`, `--select`, `--also` or `-v`"
+      ~"`--rename` shows nothing: it does not go with `--delete`, `--select` or `-v`"
     )
-  if st.select and st.also:
+  if (st.delete or st.rename) and st.also:
     return bad(
-      ~"`--select` replaces the selection and `--also` adds to it: one or the other"
+      ~"`--also` adds the whole selection to what is found: `--delete` and `--rename` do not take it (it is too easy to act on more than was meant)"
     )
   if st.select and not (given or st.all):
     return bad(
@@ -551,19 +550,15 @@ func finish(st: ListState): Parsed[Request] =
     )
   if st.also and not given:
     return bad(
-      ~"`--also` adds what the criteria find to the selection, so it needs criteria"
+      ~"`--also` adds the selection to what the criteria find, so it needs criteria"
     )
   if st.within and st.all:
     return bad(
       ~"`--within` searches the selection and `--all` every activity: one or the other"
     )
-  if st.within and not given:
-    return bad(
-      ~"`--within` searches the selection, so it needs criteria (`nch activities` alone shows the selection)"
-    )
   if st.within and st.also:
     return bad(
-      ~"`--also` adds to the selection what `--within` finds in it: there is nothing to add"
+      ~"`--within` finds only selected activities, and `--also` adds the selection: together they are the selection itself (`nch activities`)"
     )
   if st.invert and filters.len == 0:
     return bad(
@@ -589,17 +584,7 @@ func finish(st: ListState): Parsed[Request] =
     elif st.rename:
       Action(kind: akRename)
     else:
-      Action(
-        kind: akList,
-        verbose: st.verbose,
-        save:
-          if st.select:
-            some(svReplace)
-          elif st.also:
-            some(svAdd)
-          else:
-            none(Save),
-      )
+      Action(kind: akList, verbose: st.verbose, select: st.select)
   let scope =
     if st.all:
       Scope(kind: scAll, allLimit: limit)
@@ -610,6 +595,7 @@ func finish(st: ListState): Parsed[Request] =
         invert: st.invert,
         limit: limit,
         among: (if st.within: amSelection else: amEvery),
+        also: st.also,
       )
     else:
       Scope(kind: scSelection)

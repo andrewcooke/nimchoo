@@ -12,7 +12,6 @@ import ../../core/logfile
 import ../ui/live
 import ../ui/[style, vocabulary]
 import ../util/args/[args, usage]
-import ../subject/subjects
 import ./params
 import ./attempts
 import ./[chosen, found]
@@ -33,7 +32,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
-       nch [--db PATH] [--user NAME] climbs CRITERIA [--within] [--select | --also] [-v] [--everyone]
+       nch [--db PATH] [--user NAME] climbs CRITERIA [--within | --also] [--select] [-v] [--everyone]
        nch [--db PATH] [--user NAME] climbs --all [--select] [-v] [--everyone]
        nch climbs --all --delete
        nch climbs --edit NAME --rename NEW
@@ -44,6 +43,13 @@ const
        nch climbs --duplicates"""
   intro = @[
     ~"Show the climbs selection (with criteria, or `--all`, the climbs they find among all of them; `--select` keeps those as the selection, which `nch map climbs` and `nch calendar climbs` show too; an import selects the climbs of what it imported), each the standard way (name, category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time on the selected rides (see `nch activities --select`; in the selection's colour) and when, where that one ranks among your own attempts, and how many times you rode it; \"manual\" marks a name given by hand.  All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the top, stops included.",
+    ~"With criteria (or `--all`), the climbs listed are found in these steps:",
+    ~"1. Start with all the climbs (those not retired).",
+    ~"2. If `--within`, keep only those in the current climbs selection.",
+    ~"3. Apply the filters (the criteria), combined with \"and\" (`--invert` turns them round).",
+    ~"4. If `--also`, add the current climbs selection.",
+    ~"5. Display the result.",
+    ~"6. If `--select`, replace the current climbs selection with it.",
     ~"The climbs are found in the rides, once: an import works out those of every activity that has not been looked at (about a minute for two thousand rides), and keeps them; this command works out any that are still lacking.  A ride that goes over part of a climb but not all of it makes a climb of its own.",
   ]
   notes = @[
@@ -197,36 +203,20 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
         return exitOk
     of lkFound:
-      let found = foundClimbs(st, list.criteria, list.among)
+      let found = foundClimbs(st, list.criteria, list.among, list.also)
       for note in found.notes:
         g.say osErr, note & "\n"
       ids = found.ids
-      if list.save.isSome:
-        let listed = counted(ids.len, "climb", "climbs")
-        case list.save.get
-        of svReplace:
-          st.replaceClimbSelection(ids)
-          g.log.log(lvInfo, commandName, leSaved, listed)
-        of svAdd:
-          let now = st.addToClimbSelection(ids)
-          g.log.log(
-            lvInfo, commandName, leSaved, fmt"{listed} added (the selection has {now})"
-          )
-          let held = counted(now, "climb", "climbs")
-          g.show(
-            osOut, ~"added to the climbs selection, which now has <select {held}>:"
-          )
+      if list.select:
+        st.replaceClimbSelection(ids)
+        g.log.log(lvInfo, commandName, leSaved, counted(ids.len, "climb", "climbs"))
       if not list.criteria.given:
         # (--all: every climb, and how many are hidden)
         let hidden = countRetired(st)
         if hidden > 0:
           g.warn retiredText(hidden)
       if ids.len == 0:
-        let what =
-          if list.save == some(svReplace):
-            " (the climbs selection is now empty)"
-          else:
-            ""
+        let what = if list.select: " (the climbs selection is now empty)" else: ""
         g.show(osOut, ~"no climb meets the criteria{what}")
         return exitOk
     for l in summaryLines(
@@ -240,10 +230,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.show(osOut, l)
     # (the last line, as the activities': the count in the selection's style when the climbs listed are the selection)
     let total = countLive(st)
-    let isSelection =
-      list.kind == lkSelection or (
-        list.kind == lkFound and list.save == some(svReplace)
-      )
+    let isSelection = list.kind == lkSelection or (list.kind == lkFound and list.select)
     g.done(
       listDone(
         ids.len, some(total), "climb", "climbs", isSelection, not g.colour[osOut]

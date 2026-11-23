@@ -32,12 +32,20 @@ import ../user/session
 
 const
   synopsis =
-    """usage: nch [--db PATH] [--user NAME] activities [CRITERIA [--within]] [--select | --also] [-v]
+    """usage: nch [--db PATH] [--user NAME] activities [CRITERIA [--within | --also]] [--select] [-v]
        nch [--db PATH] [--user NAME] activities --all [--select]
        nch [--db PATH] [--user NAME] activities [CRITERIA [--within] | --all] --delete"""
   # (the prose is wrapped to the window by `prose`: its line breaks are the source's only)
   intro = @[
-    ~"Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are told otherwise.  With criteria (or `--all`) all the activities are searched instead, those that meet the criteria (combined with \"and\") are shown; with `--select` they become the selection (replacing the last one), with `--also` they are added to it.  With `--within` only the selection is searched (with `--select`, the selection is narrowed to what is found)."
+    ~"Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are told otherwise.  With criteria (or `--all`), what is shown is found in these steps:",
+    ~"1. Start with all your activities.",
+    ~"2. If `--within`, keep only those in the current selection.",
+    ~"3. Apply the filters (the criteria), combined with \"and\".",
+    ~"4. Apply `--newest` and `--oldest`.",
+    ~"5. If `--also`, add the current selection.",
+    ~"6. Display the result.",
+    ~"7. If `--select`, replace the current selection with it.",
+    ~"In step 3, `--invert` turns the filters round (those that do not meet them), and \"latest\" and \"previous\" are found among the activities of step 2.  With no criteria, step 2 is taken: `nch activities` alone shows the selection, and `--all` shows every activity.  `--delete` and `--rename` act on the result in place of step 6 (not with `--also`).  The selection's style marks the activities listed that are in the selection when the command is done.",
   ]
   notes = @[
     ~"\"latest\" is the newest activity among those that meet the criteria that do not use \"latest\": so `--sports cycling --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride.  (`--latest`, the flag, is `--newest 1`.)",
@@ -184,11 +192,6 @@ type
     nameIds: seq[int64]
     conditions: Table[string, Sql] ## by the option that offered them
     places: Table[string, tuple[lat, lon: float, said: string]]
-
-  Saved* = object ## What a listing kept in the selection.
-    kind*: Save
-    listed*: int ## how many were listed (and kept)
-    now*: int ## how many the selection holds after
 
   Search = object
     ## The filters with `latest` and `previous` worked out, and the notes that say which activities they came to.
@@ -446,7 +449,7 @@ proc matchingIds*(
 
 proc listActivities*(
     st: Session, request: Request, zone: Timezone, width: int, marks = false
-): tuple[lines: seq[Line], saved: Option[Saved]] {.raises: [StoreError].} =
+): tuple[lines: seq[Line], saved: Option[int]] {.raises: [StoreError].} =
   ## List the activities of the scope, the selection if that is what it is (and keep them as the selection if asked); `saved`
   ## is how many were kept, if they were.
   doAssert request.action.kind == akList
@@ -457,43 +460,31 @@ proc listActivities*(
     return
   let r = resolveScope(st, request.scope, zone)
   result.lines = r.notes
-  let match = matchSql(
-    st.userId,
-    r.filters,
-    sqlOf("a.id as id, ") & rowColumns(verbose, st.userId),
-    r.invert,
-    r.limit,
-    r.among,
-  )
-  let save = request.action.save
-  if save.isSome:
-    let ids = st.db.query(int64, sqlOf("select id from (") & match & ")")
-    case save.get
-    of svReplace:
-      st.replaceSelection(ids)
-      result.saved = some(Saved(kind: svReplace, listed: ids.len, now: ids.len))
-    of svAdd:
-      let now = st.addToSelection(ids)
-      result.saved = some(Saved(kind: svAdd, listed: ids.len, now: now))
-  var rows =
-    readRows(st, "select " & rowFields & " from (" & match & ") order by start_t, id")
-  if save.isNone and request.scope.kind != scAll and r.among == amEvery:
-    # the select style is the selection after this command: a search that keeps nothing marks nothing (with --select or
-    # --also everything listed is in it; with --all or --within, the activities that are selected among those listed)
-    for r in rows.mitems:
-      r.selected = false
-  if save == some(svAdd):
-    let now = counted(result.saved.get.now, "activity", "activities")
-    result.lines.add ~"added to the selection, which now has <select {now}>:"
+  # steps 1 to 4 of the usage's notes: every activity, or the selection (--within); the filters; the limit
+  let found = matchSql(st.userId, r.filters, sqlOf("a.id"), r.invert, r.limit, r.among)
+  # step 5: --also adds the selection
+  var listed = sqlOf("a.id in (") & found & ")"
+  if request.scope.kind == scMatching and request.scope.also:
+    listed =
+      listed &
+      sqlOf(
+        " or a.id in (select activity_id from selection where user_id = :alsoOwner)"
+      )
+      .with("alsoOwner", st.userId)
+  let shown =
+    sqlOf("select a.id as id, ") & rowColumns(verbose, st.userId) &
+    " from activity a join file f on f.id = a.file_id where " & listed
+  # step 7 (before 6 is drawn, so that the select style shows the selection after the command): --select replaces it
+  if request.action.select:
+    let ids = st.db.query(int64, sqlOf("select id from (") & shown & ")")
+    st.replaceSelection(ids)
+    result.saved = some(ids.len)
+  # step 6: the list; the select style marks those listed that are in the selection after the command
+  let rows =
+    readRows(st, "select " & rowFields & " from (" & shown & ") order by start_t, id")
   let total = activityCount(st)
   result.lines.add listing(
-    rows,
-    zone,
-    width,
-    verbose,
-    some(total),
-    marks,
-    isSelection = save == some(svReplace),
+    rows, zone, width, verbose, some(total), marks, isSelection = request.action.select
   )
 
 proc renameActivities(g: Globals, st: Session, ids: seq[int64]): int {.raises: [].} =
@@ -578,17 +569,8 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of akList:
       let r = listActivities(st, request, zone, g.textWidth(osOut), not g.colour[osOut])
       if r.saved.isSome:
-        let s = r.saved.get
-        let listed = counted(s.listed, "activity", "activities")
         g.log.log(
-          lvInfo,
-          commandName,
-          leSaved,
-          case s.kind
-          of svReplace:
-            listed
-          of svAdd:
-            fmt"{listed} added (the selection has {s.now})",
+          lvInfo, commandName, leSaved, counted(r.saved.get, "activity", "activities")
         )
       g.showAll(osOut, r.lines)
       exitOk

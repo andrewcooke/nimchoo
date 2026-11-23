@@ -89,11 +89,13 @@ notes from previous discussion:
 
 ## Decided (with the author, 2026-11-22)
 
-* **Selection** (after an adversarial review of "the selection as the default for everything"): a query (criteria)
-  searches **everything**, as now; an action with no criteria (and a view) works on **the selection**, as now; three
-  explicit flags combine a result with the selection: `--select` replaces it (as now), **`--also`** adds to it (the "or"),
-  **`--within`** makes the query look only inside it.  `--all` stays: with no criteria it is "everything" (`nch activities`
-  alone is the selection).  For every command that selects (activities, climbs, tags, a future efforts).
+* **Selection** (after an adversarial review of "the selection as the default for everything", refined 2026-11-23): a
+  search looks at everything; what it lists is found in steps, written in the usage: 1. all; 2. `--within`: only the
+  selection; 3. the filters ("and"); 4. `--newest`/`--oldest`; 5. `--also`: the selection added; 6. shown;
+  7. `--select`: the selection replaced by it.  `--select` has one meaning (what is listed is the selection now);
+  `--within` and `--also` are modifiers (alone they show without keeping: a preview); `--save` is gone.  `--all` stays:
+  with no criteria step 2 is taken, and `--all` says not to.  For every command that selects (activities, climbs, tags,
+  a future efforts).
 * **A tag**: letters (accents too), digits, `-`, `_` and `:`; it does not start with `-` (it would read as an option).
   `key:value` is a convention only.  Matching ignores case and accents, as `--names` does; `*` matches anything
   (`--tags 'bike:*'`, quoted for the shell); several tags are "and".

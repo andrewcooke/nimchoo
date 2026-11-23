@@ -12,11 +12,6 @@ import ../user/session
 {.push raises: [].}
 
 type
-  Save* = enum
-    ## What becomes of the selection when a listing is kept.
-    svReplace ## --select: what is listed is the selection now
-    svAdd ## --also: what is listed is added to the selection (the "or" of two searches)
-
   Among* = enum
     ## Where a search looks.
     amEvery ## every one of them (a search looks at every one unless told otherwise)

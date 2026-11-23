@@ -208,13 +208,15 @@ suite "list: the command":
     discard save(db, "--before", "2018-08-01")
     check chosen(db) == @["lisbon1"]
 
-  test "--also adds what is found to the selection: the \"or\" of two searches":
+  test "--also adds the selection to what is found; with --select it is added to the selection":
     let db = world("also", true)
     discard save(db, "--sports", "running")
     check chosen(db) == @["paris"]
-    check list(db, "--sub-sports", "road", "--also") == exitOk
+    check list(db, "--sub-sports", "road", "--also") == exitOk # (shown, not kept)
+    check chosen(db) == @["paris"]
+    check list(db, "--sub-sports", "road", "--also", "--select") == exitOk
     check chosen(db) == @["lisbon1", "paris"]
-    check list(db, "--sub-sports", "road", "--also") == exitOk
+    check list(db, "--sub-sports", "road", "--also", "--select") == exitOk
       # (one already in it stays once)
     check chosen(db) == @["lisbon1", "paris"]
 
@@ -239,11 +241,10 @@ suite "list: the command":
 
   test "--also and --within go only where they mean something":
     let db = world("refused", true)
-    check list(db, "--within") == exitUsage
+    check list(db, "--within") == exitOk # (the default made explicit: the selection)
     check list(db, "--also") == exitUsage
     check list(db, "--within", "--all") == exitUsage
     check list(db, "--within", "--also", "--names", "x") == exitUsage
-    check list(db, "--select", "--also", "--names", "x") == exitUsage
     check list(db, "--delete", "--also", "--names", "x") == exitUsage
 
   test "the newest or oldest few, of those that meet the other criteria":
@@ -622,7 +623,7 @@ suite "list: the command":
 suite "list: what is shown":
   proc shown(
       db: string, args: varargs[string]
-  ): tuple[lines: seq[Line], saved: Option[Saved]] =
+  ): tuple[lines: seq[Line], saved: Option[int]] =
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
@@ -641,7 +642,7 @@ suite "list: what is shown":
     check r.lines.texts[^1] ==
       "done: 2 of 2 activities, 24.7km, 2h02m (1 cycling, 1 running)"
 
-  test "the select style is the selection after the command: the selection, --all with the selected among them, --select; criteria alone: none":
+  test "the select style marks what is in the selection after the command, whatever is listed":
     let db = world("yellow")
     proc blueRows(lines: seq[Line]): seq[bool] =
       for l in lines:
@@ -652,9 +653,7 @@ suite "list: what is shown":
     discard save(db, "--sports", "cycling") # the selection: the cycling one
     check shown(db, "--all").lines.blueRows == @[true, false]
     check shown(db, "--sports", "running").lines.blueRows == @[false]
-    check shown(db, "--sports", "cycling").lines.blueRows ==
-      @[false]
-        # (in the selection, but listing by criteria does not change it: not in the selection's style)
+    check shown(db, "--sports", "cycling").lines.blueRows == @[true] # (it is selected)
     check "match selected" notin shown(db, "--sports", "cycling").lines.texts[^1]
     let st = openSession(db, allFragments, access = allAccess)
     defer:
@@ -665,8 +664,8 @@ suite "list: what is shown":
     check shown(db, "--all", "--select").lines.blueRows ==
       @[true, true] # --select: what is listed is the selection
     check shown(db, "--sports", "running").lines.blueRows ==
-      @[false]
-        # (selected now, by the --select above; but criteria alone still show none in the selection's style)
+      @[true] # (selected now, by the --select above)
+    check shown(db, "--sports", "running", "--also").lines.blueRows == @[true, true]
 
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")
@@ -677,7 +676,7 @@ suite "list: what is shown":
   test "saving: the count is in the select style (what is listed is now the selection), and the selection shows it":
     let db = world("shownsave")
     let r = shown(db, "--newest", "1", "--select")
-    check r.saved.get.listed == 1 and r.saved.get.kind == svReplace
+    check r.saved == some(1)
     check r.lines.texts[^1].startsWith("done: 1 of ")
     check "selected" notin r.lines.texts[^1] and "saved" notin r.lines.texts[^1]
     check r.lines[^1].anyIt(styleOf(it) == "select" and it.text == "1")

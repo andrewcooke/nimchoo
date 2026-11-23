@@ -33,6 +33,24 @@ suite "usage: wrapping":
     check wrap("end.  Next one", 80) == @["end.  Next one"]
     check wrap("end.  Next one", 5) == @["end.", "Next", "one"]
 
+suite "usage: prose":
+  test "paragraphs have a blank line between them; the steps of a numbered list do not, and go on under their text":
+    let lines = proseLines(
+      @[
+        ~"Found in these steps:",
+        ~"1. Start with all your activities.",
+        ~"2. If `--within`, keep only those in the current selection.",
+        ~"After the steps.",
+      ],
+      30,
+    )
+    check lines.mapIt(it.text) ==
+      @[
+        "Found in these steps:", "", "1. Start with all your", "   activities.",
+        "2. If --within, keep only", "   those in the current", "   selection.", "",
+        "After the steps.",
+      ]
+
 suite "usage: the option list":
   test "a value that may be left out is in brackets":
     check shownOptionLines(

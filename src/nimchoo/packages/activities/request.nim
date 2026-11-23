@@ -17,7 +17,7 @@ import ../db/sqltext
 import ../ui/units
 import ../subject/subjects
 import ./[criterion, ranges]
-export Save, Among
+export Among
 
 {.push raises: [].}
 
@@ -158,7 +158,8 @@ type
     case kind*: ActionKind
     of akList:
       verbose*: bool ## -v: show more of each activity
-      save*: Option[Save] ## --select or --also: keep what is listed in the selection
+      select*: bool
+        ## --select: what is listed replaces the selection (step 7 of the usage's notes)
     of akDelete, akRename:
       discard ## (they show nothing: no `-v`, no `--select`)
 
@@ -178,7 +179,8 @@ type
         ## each kind at most once, except the contributed ones; not empty unless there is a limit
       invert*: bool
         ## --invert: the activities that do NOT meet the filters (before the limit); there is a filter to invert
-      among*: Among ## --within: only the selection is searched
+      among*: Among ## --within: only the selection is searched (step 2)
+      also*: bool ## --also: the selection is added to what is found (step 5)
       limit*: Option[Limit]
 
   Request* = object

@@ -108,11 +108,13 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   every `--delete` asks first (`core/ask`: the question says what would go, `[yN]`, one key; **`-y`** answers yes, accepted by every command; with no terminal and no `-y` the answer is no, so a script never deletes by accident; there is no `-f` and no countdown).  a named type takes a
   NAME; activities, which are too many to name, take criteria or the selection.
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
-  everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.  **a
-  search looks at everything; three explicit operations combine it with the selection** (decided 2026-11-22 after an
-  adversarial review, `dev/tags.md`): `--select` replaces the selection with what is listed, `--also` adds to it (the
-  "or"), `--within` searches only the selection (the "and"; with `--select`, it narrows it).  the same for every command
-  with a selection (activities, climbs).
+  everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.  **what
+  a search lists is found in steps, written in the usage** (decided 2026-11-23, `dev/tags.md`): 1. all; 2. `--within`: only
+  the selection; 3. the filters ("and"; `--invert` turns them round; `latest`/`previous` are found here, among step 2's);
+  4. `--newest`/`--oldest`; 5. `--also`: the selection added; 6. shown (or `--delete`/`--rename`, not with `--also`);
+  7. `--select`: the selection replaced by it.  with no criteria step 2 is taken (`--all` says not to).  `--select` always
+  means "what is listed is the selection now"; `--within` and `--also` are modifiers (alone, they show without keeping).
+  the same for every command with a selection (activities, climbs).
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject
   contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
   subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made

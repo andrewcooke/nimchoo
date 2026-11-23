@@ -13,7 +13,7 @@ suite "climbs: the command line":
     let a = parseArgs(@["--all"])
     check a.problem.len == 0 and a.params.action == caList and
       a.params.list.kind == lkFound and not a.params.list.criteria.given and
-      a.params.list.save.isNone
+      not a.params.list.select
   test "rename and auto":
     let r = parseArgs(@["--edit", "Morro La Cabra₁", "--rename", "  La Cabra  "])
     check r.problem.len == 0 and r.params.action == caEdit and
@@ -111,7 +111,7 @@ suite "climbs params: criteria":
     )
     check p.problem == ""
     let l = p.params.list
-    check l.kind == lkFound and l.save == some(svReplace) and l.attempts.verbose
+    check l.kind == lkFound and l.select and l.attempts.verbose
     let c = l.criteria
     check c.names == @["Farellones", "62"] and c.ridden and c.categories == @["HC", "1"]
     check c.start.kind == nkPoint and c.start.lat == -33.42 and c.start.lon == -70.63 and
@@ -136,23 +136,20 @@ suite "climbs params: criteria":
     check parseArgs(@["--all", "--radius", "3km"]).problem.contains(
       "goes with `--from` or `--near`"
     )
-  test "--save is --select; --select keeps what --all finds too":
-    check parseArgs(@["--ridden", "--save"]).params.list.save == some(svReplace)
-    check parseArgs(@["--all", "--select"]).params.list.save == some(svReplace)
+  test "--select keeps what --all finds too; --save is gone":
+    check parseArgs(@["--all", "--select"]).params.list.select
+    check parseArgs(@["--ridden", "--save"]).problem.len > 0
 
-  test "--also adds to the climbs selection, --within searches only it":
+  test "--also adds the climbs selection to what is found, --within searches only it":
     let a = parseArgs(@["--ridden", "--also"]).params.list
-    check a.save == some(svAdd) and a.among == amEvery
+    check a.also and not a.select and a.among == amEvery
     let w = parseArgs(@["--categories", "1", "--within", "--select"]).params.list
-    check w.save == some(svReplace) and w.among == amSelection
-    check parseArgs(@["--within"]).problem.contains("needs criteria")
+    check w.select and w.among == amSelection
+    check parseArgs(@["--ridden", "--also", "--select"]).problem == ""
     check parseArgs(@["--also"]).problem.contains("needs criteria")
     check parseArgs(@["--within", "--all"]).problem.contains("one or the other")
-    check parseArgs(@["--ridden", "--select", "--also"]).problem.contains(
-      "one or the other"
-    )
     check parseArgs(@["--ridden", "--within", "--also"]).problem.contains(
-      "nothing to add"
+      "the selection itself"
     )
 
   test "mistakes":

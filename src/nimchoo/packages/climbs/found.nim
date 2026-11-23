@@ -20,7 +20,7 @@ type Found* = object
     ## what was taken for what was asked ("near -33.4200,-70.6100 (Providencia, ...), within 10km")
 
 proc foundClimbs*(
-    st: Session, c: ClimbCriteria, among = amEvery
+    st: Session, c: ClimbCriteria, among = amEvery, also = false
 ): Found {.raises: [StoreError].} =
   ## The climbs (not retired) that the criteria find, the biggest first; with none given, every climb.  `among`: every
   ## climb, or only the climbs selection (`--within`; `--invert` then means those of the selection the others do not find).
@@ -94,4 +94,12 @@ proc foundClimbs*(
         query & " and not coalesce((" & joined & "), 0)"
       else:
         query & " and (" & joined & ")"
+  if also:
+    # (step 5: the climbs selection is added, after the criteria)
+    query =
+      sqlOf("select s.id from sector s where s.retired = 0 and (s.id in (") & query &
+      sqlOf(
+        ") or s.id in (select sector_id from climb_selection where user_id = :alsoOwner))"
+      )
+      .with("alsoOwner", st.userId)
   result.ids = st.db.query(int64, query & " order by s.gain_m desc, s.id")

@@ -3,8 +3,8 @@
 ## It is what `climbs`, `map`, `calendar` and the like use.
 ##
 ## * **The selection** is a scratchpad in the database (table `selection`).  It belongs to one user; it is replaced whenever
-##   `activities --select` is given or an import adds activities, added to by `activities --also`, and searched alone by
-##   `--within` (with `--select`, narrowed).  A view shows the selection as it is when the view is made.
+##   `activities --select` is given (by what is listed: with `--also` the selection is added to it, with `--within` only
+##   the selection was searched) or an import adds activities.  A view shows the selection as it is when the view is made.
 ## * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).
 
 import ../../core/[extension, manifest]

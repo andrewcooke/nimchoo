@@ -46,9 +46,9 @@ type
       discard
     of lkFound:
       criteria*: ClimbCriteria ## none given: every climb (`--all`)
-      save*: Option[Save]
-        ## --select or --also: keep what is found in the climbs selection
-      among*: Among ## --within: only the climbs selection is searched
+      select*: bool ## --select: what is listed replaces the climbs selection (step 7)
+      among*: Among ## --within: only the climbs selection is searched (step 2)
+      also*: bool ## --also: the climbs selection is added to what is found (step 5)
 
   ChangeKind* = enum
     ckRename
@@ -150,21 +150,21 @@ func climbSpec*(): Spec[Raw] =
       ),
       flag(
         Raw,
-        ["--select", "--save"],
+        ["--select"],
         select,
-        ~"make what is listed the climbs selection, which `nch climbs` lists and `nch map climbs` shows, in place of the one there was (needs criteria or `--all`)",
+        ~"what is listed becomes the climbs selection, which `nch climbs` lists and `nch map climbs` shows, in place of the one there was (step 7; needs criteria or `--all`)",
       ),
       flag(
         Raw,
         ["--also"],
         also,
-        ~"add what is listed to the climbs selection (the climbs of this search or those selected before)",
+        ~"add the climbs selection to what the criteria find (step 5): with `--select`, they are added to the selection",
       ),
       flag(
         Raw,
         ["--within"],
         within,
-        ~"search only the climbs selection (with `--select`, the selection is narrowed to what is found)",
+        ~"search only the climbs selection (step 2): with `--select`, the selection is narrowed to what is found",
       ),
       flag(
         Raw,
@@ -331,25 +331,17 @@ func finish(raw: Raw): Parsed[Params] =
     return bad(
       ~"`--select` needs criteria or `--all`: it keeps what they find as the climbs selection"
     )
-  if raw.select and raw.also:
-    return bad(
-      ~"`--select` replaces the climbs selection and `--also` adds to it: one or the other"
-    )
   if raw.also and criteria.isNone:
     return bad(
-      ~"`--also` adds what the criteria find to the climbs selection, so it needs criteria"
+      ~"`--also` adds the climbs selection to what the criteria find, so it needs criteria"
     )
   if raw.within and raw.all:
     return bad(
       ~"`--within` searches the climbs selection and `--all` every climb: one or the other"
     )
-  if raw.within and criteria.isNone:
-    return bad(
-      ~"`--within` searches the climbs selection, so it needs criteria (`nch climbs` alone shows the selection)"
-    )
   if raw.within and raw.also:
     return bad(
-      ~"`--also` adds to the selection what `--within` finds in it: there is nothing to add"
+      ~"`--within` finds only selected climbs, and `--also` adds the selection: together they are the selection itself (`nch climbs`)"
     )
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:
@@ -377,14 +369,9 @@ func finish(raw: Raw): Parsed[Params] =
           kind: lkFound,
           attempts: attempts,
           criteria: criteria.get(ClimbCriteria()),
-          save:
-            if raw.select:
-              some(svReplace)
-            elif raw.also:
-              some(svAdd)
-            else:
-              none(Save),
+          select: raw.select,
           among: (if raw.within: amSelection else: amEvery),
+          also: raw.also,
         ),
       )
     )

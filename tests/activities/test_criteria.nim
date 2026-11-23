@@ -85,11 +85,11 @@ suite "list: the command line":
 
   test "--select and --all":
     check cmdline().params.scope.kind == scSelection and
-      cmdline().params.action.kind == akList and cmdline().params.action.save.isNone
-    check cmdline("--all", "--select").params.action.save == some(svReplace) and
+      cmdline().params.action.kind == akList and not cmdline().params.action.select
+    check cmdline("--all", "--select").params.action.select and
       cmdline("--all").params.scope.kind == scAll
-    check cmdline("--sports", "cycling", "--select").params.action.save ==
-      some(svReplace) and cmdline("--sports", "cycling").params.scope.kind == scMatching
+    check cmdline("--sports", "cycling", "--select").params.action.select and
+      cmdline("--sports", "cycling").params.scope.kind == scMatching
     check cmdline("--select").problem.contains("needs criteria or `--all`")
     check cmdline("--newest", "1").params.scope.kind == scMatching
       # (a limit searches all, too)
@@ -100,7 +100,7 @@ suite "list: the command line":
     expect FieldDefect:
       discard d.action.verbose # (a delete shows nothing: there is no -v to ask)
     expect FieldDefect:
-      discard cmdline("--rename").params.action.save
+      discard cmdline("--rename").params.action.select
     check cmdline("--all", "-n", "3").params.scope.allLimit ==
       some(Limit(kind: lkNewest, count: 3))
     expect FieldDefect:
@@ -125,8 +125,7 @@ suite "list: the command line":
       "--select", "--newest", "3", "--after", "2018-08-01", "--before", "2018-09-01",
       "--from", "38.7,-9.1", "--radius", "5km",
     ).params
-    check r.action.save == some(svReplace) and
-      r.scope.limit == some(Limit(kind: lkNewest, count: 3))
+    check r.action.select and r.scope.limit == some(Limit(kind: lkNewest, count: 3))
     let c = r.scope.filters
     check c.find(ftAfter).at == UnixTime(1533081600) and
       c.find(ftBefore).at == UnixTime(1535760000) # (August, the dates their midnights)
@@ -733,8 +732,7 @@ suite "list: the criteria of the packages":
     check "--climbs" in
       activitiesCommand.usageText(100, extensions.get(activityCriterion)).plainText
 
-suite "list: --save":
-  test "--save is another name for --select":
-    check parseArgs(@["--all", "--save"], utcZone).params.action.save == some(svReplace)
-    check parseArgs(@["--all", "--select"], utcZone).params.action.save ==
-      some(svReplace)
+suite "list: --select":
+  test "--select keeps what is listed; --save, its other name, is gone":
+    check parseArgs(@["--all", "--save"], utcZone).problem.len > 0
+    check parseArgs(@["--all", "--select"], utcZone).params.action.select

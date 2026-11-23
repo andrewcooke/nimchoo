@@ -56,7 +56,7 @@ suite "nch climbs":
     let narrowed = openSession(path, allFragments, access = allAccess)
     check narrowed.count("climb_selection") == 0 # (the climb is no HC)
     narrowed.close()
-    check climbsCommand.run(globals(path), @["--ridden", "--also"]) == exitOk
+    check climbsCommand.run(globals(path), @["--ridden", "--also", "--select"]) == exitOk
     let added = openSession(path, allFragments, access = allAccess)
     check added.count("climb_selection") == 1
     added.close()

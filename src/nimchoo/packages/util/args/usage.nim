@@ -40,12 +40,35 @@ func synopsisLines*(text: string): seq[Line] =
     else:
       result.add ~"{l[0 ..< lead]}`{l[lead .. ^1]}`"
 
+func stepMark(p: Line): int =
+  ## The width of the mark of a step of a numbered list ("3. "), or 0 if the paragraph is not one.
+  let t = p.text
+  var i = 0
+  while i < t.len and t[i] in {'0' .. '9'}:
+    inc i
+  if i > 0 and i + 1 < t.len and t[i] == '.' and t[i + 1] == ' ':
+    i + 2
+  else:
+    0
+
 func proseLines*(paragraphs: seq[Line], width: int): seq[Line] =
   ## Paragraphs (each a `~"..."` line) wrapped to `width` by words, each word keeping its style, a blank line between two.
+  ## A paragraph that starts "1. ", "2. " ... is a step of a numbered list: no blank line between two steps, and a step
+  ## that is wrapped goes on under its text, not under its number.
   for k, p in paragraphs:
-    if k > 0:
+    let mark = stepMark(p)
+    if k > 0 and not (mark > 0 and stepMark(paragraphs[k - 1]) > 0):
       result.add plain("")
-    result.add p.wrapped(width)
+    if mark == 0:
+      result.add p.wrapped(width)
+    else:
+      for n, l in p.wrapped(max(1, width - mark)):
+        result.add(
+          if n == 0:
+            l
+          else:
+            plain(spaces(mark)) & l
+        )
 
 func optionLines*(docs: seq[OptDoc], width: int): seq[Line] =
   ## The lines for the options: two spaces, the names and the value (in `code`), the help in a column, wrapped to `width`.
