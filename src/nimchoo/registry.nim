@@ -33,6 +33,7 @@
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (the activities, the climbs).
+## * `tags <packages/tags/package.html>`_ - Tags: small labels on activities ("bike:cotic", "sport:cycling:road"), to choose them by.
 ## * `templating <packages/text/templating/package.html>`_ - Page templates: text with `{{tags}}` filled in from values.
 ## * `themes <packages/themes/package.html>`_ - The themes in the cache, and which theme is in force.
 ## * `ui <packages/ui/package.html>`_ - How the program looks: the rules of everything a person reads, and the helpers that keep them.
@@ -65,6 +66,7 @@ import ./packages/names/package as pkgNames
 import ./packages/near/package as pkgNear
 import ./packages/selection/package as pkgSelection
 import ./packages/subject/package as pkgSubject
+import ./packages/tags/package as pkgTags
 import ./packages/text/fold/package as pkgFold
 import ./packages/text/templating/package as pkgTemplating
 import ./packages/themes/package as pkgThemes
@@ -443,6 +445,28 @@ It is what `climbs`, `map`, `calendar` and the like use.
       path: "src/nimchoo/packages/subject/",
     ),
     Registered(
+      name: "tags",
+      package: pkgTags.package,
+      summary:
+        "Tags: small labels on activities (\"bike:cotic\", \"sport:cycling:road\"), to choose them by.",
+      doc:
+        """Tags: small labels on activities ("bike:cotic", "sport:cycling:road"), to choose them by.
+
+The design and what was decided are in `dev/tags.md`.  This package holds the table and what a tag is:
+
+* **A tag** (`Tag`) is letters (accents too), digits, `-`, `_` and `:`, and does not start with `-` (it would read as an
+  option).  `key:value` is a convention only: nothing here reads it.  A **pattern** (`TagPattern`) may also hold `*`,
+  which matches anything (`bike:*`).
+* **Matching** ignores case and accents, as `--names` does: each tag is kept with its folded form (`fold`), and a
+  pattern is compared with that.  Two tags that fold the same are one tag on an activity (the first written is kept).
+  Several patterns are "and": an activity has a tag matching each (`tagsSql`).
+* **The table** `activity_tag` belongs to this package; tags go when their activity does.
+
+Who gives an activity its tags (the import, by hand) and who chooses activities by them (`activities --tags`) come later:
+`dev/tags.md`, TODO.""",
+      path: "src/nimchoo/packages/tags/",
+    ),
+    Registered(
       name: "fold",
       package: pkgFold.package,
       summary: "Comparing text without regard to case or accents.",
@@ -501,6 +525,8 @@ exception).  A new command follows them by using the helpers; it does not make i
 * `code`: literal text: a command, an option, a name in the program; what is between backticks, wherever it is
   (drawn without them in colour: `line.codeStyle`; a test, `test_backticks`, refuses an option outside them).
 * `file`: the path of a file or a directory.
+* `tag`: a tag (`tags`).  Reverse video and no colour of its own, so that the style around it shows through: a tag in
+  a selected row is reverse video in the selection's colour (styles stack, each giving only what it changes).
 
 What each looks like is the theme's (`dark.theme` and `light.theme` here; the author's in the cache's
 `system/themes/`): a style gives only what it changes, `NAME.fg` and `v(COLOUR, GAMMA)` make a colour from one above, and every style

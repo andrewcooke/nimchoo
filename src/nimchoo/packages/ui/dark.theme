@@ -18,6 +18,7 @@ good    fg=#209020
 warn    fg=#cc5500
 code    fg=#a080b0
 file    fg=#a080b0              weight=normal
+tag     reverse=yes
 
 # alt-X: every other row of a table (all but the selection's and the usages') is in the alt version of each style
 # (alt-default for plain text).  One not given here is the style it stands for: alt-code is code.

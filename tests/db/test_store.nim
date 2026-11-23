@@ -1,7 +1,7 @@
 import ../support/arrays
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/coord
-import std/[options, os, sets, strutils, unittest]
+import std/[algorithm, options, os, sequtils, sets, strutils, unittest]
 import db_connector/db_sqlite
 import nimchoo/packages/db/fragment
 import nimchoo/packages/db/statement
@@ -97,16 +97,13 @@ suite "database: opening and bringing the schema up to date":
     s.close() # (would complain of unfinalized statements)
     check open(path, "carol").userName == "carol"
 
-  test "the fragments applied are recorded":
+  test "the fragments applied are recorded: every one the packages have":
     let s = open(tempDb("recorded"))
-    var names: seq[string]
-    names = s.db.query(string, "select name from fragment order by name")
-    check names ==
-      @[
-        "climbs/001-schema.sql", "climbs/002-selection.sql", "db/001-schema.sql",
-        "heartrate/001-schema.sql", "importer/001-schema.sql", "model/001-schema.sql",
-        "names/001-schema.sql", "selection/001-schema.sql", "user/001-schema.sql",
-      ]
+    let names = s.db.query(string, "select name from fragment order by name")
+    var wanted = (baseFragments & allFragments).mapIt(it.name)
+    wanted.sort
+    check names == wanted
+    check "tags/001-schema.sql" in names # (one that came later)
     s.close()
 
   test "each fragment is recorded with the checksum of its SQL":

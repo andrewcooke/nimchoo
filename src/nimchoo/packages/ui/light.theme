@@ -16,6 +16,7 @@ warn    fg=#b45309
 select  fg=#1f5fbf
 code    fg=#5b3fbf
 file    fg=#4a4a7a
+tag     reverse=yes
 
 # alt-X: every other row of a table (all but the selection's and the usages') is in the alt version of each style
 # (alt-default for plain text).  One not given here is the style it stands for: alt-code is code.

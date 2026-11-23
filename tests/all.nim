@@ -171,4 +171,5 @@ import
   ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval, test_markup]
 import ./log/test_lines
 import ./log/test_command
+import ./tags/test_tag
 {.pop.}

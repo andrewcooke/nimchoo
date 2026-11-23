@@ -16,6 +16,8 @@
 ## * `code`: literal text: a command, an option, a name in the program; what is between backticks, wherever it is
 ##   (drawn without them in colour: `line.codeStyle`; a test, `test_backticks`, refuses an option outside them).
 ## * `file`: the path of a file or a directory.
+## * `tag`: a tag (`tags`).  Reverse video and no colour of its own, so that the style around it shows through: a tag in
+##   a selected row is reverse video in the selection's colour (styles stack, each giving only what it changes).
 ##
 ## What each looks like is the theme's (`dark.theme` and `light.theme` here; the author's in the cache's
 ## `system/themes/`): a style gives only what it changes, `NAME.fg` and `v(COLOUR, GAMMA)` make a colour from one above, and every style

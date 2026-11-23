@@ -15,11 +15,12 @@ from std/unicode import Rune, runeLen, runeSubStr, runes
 
 const
   baseStyles* =
-    ["default", "em", "hide", "select", "good", "bad", "warn", "code", "file"]
+    ["default", "em", "hide", "select", "good", "bad", "warn", "code", "file", "tag"]
     ## the styles the program uses, each for one thing: `default` around everything; `em` what to read first (titles,
     ## headings); `hide` the bookkeeping, what was not recorded, the lines of tables; `select` the selection and nothing
     ## else; `good` done; `bad` failed, deleted; `warn` advisory; `code` literal text (a command, an option, a name in
-    ## the program: what is between backticks); `file` the path of a file or a directory
+    ## the program: what is between backticks); `file` the path of a file or a directory; `tag` a tag (reverse video and
+    ## no colour of its own, so that a tag in a selected row is in the selection's colour: styles stack)
   codeStyle* = "code"
     ## the style of literal text (`` `nch climbs` `` in `~"..."` is `<code nch climbs>`): in colour the style marks it;
     ## without colour, and inside a warning or a failure, backticks round it do (`text`, `theme.render`)

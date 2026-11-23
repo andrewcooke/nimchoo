@@ -33,9 +33,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
 
-21. **Tags** (the author's `dev/tags.md`, with what was decided below it).  In order, each a step:
-    1. the `tags` package: `activity_tag(activity_id, tag)`, the tag type (what it may hold), matching in SQL on a
-       normalised copy (case and accents, `*`), and the `tag` style (`programStyles`, the built-in themes: reverse);
+21. **Tags** (the author's `dev/tags.md`, with what was decided below it).  Step 1 done (2026-11-23: the `tags` package,
+    its table, what a tag is, matching, the `tag` style).  In order, each a step:
     2. `--tags` for `activities` (contributed, "and"), and the tags shown in the list;
     3. the sport as a tag at import (`sport:cycling:road`; an import step), then `--sports` and `--sub-sports` go and the
        list's count by sport reads the tags (ignoring the sub-sport);
