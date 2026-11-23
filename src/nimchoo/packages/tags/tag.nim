@@ -75,16 +75,24 @@ func tagsSql*(patterns: openArray[TagPattern], activity = "a.id"): Sql =
       .with(name, foldText($p))
 
 proc addTags*(
-    st: Store, activity: ActivityId, tags: openArray[Tag]
-) {.raises: [StoreError].} =
-  ## Give the activity these tags (one it has already, whatever its case or accents, stays as it was).
+    db: DbConn, activity: ActivityId, tags: openArray[Tag]
+): int {.raises: [StoreError].} =
+  ## Give the activity these tags (one it has already, whatever its case or accents, stays as it was); how many were new.
+  ## (On a connection: an import step writes inside the importer's transaction.)
   for t in tags:
-    st.db.execute(
+    db.execute(
       "insert or ignore into activity_tag(activity_id, tag, folded) values (:activity, :tag, :folded)",
       activity = activity,
       tag = $t,
       folded = t.folded,
     )
+    result += db.scalar(int, "select changes()")
+
+proc addTags*(
+    st: Store, activity: ActivityId, tags: openArray[Tag]
+) {.raises: [StoreError].} =
+  ## Give the activity these tags (one it has already, whatever its case or accents, stays as it was).
+  discard st.db.addTags(activity, tags)
 
 proc removeTags*(
     st: Store, activity: ActivityId, tags: openArray[Tag]

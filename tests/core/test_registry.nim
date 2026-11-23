@@ -291,10 +291,11 @@ suite "extension points":
         check c.source.len > 0
     check generated.extensions.contributions("importer/after")[0].source == "selection"
 
-  test "the real registry gives the importer the heart-rate step":
+  test "the real registry gives the importer its steps: the heart rate and the tags":
     let steps = generated.extensions.get(importStep)
-    check steps.len == 1
-    check steps[0].channels == @["heart_rate"]
+    check steps.mapIt(it.labels).sorted == @["heart-rate readings", "tags"]
+    check steps.filterIt(it.labels == "heart-rate readings")[0].channels ==
+      @["heart_rate"]
 
 suite "fragments":
   func withFragments(
