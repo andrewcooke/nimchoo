@@ -26,6 +26,21 @@ proc replaceSelection*(st: Session, ids: seq[int64]) {.raises: [StoreError].} =
     if not done:
       st.rollback()
 
+proc addToSelection*(st: Session, ids: seq[int64]): int {.raises: [StoreError].} =
+  ## Add the activities `ids` to the selection of the store's user (those already in it stay once); how many it holds now.
+  st.writing(
+    proc() {.closure, raises: [StoreError].} =
+      st.db.execute(
+        """insert or ignore into selection(user_id, activity_id)
+            select :userId, value from json_each(:ids)""",
+        userId = st.userId,
+        ids = jsonList(ids),
+      )
+  )
+  st.db.scalar(
+    int, "select count(*) from selection where user_id = :userId", userId = st.userId
+  )
+
 proc selectedIds*(st: Session): seq[int64] {.raises: [StoreError].} =
   ## The ids of the current selection of the store's user, in order.
   st.db.query(

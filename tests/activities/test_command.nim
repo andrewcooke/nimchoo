@@ -1,7 +1,7 @@
 import ../support/arrays
 import nimchoo/packages/importer/coord
 import nimchoo/packages/fit/time
-import std/[options, algorithm, os, sequtils, strutils, times, unittest]
+import std/[algorithm, options, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/climbs/ordinal
 import nimchoo/packages/db/statement
@@ -207,6 +207,44 @@ suite "list: the command":
     check chosen(db) == @["paris"]
     discard save(db, "--before", "2018-08-01")
     check chosen(db) == @["lisbon1"]
+
+  test "--also adds what is found to the selection: the \"or\" of two searches":
+    let db = world("also", true)
+    discard save(db, "--sports", "running")
+    check chosen(db) == @["paris"]
+    check list(db, "--sub-sports", "road", "--also") == exitOk
+    check chosen(db) == @["lisbon1", "paris"]
+    check list(db, "--sub-sports", "road", "--also") == exitOk
+      # (one already in it stays once)
+    check chosen(db) == @["lisbon1", "paris"]
+
+  test "--within searches only the selection; with --select it narrows the selection":
+    let db = world("within", true)
+    discard save(db, "--sports", "cycling")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    check list(db, "--within", "--sports", "running") == exitOk
+      # (finds none, keeps nothing)
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    check list(db, "--within", "--sub-sports", "road", "--select") == exitOk
+    check chosen(db) == @["lisbon1"]
+
+  test "--within: `latest` is the latest activity of the selection":
+    let db = world("withinlatest", true)
+    discard save(db, "--sports", "cycling")
+    # the latest of all is paris (running); of the selection, lisbon2 (cycling)
+    check list(db, "--within", "--sports", "latest", "--select") == exitOk
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--sports", "latest")
+    check chosen(db) == @["paris"]
+
+  test "--also and --within go only where they mean something":
+    let db = world("refused", true)
+    check list(db, "--within") == exitUsage
+    check list(db, "--also") == exitUsage
+    check list(db, "--within", "--all") == exitUsage
+    check list(db, "--within", "--also", "--names", "x") == exitUsage
+    check list(db, "--select", "--also", "--names", "x") == exitUsage
+    check list(db, "--delete", "--also", "--names", "x") == exitUsage
 
   test "the newest or oldest few, of those that meet the other criteria":
     let db = world("few", true)
@@ -584,7 +622,7 @@ suite "list: the command":
 suite "list: what is shown":
   proc shown(
       db: string, args: varargs[string]
-  ): tuple[lines: seq[Line], saved: Option[int]] =
+  ): tuple[lines: seq[Line], saved: Option[Saved]] =
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
@@ -639,7 +677,7 @@ suite "list: what is shown":
   test "saving: the count is in the select style (what is listed is now the selection), and the selection shows it":
     let db = world("shownsave")
     let r = shown(db, "--newest", "1", "--select")
-    check r.saved == some(1)
+    check r.saved.get.listed == 1 and r.saved.get.kind == svReplace
     check r.lines.texts[^1].startsWith("done: 1 of ")
     check "selected" notin r.lines.texts[^1] and "saved" notin r.lines.texts[^1]
     check r.lines[^1].anyIt(styleOf(it) == "select" and it.text == "1")

@@ -152,11 +152,22 @@ type
     akDelete ## delete them (and everything made from them)
     akRename ## name them again
 
+  Save* = enum
+    ## What becomes of the selection when a listing is kept.
+    svReplace ## --select: what is listed is the selection now
+    svAdd ## --also: what is listed is added to the selection (the "or" of two searches)
+
+  Among* = enum
+    ## Where a search looks.
+    amEvery ## every activity (a search looks at all of them unless told otherwise)
+    amSelection
+      ## --within: only the selection (the "and" of a search with the one before)
+
   Action* = object
     case kind*: ActionKind
     of akList:
       verbose*: bool ## -v: show more of each activity
-      select*: bool ## --select: keep what is listed as the selection
+      save*: Option[Save] ## --select or --also: keep what is listed in the selection
     of akDelete, akRename:
       discard ## (they show nothing: no `-v`, no `--select`)
 
@@ -176,6 +187,7 @@ type
         ## each kind at most once, except the contributed ones; not empty unless there is a limit
       invert*: bool
         ## --invert: the activities that do NOT meet the filters (before the limit); there is a filter to invert
+      among*: Among ## --within: only the selection is searched
       limit*: Option[Limit]
 
   Request* = object
@@ -203,6 +215,12 @@ func filtersOf*(s: Scope): seq[Filter] =
     s.filters
   of scSelection, scAll:
     @[]
+
+func amongOf*(s: Scope): Among =
+  ## Where the scope's search looks (the selection is the selection, and `--all` every activity).
+  case s.kind
+  of scSelection, scAll: amEvery
+  of scMatching: s.among
 
 func inverts*(s: Scope): bool =
   ## Whether the activities that do NOT meet the filters are meant.

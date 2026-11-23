@@ -54,7 +54,7 @@ type
   ListState = object
     ## What the options of `nch activities` fill in as they are read (`finish` makes the `Request` of it).
     c: Collected
-    all, select, delete, rename, verbose, invert: bool
+    all, select, also, within, delete, rename, verbose, invert: bool
     newest, oldest: int ## 0: not given
     help: bool
     zone: Timezone
@@ -417,8 +417,24 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--select", "--save"],
         false,
         "",
-        ~"make what is listed the selection (needs criteria or `--all`)",
+        ~"make what is listed the selection, in place of the one there was (needs criteria or `--all`)",
         body = (p.select = true; fine),
+      ),
+      custom(
+        ListState,
+        ["--also"],
+        false,
+        "",
+        ~"add what is listed to the selection (the activities of this search or those selected before)",
+        body = (p.also = true; fine),
+      ),
+      custom(
+        ListState,
+        ["--within"],
+        false,
+        "",
+        ~"search only the selection (with `--select`, the selection is narrowed to what is found)",
+        body = (p.within = true; fine),
       ),
       custom(
         ListState,
@@ -518,15 +534,36 @@ func finish(st: ListState): Parsed[Request] =
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
-  if st.delete and (st.select or st.verbose):
-    return bad(~"`--delete` shows nothing: it does not go with `--select` or `-v`")
-  if st.rename and (st.delete or st.select or st.verbose):
+  if st.delete and (st.select or st.also or st.verbose):
+    return
+      bad(~"`--delete` shows nothing: it does not go with `--select`, `--also` or `-v`")
+  if st.rename and (st.delete or st.select or st.also or st.verbose):
     return bad(
-      ~"`--rename` shows nothing: it does not go with `--delete`, `--select` or `-v`"
+      ~"`--rename` shows nothing: it does not go with `--delete`, `--select`, `--also` or `-v`"
+    )
+  if st.select and st.also:
+    return bad(
+      ~"`--select` replaces the selection and `--also` adds to it: one or the other"
     )
   if st.select and not (given or st.all):
     return bad(
       ~"`--select` keeps the activities listed as the selection, so it needs criteria or `--all`"
+    )
+  if st.also and not given:
+    return bad(
+      ~"`--also` adds what the criteria find to the selection, so it needs criteria"
+    )
+  if st.within and st.all:
+    return bad(
+      ~"`--within` searches the selection and `--all` every activity: one or the other"
+    )
+  if st.within and not given:
+    return bad(
+      ~"`--within` searches the selection, so it needs criteria (`nch activities` alone shows the selection)"
+    )
+  if st.within and st.also:
+    return bad(
+      ~"`--also` adds to the selection what `--within` finds in it: there is nothing to add"
     )
   if st.invert and filters.len == 0:
     return bad(
@@ -552,12 +589,28 @@ func finish(st: ListState): Parsed[Request] =
     elif st.rename:
       Action(kind: akRename)
     else:
-      Action(kind: akList, verbose: st.verbose, select: st.select)
+      Action(
+        kind: akList,
+        verbose: st.verbose,
+        save:
+          if st.select:
+            some(svReplace)
+          elif st.also:
+            some(svAdd)
+          else:
+            none(Save),
+      )
   let scope =
     if st.all:
       Scope(kind: scAll, allLimit: limit)
     elif given:
-      Scope(kind: scMatching, filters: filters, invert: st.invert, limit: limit)
+      Scope(
+        kind: scMatching,
+        filters: filters,
+        invert: st.invert,
+        limit: limit,
+        among: (if st.within: amSelection else: amEvery),
+      )
     else:
       Scope(kind: scSelection)
   parsedOk(Request(action: action, scope: scope))
@@ -677,15 +730,23 @@ func matchSql*(
     columns = sqlOf("a.id"),
     invert = false,
     limit = none(Limit),
+    among = amEvery,
 ): Sql =
   ## A query for the activities of the user `userId` that meet the filters, giving
   ## `columns` (of `a`, the activity, and `f`, its file).  The one place the
   ## criteria become SQL, used to list them, to count them and to save them.  Every value is bound by name (`sqltext.nim`).
-  ## The filters are only `Resolved` ones: nothing in them is still to be found out.
+  ## The filters are only `Resolved` ones: nothing in them is still to be found out.  `among` is where it looks: every
+  ## activity, or only the selection (`--within`; `--invert` then means those of the selection that do not meet them).
   result =
     "select " & columns & " from activity a join file f on f.id = a.file_id " &
     "where f.user_id = :user"
   result = result.with("user", int64(userId))
+  case among
+  of amEvery:
+    discard
+  of amSelection:
+    result =
+      result & " and a.id in (select activity_id from selection where user_id = :user)"
   var ordered = filters
   ordered.sort(
     proc(a, b: Resolved): int =
