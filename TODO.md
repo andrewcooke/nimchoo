@@ -128,9 +128,16 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 * **`nch climbs`: simpler, and more** (the author, 2026-11-20): simplified (the list mixes the selected and the
   not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
   extended (the best and the most recent attempts).  To design with the author.
-* **The `ff` rework** (design note `dev/ff.md`, started 2026-11-23: the model is the subject; FF by a model's tags, never
-  the activity selection; the impulse per stretch of riding, measured 2026-11-23: 40 times closer than the hourly
-  impulses).
+* **The `ff` rework** (design note `dev/ff.md`, 2026-11-23: the model is the subject; FF by a model's tags, never the
+  activity selection; the impulse per stretch of riding, measured: 40 times closer than the hourly impulses).  The steps:
+  1. the impulse per stretch, at its centre, and the curves as exact sums on no grid (the hourly table `impulse` goes);
+     `nch ff` draws as now meanwhile;
+  2. `nch ff` manages the models: the models selection (built-in `default`, selected from the start), `--base` (copied),
+     editing (impulses worked out again), deleting, the nine parameters and the tag patterns; names matched as tags are.
+     Open: whether the editable objects (17) are built here, models their first user, or with landmarks first;
+  3. the `plot` view (`nch plot ff`: fitness, fatigue and form of each selected model; the activities' impulse per day),
+     replacing `ff`'s chart and its options (`--hourly`, `--utc`, `--model`, the scales), and E7 with it;
+  4. the calendar's background frames (a value as a colour between the theme's `hot` and `cold`, 3 samples a day).
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning

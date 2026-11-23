@@ -49,7 +49,7 @@ decided is marked so; the rest is open.
   fatigue or form), its value a colour from the theme's scale (between a theme's `hot` and `cold`, interpolated in HSV, as `tools/look.nim` shows them: not in the program yet), and it varies across
   the cell: in colour a cell is 3 columns (the date's two digits and a space; the brackets are only the mark without
   colour), so 3 samples a day, every 8 hours (2 if the space stays plain).
-  Several things at once in a cell: no idea yet, not now.  Open: a frame per model when several are selected; a legend.
+  Several things at once in a cell: no idea yet, not now.  Open: which model's frame when several are selected; a legend.
 * **The scales are the model's** (2026-11-23): in the model this comes from (Banister's) performance, which is what form
   stands for, is `k1 * fitness - k2 * fatigue`, the weights being parameters of the model as the decay times are.  So
   `fitness-scale` (k1, default 1) and `fatigue-scale` (k2, default 5, the original's) move from the chart into the model;
@@ -57,7 +57,10 @@ decided is marked so; the rest is open.
   their difference.  A model's parameters are then: `gamma` (2), `zero` (1), `one` (6), `max-gap` (60s), `zones` (68, 83,
   94, 105, 121: British Cycling's, % of the FTHR), `fitness-decay` (42d), `fatigue-decay` (7d), `fitness-scale` (1),
   `fatigue-scale` (5), and its tag patterns (none: all the activities).
-* **Form** is a series of each selected model (a frame of `plot`, a background of the calendar).
+* **The frames of the `ff` subject are fitness, fatigue and form**, each drawn for every selected model: in `plot` the
+  frames ticked times the models selected (two models, fitness and form: four lines); in the calendar the background is
+  one frame of one model (with several selected, which one is the open point below; the first selected, said in the
+  legend, is the simplest).
 * **No grid, so no `--hourly`** (2026-11-23): the plot uses the day-ends, finer on its page.  `--model` goes (the models
   selection); `--after`/`--before` stay, on `plot`; `--utc` goes (days are the user's timezone's everywhere).
 * **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
