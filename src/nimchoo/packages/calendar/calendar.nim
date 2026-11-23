@@ -13,7 +13,7 @@
 ## the first to this one; `skippedMonths` says how many the first leaves out, and the names of the months either side of
 ## a gap are in the warning style (with a `*` after them when there is no colour).
 ##
-## With colour, a calendar may be *shaded* (`Shading`): each day's three columns (the space before it and its two digits)
+## With colour, a calendar may be *shaded* (`Shading`): each day's three columns (its two digits and the space after them)
 ## have the background of a third of the day, a style `NAME,FRACTION` that the theme draws by the stops `NAME-0` ... `NAME-1`
 ## (`core/theme`); the day's own style (marked, plain, hidden) is drawn over it.
 ##
@@ -77,7 +77,7 @@ type DayKind = enum
   dkMarked ## a mark falls on it
 
 func dayCell(day: int, kind: DayKind, s: Screen): Line =
-  ## A day, by what falls on it.  With colour it is the two digits (the spaces between days are the line's: see
+  ## A day, by what falls on it.  With colour it is the two digits (the space after each day is the line's: see
   ## `calendarLines`); without, five columns, a marked day in brackets as every selected thing is (`line.bracketed`).
   if s.colour:
     case kind
@@ -187,7 +187,9 @@ proc calendarLines*(
       months.find(m) < months.high and months[months.find(m) + 1] - m > 1
     var line: Line =
       if screen.colour:
-        (if gap: ~"<warn {monthNames[m mod 12]}>" else: ~"{monthNames[m mod 12]}")
+        # (the label's `labelWidth` columns: the name and a space before the first day, never shaded)
+        # (two spans, the name and the space, like every cell: the two columns and the space)
+        (if gap: ~"<warn {monthNames[m mod 12]}>" else: ~"{monthNames[m mod 12]}") & ~" "
       elif gap:
         ~"{monthNames[m mod 12]}*"
       else:
@@ -196,8 +198,9 @@ proc calendarLines*(
       let day = k - offset + 1
       if day < 1 or day > days:
         if screen.colour:
-          line.add ~" " # (the space before each day: see below)
-        line.add ~"{' '.repeat(if screen.colour: 2 else: cw)}"
+          line.add [span("  "), span(" ")]
+        else:
+          line.add ~"{' '.repeat(cw)}"
       else:
         let key = dayKey(year, month, day)
         let kind =
@@ -208,17 +211,16 @@ proc calendarLines*(
           else:
             dkNone
         if shading.isSome:
-          # the space and the two digits, each in its third's shade, the day's own style over the digits
+          # the two digits and the space after them, each in its third's shade, the day's own style over the digits
           let digits = two(day)
-          line.add shadeSpan(" ", shading, thirdKey(key, 0), @[])
-          line.add shadeSpan($digits[0], shading, thirdKey(key, 1), kindStyles(kind))
-          line.add shadeSpan($digits[1], shading, thirdKey(key, 2), kindStyles(kind))
+          line.add shadeSpan($digits[0], shading, thirdKey(key, 0), kindStyles(kind))
+          line.add shadeSpan($digits[1], shading, thirdKey(key, 1), kindStyles(kind))
+          line.add shadeSpan(" ", shading, thirdKey(key, 2), @[])
         else:
-          if screen.colour:
-            line.add ~" " # (the space before each day: see below)
           line.add dayCell(day, kind, screen)
+          if screen.colour:
+            line.add ~" " # (the space after each day: see below)
     if screen.colour:
-      line.add ~" "
       # a space next to a marked day is marked too, so that a marked day, or a run of them, is a band (" 05 06 "), not
       # the digits and the space after them
       for i in 1 ..< line.high:

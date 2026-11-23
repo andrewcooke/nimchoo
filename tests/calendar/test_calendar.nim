@@ -287,13 +287,15 @@ suite "calendar: detail and shades":
         @[row(at(2018, mAug, 27))], @[], utc(), dtData, later, colourScreen, some(sh)
       )
       .monthRow("Aug")
-    check aug.anyIt(it.text == " " and it.styles == @[shaded("fitness", 0.0)])
     check aug.anyIt(
-      it.text == "2" and it.styles == @[shaded("fitness", 0.5), selectedStyle]
+      it.text == "2" and it.styles == @[shaded("fitness", 0.0), selectedStyle]
     )
     check aug.anyIt(
-      it.text == "7" and it.styles == @[shaded("fitness", 1.0), selectedStyle]
+      it.text == "7" and it.styles == @[shaded("fitness", 0.5), selectedStyle]
     )
+    check aug.anyIt(it.text == " " and it.styles == @[shaded("fitness", 1.0)])
+    # the label and the space after it are never shaded: "Aug " and then the days
+    check aug[0].text == "Aug" and aug[1].text == " " and aug[1].styles.len == 0
     # a day with no value is not shaded
     check not aug.anyIt(
       it.text == "8" and it.styles.len > 0 and ($it.styles[0]).contains(',')
