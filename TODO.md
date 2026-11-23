@@ -14,8 +14,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 5. **Options for one case** (decided 2026-11-20): `--latest` stays (it will be common); `together` is gone (the summary's
    one U/B column).  Left: the calendar keeps leaving out the months with nothing marked (needed for a calendar like
-   Farellones'), but its "N months omitted" warning may go: to look at after B.  `ff`'s `--fitness-scale`,
-   `--fatigue-scale` and `--hourly` are an item of their own (below, Features).
+   Farellones'), but its "N months omitted" warning may go: to look at after B.  `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly` are settled in `dev/ff.md`.
 
 ### B. Share
 
