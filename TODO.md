@@ -120,6 +120,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Features and ideas, unordered
 
+* **`nch calendar --full`** in place of `-v` (the author, 2026-11-23): with none, rows with nothing in them are skipped (as
+  now); with `--full`, every row from the first non-empty to the last; with `--full --full`, every row from the first file
+  to today.  For the activities' calendar (a calendar of `ff`, being continuous, is always whole).  The warning "N months
+  ... omitted" says `--full`.
 * **Lines for the calendar** (the author, 2026-11-20): `nch calendar` drawn with lines, as the tables are (a rule under
   the weekday names, lines between the month, the days and the year?).  To look at with the author.
 * **`nch climbs`: simpler, and more** (the author, 2026-11-20): simplified (the list mixes the selected and the
@@ -128,8 +132,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 * **The `ff` rework** (design note `dev/ff.md`, started 2026-11-23: the model is the subject; FF by a model's tags, never
   the activity selection; the impulse per stretch of riding, measured 2026-11-23: 40 times closer than the hourly
   impulses).
-* **`ff`'s options** (the author, 2026-11-20: needs a lot of work, as an item of its own): `--fitness-scale`,
-  `--fatigue-scale` and `--hourly` are settings of one chart; look at what they are for before deciding what stays.
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.
 * **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning

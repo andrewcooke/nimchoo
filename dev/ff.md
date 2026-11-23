@@ -50,6 +50,16 @@ decided is marked so; the rest is open.
   the cell: in colour a cell is 3 columns (the date's two digits and a space; the brackets are only the mark without
   colour), so 3 samples a day, every 8 hours (2 if the space stays plain).
   Several things at once in a cell: no idea yet, not now.  Open: a frame per model when several are selected; a legend.
+* **The scales are the model's** (2026-11-23): in the model this comes from (Banister's) performance, which is what form
+  stands for, is `k1 * fitness - k2 * fatigue`, the weights being parameters of the model as the decay times are.  So
+  `fitness-scale` (k1, default 1) and `fatigue-scale` (k2, default 5, the original's) move from the chart into the model;
+  form = `fitness-scale * fitness - fatigue-scale * fatigue`; the plot draws fitness and fatigue scaled, so that form is
+  their difference.  A model's parameters are then: `gamma` (2), `zero` (1), `one` (6), `max-gap` (60s), `zones` (68, 83,
+  94, 105, 121: British Cycling's, % of the FTHR), `fitness-decay` (42d), `fatigue-decay` (7d), `fitness-scale` (1),
+  `fatigue-scale` (5), and its tag patterns (none: all the activities).
+* **Form** is a series of each selected model (a frame of `plot`, a background of the calendar).
+* **No grid, so no `--hourly`** (2026-11-23): the plot uses the day-ends, finer on its page.  `--model` goes (the models
+  selection); `--after`/`--before` stay, on `plot`; `--utc` goes (days are the user's timezone's everywhere).
 * **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
   structure such as `cycling:hard` by convention) and matched as tags are (case and accents aside, `*` for anything), so
   views and commands select models with patterns of names.  The names are not tags: nothing connects a model called
@@ -88,5 +98,4 @@ hourly table `impulse` goes.
 
 ## Open
 
-* Form (fitness minus fatigue); hours or days; what `--fitness-scale`, `--fatigue-scale` and `--hourly` were for.
 * Power estimates are a separate matter (where tags come in too, by the author: not FF).
