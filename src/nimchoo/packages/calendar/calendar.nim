@@ -58,7 +58,13 @@ const
   cells* = 37
     ## a month starting on a Sunday has 31 days in 37 cells (Monday-first weeks)
   labelWidth = 4
-  yearWidth = 6
+    ## the month's name and what follows it, before the first day: at least the longest name and the mark of a gap
+    ## ("Mar*", checked when compiled)
+  yearWidth = 6 ## the year, to the right, after the last day
+
+static:
+  # (the label holds the longest name and a mark: `calendarLines`; the year has a space before it)
+  doAssert labelWidth >= monthNames.mapIt(it.len).max + 1 and yearWidth >= 5
 
 func cellWidth*(s: Screen): int =
   ## The width of a day in the calendar: 3 with colour (the day is coloured), 5 without.
@@ -185,15 +191,13 @@ proc calendarLines*(
     let gap =
       months.find(m) > 0 and m - months[months.find(m) - 1] > 1 or
       months.find(m) < months.high and months[months.find(m) + 1] - m > 1
+    # the label, `labelWidth` columns, never shaded: the name, then (without colour) a * if the month is beside a gap, then
+    # spaces (two spans, the name and the rest, like every cell: its two columns and the space)
+    let name = monthNames[m mod 12]
+    let mark = (if not screen.colour and gap: "*" else: "")
     var line: Line =
-      if screen.colour:
-        # (the label's `labelWidth` columns: the name and a space before the first day, never shaded)
-        # (two spans, the name and the space, like every cell: the two columns and the space)
-        (if gap: ~"<warn {monthNames[m mod 12]}>" else: ~"{monthNames[m mod 12]}") & ~" "
-      elif gap:
-        ~"{monthNames[m mod 12]}*"
-      else:
-        ~"{monthNames[m mod 12]} "
+      (if screen.colour and gap: ~"<warn {name}>" else: ~"{name}") &
+      ~"{mark}{' '.repeat(labelWidth - name.len - mark.len)}"
     for k in 0 ..< cells:
       let day = k - offset + 1
       if day < 1 or day > days:
@@ -229,7 +233,7 @@ proc calendarLines*(
           line[i + 1].styles == @[selectedStyle]
         ):
           line[i] = span(" ", selectedStyle)
-    line.add ~"  {year}"
+    line.add ~"{($year).align(yearWidth)}"
     result.add line
   if screen.width.isSome and calendarWidth(screen) > screen.width.get:
     result = result.mapIt(it.truncated(screen.width.get))

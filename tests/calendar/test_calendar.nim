@@ -313,3 +313,11 @@ suite "calendar: detail and shades":
     check l.text.startsWith("shade: form of default, -12.2 ") and
       l.text.endsWith(" 40.0")
     check l.filterIt(it.styles.len > 0 and ($it.styles[0]).startsWith("form,")).len == 16
+
+suite "calendar: the widths are the constants'":
+  test "every row is calendarWidth columns, the label its own, in colour and without, beside a gap or not":
+    let rs = @[row(at(2018, mMar, 5)), row(at(2018, mJun, 5)), row(at(2018, mJul, 5))]
+    for screen in [colourScreen, plainScreen]:
+      let ls = calendarLines(rs, @[], utc(), dtData, later, screen)
+      for l in ls[1 ..^ 1]:
+        check l.width == calendarWidth(screen)
