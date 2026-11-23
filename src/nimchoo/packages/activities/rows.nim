@@ -1,7 +1,7 @@
 ## The rows of a listing of activities, as the table and the calendar show them: what a row is made of, and reading
 ## them from a query (`activities` runs the queries, so it may read the tables of `importer` and `selection`).
 
-import std/options
+import std/[options, strutils]
 import ../../core/[errors, ids]
 import ../db/[sqltext, statement, store]
 import ../fit/time
@@ -27,14 +27,21 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
       # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
       "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
       # whether it has a start (said "no GPS" if not): -v only
-      if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon"
-      else: "null as slat, null as slon"
+      if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon, "
+      else: "null as slat, null as slon, "
+    ) & (
+      # its tags, as given, in the order of their folded forms: -v only
+      if verbose:
+        "coalesce((select group_concat(tag, ' ') from (select tag from activity_tag " &
+          "where activity_id = a.id order by folded)), '') as tags"
+      else:
+        "'' as tags"
     )
   )
     .with("me", userId)
 
 const rowFields* =
-  "start_t, sport, sub, dist, active, chosen, path, pname, aname, slat, slon"
+  "start_t, sport, sub, dist, active, chosen, path, pname, aname, slat, slon, tags"
   ## the columns of a row, in the order `readRows` reads them
 
 proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
@@ -47,6 +54,7 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       chosen: bool,
       path, place, name: string,
       lat, lon: Option[float],
+      tags: string,
     ],
     query,
   ):
@@ -61,6 +69,7 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       place: r.place,
       name: r.name,
       position: startText(r.lat, r.lon),
+      tags: r.tags.splitWhitespace,
     )
 
 proc activityCount*(st: Session): int {.raises: [StoreError].} =

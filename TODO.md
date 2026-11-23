@@ -34,8 +34,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
       time (an exception's message), which is one colour.
 
 21. **Tags** (the author's `dev/tags.md`, with what was decided below it).  Step 1 done (2026-11-23: the `tags` package,
-    its table, what a tag is, matching, the `tag` style).  In order, each a step:
-    2. `--tags` for `activities` (contributed, "and"), and the tags shown in the list;
+    its table, what a tag is, matching, the `tag` style) and step 2 (`--tags` of `activities`, a criterion of its own:
+    `activities` depends on `tags`, which is below it; the tags shown with `-v`, in a column).  In order, each a step:
     3. the sport as a tag at import (`sport:cycling:road`; an import step), then `--sports` and `--sub-sports` go and the
        list's count by sport reads the tags (ignoring the sub-sport);
     4. import paths with templates (`{name}`, `{}`, `*`, `~`): the import step learns the file's path and what the template

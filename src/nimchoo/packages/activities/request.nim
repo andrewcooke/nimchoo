@@ -16,6 +16,7 @@ import ../fit/time
 import ../db/sqltext
 import ../ui/units
 import ../subject/subjects
+import ../tags/tag
 import ./[criterion, ranges]
 export Among
 
@@ -61,6 +62,7 @@ type
     ftNames
     ftStarts
     ftPaths
+    ftTags
     ftContributed
     ftDistance
     ftActive
@@ -77,6 +79,8 @@ type
     of ftPaths:
       paths*: seq[string]
         ## text found in a path the file was imported from (or in its name)
+    of ftTags:
+      patterns*: seq[TagPattern] ## --tags: the activity has a tag matching each ("and")
     of ftContributed:
       contributed*: Contributed
         ## an option that another package offers (`--climbs`), as given
@@ -97,6 +101,7 @@ type
     rtNames
     rtStarts
     rtPaths
+    rtTags
     rtCondition
     rtDistance
     rtActive
@@ -119,6 +124,8 @@ type
       ids*: seq[int64] ## the activities a whole number meant (names only)
     of rtPaths:
       paths*: seq[string]
+    of rtTags:
+      tags*: seq[TagPattern]
     of rtCondition:
       condition*: Sql
         ## from the package that offers the criterion: true for the activities that meet it
@@ -159,7 +166,7 @@ type
     of akList:
       verbose*: bool ## -v: show more of each activity
       select*: bool
-        ## --select: what is listed replaces the selection (step 7 of the usage's notes)
+        ## --select: what is listed replaces the selection (the usage's steps)
     of akDelete, akRename:
       discard ## (they show nothing: no `-v`, no `--select`)
 
@@ -179,8 +186,8 @@ type
         ## each kind at most once, except the contributed ones; not empty unless there is a limit
       invert*: bool
         ## --invert: the activities that do NOT meet the filters (before the limit); there is a filter to invert
-      among*: Among ## --within: only the selection is searched (step 2)
-      also*: bool ## --also: the selection is added to what is found (step 5)
+      among*: Among ## --within: only the selection is searched
+      also*: bool ## --also: the selection is added to what is found
       limit*: Option[Limit]
 
   Request* = object
@@ -228,7 +235,7 @@ func refersTo*(f: Filter, r: Referent): bool =
     f.spread.byReference and f.spread.refers == r
   of ftFrom, ftNear:
     f.place.kind == plReferent and f.place.refers == r
-  of ftPaths, ftContributed, ftAfter, ftBefore, ftGps:
+  of ftPaths, ftTags, ftContributed, ftAfter, ftBefore, ftGps:
     false
 
 func usesLatest*(filters: seq[Filter]): bool =
@@ -267,5 +274,5 @@ func withoutLatest*(f: Filter): Option[Filter] =
       none(Filter)
     else:
       some(f)
-  of ftPaths, ftContributed, ftAfter, ftBefore, ftGps:
+  of ftPaths, ftTags, ftContributed, ftAfter, ftBefore, ftGps:
     some(f)

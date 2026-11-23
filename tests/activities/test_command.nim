@@ -12,6 +12,7 @@ from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 import nimchoo/packages/activities/command as listCommand
 import nimchoo/packages/names/landmarks
 import nimchoo/packages/activities/criteria
+import nimchoo/packages/tags/tag
 import nimchoo/packages/util/args/args
 import nimchoo/core/logfile
 import nimchoo/packages/ui/style
@@ -95,6 +96,23 @@ proc world(name: string, together = false): string =
     -9.20,
     38.70,
   )
+
+proc tagged(db, name: string, tags: varargs[string]) =
+  ## Give the activity of the file `name` these tags.
+  let s = openSession(db, allFragments, access = allAccess)
+  defer:
+    s.close()
+  let a = ActivityId(
+    s.db.scalar(
+      int64,
+      "select a.id from activity a join file f on f.id = a.file_id where f.name = :name",
+      name = name,
+    )
+  )
+  var ts: seq[Tag]
+  for t in tags:
+    ts.add parseTag(t).tag.get
+  s.addTags(a, ts)
 
 proc list(db: string, args: varargs[string]): int =
   listCommand.run(
@@ -672,6 +690,26 @@ suite "list: what is shown":
     check shown(db, "--sports", "running").lines.blueRows ==
       @[true] # (selected now, by the --select above)
     check shown(db, "--sports", "running", "--also").lines.blueRows == @[true, true]
+
+  test "--tags: activities with a tag matching each pattern; -v shows them, in tag, the selection's colour round them":
+    let db = world("tags", true)
+    tagged(db, "lisbon1", "bike:Cotic", "Arrayán")
+    tagged(db, "lisbon2", "bike:brompton")
+    discard save(db, "--tags", "bike:*")
+    check chosen(db) == @["lisbon1", "lisbon2"]
+    discard save(db, "--tags", "BIKE:cotic", "arrayan")
+      # (case and accents do not matter; "and")
+    check chosen(db) == @["lisbon1"]
+    check list(db, "--tags", "-x") == exitUsage
+    let r = shown(db, "--all", "-v")
+    check r.lines.texts[0].contains("│ tags ")
+    let row = r.lines.filterIt(it.text.contains("Arrayán bike:Cotic"))
+    check row.len == 1
+    let t = row[0].filterIt(it.text == "bike:Cotic")
+    check t.len == 1 and
+      t[0].styles ==
+      @[styleName"select", styleName"tag"]
+        # (lisbon1 is selected: the tag is drawn over the selection's band)
 
   test "-v adds the path of the file, -n is --newest":
     let db = world("shownfile")

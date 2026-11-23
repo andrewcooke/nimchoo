@@ -9,6 +9,7 @@ import ../geo/box
 import ../db/sqltext
 import ../../core/ids
 import ../text/fold/fold
+import ../tags/tag
 import ./[completion, criterion, ranges, request]
 export ranges, criterion, near, request
 
@@ -46,6 +47,7 @@ type
     ## The criteria as the options give them, one field to each (`finish` makes the `Filter`s of them).
     sports, subSports, names, starts: Listed
     paths: seq[string]
+    tags: seq[TagPattern]
     contributed: seq[Contributed]
     distance, active: Option[Spread]
     afterT, beforeT: Option[UnixTime]
@@ -151,6 +153,20 @@ proc takePaths(
       p.c.paths.add v.strip
   if p.c.paths.len == 0:
     return refuse(~"`{name}` needs some text")
+  fine
+
+proc takeTags(
+    p: var ListState, name: string, values: seq[string]
+): Problem {.nimcall.} =
+  ## --tags: patterns of tags, each with `*` for anything.
+  p.criteriaGiven = true
+  for v in values:
+    let r = parsePattern(v)
+    if r.problem.isSome:
+      return refuse(~"`{name}`: {r.problem.get}")
+    p.c.tags.add r.pattern.get
+  if p.c.tags.len == 0:
+    return refuse(~"`{name}` needs a tag (`*` for anything: `bike:*`)")
   fine
 
 proc takeContributed(
@@ -322,6 +338,12 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         "TEXT...",
         ~"the same for the path of the file the activity was imported from (or any other path the same file was seen at): `--paths bowman`, `--paths 2026-10`",
       ),
+      listOption[ListState](
+        ["--tags"],
+        takeTags,
+        "TAG...",
+        ~"activities that have a tag matching each (all of them: \"and\"), whatever its case or accents; `*` is anything: `--tags bike:cotic`, `--tags 'sport:cycling*'` (quoted, or the shell reads the `*`)",
+      ),
       custom(
         ListState,
         ["--distance"],
@@ -409,7 +431,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--select"],
         false,
         "",
-        ~"what is listed becomes the selection, in place of the one there was (step 7; needs criteria or `--all`)",
+        ~"what is listed becomes the selection, in place of the one there was (the last of the steps above; needs criteria or `--all`)",
         body = (p.select = true; fine),
       ),
       custom(
@@ -417,7 +439,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--also"],
         false,
         "",
-        ~"add the selection to what the criteria find (step 5): with `--select`, they are added to the selection",
+        ~"add the selection to what the criteria find (after the filters and the limits): with `--select`, they are added to the selection",
         body = (p.also = true; fine),
       ),
       custom(
@@ -425,7 +447,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["--within"],
         false,
         "",
-        ~"search only the selection (step 2): with `--select`, the selection is narrowed to what is found",
+        ~"search only the selection (before any filter): with `--select`, the selection is narrowed to what is found",
         body = (p.within = true; fine),
       ),
       custom(
@@ -449,7 +471,7 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
         ["-v", "--verbose"],
         false,
         "",
-        ~"show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), and the path of its file",
+        ~"show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), its tags, and the path of its file",
         body = (p.verbose = true; fine),
       ),
       helpFlag(ListState),
@@ -493,6 +515,8 @@ func filtersOf(c: Collected, w: Where): seq[Filter] =
     result.add Filter(kind: ftStarts, listed: c.starts)
   if c.paths.len > 0:
     result.add Filter(kind: ftPaths, paths: c.paths)
+  if c.tags.len > 0:
+    result.add Filter(kind: ftTags, patterns: c.tags)
   for o in c.contributed:
     result.add Filter(kind: ftContributed, contributed: o)
   if c.distance.isSome:
@@ -744,6 +768,8 @@ func matchSql*(
       filt = filt & textSql("a.start_place", "start", f.typed, f.exact)
     of rtPaths:
       filt = filt & pathSql(f.paths)
+    of rtTags:
+      filt = filt & tagsSql(f.tags)
     of rtCondition:
       filt = filt & sqlOf(" and (") & f.condition & sqlOf(")")
     of rtDistance:

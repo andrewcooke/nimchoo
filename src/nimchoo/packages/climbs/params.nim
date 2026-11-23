@@ -46,9 +46,9 @@ type
       discard
     of lkFound:
       criteria*: ClimbCriteria ## none given: every climb (`--all`)
-      select*: bool ## --select: what is listed replaces the climbs selection (step 7)
-      among*: Among ## --within: only the climbs selection is searched (step 2)
-      also*: bool ## --also: the climbs selection is added to what is found (step 5)
+      select*: bool ## --select: what is listed replaces the climbs selection
+      among*: Among ## --within: only the climbs selection is searched
+      also*: bool ## --also: the climbs selection is added to what is found
 
   ChangeKind* = enum
     ckRename
@@ -152,19 +152,19 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--select"],
         select,
-        ~"what is listed becomes the climbs selection, which `nch climbs` lists and `nch map climbs` shows, in place of the one there was (step 7; needs criteria or `--all`)",
+        ~"what is listed becomes the climbs selection, which `nch climbs` lists and `nch map climbs` shows, in place of the one there was (the last of the steps above; needs criteria or `--all`)",
       ),
       flag(
         Raw,
         ["--also"],
         also,
-        ~"add the climbs selection to what the criteria find (step 5): with `--select`, they are added to the selection",
+        ~"add the climbs selection to what the criteria find (after the filters): with `--select`, they are added to the selection",
       ),
       flag(
         Raw,
         ["--within"],
         within,
-        ~"search only the climbs selection (step 2): with `--select`, the selection is narrowed to what is found",
+        ~"search only the climbs selection (before any filter): with `--select`, the selection is narrowed to what is found",
       ),
       flag(
         Raw,

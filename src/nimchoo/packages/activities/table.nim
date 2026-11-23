@@ -34,6 +34,7 @@ type ListRow* = object
   name*: string ## what it is called ("" if nothing)
   position*: string ## its start as `startText` (no GPS if it has none)
   selected*: bool ## it is in the selection (of the current user)
+  tags*: seq[string] ## its tags (read only for `-v`; a tag holds no space)
 
 func startText*(lat, lon: Option[float]): string =
   ## Where an activity started, as every position is written (`geo/position`: "-33.4362,-70.6090", which Google Maps takes
@@ -79,8 +80,8 @@ proc table*(
 ): seq[Line] =
   ## The header and a line for each row, as a table (`core/ruled.nim`, the last column wrapped to `width`; distance and
   ## active to the right): the start, the sport, the distance, the active time and "place / name" of each activity
-  ## (describe.nim), and if `verbose` the sub-sport after the sport and the path of the file last.  No lines at all if
-  ## there are no rows.
+  ## (describe.nim), and if `verbose` the sub-sport after the sport, the tags (each in `tag`), and the path of the file
+  ## last.  No lines at all if there are no rows.
   ##
   ## Styles: a row in the selection is `select` all through (a band, the lines between the columns too); a transition row
   ## is `hide` all through; "-" (not recorded) is `hide`; a distance or an active time that shows as zero is `warn`.  With
@@ -90,7 +91,7 @@ proc table*(
     return
   var header = @["start", "sport", "distance", "active", "place / name"]
   if verbose:
-    header.add "path"
+    header.add ["tags", "path"]
   const first = 2 # the distance column; the active time follows (`right` below)
   var cells: seq[seq[Line]]
   var styles: seq[seq[StyleName]]
@@ -110,6 +111,14 @@ proc table*(
         else:
           plain(text)
       )
+    if verbose:
+      # (each tag in `tag`, over the row's style: in the selection, reverse video in its colour)
+      var tags: Line
+      for k, t in r.tags:
+        if k > 0:
+          tags.add span(" ")
+        tags.add ~"<tag {t}>"
+      line.insert(tags, line.len - 1)
     cells.add line
     styles.add(
       if r.isTransition:

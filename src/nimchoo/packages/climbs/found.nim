@@ -95,7 +95,7 @@ proc foundClimbs*(
       else:
         query & " and (" & joined & ")"
   if also:
-    # (step 5: the climbs selection is added, after the criteria)
+    # (--also: the climbs selection is added, after the criteria)
     query =
       sqlOf("select s.id from sector s where s.retired = 0 and (s.id in (") & query &
       sqlOf(

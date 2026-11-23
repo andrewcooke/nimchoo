@@ -276,6 +276,8 @@ proc resolveFilter(f: Filter, env: Env): Resolved {.raises: [StoreError].} =
     )
   of ftPaths:
     Resolved(kind: rtPaths, paths: f.paths)
+  of ftTags:
+    Resolved(kind: rtTags, tags: f.patterns)
   of ftContributed:
     Resolved(kind: rtCondition, condition: env.conditions.must(f.contributed.option))
   of ftDistance:
@@ -356,7 +358,7 @@ proc resolveScope(
 ): Search {.raises: [StoreError].} =
   ## `previous` (in --from, --near, --distance, --active, --sports, --sub-sports) is the one activity
   ## that was selected before; `latest` is the newest activity among those that meet the
-  ## criteria that do not mention `latest` (steps 2, 4 and 5 of the usage).  `previous` is found first, so a criterion that
+  ## criteria that do not mention `latest` (as the usage's steps say).  `previous` is found first, so a criterion that
   ## uses it is one of those among which `latest` is found.
   let filters = scope.filtersOf
   result.among = scope.amongOf
@@ -381,7 +383,7 @@ proc resolveScope(
       if f.place.kind == plPlace and f.place.name notin env.places:
         let p = placeNamed(st, f.place.name)
         env.places[f.place.name] = (lat: p.lat, lon: p.lon, said: p.said)
-    of ftStarts, ftPaths, ftDistance, ftActive, ftAfter, ftBefore, ftGps:
+    of ftStarts, ftPaths, ftTags, ftDistance, ftActive, ftAfter, ftBefore, ftGps:
       discard
   if usesPrevious(filters):
     let prev = previousSelected(st)
@@ -390,7 +392,7 @@ proc resolveScope(
   if usesLatest(filters):
     var base: seq[Resolved]
     for f in filters:
-      # (step 4 of the usage: every filter that does not use `latest`)
+      # (as the usage's steps say: every filter that does not use `latest`)
       let rest = f.withoutLatest
       if rest.isSome:
         base.add resolveFilter(rest.get, env)
@@ -464,9 +466,9 @@ proc listActivities*(
     return
   let r = resolveScope(st, request.scope, zone)
   result.lines = r.notes
-  # steps 1 to 4 of the usage's notes: every activity, or the selection (--within); the filters; the limit
+  # the usage's steps: every activity, or the selection (--within); the filters; the limit
   let found = matchSql(st.userId, r.filters, sqlOf("a.id"), r.invert, r.limit, r.among)
-  # step 5: --also adds the selection
+  # --also adds the selection
   var listed = sqlOf("a.id in (") & found & ")"
   if request.scope.kind == scMatching and request.scope.also:
     listed =
@@ -478,12 +480,12 @@ proc listActivities*(
   let shown =
     sqlOf("select a.id as id, ") & rowColumns(verbose, st.userId) &
     " from activity a join file f on f.id = a.file_id where " & listed
-  # step 7 (before 6 is drawn, so that the select style shows the selection after the command): --select replaces it
+  # --select replaces it (before the list is drawn, so that the select style shows the selection after the command)
   if request.action.select:
     let ids = st.db.query(int64, sqlOf("select id from (") & shown & ")")
     st.replaceSelection(ids)
     result.saved = some(ids.len)
-  # step 6: the list; the select style marks those listed that are in the selection after the command
+  # the list; the select style marks those listed that are in the selection after the command
   let rows =
     readRows(st, "select " & rowFields & " from (" & shown & ") order by start_t, id")
   let total = activityCount(st)

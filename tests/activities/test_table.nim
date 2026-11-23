@@ -141,7 +141,7 @@ suite "list table: the table":
     check table(@[row(aug27)], plus2, false, 120).texts[2].startsWith(
       "2018-08-27 14:00"
     )
-  test "verbose adds the sub-sport and the path, last":
+  test "verbose adds the sub-sport, the tags and the path, last":
     let rows = @[
       row(mar4, "cycling", "road", 1000.0, 60.0, "/x/a.fit"),
       row(aug27, "running", "", 2000.0, 120.0, "/y/bb.fit"),
@@ -152,11 +152,11 @@ suite "list table: the table":
     check plain[2] == "2018-03-04 09:12 │ cycling │    1.0km │  1m00s"
     let verbose = table(rows, zone, true, 120).texts
     check verbose[0] ==
-      "start            │ sport        │ distance │ active │ place / name │ path"
+      "start            │ sport        │ distance │ active │ place / name │ tags │ path"
     check verbose[2] ==
-      "2018-03-04 09:12 │ cycling/road │    1.0km │  1m00s │              │ /x/a.fit"
+      "2018-03-04 09:12 │ cycling/road │    1.0km │  1m00s │              │      │ /x/a.fit"
     check verbose[3] ==
-      "2018-08-27 12:00 │ running      │    2.0km │  2m00s │              │ /y/bb.fit"
+      "2018-08-27 12:00 │ running      │    2.0km │  2m00s │              │      │ /y/bb.fit"
   test "verbose: where it started and what it is called, aligned by characters, not bytes; no GPS said where they would be":
     let rows = @[
       row(
@@ -174,10 +174,12 @@ suite "list table: the table":
       row(aug27, "swimming", "", 2000.0, 120.0, "/z/c.fit", "", "no GPS"),
     ]
     let t = table(rows, zone, true, 120).texts
-    check t[2].endsWith("1m00s │ Valparaíso / Quillota and back │ /x/a.fit")
-    check t[3].endsWith("2m00s │ Zürich" & " ".repeat(24) & " │ /y/b.fit")
+    check t[2].endsWith(
+      "1m00s │ Valparaíso / Quillota and back │      │ /x/a.fit"
+    )
+    check t[3].endsWith("2m00s │ Zürich" & " ".repeat(24) & " │      │ /y/b.fit")
       # (padded to the width of the longest)
-    check t[4].endsWith("2m00s │ no GPS" & " ".repeat(24) & " │ /z/c.fit")
+    check t[4].endsWith("2m00s │ no GPS" & " ".repeat(24) & " │      │ /z/c.fit")
     # the path column starts at the same character in every line (they all end in a path of the same length)
     check t[2].runeLen == t[3].runeLen and t[3].runeLen == t[4].runeLen
   test "no GPS is said only if verbose (the positions are not read otherwise)":
