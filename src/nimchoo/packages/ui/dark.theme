@@ -25,7 +25,12 @@ tag     reverse=yes
 alt-default fg=v(default.fg, 2)
 alt-code    fg=v(code.fg, 3)
 alt-select  fg=v(select.fg, 3)
+
 # the stops of a shade (a value as a colour: the calendar's --shade), cold (0) to hot (1), with any between (default-0.5);
 # fitness-0 ... fitness-1 (and fatigue, form, impulse) would give one shade stops of its own
-default-0  bg=#1a2a5a
-default-1  bg=#7a2a1a
+# default is "viridis" colour scale
+default-0    bg=#440154
+default-0.25 bg=#3b528b
+default-0.5  bg=#21918c
+default-0.75 bg=#5ec962
+default-1    bg=#fde725
