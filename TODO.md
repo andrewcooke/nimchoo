@@ -48,6 +48,12 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Tidy left from the reviews
 
+* **Column names, at the next squash** (the author, 2026-11-23): `activity.start` (a SpatiaLite `POINT`, where the activity
+  started) becomes `start_point`, beside `start_t` and `start_place` (a suffix of one letter is a unit, `_t`, `_m`, `_s`;
+  a point is written in full, as `geo/position` does).  SpatiaLite registers a geometry column and its spatial index by
+  name, so it is done in the squash rather than as a fragment that renames it.  At the same time, look through the other
+  tables' column names for the same kind of thing.  (`sector` keeps its name: it is for Strava-like segments to come.)
+
 1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right
    (`tools/gatetruth.nim truth`), 28 start late, 33 finish early, 21 are mostly off the line.  The rest are on the **17 of 183 climbs
