@@ -32,6 +32,10 @@ decided is marked so; the rest is open.
   change of the base changes nothing else).  A model can be edited (an editable object): its stored impulses are then
   dropped and worked out again, as when the FTHR changes.  Rejected for now: a live link to the base (cycles, deleting a
   base in use, impulses worked out again down the chain, a listing that says which values are inherited).
+* **Built in: `default` only, for now** (2026-11-23): the original's (British Cycling's zones, `((zone - 1) / 5)^2`, a gap
+  over 60 s counts as nothing, 42 and 7 days), counting every activity.  The author will try others once it runs (as the
+  themes were tried); considered: by sport (`cycling`, `running`, by tags), by decay times, by formula (Edwards' TRIMP is
+  `gamma 1`, zero `0`).
 * **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
   structure such as `cycling:hard` by convention) and matched as tags are (case and accents aside, `*` for anything), so
   views and commands select models with patterns of names.  The names are not tags: nothing connects a model called
@@ -70,7 +74,6 @@ hourly table `impulse` goes.
 
 ## Open
 
-* Which models are built in.
 * The `plot` view and its frames (series), replacing `ff`'s own page (and E7, its dispatch, merged then); what `ff --file`
   becomes.
 * The calendar frames: impulse per day (activities); fitness, fatigue, form (models).
