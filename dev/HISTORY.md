@@ -4,6 +4,18 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The ceiling of a model: heart rate that is a fault (2026-11-23, the author's question about 2022-05-17)
+
+The ride of 2022-05-17 had an impulse of 1,275 (others that month: 80 to 255): its strap (a Garmin HRM3-SS) recorded 242
+to 245 bpm for all 11,179 readings, three hours of zone 6.  Measured over the author's 1,001 rides with heart rate: only
+that ride is above 186 bpm for more than ten minutes; a few have minutes of 186 to 212 (943: minutes 7 to 13, a dry strap
+at the start) or scattered spikes; "stuck at one value" was no test (169 rides have a minute of it, at ordinary rates).
+Decided with the author: a model's `ceiling`, 125% of the FTHR by default (193 bpm for 154: above the top zone edge, 121%,
+so zone 6 can be reached), above which a reading is dropped when the impulse is worked out (where the FTHR is known; the
+stored heart rate is never changed), leaving a gap that counts for nothing if longer than `max-gap`.  Said once, when
+the impulses are worked out: "2022-05-17 07:35: 11,179 heart-rate readings above 192 bpm ... ignored".  The three places
+that worked out missing impulses share `impulses.ensureImpulses`.  Rebuild: yes (a column of `ff_model`).
+
 ## `--near` quickly (2026-11-23, the author's report: `activities --near providencia --select` took seconds)
 
 The route test was the exact distance on the ellipsoid for every route whose box met the circle: 3.5 s for the author's

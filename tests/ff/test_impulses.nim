@@ -310,10 +310,10 @@ suite "nch ff":
       it.text
     ) ==
       @[
-        "model   │ gamma │ zero │ one │ max_gap_s │ zones_%          │ fitness_decay_d │ fatigue_decay_d │ fitness_scale │ fatigue_scale │ tags",
-        "────────┼───────┼──────┼─────┼───────────┼──────────────────┼─────────────────┼─────────────────┼───────────────┼───────────────┼───────────────",
-        "default │     2 │    1 │   6 │        60 │ 68/83/94/105/121 │              42 │               7 │             1 │             5",
-        "flat    │     2 │    1 │   6 │        60 │ 68/83/94/105/121 │              42 │               7 │             1 │             5 │ sport:cycling*",
+        "model   │ gamma │ zero │ one │ max_gap_s │ zones_%          │ ceiling_% │ fitness_decay_d │ fatigue_decay_d │ fitness_scale │ fatigue_scale │ tags",
+        "────────┼───────┼──────┼─────┼───────────┼──────────────────┼───────────┼─────────────────┼─────────────────┼───────────────┼───────────────┼───────────────",
+        "default │     2 │    1 │   6 │        60 │ 68/83/94/105/121 │       125 │              42 │               7 │             1 │             5",
+        "flat    │     2 │    1 │   6 │        60 │ 68/83/94/105/121 │       125 │              42 │               7 │             1 │             5 │ sport:cycling*",
       ]
   test "add, from default or a base; nothing is worked out yet; a name is taken once":
     let db = fresh("addcmd")

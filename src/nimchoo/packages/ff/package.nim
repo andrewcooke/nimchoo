@@ -1,7 +1,7 @@
 ## Fitness and fatigue: the models, their impulses, the models selection and its curves.
 ##
 ## * **A model** (`calc.Model`) is a named set of the variables of the training impulse (gamma, zero, one, the longest gap
-##   bridged, the zones), of the fitness and fatigue curves (their decay times and their scales in form), and of which
+##   bridged, the zones, the ceiling above which a reading is a fault of the sensor), of the fitness and fatigue curves (their decay times and their scales in form), and of which
 ##   activities count (tag patterns: an activity counts if it has a tag matching each; none, all of them).  Models belong
 ##   to no user.  The program makes one, `default` (the original's), built in: selected for every user from
 ##   the start, and otherwise like the others (edited, deleted; a rebuild makes it again).

@@ -13,7 +13,7 @@ import ./calc
 {.push raises: [].}
 
 const columns =
-  "m.id, m.name, m.built_in, m.gamma, m.zero, m.one, m.max_secs, m.zone1, m.zone2, m.zone3, m.zone4, m.zone5, " &
+  "m.id, m.name, m.built_in, m.gamma, m.zero, m.one, m.max_secs, m.zone1, m.zone2, m.zone3, m.zone4, m.zone5, m.ceiling, " &
   "m.fitness_days, m.fatigue_days, m.fitness_scale, m.fatigue_scale"
 
 func describe*(m: Model): string =
@@ -21,6 +21,7 @@ func describe*(m: Model): string =
   result = fmt"{m.name} {m.gamma} {m.zero} {m.one} {m.maxSecs}"
   for z in m.zones:
     result.add fmt" {z}"
+  result.add fmt" {m.ceiling}"
   result.add fmt" {m.fitnessDays} {m.fatigueDays} {m.fitnessScale} {m.fatigueScale}"
   for p in m.patterns:
     result.add fmt" {p}"
@@ -48,8 +49,8 @@ proc insertModel*(db: DbConn, m: Model): ModelId {.raises: [StoreError].} =
   ## Add a model (its id is ignored); its new id.  Raises StoreError if the name is taken or a value is bad.
   db.execute(
     """insert into ff_model(name, folded, built_in, gamma, zero, one, max_secs, zone1, zone2, zone3, zone4, zone5,
-        fitness_days, fatigue_days, fitness_scale, fatigue_scale)
-      values (:name, :folded, :builtIn, :gamma, :zero, :one, :maxSecs, :zone1, :zone2, :zone3, :zone4, :zone5,
+        ceiling, fitness_days, fatigue_days, fitness_scale, fatigue_scale)
+      values (:name, :folded, :builtIn, :gamma, :zero, :one, :maxSecs, :zone1, :zone2, :zone3, :zone4, :zone5, :ceiling,
         :fitnessDays, :fatigueDays, :fitnessScale, :fatigueScale)""",
     name = m.name,
     folded = foldedName(m.name),
@@ -63,6 +64,7 @@ proc insertModel*(db: DbConn, m: Model): ModelId {.raises: [StoreError].} =
     zone3 = m.zones[2],
     zone4 = m.zones[3],
     zone5 = m.zones[4],
+    ceiling = m.ceiling,
     fitnessDays = m.fitnessDays,
     fatigueDays = m.fatigueDays,
     fitnessScale = m.fitnessScale,
@@ -77,7 +79,7 @@ proc updateModel*(db: DbConn, old, m: Model) {.raises: [StoreError].} =
   doAssert old.id == m.id
   db.execute(
     """update ff_model set name = :name, folded = :folded, gamma = :gamma, zero = :zero, one = :one,
-        max_secs = :maxSecs, zone1 = :zone1, zone2 = :zone2, zone3 = :zone3, zone4 = :zone4, zone5 = :zone5,
+        max_secs = :maxSecs, zone1 = :zone1, zone2 = :zone2, zone3 = :zone3, zone4 = :zone4, zone5 = :zone5, ceiling = :ceiling,
         fitness_days = :fitnessDays, fatigue_days = :fatigueDays, fitness_scale = :fitnessScale,
         fatigue_scale = :fatigueScale
       where id = :id""",
@@ -93,6 +95,7 @@ proc updateModel*(db: DbConn, old, m: Model) {.raises: [StoreError].} =
     zone3 = m.zones[2],
     zone4 = m.zones[3],
     zone5 = m.zones[4],
+    ceiling = m.ceiling,
     fitnessDays = m.fitnessDays,
     fatigueDays = m.fatigueDays,
     fitnessScale = m.fitnessScale,
@@ -121,7 +124,7 @@ type ModelRow =
     builtIn: int,
     gamma, zero, one: float,
     maxSecs: int,
-    zone1, zone2, zone3, zone4, zone5, fitnessDays, fatigueDays, fitnessScale,
+    zone1, zone2, zone3, zone4, zone5, ceiling, fitnessDays, fatigueDays, fitnessScale,
       fatigueScale: float,
   ]
 
@@ -136,6 +139,7 @@ proc modelsOf(db: DbConn, rows: seq[ModelRow]): seq[Model] {.raises: [StoreError
       one: r.one,
       maxSecs: r.maxSecs,
       zones: [r.zone1, r.zone2, r.zone3, r.zone4, r.zone5],
+      ceiling: r.ceiling,
       fitnessDays: r.fitnessDays,
       fatigueDays: r.fatigueDays,
       fitnessScale: r.fitnessScale,

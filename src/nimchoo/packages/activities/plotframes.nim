@@ -4,7 +4,7 @@
 
 import std/[algorithm, options, strformat, tables]
 import ../../core/[errors, extension, line]
-import ../db/[statement, store]
+import ../db/statement
 import ../ff/[calc, curve, impulses, models]
 import ../plot/frames
 import ../user/session
@@ -35,10 +35,7 @@ proc selectedImpulses*(
     raiseStore(
       fmt"{st.userName} has no FTHR, which the impulses need (set it with `nch users --edit {st.userName} --fthr BPM`)"
     )
-  st.writing(
-    proc() {.closure, raises: [StoreError].} =
-      discard calculateMissing(st.db, st.userId, m)
-  )
+  result.warnings.add ensureImpulses(st, @[m])
   result.model = some(m)
   result.lumps = st.db.query(
     Lump,

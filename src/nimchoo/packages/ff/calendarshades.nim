@@ -5,7 +5,6 @@
 import std/[options, strformat]
 import ../../core/[errors, extension, line]
 import ../calendar/frames
-import ../db/store
 import ../user/session
 import ./[calc, curve, impulses, models]
 
@@ -30,10 +29,7 @@ proc makeShade(
     raiseStore(
       fmt"{st.userName} has no FTHR, which the impulses need (set it with `nch users --edit {st.userName} --fthr BPM`)"
     )
-  st.writing(
-    proc() {.closure, raises: [StoreError].} =
-      discard calculateMissing(st.db, st.userId, m)
-  )
+  result.warnings.add ensureImpulses(st, @[m])
   let lumps = userLumps(st.db, st.userId, m)
   var ends: seq[int64]
   for i in intervals:

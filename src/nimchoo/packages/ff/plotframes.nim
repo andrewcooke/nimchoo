@@ -7,7 +7,6 @@
 
 import std/[options, strformat, times]
 import ../../core/[errors, extension, line]
-import ../db/store
 import ../plot/frames
 import ../ui/style
 import ../user/session
@@ -44,14 +43,6 @@ func styleOf(which: Which): StyleName =
   of wForm:
     styleName"em"
 
-proc ensureImpulses(st: Session, ms: seq[Model]) {.raises: [StoreError].} =
-  ## Work out the impulses the models lack, in one transaction.
-  st.writing(
-    proc() {.closure, raises: [StoreError].} =
-      for m in ms:
-        discard calculateMissing(st.db, st.userId, m)
-  )
-
 proc makeCurve(
     st: Session, period: Period, which: Which
 ): PlotData {.raises: [StoreError].} =
@@ -60,7 +51,7 @@ proc makeCurve(
     raiseStore(
       fmt"{st.userName} has no FTHR, which the impulses need (set it with `nch users --edit {st.userName} --fthr BPM`)"
     )
-  ensureImpulses(st, ms)
+  result.warnings.add ensureImpulses(st, ms)
   let asOf = min(period.now, period.last)
   let label =
     if asOf == period.now:

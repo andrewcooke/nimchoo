@@ -19,6 +19,8 @@ create table ff_model (
   zone3 real not null,
   zone4 real not null,
   zone5 real not null,
+  -- readings above this (a percentage of the threshold heart rate) are a fault of the sensor, not a heart: ignored
+  ceiling real not null,
   -- the decay times of the curves made from the impulses, and their weights in form
   -- (form = fitness_scale * fitness - fatigue_scale * fatigue)
   fitness_days real not null check (fitness_days > 0),
@@ -26,7 +28,8 @@ create table ff_model (
   fitness_scale real not null check (fitness_scale > 0),
   fatigue_scale real not null check (fatigue_scale > 0),
   check (zero < one),
-  check (0 < zone1 and zone1 < zone2 and zone2 < zone3 and zone3 < zone4 and zone4 < zone5)) strict;
+  check (0 < zone1 and zone1 < zone2 and zone2 < zone3 and zone3 < zone4 and zone4 < zone5),
+  check (zone5 < ceiling)) strict;
 
 -- Which activities count in a model: those with a tag matching every pattern (as `--tags` of
 -- `nch activities` matches; `folded` is the pattern as it is matched).  A model with none

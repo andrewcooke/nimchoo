@@ -69,7 +69,9 @@ decided is marked so; the rest is open.
   form = `fitness-scale * fitness - fatigue-scale * fatigue`; the plot draws fitness and fatigue scaled, so that form is
   their difference.  A model's parameters are then: `gamma` (2), `zero` (1), `one` (6), `max-gap` (60s), `zones` (68, 83,
   94, 105, 121: British Cycling's, % of the FTHR), `fitness-decay` (42d), `fatigue-decay` (7d), `fitness-scale` (1),
-  `fatigue-scale` (5), and its tag patterns (none: all the activities).
+  `fatigue-scale` (5), and its tag patterns (none: all the activities).  Added 2026-11-23 (the author's ride of 2022-05-17,
+  whose strap read 242 to 245 bpm for three hours): `ceiling` (125% of the FTHR), above which a reading is a fault of the
+  sensor and is ignored, a gap in the heart rate.
 * **The frames of the `ff` subject are fitness, fatigue and form**, each drawn for every selected model: in `plot` the
   frames ticked times the models selected (two models, fitness and form: four lines); in the calendar the background is
   one frame of one model (with several selected, which one is the open point below; the first selected, said in the

@@ -166,6 +166,16 @@ func modelKind*(): Kind[Model] =
       ),
       valueAttr(
         Model,
+        "--ceiling",
+        ceiling,
+        "PERCENT",
+        ~"readings above this percentage of the threshold heart rate are a fault of the sensor, and are ignored (default 125)",
+        "ceiling_%",
+        parseNumber,
+        plainNumber,
+      ),
+      valueAttr(
+        Model,
         "--fitness-decay",
         fitnessDays,
         "DURATION",

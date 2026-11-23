@@ -175,3 +175,20 @@ suite "model: variables":
     check sameImpulse(defaultModel(), x)
     x.zones[4] = 130
     check not sameImpulse(defaultModel(), x)
+
+suite "model: the ceiling":
+  test "readings above the ceiling (125% of the FTHR by default) are dropped, and counted":
+    let (kept, dropped) =
+      withinCeiling(rs([(0, 120), (1, 125), (2, 126), (3, 243)]), 100, m)
+    check kept == rs([(0, 120), (1, 125)]) and dropped == 2
+  test "a ride all above it counts for nothing; a spike between good readings is bridged":
+    let fault = withinCeiling(steady(0, 600, 243), 154, m)
+    check fault.kept.len == 0 and
+      stretchImpulse(fault.kept, @[(0'i64, 600'i64)], 154, m) == @[(300'i64, 0.0)]
+    let spike = withinCeiling(rs([(0, 121), (10, 200), (20, 121)]), 100, m)
+    check near(whole(spike.kept, 100).value, 2.0)
+      # (the 20 s from 0 to 20 at the top zone)
+  test "the ceiling is above the last zone edge":
+    var x = m
+    x.ceiling = 120
+    check problem(x).isSome

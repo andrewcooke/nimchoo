@@ -30,6 +30,9 @@ type
     zones*: array[5, float]
       ## upper limits of zones 1 to 5, percent of the threshold heart rate
     fitnessDays*, fatigueDays*: float
+    ceiling*: float
+      ## readings above this percentage of the threshold heart rate are a fault of the sensor (a strap that reads 243 bpm
+      ## for three hours), and are ignored: a gap in the heart rate
     fitnessScale*, fatigueScale*: float
       ## the weights of the curves in form: `fitnessScale * fitness - fatigueScale * fatigue`
     patterns*: seq[TagPattern]
@@ -55,13 +58,14 @@ func defaultModel*(): Model =
     fatigueDays: 7,
     fitnessScale: 1,
     fatigueScale: 5,
+    ceiling: 125,
     builtIn: true,
   )
 
 func sameImpulse*(a, b: Model): bool =
   ## Whether the two give the same impulses (the decays, the scales and the patterns do not change them).
   a.gamma == b.gamma and a.zero == b.zero and a.one == b.one and a.maxSecs == b.maxSecs and
-    a.zones == b.zones
+    a.zones == b.zones and a.ceiling == b.ceiling
 
 func problem*(m: Model): Option[string] =
   ## Why a model cannot be used (none if it can).
@@ -78,6 +82,8 @@ func problem*(m: Model): Option[string] =
       return some("the zone edges must increase")
   if not (m.fitnessDays > 0 and m.fatigueDays > 0):
     return some("the decay times must be above 0")
+  if not (m.ceiling > m.zones[4]):
+    return some("the ceiling must be above the last zone edge")
   if not (m.fitnessScale > 0 and m.fatigueScale > 0):
     return some("the scales must be above 0")
 
@@ -116,6 +122,19 @@ func powIntegral*(u0, u1, dt, g: float): float =
   if abs(b - a) <= 1e-9 * max(a, b):
     return length * pow((a + b) / 2, g)
   length * (pow(b, g + 1) - pow(a, g + 1)) / ((g + 1) * (b - a))
+
+func withinCeiling*(
+    readings: openArray[(UnixTime, int)], fthr: int, m: Model
+): tuple[kept: seq[(UnixTime, int)], dropped: int] =
+  ## The readings at or below the model's ceiling (a percentage of the threshold heart rate), and how many were above it:
+  ## those are a fault of the sensor, and leave a gap in the heart rate (which counts for nothing if it is longer than
+  ## `maxSecs`, as any gap).
+  let top = m.ceiling * float(fthr) / 100
+  for r in readings:
+    if float(r[1]) > top:
+      inc result.dropped
+    else:
+      result.kept.add r
 
 func stretchImpulse*(
     readings: openArray[(UnixTime, int)],

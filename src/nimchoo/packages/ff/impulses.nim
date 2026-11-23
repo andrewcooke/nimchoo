@@ -5,18 +5,22 @@
 ## what is lacking.  (A change of the threshold heart rate deletes the user's impulses: see the
 ## trigger in 001-schema.sql.)
 
-import std/options
+import std/[options, strformat, times]
 import ../db/statement
 import ../db/store
-import ../../core/errors
+import ../../core/[errors, line]
 import ../fit/time
 import ../heartrate/stored
+import ../ui/units
+import ../user/session
 import ./calc
 
 {.push raises: [].}
 
 type Calculated* = object
   activities*, stretches*: int ## activities worked out, impulse rows written
+  faults*: seq[tuple[activity: ActivityId, dropped: int]]
+    ## the activities some of whose readings were above the model's ceiling, and how many
 
 proc readings(
     db: DbConn, activityId: ActivityId
@@ -48,21 +52,23 @@ proc stretchesOf(
 
 proc calculateActivity*(
     db: DbConn, activityId: ActivityId, fthr: int, m: Model
-): int {.raises: [StoreError].} =
-  ## Work out and store one activity's impulses for a model (replacing any), one a stretch; returns the number of
-  ## stretches.
+): tuple[stretches, dropped: int] {.raises: [StoreError].} =
+  ## Work out and store one activity's impulses for a model (replacing any), one a stretch, from its readings at or below
+  ## the model's ceiling; the number of stretches, and of readings above the ceiling.
   let stretches = stretchesOf(db, activityId)
   var spans: seq[Stretch]
   for (_, s) in stretches:
     spans.add s
-  let lumps = stretchImpulse(readings(db, activityId), spans, fthr, m)
+  let (kept, dropped) = withinCeiling(readings(db, activityId), fthr, m)
+  result.dropped = dropped
+  let lumps = stretchImpulse(kept, spans, fthr, m)
   db.execute(
     "delete from impulse where activity_id = :activityId and model_id = :modelId",
     activityId = activityId,
     modelId = m.id,
   )
   if lumps.len == 0:
-    return 0
+    return
   let st = prepareStmt(
     db,
     "insert into impulse(activity_id, model_id, n, centre_t, value) values (?, ?, ?, ?, ?)",
@@ -74,7 +80,7 @@ proc calculateActivity*(
     st.bindInt(4, t)
     st.bindReal(5, v)
     st.run()
-  lumps.len
+  result.stretches = lumps.len
 
 proc missing(
     db: DbConn, userId: UserId, modelId: ModelId
@@ -101,10 +107,12 @@ proc calculateMissing*(
   if fthr.isNone:
     return
   for id in missing(db, userId, m.id):
-    let n = calculateActivity(db, id, fthr.get, m)
+    let (n, dropped) = calculateActivity(db, id, fthr.get, m)
     result.stretches += n
     if n > 0:
       inc result.activities
+    if dropped > 0:
+      result.faults.add (id, dropped)
 
 proc hasHeartRate*(db: DbConn, userId: UserId): bool {.raises: [StoreError].} =
   ## Whether the user has an activity with heart rate: what impulses are made from.
@@ -132,3 +140,30 @@ proc userLumps*(
     userId = userId,
     modelId = m.id,
   )
+
+proc faultLines*(
+    db: DbConn, c: Calculated, fthr: int, m: Model
+): seq[Line] {.raises: [StoreError].} =
+  ## What to say of the activities whose readings were above the ceiling: when each started, and how many were ignored.
+  let top = int(m.ceiling * float(fthr) / 100)
+  for (id, n) in c.faults:
+    let t = db.scalar(int64, "select start_t from activity where id = :id", id = id)
+    let day = fromUnix(t).local.format("yyyy-MM-dd HH:mm")
+    result.add plain(
+      fmt"{day}: {count(n)} heart-rate readings above {top} bpm (the ceiling of {m.name}) ignored: a fault of the sensor?"
+    )
+
+proc ensureImpulses*(st: Session, ms: seq[Model]): seq[Line] {.raises: [StoreError].} =
+  ## Work out the impulses the user's activities lack for the models, in one transaction; what to say of readings that
+  ## were above a model's ceiling (each said once: when the impulses are worked out).  Nothing if the user has no FTHR.
+  let fthr = fthrOf(st.db, st.userId)
+  if fthr.isNone:
+    return
+  var said: seq[Line]
+  st.writing(
+    proc() {.closure, raises: [StoreError].} =
+      for m in ms:
+        let c = calculateMissing(st.db, st.userId, m)
+        said.add faultLines(st.db, c, fthr.get, m)
+  )
+  said
