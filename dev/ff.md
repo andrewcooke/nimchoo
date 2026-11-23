@@ -19,6 +19,10 @@ decided is marked so; the rest is open.
 * **Fitness and fatigue never depend on the activity selection.**  A model may say which activities count, by tags
   (`sport:cycling*`: all cycling, nothing else), never by a choice of particular activities.  So a model's attributes are
   its parameters and its tag patterns (an editable object, TODO 17).
+* **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
+  structure such as `cycling:hard` by convention) and matched as tags are (case and accents aside, `*` for anything), so
+  views and commands select models with patterns of names.  The names are not tags: nothing connects a model called
+  `cycling` with the tag `sport:cycling`.
 * **The impulse is the activity's**, and follows the activity selection: impulse per day is a calendar frame of the
   activities subject; it can be a column of their lists.
 
