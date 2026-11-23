@@ -46,7 +46,7 @@ decided is marked so; the rest is open.
 * **The calendar** (2026-11-23, as the author sees it now; may change once it can be seen): the text of a cell is always
   the date, and its foreground says the activities as now (selected, not selected, none): always there, not a frame.
   **The background is the main indicator**: one frame, chosen (the activities' impulse; a selected model's fitness,
-  fatigue or form), its value a colour from the theme's scale (the hot-to-cold line of `ui/look`), and it varies across
+  fatigue or form), its value a colour from the theme's scale (between a theme's `hot` and `cold`, interpolated in HSV, as `tools/look.nim` shows them: not in the program yet), and it varies across
   the cell: a cell is 5 columns (a space and 4 for the date), so about 5 samples a day (4 if the space stays plain).
   Several things at once in a cell: no idea yet, not now.  Open: a frame per model when several are selected; a legend.
 * **Models are chosen by name** (2026-11-23): a model's name is written as a tag is (letters, digits, `-`, `_`, `:`, a
