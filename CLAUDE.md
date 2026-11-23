@@ -166,6 +166,9 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   than one design.
 * when a feature fits badly on what exists, say so and propose changing what exists (within the package rules)
   rather than working round it.
+* **when you change a function, reread all of it (and what it calls) against these rules**, not only the lines you
+  wrote, and say what you find, even when it is not yours to fix now (decided 2026-11-23: a calendar's label was written
+  by hand beside the constant for its width, and shading was added to the same loop without seeing it).
 * **a step is done when**: its tests pass (with a test for the class of bug, where there is one); what refers to
   it is updated (help text, CLAUDE.md, TODO.md: grep the names you changed); the code it made dead is deleted.
 * a claim that something is faster, smaller or better comes with a measurement, or with before-and-after
@@ -180,6 +183,8 @@ cache can be deleted; nothing outside the author's machine depends on anything h
 * **parse, don't validate.**  input (the command line, rows from the database, files) is turned into a type
   that can only hold valid values (variant objects, enums, distinct types, `Option`).  no bags of booleans
   checked afterwards; no "" or -1 meaning "none" or "ok".
+* **a constant that describes output (a width, a count, a position) has a test that checks the output against it**,
+  so that code which writes the shape by hand fails the test the moment the two disagree.
 * **a missing abstraction is the bug.**  when fixing a bug, ask what class it belongs to and fix the class (one
   loader, one helper, one table), with a test that would catch the next instance.
 * **packages declare what they use.**  a package imports only its declared dependencies (checked by a test);
