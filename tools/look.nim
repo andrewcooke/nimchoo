@@ -30,12 +30,12 @@ const examples = [
 ]
 
 proc ramp(t: var Theme): seq[string] =
-  ## For each shade of the theme (a `NAME-lo`/`NAME-hi` pair: the calendar's `--shade`), a line of sixteen hex digits from
-  ## its low end (0) to its high end (f), each drawn as the program draws `NAME,FRACTION` (`core/theme`, in HSV).
+  ## For each shade of the theme (its stops `NAME-0` ... `NAME-1`: the calendar's `--shade`), a line of sixteen hex digits
+  ## from stop 0 (0) to stop 1 (f), each drawn as the program draws `NAME,FRACTION` (`core/theme`, in HSV).
   var names: seq[string]
   for name in t.styles.keys:
-    if name.endsWith(loSuffix) and not name.startsWith("alt-"):
-      names.add name[0 ..^ (loSuffix.len + 1)]
+    if name.endsWith(firstStop) and not name.startsWith("alt-"):
+      names.add name[0 ..^ (firstStop.len + 1)]
   for base in names:
     var line = "  "
     for i in 0 .. 15:
@@ -45,7 +45,7 @@ proc ramp(t: var Theme): seq[string] =
         bg: some(lookOf(t, @[shaded(base, i / 15)]).bg),
       )
       line.add fmt"<{name} {i:x}>"
-    result.add [fmt"{base}, from {base}{loSuffix} to {base}{hiSuffix}:", line, ""]
+    result.add [fmt"{base}, by its stops from {base}-0 to {base}-1:", line, ""]
 
 proc sample(t: var Theme): seq[string] =
   ## Made from the styles the theme defines: each alone with its alt version (every other row of a table), each inside

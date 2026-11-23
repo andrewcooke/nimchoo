@@ -15,12 +15,13 @@
 ## they are): `alt-code fg=v(code.fg, 1.2)`, `v(#a0a0c0, 2)`, `v(v(code.bg, 2), 0.8)`.  Only a `#rrggbb` colour has a value;
 ## it is worked out when the theme is read.
 ##
-## **Shades**: a style named `NAME,FRACTION` (`fitness,0.37`: made by the program, never written in a theme) is drawn between
-## the styles `NAME-lo` (at 0) and `NAME-hi` (at 1), its colours interpolated in HSV (`between`), its other attributes
-## `NAME-lo`'s; a theme without `NAME-lo` and `NAME-hi` has the shade drawn between `default-lo` and `default-hi`.  The colours
-## of a `-lo`/`-hi` pair are `#rrggbb` and given in both or in neither (checked when the theme is read).
+## **Shades**: a style named `NAME,FRACTION` (`fitness,0.37`: made by the program, never written in a theme) is drawn from
+## the *stops* of the shade, the styles `NAME-0`, `NAME-1` and any between (`NAME-0.5`, `NAME-0.25`): its colours are
+## interpolated in HSV (`between`) between the two stops either side of the fraction, its other attributes the lower
+## one's.  A theme without stops for NAME has the shade drawn by `default-0` ... `default-1`.  A shade's stops run from 0
+## to 1, and each gives the same colours, `#rrggbb` (checked when the theme is read).
 
-import std/[math, options, sequtils, strformat, strutils, tables]
+import std/[algorithm, math, options, sequtils, strformat, strutils, tables]
 from std/unicode import Rune, runes, `$`, `==`
 import ./[errors, line]
 
@@ -67,8 +68,7 @@ type
 const
   defaultStyle* = "default" ## the style around all text
   shadeSeparator* = ',' ## between a shade's style and its fraction: `fitness,0.37`
-  loSuffix* = "-lo" ## the end of a shade at 0: `fitness-lo`
-  hiSuffix* = "-hi" ## the end of a shade at 1
+  firstStop* = "-0" ## the stop of a shade at 0: `fitness-0` (and `-1` at 1: `stopOf`)
   basicNames = [
     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
     "bright-black", "bright-red", "bright-green", "bright-yellow", "bright-blue",
@@ -94,9 +94,31 @@ func `==`*(a, b: Colour): bool =
   of ckRgb:
     a.r == b.r and a.g == b.g and a.b == b.b
 
+func stopOf*(name: string): Option[tuple[shade: string, at: float]] =
+  ## A stop of a shade, `fitness-0.5`: the shade and where it is (0 to 1); none for any other name.
+  let dash = name.rfind('-')
+  if dash <= 0:
+    return
+  let tail = name[dash + 1 ..^ 1]
+  if tail.len == 0 or not tail.allCharsInSet({'0' .. '9', '.'}) or tail.count('.') > 1 or
+      tail[0] == '.' or tail[^1] == '.':
+    return
+  try:
+    let at = parseFloat(tail)
+    if at >= 0 and at <= 1:
+      return some((name[0 ..< dash], at))
+  except ValueError:
+    discard
+
 func isStyleName*(s: string): bool =
-  ## A name of a style: a lower-case letter, then lower-case letters, digits and hyphens.
-  s.len > 0 and s[0] in {'a' .. 'z'} and s.allCharsInSet({'a' .. 'z', '0' .. '9', '-'})
+  ## A name of a style: a lower-case letter, then lower-case letters, digits and hyphens; or the stop of a shade, a name
+  ## and its place, `fitness-0.5`.
+  s.len > 0 and s[0] in {'a' .. 'z'} and (
+    s.allCharsInSet({'a' .. 'z', '0' .. '9', '-'}) or (
+      stopOf(s).isSome and
+      stopOf(s).get.shade.allCharsInSet({'a' .. 'z', '0' .. '9', '-'})
+    )
+  )
 
 func parseColour(value: string, line: int): Colour {.raises: [ThemeError].} =
   ## `#rrggbb`, one of the sixteen names, or `terminal`.
@@ -376,27 +398,29 @@ func parseTheme*(text: string): Theme {.raises: [ThemeError].} =
     else:
       result.styles[name] = style
       result.styles[altPrefix & name] = style.over(altGiven.getOrDefault(name))
-  # the ends of a shade: a pair, each colour #rrggbb and given in both or in neither
+  # the stops of a shade: from 0 to 1, each place once, each giving the same colours, #rrggbb
+  var shades: OrderedTable[string, seq[tuple[at: float, name: string]]]
   for name in result.styles.keys:
-    if name.endsWith(loSuffix):
-      let pair = name[0 ..^ (loSuffix.len + 1)] & hiSuffix
-      if pair notin result.styles:
-        raiseTheme(fmt"{name} has no {pair}: the two ends of a shade go together", 0)
-      let (lo, hi) =
-        (result.styles.getOrDefault(name), result.styles.getOrDefault(pair))
-      for (a, b, part) in [(lo.fg, hi.fg, "fg"), (lo.bg, hi.bg, "bg")]:
+    let stop = stopOf(name)
+    if stop.isSome and not name.startsWith(altPrefix):
+      shades.mgetOrPut(stop.get.shade, @[]).add (stop.get.at, name)
+  for shade, stops in shades.mpairs:
+    stops.sort()
+    if stops[0].at != 0 or stops[^1].at != 1:
+      raiseTheme(fmt"the stops of {shade} run from {shade}-0 to {shade}-1", 0)
+    for k in 1 ..< stops.len:
+      if stops[k].at == stops[k - 1].at:
+        raiseTheme(fmt"{stops[k - 1].name} and {stops[k].name} are one place", 0)
+    let first = result.styles.getOrDefault(stops[0].name)
+    for (_, name) in stops:
+      let st = result.styles.getOrDefault(name)
+      for (a, b, part) in [(first.fg, st.fg, "fg"), (first.bg, st.bg, "bg")]:
         if a.isSome != b.isSome:
           raiseTheme(
-            fmt"{name} and {pair}: {part} is given in one and not the other", 0
+            fmt"{stops[0].name} and {name}: {part} is given in one and not the other", 0
           )
-        if a.isSome and (a.get.kind != ckRgb or b.get.kind != ckRgb):
-          raiseTheme(fmt"{name} and {pair}: a shade's colours are #rrggbb ({part})", 0)
-    elif name.endsWith(hiSuffix) and
-        (name[0 ..^ (hiSuffix.len + 1)] & loSuffix) notin result.styles:
-      raiseTheme(
-        fmt"{name} has no {name[0 ..^ (hiSuffix.len + 1)]}{loSuffix}: the two ends of a shade go together",
-        0,
-      )
+        if b.isSome and b.get.kind != ckRgb:
+          raiseTheme(fmt"{name}: a shade's colours are #rrggbb ({part})", 0)
 
 func baseLook*(theme: Theme): Look =
   ## The look of text in no style but `default`: the terminal's own, with what `default` changes.
@@ -510,30 +534,45 @@ func shadeOf*(name: string): Option[tuple[base: string, k: float]] =
   except ValueError:
     discard
 
+func stopsOf(theme: Theme, shade: string): seq[tuple[at: float, style: Style]] =
+  ## The stops of a shade in the theme, in order (none if it has none).
+  for name, st in theme.styles.pairs:
+    let stop = stopOf(name)
+    if stop.isSome and stop.get.shade == shade:
+      result.add (stop.get.at, st)
+  result.sort(
+    proc(a, b: tuple[at: float, style: Style]): int =
+      cmp(a.at, b.at)
+  )
+
 func hasShade*(theme: Theme, name: string): bool =
-  ## Whether the theme can draw the shade `name`: it has `NAME-lo` and `NAME-hi`, or `default-lo` and `default-hi`.
-  (name & loSuffix) in theme.styles or (defaultStyle & loSuffix) in theme.styles
+  ## Whether the theme can draw the shade `name`: it has stops for NAME (`NAME-0` ...), or for `default`.
+  (name & firstStop) in theme.styles or (defaultStyle & firstStop) in theme.styles
 
 func styleOf(theme: Theme, name: string): Style =
-  ## What a style changes: the theme's, or a shade's, interpolated between its ends (or `default`'s, when the theme has no
-  ## ends of its own for it; an `alt-` shade between the `alt-` ends).
+  ## What a style changes: the theme's, or a shade's, interpolated between the two stops either side of its fraction (or
+  ## `default`'s stops, when the theme has none of its own for it; an `alt-` shade between the `alt-` stops).
   let shade = shadeOf(name)
   if shade.isNone:
     return theme.styles.getOrDefault(name)
   let (base, k) = shade.get
   let alt = (if base.startsWith(altPrefix): altPrefix else: "")
-  var ends = base
-  if (ends & loSuffix) notin theme.styles:
-    ends = alt & defaultStyle
-  let (lo, hi) = (
-    theme.styles.getOrDefault(ends & loSuffix),
-    theme.styles.getOrDefault(ends & hiSuffix),
-  )
-  result = lo
-  if lo.fg.isSome and hi.fg.isSome:
-    result.fg = some(between(lo.fg.get, hi.fg.get, k))
-  if lo.bg.isSome and hi.bg.isSome:
-    result.bg = some(between(lo.bg.get, hi.bg.get, k))
+  var stops = stopsOf(theme, base)
+  if stops.len == 0:
+    stops = stopsOf(theme, alt & defaultStyle)
+  if stops.len == 0:
+    return
+  var i = 0 # the stop at or below k, the next above it
+  while i + 2 < stops.len and stops[i + 1].at <= k:
+    inc i
+  let (lo, hi) = (stops[i], stops[min(i + 1, stops.high)])
+  let f = (if hi.at > lo.at: clamp((k - lo.at) / (hi.at - lo.at), 0.0, 1.0)
+  else: 0.0)
+  result = lo.style
+  if lo.style.fg.isSome and hi.style.fg.isSome:
+    result.fg = some(between(lo.style.fg.get, hi.style.fg.get, f))
+  if lo.style.bg.isSome and hi.style.bg.isSome:
+    result.bg = some(between(lo.style.bg.get, hi.style.bg.get, f))
 
 func lookOf*(theme: Theme, styles: seq[StyleName]): Look =
   ## How text in `styles` looks: the theme's base look with each style over it in turn (`default` goes back to the base;

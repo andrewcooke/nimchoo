@@ -14,7 +14,7 @@
 ## a gap are in the warning style (with a `*` after them when there is no colour).
 ##
 ## With colour, a calendar may be *shaded* (`Shading`): each day's three columns (the space before it and its two digits)
-## have the background of a third of the day, a style `NAME,FRACTION` that the theme draws between `NAME-lo` and `NAME-hi`
+## have the background of a third of the day, a style `NAME,FRACTION` that the theme draws by the stops `NAME-0` ... `NAME-1`
 ## (`core/theme`); the day's own style (marked, plain, hidden) is drawn over it.
 ##
 ## Without colour (a pipe, NO_COLOR) the cells are wider and carry marks, so nothing is lost: a day
@@ -35,7 +35,7 @@ type
     dtToNow = 3 ## every month from the first with a mark to this one
 
   Shading* = object
-    ## The background of each third of each day, as a fraction of the way from the shade's `-lo` to `-hi`.
+    ## The background of each third of each day, as a fraction of the way from the shade's stop 0 to its stop 1.
     style*: string ## the shade's style: "fitness"
     fractions*: Table[int, float] ## by `thirdKey`; a third that has none is not shaded
 

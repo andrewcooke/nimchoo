@@ -3,7 +3,7 @@
 ## `nch calendar [SUBJECT]` draws a row for each month that has a marked day, the days in columns by weekday (weeks start on
 ## Monday).  `--detail N` says which months: those with a marked day (1), every month from the first to the last (2), or to this
 ## month (3); the default depends on what is shown.  `--shade NAME` colours the background by a value over time
-## (`calendar/shades`: fitness, fatigue, form, impulse), from the theme's `NAME-lo` to `NAME-hi`.  It takes no criteria, like `climbs` and `map`: to see a
+## (`calendar/shades`: fitness, fatigue, form, impulse), by the theme's stops `NAME-0` ... `NAME-1` (`core/theme`).  It takes no criteria, like `climbs` and `map`: to see a
 ## calendar of some activities, select them first (`nch activities CRITERIA --select`).  Without colour (a pipe, `NO_COLOR`)
 ## the cells are wider and carry marks, so nothing is lost.
 ##

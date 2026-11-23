@@ -165,10 +165,11 @@ suite "ui theme: alt":
 
 suite "ui theme: shades":
   let t = parseTheme(
-    "default fg=#a0a0a0\n" & "default-lo bg=#000000\n" & "default-hi bg=#ffffff\n" &
-      "form-lo bg=#ff0000 weight=bold\n" & "form-hi bg=#0000ff weight=bold\n"
+    "default fg=#a0a0a0\n" & "default-0 bg=#000000\n" & "default-1 bg=#ffffff\n" &
+      "form-0 bg=#ff0000 weight=bold\n" & "form-1 bg=#0000ff weight=bold\n" &
+      "three-0 bg=#000000\n" & "three-0.25 bg=#ff0000\n" & "three-1 bg=#ffffff\n"
   )
-  test "a shade is drawn between its ends, else default's; its other attributes are its low end's":
+  test "a shade is drawn between its stops, else default's; its other attributes are the lower stop's":
     let grey = lookOf(t, @[anyStyle("fitness,0.50")])
     check grey.bg == Colour(kind: ckRgb, r: 128, g: 128, b: 128) and
       grey.fg == Colour(kind: ckRgb, r: 160, g: 160, b: 160)
@@ -178,19 +179,41 @@ suite "ui theme: shades":
     check form.bg == Colour(kind: ckRgb, r: 0, g: 0, b: 255) and form.weight == wtBold
     check lookOf(t, @[anyStyle("alt-form,0.00")]).bg ==
       Colour(kind: ckRgb, r: 255, g: 0, b: 0)
-  test "what is not a shade is an ordinary name (and one the theme lacks changes nothing)":
+  test "with a stop between, each side is drawn between the two stops it lies between":
+    check lookOf(t, @[anyStyle("three,0.25")]).bg ==
+      Colour(kind: ckRgb, r: 255, g: 0, b: 0)
+    check lookOf(t, @[anyStyle("three,0.00")]).bg ==
+      Colour(kind: ckRgb, r: 0, g: 0, b: 0)
+    check lookOf(t, @[anyStyle("three,1.00")]).bg ==
+      Colour(kind: ckRgb, r: 255, g: 255, b: 255)
+    # half way from black to red (only the value changes: red's hue) and from red to white (only the saturation)
+    check lookOf(t, @[anyStyle("three,0.12")]).bg.r in 115'u8 .. 130'u8
+    let pink = lookOf(t, @[anyStyle("three,0.62")]).bg
+    check pink.r == 255 and pink.g == pink.b and pink.g in 115'u8 .. 140'u8
+  test "what is not a shade or a stop is an ordinary name (and one the theme lacks changes nothing)":
     check shadeOf("fitness,0.5") == some(("fitness", 0.5))
     check shadeOf("fitness").isNone and shadeOf("fitness,2").isNone and
       shadeOf(",0.5").isNone
     check lookOf(t, @[anyStyle("fitness,x")]).bg == baseLook(t).bg
-  test "the ends go together, in #rrggbb, each colour in both or neither":
-    check problem("a-lo bg=#000000\n").contains("has no a-hi")
-    check problem("a-hi bg=#000000\n").contains("has no a-lo")
-    check problem("a-lo bg=red\na-hi bg=blue\n").contains("#rrggbb")
-    check problem("a-lo bg=#000000\na-hi fg=#000000\n").contains(
+    check stopOf("fitness-0.5") == some(("fitness", 0.5)) and
+      stopOf("fitness-1") == some(("fitness", 1.0))
+    check stopOf("fitness-2").isNone and stopOf("fitness").isNone and
+      stopOf("fitness-.5").isNone
+    check isStyleName("fitness-0.5") and not isStyleName("fitness-1.5") and
+      not isStyleName("a.b")
+  test "the stops run from 0 to 1, each place once, each with the same colours, #rrggbb":
+    check problem("a-0 bg=#000000\n").contains("run from a-0 to a-1")
+    check problem("a-1 bg=#000000\n").contains("run from a-0 to a-1")
+    check problem(
+      "a-0 bg=#000000\na-0.50 bg=#000000\na-0.5 bg=#000000\na-1 bg=#000000\n"
+    )
+      .contains("are one place")
+    check problem("a-0 bg=red\na-1 bg=blue\n").contains("#rrggbb")
+    check problem("a-0 bg=#000000\na-1 fg=#000000\n").contains(
       "given in one and not the other"
     )
-  test "the built-in themes have default-lo and default-hi":
+    check problem("a-0 bg=#000000\na-0.5 bg=#808080\na-1 bg=#ffffff\n") == "no error"
+  test "the built-in themes have default-0 and default-1":
     for (name, text) in builtInThemes:
       let th = parseTheme(text)
-      check "default-lo" in th.styles and "default-hi" in th.styles
+      check "default-0" in th.styles and "default-1" in th.styles

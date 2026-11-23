@@ -4,6 +4,13 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## A shade's stops (2026-11-23, the author's)
+
+A shade's colours are now stops, `NAME-0`, `NAME-1` and any between (`NAME-0.5`), in place of `NAME-lo` and `NAME-hi`: a
+value is interpolated (in HSV) between the two stops either side of it, so a ramp can pass through chosen colours.  A
+theme read checks that a shade's stops run from 0 to 1, each place once, each giving the same colours, `#rrggbb`; a style
+name may end in a stop's place (`fitness-0.5`).  The built-in themes have `default-0` and `default-1`.
+
 ## The ceiling of a model: heart rate that is a fault (2026-11-23, the author's question about 2022-05-17)
 
 The ride of 2022-05-17 had an impulse of 1,275 (others that month: 80 to 255): its strap (a Garmin HRM3-SS) recorded 242

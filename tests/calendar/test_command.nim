@@ -161,7 +161,7 @@ suite "nch calendar --shade: what it needs":
     check calendarCommand.run(h, @["--shade", "fitness"]) == exitFailure # (no colour)
     h.colour = [true, true]
     check calendarCommand.run(h, @["--shade", "fitness"]) == exitFailure
-      # (colour, but a theme with no default-lo or fitness-lo)
-    h.theme = parseTheme("default-lo bg=#000000\ndefault-hi bg=#ffffff\n")
+      # (colour, but a theme with no default-0 or fitness-0)
+    h.theme = parseTheme("default-0 bg=#000000\ndefault-1 bg=#ffffff\n")
     check calendarCommand.run(h, @["--shade", "fitness"]) == exitOk
       # (nothing is selected: said, and no failure)

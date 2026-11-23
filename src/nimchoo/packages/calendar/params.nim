@@ -57,7 +57,7 @@ func calendarSpec*(): Spec[Raw] =
         ["--shade"],
         shade,
         "NAME",
-        ~"colour the background of each day by a value (see the table below): from the theme's NAME-lo (the lowest shown) to NAME-hi (the highest), or default-lo to default-hi.  Needs colour",
+        ~"colour the background of each day by a value (see the table below): by the theme's stops NAME-0 (the lowest shown) ... NAME-1 (the highest), or default-0 ... default-1.  Needs colour",
         completion = completesFrom(completeShades),
         valid = isWord,
       ),

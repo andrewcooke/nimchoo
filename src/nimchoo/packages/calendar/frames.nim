@@ -12,7 +12,7 @@
 ## calendar does not depend on that package; the contribution is the link.
 ##
 ## Behind the days, a calendar may be *shaded* (`--shade NAME`, `calendarShadePoint`): a value over time as the background
-## colour, from the theme's `NAME-lo` to `NAME-hi` (`core/theme`).  A shade is given intervals of time and gives a value
+## colour, by the theme's stops `NAME-0` ... `NAME-1` (`core/theme`).  A shade is given intervals of time and gives a value
 ## for each: a curve's value at the end of the interval (fitness: three a day, a cell being three columns), or a total
 ## over it (impulse: one a day).
 
@@ -59,7 +59,7 @@ type
 
   CalendarShade* = object
     name*: string
-      ## what the user types after `--shade` ("fitness"), and the style its colours are of (`fitness-lo` to `fitness-hi`)
+      ## what the user types after `--shade` ("fitness"), and the style its colours are of (`fitness-0` ... `fitness-1`)
     summary*: string ## one line
     kind*: ShadeKind
     tables*: seq[string] ## the tables it reads

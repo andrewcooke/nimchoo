@@ -28,7 +28,7 @@ const
   synopsis =
     "usage: nch [--db PATH] [--user NAME] calendar [SUBJECT] [--detail N] [--shade NAME]"
   intro = @[
-    ~"A subject (by default the activities of the selection: see `nch activities --select`) on a calendar: a row for each month that has a marked day, the days in columns by weekday (weeks start on Monday).  In the selection's colour: a marked day (for the activities, one when an activity started); dimmed: none.  The months either side of a gap are marked (a name in the warning colour, or a * without colour), as are the months that were left out (see `--detail`).  With `--shade NAME` the background of each day shows a value (each third of a day for a curve), from the theme's NAME-lo for the lowest shown to NAME-hi for the highest (default-lo and default-hi if the theme has none of its own), and a last line says what and how much."
+    ~"A subject (by default the activities of the selection: see `nch activities --select`) on a calendar: a row for each month that has a marked day, the days in columns by weekday (weeks start on Monday).  In the selection's colour: a marked day (for the activities, one when an activity started); dimmed: none.  The months either side of a gap are marked (a name in the warning colour, or a * without colour), as are the months that were left out (see `--detail`).  With `--shade NAME` the background of each day shows a value (each third of a day for a curve), by the theme's stops, NAME-0 for the lowest shown to NAME-1 for the highest, with any between (default-0 ... default-1 if the theme has none of its own), and a last line says what and how much."
   ]
 
 func registryLines(
@@ -225,7 +225,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       return failure(
         g,
         "nch calendar",
-        ~"the theme {g.theme.name} has no colours for a shade: give it `default-lo` and `default-hi` (or `{name}-lo` and `{name}-hi`), each with a bg=#rrggbb (`nch --config` says where the theme is)",
+        ~"the theme {g.theme.name} has no colours for a shade: give it `default-0` and `default-1` (or `{name}-0` and `{name}-1`; and any stops between, `default-0.5`), each with a bg=#rrggbb (`nch --config` says where the theme is)",
       )
     if c.frame.readsSelection and c.subject.selected(st) == 0:
       g.warn emptyText(c.subject)

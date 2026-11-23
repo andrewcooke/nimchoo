@@ -59,7 +59,7 @@ decided is marked so; the rest is open.
   **Built** (2026-11-23, step 4, with the author): `nch calendar [SUBJECT] --shade NAME` (the subject's days in the
   foreground as before; the shades `fitness`, `fatigue`, `form` of the first selected model and `impulse` of the selected
   activities, contributed to `calendar/shades`); the colour is exact, a style `NAME,FRACTION` (the author's idea) that
-  only the theme's drawing resolves, between `NAME-lo` and `NAME-hi` or `default-lo` and `default-hi`, so every function
+  only the theme's drawing resolves, by the stops `NAME-0` ... `NAME-1` (any between: `NAME-0.5`) or `default-0` ... `default-1`, so every function
   on lines passes it through; scaled from the lowest value shown to the highest, a legend line saying what and how much;
   a curve at the end of each third of a day, the impulse the whole day; `--detail N` (1 months with marks, 2 the range,
   3 to now; default 3 for a curve, else 1) in place of `-v` and the planned `--full`.
