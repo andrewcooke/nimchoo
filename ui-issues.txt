@@ -32,3 +32,32 @@
 
 -----
 
+* styles in calendar
+
+* table axes in activities
+
+* nch activities --near 'cerro san' gives error(!) and it's not a good error
+
+* nch activities --from Provi gives similar error
+
+* calendar - maybe an orange dash / dot / : between months?
+
+* calendar - should it extend to today?  warn on gaps?
+
+* calendar climbs - summary line styled?  em and select? (done, but display.nim in importer still old style)
+
+* all lower case?
+
+* climbing 1,113 / 1,113 activities - emphasis on numbner, not climbing
+
+* activities title "start            │ sport   │ distance │ active │ place / name" should be start/name or from/name (as param)
+
+* nch climbs says none, but nch climbs --all gives best (ah, for selected activities?)
+
+* nch climbs rank/attempts compact
+
+* importing/climbing messages - em number too
+
+* tags + reading + summary (all big issues - check if exist in todo)
+
+* backquoting seems odd in look

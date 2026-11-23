@@ -1,12 +1,11 @@
 
 # nimchoo
 
-* is a small, fast, local, **cli toolkit for fits files** like you can
-  download from sports watches and bike computers
+* is a small, fast, local, **cli for training data*
 
-* it stores fits data in a **local database** (no data shared; nothing
-  in the cloud; you can open it up with standard tools and see what is
-  inside)
+* it stores fits data (from sports watches, bike computers, etc) in a
+**local database** (no data shared; nothing in the cloud; you can open
+it up with standard tools and see what is inside)
 
 * **analysis** of routes, performance, records, etc
 
@@ -20,9 +19,6 @@
   parameters
 
 * open source, hackable, extensible
-
-* full control of data and disk use (cache management), although it
-  does require internet access for many operations
 
 ## technical background
 
