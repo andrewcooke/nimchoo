@@ -149,7 +149,7 @@ suite "climbs params: criteria":
     check parseArgs(@["--also"]).problem.contains("needs criteria")
     check parseArgs(@["--within", "--all"]).problem.contains("one or the other")
     check parseArgs(@["--ridden", "--within", "--also"]).problem.contains(
-      "the selection itself"
+      "the climbs selection itself"
     )
 
   test "mistakes":

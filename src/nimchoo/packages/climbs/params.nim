@@ -4,7 +4,7 @@
 import ../util/args/args
 import ../ui/units
 import ../near/near
-import ../subject/subjects
+import ../subject/[steps, subjects]
 import ./completion
 import ./[detect, display, match, overlap]
 import std/[math, options, strformat, strutils, unicode]
@@ -77,8 +77,9 @@ type
       discard
 
   Raw = object ## what the options fill in
-    help, all, editing, auto, retire, unretire, retired, duplicates, delete: bool
-    verbose, everyone, ridden, invert, select, also, within: bool
+    help, editing, auto, retire, unretire, retired, duplicates, delete: bool
+    verbose, everyone, ridden, invert: bool
+    steps: Steps ## --all, --select, --also, --within
     name, rename: string
     names, categories: seq[string]
     where: Where ## `--from`, `--near`, `--radius`
@@ -120,121 +121,112 @@ proc takeCategories(
     p.categories.add c
   fine
 
+const words* = Words(
+  command: "climbs",
+  things: "climbs",
+  every: "every climb",
+  selection: "climbs selection",
+) ## how the climbs are named in the steps that involve the selection
+
 func climbSpec*(): Spec[Raw] =
   ## The options of `nch climbs`: the options that change a climb go under `--edit`.
   result = Spec[Raw](
-    opts: @[
-      listOption[Raw](
-        ["--names"],
-        takeNames,
-        "TEXT...",
-        ~"the climbs whose name holds any of the texts (case and accents do not matter; the number counts: `--names farellones₂`, which `--names \"farellones 2\"` also means); a whole number that no name holds is a climb's number (`--names 62`)",
-      ),
-      flag(
-        Raw,
-        ["--ridden"],
-        ridden,
-        ~"the climbs that the selected activities went up (see `nch activities --select`)",
-      ),
-      listOption[Raw](
-        ["--categories"],
-        takeCategories,
-        "CAT...",
-        ~"the climbs of these categories ({categoryNames.join(\" \")}, by the height gained)",
-      ),
-      flag(
-        Raw,
-        ["--invert"],
-        invert,
-        ~"the climbs that the criteria do NOT find (all of them taken together)",
-      ),
-      flag(
-        Raw,
-        ["--select"],
-        select,
-        ~"what is listed becomes the climbs selection, which `nch climbs` lists and `nch map climbs` shows, in place of the one there was (the last of the steps above; needs criteria or `--all`)",
-      ),
-      flag(
-        Raw,
-        ["--also"],
-        also,
-        ~"add the climbs selection to what the criteria find (after the filters): with `--select`, they are added to the selection",
-      ),
-      flag(
-        Raw,
-        ["--within"],
-        within,
-        ~"search only the climbs selection (before any filter): with `--select`, the selection is narrowed to what is found",
-      ),
-      flag(
-        Raw,
-        ["-v", "--verbose"],
-        verbose,
-        ~"list the attempts under each climb, the fastest first, each with its rank (those of the selected rides in the selection's colour)",
-      ),
-      flag(
-        Raw,
-        ["--everyone"],
-        everyone,
-        ~"the people instead of your attempts: how many have ridden each climb, the fastest and who, and where your best time comes among everyone's best times (\"4 of 6\"); with `-v` each person's best.  (The personal rank and this one are never shown together.)",
-      ),
-      flag(Raw, ["--all"], all, ~"every climb, not just the selection"),
-      flag(
-        Raw,
-        ["--delete"],
-        delete,
-        ~"(with `--all`) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  It asks first (`-y` answers yes).  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
-        level = 1,
-      ),
-      custom(
-        Raw,
-        ["--edit"],
-        true,
-        "NAME",
-        ~"change that climb, with one of the following.  NAME is a climb's name as `--all` shows it, its number included where several share a name: \"Morro La Cabra₁\" (\"Morro La Cabra 1\" and \"Morro La Cabra1\" do as well).  The number is kept: it never changes",
-        completion = completesFrom(completeClimbNames),
-        body = (p.editing = true; p.name = value; fine),
-      ),
-      custom(
-        Raw,
-        ["--rename"],
-        true,
-        "NEW",
-        ~"give it the name NEW (any words; at most 60 characters; not ending in a subscript number, which the program adds when climbs share a name).  The name is kept: the program never changes it.  Several climbs may have the same name",
-        level = 1,
-        body = (
-          block:
-            p.rename = value.strip
-            let why = nameProblem(value)
-            if why.isSome:
-              return refuse(plain(why.get))
-            fine
+    opts:
+      @[
+        listOption[Raw](
+          ["--names"],
+          takeNames,
+          "TEXT...",
+          ~"the climbs whose name holds any of the texts (case and accents do not matter; the number counts: `--names farellones₂`, which `--names \"farellones 2\"` also means); a whole number that no name holds is a climb's number (`--names 62`)",
         ),
-      ),
-      flag(
-        Raw,
-        ["--auto"],
-        auto,
-        ~"forget the name; it is named again at once from the places near it (or by the next `nch climbs` if the names cannot be had)",
-        level = 1,
-      ),
-      flag(
-        Raw,
-        ["--retire"],
-        retire,
-        ~"hide the climb from the lists, as a segment can be hidden on Strava.  Nothing is deleted: it keeps its efforts, still takes those of new rides, and keeps its number, so the gap shows",
-        level = 1,
-      ),
-      flag(Raw, ["--unretire"], unretire, ~"show it again", level = 1),
-      flag(Raw, ["--retired"], retired, ~"list the retired climbs"),
-      flag(
-        Raw,
-        ["--duplicates"],
-        duplicates,
-        ~"list the climbs that largely overlap (more than {int(round((1 - nearCopyLimit) * 100))}% of each lies within {int(gateRadius)}m of the other), the most ridden first, with the command to hide each of the others",
-      ),
-      helpFlag(Raw),
-    ],
+        flag(
+          Raw,
+          ["--ridden"],
+          ridden,
+          ~"the climbs that the selected activities went up (see `nch activities --select`)",
+        ),
+        listOption[Raw](
+          ["--categories"],
+          takeCategories,
+          "CAT...",
+          ~"the climbs of these categories ({categoryNames.join(\" \")}, by the height gained)",
+        ),
+        flag(
+          Raw,
+          ["--invert"],
+          invert,
+          ~"the climbs that the criteria do NOT find (all of them taken together)",
+        ),
+      ] & stepOptions(Raw, words) &
+      @[
+        flag(
+          Raw,
+          ["-v", "--verbose"],
+          verbose,
+          ~"list the attempts under each climb, the fastest first, each with its rank (those of the selected rides in the selection's colour)",
+        ),
+        flag(
+          Raw,
+          ["--everyone"],
+          everyone,
+          ~"the people instead of your attempts: how many have ridden each climb, the fastest and who, and where your best time comes among everyone's best times (\"4 of 6\"); with `-v` each person's best.  (The personal rank and this one are never shown together.)",
+        ),
+        flag(
+          Raw,
+          ["--delete"],
+          delete,
+          ~"(with `--all`) delete every climb found, with the efforts on them (of every user), and start again: the next `nch climbs` works them out again from the rides.  Names given by hand are lost (the message says how many).  It asks first (`-y` answers yes).  The climbs are never deleted one at a time: `--edit NAME --retire` hides one",
+          level = 1,
+        ),
+        custom(
+          Raw,
+          ["--edit"],
+          true,
+          "NAME",
+          ~"change that climb, with one of the following.  NAME is a climb's name as `--all` shows it, its number included where several share a name: \"Morro La Cabra₁\" (\"Morro La Cabra 1\" and \"Morro La Cabra1\" do as well).  The number is kept: it never changes",
+          completion = completesFrom(completeClimbNames),
+          body = (p.editing = true; p.name = value; fine),
+        ),
+        custom(
+          Raw,
+          ["--rename"],
+          true,
+          "NEW",
+          ~"give it the name NEW (any words; at most 60 characters; not ending in a subscript number, which the program adds when climbs share a name).  The name is kept: the program never changes it.  Several climbs may have the same name",
+          level = 1,
+          body = (
+            block:
+              p.rename = value.strip
+              let why = nameProblem(value)
+              if why.isSome:
+                return refuse(plain(why.get))
+              fine
+          ),
+        ),
+        flag(
+          Raw,
+          ["--auto"],
+          auto,
+          ~"forget the name; it is named again at once from the places near it (or by the next `nch climbs` if the names cannot be had)",
+          level = 1,
+        ),
+        flag(
+          Raw,
+          ["--retire"],
+          retire,
+          ~"hide the climb from the lists, as a segment can be hidden on Strava.  Nothing is deleted: it keeps its efforts, still takes those of new rides, and keeps its number, so the gap shows",
+          level = 1,
+        ),
+        flag(Raw, ["--unretire"], unretire, ~"show it again", level = 1),
+        flag(Raw, ["--retired"], retired, ~"list the retired climbs"),
+        flag(
+          Raw,
+          ["--duplicates"],
+          duplicates,
+          ~"list the climbs that largely overlap (more than {int(round((1 - nearCopyLimit) * 100))}% of each lies within {int(gateRadius)}m of the other), the most ridden first, with the command to hide each of the others",
+        ),
+        helpFlag(Raw),
+      ],
     hint: proc(arg: string): Line {.nimcall, raises: [].} =
       ~" (to change a climb: `--edit {arg} --rename NEW`, `--auto`, `--retire` or `--unretire`)",
   )
@@ -291,7 +283,7 @@ func finish(raw: Raw): Parsed[Params] =
       return bad(
         ~"`--rename`, `--auto`, `--retire` and `--unretire` cannot be used together"
       )
-    if raw.retired or raw.duplicates or raw.all:
+    if raw.retired or raw.duplicates or raw.steps.all:
       return bad(
         ~"`--all`, `--retired` and `--duplicates` list climbs: they do not go with `--edit`"
       )
@@ -299,10 +291,10 @@ func finish(raw: Raw): Parsed[Params] =
     return
       bad(~"`--rename`, `--auto`, `--retire` and `--unretire` go with `--edit NAME`")
   if (if raw.retired: 1 else: 0) + (if raw.duplicates: 1 else: 0) +
-      (if raw.all: 1 else: 0) > 1:
+      (if raw.steps.all: 1 else: 0) > 1:
     return bad(~"`--all`, `--retired` and `--duplicates` cannot be used together")
   if raw.delete:
-    if not raw.all:
+    if not raw.steps.all:
       return bad(
         ~"`--delete` needs `--all`: the climbs are never deleted one at a time (to hide one: `--edit NAME --retire`)"
       )
@@ -311,8 +303,8 @@ func finish(raw: Raw): Parsed[Params] =
   let criteria = criteriaOf(raw)
   let tidying = raw.editing or raw.delete or raw.retired or raw.duplicates
   if tidying and (
-    criteria.isSome or raw.select or raw.also or raw.within or raw.invert or
-    raw.where.hasPlace
+    criteria.isSome or raw.steps.select or raw.steps.also or raw.steps.within or
+    raw.invert or raw.where.hasPlace
   ):
     return bad(
       ~"the criteria choose climbs to list: they do not go with `--edit`, `--delete`, `--retired` or `--duplicates`"
@@ -327,22 +319,9 @@ func finish(raw: Raw): Parsed[Params] =
   let radiusAlone = w.settle(false)
   if radiusAlone.isSome:
     return bad(radiusAlone.get)
-  if raw.select and criteria.isNone and not raw.all:
-    return bad(
-      ~"`--select` needs criteria or `--all`: it keeps what they find as the climbs selection"
-    )
-  if raw.also and criteria.isNone:
-    return bad(
-      ~"`--also` adds the climbs selection to what the criteria find, so it needs criteria"
-    )
-  if raw.within and raw.all:
-    return bad(
-      ~"`--within` searches the climbs selection and `--all` every climb: one or the other"
-    )
-  if raw.within and raw.also:
-    return bad(
-      ~"`--within` finds only selected climbs, and `--also` adds the selection: together they are the selection itself (`nch climbs`)"
-    )
+  let stepsWrong = stepProblem(raw.steps, criteria.isSome, words)
+  if stepsWrong.isSome:
+    return bad(stepsWrong.get)
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:
     parsedOk(Params(action: caDeleteAll))
@@ -361,7 +340,7 @@ func finish(raw: Raw): Parsed[Params] =
     parsedOk(Params(action: caRetired))
   elif raw.duplicates:
     parsedOk(Params(action: caDuplicates))
-  elif criteria.isSome or raw.all:
+  elif criteria.isSome or raw.steps.all:
     parsedOk(
       Params(
         action: caList,
@@ -369,9 +348,9 @@ func finish(raw: Raw): Parsed[Params] =
           kind: lkFound,
           attempts: attempts,
           criteria: criteria.get(ClimbCriteria()),
-          select: raw.select,
-          among: (if raw.within: amSelection else: amEvery),
-          also: raw.also,
+          select: raw.steps.select,
+          among: raw.steps.among,
+          also: raw.steps.also,
         ),
       )
     )

@@ -32,7 +32,7 @@ import
   ./test_completion,
   ./tools/test_dot
 import ./cache/test_cache
-import ./subject/test_subjects
+import ./subject/[test_steps, test_subjects]
 import ./util/zip/test_zipbytes
 import ./util/zip/test_fuzz as zipFuzz
 import ./util/xlsx/test_xlsx

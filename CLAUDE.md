@@ -116,7 +116,7 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   not with `--also` or `--select`); `--select`: the selection replaced; shown.  with no criteria the steps are skipped and
   the selection is listed; `--all` is the criterion that keeps everything.  `--select` always
   means "what is listed is the selection now"; `--within` and `--also` are modifiers (alone, they show without keeping).
-  the same for every command with a selection (activities, climbs).
+  the same for every command with a selection (activities, climbs), written once (`subject/steps.nim`).
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject
   contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
   subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made

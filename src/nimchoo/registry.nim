@@ -442,7 +442,10 @@ It is what `climbs`, `map`, `calendar` and the like use.
       name: "subject",
       package: pkgSubject.package,
       summary: "Subjects: what the views are views of (the activities, the climbs).",
-      doc: """Subjects: what the views are views of (the activities, the climbs).""",
+      doc: """Subjects: what the views are views of (the activities, the climbs).
+
+Also the steps of a search that involve a subject's selection (`steps.nim`): the options `--all`, `--select`, `--also` and
+`--within`, the rules between them and the lines of the usage that say them, written once for every subject's command.""",
       path: "src/nimchoo/packages/subject/",
     ),
     Registered(

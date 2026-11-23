@@ -10,6 +10,7 @@ import ../db/sqltext
 import ../../core/ids
 import ../text/fold/fold
 import ../tags/tag
+import ../subject/steps
 import ./[completion, criterion, ranges, request]
 export ranges, criterion, near, request
 
@@ -53,7 +54,8 @@ type
   ListState = object
     ## What the options of `nch activities` fill in as they are read (`finish` makes the `Request` of it).
     c: Collected
-    all, select, also, within, delete, rename, verbose, invert: bool
+    steps: Steps ## --all, --select, --also, --within
+    delete, rename, verbose, invert: bool
     newest, oldest: int ## 0: not given
     help: bool
     zone: Timezone
@@ -266,176 +268,154 @@ func takeGps(p: var ListState, wanted: Gps): Problem =
   p.c.gps = some(wanted)
   fine
 
+const words* = Words(
+  command: "activities",
+  things: "activities",
+  every: "every activity",
+  selection: "selection",
+) ## how the activities are named in the steps that involve the selection
+
 proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
   ## The options of `nch activities`, in the order the usage lists them, each with its help; the criteria that other
   ## packages offer come after the sports, names and paths.
   result = Spec[ListState](
-    opts: @[
-      custom(
-        ListState,
-        ["--all"],
-        false,
-        "",
-        ~"every activity, not just the selection",
-        body = (p.all = true; fine),
-      ),
-      listOption[ListState](
-        ["--names"],
-        takeNames,
-        "TEXT...",
-        ~"activities whose name contains any of the TEXTs, whatever its case or accents: `--names toyo` finds \"El Toyo and back\", `--names toyo farellones` finds either; a text with spaces is quoted; a whole number that no name contains is an activity's number (`--names 737`); \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
-      ),
-      listOption[ListState](
-        ["--starts"],
-        takeStarts,
-        "TEXT...",
-        ~"the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): `--starts providencia`",
-      ),
-      listOption[ListState](
-        ["--paths"],
-        takePaths,
-        "TEXT...",
-        ~"the same for the path of the file the activity was imported from (or any other path the same file was seen at): `--paths bowman`, `--paths 2026-10`",
-      ),
-      listOption[ListState](
-        ["--tags"],
-        takeTags,
-        "TAG...",
-        ~"activities that have a tag matching each (all of them: \"and\"), whatever its case or accents; `*` is anything: `--tags bike:cotic`, `--tags 'sport:cycling*'` (quoted, or the shell reads the `*`).  An import gives each activity its sport as a tag: `sport:cycling:road`, or `sport:cycling` when the file says nothing more",
-        completion = completesFrom(completeTags),
-      ),
-      custom(
-        ListState,
-        ["--distance"],
-        true,
-        "RANGE",
-        ~"distance, with its unit (`km` or `m`; a unit left out is filled in, after asking: `10-50` as `10km-50km`, `42km~200` as `42km~200m`): 40km- (40 or more), 10km-50km, -5km (up to 5), 500m-; 42km~2km (between 40 and 44), latest~10%, previous~10%",
-        body = takeDistance(p, name, value),
-      )
-        .withUnit("km", distanceFill),
-      custom(
-        ListState,
-        ["--active"],
-        true,
-        "RANGE",
-        ~"active time: 1h-, 30m-2h, -45m (units d h m s, as printed; a unit left out is filled in, after asking: `30-90m` as `30m-90m`, `2h~15` as `2h~15m`, a bare number as hours); 2h~15m, latest~10%, previous~10%",
-        body = takeActive(p, name, value),
-      )
-        .withUnit("h", timeFill),
-      custom(
-        ListState,
-        ["--after"],
-        true,
-        "TIME",
-        ~"activities that start at or after TIME",
-        body = takeWhen(p, value, false),
-      ),
-      custom(
-        ListState,
-        ["--before"],
-        true,
-        "TIME",
-        ~"activities that start before TIME (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a date is the start of that day, as if written with T00:00:00: `--after 2018-08-01 --before 2018-09-01` is August)",
-        body = takeWhen(p, value, true),
-      ),
-      custom(
-        ListState,
-        ["--on"],
-        true,
-        "DATE",
-        ~"activities that start on that day (a date: `--on 2018-08-27` is `--after 2018-08-27 --before 2018-08-28`)",
-        body = takeOn(p, value),
-      ),
-      custom(
-        ListState,
-        ["--gps"],
-        false,
-        "",
-        ~"only activities that have positions (a GPS track)",
-        body = takeGps(p, gpsWith),
-      ),
-      custom(
-        ListState,
-        ["--no-gps"],
-        false,
-        "",
-        ~"only activities that have none (indoor rides, treadmill runs ...)",
-        body = takeGps(p, gpsWithout),
-      ),
-      custom(
-        ListState,
-        ["--invert"],
-        false,
-        "",
-        ~"the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; `--newest` and `--oldest` apply after.  Needs a criterion",
-        body = (p.criteriaGiven = true; p.invert = true; fine),
-      ),
-      custom(
-        ListState,
-        ["-n", "--newest"],
-        true,
-        "N",
-        ~"only the N newest of the activities that meet the other criteria",
-        body = takeCount(p, name, value, false),
-      ),
-      custom(
-        ListState,
-        ["--oldest"],
-        true,
-        "N",
-        ~"only the N oldest of them",
-        body = takeCount(p, name, value, true),
-      ),
-      custom(
-        ListState,
-        ["--select"],
-        false,
-        "",
-        ~"what is listed becomes the selection, in place of the one there was (the last of the steps above; needs criteria or `--all`)",
-        body = (p.select = true; fine),
-      ),
-      custom(
-        ListState,
-        ["--also"],
-        false,
-        "",
-        ~"add the selection to what the criteria find (after the filters and the limits): with `--select`, they are added to the selection",
-        body = (p.also = true; fine),
-      ),
-      custom(
-        ListState,
-        ["--within"],
-        false,
-        "",
-        ~"search only the selection (before any filter): with `--select`, the selection is narrowed to what is found",
-        body = (p.within = true; fine),
-      ),
-      custom(
-        ListState,
-        ["--rename"],
-        false,
-        "",
-        ~"name the activities again (with no criteria and no `--all`, those of the selection): where each started and what it is called, from the places and your landmarks as they are now (after `nch landmarks --add`, say)",
-        body = (p.rename = true; fine),
-      ),
-      custom(
-        ListState,
-        ["--delete"],
-        false,
-        "",
-        ~"delete the activities (with no criteria and no `--all`, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  It asks first, saying what would be deleted (`-y` answers yes; with no terminal and no `-y` nothing is deleted)",
-        body = (p.delete = true; fine),
-      ),
-      custom(
-        ListState,
-        ["-v", "--verbose"],
-        false,
-        "",
-        ~"show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), its tags, and the path of its file",
-        body = (p.verbose = true; fine),
-      ),
-      helpFlag(ListState),
-    ]
+    opts:
+      @[
+        listOption[ListState](
+          ["--names"],
+          takeNames,
+          "TEXT...",
+          ~"activities whose name contains any of the TEXTs, whatever its case or accents: `--names toyo` finds \"El Toyo and back\", `--names toyo farellones` finds either; a text with spaces is quoted; a whole number that no name contains is an activity's number (`--names 737`); \"none\": no name; \"latest\" or \"previous\": the same name as that activity",
+        ),
+        listOption[ListState](
+          ["--starts"],
+          takeStarts,
+          "TEXT...",
+          ~"the same for the place the activity started (\"Providencia\", \"near Lo Barnechea\"): `--starts providencia`",
+        ),
+        listOption[ListState](
+          ["--paths"],
+          takePaths,
+          "TEXT...",
+          ~"the same for the path of the file the activity was imported from (or any other path the same file was seen at): `--paths bowman`, `--paths 2026-10`",
+        ),
+        listOption[ListState](
+          ["--tags"],
+          takeTags,
+          "TAG...",
+          ~"activities that have a tag matching each (all of them: \"and\"), whatever its case or accents; `*` is anything: `--tags bike:cotic`, `--tags 'sport:cycling*'` (quoted, or the shell reads the `*`).  An import gives each activity its sport as a tag: `sport:cycling:road`, or `sport:cycling` when the file says nothing more",
+          completion = completesFrom(completeTags),
+        ),
+        custom(
+          ListState,
+          ["--distance"],
+          true,
+          "RANGE",
+          ~"distance, with its unit (`km` or `m`; a unit left out is filled in, after asking: `10-50` as `10km-50km`, `42km~200` as `42km~200m`): 40km- (40 or more), 10km-50km, -5km (up to 5), 500m-; 42km~2km (between 40 and 44), latest~10%, previous~10%",
+          body = takeDistance(p, name, value),
+        )
+          .withUnit("km", distanceFill),
+        custom(
+          ListState,
+          ["--active"],
+          true,
+          "RANGE",
+          ~"active time: 1h-, 30m-2h, -45m (units d h m s, as printed; a unit left out is filled in, after asking: `30-90m` as `30m-90m`, `2h~15` as `2h~15m`, a bare number as hours); 2h~15m, latest~10%, previous~10%",
+          body = takeActive(p, name, value),
+        )
+          .withUnit("h", timeFill),
+        custom(
+          ListState,
+          ["--after"],
+          true,
+          "TIME",
+          ~"activities that start at or after TIME",
+          body = takeWhen(p, value, false),
+        ),
+        custom(
+          ListState,
+          ["--before"],
+          true,
+          "TIME",
+          ~"activities that start before TIME (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a date is the start of that day, as if written with T00:00:00: `--after 2018-08-01 --before 2018-09-01` is August)",
+          body = takeWhen(p, value, true),
+        ),
+        custom(
+          ListState,
+          ["--on"],
+          true,
+          "DATE",
+          ~"activities that start on that day (a date: `--on 2018-08-27` is `--after 2018-08-27 --before 2018-08-28`)",
+          body = takeOn(p, value),
+        ),
+        custom(
+          ListState,
+          ["--gps"],
+          false,
+          "",
+          ~"only activities that have positions (a GPS track)",
+          body = takeGps(p, gpsWith),
+        ),
+        custom(
+          ListState,
+          ["--no-gps"],
+          false,
+          "",
+          ~"only activities that have none (indoor rides, treadmill runs ...)",
+          body = takeGps(p, gpsWithout),
+        ),
+        custom(
+          ListState,
+          ["--invert"],
+          false,
+          "",
+          ~"the activities that do NOT meet the criteria (all of them taken together): everything that fails to match, including those that have nothing recorded for a criterion.  \"latest\" and \"previous\" are found before inverting; `--newest` and `--oldest` apply after.  Needs a criterion",
+          body = (p.criteriaGiven = true; p.invert = true; fine),
+        ),
+        custom(
+          ListState,
+          ["-n", "--newest"],
+          true,
+          "N",
+          ~"only the N newest of the activities that meet the other criteria",
+          body = takeCount(p, name, value, false),
+        ),
+        custom(
+          ListState,
+          ["--oldest"],
+          true,
+          "N",
+          ~"only the N oldest of them",
+          body = takeCount(p, name, value, true),
+        ),
+      ] & stepOptions(ListState, words) &
+      @[
+        custom(
+          ListState,
+          ["--rename"],
+          false,
+          "",
+          ~"name the activities again (with no criteria and no `--all`, those of the selection): where each started and what it is called, from the places and your landmarks as they are now (after `nch landmarks --add`, say)",
+          body = (p.rename = true; fine),
+        ),
+        custom(
+          ListState,
+          ["--delete"],
+          false,
+          "",
+          ~"delete the activities (with no criteria and no `--all`, those of the selection) and everything made from them: coordinates, route, heart rate, impulses, efforts.  The climbs found in them stay (they are shared), and so do the names on those.  The file of an activity is forgotten as well: importing its folder again would bring the activity back.  It asks first, saying what would be deleted (`-y` answers yes; with no terminal and no `-y` nothing is deleted)",
+          body = (p.delete = true; fine),
+        ),
+        custom(
+          ListState,
+          ["-v", "--verbose"],
+          false,
+          "",
+          ~"show more of each activity: where it started (its coordinates, or \"no GPS\" if the file has no positions), the place it started and its name (made when it was imported), its tags, and the path of its file",
+          body = (p.verbose = true; fine),
+        ),
+        helpFlag(ListState),
+      ]
   )
   var at = 0
     # (the offered ones go before --distance: with the criteria that say what an activity is called or where)
@@ -502,36 +482,23 @@ func finish(st: ListState): Parsed[Request] =
     # (--radius alone: around where the latest started; never refused here)
   let filters = filtersOf(st.c, w)
   let given = st.criteriaGiven or w.given
-  if st.all and filters.len > 0:
+  if st.steps.all and filters.len > 0:
     return bad(
       ~"`--all` is every activity: it does not go with criteria (`--newest` and `--oldest` do)"
     )
-  if st.delete and (st.select or st.verbose):
+  if st.delete and (st.steps.select or st.verbose):
     return bad(~"`--delete` shows nothing: it does not go with `--select` or `-v`")
-  if st.rename and (st.delete or st.select or st.verbose):
+  if st.rename and (st.delete or st.steps.select or st.verbose):
     return bad(
       ~"`--rename` shows nothing: it does not go with `--delete`, `--select` or `-v`"
     )
-  if (st.delete or st.rename) and st.also:
+  if (st.delete or st.rename) and st.steps.also:
     return bad(
       ~"`--also` adds the whole selection to what is found: `--delete` and `--rename` do not take it (it is too easy to act on more than was meant)"
     )
-  if st.select and not (given or st.all):
-    return bad(
-      ~"`--select` keeps the activities listed as the selection, so it needs criteria or `--all`"
-    )
-  if st.also and not given:
-    return bad(
-      ~"`--also` adds the selection to what the criteria find, so it needs criteria"
-    )
-  if st.within and st.all:
-    return bad(
-      ~"`--within` searches the selection and `--all` every activity: one or the other"
-    )
-  if st.within and st.also:
-    return bad(
-      ~"`--within` finds only selected activities, and `--also` adds the selection: together they are the selection itself (`nch activities`)"
-    )
+  let stepsWrong = stepProblem(st.steps, given, words)
+  if stepsWrong.isSome:
+    return bad(stepsWrong.get)
   if st.invert and filters.len == 0:
     return bad(
       ~"`--invert` needs a criterion to invert (`--tags`, `--names`, `--distance` ...)"
@@ -556,9 +523,9 @@ func finish(st: ListState): Parsed[Request] =
     elif st.rename:
       Action(kind: akRename)
     else:
-      Action(kind: akList, verbose: st.verbose, select: st.select)
+      Action(kind: akList, verbose: st.verbose, select: st.steps.select)
   let scope =
-    if st.all:
+    if st.steps.all:
       Scope(kind: scAll, allLimit: limit)
     elif given:
       Scope(
@@ -566,8 +533,8 @@ func finish(st: ListState): Parsed[Request] =
         filters: filters,
         invert: st.invert,
         limit: limit,
-        among: (if st.within: amSelection else: amEvery),
-        also: st.also,
+        among: st.steps.among,
+        also: st.steps.also,
       )
     else:
       Scope(kind: scSelection)

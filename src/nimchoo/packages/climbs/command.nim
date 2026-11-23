@@ -13,6 +13,7 @@ import ../ui/live
 import ../ui/[style, vocabulary]
 import ../util/args/[args, usage]
 import ./params
+import ../subject/steps
 import ./attempts
 import ./[chosen, found]
 import ./duplicates
@@ -45,12 +46,12 @@ const
     ~"Show the climbs selection (with criteria, or `--all`, the climbs they find among all of them; `--select` keeps those as the selection, which `nch map climbs` and `nch calendar climbs` show too; an import selects the climbs of what it imported), each the standard way (name, category by the height gained, length, gain, gradient), then how you did on it: your best time and when, your best time on the selected rides (see `nch activities --select`; in the selection's colour) and when, where that one ranks among your own attempts, and how many times you rode it; \"manual\" marks a name given by hand.  All your attempts count in the best and the rank, not only those of the selected rides.  Times are from the bottom to the top, stops included.",
     ~"With criteria (or `--all`), the climbs listed are found in these steps:",
     ~"1. Start with all the climbs (those not retired).",
-    ~"2. If `--within`, keep only those in the current climbs selection.",
+    step(2, withinStep(words)),
     ~"3. Apply the filters (criteria), combined with \"and\".",
     ~"4. If `--invert`, use instead the climbs of step 2 that step 3 left out.",
-    ~"5. If `--also`, add the current climbs selection.",
-    ~"6. If `--select`, replace the current climbs selection with the result.",
-    ~"7. Display the result (selected climbs are highlighted).",
+    step(5, alsoStep(words)),
+    step(6, selectStep(words)),
+    step(7, displayStep(words)),
     ~"If no criteria are given, the steps are skipped and the climbs selection is listed.  `--all` is the criterion that keeps everything: it runs the steps above.",
     ~"The climbs are found in the rides, once: an import works out those of every activity that has not been looked at (about a minute for two thousand rides), and keeps them; this command works out any that are still lacking.  A ride that goes over part of a climb but not all of it makes a climb of its own.",
   ]

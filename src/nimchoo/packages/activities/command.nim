@@ -7,6 +7,7 @@
 
 import std/[options, sequtils, strformat, strutils, tables, times]
 import ./cmdname
+import ../subject/steps
 export cmdname
 import ../../core/[extension, globals]
 import ../db/statement
@@ -30,32 +31,34 @@ import ../user/session
 
 {.push raises: [].}
 
-const
-  synopsis =
-    """usage: nch [--db PATH] [--user NAME] activities [CRITERIA [--within | --also]] [--select] [-v]
+const synopsis =
+  """usage: nch [--db PATH] [--user NAME] activities [CRITERIA [--within | --also]] [--select] [-v]
        nch [--db PATH] [--user NAME] activities --all [--select]
        nch [--db PATH] [--user NAME] activities [CRITERIA [--within] | --all] --delete"""
+
+func intro(): seq[Line] =
   # (the prose is wrapped to the window by `prose`: its line breaks are the source's only)
-  intro = @[
+  @[
     ~"Show the activities of the selection: the ones that other commands (climbs, map ...) use unless they are told otherwise.  With criteria (or `--all`), what is shown is found in these steps:",
     ~"1. Start with all your activities.",
     ~"2. The special value `previous` is the current selection, if it is one activity.",
-    ~"3. If `--within`, keep only those in the current selection.",
+    step(3, withinStep(words)),
     ~"4. Apply the filters (criteria) that do not use `latest`, combined with \"and\".",
     ~"5. The special value `latest` is the most recent activity remaining.",
     ~"6. Apply the filters that use `latest`, combined with \"and\".",
     ~"7. If `--invert`, use instead the activities of step 3 that steps 4 and 6 left out.",
     ~"8. Apply `--newest` and `--oldest`.",
-    ~"9. If `--also`, add the current selection.",
+    step(9, alsoStep(words)),
     ~"10. If `--delete` or `--rename`, delete or rename the result, and stop.",
-    ~"11. If `--select`, replace the current selection with the result.",
-    ~"12. Display the result (selected activities are highlighted).",
+    step(11, selectStep(words)),
+    step(12, displayStep(words)),
     ~"`latest` and `previous` can be referred to in criteria (`--distance latest~10%`, `--from latest`, `--names previous` ...).  `--delete` and `--rename` cannot be used with `--also` or `--select`.",
     ~"If no criteria are given, steps 3 to 9 are skipped and the current selection is used.  `--all` is the criterion that keeps everything: `nch activities --all` lists every activity, and `--all --delete` deletes them all.",
   ]
-  notes = @[
-    ~"So `--tags 'sport:cycling*' --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride; select one ride with `--select`, then `--distance previous~10% --active previous~10%` finds rides like it.  `previous` is an error unless exactly one activity is selected."
-  ]
+
+const notes = @[
+  ~"So `--tags 'sport:cycling*' --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride; select one ride with `--select`, then `--distance previous~10% --active previous~10%` finds rides like it.  `previous` is an error unless exactly one activity is selected."
+]
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch activities`, described (for tab completion).
@@ -64,7 +67,7 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 proc usageText*(width: int, offered: seq[Criterion] = @[]): seq[Line] =
   ## The usage: the synopsis, the introduction, the options (made from their descriptions) and the notes, all wrapped to
   ## `width` (the synopsis lines are not).
-  usageOf(synopsis, width, intro, criteriaSpec(offered).docs, notes)
+  usageOf(synopsis, width, intro(), criteriaSpec(offered).docs, notes)
 
 func radiusText(x: float): string =
   ## 100.0 -> "100", 2.5 -> "2.5"
