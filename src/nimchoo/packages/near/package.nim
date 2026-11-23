@@ -10,4 +10,4 @@
 
 import ../../core/manifest
 
-const package* = Package(depends: @["args", "geo", "ui"], fragments: @[])
+const package* = Package(depends: @["args", "db", "geo", "ui"], fragments: @[])

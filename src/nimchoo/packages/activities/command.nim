@@ -438,14 +438,21 @@ proc listActivities*(
   let shown =
     sqlOf("select a.id as id, ") & rowColumns(verbose, st.userId) &
     " from activity a join file f on f.id = a.file_id where " & listed
-  # --select replaces it (before the list is drawn, so that the select style shows the selection after the command)
+  # --select replaces it (before the list is drawn, so that the select style shows the selection after the command); what
+  # is listed is then the selection, read as such, so that the search (which may be slow: `--near`) is made once
+  var listedNow = shown
   if request.action.select:
     let ids = st.db.query(int64, sqlOf("select id from (") & shown & ")")
     st.replaceSelection(ids)
     result.saved = some(ids.len)
+    listedNow =
+      sqlOf("select a.id as id, ") & rowColumns(verbose, st.userId) &
+      " from activity a join file f on f.id = a.file_id where a.id in (select activity_id from activity_selection where user_id = :selectedBy)"
+    listedNow = listedNow.with("selectedBy", st.userId)
   # the list; the select style marks those listed that are in the selection after the command
-  let rows =
-    readRows(st, "select " & rowFields & " from (" & shown & ") order by start_t, id")
+  let rows = readRows(
+    st, "select " & rowFields & " from (" & listedNow & ") order by start_t, id"
+  )
   let total = activityCount(st)
   result.lines.add listing(
     rows, zone, width, verbose, some(total), marks, isSelection = request.action.select

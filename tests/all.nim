@@ -19,6 +19,7 @@ import
   ./core/test_globals,
   ./core/test_ask,
   ./core/test_unitfix,
+  ./near/test_distance,
   ./near/test_near,
   ./core/test_line,
   ./core/test_ruled,

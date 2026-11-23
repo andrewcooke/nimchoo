@@ -7,7 +7,7 @@ import ../../core/errors
 import ../db/[sqltext, statement]
 import ../geo/position
 import ../names/places
-import ../near/near
+import ../near/[distance, near]
 import ../user/session
 import ../subject/subjects
 import ./[attempts, params]
@@ -56,9 +56,7 @@ proc foundClimbs*(
     # (the distance on the ellipsoid, in metres: from any point of the climb's line, or from where it starts)
     conditions.add(
       if passes:
-        sqlOf(
-          "ST_Distance(CastToXY(s.route), MakePoint(:passLon, :passLat, 4326), 1) <= :passM"
-        )
+        withinSql("CastToXY(s.route)", "pass", lat, km * 1000.0)
           .with("passLon", lon)
           .with("passLat", lat)
           .with("passM", km * 1000.0)

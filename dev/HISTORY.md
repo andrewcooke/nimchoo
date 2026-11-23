@@ -4,6 +4,17 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## `--near` quickly (2026-11-23, the author's report: `activities --near providencia --select` took seconds)
+
+The route test was the exact distance on the ellipsoid for every route whose box met the circle: 3.5 s for the author's
+1,100 routes around Providencia, where nearly every route's box meets it (against 0.02 s for `--all`).  Now, in the same
+query, the distance in degrees (planar: 0.18 s) decides the routes that are surely within or surely beyond, with bounds
+worked out from the point (`near/distance`), and only those near the edge get the exact distance: the same answer (checked
+at five points and radii on the author's routes, and in a test near the edge at three latitudes), 3.4 s to 0.21 s.  Used
+by `activities --near` and `climbs --near`.  Also `--select` made the search twice (the ids to keep, then the rows to
+show); the rows are now read as the selection they have become.  Rejected: `PtDistWithin` (as fast, but it found 1,113
+routes where the exact distance finds 1,100).
+
 ## The calendar shaded by a value (done 2026-11-23, step 4 of the `ff` rework: the rework is done)
 
 `nch calendar [SUBJECT] --shade NAME`: the background of each day shows a value (the point `calendar/shades`: `ff` gives

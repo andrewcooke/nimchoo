@@ -4,7 +4,7 @@
 import std/[algorithm, math, options, strformat, strutils, times]
 import ../fit/time
 import ../util/args/args
-import ../near/near
+import ../near/[distance, near]
 import ../geo/box
 import ../db/sqltext
 import ../../core/ids
@@ -695,11 +695,12 @@ func matchSql*(
         " and ST_Distance(a.start, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
     of rtNear:
       # activities whose ROUTE passes within the radius: the index of the routes (a route's row is its activity's id) finds
-      # those whose box meets the circle's, and the distance on the ground from the point to the line decides
+      # those whose box meets the circle's, and the distance on the ground from the point to the line decides (quickly:
+      # `near/distance`)
       filt =
         filt & nearSql((f.lat, f.lon), f.km, "a.id", "route", "geom", "pass") &
-        " and exists (select 1 from route r where r.activity_id = a.id" &
-        " and ST_Distance(r.geom, MakePoint(:passLon, :passLat, 4326), 1) <= :passM)"
+        " and exists (select 1 from route r where r.activity_id = a.id and " &
+        withinSql("r.geom", "pass", f.lat, f.km * 1000) & ")"
   # an activity that fails a test because a value is not recorded (null) fails to match, so it matches the inverse
   result =
     result & (
