@@ -60,7 +60,8 @@ const
   labelWidth = 4
     ## the month's name and what follows it, before the first day: at least the longest name and the mark of a gap
     ## ("Mar*", checked when compiled)
-  yearWidth = 6 ## the year, to the right, after the last day
+  yearWidth = 5
+    ## the year, to the right, after the last day (and its space: one, as after the month's name)
 
 static:
   # (the label holds the longest name and a mark: `calendarLines`; the year has a space before it)

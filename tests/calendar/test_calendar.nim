@@ -116,7 +116,7 @@ suite "calendar: colours and marks":
     check aug.plainCellOf(2 + 27).text == " [28]"
     check aug.plainCellOf(2 + 25).text == "  -- "
     check aug.plainCellOf(0).text == "     "
-    check aug.text.len == 4 + 37 * 5 + 6
+    check aug.text.len == calendarWidth(plainScreen)
 
   test "a day of the background (an activity, not marked) is plain, with colour and without":
     let background = @[row(at(2018, mAug, 26)), row(at(2018, mAug, 27))]
@@ -236,13 +236,13 @@ suite "calendar: too narrow a screen":
     )
     check ls.len == 3
     check styleOf(ls[0][0]) == "warn" and
-      ls[0].text.startsWith("the calendar needs 121 columns and the screen has 60")
+      ls[0].text.startsWith("the calendar needs 120 columns and the screen has 60")
     for l in ls[1 .. ^1]:
       check l.width == 60 and l.text.endsWith("…")
   test "wide enough, or no limit: no warning, no cutting":
     let rs = @[row(at(2018, mAug, 27))]
     check calendarLines(
-      rs, @[], utc(), dtData, later, Screen(colour: true, width: some(121))
+      rs, @[], utc(), dtData, later, Screen(colour: true, width: some(120))
     ).len == 2
     check calendarLines(
       rs, @[], utc(), dtData, later, Screen(colour: true, width: none(int))
