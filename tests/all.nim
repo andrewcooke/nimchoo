@@ -60,14 +60,13 @@ import
   ]
 import ./db/test_command
 import ./heartrate/test_step
-import ./model/[test_calc, test_impulses]
+import ./model/[test_calc, test_curve, test_impulses, test_stats]
 import ./model/test_params
 import ./editable/test_editable
 import ./model/test_completion as modelCompletion
 import ./ff/test_curve
 import ./ff/test_page
 import ./ff/test_web
-import ./ff/test_stats
 import ./activities/test_delete
 import ./cache/test_files
 import ./cache/test_command
@@ -109,6 +108,7 @@ import ./climbs/test_mapfeatures as climbsMapFeatures
 import ./calendar/test_calendar
 import ./calendar/test_command as calendarCommandTests
 import ./calendar/test_frames as calendarFrames
+import ./plot/[test_command as plotCommandTest, test_params as plotParamsTest]
 import ./map/test_params
 import ./map/test_geojson
 import ./map/test_page

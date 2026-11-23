@@ -1,5 +1,5 @@
 import std/[options, sequtils, unittest]
-import nimchoo/packages/ff/stats
+import nimchoo/packages/model/stats
 import nimchoo/packages/ui/style
 
 suite "ff stats: standing among the earlier days":

@@ -119,9 +119,11 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   means "what is listed is the selection now"; `--within` and `--also` are modifiers (alone, they show without keeping).
   the same for every command with a selection (activities, climbs), written once (`subject/steps.nim`).
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject
-  contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
+  contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), `plot [SUBJECT]` draws the
+  series over time that they contribute (`plot/frames`: `nch plot ff`, the fitness, fatigue and form of the selected models), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
   subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
-  again from the data as they are on every request; the page is the default and `--file` writes the files only.
+  again from the data as they are on every request; the page is the default and `--file` writes the files only (the web
+  options are done once for every view: `web/view`).
 * **commands about things outside the database are singular**: `map`, `fit`, `log`, `ff`, `cache`, `db`; and `import`,
   which reads files into it.
 * nothing is kept for backward compatibility: there is one user.

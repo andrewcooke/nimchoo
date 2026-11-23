@@ -80,8 +80,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
    `nch map --frames routes efforts gates`.
 
 7. **Left on purpose from the review** (dev/REVIEW.md; each with its reason):
-   * **E7, the dispatch of `map` and `ff`** (stop, serve, worker, file: written by hand in each; their messages are shared): to be
-     merged in the `ff` rework, as `ff`'s page will change then;
    * the authorizer's **`caller` ""** (`db/access.nim`: code outside the packages is not checked): by design, though it is not in the
      types;
    * the comments of the climbs fragment (`001-schema.sql`: "(n/m) numbering", `nch sector --edit`, "or 005 by hand"): fragments are
@@ -132,7 +130,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   activity selection).  Step 1 done (2026-11-23: the impulse per stretch, at its centre; the curves exact, on no grid);
   step 2 done (2026-11-23: models managed as the first editable type, by `nch models` until step 3; the models selection;
   the scales are the model's).  The steps left:
-  3. `nch models` becomes `nch ff` (the author, 2026-11-23: renamed once the chart has left it); the `plot` view (`nch plot ff`: fitness, fatigue and form of each selected model; the activities' impulse per day),
+  3. `nch models` becomes `nch ff` (the author, 2026-11-23: renamed once the chart has left it), and the `model` package
+     `ff`, taking in today's `ff` (the chart, deleted); the `plot` view (**built** 2026-11-23, with E7: `web/view`) (`nch plot ff`: fitness, fatigue and form of each selected model; the activities' impulse per day),
      replacing `ff`'s chart and its options (`--hourly`, `--utc`, `--model`; the chart's file is named by the model's
      number meanwhile, `ff-model-1-...`), and E7 with it;
   4. the calendar's background frames (a value as a colour between the theme's `hot` and `cold`, 3 samples a day).

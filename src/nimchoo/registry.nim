@@ -31,6 +31,7 @@
 ## * `model <packages/model/package.html>`_ - The training impulse: models, the impulses worked out with them, and the models selection.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
 ## * `near <packages/near/package.html>`_ - `--from`, `--near` and `--radius`: where a thing is, for the commands that search by place.
+## * `plot <packages/plot/package.html>`_ - A subject over time: `nch plot`, the view that draws the series packages contribute (`plot/frames`).
 ## * `profiling <packages/util/profiling/package.html>`_ - Timers for finding out where a long job spends its time.
 ## * `selection <packages/selection/package.html>`_ - The selection: the activities that commands work on unless told otherwise.
 ## * `subject <packages/subject/package.html>`_ - Subjects: what the views are views of (the activities, the climbs).
@@ -66,6 +67,7 @@ import ./packages/map/package as pkgMap
 import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
 import ./packages/near/package as pkgNear
+import ./packages/plot/package as pkgPlot
 import ./packages/selection/package as pkgSelection
 import ./packages/subject/package as pkgSubject
 import ./packages/tags/package as pkgTags
@@ -118,6 +120,8 @@ other views (`climbs`, `map`, `calendar`) take the selection.
   `map/frames` with the style of each.
 * **A calendar frame** (`calendarframe.nim`): the days of the selected activities and the line that sums them up, offered to
   `calendar/frames`.
+* **A plot frame** (`plotframes.nim`): the impulse of the selected activities each day (by the first selected model),
+  offered to `plot/frames`.
 * The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).""",
       path: "src/nimchoo/packages/activities/",
     ),
@@ -408,8 +412,9 @@ Offers its page to the server (`web/pages`).""",
 * **`nch models`** manages them as an editable type (`editable`; the declaration is `params.modelKind`): `--add NAME`
   copies `default` or `--base NAME` and then the values given, `--edit NAME` changes values or the name, `--delete`
   deletes what is listed.  A model's name is written and matched as a tag is (`tags`), but is not one.
-* **The models selection** (`model_selection`) is a subject's (`subject/steps`: `--names` are its criteria): it is what
-  the views of fitness and fatigue will show.  The built-in models are selected for every user from the start (a
+* **The models selection** (`model_selection`) is a subject's, called `ff` in the views (`subject.nim`; the steps of
+  `subject/steps`, `--names` its criteria): `nch plot ff` draws the fitness, fatigue and form of each selected model
+  (`plotframes.nim`; the curves are `curve.nim`, their latest values `stats.nim`).  The built-in models are selected for every user from the start (a
   trigger on `user`, and the seed).
 * **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
   stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
@@ -455,6 +460,22 @@ distance with its unit, 10km round a start and 1km round a route unless it says,
 (`near.nim`: `nearOptions`), so that `activities` and `climbs` cannot differ; `landmarks` reads its own `--near` and `--at`
 with the same `parseSpot`.""",
       path: "src/nimchoo/packages/near/",
+    ),
+    Registered(
+      name: "plot",
+      package: pkgPlot.package,
+      summary:
+        "A subject over time: `nch plot`, the view that draws the series packages contribute (`plot/frames`).",
+      doc:
+        """A subject over time: `nch plot`, the view that draws the series packages contribute (`plot/frames`).
+
+`nch plot [SUBJECT]` serves a page that draws the frames of a subject, each a set of series over time that the package
+managing the subject contributes (`frames.nim`): the fitness, fatigue and form of the selected models (`nch plot ff`),
+the impulse of the selected activities each day (`nch plot`).  The page is live (each frame made again whenever it is
+shown) and draws with Observable Plot, a panel a frame; `--file` makes a CSV file a frame and says the latest values.
+The span of time (`--after`, `--before`) may be in the page's address.  Offers its page to the server (`web/pages`); the
+web options are done as every view does them (`web/view`).""",
+      path: "src/nimchoo/packages/plot/",
     ),
     Registered(
       name: "selection",
@@ -795,7 +816,7 @@ to a page's cookie), opens its page there and returns; `--start` starts the serv
 stops it from anywhere (`/stop`).  The libraries the pages
 load from a CDN, with their integrity hashes, are in `libraries.cdn` (built in, beside this file, and kept in the cache's
 `system/` part, where it can be edited).  The extension point `web/pages` is defined here; `map`
-and `ff` contribute.""",
+`ff` and `plot` contribute (the views share what they do with the web options: `view.nim`).""",
       path: "src/nimchoo/packages/web/",
     ),
   ]

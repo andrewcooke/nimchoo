@@ -7,8 +7,8 @@
 ## a scale; see dev/HISTORY.md, task 7, for why they are gone.  The scale is an option of the command.)  Days are the
 ## timezone's; hours are those of the clock in UTC.
 
-import std/[math, times]
-import ../model/calc
+import std/[algorithm, math, options, times]
+import ./calc
 
 {.push raises: [].}
 
@@ -65,3 +65,28 @@ func hourEnds*(first, last: int64): seq[int64] =
   while h <= last:
     result.add h
     h += secondsPerHour
+
+proc sampleTimes*(
+    lumps: openArray[Lump], first: Option[int64], last: int64, tz: Timezone
+): seq[int64] =
+  ## The instants a curve is drawn at: the end of every day (of the timezone) from the day of the first lump (or of `first`,
+  ## if that is later) to the day `last` ends, and the second before each lump and the lump's own, so that the jump of
+  ## every effort is drawn where it is, and `first` itself; only those from `first` to `last`, in order.  None if there
+  ## are no lumps.
+  if lumps.len == 0:
+    return
+  let start =
+    if first.isSome:
+      max(first.get, lumps[0].t)
+    else:
+      lumps[0].t
+  var ts = dayEnds(start, civilOf(last - 1, tz), tz)
+  if first.isSome:
+    ts.add first.get # (the curve starts where the period does)
+  for l in lumps:
+    ts.add [l.t - 1, l.t]
+  ts.sort()
+  for t in ts:
+    if (first.isNone or t >= first.get) and t <= last and
+        (result.len == 0 or result[^1] != t):
+      result.add t

@@ -5,7 +5,7 @@ import ../util/args/args
 import ../model/completion
 from ../model/params import isModelName
 import ../web/[request, webopts]
-import ./curve
+import ../model/curve
 
 {.push raises: [].}
 

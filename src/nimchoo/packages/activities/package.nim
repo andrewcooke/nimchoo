@@ -22,19 +22,22 @@
 ##   `map/frames` with the style of each.
 ## * **A calendar frame** (`calendarframe.nim`): the days of the selected activities and the line that sums them up, offered to
 ##   `calendar/frames`.
+## * **A plot frame** (`plotframes.nim`): the impulse of the selected activities each day (by the first selected model),
+##   offered to `plot/frames`.
 ## * The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).
 
 import ../../core/[extension, manifest]
-import ./[calendarframe, command, criterion, mapframes, subject]
+import ./[calendarframe, command, criterion, mapframes, plotframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[subject.contribution(), calendarframe.contribution(), calendarframe.background()] &
-    mapframes.contributions()
+    mapframes.contributions() & plotframes.contributions()
 
 const package* = Package(
   depends: @[
     "args", "bundle", "cache", "calendar", "db", "fit", "fold", "geo", "importer",
-    "lookup", "near", "map", "names", "selection", "subject", "tags", "ui", "user",
+    "lookup", "near", "map", "model", "names", "plot", "selection", "subject", "tags",
+    "ui", "user",
   ],
   commands: @[
     CommandDecl(

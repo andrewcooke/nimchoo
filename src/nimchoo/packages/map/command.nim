@@ -18,9 +18,8 @@ import ../../core/errors
 import ../subject/subjects
 import ../ui/[style]
 import ../util/args/[args, usage]
-import ../web/launch
 import ../web/pages
-import ../web/webopts
+import ../web/view
 import ./[frames, page, params]
 import ../db/store
 import ../user/session
@@ -139,16 +138,14 @@ proc checkSelection(g: Globals, c: Chosen): Option[int] =
   finally:
     st.close()
 
-proc makeFrames(
-    g: Globals, c: Chosen, frames: seq[MapFrame], dir: string
-): tuple[paths: seq[string], status: int] =
+proc makeFrames(g: Globals, c: Chosen, frames: seq[MapFrame], dir: string): Made =
   ## Make the file of each frame, whatever was there, from the data as they are now (in one read transaction, so that the
   ## frames are made from one state of the database).  Reports problems.
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
-    return (@[], failure(g, "nch map", e.msg))
+    return Made(status: failure(g, "nch map", e.msg))
   try:
     var made: seq[FrameData]
     st.beginRead()
@@ -164,23 +161,23 @@ proc makeFrames(
       writeAtomic(path, made[k].geojson)
       result.paths.add path
   except StoreError as e:
-    result = (@[], failure(g, "nch map", e.msg))
+    result = Made(status: failure(g, "nch map", e.msg))
   except IOError, OSError:
-    result = (@[], cannotWrite(g, "nch map", dir))
+    result = Made(status: cannotWrite(g, "nch map", dir))
   finally:
     st.close()
 
-proc makePage(g: Globals, c: Chosen, dir: string): tuple[page: string, status: int] =
+proc makePage(g: Globals, c: Chosen, dir: string): Made =
   ## Make the page: every frame of the subject, those shown by default ticked (it fetches the data of each frame it shows).
   try:
     let listed = framesOf(g.extensions.get(mapFramePoint), c.subject.name)
     let path = cacheFile(dir, fmt"map-{c.subject.name}", "html").get
     writeAtomic(path, pageHtml(listed, c.subject.name, "Map"))
-    result = (path, exitOk)
+    result = Made(paths: @[path])
   except IOError, OSError:
-    result = ("", cannotWrite(g, "nch map", dir))
+    result = Made(status: cannotWrite(g, "nch map", dir))
   except TemplateError as e:
-    result = ("", templateFailure(g, "nch map", e.msg))
+    result = Made(status: templateFailure(g, "nch map", e.msg))
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch map ARGS`; returns the exit status.
@@ -200,58 +197,34 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if chosen.kind != pkOk:
     return usageError(g, "nch map", usageText(g, g.textWidth(osErr)), chosen.problem)
   let c = chosen.params
-  let dir = cacheDir()
-  if dir.isNone:
-    return failure(g, "nch map", noCacheDir)
-  try:
-    makeCacheDirs(dir.get)
-  except IOError, OSError:
-    return cannotWrite(g, "nch map", dir.get)
-  case p.web.kind
-  of wkStop:
-    return stopWeb(g, commandName, p.web.stopPort, dir.get)
-  of wkServe:
-    let stop = checkSelection(g, c)
-    if stop.isSome:
-      return stop.get
-    # the address keeps the look (the frames); the data are those of the selection when the page is asked for
-    return serveWeb(
-      g,
-      commandName,
-      WebOptions(port: p.web.port, start: p.web.start, newToken: p.web.newToken),
-      dir.get,
-      commandName & "/" & c.subject.name,
-      "",
-    )
-  of wkWorker:
-    if p.frame.isSome:
-      # the data of one frame, which the page fetches
-      let one = framesOf(g.extensions.get(mapFramePoint), c.subject.name).filterIt(
-          it.name == p.frame.get
-        )
-      if one.len == 0:
-        return usageError(
-          g,
-          "nch map",
-          usageText(g, g.textWidth(osErr)),
-          ~"'{p.frame.get}' is not a frame of {c.subject.name}",
-        )
-      let made = makeFrames(g, c, one, userDir(dir.get))
-      if made.status != 0:
-        return made.status
-      g.show(osOut, ~"<file {made.paths[0]}>")
-    else:
-      let made = makePage(g, c, userDir(dir.get))
-      if made.status != 0:
-        return made.status
-      g.show(osOut, ~"<file {made.page}>")
-  of wkFile:
-    let stop = checkSelection(g, c)
-    if stop.isSome:
-      return stop.get
-    let made = makeFrames(g, c, c.frames, userDir(dir.get))
-    if made.status != 0:
-      return made.status
-    for path in made.paths:
-      g.show(osOut, ~"<file {path}>")
-  exitOk
+  runView(
+    g,
+    p.web,
+    View(
+      command: commandName,
+      address: commandName & "/" & c.subject.name,
+      # (the address keeps the subject; the data are those of the selection when the page is asked for)
+      nothing: proc(): Option[int] =
+        checkSelection(g, c),
+      page: proc(dir: string): Made =
+        makePage(g, c, dir),
+      frame: proc(name, dir: string): Made =
+        # the data of one frame, which the page fetches
+        let one = framesOf(g.extensions.get(mapFramePoint), c.subject.name).filterIt(
+            it.name == name
+          )
+        if one.len == 0:
+          return Made(
+            status: usageError(
+              g,
+              "nch map",
+              usageText(g, g.textWidth(osErr)),
+              ~"'{name}' is not a frame of {c.subject.name}",
+            )
+          )
+        makeFrames(g, c, one, dir),
+      files: proc(dir: string): Made =
+        makeFrames(g, c, c.frames, dir),
+      frameAsked: p.frame,
+    ),
+  )

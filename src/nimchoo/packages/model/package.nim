@@ -8,8 +8,9 @@
 ## * **`nch models`** manages them as an editable type (`editable`; the declaration is `params.modelKind`): `--add NAME`
 ##   copies `default` or `--base NAME` and then the values given, `--edit NAME` changes values or the name, `--delete`
 ##   deletes what is listed.  A model's name is written and matched as a tag is (`tags`), but is not one.
-## * **The models selection** (`model_selection`) is a subject's (`subject/steps`: `--names` are its criteria): it is what
-##   the views of fitness and fatigue will show.  The built-in models are selected for every user from the start (a
+## * **The models selection** (`model_selection`) is a subject's, called `ff` in the views (`subject.nim`; the steps of
+##   `subject/steps`, `--names` its criteria): `nch plot ff` draws the fitness, fatigue and form of each selected model
+##   (`plotframes.nim`; the curves are `curve.nim`, their latest values `stats.nim`).  The built-in models are selected for every user from the start (a
 ##   trigger on `user`, and the seed).
 ## * **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
 ##   stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
@@ -19,13 +20,15 @@
 ##
 ## The tables (`ff_model`, `ff_model_pattern`, `model_selection`, `impulse`) are this package's.
 
-import ../../core/manifest
-import ./command
-import ./models
+import ../../core/[extension, manifest]
+import ./[command, models, plotframes, subject]
+
+proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
+  @[subject.contribution()] & plotframes.contributions()
 
 const package* = Package(
   depends: @[
-    "args", "db", "editable", "fit", "fold", "hashing", "heartrate", "importer",
+    "args", "db", "editable", "fit", "fold", "hashing", "heartrate", "importer", "plot",
     "subject", "tags", "ui", "user",
   ],
   fragments: @[
@@ -40,4 +43,5 @@ const package* = Package(
       options: command.options,
     )
   ],
+  contributes: contributions,
 )

@@ -59,3 +59,11 @@ func statLine*(
   result.add curve("fitness", styleName"good", fitness, fitnessScale)
   result.add plain(",  ")
   result.add curve("fatigue", styleName"bad", fatigue, fatigueScale)
+
+func noteLine*(
+    label, model, what: string, style: StyleName, standing: Option[Standing]
+): Line =
+  ## One curve of one model, as `nch plot ff --file` says it: "2026-11-23 15:33  default  fitness: 1254.1 (top 78%)" (the
+  ## values already scaled).
+  result = plain(label & "  " & model & "  ")
+  result.add curve(what, style, standing, 1)

@@ -21,7 +21,8 @@ import ../web/launch
 import ../web/pages
 import ../web/webopts
 import ../ui/style
-import ./[curve, page, params, stats]
+import ./[page, params]
+import ../model/[curve, stats]
 import ../user/session
 
 {.push raises: [].}

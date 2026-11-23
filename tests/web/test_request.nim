@@ -180,7 +180,7 @@ suite "serve request: what is asked for":
 suite "web: the commands it may run":
   test "are commands the registry has":
     let names = registry.commands.mapIt(it.name)
-    check pages.len == 2
+    check pages.len == 3
     for page in pages:
       check page.command in names
   test "no two pages have one command name":

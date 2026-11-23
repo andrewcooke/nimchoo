@@ -1,0 +1,70 @@
+## The frames of a plot: what the packages that manage a subject contribute for the plot to draw.  The plot is a view; a
+## frame is a set of series over time about a subject (a CSV file), made by the package that knows the subject, so the plot
+## needs nothing of the packages above it.  This is an extension point of this package (`plotFramePoint`).
+##
+## A frame says which subject it is a frame of, its name, what it is, whether a plot of that subject shows it unless told
+## otherwise, whether it reads the selection of the subject, which tables it reads, what its values are (`unit`, the label
+## of its axis), how its series are drawn (`mark`: lines, or bars a day wide) and how to make it, for a period of time.  It
+## gives its series (each a name and its points) and, for `--file`, lines said after the files (the latest values).  A
+## frame that fails raises `StoreError` with what to say.  The page draws each frame shown in a panel of its own, one
+## above the other, on the same period of time.
+
+import std/[options, times]
+import ../../core/[errors, extension, line]
+import ../user/session
+
+{.push raises: [].}
+
+type
+  Mark* = enum ## How a frame's series are drawn.
+    mkLine ## a line through the points
+    mkBar ## a bar for each point, a day wide (the point is the start of its day)
+
+  Point* = tuple[t: int64, value: float] ## an instant (Unix seconds) and a value
+
+  Series* = object ## One line (or set of bars) of a frame.
+    name*: string ## "default": what the legend says
+    points*: seq[Point] ## in time order
+
+  Period* = object ## The period of time a plot shows.
+    first*: Option[int64]
+      ## the instant it starts (`--after`); none: as early as there are data
+    last*: int64
+      ## the instant it ends: the end of the last day (`--before`, else of today)
+    now*: int64 ## when it is made
+    zone*: Timezone ## whose days: the user's (this computer's)
+
+  PlotData* = object ## What a frame made.
+    series*: seq[Series]
+    notes*: seq[Line] ## said after the files with `--file` (the latest values, ...)
+    warnings*: seq[Line] ## said to the user ("no model is selected")
+
+  MakePlot* =
+    proc(st: Session, period: Period): PlotData {.nimcall, raises: [StoreError].}
+    ## Make the frame from the data as they are now, for the user of the session.  It may write what it needs worked out
+    ## first (the impulses), in a transaction of its own.
+
+  PlotFrame* = object
+    subject*: string ## the subject it is a frame of ("ff")
+    name*: string
+      ## what the user types after `--frames` ("fitness"); unique within the subject
+    summary*: string ## one line
+    shown*: bool ## drawn when `--frames` is not given
+    readsSelection*: bool ## whether it is made from the selection of the subject
+    tables*: seq[string] ## the tables it reads
+    unit*: string ## what its values are: the label of its axis
+    mark*: Mark
+    make*: MakePlot
+
+const plotFramePoint* = ExtensionPoint[PlotFrame](name: "plot/frames")
+  ## The frames the packages that manage a subject offer the plot.
+
+func framesOf*(all: seq[PlotFrame], subject: string): seq[PlotFrame] =
+  ## The frames of a subject, in the order they were contributed.
+  for f in all:
+    if f.subject == subject:
+      result.add f
+
+func inPeriod*(period: Period, t: int64): bool =
+  ## Whether an instant is in the period.
+  (period.first.isNone or t >= period.first.get) and t <= period.last

@@ -44,7 +44,10 @@ decided is marked so; the rest is open.
   `ff`'s does now).  The models subject is called **`ff`** in the views (`nch plot ff`, `nch calendar ff`): the name of the
   command that manages it, as for activities and climbs.  It contributes fitness and fatigue (and form) for each selected
   model; the activities subject contributes its own series (impulse per day first; others later, such as distances).  E7
-  (the dispatch that `map` and `ff` each write by hand) goes with it.
+  (the dispatch that `map` and `ff` each write by hand) goes with it.  **Built** (2026-11-23): the author's choices then
+  were the activities' impulse by the first selected model, the curves drawn at the day-ends and either side of each
+  impulse, a generic drawing (lines or bars, a panel a frame), the latest values said by `nch plot ff --file`, and
+  `--after`/`--before` in the page's address.
 * **The calendar** (2026-11-23, as the author sees it now; may change once it can be seen): the text of a cell is always
   the date, and its foreground says the activities as now (selected, not selected, none): always there, not a frame.
   **The background is the main indicator**: one frame, chosen (the activities' impulse; a selected model's fitness,

@@ -14,7 +14,7 @@
 ## stops it from anywhere (`/stop`).  The libraries the pages
 ## load from a CDN, with their integrity hashes, are in `libraries.cdn` (built in, beside this file, and kept in the cache's
 ## `system/` part, where it can be edited).  The extension point `web/pages` is defined here; `map`
-## and `ff` contribute.
+## `ff` and `plot` contribute (the views share what they do with the web options: `view.nim`).
 
 import ../../core/manifest
 import ./request
@@ -27,7 +27,7 @@ const package* = Package(
     PointDecl(
       name: webPage.name,
       summary:
-        "the commands the server may run for a page, and the options they may be given (`map`, `ff`)",
+        "the commands the server may run for a page, and the options they may be given (`map`, `plot`, ...)",
     )
   ],
 )
