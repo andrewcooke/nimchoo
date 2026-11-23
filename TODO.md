@@ -48,11 +48,22 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Tidy left from the reviews
 
-* **Column names, at the next squash** (the author, 2026-11-23): `activity.start` (a SpatiaLite `POINT`, where the activity
-  started) becomes `start_point`, beside `start_t` and `start_place` (a suffix of one letter is a unit, `_t`, `_m`, `_s`;
-  a point is written in full, as `geo/position` does).  SpatiaLite registers a geometry column and its spatial index by
-  name, so it is done in the squash rather than as a fragment that renames it.  At the same time, look through the other
-  tables' column names for the same kind of thing.  (`sector` keeps its name: it is for Strava-like segments to come.)
+* **The `activity` table, at the next squash** (the author, 2026-11-23):
+  * `activity.start` (a SpatiaLite `POINT`, where the activity started) becomes `start_point`, beside `start_t` and
+    `start_place` (a suffix of one letter is a unit, `_t`, `_m`, `_s`; a point is written in full, as `geo/position`
+    does).  SpatiaLite registers a geometry column and its spatial index by name, so it is done in the squash rather than
+    as a fragment that renames it.  Look through the other tables' column names for the same kind of thing.  (`sector`
+    keeps its name: it is for Strava-like segments to come.)
+  * **`sport` and `sub_sport` go: the sport is the `sport:` tag only** (one fact, which the user can edit for finer
+    control, `sport:cycling:gravel`).  What reads them reads the tag, through one helper in `tags` (an activity's sport
+    from its tag, the first if there are several, written as now, `cycling/road`): the activities list (its sport column,
+    the count by sport on its last line, the transitions of a multisport file, `sport:transition`, in `hide`), the map's
+    route popups (`activities/mapframes`, `mapfeatures`, `map-routes.js`), the attempts of `climbs -v`
+    (`climbs/attempts.nim`), and `importer/describe.sportText`.  At import the session's sport goes to the tag directly:
+    the import step is given it, as it is given the samples and the labels, instead of reading a column.  The delete
+    question's count by sport (`importer/remove.describe`) cannot read a tag (`importer` is below `tags`): it moves to
+    `activities`, which asks the question.  Rejected: keeping the columns as "what the file said" (nothing would read
+    them; the file itself is that record, read again at a rebuild).
 
 1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right
