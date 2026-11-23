@@ -49,6 +49,17 @@ suite "nch climbs":
     check climbs(path) == exitOk
     check climbsCommand.run(globals(path), @["-v"]) == exitOk
     check climbsCommand.run(globals(path), @["--everyone", "-v"]) == exitOk
+    # --within finds within the climbs selection (and --select then keeps what it found); --also adds
+    check climbsCommand.run(
+      globals(path), @["--categories", "hc", "--within", "--select"]
+    ) == exitOk
+    let narrowed = openSession(path, allFragments, access = allAccess)
+    check narrowed.count("climb_selection") == 0 # (the climb is no HC)
+    narrowed.close()
+    check climbsCommand.run(globals(path), @["--ridden", "--also"]) == exitOk
+    let added = openSession(path, allFragments, access = allAccess)
+    check added.count("climb_selection") == 1
+    added.close()
 
   test "--names looks at all the climbs; no climb of that name is said, and is no failure":
     let s = fresh("command-name")

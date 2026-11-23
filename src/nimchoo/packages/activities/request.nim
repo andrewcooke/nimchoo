@@ -15,7 +15,9 @@ import std/options
 import ../fit/time
 import ../db/sqltext
 import ../ui/units
+import ../subject/subjects
 import ./[criterion, ranges]
+export Save, Among
 
 {.push raises: [].}
 
@@ -151,17 +153,6 @@ type
     akList ## show them
     akDelete ## delete them (and everything made from them)
     akRename ## name them again
-
-  Save* = enum
-    ## What becomes of the selection when a listing is kept.
-    svReplace ## --select: what is listed is the selection now
-    svAdd ## --also: what is listed is added to the selection (the "or" of two searches)
-
-  Among* = enum
-    ## Where a search looks.
-    amEvery ## every activity (a search looks at all of them unless told otherwise)
-    amSelection
-      ## --within: only the selection (the "and" of a search with the one before)
 
   Action* = object
     case kind*: ActionKind

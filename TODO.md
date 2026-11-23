@@ -33,11 +33,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     * the string versions of `failure`, `warn`, `usageError` and `sayDeleted` stay: they take text that is only known at run
       time (an exception's message), which is one colour.
 
-20. **The selection by explicit operations** (decided 2026-11-22, `dev/tags.md` "Decided"): `--also` (the result is added to
-    the selection) and `--within` (the query looks only inside it) beside `--select` (replaces it); queries still search
-    everything and actions without criteria still work on the selection.  Done for `activities` (2026-11-23); left: `climbs`
-    (its own selection), then CLAUDE.md.
-
 21. **Tags** (the author's `dev/tags.md`, with what was decided below it).  In order, each a step:
     1. the `tags` package: `activity_tag(activity_id, tag)`, the tag type (what it may hold), matching in SQL on a
        normalised copy (case and accents, `*`), and the `tag` style (`programStyles`, the built-in themes: reverse);

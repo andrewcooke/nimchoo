@@ -1,8 +1,10 @@
 ## The activities: listing them, choosing the selection, and deleting.
 ##
-## `nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities, and
-## `--select` keeps what is listed as the selection.  **The selection's style (`select`) is the selection after the command**: the selection, all of it;
-## `--all`, the selected ones among them; `--select`, everything listed; criteria alone change nothing, so none.  `--all` means everything, not just the selection.  Nothing is deleted
+## `nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities (only
+## the selection with `--within`), and `--select` keeps what is listed as the selection, `--also` adds it to the selection.
+## **The selection's style (`select`) is the selection after the command**: the selection, all of it; `--all` and
+## `--within`, the selected ones among them; `--select` and `--also`, everything listed; criteria alone change nothing, so
+## none.  `--all` means everything, not just the selection.  Nothing is deleted
 ## without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 ## other views (`climbs`, `map`, `calendar`) take the selection.
 ##

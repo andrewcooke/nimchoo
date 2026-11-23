@@ -9,6 +9,7 @@ import ../geo/position
 import ../names/places
 import ../near/near
 import ../user/session
+import ../subject/subjects
 import ./[attempts, params]
 
 {.push raises: [].}
@@ -18,8 +19,11 @@ type Found* = object
   notes*: seq[string]
     ## what was taken for what was asked ("near -33.4200,-70.6100 (Providencia, ...), within 10km")
 
-proc foundClimbs*(st: Session, c: ClimbCriteria): Found {.raises: [StoreError].} =
-  ## The climbs (not retired) that the criteria find, the biggest first; with none given, every climb.
+proc foundClimbs*(
+    st: Session, c: ClimbCriteria, among = amEvery
+): Found {.raises: [StoreError].} =
+  ## The climbs (not retired) that the criteria find, the biggest first; with none given, every climb.  `among`: every
+  ## climb, or only the climbs selection (`--within`; `--invert` then means those of the selection the others do not find).
   var conditions: seq[Sql]
   if c.names.len > 0:
     conditions.add sqlOf("s.id in (select value from json_each(:named))").with(
@@ -71,6 +75,16 @@ proc foundClimbs*(st: Session, c: ClimbCriteria): Found {.raises: [StoreError].}
     conditions.add sqlOf("s.category in (select value from json_each(:categories))")
       .with("categories", $(%c.categories))
   var query = sqlOf("select s.id from sector s where s.retired = 0")
+  case among
+  of amEvery:
+    discard
+  of amSelection:
+    query =
+      query &
+      sqlOf(
+        " and s.id in (select sector_id from climb_selection where user_id = :among)"
+      )
+      .with("among", st.userId)
   if conditions.len > 0:
     var joined = conditions[0]
     for k in 1 .. conditions.high:

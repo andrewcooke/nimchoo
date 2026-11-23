@@ -12,6 +12,17 @@ import ../user/session
 {.push raises: [].}
 
 type
+  Save* = enum
+    ## What becomes of the selection when a listing is kept.
+    svReplace ## --select: what is listed is the selection now
+    svAdd ## --also: what is listed is added to the selection (the "or" of two searches)
+
+  Among* = enum
+    ## Where a search looks.
+    amEvery ## every one of them (a search looks at every one unless told otherwise)
+    amSelection
+      ## --within: only the selection (the "and" of a search with the one before)
+
   SelectedCount* = proc(st: Session): int {.nimcall, raises: [StoreError].}
     ## How many things the user's selection of the subject holds.
 

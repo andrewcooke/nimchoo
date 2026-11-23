@@ -4,6 +4,7 @@
 import ../util/args/args
 import ../ui/units
 import ../near/near
+import ../subject/subjects
 import ./completion
 import ./[detect, display, match, overlap]
 import std/[math, options, strformat, strutils, unicode]
@@ -45,7 +46,9 @@ type
       discard
     of lkFound:
       criteria*: ClimbCriteria ## none given: every climb (`--all`)
-      select*: bool ## keep what is found as the climbs selection
+      save*: Option[Save]
+        ## --select or --also: keep what is found in the climbs selection
+      among*: Among ## --within: only the climbs selection is searched
 
   ChangeKind* = enum
     ckRename
@@ -75,7 +78,7 @@ type
 
   Raw = object ## what the options fill in
     help, all, editing, auto, retire, unretire, retired, duplicates, delete: bool
-    verbose, everyone, ridden, invert, select: bool
+    verbose, everyone, ridden, invert, select, also, within: bool
     name, rename: string
     names, categories: seq[string]
     where: Where ## `--from`, `--near`, `--radius`
@@ -149,7 +152,19 @@ func climbSpec*(): Spec[Raw] =
         Raw,
         ["--select", "--save"],
         select,
-        ~"make what is listed the climbs selection, which `nch climbs` lists and `nch map climbs` shows (needs criteria or `--all`)",
+        ~"make what is listed the climbs selection, which `nch climbs` lists and `nch map climbs` shows, in place of the one there was (needs criteria or `--all`)",
+      ),
+      flag(
+        Raw,
+        ["--also"],
+        also,
+        ~"add what is listed to the climbs selection (the climbs of this search or those selected before)",
+      ),
+      flag(
+        Raw,
+        ["--within"],
+        within,
+        ~"search only the climbs selection (with `--select`, the selection is narrowed to what is found)",
       ),
       flag(
         Raw,
@@ -295,7 +310,10 @@ func finish(raw: Raw): Parsed[Params] =
       return bad(~"`--delete` does not go with `--edit`, `--retired` or `--duplicates`")
   let criteria = criteriaOf(raw)
   let tidying = raw.editing or raw.delete or raw.retired or raw.duplicates
-  if tidying and (criteria.isSome or raw.select or raw.invert or raw.where.hasPlace):
+  if tidying and (
+    criteria.isSome or raw.select or raw.also or raw.within or raw.invert or
+    raw.where.hasPlace
+  ):
     return bad(
       ~"the criteria choose climbs to list: they do not go with `--edit`, `--delete`, `--retired` or `--duplicates`"
     )
@@ -312,6 +330,26 @@ func finish(raw: Raw): Parsed[Params] =
   if raw.select and criteria.isNone and not raw.all:
     return bad(
       ~"`--select` needs criteria or `--all`: it keeps what they find as the climbs selection"
+    )
+  if raw.select and raw.also:
+    return bad(
+      ~"`--select` replaces the climbs selection and `--also` adds to it: one or the other"
+    )
+  if raw.also and criteria.isNone:
+    return bad(
+      ~"`--also` adds what the criteria find to the climbs selection, so it needs criteria"
+    )
+  if raw.within and raw.all:
+    return bad(
+      ~"`--within` searches the climbs selection and `--all` every climb: one or the other"
+    )
+  if raw.within and criteria.isNone:
+    return bad(
+      ~"`--within` searches the climbs selection, so it needs criteria (`nch climbs` alone shows the selection)"
+    )
+  if raw.within and raw.also:
+    return bad(
+      ~"`--also` adds to the selection what `--within` finds in it: there is nothing to add"
     )
   let attempts = Attempts(verbose: raw.verbose, everyone: raw.everyone)
   if raw.delete:
@@ -339,7 +377,14 @@ func finish(raw: Raw): Parsed[Params] =
           kind: lkFound,
           attempts: attempts,
           criteria: criteria.get(ClimbCriteria()),
-          select: raw.select,
+          save:
+            if raw.select:
+              some(svReplace)
+            elif raw.also:
+              some(svAdd)
+            else:
+              none(Save),
+          among: (if raw.within: amSelection else: amEvery),
         ),
       )
     )

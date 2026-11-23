@@ -92,9 +92,11 @@ const packages*: seq[Registered] = inDependencyOrder(
       summary: "The activities: listing them, choosing the selection, and deleting.",
       doc: """The activities: listing them, choosing the selection, and deleting.
 
-`nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities, and
-`--select` keeps what is listed as the selection.  **The selection's style (`select`) is the selection after the command**: the selection, all of it;
-`--all`, the selected ones among them; `--select`, everything listed; criteria alone change nothing, so none.  `--all` means everything, not just the selection.  Nothing is deleted
+`nch activities` with no arguments shows the selection; with criteria (or `--all`) it searches all the activities (only
+the selection with `--within`), and `--select` keeps what is listed as the selection, `--also` adds it to the selection.
+**The selection's style (`select`) is the selection after the command**: the selection, all of it; `--all` and
+`--within`, the selected ones among them; `--select` and `--also`, everything listed; criteria alone change nothing, so
+none.  `--all` means everything, not just the selection.  Nothing is deleted
 without an answer yes (`core/ask`: the question says what would be deleted; `-y` answers it).  Criteria belong to this command alone; the
 other views (`climbs`, `map`, `calendar`) take the selection.
 
@@ -429,8 +431,9 @@ with the same `parseSpot`.""",
 
 It is what `climbs`, `map`, `calendar` and the like use.
 
-* **The selection** is a scratchpad in the database (table `selection`).  It belongs to one user, and is replaced whenever
-  `activities --select` is given or an import adds activities.  A view shows the selection as it is when the view is made.
+* **The selection** is a scratchpad in the database (table `selection`).  It belongs to one user; it is replaced whenever
+  `activities --select` is given or an import adds activities, added to by `activities --also`, and searched alone by
+  `--within` (with `--select`, narrowed).  A view shows the selection as it is when the view is made.
 * Contributes to `importer/after`: after an import the new activities become the selection (if there are none, it stays).""",
       path: "src/nimchoo/packages/selection/",
     ),

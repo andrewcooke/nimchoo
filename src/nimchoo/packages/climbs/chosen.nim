@@ -28,6 +28,23 @@ proc replaceClimbSelection*(st: Session, ids: seq[int64]) {.raises: [StoreError]
     if not done:
       st.rollback()
 
+proc addToClimbSelection*(st: Session, ids: seq[int64]): int {.raises: [StoreError].} =
+  ## Add the climbs `ids` to the climbs selection of the store's user (those already in it stay once); how many it holds now.
+  st.writing(
+    proc() {.closure, raises: [StoreError].} =
+      st.db.execute(
+        """insert or ignore into climb_selection(user_id, sector_id)
+            select :userId, value from json_each(:ids)""",
+        userId = st.userId,
+        ids = jsonList(ids),
+      )
+  )
+  st.db.scalar(
+    int,
+    "select count(*) from climb_selection where user_id = :userId",
+    userId = st.userId,
+  )
+
 proc chosenClimbs*(st: Session): seq[int64] {.raises: [StoreError].} =
   ## The climbs of the store's user's selection, the biggest first; a retired one is hidden, as it is from every list.
   st.db.query(

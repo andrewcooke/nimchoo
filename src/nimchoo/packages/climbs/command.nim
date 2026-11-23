@@ -12,6 +12,7 @@ import ../../core/logfile
 import ../ui/live
 import ../ui/[style, vocabulary]
 import ../util/args/[args, usage]
+import ../subject/subjects
 import ./params
 import ./attempts
 import ./[chosen, found]
@@ -32,7 +33,8 @@ proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
 
 const
   synopsis = """usage: nch [--db PATH] [--user NAME] climbs [-v] [--everyone]
-       nch [--db PATH] [--user NAME] climbs CRITERIA|--all [--select] [-v] [--everyone]
+       nch [--db PATH] [--user NAME] climbs CRITERIA [--within] [--select | --also] [-v] [--everyone]
+       nch [--db PATH] [--user NAME] climbs --all [--select] [-v] [--everyone]
        nch climbs --all --delete
        nch climbs --edit NAME --rename NEW
        nch climbs --edit NAME --auto
@@ -195,20 +197,36 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         )
         return exitOk
     of lkFound:
-      let found = foundClimbs(st, list.criteria)
+      let found = foundClimbs(st, list.criteria, list.among)
       for note in found.notes:
         g.say osErr, note & "\n"
       ids = found.ids
-      if list.select:
-        st.replaceClimbSelection(ids)
-        g.log.log(lvInfo, commandName, leSaved, counted(ids.len, "climb", "climbs"))
+      if list.save.isSome:
+        let listed = counted(ids.len, "climb", "climbs")
+        case list.save.get
+        of svReplace:
+          st.replaceClimbSelection(ids)
+          g.log.log(lvInfo, commandName, leSaved, listed)
+        of svAdd:
+          let now = st.addToClimbSelection(ids)
+          g.log.log(
+            lvInfo, commandName, leSaved, fmt"{listed} added (the selection has {now})"
+          )
+          let held = counted(now, "climb", "climbs")
+          g.show(
+            osOut, ~"added to the climbs selection, which now has <select {held}>:"
+          )
       if not list.criteria.given:
         # (--all: every climb, and how many are hidden)
         let hidden = countRetired(st)
         if hidden > 0:
           g.warn retiredText(hidden)
       if ids.len == 0:
-        let what = if list.select: " (the climbs selection is now empty)" else: ""
+        let what =
+          if list.save == some(svReplace):
+            " (the climbs selection is now empty)"
+          else:
+            ""
         g.show(osOut, ~"no climb meets the criteria{what}")
         return exitOk
     for l in summaryLines(
@@ -222,7 +240,10 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       g.show(osOut, l)
     # (the last line, as the activities': the count in the selection's style when the climbs listed are the selection)
     let total = countLive(st)
-    let isSelection = list.kind == lkSelection or list.select
+    let isSelection =
+      list.kind == lkSelection or (
+        list.kind == lkFound and list.save == some(svReplace)
+      )
     g.done(
       listDone(
         ids.len, some(total), "climb", "climbs", isSelection, not g.colour[osOut]
