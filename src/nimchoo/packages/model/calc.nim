@@ -101,12 +101,12 @@ func powIntegral*(u0, u1, dt, g: float): float =
     return length * pow((a + b) / 2, g)
   length * (pow(b, g + 1) - pow(a, g + 1)) / ((g + 1) * (b - a))
 
-func hourlyImpulse*(
-    readings: openArray[(UnixTime, int)], fthr: int, m: Model
+func bucketImpulse*(
+    readings: openArray[(UnixTime, int)], fthr: int, m: Model, bucket = bucketSeconds
 ): seq[Hourly] =
-  ## The impulse in each hour that the readings (in time order) cover, in order.  An hour with
-  ## readings but nothing above the zero level has value 0, so a row for it records that the
-  ## activity was worked out.
+  ## The impulse in each bucket of `bucket` seconds (an hour: what is stored) that the readings (in time order) cover, in
+  ## order.  A bucket with readings but nothing above the zero level has value 0, so a row for it records that the activity
+  ## was worked out.  (Another size is for measuring: `tools/ffcompare.nim`.)
   for k in 1 ..< readings.len:
     let (u0t, h0) = readings[k - 1]
     let (u1t, h1) = readings[k]
@@ -118,8 +118,8 @@ func hourlyImpulse*(
     var cur = t0
     var uCur = u0
     while cur < t1:
-      let hour = floorDiv(cur, bucketSeconds) * bucketSeconds
-      let nxt = min(t1, hour + bucketSeconds)
+      let hour = floorDiv(cur, bucket) * bucket
+      let nxt = min(t1, hour + bucket)
       let uNxt = u0 + (u1 - u0) * float(nxt - t0) / float(t1 - t0)
       let part = powIntegral(uCur, uNxt, float(nxt - cur), m.gamma) / unitSeconds
       if result.len > 0 and result[^1].hourT == hour:
@@ -128,3 +128,9 @@ func hourlyImpulse*(
         result.add (hour, part)
       cur = nxt
       uCur = uNxt
+
+func hourlyImpulse*(
+    readings: openArray[(UnixTime, int)], fthr: int, m: Model
+): seq[Hourly] =
+  ## The impulse in each hour that the readings (in time order) cover, in order (`bucketImpulse` by the hour).
+  bucketImpulse(readings, fthr, m, bucketSeconds)

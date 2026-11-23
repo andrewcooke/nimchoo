@@ -47,6 +47,12 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Tidy left from the reviews
 
+* **The ride of 8 and 10 January 2026** (the author, 2026-11-23): `~/fit/bike/bowman/2026-01-08-tyo.fit` holds 25 minutes on
+  8 January (08:33 to 08:58), nothing for 45 hours, then the ride El Toyo and back on 10 January (06:06 to 11:54); it is one
+  activity dated the 8th, 51 hours elapsed and 4.6 on the timer, in three stretches.  Check how the import handles it
+  (the date it is listed under, its name and distance, what the map and the calendar show) and whether a file like this
+  should be one activity or two.
+
 * **The `activity` table, at the next squash** (the author, 2026-11-23):
   * `activity.start` (a SpatiaLite `POINT`, where the activity started) becomes `start_point`, beside `start_t` and
     `start_place` (a suffix of one letter is a unit, `_t`, `_m`, `_s`; a point is written in full, as `geo/position`
@@ -120,8 +126,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   not-selected: the best of all attempts beside the best of the selected ones, a rank of the selected among all) and
   extended (the best and the most recent attempts).  To design with the author.
 * **The `ff` rework** (design note `dev/ff.md`, started 2026-11-23: the model is the subject; FF by a model's tags, never
-  the activity selection; the impulse per activity).  First step: measure the hourly impulses against one impulse per
-  activity on the author's data.
+  the activity selection; the impulse per stretch of riding, measured 2026-11-23: 40 times closer than the hourly
+  impulses).
 * **`ff`'s options** (the author, 2026-11-20: needs a lot of work, as an item of its own): `--fitness-scale`,
   `--fatigue-scale` and `--hourly` are settings of one chart; look at what they are for before deciding what stays.
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the

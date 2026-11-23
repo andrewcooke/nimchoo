@@ -31,11 +31,29 @@ decided is marked so; the rest is open.
 * The impulse is kept by the clock hour (UTC): each hour a ride covers gets the impulse of its readings in that hour (table
   `impulse`).  The curves step by the hour, `y[h] = y[h-1] * exp(-1h/tau) + x[h]`, each hour's impulse a lump at its end;
   days are read off the hourly series.
-* Proposed: one impulse per activity, as a delta at one moment of it (its start, middle or end: to choose); then a curve at
-  any time is the sum over the activities before it of `impulse * exp(-(t - t_i)/tau)`, exact, on no grid (perhaps in SQL),
-  and the hourly table goes.
-* **First: measure** the difference between the two on the author's data, for every day of the history (fatigue, tau 7
-  days, is the more sensitive), and decide by it.
+* Proposed then: one impulse per activity, as a delta at one moment of it; measured below, and decided per stretch.
+
+## Measured (2026-11-23, `tools/ffcompare.nim`: the author's 997 rides with heart rate, 3,830 day-ends, default model)
+
+Against the impulse worked out by the minute (as good as exact), the largest and the mean difference of each day-end's value
+(fatigue averages 311 and peaks at 1,523; fitness averages 1,886 and peaks at 4,063):
+
+| method | fatigue: largest | fatigue: mean | fitness: largest | fitness: mean |
+|---|---|---|---|---|
+| by the hour (now) | 4.4 (0.29%) | 0.91 | 2.0 (0.05%) | 0.92 |
+| one impulse an activity, at its start | 313 (21%) | 4.0 | 339 (8%) | 4.1 |
+| one an activity, in its middle | 325 (21%) | 0.41 | 346 (9%) | 0.36 |
+| one an activity, at its end | 21 (1.4%) | 3.5 | 22 (0.6%) | 3.5 |
+| one an activity, at its centre (impulse-weighted) | 26 (1.7%) | 0.037 | 28 (0.7%) | 0.032 |
+| **one a stretch of riding (`segment`), at its centre** | **0.10 (0.01%)** | **0.022** | **0.04 (0.00%)** | **0.017** |
+
+The worst cases of one impulse an activity all come from one file (`2026-01-08-tyo.fit`: 25 minutes on 8 January, then 45
+hours of nothing, then the ride on the 10th: TODO); a stretch is split where the riding stops, so it has none of them.
+None of the author's rides is under way at midnight.
+
+**Decided** (2026-11-23): the impulse is kept **per stretch**, at its impulse-weighted centre; an activity's impulse is the
+sum of its stretches'; fitness and fatigue are exact sums of decaying lumps, at whatever times are wanted, on no grid; the
+hourly table `impulse` goes.
 
 ## Open
 
