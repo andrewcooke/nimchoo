@@ -21,8 +21,8 @@ decided is marked so; the rest is open.
   its parameters (an editable object, TODO 17).
 * **`nch ff` manages the models** (2026-11-23): the plural command of the model, the subject (list, add, edit, delete,
   select), is `nch ff`, not `nch models`; the chart that `nch ff` draws now moves to `nch plot`.  **Built** in step 2 as
-  `nch models` (the author, 2026-11-23: it is renamed in step 3, when the chart has left `ff`), with `default` read-only
-  (copied with `--base`, never edited) and the chart keeping `--model NAME` until step 3.
+  `nch models` (the author, 2026-11-23: it is renamed in step 3, when the chart has left `ff`), with `default` edited and
+  deleted like any model (the author, 2026-11-23: a rebuild makes it again) and the chart keeping `--model NAME` until step 3.
 * **A models selection, kept per user**, as the activities' and the climbs' (`--select`, `--also`, `--within`, the same
   steps), which the views show (a view's page is live and takes no list in its address, so it shows a kept selection).
   **Unlike those, models are there from the start and selected**: the built-in models exist, and a new user has them

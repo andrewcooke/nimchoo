@@ -73,8 +73,8 @@ proc insertModel*(db: DbConn, m: Model): ModelId {.raises: [StoreError].} =
 
 proc updateModel*(db: DbConn, old, m: Model) {.raises: [StoreError].} =
   ## Change the model `old` (by its id) to `m`.  If the impulses it gives change, those worked out with it are deleted, to
-  ## be worked out again when they are wanted.  A built-in model is never changed (a bug if asked).
-  doAssert not old.builtIn and old.id == m.id
+  ## be worked out again when they are wanted.
+  doAssert old.id == m.id
   db.execute(
     """update ff_model set name = :name, folded = :folded, gamma = :gamma, zero = :zero, one = :one,
         max_secs = :maxSecs, zone1 = :zone1, zone2 = :zone2, zone3 = :zone3, zone4 = :zone4, zone5 = :zone5,
@@ -103,11 +103,8 @@ proc updateModel*(db: DbConn, old, m: Model) {.raises: [StoreError].} =
     db.execute("delete from impulse where model_id = :id", id = m.id)
 
 proc deleteModels*(db: DbConn, ids: seq[ModelId]) {.raises: [StoreError].} =
-  ## Delete the models (with their impulses, patterns and places in selections).  Never a built-in one (a bug if asked).
+  ## Delete the models (with their impulses, patterns and places in selections).
   for id in ids:
-    let builtIn =
-      db.scalar(int, "select built_in from ff_model where id = :id", id = id)
-    doAssert builtIn == 0
     db.execute("delete from ff_model where id = :id", id = id)
 
 proc seedDefaultModel*(db: DbConn) {.raises: [StoreError].} =

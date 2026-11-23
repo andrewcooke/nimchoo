@@ -403,7 +403,8 @@ Offers its page to the server (`web/pages`).""",
 * **A model** (`calc.Model`) is a named set of the variables of the training impulse (gamma, zero, one, the longest gap
   bridged, the zones), of the fitness and fatigue curves (their decay times and their scales in form), and of which
   activities count (tag patterns: an activity counts if it has a tag matching each; none, all of them).  Models belong
-  to no user.  The program carries one, `default` (the original's), built in: it is never changed or deleted.
+  to no user.  The program makes one, `default` (the original's), built in: selected for every user from
+  the start, and otherwise like the others (edited, deleted; a rebuild makes it again).
 * **`nch models`** manages them as an editable type (`editable`; the declaration is `params.modelKind`): `--add NAME`
   copies `default` or `--base NAME` and then the values given, `--edit NAME` changes values or the name, `--delete`
   deletes what is listed.  A model's name is written and matched as a tag is (`tags`), but is not one.

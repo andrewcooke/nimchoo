@@ -117,6 +117,6 @@ from the sketch above, and why:
   `landmarks`.
 * **The selection is not editable's**: a type that is also a subject (models) adds the steps of `subject/steps` to the
   same parse (the parse state has a `steps` field for it); landmarks and users have none.
-* **`--delete` deletes what is listed** (with no criteria, the selection), after `ask`; a built-in thing is left out,
-  with a warning.  **`--edit NAME [--rename NEW]`** changes the values given; `--add NAME [--base NAME]` copies the base
+* **`--delete` deletes what is listed** (with no criteria, the selection), after `ask`.  A built-in model (`default`) is
+  edited and deleted like the others (the author, 2026-11-23); it is only selected for every user from the start.  **`--edit NAME [--rename NEW]`** changes the values given; `--add NAME [--base NAME]` copies the base
   (the type's blank when there is none) and then the values given.

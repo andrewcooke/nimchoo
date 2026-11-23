@@ -346,7 +346,7 @@ suite "nch models":
     check command.run(g, @["--add", "y", "--select"]) == exitUsage
     check loadModels(t.db).len == 3
     check command.run(g, @[]) == exitOk
-  test "edit and rename; the built-in model never changes":
+  test "edit and rename, the built-in model too":
     let db = fresh("editcmd")
     let g = globals(db)
     check command.run(g, @["--add", "mine"]) == exitOk
@@ -354,7 +354,7 @@ suite "nch models":
       exitOk
     check command.run(g, @["--edit", "mine", "--rename", "yours"]) == exitOk
     check command.run(g, @["--edit", "yours", "--rename", "default"]) == exitFailure
-    check command.run(g, @["--edit", "default", "--gamma", "3"]) == exitFailure
+    check command.run(g, @["--edit", "default", "--gamma", "3"]) == exitOk
     check command.run(g, @["--edit", "yours"]) == exitUsage # (nothing to change)
     check command.run(g, @["--edit", "nope", "--gamma", "3"]) == exitFailure
     let t = open(db)
@@ -362,8 +362,9 @@ suite "nch models":
       t.close()
     check findModel(t.db, "yours").get.fatigueDays == 10
     check findModel(t.db, "mine").isNone
-    check findModel(t.db, "default").get == t.defaultM
-  test "the selection, and deleting what is listed (never the built-in model)":
+    check findModel(t.db, "default").get.gamma == 3 and
+      findModel(t.db, "default").get.builtIn
+  test "the selection, and deleting what is listed, the built-in model too":
     let db = fresh("deletecmd")
     let g = globals(db)
     for name in ["a:1", "a:2", "b"]:
@@ -376,8 +377,11 @@ suite "nch models":
     check command.run(g, @["--names", "a:*", "--delete"]) == exitOk
       # (no -y, no terminal: nothing)
     check loadModels(t.db).len == 4
-    check command.run(g, @["--within", "--names", "*", "--delete", "-y"]) == exitOk
+    check command.run(g, @["--within", "--names", "a:*", "--delete", "-y"]) == exitOk
     check loadModels(t.db).named == @["b", "default"]
+    check command.run(g, @["--names", "default", "--delete", "-y"]) == exitOk
+    check loadModels(t.db).named == @["b"]
+    check selectedModels(t.db, t.userId).len == 0
     check command.run(g, @["--names", "a:*", "--delete", "--select"]) == exitUsage
     check command.run(g, @["--all", "--names", "b"]) == exitUsage
 

@@ -34,7 +34,7 @@ type
       ## the weights of the curves in form: `fitnessScale * fitness - fatigueScale * fatigue`
     patterns*: seq[TagPattern]
       ## the activities that count: those with a tag matching every one (none: all of them)
-    builtIn*: bool ## the program's: never changed or deleted
+    builtIn*: bool ## made by the program: selected for every user from the start
 
   Stretch* = tuple[startT, endT: int64]
     ## a stretch of riding: its first and last second (Unix seconds, plain: arithmetic)

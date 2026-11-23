@@ -9,7 +9,8 @@ time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *wh
 `nch models` lists, adds (`--add NAME [--base NAME]`: the base's values, then those given), edits (`--edit NAME
 [--rename NEW]`) and deletes (what `--names PATTERN...` lists, after `ask`) the models, and keeps a models selection
 per user with the steps of `subject/steps` (`--all`, `--select`, `--also`, `--within`).  Decided with the author: the
-command stays `nch models` until step 3 renames it `ff`; the built-in `default` never changes (copy it); the chart keeps
+command stays `nch models` until step 3 renames it `ff`; the built-in `default` is selected for every user and otherwise like the others (edited, deleted; a rebuild makes it
+again); the chart keeps
 `--model NAME` until step 3.  A model gained its scales (`fitness-scale` 1, `fatigue-scale` 5, so the chart's options
 went) and its tag patterns (`ff_model_pattern`: an activity counts if it has a tag matching each; `impulses.userLumps`
 filters, so patterns change no impulse).  An edit that changes what the model makes of the heart rate (gamma, zero, one,

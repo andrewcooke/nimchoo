@@ -1,7 +1,8 @@
 -- The models: named sets of the variables of the training impulse and of the fitness and
 -- fatigue curves made from it, with the tags of the activities that count (see calc.nim).
--- Models belong to no user.  A built-in model (the program's: `default`) is never changed or
--- deleted; the others are edited with `nch models --edit`.
+-- Models belong to no user.  A built-in model (made by the program: `default`) is selected for
+-- every user from the start; otherwise it is a model like the others (edited and deleted with
+-- `nch models`; a rebuild makes it again).
 create table ff_model (
   id integer primary key,
   name text not null,

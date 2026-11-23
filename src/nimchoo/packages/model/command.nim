@@ -1,7 +1,7 @@
 ## `nch models`: the models, the named sets of variables of the training impulse and of the fitness and fatigue curves
 ## (see calc.nim), and the models selection.  A model is an editable type (`editable`: listed by name, added, edited,
-## deleted) and a subject (its selection follows the steps of `subject/steps`).  The built-in model, `default`, is never
-## changed or deleted.  The impulses of a model are worked out when they are wanted (see `nch ff`).
+## deleted) and a subject (its selection follows the steps of `subject/steps`).  The built-in model, `default`, is made by the
+## program and selected for every user from the start; otherwise it is like the others.  The impulses of a model are worked out when they are wanted (see `nch ff`).
 
 import std/[options, sequtils, strformat]
 import ../../core/[ask, globals]
@@ -33,13 +33,13 @@ const synopsis =
 
 func intro(): seq[Line] =
   @[
-    ~"Show the models selection: the models whose fitness, fatigue and form the views show.  A model is a named set of the variables of the training impulse and of the curves made from it, and of which activities count (by their tags).  The built-in model, `default`, is selected from the start and never changes; to change its values, copy it (`--add NAME --base default`, then the values that differ).  Models belong to no user; the selection is each user's.",
+    ~"Show the models selection: the models whose fitness, fatigue and form the views show.  A model is a named set of the variables of the training impulse and of the curves made from it, and of which activities count (by their tags).  The program makes one, `default` (the original's), selected for every user from the start; it can be edited or deleted like any other (a rebuild makes it again), or copied (`--add NAME --base default`, then the values that differ).  Models belong to no user; the selection is each user's.",
     ~"With `--names` (or `--all`), the models listed are found in these steps:",
     ~"1. Start with all the models.",
     step(2, withinStep(words)),
     ~"3. Keep those whose names match any of the patterns.",
     step(4, alsoStep(words)),
-    ~"5. If `--delete`, delete the result (the built-in model is kept), and stop.",
+    ~"5. If `--delete`, delete the result, and stop.",
     step(6, selectStep(words)),
     step(7, displayStep(words)),
     ~"If no criteria are given, the steps are skipped and the models selection is used.  `--add` copies `default` unless `--base` names another model; a model keeps no tie to the one it was copied from.  An edit that changes the impulse (`--gamma`, `--zero`, `--one`, `--max-gap`, `--zones`) deletes the impulses worked out with the model, and they are worked out again when wanted.",
@@ -115,12 +115,6 @@ proc edit(g: Globals, st: Session, a: Action[Model]): int {.raises: [StoreError]
     return failure(
       g, "nch models", ~"there is no model called {a.target} (see `nch models --all`)"
     )
-  if old.get.builtIn:
-    return failure(
-      g,
-      "nch models",
-      ~"{old.get.name} is built in and never changes: copy it (`nch models --add NAME --base {old.get.name}`) and change the copy",
-    )
   let m = edited(modelKind(), a, old.get)
   if a.newName.isSome:
     let other = findModel(st.db, m.name)
@@ -147,11 +141,7 @@ proc edit(g: Globals, st: Session, a: Action[Model]): int {.raises: [StoreError]
 proc delete(
     g: Globals, st: Session, a: Action[Model], s: Steps, yes: bool
 ): int {.raises: [StoreError].} =
-  let all = found(st, a, s)
-  let kept = all.filterIt(it.builtIn)
-  let doomed = all.filterIt(not it.builtIn)
-  for k in kept:
-    g.warn(~"{k.name} is built in: it is not deleted")
+  let doomed = found(st, a, s)
   if doomed.len == 0:
     g.warn(~"no model to delete")
     return exitOk
