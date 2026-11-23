@@ -103,8 +103,8 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
 ## the shape of the commands (decided 2026-11-05)
 
 * **a type that lives in the database has a plural command that manages the collection** (`activities`, `climbs`,
-  `users`, `models`, `landmarks`, `tags`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`
-  (`models`, the first editable type, `dev/editable-objects.md`: `--add NAME [--base NAME]`, `--edit NAME [--rename NEW]`, and
+  `users`, `ff` (the models), `landmarks`, `tags`): `TYPE [which ones] [action]`, with `--add NAME`, `--edit NAME ...`, `--delete NAME`
+  (`ff`, the models, the first editable type, `dev/editable-objects.md`: `--add NAME [--base NAME]`, `--edit NAME [--rename NEW]`, and
   `--delete` of what `--names PATTERN...` lists; the built-in `default` is selected for every user, and is otherwise like the others).
   every `--delete` asks first (`core/ask`: the question says what would go, `[yN]`, one key; **`-y`** answers yes, accepted by every command; with no terminal and no `-y` the answer is no, so a script never deletes by accident; there is no `-f` and no countdown).  a named type takes a
   NAME; activities, which are too many to name, take criteria or the selection.
@@ -124,7 +124,7 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   subject); the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
   again from the data as they are on every request; the page is the default and `--file` writes the files only (the web
   options are done once for every view: `web/view`).
-* **commands about things outside the database are singular**: `map`, `fit`, `log`, `ff`, `cache`, `db`; and `import`,
+* **commands about things outside the database are singular**: `map`, `plot`, `calendar`, `fit`, `log`, `cache`, `db`; and `import`,
   which reads files into it.
 * nothing is kept for backward compatibility: there is one user.
 

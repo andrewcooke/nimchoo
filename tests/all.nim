@@ -60,13 +60,10 @@ import
   ]
 import ./db/test_command
 import ./heartrate/test_step
-import ./model/[test_calc, test_curve, test_impulses, test_stats]
-import ./model/test_params
+import ./ff/[test_calc, test_curve, test_impulses, test_stats]
+import ./ff/test_params as ffParamsTest
 import ./editable/test_editable
-import ./model/test_completion as modelCompletion
-import ./ff/test_curve
-import ./ff/test_page
-import ./ff/test_web
+import ./ff/test_completion as ffCompletion
 import ./activities/test_delete
 import ./cache/test_files
 import ./cache/test_command

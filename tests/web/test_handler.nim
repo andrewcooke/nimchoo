@@ -174,21 +174,19 @@ suite "serve handler: pages":
     check s.fake.calls.len == 0
 
 suite "serve handler: the second command":
-  test "ff: its page is made again for each request, and its CSV is served as text/csv":
-    let s = setup("ff")
-    let ffStem = "ff-model-1-to-2018-09-05-hourly"
-    writeFile(s.cache / (ffStem & ".html"), "<html>the chart</html>")
-    writeFile(s.cache / (ffStem & ".csv"), "time,fitness,fatigue\n")
-    s.fake.result = WorkerResult(
-      stdout: s.cache / (ffStem & ".html") & "\n" & s.cache / (ffStem & ".csv") & "\n"
-    )
-    let r = handle(s, port, get("/ff?before=2018-09-06&hourly=1"))
-    check r.code == 200 and r.body == "<html>the chart</html>"
+  test "plot: a frame is made again for each request, and its CSV is served as text/csv":
+    let s = setup("plot")
+    let csv = "plot-ff-form-to-2018-09-05"
+    writeFile(s.cache / (csv & ".csv"), "time,series,value\n")
+    s.fake.result = WorkerResult(stdout: s.cache / (csv & ".csv") & "\n")
+    let r = handle(s, port, get("/plot/ff?before=2018-09-06&frame=form"))
+    check r.code == 200 and r.header("Content-Type") == "text/csv; charset=utf-8"
+    check r.body == "time,series,value\n"
     check s.fake.calls[^1] ==
-      @["--db", "/x/y.db", "ff", "--worker", "--before", "2018-09-06", "--hourly"]
-    let c = handle(s, port, get("/files/" & ffStem & ".csv"))
-    check c.code == 200 and c.header("Content-Type") == "text/csv; charset=utf-8"
-    check c.body == "time,fitness,fatigue\n"
+      @[
+        "--db", "/x/y.db", "plot", "--worker", "ff", "--before", "2018-09-06",
+        "--frame", "form",
+      ]
 
 suite "serve handler: files":
   test "a file of the cache, with its type":

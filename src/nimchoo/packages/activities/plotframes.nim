@@ -1,11 +1,11 @@
 ## The frame of the activities on a plot (`plot/frames`): the impulse of the selected activities each day, worked out with
 ## the first selected model (by name: the author's choice, 2026-11-23), as bars.  It follows the activity selection, not the
-## model's tags.  The impulses that are lacking are worked out first (`model`, in a transaction of its own).
+## model's tags.  The impulses that are lacking are worked out first (`ff`, in a transaction of its own).
 
 import std/[algorithm, options, strformat, tables]
 import ../../core/[errors, extension, line]
 import ../db/[statement, store]
-import ../model/[calc, curve, impulses, models]
+import ../ff/[calc, curve, impulses, models]
 import ../plot/frames
 import ../user/session
 
@@ -17,7 +17,7 @@ proc makeImpulse(
   let ms = selectedModels(st.db, st.userId)
   if ms.len == 0:
     result.warnings.add plain(
-      "no model is selected, so there is no impulse to show (see `nch models --select`)"
+      "no model is selected, so there is no impulse to show (see `nch ff --select`)"
     )
     return
   let m = ms[0]

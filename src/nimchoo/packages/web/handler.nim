@@ -125,7 +125,7 @@ proc page(cfg: ServerConfig, route: Route, r: WorkerResult): Reply =
     return reply(500, "nch " & route.command & " made no page")
   let name = extractFilename(lines[0])
   if parentDir(lines[0]) != cfg.cacheDir or
-      not (name.endsWith(".html") or name.endsWith(".geojson")):
+      not (name.endsWith(".html") or name.endsWith(".geojson") or name.endsWith(".csv")):
     return reply(
       500,
       "nch " & route.command & " named a file that is not a page or data of the cache",

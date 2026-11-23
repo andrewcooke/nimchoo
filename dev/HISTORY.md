@@ -4,6 +4,19 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The plot view, and `nch ff` manages the models (done 2026-11-23, step 3 of the `ff` rework)
+
+`nch plot [SUBJECT]`, the third view (`plot` package, point `plot/frames`): a live page that draws a subject's frames, a
+panel each, with Observable Plot (lines, or bars a day wide, as each frame declares: no drawing scripts), and `--file`, a
+CSV a frame (`time,series,value`).  The models are the subject `ff`: fitness, fatigue and form of each selected model,
+scaled by its scales, exact at the day-ends and either side of every impulse (so each ride's jump is drawn where it is);
+`--file` says each one's latest value and how it stands among the days before.  The activities give their impulse per
+day, worked out with the first selected model.  `--after`/`--before` are in the page's address.  The author's choices
+(2026-11-23): those, and the `model` package renamed `ff`, taking in the old `ff` (the chart: deleted, with its
+`--hourly`, `--utc`, `--model`, `--stdout`); `nch models` is `nch ff`.  E7: what a view does with its web options is
+`web/view.runView`, used by `map` and `plot`.  Found on the way: the server served a worker's page or GeoJSON only, so a
+CSV frame could not have been fetched (now it can, tested).  Rebuild: yes (the `ff` fragment is the old `model` one).
+
 ## Models, the first editable type (done 2026-11-23, step 2 of the `ff` rework)
 
 `nch models` lists, adds (`--add NAME [--base NAME]`: the base's values, then those given), edits (`--edit NAME

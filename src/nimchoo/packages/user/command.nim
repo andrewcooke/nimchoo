@@ -41,7 +41,7 @@ proc usageText*(width: int): seq[Line] =
   usageOf(synopsis, width, intro, userSpec().docs, notes)
 
 const recalculated = " (what is worked out from the FTHR is worked out again)"
-  ## said when the FTHR changes: the packages that work things out from it (`model`) do it again, by themselves
+  ## said when the FTHR changes: the packages that work things out from it (`ff`) do it again, by themselves
 
 proc currentFthr(st: Store, id: UserId): Option[int] {.raises: [StoreError].} =
   let got = st.db.queryOne(

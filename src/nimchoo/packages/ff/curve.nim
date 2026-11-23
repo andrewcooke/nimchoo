@@ -1,4 +1,4 @@
-## Fitness and fatigue: what the impulses (model/calc.nim: one lump a stretch of riding) add up to, each fading away
+## Fitness and fatigue: what the impulses (calc.nim: one lump a stretch of riding) add up to, each fading away
 ## exponentially, and the times they are wanted at.  Pure, but for the timezone.
 ##
 ## Both curves are the same calculation with a different decay time (42 days for fitness, 7 for fatigue in the default

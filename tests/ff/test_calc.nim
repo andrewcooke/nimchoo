@@ -1,6 +1,6 @@
 import std/[math, options, unittest]
 import nimchoo/packages/fit/time
-import nimchoo/packages/model/calc
+import nimchoo/packages/ff/calc
 import nimchoo/packages/tags/tag
 
 proc near(a, b: float, eps = 1e-9): bool =

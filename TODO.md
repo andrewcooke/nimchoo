@@ -40,7 +40,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     6. later, with `nch efforts`: efforts inherit their activity's tags.
 
 17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`): the `editable`
-    package, built 2026-11-23 with models its first user (`nch models`).  Left: `landmarks` (gains `--edit`, delete of what
+    package, built 2026-11-23 with models its first user (`nch ff`).  Left: `landmarks` (gains `--edit`, delete of what
     is listed, and the first filters beyond `--names`: places and ranges with units) and `users` (the hooks: one default
     user, a new FTHR); if the declaration has to bend for them, it is wrong.
 
@@ -128,12 +128,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   extended (the best and the most recent attempts).  To design with the author.
 * **The `ff` rework** (design note `dev/ff.md`, 2026-11-23: the model is the subject; FF by a model's tags, never the
   activity selection).  Step 1 done (2026-11-23: the impulse per stretch, at its centre; the curves exact, on no grid);
-  step 2 done (2026-11-23: models managed as the first editable type, by `nch models` until step 3; the models selection;
-  the scales are the model's).  The steps left:
-  3. `nch models` becomes `nch ff` (the author, 2026-11-23: renamed once the chart has left it), and the `model` package
-     `ff`, taking in today's `ff` (the chart, deleted); the `plot` view (**built** 2026-11-23, with E7: `web/view`) (`nch plot ff`: fitness, fatigue and form of each selected model; the activities' impulse per day),
-     replacing `ff`'s chart and its options (`--hourly`, `--utc`, `--model`; the chart's file is named by the model's
-     number meanwhile, `ff-model-1-...`), and E7 with it;
+  step 2 done (2026-11-23: models managed as the first editable type; the models selection; the scales are the model's);
+  step 3 done (2026-11-23: `nch plot`, with E7; `nch ff` manages the models, the chart is gone).  The step left:
   4. the calendar's background frames (a value as a colour between the theme's `hot` and `cold`, 3 samples a day).
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.
@@ -171,7 +167,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   that take 0.5 s each take about 0.5 s together": 1.36 s against 1.3 s) and `tests/download/test_fetch.nim` (the spinner's
   thread drew one frame, not two).  Each passed when run again.  Give them more slack, or measure what they mean another way.
 * **Triggers are not checked by the access model** (the review of 2026-11-14, finding 9; low priority): the authorizer skips every
-  statement inside a trigger, so a trigger in a package's fragment could write any table.  Audit the triggers of `climbs` and `model`,
+  statement inside a trigger, so a trigger in a package's fragment could write any table.  Audit the triggers of `climbs` and `ff`,
   or check a trigger's writes against the package that made it (the `tv_` counters belong to `db`).
 * **A unique index on `effort`** (the review of 2026-11-14, an aside; low priority): working out an activity's climbs again (after its
   `climbs_done` row was deleted by hand) doubled its efforts.  No normal path is known to do that; worth an index if one can.

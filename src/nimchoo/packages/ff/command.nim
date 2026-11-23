@@ -1,29 +1,20 @@
-## `nch ff`: the fitness and fatigue curves of the current user (see curve.nim), shown as a chart in the browser, or as CSV in
-## the cache directory for plotting elsewhere (`--file`) or on standard output (`--stdout`): one row per day (the
-## value at the end of the day, in the computer's timezone), or per hour.  A chart is a live view: the file is named by the
-## options (`ff-model-1-hourly.csv`) and made again on every request, from the data as they are.
-##
-## This module is newer than `model`: it works out the impulses that are lacking, and reads them (one lump a stretch of
-## riding, at its centre), and the curves are exact at the times shown (the ends of days or hours, and now).
+## `nch ff`: the models, the named sets of variables of the training impulse and of the fitness and fatigue curves
+## (see calc.nim), and the models selection.  A model is an editable type (`editable`: listed by name, added, edited,
+## deleted) and a subject (its selection follows the steps of `subject/steps`).  The built-in model, `default`, is made by the
+## program and selected for every user from the start; otherwise it is like the others.  The impulses of a model are worked out when they are wanted (see `nch ff`).
 
-import std/[math, options, os, strformat, strutils, times]
-import ../../core/globals
-import ../cache/cache
-import ../util/atomic/atomic
-import ../db/statement
-import ../db/store
-import ../../core/errors
-import ../model/calc
-import ../model/impulses
-import ../model/models
-import ../util/args/[args, usage]
-import ../web/launch
-import ../web/pages
-import ../web/webopts
-import ../ui/style
-import ./[page, params]
-import ../model/[curve, stats]
+import std/[options, sequtils, strformat]
+import ../../core/[ask, globals]
 import ../user/session
+import ../db/store
+import ../ui/vocabulary
+import ../util/args/[args, usage]
+import ../../core/errors
+import ../../core/logfile
+import ../editable/editable
+import ../subject/steps
+import ../tags/tag
+import ./[calc, models, params]
 
 {.push raises: [].}
 
@@ -31,152 +22,141 @@ const commandName* = "ff" ## what the user types after `nch`
 
 proc options*(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
   ## The options of `nch ff`, described (for tab completion).
-  ffSpec().docs
+  modelSpec().docs
 
-const
-  synopsis =
-    """usage: nch [--db PATH] [--user NAME] ff [--model NAME] [--after DAY] [--before DAY]
-                                      [--hourly] [--utc] [--stdout | --file | --stop | [--start] [--port N] [--new-token]]"""
-  intro = @[
-    ~"Show the user's fitness and fatigue as a chart: served on localhost and opened in a browser (one server serves every page, and keeps running after the command returns: `--stop` stops it).  With `--file` the data are made as a CSV file in the cache directory instead, and its path is printed, then the latest values of the two curves, each with the share of the earlier days on which it was higher (\"top 1%\" means the value is nearly the highest it has been): 2026-11-03 15:00  fitness: 71.5 (top 4%),  fatigue: 18.5 (top 56%).  One row a day, the value at the end of the day (in this computer's timezone; `--utc` for UTC).  They are made from the impulses of the user's activities (see `nch users --edit NAME --fthr` and `nch models`) with the decay times and the scales of the model, counting the activities whose tags it chooses.  They start from 0 at the first activity with an impulse and run up to `--before` (default: the end of today), so they fade away after the last."
-  ]
-  notes = @[
-    ~"The file is made again each time, from the data as they are then; its name is made from the options (`ff-model-1-hourly.csv`), so charts with different options do not overwrite each other."
+const synopsis =
+  """usage: nch [--db PATH] [--user NAME] ff [--names PATTERN... [--within | --also]] [--select]
+       nch [--db PATH] [--user NAME] ff --all [--select]
+       nch [--db PATH] [--user NAME] ff [--names PATTERN... [--within] | --all] --delete
+       nch [--db PATH] ff --add NAME [--base NAME] [VALUES]
+       nch [--db PATH] ff --edit NAME [--rename NEW] [VALUES]"""
+
+func intro(): seq[Line] =
+  @[
+    ~"Show the models selection: the models whose fitness, fatigue and form the views show.  A model is a named set of the variables of the training impulse and of the curves made from it, and of which activities count (by their tags).  The program makes one, `default` (the original's), selected for every user from the start; it can be edited or deleted like any other (a rebuild makes it again), or copied (`--add NAME --base default`, then the values that differ).  Models belong to no user; the selection is each user's.",
+    ~"With `--names` (or `--all`), the models listed are found in these steps:",
+    ~"1. Start with all the models.",
+    step(2, withinStep(words)),
+    ~"3. Keep those whose names match any of the patterns.",
+    step(4, alsoStep(words)),
+    ~"5. If `--delete`, delete the result, and stop.",
+    step(6, selectStep(words)),
+    step(7, displayStep(words)),
+    ~"If no criteria are given, the steps are skipped and the models selection is used.  `--add` copies `default` unless `--base` names another model; a model keeps no tie to the one it was copied from.  An edit that changes the impulse (`--gamma`, `--zero`, `--one`, `--max-gap`, `--zones`) deletes the impulses worked out with the model, and they are worked out again when wanted.",
   ]
 
 proc usageText*(width: int): seq[Line] =
-  ## The usage: the synopsis, the introduction, the notes and the options, wrapped to `width`.
-  usageOf(synopsis, width, intro, ffSpec().docs, notes)
+  ## The usage: the synopsis, the introduction and the options, wrapped to `width`.
+  usageOf(synopsis, width, intro(), modelSpec().docs)
 
-proc rows*(
-    lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone
-): seq[string] =
-  ## The CSV lines (without the header) for the impulses (in time order).  Days are those of the timezone; a daily row is
-  ## the value at the end of the day, labelled with the date, an hourly one that at the end of the hour, labelled with it.
-  if lumps.len == 0:
-    return
-  let toCivil =
-    if p.lastDay.isSome:
-      p.lastDay.get
-    else:
-      civilOf(now, tz)
-  let times =
-    if p.hourly:
-      hourEnds(lumps[0].t, dayStart(toCivil + secondsPerDay, tz))
-    else:
-      dayEnds(lumps[0].t, toCivil, tz)
-  let fitness = curveAt(lumps, m.fitnessDays, times)
-  let fatigue = curveAt(lumps, m.fatigueDays, times)
-  let firstDay =
-    if p.firstDay.isSome:
-      localDate(p.firstDay.get, utc())
-    else:
-      ""
-  let firstInstant =
-    if p.firstDay.isSome:
-      dayStart(p.firstDay.get, tz)
-    else:
-      low(int64)
-  for k, finish in times:
-    let label =
-      if p.hourly:
-        fromUnix(finish).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
-      else:
-        localDate(finish - 1, tz)
-    if p.hourly:
-      if finish <= firstInstant:
-        continue
-    elif label < firstDay:
-      continue
-    let fit = formatFloat(fitness[k] * m.fitnessScale, ffDecimal, 4)
-    let fat = formatFloat(fatigue[k] * m.fatigueScale, ffDecimal, 4)
-    result.add fmt"{label},{fit},{fat}"
+proc patternsOf(names: seq[string]): seq[TagPattern] =
+  for n in names:
+    result.add parsePattern(n).pattern.get # (checked by the parse)
 
-proc csv(lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone): string =
-  result = "time,fitness,fatigue\n"
-  for l in rows(lumps, m, p, now, tz):
-    result.add l & "\n"
-
-proc ensureImpulses(st: Session, m: Model) {.raises: [StoreError].} =
-  ## Work out the impulses that are lacking (in one transaction).
-  st.beginWrite()
-  var committed = false
-  try:
-    discard calculateMissing(st.db, st.userId, m)
-    st.commit()
-    committed = true
-  finally:
-    if not committed:
-      st.rollback()
-
-proc makeCsv(lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone): string =
-  ## The CSV of the impulses (worked out and read once, `ensureImpulses` and `userLumps`: the file and the line about the
-  ## latest values come from the same state of the database).
-  csv(lumps, m, p, now, tz)
-
-proc latestStats(
-    lumps: seq[Lump], m: Model, p: Params, now: int64, tz: Timezone
-): Line =
-  ## The line about the latest values (see stats.nim): for today, as of now (the label is the date and time); for an
-  ## earlier last day (`--before` the next), at the end of it (the date).  Each is compared with the ends of the days
-  ## before.  `p.lastDay` is set.
-  let today = civilOf(now, tz)
-  var asOf, day: int64
-  var label: string
-  if p.lastDay.get >= today:
-    asOf = now
-    day = today
-    label =
-      fmt"""{localDate(today, utc())} {fromUnix(now).inZone(tz).format("HH:mm")}"""
+proc found(
+    st: Session, a: Action[Model], s: Steps
+): seq[Model] {.raises: [StoreError].} =
+  ## What the steps find: with no criteria and no `--all`, the selection.
+  if a.names.len == 0 and not s.all:
+    selectedModels(st.db, st.userId)
   else:
-    day = p.lastDay.get
-    asOf = dayStart(day + secondsPerDay, tz)
-    label = localDate(day, utc())
-  if lumps.len == 0 or lumps[0].t > asOf:
-    return
-      statLine(label, none(Standing), none(Standing), m.fitnessScale, m.fatigueScale)
-  let times = dayEnds(lumps[0].t, day - secondsPerDay, tz) & @[asOf]
-  proc standingFor(tauDays: float): Option[Standing] =
-    let v = curveAt(lumps, tauDays, times)
-    some(standing(v[^1], v[0 ..^ 2]))
+    searchModels(st.db, st.userId, patternsOf(a.names), s.among, s.also)
 
-  statLine(
-    label,
-    standingFor(m.fitnessDays),
-    standingFor(m.fatigueDays),
-    m.fitnessScale,
-    m.fatigueScale,
+proc list(
+    g: Globals, st: Session, a: Action[Model], s: Steps
+): int {.raises: [StoreError].} =
+  let shown = found(st, a, s)
+  if s.select:
+    st.writing(
+      proc() {.closure, raises: [StoreError].} =
+        replaceModelSelection(st.db, st.userId, shown.mapIt(it.id))
+    )
+  let chosen = selectedModels(st.db, st.userId).mapIt(it.id)
+  let marks = not g.colour[osOut]
+  g.showAll(
+    osOut,
+    table(modelKind(), shown, shown.mapIt(it.id in chosen), g.textWidth(osOut), marks),
   )
+  let isSelection = s.select or (a.names.len == 0 and not s.all)
+  let total = loadModels(st.db).len
+  g.done(listDone(shown.len, some(total), "model", "models", isSelection, marks))
+  exitOk
 
-proc webQuery*(p: Params): string =
-  ## What the address of the chart says: the options given (before the defaults are filled in,
-  ## so that a page asked for tomorrow is tomorrow's).  See serve/request.nim for the names.
-  var q: seq[string]
-  if p.model.isSome:
-    q.add "model=" & p.model.get
-  if p.firstDay.isSome:
-    q.add "after=" & localDate(p.firstDay.get, utc())
-  if p.lastDay.isSome:
-    q.add "before=" & localDate(p.lastDay.get + secondsPerDay, utc())
-  if p.hourly:
-    q.add "hourly=1"
-  if p.utc:
-    q.add "utc=1"
-  q.join("&")
+proc add(g: Globals, st: Session, a: Action[Model]): int {.raises: [StoreError].} =
+  if findModel(st.db, a.name).isSome:
+    return failure(g, "nch ff", ~"there is a model called {a.name} already")
+  var base = defaultModel()
+  if a.base.isSome:
+    let b = findModel(st.db, a.base.get)
+    if b.isNone:
+      return failure(
+        g, "nch ff", ~"there is no model called {a.base.get} (see `nch ff --all`)"
+      )
+    base = b.get
+  var m = made(modelKind(), a, base)
+  m.builtIn = false
+  let why = problem(m)
+  if why.isSome:
+    return failure(g, "nch ff", why.get)
+  st.writing(
+    proc() {.closure, raises: [StoreError].} =
+      discard insertModel(st.db, m)
+  )
+  let said = fmt"made the model {m.name}"
+  g.log.log(lvInfo, commandName, leSaved, said)
+  g.done(plain(said))
+  exitOk
 
-proc stemOf(p: Params, model: ModelId): string =
-  ## What the files are named: the command, the model's number (a name may hold what a file name may not) and the options
-  ## given (`ff-model-1-to-2026-11-14-hourly`).  Charts with other options are other files.
-  var parts = @[commandName, fmt"model-{model}"]
-  if p.firstDay.isSome:
-    parts.add "from-" & localDate(p.firstDay.get, utc())
-  if p.lastDay.isSome:
-    parts.add "to-" & localDate(p.lastDay.get, utc())
-  if p.hourly:
-    parts.add "hourly"
-  if p.utc:
-    parts.add "utc"
-  parts.join("-")
+proc edit(g: Globals, st: Session, a: Action[Model]): int {.raises: [StoreError].} =
+  let old = findModel(st.db, a.target)
+  if old.isNone:
+    return
+      failure(g, "nch ff", ~"there is no model called {a.target} (see `nch ff --all`)")
+  let m = edited(modelKind(), a, old.get)
+  if a.newName.isSome:
+    let other = findModel(st.db, m.name)
+    if other.isSome and other.get.id != m.id:
+      return failure(g, "nch ff", ~"there is a model called {other.get.name} already")
+  let why = problem(m)
+  if why.isSome:
+    return failure(g, "nch ff", why.get)
+  st.writing(
+    proc() {.closure, raises: [StoreError].} =
+      updateModel(st.db, old.get, m)
+  )
+  let again =
+    if sameImpulse(old.get, m):
+      ""
+    else:
+      " (its impulses will be worked out again when wanted)"
+  let said = fmt"changed the model {m.name}{again}"
+  g.log.log(lvInfo, commandName, leSaved, said)
+  g.done(plain(said))
+  exitOk
+
+proc delete(
+    g: Globals, st: Session, a: Action[Model], s: Steps, yes: bool
+): int {.raises: [StoreError].} =
+  let doomed = found(st, a, s)
+  if doomed.len == 0:
+    g.warn(~"no model to delete")
+    return exitOk
+  let names = sayList(doomed.mapIt(it.name))
+  let what =
+    if doomed.len == 1:
+      fmt"the model {names}"
+    else:
+      fmt"{doomed.len} models, {names}"
+  if not confirmDelete(g, fmt"{what}, with their impulses", yes):
+    return exitOk
+  st.writing(
+    proc() {.closure, raises: [StoreError].} =
+      deleteModels(st.db, doomed.mapIt(it.id))
+  )
+  let said = fmt"deleted {what}"
+  g.log.log(lvInfo, commandName, leDeleted, said)
+  g.sayDeleted(said)
+  exitOk
 
 proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch ff ARGS`; returns the exit status.
@@ -191,90 +171,22 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return unitRetry(g, "nch ff", parsed.fix, run)
   of pkOk:
     discard
-  var p = parsed.params
-  if p.web.kind == wkStop:
-    # (the server is shared by every page: nothing of the chart is needed to stop it)
-    let dir = cacheDir()
-    if dir.isNone:
-      return failure(g, "nch ff", noCacheDir)
-    return stopWeb(g, commandName, p.web.stopPort, dir.get)
+  let p = parsed.params
   var st: Session
   try:
     st = openSession(g)
   except StoreError as e:
     return failure(g, "nch ff", e.msg)
   try:
-    let name = p.model.get("default")
-    let m = findModel(st.db, name)
-    if m.isNone:
-      return failure(g, "nch ff", ~"no such model: {name} (see `nch models --all`)")
-    if fthrOf(st.db, st.userId).isNone:
-      return failure(
-        g,
-        "nch ff",
-        ~"{st.userName} has no FTHR, which the impulse calculations require (set it with `nch users --edit {st.userName} --fthr BPM`)",
-      )
-    if not hasHeartRate(st.db, st.userId):
-      return failure(
-        g,
-        "nch ff",
-        ~"there are no impulses for {st.userName} (they need activities with heart rate: import some)",
-      )
-    let now = getTime().toUnix
-    let tz =
-      if p.utc:
-        utc()
-      else:
-        local()
-    if p.lastDay.isNone:
-      p.lastDay = some(civilOf(now, tz)) # (the last day: today, when the chart is made)
-    var impulses: seq[Lump]
-    if p.stdout or p.web.kind != wkServe:
-      # (the chart that is served is made by the worker, when the page is asked for)
-      ensureImpulses(st, m.get)
-      impulses = userLumps(st.db, st.userId, m.get)
-    if p.stdout:
-      g.say osOut, makeCsv(impulses, m.get, p, now, tz)
-      return exitOk
-    let dir = cacheDir()
-    if dir.isNone:
-      return failure(g, "nch ff", ~"{noCacheDir}; use `--stdout`")
-    if p.web.kind == wkServe:
-      # the chart is made by the worker, whenever the page is asked for
-      return serveWeb(
-        g,
-        commandName,
-        WebOptions(port: p.web.port, start: p.web.start, newToken: p.web.newToken),
-        dir.get,
-        commandName,
-        webQuery(parsed.params),
-      )
-    let stem = stemOf(parsed.params, m.get.id)
-    # (the paths are kept in `let`s: `.get` on a temporary Option that is assigned on to a `var` has
-    # left a dangling string here, with this compiler)
-    let files = userDir(dir.get)
-    let csvFile = cacheFile(files, stem, "csv")
-    let pageFile = cacheFile(files, stem, "html")
-    let csvPath = csvFile.get
-    try:
-      makeCacheDirs(dir.get)
-      writeAtomic(csvPath, makeCsv(impulses, m.get, p, now, tz))
-      if p.web.kind == wkWorker:
-        let html = pageHtml(
-          extractFilename(csvPath), fmt"Fitness and fatigue, model {name}", p.hourly
-        )
-        writeAtomic(pageFile.get, html)
-    except IOError, OSError:
-      return cannotWrite(g, "nch ff", dir.get)
-    except TemplateError as e:
-      return templateFailure(g, "nch ff", e.msg)
-    if p.web.kind == wkWorker:
-      g.show(osOut, ~"<file {pageFile.get}>")
-      g.show(osOut, ~"<file {csvPath}>")
-      return exitOk
-    g.show(osOut, ~"<file {csvPath}>")
-    g.show(osOut, latestStats(impulses, m.get, p, now, tz))
-    exitOk
+    case p.action.kind
+    of akList:
+      list(g, st, p.action, p.steps)
+    of akAdd:
+      add(g, st, p.action)
+    of akEdit:
+      edit(g, st, p.action)
+    of akDelete:
+      delete(g, st, p.action, p.steps, parsed.yes)
   except StoreError as e:
     failure(g, "nch ff", e.msg)
   finally:

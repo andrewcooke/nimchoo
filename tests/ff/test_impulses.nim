@@ -8,11 +8,11 @@ import nimchoo/packages/user/session
 import nimchoo/core/errors
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/importer/importer
-import nimchoo/packages/model/command
-import nimchoo/packages/model/calc
-import nimchoo/packages/model/impulses
-import nimchoo/packages/model/models
-import nimchoo/packages/model/params
+import nimchoo/packages/ff/command
+import nimchoo/packages/ff/calc
+import nimchoo/packages/ff/impulses
+import nimchoo/packages/ff/models
+import nimchoo/packages/ff/params
 import nimchoo/packages/editable/editable
 import nimchoo/packages/subject/subjects
 import nimchoo/packages/tags/tag
@@ -298,7 +298,7 @@ suite "model: heart rate":
       s.db, UserId(s.db.scalar(int64, "select id from user where name = 'bob'"))
     )
 
-suite "nch models":
+suite "nch ff":
   test "the table":
     let s = open(fresh("list"))
     defer:

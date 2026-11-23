@@ -1,7 +1,7 @@
-## Completing the names of models (src/nimchoo/packages/model/completion.nim).
+## Completing the names of models (src/nimchoo/packages/ff/completion.nim).
 
 import std/unittest
-import nimchoo/packages/model/completion
+import nimchoo/packages/ff/completion
 import nimchoo/packages/user/session
 import ../support/completiondb
 

@@ -18,7 +18,7 @@
 ## * `db <packages/db/package.html>`_ - The database: opening it, its schema as fragments, and the statements that touch it.
 ## * `download <packages/download/package.html>`_ - Fetching what the program needs from the network, the only place it does so.
 ## * `editable <packages/editable/package.html>`_ - Editable objects: one shared piece for the named things made by hand (models; landmarks, users).
-## * `ff <packages/ff/package.html>`_ - Fitness and fatigue curves from the training impulses.
+## * `ff <packages/ff/package.html>`_ - Fitness and fatigue: the models, their impulses, the models selection and its curves.
 ## * `fit <packages/fit/package.html>`_ - FIT files: the decoder, and the profile that says what the fields mean.
 ## * `fold <packages/text/fold/package.html>`_ - Comparing text without regard to case or accents.
 ## * `geo <packages/geo/package.html>`_ - Flat geometry for rides, in metres.
@@ -28,7 +28,6 @@
 ## * `log <packages/log/package.html>`_ - Reading the log.
 ## * `lookup <packages/util/lookup/package.html>`_ - Table lookups that have to succeed (`must()`, `mustMut()`).
 ## * `map <packages/map/package.html>`_ - The map: a view of a subject, drawn from the frames that the packages managing it contribute.
-## * `model <packages/model/package.html>`_ - The training impulse: models, the impulses worked out with them, and the models selection.
 ## * `names <packages/names/package.html>`_ - Names for places: GeoNames features, and the author's own landmarks.
 ## * `near <packages/near/package.html>`_ - `--from`, `--near` and `--radius`: where a thing is, for the commands that search by place.
 ## * `plot <packages/plot/package.html>`_ - A subject over time: `nch plot`, the view that draws the series packages contribute (`plot/frames`).
@@ -64,7 +63,6 @@ import ./packages/heartrate/package as pkgHeartrate
 import ./packages/importer/package as pkgImporter
 import ./packages/log/package as pkgLog
 import ./packages/map/package as pkgMap
-import ./packages/model/package as pkgModel
 import ./packages/names/package as pkgNames
 import ./packages/near/package as pkgNear
 import ./packages/plot/package as pkgPlot
@@ -275,15 +273,30 @@ a subject adds the steps of its selection (`subject/steps`) to the same parse: t
     Registered(
       name: "ff",
       package: pkgFf.package,
-      summary: "Fitness and fatigue curves from the training impulses.",
-      doc: """Fitness and fatigue curves from the training impulses.
+      summary:
+        "Fitness and fatigue: the models, their impulses, the models selection and its curves.",
+      doc:
+        """Fitness and fatigue: the models, their impulses, the models selection and its curves.
 
-`nch ff` adds up the impulses of the user (`model`: one a stretch of riding), each fading away exponentially, exactly,
-into one row per day (or hour) of fitness and fatigue, and serves a page that draws it in the browser (Observable Plot and d3, loaded from a CDN with
-the integrity hashes of the exact files); `--file` makes the data as CSV in the cache for plotting elsewhere, and `--stdout`
-prints it.  `ff` is not about the selection: it always uses all the activities.  A chart is a live view: made again from the
-data as they are every time the page is asked for, in a file named by the options (`ff-model-1-hourly.csv`).  Offers its
-page to the server (`web/pages`).""",
+* **A model** (`calc.Model`) is a named set of the variables of the training impulse (gamma, zero, one, the longest gap
+  bridged, the zones), of the fitness and fatigue curves (their decay times and their scales in form), and of which
+  activities count (tag patterns: an activity counts if it has a tag matching each; none, all of them).  Models belong
+  to no user.  The program makes one, `default` (the original's), built in: selected for every user from
+  the start, and otherwise like the others (edited, deleted; a rebuild makes it again).
+* **`nch ff`** manages them as an editable type (`editable`; the declaration is `params.modelKind`): `--add NAME`
+  copies `default` or `--base NAME` and then the values given, `--edit NAME` changes values or the name, `--delete`
+  deletes what is listed.  A model's name is written and matched as a tag is (`tags`), but is not one.
+* **The models selection** (`model_selection`) is a subject's, called `ff` in the views (`subject.nim`; the steps of
+  `subject/steps`, `--names` its criteria): `nch plot ff` draws the fitness, fatigue and form of each selected model
+  (`plotframes.nim`; the curves are `curve.nim`, their latest values `stats.nim`).  The built-in models are selected for every user from the start (a
+  trigger on `user`, and the seed).
+* **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
+  stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
+  `impulse`).  They are worked out when a view needs them, and deleted when the FTHR they were worked out with changes (a
+  trigger of the table) or an edit changes what the model makes of the heart rate, so they are worked out again.  The
+  patterns choose which impulses count (`impulses.userLumps`), so changing them changes no impulse.
+
+The tables (`ff_model`, `ff_model_pattern`, `model_selection`, `impulse`) are this package's.""",
       path: "src/nimchoo/packages/ff/",
     ),
     Registered(
@@ -321,7 +334,7 @@ metres is at a latitude.  One function for each, written here, is what SQL uses 
       doc: """The heart-rate channel of an import.
 
 An import step (`importer/steps`): the `heart_rate` field of each record is kept as beats per minute, one reading per second
-at most, as arrays (`series.nim`) in the table `heartrate_series`.  `model` works the training impulse out of it.""",
+at most, as arrays (`series.nim`) in the table `heartrate_series`.  `ff` works the training impulse out of it.""",
       path: "src/nimchoo/packages/heartrate/",
     ),
     Registered(
@@ -395,35 +408,6 @@ drawn generically from its style: `frames.nim` has the contract).  The css and t
 put into the page.  `geojson.nim` writes a file of features, for the providers.
 Offers its page to the server (`web/pages`).""",
       path: "src/nimchoo/packages/map/",
-    ),
-    Registered(
-      name: "model",
-      package: pkgModel.package,
-      summary:
-        "The training impulse: models, the impulses worked out with them, and the models selection.",
-      doc:
-        """The training impulse: models, the impulses worked out with them, and the models selection.
-
-* **A model** (`calc.Model`) is a named set of the variables of the training impulse (gamma, zero, one, the longest gap
-  bridged, the zones), of the fitness and fatigue curves (their decay times and their scales in form), and of which
-  activities count (tag patterns: an activity counts if it has a tag matching each; none, all of them).  Models belong
-  to no user.  The program makes one, `default` (the original's), built in: selected for every user from
-  the start, and otherwise like the others (edited, deleted; a rebuild makes it again).
-* **`nch models`** manages them as an editable type (`editable`; the declaration is `params.modelKind`): `--add NAME`
-  copies `default` or `--base NAME` and then the values given, `--edit NAME` changes values or the name, `--delete`
-  deletes what is listed.  A model's name is written and matched as a tag is (`tags`), but is not one.
-* **The models selection** (`model_selection`) is a subject's, called `ff` in the views (`subject.nim`; the steps of
-  `subject/steps`, `--names` its criteria): `nch plot ff` draws the fitness, fatigue and form of each selected model
-  (`plotframes.nim`; the curves are `curve.nim`, their latest values `stats.nim`).  The built-in models are selected for every user from the start (a
-  trigger on `user`, and the seed).
-* **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
-  stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
-  `impulse`).  They are worked out when `ff` needs them, and deleted when the FTHR they were worked out with changes (a
-  trigger of the table) or an edit changes what the model makes of the heart rate, so they are worked out again.  The
-  patterns choose which impulses count (`impulses.userLumps`), so changing them changes no impulse.
-
-The tables (`ff_model`, `ff_model_pattern`, `model_selection`, `impulse`) are this package's.""",
-      path: "src/nimchoo/packages/model/",
     ),
     Registered(
       name: "names",
@@ -651,7 +635,7 @@ if the default is deleted another becomes it.  Deleting a user deletes everythin
 * `openSession()` finds the user a command works for and gives a `Session` (the store, the user's id and name); a `Session`
   converts to a `Store`, so only code that needs the user says `Session`.
 * `nch users` is a command of this package: make, rename, set the FTHR of users, choose the default, delete.  A user's name
-  is the key for `--user`, and users are never made by accident (`--add`).  Changing an FTHR makes `model` work its
+  is the key for `--user`, and users are never made by accident (`--add`).  Changing an FTHR makes `ff` work its
   impulses out again, by a trigger of its own.
 * The extension point `user/has`: the packages whose data hangs off a user contribute a count with its name (`importer`:
   the activities).  `nch users` shows each as a column and says them when it asks before a delete.""",

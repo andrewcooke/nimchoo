@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/packages/model/[calc, params]
+import nimchoo/packages/ff/[calc, params]
 import nimchoo/packages/editable/editable
 import nimchoo/packages/subject/[steps, subjects]
 import nimchoo/packages/util/args/args

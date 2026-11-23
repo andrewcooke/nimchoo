@@ -9,7 +9,7 @@
 ## * `openSession()` finds the user a command works for and gives a `Session` (the store, the user's id and name); a `Session`
 ##   converts to a `Store`, so only code that needs the user says `Session`.
 ## * `nch users` is a command of this package: make, rename, set the FTHR of users, choose the default, delete.  A user's name
-##   is the key for `--user`, and users are never made by accident (`--add`).  Changing an FTHR makes `model` work its
+##   is the key for `--user`, and users are never made by accident (`--add`).  Changing an FTHR makes `ff` work its
 ##   impulses out again, by a trigger of its own.
 ## * The extension point `user/has`: the packages whose data hangs off a user contribute a count with its name (`importer`:
 ##   the activities).  `nch users` shows each as a column and says them when it asks before a delete.

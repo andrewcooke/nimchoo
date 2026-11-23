@@ -139,7 +139,7 @@ suite "access: fragments":
     execScriptAs(
       s.db,
       "create temp trigger t1 after update of fthr on user_profile begin select 1; end",
-      "model",
+      "ff",
     )
     var why = ""
     try:

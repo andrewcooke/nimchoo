@@ -105,7 +105,7 @@ package (`prepareStmtAs`): the owner declared the writing, so "a table is writte
 
 ### Built (2026-11-23, models first)
 
-The `editable` package, with `nch models` its first user (`model/params.modelKind` is the declaration).  What differs
+The `editable` package, with the models its first user (`nch ff`; `ff/params.modelKind` is the declaration).  What differs
 from the sketch above, and why:
 
 * **The declaration is typed Nim, not columns.**  An attribute is its option (made by `valueAttr` or `listAttr`: how the

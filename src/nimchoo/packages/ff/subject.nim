@@ -15,10 +15,10 @@ proc selected(st: Session): int {.raises: [StoreError].} =
 const modelsSubject* = Subject(
   name: "ff",
   summary:
-    ~"the fitness, fatigue and form of the models selection (see `nch models --select`)",
+    ~"the fitness, fatigue and form of the models selection (see `nch ff --select`)",
   isDefault: false,
   selected: selected,
-  emptyHint: ~"see `nch models CRITERIA --select`",
+  emptyHint: ~"see `nch ff CRITERIA --select`",
 )
 
 proc contribution*(): Contribution =

@@ -129,24 +129,17 @@ suite "serve request: what is asked for":
   test "a list is never in an address: the frames of a map are chosen on its page":
     for bad in ["/map?frames=heat", "/map?frames=routes,heat", "/map?frame=heat,routes"]:
       check route(target(bad)).isNone
-  test "ff: options, and flags that are given as 1":
-    let r = route(
-      target("/ff?model=flat&after=2018-08-01&before=2018-09-01&hourly=1&utc=1")
-    ).get
-    check r.command == "ff"
+  test "plot: the subject, the period and the frame":
+    let r = route(target("/plot/ff?after=2018-08-01&before=2018-09-01&frame=form")).get
+    check r.command == "plot"
     check r.args ==
-      @[
-        "--model", "flat", "--after", "2018-08-01", "--before", "2018-09-01",
-        "--hourly", "--utc",
-      ]
-    check route(target("/ff")).get.args.len == 0
-  test "ff: no other option or value":
+      @["ff", "--after", "2018-08-01", "--before", "2018-09-01", "--frame", "form"]
+    check route(target("/plot")).get.args.len == 0
+  test "plot: no other option or value":
     for bad in [
-      "/ff?hourly=0", "/ff?hourly=", "/ff?hourly", "/ff?hourly=1&hourly=1",
-      "/ff?stdout=1", "/ff?file=1", "/ff?state=ab12cd", "/ff?worker=1", "/ff?port=1",
-      "/ff?before=yesterday", "/ff?before=2018-8-1", "/ff?after=2018-08-0x",
-      "/ff?model=a%20b", "/ff?model=", "/ff?fitness-scale=2", "/ff?style=lines",
-      "/ff/x", "/FF",
+      "/plot?file=1", "/plot?worker=1", "/plot?port=1", "/plot?frames=form",
+      "/plot?before=yesterday", "/plot?before=2018-8-1", "/plot?after=2018-08-0x",
+      "/plot?model=x", "/plot/FF", "/plot/ff/x", "/plot?frame=a,b", "/ff", "/Plot",
     ]:
       check route(target(bad)).isNone
   test "no other command, option or value":
@@ -180,7 +173,7 @@ suite "serve request: what is asked for":
 suite "web: the commands it may run":
   test "are commands the registry has":
     let names = registry.commands.mapIt(it.name)
-    check pages.len == 3
+    check pages.len == 2
     for page in pages:
       check page.command in names
   test "no two pages have one command name":

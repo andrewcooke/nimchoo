@@ -1,7 +1,7 @@
 ## The heart-rate channel of an import.
 ##
 ## An import step (`importer/steps`): the `heart_rate` field of each record is kept as beats per minute, one reading per second
-## at most, as arrays (`series.nim`) in the table `heartrate_series`.  `model` works the training impulse out of it.
+## at most, as arrays (`series.nim`) in the table `heartrate_series`.  `ff` works the training impulse out of it.
 
 import ../../core/[extension, manifest]
 import ../importer/channel
