@@ -112,9 +112,13 @@ notes from previous discussion:
   template may end at a directory (`nch import ~/fit/bike/{bike}`, the author's use: every file under each directory gets
   its tag; unquoted, the shell leaves `{bike}` alone).  A caught value that cannot be a tag is a warning, and no tag.
   Tags are given only to files imported for the first time (a rebuild starts from an empty database).
-* **`nch tags`**: not an editable object (no attributes) but as like one as possible: the tags with their counts,
-  `--names` patterns to choose them, `--within` to count those of the selection; `--add TAG...` and `--delete TAG...` on
-  the activities that criteria give, or the selection (`--delete` asks); `--rename OLD NEW`.
+* **`nch tags`** (built 2026-11-23, after some back and forth): the steps of `nch activities`, with tags in place of
+  activities.  Start with the tags of all your activities; `--within`: those of the selected ones; `--names PATTERN...`
+  (a criterion: over all the activities unless `--within`): those matching; then `--delete` removes them (asks, `[yN]`, as
+  every delete), `--rename NEW` renames the one tag found (a merge, where an activity has NEW already, is a warning and
+  `[Yn]`), `--add TAG...` adds tags to the activities that have the tags found; shown with counts.  No criteria: the
+  selection's tags (and, for `--add`, the selected activities); `--all` keeps everything.  To work on chosen activities,
+  choose them with `nch activities` (its criteria cannot be used here: `activities` is above `tags`).
 * **Climbs have no tags** (they are not activities); efforts inherit their activity's tags (a future `nch efforts`).
 * **The `tag` style**: reverse video, setting no colour, so that a tag in a selected row is reverse video in the
   selection's colour (styles stack: `[select, tag]`); `alt-tag` comes with it, as every style's alt does.  A theme may

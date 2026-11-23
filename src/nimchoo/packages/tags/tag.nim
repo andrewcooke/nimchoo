@@ -61,6 +61,10 @@ func folded*(t: Tag): string =
   ## What a tag is matched as: lower case, no accents.
   foldText($t)
 
+func foldedPattern*(p: TagPattern): string =
+  ## A pattern as it is matched: folded as the tags are (`*` stays: it is GLOB's).
+  foldText($p)
+
 func tagsSql*(patterns: openArray[TagPattern], activity = "a.id"): Sql =
   ## Conditions, each " and exists (...)", that the activity `activity` (a column of the query) has a tag matching every
   ## pattern.  A pattern is folded as the tags are, and `*` is GLOB's: a tag holds none of GLOB's other marks.

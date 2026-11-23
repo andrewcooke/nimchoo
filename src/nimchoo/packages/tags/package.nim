@@ -12,20 +12,32 @@
 ## * **An import gives tags** (`step.nim`, an import step contributed to `importer/steps`): the sport, as
 ##   `sport:SPORT:SUB-SPORT` (`sport:cycling:road`), or `sport:SPORT` when the sub-sport is not recorded or "generic".
 ##
-## `activities --tags` chooses activities by them, and shows them with `-v`.  More to come (`dev/tags.md`, TODO): tags from
-## the path an import is given, and `nch tags` to see and change them.
+## * **`nch tags`** (`command.nim`, `params.nim`, `found.nim`): the tags with how many activities have each; `--add`,
+##   `--delete` (asks), `--rename` (a merge is said, and asked).  It follows the steps of `nch activities`, with tags in place
+##   of activities: no criteria, the selection; `--names` a criterion over all the activities, `--within` over the selected.
+##
+## `activities --tags` chooses activities by them, and shows them with `-v`; an import gives them from the sport and from
+## a template in its path (`importer/paths.nim`).
 
 import ../../core/[extension, manifest]
 import ../importer/channel
-import ./step
+import ./[command, step]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[contribute(importStep, tagsStep)]
 
 const package* = Package(
-  depends: @["db", "fold", "importer", "warnings"],
+  depends: @["args", "db", "fold", "importer", "selection", "ui", "user", "warnings"],
   fragments: @[
     fragment("001-schema.sql") # activity_tag: the tags of the activities
+  ],
+  commands: @[
+    CommandDecl(
+      name: command.commandName,
+      summary: "the tags of the activities: show them, add, remove and rename them",
+      run: command.run,
+      options: command.options,
+    )
   ],
   contributes: contributions,
 )

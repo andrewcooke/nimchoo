@@ -464,8 +464,12 @@ The design and what was decided are in `dev/tags.md`.  This package holds the ta
 * **An import gives tags** (`step.nim`, an import step contributed to `importer/steps`): the sport, as
   `sport:SPORT:SUB-SPORT` (`sport:cycling:road`), or `sport:SPORT` when the sub-sport is not recorded or "generic".
 
-`activities --tags` chooses activities by them, and shows them with `-v`.  More to come (`dev/tags.md`, TODO): tags from
-the path an import is given, and `nch tags` to see and change them.""",
+* **`nch tags`** (`command.nim`, `params.nim`, `found.nim`): the tags with how many activities have each; `--add`,
+  `--delete` (asks), `--rename` (a merge is said, and asked).  It follows the steps of `nch activities`, with tags in place
+  of activities: no criteria, the selection; `--names` a criterion over all the activities, `--within` over the selected.
+
+`activities --tags` chooses activities by them, and shows them with `-v`; an import gives them from the sport and from
+a template in its path (`importer/paths.nim`).""",
       path: "src/nimchoo/packages/tags/",
     ),
     Registered(

@@ -51,7 +51,7 @@ const
     ~"11. If `--select`, replace the current selection with the result.",
     ~"12. Display the result (selected activities are highlighted).",
     ~"`latest` and `previous` can be referred to in criteria (`--distance latest~10%`, `--from latest`, `--names previous` ...).  `--delete` and `--rename` cannot be used with `--also` or `--select`.",
-    ~"If no criteria are given, the steps are skipped and the current selection is listed.  `--all` is the criterion that keeps everything: it runs the steps above, so `--all --newest 3` lists your three newest activities.",
+    ~"If no criteria are given, steps 3 to 9 are skipped and the current selection is used.  `--all` is the criterion that keeps everything: `nch activities --all` lists every activity, and `--all --delete` deletes them all.",
   ]
   notes = @[
     ~"So `--tags 'sport:cycling*' --distance latest~10%` is cycling rides within 10% of the length of your latest cycling ride; select one ride with `--select`, then `--distance previous~10% --active previous~10%` finds rides like it.  `previous` is an error unless exactly one activity is selected."

@@ -37,8 +37,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     its table, what a tag is, matching, the `tag` style) and step 2 (`--tags` of `activities`, a criterion of its own:
     `activities` depends on `tags`, which is below it; the tags shown with `-v`, in a column) and step 3 (the sport as a tag at
     import, `sport:cycling:road`; `--sports` and `--sub-sports` gone, `--tags` completes the user's tags) and step 4 (import paths with templates: `{name}`, `{}`, `*`; a template may end at a
-    directory, `~/fit/bike/{bike}`; tags only for files imported the first time).  In order, each a step:
-    5. `nch tags`: the list with counts, `--names`, `--within`, `--add`, `--delete` (asks), `--rename OLD NEW`;
+    directory, `~/fit/bike/{bike}`; tags only for files imported the first time) and step 5 (`nch tags`).  Left:
     6. later, with `nch efforts`: efforts inherit their activity's tags.
 
 17. **Editable objects** (the author's idea and the design agreed 2026-11-22: `dev/editable-objects.md`), after tags (21).  One shared piece for
