@@ -149,8 +149,8 @@ const shownChannels = {chHeartRate} ## drawn unless told otherwise, with the alt
 
 const breakStyles = block:
   ## How each kind of break is drawn (the author, 2026-11-25): a GPS error a red line; carried orange and manual green,
-  ## bands over time; a pause grey, darker the longer it is (barely seen at 0 s, dark at a minute), and only with one ride
-  ## ticked: a pause may be noise, a light, or lunch, and with several rides whose it is could not be seen.
+  ## bands over time; a pause grey, darker the longer it is (barely seen at 0 s, darkest at five minutes), and only with one ride
+  ## ticked: a pause may be noise, a light, or lunch (darkest at five minutes: the author), and with several rides whose it is could not be seen.
   var styles: seq[RuleStyle]
   for kind in BreakKind:
     styles.add(
@@ -163,7 +163,11 @@ const breakStyles = block:
         RuleStyle(series: $kind, colour: "#2ca02c", band: true)
       of bkPause:
         RuleStyle(
-          series: $kind, colour: "#333333", band: true, fadeToS: some(60.0), alone: true
+          series: $kind,
+          colour: "#333333",
+          band: true,
+          fadeToS: some(300.0),
+          alone: true,
         )
     )
   styles
