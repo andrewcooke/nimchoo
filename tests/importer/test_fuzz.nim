@@ -1,7 +1,7 @@
 ## Mutation fuzzing of the importer's reader: damage real files at random (the mutations of tests/support/fitmutate.nim,
 ## as for `nch fit`); `readActivities` does the arithmetic on times and positions (sessions, timer segments, stretches),
 ## and must end in success, a FitError or an ImportError, never in anything else.  What it reads then goes on through
-## what the import makes from it before the database (`intoArrays`: the arrays, the cells, the route, the heart rate),
+## what the import makes from it before the database (`intoArrays`: the arrays, the cells, the route, the channels),
 ## whose checks are Defects: the reader must give them only what they can hold.  Fixed seed; a failing input is saved.
 ##
 ## NCH_FUZZ_ROUNDS (mutations per small file, default 60) sets the length; the large files get a tenth of it.
@@ -9,8 +9,7 @@
 import std/[os, random, strutils, tables, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/importer/[extract, route, series, visits]
-import nimchoo/packages/heartrate/series as hrseries
-import nimchoo/packages/heartrate/step as hrstep
+import nimchoo/packages/channels/[kinds, series as chseries, step as chstep]
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/fit/load
 import nimchoo/packages/util/warnings/warnings
@@ -19,12 +18,13 @@ import ../support/[fitmutate, fuzzfiles]
 const small = ["sdk", "other", "python-fitparse"]
 
 proc intoArrays(activities: seq[ActivityData]) =
-  ## What the import makes from each activity before it writes it (importer.nim, heartrate/step.nim).
+  ## What the import makes from each activity before it writes it (importer.nim, channels/step.nim).
   for a in activities:
     discard encodePositions(a.coords)
     discard visitsOf(a.coords)
     discard routeWkb(a)
-    discard hrseries.encodeReadings(hrstep.readings(a.samples).rows)
+    for ch in ChannelKind:
+      discard chseries.pack(ch, chstep.readings(a.samples, ch).rows)
 
 suite "importer fuzzing":
   let p = loadProfile("../choochoo/data/sdk/Profile.xlsx")
@@ -33,7 +33,7 @@ suite "importer fuzzing":
   proc fuzz(
       paths: seq[string], rounds: int, seed: int64
   ): tuple[stats: string, report: seq[string]] =
-    ## Damage each file `rounds` times; read each result with and without the heart-rate channel.
+    ## Damage each file `rounds` times; read each result with and without the channels.
     var originals: seq[seq[byte]]
     for path in paths:
       originals.add readBytes(path)
@@ -44,7 +44,7 @@ suite "importer fuzzing":
       for round in 0 ..< rounds:
         let data = r.mutate(originals[i], originals)
         inc runs
-        for channels in [@[], @["heart_rate"]]:
+        for channels in [@[], chstep.channelsStep.channels]:
           var ws: seq[Warning]
           try:
             intoArrays(readActivities(p, data, ws, channels))
@@ -86,7 +86,7 @@ suite "importer fuzzing":
     let paths = savedFailures("importer")
     check paths.len >= 1
     for path in paths:
-      for channels in [@[], @["heart_rate"]]:
+      for channels in [@[], chstep.channelsStep.channels]:
         var ws: seq[Warning]
         try:
           intoArrays(readActivities(p, readBytes(path), ws, channels))

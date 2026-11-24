@@ -51,6 +51,7 @@ import
   ]
 import ./fit/test_command
 import ./util/bytes/test_bytes
+import ./util/bytes/test_leb128
 import ./fit/test_load_errors
 import ./fit/test_profilefuzz
 import ./fit/test_load
@@ -60,7 +61,7 @@ import
     test_invariants, test_schema,
   ]
 import ./db/test_command
-import ./heartrate/test_step
+import ./channels/test_step
 import ./ff/[test_calc, test_calendarshades, test_curve, test_impulses, test_stats]
 import ./ff/test_params as ffParamsTest
 import ./editable/test_editable

@@ -9,7 +9,7 @@ import std/[strutils]
 import db_connector/db_sqlite
 import nimchoo/core/[errors, ids]
 import nimchoo/packages/db/statement
-import nimchoo/packages/heartrate/stored
+import nimchoo/packages/channels/[kinds, stored]
 import nimchoo/packages/importer/[track, visits]
 
 type Invariant* = object
@@ -122,9 +122,11 @@ proc arrayViolations(db: DbConn): seq[string] {.raises: [StoreError].} =
     if not same:
       badVisits.add $id
   for id in db.query(
-    int64, "select activity_id from heartrate_series order by activity_id"
+    int64,
+    "select activity_id from channel_series where channel = :hr order by activity_id",
+    hr = specs[chHeartRate].name,
   ):
-    for (_, bpm) in readReadings(db, ActivityId(id)):
+    for (_, bpm) in readStored(db, ActivityId(id), chHeartRate):
       if bpm < 1 or bpm > 250:
         badHeart.add $id
         break

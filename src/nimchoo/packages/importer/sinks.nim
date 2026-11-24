@@ -24,7 +24,7 @@ type Lines* = object
   stdout*, stderr*: seq[Line]
 
 func extrasText*(c: Counts): string =
-  ## ", 2,099 heart-rate readings" for what import steps wrote (nothing if they wrote none).
+  ## ", 8,396 channel readings" for what import steps wrote (nothing if they wrote none).
   for x in c.extras:
     if x.n > 0:
       result.add ", " & counted(x.n, x.one, x.many)

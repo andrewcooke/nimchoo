@@ -7,7 +7,7 @@ import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/importer/importer
 import nimchoo/packages/importer/track
-import nimchoo/packages/heartrate/stored
+import nimchoo/packages/channels/stored
 import nimchoo/packages/names/suggest
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 import nimchoo/packages/names/countries
@@ -87,8 +87,8 @@ suite "query plans: no query reads a whole table":
         "the cells read",
         "select count(*) from coverage where country = ? and cell_lon = ? and cell_lat = ?",
       ),
-      ("the heart rate of an activity", stored.headSql),
-      ("the arrays of the heart rate", stored.arraysSql),
+      ("a channel of an activity", stored.headSql),
+      ("the arrays of a channel", stored.arraysSql),
       (
         "the efforts on a climb",
         "select e.elapsed_s from effort e where e.sector_id = ?",

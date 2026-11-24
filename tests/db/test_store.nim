@@ -49,7 +49,7 @@ suite "database: opening and bringing the schema up to date":
       s.close()
     for t in [
       "user", "file", "activity", "track", "segment", "route", "seen_file", "sector",
-      "effort", "climbs_done", "heartrate_series", "landmark", "ff_model", "impulse",
+      "effort", "climbs_done", "channel_series", "landmark", "ff_model", "impulse",
       "country", "coverage", "feature", "activity_selection", "user_profile", "fragment",
     ]:
       checkpoint t

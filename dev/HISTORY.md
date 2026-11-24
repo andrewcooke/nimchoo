@@ -4,6 +4,24 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The channels: heart rate, cadence, temperature, power, speed, distance (2026-11-25, step 1 of dev/plot-activity.md)
+
+The `heartrate` package became `channels`: one list of the record fields that are kept (`kinds.nim`: name, fields in
+order of preference, unit, packing, step, the stored values that are readings), and the import step, the storage
+(`channel_series`, a row for each activity and channel it has) and the readers made from it; a channel is added by a
+line, with no fragment.  `ff` reads the heart rate from it.  The speed and the distance are the device's (why: the
+survey in dev/plot-activity.md).  This also did the TODO item "a `speed` package".  The times are each channel's own,
+as gaps from the reading before in LEB128 (`util/bytes/leb128.nim`), and the distance is stored as increments (zigzag,
+LEB128): measured on the author's last 40 rides, the channels took 10.8 MB with 4-byte offsets (7.2 MB of it times, the
+four channels sharing their times almost exactly) and take 4.5 MB now (the database 29.3 MB to 23.0 MB).  Measured on
+choochoo's test files: devices record every second, or (Garmin's "smart recording") at irregular gaps of 2 to 10 s, never
+at another fixed rate, so runs of 1 s gaps would not help every file; the author's idea of a negative number for a run
+was left out for a simpler format.  Distances go back almost never (2 readings of 560,000, by 1 cm), but the increments
+are signed so that what the device wrote is kept.  One step for every channel means the import's log line says "channel
+readings" in place of "heart-rate readings".  The enum is `ChannelKind` (`Channel` is Nim's, for threads).  A NaN from a
+damaged file is dropped before any arithmetic (with checks on, arithmetic on it is a Defect: found by a test).
+Rebuild: yes.
+
 ## Columns say their unit, and a squash (2026-11-25, step 0 of dev/plot-activity.md)
 
 The schema had three ways to name an instant (`start_t`, `imported_at`, `mtime`) and short names in the tables of arrays

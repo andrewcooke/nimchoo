@@ -13,7 +13,7 @@ import ../user/session
 
 const impulseTables* = @[
   "activity", "activity_selection", "activity_tag", "ff_model", "ff_model_pattern",
-  "file", "heartrate_series", "impulse", "model_selection", "segment", "user_profile",
+  "file", "channel_series", "impulse", "model_selection", "segment", "user_profile",
 ]
   ## what the impulse of the selected activities reads (with the impulses worked out first)
 

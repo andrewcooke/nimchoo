@@ -5,7 +5,7 @@
 import std/os
 import nimchoo/packages/db/statement
 import nimchoo/packages/fit/load
-import nimchoo/packages/heartrate/step
+import nimchoo/packages/channels/step
 import nimchoo/packages/user/session
 import nimchoo/packages/util/bytes/bytes
 import nimchoo/packages/util/warnings/warnings
@@ -29,7 +29,7 @@ proc world*(name: string, fthr = true): tuple[db, cache: string] =
     "r.fit",
     readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"),
     ws,
-    @[heartrateStep],
+    @[channelsStep],
   )
   s.db.execute(
     "insert into activity_selection(user_id, activity_id) select :userId, id from activity",

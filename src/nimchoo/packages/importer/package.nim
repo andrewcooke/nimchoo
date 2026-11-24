@@ -1,7 +1,7 @@
 ## Putting the activities of FIT files into the database, and describing them.
 ##
 ## This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
-## activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the heart rate is in `heartrate`); other data refers to it by time and never by array index, and the arrays are never changed once
+## activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the other fields of the records, heart rate, speed ..., are in `channels`); other data refers to it by time and never by array index, and the arrays are never changed once
 ## written.
 ##
 ## * **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one), or a template (`paths.nim`: `{name}`, `{}` and `*` in its parts) whose catches are given to the import steps with each file (`PathLabel`: `tags` makes tags of them).  A file whose path, size and
@@ -10,8 +10,8 @@
 ##   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the
 ##   screen as two lines that follow the run.  The new activities are then named (`names`), and last the packages that asked
 ##   do their part.
-## * **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`heartrate` writes the
-##   heart rate), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
+## * **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`channels` writes the
+##   heart rate, speed and the other channels), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
 ##   with the new activities (`selection` makes them the selection).
 ## * **Describing an activity** (decided 2026-11-05): an activity is said the same way wherever it appears, like `__str__`, by
 ##   `describe.nim`: `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back` (start, sport, distance,

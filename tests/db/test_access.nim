@@ -42,9 +42,9 @@ suite "access: statements":
 
   test "a package may not read the table of one it does not depend on":
     let s = open("read")
-    check s.refusal("heartrate", "select count(*) from effort") != ""
-    check s.refusal("heartrate", "select count(*) from user") != ""
-    check s.refusal("heartrate", "select count(*) from fragment") == ""
+    check s.refusal("channels", "select count(*) from effort") != ""
+    check s.refusal("channels", "select count(*) from user") != ""
+    check s.refusal("channels", "select count(*) from fragment") == ""
     s.close()
 
   test "code outside the packages is not checked":
@@ -84,20 +84,20 @@ suite "access: pieces written by several packages":
   test "a read of the table of a package that wrote a piece is allowed, and not without it":
     let s = open("pieces")
     let whole =
-      sqlFrom("select count(*) from activity a where ", "heartrate") &
+      sqlFrom("select count(*) from activity a where ", "channels") &
       sqlFrom("a.id in (select activity_id from effort)", "climbs")
-    check s.refusalSql("heartrate", whole) == ""
+    check s.refusalSql("channels", whole) == ""
     let alone =
-      sqlFrom("select count(*) from activity a where ", "heartrate") &
-      sqlFrom("a.id in (select activity_id from effort)", "heartrate")
-    check s.refusalSql("heartrate", alone) != ""
+      sqlFrom("select count(*) from activity a where ", "channels") &
+      sqlFrom("a.id in (select activity_id from effort)", "channels")
+    check s.refusalSql("channels", alone) != ""
     s.close()
 
   test "a piece cannot make the runner write the contributor's tables":
     let s = open("piecewrite")
     let q =
-      sqlFrom("delete from effort where ", "heartrate") & sqlFrom("1 = 1", "climbs")
-    check "writes table 'effort'" in s.refusalSql("heartrate", q)
+      sqlFrom("delete from effort where ", "channels") & sqlFrom("1 = 1", "climbs")
+    check "writes table 'effort'" in s.refusalSql("channels", q)
     s.close()
 
 suite "access: the foreign keys that carry a cascade":
@@ -146,11 +146,11 @@ suite "access: fragments":
       execScriptAs(
         s.db,
         "create trigger t2 after update of fthr on user_profile begin select 1; end",
-        "heartrate",
+        "channels",
       )
     except StoreError as e:
       why = e.msg
-    check "'heartrate'" in why
+    check "'channels'" in why
     s.close()
 
 suite "access: the tables read are recorded (a test of what a view declares)":

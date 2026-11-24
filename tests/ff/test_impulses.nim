@@ -17,7 +17,7 @@ import nimchoo/packages/editable/editable
 import nimchoo/packages/subject/subjects
 import nimchoo/packages/tags/tag
 from nimchoo/registry import allFragments, allAccess, newAllAccess
-import nimchoo/packages/heartrate/step
+import nimchoo/packages/channels/step
 import nimchoo/packages/fit/load
 import nimchoo/packages/user/command as userCommand
 import nimchoo/packages/util/warnings/warnings
@@ -44,7 +44,7 @@ proc open(path: string, user = ""): Session =
 
 proc importRide(s: Session, name = "ride.fit"): ImportResult =
   var ws: seq[Warning]
-  s.importFile(p, name, readBytes(ride), ws, @[heartrateStep])
+  s.importFile(p, name, readBytes(ride), ws, @[channelsStep])
 
 proc q(s: Session, sqlText: string, T: typedesc): T =
   s.db.scalar(T, sqlText)
@@ -151,7 +151,9 @@ suite "model: impulses, worked out when wanted":
       s.close()
     s.setFthr(154)
     let r = s.importRide()
-    check r.extras.len == 1 and r.extras[0].n == 2099
+    check r.extras.len == 1
+    check s.q("select n_readings from channel_series where channel = 'heart_rate'", int) ==
+      2099
     check s.q("select count(*) from impulse", int) == 0
   test "when wanted they are worked out, close to the original's algorithm; asking again does nothing":
     let s = open(fresh("wanted"))
@@ -181,7 +183,7 @@ suite "model: impulses, worked out when wanted":
       s.close()
     s.setFthr(154)
     discard s.importRide()
-    s.db.execute("delete from heartrate_series")
+    s.db.execute("delete from channel_series")
     check calculateMissing(s.db, s.userId, s.defaultM) == Calculated()
   test "a changed FTHR deletes that user's impulses (only theirs), an unchanged one does not":
     let path = fresh("trigger")
@@ -286,7 +288,7 @@ suite "model: heart rate":
     check not hasHeartRate(s.db, s.userId)
     discard s.importRide()
     check hasHeartRate(s.db, s.userId)
-    s.db.execute("delete from heartrate_series")
+    s.db.execute("delete from channel_series")
     check not hasHeartRate(s.db, s.userId)
   test "only the user's own activities count":
     let s = open(fresh("hasheartowner"))
@@ -407,7 +409,8 @@ suite "nch users: the FTHR and the impulses":
     defer:
       v.close()
     check v.q("select count(*) from impulse", int) == 0
-    check v.q("select n from heartrate_series", int) == 2099 # (the heart rate stays)
+    check v.q("select n_readings from channel_series where channel = 'heart_rate'", int) ==
+      2099 # (the heart rate stays)
   test "making a user with an FTHR":
     let db = fresh("usernew")
     check userCommand.run(globals(db), @["--add", "bob", "--fthr", "150"]) == exitOk

@@ -9,9 +9,10 @@
 ## * `args <packages/util/args/package.html>`_ - One command-line parser for all the commands, and the usage text made from the same descriptions.
 ## * `atomic <packages/util/atomic/package.html>`_ - Writing a file so that nobody ever sees half of it.
 ## * `bundle <packages/bundle/package.html>`_ - Files built into the program that are also kept in the cache, for the author to edit.
-## * `bytes <packages/util/bytes/package.html>`_ - Reading numbers out of bytes, and a whole file as bytes: the one place for it.
+## * `bytes <packages/util/bytes/package.html>`_ - Numbers in bytes: reading them out, writing them in few (LEB128, `leb128.nim`), and reading a file.
 ## * `cache <packages/cache/package.html>`_ - The cache directory: where files that commands make go, and what they are called.
 ## * `calendar <packages/calendar/package.html>`_ - A subject on a calendar: by default the days the selected activities started on.
+## * `channels <packages/channels/package.html>`_ - The channels of an activity: heart rate, cadence, temperature, power, speed and distance.
 ## * `child <packages/util/child/package.html>`_ - Running a child process and collecting what it says.
 ## * `childasync <packages/util/childasync/package.html>`_ - Running a child process from an event loop, so that other requests are served meanwhile.
 ## * `climbs <packages/climbs/package.html>`_ - Climbs: found in the rides, named, and ranked.
@@ -23,7 +24,6 @@
 ## * `fold <packages/text/fold/package.html>`_ - Comparing text without regard to case or accents.
 ## * `geo <packages/geo/package.html>`_ - Flat geometry for rides, in metres.
 ## * `hashing <packages/util/hashing/package.html>`_ - SHA-256 as the hex text used wherever something is named by its content.
-## * `heartrate <packages/heartrate/package.html>`_ - The heart-rate channel of an import.
 ## * `importer <packages/importer/package.html>`_ - Putting the activities of FIT files into the database, and describing them.
 ## * `log <packages/log/package.html>`_ - Reading the log.
 ## * `lookup <packages/util/lookup/package.html>`_ - Table lookups that have to succeed (`must()`, `mustMut()`).
@@ -52,6 +52,7 @@ import ./packages/activities/package as pkgActivities
 import ./packages/bundle/package as pkgBundle
 import ./packages/cache/package as pkgCache
 import ./packages/calendar/package as pkgCalendar
+import ./packages/channels/package as pkgChannels
 import ./packages/climbs/package as pkgClimbs
 import ./packages/db/package as pkgDb
 import ./packages/download/package as pkgDownload
@@ -59,7 +60,6 @@ import ./packages/editable/package as pkgEditable
 import ./packages/ff/package as pkgFf
 import ./packages/fit/package as pkgFit
 import ./packages/geo/package as pkgGeo
-import ./packages/heartrate/package as pkgHeartrate
 import ./packages/importer/package as pkgImporter
 import ./packages/log/package as pkgLog
 import ./packages/map/package as pkgMap
@@ -173,6 +173,23 @@ are seen among the days you rode.""",
       path: "src/nimchoo/packages/calendar/",
     ),
     Registered(
+      name: "channels",
+      package: pkgChannels.package,
+      summary:
+        "The channels of an activity: heart rate, cadence, temperature, power, speed and distance.",
+      doc:
+        """The channels of an activity: heart rate, cadence, temperature, power, speed and distance.
+
+An import step (`importer/steps`): for each channel of the list (`kinds.nim`, the one place a channel is described: its
+name, the record fields it is read from, its unit and how it is stored), the values of its fields, one reading per
+second at most, are kept as arrays (`series.nim`), a row of `channel_series` for each activity and channel it has.  A
+value outside a channel's stored range is dropped, with a warning.  `stored.nim` reads them back (`ff` works the
+training impulse out of the heart rate).  The speed and the distance are the device's (from a wheel, or its own from
+GPS), not worked out from the positions: dev/plot-activity.md says why.  A channel is added by adding it to the list
+(no fragment is needed); a channel that needs handling of its own can be a package of its own, as this one is.""",
+      path: "src/nimchoo/packages/channels/",
+    ),
+    Registered(
       name: "climbs",
       package: pkgClimbs.package,
       summary: "Climbs: found in the rides, named, and ranked.",
@@ -225,7 +242,7 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
   survives).  Once anyone else has a database, never squash again.  Before deleting the old fragments compare the schema
   they make with the squashed one (every table, column, index and foreign key, from a fresh database each way).  What a
   rebuild loses that cannot be made again from the FIT files: the users and their FTHR, models, the saved selection,
-  the landmarks and names given by hand.  Last squashed 2026-11-17 (each package has one fragment).
+  the landmarks and names given by hand.  Last squashed 2026-11-25, with the columns renamed (each package has one fragment).
 * **Statements.**  Values are bound by name (`query(db, T, "... where id = :id", id = 3)`), never put into the text; a `?`
   is a compile error.  A query built from pieces is an `Sql` (`sqltext`), which also records the packages whose files wrote
   its pieces.  Rows are read into typed tuples or objects.  Nothing else imports `db_connector`.
@@ -331,16 +348,6 @@ metres is at a latitude.  One function for each, written here, is what SQL uses 
       path: "src/nimchoo/packages/geo/",
     ),
     Registered(
-      name: "heartrate",
-      package: pkgHeartrate.package,
-      summary: "The heart-rate channel of an import.",
-      doc: """The heart-rate channel of an import.
-
-An import step (`importer/steps`): the `heart_rate` field of each record is kept as beats per minute, one reading per second
-at most, as arrays (`series.nim`) in the table `heartrate_series`.  `ff` works the training impulse out of it.""",
-      path: "src/nimchoo/packages/heartrate/",
-    ),
-    Registered(
       name: "importer",
       package: pkgImporter.package,
       summary:
@@ -349,7 +356,7 @@ at most, as arrays (`series.nim`) in the table `heartrate_series`.  `ff` works t
         """Putting the activities of FIT files into the database, and describing them.
 
 This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
-activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the heart rate is in `heartrate`); other data refers to it by time and never by array index, and the arrays are never changed once
+activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the other fields of the records, heart rate, speed ..., are in `channels`); other data refers to it by time and never by array index, and the arrays are never changed once
 written.
 
 * **`nch import PATH...`.**  A path is a file or a directory searched for `*.fit` files (`walk.nim`: links to files and directories are followed, a directory is entered once, so a loop ends and a file reached twice is one), or a template (`paths.nim`: `{name}`, `{}` and `*` in its parts) whose catches are given to the import steps with each file (`PathLabel`: `tags` makes tags of them).  A file whose path, size and
@@ -358,8 +365,8 @@ written.
   decoded on several threads and written by one, in order.  What happened is written to the log in full, and shown on the
   screen as two lines that follow the run.  The new activities are then named (`names`), and last the packages that asked
   do their part.
-* **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`heartrate` writes the
-  heart rate), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
+* **Extension points.**  `importer/steps`: what a package adds to the reading of each FIT file (`channels` writes the
+  heart rate, speed and the other channels), without the importer knowing about it.  `importer/after`: what a package does once an import has finished,
   with the new activities (`selection` makes them the selection).
 * **Describing an activity** (decided 2026-11-05): an activity is said the same way wherever it appears, like `__str__`, by
   `describe.nim`: `2020-08-14 06:01  cycling  36.7km 1h41m  Providencia / Lo Barnechea and back` (start, sport, distance,
@@ -683,9 +690,9 @@ target.""",
       name: "bytes",
       package: pkgBytes.package,
       summary:
-        "Reading numbers out of bytes, and a whole file as bytes: the one place for it.",
+        "Numbers in bytes: reading them out, writing them in few (LEB128, `leb128.nim`), and reading a file.",
       doc:
-        """Reading numbers out of bytes, and a whole file as bytes: the one place for it.""",
+        """Numbers in bytes: reading them out, writing them in few (LEB128, `leb128.nim`), and reading a file.""",
       path: "src/nimchoo/packages/util/bytes/",
     ),
     Registered(

@@ -10,7 +10,7 @@ import ../db/statement
 import ../db/store
 import ../../core/[errors, line]
 import ../fit/time
-import ../heartrate/stored
+import ../channels/[kinds, stored]
 import ../ui/units
 import ../user/session
 import ./calc
@@ -25,7 +25,8 @@ type Calculated* = object
 proc readings(
     db: DbConn, activityId: ActivityId
 ): seq[(UnixTime, int)] {.raises: [StoreError].} =
-  readReadings(db, activityId)
+  for (t, bpm) in readStored(db, activityId, chHeartRate):
+    result.add (t, int(bpm))
 
 proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
   ## The user's threshold heart rate, if they have one.
@@ -90,11 +91,12 @@ proc missing(
     ActivityId,
     """select a.id from activity a join file f on f.id = a.file_id
         where f.user_id = :userId
-          and exists (select 1 from heartrate_series h where h.activity_id = a.id)
+          and exists (select 1 from channel_series h where h.activity_id = a.id and h.channel = :heartRate)
           and not exists (select 1 from impulse i where i.activity_id = a.id and i.model_id = :modelId)
         order by a.id""",
     userId = userId,
     modelId = modelId,
+    heartRate = specs[chHeartRate].name,
   )
 
 proc calculateMissing*(
@@ -120,8 +122,9 @@ proc hasHeartRate*(db: DbConn, userId: UserId): bool {.raises: [StoreError].} =
     int,
     """select exists (select 1 from activity a join file f on f.id = a.file_id
         where f.user_id = :userId
-          and exists (select 1 from heartrate_series h where h.activity_id = a.id))""",
+          and exists (select 1 from channel_series h where h.activity_id = a.id and h.channel = :heartRate))""",
     userId = userId,
+    heartRate = specs[chHeartRate].name,
   ) == 1
 
 proc userLumps*(

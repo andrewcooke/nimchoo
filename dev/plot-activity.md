@@ -32,8 +32,13 @@ a plot of one activity's channels against time or distance, the channels stacked
    label) and everything made from it: one table, a row for each activity and channel `(activity_id, channel, t0, n, t,
    values)` (a new channel needs no new fragment), one import step, one codec, the frames.  why not a package each: they
    differ only in those attributes, so six near-identical packages (or thin ones round a library, the list spread over
-   six places); the package model is for new behaviour, and `ff`'s use of heart rate stays its own package.  start with a
-   time array for each channel (simpler; a sensor's dropouts handle themselves) and measure the size against one shared.
+   six places); the package model is for new behaviour, and `ff`'s use of heart rate stays its own package.  each channel
+   has its own times (a sensor's dropouts handle themselves), stored as the gap from the reading before in LEB128 (measured
+   2026-11-25: 4-byte offsets were two thirds of the channels' space, the channels sharing their times almost exactly;
+   devices record every second or, Garmin's "smart recording", at gaps of 2 to 10 s, a byte a gap either way); the
+   distance as the change from the reading before (zigzag, LEB128: about 2 bytes a reading).  a run of 1 s gaps written
+   as one negative number (the author's idea) would save most of what is left of the times (about 6% of a database):
+   not done, for a simpler format, and it can be added inside `series.nim`.
    **future hardware is not excluded**: a new package can keep its own table, import step (`importer/steps`) and frame
    (`plot/frames`), as `heartrate` does now; or, when one first wants it, the channels package defines a point
    (`channels/channels`) to which a package contributes one line of the list, and the channels package does the writing
@@ -105,7 +110,7 @@ on the plot.
    segments to come); the stale comments of the climbs fragment ("(n/m) numbering", `nch sector --edit`, "or 005 by
    hand"); and `sector.name` null against '': kept (the author, 2026-11-25: null is "not looked at yet", '' is "looked, nothing to
    call it", two meanings each written one way; the rule against "" is against two ways of writing one meaning).  not in it: `sport` and `sub_sport` going (TODO.md).
-1. the channels package, heart rate moved into it (`heartrate` goes).
+1. the channels package, heart rate moved into it (`heartrate` goes).  done 2026-11-25 (dev/HISTORY.md).
 2. the `activity` subject with altitude and heart rate and the time axis.
 3. distance and speed (the axis and the frames).
 4. cadence, temperature, power.

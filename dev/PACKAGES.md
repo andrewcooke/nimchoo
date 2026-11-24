@@ -121,7 +121,7 @@ were found with a script that reads every `import`; SQL reads are not imports, s
 
 Where a *low* package must call code that it cannot know at run time.  **One is built** (2026-11-09):
 
-* **import steps** (`importer/channel.nim`: `importStep`): work for each activity as it is written; `heartrate` contributes.
+* **import steps** (`importer/channel.nim`: `importStep`): work for each activity as it is written; `channels` contributes.
 
 How it works (`core/extension.nim`, all in memory; nothing to do with the database):
 
@@ -129,9 +129,9 @@ How it works (`core/extension.nim`, all in memory; nothing to do with the databa
 # importer/channel.nim: the package that defines the point owns its type
 const importStep* = ExtensionPoint[ImportStep](name: "importer/steps")
 
-# heartrate/package.nim
+# channels/package.nim
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
-  @[contribute(importStep, heartrateStep)]
+  @[contribute(importStep, channelsStep)]
 const package* = Package(depends: @["db", "fit", "importer"], contributes: contributions)
 ```
 
@@ -142,7 +142,7 @@ const package* = Package(depends: @["db", "fit", "importer"], contributes: contr
 * The generated registry holds `extensions`, made when `nch` starts.  A command package cannot import the registry
   (the registry imports its `package.nim`), so `nch.nim` copies it into `Globals.extensions` and a command reads
   `g.extensions.get(importStep)`.  Libraries get the list as an argument (`ImportOptions.steps`): no global.
-* A test that builds a `Globals` gets no steps unless it passes them (`@[heartrateStep]`).
+* A test that builds a `Globals` gets no steps unless it passes them (`@[channelsStep]`).
 
 **Deferred, until something needs them** (decided 2026-11-09):
 

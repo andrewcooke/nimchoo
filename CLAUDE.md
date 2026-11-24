@@ -182,7 +182,9 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   else is made from it (a table indexed by an enum, generated usage).  never keep two lists in step by hand.
 * **parse, don't validate.**  input (the command line, rows from the database, files) is turned into a type
   that can only hold valid values (variant objects, enums, distinct types, `Option`).  no bags of booleans
-  checked afterwards; no "" or -1 meaning "none" or "ok".
+  checked afterwards.  **one meaning, one representation**: no "" or -1 standing for "none" or "ok" beside an `Option`
+  that could say it (decided again 2026-11-25: a value that is an answer of its own is fine, as '' for a climb's name
+  means "looked, and nothing to call it" where null means "not looked at yet").
 * **a constant that describes output (a width, a count, a position) has a test that checks the output against it**,
   so that code which writes the shape by hand fails the test the moment the two disagree.
 * **a missing abstraction is the bug.**  when fixing a bug, ask what class it belongs to and fix the class (one

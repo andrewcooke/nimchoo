@@ -6,8 +6,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Now: a plot of one activity (dev/plot-activity.md, 2026-11-25)
 
-Steps 1 to 4 of the note, in its order (step 0, the column names, is done): the channels package with heart rate moved in;
-the `activity` subject with altitude, heart rate and the time axis; distance and speed; cadence, temperature and power.
+Steps 2 to 4 of the note, in its order (step 0, the column names, and 1, the channels package, are done): the `activity`
+subject with altitude, heart rate and the time axis; distance and speed; cadence, temperature and power.
 
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 
@@ -123,12 +123,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   extended (the best and the most recent attempts).  To design with the author.
 * **The last line of `nch climbs` with totals** (the author, 2026-11-20): "done: 3 of 184 climbs" could go on as the
   activities' does, with the length and the gain of the climbs listed.
-* **A `speed` package: the device's speed stored as a channel** (the author, 2026-11-13; not part of the arrays/cleaning work).  Cleaning
-  (`importer/clean.nim`) uses the speed when the file has it (`Coord.speed`, optional) and does not store it; that stays as it is.
-  A separate package would store it, as `heartrate` does: an `ImportStep` contributed to the importer (`importStep`) that asks for
-  the `enhanced_speed` / `speed` channel and writes it to a table of its own (on its own times: a second can have a speed and no
-  position), with whatever queries and uses follow (colour along the route on the map, checking a cleaning decision).  Left out
-  (decided 2026-11-17): no use for it yet, and a rebuild costs about 18 s of import, so it can be added when a use appears.
 * **`nch packages --points`** is hard to understand (the author, 2026-11-17).  Since 2026-11-18 it is a ruled table (point,
   defined by, added to by, what it is; the types and priorities are in `nch packages NAME`); the author is going through the
   packages soon and may change it again.

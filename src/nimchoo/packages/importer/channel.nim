@@ -28,7 +28,7 @@ type
     value*: string
 
   ImportStep* = object
-    label*, labels*: string ## what it writes, one and many: "heart-rate reading(s)"
+    label*, labels*: string ## what it writes, one and many: "channel reading(s)"
     channels*: seq[string] ## the `record` fields it wants
     write*: proc(
       db: DbConn,
@@ -46,4 +46,4 @@ type
     one*, many*: string
 
 const importStep* = ExtensionPoint[ImportStep](name: "importer/steps")
-  ## What other packages add to an import: `heartrate` contributes its step to this (dev/PACKAGES.md).
+  ## What other packages add to an import: `channels` contributes its step to this (dev/PACKAGES.md).
