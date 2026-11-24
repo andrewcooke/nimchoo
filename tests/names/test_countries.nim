@@ -114,8 +114,29 @@ suite "names: which countries":
     check names.countries(-9.14, 38.72) == @["PT"] # Lisbon
     check names.countries(2.35, 48.85) == @["FR"] # Paris
     check net.gets.len == 2 # no more fetching
-    check not fileExists(dir / "naturalearth" / "work" / "ne_50m_admin_0_countries.shp")
-      # (the unpacked files are removed)
+    check toSeq(walkDir(dir / "naturalearth")).filterIt(it.kind == pcDir).len == 0
+      # (the unpacked files are removed, with their directory)
+
+  test "a load unpacks into a directory of its own, and leaves another program's alone":
+    let net = Net()
+    let (st, dir) = fresh("ownwork")
+    defer:
+      st.close()
+    # (what another program loading the outlines at the same moment would have made)
+    let other = dir / "naturalearth" / "work"
+    createDir(other)
+    writeFile(other / "ne_50m_admin_0_countries.shp", "theirs")
+    let names = newNames(
+      st,
+      dir,
+      envOf(net),
+      proc(ev: DownloadEvent) {.closure, raises: [].} =
+        discard,
+    )
+    check names.countries(-70.65, -33.45) == @["CL"]
+    check readFile(other / "ne_50m_admin_0_countries.shp") == "theirs"
+    check toSeq(walkDir(dir / "naturalearth")).filterIt(it.kind == pcDir).mapIt(it.path) ==
+      @[other]
 
   test "a country in several shapes has all of them":
     let (st, dir) = fresh("parts")

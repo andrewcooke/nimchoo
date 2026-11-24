@@ -6,7 +6,7 @@
 ## `Names` is the handle the module's functions share: the store, the directory the downloads go in,
 ## the network and disk (a made-up one in tests) and where events are told.
 
-import std/[math, options, os, strutils]
+import std/[math, options, os, strutils, tempfiles]
 import ../db/statement
 import ../db/store
 import ../download/fetch
@@ -79,9 +79,11 @@ proc loadOutlines(
     n: Names, zip: string
 ) {.raises: [StoreError, ZipError, IOError, OSError].} =
   ## Put the shapefile of the zip beside the data (SpatiaLite reads a shapefile from files), make the countries from
-  ## it and the list, and remove the files again.
-  let work = n.dataDir / "naturalearth" / "work"
-  createDir(work)
+  ## it and the list, and remove the files again.  The files go in a directory of this load's own: two programs may load
+  ## the outlines at once (an import and a page of the server, on a new database), and with one shared directory each
+  ## would delete the other's.
+  createDir(n.dataDir / "naturalearth")
+  let work = createTempDir("work-", "", n.dataDir / "naturalearth")
   defer:
     try:
       removeDir(work)
