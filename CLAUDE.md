@@ -120,7 +120,7 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   the same for every command with a selection (activities, climbs), written once (`subject/steps.nim`).
 * **a view shows a subject** (`display-arch`, dev/display-arch/): `map [SUBJECT]` draws the frames that the packages managing the subject
   contribute (`map/frames`), chosen on its page (the browser remembers them; `--frames` says which files `--file` makes), `plot [SUBJECT]` draws the
-  series over time that they contribute (`plot/frames`: `nch plot ff`, the fitness, fatigue and form of the selected models; `nch plot activity`, the altitude and channels of the selected rides, ticked on the page and overlaid from their starts), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
+  series over time that they contribute (`plot/frames`: `nch plot ff`, the fitness, fatigue and form of the selected models; `nch plot activity`, the altitude and channels of the selected rides, ticked on the page and overlaid from their starts, against time or distance), and `calendar [SUBJECT]` marks the days its frame gives (`calendar/frames`, one per
   subject), `--shade NAME` colouring the background by a value over time (`calendar/shades`: fitness, fatigue, form,
   impulse; the theme's stops `NAME-0` ... `NAME-1`, else `default-0` ... `default-1`) and `--detail N` saying which months; the subjects are a registry (`subject/subjects`, default: activities).  a view is **live**: made
   again from the data as they are on every request; the page is the default and `--file` writes the files only (the web

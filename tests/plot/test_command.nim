@@ -122,7 +122,22 @@ suite "nch plot":
       @["time,series,value"] # (this ride's device records no altitude)
     check run(w.db, "activity", "--file", "--frames", "speed") == exitOk
     let speed = rows(w.cache / "plot-activity-speed.csv")
-    check speed.len > 2000 and speed[1].split(',')[^1].parseFloat < 30 # (m/s)
+    check speed.len > 2000 and speed[1].split(',')[^1].parseFloat < 80 # (km/h)
+    check "\"name\":\"distance\",\"summary\"" in page and "\"along\":true" in page
+    # the speed in km/h, the distance in km: the device's, else along the positions
+    check run(w.db, "activity", "--file", "--frames", "distance") == exitOk
+    let device =
+      rows(w.cache / "plot-activity-distance.csv")[^1].split(',')[^1].parseFloat
+    check abs(device - 11.978) < 0.01
+    block:
+      let t = openSession(w.db, allFragments, access = allAccess)
+      t.db.execute("delete from channel_series where channel = 'distance'")
+      t.close()
+    check run(w.db, "activity", "--file", "--frames", "distance") == exitOk
+    let along =
+      rows(w.cache / "plot-activity-distance.csv")[^1].split(',')[^1].parseFloat
+    check abs(along - device) / device < 0.05
+      # (the positions agree with the device to within 5%)
     check run(w.db, "activity", "--after", "2018-01-01", "--file") == exitUsage
     check run(w.db, "activity", "--worker", "--activity", $id) == exitUsage
       # (no --frame)
@@ -151,6 +166,7 @@ suite "nch plot":
     let mine = framesOf(extensions.get(plotFramePoint), "activity")
     check mine.len == 1 + ChannelKind.high.ord + 1
     check mine.allIt(it.axis == axActivity)
+    check mine.filterIt(it.along).mapIt(it.name) == @["distance"]
     for s in extensions.get(subjectPoint):
       if s.name == "activity":
         check s.pick.isSome

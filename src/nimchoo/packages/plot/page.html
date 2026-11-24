@@ -7,7 +7,8 @@
 <style>
   body { margin: 16px; font: 14px system-ui, sans-serif; color: #222; }
   h1 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
-  #frames label, #picks label { margin-right: 14px; cursor: pointer; }
+  #frames label, #picks label, #axis label { margin-right: 14px; cursor: pointer; }
+  #axis { margin-top: 4px; }
   #picks { margin-top: 4px; max-height: 7.5em; overflow-y: auto; }
   #picks label { display: inline-block; }
   #info { color: #666; margin: 4px 0 8px; }
@@ -18,6 +19,7 @@
 <body>
 <h1>{{title}}</h1>
 <div id="frames"></div>
+<div id="axis"></div>
 <div id="picks"></div>
 <div id="info">loading ...</div>
 <div id="panels"></div>
@@ -39,6 +41,9 @@
   let zoom = null;              // [from, to] (on the x axis) after a drag, else null: everything
   const overActivity = axis === 'activity';
   for (const [i, p] of picks.entries()) p.shown = i === 0;
+  // over activities, x is the time from each one's start, or the values of a frame that grows along it (the distance)
+  const alongFrames = frames.filter((f) => f.along);
+  let xFrame = null;            // the frame that is the x axis, else null: the time
 
   function load(f, pick) {
     const key = f.name + (pick ? '/' + pick.id : '');
@@ -51,16 +56,35 @@
         .then((r) => { if (!r.ok) throw new Error(f.name + ': HTTP ' + r.status); return r.text(); })
         // (csvParseRows, not csvParse: with a row function that one evals code, which the page's content-security policy forbids)
         .then((text) => d3.csvParseRows(text).slice(1).map((d) => pick
-          ? { x: (new Date(d[0]) - pick.start * 1000) / 1000, series: pick.label, value: +d[2] }
+          ? { s: (new Date(d[0]) - pick.start * 1000) / 1000, x: (new Date(d[0]) - pick.start * 1000) / 1000, series: pick.label, value: +d[2] }
           : { x: new Date(d[0]), series: d[1], value: +d[2] })));
     }
     return data.get(key);
   }
 
-  // the points of a frame: over days, its own; over activities, those of each activity ticked
+  // points with x the value of `along` at their time (each from the activity's start), interpolated between its readings;
+  // a point outside them, or an activity without them, is left out (and said)
+  const without = new Set();    // the activities that have none of the frame that is the x axis
+  function placed(points, along, pick) {
+    const known = along.filter((d) => !Number.isNaN(d.value));
+    if (known.length === 0) { without.add(pick.label); return []; }
+    const at = d3.bisector((d) => d.s).left;
+    return points.flatMap((d) => {
+      if (Number.isNaN(d.value)) return [{ ...d, x: NaN }];
+      const i = at(known, d.s);
+      if (i >= known.length || (i === 0 && known[0].s > d.s)) return [];
+      if (known[i].s === d.s || i === 0) return [{ ...d, x: known[i].value }];
+      const [a, b] = [known[i - 1], known[i]];
+      return [{ ...d, x: a.value + (b.value - a.value) * (d.s - a.s) / (b.s - a.s) }];
+    });
+  }
+
+  // the points of a frame: over days, its own; over activities, those of each activity ticked, on the x chosen
   function pointsOf(f) {
     if (!overActivity) return load(f, null);
-    return Promise.all(picks.filter((p) => p.shown).map((p) => load(f, p))).then((all) => all.flat());
+    return Promise.all(picks.filter((p) => p.shown).map((p) => xFrame
+      ? Promise.all([load(f, p), load(xFrame, p)]).then(([points, along]) => placed(points, along, p))
+      : load(f, p))).then((all) => all.flat());
   }
 
   // seconds from the start as h:mm
@@ -82,16 +106,18 @@
               Plot.tip(points, Plot.pointerX({ x: 'x', y: 'value', fill: 'series' }))];
     return [Plot.lineY(points, { x: 'x', y: 'value', stroke: 'series', strokeWidth: 1.5 }),
             Plot.tip(points, Plot.pointerX({ x: 'x', y: 'value', stroke: 'series',
-                                             title: overActivity ? (d) => d.series + '\n' + hm(d.x) + '  ' + d.value : undefined }))];
+                                             title: overActivity ? (d) => d.series + '\n' + hm(d.s) +
+                                               (xFrame ? '  ' + d.x.toFixed(2) + ' ' + xFrame.unit : '') + '  ' + d.value : undefined }))];
   }
 
   async function draw() {
+    without.clear();
     const shown = frames.filter((f) => f.shown);
     const loaded = await Promise.allSettled(shown.map(pointsOf));
     const failed = [];
     const ready = [];
     loaded.forEach((r, i) => { if (r.status === 'fulfilled') ready.push([shown[i], r.value]); else failed.push(String(r.reason)); });
-    const all = ready.flatMap(([, points]) => points);
+    const all = ready.flatMap(([, points]) => points).filter((d) => !Number.isNaN(d.x));
     const extent = overActivity ? [0, d3.max(all, (d) => d.x) || 0] : d3.extent(all, (d) => d.x);
     const domain = zoom || (all.length ? extent : undefined);
     const height = Math.max(160, (window.innerHeight - 140) / Math.max(1, ready.length) - 30);
@@ -100,8 +126,9 @@
       const plot = Plot.plot({
         width: Math.max(300, window.innerWidth - 32),
         height,
-        x: overActivity ? { type: 'linear', label: 'time from the start', domain, ticks: timeTicks(domain), tickFormat: hm }
-                        : { type: 'time', label: null, domain },
+        x: !overActivity ? { type: 'time', label: null, domain }
+          : xFrame ? { type: 'linear', label: xFrame.name + ' (' + xFrame.unit + ')', domain }
+          : { type: 'linear', label: 'time from the start', domain, ticks: timeTicks(domain), tickFormat: hm },
         y: { grid: true, label: f.unit },
         color: { legend: true },
         marks: marks(f, visible)
@@ -117,7 +144,8 @@
     drawn.forEach(([, plot]) => brush(plot));
     const nothing = overActivity && !picks.some((p) => p.shown) ? 'tick an activity to draw it'
                   : ready.length ? (zoom ? 'double-click to zoom out' : 'drag to zoom') : 'tick a frame to draw it';
-    info.textContent = nothing + (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '');
+    info.textContent = nothing + (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '') +
+      (without.size ? ' (no ' + xFrame.name + ' for: ' + [...without].join('; ') + ')' : '');
   }
 
   // Drag across a panel to zoom every panel to that span; double-click to go back.  (Plot draws, it does not zoom: the
@@ -187,6 +215,29 @@
     label.append(box, document.createTextNode(' ' + f.name));
     list.appendChild(label);
   }
+  // the x axis over activities: the time, or a frame that grows along them (remembered, as the frames are)
+  const rememberedX = 'nch-x' + location.pathname;
+  if (overActivity && alongFrames.length) {
+    try { xFrame = alongFrames.find((f) => f.name === localStorage.getItem(rememberedX)) || null; } catch (e) { /* (no storage) */ }
+    const choices = document.getElementById('axis');
+    choices.append(document.createTextNode('x: '));
+    for (const choice of [null, ...alongFrames]) {
+      const label = document.createElement('label');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'x';
+      radio.checked = choice === xFrame;
+      radio.addEventListener('change', () => {
+        xFrame = choice;
+        zoom = null;
+        try { localStorage.setItem(rememberedX, choice ? choice.name : ''); } catch (e) { /* (no storage) */ }
+        draw();
+      });
+      label.append(radio, document.createTextNode(' ' + (choice ? choice.name : 'time')));
+      choices.appendChild(label);
+    }
+  }
+
   // the activities to tick (not remembered: which they are changes with the selection); the newest is ticked at first
   const pickList = document.getElementById('picks');
   for (const p of picks) {

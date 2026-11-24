@@ -42,6 +42,11 @@ suite "activity: the frames of one activity":
       @["1", "2", "10", "11", "20", "21", "30", "31", "40"]
     check breakAt(@[], breaks).len == 0
 
+  test "the speed is drawn in km/h and the distance in km; the others in their own units":
+    check shownAs(chSpeed) == ("km/h", 3.6)
+    check shownAs(chDistance) == ("km", 0.001)
+    check shownAs(chHeartRate) == ("bpm", 1.0)
+
   test "a frame's name is the channel's as one word":
     check frameName(chHeartRate) == "heartrate"
     check frameName(chDistance) == "distance"

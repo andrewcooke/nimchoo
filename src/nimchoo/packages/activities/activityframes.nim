@@ -4,13 +4,16 @@
 ## from its start.  A line breaks at the ride's breaks of the kinds over time (`timeBreaks`: manual, carried, pause, as
 ## the import stored them in `ride_break`), so that a pause is a gap; not at a blink (noise) nor at a GPS error (nothing
 ## is missing in time).  A frame is made for each channel of the list (`channels/kinds.nim`), so a channel added there is
-## drawn here with no more code.
+## drawn here with no more code.  The speed is drawn in km/h and the distance in km (`shownAs`); the distance is the
+## device's, else the distance along the positions, and can be the x axis (`along`): the device's distance does not
+## advance while the timer is off, so on that axis every break is a gap of no width.
 
 import std/[math, options, strutils, times]
 import ../../core/[errors, extension, ids]
 import ../channels/[kinds, stored]
 import ../db/statement
 import ../fit/time
+import ../geo/geo
 import ../importer/[describe, stretch, track]
 import ../plot/frames
 import ../selection/selection
@@ -81,12 +84,46 @@ proc makeAltitude(
       points.add (int64(c.t), c.alt.get)
   seriesOf(st, id, points)
 
+func shownAs*(ch: ChannelKind): tuple[unit: string, factor: float] =
+  ## How a channel is drawn: the unit, and what its value (in the channel's own unit) is multiplied by to give it.
+  case ch
+  of chSpeed:
+    ("km/h", 3.6)
+  of chDistance:
+    ("km", 0.001)
+  of chHeartRate, chCadence, chTemperature, chPower:
+    (specs[ch].unit, 1.0)
+
 template channelMaker(ch: ChannelKind): MakeActivityPlot =
   proc(st: Session, id: ActivityId): PlotData {.nimcall, raises: [StoreError].} =
     var points: seq[Point]
+    let factor = shownAs(ch).factor
     for (t, v) in readChannel(st.db, id, ch):
-      points.add (int64(t), v)
+      points.add (int64(t), v * factor)
     seriesOf(st, id, points)
+
+proc alongPositions*(st: Session, id: ActivityId): seq[Point] {.raises: [StoreError].} =
+  ## The distance in metres along the activity's positions (after cleaning), at each of them, adding up within each
+  ## stretch of riding and not across a break (a car, a GPS error): for an activity whose device gave no distance.
+  var total = 0.0
+  for piece in readTrack(st.db, id):
+    for i, c in piece:
+      if i > 0:
+        total += haversine(piece[i - 1].lon, piece[i - 1].lat, c.lon, c.lat)
+      result.add (int64(c.t), total)
+
+proc makeDistance(
+    st: Session, id: ActivityId
+): PlotData {.nimcall, raises: [StoreError].} =
+  ## The device's distance, else the distance along the positions (dev/plot-activity.md: the device's is preferred).
+  let factor = shownAs(chDistance).factor
+  var points: seq[Point]
+  for (t, v) in readChannel(st.db, id, chDistance):
+    points.add (int64(t), v * factor)
+  if points.len == 0:
+    for (t, v) in alongPositions(st, id):
+      points.add (t, v * factor)
+  seriesOf(st, id, points)
 
 proc makers(): array[ChannelKind, MakeActivityPlot] =
   for ch in ChannelKind:
@@ -104,7 +141,7 @@ proc makers(): array[ChannelKind, MakeActivityPlot] =
       of chSpeed:
         channelMaker(chSpeed)
       of chDistance:
-        channelMaker(chDistance)
+        makeDistance
 
 const shownChannels = {chHeartRate} ## drawn unless told otherwise, with the altitude
 
@@ -133,18 +170,24 @@ proc contributions*(): seq[Contribution] =
   let made = makers()
   for ch in ChannelKind:
     let s = specs[ch]
+    let isDistance = ch == chDistance
     result.add contribute(
       plotFramePoint,
       PlotFrame(
         subject: activitySubject.name,
         name: frameName(ch),
-        summary: "the " & s.title & " of the activity, as the device recorded it",
+        summary:
+          "the " & s.title & " of the activity, as the device recorded it" &
+          (if isDistance: " (else along its positions); can be the x axis" else: ""),
         shown: ch in shownChannels,
         readsSelection: true,
-        tables: @["activity", "channel_series", "ride_break"],
-        unit: s.unit,
+        tables:
+          @["activity", "channel_series", "ride_break"] &
+          (if isDistance: @["track"] else: @[]),
+        unit: shownAs(ch).unit,
         mark: mkLine,
         axis: axActivity,
         makeActivity: made[ch],
+        along: isDistance,
       ),
     )

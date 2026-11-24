@@ -7,7 +7,8 @@
 ## of its axis), how its series are drawn (`mark`: lines, or bars a day wide), and its **axis**, which says how it is made:
 ## over **days** (`axDays`: for a period of time, as the impulse and the fitness are) or over the time of **one activity**
 ## (`axActivity`: for an activity, by its id, as its heart rate is; the page overlays the activities ticked, each from
-## its start).  The frames of a subject share an axis (a test checks it): the page draws them on one.  A frame gives its
+## its start; a frame whose values grow along the activity, `along`, can be the x axis instead: the distance).  The frames
+## of a subject share an axis (a test checks it): the page draws them on one.  A frame gives its
 ## series (each a name and its points; a NaN value breaks a line: a pause) and, for `--file`, lines said after the files
 ## (the latest values).  A frame that fails raises `StoreError` with what to say.  The page draws each frame shown in a
 ## panel of its own, one above the other, on the same axis.
@@ -71,6 +72,8 @@ type
       make*: MakePlot
     of axActivity:
       makeActivity*: MakeActivityPlot
+      along*: bool
+        ## its values grow along the activity (the distance), so the page offers it as the x axis instead of the time
 
 const plotFramePoint* = ExtensionPoint[PlotFrame](name: "plot/frames")
   ## The frames the packages that manage a subject offer the plot.

@@ -6,9 +6,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Now: a plot of one activity (dev/plot-activity.md, 2026-11-25)
 
-Steps 3 and 4 of the note, in its order (0, the column names, 1, the channels, 1b, the breaks of a ride, and 2, the
-`activity` subject, are done): distance and speed (the axis and the frames; the distance axis breaks at `manual` and
-`carried`); cadence, temperature and power.
+Step 4 of the note (0 to 3 are done): cadence, temperature and power.  Their frames are there already (one for each
+channel of the list); left: look at them on real data, and cadence's unit by sport (rpm on a bike, steps a minute
+running).
 
 * **The breaks of a ride drawn on the plot of an activity** (the author, 2026-11-25, after step 1b of dev/plot-activity.md):
   a vertical bar (or a band, for its length) where a ride broke, styled by its kind (`manual`, `carried`, `pause`,

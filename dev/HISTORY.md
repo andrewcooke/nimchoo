@@ -4,6 +4,17 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The plot of an activity against distance (2026-11-25, step 3 of dev/plot-activity.md)
+
+The page of `nch plot activity` offers the x axis as the time from the start or the distance: a frame of one activity may
+say that its values grow along the activity (`PlotFrame.along`: the distance), and the page offers each such frame as an
+x, placing every point by interpolating that frame's value at the point's time (fetched once per ride, when needed); the
+choice is remembered, as the frames are.  The speed is drawn in km/h and the distance in km (`shownAs`, one place); the
+distance is the device's, else the distance along the cleaned positions within each stretch (on the test ride within 5%
+of the device's).  No rule of breaks for the distance axis was needed: the device's distance does not advance while the
+timer is off, so every break is a gap of no width there.  Checked in jsdom on two of the author's rides: the axis
+choice, both rides on km 0 to 109.5 (El Toyo's distance is the 109.5 km the list gives), the distance fetched once each.
+
 ## The breaks of a ride, with their kind (2026-11-25, step 1b of dev/plot-activity.md)
 
 The import kept only the stretches of riding (`segment`): the gaps of the timer it joined (a pause where the rider stayed

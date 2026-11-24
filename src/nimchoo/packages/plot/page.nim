@@ -49,6 +49,7 @@ proc renderPage*(
       "shown": f.shown,
       "unit": f.unit,
       "mark": markName(f.mark),
+      "along": f.axis == axActivity and f.along,
     }
   var things = newJArray()
   for p in picks:

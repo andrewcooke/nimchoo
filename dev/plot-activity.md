@@ -143,7 +143,11 @@ on the plot.
    give its things one by one (`pick`: the selected rides, the newest first); `activities` makes the frames (altitude,
    and one for each channel of the list); the x axis is time from each ride's start (`h:mm`, ticks on round times) to the
    end of the longest ticked (no rescaling: the author); `--after`/`--before` are refused for it.
-3. distance and speed (the axis and the frames).
+3. distance and speed (the axis and the frames).  done 2026-11-25 (dev/HISTORY.md): speed in km/h, distance in km
+   (`activityframes.shownAs`); the distance is the device's, else along the positions within each stretch; a frame of one
+   activity may grow along it (`PlotFrame.along`) and the page offers it as the x axis ("x: time, distance", remembered),
+   placing each point by interpolating the distance at its time; on that axis every break is a gap of no width (the
+   device's distance does not advance while the timer is off), so no rule of its own was needed.
 4. cadence, temperature, power.
 
 ## the evidence for 3
