@@ -62,6 +62,7 @@ proc renderPage*(
       "unit": f.unit,
       "mark": markName(f.mark),
       "along": f.axis == axActivity and f.along,
+      "several": f.axis == axActivity and f.several,
       "styles": stylesJson(f.styles),
     }
   var things = newJArray()

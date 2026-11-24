@@ -89,9 +89,11 @@ type
     of axActivity:
       makeActivity*: MakeActivityPlot
       along*: bool
-        ## its values grow along the activity (the distance), so the page offers it as the x axis instead of the time; as a
-        ## panel it is worth ticking with several activities (who was ahead, and when), and it is hidden while it is the x
-        ## axis (against itself it would be a diagonal)
+        ## its values grow along the activity (the distance), so the page offers it as the x axis instead of the time; it is
+        ## hidden while it is the x axis (against itself it would be a diagonal)
+      several*: bool
+        ## drawn only when several things are ticked (the distance against time: who was ahead, and when; with one ride a
+        ## line rising left to right)
 
 const plotFramePoint* = ExtensionPoint[PlotFrame](name: "plot/frames")
   ## The frames the packages that manage a subject offer the plot.

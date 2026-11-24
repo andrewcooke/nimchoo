@@ -218,8 +218,11 @@ proc contributions*(): seq[Contribution] =
         subject: activitySubject.name,
         name: frameName(ch),
         summary:
-          "the " & s.title & " of the activity, as the device recorded it" &
-          (if isDistance: " (else along its positions); can be the x axis" else: ""),
+          "the " & s.title & " of the activity, as the device recorded it" & (
+            if isDistance:
+              " (else along its positions); can be the x axis, and is drawn with several rides only"
+            else: ""
+          ),
         shown: ch in shownChannels,
         readsSelection: true,
         tables:
@@ -230,6 +233,7 @@ proc contributions*(): seq[Contribution] =
         axis: axActivity,
         makeActivity: made[ch],
         along: isDistance,
+        several: isDistance,
       ),
     )
   result.add contribute(

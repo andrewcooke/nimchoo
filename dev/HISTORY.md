@@ -4,6 +4,15 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Lag, and distance with one ride (2026-11-25, the author's)
+
+The cursor lagged fast movements: Plot's tip looked for the nearest of every point (14,000 a ride a panel) on every
+movement.  Now there is no tip of Plot's: when the pointer rests (100 ms), each panel shows a readout of its values at
+the cursor, for every ride; and a line is drawn with at most two points a column of pixels (the lowest and highest there,
+in order, so a spike stays; breaks kept), adapting to the width and the zoom (`thinned`: El Toyo's 18,000 to 1,751).  The
+distance as a panel is drawn only with several rides ticked (the author: what it is for; a frame says `several`), as a
+pause only with one.  Not measured how much each change did for the lag; the author looks.
+
 ## The breaks drawn by kind (2026-11-25, the author's look at El Toyo)
 
 A line where each break began left a gap with a line on its left and nothing on its right, and a 1 s break a line with no

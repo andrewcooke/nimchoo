@@ -3,7 +3,8 @@
 // colour of each line, the x axis.  Then it turns the wheel over a panel (zoom in), drags (move), double-clicks (all),
 // moves the pointer (the cursor line in every panel), ticks the breaks (bands and lines, by colour; pauses darker the
 // longer, and gone when a second ride is ticked), ticks the second activity (the
-// colours already there must not change), and chooses the distance as the x axis (whose box is then hidden).  Not part of `nimble test` (it needs packages that the project does not carry):
+// colours already there must not change; the distance, ticked, drawn only now), and chooses the distance as the x axis
+// (whose box is then hidden).  Not part of `nimble test` (it needs packages that the project does not carry):
 //
 //     d=$(mktemp -d); (cd $d && npm i jsdom@24 d3@7.9.0 @observablehq/plot@0.6.17)
 //     page=$(nch plot activity --worker)      # and, for the two newest activities (their ids are in the page):
@@ -81,6 +82,10 @@ w.addEventListener('error', (e) => console.log('ERROR in the page: ' + e.message
   report('double-clicked (everything)');
   const chartOf = (p) => p.chart;
   chart().dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true, clientX: middle() }));
+  await later(250);
+  console.log('the readout after a rest: ' + JSON.stringify(w.document.querySelector('.panel').readout.textContent) + ' (' + w.document.querySelector('.panel').readout.style.display + ')');
+  const drawnPoints = [...w.document.querySelector('.panel').querySelectorAll('[aria-label="line"] path')].map((e) => (e.getAttribute('d').match(/[ML]/g) || []).length);
+  console.log('points drawn in the first panel, a line each: ' + JSON.stringify(drawnPoints) + ' (thinned to the width)');
   console.log('the cursor at ' + middle() + ' px: ' + [...w.document.querySelectorAll('.panel')].map((p) => p.cursor.getAttribute('visibility') + ' at ' + p.cursor.getAttribute('x1')).join(', '));
   const breaksBox = [...w.document.querySelectorAll('#frames label')].find((l) => l.textContent.trim() === 'breaks');
   if (breaksBox) {
@@ -92,11 +97,23 @@ w.addEventListener('error', (e) => console.log('ERROR in the page: ' + e.message
     console.log('  breaks in the first panel: ' + breaksIn(w.document.querySelector('.panel')));
     console.log('  the cursor after drawing again: ' + w.document.querySelector('.panel').cursor.getAttribute('visibility'));
   }
-  const boxes = w.document.querySelectorAll('#picks input');
+  // (tick the distance: drawn with several rides only)
+  {
+    const d = [...w.document.querySelectorAll("#frames label")].find((l) => l.textContent.trim() === "distance");
+    if (d) {
+      const b = d.querySelector("input");
+      b.checked = true;
+      b.dispatchEvent(new w.Event("change"));
+      await later(800);
+    }
+  }
+  console.log('panels with one ride: ' + texts('.panel h2').map((t) => t.split(' (')[0]).join(', '));
+  const boxes = w.document.querySelectorAll("#picks input");
   boxes[1].checked = true;
   boxes[1].dispatchEvent(new w.Event('change'));
   await later(1500);
   report('the second ticked (the first keeps its colour)');
+  console.log('panels with two rides: ' + texts('.panel h2').map((t) => t.split(' (')[0]).join(', '));
   console.log('  breaks in the first panel: ' + breaksIn(w.document.querySelector('.panel')) + ' (pauses only with one ride)');
   const radios = w.document.querySelectorAll('#axis input');
   radios[1].checked = true;
