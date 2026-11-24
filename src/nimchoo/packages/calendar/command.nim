@@ -9,7 +9,7 @@
 import std/[options, sequtils, strformat, strutils, tables, times]
 import ../../core/[errors, extension, globals]
 import ../fit/time
-import ../subject/subjects
+import ../subject/[subjects, views]
 import ../ui/[style]
 import ../user/session
 import ../util/args/[args, usage]
@@ -82,15 +82,14 @@ type Chosen* = object ## the subject and its frame, and the shade
 
 proc choose*(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject the command line asks for and its frame, or what is wrong (the registry says what exists).
-  let all = g.extensions.get(subjectPoint)
-  let subject = findSubject(all, p.subject)
-  if subject.isNone:
-    return problemWith[Chosen](noSubject(all, p.subject, "a calendar"))
-  let name = subject.get.name
+  let subject = chooseSubject(g.extensions.get(subjectPoint), p.subject, "a calendar")
+  if subject.kind != pkOk:
+    return problemWith[Chosen](subject.why)
+  let name = subject.params.name
   let frames = framesOf(g.extensions.get(calendarFramePoint), name)
   if frames.len == 0:
     return problemWith[Chosen](~"{name} cannot be shown on a calendar")
-  var chosen = Chosen(subject: subject.get, frame: frames[0])
+  var chosen = Chosen(subject: subject.params, frame: frames[0])
   if p.shade.isSome:
     let shades = g.extensions.get(calendarShadePoint)
     let found = shades.filterIt(it.name == p.shade.get)
@@ -227,9 +226,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         "nch calendar",
         ~"the theme {g.theme.name} has no colours for a shade: give it `default-0` and `default-1` (or `{name}-0` and `{name}-1`; and any stops between, `default-0.5`), each with a bg=#rrggbb (`nch --config` says where the theme is)",
       )
-    if c.frame.readsSelection and c.subject.selected(st) == 0:
-      g.warn emptyText(c.subject)
-      return exitOk
+    let stop = stopIfEmpty(g, st, c.subject, c.frame.readsSelection)
+    if stop.isSome:
+      return stop.get
     for l in lines(
       st,
       chosen.params,

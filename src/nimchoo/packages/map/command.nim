@@ -10,12 +10,12 @@
 ##
 ## This module is above `subject`: it reads the registry of subjects and of frames, and nothing of the packages that provide them.
 
-import std/[options, sequtils, strformat, strutils]
+import std/[options, sequtils, strformat]
 import ../cache/cache
 import ../util/atomic/atomic
 import ../../core/[extension, globals]
 import ../../core/errors
-import ../subject/subjects
+import ../subject/[subjects, views]
 import ../ui/[style]
 import ../util/args/[args, usage]
 import ../web/pages
@@ -42,25 +42,6 @@ const
     ~"A frame is made from the data as they are when it is shown: reload the page to see the selection as it is now.  The address of the page is the subject's (/map/activities), so a bookmark keeps the subject, not the activities."
   ]
 
-func registryLines(subjects: seq[Subject], all: seq[MapFrame], width: int): seq[Line] =
-  ## The subjects and their frames, as a table (from the registry), and what the marks mean.
-  var rows: seq[seq[Line]]
-  var default = ""
-  for s in subjects:
-    if s.isDefault:
-      default = s.name
-    for f in framesOf(all, s.name):
-      rows.add @[
-        plain(s.name), plain(f.name & (if f.shown: "*" else: "")), plain(f.summary)
-      ]
-  if rows.len == 0:
-    return
-  result = tableLines(@["subject", "frame", "what it is"], rows, width)
-  result.add plain("")
-  result.add (
-    ~"* drawn when `--frames` is not given; the subject is {default} when none is given."
-  ).wrapped(width)
-
 proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.
   usageOf(
@@ -72,7 +53,7 @@ proc usageText*(g: Globals, width: int): seq[Line] =
     @[
       (
         "subjects and frames",
-        registryLines(
+        frameTable(
           g.extensions.get(subjectPoint), g.extensions.get(mapFramePoint), width
         ),
       )
@@ -85,58 +66,19 @@ type Chosen = object
 
 proc choose(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject and frames the command line asks for, or what is wrong with them (the registry says what exists).
-  let all = g.extensions.get(subjectPoint)
-  let subject = findSubject(all, p.subject)
-  if subject.isNone:
-    return problemWith[Chosen](noSubject(all, p.subject, "a map"))
-  let name = subject.get.name
-  var chosen = Chosen(subject: subject.get)
-  let mine = framesOf(g.extensions.get(mapFramePoint), name)
-  if mine.len == 0:
-    return problemWith[Chosen](~"no frame of {name} can be shown on a map")
-  let names = mine.mapIt(it.name).join(", ")
-  if p.frames.len == 0:
-    for f in mine:
-      if f.shown:
-        chosen.frames.add f
-    if chosen.frames.len == 0:
-      chosen.frames = mine
-    return parsedOk(chosen)
-  for want in p.frames:
-    let there = mine.filterIt(it.name == want)
-    if there.len == 0:
-      return problemWith[Chosen](
-        ~"'{want}' is not a frame of {name} (the frames are {names})"
-      )
-    if there[0] notin chosen.frames:
-      chosen.frames.add there[0]
-  parsedOk(chosen)
+  let subject = chooseSubject(g.extensions.get(subjectPoint), p.subject, "a map")
+  if subject.kind != pkOk:
+    return problemWith[Chosen](subject.why)
+  let frames = chooseFrames(
+    g.extensions.get(mapFramePoint), subject.params.name, p.frames, "a map"
+  )
+  if frames.kind != pkOk:
+    return problemWith[Chosen](frames.why)
+  parsedOk(Chosen(subject: subject.params, frames: frames.params))
 
 func fileStem(subject, frame: string): string =
   ## What the file of a frame is named: `map-activities-routes`.
   fmt"map-{subject}-{frame}"
-
-func readsSelection(c: Chosen): bool =
-  ## Whether some chosen frame is made from the selection (the others need it not to be empty no more than they need anything).
-  c.frames.anyIt(it.readsSelection)
-
-proc checkSelection(g: Globals, c: Chosen): Option[int] =
-  ## Whether to stop, and with what status, before serving or making the files: an empty selection (if a chosen frame
-  ## reads it) is said as a warning and stops with success; none: go on.  (A page already served draws what there is.)
-  var st: Session
-  try:
-    st = openSession(g)
-  except StoreError as e:
-    return some(failure(g, "nch map", e.msg))
-  try:
-    if readsSelection(c) and c.subject.selected(st) == 0:
-      g.warn emptyText(c.subject)
-      return some(exitOk)
-    none(int)
-  except StoreError as e:
-    some(failure(g, "nch map", e.msg))
-  finally:
-    st.close()
 
 proc makeFrames(g: Globals, c: Chosen, frames: seq[MapFrame], dir: string): Made =
   ## Make the file of each frame, whatever was there, from the data as they are now (in one read transaction, so that the
@@ -205,24 +147,19 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       address: commandName & "/" & c.subject.name,
       # (the address keeps the subject; the data are those of the selection when the page is asked for)
       nothing: proc(): Option[int] =
-        checkSelection(g, c),
+        stopIfEmpty(g, c.subject, c.frames.anyIt(it.readsSelection), "nch map"),
       page: proc(dir: string): Made =
         makePage(g, c, dir),
       frame: proc(name, dir: string): Made =
         # the data of one frame, which the page fetches
-        let one = framesOf(g.extensions.get(mapFramePoint), c.subject.name).filterIt(
-            it.name == name
-          )
-        if one.len == 0:
+        let one = chooseFrames(
+          g.extensions.get(mapFramePoint), c.subject.name, @[name], "a map"
+        )
+        if one.kind != pkOk:
           return Made(
-            status: usageError(
-              g,
-              "nch map",
-              usageText(g, g.textWidth(osErr)),
-              ~"'{name}' is not a frame of {c.subject.name}",
-            )
+            status: usageError(g, "nch map", usageText(g, g.textWidth(osErr)), one.why)
           )
-        makeFrames(g, c, one, dir),
+        makeFrames(g, c, one.params, dir),
       files: proc(dir: string): Made =
         makeFrames(g, c, c.frames, dir),
       frameAsked: p.frame,

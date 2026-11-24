@@ -486,7 +486,9 @@ It is what `climbs`, `map`, `calendar` and the like use.
       doc: """Subjects: what the views are views of (the activities, the climbs).
 
 Also the steps of a search that involve a subject's selection (`steps.nim`): the options `--all`, `--select`, `--also` and
-`--within`, the rules between them and the lines of the usage that say them, written once for every subject's command.""",
+`--within`, the rules between them and the lines of the usage that say them, written once for every subject's command;
+and what every view does with the subjects and their frames (`views.nim`: choosing them, the usage's table, the stop
+when the selection is empty).""",
       path: "src/nimchoo/packages/subject/",
     ),
     Registered(

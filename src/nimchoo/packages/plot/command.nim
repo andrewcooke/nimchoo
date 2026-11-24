@@ -17,7 +17,7 @@ import ../cache/cache
 import ../util/atomic/atomic
 import ../../core/[extension, globals]
 import ../../core/errors
-import ../subject/subjects
+import ../subject/[subjects, views]
 import ../ui/style
 import ../util/args/[args, usage]
 import ../web/[pages, view]
@@ -42,25 +42,6 @@ const
     ~"A frame is made from the data as they are when it is shown: reload the page to see them as they are now.  Days are this computer's timezone's."
   ]
 
-func registryLines(subjects: seq[Subject], all: seq[PlotFrame], width: int): seq[Line] =
-  ## The subjects and their frames, as a table (from the registry), and what the marks mean.
-  var rows: seq[seq[Line]]
-  var default = ""
-  for s in subjects:
-    if s.isDefault:
-      default = s.name
-    for f in framesOf(all, s.name):
-      rows.add @[
-        plain(s.name), plain(f.name & (if f.shown: "*" else: "")), plain(f.summary)
-      ]
-  if rows.len == 0:
-    return
-  result = tableLines(@["subject", "frame", "what it is"], rows, width)
-  result.add plain("")
-  result.add (
-    ~"* drawn when `--frames` is not given; the subject is {default} when none is given."
-  ).wrapped(width)
-
 proc usageText*(g: Globals, width: int): seq[Line] =
   ## The usage: the synopsis, the introduction, the options and the subjects with their frames, wrapped to `width`.
   usageOf(
@@ -72,7 +53,7 @@ proc usageText*(g: Globals, width: int): seq[Line] =
     @[
       (
         "subjects and frames",
-        registryLines(
+        frameTable(
           g.extensions.get(subjectPoint), g.extensions.get(plotFramePoint), width
         ),
       )
@@ -86,30 +67,20 @@ type Chosen = object
 
 proc choose(g: Globals, p: Params): Parsed[Chosen] =
   ## The subject and frames the command line asks for, or what is wrong with them (the registry says what exists).
-  let all = g.extensions.get(subjectPoint)
-  let subject = findSubject(all, p.subject)
-  if subject.isNone:
-    return problemWith[Chosen](noSubject(all, p.subject, "a plot"))
-  let name = subject.get.name
-  let mine = framesOf(g.extensions.get(plotFramePoint), name)
-  if mine.len == 0:
-    return problemWith[Chosen](~"no frame of {name} can be shown on a plot")
-  var chosen = Chosen(subject: subject.get, listed: mine)
-  if p.frames.len == 0:
-    chosen.frames = mine.filterIt(it.shown)
-    if chosen.frames.len == 0:
-      chosen.frames = mine
-    return parsedOk(chosen)
-  let names = mine.mapIt(it.name).join(", ")
-  for want in p.frames:
-    let there = mine.filterIt(it.name == want)
-    if there.len == 0:
-      return problemWith[Chosen](
-        ~"'{want}' is not a frame of {name} (the frames are {names})"
-      )
-    if there[0] notin chosen.frames:
-      chosen.frames.add there[0]
-  parsedOk(chosen)
+  let subject = chooseSubject(g.extensions.get(subjectPoint), p.subject, "a plot")
+  if subject.kind != pkOk:
+    return problemWith[Chosen](subject.why)
+  let all = g.extensions.get(plotFramePoint)
+  let frames = chooseFrames(all, subject.params.name, p.frames, "a plot")
+  if frames.kind != pkOk:
+    return problemWith[Chosen](frames.why)
+  parsedOk(
+    Chosen(
+      subject: subject.params,
+      listed: framesOf(all, subject.params.name),
+      frames: frames.params,
+    )
+  )
 
 proc dayStart(civil: int64, tz: Timezone): int64 =
   ## The instant a calendar date (Unix seconds at its start in UTC) starts in a timezone.
@@ -168,24 +139,6 @@ proc csvOf*(made: PlotData, tz: Timezone): string =
     for (t, v) in s.points:
       let time = fromUnix(t).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
       result.add fmt"{time},""{name}"",{v:.4f}" & "\n"
-
-proc checkSelection(g: Globals, c: Chosen, frames: seq[PlotFrame]): Option[int] =
-  ## Whether to stop, and with what status, before serving or making the files: an empty selection (if a frame shown
-  ## reads it) is said as a warning and stops with success; none: go on.
-  var st: Session
-  try:
-    st = openSession(g)
-  except StoreError as e:
-    return some(failure(g, "nch plot", e.msg))
-  try:
-    if frames.anyIt(it.readsSelection) and c.subject.selected(st) == 0:
-      g.warn emptyText(c.subject)
-      return some(exitOk)
-    none(int)
-  except StoreError as e:
-    some(failure(g, "nch plot", e.msg))
-  finally:
-    st.close()
 
 proc makeFrames(
     g: Globals, c: Chosen, frames: seq[PlotFrame], p: Params, dir: string
@@ -251,21 +204,16 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       address: commandName & "/" & c.subject.name,
       query: webQuery(p),
       nothing: proc(): Option[int] =
-        checkSelection(g, c, c.frames),
+        stopIfEmpty(g, c.subject, c.frames.anyIt(it.readsSelection), "nch plot"),
       page: proc(dir: string): Made =
         makePage(g, c, p, dir),
       frame: proc(name, dir: string): Made =
-        let one = c.listed.filterIt(it.name == name)
-        if one.len == 0:
+        let one = chooseFrames(c.listed, c.subject.name, @[name], "a plot")
+        if one.kind != pkOk:
           return Made(
-            status: usageError(
-              g,
-              "nch plot",
-              usageText(g, g.textWidth(osErr)),
-              ~"'{name}' is not a frame of {c.subject.name}",
-            )
+            status: usageError(g, "nch plot", usageText(g, g.textWidth(osErr)), one.why)
           )
-        makeFrames(g, c, one, p, dir),
+        makeFrames(g, c, one.params, p, dir),
       files: proc(dir: string): Made =
         makeFrames(g, c, c.frames, p, dir),
       frameAsked: p.frame,
