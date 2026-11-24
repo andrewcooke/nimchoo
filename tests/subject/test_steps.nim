@@ -59,3 +59,9 @@ suite "subject: the steps that involve the selection":
     ]:
       for o in ["--all", "--select", "--also", "--within"]:
         check docs.countIt(o in it.names) == 1
+
+suite "subject: when the selection itself is meant":
+  test "no criteria and no --all":
+    check Steps().meansSelection(criteria = false)
+    check not Steps().meansSelection(criteria = true)
+    check not Steps(all: true).meansSelection(criteria = false)

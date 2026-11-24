@@ -123,9 +123,17 @@ proc usageText(width: int): seq[Line] =
     "usage: nch [--db PATH] [--user NAME] [--offline] [--theme NAME] COMMAND [ARGS]",
     width,
     options = headSpec().docs,
-    notes = @[~"For more about a command: `nch COMMAND --help`."],
+    notes = @[
+      ~"For more about a command: `nch COMMAND --help`.  (`nch help` is `nch --help`.)"
+    ],
     sections = @[("commands", optionLines(commandDocs(allCommands), width))],
   )
+
+proc withRegistry(g: Globals): Globals =
+  ## `g` with what the whole program has: the extensions and the access model of the registry.
+  result = g
+  result.extensions = registry.extensions
+  result.access = allAccess
 
 proc main(): int {.raises: [].} =
   let args = commandLineParams()
@@ -140,9 +148,7 @@ proc main(): int {.raises: [].} =
     var before = Head(g: Globals(fragments: allFragments))
     var next = 0
     discard parseLeading(line[0 ..< max(0, line.high)], headSpec(), before, next)
-    var g = before.g
-    g.extensions = registry.extensions
-    g.access = allAccess
+    var g = before.g.withRegistry
     g.offline = true
     g.readOnly = true
     return completeMain(headSpec().docs, allCommands, g, line)
@@ -150,9 +156,7 @@ proc main(): int {.raises: [].} =
   var i = 0
   let why = parseLeading(args, headSpec(), head, i)
   # (the theme and the colours first, so that everything said is in them, even a bad command line)
-  var g = head.g
-  g.extensions = registry.extensions
-  g.access = allAccess
+  var g = head.g.withRegistry
   g.terminal = [isatty(stdout), isatty(stderr)]
   g.colour = [canColourStdout(), canColour()]
   g.width = [helpWidth(stdout), helpWidth(stderr)]

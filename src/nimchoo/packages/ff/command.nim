@@ -57,7 +57,7 @@ proc found(
     st: Session, a: Action[Model], s: Steps
 ): seq[Model] {.raises: [StoreError].} =
   ## What the steps find: with no criteria and no `--all`, the selection.
-  if a.names.len == 0 and not s.all:
+  if s.meansSelection(a.names.len > 0):
     selectedModels(st.db, st.userId)
   else:
     searchModels(st.db, st.userId, patternsOf(a.names), s.among, s.also)
@@ -77,7 +77,7 @@ proc list(
     osOut,
     table(modelKind(), shown, shown.mapIt(it.id in chosen), g.textWidth(osOut), marks),
   )
-  let isSelection = s.select or (a.names.len == 0 and not s.all)
+  let isSelection = s.select or s.meansSelection(a.names.len > 0)
   let total = loadModels(st.db).len
   g.done(listDone(shown.len, some(total), "model", "models", isSelection, marks))
   exitOk

@@ -26,6 +26,10 @@ type
     selection*: string
       ## the name of its selection, with no article: "selection", "climbs selection"
 
+func meansSelection*(s: Steps, criteria: bool): bool =
+  ## Whether what is asked is the selection itself: no criteria and no `--all` (the steps are skipped).
+  not criteria and not s.all
+
 func among*(s: Steps): Among =
   ## Where the search looks.
   if s.within: amSelection else: amEvery
