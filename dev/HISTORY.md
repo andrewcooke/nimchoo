@@ -4,6 +4,15 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The plot of an activity: colours that stay, distance only as an axis (2026-11-25, the author's look)
+
+Ticking another ride changed the colours of those already drawn (Plot gives colours by the labels' order); now a ride
+takes the first free colour when it is ticked and keeps it while ticked (the author; by the ride's place in the list, or a
+hash of its name, would be fixed for good but could give two rides compared the same colour).  The distance is no longer
+offered as a panel (a line rising from left to right): a frame that grows along the activity is only an x axis (`--file`
+still writes it).  `tools/plotcheck.js` runs the page in jsdom with the real libraries, as `pagecheck.js` does the map's,
+and prints the colours before and after a second ride is ticked.
+
 ## The plot of an activity against distance (2026-11-25, step 3 of dev/plot-activity.md)
 
 The page of `nch plot activity` offers the x axis as the time from the start or the distance: a frame of one activity may
