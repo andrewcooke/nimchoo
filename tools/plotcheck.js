@@ -1,7 +1,8 @@
 // Runs the page of `nch plot activity` (its script, with the real d3 7.9.0 and Observable Plot 0.6.17) in node with a stand-in
 // DOM (jsdom), answering its requests for frames from the CSV files given, and prints what it drew: the panels, the
-// colour of each line, the x axis.  Then it ticks the second activity (the colours already there must not change), and
-// chooses the distance as the x axis.  Not part of `nimble test` (it needs packages that the project does not carry):
+// colour of each line, the x axis.  Then it turns the wheel over a panel (zoom in), drags (move), double-clicks (all),
+// ticks the second activity (the colours already there must not change), and chooses the distance as the x axis (whose
+// box is then hidden).  Not part of `nimble test` (it needs packages that the project does not carry):
 //
 //     d=$(mktemp -d); (cd $d && npm i jsdom@24 d3@7.9.0 @observablehq/plot@0.6.17)
 //     page=$(nch plot activity --worker)      # and, for the two newest activities (their ids are in the page):
@@ -46,6 +47,19 @@ const later = (ms) => new Promise((done) => setTimeout(done, ms));
   await later(1500);
   report('at first');
   console.log('frames to tick: ' + texts('#frames label').join(', ') + '; x: ' + texts('#axis label').join(', '));
+  const chart = () => w.document.querySelector('.panel').chart;
+  const middle = () => { const [r0, r1] = w.document.querySelector('.panel').plot.scale('x').range; return (r0 + r1) / 2; };
+  chart().dispatchEvent(new w.WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -400, clientX: middle() }));
+  await later(300);
+  report('the wheel turned (zoomed in about the middle)');
+  chart().dispatchEvent(new w.MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: middle() }));
+  w.dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true, clientX: middle() + 200 }));
+  w.dispatchEvent(new w.MouseEvent('pointerup', { bubbles: true, clientX: middle() + 200 }));
+  await later(300);
+  report('dragged 200 px to the right (earlier)');
+  chart().dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
+  await later(300);
+  report('double-clicked (everything)');
   const boxes = w.document.querySelectorAll('#picks input');
   boxes[1].checked = true;
   boxes[1].dispatchEvent(new w.Event('change'));
@@ -56,5 +70,6 @@ const later = (ms) => new Promise((done) => setTimeout(done, ms));
   radios[1].dispatchEvent(new w.Event('change'));
   await later(1500);
   report('x: ' + texts('#axis label')[1]);
+  console.log('frames to tick now: ' + [...w.document.querySelectorAll('#frames label')].filter((l) => l.style.display !== 'none').map((l) => l.textContent.trim()).join(', '));
   console.log('fetched: ' + fetched.join(', '));
 })();

@@ -10,8 +10,15 @@ Ticking another ride changed the colours of those already drawn (Plot gives colo
 takes the first free colour when it is ticked and keeps it while ticked (the author; by the ride's place in the list, or a
 hash of its name, would be fixed for good but could give two rides compared the same colour).  The distance is no longer
 offered as a panel (a line rising from left to right): a frame that grows along the activity is only an x axis (`--file`
-still writes it).  `tools/plotcheck.js` runs the page in jsdom with the real libraries, as `pagecheck.js` does the map's,
-and prints the colours before and after a second ride is ticked.
+still writes it; but see below).  `tools/plotcheck.js` runs the page in jsdom with the real libraries, as `pagecheck.js` does the map's,
+and prints the colours before and after a second ride is ticked.  Then the zooming (the author: dragging to zoom
+seldom worked, and there was no way to move): Plot's tip stops a press on a line from going further, so the drag was
+mostly never seen.  Now, as on the map, the wheel zooms about the pointer, a drag moves and a double-click shows
+everything, the listeners on the panels' container in the capture phase (before the tip's), every panel drawn again at
+most once a frame, the view kept within the data; `plotcheck.js` turns the wheel, drags and double-clicks.  And the
+distance as a panel came back (the author: with several rides, distance against time shows who was ahead, and when),
+unticked at first and hidden while the distance is the x axis (against itself it is a diagonal); a box that appears by
+itself when a second ride is ticked was rejected (the page should not change under the user).
 
 ## The plot of an activity against distance (2026-11-25, step 3 of dev/plot-activity.md)
 

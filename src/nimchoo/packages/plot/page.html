@@ -13,7 +13,7 @@
   #picks label { display: inline-block; }
   #info { color: #666; margin: 4px 0 8px; }
   .panel h2 { font-size: 13px; font-weight: 600; margin: 8px 0 0; }
-  .panel svg { touch-action: none; user-select: none; cursor: crosshair; }
+  .panel svg { touch-action: none; user-select: none; cursor: grab; }
 </style>
 </head>
 <body>
@@ -38,7 +38,8 @@
   const panels = document.getElementById('panels');
   const info = document.getElementById('info');
   const data = new Map();       // frame (and activity) -> a promise of its points ({ x, series, value })
-  let zoom = null;              // [from, to] (on the x axis) after a drag, else null: everything
+  let zoom = null;              // [from, to] (numbers on the x axis: a time is its milliseconds) zoomed to, else null: everything
+  let full = null;              // [from, to] of everything drawn
   const overActivity = axis === 'activity';
   for (const [i, p] of picks.entries()) p.shown = i === 0;
   // each activity ticked keeps its colour while it is ticked: the first free one when it is ticked (so the ones shown are
@@ -122,17 +123,19 @@
 
   async function draw() {
     without.clear();
-    const shown = frames.filter((f) => f.shown && !f.along);
+    const shown = frames.filter((f) => f.shown && f !== xFrame); // (the x axis against itself is a diagonal)
     const loaded = await Promise.allSettled(shown.map(pointsOf));
     const failed = [];
     const ready = [];
     loaded.forEach((r, i) => { if (r.status === 'fulfilled') ready.push([shown[i], r.value]); else failed.push(String(r.reason)); });
     const all = ready.flatMap(([, points]) => points).filter((d) => !Number.isNaN(d.x));
     const extent = overActivity ? [0, d3.max(all, (d) => d.x) || 0] : d3.extent(all, (d) => d.x);
-    const domain = zoom || (all.length ? extent : undefined);
+    full = all.length ? extent.map(Number) : null;
+    const span = zoom || full;
+    const domain = span ? (overActivity ? span : span.map((v) => new Date(v))) : undefined;
     const height = Math.max(160, (window.innerHeight - 140) / Math.max(1, ready.length) - 30);
     const drawn = ready.map(([f, points]) => {
-      const visible = zoom ? points.filter((d) => d.x >= zoom[0] && d.x <= zoom[1]) : points;
+      const visible = zoom ? points.filter((d) => Number.isNaN(+d.x) || (+d.x >= zoom[0] && +d.x <= zoom[1])) : points;
       const plot = Plot.plot({
         width: Math.max(300, window.innerWidth - 32),
         height,
@@ -150,59 +153,73 @@
       const h = document.createElement('h2');
       h.textContent = f.name + ' (' + f.summary + ')';
       panel.append(h, plot);
+      // (`plot` is a figure with the legend, whose last svg is the chart, or the chart itself)
+      panel.plot = plot;
+      panel.chart = plot.tagName.toLowerCase() === 'svg' ? plot : [...plot.querySelectorAll(':scope > svg')].pop();
       return [panel, plot];
     });
     panels.replaceChildren(...drawn.map(([panel]) => panel));
-    drawn.forEach(([, plot]) => brush(plot));
     const nothing = overActivity && !picks.some((p) => p.shown) ? 'tick an activity to draw it'
-                  : ready.length ? (zoom ? 'double-click to zoom out' : 'drag to zoom') : 'tick a frame to draw it';
+                  : ready.length ? 'wheel to zoom, drag to move, double-click to see everything' : 'tick a frame to draw it';
     info.textContent = nothing + (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '') +
       (without.size ? ' (no ' + xFrame.name + ' for: ' + [...without].join('; ') + ')' : '');
   }
 
-  // Drag across a panel to zoom every panel to that span; double-click to go back.  (Plot draws, it does not zoom: the
-  // panels are drawn again with the dragged span as their time axis.)
-  // (`plot` is what Plot.plot made: a figure with the legend, whose own svg is the chart, or the svg itself)
-  function brush(plot) {
-    const x = plot.scale('x');
-    const svg = plot.tagName.toLowerCase() === 'svg' ? plot : [...plot.querySelectorAll(':scope > svg')].pop();
-    if (!x || !svg) return;
-    const [d0, d1] = x.domain.map((d) => +d);
-    const [r0, r1] = x.range;
-    const at = (px) => d0 + (px - r0) / (r1 - r0) * (d1 - d0);
-    const timeAt = (px) => overActivity ? at(px) : new Date(at(px));
-    const px = (e) => e.clientX - svg.getBoundingClientRect().left;
-    let from = null, box = null;
-    svg.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0) return;
-      from = Math.min(Math.max(px(e), r0), r1);
-      box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      box.setAttribute('y', 0);
-      box.setAttribute('height', svg.getBoundingClientRect().height);
-      box.setAttribute('fill', 'rgba(0, 0, 0, 0.08)');
-      box.setAttribute('x', from);
-      box.setAttribute('width', 0);
-      svg.appendChild(box);
-      svg.setPointerCapture(e.pointerId);
-    });
-    svg.addEventListener('pointermove', (e) => {
-      if (from === null) return;
-      const to = Math.min(Math.max(px(e), r0), r1);
-      box.setAttribute('x', Math.min(from, to));
-      box.setAttribute('width', Math.abs(to - from));
-    });
-    svg.addEventListener('pointerup', (e) => {
-      if (from === null) return;
-      const to = Math.min(Math.max(px(e), r0), r1);
-      const start = from;
-      from = null;
-      box.remove();
-      if (Math.abs(to - start) < 6) return;                 // a click, not a drag
-      zoom = [timeAt(Math.min(start, to)), timeAt(Math.max(start, to))];
-      draw();
-    });
-    svg.addEventListener('dblclick', () => { zoom = null; draw(); });
+  // The wheel zooms every panel about the pointer, a drag moves them, a double-click shows everything.  (Plot draws, it does
+  // not zoom or move: every panel is drawn again on the new span, at most once a frame.)  The listeners are on the panels'
+  // container in the capture phase, before the tip's own, which stops a press on a line from going further.
+  let pending = false;
+  function redraw() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { pending = false; draw(); });
   }
+
+  // a span of the x axis kept within everything there is to see; null when it is all of it
+  function within(span) {
+    if (!full) return null;
+    const width = span[1] - span[0];
+    if (width >= full[1] - full[0]) return null;
+    const from = Math.min(Math.max(span[0], full[0]), full[1] - width);
+    return [from, from + width];
+  }
+
+  // where the pointer is on the x axis of the panel under it (none outside the chart)
+  function pointed(e) {
+    const panel = e.target.closest ? e.target.closest('.panel') : null;
+    if (!panel || !panel.chart || !full) return null;
+    const [r0, r1] = panel.plot.scale('x').range;
+    const [d0, d1] = zoom || full;
+    const px = e.clientX - panel.chart.getBoundingClientRect().left;
+    if (px < r0 || px > r1) return null;
+    return { value: d0 + (px - r0) / (r1 - r0) * (d1 - d0), perPx: (d1 - d0) / (r1 - r0) };
+  }
+
+  panels.addEventListener('wheel', (e) => {
+    const p = pointed(e);
+    if (!p) return;
+    e.preventDefault();
+    const [d0, d1] = zoom || full;
+    const step = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;   // lines, pages: as pixels
+    const k = Math.exp(e.deltaY * step * 0.002);
+    zoom = within([p.value - (p.value - d0) * k, p.value + (d1 - p.value) * k]);
+    redraw();
+  }, { capture: true, passive: false });
+
+  let drag = null;              // { from: where it began (pixels), span: the span then, perPx }
+  panels.addEventListener('pointerdown', (e) => {
+    const p = e.button === 0 ? pointed(e) : null;
+    if (p) drag = { from: e.clientX, span: zoom || full, perPx: p.perPx, moved: false };
+  }, { capture: true });
+  window.addEventListener('pointermove', (e) => {
+    if (!drag || (!drag.moved && Math.abs(e.clientX - drag.from) < 3)) return;
+    drag.moved = true;
+    const shift = (drag.from - e.clientX) * drag.perPx;
+    zoom = within([drag.span[0] + shift, drag.span[1] + shift]);
+    redraw();
+  });
+  window.addEventListener('pointerup', () => { drag = null; });
+  panels.addEventListener('dblclick', () => { zoom = null; draw(); }, { capture: true });
 
   // which frames are ticked: what was ticked the last time, in this browser, for this subject (else the defaults the page
   // was made with); kept again whenever a box changes
@@ -212,7 +229,7 @@
     if (Array.isArray(names)) for (const f of frames) f.shown = names.includes(f.name);
   } catch (e) { /* (no storage, or what is there is not ours: the defaults) */ }
   const list = document.getElementById('frames');
-  for (const f of frames.filter((f) => !f.along)) { // (a frame that grows along the activity is an x axis, not a panel)
+  for (const f of frames) {
     const label = document.createElement('label');
     label.title = f.summary;
     const box = document.createElement('input');
@@ -225,6 +242,7 @@
       draw();
     });
     label.append(box, document.createTextNode(' ' + f.name));
+    f.label = label;
     list.appendChild(label);
   }
   // the x axis over activities: the time, or a frame that grows along them (remembered, as the frames are)
@@ -241,6 +259,7 @@
       radio.checked = choice === xFrame;
       radio.addEventListener('change', () => {
         xFrame = choice;
+        hideAxisBox();
         zoom = null;
         try { localStorage.setItem(rememberedX, choice ? choice.name : ''); } catch (e) { /* (no storage) */ }
         draw();
@@ -249,6 +268,12 @@
       choices.appendChild(label);
     }
   }
+
+  // the box of the frame that is the x axis is hidden while it is (drawn against itself it would be a diagonal)
+  function hideAxisBox() {
+    for (const f of frames) if (f.along) f.label.style.display = f === xFrame ? 'none' : '';
+  }
+  hideAxisBox();
 
   // the activities to tick (not remembered: which they are changes with the selection); the newest is ticked at first
   const pickList = document.getElementById('picks');
