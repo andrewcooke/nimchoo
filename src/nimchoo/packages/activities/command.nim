@@ -43,17 +43,22 @@ func intro(): seq[Line] =
     ~"1. Start with all your activities.",
     ~"2. The special value `previous` is the current selection, if it is one activity.",
     step(3, withinStep(words)),
-    ~"4. Apply the filters (criteria) that do not use `latest`, combined with \"and\".",
-    ~"5. The special value `latest` is the most recent activity remaining.",
-    ~"6. Apply the filters that use `latest`, combined with \"and\".",
-    ~"7. If `--invert`, use instead the activities of step 3 that steps 4 and 6 left out.",
-    ~"8. Apply `--newest` and `--oldest`.",
-    step(9, alsoStep(words)),
-    ~"10. If `--delete` or `--rename`, delete or rename the result, and stop.",
-    step(11, selectStep(words)),
-    step(12, displayStep(words)),
+    step(4, placesStep()),
+    step(5, eachPlaceStep(6, 8, words)),
+    innerStep(
+      6,
+      ~"Apply the filters (criteria) that do not use `latest`, combined with \"and\".",
+    ),
+    innerStep(7, ~"The special value `latest` is the most recent activity remaining."),
+    innerStep(8, ~"Apply the filters that use `latest`, combined with \"and\"."),
+    ~"9. If `--invert`, use instead the activities of step 3 that steps 6 and 8 left out.",
+    ~"10. Apply `--newest` and `--oldest`.",
+    step(11, alsoStep(words)),
+    ~"12. If `--delete` or `--rename`, delete or rename the result, and stop.",
+    step(13, selectStep(words)),
+    step(14, displayStep(words)),
     ~"`latest` and `previous` can be referred to in criteria (`--distance latest~10%`, `--from latest`, `--names previous` ...).  `--delete` and `--rename` cannot be used with `--also` or `--select`.",
-    ~"If no criteria are given, steps 3 to 9 are skipped and the current selection is used.  `--all` is the criterion that keeps everything: `nch activities --all` lists every activity, and `--all --delete` deletes them all.",
+    ~"If no criteria are given, steps 3 to 11 are skipped and the current selection is used.  `--all` is the criterion that keeps everything: `nch activities --all` lists every activity, and `--all --delete` deletes them all.",
   ]
 
 const notes = @[
@@ -316,6 +321,49 @@ proc numbersAsIds(
     else:
       result.texts.add t
 
+proc latestOf(
+    st: Session, filters: seq[Filter], env: Env, among: Among
+): Option[tuple[id: ActivityId, row: ListRow]] {.raises: [StoreError].} =
+  ## `latest`: the newest activity that meets every filter without what refers to it (the usage's steps).
+  var base: seq[Resolved]
+  for f in filters:
+    let rest = f.withoutLatest
+    if rest.isSome:
+      base.add resolveFilter(rest.get, env)
+  latestAmong(
+    st,
+    matchSql(
+      st.userId,
+      base,
+      sqlOf("a.id as id, ") & rowColumns(false, st.userId),
+      among = among,
+    ),
+  )
+
+func placeToChoose(f: Filter, env: Env): bool =
+  ## Whether the filter names a place not chosen yet.
+  f.kind in {ftFrom, ftNear} and f.place.kind == plPlace and
+    f.place.name notin env.places
+
+proc findsAny(
+    st: Session, filters: seq[Filter], env: Env, among: Among
+): bool {.raises: [StoreError].} =
+  ## Whether the filters (the usage's steps from the filters to those that use `latest`, without `--invert`), with the
+  ## places chosen so far and without those still to be chosen, leave any activity: how a place is tried.
+  let active = filters.filterIt(not it.placeToChoose(env))
+  var e = env
+  if usesLatest(active):
+    let found = latestOf(st, active, e, among)
+    if found.isNone:
+      return false
+    e.anchors[rfLatest] = some(anchorOf(st, found.get.id, found.get.row))
+  var rs: seq[Resolved]
+  for f in active:
+    rs.add resolveFilter(f, e)
+  st.db.scalar(
+    int, sqlOf("select exists (") & matchSql(st.userId, rs, among = among) & ")"
+  ) == 1
+
 proc resolveScope(
     st: Session, scope: Scope, zone: Timezone
 ): Search {.raises: [StoreError].} =
@@ -338,32 +386,28 @@ proc resolveScope(
       let found = numbersAsIds(st, f.listed.values, result.notes)
       env.nameTexts = some(found.texts)
       env.nameIds = found.ids
-    of ftFrom, ftNear:
-      if f.place.kind == plPlace and f.place.name notin env.places:
-        let p = placeNamed(st, f.place.name)
-        env.places[f.place.name] = (lat: p.lat, lon: p.lon, said: p.said)
-    of ftStarts, ftPaths, ftTags, ftDistance, ftActive, ftAfter, ftBefore, ftGps:
+    of ftFrom, ftNear, ftStarts, ftPaths, ftTags, ftDistance, ftActive, ftAfter,
+        ftBefore, ftGps:
       discard
   if usesPrevious(filters):
     let prev = previousSelected(st)
     result.notes.add plain("previous: " & activityText(prev.row, zone))
     env.anchors[rfPrevious] = some(anchorOf(st, prev.id, prev.row))
+  # a place's name (the usage's steps): of the places it may mean, the first for which the steps from the filters to those
+  # that use `latest` leave an activity (names/places.nim); two names are chosen one at a time, in the order given
+  for f in filters:
+    if f.placeToChoose(env):
+      let name = f.place.name
+      let tried = env
+      let among = result.among
+      let finds = proc(lat, lon: float): bool {.closure, raises: [StoreError].} =
+        var e = tried
+        e.places[name] = (lat: lat, lon: lon, said: "")
+        findsAny(st, filters, e, among)
+      let p = placeNamed(st, name, finds)
+      env.places[name] = (lat: p.lat, lon: p.lon, said: p.said)
   if usesLatest(filters):
-    var base: seq[Resolved]
-    for f in filters:
-      # (as the usage's steps say: every filter that does not use `latest`)
-      let rest = f.withoutLatest
-      if rest.isSome:
-        base.add resolveFilter(rest.get, env)
-    let found = latestAmong(
-      st,
-      matchSql(
-        st.userId,
-        base,
-        sqlOf("a.id as id, ") & rowColumns(false, st.userId),
-        among = result.among,
-      ),
-    )
+    let found = latestOf(st, filters, env, result.among)
     if found.isNone:
       raiseStore(
         "`latest` is the newest activity that meets the other criteria, and none does"

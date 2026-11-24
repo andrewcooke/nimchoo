@@ -84,6 +84,23 @@ func step*(n: int, line: Line): Line =
   ## A numbered line of the usage's list of steps.
   plain(fmt"{n}. ") & line
 
+func innerStep*(n: int, line: Line): Line =
+  ## A numbered line of the usage's list of steps that is repeated by the one before it (indented).
+  plain(fmt"   {n}. ") & line
+
+func placesStep*(): Line =
+  ## The step that lists the places a name may mean (names/places.nim), for the usage of a command with `--from`/`--near`.
+  ~"If `--from` or `--near` gives a place's name, list the places it may mean: those with that name, then those with it as a word of their name, then those with it anywhere in their name; each group the likeliest first (your landmarks, then towns, the biggest first)."
+
+func eachPlaceStep*(first, last: int, w: Words): Line =
+  ## The step that tries the places in turn, repeating the steps from `first` to `last`.
+  let which =
+    if first == last:
+      fmt"step {first} leaves"
+    else:
+      fmt"steps {first} to {last} leave"
+  ~"For each of those places in turn, until {which} at least one of the {w.things} (once, if there is no name; if no place does, the first is taken, and a note says so; two names are chosen one at a time, in the order given):"
+
 func withinStep*(w: Words): Line =
   ## The step of `--within`, for the usage.
   ~"If `--within`, keep only those in the current {w.selection}."

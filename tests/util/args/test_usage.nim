@@ -51,6 +51,21 @@ suite "usage: prose":
         "After the steps.",
       ]
 
+  test "an indented step is a step inside the one before: in the list, and going on under its own text":
+    let lines = proseLines(
+      @[
+        ~"5. For each place:",
+        ~"   6. Apply the filters, combined with and.",
+        ~"9. Invert.",
+      ],
+      30,
+    )
+    check lines.mapIt(it.text) ==
+      @[
+        "5. For each place:", "   6. Apply the filters,", "      combined with and.",
+        "9. Invert.",
+      ]
+
 suite "usage: the option list":
   test "a value that may be left out is in brackets":
     check shownOptionLines(

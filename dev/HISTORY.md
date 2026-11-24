@@ -4,6 +4,20 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## A place's name means the place the search finds something near (2026-11-25, the author's `--near toyo`)
+
+`nch activities --near toyo` failed: a name had to be whole ("El Toyo").  Now a place's name (in `--from`, `--near` of
+`activities` and `climbs`) is a list of the places it may mean, those with the name, then those with it as a word of
+theirs, then those with it in theirs, each the likeliest first (landmarks, towns, the biggest); and the first for which
+the search (the steps from the filters to those that use `latest`, among what `--within` leaves) finds something is
+taken, else the first, with a note (`names/places.nim`, `Match`, `Finds`).  The author placed it in the steps (4 and 5
+of `activities`, the filters, `latest` and its filters repeated inside 5), so `--invert` comes after; two names are chosen
+one at a time.  What is said names the place, how it matched, and up to three others with their country.  Measured on the
+author's database: `--near toyo` 0.09 s, `--near san` (273 words) 0.74 s, `--near an` (2,222 parts) 0.76 s; every
+candidate tried and none found (`--after 2030-01-01`, `--distance 900km-`) 0.14 to 0.30 s: so no limit on the
+candidates (a cap of 30 was proposed, with no reason for the number, and dropped).  `landmarks --near`/`--at` have no
+search: the first.  The usage's prose keeps an indented step in its numbered list (`stepMark`).
+
 ## The plot of an activity: a cursor, and the breaks as lines (2026-11-25, the author's)
 
 A line at the pointer's x in every panel at once (they share the axis), moved without drawing them again and kept across a

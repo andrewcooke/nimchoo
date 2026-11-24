@@ -547,6 +547,37 @@ suite "list: the command":
     check list(db, "--from", "38.7") == exitUsage
       # (a number is a position written wrongly)
 
+  test "a place's name means the first of the places it may mean near which the search finds something":
+    let db = world("placechoice", true)
+    let s = openSession(db, allFragments, access = allAccess)
+    s.db.execute("insert into country(iso, name, geoname_id) values ('XX', 'X', 1)")
+    for (id, name, pop, lon, lat) in [
+      (1, "Gare", 9000, 2.35, 48.85), # where paris starts, the biggest
+      (2, "Gare", 10, -9.14, 38.72), # where lisbon1 starts
+      (3, "Alfama", 0, 10.0, 50.0), # nowhere near a ride
+      (4, "Rua de Alfama", 0, -9.14, 38.72), # where lisbon1 starts: a word of its name
+    ]:
+      s.db.execute(
+        "insert into feature(id, country, name, class, code, population, geom) values (:id, 'XX', :name, 'P', 'PPL', :pop, MakePoint(cast(:lon as real), cast(:lat as real), 4326))",
+        id = id,
+        name = name,
+        pop = pop,
+        lon = lon,
+        lat = lat,
+      )
+    s.close()
+    discard save(db, "--from", "gare", "--radius", "5km")
+    check chosen(db) == @["paris"] # (the biggest, and the search finds paris there)
+    discard save(db, "--from", "gare", "--radius", "5km", "--tags", "sport:cycling*")
+    check chosen(db) == @["lisbon1"] # (no cycling near the biggest: the next)
+    discard save(db, "--from", "gare", "--radius", "5km", "--within")
+    check chosen(db) == @["lisbon1"] # (only the selection, lisbon1, is searched)
+    discard save(db, "--from", "alfama", "--radius", "5km")
+    check chosen(db) ==
+      @["lisbon1"] # (the whole name finds nothing; a word of a name does)
+    discard save(db, "--from", "alfama", "--radius", "5km", "--after", "2030-01-01")
+    check chosen(db).len == 0 # (nothing anywhere: the first, and nothing found)
+
   test "--near: the route passes within 1 km unless told, wherever the ride started":
     let db = world("passing", true)
     # (lisbon1 goes from 38.72,-9.14 to 38.75,-9.10, about 5 km; lisbon2's route is 4 km from that end)

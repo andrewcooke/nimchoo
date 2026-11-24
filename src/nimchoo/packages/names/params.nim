@@ -81,7 +81,7 @@ func landmarkSpec*(): Spec[Raw] =
         ["--near"],
         true,
         "LAT,LON|PLACE",
-        ~"suggest the features within 2 km of a position or of a place (a landmark, else the biggest place of that name among those the names were loaded for), nearest first, numbered (the names for that area are fetched if need be)",
+        ~"suggest the features within 2 km of a position or of a place (a landmark, else the likeliest of the places that have the name, or it as a word or part of theirs, among those the names were loaded for), nearest first, numbered (the names for that area are fetched if need be)",
         body = (
           block:
             p.near = parseSpot(value, false)

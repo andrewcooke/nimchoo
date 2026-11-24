@@ -111,8 +111,10 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
 * **the selection** is what the commands that work on activities use by default (see `selection`).  **`--all` means
   everything, not just the selection**, wherever the default is the selection.  a selection belongs to one user.  **what
   a search lists is found in steps, written in the author's words in the usage of `activities`** (decided 2026-11-23,
-  `dev/tags.md`): all; `previous` (the selection, if one activity); `--within`: only the selection; the filters that do
-  not use `latest`; `latest` (the most recent remaining); the filters that use it; `--invert` (those of the step before
+  `dev/tags.md`): all; `previous` (the selection, if one activity); `--within`: only the selection; a place's name (in
+  `--from`, `--near`) listed as the places it may mean (whole name, word, part; each the likeliest first), and for each in
+  turn until one leaves something (decided 2026-11-25): the filters that do not use `latest`; `latest` (the most recent
+  remaining); the filters that use it; then `--invert` (those of the step before
   the filters that they left out); `--newest`/`--oldest`; `--also`: the selection added; `--delete`/`--rename` (and stop:
   not with `--also` or `--select`); `--select`: the selection replaced; shown.  with no criteria the steps are skipped and
   the selection is listed; `--all` is the criterion that keeps everything.  `--select` always
@@ -250,8 +252,9 @@ four kinds of things go wrong, and each has one mechanism:
   is the item and an ellipsis (`--tags TAG...`); a list option is never in the address of a page.  a **position** is one point, always **`LAT,LON`**
   in that order (`--from`, `--near`, `--at`), as it is shown (`geo/position`: one reader, one writer); **`--from` is where a
   thing starts and `--near` is where its route or line passes** (activities, climbs: decided 2026-11-18; `nch landmarks
-  --near` searches for places near a point); each also takes a place's name (a landmark, else the biggest place of
-  that name among the names loaded: `names/places.nim`), and says which place it used.  `--from`, `--near` and `--radius` of
+  --near` searches for places near a point); each also takes a place's name: the places it may mean (your landmarks,
+  then the names loaded; those with the name, then with it as a word of theirs, then with it in theirs; each the
+  likeliest first: `names/places.nim`), the first the search finds something near, and says which and the others.  `--from`, `--near` and `--radius` of
   activities and climbs are written once (the `near` package: reading, help, defaults 10km and 1km); `--radius` goes with them
   (on its own it is `--from latest` for activities), and `landmarks --near` and `--at` read a point and a place's name with the same `near.parseSpot`.  in `--names` (activities and climbs) and `--climbs` a whole number
   that no name holds is the **number** of an activity or a climb (`nch activities --names 737`): a name that holds it wins.

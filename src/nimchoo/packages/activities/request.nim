@@ -48,7 +48,7 @@ type
       lat*, lon*: float
     of plPlace:
       name*: string
-        ## a landmark, else the biggest place of that name among the names loaded
+        ## the place it means, chosen when the search is made (the first that it finds something near: names/places.nim)
     of plReferent:
       refers*: Referent ## where that activity started
 

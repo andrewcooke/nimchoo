@@ -1,4 +1,4 @@
-import std/[options, unittest]
+import std/[options, strutils, unittest]
 import nimchoo/packages/db/statement
 import nimchoo/packages/user/session
 import nimchoo/packages/climbs/[found, params, work]
@@ -52,6 +52,24 @@ suite "climbs: the climbs that criteria find":
     check far.ids.len == 0 and far.notes == @[
       "starting near 1.0000,1.0000, within 10km"
     ]
+
+  test "a place's name: the first of the places it may mean near which a climb starts":
+    let s = world("found-place")
+    defer:
+      s.close()
+    s.db.execute("insert into country(iso, name, geoname_id) values ('XX', 'X', 1)")
+    for (id, name, pop, lon) in [(1, "Pico", 900, 40.0), (2, "Pico Alto", 0, 0.01)]:
+      s.db.execute(
+        "insert into feature(id, country, name, class, code, population, geom) values (:id, 'XX', :name, 'P', 'PPL', :pop, MakePoint(cast(:lon as real), 0.0, 4326))",
+        id = id,
+        name = name,
+        pop = pop,
+        lon = lon,
+      )
+    let f = foundClimbs(s, ClimbCriteria(start: Spot(kind: nkPlace, place: "pico")))
+    check f.ids.len == 1
+      # (Pico, the whole name, is 4,000 km away; Pico Alto, a word, is at the climb's start)
+    check "Pico Alto" in f.notes[0] and "a word of its name" in f.notes[0]
 
   test "--near: those whose line passes within the radius":
     let s = world("found-near")

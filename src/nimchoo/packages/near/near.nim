@@ -121,7 +121,7 @@ func nearHelp*(thing: string, references: bool): array[3, Line] =
     else:
       @[]
   [
-    ~"{thing} that start within the radius (default: {startKm:g}km) of the point; or of a place, by its name (one of your landmarks, else the biggest place of that name among those the names were loaded for: `--from providencia`)" &
+    ~"{thing} that start within the radius (default: {startKm:g}km) of the point; or of a place, by its name, or a word or part of it (`--from providencia`: of the places it may mean, the first the search finds something near, as the steps above say)" &
       latest,
     ~"{thing} whose route or line passes within the radius (default: {passKm:g}km) of the point, or of a place (as `--from`: `--near farellones`)" &
       latestToo,

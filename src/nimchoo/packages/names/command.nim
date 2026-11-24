@@ -69,7 +69,7 @@ func landmarkLines(rows: seq[Landmark], width: int): seq[Line] =
 proc resolved(
     st: Store, spot: Spot
 ): tuple[pos: Position, said: string] {.raises: [StoreError].} =
-  ## A position as given: itself, or the place of that name (a landmark, else the biggest of that name among the names loaded:
+  ## A position as given: itself, or the place the name means (there is no search to try: the likeliest, `names/places`:
   ## `places.placeNamed`), with a note of which, in brackets, to say.
   case spot.kind
   of nkPoint:
