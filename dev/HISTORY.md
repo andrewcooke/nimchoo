@@ -12,6 +12,9 @@ the cursor, for every ride; and a line is drawn with at most two points a column
 in order, so a spike stays; breaks kept), adapting to the width and the zoom (`thinned`: El Toyo's 18,000 to 1,751).  The
 distance as a panel is drawn only with several rides ticked (the author: what it is for; a frame says `several`), as a
 pause only with one.  Not measured how much each change did for the lag; the author looks.
+The y axis of a panel no longer follows the zoom: it is the range of everything ticked, so a zoomed part reads against
+the whole; except for a frame that grows along the ride (the distance), where following the zoom shows small differences
+(the author).
 
 ## The breaks drawn by kind (2026-11-25, the author's look at El Toyo)
 

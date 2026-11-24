@@ -196,7 +196,9 @@
         x: !overActivity ? { type: 'time', label: null, domain }
           : xFrame ? { type: 'linear', label: xFrame.name + ' (' + xFrame.unit + ')', domain }
           : { type: 'linear', label: 'time from the start', domain, ticks: timeTicks(domain), tickFormat: hm },
-        y: { grid: true, label: f.unit },
+        // (the y range is that of everything ticked, and stays as it zooms, so that a zoomed part reads against the whole;
+        // except for a frame that grows along the ride, the distance, where zooming in shows small differences: the author)
+        y: { grid: true, label: f.unit, nice: true, domain: f.along ? undefined : d3.extent(points.filter((d) => !Number.isNaN(d.value)), (d) => d.value) },
         color: overActivity
           ? { legend: true, domain: [...colourOf.keys()], range: [...colourOf.values()].map((i) => palette[i]) }
           : { legend: true },

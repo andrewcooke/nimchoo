@@ -1,6 +1,6 @@
 // Runs the page of `nch plot activity` (its script, with the real d3 7.9.0 and Observable Plot 0.6.17) in node with a stand-in
 // DOM (jsdom), answering its requests for frames from the CSV files given, and prints what it drew: the panels, the
-// colour of each line, the x axis.  Then it turns the wheel over a panel (zoom in), drags (move), double-clicks (all),
+// colour of each line, the x and y axes (y stays as it zooms, but for the distance).  Then it turns the wheel over a panel (zoom in), drags (move), double-clicks (all),
 // moves the pointer (the cursor line in every panel), ticks the breaks (bands and lines, by colour; pauses darker the
 // longer, and gone when a second ride is ticked), ticks the second activity (the
 // colours already there must not change; the distance, ticked, drawn only now), and chooses the distance as the x axis
@@ -43,7 +43,8 @@ function report(when) {
   for (const p of w.document.querySelectorAll('.panel')) {
     const strokes = [...p.querySelectorAll('svg [aria-label="line"] path')].map((e) => e.getAttribute('stroke') || e.parentNode.getAttribute('stroke'));
     const ticks = texts('[aria-label="x-axis tick label"] text', p);
-    console.log('  ' + p.querySelector('h2').textContent.split(' (')[0] + ': lines ' + JSON.stringify(strokes) + '; x ' + ticks[0] + ' ... ' + ticks[ticks.length - 1]);
+    const yTicks = texts('[aria-label="y-axis tick label"] text', p);
+    console.log('  ' + p.querySelector('h2').textContent.split(' (')[0] + ': lines ' + JSON.stringify(strokes) + '; x ' + ticks[0] + ' ... ' + ticks[ticks.length - 1] + '; y ' + yTicks[0] + ' ... ' + yTicks[yTicks.length - 1]);
   }
 }
 const later = (ms) => new Promise((done) => setTimeout(done, ms));
