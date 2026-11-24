@@ -54,12 +54,13 @@ suite "the inventory of packages":
     let inv = world()
     check inv.packages.mapIt(it.name) == @["db", "a", "b", "c"]
     check inv.packages.mapIt(it.layer) == @[0, 1, 2, 3]
-    check inv.packages[inv.find("db")].dependents == @["a", "b", "c"]
-    check inv.packages[inv.find("a")].tables == @["ta"]
-    check inv.packages[inv.find("b")].fragments == @["b/001-x.sql"]
-    check inv.packages[inv.find("b")].commands[0].name == "bee"
-    check inv.find("b") == 2
-    check inv.find("nope") == -1
+    check inv.lookup("db").get.dependents == @["a", "b", "c"]
+    check inv.lookup("a").get.tables == @["ta"]
+    check inv.lookup("b").get.fragments == @["b/001-x.sql"]
+    check inv.lookup("b").get.commands[0].name == "bee"
+    check inv.lookup("db").get.name == "db" and inv.lookup("d_B").get.name == "db"
+      # (as Nim compares names: case and underscores aside after the first letter)
+    check inv.lookup("nope").isNone
 
   test "who may read a table: the packages that depend on its owner; every package for the tables of db":
     let inv = world()
@@ -73,8 +74,8 @@ suite "the inventory of packages":
     let p = inv.points[0]
     check p.name == "b/p" and p.owner == "b" and p.typeName == "int"
     check p.contributors == @[("c", 0), ("c", 2)]
-    check inv.packages[inv.find("c")].contributes == @[("b/p", 2), ("b/p", 0)] or
-      inv.packages[inv.find("c")].contributes.len == 2
+    check inv.lookup("c").get.contributes == @[("b/p", 2), ("b/p", 0)] or
+      inv.lookup("c").get.contributes.len == 2
 
 suite "the filters of the list":
   # (db on layer 0; a uses db; b uses a and db; c uses b, a and db.  Tables: dbt of db, every package reads it; ta of a,
@@ -180,17 +181,17 @@ suite "the views":
 
 suite "the graphs":
   test "the tree of what a package depends on, breadth first: each package once, where it is first needed":
-    check treeLines(world(), "c") ==
+    check treeLines(world(), "c").mapIt(it.prefix & it.name) ==
       @["c", "├── a", "├── b", "└── db"]
         # (c uses a, b and db itself: all three are directly under it, and nothing is left under a or b)
 
   test "the tree of what depends on a package":
-    check treeLines(world(), "a", reverse = true) == @[
-      "a", "├── b", "└── c"
-    ]
+    check treeLines(world(), "a", reverse = true).mapIt(it.prefix & it.name) ==
+      @["a", "├── b", "└── c"]
+    check treeLines(world(), "a", reverse = true)[1] == ("├── ", "b")
 
   test "a package with nothing under it is a single line":
-    check treeLines(world(), "db") == @["db"]
+    check treeLines(world(), "db") == @[("", "db")]
 
 suite "the real registry":
   let inv = inventoryOf(
@@ -201,17 +202,17 @@ suite "the real registry":
     check inv.packages.len == generated.packages.len
     for p in inv.packages:
       for d in p.depends:
-        check inv.packages[inv.find(d)].layer < p.layer
-        check p.name in inv.packages[inv.find(d)].dependents
+        check inv.lookup(d).get.layer < p.layer
+        check p.name in inv.lookup(d).get.dependents
 
   test "a tree draws each package once":
     for p in inv.packages:
-      let names = treeLines(inv, p.name).mapIt(it.splitWhitespace[^1])
+      let names = treeLines(inv, p.name).mapIt(it.name)
       check names.deduplicate.len == names.len
 
   test "every table has an owner that is a package":
     for t in inv.tables:
-      check inv.find(t.owner) >= 0
+      check inv.lookup(t.owner).isSome
 
   test "the points of the registry are all listed, with their contributors":
     check inv.points.len == generated.points.len

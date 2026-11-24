@@ -43,12 +43,11 @@ type
     points*: seq[PointInfo]
     tables*: seq[TableInfo]
 
-func find*(inv: Inventory, name: string): int =
-  ## The index of a package, named as Nim compares names; -1 if there is none.
-  for i, p in inv.packages:
-    if p.name.normalised == name.normalised:
-      return i
-  -1
+func lookup*(inv: Inventory, name: string): Option[PackageInfo] =
+  ## The package called `name` (as Nim compares names), if there is one.
+  for p in inv.packages:
+    if sameName(p.name, name):
+      return some(p)
 
 func inventoryOf*(
     packages: seq[Registered],
@@ -82,17 +81,17 @@ func inventoryOf*(
       defines: p.package.defines,
     )
     for t, o in owners:
-      if o.normalised == p.name.normalised:
+      if sameName(o, p.name):
         info.tables.add t
     info.tables.sort
     for f in fragments:
-      if f.ownerName.normalised == p.name.normalised:
+      if sameName(f.ownerName, p.name):
         info.fragments.add f.name
     for c in p.package.commands:
       info.commands.add (c.name, c.summary)
     for point in extensions.points:
       for c in extensions.contributions(point):
-        if c.source.normalised == p.name.normalised:
+        if sameName(c.source, p.name):
           info.contributes.add (point, c.priority)
     result.packages.add info
   for (owner, d) in points:
@@ -136,19 +135,17 @@ type PackageFilter* = object
 
 func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
   ## Whether the package passes every test of the filter.  The names are those of a package and a table (checked before).
-  if f.uses.isSome and f.uses.get.normalised notin p.depends.mapIt(it.normalised):
+  if f.uses.isSome and not p.depends.hasName(f.uses.get):
     return false
   if f.usedBy.isSome:
-    let at = inv.find(f.usedBy.get)
-    if at < 0 or p.name.normalised notin inv.packages[at].depends.mapIt(it.normalised):
+    let user = inv.lookup(f.usedBy.get)
+    if user.isNone or not user.get.depends.hasName(p.name):
       return false
   if f.table.isSome:
     var ok = false
     for t in inv.tables:
       if t.name == f.table.get:
-        ok =
-          t.owner.normalised == p.name.normalised or t.everyone or
-          p.name.normalised in t.readers.mapIt(it.normalised)
+        ok = sameName(t.owner, p.name) or t.everyone or t.readers.hasName(p.name)
     if not ok:
       return false
   true
@@ -166,9 +163,12 @@ func pkgList(names: seq[string], between = ", "): Line =
       result.add span(between)
     result.add span(n, "code")
 
-func counted(items: seq[tuple[name: string, priority: int]]): seq[string] =
-  ## Each name once, in the order first given, with how many times it is there ("map/frames ×2") and its priorities when
-  ## any is not 0 (the order of the contributions: `core/extension.nim`); each kept on one line when wrapped.
+func counted(
+    items: seq[tuple[name: string, priority: int]], withPriorities = true
+): seq[string] =
+  ## Each name once, in the order first given, with how many times it is there ("map/frames ×2") and (if `withPriorities`)
+  ## its priorities when any is not 0 (the order of the contributions: `core/extension.nim`); each kept on one line when
+  ## wrapped.  The one way a list of names is counted (`namedList` draws it).
   var names: seq[string]
   var priorities: seq[seq[int]]
   for it in items:
@@ -182,8 +182,9 @@ func counted(items: seq[tuple[name: string, priority: int]]): seq[string] =
     var text = n
     if priorities[k].len > 1:
       text.add fmt" ×{priorities[k].len}"
-    if priorities[k].anyIt(it != 0):
-      text.add " (priority " & priorities[k].mapIt($it).join(", ") & ")"
+    if withPriorities and priorities[k].anyIt(it != 0):
+      let ps = priorities[k].mapIt($it).join(", ")
+      text.add fmt" (priority {ps})"
     result.add unbroken(text)
 
 func namedList(items: seq[string], style: StyleName, between = ", "): Line =
@@ -251,7 +252,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
     var what: Line = docLine(p.summary, state)
     var defines: seq[Line]
     for c in p.commands:
-      defines.add @[span("nch " & c.name, "code")] # (a command is never named alone)
+      defines.add @[span(fmt"nch {c.name}", "code")] # (a command is never named alone)
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
       defines.add @[
@@ -278,9 +279,9 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
 func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   ## Everything about one package, as styled lines: the title, the documentation, and the fields in two columns (what each
   ## is, wrapped narrow, and what it holds).  `name` must be that of a package.
-  let at = inv.find(name)
-  doAssert at >= 0
-  let p = inv.packages[at]
+  let found = inv.lookup(name)
+  doAssert found.isSome
+  let p = found.get
   var fields: seq[seq[Line]] # (label, value: a table without headings)
   func field(label: string, value: Line): seq[Line] =
     @[plain(label), value]
@@ -309,7 +310,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     # (the tables of others it may read, by their owner, in the order of the tables)
   var byOwner: seq[seq[string]]
   for t in inv.tables:
-    if t.owner.normalised != p.name.normalised and (t.everyone or p.name in t.readers):
+    if not sameName(t.owner, p.name) and (t.everyone or t.readers.hasName(p.name)):
       let k = owners.find(t.owner)
       if k < 0:
         owners.add t.owner
@@ -330,7 +331,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     fields.add field("commands", plain("-"))
   for c in p.commands:
     fields.add field(
-      "command", @[span("nch " & c.name, "code"), span(" - " & c.summary)]
+      "command", @[span(fmt"nch {c.name}", "code"), span(fmt" - {c.summary}")]
     )
   if p.defines.len == 0:
     fields.add field("defines extension points", plain("-"))
@@ -343,13 +344,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
         holds = pt.typeName
         for c in pt.contributors:
           added.add (c.package, c.priority)
-    var by: Line
-    for k, c in counted(added):
-      if k > 0:
-        by.add span(", ")
-      let n = c.split(noBreak)[0]
-      by.add span(n, "code")
-      by.add span(c[n.len .. ^1])
+    let by = namedList(counted(added), styleName"code")
     let what = (if holds.len > 0: fmt"{d.name}[{holds}]" else: d.name)
     var state: DocState
     fields.add field(
@@ -371,22 +366,11 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
   ## the package that defines it (`detailLines()`).
   var rows: seq[seq[Line]]
   for pt in inv.points:
-    var names: seq[string]
-    var counts: seq[int]
-    for c in pt.contributors:
-      let at = names.find(c.package)
-      if at < 0:
-        names.add c.package
-        counts.add 1
-      else:
-        inc counts[at]
-    var added: Line
-    for k, n in names:
-      if k > 0:
-        added.add span(", ")
-      added.add span(n, "code")
-      if counts[k] > 1:
-        added.add span(fmt" ×{counts[k]}")
+    # (a package that adds more than one is named once, "c ×2"; the priorities are in the detail of the package)
+    let added = namedList(
+      counted(pt.contributors.mapIt((it.package, it.priority)), withPriorities = false),
+      styleName"code",
+    )
     rows.add @[
       @[span(pt.name, "code")],
       pkg(pt.owner),
@@ -404,20 +388,22 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
   )
 
 func neighbours(inv: Inventory, name: string, reverse: bool): seq[string] =
-  let at = inv.find(name)
-  if at < 0:
+  let p = inv.lookup(name)
+  if p.isNone:
     return
-  if reverse:
-    inv.packages[at].dependents
-  else:
-    inv.packages[at].depends
+  if reverse: p.get.dependents else: p.get.depends
 
-func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
+type TreeLine* = tuple[prefix, name: string]
+  ## A line of a tree: the lines that draw it ("│   └── "), and the name of the package
+
+func treeLines*(inv: Inventory, root: string, reverse = false): seq[TreeLine] =
   ## The tree of what `root` depends on (or, with `reverse`, of what depends on it), as far as it goes, breadth first:
   ## each package is drawn once, at the shallowest place it is needed (the first a breadth-first walk from `root` meets
   ## it), so what `root` uses itself is all directly under it, what those use that is not already there under them, and
   ## so on.
-  let start = inv.packages[inv.find(root)].name
+  let found = inv.lookup(root)
+  doAssert found.isSome
+  let start = found.get.name
   var home: Table[string, string] # package -> the package it is drawn under
   var met = toHashSet([start.normalised])
   var queue = @[start]
@@ -460,7 +446,7 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
     # for each depth: whether the package drawn there has a later sibling (a line goes on down)
   for i, n in nodes:
     if n.depth == 0:
-      result.add n.name
+      result.add ("", n.name)
       open = @[false]
       continue
     let more = later(nodes, i, n.depth)
@@ -469,4 +455,4 @@ func treeLines*(inv: Inventory, root: string, reverse = false): seq[string] =
       prefix.add(if open[d]: "│   " else: "    ")
     open.setLen(n.depth + 1)
     open[n.depth] = more
-    result.add prefix & (if more: "├── " else: "└── ") & n.name
+    result.add (prefix & (if more: "├── " else: "└── "), n.name)

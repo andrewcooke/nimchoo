@@ -168,14 +168,15 @@ proc usageText*(width: int): seq[Line] =
 
 # --- the command -------------------------------------------------------------------------------------------------------
 
-func namedInTree(text: string): Line =
-  ## A line of a tree ("├── activities", "│   └── climbs"): the name of the package in its style.
-  var start = 0
-  for k, c in text:
-    if c in Letters:
-      start = k
-      break
-  ~"{text[0 ..< start]}`{text[start .. ^1]}`"
+func unknown(what, asked: string, names: seq[string]): Line =
+  ## "no package is called 'clmbs': did you mean climbs?", or with the names there are if none is close.
+  let close = closeNames(asked, names)
+  if close.len > 0:
+    let maybe = close.join(" or ")
+    ~"no {what} is called '{asked}': did you mean {maybe}?"
+  else:
+    let all = names.sorted.join(" ")
+    ~"no {what} is called '{asked}' (they are: {all})"
 
 proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   ## Entry point for `nch packages ARGS`; returns the exit status.
@@ -198,42 +199,25 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
     of vDetail: p.package
     of vTree: p.root
     else: ""
-  if p.view in {vDetail, vTree} and inv.find(asked) < 0:
-    let close = closeNames(asked, inv.packages.mapIt(it.name))
-    if close.len > 0:
-      return failure(
-        g,
-        "nch packages",
-        ~"no package is called '{asked}': did you mean {close.join(\" or \")}?",
-      )
-    return failure(
-      g,
-      "nch packages",
-      ~"no package is called '{asked}' (they are: {inv.packages.mapIt(it.name).sorted.join(\" \")})",
-    )
+  let packageNames = inv.packages.mapIt(it.name)
+  if p.view in {vDetail, vTree} and inv.lookup(asked).isNone:
+    return failure(g, "nch packages", unknown("package", asked, packageNames))
   case p.view
   of vList:
     let f = p.filter
     for (option, name) in [("-U", f.uses), ("-B", f.usedBy)]:
-      if name.isSome and inv.find(name.get) < 0:
-        let close = closeNames(name.get, inv.packages.mapIt(it.name))
-        let hint =
-          if close.len > 0:
-            fmt": did you mean {close.join("" or "")}?"
-          else:
-            ""
+      if name.isSome and inv.lookup(name.get).isNone:
         return failure(
-          g, "nch packages", ~"{option}: no package is called '{name.get}'{hint}"
+          g,
+          "nch packages",
+          ~"`{option}`: " & unknown("package", name.get, packageNames),
         )
     if f.table.isSome and inv.tables.allIt(it.name != f.table.get):
-      let close = closeNames(f.table.get, inv.tables.mapIt(it.name))
-      let hint =
-        if close.len > 0:
-          fmt": did you mean {close.join("" or "")}?"
-        else:
-          ""
-      return
-        failure(g, "nch packages", ~"`-T`: no table is called '{f.table.get}'{hint}")
+      return failure(
+        g,
+        "nch packages",
+        ~"`-T`: " & unknown("table", f.table.get, inv.tables.mapIt(it.name)),
+      )
     let kept = inv.packages.countIt(inv.keeps(f, it))
     if kept > 0:
       g.showAll(osOut, summaryLines(inv, width, f))
@@ -243,8 +227,8 @@ proc packagesMain*(g: Globals, args: seq[string]): int {.raises: [].} =
   of vPoints:
     g.showAll(osOut, pointLines(inv, width))
   of vTree:
-    for l in treeLines(inv, p.root, p.reverse):
-      g.show(osOut, namedInTree(l))
+    for (prefix, name) in treeLines(inv, p.root, p.reverse):
+      g.show(osOut, ~"{prefix}<code {name}>")
   exitOk
 
 proc packagesOptions(g: Globals): seq[OptDoc] {.nimcall, raises: [].} =
