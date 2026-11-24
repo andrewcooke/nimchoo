@@ -52,12 +52,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   (the date it is listed under, its name and distance, what the map and the calendar show) and whether a file like this
   should be one activity or two.
 
-* **The `activity` table, at the next squash** (the author, 2026-11-23):
-  * `activity.start` (a SpatiaLite `POINT`, where the activity started) becomes `start_point`, beside `start_t` and
-    `start_place` (a suffix of one letter is a unit, `_t`, `_m`, `_s`; a point is written in full, as `geo/position`
-    does).  SpatiaLite registers a geometry column and its spatial index by name, so it is done in the squash rather than
-    as a fragment that renames it.  Look through the other tables' column names for the same kind of thing.  (`sector`
-    keeps its name: it is for Strava-like segments to come.)
+* **The `activity` table: `sport` and `sub_sport` go** (the author, 2026-11-23; left out of the squash of step 0 of
+  dev/plot-activity.md, 2026-11-25, as it changes code across several packages: a fragment that drops the columns, or the
+  squash after):
   * **`sport` and `sub_sport` go: the sport is the `sport:` tag only** (one fact, which the user can edit for finer
     control, `sport:cycling:gravel`).  What reads them reads the tag, through one helper in `tags` (an activity's sport
     from its tag, the first if there are several, written as now, `cycling/road`): the activities list (its sport column,
@@ -82,9 +79,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 7. **Left on purpose from the review** (dev/REVIEW.md; each with its reason):
    * the authorizer's **`caller` ""** (`db/access.nim`: code outside the packages is not checked): by design, though it is not in the
      types;
-   * the comments of the climbs fragment (`001-schema.sql`: "(n/m) numbering", `nch sector --edit`, "or 005 by hand"): fragments are
-     never edited once a database has had them, so they go at the next squash; also `sector.name` null against '' (a schema
-     question).
 
 ## Larger changes (designs not started)
 
