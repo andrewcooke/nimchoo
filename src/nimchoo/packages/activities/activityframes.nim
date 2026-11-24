@@ -7,7 +7,8 @@
 ## drawn here with no more code.  The speed is drawn in km/h and the distance in km (`shownAs`); the distance is the
 ## device's, else the distance along the positions, and can be the x axis (`along`): the device's distance does not
 ## advance while the timer is off, so on that axis every break is a gap of no width.  The breaks themselves are a frame of
-## rules (`breaks`): a line across every panel where each began, by kind.
+## rules (`breaks`, `breakStyles`): a GPS error a red line; carried and manual bands, orange and green; a pause a grey
+## band darker the longer it is, with one ride ticked only.
 
 import std/[math, options, strutils, times]
 import ../../core/[errors, extension, ids]
@@ -146,11 +147,32 @@ proc makers(): array[ChannelKind, MakeActivityPlot] =
 
 const shownChannels = {chHeartRate} ## drawn unless told otherwise, with the altitude
 
+const breakStyles = block:
+  ## How each kind of break is drawn (the author, 2026-11-25): a GPS error a red line; carried orange and manual green,
+  ## bands over time; a pause grey, darker the longer it is (barely seen at 0 s, dark at a minute), and only with one ride
+  ## ticked: a pause may be noise, a light, or lunch, and with several rides whose it is could not be seen.
+  var styles: seq[RuleStyle]
+  for kind in BreakKind:
+    styles.add(
+      case kind
+      of bkError:
+        RuleStyle(series: $kind, colour: "#d62728")
+      of bkCarried:
+        RuleStyle(series: $kind, colour: "#ff7f0e", band: true)
+      of bkManual:
+        RuleStyle(series: $kind, colour: "#2ca02c", band: true)
+      of bkPause:
+        RuleStyle(
+          series: $kind, colour: "#333333", band: true, fadeToS: some(60.0), alone: true
+        )
+    )
+  styles
+
 proc makeBreaks*(
     st: Session, id: ActivityId
 ): PlotData {.nimcall, raises: [StoreError].} =
-  ## The breaks of the activity as rules: a series for each kind it has, in the order of `BreakKind` (which the page's
-  ## styles follow), each point a break's start with its length in seconds.
+  ## The breaks of the activity as rules: a series for each kind it has (drawn as `breakStyles` says), each point a
+  ## break's start with its length in seconds.
   let (_, breaks) = readBreaks(st.db, id)
   for kind in BreakKind:
     var points: seq[Point]
@@ -212,17 +234,13 @@ proc contributions*(): seq[Contribution] =
       subject: activitySubject.name,
       name: "breaks",
       summary:
-        "the breaks of the activity, a line across every panel where each began: manual, carried, pause, error (importer/stretch.nim)",
+        "the breaks of the activity across every panel: a GPS error a red line, carried orange, manual green, a pause grey and darker the longer (with one ride only)",
       shown: false,
       readsSelection: true,
       tables: @["activity", "ride_break"],
       unit: "s",
       mark: mkRule,
-      styles: block:
-        var names: seq[string]
-        for kind in BreakKind:
-          names.add $kind
-        names,
+      styles: breakStyles,
       axis: axActivity,
       makeActivity: makeBreaks,
     ),

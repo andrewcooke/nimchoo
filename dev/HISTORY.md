@@ -4,6 +4,18 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The breaks drawn by kind (2026-11-25, the author's look at El Toyo)
+
+A line where each break began left a gap with a line on its left and nothing on its right, and a 1 s break a line with no
+gap to see.  The author: a pause cannot be graded by its nature (noise, a light, a call of nature, lunch), so let its
+length grade it.  Now a frame of rules says how each series is drawn (`RuleStyle`: colour, band or line, darkness by
+length up to a number of seconds, drawn only when one thing is ticked), and the breaks are: a GPS error a red line;
+carried an orange band (a line over distance); manual a green one; a pause a grey band darker the longer, barely seen
+at 0 s and darkest at 60 s, and only with one ride ticked (with several, whose a pause is could not be seen; the author
+went further than showing them all in one colour).  The rides' palette lost orange, red, green and grey, so that no ride
+looks like a break (interim: an aesthetic rework is to come).  Checked with `plotcheck.js`: El Toyo's 87 pauses are grey
+bands of opacity 0.07 to 0.70, and gone with a second ride ticked.
+
 ## A place's name means the place the search finds something near (2026-11-25, the author's `--near toyo`)
 
 `nch activities --near toyo` failed: a name had to be whole ("El Toyo").  Now a place's name (in `--from`, `--near` of

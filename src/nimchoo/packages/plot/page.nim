@@ -6,7 +6,7 @@
 ## of one activity, the things to tick (each with its number, start and label), and the libraries.  The page knows no
 ## frame: it draws lines or bars, by what each frame says.
 
-import std/[json, strutils]
+import std/[json, options, strutils]
 import ../bundle/unpack
 import ../web/libraries
 import ../text/templating/templating
@@ -28,6 +28,17 @@ func axisName(a: Axis): string =
   case a
   of axDays: "days"
   of axActivity: "activity"
+
+func stylesJson(styles: seq[RuleStyle]): JsonNode =
+  result = newJArray()
+  for s in styles:
+    result.add %*{
+      "series": s.series,
+      "colour": s.colour,
+      "band": s.band,
+      "fadeToS": (if s.fadeToS.isSome: %s.fadeToS.get else: newJNull()),
+      "alone": s.alone,
+    }
 
 func scriptText(j: JsonNode): string =
   ## JSON to put in a script: the page ends at the first "</script".
@@ -51,7 +62,7 @@ proc renderPage*(
       "unit": f.unit,
       "mark": markName(f.mark),
       "along": f.axis == axActivity and f.along,
-      "styles": f.styles,
+      "styles": stylesJson(f.styles),
     }
   var things = newJArray()
   for p in picks:

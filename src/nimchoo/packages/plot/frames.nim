@@ -24,9 +24,9 @@ type
     mkLine ## a line through the points
     mkBar ## a bar for each point, a day wide (the point is the start of its day)
     mkRule
-      ## a vertical line at each point, across every panel (not a panel of its own): marks of a time (the breaks of a
-      ## ride); its series are styles, told apart by the order they come in (the first solid, then dashed ...), and a
-      ## point's value is said on hover
+      ## a mark at each point across every panel (not a panel of its own): the breaks of a ride.  A point's value is a
+      ## length in seconds; each series is drawn as the frame's `styles` say (a line, or on the time axis a band over
+      ## the length), and the value is said on hover
 
   Point* = tuple[t: int64, value: float] ## an instant (Unix seconds) and a value
 
@@ -61,6 +61,16 @@ type
     axDays ## days: made for a period of time
     axActivity ## the time of one activity: made for an activity
 
+  RuleStyle* = object ## How the points of one series of a frame of rules are drawn.
+    series*: string ## the series it is for ("pause")
+    colour*: string ## "#d62728"
+    band*: bool
+      ## over time, a band from the point for its value in seconds (else, and over distance, a line)
+    fadeToS*: Option[float]
+      ## its darkness grows with its value, to the full at this many seconds (a pause: barely seen at 0 s); none: full
+    alone*: bool
+      ## drawn only when one thing is ticked (with several, whose it is could not be seen)
+
   PlotFrame* = object
     subject*: string ## the subject it is a frame of ("ff")
     name*: string
@@ -71,9 +81,8 @@ type
     tables*: seq[string] ## the tables it reads
     unit*: string ## what its values are: the label of its axis
     mark*: Mark
-    styles*: seq[string]
-      ## for rules: the names of its series in the order the page styles them (solid, dashed, dotted ...), so that a name
-      ## has one style whichever of them a ride has
+    styles*: seq[RuleStyle]
+      ## for rules: how each series is drawn (a series with none is not)
     case axis*: Axis
     of axDays:
       make*: MakePlot

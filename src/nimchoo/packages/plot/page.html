@@ -44,7 +44,8 @@
   for (const [i, p] of picks.entries()) p.shown = i === 0;
   // each activity ticked keeps its colour while it is ticked: the first free one when it is ticked (so the ones shown are
   // the most distinct, and ticking another changes no colour already there)
-  const palette = d3.schemeTableau10;
+  // (without the colours of the breaks, orange, red, green and grey, so that no ride looks like one: interim, 2026-11-25)
+  const palette = ['#4e79a7', '#76b7b2', '#edc949', '#af7aa1', '#ff9da7', '#9c755f'];
   const colourOf = new Map();   // the label of a ticked activity -> its place in the palette
   function takeColour(p) {
     let i = 0;
@@ -111,20 +112,25 @@
     return ticks;
   }
 
-  // rules (the breaks of a ride): a line at each point across every panel, in its activity's colour, styled by its series
-  const dashes = ['', '6,3', '1,3', '8,3,2,3'];
+  // rules (the breaks of a ride): each series as its frame's style says, in every panel: over time a band for its length
+  // (from the point, its value in seconds) or a line; over distance a line; darker the longer, if the style fades; a style
+  // that is `alone` only when one thing is ticked
   const seconds = (v) => v < 60 ? Math.round(v) + ' s' : Math.floor(v / 60) + ' min ' + Math.round(v % 60) + ' s';
   function ruleMarks(rules) {
-    // (a mark for each style: Plot takes a dash pattern for a whole mark, not for each line)
-    return rules.flatMap(([f, points]) => f.styles.map((kind, i) => Plot.ruleX(
-      points.filter((d) => d.kind === kind && !Number.isNaN(d.x)), {
-        x: 'x', stroke: 'series', strokeWidth: 1, strokeOpacity: 0.8, strokeDasharray: dashes[i % dashes.length],
-        title: (d) => d.kind + ', ' + seconds(d.value) + '\n' + d.series
-      })));
+    const ticked = picks.filter((p) => p.shown).length;
+    return rules.flatMap(([f, points]) => f.styles.filter((st) => !st.alone || ticked <= 1).map((st) => {
+      const mine = points.filter((d) => d.kind === st.series && !Number.isNaN(d.x));
+      const opacity = st.fadeToS ? (d) => 0.06 + 0.64 * Math.min(1, d.value / st.fadeToS) : () => (st.band ? 0.3 : 1);
+      const title = (d) => d.kind + ', ' + seconds(d.value) + '\n' + d.series;
+      return st.band && !xFrame
+        ? Plot.rectX(mine, { x1: 'x', x2: (d) => d.x + d.value, fill: st.colour, fillOpacity: opacity, title })
+        : Plot.ruleX(mine, { x: 'x', stroke: st.colour, strokeWidth: 1.5, strokeOpacity: opacity, title });
+    }));
   }
   function ruleKey(rules) {
-    const names = ['solid', 'dashed', 'dotted', 'dash-dot'];
-    return rules.map(([f]) => ' ' + f.name + ': ' + f.styles.map((k, i) => k + ' ' + names[i % names.length]).join(', ')).join(';');
+    const ticked = picks.filter((p) => p.shown).length;
+    return rules.map(([f]) => ' ' + f.name + ': ' + f.styles.map((st) => st.series +
+      (st.alone && ticked > 1 ? ' (with one ride only)' : '')).join(', ')).join(';');
   }
 
   function marks(f, points) {

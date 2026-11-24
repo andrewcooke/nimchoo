@@ -1,7 +1,8 @@
 // Runs the page of `nch plot activity` (its script, with the real d3 7.9.0 and Observable Plot 0.6.17) in node with a stand-in
 // DOM (jsdom), answering its requests for frames from the CSV files given, and prints what it drew: the panels, the
 // colour of each line, the x axis.  Then it turns the wheel over a panel (zoom in), drags (move), double-clicks (all),
-// moves the pointer (the cursor line in every panel), ticks the breaks (rules, by dash), ticks the second activity (the
+// moves the pointer (the cursor line in every panel), ticks the breaks (bands and lines, by colour; pauses darker the
+// longer, and gone when a second ride is ticked), ticks the second activity (the
 // colours already there must not change), and chooses the distance as the x axis (whose box is then hidden).  Not part of `nimble test` (it needs packages that the project does not carry):
 //
 //     d=$(mktemp -d); (cd $d && npm i jsdom@24 d3@7.9.0 @observablehq/plot@0.6.17)
@@ -45,6 +46,18 @@ function report(when) {
   }
 }
 const later = (ms) => new Promise((done) => setTimeout(done, ms));
+// the breaks drawn in a panel: bands (rects) and lines (rules), by colour, with how many and their opacities
+function breaksIn(panel) {
+  const marks = [...panel.querySelectorAll('[aria-label="rect"] rect')].map((e) => ['band', e.closest('[fill]')?.getAttribute('fill'), +(e.getAttribute('fill-opacity') || e.closest('[fill-opacity]')?.getAttribute('fill-opacity') || 1)])
+    .concat([...panel.querySelectorAll('[aria-label="rule"] line')].map((e) => ['line', e.closest('[stroke]')?.getAttribute('stroke'), +(e.getAttribute('stroke-opacity') || e.closest('[stroke-opacity]')?.getAttribute('stroke-opacity') || 1)]));
+  const by = {};
+  for (const [what, colour, o] of marks) {
+    const k = what + ' ' + colour;
+    by[k] = by[k] || { n: 0, lo: 1, hi: 0 };
+    by[k].n++; by[k].lo = Math.min(by[k].lo, o); by[k].hi = Math.max(by[k].hi, o);
+  }
+  return Object.entries(by).map(([k, v]) => k + ' x' + v.n + ' (opacity ' + v.lo.toFixed(2) + '..' + v.hi.toFixed(2) + ')').join('; ') || 'none';
+}
 // (an error in the page's script, said in one line, not as the minified library around it)
 process.on('unhandledRejection', (e) => console.log('ERROR in the page: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ').slice(0, 400) : e)));
 w.addEventListener('error', (e) => console.log('ERROR in the page: ' + e.message));
@@ -75,10 +88,7 @@ w.addEventListener('error', (e) => console.log('ERROR in the page: ' + e.message
     box.dispatchEvent(new w.Event('change'));
     await later(1500);
     report('breaks ticked');
-    const rules = [...w.document.querySelector('.panel').querySelectorAll('[aria-label="rule"] line')];
-    const byDash = {};
-    for (const r of rules) { const k = r.closest('[stroke-dasharray]')?.getAttribute('stroke-dasharray') || 'solid'; byDash[k] = (byDash[k] || 0) + 1; }
-    console.log('  rules in the first panel, by dash: ' + JSON.stringify(byDash) + '; first title: ' + JSON.stringify((rules[0] && rules[0].querySelector('title') || {}).textContent));
+    console.log('  breaks in the first panel: ' + breaksIn(w.document.querySelector('.panel')));
     console.log('  the cursor after drawing again: ' + w.document.querySelector('.panel').cursor.getAttribute('visibility'));
   }
   const boxes = w.document.querySelectorAll('#picks input');
@@ -86,6 +96,7 @@ w.addEventListener('error', (e) => console.log('ERROR in the page: ' + e.message
   boxes[1].dispatchEvent(new w.Event('change'));
   await later(1500);
   report('the second ticked (the first keeps its colour)');
+  console.log('  breaks in the first panel: ' + breaksIn(w.document.querySelector('.panel')) + ' (pauses only with one ride)');
   const radios = w.document.querySelectorAll('#axis input');
   radios[1].checked = true;
   radios[1].dispatchEvent(new w.Event('change'));
