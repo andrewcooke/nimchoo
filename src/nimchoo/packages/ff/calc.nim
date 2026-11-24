@@ -4,7 +4,7 @@
 ## reading, a number from 1 to 6 (from the threshold heart rate and the zone edges); the zone
 ## between two readings is a straight line in time; the impulse of an instant is
 ## `((zone - zero) / (one - zero)) ^ gamma`, clipped at 0; and the impulse of a stretch of riding
-## (the importer's `segment`) is the integral of that over the time the readings cover, kept as one
+## (the importer's `readStretches`) is the integral of that over the time the readings cover, kept as one
 ## lump at its centre (the time weighted by the impulse).  Fitness and fatigue are then exact sums
 ## of decaying lumps: measured against an impulse worked out by the minute, the largest difference
 ## in a day-end's fatigue over the author's history is 0.1 (dev/ff.md).  Two readings further apart

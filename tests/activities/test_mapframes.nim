@@ -64,7 +64,7 @@ suite "activities frames: the routes":
       userId = bob,
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, 5000, 5010 from file"
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) select max(id), 0, 5000, 5010, 5000, 5010 from file"
     )
     s.db.execute(
       "insert into route(activity_id, geom) select max(id), GeomFromText('MULTILINESTRING((0 0, 1 1))', 4326) from activity"

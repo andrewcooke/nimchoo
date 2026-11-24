@@ -2,6 +2,8 @@ import std/[math, unittest]
 import nimchoo/packages/activities/activityframes
 import nimchoo/packages/channels/kinds
 import nimchoo/packages/plot/frames
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/stretch
 
 func shape(points: seq[Point]): seq[string] =
   ## each point as its time, or "|" where the line breaks
@@ -14,20 +16,31 @@ func shape(points: seq[Point]): seq[string] =
     )
 
 suite "activity: the frames of one activity":
-  test "a line breaks where the readings stop for more than pauseS, and only there":
+  test "a line breaks across a manual stop, a car and a pause; not at a GPS error":
+    func brk(a, b: int64, kind: BreakKind): Break =
+      Break(startT: UnixTime(a), endT: UnixTime(b), kind: kind)
     let points = @[
       (1'i64, 1.0),
       (2'i64, 1.0),
-      (12'i64, 1.0),
-      (12'i64 + pauseS + 1, 1.0),
-      (50'i64, 1.0),
+      (10'i64, 1.0),
+      (11'i64, 1.0),
+      (20'i64, 1.0),
+      (21'i64, 1.0),
+      (30'i64, 1.0),
+      (31'i64, 1.0),
+      (40'i64, 1.0),
     ]
-    check shape(breakAtPauses(points)) ==
-      @["1", "2", "12", "|", $(12 + pauseS + 1), "|", "50"]
-        # (10 s apart, as smart recording is: no break)
-    check shape(breakAtPauses(@[(1'i64, 1.0), (1'i64 + pauseS, 1.0)])) ==
-      @["1", $(1 + pauseS)]
-    check breakAtPauses(@[]).len == 0
+    let breaks = @[
+      brk(2, 10, bkPause),
+      brk(11, 20, bkManual),
+      brk(21, 30, bkCarried),
+      brk(30, 31, bkError),
+    ]
+    check shape(breakAt(points, breaks)) ==
+      @["1", "2", "|", "10", "11", "|", "20", "21", "|", "30", "31", "40"]
+    check shape(breakAt(points, @[])) ==
+      @["1", "2", "10", "11", "20", "21", "30", "31", "40"]
+    check breakAt(@[], breaks).len == 0
 
   test "a frame's name is the channel's as one word":
     check frameName(chHeartRate) == "heartrate"

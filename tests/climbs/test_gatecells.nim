@@ -19,7 +19,7 @@ proc addActivity(s: Session, sha: string): int64 =
     sha256 = sha,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, 0, 1 from file"
+    "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) select max(id), 0, 0, 1, 0, 1 from file"
   )
   s.db.scalar(int64, "select max(id) from activity")
 

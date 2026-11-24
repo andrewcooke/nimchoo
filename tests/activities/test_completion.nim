@@ -18,7 +18,7 @@ proc addActivity(s: Session, name: string, tags: varargs[string]) =
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, 0, 10)",
+    "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, 0, 0, 10, 0, 10)",
     fileId = f,
   )
   var ts: seq[Tag]

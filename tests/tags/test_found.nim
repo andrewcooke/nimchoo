@@ -28,7 +28,7 @@ proc world(name: string): Session =
       name = n,
     )
     result.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) select id, 0, 0, 10 from file where name = :name",
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) select id, 0, 0, 10, 0, 10 from file where name = :name",
       name = n,
     )
     let id = ActivityId(result.db.scalar(int64, "select max(id) from activity"))

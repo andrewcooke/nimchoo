@@ -12,7 +12,7 @@ import ../../core/errors
 import ../fit/model
 import ../util/profiling/profiling
 import ../util/warnings/warnings
-import ./[extract, route, series, visits]
+import ./[extract, route, series, stretch, visits]
 import ../user/session
 
 {.push raises: [].}
@@ -25,7 +25,7 @@ type
   ImportResult* = object
     outcome*: ImportOutcome
     fileId*: FileId ## the `file` row: the new one, or the one it duplicates
-    activities*, segments*, coords*: int ## rows written (0 if already imported)
+    activities*, stretches*, coords*: int ## written (0 if already imported)
     extras*: seq[ExtraCount] ## what the import steps wrote, in the order of the steps
     warnings*: seq[Warning] ## what the import steps noticed
 
@@ -43,15 +43,15 @@ proc insertActivity(
   st.bindReal(9, a.timerS)
   st.bindReal(10, a.distanceM)
   st.bindInt(11, a.calories)
+  st.bindInt(12, int64(a.riding.startT))
+  st.bindInt(13, int64(a.riding.endT))
   st.run()
 
-proc insertSegment(
-    st: Stmt, activityId: ActivityId, n: int, g: Segment
-) {.raises: [StoreError].} =
+proc insertBreak(st: Stmt, activityId: ActivityId, b: Break) {.raises: [StoreError].} =
   st.bindInt(1, activityId)
-  st.bindInt(2, int64(n))
-  st.bindInt(3, int64(g.startT))
-  st.bindInt(4, int64(g.endT))
+  st.bindInt(2, int64(b.startT))
+  st.bindInt(3, int64(b.endT))
+  st.bindText(4, $b.kind)
   st.run()
 
 proc insertVisits(
@@ -145,11 +145,12 @@ proc writeDecoded*(
       s.db,
       "insert into activity(file_id, session, " &
         "start_epoch, end_epoch, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
-        "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "distance_m, calories, riding_start_epoch, riding_end_epoch) " &
+        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    let segStmt = prepareStmt(
+    let breakStmt = prepareStmt(
       s.db,
-      "insert into segment(activity_id, n, start_epoch, end_epoch) values (?, ?, ?, ?)",
+      "insert into ride_break(activity_id, start_epoch, end_epoch, kind) values (?, ?, ?, ?)",
     )
     let routeStmt = prepareStmt(
       s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
@@ -169,9 +170,9 @@ proc writeDecoded*(
       timed "insert activity":
         insertActivity(actStmt, fileId, a)
         activityId = ActivityId(lastInsertId(s.db))
-      timed "insert segments":
-        for n, g in a.segments:
-          insertSegment(segStmt, activityId, n, g)
+      timed "insert breaks":
+        for b in a.breaks:
+          insertBreak(breakStmt, activityId, b)
       if a.coords.len > 0:
         timed "insert track":
           let arrays = encodePositions(a.coords)
@@ -202,7 +203,7 @@ proc writeDecoded*(
           result.extras[i].n +=
             step.write(s.db, activityId, a.samples, labels, result.warnings)
       inc result.activities
-      result.segments += a.segments.len
+      result.stretches += a.stretches.len
       result.coords += a.coords.len
     timed "commit":
       s.commit()

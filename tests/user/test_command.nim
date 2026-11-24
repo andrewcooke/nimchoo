@@ -203,7 +203,7 @@ suite "nch users":
         sha256 = $i,
       )
       s.db.execute(
-        "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, 0, 1)",
+        "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, 0, 0, 1, 0, 1)",
         fileId = i,
       )
     s.close()

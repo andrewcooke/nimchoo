@@ -1,5 +1,5 @@
 ## Mutation fuzzing of the importer's reader: damage real files at random (the mutations of tests/support/fitmutate.nim,
-## as for `nch fit`); `readActivities` does the arithmetic on times and positions (sessions, timer segments, stretches),
+## as for `nch fit`); `readActivities` does the arithmetic on times and positions (sessions, timer segments, breaks),
 ## and must end in success, a FitError or an ImportError, never in anything else.  What it reads then goes on through
 ## what the import makes from it before the database (`intoArrays`: the arrays, the cells, the route, the channels),
 ## whose checks are Defects: the reader must give them only what they can hold.  Fixed seed; a failing input is saved.

@@ -78,7 +78,8 @@ suite "query plans: no query reads a whole table":
       ("is the file known", knownFileSql),
       ("the positions of an activity", track.headSql),
       ("the arrays of the positions", track.arraysSql),
-      ("the stretches of an activity", segmentsSql),
+      ("the riding of an activity", ridingSql),
+      ("the breaks of an activity", breaksSql),
       (
         "the selection of a user",
         "select activity_id from activity_selection where user_id = ?",

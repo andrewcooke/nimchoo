@@ -10,7 +10,14 @@ import db_connector/db_sqlite
 import nimchoo/core/[errors, ids]
 import nimchoo/packages/db/statement
 import nimchoo/packages/channels/[kinds, stored]
-import nimchoo/packages/importer/[track, visits]
+import nimchoo/packages/importer/[stretch, track, visits]
+
+const stretchKinds = block:
+  ## the kinds of break that end a stretch, as an SQL list: `('manual', 'carried', 'error')`
+  var names: seq[string]
+  for k in stretchBreaks:
+    names.add "'" & $k & "'"
+  "(" & names.join(", ") & ")"
 
 type Invariant* = object
   name*: string
@@ -22,8 +29,11 @@ const allInvariants* = [
     name: "every effort lies within one stretch of riding of its activity",
     offenders:
       "select e.activity_id || ' sector ' || e.sector_id || ' at ' || e.start_epoch from effort e " &
-      "where not exists (select 1 from segment s where s.activity_id = e.activity_id " &
-      "and s.start_epoch <= e.start_epoch and e.finish_epoch <= s.end_epoch)",
+      "join activity a on a.id = e.activity_id " &
+      "where e.start_epoch < a.riding_start_epoch or e.finish_epoch > a.riding_end_epoch " &
+      "or exists (select 1 from ride_break b where b.activity_id = e.activity_id and b.kind in " &
+      stretchKinds &
+      " and b.start_epoch < e.finish_epoch and b.end_epoch > e.start_epoch)",
   ),
   Invariant(
     name: "an effort starts before it finishes, and elapsed is the difference",
@@ -32,17 +42,22 @@ const allInvariants* = [
       "where finish_epoch <= start_epoch or abs(elapsed_s - (finish_epoch - start_epoch)) > 0.001",
   ),
   Invariant(
-    name: "the stretches of an activity are in order and disjoint",
+    name:
+      "the breaks of an activity have a length, do not overlap, and are of a known kind",
     offenders:
-      "select a.activity_id || ' segment ' || a.n from segment a " &
-      "left join segment b on b.activity_id = a.activity_id and b.n = a.n + 1 " &
-      "where a.end_epoch < a.start_epoch or (b.n is not null and b.start_epoch < a.end_epoch)",
+      "select a.activity_id || ' break at ' || a.start_epoch from ride_break a " &
+      "where a.end_epoch <= a.start_epoch or a.kind not in ('manual', 'carried', 'pause', 'error') " &
+      "or exists (select 1 from ride_break b where b.activity_id = a.activity_id " &
+      "and b.start_epoch > a.start_epoch and b.start_epoch < a.end_epoch)",
   ),
   Invariant(
-    name: "the stretches of an activity lie within the activity",
+    name: "the breaks lie within the riding, and the riding within the activity",
     offenders:
-      "select s.activity_id || ' segment ' || s.n from segment s join activity a on a.id = s.activity_id " &
-      "where s.start_epoch < a.start_epoch or s.end_epoch > a.end_epoch",
+      "select cast(a.id as text) from activity a " &
+      "where a.riding_start_epoch > a.riding_end_epoch " &
+      "or a.riding_start_epoch < a.start_epoch or a.riding_end_epoch > a.end_epoch " &
+      "or exists (select 1 from ride_break b where b.activity_id = a.id " &
+      "and (b.start_epoch < a.riding_start_epoch or b.end_epoch > a.riding_end_epoch))",
   ),
   Invariant(
     name: "the positions of an activity lie within the activity",

@@ -313,7 +313,7 @@ a subject adds the steps of its selection (`subject/steps`) to the same parse: t
   (or fatigue, form) shades the days by the first selected model's (`calendarshades.nim`).  The built-in models are selected for every user from the start (a
   trigger on `user`, and the seed).
 * **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
-  stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
+  stretch of riding (the importer's `readStretches`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
   `impulse`).  They are worked out when a view needs them, and deleted when the FTHR they were worked out with changes (a
   trigger of the table) or an edit changes what the model makes of the heart rate, so they are worked out again.  The
   patterns choose which impulses count (`impulses.userLumps`), so changing them changes no impulse.
@@ -357,7 +357,10 @@ metres is at a latitude.  One function for each, written here, is what SQL uses 
       doc:
         """Putting the activities of FIT files into the database, and describing them.
 
-This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
+This package owns the tables `file`, `activity`, `track`, `ride_break`, `route`, `route_cell` and `seen_file`.  An
+activity's riding is cut by its breaks, each of a kind (`stretch.nim`: manual, carried, pause, error), and each user takes
+the kinds it needs: the stretches of riding (`track.readStretches`, for the climbs and the impulses) end at manual,
+carried and error.  Per-second data is kept per
 activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the other fields of the records, heart rate, speed ..., are in `channels`); other data refers to it by time and never by array index, and the arrays are never changed once
 written.
 

@@ -80,7 +80,7 @@ proc ensureActivityNames*(
   let todo = pending(st)
   result.total = todo.len
   # the route of an activity is read as the stored geometry (one blob), not as a row for each position; an activity with no
-  # route (no segment had two points) is read from its positions
+  # route (no stretch had two points) is read from its positions
   let routeOf =
     prepareStmt(st.db, "select AsBinary(geom) from route where activity_id = ?")
   for k, id in todo:

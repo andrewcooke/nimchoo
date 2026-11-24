@@ -56,7 +56,7 @@ a plot of one activity's channels against time or distance, the channels stacked
 
 7. **pauses are gaps on the time axis** (decided 2026-11-25: ugly but honest); on the distance axis they vanish by
    themselves.  which gaps: the import's kinds of break (step 1b); until then a line breaks where readings are more than
-   15 s apart (`activityframes.pauseS`, temporary).  not at the stretches of `segment`: they join the pauses the device
+   15 s apart (`activityframes.pauseS`, a stopgap, gone with 1b).  not at the stretches: they join the pauses the device
    makes (for the climbs), so a 10-minute café stop was a straight line.
 8. **several activities selected: chosen on the page** (decided 2026-11-25; the use: the selection holds every ride to
    Farellones, compare any two).  the page lists the selected activities (date and name), a box each, the newest ticked
@@ -115,8 +115,8 @@ on the plot.
    hand"); and `sector.name` null against '': kept (the author, 2026-11-25: null is "not looked at yet", '' is "looked, nothing to
    call it", two meanings each written one way; the rule against "" is against two ways of writing one meaning).  not in it: `sport` and `sub_sport` going (TODO.md).
 1. the channels package, heart rate moved into it (`heartrate` goes).  done 2026-11-25 (dev/HISTORY.md).
-1b. **the breaks of a ride, with their kind, stored at import** (decided 2026-11-25, revised the same day).  one table,
-   `ride_break(activity_id, start_epoch, end_epoch, kind)` (name open), and each user breaks at the kinds it needs:
+1b. **the breaks of a ride, with their kind, stored at import** (decided 2026-11-25, revised the same day; done
+   2026-11-25, dev/HISTORY.md).  one table, `ride_break(activity_id, start_epoch, end_epoch, kind)`, and each user breaks at the kinds it needs:
 
    | kind | what happened | climbs, the route | time plot | distance plot |
    |---|---|---|---|---|

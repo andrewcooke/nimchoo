@@ -67,7 +67,7 @@ suite "import events: a run":
     check evs[1].startPath == d / "a.fit"
     check evs[2].index == 1
     check evs[2].outcome == oImported
-    check evs[2].counts == Counts(activities: 1, segments: 1, coords: 1)
+    check evs[2].counts == Counts(activities: 1, stretches: 1, coords: 1)
     check evs[4].index == 2
     check evs[5].summary == sum
     check sum.total == 2
@@ -209,11 +209,11 @@ suite "import events: sinks":
         1,
         "p.fit",
         o,
-        counts = Counts(activities: 1, segments: 2, coords: 3),
+        counts = Counts(activities: 1, stretches: 2, coords: 3),
         message = msg,
       )
     check plainLines(done(oImported), false).stdout.texts ==
-      @["imported  p.fit  (1 activity, 2 segments, 3 coordinates)"]
+      @["imported  p.fit  (1 activity, 2 stretches, 3 coordinates)"]
     check plainLines(done(oDuplicate), false).stdout.texts ==
       @["duplicate p.fit  (already imported)"]
     let same = fileDoneEvent(1, "p.fit", oDuplicate, sameAs = "q/p.fit")

@@ -95,7 +95,7 @@ proc makeForm(st: Session, period: Period): PlotData {.nimcall, raises: [StoreEr
 
 const read = @[
   "activity", "activity_tag", "ff_model", "ff_model_pattern", "file", "channel_series",
-  "impulse", "model_selection", "segment", "user_profile",
+  "impulse", "model_selection", "ride_break", "user_profile",
 ]
 
 proc frame(name, summary: string, make: MakePlot): PlotFrame =

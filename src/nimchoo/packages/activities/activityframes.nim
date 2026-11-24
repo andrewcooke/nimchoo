@@ -1,9 +1,9 @@
 ## The inside of an activity, as a subject (`activity`, beside `activities`): its altitude and its channels (heart rate,
 ## speed, ...) over its own time, offered to `plot/frames` on the axis of one activity.  The things to show are the selected
 ## activities, one by one (`pickActivities`, the newest first): the page ticks the newest, and overlays those ticked, each
-## from its start.  A line breaks wherever the readings stop for more than `pauseS` (a pause: the device records nothing
-## while it is paused), so that a pause is a gap.  (Not at the stretches of `segment`: they join a pause the device made by
-## itself, on purpose, for the climbs.)  A frame is made for each channel of the list (`channels/kinds.nim`), so a channel added there is
+## from its start.  A line breaks at the ride's breaks of the kinds over time (`timeBreaks`: manual, carried, pause, as
+## the import stored them in `ride_break`), so that a pause is a gap; not at a blink (noise) nor at a GPS error (nothing
+## is missing in time).  A frame is made for each channel of the list (`channels/kinds.nim`), so a channel added there is
 ## drawn here with no more code.
 
 import std/[math, options, strutils, times]
@@ -11,7 +11,7 @@ import ../../core/[errors, extension, ids]
 import ../channels/[kinds, stored]
 import ../db/statement
 import ../fit/time
-import ../importer/[describe, track]
+import ../importer/[describe, stretch, track]
 import ../plot/frames
 import ../selection/selection
 import ../subject/subjects
@@ -48,23 +48,29 @@ const activitySubject* = Subject(
   pick: some[PickList](pickActivities),
 )
 
-const pauseS* = 15
-  ## readings further apart than this are either side of a pause, and the line breaks between them.  **Temporary**: it is
-  ## replaced by the pauses the import stores (step 1b of dev/plot-activity.md: `timer_gap`, a pause the device made).  A
-  ## device recording every second has no gap while it moves; one on "smart recording" (Garmin's) has gaps of up to about
-  ## 10 s (dev/plot-activity.md), which must not break it.
-
-func breakAtPauses*(points: seq[Point]): seq[Point] =
-  ## The points with a NaN between two that are more than `pauseS` apart, so that the line breaks across a pause.  In time
-  ## order.
+func breakAt*(points: seq[Point], breaks: seq[Break]): seq[Point] =
+  ## The points with a NaN between two that have a break of `timeBreaks` between them (nothing was recorded there), so
+  ## that the line breaks.  Both in time order.
+  var k = 0
   for i, (t, v) in points:
-    if i > 0 and t - points[i - 1][0] > pauseS:
-      result.add (t, NaN)
+    if i > 0:
+      let before = points[i - 1][0]
+      while k < breaks.len and int64(breaks[k].endT) <= before:
+        inc k
+      var j = k
+      while j < breaks.len and int64(breaks[j].startT) < t:
+        if breaks[j].kind in timeBreaks:
+          result.add (t, NaN)
+          break
+        inc j
     result.add (t, v)
 
-proc seriesOf(points: seq[Point]): PlotData =
+proc seriesOf(
+    st: Session, id: ActivityId, points: seq[Point]
+): PlotData {.raises: [StoreError].} =
   if points.len > 0:
-    result.series.add Series(name: "default", points: breakAtPauses(points))
+    let (_, breaks) = readBreaks(st.db, id)
+    result.series.add Series(name: "default", points: breakAt(points, breaks))
 
 proc makeAltitude(
     st: Session, id: ActivityId
@@ -73,14 +79,14 @@ proc makeAltitude(
   for c in readPositions(st.db, id):
     if c.alt.isSome:
       points.add (int64(c.t), c.alt.get)
-  seriesOf(points)
+  seriesOf(st, id, points)
 
 template channelMaker(ch: ChannelKind): MakeActivityPlot =
   proc(st: Session, id: ActivityId): PlotData {.nimcall, raises: [StoreError].} =
     var points: seq[Point]
     for (t, v) in readChannel(st.db, id, ch):
       points.add (int64(t), v)
-    seriesOf(points)
+    seriesOf(st, id, points)
 
 proc makers(): array[ChannelKind, MakeActivityPlot] =
   for ch in ChannelKind:
@@ -117,7 +123,7 @@ proc contributions*(): seq[Contribution] =
       summary: "the altitude of the activity (from its positions, after cleaning)",
       shown: true,
       readsSelection: true,
-      tables: @["track"],
+      tables: @["activity", "ride_break", "track"],
       unit: "m",
       mark: mkLine,
       axis: axActivity,
@@ -135,7 +141,7 @@ proc contributions*(): seq[Contribution] =
         summary: "the " & s.title & " of the activity, as the device recorded it",
         shown: ch in shownChannels,
         readsSelection: true,
-        tables: @["channel_series"],
+        tables: @["activity", "channel_series", "ride_break"],
         unit: s.unit,
         mark: mkLine,
         axis: axActivity,

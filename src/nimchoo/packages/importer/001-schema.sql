@@ -33,6 +33,10 @@ create table activity (
   start_place text,
   name text,
   start_point blob,          -- see below
+  -- The riding: from the first start of the timer to its last stop, without the empty bits at either end (importer/
+  -- extract.nim).  The stretches of riding are the riding cut at its breaks (`ride_break`).
+  riding_start_epoch integer not null,
+  riding_end_epoch integer not null,
   unique (file_id, session)) strict;
 -- Where the activity started (its first position), for "starts near here".  NULL if the file
 -- has no positions.  Written when the activity is imported.
@@ -53,21 +57,23 @@ create table track (
   lat_semi blob not null,
   alt_fit blob not null) strict;
 
--- The stretches of riding of an activity: the times the timer ran (between a timer start and the
--- next stop), with those the device paused by itself and the rider hardly left joined across the
--- pause (importer/stretch.nim).  A stretch is what the climbs are looked for in, so an effort lies
--- within one.  Intervals on the activity's time axis: samples do not refer to them.  Segments of
--- an activity are disjoint and in time order.
-create table segment (
+-- The breaks of an activity's riding, each with its kind (importer/stretch.nim, `BreakKind`): 'manual' (the rider
+-- stopped the timer), 'carried' (a car, a train), 'pause' (the device paused and the rider stayed put) and 'error' (the
+-- GPS jumped and never came back: no time is missing).  A blink of the timer is no break and is not here.  Each user
+-- takes the kinds it needs: the stretches of riding (in which climbs are looked for, so an effort lies within one; the
+-- impulses; the route's parts) are the riding cut at 'manual', 'carried' and 'error'; a plot over time breaks at
+-- 'manual', 'carried' and 'pause'.  Intervals on the activity's time axis: samples do not refer to them.  Written at
+-- import, in time order, inside the riding.
+create table ride_break (
   activity_id integer not null references activity(id) on delete cascade,
-  n integer not null,
-  start_epoch integer not null,
-  end_epoch integer not null,
-  primary key (activity_id, n)) strict, without rowid;
+  start_epoch integer not null,   -- the end of the stretch before
+  end_epoch integer not null,     -- the start of the one after
+  kind text not null,             -- its name in BreakKind: 'manual', 'carried', 'pause', 'error'
+  primary key (activity_id, start_epoch, kind)) strict, without rowid;
 
--- The route of an activity as one geometry, a part for each segment, so that
+-- The route of an activity as one geometry, a part for each stretch of riding, so that
 -- "passes near here", GeoJSON and GPX are queries and not scans of the positions.  Derived from
--- the positions and the segments when the activity is imported, in the same transaction.  Parts of
+-- the positions and the stretches when the activity is imported, in the same transaction.  Parts of
 -- fewer than two points are left out, and an activity with no part has no row.  (SpatiaLite
 -- cannot put geometry on WITHOUT ROWID tables, so this is an ordinary table.)
 create table route (

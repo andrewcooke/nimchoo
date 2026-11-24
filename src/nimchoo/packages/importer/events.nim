@@ -20,7 +20,7 @@ type
     oFailed ## failed now
 
   Counts* = object
-    activities*, segments*, coords*: int
+    activities*, stretches*, coords*: int
     extras*: seq[ExtraCount] ## what modules' import steps wrote
 
   Summary* = object ## Totals so far, or at the end.

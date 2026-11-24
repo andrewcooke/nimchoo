@@ -37,7 +37,7 @@ func logEntries*(ev: ImportEvent): seq[Entry] =
         lvInfo,
         leImported,
         ev.path & "  " & counted(ev.counts.activities, "activity", "activities") & ", " &
-          counted(ev.counts.segments, "segment", "segments") & ", " &
+          counted(ev.counts.stretches, "stretch", "stretches") & ", " &
           counted(ev.counts.coords, "coordinate", "coordinates") & extrasText(ev.counts),
       )
     of oDuplicate:

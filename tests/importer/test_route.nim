@@ -3,7 +3,7 @@ import nimchoo/packages/db/statement
 import nimchoo/packages/user/session
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/extract
-import nimchoo/packages/importer/route
+import nimchoo/packages/importer/[coord, route, stretch]
 from nimchoo/registry import allFragments, allAccess, newAllAccess
 
 func coord(t: int64, lon, lat: float): Coord =
@@ -35,29 +35,37 @@ proc lines(wkb: string): seq[seq[(float, float)]] =
     result.add pts
   doAssert pos == wkb.len
 
+func ride(coords: seq[Coord], stretches: varargs[(int, int)]): ActivityData =
+  ## An activity with these coordinates whose riding is these stretches (stopped by hand between them).
+  result.coords = coords
+  result.riding =
+    Span(startT: UnixTime(stretches[0][0]), endT: UnixTime(stretches[^1][1]))
+  for k in 1 ..< stretches.len:
+    result.breaks.add Break(
+      startT: UnixTime(stretches[k - 1][1]),
+      endT: UnixTime(stretches[k][0]),
+      kind: bkManual,
+    )
+
 suite "route: the geometry bytes":
-  test "a part for each segment, in order":
-    let a = ActivityData(
-      coords: @[
+  test "a part for each stretch, in order":
+    let a = ride(
+      @[
         coord(1, 1.5, 2.5), coord(2, 1.6, 2.6), coord(10, 3.0, 4.0), coord(11, 3.1, 4.1)
       ],
-      segments: @[
-        Segment(startT: UnixTime(1), endT: UnixTime(2)),
-        Segment(startT: UnixTime(10), endT: UnixTime(11)),
-      ],
+      (1, 2),
+      (10, 11),
     )
     check routeWkb(a).get.lines ==
       @[@[(1.5, 2.5), (1.6, 2.6)], @[(3.0, 4.0), (3.1, 4.1)]]
 
   test "the points are read back, parts one after the other; anything else gives none":
-    let a = ActivityData(
-      coords: @[
+    let a = ride(
+      @[
         coord(1, 1.5, 2.5), coord(2, 1.6, 2.6), coord(10, 3.0, 4.0), coord(11, 3.1, 4.1)
       ],
-      segments: @[
-        Segment(startT: UnixTime(1), endT: UnixTime(2)),
-        Segment(startT: UnixTime(10), endT: UnixTime(11)),
-      ],
+      (1, 2),
+      (10, 11),
     )
     let p = routeParts(routeWkb(a).get)
     check p.len == 2
@@ -66,10 +74,7 @@ suite "route: the geometry bytes":
     check routeParts("").len == 0 and routeParts("nonsense bytes").len == 0
     check routeParts(routeWkb(a).get[0 ..< 30]).len < 2 # (cut short: no crash)
   test "the bytes are the standard ones: byte order, type, counts, then longitude and latitude as doubles":
-    let a = ActivityData(
-      coords: @[coord(1, 1.0, 2.0), coord(2, 3.0, 4.0)],
-      segments: @[Segment(startT: UnixTime(1), endT: UnixTime(2))],
-    )
+    let a = ride(@[coord(1, 1.0, 2.0), coord(2, 3.0, 4.0)], (1, 2))
     let w = routeWkb(a).get
     check w.len == 9 + 9 + 2 * 16
     check w[0 .. 8] == "\x01\x05\x00\x00\x00\x01\x00\x00\x00"
@@ -80,37 +85,22 @@ suite "route: the geometry bytes":
       # 1.0 as an IEEE double, least significant byte first
     check w[34 .. 41] == "\x00\x00\x00\x00\x00\x00\x08\x40" # 3.0
 
-  test "a segment with fewer than two points leaves no part":
-    let a = ActivityData(
-      coords: @[coord(1, 1.0, 2.0), coord(5, 3.0, 4.0), coord(6, 3.5, 4.5)],
-      segments: @[
-        Segment(startT: UnixTime(1), endT: UnixTime(1)),
-        Segment(startT: UnixTime(5), endT: UnixTime(6)),
-      ],
+  test "a stretch with fewer than two points leaves no part":
+    let a = ride(
+      @[coord(1, 1.0, 2.0), coord(5, 3.0, 4.0), coord(6, 3.5, 4.5)], (1, 1), (5, 6)
     )
     check routeWkb(a).get.lines == @[@[(3.0, 4.0), (3.5, 4.5)]]
 
   test "no part at all, no route":
     check routeWkb(ActivityData()).isNone
-    check routeWkb(
-      ActivityData(
-        coords: @[coord(1, 1.0, 2.0)],
-        segments: @[Segment(startT: UnixTime(1), endT: UnixTime(1))],
-      )
-    ).isNone
+    check routeWkb(ride(@[coord(1, 1.0, 2.0)], (1, 1))).isNone
 
   test "negative coordinates, and every digit of them":
-    let a = ActivityData(
-      coords: @[coord(1, -9.14159265358979, 38.72), coord(2, -9.1, 38.75)],
-      segments: @[Segment(startT: UnixTime(1), endT: UnixTime(2))],
-    )
+    let a = ride(@[coord(1, -9.14159265358979, 38.72), coord(2, -9.1, 38.75)], (1, 2))
     check routeWkb(a).get.lines == @[@[(-9.14159265358979, 38.72), (-9.1, 38.75)]]
 
-  test "coordinates before the first segment are left out":
-    let a = ActivityData(
-      coords: @[coord(1, 9.0, 9.0), coord(5, 3.0, 4.0), coord(6, 3.5, 4.5)],
-      segments: @[Segment(startT: UnixTime(5), endT: UnixTime(6))],
-    )
+  test "coordinates before the first stretch are left out":
+    let a = ride(@[coord(1, 9.0, 9.0), coord(5, 3.0, 4.0), coord(6, 3.5, 4.5)], (5, 6))
     check routeWkb(a).get.lines == @[@[(3.0, 4.0), (3.5, 4.5)]]
 
 suite "route: in the database":
@@ -128,7 +118,7 @@ suite "route: in the database":
       "insert into file(user_id, name, sha256, imported_epoch) values (1, 'f', 'x', 0)"
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 0, 10)"
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (1, 0, 0, 10, 0, 10)"
     )
     s.db.execute(
       """insert into route(activity_id, geom) values (1,
@@ -145,24 +135,22 @@ suite "route: in the database":
     let s = store("wkb")
     defer:
       s.close()
-    let a = ActivityData(
-      coords: @[
+    let a = ride(
+      @[
         coord(1, -9.14, 38.72),
         coord(2, -9.10, 38.75),
         coord(3, -9.00, 38.80),
         coord(10, 2.35, 48.85),
         coord(11, 2.40, 48.90),
       ],
-      segments: @[
-        Segment(startT: UnixTime(1), endT: UnixTime(3)),
-        Segment(startT: UnixTime(10), endT: UnixTime(11)),
-      ],
+      (1, 3),
+      (10, 11),
     )
     s.db.execute(
       "insert into file(user_id, name, sha256, imported_epoch) values (1, 'f', 'x', 0)"
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 0, 20)"
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (1, 0, 0, 20, 0, 20)"
     )
     let st = prepareStmt(
       s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
@@ -192,7 +180,7 @@ suite "route: in the database":
       "insert into file(user_id, name, sha256, imported_epoch) values (1, 'f', 'x', 0)"
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 0, 10)"
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (1, 0, 0, 10, 0, 10)"
     )
     s.db.execute(
       """insert into route(activity_id, geom) values (1,

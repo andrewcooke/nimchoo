@@ -1,4 +1,4 @@
-## The profile of one stretch of a ride (a timer segment) as the climb detector wants it: the
+## The profile of one stretch of a ride (a stretch of riding) as the climb detector wants it: the
 ## altitude at even steps of distance along the ground, as the device recorded it.  Nothing is smoothed: the altitude
 ## of a bike computer is barometric and clean (the old choochoo did not smooth it either: it smoothed only the heights
 ## taken from a terrain model).

@@ -28,7 +28,7 @@ proc addActivity(
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, :startT, :endT)",
+    "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, 0, :startT, :endT, :startT, :endT)",
     fileId = f,
     startT = startT,
     endT = startT + 10000,
@@ -129,7 +129,7 @@ suite "import: naming the activities":
       userId = u,
     )
     w.st.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 1, 2)"
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (1, 0, 1, 2, 1, 2)"
     )
     check ensureActivityNames(w.st, w.names).nothing == 1
     check w.st.db.scalar(string, "select coalesce(name, '-') from activity") == ""

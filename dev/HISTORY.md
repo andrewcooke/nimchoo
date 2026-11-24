@@ -4,6 +4,27 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The breaks of a ride, with their kind (2026-11-25, step 1b of dev/plot-activity.md)
+
+The import kept only the stretches of riding (`segment`): the gaps of the timer it joined (a pause where the rider stayed
+put, a blink) were gone, so a plot over time could not show a café stop.  Now it keeps every break with its kind
+(`ride_break`; `importer/stretch.nim`, `BreakKind`): `manual` (stopped by hand, or the file does not say), `carried` (too
+far or too fast: a car, a train), `pause` (the device paused and the rider stayed within 30 m; or auto-stopped in a ride
+with no positions: a trainer), `error` (a GPS jump that never came back: no time missing); a blink is noise and not kept
+(the author).  The riding's edges are on `activity` (`riding_start_epoch`, `riding_end_epoch`), and the stretches are
+the riding cut at `manual`, `carried` and `error` (`stretchesOf`, read by `track.readStretches`: the climbs, the impulses,
+the route's parts); a plot over time breaks at `manual`, `carried` and `pause`, and the 15 s stopgap went.  The rule
+(`joinable`) became `kindOf`; `joinStretches` and `splitAt` became `breaksOf`, which also drops the timer's empty bits at
+either end of a ride (pieces with no position: 414 stretches under 10 s in the author's data, most the first, the timer
+started before a fix).  A table of pauses beside `segment` was proposed and rejected by the author as a bodge (it keeps one
+kind and leaves the others implicit).  Compared on the author's 1,117 rides, a build before against one after: the same
+184 climbs and the same 4,534 efforts (by ride, start, finish, climb); the impulses' total the same (172,476.435) in 1,295
+rows where there were 1,731 (the empty bits held none); stretches 2,216 to 1,456 (742 activities the same, 370 only lost
+empty bits, the other 4 are the rides with no GPS, now one stretch with pauses).  Breaks stored: 55,053 pauses, 284
+carried, 55 manual, 1 error.  El Toyo's line breaks at its 87 pauses (the 15 s rule found 55).  All 14 invariants hold
+(those on stretches restated over the riding and its breaks).  Squashed into the importer's 001 (new `not null` columns).
+The import's log says "stretches" where it said "segments".  Rebuild: yes.
+
 ## The plot of one activity (2026-11-25, step 2 of dev/plot-activity.md)
 
 `nch plot activity`: the altitude and channels of the selected rides over their own time.  A plot frame now says its

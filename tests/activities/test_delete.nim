@@ -39,7 +39,7 @@ proc extra(s: Session, tag: string, session, startT: int, sport = "") =
   ## A second activity (another session) in the file `tag`.
   let f = s.db.scalar(int64, "select id from file where name = :name", name = tag)
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch, sport) values (:fileId, :session, :startT, :endT, nullif(:sport, ''))",
+    "insert into activity(file_id, session, start_epoch, end_epoch, sport, riding_start_epoch, riding_end_epoch) values (:fileId, :session, :startT, :endT, nullif(:sport, ''), :startT, :endT)",
     fileId = f,
     session = session,
     startT = startT,
@@ -133,7 +133,7 @@ suite "delete: the command":
     defer:
       after.close()
     for t in [
-      "activity", "track", "segment", "activity_selection", "effort", "climbs_done",
+      "activity", "track", "ride_break", "activity_selection", "effort", "climbs_done",
       "file", "seen_file",
     ]:
       check after.count(t) == 0

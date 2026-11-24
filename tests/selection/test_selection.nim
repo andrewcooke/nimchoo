@@ -20,7 +20,7 @@ proc add(s: Session, sha: string, session = 0) =
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, :session, 0, 1)",
+    "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, :session, 0, 1, 0, 1)",
     fileId = f,
     session = session,
   )

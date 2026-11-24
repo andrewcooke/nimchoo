@@ -42,7 +42,7 @@ func done(o: Outcome): ImportEvent =
     1,
     "p.fit",
     o,
-    counts = Counts(activities: 1, segments: 2, coords: 3),
+    counts = Counts(activities: 1, stretches: 2, coords: 3),
     failure = fkNoActivity,
     message = "why",
   )
@@ -66,7 +66,7 @@ suite "import log: entries":
         Entry(
           level: lvInfo,
           event: leImported,
-          text: "p.fit  1 activity, 2 segments, 3 coordinates",
+          text: "p.fit  1 activity, 2 stretches, 3 coordinates",
         )
       ]
     check logEntries(done(oDuplicate)) ==

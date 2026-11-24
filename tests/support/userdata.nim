@@ -31,16 +31,12 @@ proc fill*(s: Session, tag: string) =
     sha256 = tag,
   )
   s.db.execute(
-    """insert into activity(file_id, session, start_epoch, end_epoch)
-                  values (:fileId, 0, 0, 10)""",
+    """insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch)
+                  values (:fileId, 0, 0, 10, 0, 10)""",
     fileId = f,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   s.db.putTrack(a, @[Coord(t: UnixTime(5), lon: 1.0, lat: 2.0)])
-  s.db.execute(
-    "insert into segment(activity_id, n, start_epoch, end_epoch) values (:activityId, 1, 0, 10)",
-    activityId = a,
-  )
   s.db.execute(
     "insert into seen_file(user_id, path, size, modified_epoch, file_id) values (:userId, :path, 1, 1, :fileId)",
     userId = u,
@@ -68,5 +64,4 @@ proc addUser*(path, name: string) =
   c.execute("insert or ignore into user(name) values (:name)", name = name)
   c.close()
 
-const tables* =
-  ["file", "activity", "track", "segment", "seen_file", "activity_selection"]
+const tables* = ["file", "activity", "track", "seen_file", "activity_selection"]

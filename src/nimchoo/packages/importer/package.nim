@@ -1,6 +1,9 @@
 ## Putting the activities of FIT files into the database, and describing them.
 ##
-## This package owns the tables `file`, `activity`, `track`, `segment`, `route`, `route_cell` and `seen_file`.  Per-second data is kept per
+## This package owns the tables `file`, `activity`, `track`, `ride_break`, `route`, `route_cell` and `seen_file`.  An
+## activity's riding is cut by its breaks, each of a kind (`stretch.nim`: manual, carried, pause, error), and each user takes
+## the kinds it needs: the stretches of riding (`track.readStretches`, for the climbs and the impulses) end at manual,
+## carried and error.  Per-second data is kept per
 ## activity, as arrays (`track`: the positions after the cleaning of `clean.nim`, encoded by `series.nim`; the other fields of the records, heart rate, speed ..., are in `channels`); other data refers to it by time and never by array index, and the arrays are never changed once
 ## written.
 ##
@@ -37,7 +40,7 @@ const package* = Package(
   ],
   fragments: @[
     fragment("001-schema.sql")
-      # file, activity, track (the positions as arrays), segment, route, seen_file, route_cell (the cells of the grid each
+      # file, activity, track (the positions as arrays), ride_break, route, seen_file, route_cell (the cells of the grid each
       # activity went through)
   ],
   commands: @[

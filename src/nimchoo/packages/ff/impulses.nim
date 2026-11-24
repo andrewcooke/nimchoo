@@ -11,6 +11,7 @@ import ../db/store
 import ../../core/[errors, line]
 import ../fit/time
 import ../channels/[kinds, stored]
+import ../importer/track
 import ../ui/units
 import ../user/session
 import ./calc
@@ -43,13 +44,9 @@ proc fthrOf*(db: DbConn, userId: UserId): Option[int] {.raises: [StoreError].} =
 proc stretchesOf(
     db: DbConn, activityId: ActivityId
 ): seq[tuple[n: int64, stretch: Stretch]] {.raises: [StoreError].} =
-  ## The activity's stretches of riding, in time order, with their numbers.
-  for (n, s0, s1) in db.query(
-    tuple[n, startT, endT: int64],
-    "select n, start_epoch, end_epoch from segment where activity_id = :activityId order by start_epoch",
-    activityId = activityId,
-  ):
-    result.add (n, (s0, s1))
+  ## The activity's stretches of riding, in time order, with their numbers (from 0).
+  for n, s in readStretches(db, activityId):
+    result.add (int64(n), (int64(s.startT), int64(s.endT)))
 
 proc calculateActivity*(
     db: DbConn, activityId: ActivityId, fthr: int, m: Model

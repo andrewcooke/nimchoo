@@ -27,7 +27,7 @@ proc world(name: string, selected = 2): tuple[db, cache: string] =
       name = "f" & $i,
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, :t, :t + 10 from file",
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) select max(id), 0, :t, :t + 10, :t, :t + 10 from file",
       t = i * 1000,
     )
     s.db.execute(

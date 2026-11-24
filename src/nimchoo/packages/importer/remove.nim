@@ -1,5 +1,5 @@
-## Deleting the selected activities of the current user, with everything made from them (coordinates, route, segments,
-## heart rate, impulses, efforts, the record that the climbs were looked for): they all go with the activity through
+## Deleting the selected activities of the current user, with everything made from them (coordinates, route, breaks,
+## channels, impulses, efforts, the record that the climbs were looked for): they all go with the activity through
 ## `on delete cascade`.  The climbs themselves (sectors) and the names on them stay: they are copies.  A file that has no
 ## activity left is forgotten too (its record and the paths it was seen at), so that importing the folder again brings its
 ## activities back; a file that still holds other activities (a file can hold several) stays, and so does its memory.

@@ -1,6 +1,9 @@
 import ../support/arrays
 import nimchoo/packages/db/statement
-import std/[options, os, unittest]
+import std/[options, os, sequtils, unittest]
+import nimchoo/core/ids
+import nimchoo/packages/fit/time
+import nimchoo/packages/importer/[stretch, track]
 import ../support/shims
 import nimchoo/packages/importer/extract
 import nimchoo/packages/importer/importer
@@ -89,9 +92,10 @@ suite "import: a real ride":
     check r.outcome == ioImported
     check r.activities == 1
     check r.coords == 2099
-    check r.segments == 1 # its 20 timer segments are auto-pauses the rider did not leave
+    check r.stretches == 1
+      # its 20 timer segments are auto-pauses the rider did not leave
     check ws.len == 0
-    check s.count("segment") == 1
+    check s.count("ride_break") > 0 # (its pauses)
     check s.count("file") == 1
     check s.count("activity") == 1
     s.db.materialise()
@@ -103,7 +107,7 @@ suite "import: a real ride":
     check abs(s.db.scalar(float, "select distance_m from activity") - 11978.11) < 1e-6
     check s.db.scalar(int, "select count(*) from coords where alt is null") == 2099
 
-  test "the route has a part for each segment, and is where the points are":
+  test "the route has a part for each stretch, and is where the points are":
     let s = openAll(tempDb("ride-route"))
     defer:
       s.close()
@@ -306,66 +310,57 @@ suite "import: files that cannot be imported":
     # and the connection is usable afterwards
     s.db.execute("create table track(x)")
 
-suite "import: segments":
-  test "the segments are stored in order, covering every coordinate":
-    let s = openAll(tempDb("segments"))
+proc allStretches(s: Session): seq[seq[Span]] =
+  ## The stretches of each activity, in the order of their ids.
+  for id in s.db.query(int64, "select id from activity order by id"):
+    result.add readStretches(s.db, ActivityId(id))
+
+suite "import: the riding and its breaks":
+  test "the breaks are stored in order; the stretches made from them cover every coordinate":
+    let s = openAll(tempDb("breaks"))
     defer:
       s.close()
     var ws: seq[Warning]
     discard s.importFile(p, "three.fit", threeStretches, ws)
-    check s.db.scalar(string, "select min(n) || '-' || max(n) from segment") == "0-2"
-    check s.db.scalar(
-      int,
-      """select count(*) from segment a join segment b
-      on b.activity_id = a.activity_id and b.n = a.n + 1
-      where b.start_epoch <= a.end_epoch""",
-    ) == 0
+    let stretches = s.allStretches[0]
+    check stretches.len == 3
+    for k in 1 .. stretches.high:
+      check int64(stretches[k - 1].endT) < int64(stretches[k].startT)
+    # the time between stretches is the time the timer was off
+    var off = 0'i64
+    for k in 1 .. stretches.high:
+      off += stretches[k].startT - stretches[k - 1].endT
+    check off == 13
     s.db.materialise()
-    check s.db.scalar(
-      int,
-      """select count(*) from coords c where not exists (
-      select 1 from segment g where g.activity_id = c.activity_id
-        and c.t between g.start_epoch and g.end_epoch)""",
-    ) == 0
-    # the time between segments is the time paused
-    check s.db.scalar(
-      int,
-      """select sum(b.start_epoch - a.end_epoch) from segment a
-      join segment b on b.activity_id = a.activity_id and b.n = a.n + 1""",
-    ) == 13
+    for (t) in s.db.query(tuple[t: int64], "select t from coords"):
+      check stretches.countIt(int64(it.startT) <= t and t <= int64(it.endT)) == 1
 
-  test "the real ride's auto-pauses are joined: one stretch from its first start to its last stop":
+  test "the real ride's auto-pauses are pauses: one stretch from its first start to its last stop":
     let s = openAll(tempDb("ride-stretch"))
     defer:
       s.close()
     discard s.importPath(ride)
-    check s.db.scalar(string, "select min(n) || '-' || max(n) from segment") == "0-0"
+    let id = ActivityId(s.db.scalar(int64, "select id from activity"))
+    let (riding, breaks) = readBreaks(s.db, id)
+    check breaks.len > 0 and breaks.allIt(it.kind == bkPause)
+    check readStretches(s.db, id) == @[riding]
     s.db.materialise()
     check s.db.scalar(
       int,
-      """select count(*) from coords c, segment g where c.t < g.start_epoch or c.t > g.end_epoch""",
+      "select count(*) from coords c, activity a where c.t < a.riding_start_epoch or c.t > a.riding_end_epoch",
     ) == 0
+    check s.db.scalar(int, "select count(*) from coords") == 2099
 
-  test "the coordinates of one segment are a range of the key":
-    let s = openAll(tempDb("segrange"))
-    defer:
-      s.close()
-    discard s.importPath(ride)
-    s.db.materialise()
-    check s.db.scalar(
-      int,
-      """select sum(cnt) from (
-      select (select count(*) from coords c where c.activity_id = g.activity_id
-        and c.t between g.start_epoch and g.end_epoch) as cnt from segment g)""",
-    ) == 2099
-
-  test "a multisport file has segments for each activity":
-    let s = openAll(tempDb("segmulti"))
+  test "a multisport file has a riding for each activity, and the count of stretches is theirs":
+    let s = openAll(tempDb("multi"))
     defer:
       s.close()
     let (r, _) = s.importPath(multisport)
-    check r.segments == s.count("segment")
-    check s.db.scalar(int, "select count(distinct activity_id) from segment") == 7
+    check s.count("activity") == 7
+    var n = 0
+    for st in s.allStretches:
+      n += st.len
+    check r.stretches == n
 
 suite "import: decoding apart from writing":
   test "decodeFile needs no database: activities, their routes as bytes, and the warnings":
@@ -425,8 +420,9 @@ suite "import: decoding apart from writing":
     let d = decodeFile(p, readBytes(ride), @[], ws2)
     let viaParts = two.writeDecoded("r.fit", sha256Hex(readBytes(ride)), d, @[])
     check viaParts.outcome == ioImported and viaParts.coords == viaFile.coords and
-      viaParts.segments == viaFile.segments and viaParts.activities == viaFile.activities
-    for table in ["file", "activity", "track", "segment", "route"]:
+      viaParts.stretches == viaFile.stretches and
+      viaParts.activities == viaFile.activities
+    for table in ["file", "activity", "track", "ride_break", "route"]:
       check one.count(table) == two.count(table)
     one.db.materialise()
     two.db.materialise()

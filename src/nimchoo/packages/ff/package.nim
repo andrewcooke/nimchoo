@@ -14,7 +14,7 @@
 ##   (or fatigue, form) shades the days by the first selected model's (`calendarshades.nim`).  The built-in models are selected for every user from the start (a
 ##   trigger on `user`, and the seed).
 ## * **The impulses**: an activity's is worked out from its heart rate with a model and the user's FTHR, one lump for each
-##   stretch of riding (the importer's `segment`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
+##   stretch of riding (the importer's `readStretches`), at its centre (`calc` is the arithmetic, pure; `impulses` stores them in
 ##   `impulse`).  They are worked out when a view needs them, and deleted when the FTHR they were worked out with changes (a
 ##   trigger of the table) or an edit changes what the model makes of the heart rate, so they are worked out again.  The
 ##   patterns choose which impulses count (`impulses.userLumps`), so changing them changes no impulse.

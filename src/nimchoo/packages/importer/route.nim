@@ -1,5 +1,5 @@
 ## The route of an activity as well-known binary (WKB, the OGC standard form), for SpatiaLite: a
-## MULTILINESTRING with one part for each segment (stretch of riding), in time order.  Pure: the importer hands
+## MULTILINESTRING with one part for each stretch of riding, in time order.  Pure: the importer hands
 ## the bytes to the database (`GeomFromWKB`).
 ##
 ## (Binary, not text: SpatiaLite takes 20 ms to read the routes of 166 activities in this form and
@@ -28,12 +28,12 @@ func put64(buf: var string, pos: var int, x: float) =
   pos += 8
 
 func routeWkb*(a: ActivityData): Option[string] =
-  ## The WKB of the route (as bytes in a string), or none if no segment has two points (a line
-  ## needs two).  Each coordinate is in the segment whose interval holds its time (extract.nim
-  ## makes sure there is exactly one).  Points are longitude, latitude.
-  var parts: seq[(int, int)] # (index of the first coordinate, how many) of each segment
-  var k = 0 # coords are in time order, segments too
-  for g in a.segments:
+  ## The WKB of the route (as bytes in a string), a part for each stretch of riding, or none if no stretch has two points
+  ## (a line needs two).  Each coordinate is in the stretch whose interval holds its time (extract.nim makes sure there is
+  ## exactly one).  Points are longitude, latitude.
+  var parts: seq[(int, int)] # (index of the first coordinate, how many) of each stretch
+  var k = 0 # coords are in time order, stretches too
+  for g in a.stretches:
     var first = -1
     var n = 0
     while k < a.coords.len and a.coords[k].t <= g.endT:

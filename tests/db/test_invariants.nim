@@ -26,9 +26,11 @@ proc fresh(name: string): Session =
     userId = int64(result.userId),
   )
   db.execute(
-    "insert into activity(id, file_id, session, start_epoch, end_epoch, start_place) values (1, 1, 0, 1000, 2000, '')"
+    "insert into activity(id, file_id, session, start_epoch, end_epoch, start_place, riding_start_epoch, riding_end_epoch) values (1, 1, 0, 1000, 2000, '', 1000, 2000)"
   )
-  db.execute("insert into segment values (1, 0, 1000, 1500), (1, 1, 1600, 2000)")
+  db.execute(
+    "insert into ride_break values (1, 1500, 1600, 'manual'), (1, 1700, 1750, 'pause')"
+  )
   db.execute(
     "insert into sector(id, length_m, gain_m, gradient, name) values (1, 500, 40, 8, 'x')"
   )
@@ -57,16 +59,22 @@ suite "invariants":
     check v[0].startsWith("every effort lies within one stretch")
     s.close()
 
-  test "overlapping segments, a missing climb decision and an orphan are found":
+  test "an effort across a pause is no offence: a pause joins the stretch":
+    let s = fresh("pause")
+    s.db.effort(1650, 1800)
+    check violations(s.db) == newSeq[string]()
+    s.close()
+
+  test "overlapping breaks, a missing climb decision and an orphan are found":
     let s = fresh("several")
-    s.db.execute("update segment set start_epoch = 1400 where n = 1")
+    s.db.execute("update ride_break set end_epoch = 1720 where kind = 'manual'")
     s.db.execute(
       "insert into sector(id, length_m, gain_m, gradient) values (2, 500, 40, 8)"
     )
     s.db.execute("pragma foreign_keys = off")
     s.db.putHeart(99, @[(UnixTime(1000), 70)])
     let v = violations(s.db).join("\n")
-    check "stretches of an activity are in order" in v
+    check "the breaks of an activity have a length, do not overlap" in v
     check "every climb has a name decision" in v
     check "no foreign key points at nothing" in v
     s.close()

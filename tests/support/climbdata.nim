@@ -51,7 +51,7 @@ proc addRide*(
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, :startT, :endT)",
+    "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, 0, :startT, :endT, :startT, :endT)",
     fileId = f,
     startT = startT,
     endT = startT + 10000,
@@ -87,13 +87,19 @@ proc addRide*(
       tIn = int64(v.tIn),
       tOut = int64(v.tOut),
     )
-  for n, (g0, g1) in stretches:
+  # the riding, and a break (by hand: the stretches are apart) between each stretch and the next
+  s.db.execute(
+    "update activity set riding_start_epoch = :s, riding_end_epoch = :e where id = :a",
+    s = stretches[0][0],
+    e = stretches[^1][1],
+    a = a,
+  )
+  for k in 1 .. stretches.high:
     s.db.execute(
-      "insert into segment(activity_id, n, start_epoch, end_epoch) values (:activityId, :n, :startT, :endT)",
+      "insert into ride_break(activity_id, start_epoch, end_epoch, kind) values (:activityId, :s, :e, 'manual')",
       activityId = a,
-      n = n,
-      startT = g0,
-      endT = g1,
+      s = stretches[k - 1][1],
+      e = stretches[k][0],
     )
   s.db.execute(
     "insert into route(activity_id, geom) values (:activityId, GeomFromText(:wkt, 4326))",

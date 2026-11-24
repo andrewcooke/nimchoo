@@ -56,7 +56,7 @@ begin
   insert into model_selection(user_id, model_id) select new.id, id from ff_model where built_in = 1;
 end;
 
--- The impulse of each stretch of riding of an activity (`segment`, its `n`), as one lump at
+-- The impulse of each stretch of riding of an activity (its `n`, from 0: importer/stretch.nim), as one lump at
 -- its centre (`centre_epoch`: Unix seconds, the time weighted by the impulse), in units of "per 10
 -- seconds" (see calc.nim).  An activity with heart rate has a row for each of its stretches (zero,
 -- at the stretch's middle, if the heart rate never rose above the zero level there), so that a

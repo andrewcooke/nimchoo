@@ -16,10 +16,11 @@
 ## * records are put in time order, records in the same second keep the last;
 ## * a record without a position makes no coordinate;
 ## * the stretches during which the timer ran (between a timer start and the
-##   next stop) are the activity's timer segments; those the device paused by
-##   itself and the rider hardly left (stretch.nim) are joined into one, so the
-##   activity's segments are stretches of riding: disjoint intervals in time
-##   order.  Every coordinate lies in one.
+##   next stop) are the activity's timer segments; the riding is from the first
+##   to the last (without the empty bits at the ends), and what lies between two
+##   is a break of a kind (stretch.nim: manual, carried, pause) or none (a blink),
+##   with a GPS jump that did not return as a break of its own (error).  Every
+##   coordinate lies in the riding.
 
 import std/[algorithm, options, sequtils, strformat, strutils, tables]
 import ./channel
@@ -48,8 +49,8 @@ const
 
 type
   Segment* = object
-    ## A stretch of riding (a closed interval): a stretch during which the timer ran,
-    ## or several of them joined across pauses the rider did not mean (see `joinStretches`).
+    ## A stretch during which the timer ran (a closed interval); what lies between two of them is a break of some kind,
+    ## or none (`breaksOf`).
     startT*, endT*: UnixTime
     startedBy*, endedBy*: Trigger
       ## who started and stopped the timer that began and ended it.  A session's
@@ -70,8 +71,10 @@ type
     calories*: Option[int]
     coords*: seq[Coord] ## in time order, one per second at most
     samples*: Samples ## the other fields asked for (see `readActivities`), by name
-    segments*: seq[Segment]
-      ## stretches of riding: disjoint, in time order, covering all coords
+    riding*: Span
+      ## from the first start of the timer to its last stop (without the timer's empty bits at either end: those
+      ## that hold no position, in an activity that has some), covering all coords
+    breaks*: seq[Break] ## inside the riding, in time order (see stretch.nim)
 
   RawCoord = object
     c: Coord
@@ -246,21 +249,38 @@ proc cover(segs: var seq[Segment], coords: seq[Coord], ws: var seq[Warning]) =
       fmt"a coordinate at {c.t} is outside the timer segments; the nearest segment is extended"
   segs = merged(segs)
 
-func joinStretches*(segs: seq[Segment], coords: seq[Coord]): seq[Segment] =
-  ## Join the segments that `joinable` says are one stretch of riding.  `segs` are in time order and
-  ## disjoint and `coords` in time order (each in a segment, as `cover` leaves them).  How far the
-  ## rider moved over a gap is from the last position before it to the first after it; with no
-  ## position on one side there is nothing to measure, and the segments stay apart.
+func breaksOf*(
+    segs: seq[Segment], coords: seq[Coord], splits: seq[UnixTime], session: Span
+): tuple[riding: Span, breaks: seq[Break]] =
+  ## The riding and its breaks, from the timer's segments (in time order and disjoint, each coordinate in one, as `cover`
+  ## leaves them), the coordinates (in time order) and the times where a GPS jump that did not return split the line
+  ## (clean.nim: a coordinate at `t` is the first after it).  The segments at either end that hold no position are the
+  ## timer's empty bits (the device started it before it had a fix, or stopped it after) and are dropped, when the
+  ## activity has positions.  A gap is measured from the last position before it to the first after it; with no position
+  ## at all, it cannot be (`unmeasuredKind`).  No segment at all: the session is the riding.
+  var segs = segs
+  if coords.len > 0:
+    while segs.len > 1 and coords[0].t > segs[0].endT:
+      segs.delete(0)
+    while segs.len > 1 and coords[^1].t < segs[^1].startT:
+      segs.setLen(segs.len - 1)
+  if segs.len == 0:
+    return (session, @[])
+  result.riding = Span(startT: segs[0].startT, endT: segs[^1].endT)
   var p = 0 # the first coordinate after the end of the segment before the gap
-  for i, g in segs:
-    if i == 0:
-      result.add g
-      continue
+  for i in 1 .. segs.high:
     let before = segs[i - 1]
+    let g = segs[i]
     while p < coords.len and coords[p].t <= before.endT:
       inc p
-    if p > 0 and p < coords.len and
-        joinable(
+    let kind =
+      if coords.len == 0:
+        some(unmeasuredKind(before.endedBy, g.startedBy))
+      else:
+        # (positions on both sides: the first segment and the last hold one)
+        doAssert p > 0 and p < coords.len,
+          "a gap inside the riding has a position on each side"
+        kindOf(
           Gap(
             seconds: g.startT - before.endT,
             metres: haversine(
@@ -269,11 +289,22 @@ func joinStretches*(segs: seq[Segment], coords: seq[Coord]): seq[Segment] =
             stoppedBy: before.endedBy,
             restartedBy: g.startedBy,
           )
-        ):
-      result[^1].endT = g.endT
-      result[^1].endedBy = g.endedBy
-    else:
-      result.add g
+        )
+    if kind.isSome:
+      result.breaks.add Break(startT: before.endT, endT: g.startT, kind: kind.get)
+  # a jump splits the stretch it falls inside (not one that already starts there)
+  let stretches = stretchesOf(result.riding, result.breaks)
+  for t in splits:
+    for s in stretches:
+      if s.startT < t and t <= s.endT:
+        result.breaks.add Break(startT: UnixTime(int64(t) - 1), endT: t, kind: bkError)
+        break
+  result.breaks.sort do(a, b: Break) -> int:
+    cmp(int64(a.startT), int64(b.startT))
+
+func stretches*(a: ActivityData): seq[Span] =
+  ## The activity's stretches of riding (stretch.nim).
+  stretchesOf(a.riding, a.breaks)
 
 proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
   ## Time order; of several in one second the last (by appearance) is kept.
@@ -309,17 +340,6 @@ func cleaningWarnings*(c: Cleaned, ws: var seq[Warning]) =
     ws.add wkPositionJump,
       0,
       fmt"{c.splits.len} jumps that did not return: split at second {int64(c.splits[0])} (and later)"
-
-func splitAt*(segs: seq[Segment], times: seq[UnixTime]): seq[Segment] =
-  ## The stretches cut where a jump did not return: a coordinate at `t` is the first of the new stretch.
-  result = segs
-  for t in times:
-    for i in 0 ..< result.len:
-      if result[i].startT < t and t <= result[i].endT:
-        let tail = Segment(startT: t, endT: result[i].endT, endedBy: result[i].endedBy)
-        result[i].endT = UnixTime(int64(t) - 1)
-        result.insert(tail, i + 1)
-        break
 
 proc uniqueSamples(raw: var seq[RawSample]): Table[string, seq[Sample]] =
   ## By channel, in time order; of several in one second the last (by appearance) is kept.
@@ -485,7 +505,8 @@ proc readActivities*(
     perSession[k].add e
   for i, s in sessions.mpairs:
     s.utcOffsetS = offsetS
-    s.segments = segmentsOf(s.startT, s.endT, perSession[i])
-    cover(s.segments, s.coords, ws)
-    s.segments = splitAt(joinStretches(s.segments, s.coords), splits[i])
+    var segs = segmentsOf(s.startT, s.endT, perSession[i])
+    cover(segs, s.coords, ws)
+    (s.riding, s.breaks) =
+      breaksOf(segs, s.coords, splits[i], Span(startT: s.startT, endT: s.endT))
   sessions

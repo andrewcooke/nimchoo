@@ -25,7 +25,7 @@ proc addActivity(s: Session, tag: string, startT: int, sport: string) =
     sha256 = tag,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch, sport, distance_m, timer_s) select max(id), 0, :startT, :endT, :sport, 1000.0, 600.0 from file",
+    "insert into activity(file_id, session, start_epoch, end_epoch, sport, distance_m, timer_s, riding_start_epoch, riding_end_epoch) select max(id), 0, :startT, :endT, :sport, 1000.0, 600.0, :startT, :endT from file",
     startT = startT,
     endT = startT + 100,
     sport = sport,

@@ -48,7 +48,7 @@ suite "database: opening and bringing the schema up to date":
     defer:
       s.close()
     for t in [
-      "user", "file", "activity", "track", "segment", "route", "seen_file", "sector",
+      "user", "file", "activity", "track", "ride_break", "route", "seen_file", "sector",
       "effort", "climbs_done", "channel_series", "landmark", "ff_model", "impulse",
       "country", "coverage", "feature", "activity_selection", "user_profile", "fragment",
     ]:
@@ -416,18 +416,18 @@ suite "database: cascades":
                     values (1, 'f', 'x', 0)"""
     )
     s.db.execute(
-      """insert into activity(file_id, session, start_epoch, end_epoch)
-                    values (1, 0, 0, 10)"""
+      """insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch)
+                    values (1, 0, 0, 10, 0, 10)"""
     )
     s.db.putTrack(1, @[Coord(t: UnixTime(5), lon: 1.0, lat: 2.0)])
     s.db.execute(
-      "insert into segment(activity_id, n, start_epoch, end_epoch) values (1, 1, 0, 10)"
+      "insert into ride_break(activity_id, start_epoch, end_epoch, kind) values (1, 2, 4, 'pause')"
     )
     s.db.execute(
       "insert into seen_file(user_id, path, size, modified_epoch, file_id) values (1, '/p', 1, 1, 1)"
     )
     s.db.execute("delete from user where id = 1")
-    for t in ["file", "activity", "track", "segment", "seen_file"]:
+    for t in ["file", "activity", "track", "ride_break", "seen_file"]:
       check s.count(t) == 0
 
 suite "database: the schema":
@@ -440,9 +440,9 @@ suite "database: the schema":
       )
     s.close()
 
-  test "segment is WITHOUT ROWID, keyed by activity":
+  test "ride_break is WITHOUT ROWID, keyed by activity":
     let s = open(":memory:")
-    for table in ["segment"]:
+    for table in ["ride_break"]:
       check s.db.scalar(
         int, "select wr from pragma_table_list where name = :name", name = table
       ) == 1
@@ -455,22 +455,22 @@ suite "database: the schema":
       userId = s.userId,
     )
     s.db.execute(
-      """insert into activity(file_id, session, start_epoch, end_epoch)
-                    values (1, 0, 0, 0)"""
+      """insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch)
+                    values (1, 0, 0, 0, 0, 0)"""
     )
     let ins = prepareStmt(
       s.db,
-      "insert into segment(activity_id, n, start_epoch, end_epoch) values (?, ?, ?, ?)",
+      "insert into ride_break(activity_id, start_epoch, end_epoch, kind) values (?, ?, ?, ?)",
     )
     ins.bindInt(1, 1)
     ins.bindInt(2, 1)
-    ins.bindInt(3, 0)
-    ins.bindInt(4, 10)
+    ins.bindInt(3, 5)
+    ins.bindText(4, "pause")
     ins.run()
     ins.bindInt(1, 1)
     ins.bindInt(2, 1)
-    ins.bindInt(3, 0)
-    ins.bindInt(4, 10)
+    ins.bindInt(3, 5)
+    ins.bindText(4, "pause")
     expect StoreError:
       ins.run()
     s.close()

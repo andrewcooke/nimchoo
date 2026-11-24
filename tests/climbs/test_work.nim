@@ -212,7 +212,7 @@ suite "climbs: stretches of riding":
       s.close()
     addRide(s, "default", "one", 1_000_000, 5.0, eastbound(5.0), breaksAfter = @[600])
     discard ensureClimbs(s)
-    check s.db.scalar(int, "select count(*) from segment") == 2
+    check s.db.scalar(int, "select count(*) from ride_break where kind = 'manual'") == 1
     # nothing was made across it: the invariant that nimble invariants checks on real data
     for line in violations(s.db):
       check not line.startsWith("every effort lies within one stretch")

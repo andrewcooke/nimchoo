@@ -311,7 +311,7 @@ proc importPaths*(
           outcome = oImported
           counts = Counts(
             activities: r.activities,
-            segments: r.segments,
+            stretches: r.stretches,
             coords: r.coords,
             extras: r.extras,
           )

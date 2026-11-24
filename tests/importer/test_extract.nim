@@ -373,8 +373,22 @@ func coord(t: int64, metres: float): Coord =
   ## A position `metres` north of 45 degrees south.
   Coord(t: UnixTime(t), lon: -90.0, lat: -45.0 + metres / 111_195.0)
 
-suite "segments: joining stretches":
-  test "an auto-pause where the rider stayed is joined, a chain of them too":
+func sp(a, b: int64): Span =
+  Span(startT: UnixTime(a), endT: UnixTime(b))
+func sp(a, b: UnixTime): Span =
+  Span(startT: a, endT: b)
+
+const whole = Span(startT: UnixTime(0), endT: UnixTime(100))
+  ## the session, where it matters
+
+func kinds(r: tuple[riding: Span, breaks: seq[Break]]): seq[BreakKind] =
+  r.breaks.mapIt(it.kind)
+
+func times(r: tuple[riding: Span, breaks: seq[Break]]): seq[(int64, int64)] =
+  r.breaks.mapIt((int64(it.startT), int64(it.endT)))
+
+suite "breaks: what each gap of the timer was":
+  test "an auto-pause where the rider stayed is a pause, a chain of them too: one stretch":
     let segs = @[auto(0, 10), auto(40, 50), auto(90, 100)]
     let coords = @[
       coord(0, 0),
@@ -384,9 +398,13 @@ suite "segments: joining stretches":
       coord(90, 21),
       coord(100, 30),
     ]
-    check joinStretches(segs, coords).spans == @[seg(0, 100)]
+    let r = breaksOf(segs, coords, @[], whole)
+    check r.riding == sp(0, 100)
+    check r.kinds == @[bkPause, bkPause] and
+      r.times == @[(10'i64, 40'i64), (50'i64, 90'i64)]
+    check stretchesOf(r.riding, r.breaks) == @[sp(0, 100)]
 
-  test "a gap that moved is kept, and the ones either side are judged on their own":
+  test "a gap that moved is carried, and the ones either side are judged on their own":
     let segs = @[auto(0, 10), auto(40, 50), auto(90, 100)]
     let coords = @[
       coord(0, 0),
@@ -396,37 +414,60 @@ suite "segments: joining stretches":
       coord(90, 5000),
       coord(100, 5010),
     ]
-    check joinStretches(segs, coords).spans == @[seg(0, 50), seg(90, 100)]
+    let r = breaksOf(segs, coords, @[], whole)
+    check r.kinds == @[bkPause, bkCarried]
+    check stretchesOf(r.riding, r.breaks) == @[sp(0, 50), sp(90, 100)]
 
-  test "a manual stop is kept apart however close":
+  test "a manual stop is manual however close":
     var segs = @[auto(0, 10), auto(40, 50)]
     segs[0].endedBy = trManual
     let coords = @[coord(0, 0), coord(10, 0), coord(40, 0), coord(50, 0)]
-    check joinStretches(segs, coords).len == 2
+    check breaksOf(segs, coords, @[], whole).kinds == @[bkManual]
 
-  test "no position on one side: nothing to measure, the segments stay apart":
-    let segs = @[auto(0, 10), auto(40, 50)]
-    check joinStretches(segs, @[coord(0, 0), coord(10, 0)]).len == 2 # none after
-    check joinStretches(segs, @[coord(40, 0), coord(50, 0)]).len == 2 # none before
-    check joinStretches(segs, @[]).len == 2
+  test "a blink (on at riding speed, for moments) is no break":
+    let segs = @[auto(0, 10), auto(20, 30)]
+    let coords = @[coord(0, 0), coord(10, 0), coord(20, 100), coord(30, 110)] # 10 m/s
+    check breaksOf(segs, coords, @[], whole).breaks.len == 0
 
-  test "a segment without positions is looked through":
+  test "the timer's empty bits at either end are dropped: no break, no stretch":
+    let segs = @[auto(0, 5), auto(10, 12), auto(40, 50), auto(60, 70)]
+    let r = breaksOf(segs, @[coord(40, 0), coord(50, 0)], @[], whole)
+    check r.riding == sp(40, 50) and r.breaks.len == 0
+
+  test "with no positions at all nothing is dropped: an auto-stop is a pause, a stop by hand manual":
+    var segs = @[auto(0, 10), auto(40, 50)]
+    let r = breaksOf(segs, @[], @[], whole)
+    check r.riding == sp(0, 50) and r.kinds == @[bkPause]
+    segs[0].endedBy = trManual
+    check breaksOf(segs, @[], @[], whole).kinds == @[bkManual]
+
+  test "a segment without positions inside the ride is looked through":
     # a short segment with no fix: the positions either side are what show where the rider was
     let segs = @[auto(0, 10), auto(20, 30), auto(40, 50)]
     let coords = @[coord(0, 0), coord(10, 1), coord(40, 2), coord(50, 3)]
-    check joinStretches(segs, coords).spans == @[seg(0, 50)]
+    let r = breaksOf(segs, coords, @[], whole)
+    check r.kinds == @[bkPause, bkPause]
+    check stretchesOf(r.riding, r.breaks) == @[sp(0, 50)]
 
-  test "the stretch ends the way its last segment ended":
+  test "a jump that did not return is an error, cutting the stretch it falls inside":
+    let segs = @[auto(10, 50)]
+    let coords = @[coord(10, 0), coord(50, 0)]
+    let r = breaksOf(segs, coords, @[UnixTime(30)], whole)
+    check r.kinds == @[bkError] and r.times == @[(29'i64, 30'i64)]
+    check stretchesOf(r.riding, r.breaks) == @[sp(10, 29), sp(30, 50)]
+    check breaksOf(segs, coords, @[UnixTime(10)], whole).breaks.len == 0
+      # (the first second is no cut)
+    let two = breaksOf(segs, coords, @[UnixTime(20), UnixTime(40)], whole)
+    check stretchesOf(two.riding, two.breaks) == @[sp(10, 19), sp(20, 39), sp(40, 50)]
+
+  test "a jump where a stretch already starts is no error":
     var segs = @[auto(0, 10), auto(40, 50)]
-    segs[1].endedBy = trManual
-    let joined =
-      joinStretches(segs, @[coord(0, 0), coord(10, 0), coord(40, 0), coord(50, 0)])
-    check joined.len == 1
-    check joined[0].endedBy == trManual
+    segs[0].endedBy = trManual
+    let coords = @[coord(0, 0), coord(10, 0), coord(40, 0), coord(50, 0)]
+    check breaksOf(segs, coords, @[UnixTime(40)], whole).kinds == @[bkManual]
 
-  test "nothing to join, or one segment":
-    check joinStretches(@[], @[]).len == 0
-    check joinStretches(@[auto(0, 10)], @[coord(0, 0)]) == @[auto(0, 10)]
+  test "no segment at all: the session is the riding":
+    check breaksOf(@[], @[], @[], whole) == (whole, newSeq[Break]())
 
 let timerTDefn =
   defn(5, 21, @[(253, 4, uint32T), (0, 1, enumT), (1, 1, enumT), (3, 1, enumT)])
@@ -439,9 +480,9 @@ func timerT(t: int, kind: int, trigger: int): seq[byte] =
 func pos(t, metres: int): seq[byte] =
   at(t, lat = north45 + metres * metre)
 
-proc stretchesOf(body: seq[byte]): seq[Segment] =
+proc stretchesOf(body: seq[byte]): seq[Span] =
   let (a, _) = activities(body)
-  a[0].segments
+  a[0].stretches
 
 suite "segments: stretches in files":
   # two timer segments, [base, base+10] and [base+50, base+70], with a gap of 40 s
@@ -455,7 +496,7 @@ suite "segments: stretches in files":
       timerT(t2 + 20, 4, 1) & sessionDefn & session(base, t2 + 20)
 
   test "an auto-pause where the rider stayed is one stretch":
-    check stretchesOf(twoSegments(1, 5)).spans == @[seg(unixBase, unixBase + 70)]
+    check stretchesOf(twoSegments(1, 5)) == @[sp(unixBase, unixBase + 70)]
 
   test "stopped by the device and restarted by hand: one stretch":
     check stretchesOf(twoSegments(0, 5)).len == 1
@@ -487,15 +528,16 @@ suite "segments: in files":
       timer(base, 0) & timer(base + 1, 4) & timer(base + 5, 0) & timer(base + 6, 4) &
       sessionDefn & session(base, base + 6)
     let (a, ws) = activities(body)
-    check a[0].segments.spans ==
-      @[seg(unixBase, unixBase + 1), seg(unixBase + 5, unixBase + 6)]
+    check a[0].stretches == @[
+      sp(unixBase, unixBase + 1), sp(unixBase + 5, unixBase + 6)
+    ]
     check ws.len == 0
 
   test "no timer events: one segment for the session":
     let (a, _) = activities(
       recordDefn & at(base) & at(base + 2) & sessionDefn & session(base, base + 2)
     )
-    check a[0].segments.spans == @[seg(unixBase, unixBase + 2)]
+    check a[0].stretches == @[sp(unixBase, unixBase + 2)]
 
   test "a coordinate outside every segment extends the nearest, with a warning":
     # a record one second after the last stop and one in the middle of a pause
@@ -506,7 +548,7 @@ suite "segments: in files":
     let (a, ws) = activities(body)
     check ws.kinds.count(wkOutsideSegment) == 2
     for c in a[0].coords:
-      check a[0].segments.countIt(c.t >= it.startT and c.t <= it.endT) == 1
+      check a[0].stretches.countIt(c.t >= it.startT and c.t <= it.endT) == 1
 
   test "each session has the segments of its own events":
     let body =
@@ -515,8 +557,8 @@ suite "segments: in files":
       session(base, base + 50) & session(base + 100, base + 150)
     let (a, _) = activities(body)
     check a.len == 2
-    check a[0].segments.spans == @[seg(unixBase, unixBase + 50)]
-    check a[1].segments.spans == @[seg(unixBase + 100, unixBase + 150)]
+    check a[0].stretches == @[sp(unixBase, unixBase + 50)]
+    check a[1].stretches == @[sp(unixBase + 100, unixBase + 150)]
 
 suite "extract: cleaning the positions":
   # about 8 m a second north (800 semicircles), a record every second
@@ -540,8 +582,9 @@ suite "extract: cleaning the positions":
     body = body & sessionDefn & session(base, base + 39)
     let (a, ws) = activities(body)
     check a[0].coords.len == 40
-    check a[0].segments.spans ==
-      @[seg(unixBase, unixBase + 19), seg(unixBase + 20, unixBase + 39)]
+    check a[0].stretches ==
+      @[sp(unixBase, unixBase + 19), sp(unixBase + 20, unixBase + 39)]
+    check a[0].breaks.mapIt(it.kind) == @[bkError]
     check ws.kinds.count(wkPositionJump) == 1
 
   test "a clean ride has no cleaning warnings":
@@ -551,24 +594,18 @@ suite "extract: cleaning the positions":
     let (a, ws) = activities(body & sessionDefn & session(base, base + 19))
     check a[0].coords.len == 20 and ws.len == 0
 
-  test "splitAt cuts a stretch where a coordinate begins the next":
-    check splitAt(@[seg(10, 50)], @[UnixTime(30)]).spans == @[seg(10, 29), seg(30, 50)]
-    check splitAt(@[seg(10, 50)], @[UnixTime(10)]).spans ==
-      @[seg(10, 50)] # (the first second is no cut)
-    check splitAt(@[seg(10, 50)], @[UnixTime(20), UnixTime(40)]).spans ==
-      @[seg(10, 19), seg(20, 39), seg(40, 50)]
-
-suite "segments: real files":
-  test "the ride: its 20 timer segments are one stretch (auto-pauses the rider did not leave)":
+suite "breaks: real files":
+  test "the ride: its 20 timer segments are one stretch, its gaps pauses (auto-pauses the rider did not leave)":
     var ws: seq[Warning]
     let a = readActivities(p, readBytes(ride), ws)
-    check a[0].segments.len == 1
+    check a[0].stretches.len == 1
+    check a[0].breaks.len > 0 and a[0].breaks.allIt(it.kind == bkPause)
     # the stretch covers the ride from the first start to the last stop: elapsed time, pauses included
-    let span = a[0].segments[0].endT - a[0].segments[0].startT
+    let span = a[0].stretches[0].endT - a[0].stretches[0].startT
     check abs(float(span) - a[0].elapsedS.get) <= 20.0
     check ws.kinds.count(wkOutsideSegment) == 0
 
-  test "every coordinate of every importable test file is in exactly one segment":
+  test "every coordinate of every importable test file is in exactly one stretch; the breaks are in the riding, in order":
     var files = 0
     for dir in ["sdk", "personal", "other", "python-fitparse"]:
       for path in walkFiles("../choochoo/data/test/source" / dir / "*"):
@@ -582,12 +619,18 @@ suite "segments: real files":
             continue
         inc files
         for act in a:
-          for k, g in act.segments:
+          let stretches = act.stretches
+          for k, g in stretches:
             check g.startT <= g.endT
             if k > 0:
-              check g.startT > act.segments[k - 1].endT
+              check g.startT > stretches[k - 1].endT
+          for k, b in act.breaks:
+            check act.riding.startT <= b.startT and b.startT < b.endT and
+              b.endT <= act.riding.endT
+            if k > 0:
+              check act.breaks[k - 1].startT <= b.startT
           for c in act.coords:
-            if act.segments.countIt(c.t >= it.startT and c.t <= it.endT) != 1:
+            if stretches.countIt(c.t >= it.startT and c.t <= it.endT) != 1:
               checkpoint path & ": coordinate at " & $c.t
               fail()
     check files > 30
