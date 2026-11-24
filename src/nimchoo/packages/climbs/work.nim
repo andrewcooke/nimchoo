@@ -108,11 +108,11 @@ func climbPath(p: Profile, c: Climb): Path =
 
 const
   sectorsThroughSql* = """select st.sector_id from
-      (select g.sector_id, min(v.t_in) as t from route_cell v
+      (select g.sector_id, min(v.in_epoch) as t from route_cell v
         join sector_gate_cell g on g.cell = v.cell and g.which = 0
         where v.activity_id = :ride group by g.sector_id) st
       join
-      (select g.sector_id, max(v.t_out) as t from route_cell v
+      (select g.sector_id, max(v.out_epoch) as t from route_cell v
         join sector_gate_cell g on g.cell = v.cell and g.which = 1
         where v.activity_id = :ride group by g.sector_id) fi
       on fi.sector_id = st.sector_id where st.t < fi.t order by st.sector_id"""
@@ -121,12 +121,12 @@ const
     ## last.  The gates are across the route at those two points, so a ride that crosses both has been through the cells round
     ## them (`sector_gate_cell`, made by a trigger when a sector is); the exact test (`overPaths`) says whether it really did.
   ridesThroughSql* = """select st.activity_id from
-      (select v.activity_id, min(v.t_in) as t from sector_gate_cell g
+      (select v.activity_id, min(v.in_epoch) as t from sector_gate_cell g
         join route_cell v on v.cell = g.cell
         where g.sector_id = :sector and g.which = 0 and v.activity_id in (select activity_id from climbs_done)
         group by v.activity_id) st
       join
-      (select v.activity_id, max(v.t_out) as t from sector_gate_cell g
+      (select v.activity_id, max(v.out_epoch) as t from sector_gate_cell g
         join route_cell v on v.cell = g.cell
         where g.sector_id = :sector and g.which = 1 and v.activity_id in (select activity_id from climbs_done)
         group by v.activity_id) fi
@@ -180,13 +180,13 @@ proc workOn(
   ## One activity (inside a transaction made by the caller).
   let insertEffort = prepareStmt(
     st.db,
-    "insert or ignore into effort(sector_id, activity_id, start_t, " &
-      "finish_t, elapsed_s, start_m) values (?, ?, ?, ?, ?, ?)",
+    "insert or ignore into effort(sector_id, activity_id, start_epoch, " &
+      "finish_epoch, elapsed_s, start_m) values (?, ?, ?, ?, ?, ?)",
   )
   let insertSector = prepareStmt(
     st.db,
     "insert into sector(length_m, gain_m, gradient, category, " &
-      "found_at, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))",
+      "found_epoch, route) values (?, ?, ?, ?, ?, GeomFromText(?, 4326))",
   )
   var track: Track
   timed "climbs: read the ride":
@@ -210,7 +210,7 @@ proc workOn(
           matched.add sector
     # 2. its climbs, in each stretch of riding (a climb does not cross a break)
     let foundAt =
-      st.db.scalar(int64, "select start_t from activity where id = :id", id = id)
+      st.db.scalar(int64, "select start_epoch from activity where id = :id", id = id)
     for coords in track:
       if coords.len < 2:
         continue
@@ -278,7 +278,7 @@ proc ensureClimbs*(
   let todo = st.db.query(
     ActivityId,
     "select a.id from activity a left join climbs_done d on d.activity_id = a.id " &
-      "where d.activity_id is null order by a.start_t, a.id",
+      "where d.activity_id is null order by a.start_epoch, a.id",
   )
   var cache: Sectors
   var rides: Rides

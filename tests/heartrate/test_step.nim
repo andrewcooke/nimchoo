@@ -91,7 +91,7 @@ suite "heartrate: import":
     check s.db.scalar(
       int,
       """select count(*) from heartrate h join activity a on a.id = h.activity_id
-      where h.t < a.start_t or h.t > a.end_t + 1""",
+      where h.t < a.start_epoch or h.t > a.end_epoch + 1""",
     ) == 0
 
   test "the series holds the same readings as the rows":

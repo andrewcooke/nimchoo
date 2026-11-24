@@ -1,6 +1,6 @@
 -- Names of places, for naming climbs and activities.
 --
--- The countries come from the outlines GeoNames publishes (fetched the first time they are wanted:
+-- The countries come from the outlines Natural Earth publishes (fetched the first time they are wanted:
 -- see names/countries.nim).  A country's names are read from its GeoNames file (fetched when a name is
 -- wanted there), a cell at a time, into `feature`.
 create table country (
@@ -18,7 +18,7 @@ create table coverage (
   country text not null references country(iso) on delete cascade,
   cell_lon integer not null,                -- whole degrees, south-west corner
   cell_lat integer not null,
-  loaded_at integer not null,               -- Unix seconds
+  loaded_epoch integer not null,            -- Unix seconds
   features integer not null,                -- how many the cell gave
   primary key (country, cell_lon, cell_lat)) strict, without rowid;
 
@@ -52,9 +52,6 @@ create table country_cell (
   country text not null references country(iso) on delete cascade,
   primary key (cell_lon, cell_lat, country)) strict, without rowid;
 
--- The outlines now come from Natural Earth (the GeoNames ones were invalid for GEOS).  A database made before has the old
--- ones: forget them, and they are read again from the new source the next time they are wanted (the countries, their
--- places and the cells already read are kept).
 
 -- A foreign key needs an index of its own (the primary key starts with the cell): deleting a country scanned the table.
 create index country_cell_country on country_cell(country);

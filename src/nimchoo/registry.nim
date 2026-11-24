@@ -211,7 +211,7 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
 * **Fragments (migrations).**  The structure is described by SQL files, `NNN-name.sql` in the directory of the package that
   owns the tables, listed in that package's `package.nim`; the registry joins them, each package after those it depends
   on.  The SQL is read when the program is compiled, so it is inside the `nch` binary.  Opening a database applies the
-  fragments it has not had, each in a transaction, and records them in the table `fragment` (name, applied_at, sha256).
+  fragments it has not had, each in a transaction, and records them in the table `fragment` (name, applied_epoch, sha256).
   A fragment that is recorded with another checksum is refused ("made by a different version of nch"), and so is one the
   program does not have ("from a newer version"); the message says to start again with `nch db --delete`.
   **Never edit a fragment that any database has had, and never delete one**: add a numbered file (`alter table`, `update`).

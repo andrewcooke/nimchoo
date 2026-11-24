@@ -13,7 +13,7 @@ import ./calc
 {.push raises: [].}
 
 const columns =
-  "m.id, m.name, m.built_in, m.gamma, m.zero, m.one, m.max_secs, m.zone1, m.zone2, m.zone3, m.zone4, m.zone5, m.ceiling, " &
+  "m.id, m.name, m.built_in, m.gamma, m.zero, m.one, m.max_gap_s, m.zone1, m.zone2, m.zone3, m.zone4, m.zone5, m.ceiling, " &
   "m.fitness_days, m.fatigue_days, m.fitness_scale, m.fatigue_scale"
 
 func describe*(m: Model): string =
@@ -48,7 +48,7 @@ proc writePatterns(
 proc insertModel*(db: DbConn, m: Model): ModelId {.raises: [StoreError].} =
   ## Add a model (its id is ignored); its new id.  Raises StoreError if the name is taken or a value is bad.
   db.execute(
-    """insert into ff_model(name, folded, built_in, gamma, zero, one, max_secs, zone1, zone2, zone3, zone4, zone5,
+    """insert into ff_model(name, folded, built_in, gamma, zero, one, max_gap_s, zone1, zone2, zone3, zone4, zone5,
         ceiling, fitness_days, fatigue_days, fitness_scale, fatigue_scale)
       values (:name, :folded, :builtIn, :gamma, :zero, :one, :maxSecs, :zone1, :zone2, :zone3, :zone4, :zone5, :ceiling,
         :fitnessDays, :fatigueDays, :fitnessScale, :fatigueScale)""",
@@ -79,7 +79,7 @@ proc updateModel*(db: DbConn, old, m: Model) {.raises: [StoreError].} =
   doAssert old.id == m.id
   db.execute(
     """update ff_model set name = :name, folded = :folded, gamma = :gamma, zero = :zero, one = :one,
-        max_secs = :maxSecs, zone1 = :zone1, zone2 = :zone2, zone3 = :zone3, zone4 = :zone4, zone5 = :zone5, ceiling = :ceiling,
+        max_gap_s = :maxSecs, zone1 = :zone1, zone2 = :zone2, zone3 = :zone3, zone4 = :zone4, zone5 = :zone5, ceiling = :ceiling,
         fitness_days = :fitnessDays, fatigue_days = :fatigueDays, fitness_scale = :fitnessScale,
         fatigue_scale = :fatigueScale
       where id = :id""",

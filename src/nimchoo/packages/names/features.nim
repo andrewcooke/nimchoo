@@ -149,7 +149,7 @@ proc readCells(
   let now = getTime().toUnix
   for c, k in counts:
     n.st.db.execute(
-      "insert or replace into coverage(country, cell_lon, cell_lat, loaded_at, features) values (:country, :cellLon, :cellLat, :loadedAt, :features)",
+      "insert or replace into coverage(country, cell_lon, cell_lat, loaded_epoch, features) values (:country, :cellLon, :cellLat, :loadedAt, :features)",
       country = iso,
       cellLon = c.lon,
       cellLat = c.lat,

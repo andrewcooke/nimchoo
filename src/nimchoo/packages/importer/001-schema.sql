@@ -1,7 +1,7 @@
 -- The tables of the importer module: imported FIT files, the activities in
 -- them (one per FIT session), their coordinates and stretches, and the
--- paths already looked at.  Times are Unix seconds UTC, lon/lat degrees
--- (SRID 4326), alt metres.  Everything belongs to a user and goes with them
+-- paths already looked at.  A time ending `_epoch` is Unix seconds UTC; one ending `_s`, seconds of duration or offset;
+-- lon/lat are degrees (SRID 4326) unless the name says otherwise.  Everything belongs to a user and goes with them
 -- (on delete cascade), which is how `nch --user NAME destroy` works.
 
 create table file (
@@ -9,7 +9,7 @@ create table file (
   user_id integer not null references user(id) on delete cascade,
   name text not null,
   sha256 text not null,
-  imported_at integer not null,
+  imported_epoch integer not null,
   unique (user_id, sha256)) strict;
 
 -- One per FIT session.  (A FIT file has one "activity" message and under it one or
@@ -19,8 +19,8 @@ create table activity (
   id integer primary key,
   file_id integer not null references file(id) on delete cascade,
   session integer not null,
-  start_t integer not null,
-  end_t integer not null,
+  start_epoch integer not null,
+  end_epoch integer not null,
   utc_offset_s integer,
   sport text,
   sub_sport text,
@@ -32,25 +32,26 @@ create table activity (
   -- null: not named yet (the next `nch import` does it); "": looked at, nothing to say.
   start_place text,
   name text,
-  start blob,                -- see below
+  start_point blob,          -- see below
   unique (file_id, session)) strict;
 -- Where the activity started (its first position), for "starts near here".  NULL if the file
 -- has no positions.  Written when the activity is imported.
-select RecoverGeometryColumn('activity', 'start', 4326, 'POINT', 'XY');
-select CreateSpatialIndex('activity', 'start');
+select RecoverGeometryColumn('activity', 'start_point', 4326, 'POINT', 'XY');
+select CreateSpatialIndex('activity', 'start_point');
 
 -- The positions of an activity as arrays (importer/series.nim), one row for the activity: the times as offsets in seconds from
--- t0, the longitudes and latitudes in FIT semicircles (int32), the altitudes in 0.2 m from -500 m (uint16), all little-endian.
+-- start_epoch (int32), the longitudes and latitudes in FIT semicircles (int32), the altitudes in FIT's encoding, 0.2 m from
+-- -500 m (uint16), all little-endian.
 -- Written once at import after the positions are cleaned (importer/clean.nim), and never changed.
 create table track (
   activity_id integer primary key references activity(id) on delete cascade,
-  t0 integer not null,                -- the time of the first position
-  t1 integer not null,                -- the time of the last
-  n integer not null,
-  t blob not null,
-  lon blob not null,
-  lat blob not null,
-  alt blob not null) strict;
+  start_epoch integer not null,       -- the time of the first position
+  end_epoch integer not null,         -- the time of the last
+  n_readings integer not null,
+  offsets_s blob not null,
+  lon_semi blob not null,
+  lat_semi blob not null,
+  alt_fit blob not null) strict;
 
 -- The stretches of riding of an activity: the times the timer ran (between a timer start and the
 -- next stop), with those the device paused by itself and the rider hardly left joined across the
@@ -60,8 +61,8 @@ create table track (
 create table segment (
   activity_id integer not null references activity(id) on delete cascade,
   n integer not null,
-  start_t integer not null,
-  end_t integer not null,
+  start_epoch integer not null,
+  end_epoch integer not null,
   primary key (activity_id, n)) strict, without rowid;
 
 -- The route of an activity as one geometry, a part for each segment, so that
@@ -83,7 +84,7 @@ create table seen_file (
   user_id integer not null references user(id) on delete cascade,
   path text not null,
   size integer not null,
-  mtime integer not null,
+  modified_epoch integer not null,
   file_id integer references file(id) on delete cascade,
   failure text,
   message text,
@@ -93,13 +94,13 @@ create table seen_file (
 create index seen_file_file on seen_file(file_id);
 
 -- Where an activity went, as the cells of a grid (geo/cells.nim; in SQL the function cell(lon, lat)): one row for each
--- visit, a run of consecutive samples in one cell, with the times of its first and last sample.  Questions about places (what is
+-- visit, a run of consecutive samples in one cell, with the times of its first and last sample (`in_epoch`, `out_epoch`).  Questions about places (what is
 -- near a route, which rides pass a climb, a heat map) are joins on the integer cell.  Written by the importer from the
 -- samples, in the same transaction as them (importer/visits.nim).  Visits of an activity do not overlap in time.
 create table route_cell (
   activity_id integer not null references activity(id) on delete cascade,
   cell integer not null,
-  t_in integer not null,
-  t_out integer not null,
-  primary key (activity_id, t_in)) strict, without rowid;
+  in_epoch integer not null,
+  out_epoch integer not null,
+  primary key (activity_id, in_epoch)) strict, without rowid;
 create index route_cell_cell on route_cell(cell, activity_id);

@@ -18,7 +18,7 @@ suite "climbs: working them out":
     check s.db.scalar(string, "select category from sector") == "4"
     check abs(s.db.scalar(float, "select gain_m from sector") - 118.0) < 3.0
     check abs(s.db.scalar(float, "select gradient from sector") - 4.0) < 0.2
-    check s.db.scalar(int, "select found_at from sector") == 1000000
+    check s.db.scalar(int, "select found_epoch from sector") == 1000000
     check abs(s.db.scalar(float, "select elapsed_s from effort") - 600.0) < 5.0
       # 3 km at 5 m/s
     check abs(s.db.scalar(float, "select start_m from effort") - 1500.0) < 10.0
@@ -36,14 +36,15 @@ suite "climbs: working them out":
     check w == Worked(activities: 2, sectors: 1, efforts: 2)
     check s.count("sector") == 1
     let fast =
-      s.db.scalar(float, "select elapsed_s from effort order by start_t limit 1")
-    let slow =
-      s.db.scalar(float, "select elapsed_s from effort order by start_t desc limit 1")
+      s.db.scalar(float, "select elapsed_s from effort order by start_epoch limit 1")
+    let slow = s.db.scalar(
+      float, "select elapsed_s from effort order by start_epoch desc limit 1"
+    )
     check abs(slow / fast - 1.25) < 0.02 # 4 m/s against 5 m/s
     # ... and they are ranked by the time
     check s.db.scalar(
       int64, "select e.activity_id from effort e order by e.elapsed_s limit 1"
-    ) == s.db.scalar(int64, "select id from activity where start_t = 1000000")
+    ) == s.db.scalar(int64, "select id from activity where start_epoch = 1000000")
 
   test "a ride with no altitude has efforts on known climbs, and a ride before the climb was found too":
     let s = fresh("noalt")
@@ -71,7 +72,7 @@ suite "climbs: working them out":
     let w = ensureClimbs(s)
     check w == Worked(activities: 1, sectors: 0, efforts: 1)
       # the sector stays as it was found
-    check s.db.scalar(int, "select found_at from sector") == 2000000
+    check s.db.scalar(int, "select found_epoch from sector") == 2000000
     check s.count("effort") == 2
 
   test "laps over a climb are separate efforts":

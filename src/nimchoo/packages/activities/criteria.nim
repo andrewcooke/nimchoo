@@ -695,15 +695,15 @@ func matchSql*(
         filt =
           filt & " and not exists (select 1 from track k where k.activity_id = a.id)"
     of rtAfter:
-      filt = filt & sqlOf(" and a.start_t >= :afterT").with("afterT", int64(f.at))
+      filt = filt & sqlOf(" and a.start_epoch >= :afterT").with("afterT", int64(f.at))
     of rtBefore:
-      filt = filt & sqlOf(" and a.start_t < :beforeT").with("beforeT", int64(f.at))
+      filt = filt & sqlOf(" and a.start_epoch < :beforeT").with("beforeT", int64(f.at))
     of rtFrom:
       # activities that START within the radius: the spatial index finds those in a box, and the distance on the ground
       # decides (an activity without a start is never near)
       filt =
-        filt & nearSql((f.lat, f.lon), f.km, "a.id", "activity", "start", "start") &
-        " and ST_Distance(a.start, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
+        filt & nearSql((f.lat, f.lon), f.km, "a.id", "activity", "start_point", "start") &
+        " and ST_Distance(a.start_point, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
     of rtNear:
       # activities whose ROUTE passes within the radius: the index of the routes (a route's row is its activity's id) finds
       # those whose box meets the circle's, and the distance on the ground from the point to the line decides (quickly:
@@ -725,8 +725,12 @@ func matchSql*(
     of lkNewest:
       result =
         result &
-        sqlOf(" order by a.start_t desc limit :newest").with("newest", limit.get.count)
+        sqlOf(" order by a.start_epoch desc limit :newest").with(
+          "newest", limit.get.count
+        )
     of lkOldest:
       result =
         result &
-        sqlOf(" order by a.start_t asc limit :oldest").with("oldest", limit.get.count)
+        sqlOf(" order by a.start_epoch asc limit :oldest").with(
+          "oldest", limit.get.count
+        )

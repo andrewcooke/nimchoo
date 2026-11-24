@@ -13,13 +13,13 @@ proc fresh(name: string): Session =
 
 proc addActivity(s: Session, sha: string): int64 =
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = s.userId,
     name = sha,
     sha256 = sha,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file"
+    "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, 0, 1 from file"
   )
   s.db.scalar(int64, "select max(id) from activity")
 
@@ -34,7 +34,7 @@ proc addSector(s: Session, lon0, lat0, lon1, lat1: float): int64 =
 
 proc visit(s: Session, activity: int64, lon, lat: float, t: int) =
   s.db.execute(
-    "insert into route_cell(activity_id, cell, t_in, t_out) values (:a, cell(:lon, :lat), :t, :t)",
+    "insert into route_cell(activity_id, cell, in_epoch, out_epoch) values (:a, cell(:lon, :lat), :t, :t)",
     a = activity,
     lon = lon,
     lat = lat,

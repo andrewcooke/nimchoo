@@ -2,7 +2,7 @@
 -- fatigue curves made from it, with the tags of the activities that count (see calc.nim).
 -- Models belong to no user.  A built-in model (made by the program: `default`) is selected for
 -- every user from the start; otherwise it is a model like the others (edited and deleted with
--- `nch models`; a rebuild makes it again).
+-- `nch ff`; a rebuild makes it again).
 create table ff_model (
   id integer primary key,
   name text not null,
@@ -12,7 +12,7 @@ create table ff_model (
   gamma real not null check (gamma > 0),
   zero real not null,
   one real not null,
-  max_secs integer not null check (max_secs > 0),   -- the longest gap in heart rate that is bridged
+  max_gap_s integer not null check (max_gap_s > 0), -- the longest gap in heart rate that is bridged
   -- the upper limits of heart-rate zones 1 to 5, as percentages of the threshold heart rate
   zone1 real not null,
   zone2 real not null,
@@ -40,7 +40,7 @@ create table ff_model_pattern (
   folded text not null,
   primary key (model_id, folded)) strict, without rowid;
 
--- The models a user has chosen: the models subject (`nch models CRITERIA --select`), as
+-- The models a user has chosen: the models subject (`nch ff CRITERIA --select`), as
 -- `activity_selection` is the activities'.  The built-in models are selected for every user
 -- from the start (the trigger below, and the seed for the users there are already).
 create table model_selection (
@@ -57,7 +57,7 @@ begin
 end;
 
 -- The impulse of each stretch of riding of an activity (`segment`, its `n`), as one lump at
--- its centre (`centre_t`: Unix seconds, the time weighted by the impulse), in units of "per 10
+-- its centre (`centre_epoch`: Unix seconds, the time weighted by the impulse), in units of "per 10
 -- seconds" (see calc.nim).  An activity with heart rate has a row for each of its stretches (zero,
 -- at the stretch's middle, if the heart rate never rose above the zero level there), so that a
 -- row says it was worked out; one without heart rate, or of a user with no threshold heart rate,
@@ -66,7 +66,7 @@ create table impulse (
   activity_id integer not null references activity(id) on delete cascade,
   model_id integer not null references ff_model(id) on delete cascade,
   n integer not null,
-  centre_t integer not null,
+  centre_epoch integer not null,
   value real not null check (value >= 0),
   primary key (activity_id, model_id, n)) strict, without rowid;
 

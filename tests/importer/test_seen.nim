@@ -18,7 +18,7 @@ suite "seen: what the import remembers of a path":
     defer:
       s.close()
     s.db.execute(
-      "insert into file(id, user_id, name, sha256, imported_at) values (7, :u, 'a', 'x', 0)",
+      "insert into file(id, user_id, name, sha256, imported_epoch) values (7, :u, 'a', 'x', 0)",
       u = s.userId,
     )
     var b: SeenBuffer
@@ -36,11 +36,11 @@ suite "seen: what the import remembers of a path":
     defer:
       s.close()
     s.db.execute(
-      "insert into seen_file(user_id, path, size, mtime, failure, message) values (:u, '/x', 1, 1, 'from_the_future', 'm')",
+      "insert into seen_file(user_id, path, size, modified_epoch, failure, message) values (:u, '/x', 1, 1, 'from_the_future', 'm')",
       u = s.userId,
     )
     s.db.execute(
-      "insert into seen_file(user_id, path, size, mtime) values (:u, '/y', 1, 1)",
+      "insert into seen_file(user_id, path, size, modified_epoch) values (:u, '/y', 1, 1)",
       u = s.userId,
     )
     check loadSeen(s).len == 0

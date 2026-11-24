@@ -45,7 +45,7 @@ proc stretchesOf(
   ## The activity's stretches of riding, in time order, with their numbers.
   for (n, s0, s1) in db.query(
     tuple[n, startT, endT: int64],
-    "select n, start_t, end_t from segment where activity_id = :activityId order by start_t",
+    "select n, start_epoch, end_epoch from segment where activity_id = :activityId order by start_epoch",
     activityId = activityId,
   ):
     result.add (n, (s0, s1))
@@ -71,7 +71,7 @@ proc calculateActivity*(
     return
   let st = prepareStmt(
     db,
-    "insert into impulse(activity_id, model_id, n, centre_t, value) values (?, ?, ?, ?, ?)",
+    "insert into impulse(activity_id, model_id, n, centre_epoch, value) values (?, ?, ?, ?, ?)",
   )
   for k, (t, v) in lumps:
     st.bindInt(1, activityId)
@@ -131,12 +131,12 @@ proc userLumps*(
   ## patterns), in time order (those of zero left out: they add nothing).
   db.query(
     Lump,
-    """select i.centre_t, i.value from impulse i
+    """select i.centre_epoch, i.value from impulse i
         join activity a on a.id = i.activity_id join file f on f.id = a.file_id
         where f.user_id = :userId and i.model_id = :modelId and i.value > 0
           and not exists (select 1 from ff_model_pattern p where p.model_id = :modelId
             and not exists (select 1 from activity_tag t where t.activity_id = a.id and t.folded glob p.folded))
-        order by i.centre_t""",
+        order by i.centre_epoch""",
     userId = userId,
     modelId = m.id,
   )
@@ -147,7 +147,7 @@ proc faultLines*(
   ## What to say of the activities whose readings were above the ceiling: when each started, and how many were ignored.
   let top = int(m.ceiling * float(fthr) / 100)
   for (id, n) in c.faults:
-    let t = db.scalar(int64, "select start_t from activity where id = :id", id = id)
+    let t = db.scalar(int64, "select start_epoch from activity where id = :id", id = id)
     let day = fromUnix(t).local.format("yyyy-MM-dd HH:mm")
     result.add plain(
       fmt"{day}: {count(n)} heart-rate readings above {top} bpm (the ceiling of {m.name}) ignored: a fault of the sensor?"

@@ -120,14 +120,14 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     sums.mustMut(r.id).manual = r.manual
   for r in st.db.query(
     AttemptRow,
-    """select e.sector_id, a.start_t, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
+    """select e.sector_id, a.start_epoch, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
               coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
               a.id in (select activity_id from activity_selection where user_id = :userId),
               rank() over (partition by e.sector_id order by e.elapsed_s),
               count(*) over (partition by e.sector_id)
          from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
         where e.sector_id in (select value from json_each(:ids)) and f.user_id = :userId
-        order by e.sector_id, a.start_t, e.start_t""",
+        order by e.sector_id, a.start_epoch, e.start_epoch""",
     userId = st.userId,
     ids = wanted,
   ):
@@ -151,16 +151,16 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
   for r in st.db.query(
     BestRow,
     """with each as (
-         select e.sector_id, f.user_id, u.name, e.elapsed_s, a.start_t,
-                row_number() over (partition by e.sector_id, f.user_id order by e.elapsed_s, a.start_t) as n
+         select e.sector_id, f.user_id, u.name, e.elapsed_s, a.start_epoch,
+                row_number() over (partition by e.sector_id, f.user_id order by e.elapsed_s, a.start_epoch) as n
            from effort e join activity a on a.id = e.activity_id join file f on f.id = a.file_id
            join user u on u.id = f.user_id
           where e.sector_id in (select value from json_each(:ids))),
        best as (select * from each where n = 1)
-       select sector_id, user_id, name, elapsed_s, start_t,
+       select sector_id, user_id, name, elapsed_s, start_epoch,
               rank() over (partition by sector_id order by elapsed_s),
               count(*) over (partition by sector_id)
-         from best order by sector_id, elapsed_s, start_t, user_id""",
+         from best order by sector_id, elapsed_s, start_epoch, user_id""",
     ids = wanted,
   ):
     sums.mustMut(r.sectorId).riders.add Rider(

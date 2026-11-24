@@ -21,12 +21,12 @@ proc world(name: string): string =
     s.close()
   for (tag, t) in [("ride", 1530446400), ("run", 1535371200)]:
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :name, 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :name, 0)",
       userId = s.userId,
       name = tag,
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t, sport, distance_m, timer_s) select max(id), 0, :t, :t + 100, 'cycling', 1000.0, 600.0 from file",
+      "insert into activity(file_id, session, start_epoch, end_epoch, sport, distance_m, timer_s) select max(id), 0, :t, :t + 100, 'cycling', 1000.0, 600.0 from file",
       t = t,
     )
   s.db.execute(

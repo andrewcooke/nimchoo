@@ -55,7 +55,7 @@ proc importedRide(name: string): Session =
 proc rows(s: Session): seq[tuple[activityId, cell, tIn, tOut: int64]] =
   s.db.query(
     tuple[activityId, cell, tIn, tOut: int64],
-    "select activity_id, cell, t_in, t_out from route_cell order by activity_id, t_in",
+    "select activity_id, cell, in_epoch, out_epoch from route_cell order by activity_id, in_epoch",
   )
 
 suite "track: the positions as arrays":
@@ -63,11 +63,14 @@ suite "track: the positions as arrays":
     let s = importedRide("track")
     defer:
       s.close()
-    let st = prepareStmt(s.db, "select t0, n, t, lon, lat, alt from track")
+    let st = prepareStmt(
+      s.db,
+      "select start_epoch, n_readings, offsets_s, lon_semi, lat_semi, alt_fit from track",
+    )
     check st.nextRow()
     let p = Positions(
-      t0: UnixTime(s.db.scalar(int64, "select t0 from track")),
-      count: s.db.scalar(int, "select n from track"),
+      t0: UnixTime(s.db.scalar(int64, "select start_epoch from track")),
+      count: s.db.scalar(int, "select n_readings from track"),
       t: st.blobAt(2),
       lon: st.blobAt(3),
       lat: st.blobAt(4),
@@ -102,7 +105,7 @@ suite "route_cell: written with the samples":
     s.db.materialise()
     check s.db.scalar(
       int,
-      """select count(*) from route_cell r join coords c on c.activity_id = r.activity_id and c.t = r.t_in
+      """select count(*) from route_cell r join coords c on c.activity_id = r.activity_id and c.t = r.in_epoch
           where cell(c.lon, c.lat) != r.cell""",
     ) == 0
     for i in 1 ..< written.len:

@@ -24,8 +24,8 @@ proc activityStarts(st: Session): seq[UnixTime] {.raises: [StoreError].} =
   ## When each of the user's activities started.
   for t in st.db.query(
     int64,
-    """select cast(a.start_t as integer) from activity a join file f on f.id = a.file_id
-      where f.user_id = :userId order by a.start_t""",
+    """select cast(a.start_epoch as integer) from activity a join file f on f.id = a.file_id
+      where f.user_id = :userId order by a.start_epoch""",
     userId = st.userId,
   ):
     result.add UnixTime(t)

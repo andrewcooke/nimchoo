@@ -111,7 +111,7 @@ proc recorded(db: DbConn): seq[(string, string)] {.raises: [StoreError].} =
 
 proc record(db: DbConn, f: Fragment) {.raises: [StoreError].} =
   db.execute(
-    "insert into fragment(name, applied_at, sha256) values (:name, :appliedAt, :sha256)",
+    "insert into fragment(name, applied_epoch, sha256) values (:name, :appliedAt, :sha256)",
     name = f.name,
     appliedAt = getTime().toUnix,
     sha256 = f.checksum,
@@ -159,7 +159,7 @@ proc bringUpToDate(db: DbConn, fragments: seq[Fragment]) {.raises: [StoreError].
   db.execScript(
     """create table if not exists fragment (
                     name text primary key,
-                    applied_at integer not null,
+                    applied_epoch integer not null,
                     sha256 text not null) strict, without rowid"""
   )
   for f in missingFragments(recorded(db), baseFragments & fragments):

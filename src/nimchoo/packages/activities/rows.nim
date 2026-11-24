@@ -15,7 +15,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
   ## What a row of the listing is made of (see table.nim); not recorded: -1 and ''.
   ## The path of the file (for `verbose`) is where it was last seen, else its name.
   sqlOf(
-    "a.start_t as start_t, coalesce(a.sport, '') as sport, " &
+    "a.start_epoch as start_epoch, coalesce(a.sport, '') as sport, " &
       "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
       "coalesce(a.timer_s, -1) as active, " &
       # whether the user has it in their selection
@@ -28,7 +28,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
       # where it started and what it is called (text made when it was imported: see names/activity.nim): in every listing
       "coalesce(a.start_place, '') as pname, coalesce(a.name, '') as aname, " & (
       # whether it has a start (said "no GPS" if not): -v only
-      if verbose: "ST_Y(a.start) as slat, ST_X(a.start) as slon, "
+      if verbose: "ST_Y(a.start_point) as slat, ST_X(a.start_point) as slon, "
       else: "null as slat, null as slon, "
     ) & (
       # its tags, as given, in the order of their folded forms: -v only
@@ -42,7 +42,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
     .with("me", userId)
 
 const rowFields* =
-  "start_t, sport, sub, dist, active, chosen, path, pname, aname, slat, slon, tags"
+  "start_epoch, sport, sub, dist, active, chosen, path, pname, aname, slat, slon, tags"
   ## the columns of a row, in the order `readRows` reads them
 
 proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
@@ -87,5 +87,7 @@ proc selectionRows*(st: Session, verbose: bool): seq[ListRow] {.raises: [StoreEr
     st,
     "select " & rowColumns(verbose, st.userId) &
       " from activity_selection s join activity a on a.id = s.activity_id join file f on f.id = a.file_id " &
-      "where s.user_id = :owner order by a.start_t, a.id".sqlOf.with("owner", st.userId),
+      "where s.user_id = :owner order by a.start_epoch, a.id".sqlOf.with(
+        "owner", st.userId
+      ),
   )

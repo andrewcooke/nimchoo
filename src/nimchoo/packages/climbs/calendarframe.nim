@@ -17,10 +17,10 @@ proc makeCalendar(st: Session): CalendarData {.raises: [StoreError].} =
   let climbs = chosenClimbs(st)
   for t in st.db.query(
     int64,
-    """select cast(e.start_t as integer) from effort e
+    """select cast(e.start_epoch as integer) from effort e
         join activity a on a.id = e.activity_id join file f on f.id = a.file_id
         where f.user_id = :userId and e.sector_id in (select value from json_each(:climbs))
-        order by e.start_t""",
+        order by e.start_epoch""",
     userId = st.userId,
     climbs = jsonList(climbs),
   ):

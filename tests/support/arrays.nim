@@ -14,7 +14,7 @@ proc putTrack*(db: DbConn, activityId: int64, coords: seq[Coord]) =
   let a = encodePositions(coords)
   let st = prepareStmt(
     db,
-    "insert into track(activity_id, t0, t1, n, t, lon, lat, alt) values (?, ?, ?, ?, ?, ?, ?, ?)",
+    "insert into track(activity_id, start_epoch, end_epoch, n_readings, offsets_s, lon_semi, lat_semi, alt_fit) values (?, ?, ?, ?, ?, ?, ?, ?)",
   )
   st.bindInt(1, activityId)
   st.bindInt(2, int64(a.t0))

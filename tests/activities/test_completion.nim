@@ -12,13 +12,13 @@ from nimchoo/registry import allFragments, allAccess
 proc addActivity(s: Session, name: string, tags: varargs[string]) =
   ## An activity of the user of `s`, with these tags.
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :name, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :name, 0)",
     userId = s.userId,
     name = name,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, 0, 10)",
+    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, 0, 10)",
     fileId = f,
   )
   var ts: seq[Tag]

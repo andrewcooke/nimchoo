@@ -35,14 +35,14 @@ proc world*(top, name: string): tuple[db, cache: string] =
     ("c", 3000, ""),
   ]:
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
       userId = s.userId,
       name = tag,
       sha256 = tag,
     )
     let f = s.db.scalar(int64, "select max(id) from file")
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t, sport) values (:fileId, 0, :startT, :endT, 'cycling')",
+      "insert into activity(file_id, session, start_epoch, end_epoch, sport) values (:fileId, 0, :startT, :endT, 'cycling')",
       fileId = f,
       startT = t,
       endT = t + 10,
@@ -101,7 +101,7 @@ proc withClimb*(db: string) =
     values (1000, 90, 9, '4', 'Cerro', GeomFromText('LINESTRING Z(-9.14 38.72 10, -9.13 38.72 100)', 4326))"""
   )
   s.db.execute(
-    """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+    """insert into effort(sector_id, activity_id, start_epoch, finish_epoch, elapsed_s, start_m)
     values (1, 1, 1, 61, 60, 0)"""
   )
 
@@ -121,7 +121,7 @@ proc withCells*(db: string) =
   defer:
     s.close()
   s.db.execute(
-    """insert into route_cell(activity_id, cell, t_in, t_out) values
+    """insert into route_cell(activity_id, cell, in_epoch, out_epoch) values
       (1, cell(-9.14, 38.72), 1000, 1002), (1, cell(-9.13, 38.72), 1003, 1005),
       (1, cell(-9.14, 38.72), 1006, 1008), (2, cell(2.35, 48.85), 2000, 2004)"""
   )

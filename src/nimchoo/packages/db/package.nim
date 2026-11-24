@@ -3,7 +3,7 @@
 ## * **Fragments (migrations).**  The structure is described by SQL files, `NNN-name.sql` in the directory of the package that
 ##   owns the tables, listed in that package's `package.nim`; the registry joins them, each package after those it depends
 ##   on.  The SQL is read when the program is compiled, so it is inside the `nch` binary.  Opening a database applies the
-##   fragments it has not had, each in a transaction, and records them in the table `fragment` (name, applied_at, sha256).
+##   fragments it has not had, each in a transaction, and records them in the table `fragment` (name, applied_epoch, sha256).
 ##   A fragment that is recorded with another checksum is refused ("made by a different version of nch"), and so is one the
 ##   program does not have ("from a newer version"); the message says to start again with `nch db --delete`.
 ##   **Never edit a fragment that any database has had, and never delete one**: add a numbered file (`alter table`, `update`).
@@ -17,7 +17,7 @@
 ##   survives).  Once anyone else has a database, never squash again.  Before deleting the old fragments compare the schema
 ##   they make with the squashed one (every table, column, index and foreign key, from a fresh database each way).  What a
 ##   rebuild loses that cannot be made again from the FIT files: the users and their FTHR, models, the saved selection,
-##   the landmarks and names given by hand.  Last squashed 2026-11-17 (each package has one fragment).
+##   the landmarks and names given by hand.  Last squashed 2026-11-25, with the columns renamed (each package has one fragment).
 ## * **Statements.**  Values are bound by name (`query(db, T, "... where id = :id", id = 3)`), never put into the text; a `?`
 ##   is a compile error.  A query built from pieces is an `Sql` (`sqltext`), which also records the packages whose files wrote
 ##   its pieces.  Rows are read into typed tuples or objects.  Nothing else imports `db_connector`.

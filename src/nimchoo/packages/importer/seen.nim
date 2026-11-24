@@ -50,7 +50,7 @@ proc loadSeen*(s: Session): SeenTable {.raises: [StoreError].} =
       fileId: Option[int64],
       failure, message: Option[string],
     ],
-    """select path, size, mtime, file_id, failure, message from seen_file
+    """select path, size, modified_epoch, file_id, failure, message from seen_file
         where user_id = :userId""",
     userId = s.userId,
   ):
@@ -109,7 +109,7 @@ proc flush*(s: Session, b: var SeenBuffer) {.raises: [StoreError].} =
   let st = prepareStmt(
     s.db,
     "insert or replace into seen_file(user_id, path, " &
-      "size, mtime, file_id, failure, message) values (?, ?, ?, ?, ?, ?, ?)",
+      "size, modified_epoch, file_id, failure, message) values (?, ?, ?, ?, ?, ?, ?)",
   )
   try:
     for (path, row) in b.rows:

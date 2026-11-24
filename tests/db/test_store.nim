@@ -70,6 +70,22 @@ suite "database: opening and bringing the schema up to date":
     check s.db.scalar(int, "pragma auto_vacuum") == 2
     s.reclaim()
 
+  test "a column says its unit: an instant ends in _epoch, never _t or _at":
+    let s = open(tempDb("units"))
+    defer:
+      s.close()
+    var tables = @["fragment"]
+    for f in allFragments:
+      let words = f.sql.splitWhitespace
+      for i in 1 ..< words.high:
+        if words[i - 1].toLowerAscii == "create" and words[i].toLowerAscii == "table":
+          tables.add words[i + 1].split('(')[0]
+    check "track" in tables and "effort" in tables
+    for t in tables:
+      for c in s.db.query(string, "select name from pragma_table_info(:t)", t = t):
+        checkpoint t & "." & c
+        check not (c.endsWith("_t") or c.endsWith("_at"))
+
   test "a store is closed when it goes out of scope; closing by hand as well is fine":
     let path = tempDb("scope")
     block opened:
@@ -193,7 +209,7 @@ suite "database: opening and bringing the schema up to date":
     let path = tempDb("newer")
     let a = open(path)
     a.db.execute(
-      "insert into fragment(name, applied_at, sha256) values ('future/001-x.sql', 0, 'x')"
+      "insert into fragment(name, applied_epoch, sha256) values ('future/001-x.sql', 0, 'x')"
     )
     a.close()
     expect StoreError:
@@ -396,19 +412,19 @@ suite "database: cascades":
     defer:
       s.close()
     s.db.execute(
-      """insert into file(user_id, name, sha256, imported_at)
+      """insert into file(user_id, name, sha256, imported_epoch)
                     values (1, 'f', 'x', 0)"""
     )
     s.db.execute(
-      """insert into activity(file_id, session, start_t, end_t)
+      """insert into activity(file_id, session, start_epoch, end_epoch)
                     values (1, 0, 0, 10)"""
     )
     s.db.putTrack(1, @[Coord(t: UnixTime(5), lon: 1.0, lat: 2.0)])
     s.db.execute(
-      "insert into segment(activity_id, n, start_t, end_t) values (1, 1, 0, 10)"
+      "insert into segment(activity_id, n, start_epoch, end_epoch) values (1, 1, 0, 10)"
     )
     s.db.execute(
-      "insert into seen_file(user_id, path, size, mtime, file_id) values (1, '/p', 1, 1, 1)"
+      "insert into seen_file(user_id, path, size, modified_epoch, file_id) values (1, '/p', 1, 1, 1)"
     )
     s.db.execute("delete from user where id = 1")
     for t in ["file", "activity", "track", "segment", "seen_file"]:
@@ -419,7 +435,7 @@ suite "database: the schema":
     let s = open(":memory:")
     expect StoreError:
       s.db.execute(
-        """insert into file(user_id, name, sha256, imported_at)
+        """insert into file(user_id, name, sha256, imported_epoch)
                       values (999, 'f', 'x', 0)"""
       )
     s.close()
@@ -435,15 +451,16 @@ suite "database: the schema":
   test "a duplicate key is a StoreError":
     let s = open(":memory:")
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'f', 'x', 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, 'f', 'x', 0)",
       userId = s.userId,
     )
     s.db.execute(
-      """insert into activity(file_id, session, start_t, end_t)
+      """insert into activity(file_id, session, start_epoch, end_epoch)
                     values (1, 0, 0, 0)"""
     )
     let ins = prepareStmt(
-      s.db, "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"
+      s.db,
+      "insert into segment(activity_id, n, start_epoch, end_epoch) values (?, ?, ?, ?)",
     )
     ins.bindInt(1, 1)
     ins.bindInt(2, 1)

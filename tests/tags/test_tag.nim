@@ -15,12 +15,12 @@ proc fresh(name: string): Session =
 proc activity(s: Session, name: string): ActivityId =
   ## An activity (in a file of its own) of the session's user.
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:user, :name, :name, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:user, :name, :name, 0)",
     user = s.userId,
     name = name,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) select id, 0, 0, 10 from file where sha256 = :name",
+    "insert into activity(file_id, session, start_epoch, end_epoch) select id, 0, 0, 10 from file where sha256 = :name",
     name = name,
   )
   ActivityId(s.db.scalar(int64, "select max(id) from activity"))

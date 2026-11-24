@@ -99,7 +99,7 @@ suite "model: the impulse of the readings":
   test "below the first edge there is no impulse, but the stretch has a lump, at its middle":
     check stretchImpulse(rs([(0, 60), (30, 60)]), @[(0'i64, 40'i64)], 100, m) ==
       @[(20'i64, 0.0)]
-  test "a gap longer than max_secs counts for nothing; one of exactly max_secs counts":
+  test "a gap longer than max_gap_s counts for nothing; one of exactly max_gap_s counts":
     check whole(rs([(0, 121), (61, 121)]), 100).value == 0
     check near(whole(rs([(0, 121), (60, 121)]), 100).value, 6.0)
     # the readings either side of a long gap still count with their neighbours

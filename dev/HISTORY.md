@@ -4,6 +4,22 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Columns say their unit, and a squash (2026-11-25, step 0 of dev/plot-activity.md)
+
+The schema had three ways to name an instant (`start_t`, `imported_at`, `mtime`) and short names in the tables of arrays
+(`track`'s `t0`, `t`, `lon` ...).  Now an instant is `_epoch`, an offset or a duration `_s`, an encoded value says its
+encoding (`lon_semi`, `lat_semi`: FIT semicircles; `alt_fit`: FIT's 0.2 m from -500 m), and anything else is a word and its
+unit; `activity.start` (a point) is `start_point`, and `ff_model.max_secs` is `max_gap_s`.  The table of renames is in
+dev/plot-activity.md, step 0; a test (`tests/db/test_store.nim`) refuses a column ending in `_t` or `_at`.  Rows are
+read by position, so only the SQL changed, not the Nim tuples.  Done as a squash (climbs' `002-selection.sql` joined its
+`001`), which also took the items waiting for it: the stale comments of the fragments (climbs: `nch sector`, the
+"(n/m) numbering", `-f`, "005 by hand"; names: the outlines are Natural Earth's, and a paragraph left from a migration;
+ff: `nch models`; user: "TODO.md, Task 7").  Checked: a fresh database made each way, its schema (columns, keys,
+indexes, foreign keys, triggers, geometry columns) dumped, and the old one with the renames applied is identical to
+the new.  `sector.name` (and `activity.name`, `start_place`) keep null for "not looked at yet" and '' for "looked, nothing to call
+it" (the author: two meanings, each written one way, which the rule against "" allows; a flag beside the name was
+proposed and rejected).  Left for later (TODO.md): `sport` and `sub_sport` going.  Rebuild: yes (`nch db --delete`, then import).
+
 ## A shade's stops (2026-11-23, the author's)
 
 A shade's colours are now stops, `NAME-0`, `NAME-1` and any between (`NAME-0.5`), in place of `NAME-lo` and `NAME-hi`: a

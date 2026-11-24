@@ -44,14 +44,14 @@ proc addRide*(
   ## for a minute (the rider is carried on to the next place): a new stretch.
   let u = s.db.scalar(int64, "select id from user where name = :name", name = user)
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = u,
     name = tag,
     sha256 = tag,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, :startT, :endT)",
+    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, :startT, :endT)",
     fileId = f,
     startT = startT,
     endT = startT + 10000,
@@ -81,7 +81,7 @@ proc addRide*(
   s.db.putTrack(a, coords)
   for v in visitsOf(coords):
     s.db.execute(
-      "insert into route_cell(activity_id, cell, t_in, t_out) values (:activityId, :cell, :tIn, :tOut)",
+      "insert into route_cell(activity_id, cell, in_epoch, out_epoch) values (:activityId, :cell, :tIn, :tOut)",
       activityId = a,
       cell = int64(v.cell),
       tIn = int64(v.tIn),
@@ -89,7 +89,7 @@ proc addRide*(
     )
   for n, (g0, g1) in stretches:
     s.db.execute(
-      "insert into segment(activity_id, n, start_t, end_t) values (:activityId, :n, :startT, :endT)",
+      "insert into segment(activity_id, n, start_epoch, end_epoch) values (:activityId, :n, :startT, :endT)",
       activityId = a,
       n = n,
       startT = g0,

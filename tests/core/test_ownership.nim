@@ -65,7 +65,7 @@ suite "who owns the tables":
         frag("b/001.sql", "create table activity_x(x);"),
       ]
     )
-    check ownerOf("idx_activity_start", owners) == some("a")
+    check ownerOf("idx_activity_start_point", owners) == some("a")
     check ownerOf("idx_activity_start_node", owners) == some("a")
     check ownerOf("idx_activity_x_geom_rowid", owners) == some("b")
     check ownerOf("idx_other_geom", owners).isNone

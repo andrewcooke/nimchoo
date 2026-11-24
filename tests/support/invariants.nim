@@ -21,47 +21,47 @@ const allInvariants* = [
   Invariant(
     name: "every effort lies within one stretch of riding of its activity",
     offenders:
-      "select e.activity_id || ' sector ' || e.sector_id || ' at ' || e.start_t from effort e " &
+      "select e.activity_id || ' sector ' || e.sector_id || ' at ' || e.start_epoch from effort e " &
       "where not exists (select 1 from segment s where s.activity_id = e.activity_id " &
-      "and s.start_t <= e.start_t and e.finish_t <= s.end_t)",
+      "and s.start_epoch <= e.start_epoch and e.finish_epoch <= s.end_epoch)",
   ),
   Invariant(
     name: "an effort starts before it finishes, and elapsed is the difference",
     offenders:
       "select activity_id || ' sector ' || sector_id from effort " &
-      "where finish_t <= start_t or abs(elapsed_s - (finish_t - start_t)) > 0.001",
+      "where finish_epoch <= start_epoch or abs(elapsed_s - (finish_epoch - start_epoch)) > 0.001",
   ),
   Invariant(
     name: "the stretches of an activity are in order and disjoint",
     offenders:
       "select a.activity_id || ' segment ' || a.n from segment a " &
       "left join segment b on b.activity_id = a.activity_id and b.n = a.n + 1 " &
-      "where a.end_t < a.start_t or (b.n is not null and b.start_t < a.end_t)",
+      "where a.end_epoch < a.start_epoch or (b.n is not null and b.start_epoch < a.end_epoch)",
   ),
   Invariant(
     name: "the stretches of an activity lie within the activity",
     offenders:
       "select s.activity_id || ' segment ' || s.n from segment s join activity a on a.id = s.activity_id " &
-      "where s.start_t < a.start_t or s.end_t > a.end_t",
+      "where s.start_epoch < a.start_epoch or s.end_epoch > a.end_epoch",
   ),
   Invariant(
     name: "the positions of an activity lie within the activity",
     offenders:
       "select cast(a.id as text) from activity a where exists (select 1 from track t " &
-      "where t.activity_id = a.id and (t.t0 < a.start_t or t.t1 > a.end_t))",
+      "where t.activity_id = a.id and (t.start_epoch < a.start_epoch or t.end_epoch > a.end_epoch))",
   ),
   Invariant(
     name: "an activity has a start point exactly when it has positions",
     offenders:
-      "select cast(a.id as text) from activity a where (a.start is null) = " &
+      "select cast(a.id as text) from activity a where (a.start_point is null) = " &
       "exists (select 1 from track t where t.activity_id = a.id)",
   ),
   Invariant(
     name: "the visits of an activity to cells are in order and disjoint",
     offenders:
-      "select a.activity_id || ' at ' || a.t_in from route_cell a " &
-      "where a.t_out < a.t_in or exists (select 1 from route_cell b where b.activity_id = a.activity_id " &
-      "and b.t_in > a.t_in and b.t_in <= a.t_out)",
+      "select a.activity_id || ' at ' || a.in_epoch from route_cell a " &
+      "where a.out_epoch < a.in_epoch or exists (select 1 from route_cell b where b.activity_id = a.activity_id " &
+      "and b.in_epoch > a.in_epoch and b.in_epoch <= a.out_epoch)",
   ),
   Invariant(
     name: "an activity has visits to cells exactly when it has positions",
@@ -110,7 +110,7 @@ proc arrayViolations(db: DbConn): seq[string] {.raises: [StoreError].} =
     let expected = visitsOf(readPositions(db, ActivityId(id)))
     let stored = db.query(
       tuple[cell, tIn, tOut: int64],
-      "select cell, t_in, t_out from route_cell where activity_id = :id order by t_in",
+      "select cell, in_epoch, out_epoch from route_cell where activity_id = :id order by in_epoch",
       id = id,
     )
     var same = expected.len == stored.len

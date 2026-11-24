@@ -39,10 +39,10 @@ proc selectedImpulses*(
   result.model = some(m)
   result.lumps = st.db.query(
     Lump,
-    """select i.centre_t, i.value from impulse i
+    """select i.centre_epoch, i.value from impulse i
         where i.model_id = :model and i.value > 0
           and i.activity_id in (select activity_id from activity_selection where user_id = :user)
-        order by i.centre_t""",
+        order by i.centre_epoch""",
     model = m.id,
     user = st.userId,
   )

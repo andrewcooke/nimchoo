@@ -125,10 +125,10 @@ suite "route: in the database":
     defer:
       s.close()
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
+      "insert into file(user_id, name, sha256, imported_epoch) values (1, 'f', 'x', 0)"
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 10)"
+      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 0, 10)"
     )
     s.db.execute(
       """insert into route(activity_id, geom) values (1,
@@ -159,10 +159,10 @@ suite "route: in the database":
       ],
     )
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
+      "insert into file(user_id, name, sha256, imported_epoch) values (1, 'f', 'x', 0)"
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 20)"
+      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 0, 20)"
     )
     let st = prepareStmt(
       s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
@@ -189,10 +189,10 @@ suite "route: in the database":
     defer:
       s.close()
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (1, 'f', 'x', 0)"
+      "insert into file(user_id, name, sha256, imported_epoch) values (1, 'f', 'x', 0)"
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 0, 10)"
+      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 0, 10)"
     )
     s.db.execute(
       """insert into route(activity_id, geom) values (1,

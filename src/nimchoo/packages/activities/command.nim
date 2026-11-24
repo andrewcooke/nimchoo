@@ -83,7 +83,7 @@ proc startOf(
   ## Where an activity started (latitude, longitude); none if it has no positions.
   let c = st.db.scalar(
     tuple[lat, lon: Option[float]],
-    "select ST_Y(start), ST_X(start) from activity where id = :id",
+    "select ST_Y(start_point), ST_X(start_point) from activity where id = :id",
     id = activityId,
   )
   if c.lat.isSome and c.lon.isSome:
@@ -126,7 +126,7 @@ proc latestAmong(
     st: Store, match: Sql
 ): Option[tuple[id: ActivityId, row: ListRow]] {.raises: [StoreError].} =
   ## The newest activity of those a query finds (one giving `id` and the row columns).
-  let ordered = " from (" & match & ") order by start_t desc, id desc limit 1"
+  let ordered = " from (" & match & ") order by start_epoch desc, id desc limit 1"
   let rows = readRows(st, "select " & rowFields & ordered)
   if rows.len == 0:
     return none(tuple[id: ActivityId, row: ListRow])
@@ -451,7 +451,7 @@ proc listActivities*(
     listedNow = listedNow.with("selectedBy", st.userId)
   # the list; the select style marks those listed that are in the selection after the command
   let rows = readRows(
-    st, "select " & rowFields & " from (" & listedNow & ") order by start_t, id"
+    st, "select " & rowFields & " from (" & listedNow & ") order by start_epoch, id"
   )
   let total = activityCount(st)
   result.lines.add listing(

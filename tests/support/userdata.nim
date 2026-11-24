@@ -19,7 +19,7 @@ proc fill*(s: Session, tag: string) =
   ## One of everything, for the user of `s`.
   let u = s.userId
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = u,
     name = tag,
     sha256 = tag,
@@ -31,18 +31,18 @@ proc fill*(s: Session, tag: string) =
     sha256 = tag,
   )
   s.db.execute(
-    """insert into activity(file_id, session, start_t, end_t)
+    """insert into activity(file_id, session, start_epoch, end_epoch)
                   values (:fileId, 0, 0, 10)""",
     fileId = f,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   s.db.putTrack(a, @[Coord(t: UnixTime(5), lon: 1.0, lat: 2.0)])
   s.db.execute(
-    "insert into segment(activity_id, n, start_t, end_t) values (:activityId, 1, 0, 10)",
+    "insert into segment(activity_id, n, start_epoch, end_epoch) values (:activityId, 1, 0, 10)",
     activityId = a,
   )
   s.db.execute(
-    "insert into seen_file(user_id, path, size, mtime, file_id) values (:userId, :path, 1, 1, :fileId)",
+    "insert into seen_file(user_id, path, size, modified_epoch, file_id) values (:userId, :path, 1, 1, :fileId)",
     userId = u,
     path = "/" & tag,
     fileId = f,

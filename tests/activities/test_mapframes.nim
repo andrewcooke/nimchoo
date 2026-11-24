@@ -60,11 +60,11 @@ suite "activities frames: the routes":
     s.db.execute("insert into user(name, is_default) values ('bob', 0)")
     let bob = s.db.scalar(int64, "select id from user where name = 'bob'")
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'bobs', 'bobs', 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, 'bobs', 'bobs', 0)",
       userId = bob,
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 5000, 5010 from file"
+      "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, 5000, 5010 from file"
     )
     s.db.execute(
       "insert into route(activity_id, geom) select max(id), GeomFromText('MULTILINESTRING((0 0, 1 1))', 4326) from activity"

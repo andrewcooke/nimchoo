@@ -44,7 +44,7 @@ suite "nch --config: the settings":
     # a fragment the database has and this program does not
     let s = openStore(path, allFragments, access = allAccess)
     s.db.execScript(
-      "insert into fragment(name, applied_at, sha256) values ('zzz/001.sql', 0, 'x')"
+      "insert into fragment(name, applied_epoch, sha256) values ('zzz/001.sql', 0, 'x')"
     )
     s.db.execScript(
       "update fragment set sha256 = 'other' where name = 'user/001-schema.sql'"

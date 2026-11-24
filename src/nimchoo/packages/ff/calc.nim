@@ -8,7 +8,7 @@
 ## lump at its centre (the time weighted by the impulse).  Fitness and fatigue are then exact sums
 ## of decaying lumps: measured against an impulse worked out by the minute, the largest difference
 ## in a day-end's fatigue over the author's history is 0.1 (dev/ff.md).  Two readings further apart
-## than `max_secs` cover nothing.  The unit is the Python original's: the impulse "per 10 seconds"
+## than `max_gap_s` cover nothing.  The unit is the Python original's: the impulse "per 10 seconds"
 ## (a zone-6 effort for 10 seconds is 1).  The original works on a 10-second grid for the sake of
 ## pandas; this integrates exactly, so an irregular recording interval has no effect.
 

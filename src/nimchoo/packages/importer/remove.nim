@@ -36,7 +36,7 @@ proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
   # id, file, start, sport
   var rows = st.db.query(
     (ActivityId, FileId, int64, string),
-    "select a.id, a.file_id, a.start_t, coalesce(a.sport, '') from activity a " &
+    "select a.id, a.file_id, a.start_epoch, coalesce(a.sport, '') from activity a " &
       "join file f on f.id = a.file_id where f.user_id = :userId and " &
       "a.id in (select value from json_each(:ids))",
     userId = st.userId,

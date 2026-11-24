@@ -34,10 +34,10 @@ proc routesOf*(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].
       distanceM: Option[float],
       geometry: string,
     ],
-    "select a.id, a.start_t, coalesce(a.sport, ''), coalesce(a.name, ''), a.distance_m, " &
+    "select a.id, a.start_epoch, coalesce(a.sport, ''), coalesce(a.name, ''), a.distance_m, " &
       "AsGeoJSON(Simplify(r.geom, :tolerance), 5) " &
       "from activity a join route r on r.activity_id = a.id " &
-      "where a.id in (select value from json_each(:ids)) order by a.start_t, a.id",
+      "where a.id in (select value from json_each(:ids)) order by a.start_epoch, a.id",
     tolerance = toleranceM / metresPerDegree,
     ids = jsonList(ids),
   ):

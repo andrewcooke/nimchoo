@@ -19,12 +19,12 @@ proc open(name: string): Session =
 
 proc addSelected(s: Session, tag: string) =
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :name, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :name, 0)",
     userId = s.userId,
     name = tag,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) select max(id), 0, 0, 1 from file"
+    "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, 0, 1 from file"
   )
   s.db.execute(
     "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",

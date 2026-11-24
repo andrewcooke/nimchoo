@@ -13,14 +13,14 @@ proc fresh(name: string): Session =
 proc add(s: Session, sha: string, session = 0) =
   ## An activity of file `sha`, in the selection.
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = s.userId,
     name = sha,
     sha256 = sha,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (:fileId, :session, 0, 1)",
+    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, :session, 0, 1)",
     fileId = f,
     session = session,
   )

@@ -19,13 +19,13 @@ const
 
 proc addActivity(s: Session, tag: string, startT: int, sport: string) =
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = s.userId,
     name = tag,
     sha256 = tag,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t, sport, distance_m, timer_s) select max(id), 0, :startT, :endT, :sport, 1000.0, 600.0 from file",
+    "insert into activity(file_id, session, start_epoch, end_epoch, sport, distance_m, timer_s) select max(id), 0, :startT, :endT, :sport, 1000.0, 600.0 from file",
     startT = startT,
     endT = startT + 100,
     sport = sport,
@@ -121,7 +121,7 @@ suite "nch calendar: what it shows":
     defer:
       s.close()
     s.db.execute(
-      "update activity set start_t = 1520640000 where id = (select min(id) from activity)"
+      "update activity set start_epoch = 1520640000 where id = (select min(id) from activity)"
     ) # 2018-03-10
     s.db.execute(
       "insert or ignore into activity_selection(user_id, activity_id) select :userId, id from activity",

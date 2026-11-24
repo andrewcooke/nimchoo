@@ -59,7 +59,9 @@ func detailText*(n: Named): string =
 
 proc pending*(st: Store): seq[int64] {.raises: [StoreError].} =
   ## The activities not named yet, in the order they began.
-  st.db.query(int64, "select id from activity where name is null order by start_t, id")
+  st.db.query(
+    int64, "select id from activity where name is null order by start_epoch, id"
+  )
 
 proc forgetNames*(st: Store, ids: seq[int64]) {.raises: [StoreError].} =
   ## Forget the start place and the name of these activities (null), so that `ensureActivityNames` makes them again: after a

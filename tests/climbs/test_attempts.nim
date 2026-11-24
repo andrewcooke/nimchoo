@@ -22,7 +22,7 @@ proc world(name: string): Session =
   addRide(s, "default", "three", 3_000_000, 6.0, eastbound(6.0))
   discard ensureClimbs(s)
   s.db.execute(
-    "insert into activity_selection(user_id, activity_id) select :userId, id from activity where start_t = 1000000",
+    "insert into activity_selection(user_id, activity_id) select :userId, id from activity where start_epoch = 1000000",
     userId = s.userId,
   )
   s

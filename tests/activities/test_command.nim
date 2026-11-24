@@ -37,14 +37,14 @@ proc addActivity(
     lat = 0.0,
 ) =
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = userId,
     name = tag,
     sha256 = tag,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    """insert into activity(file_id, session, start_t, end_t, sport, sub_sport,
+    """insert into activity(file_id, session, start_epoch, end_epoch, sport, sub_sport,
                                        distance_m, timer_s)
                   values (:fileId, 0, :startT, :endT, nullif(:sport, ''), nullif(:subSport, ''), 12345.0, 3661.0)""",
     fileId = f,
@@ -58,7 +58,7 @@ proc addActivity(
   if sportT.isSome:
     s.addTags(ActivityId(a), [sportT.get])
   s.db.execute(
-    "update activity set start = MakePoint(:lon, :lat, 4326) where id = :id",
+    "update activity set start_point = MakePoint(:lon, :lat, 4326) where id = :id",
     lon = lon,
     lat = lat,
     id = a,
@@ -456,7 +456,7 @@ suite "list: the command":
     check chosen(db) == @["paris"]
     let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
-      "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
+      "update activity set start_point = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
     discard save(db, "--tags", "sport:cycling") # lisbon2, which has no start
@@ -621,7 +621,7 @@ suite "list: the command":
     check chosen(db) == @["paris"] # (the latest is in Paris)
     let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
-      "update activity set start = null where file_id = (select id from file where name = 'lisbon2')"
+      "update activity set start_point = null where file_id = (select id from file where name = 'lisbon2')"
     )
     st.close()
     check save(db, "--tags", "sport:cycling", "--from", "latest") == exitFailure
@@ -785,7 +785,7 @@ suite "list: what is shown":
     let db = world("verbose-noplace")
     let st = openSession(db, allFragments, access = allAccess)
     st.db.execute(
-      "update activity set start = null where file_id in (select id from file where name = 'paris')"
+      "update activity set start_point = null where file_id in (select id from file where name = 'paris')"
     )
     st.close()
     let rows = shown(db, "-v", "--all").lines.texts
@@ -940,7 +940,7 @@ suite "list: --paths":
     defer:
       s.close()
     s.db.execute(
-      """insert into seen_file(user_id, path, size, mtime, file_id)
+      """insert into seen_file(user_id, path, size, modified_epoch, file_id)
       select f.user_id, :path, 1, 1, f.id from file f where f.name = :name""",
       path = path,
       name = tag,
@@ -1032,7 +1032,7 @@ suite "list: --climbs":
       assignNumber(s, lastInsertId(s.db))
     for (tag, sector) in [("lisbon1", 1), ("lisbon1", 3), ("lisbon2", 2)]:
       s.db.execute(
-        """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+        """insert into effort(sector_id, activity_id, start_epoch, finish_epoch, elapsed_s, start_m)
         select :sectorId, a.id, 1, 61, 60, 0 from activity a join file f on f.id = a.file_id where f.name = :name""",
         sectorId = sector,
         name = tag,

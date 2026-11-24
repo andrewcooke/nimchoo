@@ -374,9 +374,9 @@ suite "list: the box and the sql":
       matchSql(UserId(1), @[Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0)])
     let m = q.text
     check m.contains("f_table_name = 'activity'") and
-      m.contains("f_geometry_column = 'start'")
+      m.contains("f_geometry_column = 'start_point'")
     check m.contains(
-      "ST_Distance(a.start, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
+      "ST_Distance(a.start_point, MakePoint(:startLon, :startLat, 4326), 1) <= :startM"
     )
     check q.value("startLon") == arg(-9.1) and q.value("startLat") == arg(38.7) and
       q.value("startM") == arg(5000.0)
@@ -395,7 +395,7 @@ suite "list: the box and the sql":
       "ST_Distance(r.geom, MakePoint(:passLon, :passLat, 4326), 1) <= :passM"
     )
     check q.value("passM") == arg(1000.0) # (the default)
-    check not m.contains("a.start,")
+    check not m.contains("a.start_point,")
   test "--gps and --no-gps":
     check parseArgs(@["--gps"], utcZone).params.scope.filters.find(ftGps).gps == gpsWith
     check parseArgs(@["--no-gps"], utcZone).params.scope.filters.find(ftGps).gps ==
@@ -425,7 +425,7 @@ suite "list: the box and the sql":
     check plain ==
       "select a.id from activity a join file f on f.id = a.file_id where f.user_id = :user"
     check q.args.len == 1 and q.value("user") == arg(2'i64)
-    check not plain.contains("start_t") and not plain.contains("route") and
+    check not plain.contains("start_epoch") and not plain.contains("route") and
       not plain.contains("limit")
     let fullQ = matchSql(
       UserId(1),
@@ -434,22 +434,21 @@ suite "list: the box and the sql":
         Resolved(kind: rtBefore, at: UnixTime(9)),
         Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0),
       ],
-      sqlOf("a.id, a.start_t"),
+      sqlOf("a.id, a.start_epoch"),
       limit = some(Limit(kind: lkNewest, count: 2)),
     )
     let full = fullQ.text
-    check full.startsWith("select a.id, a.start_t from activity a")
-    check full.contains("a.start_t >= :afterT") and full.contains(
-      "a.start_t < :beforeT"
-    )
+    check full.startsWith("select a.id, a.start_epoch from activity a")
+    check full.contains("a.start_epoch >= :afterT") and
+      full.contains("a.start_epoch < :beforeT")
     check fullQ.value("afterT") == arg(5) and fullQ.value("beforeT") == arg(9)
     check full.contains("SpatialIndex") and
       full.contains("MakePoint(:startLon, :startLat, 4326)")
     check fullQ.value("startM") == arg(5000.0)
-    check full.endsWith("order by a.start_t desc limit :newest")
+    check full.endsWith("order by a.start_epoch desc limit :newest")
     check fullQ.value("newest") == arg(2)
     let oldest = matchSql(UserId(1), @[], limit = some(Limit(kind: lkOldest, count: 4)))
-    check oldest.text.endsWith("order by a.start_t asc limit :oldest")
+    check oldest.text.endsWith("order by a.start_epoch asc limit :oldest")
     check oldest.value("oldest") == arg(4)
   test "tags are bound values, each pattern a condition of its own":
     let m = matchSql(
@@ -624,7 +623,7 @@ suite "list: --invert":
     check matchSql(
       UserId(1), filters, invert = true, limit = some(Limit(kind: lkNewest, count: 2))
     ).text
-      .endsWith(" order by a.start_t desc limit :newest")
+      .endsWith(" order by a.start_epoch desc limit :newest")
     let r = parseArgs(@["--distance", "latest~10%", "--invert"], utcZone).params.scope
     check r.filters.usesLatest and r.invert and not r.filters.withoutLatest.usesLatest
 

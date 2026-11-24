@@ -22,11 +22,11 @@ proc fresh(name: string): Session =
   result = openSession(path, allFragments, access = allAccess)
   let db = result.db
   db.execute(
-    "insert into file(id, user_id, name, sha256, imported_at) values (1, :userId, 'a', 'x', 0)",
+    "insert into file(id, user_id, name, sha256, imported_epoch) values (1, :userId, 'a', 'x', 0)",
     userId = int64(result.userId),
   )
   db.execute(
-    "insert into activity(id, file_id, session, start_t, end_t, start_place) values (1, 1, 0, 1000, 2000, '')"
+    "insert into activity(id, file_id, session, start_epoch, end_epoch, start_place) values (1, 1, 0, 1000, 2000, '')"
   )
   db.execute("insert into segment values (1, 0, 1000, 1500), (1, 1, 1600, 2000)")
   db.execute(
@@ -59,7 +59,7 @@ suite "invariants":
 
   test "overlapping segments, a missing climb decision and an orphan are found":
     let s = fresh("several")
-    s.db.execute("update segment set start_t = 1400 where n = 1")
+    s.db.execute("update segment set start_epoch = 1400 where n = 1")
     s.db.execute(
       "insert into sector(id, length_m, gain_m, gradient) values (2, 500, 40, 8)"
     )
@@ -76,12 +76,12 @@ suite "invariants":
     let c = int64(cell(111974, 57907))
     s.db.putTrack(1, @[Coord(t: UnixTime(1000), lon: -70.65, lat: -33.45)])
     s.db.execute(
-      "update activity set start = MakePoint(-70.65, -33.45, 4326) where id = 1"
+      "update activity set start_point = MakePoint(-70.65, -33.45, 4326) where id = 1"
     )
     check violations(s.db).join("\n").contains("exactly when it has positions")
     s.db.execute("insert into route_cell values (1, :c, 1000, 1000)", c = c)
     check violations(s.db) == newSeq[string]()
-    s.db.execute("update route_cell set t_out = 1500")
+    s.db.execute("update route_cell set out_epoch = 1500")
     s.db.execute("insert into route_cell values (1, :c, 1400, 1600)", c = c)
       # (overlaps, and no sample at 1400)
     let v = violations(s.db).join("\n")

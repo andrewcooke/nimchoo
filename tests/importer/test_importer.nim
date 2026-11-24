@@ -98,7 +98,7 @@ suite "import: a real ride":
     check s.count("coords") == 2099
     check s.db.scalar(string, "select sport || '/' || sub_sport from activity") ==
       "cycling/generic"
-    check s.db.scalar(int, "select start_t from activity") == 1535373814
+    check s.db.scalar(int, "select start_epoch from activity") == 1535373814
     check s.db.scalar(int, "select utc_offset_s from activity") == -10800
     check abs(s.db.scalar(float, "select distance_m from activity") - 11978.11) < 1e-6
     check s.db.scalar(int, "select count(*) from coords where alt is null") == 2099
@@ -135,8 +135,9 @@ suite "import: a real ride":
     check first.t == 1535373814
     check abs(first.lat - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
     check abs(first.lon - (-842376459.0 * 180.0 / 2147483648.0)) < 1e-9
-    check s.db.scalar(int, "select min(t) = (select start_t from activity) from coords") ==
-      1
+    check s.db.scalar(
+      int, "select min(t) = (select start_epoch from activity) from coords"
+    ) == 1
 
   test "importing the same file again does nothing":
     let s = openAll(tempDb("twice"))
@@ -194,13 +195,13 @@ suite "import: several sessions":
     check s.db.scalar(
       int,
       """select count(*) from activity a join activity b
-      on b.start_t > a.start_t and b.start_t < a.end_t""",
+      on b.start_epoch > a.start_epoch and b.start_epoch < a.end_epoch""",
     ) == 0
     # every coordinate lies in the activity it belongs to (or before the first)
     check s.db.scalar(
       int,
       """select count(*) from coords c join activity a
-      on a.id = c.activity_id where c.t > a.end_t + 1""",
+      on a.id = c.activity_id where c.t > a.end_epoch + 1""",
     ) == 0
 
 suite "import: files that cannot be imported":
@@ -221,18 +222,19 @@ suite "import: files that cannot be imported":
       s.close()
     var ws: seq[Warning]
     discard s.importFile(p, "tiny.fit", tiny, ws)
-    check s.db.scalar(string, "select ST_Y(start) || ' ' || ST_X(start) from activity") ==
-      "45.0 -90.0"
-    check s.db.scalar(int, "select count(*) from idx_activity_start") == 1
+    check s.db.scalar(
+      string, "select ST_Y(start_point) || ' ' || ST_X(start_point) from activity"
+    ) == "45.0 -90.0"
+    check s.db.scalar(int, "select count(*) from idx_activity_start_point") == 1
       # (and it is indexed)
     # a real ride: the same as the first row of its coordinates
     discard s.importPath(ride)
     s.db.materialise()
     check s.db.scalar(
       int,
-      """select count(*) from activity a where a.start is not null and
-      ST_X(a.start) = (select lon from coords where activity_id = a.id order by t limit 1) and
-      ST_Y(a.start) = (select lat from coords where activity_id = a.id order by t limit 1)""",
+      """select count(*) from activity a where a.start_point is not null and
+      ST_X(a.start_point) = (select lon from coords where activity_id = a.id order by t limit 1) and
+      ST_Y(a.start_point) = (select lat from coords where activity_id = a.id order by t limit 1)""",
     ) == 2
 
   test "the start is the first position; the start place and the name are not made at import (they are null until named)":
@@ -240,7 +242,9 @@ suite "import: files that cannot be imported":
     defer:
       s.close()
     discard s.importPath(ride)
-    check s.db.scalar(int, "select count(*) from activity where start is not null") == 1
+    check s.db.scalar(
+      int, "select count(*) from activity where start_point is not null"
+    ) == 1
     check s.db.scalar(
       int, "select count(*) from activity where start_place is null and name is null"
     ) == 1
@@ -256,8 +260,9 @@ suite "import: files that cannot be imported":
     var ws: seq[Warning]
     let r = s.importFile(p, "nogps.fit", noGps, ws)
     check r.activities == 1 and r.coords == 0
-    check s.db.scalar(int, "select count(*) from activity where start is null") == 1
-    check s.db.scalar(int, "select count(*) from idx_activity_start") == 0
+    check s.db.scalar(int, "select count(*) from activity where start_point is null") ==
+      1
+    check s.db.scalar(int, "select count(*) from idx_activity_start_point") == 0
 
   test "a file with no activity writes nothing":
     let s = openAll(tempDb("noact"))
@@ -313,19 +318,19 @@ suite "import: segments":
       int,
       """select count(*) from segment a join segment b
       on b.activity_id = a.activity_id and b.n = a.n + 1
-      where b.start_t <= a.end_t""",
+      where b.start_epoch <= a.end_epoch""",
     ) == 0
     s.db.materialise()
     check s.db.scalar(
       int,
       """select count(*) from coords c where not exists (
       select 1 from segment g where g.activity_id = c.activity_id
-        and c.t between g.start_t and g.end_t)""",
+        and c.t between g.start_epoch and g.end_epoch)""",
     ) == 0
     # the time between segments is the time paused
     check s.db.scalar(
       int,
-      """select sum(b.start_t - a.end_t) from segment a
+      """select sum(b.start_epoch - a.end_epoch) from segment a
       join segment b on b.activity_id = a.activity_id and b.n = a.n + 1""",
     ) == 13
 
@@ -338,7 +343,7 @@ suite "import: segments":
     s.db.materialise()
     check s.db.scalar(
       int,
-      """select count(*) from coords c, segment g where c.t < g.start_t or c.t > g.end_t""",
+      """select count(*) from coords c, segment g where c.t < g.start_epoch or c.t > g.end_epoch""",
     ) == 0
 
   test "the coordinates of one segment are a range of the key":
@@ -351,7 +356,7 @@ suite "import: segments":
       int,
       """select sum(cnt) from (
       select (select count(*) from coords c where c.activity_id = g.activity_id
-        and c.t between g.start_t and g.end_t) as cnt from segment g)""",
+        and c.t between g.start_epoch and g.end_epoch) as cnt from segment g)""",
     ) == 2099
 
   test "a multisport file has segments for each activity":

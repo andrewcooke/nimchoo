@@ -22,12 +22,12 @@ proc world(name: string, selected = 2): tuple[db, cache: string] =
     s.close()
   for i in 1 .. selected:
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :name, 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :name, 0)",
       userId = s.userId,
       name = "f" & $i,
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) select max(id), 0, :t, :t + 10 from file",
+      "insert into activity(file_id, session, start_epoch, end_epoch) select max(id), 0, :t, :t + 10 from file",
       t = i * 1000,
     )
     s.db.execute(

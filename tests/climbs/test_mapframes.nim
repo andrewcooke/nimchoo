@@ -110,7 +110,7 @@ suite "climbs frames: gates and efforts":
     let gateBefore =
       parseFile(frameFile(w.cache, "gates"))["features"][0]["geometry"]["coordinates"]
     let s = openSession(w.db, allFragments, access = allAccess)
-    s.db.execute("update effort set finish_t = 60, elapsed_s = 59")
+    s.db.execute("update effort set finish_epoch = 60, elapsed_s = 59")
     s.db.execute(
       "update sector set route = GeomFromText('LINESTRING Z(-9.14 38.72 10, -9.12 38.73 100)', 4326)"
     )

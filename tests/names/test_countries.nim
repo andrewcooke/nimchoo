@@ -151,7 +151,7 @@ suite "names: which countries":
       "insert into country(iso, name, geoname_id) values ('CL', 'Chile', 3895114)"
     )
     st.db.execute(
-      "insert into coverage(country, cell_lon, cell_lat, loaded_at, features) values ('CL', -71, -34, 1, 1)"
+      "insert into coverage(country, cell_lon, cell_lat, loaded_epoch, features) values ('CL', -71, -34, 1, 1)"
     )
     st.db.execute(
       "insert into feature(id, country, name, class, code, geom) values (1, 'CL', 'Cerro', 'T', 'HLL', MakePoint(-70.6, -33.4, 4326))"

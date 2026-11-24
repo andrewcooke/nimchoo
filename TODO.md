@@ -4,6 +4,11 @@ Open work only, as one list in the order the author chose (2026-11-12).  Finishe
 reasoning behind decisions); the reviews are in dev/REVIEW.md (the fourth on top, the others as appendices C, B and A).
 When something here is done, delete it (in the same commit).  Design steps are discussed with the author before they start.
 
+## Now: a plot of one activity (dev/plot-activity.md, 2026-11-25)
+
+Steps 1 to 4 of the note, in its order (step 0, the column names, is done): the channels package with heart rate moved in;
+the `activity` subject with altitude, heart rate and the time axis; distance and speed; cadence, temperature and power.
+
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 
 The presentation grew by many small requests, each done where it was asked, so similar things differ between commands.

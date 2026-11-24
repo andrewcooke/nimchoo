@@ -95,8 +95,8 @@ proc effortsOf(st: Session, ids: seq[int64]): seq[EffortLine] {.raises: [StoreEr
   var readFor = -1'i64
   for e in st.db.query(
     tuple[sectorId, activityId: int64, startT, finishT, elapsedS, startM: float],
-    """select sector_id, activity_id, start_t, finish_t, elapsed_s, start_m from effort
-        where activity_id in (select value from json_each(:ids)) order by activity_id, start_t, sector_id""",
+    """select sector_id, activity_id, start_epoch, finish_epoch, elapsed_s, start_m from effort
+        where activity_id in (select value from json_each(:ids)) order by activity_id, start_epoch, sector_id""",
     ids = jsonList(ids),
   ):
     var line = EffortLine(
@@ -156,7 +156,7 @@ proc ridesUp(st: Session, sectors: seq[int64]): seq[int64] {.raises: [StoreError
     """select a.id from activity a join file f on f.id = a.file_id
         where f.user_id = :userId and exists (select 1 from effort e
           where e.activity_id = a.id and e.sector_id in (select value from json_each(:sectors)))
-        order by a.start_t, a.id""",
+        order by a.start_epoch, a.id""",
     userId = st.userId,
     sectors = jsonList(sectors),
   )

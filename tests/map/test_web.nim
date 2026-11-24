@@ -29,14 +29,14 @@ proc fixture(name: string, selected = true): tuple[db, cache: string] =
     ("b", "MULTILINESTRING((2.35 48.85, 2.40 48.90))"),
   ]:
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
       userId = s.userId,
       name = tag,
       sha256 = tag,
     )
     let f = s.db.scalar(int64, "select max(id) from file")
     s.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, 1000, 1100)",
+      "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, 1000, 1100)",
       fileId = f,
     )
     let a = s.db.scalar(int64, "select max(id) from activity")

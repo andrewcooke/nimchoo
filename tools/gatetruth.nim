@@ -297,7 +297,7 @@ proc rideMode(st: Session, activity: int64) =
   var l: Loaded
   let rows = st.db.query(
     tuple[sid: int64, s, f: float],
-    "select sector_id, start_t, finish_t from effort where activity_id = :a order by start_t, sector_id",
+    "select sector_id, start_epoch, finish_epoch from effort where activity_id = :a order by start_epoch, sector_id",
     a = activity,
   )
   for r in rows:
@@ -394,7 +394,7 @@ proc traceMode(st: Session, activity, sector: int64) =
   let g = gm.get
   for r in st.db.query(
     tuple[s, f: float],
-    "select start_t, finish_t from effort where activity_id = :a and sector_id = :c",
+    "select start_epoch, finish_epoch from effort where activity_id = :a and sector_id = :c",
     a = activity,
     c = sector,
   ):
@@ -421,7 +421,7 @@ proc truthMode(st: Session) =
   var l: Loaded
   let rows = st.db.query(
     tuple[aid, sid: int64, s, f: float],
-    "select activity_id, sector_id, start_t, finish_t from effort order by activity_id, sector_id, start_t",
+    "select activity_id, sector_id, start_epoch, finish_epoch from effort order by activity_id, sector_id, start_epoch",
   )
   var stored: array[Verdict, int]
   var table: array[Rule, array[Verdict, int]]

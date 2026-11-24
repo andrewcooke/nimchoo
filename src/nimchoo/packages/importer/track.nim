@@ -18,10 +18,11 @@ type Track* = seq[seq[Coord]]
   ## stretches are in time order too.
 
 const
-  headSql* = "select t0, n from track where activity_id = :activityId"
-  arraysSql* = "select t, lon, lat, alt from track where activity_id = ?"
+  headSql* = "select start_epoch, n_readings from track where activity_id = :activityId"
+  arraysSql* =
+    "select offsets_s, lon_semi, lat_semi, alt_fit from track where activity_id = ?"
   segmentsSql* =
-    "select start_t, end_t from segment where activity_id = :activityId order by n"
+    "select start_epoch, end_epoch from segment where activity_id = :activityId order by n"
 
 proc readPositions*(db: DbConn, id: ActivityId): seq[Coord] {.raises: [StoreError].} =
   ## All the positions of an activity, in time order (none if it has none).

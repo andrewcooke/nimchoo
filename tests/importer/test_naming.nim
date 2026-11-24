@@ -21,14 +21,14 @@ proc addActivity(
   ## An activity along the points (lon, lat), a position about every 50 m.
   let u = s.db.scalar(int64, "select id from user where name = 'default'")
   s.db.execute(
-    "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, 0)",
+    "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = u,
     name = tag,
     sha256 = tag,
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t) values (:fileId, 0, :startT, :endT)",
+    "insert into activity(file_id, session, start_epoch, end_epoch) values (:fileId, 0, :startT, :endT)",
     fileId = f,
     startT = startT,
     endT = startT + 10000,
@@ -104,7 +104,7 @@ suite "import: naming the activities":
     w.st.addActivity("a", 1_000_000, [home, barnechea, home])
     let u = w.st.db.scalar(int64, "select id from user where name = 'default'")
     w.st.db.execute(
-      "insert into seen_file(user_id, path, size, mtime, file_id) values (:userId, '/rides/a.fit', 1, 1, 1)",
+      "insert into seen_file(user_id, path, size, modified_epoch, file_id) values (:userId, '/rides/a.fit', 1, 1, 1)",
       userId = u,
     )
     # (the route: the loop, as one stretch, and a stretch with a fix on the other side of the world: it ends the route,
@@ -125,11 +125,11 @@ suite "import: naming the activities":
       w.st.close()
     let u = w.st.db.scalar(int64, "select id from user where name = 'default'")
     w.st.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, 'x', 'x', 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, 'x', 'x', 0)",
       userId = u,
     )
     w.st.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) values (1, 0, 1, 2)"
+      "insert into activity(file_id, session, start_epoch, end_epoch) values (1, 0, 1, 2)"
     )
     check ensureActivityNames(w.st, w.names).nothing == 1
     check w.st.db.scalar(string, "select coalesce(name, '-') from activity") == ""

@@ -130,10 +130,10 @@ proc writeDecoded*(
   var committed = false
   try:
     var visitInsert = initMultiInsert(
-      s.db, "insert into route_cell(activity_id, cell, t_in, t_out) values ", 4
+      s.db, "insert into route_cell(activity_id, cell, in_epoch, out_epoch) values ", 4
     )
     s.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:userId, :name, :sha256, :importedAt)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, :importedAt)",
       userId = s.userId,
       name = name,
       sha256 = digest,
@@ -144,21 +144,22 @@ proc writeDecoded*(
     let actStmt = prepareStmt(
       s.db,
       "insert into activity(file_id, session, " &
-        "start_t, end_t, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
+        "start_epoch, end_epoch, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
         "distance_m, calories) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     let segStmt = prepareStmt(
-      s.db, "insert into segment(activity_id, n, start_t, end_t) values (?, ?, ?, ?)"
+      s.db,
+      "insert into segment(activity_id, n, start_epoch, end_epoch) values (?, ?, ?, ?)",
     )
     let routeStmt = prepareStmt(
       s.db, "insert into route(activity_id, geom) values (?, GeomFromWKB(?, 4326))"
     )
     let trackStmt = prepareStmt(
       s.db,
-      "insert into track(activity_id, t0, t1, n, t, lon, lat, alt) values (?, ?, ?, ?, ?, ?, ?, ?)",
+      "insert into track(activity_id, start_epoch, end_epoch, n_readings, offsets_s, lon_semi, lat_semi, alt_fit) values (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     let startStmt = prepareStmt(
-      s.db, "update activity set start = MakePoint(?, ?, 4326) where id = ?"
+      s.db, "update activity set start_point = MakePoint(?, ?, 4326) where id = ?"
     )
     result.outcome = ioImported
     for step in steps:

@@ -23,12 +23,12 @@ proc world(name: string): Session =
     ("c", @["sport:running"]),
   ]:
     result.db.execute(
-      "insert into file(user_id, name, sha256, imported_at) values (:user, :name, :name, 0)",
+      "insert into file(user_id, name, sha256, imported_epoch) values (:user, :name, :name, 0)",
       user = result.userId,
       name = n,
     )
     result.db.execute(
-      "insert into activity(file_id, session, start_t, end_t) select id, 0, 0, 10 from file where name = :name",
+      "insert into activity(file_id, session, start_epoch, end_epoch) select id, 0, 0, 10 from file where name = :name",
       name = n,
     )
     let id = ActivityId(result.db.scalar(int64, "select max(id) from activity"))

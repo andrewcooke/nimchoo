@@ -21,7 +21,7 @@ the choochoo directory parallel to this one).  what i want to do is:
 ## where things are
 
 * the top level has only what has to be there: `src/`, `tests/`, `tools/` (developer tools), `dev/` (the notes: `dev/HISTORY.md`,
-  `dev/REVIEW.md`, `dev/PACKAGES.md`, `dev/CLEANING.md`, `dev/NAMING.md` (naming rides after their climbs: tried and reverted, read it before trying again), `dev/editable-objects.md` (one shared piece for the named things made by hand: the design, 2026-11-22), `dev/tags.md` (tags, and the selection's explicit operations: the design, 2026-11-22), `dev/ff.md` (the rework of fitness and fatigue: the design, begun 2026-11-23), and `dev/display-arch/`: the design of the display and the plan of its migration, `plan.md`), `README.md`, `TODO.md`, `NOTICE`, `CLAUDE.md` (and `AGENTS.md`, a link to
+  `dev/REVIEW.md`, `dev/PACKAGES.md`, `dev/CLEANING.md`, `dev/NAMING.md` (naming rides after their climbs: tried and reverted, read it before trying again), `dev/editable-objects.md` (one shared piece for the named things made by hand: the design, 2026-11-22), `dev/tags.md` (tags, and the selection's explicit operations: the design, 2026-11-22), `dev/ff.md` (the rework of fitness and fatigue: the design, begun 2026-11-23), `dev/plot-activity.md` (a plot of one activity's channels: the design, 2026-11-25), and `dev/display-arch/`: the design of the display and the plan of its migration, `plan.md`), `README.md`, `TODO.md`, `NOTICE`, `CLAUDE.md` (and `AGENTS.md`, a link to
   it), `nimchoo.nimble`, `config.nims`, `.github/`, `.claude/`.  git-ignored output: `nch` (the program, `nimble prod`), `build/`
   (`build/nch-test`, the test build), `.fuzz/` (the fuzzers' binaries and corpus), `doc/` (`nimble docs`).
 * the built-in FIT profile is `src/nimchoo/packages/fit/Profile.xlsx` (embedded into the program).
@@ -189,6 +189,9 @@ cache can be deleted; nothing outside the author's machine depends on anything h
   loader, one helper, one table), with a test that would catch the next instance.
 * **packages declare what they use.**  a package imports only its declared dependencies (checked by a test);
   shared code is a package of its own, not part of the module that needed it first.
+* **a column says its unit**: a word and its unit (`distance_m`, `elapsed_s`, `radius_m`); an instant, Unix seconds, ends in
+  `_epoch` (`start_epoch`); an offset or a duration in `_s`; an encoded value says its encoding (`lon_semi`, `alt_fit`).  a test
+  refuses a column ending in `_t` or `_at` (decided 2026-11-25).
 * **let the database do database work.**  values are bound, never put into sql text; rows are read into typed
   tuples or objects; filtering, joining, ranking and spatial search are sql, not loops in nim.
   values are given by **name**: `db.scalar(int, "select count(*) from sector where gain_m > :gain", gain = 100.0)`.  a `?` is

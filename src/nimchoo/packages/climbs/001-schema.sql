@@ -6,18 +6,18 @@
 --
 -- The name is text made from the places near the top (see names/), a copy and not a link: null until it is made
 -- (the command that finds the climb makes it, or stops), "" if nothing was near it (null again if it could not be made: `--offline`, or no network).
--- manual is 1 for a name the author gave (`nch sector --edit NAME --rename NEW`): the system never changes it.
+-- manual is 1 for a name the author gave (`nch climbs --edit NAME --rename NEW`): the system never changes it.
 create table sector (
   id integer primary key,
   length_m real not null,
   gain_m real not null,
   gradient real not null,             -- percent
   category text,                      -- 4, 3, 2, 1 or HC; null if too small to have one
-  found_at integer,                   -- Unix seconds: when the ride it was first found on began (a note, not a link)
+  found_epoch integer,                -- when the ride it was first found on began (a note, not a link)
   name text,
   manual integer not null default 0 check (manual in (0, 1)),
-  -- hidden from the lists, as a segment can be hidden on Strava.  Nothing is deleted: it keeps its efforts and its place
-  -- in the (n/m) numbering of its name (so that the gap shows), it still takes the efforts of new rides, and it still
+  -- hidden from the lists, as a segment can be hidden on Strava.  Nothing is deleted: it keeps its efforts and its number
+  -- among the climbs of its name (`name_n`, so that the gap shows), it still takes the efforts of new rides, and it still
   -- counts as a stored climb when a new one is looked for (or the next ride would make it again).
   retired integer not null default 0 check (retired in (0, 1)),
   route blob,
@@ -31,11 +31,11 @@ select CreateSpatialIndex('sector', 'route');
 create table effort (
   sector_id integer not null references sector(id) on delete cascade,
   activity_id integer not null references activity(id) on delete cascade,
-  start_t real not null,              -- Unix seconds, UTC, interpolated at the start gate
-  finish_t real not null,
-  elapsed_s real not null,            -- finish_t - start_t
+  start_epoch real not null,          -- Unix seconds, UTC, interpolated at the start gate
+  finish_epoch real not null,
+  elapsed_s real not null,            -- finish_epoch - start_epoch
   start_m real not null,              -- metres along the ride at the start gate
-  primary key (sector_id, activity_id, start_t)) strict, without rowid;
+  primary key (sector_id, activity_id, start_epoch)) strict, without rowid;
 
 -- Which activities have been looked at for climbs, and with which version of the method (so that a
 -- change of the method shows).  An activity with no positions or no altitude is recorded too: it
@@ -53,7 +53,7 @@ create index effort_activity on effort(activity_id);
 -- the crossing, so the cells within 100 m of the point (a block as many cells either way as 100 m is at the latitude of the
 -- point: cell_dx, cell_dy) hold a sample of it unless the gap is over 150 m (a GPS dropout).  The trigger fills it whenever a
 -- sector is made, whoever makes it; a route is never changed once made, so nothing else needs to.  Delete 100.0 here and nowhere
--- else to change the margin (and fill it again: `climbs --all --delete -f`, or 005 by hand).
+-- else to change the margin (and fill it again: `nch climbs --all --delete`, then `nch climbs`).
 create table sector_gate_cell (
   sector_id integer not null references sector(id) on delete cascade,
   which integer not null check (which in (0, 1)),
@@ -77,3 +77,14 @@ end;
 create table sector_name_number (
   name text not null primary key,
   highest integer not null) strict, without rowid;
+
+-- The climbs a user has chosen: the climbs subject (`nch climbs CRITERIA --select`, and an import, which chooses the climbs of
+-- the activities it imported), as `activity_selection` is the activities'.  Rows belong to the user whose selection it is; the climbs
+-- are shared.  Replaced as a whole.
+create table climb_selection (
+  user_id integer not null references user(id) on delete cascade,
+  sector_id integer not null references sector(id) on delete cascade,
+  primary key (user_id, sector_id)) strict, without rowid;
+
+-- A foreign key needs an index of its own (the primary key starts with the user): deleting the climbs scanned the selections.
+create index climb_selection_sector on climb_selection(sector_id);

@@ -8,7 +8,7 @@ func rules(): Access =
     amEnforce,
     {
       "activity": "importer",
-      "idx_activity_start": "importer",
+      "idx_activity_start_point": "importer",
       "effort": "climbs",
       "user": "db",
     }.toTable,
@@ -49,7 +49,7 @@ suite "access: the rule":
   test "a spatial index belongs to the owner of its table":
     check rules().refusal("climbs", opRead, "idx_activity_start_node").isNone
     check rules().refusal("climbs", opWrite, "idx_activity_start_node").isSome
-    check rules().refusal("other", opRead, "idx_activity_start").isSome
+    check rules().refusal("other", opRead, "idx_activity_start_point").isSome
 
   test "tables nobody made by DDL (SQLite's own, SpatiaLite's) are free, and so is code outside the packages":
     check rules().refusal("climbs", opWrite, "sqlite_master").isNone

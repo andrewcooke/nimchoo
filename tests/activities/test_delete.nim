@@ -39,7 +39,7 @@ proc extra(s: Session, tag: string, session, startT: int, sport = "") =
   ## A second activity (another session) in the file `tag`.
   let f = s.db.scalar(int64, "select id from file where name = :name", name = tag)
   s.db.execute(
-    "insert into activity(file_id, session, start_t, end_t, sport) values (:fileId, :session, :startT, :endT, nullif(:sport, ''))",
+    "insert into activity(file_id, session, start_epoch, end_epoch, sport) values (:fileId, :session, :startT, :endT, nullif(:sport, ''))",
     fileId = f,
     session = session,
     startT = startT,
@@ -67,10 +67,10 @@ suite "delete: the plan":
     fill(s, "a")
     fill(s, "b")
     s.db.execute(
-      "update activity set start_t = 1535371200, sport = 'cycling' where file_id = (select id from file where name = 'a')"
+      "update activity set start_epoch = 1535371200, sport = 'cycling' where file_id = (select id from file where name = 'a')"
     )
     s.db.execute(
-      "update activity set start_t = 1535500000, sport = 'running' where file_id = (select id from file where name = 'b')"
+      "update activity set start_epoch = 1535500000, sport = 'running' where file_id = (select id from file where name = 'b')"
     )
     let p = planDelete(s, s.selected)
     check p.ids.len == 2 and p.fileIds.len == 2
@@ -104,7 +104,7 @@ suite "delete: the plan":
     defer:
       s.close()
     fill(s, "a")
-    s.db.execute("update activity set start_t = 1535371200")
+    s.db.execute("update activity set start_epoch = 1535371200")
     check describe(planDelete(s, s.selected), utc()) == "1 activity (- 1) on 2018-08-27"
 
 suite "delete: the command":
@@ -117,7 +117,7 @@ suite "delete: the command":
       "insert into sector(length_m, gain_m, gradient, name) values (1000, 50, 5, 'Cerro')"
     )
     s.db.execute(
-      """insert into effort(sector_id, activity_id, start_t, finish_t, elapsed_s, start_m)
+      """insert into effort(sector_id, activity_id, start_epoch, finish_epoch, elapsed_s, start_m)
       select 1, id, 1, 61, 60, 0 from activity"""
     )
     s.db.execute(

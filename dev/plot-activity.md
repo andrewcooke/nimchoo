@@ -76,7 +76,7 @@ on the plot.
 
 **order:**
 
-0. **the column names, and a squash** (decided 2026-11-25).  an epoch time (Unix seconds) ends in `_epoch`; an offset or
+0. **the column names, and a squash** (decided 2026-11-25; done 2026-11-25, dev/HISTORY.md).  an epoch time (Unix seconds) ends in `_epoch`; an offset or
    duration in `_s`; anything else is a word and its unit.  (the schema had `_t`, `_at`, `mtime` and short names for the
    same things.)
 
@@ -88,11 +88,12 @@ on the plot.
    | `route_cell` | `t_in`, `t_out` | `in_epoch`, `out_epoch` |
    | `seen_file` | `mtime` | `modified_epoch` |
    | `track` | `t0`, `t1`, `n`, `t`, `lon`, `lat`, `alt` | `start_epoch`, `end_epoch`, `n_readings`, `offsets_s`, `lon_semi`, `lat_semi`, `alt_fit` |
-   | `climb` | `found_at` | `found_epoch` |
+   | `sector` | `found_at` | `found_epoch` |
    | `effort` | `start_t`, `finish_t` | `start_epoch`, `finish_epoch` (real: interpolated) |
    | `impulse` | `centre_t` | `centre_epoch` |
    | names' cells | `loaded_at` | `loaded_epoch` |
    | `ff_model` | `max_secs` | `max_gap_s` |
+   | `fragment` | `applied_at` | `applied_epoch` |
 
    they stay: `elapsed_s`, `timer_s`, `utc_offset_s`, `start_m`, `size` (bytes), the `n` of `segment` and `impulse` (a
    stretch's number, not a count), `lon`/`lat` in degrees.  `heartrate_series` goes in step 1.  the Nim code's SQL changes
@@ -102,7 +103,8 @@ on the plot.
    SpatiaLite `POINT`) becomes `start_point` (a point is written in full, as `geo/position` does; SpatiaLite registers a
    geometry column and its index by name, so a squash, not a fragment; `sector` keeps its name: it is for Strava-like
    segments to come); the stale comments of the climbs fragment ("(n/m) numbering", `nch sector --edit`, "or 005 by
-   hand"); and `sector.name` null against '' (decide, with the author).  not in it: `sport` and `sub_sport` going (TODO.md).
+   hand"); and `sector.name` null against '': kept (the author, 2026-11-25: null is "not looked at yet", '' is "looked, nothing to
+   call it", two meanings each written one way; the rule against "" is against two ways of writing one meaning).  not in it: `sport` and `sub_sport` going (TODO.md).
 1. the channels package, heart rate moved into it (`heartrate` goes).
 2. the `activity` subject with altitude and heart rate and the time axis.
 3. distance and speed (the axis and the frames).

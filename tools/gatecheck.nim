@@ -65,7 +65,7 @@ proc crossings(
 let st = openSession(paramStr(1), allFragments, access = allAccess)
 let rows = st.db.query(
   tuple[aid, sid, s, f: int64],
-  "select activity_id, sector_id, cast(start_t as integer), cast(finish_t as integer) from effort order by activity_id, sector_id",
+  "select activity_id, sector_id, cast(start_epoch as integer), cast(finish_epoch as integer) from effort order by activity_id, sector_id",
 )
 var sectors: Table[int64, Path]
 var tracks: Table[int64, seq[Path]]
@@ -306,7 +306,7 @@ if cases.len > 0:
     let m = median(byS[c.sid])
     let date = st.db.scalar(
       string,
-      "select date(start_t, 'unixepoch') from activity where id = :id",
+      "select date(start_epoch, 'unixepoch') from activity where id = :id",
       id = c.aid,
     )
     echo align($c.aid, 8),
