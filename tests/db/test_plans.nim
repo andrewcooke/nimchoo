@@ -100,7 +100,7 @@ suite "query plans: no query reads a whole table":
   test "the criteria of a listing, each alone and all together":
     let tags =
       Resolved(kind: rtTags, tags: @[parsePattern("sport:cycling*").pattern.get])
-    let names = Resolved(kind: rtNames, typed: @["toyo"], exact: @["El Toyo"])
+    let names = Resolved(kind: rtNames, typed: @["toyo"], exact: @[some("El Toyo")])
     let paths = Resolved(kind: rtPaths, paths: @["bowman"])
     let from1 = Resolved(kind: rtFrom, lat: 38.7, lon: -9.1, km: 5.0)
     let near1 = Resolved(kind: rtNear, lat: 38.7, lon: -9.1, km: 1.0)

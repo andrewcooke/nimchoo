@@ -113,8 +113,8 @@ type
     of rtNames, rtStarts:
       typed*: seq[string]
         ## text found in the value, whatever its case and accents; "none": nothing
-      exact*: seq[string]
-        ## the whole value (what `latest` or `previous` came to; "" is none)
+      exact*: seq[Option[string]]
+        ## the whole value (what `latest` or `previous` came to; none: it has none)
       ids*: seq[int64] ## the activities a whole number meant (names only)
     of rtPaths:
       paths*: seq[string]
@@ -136,7 +136,7 @@ type
   Anchor* = object
     ## What an activity that a criterion refers to (the latest, the previous) is, as far as a criterion can use it.
     distanceM*, activeS*: Option[float]
-    name*, startPlace*: string ## "": none
+    name*, startPlace*: Option[string] ## none: not recorded
     start*: Option[(float, float)]
       ## where it started (latitude, longitude); none if it has no positions
 

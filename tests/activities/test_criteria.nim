@@ -568,8 +568,8 @@ suite "list: --names and --starts":
     let rq = matchSql(
       UserId(1),
       @[
-        Resolved(kind: rtNames, exact: @["El Toyo and back", ""]),
-        Resolved(kind: rtStarts, exact: @["Providencia"]),
+        Resolved(kind: rtNames, exact: @[some("El Toyo and back"), none(string)]),
+        Resolved(kind: rtStarts, exact: @[some("Providencia")]),
       ],
     )
     let r = rq.text

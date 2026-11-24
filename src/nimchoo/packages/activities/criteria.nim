@@ -56,7 +56,7 @@ type
     c: Collected
     steps: Steps ## --all, --select, --also, --within
     delete, rename, verbose, invert: bool
-    newest, oldest: int ## 0: not given
+    newest, oldest: Option[int] ## `--newest N`, `--oldest N`
     help: bool
     zone: Timezone
     offered: seq[Criterion] ## the criteria other packages offer
@@ -71,9 +71,9 @@ func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
     return refuse(~"`{name}` needs a number of activities, 1 or more (not '{value}')")
   p.criteriaGiven = true
   if oldest:
-    p.oldest = n
+    p.oldest = some(n)
   else:
-    p.newest = n
+    p.newest = some(n)
   fine
 
 func splitNames(values: seq[string], lower: bool): seq[string] =
@@ -161,7 +161,7 @@ proc takeContributed(
         option: o.doc.names[0], values: values, resolve: o.resolve
       )
       return fine
-  refuse(~"`{name}` is not an option") # (cannot happen: the spec has just these)
+  raiseAssert name & " is an option of the spec, which has just the offered ones"
 
 func contributedOption(o: Criterion): Opt[ListState] =
   ## The option of an offered criterion, as the parser has them.
@@ -186,55 +186,63 @@ func timeFill(v, unit: string): Option[string] =
   ## `--active 90-` -> `90h-`, `2h~15` -> `2h~15m`: for `withUnit`.
   fillUnits(v, unit, timeUnitsBelow)
 
-proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
-  p.criteriaGiven = true
+type SpreadWords = object ## How a range of one kind is named in the problems with it.
+  what: string ## "distance", "active time"
+  shorter: string ## "smaller", "shorter": the end that comes first
+  around: string ## the forms of `~`: "42km~2km, 500m~50m"
+  ranges: string ## the forms of a range: "40km-, 10-50km, -5km, 500m-, 42~2km"
+  note: string ## after them: "; units d h m s"
+
+func takeSpread(
+    v: string, endOf: EndParser, w: SpreadWords, into: var Option[Spread]
+): Problem =
+  ## A range (`10km-50km`) or a spread (`42km~2km`, `latest~10%`) of one kind: the one reader of `--distance` and
+  ## `--active`.
   if '~' in v:
-    let ar = parseAround(v, metresEnd)
+    let ar = parseAround(v, endOf)
     if ar.isNone:
       return refuse(
-        ~"cannot read the distance '{v}' (use 42km~2km, 500m~50m, latest~10% or previous~10%)"
+        ~"cannot read the {w.what} '{v}' (use {w.around}, latest~10% or previous~10%)"
       )
-    p.c.distance = some(
+    into = some(
       if ar.get.byReference:
         Spread(byReference: true, refers: ar.get.refers, tol: ar.get.tol)
       else:
         Spread(byReference: false, range: around(ar.get.centre, ar.get.tol))
     )
   else:
-    let r = parseRange(v, metresEnd)
+    let r = parseRange(v, endOf)
     if r.isNone:
-      if isBackwards(v, metresEnd):
-        return refuse(~"the distance range '{v}' is backwards (smaller end first)")
+      if isBackwards(v, endOf):
+        return refuse(~"the {w.what} range '{v}' is backwards ({w.shorter} end first)")
       return refuse(
-        ~"cannot read the distance range '{v}' (use 40km-, 10-50km, -5km, 500m-, 42~2km, latest~10% or previous~10%)"
+        ~"cannot read the {w.what} range '{v}' (use {w.ranges}, latest~10% or previous~10%{w.note})"
       )
-    p.c.distance = some(Spread(byReference: false, range: r.get))
+    into = some(Spread(byReference: false, range: r.get))
   fine
+
+const
+  distanceWords = SpreadWords(
+    what: "distance",
+    shorter: "smaller",
+    around: "42km~2km, 500m~50m",
+    ranges: "40km-, 10-50km, -5km, 500m-, 42~2km",
+  )
+  activeWords = SpreadWords(
+    what: "active time",
+    shorter: "shorter",
+    around: "2h~15m",
+    ranges: "1h-, 30m-2h, -45m, 2h~15m",
+    note: "; units d h m s",
+  )
+
+proc takeDistance(p: var ListState, name, v: string): Problem {.nimcall.} =
+  p.criteriaGiven = true
+  takeSpread(v, metresEnd, distanceWords, p.c.distance)
 
 proc takeActive(p: var ListState, name, v: string): Problem {.nimcall.} =
   p.criteriaGiven = true
-  if '~' in v:
-    let ar = parseAround(v, secondsEnd)
-    if ar.isNone:
-      return refuse(
-        ~"cannot read the active time '{v}' (use 2h~15m, latest~10% or previous~10%)"
-      )
-    p.c.active = some(
-      if ar.get.byReference:
-        Spread(byReference: true, refers: ar.get.refers, tol: ar.get.tol)
-      else:
-        Spread(byReference: false, range: around(ar.get.centre, ar.get.tol))
-    )
-  else:
-    let r = parseRange(v, secondsEnd)
-    if r.isNone:
-      if isBackwards(v, secondsEnd):
-        return refuse(~"the active time range '{v}' is backwards (shorter end first)")
-      return refuse(
-        ~"cannot read the active time range '{v}' (use 1h-, 30m-2h, -45m, 2h~15m, latest~10% or previous~10%; units d h m s)"
-      )
-    p.c.active = some(Spread(byReference: false, range: r.get))
-  fine
+  takeSpread(v, secondsEnd, activeWords, p.c.active)
 
 proc takeWhen(p: var ListState, v: string, before: bool): Problem =
   ## --after T, --before T: the instant as written.
@@ -503,7 +511,7 @@ func finish(st: ListState): Parsed[Request] =
     return bad(
       ~"`--invert` needs a criterion to invert (`--tags`, `--names`, `--distance` ...)"
     )
-  if st.newest > 0 and st.oldest > 0:
+  if st.newest.isSome and st.oldest.isSome:
     return bad(~"`--newest` and `--oldest` cannot be used together")
   if st.onGiven and st.rangeGiven:
     return
@@ -511,10 +519,10 @@ func finish(st: ListState): Parsed[Request] =
   if st.c.afterT.isSome and st.c.beforeT.isSome and st.c.afterT.get >= st.c.beforeT.get:
     return bad(~"`--after` is not before `--before`")
   let limit =
-    if st.newest > 0:
-      some(Limit(kind: lkNewest, count: st.newest))
-    elif st.oldest > 0:
-      some(Limit(kind: lkOldest, count: st.oldest))
+    if st.newest.isSome:
+      some(Limit(kind: lkNewest, count: st.newest.get))
+    elif st.oldest.isSome:
+      some(Limit(kind: lkOldest, count: st.oldest.get))
     else:
       none(Limit)
   let action =
@@ -544,7 +552,7 @@ proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Request] =
   ## The command line of `nch activities`.  Options with values: `--tags A B`, `--names`, `--starts`,
-  ## `--paths`, `--climbs` (words up to the next option), `--delete [-f]`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
+  ## `--paths`, `--climbs` (words up to the next option), `--delete`, `--rename`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
   ## `--newest N` (or `-n N`), `--oldest N`, `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
@@ -553,11 +561,14 @@ proc parseArgs*(
   )
 
 func textSql*(
-    column, name: string, typed, exact: seq[string], ids: seq[int64] = @[]
+    column, name: string,
+    typed: seq[string],
+    exact: seq[Option[string]],
+    ids: seq[int64] = @[],
 ): Sql =
   ## " and (instr(fold(a.name), :nameT0) > 0 or a.name = :nameE0)": the typed text (folded) found anywhere in the
-  ## value, whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" (typed, or
-  ## an exact "") is no value: null or "".  Nothing if there is nothing to match.
+  ## value, whatever its case and accents (see fold.nim), or the whole value (what `latest` came to).  "none" typed, or
+  ## an exact none (the activity referred to has no value), is no value: null or "".  Nothing if there is nothing to match.
   if typed.len == 0 and exact.len == 0 and ids.len == 0:
     return
   var parts: seq[string]
@@ -573,12 +584,12 @@ func textSql*(
       parts.add "instr(fold(" & column & "), :" & n & ") > 0"
       result.args.add (n, arg(foldText(t.strip)))
   for i, e in exact:
-    if e.len == 0:
+    if e.isNone:
       parts.add "(" & column & " is null or " & column & " = '')"
     else:
       let n = name & "E" & $i
       parts.add column & " = :" & n
-      result.args.add (n, arg(e))
+      result.args.add (n, arg(e.get))
   result.text = " and (" & parts.join(" or ") & ")"
 
 func pathSql*(paths: seq[string]): Sql =

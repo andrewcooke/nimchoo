@@ -195,8 +195,8 @@ proc anchorOf(
   ## What a criterion can use of the activity: its row, its name and start place whole (they are not in the row unless it was
   ## listed with -v) and where it started.
   let r = st.db.scalar(
-    tuple[name, start: string],
-    "select coalesce(name, ''), coalesce(start_place, '') from activity where id = :id",
+    tuple[name, start: Option[string]],
+    "select nullif(name, ''), nullif(start_place, '') from activity where id = :id",
     id = id,
   )
   Anchor(
