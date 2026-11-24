@@ -14,7 +14,7 @@ carried an orange band (a line over distance); manual a green one; a pause a gre
 at 0 s and darkest at 60 s, and only with one ride ticked (with several, whose a pause is could not be seen; the author
 went further than showing them all in one colour).  The rides' palette lost orange, red, green and grey, so that no ride
 looks like a break (interim: an aesthetic rework is to come).  Checked with `plotcheck.js`: El Toyo's 87 pauses are grey
-bands of opacity 0.07 to 0.70, and gone with a second ride ticked.
+bands of opacity 0.07 to 0.70, and gone with a second ride ticked (then lowered to 0.2 at most: the author, after trying it).
 The cursor did not follow the pointer, worse to the right (the author): the browser draws a chart a little smaller than
 Plot made it, and the pointer's screen pixels were used as the chart's units; the wheel and the drag had the same fault.
 Now the pointer is turned into the chart's units (`chartX`, the ratio of its viewBox to its drawn width), and the charts

@@ -120,7 +120,7 @@
     const ticked = picks.filter((p) => p.shown).length;
     return rules.flatMap(([f, points]) => f.styles.filter((st) => !st.alone || ticked <= 1).map((st) => {
       const mine = points.filter((d) => d.kind === st.series && !Number.isNaN(d.x));
-      const opacity = st.fadeToS ? (d) => 0.06 + 0.64 * Math.min(1, d.value / st.fadeToS) : () => (st.band ? 0.3 : 1);
+      const opacity = st.fadeToS ? (d) => 0.06 + 0.14 * Math.min(1, d.value / st.fadeToS) : () => (st.band ? 0.3 : 1);
       const title = (d) => d.kind + ', ' + seconds(d.value) + '\n' + d.series;
       return st.band && !xFrame
         ? Plot.rectX(mine, { x1: 'x', x2: (d) => d.x + d.value, fill: st.colour, fillOpacity: opacity, title })
