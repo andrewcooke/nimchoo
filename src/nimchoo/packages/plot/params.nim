@@ -1,7 +1,7 @@
 ## The command line of `nch plot`, parsed.  Pure.  `nch plot [SUBJECT]`: the subject is what the plot is of (the default one
 ## if it is left out); `--after` and `--before` say the span of time, and may be in the page's address
 ## (`/plot/ff?after=2026-01-01`); `--frames` says which frames `--file` makes, and `--frame` which one the worker makes for
-## the page.  Which subjects and frames exist is the registry's to say (`subject/subjects`, `plot/frames`), so the command
+## the page (with `--activity`, for which activity, when the subject's frames are over the time of one).  Which subjects and frames exist is the registry's to say (`subject/subjects`, `plot/frames`), so the command
 ## checks the names, not the parser.
 
 import std/[options, strutils, times]
@@ -26,12 +26,15 @@ type
       ## what `--file` makes, in the order given; none: the frames that are shown unless told otherwise
     frame*: Option[string]
       ## for the page (with `--worker`): make the data of this one frame (`?frame=fitness`)
+    activity*: Option[int64]
+      ## for the page, with `--frame`: the activity it is made for (`&activity=123`), when the frames are of one
 
   Raw = object ## what the options fill in
     help: bool
     subjects: seq[string]
     frames: seq[string]
     frame: string
+    activity: string
     firstDay, lastDay: Option[int64]
     web: WebArgs
 
@@ -43,6 +46,10 @@ proc parseDay*(s: string): Option[int64] =
     return some(parse(s, "yyyy-MM-dd", utc()).toTime.toUnix)
   except TimeParseError, ValueError:
     discard
+
+func isNumber(value: string): bool =
+  ## A whole number, as the number of an activity is written.
+  value.len in 1 .. 18 and value.allCharsInSet(Digits)
 
 func completeFrames(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
   ## The names of the frames that start with what is typed (of every subject: the words before it are not known here).
@@ -115,6 +122,15 @@ func plotSpec*(): Spec[Raw] =
           address = adValue,
           valid = isWord,
         ),
+        text(
+          Raw,
+          ["--activity"],
+          activity,
+          "N",
+          ~"for the page, with `--frame`: make it for this activity (when the frames are of one activity)",
+          address = adValue,
+          valid = isNumber,
+        ),
       ] & webOptions(Raw, web, "the plot", "a CSV file for each frame") &
       @[helpFlag(Raw)],
     positional: proc(p: var Raw, arg: string): Problem {.nimcall, raises: [].} =
@@ -131,6 +147,18 @@ func finish(raw: Raw): Parsed[Params] =
     return problemWith[Params](~"`--after` is not before `--before`")
   if raw.frame.len > 0 and mode.params.kind != wkWorker:
     return problemWith[Params](~"`--frame` is for the page: it goes with `--worker`")
+  if raw.activity.len > 0 and raw.frame.len == 0:
+    return problemWith[Params](~"`--activity` is for the page: it goes with `--frame`")
+  var activity = none(int64)
+  if raw.activity.len > 0:
+    try:
+      if not isNumber(raw.activity):
+        raise newException(ValueError, raw.activity)
+      activity = some(int64(parseBiggestInt(raw.activity)))
+    except ValueError:
+      return problemWith[Params](
+        ~"`--activity` is the number of an activity (not '{raw.activity}')"
+      )
   if raw.frames.len > 0 and mode.params.kind != wkFile:
     return problemWith[Params](
       ~"`--frames` chooses the files of `--file`: on the page, tick the frames to draw (the browser remembers them)"
@@ -144,6 +172,7 @@ func finish(raw: Raw): Parsed[Params] =
       lastDay: raw.lastDay,
       frames: raw.frames,
       frame: (if raw.frame.len > 0: some(raw.frame) else: none(string)),
+      activity: activity,
     )
   )
 

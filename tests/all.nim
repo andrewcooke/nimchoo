@@ -67,6 +67,7 @@ import ./ff/test_params as ffParamsTest
 import ./editable/test_editable
 import ./ff/test_completion as ffCompletion
 import ./activities/test_delete
+import ./activities/test_activityframes
 import ./cache/test_files
 import ./cache/test_command
 import

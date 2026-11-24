@@ -4,6 +4,23 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The plot of one activity (2026-11-25, step 2 of dev/plot-activity.md)
+
+`nch plot activity`: the altitude and channels of the selected rides over their own time.  A plot frame now says its
+axis: over days (as before: the impulse, the fitness) or over the time of one activity, made for one ride by its id (the
+page asks `&activity=ID`; `--activity` with `--frame`), a variant so that a frame cannot be one and be made as the other;
+a test checks that a subject's frames share an axis.  A subject may give its things one by one (`Subject.pick`: id, start,
+label); `activity`'s are the selected rides, the newest first.  `activities` makes the frames (`activityframes.nim`): the
+altitude, and one for each channel of `channels/kinds.nim` (a channel added there is drawn with no more code).  The page
+lists the rides to tick (the newest ticked, not remembered), overlays those ticked from their starts, with x as `h:mm`
+from the start up to the end of the longest ticked (the author: no rescaling) and ticks on round times (the first had
+0:33, 1:06: round numbers of seconds).  `--after` and `--before` are refused for it; `--file` writes every selected
+ride, a series each.  Pauses: first broken at the stretches of `segment`, which join the pauses the device makes (on
+purpose, for the climbs), so a 10-minute café stop on El Toyo was a straight line; then where readings are more than 15 s
+apart (above smart recording's gaps), as a stopgap until the import stores its kinds of break (step 1b, decided with the
+author: `manual`, `carried`, `pause`; blinks are noise).  Checked in jsdom with the real d3 and Plot on two of the author's
+rides: the panels, the overlay, the legend and the requests.
+
 ## The channels: heart rate, cadence, temperature, power, speed, distance (2026-11-25, step 1 of dev/plot-activity.md)
 
 The `heartrate` package became `channels`: one list of the record fields that are kept (`kinds.nim`: name, fields in

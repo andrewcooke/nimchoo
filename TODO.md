@@ -6,8 +6,9 @@ When something here is done, delete it (in the same commit).  Design steps are d
 
 ## Now: a plot of one activity (dev/plot-activity.md, 2026-11-25)
 
-Steps 2 to 4 of the note, in its order (step 0, the column names, and 1, the channels package, are done): the `activity`
-subject with altitude, heart rate and the time axis; distance and speed; cadence, temperature and power.
+Steps 1b, 3 and 4 of the note, in its order (0, the column names, 1, the channels, and 2, the `activity` subject, are
+done): the timer's gaps stored at import with their kind (`manual`, `carried`, `pause`; `segment` goes, the climbs must
+not change); distance and speed (the axis and the frames); cadence, temperature and power.
 
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 

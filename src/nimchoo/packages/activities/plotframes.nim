@@ -80,6 +80,7 @@ proc contributions*(): seq[Contribution] =
         tables: impulseTables,
         unit: "impulse per day",
         mark: mkBar,
+        axis: axDays,
         make: makeImpulse,
       ),
     )

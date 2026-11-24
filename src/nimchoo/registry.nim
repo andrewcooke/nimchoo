@@ -120,6 +120,8 @@ other views (`climbs`, `map`, `calendar`) take the selection.
   `calendar/frames`.
 * **A plot frame** (`plotframes.nim`): the impulse of the selected activities each day (by the first selected model),
   offered to `plot/frames`.
+* **The inside of an activity** (`activityframes.nim`): a second subject, `activity`, whose things are the selected
+  activities one by one, and its frames on the axis of one activity: the altitude, and each channel (`channels`).
 * The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).""",
       path: "src/nimchoo/packages/activities/",
     ),
@@ -465,9 +467,11 @@ with the same `parseSpot`.""",
 
 `nch plot [SUBJECT]` serves a page that draws the frames of a subject, each a set of series over time that the package
 managing the subject contributes (`frames.nim`): the fitness, fatigue and form of the selected models (`nch plot ff`),
-the impulse of the selected activities each day (`nch plot`).  The page is live (each frame made again whenever it is
-shown) and draws with Observable Plot, a panel a frame; `--file` makes a CSV file a frame and says the latest values.
-The span of time (`--after`, `--before`) may be in the page's address.  Offers its page to the server (`web/pages`); the
+the impulse of the selected activities each day (`nch plot`), and the altitude and channels of a selected ride over its
+own time (`nch plot activity`: frames over the time of one activity, which the page ticks and overlays from their
+starts).  The page is live (each frame made again whenever it is shown) and draws with Observable Plot, a panel a frame;
+`--file` makes a CSV file a frame and says the latest values.  The span of time (`--after`, `--before`, for frames over
+days) may be in the page's address.  Offers its page to the server (`web/pages`); the
 web options are done as every view does them (`web/view`).""",
       path: "src/nimchoo/packages/plot/",
     ),

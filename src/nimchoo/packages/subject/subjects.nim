@@ -21,12 +21,23 @@ type
   SelectedCount* = proc(st: Session): int {.nimcall, raises: [StoreError].}
     ## How many things the user's selection of the subject holds.
 
+  Pick* = object
+    ## One thing of a selection, for a view that shows them one by one (the plot of an activity).
+    id*: int64 ## the thing's number (an activity's)
+    start*: int64 ## when it began, Unix seconds
+    label*: string ## what the user reads: "2026-11-21 09:21 El Toyo and back"
+
+  PickList* = proc(st: Session): seq[Pick] {.nimcall, raises: [StoreError].}
+    ## The things of the user's selection of the subject, the newest first.
+
   Subject* = object
     name*: string ## what the user types: `nch map activities`
     summary*: Line ## one line, for the list of subjects
     isDefault*: bool ## the subject a view shows when it is not told
     selected*: SelectedCount ## a view says "the selection is empty" when this is 0
     emptyHint*: Line ## what to do about it: "see `nch activities --select`"
+    pick*: Option[PickList]
+      ## the things of the selection one by one, for a view that shows them so; none: the subject is not shown so
 
 func emptyText*(s: Subject): Line =
   ## What a view says, as a warning, when the selection it would show is empty: nothing to show is no failure.

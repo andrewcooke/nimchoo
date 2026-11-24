@@ -3,6 +3,10 @@
 ## activities each day ...), each made as a CSV file of its own in the cache directory (`time,series,value`, a row a point),
 ## and a page draws them in the browser, a panel each.
 ##
+## A subject's frames are over days (made for the period asked for) or over the time of one activity (the `activity`
+## subject: made for each of the subject's things that the page ticks, `&activity=ID`, or for every one with `--file`, a
+## series each; `--after` and `--before` mean nothing there and are refused).
+##
 ## A plot is a live view: each frame is made again from the data as they are whenever it is shown.  The page is the
 ## subject's (`/plot/ff`, `plot-ff.html`, with `--after` and `--before` in its address and its name) and lists every frame of
 ## it; the frames ticked are fetched from the same address with `frame=NAME` (the worker with `--frame`), and the browser
@@ -15,7 +19,7 @@
 import std/[options, sequtils, strformat, strutils, times]
 import ../cache/cache
 import ../util/atomic/atomic
-import ../../core/[extension, globals]
+import ../../core/[extension, globals, ids]
 import ../../core/errors
 import ../subject/[subjects, views]
 import ../ui/style
@@ -62,6 +66,7 @@ proc usageText*(g: Globals, width: int): seq[Line] =
 
 type Chosen = object
   subject: Subject
+  axis: Axis ## what the subject's frames are over (they share it)
   listed: seq[PlotFrame] ## every frame of the subject
   frames: seq[PlotFrame] ## what `--file` makes, in order
 
@@ -74,12 +79,18 @@ proc choose(g: Globals, p: Params): Parsed[Chosen] =
   let frames = chooseFrames(all, subject.params.name, p.frames, "a plot")
   if frames.kind != pkOk:
     return problemWith[Chosen](frames.why)
-  parsedOk(
-    Chosen(
-      subject: subject.params,
-      listed: framesOf(all, subject.params.name),
-      frames: frames.params,
+  let listed = framesOf(all, subject.params.name)
+  let axis = listed[0].axis # (chooseFrames refused a subject with none)
+  if axis == axActivity and (p.firstDay.isSome or p.lastDay.isSome):
+    return problemWith[Chosen](
+      ~"`--after` and `--before` are for a plot over days: the frames of {subject.params.name} are over the time of one activity"
     )
+  if axis == axActivity and subject.params.pick.isNone:
+    return problemWith[Chosen](
+      ~"{subject.params.name} cannot be shown one by one, which its frames need"
+    )
+  parsedOk(
+    Chosen(subject: subject.params, axis: axis, listed: listed, frames: frames.params)
   )
 
 proc dayStart(civil: int64, tz: Timezone): int64 =
@@ -115,10 +126,13 @@ proc periodParts(p: Params): seq[string] =
     result.add "to-" & dayText(p.lastDay.get)
 
 proc fileStem(subject: string, frame: Option[string], p: Params): string =
-  ## What a file is named: `plot-ff` (the page), `plot-ff-fitness-from-2026-01-01` (a frame).
+  ## What a file is named: `plot-ff` (the page), `plot-ff-fitness-from-2026-01-01` (a frame), `plot-activity-altitude-123`
+  ## (a frame of one activity, for the page).
   var parts = @[commandName, subject]
   if frame.isSome:
     parts.add frame.get
+    if p.activity.isSome:
+      parts.add $p.activity.get
   (parts & periodParts(p)).join("-")
 
 proc webQuery*(p: Params): string =
@@ -140,6 +154,26 @@ proc csvOf*(made: PlotData, tz: Timezone): string =
       let time = fromUnix(t).inZone(tz).format("yyyy-MM-dd'T'HH:mm:sszzz")
       result.add fmt"{time},""{name}"",{v:.4f}" & "\n"
 
+proc ofActivities(
+    st: Session, c: Chosen, f: PlotFrame, p: Params
+): PlotData {.raises: [StoreError].} =
+  ## A frame of one activity, made for the one the page asks for, or for every one of the subject's (`--file`): a series
+  ## each, named by what it is.
+  let picks = c.subject.pick.get()(st)
+  var wanted = picks
+  if p.activity.isSome:
+    wanted = picks.filterIt(it.id == p.activity.get)
+    if wanted.len == 0:
+      raiseStore(
+        fmt"activity {p.activity.get} is not in the selection of {c.subject.name}"
+      )
+  for pick in wanted:
+    let made = f.makeActivity(st, ActivityId(pick.id))
+    for s in made.series:
+      result.series.add Series(name: pick.label, points: s.points)
+    result.notes.add made.notes
+    result.warnings.add made.warnings
+
 proc makeFrames(
     g: Globals, c: Chosen, frames: seq[PlotFrame], p: Params, dir: string
 ): Made =
@@ -153,7 +187,12 @@ proc makeFrames(
     let tz = local()
     let period = periodOf(p, getTime().toUnix, tz)
     for f in frames:
-      let made = f.make(st, period)
+      let made =
+        case f.axis
+        of axDays:
+          f.make(st, period)
+        of axActivity:
+          ofActivities(st, c, f, p)
       for w in made.warnings:
         g.warn w
       let path = cacheFile(dir, fileStem(c.subject.name, some(f.name), p), "csv").get
@@ -168,10 +207,24 @@ proc makeFrames(
     st.close()
 
 proc makePage(g: Globals, c: Chosen, p: Params, dir: string): Made =
-  ## Make the page: every frame of the subject, those shown by default ticked (it fetches the data of each frame it shows).
+  ## Make the page: every frame of the subject, those shown by default ticked (it fetches the data of each frame it shows),
+  ## and, when the frames are of one activity, the subject's things to tick.
+  var picks: seq[Pick]
+  if c.axis == axActivity:
+    var st: Session
+    try:
+      st = openSession(g)
+    except StoreError as e:
+      return Made(status: failure(g, "nch plot", e.msg))
+    try:
+      picks = c.subject.pick.get()(st)
+    except StoreError as e:
+      return Made(status: failure(g, "nch plot", e.msg))
+    finally:
+      st.close()
   try:
     let path = cacheFile(dir, fileStem(c.subject.name, none(string), p), "html").get
-    writeAtomic(path, pageHtml(c.listed, fmt"Plot of {c.subject.name}"))
+    writeAtomic(path, pageHtml(c.listed, c.axis, picks, fmt"Plot of {c.subject.name}"))
     Made(paths: @[path])
   except IOError, OSError:
     Made(status: cannotWrite(g, "nch plot", dir))

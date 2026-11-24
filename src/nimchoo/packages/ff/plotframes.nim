@@ -108,6 +108,7 @@ proc frame(name, summary: string, make: MakePlot): PlotFrame =
     tables: read,
     unit: name,
     mark: mkLine,
+    axis: axDays,
     make: make,
   )
 

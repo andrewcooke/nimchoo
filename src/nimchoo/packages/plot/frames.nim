@@ -4,13 +4,16 @@
 ##
 ## A frame says which subject it is a frame of, its name, what it is, whether a plot of that subject shows it unless told
 ## otherwise, whether it reads the selection of the subject, which tables it reads, what its values are (`unit`, the label
-## of its axis), how its series are drawn (`mark`: lines, or bars a day wide) and how to make it, for a period of time.  It
-## gives its series (each a name and its points) and, for `--file`, lines said after the files (the latest values).  A
-## frame that fails raises `StoreError` with what to say.  The page draws each frame shown in a panel of its own, one
-## above the other, on the same period of time.
+## of its axis), how its series are drawn (`mark`: lines, or bars a day wide), and its **axis**, which says how it is made:
+## over **days** (`axDays`: for a period of time, as the impulse and the fitness are) or over the time of **one activity**
+## (`axActivity`: for an activity, by its id, as its heart rate is; the page overlays the activities ticked, each from
+## its start).  The frames of a subject share an axis (a test checks it): the page draws them on one.  A frame gives its
+## series (each a name and its points; a NaN value breaks a line: a pause) and, for `--file`, lines said after the files
+## (the latest values).  A frame that fails raises `StoreError` with what to say.  The page draws each frame shown in a
+## panel of its own, one above the other, on the same axis.
 
 import std/[options, times]
-import ../../core/[errors, extension, line]
+import ../../core/[errors, extension, ids, line]
 import ../user/session
 
 {.push raises: [].}
@@ -44,6 +47,15 @@ type
     ## Make the frame from the data as they are now, for the user of the session.  It may write what it needs worked out
     ## first (the impulses), in a transaction of its own.
 
+  MakeActivityPlot* =
+    proc(st: Session, activity: ActivityId): PlotData {.nimcall, raises: [StoreError].}
+    ## Make the frame of one activity from the data as they are now (a series of its points at their own times: the page
+    ## puts them from the activity's start).
+
+  Axis* = enum ## What a frame is drawn over, and so how it is made.
+    axDays ## days: made for a period of time
+    axActivity ## the time of one activity: made for an activity
+
   PlotFrame* = object
     subject*: string ## the subject it is a frame of ("ff")
     name*: string
@@ -54,7 +66,11 @@ type
     tables*: seq[string] ## the tables it reads
     unit*: string ## what its values are: the label of its axis
     mark*: Mark
-    make*: MakePlot
+    case axis*: Axis
+    of axDays:
+      make*: MakePlot
+    of axActivity:
+      makeActivity*: MakeActivityPlot
 
 const plotFramePoint* = ExtensionPoint[PlotFrame](name: "plot/frames")
   ## The frames the packages that manage a subject offer the plot.

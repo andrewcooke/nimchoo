@@ -1,6 +1,6 @@
 ## `nch plot` with the real frames (the models' and the activities'), on a ride with heart rate.
 
-import std/[options, os, strutils, times, unittest]
+import std/[options, os, sequtils, strutils, times, unittest]
 import nimchoo/core/globals
 import nimchoo/packages/cache/cache
 import nimchoo/packages/db/access
@@ -9,7 +9,9 @@ import nimchoo/packages/user/session
 import nimchoo/packages/web/request
 import nimchoo/packages/plot/params
 import nimchoo/packages/subject/subjects
-import nimchoo/core/[access, extension]
+import nimchoo/packages/channels/kinds
+import nimchoo/core/[access, extension, ids]
+import nimchoo/packages/db/statement
 import ../support/[env, rideworld]
 from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 
@@ -82,12 +84,73 @@ suite "nch plot":
     defer:
       s.close()
     let period = periodOf(parseArgs(@[]).params, 1600000000, utc())
+    let activity = ActivityId(s.db.scalar(int64, "select id from activity"))
     for f in extensions.get(plotFramePoint):
       startRecording()
-      discard f.make(s, period)
+      case f.axis
+      of axDays:
+        discard f.make(s, period)
+      of axActivity:
+        discard f.makeActivity(s, activity)
       let read = stopRecording()
       check read.len > 0
       for t in read:
         if t notin f.tables:
           checkpoint f.name & " reads " & t
         check t in f.tables
+
+  test "the inside of an activity: the page lists the selected ones; the worker makes a frame for one; --file one each":
+    let w = world("plot-activity")
+    let s = openSession(w.db, allFragments, access = allAccess)
+    let id = s.db.scalar(int64, "select id from activity")
+    s.close()
+    check run(w.db, "activity", "--worker") == exitOk
+    let page = readFile(w.cache / "plot-activity.html")
+    check "const axis = 'activity'" in page
+    check "\"id\":" & $id in page and "\"label\":\"2018-08-27" in page
+    check "\"name\":\"heartrate\"" in page and "\"name\":\"altitude\"" in page
+    check run(w.db, "activity", "--worker", "--frame", "heartrate", "--activity", $id) ==
+      exitOk
+    let hr = rows(w.cache / ("plot-activity-heartrate-" & $id & ".csv"))
+    check hr[0] == "time,series,value"
+    check hr.len > 2000 and hr[1].split(',')[1].startsWith("\"2018-08-27")
+    check run(
+      w.db, "activity", "--worker", "--frame", "heartrate", "--activity", "999999"
+    ) == exitFailure # (not in the selection)
+    check run(w.db, "activity", "--file") == exitOk
+    check rows(w.cache / "plot-activity-altitude.csv") ==
+      @["time,series,value"] # (this ride's device records no altitude)
+    check run(w.db, "activity", "--file", "--frames", "speed") == exitOk
+    let speed = rows(w.cache / "plot-activity-speed.csv")
+    check speed.len > 2000 and speed[1].split(',')[^1].parseFloat < 30 # (m/s)
+    check run(w.db, "activity", "--after", "2018-01-01", "--file") == exitUsage
+    check run(w.db, "activity", "--worker", "--activity", $id) == exitUsage
+      # (no --frame)
+
+  test "an address with a frame of one activity is one the server accepts":
+    let r = route(
+      parseTarget("/plot/activity?frame=heartrate&activity=12").get,
+      @[pageOf("plot", plotSpec(), isWord)],
+    )
+    check r.isSome and
+      r.get.args == @["activity", "--frame", "heartrate", "--activity", "12"]
+    check route(
+      parseTarget("/plot/activity?frame=heartrate&activity=x1").get,
+      @[pageOf("plot", plotSpec(), isWord)],
+    ).isNone
+
+  test "the frames of a subject share an axis; the activity has the altitude and a frame for each channel":
+    var axes: seq[(string, Axis)]
+    for f in extensions.get(plotFramePoint):
+      check isWord(f.name)
+      for (subject, axis) in axes:
+        if subject == f.subject:
+          checkpoint f.subject & " " & f.name
+          check axis == f.axis
+      axes.add (f.subject, f.axis)
+    let mine = framesOf(extensions.get(plotFramePoint), "activity")
+    check mine.len == 1 + ChannelKind.high.ord + 1
+    check mine.allIt(it.axis == axActivity)
+    for s in extensions.get(subjectPoint):
+      if s.name == "activity":
+        check s.pick.isSome

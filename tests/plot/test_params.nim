@@ -25,3 +25,14 @@ suite "plot: the command line":
       "chooses the files of `--file`"
     )
     check parseArgs(@["--model", "x"]).problem.contains("unexpected option")
+    check parseArgs(@["activity", "--worker", "--activity", "12"]).problem.contains(
+      "goes with `--frame`"
+    )
+    check parseArgs(@["activity", "--worker", "--frame", "x", "--activity", "1x"]).problem
+      .contains("the number of an activity")
+  test "--activity: the activity a frame is made for, by the page":
+    let p = parseArgs(
+      @["activity", "--worker", "--frame", "heartrate", "--activity", "12"]
+    ).params
+    check p.frame == some("heartrate") and p.activity == some(12'i64)
+    check parseArgs(@["activity", "--file"]).params.activity.isNone

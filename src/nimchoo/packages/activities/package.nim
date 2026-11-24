@@ -24,10 +24,13 @@
 ##   `calendar/frames`.
 ## * **A plot frame** (`plotframes.nim`): the impulse of the selected activities each day (by the first selected model),
 ##   offered to `plot/frames`.
+## * **The inside of an activity** (`activityframes.nim`): a second subject, `activity`, whose things are the selected
+##   activities one by one, and its frames on the axis of one activity: the altitude, and each channel (`channels`).
 ## * The table (`table.nim`) and its rows (`rows.nim`); the delete (`deleterun.nim`).
 
 import ../../core/[extension, manifest]
-import ./[calendarframe, command, criterion, mapframes, plotframes, subject]
+import
+  ./[activityframes, calendarframe, command, criterion, mapframes, plotframes, subject]
 
 proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
   @[
@@ -35,13 +38,14 @@ proc contributions(): seq[Contribution] {.nimcall, raises: [].} =
     calendarframe.contribution(),
     calendarframe.days(),
     calendarframe.shade(),
-  ] & mapframes.contributions() & plotframes.contributions()
+  ] & mapframes.contributions() & plotframes.contributions() &
+    activityframes.contributions()
 
 const package* = Package(
   depends: @[
-    "args", "bundle", "cache", "calendar", "db", "fit", "fold", "geo", "importer",
-    "lookup", "near", "map", "ff", "names", "plot", "selection", "subject", "tags",
-    "ui", "user",
+    "args", "bundle", "cache", "calendar", "channels", "db", "fit", "fold", "geo",
+    "importer", "lookup", "near", "map", "ff", "names", "plot", "selection", "subject",
+    "tags", "ui", "user",
   ],
   commands: @[
     CommandDecl(

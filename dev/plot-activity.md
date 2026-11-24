@@ -55,7 +55,9 @@ a plot of one activity's channels against time or distance, the channels stacked
    activity's own extent for this one), not the plot's `--after`/`--before`.
 
 7. **pauses are gaps on the time axis** (decided 2026-11-25: ugly but honest); on the distance axis they vanish by
-   themselves.
+   themselves.  which gaps: the import's kinds of break (step 1b); until then a line breaks where readings are more than
+   15 s apart (`activityframes.pauseS`, temporary).  not at the stretches of `segment`: they join the pauses the device
+   makes (for the climbs), so a 10-minute café stop was a straight line.
 8. **several activities selected: chosen on the page** (decided 2026-11-25; the use: the selection holds every ride to
    Farellones, compare any two).  the page lists the selected activities (date and name), a box each, the newest ticked
    when it opens; the ticks are not remembered (which rides is meaningless once the selection changes).  ticked rides are
@@ -78,6 +80,8 @@ on the plot.
 **open:**
 
 * size: 4 hours is about 14,400 points a channel, fine for Observable Plot; thinning may be needed when overlaying.
+* the list to tick holds the whole selection (1,094 rides after an import): left so for now (narrowing it is what
+  `nch activities ... --select` is for); the newest N with a note is the alternative.
 
 **order:**
 
@@ -111,7 +115,27 @@ on the plot.
    hand"); and `sector.name` null against '': kept (the author, 2026-11-25: null is "not looked at yet", '' is "looked, nothing to
    call it", two meanings each written one way; the rule against "" is against two ways of writing one meaning).  not in it: `sport` and `sub_sport` going (TODO.md).
 1. the channels package, heart rate moved into it (`heartrate` goes).  done 2026-11-25 (dev/HISTORY.md).
-2. the `activity` subject with altitude and heart rate and the time axis.
+1b. **the timer's gaps, with their kind, stored at import** (decided 2026-11-25).  a gap is where the device's timer was
+   off; the import's rule (`importer/stretch.nim`, `joinable`) already tells them apart, and now each is kept with its
+   kind, in one table, `timer_gap(activity_id, start_epoch, end_epoch, kind)`:
+
+   | kind | what happened | climbs, the route | time plot | distance plot |
+   |---|---|---|---|---|
+   | `manual` | the rider stopped the timer (or the file does not say who) | break | break | break |
+   | `carried` | auto-stopped, then too far or too fast: a car, a train | break | break | break |
+   | `pause` | auto-stopped and the rider stayed within 30 m, however long | joined | break | joined |
+
+   a blink (auto-stopped under 30 s while riding on at a bicycle's speed) is the device's noise: not stored, and a line
+   is drawn across it (the author).  the stretches (for the climbs and the route's parts) are made from the `manual` and
+   `carried` gaps in one helper, and `segment` goes: one fact, the gaps (keeping `segment` beside them would hold the
+   stretch boundaries twice).  the time plot breaks at every gap stored, and `pauseS` goes.  **the climbs must not
+   change**: a test on hand-built files for each kind, and on the author's data the stretches equal the old `segment`
+   rows and the efforts are the same (4,534 on 184 climbs at 2026-11-25).  rebuild: yes.
+2. the `activity` subject with altitude and heart rate and the time axis.  done 2026-11-25 (dev/HISTORY.md): a plot frame
+   says its axis (`axDays`, or `axActivity`: made for one activity, `&activity=ID` in the page's request); a subject may
+   give its things one by one (`pick`: the selected rides, the newest first); `activities` makes the frames (altitude,
+   and one for each channel of the list); the x axis is time from each ride's start (`h:mm`, ticks on round times) to the
+   end of the longest ticked (no rescaling: the author); `--after`/`--before` are refused for it.
 3. distance and speed (the axis and the frames).
 4. cadence, temperature, power.
 
