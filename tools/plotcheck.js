@@ -48,6 +48,7 @@ function report(when) {
 const later = (ms) => new Promise((done) => setTimeout(done, ms));
 // the breaks drawn in a panel: bands (rects) and lines (rules), by colour, with how many and their opacities
 function breaksIn(panel) {
+  if (!panel) return "no panel";
   const marks = [...panel.querySelectorAll('[aria-label="rect"] rect')].map((e) => ['band', e.closest('[fill]')?.getAttribute('fill'), +(e.getAttribute('fill-opacity') || e.closest('[fill-opacity]')?.getAttribute('fill-opacity') || 1)])
     .concat([...panel.querySelectorAll('[aria-label="rule"] line')].map((e) => ['line', e.closest('[stroke]')?.getAttribute('stroke'), +(e.getAttribute('stroke-opacity') || e.closest('[stroke-opacity]')?.getAttribute('stroke-opacity') || 1)]));
   const by = {};

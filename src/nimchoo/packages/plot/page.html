@@ -163,7 +163,7 @@
     const drawn = ready.map(([f, points]) => {
       const visible = zoom ? points.filter((d) => Number.isNaN(+d.x) || (+d.x >= zoom[0] && +d.x <= zoom[1])) : points;
       const plot = Plot.plot({
-        width: Math.max(300, window.innerWidth - 32),
+        width: Math.max(300, panels.clientWidth || window.innerWidth - 32), // (the room there is: not scaled to fit)
         height,
         x: !overActivity ? { type: 'time', label: null, domain }
           : xFrame ? { type: 'linear', label: xFrame.name + ' (' + xFrame.unit + ')', domain }
@@ -198,6 +198,17 @@
   // The wheel zooms every panel about the pointer, a drag moves them, a double-click shows everything.  (Plot draws, it does
   // not zoom or move: every panel is drawn again on the new span, at most once a frame.)  The listeners are on the panels'
   // container in the capture phase, before the tip's own, which stops a press on a line from going further.
+  // where the pointer is across a chart, in the chart's own units (those of its scales): the browser may draw a chart
+  // smaller than Plot made it, so the pixels of the screen are not those
+  function chartScale(svg) {
+    const r = svg.getBoundingClientRect();
+    const box = svg.viewBox && svg.viewBox.baseVal;
+    return r.width > 0 && box && box.width > 0 ? box.width / r.width : 1;
+  }
+  function chartX(svg, clientX) {
+    return (clientX - svg.getBoundingClientRect().left) * chartScale(svg);
+  }
+
   // the cursor: a line at the pointer's x in every panel at once (they share the axis), moved without drawing them again
   let cursorAt = null;          // the pointer's x in the charts (pixels from their left), while it is over one
   function cursorIn(panel) {
@@ -224,7 +235,7 @@
   }
   panels.addEventListener('pointermove', (e) => {
     const panel = e.target.closest ? e.target.closest('.panel') : null;
-    showCursor(panel && panel.chart ? e.clientX - panel.chart.getBoundingClientRect().left : null);
+    showCursor(panel && panel.chart ? chartX(panel.chart, e.clientX) : null);
   }, { capture: true });
   panels.addEventListener('pointerleave', () => showCursor(null));
 
@@ -250,7 +261,7 @@
     if (!panel || !panel.chart || !full) return null;
     const [r0, r1] = panel.plot.scale('x').range;
     const [d0, d1] = zoom || full;
-    const px = e.clientX - panel.chart.getBoundingClientRect().left;
+    const px = chartX(panel.chart, e.clientX);
     if (px < r0 || px > r1) return null;
     return { value: d0 + (px - r0) / (r1 - r0) * (d1 - d0), perPx: (d1 - d0) / (r1 - r0) };
   }
@@ -269,12 +280,13 @@
   let drag = null;              // { from: where it began (pixels), span: the span then, perPx }
   panels.addEventListener('pointerdown', (e) => {
     const p = e.button === 0 ? pointed(e) : null;
-    if (p) drag = { from: e.clientX, span: zoom || full, perPx: p.perPx, moved: false };
+    // (the scale is kept: the charts are drawn again as it moves)
+    if (p) drag = { scale: chartScale(e.target.closest('.panel').chart), from: e.clientX, span: zoom || full, perPx: p.perPx, moved: false };
   }, { capture: true });
   window.addEventListener('pointermove', (e) => {
     if (!drag || (!drag.moved && Math.abs(e.clientX - drag.from) < 3)) return;
     drag.moved = true;
-    const shift = (drag.from - e.clientX) * drag.perPx;
+    const shift = (drag.from - e.clientX) * drag.scale * drag.perPx;
     zoom = within([drag.span[0] + shift, drag.span[1] + shift]);
     redraw();
   });
