@@ -7,8 +7,12 @@ When something here is done, delete it (in the same commit).  Design steps are d
 ## Now: a plot of one activity (dev/plot-activity.md, 2026-11-25)
 
 Steps 1b, 3 and 4 of the note, in its order (0, the column names, 1, the channels, and 2, the `activity` subject, are
-done): the timer's gaps stored at import with their kind (`manual`, `carried`, `pause`; `segment` goes, the climbs must
-not change); distance and speed (the axis and the frames); cadence, temperature and power.
+done): the breaks of a ride stored at import with their kind (`manual`, `carried`, `pause`, `error`; the empty bits
+dropped; `segment` goes); distance and speed (the axis and the frames); cadence, temperature and power.
+
+* **The breaks of a ride drawn on the plot of an activity** (the author, 2026-11-25, after step 1b of dev/plot-activity.md):
+  a vertical bar (or a band, for its length) where a ride broke, styled by its kind (`manual`, `carried`, `pause`,
+  `error`), so that a gap in a line says why, and a GPS `error` (no gap in time) is seen at all.
 
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 

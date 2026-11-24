@@ -115,22 +115,29 @@ on the plot.
    hand"); and `sector.name` null against '': kept (the author, 2026-11-25: null is "not looked at yet", '' is "looked, nothing to
    call it", two meanings each written one way; the rule against "" is against two ways of writing one meaning).  not in it: `sport` and `sub_sport` going (TODO.md).
 1. the channels package, heart rate moved into it (`heartrate` goes).  done 2026-11-25 (dev/HISTORY.md).
-1b. **the timer's gaps, with their kind, stored at import** (decided 2026-11-25).  a gap is where the device's timer was
-   off; the import's rule (`importer/stretch.nim`, `joinable`) already tells them apart, and now each is kept with its
-   kind, in one table, `timer_gap(activity_id, start_epoch, end_epoch, kind)`:
+1b. **the breaks of a ride, with their kind, stored at import** (decided 2026-11-25, revised the same day).  one table,
+   `ride_break(activity_id, start_epoch, end_epoch, kind)` (name open), and each user breaks at the kinds it needs:
 
    | kind | what happened | climbs, the route | time plot | distance plot |
    |---|---|---|---|---|
    | `manual` | the rider stopped the timer (or the file does not say who) | break | break | break |
    | `carried` | auto-stopped, then too far or too fast: a car, a train | break | break | break |
-   | `pause` | auto-stopped and the rider stayed within 30 m, however long | joined | break | joined |
+   | `pause` | auto-stopped and the rider stayed within 30 m, however long; or auto-stopped in a ride with no positions (a trainer: nowhere to go) | — | break | — |
+   | `error` | the GPS jumped 100 m or more and never came back (`splitAt`): no time is missing | break | — | — |
 
-   a blink (auto-stopped under 30 s while riding on at a bicycle's speed) is the device's noise: not stored, and a line
-   is drawn across it (the author).  the stretches (for the climbs and the route's parts) are made from the `manual` and
-   `carried` gaps in one helper, and `segment` goes: one fact, the gaps (keeping `segment` beside them would hold the
-   stretch boundaries twice).  the time plot breaks at every gap stored, and `pauseS` goes.  **the climbs must not
-   change**: a test on hand-built files for each kind, and on the author's data the stretches equal the old `segment`
-   rows and the efforts are the same (4,534 on 184 climbs at 2026-11-25).  rebuild: yes.
+   (time and distance plots: nothing is missing in time at an `error`, and the device's distance ignores GPS faults.)  a
+   blink (auto-stopped under 30 s while riding on at a bicycle's speed) is the device's noise: not stored, a line is
+   drawn across it (the author).  the "empty bits" (timer pieces at the start or end of a ride holding no position: 414
+   stretches under 10 s in the author's data, most the first) are dropped: no stretch, no break.  the riding's edges
+   (the first timer start and the last stop, after `cover` and the empty bits) are two columns of `activity`
+   (`riding_start_epoch`, `riding_end_epoch`; the session's own `start_epoch`, `end_epoch` stay).  the stretches (for the
+   climbs, the impulses and the route's parts) are the riding minus its `manual`, `carried` and `error` breaks, made in
+   one helper, and `segment` goes.  the existing code is kept and records instead of joining or cutting: `joinable` tells
+   `manual`, `carried` and `pause` apart, `splitAt` finds the `error`s, `cover` tidies the edges.  the time plot breaks at
+   `manual`, `carried` and `pause`, and `pauseS` goes.  the empty bits going and the trainer rides' pauses joining change
+   some stretches and impulse rows on purpose: compare the efforts and impulses before and after, and look at what
+   differs (a check, not a goal: "the same as before" is no reason).  why not `segment` plus a table of pauses (proposed
+   and rejected): it stores one kind and leaves the others implicit.  rebuild: yes.
 2. the `activity` subject with altitude and heart rate and the time axis.  done 2026-11-25 (dev/HISTORY.md): a plot frame
    says its axis (`axDays`, or `axActivity`: made for one activity, `&activity=ID` in the page's request); a subject may
    give its things one by one (`pick`: the selected rides, the newest first); `activities` makes the frames (altitude,
