@@ -157,8 +157,9 @@ proc csvOf*(made: PlotData, tz: Timezone): string =
 proc ofActivities(
     st: Session, c: Chosen, f: PlotFrame, p: Params
 ): PlotData {.raises: [StoreError].} =
-  ## A frame of one activity, made for the one the page asks for, or for every one of the subject's (`--file`): a series
-  ## each, named by what it is.
+  ## A frame of one activity, made for the one the page asks for (its series as the frame names them: the page knows which
+  ## activity it asked for), or for every one of the subject's (`--file`: each series named by its activity, and by its
+  ## own name too unless that is "default").
   let picks = c.subject.pick.get()(st)
   var wanted = picks
   if p.activity.isSome:
@@ -170,7 +171,14 @@ proc ofActivities(
   for pick in wanted:
     let made = f.makeActivity(st, ActivityId(pick.id))
     for s in made.series:
-      result.series.add Series(name: pick.label, points: s.points)
+      let name =
+        if p.activity.isSome:
+          s.name
+        elif s.name == "default":
+          pick.label
+        else:
+          pick.label & ": " & s.name
+      result.series.add Series(name: name, points: s.points)
     result.notes.add made.notes
     result.warnings.add made.warnings
 

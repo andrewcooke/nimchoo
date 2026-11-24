@@ -6,7 +6,8 @@
 ## is missing in time).  A frame is made for each channel of the list (`channels/kinds.nim`), so a channel added there is
 ## drawn here with no more code.  The speed is drawn in km/h and the distance in km (`shownAs`); the distance is the
 ## device's, else the distance along the positions, and can be the x axis (`along`): the device's distance does not
-## advance while the timer is off, so on that axis every break is a gap of no width.
+## advance while the timer is off, so on that axis every break is a gap of no width.  The breaks themselves are a frame of
+## rules (`breaks`): a line across every panel where each began, by kind.
 
 import std/[math, options, strutils, times]
 import ../../core/[errors, extension, ids]
@@ -145,12 +146,26 @@ proc makers(): array[ChannelKind, MakeActivityPlot] =
 
 const shownChannels = {chHeartRate} ## drawn unless told otherwise, with the altitude
 
+proc makeBreaks*(
+    st: Session, id: ActivityId
+): PlotData {.nimcall, raises: [StoreError].} =
+  ## The breaks of the activity as rules: a series for each kind it has, in the order of `BreakKind` (which the page's
+  ## styles follow), each point a break's start with its length in seconds.
+  let (_, breaks) = readBreaks(st.db, id)
+  for kind in BreakKind:
+    var points: seq[Point]
+    for b in breaks:
+      if b.kind == kind:
+        points.add (int64(b.startT), float(b.endT - b.startT))
+    if points.len > 0:
+      result.series.add Series(name: $kind, points: points)
+
 func frameName*(ch: ChannelKind): string =
   ## What the user ticks or types: the channel's name as one word ("heartrate").
   specs[ch].name.replace("_", "")
 
 proc contributions*(): seq[Contribution] =
-  ## The subject, and its frames: the altitude, then each channel.
+  ## The subject, and its frames: the altitude, each channel, then the breaks.
   result.add contribute(subjectPoint, activitySubject)
   result.add contribute(
     plotFramePoint,
@@ -191,3 +206,24 @@ proc contributions*(): seq[Contribution] =
         along: isDistance,
       ),
     )
+  result.add contribute(
+    plotFramePoint,
+    PlotFrame(
+      subject: activitySubject.name,
+      name: "breaks",
+      summary:
+        "the breaks of the activity, a line across every panel where each began: manual, carried, pause, error (importer/stretch.nim)",
+      shown: false,
+      readsSelection: true,
+      tables: @["activity", "ride_break"],
+      unit: "s",
+      mark: mkRule,
+      styles: block:
+        var names: seq[string]
+        for kind in BreakKind:
+          names.add $kind
+        names,
+      axis: axActivity,
+      makeActivity: makeBreaks,
+    ),
+  )

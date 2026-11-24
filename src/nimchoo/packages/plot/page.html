@@ -67,7 +67,7 @@
         .then((r) => { if (!r.ok) throw new Error(f.name + ': HTTP ' + r.status); return r.text(); })
         // (csvParseRows, not csvParse: with a row function that one evals code, which the page's content-security policy forbids)
         .then((text) => d3.csvParseRows(text).slice(1).map((d) => pick
-          ? { s: (new Date(d[0]) - pick.start * 1000) / 1000, x: (new Date(d[0]) - pick.start * 1000) / 1000, series: pick.label, value: +d[2] }
+          ? { s: (new Date(d[0]) - pick.start * 1000) / 1000, x: (new Date(d[0]) - pick.start * 1000) / 1000, series: pick.label, kind: d[1], value: +d[2] }
           : { x: new Date(d[0]), series: d[1], value: +d[2] })));
     }
     return data.get(key);
@@ -111,6 +111,22 @@
     return ticks;
   }
 
+  // rules (the breaks of a ride): a line at each point across every panel, in its activity's colour, styled by its series
+  const dashes = ['', '6,3', '1,3', '8,3,2,3'];
+  const seconds = (v) => v < 60 ? Math.round(v) + ' s' : Math.floor(v / 60) + ' min ' + Math.round(v % 60) + ' s';
+  function ruleMarks(rules) {
+    // (a mark for each style: Plot takes a dash pattern for a whole mark, not for each line)
+    return rules.flatMap(([f, points]) => f.styles.map((kind, i) => Plot.ruleX(
+      points.filter((d) => d.kind === kind && !Number.isNaN(d.x)), {
+        x: 'x', stroke: 'series', strokeWidth: 1, strokeOpacity: 0.8, strokeDasharray: dashes[i % dashes.length],
+        title: (d) => d.kind + ', ' + seconds(d.value) + '\n' + d.series
+      })));
+  }
+  function ruleKey(rules) {
+    const names = ['solid', 'dashed', 'dotted', 'dash-dot'];
+    return rules.map(([f]) => ' ' + f.name + ': ' + f.styles.map((k, i) => k + ' ' + names[i % names.length]).join(', ')).join(';');
+  }
+
   function marks(f, points) {
     if (f.mark === 'bar')
       return [Plot.rectY(points, { x1: 'x', x2: (d) => new Date(+d.x + day), y: 'value', fill: 'series', inset: 0.5 }),
@@ -127,7 +143,11 @@
     const loaded = await Promise.allSettled(shown.map(pointsOf));
     const failed = [];
     const ready = [];
-    loaded.forEach((r, i) => { if (r.status === 'fulfilled') ready.push([shown[i], r.value]); else failed.push(String(r.reason)); });
+    const rules = [];
+    loaded.forEach((r, i) => {
+      if (r.status !== 'fulfilled') failed.push(String(r.reason));
+      else (shown[i].mark === 'rule' ? rules : ready).push([shown[i], r.value]);
+    });
     const all = ready.flatMap(([, points]) => points).filter((d) => !Number.isNaN(d.x));
     const extent = overActivity ? [0, d3.max(all, (d) => d.x) || 0] : d3.extent(all, (d) => d.x);
     full = all.length ? extent.map(Number) : null;
@@ -146,7 +166,8 @@
         color: overActivity
           ? { legend: true, domain: [...colourOf.keys()], range: [...colourOf.values()].map((i) => palette[i]) }
           : { legend: true },
-        marks: marks(f, visible)
+        marks: marks(f, visible).concat(ruleMarks(rules.map(([r, points]) =>
+          [r, zoom ? points.filter((d) => +d.x >= zoom[0] && +d.x <= zoom[1]) : points])))
       });
       const panel = document.createElement('div');
       panel.className = 'panel';
@@ -156,18 +177,51 @@
       // (`plot` is a figure with the legend, whose last svg is the chart, or the chart itself)
       panel.plot = plot;
       panel.chart = plot.tagName.toLowerCase() === 'svg' ? plot : [...plot.querySelectorAll(':scope > svg')].pop();
+      panel.cursor = cursorIn(panel);
       return [panel, plot];
     });
     panels.replaceChildren(...drawn.map(([panel]) => panel));
+    if (cursorAt !== null) showCursor(cursorAt);
     const nothing = overActivity && !picks.some((p) => p.shown) ? 'tick an activity to draw it'
                   : ready.length ? 'wheel to zoom, drag to move, double-click to see everything' : 'tick a frame to draw it';
-    info.textContent = nothing + (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '') +
+    info.textContent = nothing + (rules.length ? ' (' + ruleKey(rules).trim() + ')' : '') +
+      (failed.length ? ' (could not load: ' + failed.join('; ') + ')' : '') +
       (without.size ? ' (no ' + xFrame.name + ' for: ' + [...without].join('; ') + ')' : '');
   }
 
   // The wheel zooms every panel about the pointer, a drag moves them, a double-click shows everything.  (Plot draws, it does
   // not zoom or move: every panel is drawn again on the new span, at most once a frame.)  The listeners are on the panels'
   // container in the capture phase, before the tip's own, which stops a press on a line from going further.
+  // the cursor: a line at the pointer's x in every panel at once (they share the axis), moved without drawing them again
+  let cursorAt = null;          // the pointer's x in the charts (pixels from their left), while it is over one
+  function cursorIn(panel) {
+    if (!panel.chart) return null;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const [y0, y1] = panel.plot.scale('y').range;
+    line.setAttribute('y1', y0);
+    line.setAttribute('y2', y1);
+    line.setAttribute('stroke', '#888');
+    line.setAttribute('pointer-events', 'none');
+    line.setAttribute('visibility', 'hidden');
+    panel.chart.appendChild(line);
+    return line;
+  }
+  function showCursor(px) {
+    cursorAt = px;
+    for (const panel of panels.children) {
+      if (!panel.cursor) continue;
+      const [r0, r1] = panel.plot.scale('x').range;
+      const inside = px !== null && px >= r0 && px <= r1;
+      panel.cursor.setAttribute('visibility', inside ? 'visible' : 'hidden');
+      if (inside) { panel.cursor.setAttribute('x1', px); panel.cursor.setAttribute('x2', px); }
+    }
+  }
+  panels.addEventListener('pointermove', (e) => {
+    const panel = e.target.closest ? e.target.closest('.panel') : null;
+    showCursor(panel && panel.chart ? e.clientX - panel.chart.getBoundingClientRect().left : null);
+  }, { capture: true });
+  panels.addEventListener('pointerleave', () => showCursor(null));
+
   let pending = false;
   function redraw() {
     if (pending) return;

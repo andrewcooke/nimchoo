@@ -4,6 +4,18 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The plot of an activity: a cursor, and the breaks as lines (2026-11-25, the author's)
+
+A line at the pointer's x in every panel at once (they share the axis), moved without drawing them again and kept across a
+redraw.  The breaks of a ride (step 1b) as a frame of a new mark, `mkRule`: not a panel of its own but a vertical line in
+every panel where each break began, in its ride's colour, styled by kind (solid manual, dashed carried, dotted pause,
+dash-dot error: a rule frame lists its series in order, `PlotFrame.styles`, so that a kind has one style whichever a ride
+has), its kind and length said on hover; unticked at first (El Toyo has 87 pauses).  Lines and not bands (the author).
+For the page, a frame of one activity keeps its own series names (the page knows which activity it asked for); `--file`
+names each series by its activity, and by its own name too unless "default".  Found by `tools/plotcheck.js`: Plot takes
+a dash pattern for a whole mark, not per line (all 87 came out solid), so a mark per style; the tool now says the
+page's errors in one line and gives jsdom's svg a `getBBox` (the tip measures its text).  The TODO item done.
+
 ## The plot of an activity: colours that stay, distance only as an axis (2026-11-25, the author's look)
 
 Ticking another ride changed the colours of those already drawn (Plot gives colours by the labels' order); now a ride

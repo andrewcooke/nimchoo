@@ -113,7 +113,16 @@ suite "nch plot":
       exitOk
     let hr = rows(w.cache / ("plot-activity-heartrate-" & $id & ".csv"))
     check hr[0] == "time,series,value"
-    check hr.len > 2000 and hr[1].split(',')[1].startsWith("\"2018-08-27")
+    check hr.len > 2000 and hr[1].split(',')[1] == "\"default\""
+      # (for the page, the frame's own name: the page knows which activity it asked for)
+    check run(w.db, "activity", "--worker", "--frame", "breaks", "--activity", $id) ==
+      exitOk
+    let breaks = rows(w.cache / ("plot-activity-breaks-" & $id & ".csv"))
+    check breaks.len > 1 and breaks[1].split(',')[1] == "\"pause\""
+    check run(w.db, "activity", "--file", "--frames", "breaks") == exitOk
+    check rows(w.cache / "plot-activity-breaks.csv")[1].split(',')[1].endsWith(
+      ": pause\""
+    ) # (for --file, the activity and the kind)
     check run(
       w.db, "activity", "--worker", "--frame", "heartrate", "--activity", "999999"
     ) == exitFailure # (not in the selection)
@@ -164,7 +173,9 @@ suite "nch plot":
           check axis == f.axis
       axes.add (f.subject, f.axis)
     let mine = framesOf(extensions.get(plotFramePoint), "activity")
-    check mine.len == 1 + ChannelKind.high.ord + 1
+    check mine.len == 1 + ChannelKind.high.ord + 1 + 1
+      # altitude, the channels, the breaks
+    check mine.filterIt(it.mark == mkRule).mapIt(it.name) == @["breaks"]
     check mine.allIt(it.axis == axActivity)
     check mine.filterIt(it.along).mapIt(it.name) == @["distance"]
     for s in extensions.get(subjectPoint):

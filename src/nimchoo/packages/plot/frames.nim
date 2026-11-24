@@ -23,6 +23,10 @@ type
   Mark* = enum ## How a frame's series are drawn.
     mkLine ## a line through the points
     mkBar ## a bar for each point, a day wide (the point is the start of its day)
+    mkRule
+      ## a vertical line at each point, across every panel (not a panel of its own): marks of a time (the breaks of a
+      ## ride); its series are styles, told apart by the order they come in (the first solid, then dashed ...), and a
+      ## point's value is said on hover
 
   Point* = tuple[t: int64, value: float] ## an instant (Unix seconds) and a value
 
@@ -67,6 +71,9 @@ type
     tables*: seq[string] ## the tables it reads
     unit*: string ## what its values are: the label of its axis
     mark*: Mark
+    styles*: seq[string]
+      ## for rules: the names of its series in the order the page styles them (solid, dashed, dotted ...), so that a name
+      ## has one style whichever of them a ride has
     case axis*: Axis
     of axDays:
       make*: MakePlot

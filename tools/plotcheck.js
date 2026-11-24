@@ -1,8 +1,8 @@
 // Runs the page of `nch plot activity` (its script, with the real d3 7.9.0 and Observable Plot 0.6.17) in node with a stand-in
 // DOM (jsdom), answering its requests for frames from the CSV files given, and prints what it drew: the panels, the
 // colour of each line, the x axis.  Then it turns the wheel over a panel (zoom in), drags (move), double-clicks (all),
-// ticks the second activity (the colours already there must not change), and chooses the distance as the x axis (whose
-// box is then hidden).  Not part of `nimble test` (it needs packages that the project does not carry):
+// moves the pointer (the cursor line in every panel), ticks the breaks (rules, by dash), ticks the second activity (the
+// colours already there must not change), and chooses the distance as the x axis (whose box is then hidden).  Not part of `nimble test` (it needs packages that the project does not carry):
 //
 //     d=$(mktemp -d); (cd $d && npm i jsdom@24 d3@7.9.0 @observablehq/plot@0.6.17)
 //     page=$(nch plot activity --worker)      # and, for the two newest activities (their ids are in the page):
@@ -20,6 +20,8 @@ const dom = new JSDOM(html, { runScripts: 'outside-only', pretendToBeVisual: tru
 const w = dom.window;
 w.innerWidth = 1000;
 w.innerHeight = 800;
+// (jsdom lays nothing out: the tip measures its text, so it is given a size)
+w.SVGElement.prototype.getBBox = () => ({ x: 0, y: 0, width: 50, height: 12 });
 const fetched = [];
 w.fetch = (url) => {
   const q = new URL(url, 'http://localhost/').searchParams;
@@ -43,6 +45,9 @@ function report(when) {
   }
 }
 const later = (ms) => new Promise((done) => setTimeout(done, ms));
+// (an error in the page's script, said in one line, not as the minified library around it)
+process.on('unhandledRejection', (e) => console.log('ERROR in the page: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ').slice(0, 400) : e)));
+w.addEventListener('error', (e) => console.log('ERROR in the page: ' + e.message));
 (async () => {
   await later(1500);
   report('at first');
@@ -60,6 +65,22 @@ const later = (ms) => new Promise((done) => setTimeout(done, ms));
   chart().dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
   await later(300);
   report('double-clicked (everything)');
+  const chartOf = (p) => p.chart;
+  chart().dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true, clientX: middle() }));
+  console.log('the cursor at ' + middle() + ' px: ' + [...w.document.querySelectorAll('.panel')].map((p) => p.cursor.getAttribute('visibility') + ' at ' + p.cursor.getAttribute('x1')).join(', '));
+  const breaksBox = [...w.document.querySelectorAll('#frames label')].find((l) => l.textContent.trim() === 'breaks');
+  if (breaksBox) {
+    const box = breaksBox.querySelector('input');
+    box.checked = true;
+    box.dispatchEvent(new w.Event('change'));
+    await later(1500);
+    report('breaks ticked');
+    const rules = [...w.document.querySelector('.panel').querySelectorAll('[aria-label="rule"] line')];
+    const byDash = {};
+    for (const r of rules) { const k = r.closest('[stroke-dasharray]')?.getAttribute('stroke-dasharray') || 'solid'; byDash[k] = (byDash[k] || 0) + 1; }
+    console.log('  rules in the first panel, by dash: ' + JSON.stringify(byDash) + '; first title: ' + JSON.stringify((rules[0] && rules[0].querySelector('title') || {}).textContent));
+    console.log('  the cursor after drawing again: ' + w.document.querySelector('.panel').cursor.getAttribute('visibility'));
+  }
   const boxes = w.document.querySelectorAll('#picks input');
   boxes[1].checked = true;
   boxes[1].dispatchEvent(new w.Event('change'));

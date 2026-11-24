@@ -22,6 +22,7 @@ func markName(m: Mark): string =
   case m
   of mkLine: "line"
   of mkBar: "bar"
+  of mkRule: "rule"
 
 func axisName(a: Axis): string =
   case a
@@ -50,6 +51,7 @@ proc renderPage*(
       "unit": f.unit,
       "mark": markName(f.mark),
       "along": f.axis == axActivity and f.along,
+      "styles": f.styles,
     }
   var things = newJArray()
   for p in picks:

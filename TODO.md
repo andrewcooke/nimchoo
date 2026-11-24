@@ -10,10 +10,6 @@ Step 4 of the note (0 to 3 are done): cadence, temperature and power.  Their fra
 channel of the list); left: look at them on real data, and cadence's unit by sport (rpm on a bike, steps a minute
 running).
 
-* **The breaks of a ride drawn on the plot of an activity** (the author, 2026-11-25, after step 1b of dev/plot-activity.md):
-  a vertical bar (or a band, for its length) where a ride broke, styled by its kind (`manual`, `carried`, `pause`,
-  `error`), so that a gap in a line says why, and a GPS `error` (no gap in time) is seen at all.
-
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 
 The presentation grew by many small requests, each done where it was asked, so similar things differ between commands.
