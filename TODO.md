@@ -57,6 +57,16 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   (the date it is listed under, its name and distance, what the map and the calendar show) and whether a file like this
   should be one activity or two.
 
+* **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
+  as a whole (decided early: dev/HISTORY.md, "a truncated or corrupt FIT file fails as a whole").  A device that stops
+  mid-ride (a flat battery) leaves a file whose header says no size (data size 0), with no checksum, cut off in the middle
+  of its last message: `../choochoo/data/test/source/other/2018-04-15-09-18-20.fit` (an Edge 1030: 712,012 good bytes,
+  then 9 of an 11-byte record) and `other/2018-02-24-10-04-10.fit`.  The tokenizer already yields every token before the
+  error.  Proposed (b): when the damage is only at the end (a definition or data message cut short, nothing after it),
+  drop it with a warning ("the file ends in the middle of a message: the last N bytes are dropped") and import the rest;
+  damage inside a file still fails it whole; general repair stays out of scope.  The fuzz tests keep a damaged file from
+  reaching a Defect.
+
 * **The `activity` table: `sport` and `sub_sport` go** (the author, 2026-11-23; left out of the squash of step 0 of
   dev/plot-activity.md, 2026-11-25, as it changes code across several packages: a fragment that drops the columns, or the
   squash after):
