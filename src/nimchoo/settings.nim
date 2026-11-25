@@ -18,29 +18,27 @@ proc fragmentLines*(path: string): seq[string] =
   ## What the database file has had applied, against what this program has: the fragments are the SQL that makes the
   ## tables, in the order the program applies them (`db` package).
   let program = generated.schema
-  let what =
-    fmt"the program has {program.len} fragments (the SQL that makes its tables)"
+  let what = fmt"the schema has {program.len} fragments"
   if not fileExists(path):
-    return @[fmt"{what}; there is no database yet"]
+    return @[fmt"{what}; no database was found"]
   var have: seq[(string, string)]
   try:
     have = appliedFragments(path)
   except StoreError as e:
-    return @[fmt"{what}; the database: {e.msg}"]
+    return @[fmt"{what}; database: {e.msg}"]
   var differences: seq[string]
   for (name, sum) in have:
     let known = program.filterIt(it.name == name)
     if known.len == 0:
-      differences.add fmt"{name}: only in the database (from a newer version: it will be refused)"
+      differences.add fmt"{name}: is present but unexpected (from a newer version?); database cannot be used"
     elif known[0].checksum != sum:
-      differences.add fmt"{name}: not the SQL this version has (made by a different version: it will be refused)"
+      differences.add fmt"{name}: is present but modified (bad checksum; different version?); database cannot be used"
   for f in program:
     if have.allIt(it[0] != f.name):
-      differences.add fmt"{f.name}: not applied yet (it will be, when the database is opened)"
+      differences.add fmt"{f.name}: is pending (will be applied when database is used)"
   if differences.len == 0:
-    return
-      @[fmt"{what}, and the database has had all of them, as this version has them"]
-  @[fmt"{what}; the database has had {have.len}:"] & differences
+    return @[fmt"{what}; the database contains all (checksums ok; no others)"]
+  @[fmt"{what}; the database contains {have.len}:"] & differences
 
 proc userText(g: Globals, path: string): string =
   ## The user the commands work on: its name, and "(default)" if it is the default one.
@@ -56,7 +54,7 @@ proc userText(g: Globals, path: string): string =
   except StoreError as e:
     result = e.msg
 
-type EnvVar = tuple[name, what: string, default: Option[string], isPath: bool]
+type EnvVar = tuple[name: string, what: Line, default: Option[string], isPath: bool]
 
 proc environment(): seq[EnvVar] =
   ## The variables of the environment that nch reads, what each is for, and what is used when it is not set.
@@ -65,47 +63,47 @@ proc environment(): seq[EnvVar] =
     (if home.isSome: some(home.get / p) else: none(string))
 
   @[
-    ("NCH_DB", "the database file (`--db` comes first)", some(defaultDbPath()), true),
+    (
+      "NCH_DB",
+      ~"the database file (`--db` takes precedence)",
+      some(defaultDbPath()),
+      true,
+    ),
     (
       "NCH_LOG",
-      "the log file; set and empty: no log",
+      ~"the log file; no log if set to empty string",
       logPath(none(string), envOpt("XDG_STATE_HOME"), home),
       true,
     ),
     (
       "NCH_CACHE",
-      "the cache directory",
+      ~"the cache directory",
       cachePath(none(string), envOpt("XDG_CACHE_HOME"), home),
       true,
     ),
     (
       "XDG_DATA_HOME",
-      "where the database goes (in `nch/`) when NCH_DB is not set",
+      ~"the data directory; database location if `$NCH_DB` is not set",
       under(".local/share"),
       true,
     ),
     (
       "XDG_STATE_HOME",
-      "where the log goes (in `nch/`) when NCH_LOG is not set",
+      ~"the state directory; log location if `$NCH_LOG` is not set",
       under(".local/state"),
       true,
     ),
     (
       "XDG_CACHE_HOME",
-      "where the cache goes (in `nch/`) when NCH_CACHE is not set",
+      ~"where the cache goes (in `nch/`) when `$NCH_CACHE` is not set",
       under(".cache"),
       true,
     ),
-    (
-      "NO_COLOR",
-      "set to anything: no colour (a convention many programs follow); not set: colour on a terminal",
-      none(string),
-      false,
-    ),
-    ("NCH_THEME", "the theme, when `--theme` is not given", none(string), false),
+    ("NO_COLOR", ~"if set, disable terminal colour output", none(string), false),
+    ("NCH_THEME", ~"the theme (`--theme` takes precedence)", none(string), false),
     (
       "COLORFGBG",
-      "set by some terminals (the numbers of the text and background colours): whether the background is light, to choose the light or dark theme when nothing else does",
+      ~"if set, used choose the theme if the theme is otherwise unspecified",
       none(string),
       false,
     ),
@@ -127,8 +125,8 @@ proc environmentLines(width: int): seq[Line] =
         ~"<file {v.default.get}> (default)"
       else:
         plain("not set (default)")
-    rows.add @[plain(v.name), value, plain(v.what)]
-  ruled(@["variable", "value", "what it is for"], rows, width)
+    rows.add @[~"<code {v.name}>", value, v.what]
+  ruled(@["variable", "value", "meaning"], rows, width)
 
 proc configLines*(g: Globals, width: int, commands: seq[string]): seq[Line] =
   ## The settings in force, and where each came from (a path in `file`), as a table without headings; then the

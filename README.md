@@ -1,7 +1,7 @@
 
 # nimchoo
 
-* is a small, fast, local, **cli for training data*
+* is a small, fast, local, **cli for training data**
 
 * it stores fits data (from sports watches, bike computers, etc) in a
 **local database** (no data shared; nothing in the cloud; you can open

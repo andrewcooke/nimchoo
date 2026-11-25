@@ -21,7 +21,7 @@ proc templateFailure*(g: Globals, command, msg: string): int =
     g,
     command,
     "cannot make the page: " & msg &
-      " (the templates are in system/templates/ and the libraries are system/libraries.cdn, in the cache directory; delete one to have the built-in one again)",
+      " (the templates are in system/templates/ and the libraries are system/libraries.cdn, in the cache directory; delete one to have the system standard again)",
   )
 
 proc makeCacheDirs*(dir: string) {.raises: [IOError, OSError].} =

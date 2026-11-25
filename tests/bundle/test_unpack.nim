@@ -132,9 +132,9 @@ suite "bundle: the profile and the notice":
     putEnv("NCH_CACHE", top)
   teardown:
     useTestCache()
-  test "the default profile is unpacked, and is the built-in one":
+  test "the default profile is unpacked, and is the system standard":
     let d = defaultProfile()
-    check d.problem.isNone and profileInUse() == "the built-in one"
+    check d.problem.isNone and profileInUse() == "the system standard"
     check fileExists(systemDir(top) / "Profile.xlsx")
     check readFile(systemDir(top) / "Profile.xlsx") ==
       readFile("src/nimchoo/packages/fit/Profile.xlsx")
@@ -148,12 +148,12 @@ suite "bundle: the profile and the notice":
       readFile("src/nimchoo/packages/fit/Profile.xlsx") & "\0",
     )
     let mine = defaultProfile()
-    check mine.problem.isNone and profileInUse().endsWith("(not the built-in one)")
+    check mine.problem.isNone and profileInUse().endsWith("(not system standard)")
     # a bad one: the built-in is used instead
     writeFile(systemDir(top) / "Profile.xlsx", "this is not a spreadsheet")
     let bad = defaultProfile()
     check bad.problem.get.contains("cannot be used") and
-      bad.problem.get.contains("using the built-in one")
+      bad.problem.get.contains("using system standard")
     check bad.profile.messages.len > 0
     expect NchError:
       discard loadDefaultProfile() # (the other one says so as an error)

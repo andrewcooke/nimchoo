@@ -1,5 +1,5 @@
 // How the heat (how often each place was visited) is drawn on the map: a frame's drawing (see the map package, `map/frames.nim`),
-// editable here in system/templates/ (delete it to have the built-in one again).  The numbers and colours are in
+// editable here in system/templates/ (delete it to have the system standard again).  The numbers and colours are in
 // activities-map-heat.json.
 //
 // A smooth glow (Leaflet.heat, which the page loads for this frame) from the cells of the grid at several sizes (`level`; the file

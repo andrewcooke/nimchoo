@@ -1,5 +1,5 @@
 // How the climbs are drawn on the map: a frame's drawing (see the map package, `map/frames.nim`), editable here in
-// system/templates/ (delete it to have the built-in one again).  The numbers and colours are in activities-map-climbs.json.
+// system/templates/ (delete it to have the system standard again).  The numbers and colours are in activities-map-climbs.json.
 //
 // Transparent grey bands beside the road, marking sections of it, under the routes.  A band is a fixed width on the ground and a
 // fixed distance beyond the outermost thread of the routes, in metres, so it is a band beside the road when zoomed in and all but

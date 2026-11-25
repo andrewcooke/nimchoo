@@ -539,7 +539,7 @@ load, weather) could not add a criterion to `activities` or a line to `users` wi
   against the database ("no climb has 'x' in its name" is an error) and adds notes on what matched.  So a contribution
   is: the option (step 9's `Opt`: name, value name, help, how many words it takes), and `resolve(store, user, values)`
   giving the `Sql` condition on `activity a` (§4.1) and its notes, or an error message.  The completion source is added
-  at the completion step.  Contributed conditions are joined with `and`, like the built-in ones.
+  at the completion step.  Contributed conditions are joined with `and`, like the system standards.
 * **What a user has**: only the activity count comes from above `user`.  The FTHR-change note ("the impulses worked out
   with the old one are deleted") is the doing of `model`'s own trigger, so `nch users` says it generically ("what is
   worked out from the FTHR is worked out again") and `model` contributes nothing.

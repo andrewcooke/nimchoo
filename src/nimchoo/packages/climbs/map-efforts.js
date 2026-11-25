@@ -1,5 +1,5 @@
 // How the efforts on the climbs are drawn on the map: a frame's drawing (see the map package, `map/frames.nim`), editable here in
-// system/templates/ (delete it to have the built-in one again).  The numbers and colours are in activities-map-efforts.json.
+// system/templates/ (delete it to have the system standard again).  The numbers and colours are in activities-map-efforts.json.
 //
 // The part of each ride between the start and finish times stored for an effort on a climb, with a dot where it starts and where
 // it finishes: for looking at how a climb is matched.  (The dots go in a group of their own, added after the lines: a layer added

@@ -201,7 +201,7 @@ proposals (16 named levels; a field on the span) were weighed with the author: t
 function that rebuilds spans.  `--detail N` replaces `-v` (and the `--full` planned): 1 the months with a mark, 2 every
 month in their range, 3 to this month; the default is 3 for a curve, else 1.  `calendar/background` is now
 `calendar/days`.  Without colour, or with a theme lacking the colours of a shade, `--shade` fails saying why (a theme
-edited in the cache is never replaced by a newer built-in one, so it does not gain `default-lo`).  `tools/look.nim`
+edited in the cache is never replaced by a newer system standard, so it does not gain `default-lo`).  `tools/look.nim`
 shows each shade of a theme with the program's own interpolation.
 
 ## The plot view, and `nch ff` manages the models (done 2026-11-23, step 3 of the `ff` rework)

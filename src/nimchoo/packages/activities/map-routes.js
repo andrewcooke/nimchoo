@@ -1,5 +1,5 @@
 // How the routes of activities are drawn on the map: a frame's drawing (see the map package, `map/frames.nim`), editable here in
-// system/templates/ (delete it to have the built-in one again).  The numbers and colours are in activities-map-routes.json.
+// system/templates/ (delete it to have the system standard again).  The numbers and colours are in activities-map-routes.json.
 //
 // Routes as threads: each route is moved a little to the side of its direction of travel, by an amount of its own, so that routes
 // over the same road look like one line from far and like several threads from close.  The climbs are placed beside the

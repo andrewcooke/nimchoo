@@ -82,7 +82,7 @@ func isThemeName*(s: string): bool =
   s.len > 0 and s.allCharsInSet({'a' .. 'z', 'A' .. 'Z', '0' .. '9', '-', '_'})
 
 proc themeText(cache: Option[string], name: string): string {.raises: [ThemeError].} =
-  ## The text of the theme `name`: the built-in one (as unpacked, or as edited), or the file of that name.
+  ## The text of the theme `name`: the system standard (as unpacked, or as edited), or the file of that name.
   for b in builtIn:
     if b.name == "themes/" & name & themeExtension:
       return resolve(cache, b).data
@@ -154,7 +154,7 @@ proc loadTheme*(
     result.warning = some(fmt"{which}: {e.msg} (using the built-in {fallback})")
 
 proc themeNames*(cache: Option[string]): seq[string] =
-  ## The themes there are: the built-in ones, and the files `NAME.theme` in `system/themes/`.
+  ## The themes there are: the system standards, and the files `NAME.theme` in `system/themes/`.
   for b in builtIn:
     result.add splitFile(b.name).name
   if cache.isNone:

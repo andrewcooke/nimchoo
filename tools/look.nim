@@ -3,7 +3,7 @@
 ##     nim c -d:release --hints:off -o:build/look tools/look.nim
 ##     build/look ~/.cache/nch/system/themes/dark.theme '<good imported> 3 files <hide (1.2s)>'
 ##     build/look THEME                  # a sample: every style of the theme, nested, lines like those of nch, and its shades
-##     build/look light                  # a theme by its name: NAME.theme in the cache's themes, else the built-in one
+##     build/look light                  # a theme by its name: NAME.theme in the cache's themes, else the system standard
 ##     build/look THEME - < lines.txt    # each line of stdin (read as markup)
 ##     build/look --plain THEME ...      # without colour, as NO_COLOR would show it
 ##
@@ -104,7 +104,7 @@ proc main() =
   if args.len == 0:
     quit "usage: look [--plain] THEME|NAME [TEXT... | -]\n(" & whereThemesAre() & ")", 2
   # THEME is a file, else the name of a theme: the file of that name in the cache's themes (as nch would use it), else the
-  # built-in one of that name
+  # system standard of that name
   var path = args[0]
   var text = none(string)
   let cache = cacheDir()

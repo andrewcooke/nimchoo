@@ -271,7 +271,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
       what.add namedList(adds, styleName"code")
       what.add span(".")
     rows.add @[pkg(p.name), plain(fmt"{p.depends.len}/{p.dependents.len}"), what]
-  result = ruled(@["package", "U/B", "what it is for"], rows, width, right = {1})
+  result = ruled(@["package", "U/B", "meaning"], rows, width, right = {1})
   result.add plain("")
   for l in wrap("U/B: how many packages the package uses / is used by.", width):
     result.add plain(l)

@@ -11,7 +11,7 @@
 ## `--file` makes the files only, and prints their paths).
 ##
 ## **The page is templates**, built in and unpacked to the cache's `system/templates/` where the author edits them (never
-## overwritten once changed; delete a file to get the built-in one): `map.html` (the page and its script, which knows no
+## overwritten once changed; delete a file to get the system standard): `map.html` (the page and its script, which knows no
 ## frame: it fetches each frame's file, calls the frame's drawing, fits the view and offers the drawings generic helpers),
 ## `map.css` (the look of the page), `map-style.json` (the corner cutting, `smooth_rounds`) and, for each frame, a style and a
 ## drawing shipped by its provider (`activities-map-routes.json`, `activities-map-routes.js` ...; a frame with no drawing is

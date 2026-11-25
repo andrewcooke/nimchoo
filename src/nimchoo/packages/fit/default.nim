@@ -13,19 +13,19 @@ const profileBundle* = Bundle(name: "Profile.xlsx", data: embedded)
 
 proc loadDefaultProfile*(): Profile {.raises: [ProfileError, XlsxError].} =
   ## The profile to use when none is asked for: the file in the cache's `system/` part (the
-  ## built-in one, unpacked, or the author's).  An error if the author's cannot be read.
+  ## system standard, unpacked, or the author's).  An error if the author's cannot be read.
   loadProfileFromBytes(resolve(profileBundle).data)
 
 proc profileInUse*(): string =
-  ## Which profile is used when none is asked for, as `nch --config` says it: the built-in one, or the author's (its path).
+  ## Which profile is used when none is asked for, as `nch --config` says it: the system standard, or the author's (its path).
   let r = resolve(profileBundle)
   if r.source == soCustom:
-    r.path.get & " (not the built-in one)"
+    r.path.get & " (not system standard)"
   else:
-    "the built-in one"
+    "system standard"
 
 proc defaultProfile*(): tuple[profile: Profile, problem: Option[string], bytes: string] =
-  ## `loadDefaultProfile`, but if the author's profile cannot be used the built-in one is, and `problem` says why (none
+  ## `loadDefaultProfile`, but if the author's profile cannot be used the system standard is, and `problem` says why (none
   ## otherwise: which one is in use is `nch --config`'s to say, `profileInUse`).
   let r = resolve(profileBundle)
   result.bytes = r.data # (the spreadsheet in use: another thread can load its own copy)
@@ -41,5 +41,5 @@ proc defaultProfile*(): tuple[profile: Profile, problem: Option[string], bytes: 
       raiseAssert "the built-in profile does not load: " & e2.msg # a bug
     result.problem = some(
       "the profile " & r.path.get & " cannot be used (" & e.msg &
-        "): using the built-in one"
+        "): using system standard"
     )

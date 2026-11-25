@@ -9,7 +9,7 @@ type
   Params* = object
     file*: string ## the FIT file to read
     csv*: bool ## SDK-format CSV, not text
-    profile*: Option[string] ## the profile to use instead of the built-in one
+    profile*: Option[string] ## the profile to use instead of the system standard
 
   Raw = object ## what the options fill in
     help, csv: bool
@@ -28,7 +28,7 @@ func fitSpec*(): Spec[Raw] =
         ["--profile"],
         profile,
         "PATH",
-        ~"use this Profile.xlsx instead of the built-in one",
+        ~"use this Profile.xlsx instead of system standard",
         completion = Completion(kind: ckFile),
       ),
       helpFlag(Raw),
