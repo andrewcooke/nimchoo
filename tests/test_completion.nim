@@ -1,4 +1,4 @@
-## `nch --install-completion`, `--show-completion` and `nch __complete` (src/nimchoo/completion.nim): the shells, the script and where it goes.
+## `nch --install-completion` and `nch __complete` (src/nimchoo/completion.nim): the shells, the script and where it goes.
 
 import std/[options, os, osproc, strutils, unittest]
 import ./support/env
@@ -21,7 +21,7 @@ suite "nch --install-completion: the shell":
     for s in Shell:
       check shellScript(s).len > 0
 
-suite "nch --show-completion: the script":
+suite "nch --install-completion: the script":
   test "it calls the hidden command and says which status means files, as the program does":
     check "command \"${COMP_WORDS[0]}\" " & completeFlag in bashFunction
     check "-eq " & $exitFiles in bashFunction

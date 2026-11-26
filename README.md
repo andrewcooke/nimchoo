@@ -31,8 +31,7 @@ it, run once
 and start a new shell.  the script goes in
 `~/.local/share/bash-completion/completions/` (or
 `$BASH_COMPLETION_USER_DIR`), where the bash-completion package finds
-it, so that package must be installed.  `nch --show-completion` prints
-the script instead, if you would rather put it somewhere yourself.
+it, so that package must be installed.
 
 ## technical background
 

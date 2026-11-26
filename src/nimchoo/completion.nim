@@ -1,5 +1,5 @@
-## Tab completion for the shell: `nch --install-completion [SHELL]` writes the completion script where the shell finds it,
-## `nch --show-completion [SHELL]` prints it (bash for now), and `nch __complete WORDS...` (hidden from the usage: only the shell runs it) answers it.  Like `nch packages` it is built
+## Tab completion for the shell: `nch --install-completion [SHELL]` writes the completion script where the shell finds it
+## (bash for now), and `nch __complete WORDS...` (hidden from the usage: only the shell runs it) answers it.  Like `nch packages` it is built
 ## into `nch` and not a package, because it needs the whole registry.  What is offered, and why, is `core/complete.nim`;
 ## this is the protocol with the shell and the functions.
 ##
@@ -80,15 +80,13 @@ complete -F _nch_complete nch
 
   bashFunction* = bashTemplate.replace("COMPLETE_FLAG", completeFlag).replace(
       "EXIT_FILES", $exitFiles
-    )
-    ## what `nch --show-completion` prints for bash, and `nch --install-completion` writes
+    ) ## what `nch --install-completion` writes for bash
 
 type Shell* = enum
   ## The shells there is a completion script for (`nch --install-completion [SHELL]`); the name is the word typed.
   shBash = "bash"
 
-const defaultShell* = shBash
-  ## what `--install-completion` and `--show-completion` mean with no shell
+const defaultShell* = shBash ## what `--install-completion` means with no shell
 
 func shellNames*(): seq[string] =
   ## The names of the shells, for the usage and for completing the option itself.
@@ -102,15 +100,6 @@ func parseShell*(word: string): Option[Shell] =
   for s in Shell:
     if $s == word:
       return some(s)
-
-type
-  ScriptAction* = enum
-    saInstall ## write the script where the shell finds it
-    saShow ## print it
-
-  Job* = object ## what `--install-completion` or `--show-completion` asks for
-    action*: ScriptAction
-    shell*: Shell
 
 func shellScript*(s: Shell): string =
   ## The text the shell runs: the function, and its registration.
@@ -164,9 +153,4 @@ proc installMain*(g: Globals, s: Shell): int {.raises: [].} =
     osOut,
     ~"wrote <file {path}>: new {s} shells complete nch (this one: source <file {path}>)",
   )
-  exitOk
-
-proc showMain*(s: Shell): int {.raises: [].} =
-  ## `nch --show-completion [SHELL]`: print the script.
-  stdout.say shellScript(s)
   exitOk

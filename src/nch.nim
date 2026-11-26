@@ -26,19 +26,16 @@ type Head = object ## The options before the command name.
   g: Globals
   help, version, config: bool
   theme: Option[string] ## `--theme`
-  job: Option[Job] ## `--install-completion` or `--show-completion`
+  install: Option[Shell] ## `--install-completion`
 
-func takeJob(p: var Head, action: ScriptAction, value: string): Problem =
-  ## `--install-completion [SHELL]`, `--show-completion [SHELL]`.
-  if p.job.isSome:
-    return
-      refuse(~"only one of `--install-completion` and `--show-completion` may be given")
+func takeShell(p: var Head, value: string): Problem =
+  ## `--install-completion [SHELL]`.
   let shell = parseShell(value)
   if shell.isNone:
     return refuse(
       ~"no completion for '{value}' (the shells are {shellNames().join(\", \")})"
     )
-  p.job = some(Job(action: action, shell: shell.get))
+  p.install = shell
   fine
 
 proc completeThemes(g: Globals, typed: string): seq[string] {.nimcall, raises: [].} =
@@ -91,15 +88,7 @@ func headSpec(): Spec[Head] =
         "SHELL",
         ~"write the script for shell completion at the appropriate location (default: bash); run once to install, then start a new shell",
         completion = Completion(kind: ckWords, words: shellNames()),
-        body = takeJob(p, saInstall, value),
-      ),
-      optionalValue(
-        Head,
-        ["--show-completion"],
-        "SHELL",
-        ~"show the script for shell completion (default: bash)",
-        completion = Completion(kind: ckWords, words: shellNames()),
-        body = takeJob(p, saShow, value),
+        body = takeShell(p, value),
       ),
       flag(Head, ["--version"], version, ~"show the version and git commit built"),
       flag(
@@ -168,20 +157,12 @@ proc main(): int {.raises: [].} =
   if head.config:
     g.showAll osOut, configLines(g, g.textWidth(osOut), allCommands.mapIt(it.name))
     return exitOk
-  if head.job.isSome:
-    let job = head.job.get
-    case job.action
-    of saInstall:
-      return installMain(g, job.shell)
-    of saShow:
-      return showMain(job.shell)
+  if head.install.isSome:
+    return installMain(g, head.install.get)
   if i >= args.len:
     g.showAll osErr, usageText(g.textWidth(osErr))
     return exitUsage
   let rest = args[i + 1 .. ^1]
-  if args[i] == "help":
-    g.showAll osOut, usageText(g.textWidth(osOut))
-    return exitOk
   let name = args[i]
   let provided = allCommands.filterIt(it.name == name)
   if provided.len == 0:
