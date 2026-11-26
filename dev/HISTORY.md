@@ -4,6 +4,13 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Options for one case: settled (2026-11-26, A5 of the consistency pass)
+
+Of the options kept for one case (2026-11-20): `--latest` stayed, `together` went, `ff`'s scales and `--hourly` are in
+dev/ff.md, and the calendar leaves out the months with nothing marked (a calendar like Farellones' needs it).  Left
+open was whether its "N months omitted" warning (pointing to `--detail 2`) should go too: the author looked at it and
+keeps it, as it says what is not shown and how to see it.
+
 ## Lag, and distance with one ride (2026-11-25, the author's)
 
 The cursor lagged fast movements: Plot's tip looked for the nearest of every point (14,000 a ride a panel) on every

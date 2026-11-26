@@ -13,14 +13,8 @@ channel of the list), and a run's cadence is its own frame, `steps` (2026-11-26)
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 
 The presentation grew by many small requests, each done where it was asked, so similar things differ between commands.
-First cut what exists for one view (A), then make what is left share one helper each (B), each with a test that refuses the
+First cut what exists for one view (A: done 2026-11-26), then make what is left share one helper each (B), each with a test that refuses the
 next instance, and write the visual rules down in one place (C).  Every item is open: options, then a recommendation.
-
-### A. Cut
-
-5. **Options for one case** (decided 2026-11-20): `--latest` stays (it will be common); `together` is gone (the summary's
-   one U/B column).  Left: the calendar keeps leaving out the months with nothing marked (needed for a calendar like
-   Farellones'), but its "N months omitted" warning may go: to look at after B (it now points to `--detail 2`).  `ff`'s `--fitness-scale`, `--fatigue-scale` and `--hourly` are settled in `dev/ff.md`.
 
 ### B. Share
 
