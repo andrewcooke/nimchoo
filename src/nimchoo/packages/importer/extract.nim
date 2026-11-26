@@ -22,6 +22,8 @@
 ##   is a break of a kind (stretch.nim: manual, carried, pause) or none (a blink),
 ##   with a GPS jump that did not return as a break of its own (error).  Every
 ##   coordinate lies in the riding.
+## * a session is cut at each break longer than `splitS` (the device off for a day and more): each part is an activity
+##   (`parts`), with the session's number and its own.
 
 import std/[algorithm, options, sequtils, strformat, strutils, tables]
 import ./channel
@@ -62,8 +64,10 @@ type
     running*: bool ## a start (true) or a stop (false)
     trigger*: Trigger
 
-  ActivityData* = object ## One session of a file.
+  ActivityData* = object
+    ## One session of a file, or one part of it: a session is cut at each break longer than `splitS` (`parts`).
     session*: int ## position of the session message in the file
+    part*: int ## which part of the session, from 0: almost always 0, the whole session
     startT*, endT*: UnixTime
     sport*, subSport*: string
       ## "" if unknown (not stored: given to the import steps, `tags` makes it a tag)
@@ -300,6 +304,46 @@ func stretches*(a: ActivityData): seq[Span] =
   ## The activity's stretches of riding (stretch.nim).
   stretchesOf(a.riding, a.breaks)
 
+const splitS* = 12 * 3600
+  ## a break longer than this ends an activity, and the next part of the session is another (decided with the author,
+  ## 2026-11-26: the file of the rides of 8 and 10 January 2026, the device switched off for 45 h between them; no
+  ## other break of 1,117 activities is over 12 h, and the power events are no rule, as crashes and visits to the doctor
+  ## have them too)
+
+func splitAt(a: ActivityData, b: Break): (ActivityData, ActivityData) =
+  ## The activity before the break `b` (one of its breaks) and after it: a position or a sample goes to the side of the
+  ## break's middle that it is on.
+  let mid = UnixTime((int64(b.startT) + int64(b.endT)) div 2)
+  var (first, second) = (a, a)
+  first.endT = b.startT
+  first.riding.endT = b.startT
+  second.startT = b.endT
+  second.riding.startT = b.endT
+  second.part = a.part + 1
+  first.coords = a.coords.filterIt(it.t < mid)
+  second.coords = a.coords.filterIt(it.t >= mid)
+  first.samples.clear()
+  second.samples.clear()
+  for name, list in a.samples:
+    let (before, after) = (list.filterIt(it.t < mid), list.filterIt(it.t >= mid))
+    if before.len > 0:
+      first.samples[name] = before
+    if after.len > 0:
+      second.samples[name] = after
+  first.breaks = a.breaks.filterIt(it.endT <= b.startT)
+  second.breaks = a.breaks.filterIt(it.startT >= b.endT)
+  (first, second)
+
+func parts*(a: ActivityData): seq[ActivityData] =
+  ## The activity cut at each of its breaks longer than `splitS` (of any kind), each part numbered; itself if it has none.
+  var rest = a
+  for b in a.breaks:
+    if int64(b.endT) - int64(b.startT) > splitS:
+      let (before, after) = splitAt(rest, b)
+      result.add before
+      rest = after
+  result.add rest
+
 const distanceField* = "distance"
   ## the `record` field of the ground covered, which the importer always reads (`distanceOf`)
 
@@ -524,6 +568,9 @@ proc readActivities*(
     cover(segs, s.coords, ws)
     (s.riding, s.breaks) =
       breaksOf(segs, s.coords, splits[i], Span(startT: s.startT, endT: s.endT))
-    s.distanceM =
-      distanceOf(s.samples.getOrDefault(distanceField), s.coords, s.stretches)
-  sessions
+  for s in sessions:
+    for p in s.parts:
+      var p = p
+      p.distanceM =
+        distanceOf(p.samples.getOrDefault(distanceField), p.coords, p.stretches)
+      result.add p

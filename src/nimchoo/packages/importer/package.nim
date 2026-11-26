@@ -41,11 +41,7 @@ const package* = Package(
   fragments: @[
     # file, activity, track (the positions as arrays), ride_break, route, seen_file, route_cell (the cells of the grid
     # each activity went through)
-    fragment("001-schema.sql"),
-    # drops the columns of `activity` that the file's summary gave and that are not ours or not read
-    fragment("002-summary.sql"),
-    # drops the file's timer total: active time is worked out (`active.nim`)
-    fragment("003-active.sql"),
+    fragment("001-schema.sql")
   ],
   commands: @[
     CommandDecl(

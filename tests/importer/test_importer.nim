@@ -83,6 +83,40 @@ let threeStretches = block:
   body.add b(1) & le32(base + 22) & le32(base) & b(2)
   fitFile(body)
 
+# one session, two rides: the timer stopped by hand, and started again 14 hours later
+let twoDays = block:
+  func rec(t, i: int): seq[byte] =
+    b(0) & le32(base + t) & le32(536870912 + 100 * i) & le32(-1073741824)
+  func timer(t, kind: int): seq[byte] =
+    b(5) & le32(base + t) & b(0, kind, 0)
+  var body = defn(0, 20, @[(253, 4, uint32T), (0, 4, sint32T), (1, 4, sint32T)])
+  body.add defn(
+    5, 21, @[(253, 4, uint32T), (0, 1, enumT), (1, 1, enumT), (3, 1, enumT)]
+  )
+  for (from0, to0) in [(0, 4), (50_400, 50_403)]:
+    body.add timer(from0, 0)
+    for t in from0 .. to0:
+      body.add rec(t, t)
+    body.add timer(to0, 4)
+  body.add defn(1, 18, @[(253, 4, uint32T), (2, 4, uint32T), (5, 1, enumT)])
+  body.add b(1) & le32(base + 50_403) & le32(base) & b(2)
+  fitFile(body)
+
+suite "import: a session cut in two":
+  test "a break of more than 12 hours: two activities of one session, numbered by part, the break in neither":
+    let s = openAll(tempDb("twodays"))
+    defer:
+      s.close()
+    var ws: seq[Warning]
+    let r = s.importFile(p, "twodays.fit", twoDays, ws)
+    check r.outcome == ioImported and r.activities == 2
+    check s.db.query(
+      (int, int, int64, int64),
+      "select session, part, start_epoch - :t0, end_epoch - :t0 from activity order by part",
+      t0 = int64(fitToUnix(FitTime(base))),
+    ) == @[(0, 0, 0'i64, 4'i64), (0, 1, 50_400'i64, 50_403'i64)]
+    check s.count("ride_break") == 0
+
 suite "import: a real ride":
   test "one activity and all its coordinates":
     let s = openAll(tempDb("ride"))

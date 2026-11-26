@@ -1,4 +1,4 @@
-import std/[options, os, sequtils, strutils, unittest]
+import std/[options, os, sequtils, strutils, tables, unittest]
 import nimchoo/core/errors
 import nimchoo/packages/importer/[channel, extract]
 import nimchoo/packages/importer/series
@@ -98,6 +98,42 @@ suite "activities: a session and its coordinates":
     check a.len == 1
     check a[0].coords.len == 0
     check ws.len == 0
+
+suite "activities: a session cut at a break of more than 12 hours":
+  const t0 = 1_000_000
+  func at(t: int): UnixTime =
+    UnixTime(t0 + t)
+
+  func activity(gap: int): ActivityData =
+    ## Riding from 0 to 100, a break of `gap` s, riding for 100 s more, with a pause in each part.
+    let resume = 100 + gap
+    result = ActivityData(
+      startT: at(0),
+      endT: at(resume + 100),
+      riding: Span(startT: at(0), endT: at(resume + 100)),
+      breaks: @[
+        Break(startT: at(40), endT: at(50), kind: bkPause),
+        Break(startT: at(100), endT: at(resume), kind: bkManual),
+        Break(startT: at(resume + 40), endT: at(resume + 50), kind: bkPause),
+      ],
+    )
+    for t in [0, 100, resume, resume + 100]:
+      result.coords.add Coord(t: at(t), lon: -90.0, lat: -45.0)
+      result.samples.mgetOrPut("distance", @[]).add Sample(t: at(t), v: float(t))
+
+  test "the parts: their times, positions, samples and breaks; the long break in neither":
+    let p = parts(activity(splitS + 1))
+    check p.len == 2
+    check p.mapIt(it.part) == @[0, 1]
+    check (p[0].startT, p[0].endT, p[0].riding.endT) == (at(0), at(100), at(100))
+    check (p[1].startT, p[1].riding.startT) == (at(splitS + 101), at(splitS + 101))
+    check p[0].coords.len == 2 and p[1].coords.len == 2
+    check p[0].samples["distance"].len == 2 and p[1].samples["distance"].len == 2
+    check p[0].breaks.mapIt(it.startT) == @[at(40)]
+    check p[1].breaks.mapIt(it.startT) == @[at(splitS + 141)]
+  test "a break of 12 hours exactly, or less, cuts nothing":
+    check parts(activity(splitS)).len == 1
+    check parts(activity(3600)).len == 1
 
 suite "activities: the ground covered":
   func dist(pairs: openArray[(int, float)]): seq[Sample] =

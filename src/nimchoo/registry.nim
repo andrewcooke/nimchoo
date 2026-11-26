@@ -244,7 +244,8 @@ Contributes to `importer/after` (`imported.nim`): the climbs of the new activiti
   survives).  Once anyone else has a database, never squash again.  Before deleting the old fragments compare the schema
   they make with the squashed one (every table, column, index and foreign key, from a fresh database each way).  What a
   rebuild loses that cannot be made again from the FIT files: the users and their FTHR, models, the saved selection,
-  the landmarks and names given by hand.  Last squashed 2026-11-25, with the columns renamed (each package has one fragment).
+  the landmarks and names given by hand.  Last squashed 2026-11-25, with the columns renamed (each package has one fragment), and
+  `importer`'s again 2026-11-26 (the columns the file's summary gave dropped, `part` added to the key of `activity`).
 * **Statements.**  Values are bound by name (`query(db, T, "... where id = :id", id = 3)`), never put into the text; a `?`
   is a compile error.  A query built from pieces is an `Sql` (`sqltext`), which also records the packages whose files wrote
   its pieces.  Rows are read into typed tuples or objects.  Nothing else imports `db_connector`.

@@ -34,11 +34,12 @@ proc insertActivity(
 ) {.raises: [StoreError].} =
   st.bindInt(1, fileId)
   st.bindInt(2, a.session)
-  st.bindInt(3, int64(a.startT))
-  st.bindInt(4, int64(a.endT))
-  st.bindReal(5, a.distanceM)
-  st.bindInt(6, int64(a.riding.startT))
-  st.bindInt(7, int64(a.riding.endT))
+  st.bindInt(3, a.part)
+  st.bindInt(4, int64(a.startT))
+  st.bindInt(5, int64(a.endT))
+  st.bindReal(6, a.distanceM)
+  st.bindInt(7, int64(a.riding.startT))
+  st.bindInt(8, int64(a.riding.endT))
   st.run()
 
 proc insertBreak(st: Stmt, activityId: ActivityId, b: Break) {.raises: [StoreError].} =
@@ -137,9 +138,9 @@ proc writeDecoded*(
     result.fileId = fileId
     let actStmt = prepareStmt(
       s.db,
-      "insert into activity(file_id, session, " &
+      "insert into activity(file_id, session, part, " &
         "start_epoch, end_epoch, distance_m, riding_start_epoch, riding_end_epoch) " &
-        "values (?, ?, ?, ?, ?, ?, ?)",
+        "values (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     let breakStmt = prepareStmt(
       s.db,

@@ -54,24 +54,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Tidy left from the reviews
 
-* **The ride of 8 and 10 January 2026** (the author, 2026-11-23): `~/fit/bike/bowman/2026-01-08-tyo.fit` holds 25 minutes on
-  8 January (08:33 to 08:58), nothing for 45 hours, then the ride El Toyo and back on 10 January (06:06 to 11:54); it is one
-  activity dated the 8th, 51 hours elapsed and 4.6 on the timer, in three stretches.  Check how the import handles it
-  (the date it is listed under, its name and distance, what the map and the calendar show) and whether a file like this
-  should be one activity or two.
-  Looked at 2026-11-26: the Edge was switched off on the 8th without saving (`power_down`) and on again on the 10th
-  (`power_up`), so the file has one session and one lap; the 45 h gap is already a `manual` break (`ride_break`), but the
-  activity is one (dated the 8th, "El Toyo and back").  It is the only break over 12 h of the 1,117 activities.  Power
-  events are no help as a rule (the importer reads only timer events, which is right): of the 1,174 ride, run and walk
-  files, 24 have them, mostly after the last record (switched off, saved later) or a lone `power_up` a minute or so into a
-  gap (a crash); the four `-clc` files have a power cycle of 0.6 to 1.4 h mid-ride (a visit to the doctor: one ride each).
-  **Decided (2026-11-26): split a session at a break of any kind longer than 12 h** (anything from 7 h to 44 h gives the
-  same answer today; power is not asked: a rider on a very long ride may switch the device off overnight, which should
-  split, and a device left on, or one that logs no power events, should split too), each part an activity of its own:
-  `extract.nim` cuts the coordinates, samples, riding and breaks by time; what the session message says is for the whole
-  file, so the split is the step left of the item on the `activity` table, below.  Later, if wanted: a way to say a gap was
-  meant (`--dont-split` or similar).
-
 * **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
   as a whole (decided early: dev/HISTORY.md, "a truncated or corrupt FIT file fails as a whole").  A device that stops
   mid-ride (a flat battery) leaves a file whose header says no size (data size 0), with no checksum, cut off in the middle
@@ -81,16 +63,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   drop it with a warning ("the file ends in the middle of a message: the last N bytes are dropped") and import the rest;
   damage inside a file still fails it whole; general repair stays out of scope.  The fuzz tests keep a damaged file from
   reaching a Defect.
-
-* **The `activity` table: what it holds is made from the data, not copied from the file's summary; then the split** (the
-  author, 2026-11-23 and 2026-11-26).  The session message is written when the activity is saved, for the whole file, so
-  it cannot be cut at a split, and its figures are Garmin's, not ours.  Done (2026-11-26): what was not ours or not read
-  is dropped (`sport`, `sub_sport`, `elapsed_s`, `calories`, `utc_offset_s`; the sport is the `sport:` tag, read by
-  `tags/sport.nim`), and active time and distance are ours (2026-11-26: active time is the riding less our breaks,
-  `importer/active.nim`; distance from the device's `distance` field, `extract.distanceOf`; a crash is a stop of the
-  timer, as the file's `power_up` says).  One step left, a rebuild:
-  1. **The split at a break over 12 hours** (the ride of 8 and 10 January, above): a part is a shorter session, made
-     the same way; the key `(file_id, session)` gains a part.
 
 1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right

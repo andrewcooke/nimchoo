@@ -4,6 +4,19 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## A session is cut at a break of more than 12 hours (2026-11-26, the author's)
+
+`~/fit/bike/bowman/2026-01-08-tyo.fit` held two rides: 25 minutes on 8 January, the Edge switched off without saving,
+and on again 45 hours later for El Toyo and back on the 10th; one session, one lap, so one activity dated the 8th.
+Options weighed with the author: cut at a power cycle (no: crashes log one, and so did four visits to the doctor, the
+`-clc` files, each one ride), a power cycle with a long gap, any break over N hours, a break across a night.  Chosen:
+any break over 12 hours (`extract.splitS`; from 7 h to 44 h gives the same answer on the 1,117 activities, this file
+alone), as a rider on a very long ride may switch the device off overnight, and one left on or logging no power events
+should cut too.  Each part is an activity (`extract.parts`; `activity.part` beside `session`, in the key), made as a
+session is, which needed the summary's figures gone first (the two entries below).  `importer`'s fragments were
+squashed into `001-schema.sql` (compared with the three they replace: only `part` and the key differ).  The file is
+now 4.9 km on the 8th ("to Lo Contador") and 99.5 km on the 10th.  Later, if wanted: a way to keep a gap that was meant.
+
 ## Active time and distance are ours; a crash stops the timer (2026-11-26, the author's)
 
 The file's timer total and distance cover the whole file (so a split cannot use them) and are the device's: `timer_s`

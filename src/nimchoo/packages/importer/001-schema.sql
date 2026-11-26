@@ -12,22 +12,19 @@ create table file (
   imported_epoch integer not null,
   unique (user_id, sha256)) strict;
 
--- One per FIT session.  (A FIT file has one "activity" message and under it one or
+-- One per FIT session, or per part of one.  (A FIT file has one "activity" message and under it one or
 -- more "session" messages, each a stretch of one sport: a triathlon has three.)
--- `session` is its index in the file.  The user is the file's.
+-- `session` is its index in the file; `part` which part of it, from 0 (a session is cut at a break of more than
+-- 12 hours, importer/extract.nim: almost always 0, the whole).  The user is the file's.  Nothing here is copied from
+-- the file's summary (the sport is a tag, tags/sport.nim; the active time is worked out, importer/active.nim).
 create table activity (
   id integer primary key,
   file_id integer not null references file(id) on delete cascade,
   session integer not null,
+  part integer not null default 0,
   start_epoch integer not null,
   end_epoch integer not null,
-  utc_offset_s integer,
-  sport text,
-  sub_sport text,
-  elapsed_s real,
-  timer_s real,
-  distance_m real,
-  calories integer,
+  distance_m real,           -- the ground covered, from the records (importer/extract.distanceOf)
   -- Where it started and what it is called, text made from its route (see names/activity.nim).
   -- null: not named yet (the next `nch import` does it); "": looked at, nothing to say.
   start_place text,
@@ -37,7 +34,7 @@ create table activity (
   -- extract.nim).  The stretches of riding are the riding cut at its breaks (`ride_break`).
   riding_start_epoch integer not null,
   riding_end_epoch integer not null,
-  unique (file_id, session)) strict;
+  unique (file_id, session, part)) strict;
 -- Where the activity started (its first position), for "starts near here".  NULL if the file
 -- has no positions.  Written when the activity is imported.
 select RecoverGeometryColumn('activity', 'start_point', 4326, 'POINT', 'XY');
