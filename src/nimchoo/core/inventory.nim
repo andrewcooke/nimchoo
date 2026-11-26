@@ -5,7 +5,10 @@
 
 import std/[algorithm, options, sequtils, sets, strformat, strutils, tables]
 import
-  ./[access, errors, extension, fragment, manifest, line, names, ownership, ruled, wrap]
+  ./[
+    access, errors, extension, fragment, manifest, line, markup, names, ownership,
+    ruled, wrap,
+  ]
 
 {.push raises: [].}
 
@@ -152,7 +155,7 @@ func keeps*(inv: Inventory, f: PackageFilter, p: PackageInfo): bool =
 
 func pkg(name: string): Line =
   ## The name of a package, in its style.
-  @[span(name, "code")]
+  ~"<code {name}>"
 
 func pkgList(names: seq[string], between = ", "): Line =
   ## Names of packages, each in its style; "-" for none.
@@ -252,14 +255,13 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
     var what: Line = docLine(p.summary, state)
     var defines: seq[Line]
     for c in p.commands:
-      defines.add @[span(fmt"nch {c.name}", "code")] # (a command is never named alone)
+      defines.add ~"<code nch {c.name}>" # (a command is never named alone)
     let points = p.defines.mapIt(it.name)
     if points.len > 0:
-      defines.add @[
-        span(if points.len == 1: "the extension point " else: "the extension points ")
-      ] & namedList(points, styleName"code")
+      let them = if points.len == 1: "the extension point" else: "the extension points"
+      defines.add ~"{them} " & namedList(points, styleName"code")
     if defines.len > 0:
-      what.add span("  Defines ")
+      what.add ~"  Defines "
       for k, d in defines:
         if k > 0:
           what.add span((if k == defines.high: " and " else: ", "))
@@ -267,7 +269,7 @@ func summaryLines*(inv: Inventory, width: int, filter = PackageFilter()): seq[Li
       what.add span(".")
     if p.contributes.len > 0:
       let adds = counted(p.contributes.mapIt((it.point, it.priority)))
-      what.add span("  Contributes to ")
+      what.add ~"  Contributes to "
       what.add namedList(adds, styleName"code")
       what.add span(".")
     rows.add @[pkg(p.name), plain(fmt"{p.depends.len}/{p.dependents.len}"), what]
@@ -285,19 +287,14 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   var fields: seq[seq[Line]] # (label, value: a table without headings)
   func field(label: string, value: Line): seq[Line] =
     @[plain(label), value]
-  result.add @[
-    span("package ", "em"),
-    span(p.name, "code"),
-    span("  "),
-    span(fmt"layer {p.layer}", "hide"),
-  ]
+  result.add ~"<em package ><code {p.name}>  <hide layer {p.layer}>"
   if p.doc.len > 0:
     result.add plain("")
     var state: DocState
     for l in rst(p.doc, width).split('\n'):
       result.add docLine(l, state)
     result.add plain("")
-  fields.add field("source", @[span(p.path, "file")])
+  fields.add field("source", ~"<file {p.path}>")
   fields.add field("depends on", pkgList(p.depends))
   fields.add field("used by", pkgList(p.dependents))
   fields.add field("fragments", plain(listOf(p.fragments)))
@@ -330,9 +327,7 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
   if p.commands.len == 0:
     fields.add field("commands", plain("-"))
   for c in p.commands:
-    fields.add field(
-      "command", @[span(fmt"nch {c.name}", "code"), span(fmt" - {c.summary}")]
-    )
+    fields.add field("command", ~"<code nch {c.name}> - {c.summary}")
   if p.defines.len == 0:
     fields.add field("defines extension points", plain("-"))
   for d in p.defines:
@@ -349,9 +344,8 @@ func detailLines*(inv: Inventory, name: string, width: int): seq[Line] =
     var state: DocState
     fields.add field(
       "defines extension points",
-      @[span(unbroken(what), "code"), span(" - ")] & docLine(d.summary, state) &
-        @[span("; contributed to by ")] & (if by.len == 0: plain("nothing")
-      else: by),
+      ~"<code {unbroken(what)}> - " & docLine(d.summary, state) & ~"; contributed to by " &
+        (if by.len == 0: plain("nothing") else: by),
     )
   let adds = counted(p.contributes.mapIt((it.point, it.priority)))
   fields.add field(
@@ -372,7 +366,7 @@ func pointLines*(inv: Inventory, width: int): seq[Line] =
       styleName"code",
     )
     rows.add @[
-      @[span(pt.name, "code")],
+      ~"<code {pt.name}>",
       pkg(pt.owner),
       (if added.len == 0: plain("-") else: added),
       (

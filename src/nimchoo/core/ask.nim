@@ -7,7 +7,7 @@
 ## The terminal and the key are parameters, so that a test can drive it.
 
 import std/[options, terminal]
-import ./[globals, line]
+import ./[globals, line, markup]
 when defined(posix):
   import std/[posix, termios]
 
@@ -60,19 +60,19 @@ proc ask*(
   let last = question[^1]
   case yOrN
   of ynYes:
-    g.show(osErr, last & @[span(" "), span("y")])
+    g.show(osErr, last & ~" y")
     return true
   of ynNo:
-    g.show(osErr, last & @[span(" "), span("n")])
+    g.show(osErr, last & ~" n")
     return false
   of ynAsk:
     discard
   if not terminal:
     g.show(osErr, last)
-    g.show(osErr, @[span("use "), span("-y", "code"), span(" to accept")])
+    g.show(osErr, ~"use `-y` to accept")
     return false
   let choice = if default: "[Yn]" else: "[yN]"
-  g.prompt(osErr, last & @[span(" "), span(choice, "warn"), span(" ")])
+  g.prompt(osErr, last & ~" <warn {choice}> ")
   var answer = false
   while true:
     let k = key()
@@ -93,7 +93,7 @@ proc ask*(g: Globals, question: seq[Line], default: bool, yOrN: YesOrNo): bool =
 
 func deleteQuestion(what: string): seq[Line] =
   ## "delete WHAT?", in `bad`: what would go, said in the question.
-  @[@[span("delete " & what & "?", "bad")]]
+  @[~"<bad delete {what}?>"]
 
 proc askDelete*(g: Globals, what: string, yOrN: YesOrNo): Option[int] =
   ## The one confirmation of every `--delete`: ask whether to delete `what` (default no, `[yN]`; `-y` yes and `--no` no at
@@ -102,5 +102,5 @@ proc askDelete*(g: Globals, what: string, yOrN: YesOrNo): Option[int] =
   if ask(g, deleteQuestion(what), false, yOrN):
     none(int)
   else:
-    g.show(osErr, plain("nothing deleted"))
+    g.show(osErr, ~"nothing deleted")
     some(exitFailure)

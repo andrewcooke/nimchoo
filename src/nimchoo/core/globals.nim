@@ -6,7 +6,7 @@
 ## that escapes is a bug and is left to crash with a trace.
 
 import std/[options, strutils]
-import ./[access, extension, fragment, line, theme]
+import ./[access, extension, fragment, line, markup, theme]
 import ./logfile
 export logfile.Log, logfile.Level, logfile.LogEvent
 
@@ -143,7 +143,7 @@ proc usageError*(
     g: Globals, command: string, usage: seq[Line], problem: Line
 ): int {.raises: [].} =
   ## Report a bad command line: the problem (in `bad`, on one line, its literal text with backticks), then the usage.
-  g.tell(osErr, within(oneLine(@[span(command & ": ")] & problem), styleName"bad"))
+  g.tell(osErr, within(oneLine(~"{command}: " & problem), styleName"bad"))
   g.showAll(osErr, usage)
   exitUsage
 
@@ -155,7 +155,7 @@ proc usageError*(
 
 func warnLine*(problem: Line): Line =
   ## A warning ("warning: ..."): something advisory, the work done all the same; all in `warn`, on one line.
-  within(oneLine(@[span("warning: ")] & problem), styleName"warn")
+  within(oneLine(~"warning: " & problem), styleName"warn")
 
 func warnLine*(text: string): Line =
   ## As above, from text.
@@ -164,7 +164,7 @@ func warnLine*(text: string): Line =
 func doneLine*(what: Line): Line =
   ## The line that says what was done ("done: 11 of 1,113 activities"): plain, with what it counts in the style that says
   ## what it is (`select`, `good`, `bad`).
-  @[span("done: ")] & what
+  ~"done: " & what
 
 proc warn*(g: Globals, problem: Line) =
   ## Say a warning on stderr (`warnLine`), wrapped to the width.
@@ -189,7 +189,7 @@ proc sayDeleted*(g: Globals, text: string) =
 proc failure*(g: Globals, command: string, problem: Line): int {.raises: [].} =
   ## Report that the work failed: one message, on one line (wrapped to the width), all in `bad`, its literal text with
   ## backticks.
-  g.tell(osErr, within(oneLine(@[span(command & ": ")] & problem), styleName"bad"))
+  g.tell(osErr, within(oneLine(~"{command}: " & problem), styleName"bad"))
   exitFailure
 
 proc failure*(g: Globals, command, problem: string): int {.raises: [].} =

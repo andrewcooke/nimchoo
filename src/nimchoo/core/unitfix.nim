@@ -11,7 +11,7 @@
 ## `askUnit` takes whether there is a terminal and where an answer comes from, so that a test can drive it.
 
 import std/[options, os, strformat, strutils, terminal]
-import ./[ask, globals, line]
+import ./[ask, globals, line, markup]
 
 {.push raises: [].}
 
@@ -94,8 +94,8 @@ func questionLines*(leading: seq[string], command: string, fix: UnitFix): seq[Li
   let what = named.join(", ")
   let tail = if fix.missing.len == 1: "is missing a unit" else: "are missing units"
   @[
-    @[span(fmt"{command}: {what} {tail}; did you mean", "warn")],
-    @[span(">", "warn"), span(" ")] & commandLine(leading, command, fix),
+    ~"<warn {command}: {what} {tail}; did you mean>",
+    ~"<warn \\>> " & commandLine(leading, command, fix),
   ]
 
 proc askUnit*(
