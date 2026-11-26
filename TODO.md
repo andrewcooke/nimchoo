@@ -67,10 +67,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   gap (a crash); the four `-clc` files have a power cycle of 0.6 to 1.4 h mid-ride (a visit to the doctor: one ride each).
   **Decided (2026-11-26): split a session at a break of any kind longer than 12 h** (anything from 7 h to 44 h gives the
   same answer today; power is not asked: a rider on a very long ride may switch the device off overnight, which should
-  split, and a device left on, or one that logs no power events, should split too), each part an activity of its own: `extract.nim` cuts the coordinates, samples, riding and breaks by time; the
-  summary (`elapsed_s`, `timer_s`, `distance_m`, `calories`) comes from the session message, for the whole file, so for
-  a part it is worked out (calories: none, or shared by timer time?); the key `(file_id, session)` gains a part.  Later,
-  if wanted: a way to say a gap was meant (`--dont-split` or similar).
+  split, and a device left on, or one that logs no power events, should split too), each part an activity of its own:
+  `extract.nim` cuts the coordinates, samples, riding and breaks by time; what the session message says is for the whole
+  file, so the split is step 3 of the item on the `activity` table, below.  Later, if wanted: a way to say a gap was
+  meant (`--dont-split` or similar).
 
 * **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
   as a whole (decided early: dev/HISTORY.md, "a truncated or corrupt FIT file fails as a whole").  A device that stops
@@ -82,9 +82,26 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   damage inside a file still fails it whole; general repair stays out of scope.  The fuzz tests keep a damaged file from
   reaching a Defect.
 
-* **The `activity` table: `sport` and `sub_sport` go** (the author, 2026-11-23; left out of the squash of step 0 of
-  dev/plot-activity.md, 2026-11-25, as it changes code across several packages: a fragment that drops the columns, or the
-  squash after):
+* **The `activity` table: what it holds is made from the data, not copied from the file's summary; then the split** (the
+  author, 2026-11-23 and 2026-11-26).  The session message is written when the activity is saved, for the whole file, so
+  it cannot be cut at a split, and its figures are Garmin's, not ours.  Three steps, in this order, each a rebuild:
+  1. **Drop what is not ours or not read**: `calories`, `elapsed_s` (it is `end_epoch - start_epoch`) and `utc_offset_s`
+     (nothing reads them), and `sport` and `sub_sport` (below).  The `sport` part was left out of the squash of step 0 of
+     dev/plot-activity.md, 2026-11-25, as it changes code across several packages: a fragment that drops the columns, or
+     the squash after.
+  2. **Active time and distance from the data.**  `timer_s` goes: active time is the riding less our breaks (`manual`,
+     `carried`, `pause`), one SQL expression written once (37 ms for all 1,117 activities, measured 2026-11-26) for the
+     list, `--active` and the attempts; it will differ from Garmin's, as it should.  Look first at the files where it
+     differs most, which are files with power cycles (activities 146, 950, 306: 1h26m, 24m and 16m more than Garmin's):
+     the time the device was off or restarting may be counted as riding.  `distance_m` stays, measured at import from the
+     `distance` channel (the device's own: a wheel sensor, or its smoothed GPS; a length from our positions is straight
+     lines between samples, less reliable), as the sum of its increases, as a crash may start it again from zero (test on
+     activity 950); the length of the cleaned route only for a file with no distance field (none today).  Measuring the
+     route in SQL each time was rejected: 0.23 s a listing (`GreatCircleLength`; `GeodesicLength` 8.7 s) and no distance
+     for rides without GPS.
+  3. **The split at a break over 12 hours** (the ride of 8 and 10 January, above): after 1 and 2 a part is a shorter
+     session, made the same way; the key `(file_id, session)` gains a part.
+  Step 1 in detail:
   * **`sport` and `sub_sport` go: the sport is the `sport:` tag only** (one fact, which the user can edit for finer
     control, `sport:cycling:gravel`).  What reads them reads the tag, through one helper in `tags` (an activity's sport
     from its tag, the first if there are several, written as now, `cycling/road`): the activities list (its sport column,
@@ -153,6 +170,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   defined by, added to by, what it is; the types and priorities are in `nch packages NAME`); the author is going through the
   packages soon and may change it again.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
+* **Each ride's own time zone** (the author, 2026-11-26): from where it was (the date and the positions), not from the
+  device (`utc_offset_s` goes, step 1 of the item on the `activity` table).  Needs a source of time-zone boundaries:
+  look for one first (licence, size, whether SpatiaLite can query it).  Now every time is shown in the user's zone.
 * **The map**: labels, a legend, landmarks on the map, style rules by
   property (colour by sport or year).
 * **The map: a box for each ride, as on the plot** (the author, 2026-11-26): the page lists the selected activities with a
