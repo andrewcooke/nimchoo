@@ -92,8 +92,9 @@ suite "user params: --delete":
   test "--delete NAME, and -y answers the question":
     let p = parseArgs(@["--delete", "bob", "-y"])
     check p.problem == "" and p.params.action == uaDelete and
-      p.params.delete.name == "bob" and p.yes
-    check not parseArgs(@["--delete", "bob"]).yes
+      p.params.delete.name == "bob" and p.yOrN == ynYes
+    check parseArgs(@["--delete", "bob"]).yOrN == ynAsk
+    check parseArgs(@["--delete", "bob", "--no"]).yOrN == ynNo
   test "--delete stands alone":
     check parseArgs(@["--delete", "bob", "--fthr", "150", "-y"]).problem.contains(
       "cannot be combined"

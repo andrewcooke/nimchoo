@@ -135,7 +135,7 @@ proc edit(g: Globals, st: Session, a: Action[Model]): int {.raises: [StoreError]
   exitOk
 
 proc delete(
-    g: Globals, st: Session, a: Action[Model], s: Steps, yes: bool
+    g: Globals, st: Session, a: Action[Model], s: Steps, yOrN: YesOrNo
 ): int {.raises: [StoreError].} =
   let doomed = found(st, a, s)
   if doomed.len == 0:
@@ -147,8 +147,9 @@ proc delete(
       fmt"the model {names}"
     else:
       fmt"{doomed.len} models, {names}"
-  if not confirmDelete(g, fmt"{what}, with their impulses", yes):
-    return exitOk
+  let refused = askDelete(g, fmt"{what}, with their impulses", yOrN)
+  if refused.isSome:
+    return refused.get
   st.writing(
     proc() {.closure, raises: [StoreError].} =
       deleteModels(st.db, doomed.mapIt(it.id))
@@ -186,7 +187,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of akEdit:
       edit(g, st, p.action)
     of akDelete:
-      delete(g, st, p.action, p.steps, parsed.yes)
+      delete(g, st, p.action, p.steps, parsed.yOrN)
   except StoreError as e:
     failure(g, "nch ff", e.msg)
   finally:

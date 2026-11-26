@@ -112,11 +112,12 @@ proc editClimb(g: Globals, st: Store, e: Edit): int {.raises: [StoreError].} =
   g.show(osOut, said)
   exitOk
 
-proc deleteClimbs(g: Globals, st: Store, yes: bool): int {.raises: [StoreError].} =
+proc deleteClimbs(g: Globals, st: Store, yOrN: YesOrNo): int {.raises: [StoreError].} =
   ## `--all --delete`: every climb and the efforts on them go; the next `nch climbs` works them out again.
   let what = describe(countClimbs(st))
-  if not confirmDelete(g, what, yes):
-    return exitFailure
+  let refused = askDelete(g, what, yOrN)
+  if refused.isSome:
+    return refused.get
   clearClimbs(st)
   st.reclaim()
   g.log.log(lvInfo, commandName, leDeleted, fmt"deleted {what} from {st.path}")
@@ -158,7 +159,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     of caEdit:
       return editClimb(g, st, p.edit)
     of caDeleteAll:
-      return deleteClimbs(g, st, parsed.yes)
+      return deleteClimbs(g, st, parsed.yOrN)
     of caList:
       discard
     var worked: Worked

@@ -15,9 +15,9 @@
 ## what a page may be given is made from the same options, so it cannot differ from what the command parses.  Pure.
 
 import std/[math, options, strutils]
-import ../../../core/[line, optdoc, unitfix]
+import ../../../core/[ask, line, optdoc, unitfix]
 import ../../ui/[markup, units]
-export optdoc, line, markup, unitfix
+export optdoc, line, markup, unitfix, ask.YesOrNo
 
 {.push raises: [].}
 
@@ -47,7 +47,7 @@ type
 
   Parsed*[T] = object
     ## What a command line came to: a valid command (`params`), a request for help, or a problem to say.
-    yes*: bool ## `-y` was given: every question is answered yes (`core/ask`)
+    yOrN*: YesOrNo ## what `-y` or `--no` says to every question (`core/ask`)
     case kind*: ParseKind
     of pkOk:
       params*: T
@@ -96,12 +96,12 @@ type
     hint*: proc(arg: string): Line {.nimcall, raises: [].}
       ## nil, or extra words for "unexpected argument X" (like " (to add a model: --add X)")
     noYes*: bool
-      ## the spec of the options before the command: `-y` is accepted by every command (as `-h`), not there
+      ## the spec of the options before the command: `-y` and `--no` are accepted by every command (as `-h`), not there
 
 const
   fine* = none(Line) ## nothing is wrong
-  yesNames* = ["-y", "--yes"]
-    ## accepted by every command (declared here, once): answer every question yes
+  yOrNNames* = ["-y", "--yes", "--no"]
+    ## accepted by every command (declared here, once): answer every question yes (`--no`: no)
 
 func refuse*(why: Line): Problem =
   ## Something is wrong: say what, in a sentence that does not name the option.
@@ -152,9 +152,9 @@ type Bare = object ## where a number without its unit was given
   item: Unitless
 
 type Walked = object
-  ## What the walk noticed besides the options: numbers with no unit, and `-y`.
+  ## What the walk noticed besides the options: numbers with no unit, and `-y` or `--no`.
   bare: seq[Bare]
-  yes: bool
+  yOrN: YesOrNo
 
 proc walk[P](
     args: seq[string],
@@ -170,8 +170,11 @@ proc walk[P](
     if leading and not (a.len > 1 and a.startsWith("-")):
       next = i
       return
-    if not leading and a in yesNames:
-      seen.yes = true
+    if not leading and a in yOrNNames:
+      let yOrN = if a == "--no": ynNo else: ynYes
+      if seen.yOrN notin {ynAsk, yOrN}:
+        return refuse(~"`-y` and `--no` together; choose one")
+      seen.yOrN = yOrN
       inc i
       continue
     # `--name=value` is the same as `--name value`
@@ -273,7 +276,7 @@ func corrected(args: seq[string], bare: seq[Bare]): UnitFix =
         fixed
 
 proc parseOptionsFixing*[P](
-    args: seq[string], spec: Spec[P], p: var P, fix: var UnitFix, yes: var bool
+    args: seq[string], spec: Spec[P], p: var P, fix: var UnitFix, yOrN: var YesOrNo
 ): Problem =
   ## Walk the arguments.  Returns the first problem found.  A bare number given to an option that has a default unit
   ## (`withUnit`) is read with the unit added, and `fix` says what was changed (`fix.missing` is empty if nothing was).
@@ -281,14 +284,14 @@ proc parseOptionsFixing*[P](
   var seen: Walked
   result = walk(args, spec, p, false, next, seen)
   fix = corrected(args, seen.bare)
-  fix.yes = seen.yes
-  yes = seen.yes
+  fix.yOrN = seen.yOrN
+  yOrN = seen.yOrN
 
 proc parseOptions*[P](args: seq[string], spec: Spec[P], p: var P): Problem =
   ## Walk the arguments.  Returns the first problem found.  (For a spec with no option that wants a unit.)
   var fix: UnitFix
-  var yes: bool
-  parseOptionsFixing(args, spec, p, fix, yes)
+  var yOrN: YesOrNo
+  parseOptionsFixing(args, spec, p, fix, yOrN)
 
 proc parseLeading*[P](
     args: seq[string], spec: Spec[P], p: var P, next: var int
@@ -317,8 +320,8 @@ func docs*[P](spec: Spec[P]): seq[OptDoc] =
     result.add o.doc
   if not spec.noYes:
     result.add OptDoc(
-      names: @yesNames,
-      help: ~"answer yes to every question (what would be deleted, a unit filled in): the question is still shown, and the answer; with no terminal, nothing is asked and nothing is deleted without it",
+      names: @yOrNNames,
+      help: ~"answer every question (what would be deleted, a unit filled in) at once: yes, or no with `--no`; the question is still shown, and the answer; with neither and no terminal, the answer is no",
       arity: aFlag,
     )
 
@@ -575,8 +578,8 @@ proc parseCommand*[B, T](
   ## command's own step that turns what was read into valid parameters, or says what is wrong with the combination.
   var raw = start
   var fix: UnitFix
-  var yes: bool
-  let why = parseOptionsFixing(args, spec, raw, fix, yes)
+  var yOrN: YesOrNo
+  let why = parseOptionsFixing(args, spec, raw, fix, yOrN)
   if why.isSome:
     return problemWith[T](why.get)
   if raw.help:
@@ -584,4 +587,4 @@ proc parseCommand*[B, T](
   result = finish(raw)
   if result.kind == pkOk and fix.missing.len > 0:
     result = Parsed[T](kind: pkUnit, fix: fix)
-  result.yes = yes
+  result.yOrN = yOrN

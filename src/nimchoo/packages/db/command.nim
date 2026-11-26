@@ -1,6 +1,6 @@
 ## `nch db`: the database file.  With no arguments it says where it is, how big, and what it holds,
 ## table by table (`holding.nim`); `--delete` deletes it, and
-## with it the data of every user (the cache, which can be made again, is `nch cache`).  It asks first (`core/ask`: `[yN]`; `-y` answers yes; with no terminal and no `-y`, nothing is deleted).
+## with it the data of every user (the cache, which can be made again, is `nch cache`).  It asks first (`core/ask`: `[yN]`; `-y` answers yes, `--no` no; with no terminal and neither, nothing is deleted, and a refusal fails).
 
 import std/[options, os, strformat]
 import db_connector/db_sqlite
@@ -139,8 +139,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     return exitOk
   let what =
     fmt"the database {path} ({humanBytes(size(path))}) with the data of every user"
-  if not confirmDelete(g, what, parsed.yes):
-    return exitFailure
+  let refused = askDelete(g, what, parsed.yOrN)
+  if refused.isSome:
+    return refused.get
   try:
     for suffix in ["", "-journal", "-wal", "-shm"]:
       removeFile path & suffix

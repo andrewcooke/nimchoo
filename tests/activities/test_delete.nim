@@ -124,7 +124,7 @@ suite "delete: the command":
       "insert into climbs_done(activity_id, version) select id, 1 from activity"
     )
     s.close()
-    check run(d) == exitFailure
+    check run(d, "--no") == exitFailure
     let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 2 and before.count("effort") == 2
     before.close()
@@ -224,7 +224,7 @@ suite "delete: the command":
       s.addTags(ActivityId(a), [sportTag(sport, "").get])
     s.db.execute("delete from activity_selection")
     s.close()
-    check run(d, "--tags", "sport:cycling*") == exitFailure # no -y: nothing done
+    check run(d, "--tags", "sport:cycling*", "--no") == exitFailure # no -y: nothing done
     let before = openSession(d, allFragments, access = allAccess)
     check before.count("activity") == 3
     before.close()

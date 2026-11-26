@@ -134,7 +134,7 @@ suite "bundle: the profile and the notice":
     useTestCache()
   test "the default profile is unpacked, and is the system standard":
     let d = defaultProfile()
-    check d.problem.isNone and profileInUse() == "the system standard"
+    check d.problem.isNone and profileInUse() == "system standard"
     check fileExists(systemDir(top) / "Profile.xlsx")
     check readFile(systemDir(top) / "Profile.xlsx") ==
       readFile("src/nimchoo/packages/fit/Profile.xlsx")

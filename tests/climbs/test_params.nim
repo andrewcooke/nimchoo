@@ -74,7 +74,7 @@ suite "climbs: retiring":
 suite "climbs params: --delete":
   test "--delete needs --all, and -y answers it":
     let c = parseArgs(@["--all", "--delete", "-y"])
-    check c.problem == "" and c.params.action == caDeleteAll and c.yes
+    check c.problem == "" and c.params.action == caDeleteAll and c.yOrN == ynYes
       # (twice: no pause)
     check parseArgs(@["--delete"]).problem.contains("needs `--all`")
     check parseArgs(@["--all", "--delete", "--retired"]).problem.len > 0

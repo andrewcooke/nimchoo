@@ -30,7 +30,7 @@ suite "landmark: the command line":
   test "removing":
     let r = parseArgs(@["--delete", "Casa"])
     check r.problem.len == 0 and r.params.action == laDelete and
-      r.params.deleted.name == "Casa" and not r.yes
+      r.params.deleted.name == "Casa" and r.yOrN == ynAsk
   test "the size has its unit: m or km; with none it is the question, m added":
     check parseArgs(@["--add", "X", "--at", "1,2", "--size", "1.5km"]).params.placed.radiusM ==
       1500.0
@@ -48,7 +48,7 @@ suite "landmark: the command line":
     check parseArgs(@["--near", "1x,2"]).problem.contains("--near")
     check parseArgs(@["--add", "X", "--at", "5"]).problem.contains("--at")
   test "-y answers the question, as for every command":
-    check parseArgs(@["--delete", "Casa", "-y"]).yes
+    check parseArgs(@["--delete", "Casa", "-y"]).yOrN == ynYes
   test "mistakes":
     check parseArgs(@["--add", "X"]).problem.contains("needs one of")
     check parseArgs(@["--add", "X", "--search", "y"]).problem.contains("--pick")

@@ -87,7 +87,8 @@ suite "nch landmarks":
     let db = fresh("remove")
     check landmark(db, "--add", "Casa", "--at", "1,1") == exitOk
     check landmark(db, "--delete", "nothing", "-y") == exitFailure
-    check landmark(db, "--delete", "casa") == exitFailure # (without -y nothing is done)
+    check landmark(db, "--delete", "casa", "--no") == exitFailure
+      # (without -y nothing is done)
     check q(db, "select count(*) from landmark", int) == 1
     check landmark(db, "--delete", "casa", "-y") == exitOk
     check q(db, "select count(*) from landmark", int) == 0

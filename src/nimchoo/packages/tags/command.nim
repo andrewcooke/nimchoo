@@ -96,8 +96,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       let names = found.mapIt(it.tag).join(" ")
       let what =
         fmt"{counted(removed, ""tag"", ""tags"")} ({names}) from {whatOf(p.scope)}"
-      if not confirmDelete(g, what, parsed.yes):
-        return exitFailure
+      let refused = askDelete(g, what, parsed.yOrN)
+      if refused.isSome:
+        return refused.get
       let n = st.remove(p.scope)
       g.log.log(lvInfo, commandName, leDeleted, fmt"{n} tags ({names})")
       sayDeleted(g, fmt"deleted {what}")
@@ -115,7 +116,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
             ~"rename {old} to {new}?",
           ],
           true,
-          parsed.yes,
+          parsed.yOrN,
         ):
           return exitFailure
       let n = st.rename(p.scope, p.action.new)

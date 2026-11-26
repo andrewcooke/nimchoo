@@ -376,8 +376,8 @@ suite "nch ff":
     defer:
       t.close()
     check selectedModels(t.db, t.userId).named == @["a:1", "a:2", "default"]
-    check command.run(g, @["--names", "a:*", "--delete"]) == exitOk
-      # (no -y, no terminal: nothing)
+    check command.run(g, @["--names", "a:*", "--delete", "--no"]) == exitFailure
+      # (--no: nothing deleted)
     check loadModels(t.db).len == 4
     check command.run(g, @["--within", "--names", "a:*", "--delete", "-y"]) == exitOk
     check loadModels(t.db).named == @["b", "default"]

@@ -106,7 +106,7 @@ suite "the views":
   test "the summary has a line for each package with what it is for, then what it provides":
     let cells = summaryLines(world(), 200)
     let lines = cells.texts
-    check lines[0].startsWith("package") and "what it is for" in lines[0] and
+    check lines[0].startsWith("package") and "meaning" in lines[0] and
       " │ U/B │ " in lines[0]
     check lines[1].startsWith("────") and "┼" in lines[1]
       # (the rule under the headings)

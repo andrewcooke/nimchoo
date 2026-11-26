@@ -4,8 +4,8 @@
 ## parser (`util/args`) reads it as if the option's default unit were there and says so, as the fourth outcome of a
 ## command's `parseArgs` (`pkUnit`, beside valid, help and a problem), carrying the **corrected arguments**.  What to do
 ## about it is the same for every command, so it is written once, here: `unitRetry` is what a command's `run` calls for
-## that outcome (as it calls `usageError` for a problem).  It asks (`core/ask`: default yes, `-y` answers at once), and on yes the command runs
-## again with the corrected arguments; on no, or with no terminal and no `-y`, it gives the usage exit code, the corrected line
+## that outcome (as it calls `usageError` for a problem).  It asks (`core/ask`: default yes, `-y` and `--no` answer at once), and on yes the command runs
+## again with the corrected arguments; on no (`--no`, or no terminal and no `-y`), it gives the usage exit code, the corrected line
 ## having been shown.
 ##
 ## `askUnit` takes whether there is a terminal and where an answer comes from, so that a test can drive it.
@@ -26,7 +26,7 @@ type
     missing*: seq[Unitless]
     original*: seq[string] ## the arguments as they were typed
     args*: seq[string] ## the same, with the unit added where it was missing
-    yes*: bool ## `-y` was given: the question is answered yes
+    yOrN*: YesOrNo ## what `-y` or `--no` says to the question
 
 func insertedIn(typed, corrected: string): seq[bool] =
   ## For each character of `corrected`, whether it was added to `typed` (which is a subsequence of it: only text was inserted).
@@ -102,8 +102,8 @@ proc askUnit*(
     g: Globals, command: string, fix: UnitFix, terminal: bool, key: KeyReader
 ): Option[seq[string]] =
   ## Say what is missing and what was meant (`questionLines`) and `ask` (default yes, `[Yn]` after the command line): the
-  ## corrected arguments if the answer is yes (with `-y`, at once), none otherwise.  `terminal` and `key` are for tests.
-  if ask(g, questionLines(g.leading, command, fix), true, fix.yes, terminal, key):
+  ## corrected arguments if the answer is yes (with `-y` at once), none otherwise (`--no`: at once).  `terminal` and `key` are for tests.
+  if ask(g, questionLines(g.leading, command, fix), true, fix.yOrN, terminal, key):
     some(fix.args)
   else:
     none(seq[string])

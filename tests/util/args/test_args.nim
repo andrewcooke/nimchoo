@@ -271,10 +271,15 @@ suite "args: an option's arity is one fact":
 suite "args: -y is accepted by every command":
   test "anywhere among the options, and the parse says so":
     let a = parseCommand(@["--far", "3km", "-y"], dspec, D(), finishD)
-    check a.kind == pkOk and a.yes
-    check parseCommand(@["--yes", "--name", "x"], dspec, D(), finishD).yes
-    check not parseCommand(@["--name", "x"], dspec, D(), finishD).yes
-    check parseCommand(@["-y", "--far", "3"], dspec, D(), finishD).fix.yes
+    check a.kind == pkOk and a.yOrN == ynYes
+    check parseCommand(@["--yes", "--name", "x"], dspec, D(), finishD).yOrN == ynYes
+    check parseCommand(@["--no", "--name", "x"], dspec, D(), finishD).yOrN == ynNo
+    check parseCommand(@["-y", "--no", "--name", "x"], dspec, D(), finishD).kind ==
+      pkProblem
+    check parseCommand(@["-y", "--yes", "--name", "x"], dspec, D(), finishD).yOrN ==
+      ynYes
+    check parseCommand(@["--name", "x"], dspec, D(), finishD).yOrN == ynAsk
+    check parseCommand(@["-y", "--far", "3"], dspec, D(), finishD).fix.yOrN == ynYes
   test "the spec describes it, so help and completion have it; the options before the command do not":
     check "-y" in dspec.docs[^1].names and "--yes" in dspec.docs[^1].names
     check dspec.docs[^1].arity == aFlag

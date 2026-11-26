@@ -252,7 +252,7 @@ suite "nch users --delete":
     let bob = openSession(db, allFragments, some("bob"), access = allAccess)
     fill(bob, "bobs")
     bob.close()
-    check user(db, "--delete", "bob") == exitFailure
+    check user(db, "--delete", "bob", "--no") == exitFailure
     check q(db, "select count(*) from user where name = 'bob'", int) == 1
     check user(db, "--delete", "bob", "-y") == exitOk
     check q(db, "select count(*) from user where name = 'bob'", int) == 0

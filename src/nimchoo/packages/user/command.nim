@@ -118,8 +118,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
       for h in g.extensions.get(userHas):
         has.add counted(h.count(st.db, id), h.one, h.heading)
       let what = describe(has, p.delete.name)
-      if not confirmDelete(g, what & " from " & st.path, parsed.yes):
-        return exitFailure
+      let refused = askDelete(g, what & " from " & st.path, parsed.yOrN)
+      if refused.isSome:
+        return refused.get
       deleteUser(st, id)
       g.log.log(lvInfo, commandName, leDeleted, what & " from " & st.path)
       sayDeleted(g, "deleted " & what)

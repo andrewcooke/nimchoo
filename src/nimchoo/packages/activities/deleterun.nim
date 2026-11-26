@@ -3,7 +3,7 @@
 ## Ctrl-C, and shows how far it has got.  The file of an activity is forgotten too, so importing its folder again brings the
 ## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
 
-import std/times
+import std/[options, times]
 import ./cmdname
 import ../../core/[ask, globals]
 import ../db/store
@@ -28,7 +28,12 @@ func deletingLines*(done, total, files: int): seq[Line] =
   @[~"<em deleting >{d} / {t}", ~"<bad activities {d}><hide  · ><bad files {f}>"]
 
 proc runDelete*(
-    g: Globals, st: Session, ids: seq[int64], yes: bool, nothing: Line, zone: Timezone
+    g: Globals,
+    st: Session,
+    ids: seq[int64],
+    yOrN: YesOrNo,
+    nothing: Line,
+    zone: Timezone,
 ): int {.raises: [].} =
   ## (`zone`: the one the list of activities uses, for the days the message names.)
   ## Delete the activities `ids` (all of the current user's).  `nothing` is what to say if there are none.
@@ -38,8 +43,9 @@ proc runDelete*(
       g.warn nothing # (as an empty selection is everywhere: a warning, not a failure)
       return exitOk
     let what = describe(plan, zone)
-    if not confirmDelete(g, what, yes):
-      return exitFailure
+    let refused = askDelete(g, what, yOrN)
+    if refused.isSome:
+      return refused.get
     # the count of what is gone so far, drawn only if the deleting takes more than a moment (as the import's)
     var shown = false
     var live = Live()

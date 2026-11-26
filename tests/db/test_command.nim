@@ -1,5 +1,5 @@
 import std/[os, unittest]
-import nimchoo/core/globals
+import nimchoo/core/[ask, globals]
 import nimchoo/packages/db/command as dbCommand
 import nimchoo/packages/db/params
 import nimchoo/packages/user/session
@@ -24,7 +24,7 @@ suite "nch db":
   test "--delete without -y does nothing":
     let d = fresh("noforce")
     openSession(d, allFragments, access = allAccess).close()
-    check dbCommand.run(globals(d), @["--delete"]) == exitFailure
+    check dbCommand.run(globals(d), @["--delete", "--no"]) == exitFailure
     check fileExists(d)
   test "--delete -y removes the file and its journal files":
     let d = fresh("force")
@@ -33,7 +33,9 @@ suite "nch db":
     check dbCommand.run(globals(d), @["--delete", "-y"]) == exitOk
     check not fileExists(d) and not fileExists(d & "-journal")
   test "-y accepts the question, and the file goes":
-    check parseArgs(@["--delete", "-y"]).yes and not parseArgs(@["--delete"]).yes
+    check parseArgs(@["--delete", "-y"]).yOrN == ynYes and
+      parseArgs(@["--delete"]).yOrN == ynAsk and
+      parseArgs(@["--delete", "--no"]).yOrN == ynNo
     let d = fresh("twice")
     openSession(d, allFragments, access = allAccess).close()
     check dbCommand.run(globals(d), @["--delete", "-y"]) == exitOk

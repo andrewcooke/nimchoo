@@ -1,5 +1,5 @@
 import std/[options, strutils, unittest]
-import nimchoo/core/[globals, line, unitfix]
+import nimchoo/core/[ask, globals, line, unitfix]
 
 let fix = UnitFix(
   missing: @[Unitless(option: "--radius", value: "3", unit: "km")],
@@ -79,7 +79,7 @@ suite "unitfix: a number with no unit, and the question":
   test "with -y the corrected arguments come back at once, without a key":
     let g = Globals(offline: true)
     var yes = fix
-    yes.yes = true
+    yes.yOrN = ynYes
     check askUnit(g, "nch activities", yes, false, keys("")) == some(fix.args)
   test "not on a terminal, nothing is asked and it fails":
     let g = Globals(offline: true)

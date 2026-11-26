@@ -669,9 +669,10 @@ suite "list: criteria that other packages offer":
 suite "list: --delete":
   test "--delete is an action, not a criterion; -y answers its question":
     let r = parseArgs(@["--delete", "-y"], utcZone)
-    check r.params.action.kind == akDelete and r.yes and
+    check r.params.action.kind == akDelete and r.yOrN == ynYes and
       r.params.scope.kind == scSelection
-    check not parseArgs(@["--delete"], utcZone).yes
+    check parseArgs(@["--delete"], utcZone).yOrN == ynAsk
+    check parseArgs(@["--delete", "--no"], utcZone).yOrN == ynNo
     check parseArgs(@["--tags", "sport:cycling*", "--delete"], utcZone).params.scope.kind ==
       scMatching
     check parseArgs(@["--all", "--delete", "-y"], utcZone).problem == ""

@@ -38,8 +38,8 @@ suite "nch --config: the settings":
     openSession(path, allFragments, access = allAccess).close()
     check fragmentLines(path) ==
       @[
-        "the program has " & $schema.len &
-          " fragments (the SQL that makes its tables), and the database has had all of them, as this version has them"
+        "the schema has " & $schema.len &
+          " fragments; the database contains all (checksums ok; no others)"
       ]
     # a fragment the database has and this program does not
     let s = openStore(path, allFragments, access = allAccess)
@@ -51,7 +51,7 @@ suite "nch --config: the settings":
     )
     s.close()
     let lines = fragmentLines(path).join("\n")
-    check "zzz/001.sql: only in the database" in lines
-    check "user/001-schema.sql: not the SQL this version has" in lines
-    check lines.startsWith("the program has " & $schema.len & " fragments")
+    check "zzz/001.sql: is present but unexpected" in lines
+    check "user/001-schema.sql: is present but modified" in lines
+    check lines.startsWith("the schema has " & $schema.len & " fragments")
     removeDir dir

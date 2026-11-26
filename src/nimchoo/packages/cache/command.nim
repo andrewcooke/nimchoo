@@ -76,8 +76,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
   if p.kinds.allIt(useOf(dir.get, it).count == 0):
     g.done(plain("nothing to delete: " & would.join("; ")))
     return exitOk
-  if not confirmDelete(g, would.join("; ") & " from " & dir.get, parsed.yes):
-    return exitFailure
+  let refused = askDelete(g, would.join("; ") & " from " & dir.get, parsed.yOrN)
+  if refused.isSome:
+    return refused.get
   var what: seq[string]
   for k in p.kinds:
     let u = deleteKind(dir.get, k)

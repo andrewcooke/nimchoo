@@ -1,7 +1,8 @@
 ## The one question every confirmation is: `ask`.  What would be deleted, a unit filled in: each says what it will do and waits
-## for one key (no Enter), `[Yn]` or `[yN]` (the upper case letter is what Enter means).  With `-y` the answer is yes at once;
-## the question is still printed, followed by `y`, so the screen and the log show what was accepted.  Not on a terminal and
-## without `-y` it is no, with the question and "use `-y` to accept": a script never deletes by accident.
+## for one key (no Enter), `[Yn]` or `[yN]` (the upper case letter is what Enter means).  With `-y` the answer is yes at once,
+## with `--no` no at once; the question is still printed, followed by `y` or `n`, so the screen and the log show what was
+## answered.  Not on a terminal and with neither it is no, with the question and "use `-y` to accept": a script never deletes
+## by accident.  A `--delete` that is refused fails (`askDelete`): nothing was done.
 ##
 ## The terminal and the key are parameters, so that a test can drive it.
 
@@ -11,6 +12,11 @@ when defined(posix):
   import std/[posix, termios]
 
 {.push raises: [].}
+
+type YesOrNo* = enum ## what the command line says to every question
+  ynAsk ## neither `-y` nor `--no`: ask on a terminal; no terminal: no
+  ynYes ## `-y`: yes at once
+  ynNo ## `--no`: no at once
 
 type KeyReader* = proc(): Option[char] {.raises: [].}
   ## One key from the terminal (none: the input ended).
@@ -38,17 +44,29 @@ proc readKey*(): Option[char] =
     discard tcSetAttr(0, TCSANOW, addr saved)
 
 proc ask*(
-    g: Globals, question: seq[Line], default, yes, terminal: bool, key: KeyReader
+    g: Globals,
+    question: seq[Line],
+    default: bool,
+    yOrN: YesOrNo,
+    terminal: bool,
+    key: KeyReader,
 ): bool =
-  ## Say the `question` (its lines, on stderr) and take the answer: with `yes` it is yes; on a `terminal` one key: `y` or `Y`
-  ## yes, `n` or `N` no, Enter the `default`, Ctrl-C, Ctrl-D and the end of the input no, any other key waits; otherwise no.
+  ## Say the `question` (its lines, on stderr) and take the answer: `yOrN` if it is `ynYes` or `ynNo`; otherwise on a
+  ## `terminal` one key: `y` or `Y` yes, `n` or `N` no, Enter the `default`, Ctrl-C, Ctrl-D and the end of the input no, any
+  ## other key waits; otherwise no.
   doAssert question.len > 0
   for l in question[0 ..< question.high]:
     g.show(osErr, l)
   let last = question[^1]
-  if yes:
+  case yOrN
+  of ynYes:
     g.show(osErr, last & @[span(" "), span("y")])
     return true
+  of ynNo:
+    g.show(osErr, last & @[span(" "), span("n")])
+    return false
+  of ynAsk:
+    discard
   if not terminal:
     g.show(osErr, last)
     g.show(osErr, @[span("use "), span("-y", "code"), span(" to accept")])
@@ -69,15 +87,20 @@ proc ask*(
   g.show(osErr, plain(if answer: "y" else: "n"))
   answer
 
-proc ask*(g: Globals, question: seq[Line], default, yes: bool): bool =
+proc ask*(g: Globals, question: seq[Line], default: bool, yOrN: YesOrNo): bool =
   ## `ask` on the real terminal: stdin and stderr are terminals.
-  ask(g, question, default, yes, isatty(stdin) and isatty(stderr), readKey)
+  ask(g, question, default, yOrN, isatty(stdin) and isatty(stderr), readKey)
 
-func deleteQuestion*(what: string): seq[Line] =
+func deleteQuestion(what: string): seq[Line] =
   ## "delete WHAT?", in `bad`: what would go, said in the question.
   @[@[span("delete " & what & "?", "bad")]]
 
-proc confirmDelete*(g: Globals, what: string, yes: bool): bool =
-  ## Ask whether to delete `what` (default no, `[yN]`; with `-y` yes at once; with no terminal no).  The one confirmation of every
-  ## `--delete`.
-  ask(g, deleteQuestion(what), false, yes)
+proc askDelete*(g: Globals, what: string, yOrN: YesOrNo): Option[int] =
+  ## The one confirmation of every `--delete`: ask whether to delete `what` (default no, `[yN]`; `-y` yes and `--no` no at
+  ## once; with no terminal no).  None: go ahead.  Otherwise the exit code to stop with (the work was not done), "nothing
+  ## deleted" having been said, so that every command fails the same way on a refusal.
+  if ask(g, deleteQuestion(what), false, yOrN):
+    none(int)
+  else:
+    g.show(osErr, plain("nothing deleted"))
+    some(exitFailure)

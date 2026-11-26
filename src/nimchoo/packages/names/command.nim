@@ -110,8 +110,9 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
     case p.action
     of laDelete:
       let d = p.deleted
-      if not confirmDelete(g, "the landmark " & d.name, parsed.yes):
-        return exitFailure
+      let refused = askDelete(g, "the landmark " & d.name, parsed.yOrN)
+      if refused.isSome:
+        return refused.get
       if not removeLandmark(st, d.name):
         return failure(g, "nch landmarks", ~"there is no landmark called '{d.name}'")
       let said = "deleted the landmark " & d.name

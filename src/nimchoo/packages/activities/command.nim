@@ -561,7 +561,7 @@ proc run*(g: Globals, args: seq[string]): int {.raises: [].} =
         g,
         st,
         m.ids,
-        parsed.yes,
+        parsed.yOrN,
         if searched:
           ~"no activity meets the criteria: nothing to delete"
         else:
