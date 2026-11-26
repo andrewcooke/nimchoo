@@ -58,10 +58,10 @@ suite "list: times":
     check parseWhen("2018-08-27T10:30", utcZone) == some(UnixTime(1535365800))
     check parseWhen("2018-08-27 10:30", utcZone) == some(UnixTime(1535365800))
     check parseWhen("2018-08-27T10:30:15", utcZone) == some(UnixTime(1535365815))
-  test "--on: a date (not a time), the day from its start to the next":
-    check parseOnDay("2018-08-27", utcZone) ==
-      some((start: UnixTime(1535328000), next: UnixTime(1535414400)))
-    check parseOnDay("2018-08-27T10:30", utcZone).isNone
+  test "--dates: a date (not a time), the day from its start to the next":
+    check parseDay("2018-08-27", utcZone) ==
+      some(Day(start: UnixTime(1535328000), next: UnixTime(1535414400)))
+    check parseDay("2018-08-27T10:30", utcZone).isNone
   test "the zone matters":
     let plus2 = newTimezone(
       "+2",
@@ -130,9 +130,15 @@ suite "list: the command line":
     let c = r.scope.filters
     check c.find(ftAfter).at == UnixTime(1533081600) and
       c.find(ftBefore).at == UnixTime(1535760000) # (August, the dates their midnights)
-    let on = fs("--on", "2018-08-27")
-    check on.find(ftAfter).at == UnixTime(1535328000) and
-      on.find(ftBefore).at == UnixTime(1535414400)
+    let on = fs("--dates", "2018-08-27")
+    check on.find(ftDates).days ==
+      @[Day(start: UnixTime(1535328000), next: UnixTime(1535414400))]
+    check not on.hasKind(ftAfter) and not on.hasKind(ftBefore)
+    # several days, each once, in the order given (and a repeated option adds to them, as every list does)
+    let days =
+      fs("--dates", "2018-08-27", "2018-08-01", "2018-08-27", "--dates", "2018-08-02")
+    check days.find(ftDates).days.mapIt(it.start) ==
+      @[UnixTime(1535328000), UnixTime(1533081600), UnixTime(1533168000)]
     let from1 = c.find(ftFrom)
     check from1.place.kind == plPoint and from1.place.lat == 38.7 and
       from1.place.lon == -9.1 and from1.radius == some(Distance(5000.0))
@@ -361,9 +367,11 @@ suite "list: the command line":
       "not before"
     ) # (an empty range: nothing could be found)
     check cmdline("--after").problem.contains("needs a value")
-    check cmdline("--on", "2018-08-27T09:00").problem.contains("takes a date")
-    check cmdline("--on", "2018-08-27", "--before", "2018-09-01").problem.contains(
-      "does not go with `--after` or `--before`"
+    check cmdline("--dates", "2018-08-27T09:00").problem.contains("takes dates")
+    check cmdline("--dates", "2018-08-27", "soon").problem.contains("takes dates")
+    check cmdline("--dates").problem.len > 0
+    check cmdline("--dates", "2018-08-27", "--before", "2018-09-01").problem.contains(
+      "do not go with `--after` or `--before`"
     )
     check cmdline("--bogus").problem.contains("unexpected")
     check cmdline("-h").help
@@ -447,6 +455,22 @@ suite "list: the box and the sql":
     check fullQ.value("startM") == arg(5000.0)
     check full.endsWith("order by a.start_epoch desc limit :newest")
     check fullQ.value("newest") == arg(2)
+    let daysQ = matchSql(
+      UserId(1),
+      @[
+        Resolved(
+          kind: rtDates,
+          days: @[
+            Day(start: UnixTime(10), next: UnixTime(20)),
+            Day(start: UnixTime(30), next: UnixTime(40)),
+          ],
+        )
+      ],
+    )
+    check daysQ.text.contains(
+      " and ((a.start_epoch >= :day0 and a.start_epoch < :dayEnd0) or (a.start_epoch >= :day1 and a.start_epoch < :dayEnd1))"
+    )
+    check daysQ.value("day1") == arg(30) and daysQ.value("dayEnd1") == arg(40)
     let oldest = matchSql(UserId(1), @[], limit = some(Limit(kind: lkOldest, count: 4)))
     check oldest.text.endsWith("order by a.start_epoch asc limit :oldest")
     check oldest.value("oldest") == arg(4)
@@ -518,6 +542,7 @@ suite "list: the two stages of a filter":
       Filter(kind: ftTags, patterns: @[parsePattern("bike:*").pattern.get]),
       Filter(kind: ftAfter, at: UnixTime(1)),
       Filter(kind: ftBefore, at: UnixTime(2)),
+      Filter(kind: ftDates, days: @[Day(start: UnixTime(1), next: UnixTime(2))]),
       Filter(kind: ftGps, gps: gpsWith),
       Filter(kind: ftDistance, spread: Spread(byReference: false)),
       Filter(kind: ftFrom, place: Place(kind: plPoint, lat: 1.0, lon: 2.0)),

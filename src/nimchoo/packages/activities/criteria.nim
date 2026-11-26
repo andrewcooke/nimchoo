@@ -31,14 +31,15 @@ proc parseWhen*(s: string, zone: Timezone): Option[UnixTime] =
       discard
   none(UnixTime)
 
-proc parseOnDay*(s: string, zone: Timezone): Option[tuple[start, next: UnixTime]] =
-  ## A date typed by the user (`--on`: a date, not a time), as the start of that day in `zone` and the start of the next
-  ## (a day is not always 24 hours: the clocks change).
+proc parseDay*(s: string, zone: Timezone): Option[Day] =
+  ## A date typed by the user (`--dates`: a date, not a time), as that day in `zone`.
   try:
     let d = parse(s, "yyyy-MM-dd", zone)
-    some((UnixTime(d.toTime.toUnix), UnixTime((d + 1.days).toTime.toUnix)))
+    some(
+      Day(start: UnixTime(d.toTime.toUnix), next: UnixTime((d + 1.days).toTime.toUnix))
+    )
   except TimeParseError, TimeFormatParseError, ValueError, OverflowDefect:
-    none(tuple[start, next: UnixTime])
+    none(Day)
 
 type
   Collected = object
@@ -49,6 +50,7 @@ type
     contributed: seq[Contributed]
     distance, active: Option[Spread]
     afterT, beforeT: Option[UnixTime]
+    days: seq[Day] ## --dates, in the order given, each once
     gps: Option[Gps]
 
   ListState = object
@@ -61,7 +63,7 @@ type
     zone: Timezone
     offered: seq[Criterion] ## the criteria other packages offer
     where: Where ## --from, --near and --radius
-    onGiven, rangeGiven: bool ## --on was given; --after or --before was
+    datesGiven, rangeGiven: bool ## --dates was given; --after or --before was
     criteriaGiven: bool ## some option other than those that say what to display
 
 func takeCount(p: var ListState, name, value: string, oldest: bool): Problem =
@@ -257,15 +259,22 @@ proc takeWhen(p: var ListState, v: string, before: bool): Problem =
     p.c.afterT = t
   fine
 
-proc takeOn(p: var ListState, v: string): Problem =
-  ## --on DATE: the activities of that day.
+proc takeDates(
+    p: var ListState, name: string, values: seq[string]
+): Problem {.nimcall.} =
+  ## --dates DATE...: the activities of those days.
   p.criteriaGiven = true
-  p.onGiven = true
-  let d = parseOnDay(v, p.zone)
-  if d.isNone:
-    return refuse(~"`--on` takes a date, like 2018-08-27 (not '{v}')")
-  p.c.afterT = some(d.get.start)
-  p.c.beforeT = some(d.get.next)
+  p.datesGiven = true
+  for v in values:
+    if v.strip.len == 0:
+      continue
+    let d = parseDay(v.strip, p.zone)
+    if d.isNone:
+      return refuse(~"`{name}` takes dates, like 2018-08-27 (not '{v}')")
+    if d.get notin p.c.days:
+      p.c.days.add d.get
+  if p.c.days.len == 0:
+    return refuse(~"`{name}` needs a date, like 2018-08-27")
   fine
 
 func takeGps(p: var ListState, wanted: Gps): Problem =
@@ -348,13 +357,11 @@ proc criteriaSpec*(offered: seq[Criterion] = @[]): Spec[ListState] =
           ~"activities that start before TIME (TIME is in your time zone: 2018-08-27, 2018-08-27T09:30 or with seconds; a date is the start of that day, as if written with T00:00:00: `--after 2018-08-01 --before 2018-09-01` is August)",
           body = takeWhen(p, value, true),
         ),
-        custom(
-          ListState,
-          ["--on"],
-          true,
-          "DATE",
-          ~"activities that start on that day (a date: `--on 2018-08-27` is `--after 2018-08-27 --before 2018-08-28`)",
-          body = takeOn(p, value),
+        listOption[ListState](
+          ["--dates"],
+          takeDates,
+          "DATE...",
+          ~"activities that start on one of those days (dates: `--dates 2018-08-27` is `--after 2018-08-27 --before 2018-08-28`; `--dates 2018-08-27 2018-09-02` is either day)",
         ),
         custom(
           ListState,
@@ -471,6 +478,8 @@ func filtersOf(c: Collected, w: Where): seq[Filter] =
     result.add Filter(kind: ftAfter, at: c.afterT.get)
   if c.beforeT.isSome:
     result.add Filter(kind: ftBefore, at: c.beforeT.get)
+  if c.days.len > 0:
+    result.add Filter(kind: ftDates, days: c.days)
   if c.gps.isSome:
     result.add Filter(kind: ftGps, gps: c.gps.get)
   let start = placeOf(w.start)
@@ -513,9 +522,10 @@ func finish(st: ListState): Parsed[Request] =
     )
   if st.newest.isSome and st.oldest.isSome:
     return bad(~"`--newest` and `--oldest` cannot be used together")
-  if st.onGiven and st.rangeGiven:
-    return
-      bad(~"`--on` is a day of its own: it does not go with `--after` or `--before`")
+  if st.datesGiven and st.rangeGiven:
+    return bad(
+      ~"`--dates` are days of their own: they do not go with `--after` or `--before`"
+    )
   if st.c.afterT.isSome and st.c.beforeT.isSome and st.c.afterT.get >= st.c.beforeT.get:
     return bad(~"`--after` is not before `--before`")
   let limit =
@@ -552,7 +562,7 @@ proc parseArgs*(
     args: seq[string], zone: Timezone, offered: seq[Criterion] = @[]
 ): Parsed[Request] =
   ## The command line of `nch activities`.  Options with values: `--tags A B`, `--names`, `--starts`,
-  ## `--paths`, `--climbs` (words up to the next option), `--delete`, `--rename`, `--after T`, `--before T`, `--on DATE`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
+  ## `--paths`, `--climbs` (words up to the next option), `--delete`, `--rename`, `--dates` (dates), `--after T`, `--before T`, `--from` and `--near` (LAT,LON, a place, latest, previous), `--radius DISTANCE` (`3km`, `500m`);
   ## `--newest N` (or `-n N`), `--oldest N`, `--invert`, `--all` (every activity), `--select`
   ## (keep what is listed as the selection), and `-v`/`--verbose` (what to display).  With no
   ## criterion and no `--all` it is the selection that is meant.
@@ -605,6 +615,18 @@ func pathSql*(paths: seq[string]): Sql =
       ") > 0 or exists (select 1 from seen_file s where s.file_id = f.id and instr(fold(s.path), :" &
       n & ") > 0))"
     result.args.add (n, arg(foldText(t.strip)))
+  result.text = " and (" & parts.join(" or ") & ")"
+
+func datesSql*(days: seq[Day]): Sql =
+  ## " and ((a.start_epoch >= :day0 and a.start_epoch < :dayEnd0) or ...)": the activity starts on one of the days.
+  if days.len == 0:
+    return
+  var parts: seq[string]
+  for i, d in days:
+    let (a, b) = ("day" & $i, "dayEnd" & $i)
+    parts.add fmt"(a.start_epoch >= :{a} and a.start_epoch < :{b})"
+    result.args.add (a, arg(int64(d.start)))
+    result.args.add (b, arg(int64(d.next)))
   result.text = " and (" & parts.join(" or ") & ")"
 
 func rangeSql*(column, name: string, r: NumRange): Sql =
@@ -698,6 +720,8 @@ func matchSql*(
       filt = filt & sqlOf(" and a.start_epoch >= :afterT").with("afterT", int64(f.at))
     of rtBefore:
       filt = filt & sqlOf(" and a.start_epoch < :beforeT").with("beforeT", int64(f.at))
+    of rtDates:
+      filt = filt & datesSql(f.days)
     of rtFrom:
       # activities that START within the radius: the spatial index finds those in a box, and the distance on the ground
       # decides (an activity without a start is never near)

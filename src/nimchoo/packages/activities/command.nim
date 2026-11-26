@@ -272,6 +272,8 @@ proc resolveFilter(f: Filter, env: Env): Resolved {.raises: [StoreError].} =
     Resolved(kind: rtAfter, at: f.at)
   of ftBefore:
     Resolved(kind: rtBefore, at: f.at)
+  of ftDates:
+    Resolved(kind: rtDates, days: f.days)
   of ftGps:
     Resolved(kind: rtGps, gps: f.gps)
   of ftFrom, ftNear:
@@ -387,7 +389,7 @@ proc resolveScope(
       env.nameTexts = some(found.texts)
       env.nameIds = found.ids
     of ftFrom, ftNear, ftStarts, ftPaths, ftTags, ftDistance, ftActive, ftAfter,
-        ftBefore, ftGps:
+        ftBefore, ftDates, ftGps:
       discard
   if usesPrevious(filters):
     let prev = previousSelected(st)

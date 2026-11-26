@@ -114,6 +114,7 @@ suite "query plans: no query reads a whole table":
       Resolved(kind: rtActive, range: NumRange(lo: some 1.0)),
       Resolved(kind: rtAfter, at: UnixTime(1)),
       Resolved(kind: rtBefore, at: UnixTime(2)),
+      Resolved(kind: rtDates, days: @[Day(start: UnixTime(1), next: UnixTime(2))]),
       Resolved(kind: rtGps, gps: gpsWith),
       from1,
       near1,
@@ -125,6 +126,19 @@ suite "query plans: no query reads a whole table":
       ("paths", @[paths], false),
       ("a range", @[Resolved(kind: rtDistance, range: NumRange(lo: some 1.0))], false),
       ("no gps", @[Resolved(kind: rtGps, gps: gpsWithout)], false),
+      (
+        "dates",
+        @[
+          Resolved(
+            kind: rtDates,
+            days: @[
+              Day(start: UnixTime(1), next: UnixTime(2)),
+              Day(start: UnixTime(5), next: UnixTime(9)),
+            ],
+          )
+        ],
+        false,
+      ),
       ("from", @[from1], true),
       (
         "from, across the date line",

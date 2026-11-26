@@ -52,6 +52,10 @@ type
     of plReferent:
       refers*: Referent ## where that activity started
 
+  Day* = object
+    ## `--dates`: a day of the calendar, from its start to the start of the next (not always 24 hours: the clocks change).
+    start*, next*: UnixTime
+
   Gps* = enum
     gpsWith ## --gps: only activities with at least one position
     gpsWithout ## --no-gps: only those without any
@@ -66,6 +70,7 @@ type
     ftActive
     ftAfter
     ftBefore
+    ftDates
     ftGps
     ftFrom
     ftNear
@@ -86,6 +91,8 @@ type
       spread*: Spread ## metres, seconds
     of ftAfter, ftBefore:
       at*: UnixTime ## the activity starts at or after (before) this instant
+    of ftDates:
+      days*: seq[Day] ## the activity starts on one of them
     of ftGps:
       gps*: Gps
     of ftFrom, ftNear:
@@ -104,6 +111,7 @@ type
     rtGps
     rtAfter
     rtBefore
+    rtDates
     rtFrom
     rtNear
 
@@ -129,6 +137,8 @@ type
       gps*: Gps
     of rtAfter, rtBefore:
       at*: UnixTime
+    of rtDates:
+      days*: seq[Day]
     of rtFrom, rtNear:
       lat*, lon*: float
       km*: float ## the radius
@@ -228,7 +238,7 @@ func refersTo*(f: Filter, r: Referent): bool =
     f.spread.byReference and f.spread.refers == r
   of ftFrom, ftNear:
     f.place.kind == plReferent and f.place.refers == r
-  of ftPaths, ftTags, ftContributed, ftAfter, ftBefore, ftGps:
+  of ftPaths, ftTags, ftContributed, ftAfter, ftBefore, ftDates, ftGps:
     false
 
 func usesLatest*(filters: seq[Filter]): bool =
@@ -267,5 +277,5 @@ func withoutLatest*(f: Filter): Option[Filter] =
       none(Filter)
     else:
       some(f)
-  of ftPaths, ftTags, ftContributed, ftAfter, ftBefore, ftGps:
+  of ftPaths, ftTags, ftContributed, ftAfter, ftBefore, ftDates, ftGps:
     some(f)
