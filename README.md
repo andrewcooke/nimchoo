@@ -20,6 +20,20 @@ it up with standard tools and see what is inside)
 
 * open source, hackable, extensible
 
+## tab completion
+
+`nch` completes its commands, options and the names in your database
+(tags, models, landmarks, ...) when you press tab in bash.  to install
+it, run once
+
+    nch --install-completion
+
+and start a new shell.  the script goes in
+`~/.local/share/bash-completion/completions/` (or
+`$BASH_COMPLETION_USER_DIR`), where the bash-completion package finds
+it, so that package must be installed.  `nch --show-completion` prints
+the script instead, if you would rather put it somewhere yourself.
+
 ## technical background
 
 nimchoo is a rewrite of my choochoo project, which was an

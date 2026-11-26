@@ -89,7 +89,7 @@ func headSpec(): Spec[Head] =
         Head,
         ["--install-completion"],
         "SHELL",
-        ~"write the script for shell completion at the appropriate location (default: bash)",
+        ~"write the script for shell completion at the appropriate location (default: bash); run once to install, then start a new shell",
         completion = Completion(kind: ckWords, words: shellNames()),
         body = takeJob(p, saInstall, value),
       ),
