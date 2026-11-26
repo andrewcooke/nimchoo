@@ -24,6 +24,14 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ### B. Share
 
+* **A table is measured as it is drawn** (asked 2026-11-26).  Without colour (a pipe, `NO_COLOR`) a `code` span is drawn
+  with its backticks (`line.plainText`), but `line.width` does not count them, so `ruled` puts each code cell two columns
+  out (`nch packages | less`, `nch --config`'s variables); `core/line.nim` says this was decided not to matter
+  (2026-11-20), and the author now wants it fixed.  The width a line takes depends on whether colour is on, which `ruled`
+  is not told: give it that (a flag, or a measuring function from `Globals`) and use the same one where a usage is laid
+  out (`util/args/usage.nim`: check which way it measures now), with a test that lays out a table both ways and checks the
+  columns line up in what is drawn.
+
 ### C. The review (done 2026-11-20)
 
 11. **The fourth review's plan** (dev/REVIEW.md, section 5; findings in `dev/review-4/`).  Done: step 1 (robustness),
