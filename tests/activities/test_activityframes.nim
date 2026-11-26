@@ -1,4 +1,9 @@
-import std/[math, unittest]
+import std/[math, sequtils, unittest]
+import nimchoo/core/[extension, ids]
+import nimchoo/packages/db/statement
+import nimchoo/packages/user/session
+import ../support/[env, rideworld]
+from nimchoo/registry import allFragments, allAccess, extensions
 import nimchoo/packages/activities/activityframes
 import nimchoo/packages/channels/kinds
 import nimchoo/packages/plot/frames
@@ -50,3 +55,29 @@ suite "activity: the frames of one activity":
   test "a frame's name is the channel's as one word":
     check frameName(chHeartRate) == "heartrate"
     check frameName(chDistance) == "distance"
+
+suite "activity: cadence, and a run's steps":
+  test "a ride's cadence is in rpm and it has no steps; a run's is drawn only as steps, twice as many":
+    let w = world("activity-steps", ride = "2018-03-04-qdp.fit") # (one with cadence)
+    let s = openSession(w.db, allFragments, access = allAccess)
+    defer:
+      s.close()
+      useTestCache()
+    let id = ActivityId(s.db.scalar(int64, "select id from activity"))
+    var cadence, steps: PlotFrame
+    for f in extensions.get(plotFramePoint):
+      if f.subject == "activity" and f.name == "cadence":
+        cadence = f
+      if f.subject == "activity" and f.name == "steps":
+        steps = f
+    check cadence.unit == "rpm" and steps.unit == "steps/min"
+    func values(d: PlotData): seq[float] =
+      for x in d.series:
+        for (t, v) in x.points:
+          if not v.isNaN:
+            result.add v
+    let rpm = values(cadence.makeActivity(s, id))
+    check rpm.len > 0 and values(steps.makeActivity(s, id)).len == 0
+    s.db.execute("update activity set sport = 'running' where id = :id", id = id)
+    check values(cadence.makeActivity(s, id)).len == 0
+    check values(steps.makeActivity(s, id)) == rpm.mapIt(it * 2)

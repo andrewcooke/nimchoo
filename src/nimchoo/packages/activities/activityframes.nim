@@ -6,7 +6,9 @@
 ## is missing in time).  A frame is made for each channel of the list (`channels/kinds.nim`), so a channel added there is
 ## drawn here with no more code.  The speed is drawn in km/h and the distance in km (`shownAs`); the distance is the
 ## device's, else the distance along the positions, and can be the x axis (`along`): the device's distance does not
-## advance while the timer is off, so on that axis every break is a gap of no width.  The breaks themselves are a frame of
+## advance while the timer is off, so on that axis every break is a gap of no width.  A run's cadence is drawn as steps
+## a minute (`steps`, twice what the device records: the FIT standard counts one foot's strides), so the cadence frame
+## holds every other sport, in rpm, and each axis has one unit.  The breaks themselves are a frame of
 ## rules (`breaks`, `breakStyles`): a GPS error a red line; carried and manual bands, orange and green; a pause a grey
 ## band darker the longer it is, with one ride ticked only.
 
@@ -96,6 +98,37 @@ func shownAs*(ch: ChannelKind): tuple[unit: string, factor: float] =
   of chHeartRate, chCadence, chTemperature, chPower:
     (specs[ch].unit, 1.0)
 
+proc isRun(st: Session, id: ActivityId): bool {.raises: [StoreError].} =
+  ## Whether the activity is a run (its sport, as the file gave it).
+  st.db.scalar(
+    int, "select count(*) from activity where id = :id and sport = 'running'", id = id
+  ) > 0
+
+proc cadenceOf(
+    st: Session, id: ActivityId, run: bool, factor: float
+): PlotData {.raises: [StoreError].} =
+  ## The cadence, times `factor`, if the activity is a run (`run`) or is not one (not `run`); else nothing.
+  if isRun(st, id) != run:
+    return
+  var points: seq[Point]
+  for (t, v) in readChannel(st.db, id, chCadence):
+    points.add (int64(t), v * factor)
+  seriesOf(st, id, points)
+
+proc makeCadence(
+    st: Session, id: ActivityId
+): PlotData {.nimcall, raises: [StoreError].} =
+  ## The cadence in rpm, of anything but a run.
+  cadenceOf(st, id, false, 1.0)
+
+const stepsUnit = "steps/min"
+
+proc makeSteps(
+    st: Session, id: ActivityId
+): PlotData {.nimcall, raises: [StoreError].} =
+  ## A run's steps a minute: twice the cadence its device records (one foot's strides a minute).
+  cadenceOf(st, id, true, 2.0)
+
 template channelMaker(ch: ChannelKind): MakeActivityPlot =
   proc(st: Session, id: ActivityId): PlotData {.nimcall, raises: [StoreError].} =
     var points: seq[Point]
@@ -135,7 +168,7 @@ proc makers(): array[ChannelKind, MakeActivityPlot] =
       of chHeartRate:
         channelMaker(chHeartRate)
       of chCadence:
-        channelMaker(chCadence)
+        makeCadence
       of chTemperature:
         channelMaker(chTemperature)
       of chPower:
@@ -221,6 +254,8 @@ proc contributions*(): seq[Contribution] =
           "the " & s.title & " of the activity, as the device recorded it" & (
             if isDistance:
               " (else along its positions); can be the x axis, and is drawn with several rides only"
+            elif ch == chCadence:
+              " (not of a run: see steps)"
             else: ""
           ),
         shown: ch in shownChannels,
@@ -236,6 +271,23 @@ proc contributions*(): seq[Contribution] =
         several: isDistance,
       ),
     )
+    if ch == chCadence:
+      result.add contribute(
+        plotFramePoint,
+        PlotFrame(
+          subject: activitySubject.name,
+          name: "steps",
+          summary:
+            "the steps a minute of a run: twice the cadence its device recorded, which counts one foot",
+          shown: false,
+          readsSelection: true,
+          tables: @["activity", "channel_series", "ride_break"],
+          unit: stepsUnit,
+          mark: mkLine,
+          axis: axActivity,
+          makeActivity: makeSteps,
+        ),
+      )
   result.add contribute(
     plotFramePoint,
     PlotFrame(

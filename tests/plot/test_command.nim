@@ -173,8 +173,8 @@ suite "nch plot":
           check axis == f.axis
       axes.add (f.subject, f.axis)
     let mine = framesOf(extensions.get(plotFramePoint), "activity")
-    check mine.len == 1 + ChannelKind.high.ord + 1 + 1
-      # altitude, the channels, the breaks
+    check mine.len == 1 + ChannelKind.high.ord + 1 + 1 + 1
+      # altitude, the channels, a run's steps, the breaks
     check mine.filterIt(it.mark == mkRule).mapIt(it.name) == @["breaks"]
     check mine.allIt(it.axis == axActivity)
     check mine.filterIt(it.along).mapIt(it.name) == @["distance"]

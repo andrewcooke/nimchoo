@@ -47,7 +47,9 @@ a plot of one activity's channels against time or distance, the channels stacked
    positions only when a file has none.  there is no need to know whether they came from a wheel or the device's GPS (see
    the evidence below).
 4. **every channel is optional for each activity**: files differ in what they record.  a panel with no data says so.
-   cadence's unit follows the sport (rpm on a bike, steps a minute running).
+   cadence's unit follows the sport (decided 2026-11-26): a frame has one unit, the label of its axis, so a run's
+   cadence is a frame of its own, `steps` (steps a minute: twice what the device records, as the FIT standard counts one
+   foot's strides: the author's runs record about 85), and the `cadence` frame (rpm) holds every other sport.
 5. **the x axis**: every frame gives `(t, value)` (other data refers to per-second data by time).  distance is one more
    series, d(t), and the page switches the x axis to distance by looking each t up in it, so no frame knows about
    distance.  distance is offered only when the activity has one.

@@ -14,8 +14,10 @@ from nimchoo/registry import allFragments, allAccess
 
 let dir = getTempDir() / "nch-test-rides"
 
-proc world*(name: string, fthr = true): tuple[db, cache: string] =
-  ## One ride with heart rate, selected, and (if `fthr`) an FTHR.
+proc world*(
+    name: string, fthr = true, ride = "2018-08-27-rec.fit"
+): tuple[db, cache: string] =
+  ## One ride with heart rate (`ride`, of choochoo's personal test files), selected, and (if `fthr`) an FTHR.
   removeDir(dir / name)
   createDir(dir / name)
   result = (dir / name / "x.db", dir / name / "cache" / "user")
@@ -27,7 +29,7 @@ proc world*(name: string, fthr = true): tuple[db, cache: string] =
   discard s.importFile(
     loadProfile("../choochoo/data/sdk/Profile.xlsx"),
     "r.fit",
-    readBytes("../choochoo/data/test/source/personal/2018-08-27-rec.fit"),
+    readBytes("../choochoo/data/test/source/personal/" & ride),
     ws,
     @[channelsStep],
   )

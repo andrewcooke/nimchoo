@@ -7,8 +7,8 @@ When something here is done, delete it (in the same commit).  Design steps are d
 ## Now: a plot of one activity (dev/plot-activity.md, 2026-11-25)
 
 Step 4 of the note (0 to 3 are done): cadence, temperature and power.  Their frames are there already (one for each
-channel of the list); left: look at them on real data, and cadence's unit by sport (rpm on a bike, steps a minute
-running).
+channel of the list), and a run's cadence is its own frame, `steps` (2026-11-26); left: look at them on real data
+(the author's runs, `~/fit/run`, are not imported yet).
 
 ## Next: consistency (proposed 2026-11-20; each decision open, to be taken one at a time with the author)
 
@@ -83,7 +83,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
     control, `sport:cycling:gravel`).  What reads them reads the tag, through one helper in `tags` (an activity's sport
     from its tag, the first if there are several, written as now, `cycling/road`): the activities list (its sport column,
     the count by sport on its last line, the transitions of a multisport file, `sport:transition`, in `hide`), the map's
-    route popups (`activities/mapframes`, `mapfeatures`, `map-routes.js`), the attempts of `climbs -v`
+    route popups (`activities/mapframes`, `mapfeatures`, `map-routes.js`), whether an activity is a run
+    (`activities/activityframes.isRun`: its cadence is drawn as steps), the attempts of `climbs -v`
     (`climbs/attempts.nim`), and `importer/describe.sportText`.  At import the session's sport goes to the tag directly:
     the import step is given it, as it is given the samples and the labels, instead of reading a column.  The delete
     question's count by sport (`importer/remove.describe`) cannot read a tag (`importer` is below `tags`): it moves to
