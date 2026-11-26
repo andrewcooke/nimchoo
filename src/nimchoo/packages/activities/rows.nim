@@ -6,6 +6,7 @@ import ../../core/[errors, ids]
 import ../db/[sqltext, statement, store]
 import ../fit/time
 import ../user/session
+import ../importer/active
 import ../tags/sport
 import ./table
 
@@ -17,7 +18,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
   ## The path of the file (for `verbose`) is where it was last seen, else its name.
   sqlOf(
     "a.start_epoch as start_epoch, " & sportSql() & " as sport, " &
-      "coalesce(a.distance_m, -1) as dist, " & "coalesce(a.timer_s, -1) as active, " &
+      "coalesce(a.distance_m, -1) as dist, " & activeSql() & " as active, " &
       # whether the user has it in their selection
       "a.id in (select activity_id from activity_selection where user_id = :me) as chosen, " &
     (
@@ -65,7 +66,7 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
       sport: sport,
       subSport: subSport,
       distanceM: (if r.dist >= 0: some(r.dist) else: none(float)),
-      activeS: (if r.active >= 0: some(r.active) else: none(float)),
+      activeS: r.active,
       selected: r.chosen,
       path: r.path,
       place: r.place,

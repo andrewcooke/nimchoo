@@ -1,6 +1,6 @@
 import std/[options, os, sequtils, strutils, unittest]
 import nimchoo/core/errors
-import nimchoo/packages/importer/extract
+import nimchoo/packages/importer/[channel, extract]
 import nimchoo/packages/importer/series
 import nimchoo/packages/importer/stretch
 import nimchoo/packages/fit/reader
@@ -77,8 +77,8 @@ suite "activities: a session and its coordinates":
     check a[0].endT == unixBase + 2
     check a[0].sport == "cycling"
     check a[0].subSport == "generic"
-    check a[0].timerS == some(2.0)
-    check a[0].distanceM == some(10.0)
+    check a[0].distanceM == some(0.0)
+      # (not the session's 10 m: the records hold no distance, and their positions are all one place)
     check a[0].coords.mapIt(it.t) == @[unixBase, unixBase + 1, unixBase + 2]
     check a[0].coords[0].lat == 45.0
     check a[0].coords[0].lon == -90.0
@@ -99,6 +99,38 @@ suite "activities: a session and its coordinates":
     check a[0].coords.len == 0
     check ws.len == 0
 
+suite "activities: the ground covered":
+  func dist(pairs: openArray[(int, float)]): seq[Sample] =
+    for (t, v) in pairs:
+      result.add Sample(t: UnixTime(t), v: v)
+
+  func coordAt(t: int, metres: float): Coord =
+    Coord(t: UnixTime(t), lon: -90.0, lat: -45.0 + metres / 111_195.0)
+
+  let one = @[Span(startT: UnixTime(0), endT: UnixTime(100))]
+  test "the device's distance, as the sum of its increases: a restart from zero and a fall are no ground":
+    check distanceOf(dist([(0, 0.0), (10, 100.0), (20, 250.0)]), @[], one) == some(
+      250.0
+    )
+    check distanceOf(dist([(0, 500.0), (10, 600.0), (20, 0.0), (30, 40.0)]), @[], one) ==
+      some(140.0) # (a crash: the device counts again from zero)
+    check distanceOf(dist([(0, 0.0), (10, 100.0), (11, 99.0), (20, 150.0)]), @[], one) ==
+      some(151.0)
+    check distanceOf(dist([(0, 7.0)]), @[], one) == some(0.0)
+  test "a file without it: the positions, along each stretch and not across a break":
+    let coords =
+      @[coordAt(0, 0), coordAt(10, 100), coordAt(50, 5100), coordAt(60, 5200)]
+    let whole = distanceOf(@[], coords, one).get
+    check abs(whole - 5200.0) < 1.0
+    let cut = @[
+      Span(startT: UnixTime(0), endT: UnixTime(10)),
+      Span(startT: UnixTime(50), endT: UnixTime(60)),
+    ]
+    check abs(distanceOf(@[], coords, cut).get - 200.0) < 1.0
+      # (the car, between, is no ground)
+  test "neither: none":
+    check distanceOf(@[], @[], one).isNone
+
 suite "activities: real files":
   test "a ride":
     var ws: seq[Warning]
@@ -110,7 +142,8 @@ suite "activities: real files":
     check a[0].coords.len == 2099
     check abs(a[0].coords[0].lat - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
     check a[0].coords[0].t == a[0].startT
-    check abs(a[0].distanceM.get - 11978.11) < 1e-6
+    check abs(a[0].distanceM.get - 11978.11) < 0.01 * 11978.11
+      # (the device's own field, summed: within 1% of the session's total)
     check a[0].coords[0].alt.isNone # this device recorded no altitude
 
   test "a multisport file: every position goes to exactly one session":
@@ -380,6 +413,23 @@ suite "segments: stretches in files":
 
   test "a short pause at the speed of a car (600 m in 20 s) is two":
     check stretchesOf(twoSegments(1, 600, gap = 20)).len == 2
+
+  # a crash: the timer is running, the records stop, the device comes back (`power_up`, with the timer stopped) and the
+  # rider starts it by hand
+  proc crash(metresMoved: int): seq[byte] =
+    recordDefn & pos(base, 0) & pos(base + 10, 10) & pos(base + 50, 10 + metresMoved) &
+      pos(base + 70, 20 + metresMoved) & timerTDefn & timerT(base, 0, 1) & timerDefn &
+      b(4) & le32(base + 20) & b(6, 4) & timerTDefn & timerT(base + 50, 0, 1) &
+      timerT(base + 70, 4, 1) & sessionDefn & session(base, base + 70)
+
+  test "a crash where the rider stayed: a pause from the power event to the restart, one stretch":
+    let (a, _) = activities(crash(5))
+    check a[0].breaks.mapIt((it.kind, it.startT, it.endT)) ==
+      @[(bkPause, unixBase + 20, unixBase + 50)]
+    check stretchesOf(crash(5)).len == 1
+
+  test "a crash where the rider rode on while the device was off: carried, two stretches":
+    check stretchesOf(crash(900)).len == 2
 
   test "a trigger the file does not give: two stretches, as before":
     let body =

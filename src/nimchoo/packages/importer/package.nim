@@ -44,6 +44,8 @@ const package* = Package(
     fragment("001-schema.sql"),
     # drops the columns of `activity` that the file's summary gave and that are not ours or not read
     fragment("002-summary.sql"),
+    # drops the file's timer total: active time is worked out (`active.nim`)
+    fragment("003-active.sql"),
   ],
   commands: @[
     CommandDecl(

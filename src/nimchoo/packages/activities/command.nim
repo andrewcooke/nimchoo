@@ -262,12 +262,9 @@ proc resolveFilter(f: Filter, env: Env): Resolved {.raises: [StoreError].} =
     if not f.spread.byReference:
       Resolved(kind: rtActive, range: f.spread.range)
     else:
-      let t = env.anchor(f.spread.refers).activeS
-      if t.isNone:
-        raiseStore(
-          "the " & nameOf(f.spread.refers) & " activity has no recorded active time"
-        )
-      Resolved(kind: rtActive, range: around(t.get, f.spread.tol))
+      Resolved(
+        kind: rtActive, range: around(env.anchor(f.spread.refers).activeS, f.spread.tol)
+      )
   of ftAfter:
     Resolved(kind: rtAfter, at: f.at)
   of ftBefore:

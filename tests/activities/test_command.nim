@@ -45,11 +45,11 @@ proc addActivity(
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
     """insert into activity(file_id, session, start_epoch, end_epoch,
-                                       distance_m, timer_s, riding_start_epoch, riding_end_epoch)
-                  values (:fileId, 0, :startT, :endT, 12345.0, 3661.0, :startT, :endT)""",
+                                       distance_m, riding_start_epoch, riding_end_epoch)
+                  values (:fileId, 0, :startT, :endT, 12345.0, :startT, :endT)""",
     fileId = f,
     startT = startT,
-    endT = startT + 100,
+    endT = startT + 3661, # (no breaks: 1h01m active)
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   let sportT = sportTag(sport, subSport) # (as an import gives it)
@@ -315,14 +315,15 @@ suite "list: the command":
     check list(db, "--tags", "sport:swimming*") == exitOk
     check list(db, "--tags", "sport:cycling*", "swimming") == exitOk
 
-  proc setNumbers(db, tag: string, distanceM, timerS: string) =
-    ## Give the activity of the file `tag` its distance and timer time (NULL: "null").
+  proc setNumbers(db, tag: string, distanceM, activeS: string) =
+    ## Give the activity of the file `tag` its distance (NULL: "null") and active time (its riding, with no breaks).
     let st = openSession(db, allFragments, access = allAccess)
     defer:
       st.close()
     st.db.execute(
       (
-        "update activity set distance_m = " & distanceM & ", timer_s = " & timerS &
+        "update activity set distance_m = " & distanceM &
+        ", riding_end_epoch = riding_start_epoch + " & activeS &
         " where file_id = (select id from file where name = '" & tag & "')"
       )
     )
@@ -331,7 +332,7 @@ suite "list: the command":
     let db = world("distance", true)
     setNumbers(db, "lisbon1", "10000", "3600")
     setNumbers(db, "paris", "30000", "7200")
-    setNumbers(db, "lisbon2", "null", "null")
+    setNumbers(db, "lisbon2", "null", "0")
     discard save(db, "--distance", "20km-")
     check chosen(db) == @["paris"]
     discard save(db, "--distance", "-10km")
@@ -472,10 +473,10 @@ suite "list: the command":
 
   test "a reference that has no recorded numbers":
     let db = numbered("previous6")
-    setNumbers(db, "lisbon2", "null", "null")
+    setNumbers(db, "lisbon2", "null", "0")
     discard save(db, "--tags", "sport:cycling")
     check save(db, "--distance", "previous~10%") == exitFailure
-    check save(db, "--active", "previous~10m") == exitFailure
+      # (an active time is always known: worked out from the riding)
     check save(db, "--from", "previous", "--radius", "10km") == exitOk
       # its start is known
     check chosen(db) == @["lisbon1", "lisbon2"]
@@ -509,10 +510,9 @@ suite "list: the command":
       "latest~5km",
     ) == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
-    setNumbers(db, "paris", "null", "null")
+    setNumbers(db, "paris", "null", "0")
     check save(db, "--distance", "latest~5km") == exitFailure
       # paris is the latest and has no distance
-    check save(db, "--active", "latest~5m") == exitFailure
     check chosen(db) == @["lisbon1", "lisbon2", "paris"]
     check save(db, "--tags", "sport:swimming*", "--distance", "latest~1km") ==
       exitFailure # nobody has it: there is no latest

@@ -9,6 +9,7 @@ from std/unicode import runeLen
 import nimchoo/packages/fit/time
 import nimchoo/core/ids
 import nimchoo/packages/activities/criteria
+import nimchoo/packages/importer/active
 import nimchoo/packages/tags/tag
 import nimchoo/packages/activities/command as activitiesCommand
 import nimchoo/packages/util/args/[args, usage]
@@ -497,8 +498,8 @@ suite "list: the box and the sql":
     let hi = rangeSql("a.timer_s", "active", NumRange(hi: some 3600.0))
     check hi.text == " and a.timer_s <= :activeHi" and
       hi.value("activeHi") == arg(3600.0)
-    let both = rangeSql("a.timer_s", "active", NumRange(lo: some 60.0, hi: some 120.5))
-    check both.text == " and a.timer_s >= :activeLo and a.timer_s <= :activeHi"
+    let both = rangeSql("a.x_s", "active", NumRange(lo: some 60.0, hi: some 120.5))
+    check both.text == " and a.x_s >= :activeLo and a.x_s <= :activeHi"
     check both.value("activeHi") == arg(120.5) # (exact: not rounded to 3 decimals)
     let m = matchSql(
       UserId(1),
@@ -508,7 +509,7 @@ suite "list: the box and the sql":
       ],
     )
     check m.text.contains("a.distance_m >= :distanceLo") and
-      m.text.contains("a.timer_s <= :activeHi")
+      m.text.contains(activeSql() & " <= :activeHi")
     check not matchSql(UserId(1), @[]).text.contains("distance_m")
 
 suite "list: the two stages of a filter":

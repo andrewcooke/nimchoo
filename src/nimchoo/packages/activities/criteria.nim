@@ -11,6 +11,7 @@ import ../../core/ids
 import ../text/fold/fold
 import ../tags/tag
 import ../subject/steps
+import ../importer/active
 import ./[completion, criterion, ranges, request]
 export ranges, criterion, near, request
 
@@ -708,7 +709,7 @@ func matchSql*(
     of rtDistance:
       filt = filt & rangeSql("a.distance_m", "distance", f.range)
     of rtActive:
-      filt = filt & rangeSql("a.timer_s", "active", f.range)
+      filt = filt & rangeSql(activeSql(), "active", f.range)
     of rtGps:
       case f.gps
       of gpsWith:

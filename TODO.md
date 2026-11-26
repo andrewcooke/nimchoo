@@ -69,7 +69,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   same answer today; power is not asked: a rider on a very long ride may switch the device off overnight, which should
   split, and a device left on, or one that logs no power events, should split too), each part an activity of its own:
   `extract.nim` cuts the coordinates, samples, riding and breaks by time; what the session message says is for the whole
-  file, so the split is step 2 of the item on the `activity` table, below.  Later, if wanted: a way to say a gap was
+  file, so the split is the step left of the item on the `activity` table, below.  Later, if wanted: a way to say a gap was
   meant (`--dont-split` or similar).
 
 * **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
@@ -86,19 +86,11 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   author, 2026-11-23 and 2026-11-26).  The session message is written when the activity is saved, for the whole file, so
   it cannot be cut at a split, and its figures are Garmin's, not ours.  Done (2026-11-26): what was not ours or not read
   is dropped (`sport`, `sub_sport`, `elapsed_s`, `calories`, `utc_offset_s`; the sport is the `sport:` tag, read by
-  `tags/sport.nim`).  Two steps left, in this order, each a rebuild:
-  1. **Active time and distance from the data.**  `timer_s` goes: active time is the riding less our breaks (`manual`,
-     `carried`, `pause`), one SQL expression written once (37 ms for all 1,117 activities, measured 2026-11-26) for the
-     list, `--active` and the attempts; it will differ from Garmin's, as it should.  Look first at the files where it
-     differs most, which are files with power cycles (activities 146, 950, 306: 1h26m, 24m and 16m more than Garmin's):
-     the time the device was off or restarting may be counted as riding.  `distance_m` stays, measured at import from the
-     `distance` channel (the device's own: a wheel sensor, or its smoothed GPS; a length from our positions is straight
-     lines between samples, less reliable), as the sum of its increases, as a crash may start it again from zero (test on
-     activity 950); the length of the cleaned route only for a file with no distance field (none today).  Measuring the
-     route in SQL each time was rejected: 0.23 s a listing (`GreatCircleLength`; `GeodesicLength` 8.7 s) and no distance
-     for rides without GPS.
-  2. **The split at a break over 12 hours** (the ride of 8 and 10 January, above): after step 1 a part is a shorter
-     session, made the same way; the key `(file_id, session)` gains a part.
+  `tags/sport.nim`), and active time and distance are ours (2026-11-26: active time is the riding less our breaks,
+  `importer/active.nim`; distance from the device's `distance` field, `extract.distanceOf`; a crash is a stop of the
+  timer, as the file's `power_up` says).  One step left, a rebuild:
+  1. **The split at a break over 12 hours** (the ride of 8 and 10 January, above): a part is a shorter session, made
+     the same way; the key `(file_id, session)` gains a part.
 
 1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right

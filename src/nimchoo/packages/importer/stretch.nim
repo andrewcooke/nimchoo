@@ -60,6 +60,9 @@ type
     ## event).
     trAuto
     trManual
+    trPower
+      ## the device was switched off or came back after a crash: a `power_down` or `power_up` event, which the file
+      ## gives as a stop of the timer (`stop_all`) with no trigger.  The device's doing, as an auto-pause is.
     trOther ## not said (older devices), or another kind (fitness equipment)
 
   Gap* = object ## The time between one timer segment and the next.
@@ -78,7 +81,7 @@ func stoppedByDevice(stoppedBy, restartedBy: Trigger): bool =
   ## the file does not say we do not assume.  It may have been restarted by hand, which is what a rider does when the
   ## device did not notice they were off again.  (Measured on the author's rides: 97 of the gaps are an auto stop and a
   ## manual restart, 72 of them under 20 m; a stop by hand is never followed by an automatic restart.)
-  stoppedBy == trAuto and restartedBy in {trAuto, trManual}
+  stoppedBy in {trAuto, trPower} and restartedBy in {trAuto, trManual, trPower}
 
 func kindOf*(g: Gap): Option[BreakKind] =
   ## The kind of break `g` is, or none for a blink (no break: the timer was off for moments while the rider rode on).

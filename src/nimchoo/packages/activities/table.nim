@@ -28,7 +28,9 @@ export describe, units
 type ListRow* = object
   startT*: UnixTime
   sport*, subSport*: string ## "" if not recorded
-  distanceM*, activeS*: Option[float]
+  distanceM*: Option[float]
+  activeS*: float
+    ## worked out from the riding and its breaks (`importer/active`): always known
   path*: string ## where the file was imported from (its name if not known)
   place*: string ## where it started, as text ("" if not known)
   name*: string ## what it is called ("" if nothing)
@@ -69,7 +71,7 @@ func zeroDistance(r: ListRow): bool =
 
 func zeroActive(r: ListRow): bool =
   ## ... and an active time under 30 s.
-  not r.isTransition and r.activeS.isSome and r.activeS.get < 30.0
+  not r.isTransition and r.activeS < 30.0
 
 proc activityText*(r: ListRow, zone: Timezone): string =
   ## One activity in a sentence, the standard way: "2019-05-21 14:04  running  0.0km 2s".
@@ -153,8 +155,7 @@ func footerDetail*(rows: seq[ListRow]): string =
   for r in rows:
     if r.distanceM.isSome:
       metres += r.distanceM.get
-    if r.activeS.isSome:
-      seconds += r.activeS.get
+    seconds += r.activeS
     bySport.inc(if r.sport.len > 0: r.sport else: "none")
   result = fmt", {km(metres)}, {interval(seconds)}"
   if bySport.len > 1:

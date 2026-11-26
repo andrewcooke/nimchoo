@@ -12,6 +12,7 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../fit/time
+import ../importer/active
 import ../tags/sport
 import ../importer/describe
 import ../util/lookup/lookup
@@ -84,7 +85,8 @@ type
     tuple[
       sectorId, startT: int64,
       sport: string,
-      distanceM, activeS: Option[float],
+      distanceM: Option[float],
+      activeS: float,
       place, name: string,
       elapsed: float,
       selected: bool,
@@ -122,7 +124,8 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     sums.mustMut(r.id).manual = r.manual
   for r in st.db.query(
     AttemptRow,
-    "select e.sector_id, a.start_epoch, " & sportSql() & """, a.distance_m, a.timer_s,
+    "select e.sector_id, a.start_epoch, " & sportSql() & ", a.distance_m, " & activeSql() &
+      """,
               coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
               a.id in (select activity_id from activity_selection where user_id = :userId),
               rank() over (partition by e.sector_id order by e.elapsed_s),

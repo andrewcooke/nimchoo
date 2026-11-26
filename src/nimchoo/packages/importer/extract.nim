@@ -16,7 +16,8 @@
 ## * records are put in time order, records in the same second keep the last;
 ## * a record without a position makes no coordinate;
 ## * the stretches during which the timer ran (between a timer start and the
-##   next stop) are the activity's timer segments; the riding is from the first
+##   next stop; a `power_up` or `power_down` event is a stop by the device: a crash logs no stop of its own) are the
+##   activity's timer segments; the riding is from the first
 ##   to the last (without the empty bits at the ends), and what lies between two
 ##   is a break of a kind (stretch.nim: manual, carried, pause) or none (a blink),
 ##   with a GPS jump that did not return as a break of its own (error).  Every
@@ -66,7 +67,8 @@ type
     startT*, endT*: UnixTime
     sport*, subSport*: string
       ## "" if unknown (not stored: given to the import steps, `tags` makes it a tag)
-    timerS*, distanceM*: Option[float]
+    distanceM*: Option[float]
+      ## the ground covered, ours (`distanceOf`): not the file's total, which covers the whole file
     coords*: seq[Coord] ## in time order, one per second at most
     samples*: Samples ## the other fields asked for (see `readActivities`), by name
     riding*: Span
@@ -137,8 +139,6 @@ func sessionOf(
     )
   result.sport = nameOf(p, r, "sport")
   result.subSport = nameOf(p, r, "sub_sport")
-  result.timerS = r.firstNum("total_timer_time")
-  result.distanceM = r.firstNum("total_distance")
 
 func coordOf(r: Record, t: UnixTime, index, offset: int): Option[RawCoord] =
   ## The coordinate of a record, if it has a position.
@@ -300,6 +300,34 @@ func stretches*(a: ActivityData): seq[Span] =
   ## The activity's stretches of riding (stretch.nim).
   stretchesOf(a.riding, a.breaks)
 
+const distanceField* = "distance"
+  ## the `record` field of the ground covered, which the importer always reads (`distanceOf`)
+
+func distanceOf*(
+    distance: seq[Sample], coords: seq[Coord], stretches: seq[Span]
+): Option[float] =
+  ## The ground an activity covered, in metres.  From the device's own `distance` (a wheel sensor's, or its smoothed
+  ## GPS: better than the length of straight lines between positions), as the sum of its increases: a crash may start it
+  ## again from zero, and a fall is no ground covered.  A file without it: the length of the positions along each
+  ## stretch (not across a break: a car is not riding).  Neither: none.
+  if distance.len > 0:
+    var total = 0.0
+    for i in 1 .. distance.high:
+      total += max(0.0, distance[i].v - distance[i - 1].v)
+    return some(total)
+  if coords.len == 0:
+    return none(float)
+  var total = 0.0
+  var k = 0
+  for i in 1 .. coords.high:
+    while k < stretches.high and coords[i].t > stretches[k].endT:
+      inc k
+    let s = stretches[k]
+    if coords[i - 1].t >= s.startT and coords[i].t <= s.endT:
+      total +=
+        haversine(coords[i - 1].lon, coords[i - 1].lat, coords[i].lon, coords[i].lat)
+  some(total)
+
 proc sortedUnique(raw: var seq[RawCoord], ws: var seq[Warning]): seq[Coord] =
   ## Time order; of several in one second the last (by appearance) is kept.
   raw.sort do(a, b: RawCoord) -> int:
@@ -357,7 +385,13 @@ proc readActivities*(
   ## ours) are added to `ws`.  Raises FitError if the file cannot be read,
   ## ImportError if it holds no usable activity.  `channels` are `record` fields
   ## wanted besides the position: their values go to each activity's `samples`
-  ## (a record that lacks one, or has an invalid value, gives none).
+  ## (a record that lacks one, or has an invalid value, gives none).  The `distance` field is always read
+  ## (`distanceOf`).
+  let channels =
+    if distanceField in channels:
+      channels
+    else:
+      channels & distanceField
   var
     r = initReader(p, data)
     sessions: seq[ActivityData]
@@ -398,14 +432,19 @@ proc readActivities*(
               )
           inc count
         of "event":
-          if nameOf(p, rec, "event") == "timer" and rec.timestamp.isSome and
-              rec.timestamp.get >= minCalendarFit:
+          let event = nameOf(p, rec, "event")
+          if rec.timestamp.isSome and rec.timestamp.get >= minCalendarFit:
             let kind = nameOf(p, rec, "event_type")
-            if kind == "start" or kind.startsWith("stop"):
+            if event == "timer" and (kind == "start" or kind.startsWith("stop")):
               timer.add TimerEvent(
                 t: fitToUnix(rec.timestamp.get),
                 running: kind == "start",
                 trigger: triggerOf(nameOf(p, rec, "timer_trigger")),
+              )
+            elif event in ["power_up", "power_down"] and kind.startsWith("stop"):
+              # (a crash logs no stop: the device says, when it comes back, that the timer is stopped)
+              timer.add TimerEvent(
+                t: fitToUnix(rec.timestamp.get), running: false, trigger: trPower
               )
         of "file_id":
           let kind = nameOf(p, rec, "type") # (a type the profile lacks is its number)
@@ -485,4 +524,6 @@ proc readActivities*(
     cover(segs, s.coords, ws)
     (s.riding, s.breaks) =
       breaksOf(segs, s.coords, splits[i], Span(startT: s.startT, endT: s.endT))
+    s.distanceM =
+      distanceOf(s.samples.getOrDefault(distanceField), s.coords, s.stretches)
   sessions

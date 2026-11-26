@@ -19,7 +19,9 @@ import ../ui/units
 type ActivityInfo* = object
   startT*: UnixTime
   sport*, subSport*: string ## "" if not recorded
-  distanceM*, activeS*: Option[float]
+  distanceM*: Option[float]
+  activeS*: float
+    ## worked out from the riding and its breaks (`active.nim`): always known
   place*: string ## where it started ("" if not known)
   name*: string ## what it is called ("" if nothing)
   path*: string ## where the file was imported from (shown if verbose)
@@ -69,10 +71,7 @@ proc activityCells*(a: ActivityInfo, zone: Timezone, verbose: bool): seq[string]
       km(a.distanceM.get)
     else:
       notRecorded,
-    if a.activeS.isSome:
-      interval(a.activeS.get)
-    else:
-      notRecorded,
+    interval(a.activeS),
     whereText(a.place, a.name, a.noPositions),
   ]
   if verbose:

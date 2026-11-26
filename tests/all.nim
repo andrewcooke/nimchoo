@@ -73,6 +73,7 @@ import ./cache/test_files
 import ./cache/test_command
 import
   ./importer/[
+    test_active,
     test_extract,
     test_route,
     test_importer,

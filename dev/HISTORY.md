@@ -4,6 +4,25 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## Active time and distance are ours; a crash stops the timer (2026-11-26, the author's)
+
+The file's timer total and distance cover the whole file (so a split cannot use them) and are the device's: `timer_s`
+is dropped (`importer/003-active.sql`) and active time is the riding less the breaks of `timeBreaks` (manual, carried,
+pause), worked out by SQL when asked (`importer/active.nim`; 37 ms for all 1,117 activities, the list 33 ms), never
+stored beside the breaks.  It is always known, so the `Option` and the "no recorded active time" error went.  Distance
+is ours too, stored at import: the device's `distance` field summed over its increases (a crash may start it again from
+zero), the length of the positions along each stretch only for a file without it (`extract.distanceOf`); the author
+rejected a length from the positions as straight lines between samples, and SpatiaLite's length of the route was too
+slow to work out each time (0.23 s a listing, 8.7 s geodesic).  Measured after the rebuild against the old (Garmin's)
+figures: distance within 0.1% for 1,111 of 1,117 and within 1% for all; active time within a minute for 993.  Of the
+three farthest apart: 2021-11-27-cic (ours 3h05m, Garmin's 1h40m) is Garmin's error, its session total disagreeing with
+its own timer events and its lap after a power cycle; 2021-09-26-vz and 2024-10-27-sur (24 and 16 minutes) were crashes:
+the device logs no stop, and comes back with `power_up`, `event_type` `stop_all`.  So `power_up` and `power_down` are
+read as stops of the timer by the device (`trPower`, judged as an auto-pause is: option 2 of two, the author's choice
+over treating them as manual); now 50 s and 19 s from Garmin's.  In all three crash files the rider rode on while the
+device was off, so the gap is `carried` (the rule cannot tell riding on from being carried; either way the time is not
+active and the stretch ends), and three efforts across them are gone (4,534 to 4,531).
+
 ## The activity keeps nothing of the file's summary that is not ours (2026-11-26, the author's)
 
 Found while looking at the file of two rides (8 and 10 January 2026): the session message is written when the activity is

@@ -145,7 +145,8 @@ type
 
   Anchor* = object
     ## What an activity that a criterion refers to (the latest, the previous) is, as far as a criterion can use it.
-    distanceM*, activeS*: Option[float]
+    distanceM*: Option[float]
+    activeS*: float
     name*, startPlace*: Option[string] ## none: not recorded
     start*: Option[(float, float)]
       ## where it started (latitude, longitude); none if it has no positions

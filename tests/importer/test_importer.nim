@@ -101,7 +101,8 @@ suite "import: a real ride":
     s.db.materialise()
     check s.count("coords") == 2099
     check s.db.scalar(int, "select start_epoch from activity") == 1535373814
-    check abs(s.db.scalar(float, "select distance_m from activity") - 11978.11) < 1e-6
+    check abs(s.db.scalar(float, "select distance_m from activity") - 11978.11) <
+      0.01 * 11978.11 # (ours, from the records: within 1% of the session's total)
     check s.db.scalar(int, "select count(*) from coords where alt is null") == 2099
 
   test "the route has a part for each stretch, and is where the points are":

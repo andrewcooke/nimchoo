@@ -43,8 +43,17 @@ suite "the breaks of a ride: what a gap of the timer was":
     for stop in Trigger:
       for restart in Trigger:
         let g = Gap(seconds: 1, metres: 0, stoppedBy: stop, restartedBy: restart)
-        check g.kindOf ==
-          (if stop == trAuto and restart in {trAuto, trManual}: pause else: manual)
+        check g.kindOf == (
+          if stop in {trAuto, trPower} and restart in {trAuto, trManual, trPower}: pause
+          else: manual
+        )
+  test "a crash (the device came back and said the timer was stopped) is judged as an auto-pause is":
+    func crash(seconds: int64, metres: float): Gap =
+      Gap(seconds: seconds, metres: metres, stoppedBy: trPower, restartedBy: trManual)
+
+    check crash(1440, 5).kindOf == pause # restarting it where it stopped
+    check crash(1440, 9000).kindOf == carried # rode on while it was off
+    check crash(20, 200).kindOf == blink
   test "a restart by hand is judged like any other: by how far and how fast":
     check Gap(seconds: 97, metres: 0, stoppedBy: trAuto, restartedBy: trManual).kindOf ==
       pause

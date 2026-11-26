@@ -15,7 +15,7 @@ func row(
     sport = "cycling",
     sub = "",
     distance = -1.0,
-    active = -1.0,
+    active = 0.0,
     path = "/x/f.fit",
     place = "",
     position = "",
@@ -31,11 +31,7 @@ func row(
         some(distance)
       else:
         none(float),
-    activeS:
-      if active >= 0:
-        some(active)
-      else:
-        none(float),
+    activeS: active,
     path: path,
     place: place,
     name: name,
@@ -125,9 +121,9 @@ suite "list table: the table":
     check lines[2].endsWith("36.7km │  1h41m │ Providencia / Lo Barnechea and back")
     check lines[3].endsWith("5.5km │ 22m00s │ Providencia")
     check lines[4].endsWith("5.5km │ 22m00s │ around Recoleta")
-  test "not recorded is a dash":
+  test "not recorded (the sport, the distance) is a dash":
     let lines = table(@[row(aug27, "", "")], zone, false, 120).texts
-    check lines[2] == "2018-08-27 12:00 │ -     │        - │      -"
+    check lines[2] == "2018-08-27 12:00 │ -     │        - │     0s"
   test "the zone moves the date and the time":
     let plus2 = newTimezone(
       "+2",
@@ -297,9 +293,9 @@ suite "list table: looks":
       check styleOf(sp) == "hide" or sp.text.strip == ""
     check lookOf(lines, 2, "0.0") == "hide"
   test "not recorded is dim":
-    let lines = table(@[row(aug27, "cycling", "", -1.0, -1.0)], zone, false, 120)
+    let lines = table(@[row(aug27, "cycling", "", -1.0, 600.0)], zone, false, 120)
     check lookOf(lines, 2, "-") == "hide"
-    check lines[2].filterIt(styleOf(it) == "hide").mapIt(it.text.count('-')).sum == 2
+    check lines[2].filterIt(styleOf(it) == "hide").mapIt(it.text.count('-')).sum == 1
   test "a distance or active time that shows as zero is a warning; others are not":
     let zeros = table(@[row(aug27, "running", "", 0.0, 0.0)], zone, false, 120)
     check lookOf(zeros, 2, "0.0") == "warn"

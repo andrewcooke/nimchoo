@@ -12,7 +12,7 @@ func ride(
     sport: "cycling",
     subSport: "road",
     distanceM: some(36700.0),
-    activeS: some(6060.0),
+    activeS: 6060.0,
     place: place,
     name: name,
     path: path,
@@ -46,9 +46,9 @@ suite "importer: saying an activity":
     check sportText("cycling", "road", true) == "cycling/road"
     check sportText("cycling", "generic", true) == "cycling"
     check sportText("", "", true) == "-"
-  test "not recorded is a dash, in a line too":
+  test "not recorded (the sport, the distance) is a dash, in a line too":
     let a = ActivityInfo(startT: UnixTime(1597384860))
-    check activityLine(a, zone) == "2020-08-14 06:01  -  - -"
+    check activityLine(a, zone) == "2020-08-14 06:01  -  - 0s"
   test "the zone moves the time":
     let plus2 = newTimezone(
       "+2",
