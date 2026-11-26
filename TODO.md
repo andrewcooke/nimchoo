@@ -65,11 +65,12 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   events are no help as a rule (the importer reads only timer events, which is right): of the 1,174 ride, run and walk
   files, 24 have them, mostly after the last record (switched off, saved later) or a lone `power_up` a minute or so into a
   gap (a crash); the four `-clc` files have a power cycle of 0.6 to 1.4 h mid-ride (a visit to the doctor: one ride each).
-  Proposed: split a session at a break of any kind longer than 12 h (anything from 7 h to 44 h gives the same answer
-  today), each part an activity of its own: `extract.nim` cuts the coordinates, samples, riding and breaks by time; the
+  **Decided (2026-11-26): split a session at a break of any kind longer than 12 h** (anything from 7 h to 44 h gives the
+  same answer today; power is not asked: a rider on a very long ride may switch the device off overnight, which should
+  split, and a device left on, or one that logs no power events, should split too), each part an activity of its own: `extract.nim` cuts the coordinates, samples, riding and breaks by time; the
   summary (`elapsed_s`, `timer_s`, `distance_m`, `calories`) comes from the session message, for the whole file, so for
-  a part it is worked out (calories: none, or shared by timer time?); the key `(file_id, session)` gains a part.  Not
-  decided.
+  a part it is worked out (calories: none, or shared by timer time?); the key `(file_id, session)` gains a part.  Later,
+  if wanted: a way to say a gap was meant (`--dont-split` or similar).
 
 * **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
   as a whole (decided early: dev/HISTORY.md, "a truncated or corrupt FIT file fails as a whole").  A device that stops
