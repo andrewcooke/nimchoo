@@ -83,3 +83,30 @@ suite "session: read-only":
     b.close()
     expect StoreError:
       discard openSession(path, allFragments, some("carol"), allAccess, readOnly = true)
+
+suite "session: where the user is named":
+  test "--user, else $NCH_USER, else the database's default user":
+    check userAndSource(some("bob")) == (some("bob"), usOption)
+    check userAndSource(none(string)) == (none(string), usDefault)
+    putEnv("NCH_USER", "carol")
+    try:
+      check userAndSource(none(string)) == (some("carol"), usEnvironment)
+      check userAndSource(some("bob")) == (some("bob"), usOption)
+      putEnv("NCH_USER", "")
+      check userAndSource(none(string)) == (none(string), usDefault)
+    finally:
+      delEnv("NCH_USER")
+
+  test "a user named by $NCH_USER that does not exist says where the name came from":
+    let path = tempDb("env-user")
+    open(path).close()
+    expect StoreError:
+      discard openSession(
+        path, allFragments, some("nobody"), allAccess, named = usEnvironment
+      )
+    try:
+      discard openSession(
+        path, allFragments, some("nobody"), allAccess, named = usEnvironment
+      )
+    except StoreError as e:
+      check e.msg == "no such user: nobody (from $NCH_USER)"

@@ -42,16 +42,24 @@ proc fragmentLines*(path: string): seq[string] =
   @[fmt"{what}; the database contains {have.len}:"] & differences
 
 proc userText(g: Globals, path: string): string =
-  ## The user the commands work on: its name, and "(default)" if it is the default one.
+  ## The user the commands work on: its name, "(default)" if it is the default one, and where it was named if not by
+  ## being that.
+  let (named, source) = userAndSource(g.user)
   if not fileExists(path):
-    return g.user.get("the default user") & " (there is no database yet)"
+    return named.get("the default user") & " (there is no database yet)"
   var ro = g
   ro.readOnly = true
   try:
     let st = openSession(ro)
     defer:
       st.close()
-    result = st.userName & (if st.isDefault: " (default)" else: "")
+    var notes: seq[string]
+    if st.isDefault:
+      notes.add "default"
+    if source != usDefault:
+      notes.add fmt"from {source}"
+    result = st.userName & (if notes.len > 0: " (" & notes.join("; ") & ")"
+    else: "")
   except StoreError as e:
     result = e.msg
 
@@ -101,10 +109,11 @@ proc environment(): seq[EnvVar] =
       true,
     ),
     ("NO_COLOR", ~"if set, disable terminal colour output", none(string), false),
+    ("NCH_USER", ~"the user (`--user` takes precedence)", none(string), false),
     ("NCH_THEME", ~"the theme (`--theme` takes precedence)", none(string), false),
     (
       "COLORFGBG",
-      ~"if set, used choose the theme if the theme is otherwise unspecified",
+      ~"if set, used to choose the theme when no other setting gives one",
       none(string),
       false,
     ),

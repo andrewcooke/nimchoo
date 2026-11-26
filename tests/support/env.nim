@@ -7,3 +7,4 @@ proc useTestCache*() =
   putEnv("NCH_CACHE", getTempDir() / "nch-test-cache")
 
 useTestCache()
+delEnv("NCH_USER") # (the author's choice of user is not the tests')
