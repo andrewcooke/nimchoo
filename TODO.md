@@ -156,7 +156,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   property (colour by sport or year).
 * **The map: a box for each ride, as on the plot** (the author, 2026-11-26): the page lists the selected activities with a
   box each (as `nch plot activity` does, dev/plot-activity.md), and only the ticked rides are drawn.  First tidy the plot's
-  page (what to tidy: to discuss with the author), so that the list of rides to tick is one piece the two pages share.
+  page, so that the list of rides to tick is one piece the two pages share.  The author (2026-11-26): the plot's page is
+  ugly; its controls should float over the plot and hide or expand; much more to work out, with the author, before it
+  starts.
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page (superseded if the plot command comes first).
 * **The selection's style in `nch climbs`**: the `-v` attempts of selected rides have it (done); left, the latest/rank cells
   when the latest attempt is of a selected ride, once display step 6 has said what `nch climbs` lists.  The author also asked
