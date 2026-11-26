@@ -131,7 +131,7 @@ suite "climbs frames: gates and efforts":
 
 suite "climbs frames: each declares the tables it reads":
   test "every table the frame reads is in its declaration":
-    for name in ["climbs", "gates", "efforts"]:
+    for name in ["climbs", "gates", "efforts", "routes"]:
       let w = world(dir, "declared" & name)
       withClimb(w.db)
       withRideAlongClimb(w.db)
@@ -191,6 +191,27 @@ suite "climbs frames: the climbs subject":
     check kinds(parseFile(frameFile(w.cache, "gates", "climbs"))).len == 2
     check kinds(parseFile(frameFile(w.cache, "routes", "climbs"))) ==
       @["route"] # (ride 1 went up it; ride 2 did not)
+
+  test "each of the climbs subject's frames declares the tables it reads":
+    let w = world(dir, "subject-declared")
+    withClimb(w.db)
+    chooseClimb(w.db)
+    var n = 0
+    for f in extensions.get(mapFramePoint):
+      if f.subject != "climbs":
+        continue
+      inc n
+      checkpoint f.name
+      let s = openSession(w.db, allFragments, access = newAllAccess(amEnforce))
+      defer:
+        s.close()
+      startRecording()
+      discard f.make(s)
+      let read = stopRecording()
+      check read.len > 0
+      for t in read:
+        check t in f.tables
+    check n >= 3
 
   test "the climbs subject's frames do not read the activities' selection":
     let w = world(dir, "subject-own")

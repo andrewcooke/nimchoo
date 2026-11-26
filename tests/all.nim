@@ -173,5 +173,5 @@ import ./themes/test_choose
 import ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval]
 import ./log/test_lines
 import ./log/test_command
-import ./tags/[test_tag, test_step, test_params, test_found]
+import ./tags/[test_tag, test_step, test_params, test_found, test_sport]
 {.pop.}

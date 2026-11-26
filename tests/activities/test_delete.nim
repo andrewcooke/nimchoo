@@ -35,17 +35,35 @@ proc selected(s: Session): seq[int64] =
     userId = s.userId,
   )
 
+proc sportIs(s: Session, a: int64, sport: string) =
+  ## Give the activity `a` its sport, as an import does (a tag).
+  s.addTags(ActivityId(a), [sportTag(sport, "").get])
+
+proc tagFile(s: Session, name, tag: string) =
+  ## Give the activities of the file `name` the tag.
+  for a in s.db.query(
+    int64,
+    "select a.id from activity a join file f on f.id = a.file_id where f.name = :name",
+    name = name,
+  ):
+    s.addTags(ActivityId(a), [parseTag(tag).tag.get])
+
+proc sportOfFile(s: Session, name, sport: string) =
+  ## Give the activities of the file `name` their sport, as an import does.
+  s.tagFile(name, $sportTag(sport, "").get)
+
 proc extra(s: Session, tag: string, session, startT: int, sport = "") =
   ## A second activity (another session) in the file `tag`.
   let f = s.db.scalar(int64, "select id from file where name = :name", name = tag)
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch, sport, riding_start_epoch, riding_end_epoch) values (:fileId, :session, :startT, :endT, nullif(:sport, ''), :startT, :endT)",
+    "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, :session, :startT, :endT, :startT, :endT)",
     fileId = f,
     session = session,
     startT = startT,
     endT = startT + 10,
-    sport = sport,
   )
+  if sport.len > 0:
+    s.sportIs(s.db.scalar(int64, "select max(id) from activity"), sport)
   s.db.execute(
     "insert into activity_selection(user_id, activity_id) select :userId, max(id) from activity",
     userId = s.userId,
@@ -67,23 +85,39 @@ suite "delete: the plan":
     fill(s, "a")
     fill(s, "b")
     s.db.execute(
-      "update activity set start_epoch = 1535371200, sport = 'cycling' where file_id = (select id from file where name = 'a')"
+      "update activity set start_epoch = 1535371200 where file_id = (select id from file where name = 'a')"
     )
     s.db.execute(
-      "update activity set start_epoch = 1535500000, sport = 'running' where file_id = (select id from file where name = 'b')"
+      "update activity set start_epoch = 1535500000 where file_id = (select id from file where name = 'b')"
     )
+    s.sportOfFile("a", "cycling")
+    s.sportOfFile("b", "running")
     let p = planDelete(s, s.selected)
     check p.ids.len == 2 and p.fileIds.len == 2
-    check p.sports == @[("cycling", 1), ("running", 1)]
-    check describe(p, utc()) ==
+    let sports = sportsOf(s, p.ids)
+    check sports == @[("cycling", 1), ("running", 1)]
+    check question(p, sports, utc()) ==
       "2 activities (cycling 1, running 1) from 2018-08-27 to 2018-08-28"
-    check describe(Plan(), utc()) == "0 activities"
+    check question(Plan(), @[], utc()) == "0 activities"
     # the days are those of the list of activities, in its zone: 2018-08-27 12:00 UTC is still the 27th at UTC-11 and
     # 2018-08-28 23:46 UTC is the 29th at UTC+3
-    check describe(p, fixedZone(11 * 3600)) ==
+    check question(p, sports, fixedZone(11 * 3600)) ==
       "2 activities (cycling 1, running 1) from 2018-08-27 to 2018-08-28"
-    check describe(p, fixedZone(-3 * 3600)) ==
+    check question(p, sports, fixedZone(-3 * 3600)) ==
       "2 activities (cycling 1, running 1) from 2018-08-27 to 2018-08-29"
+  test "the sports are counted by sport, whatever the sub-sport the tags say; the most first":
+    let d = fresh("sports")
+    let s = openSession(d, allFragments, access = allAccess)
+    defer:
+      s.close()
+    for name in ["a", "b", "c"]:
+      fill(s, name)
+    s.tagFile("a", "sport:cycling:road")
+    s.tagFile("b", "sport:cycling:gravel")
+    s.tagFile("c", "sport:running")
+    check sportsOf(s, planDelete(s, s.selected).ids) == @[
+      ("cycling", 2), ("running", 1)
+    ]
   test "only the user's own activities are planned, whatever ids are given":
     let d = fresh("planown")
     openSession(d, allFragments, access = allAccess).close()
@@ -105,7 +139,8 @@ suite "delete: the plan":
       s.close()
     fill(s, "a")
     s.db.execute("update activity set start_epoch = 1535371200")
-    check describe(planDelete(s, s.selected), utc()) == "1 activity (- 1) on 2018-08-27"
+    let p = planDelete(s, s.selected)
+    check question(p, sportsOf(s, p.ids), utc()) == "1 activity (- 1) on 2018-08-27"
 
 suite "delete: the command":
   test "without -y nothing is deleted; with -y the activities and what was made from them go, the climbs stay":
@@ -213,15 +248,10 @@ suite "delete: the command":
     fill(s, "run")
     fill(s, "ride")
     fill(s, "ride2")
-    s.db.execute(
-      "update activity set sport = 'running' where file_id = (select id from file where name = 'run')"
-    )
-    s.db.execute(
-      "update activity set sport = 'cycling' where file_id <> (select id from file where name = 'run')"
-    )
     # (the tags an import gives them)
-    for (a, sport) in s.db.query((int64, string), "select id, sport from activity"):
-      s.addTags(ActivityId(a), [sportTag(sport, "").get])
+    s.sportOfFile("run", "running")
+    s.sportOfFile("ride", "cycling")
+    s.sportOfFile("ride2", "cycling")
     s.db.execute("delete from activity_selection")
     s.close()
     check run(d, "--tags", "sport:cycling*", "--no") == exitFailure # no -y: nothing done
@@ -233,7 +263,7 @@ suite "delete: the command":
     defer:
       after.close()
     check after.count("activity") == 1 and
-      after.db.scalar(string, "select sport from activity") == "running"
+      after.db.scalar(string, "select tag from activity_tag") == "sport:running"
   test "--all deletes every activity of the user, and not another user's":
     let d = fresh("all")
     openSession(d, allFragments, access = allAccess).close()

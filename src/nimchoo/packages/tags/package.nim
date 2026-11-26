@@ -11,6 +11,8 @@
 ## * **The table** `activity_tag` belongs to this package; tags go when their activity does.
 ## * **An import gives tags** (`step.nim`, an import step contributed to `importer/steps`): the sport, as
 ##   `sport:SPORT:SUB-SPORT` (`sport:cycling:road`), or `sport:SPORT` when the sub-sport is not recorded or "generic".
+## * **The sport is the `sport:` tag**, and nothing else (the importer keeps no column of it): `sport.nim` reads it, for
+##   every command that shows an activity's sport.  The user may change it (`sport:cycling:gravel`).
 ##
 ## * **`nch tags`** (`command.nim`, `params.nim`, `found.nim`): the tags with how many activities have each; `--add`,
 ##   `--delete` (asks), `--rename` (a merge is said, and asked).  It follows the steps of `nch activities`, with tags in place

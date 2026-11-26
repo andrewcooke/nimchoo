@@ -41,15 +41,11 @@ func readings*(
   )
 
 proc write(
-    db: DbConn,
-    activityId: ActivityId,
-    samples: Samples,
-    labels: seq[PathLabel],
-    warnings: var seq[Warning],
+    db: DbConn, activityId: ActivityId, input: StepInput, warnings: var seq[Warning]
 ): int {.nimcall, raises: [StoreError].} =
   for ch in ChannelKind:
     let spec = specs[ch]
-    let (rows, dropped) = readings(samples, ch)
+    let (rows, dropped) = readings(input.samples, ch)
     if dropped > 0:
       let
         values = counted(dropped, "value", "values")

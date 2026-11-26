@@ -42,7 +42,7 @@ proc world*(top, name: string): tuple[db, cache: string] =
     )
     let f = s.db.scalar(int64, "select max(id) from file")
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch, sport, riding_start_epoch, riding_end_epoch) values (:fileId, 0, :startT, :endT, 'cycling', :startT, :endT)",
+      "insert into activity(file_id, session, start_epoch, end_epoch, riding_start_epoch, riding_end_epoch) values (:fileId, 0, :startT, :endT, :startT, :endT)",
       fileId = f,
       startT = t,
       endT = t + 10,

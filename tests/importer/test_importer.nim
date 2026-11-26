@@ -100,10 +100,7 @@ suite "import: a real ride":
     check s.count("activity") == 1
     s.db.materialise()
     check s.count("coords") == 2099
-    check s.db.scalar(string, "select sport || '/' || sub_sport from activity") ==
-      "cycling/generic"
     check s.db.scalar(int, "select start_epoch from activity") == 1535373814
-    check s.db.scalar(int, "select utc_offset_s from activity") == -10800
     check abs(s.db.scalar(float, "select distance_m from activity") - 11978.11) < 1e-6
     check s.db.scalar(int, "select count(*) from coords where alt is null") == 2099
 

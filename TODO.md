@@ -69,7 +69,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   same answer today; power is not asked: a rider on a very long ride may switch the device off overnight, which should
   split, and a device left on, or one that logs no power events, should split too), each part an activity of its own:
   `extract.nim` cuts the coordinates, samples, riding and breaks by time; what the session message says is for the whole
-  file, so the split is step 3 of the item on the `activity` table, below.  Later, if wanted: a way to say a gap was
+  file, so the split is step 2 of the item on the `activity` table, below.  Later, if wanted: a way to say a gap was
   meant (`--dont-split` or similar).
 
 * **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
@@ -84,12 +84,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 * **The `activity` table: what it holds is made from the data, not copied from the file's summary; then the split** (the
   author, 2026-11-23 and 2026-11-26).  The session message is written when the activity is saved, for the whole file, so
-  it cannot be cut at a split, and its figures are Garmin's, not ours.  Three steps, in this order, each a rebuild:
-  1. **Drop what is not ours or not read**: `calories`, `elapsed_s` (it is `end_epoch - start_epoch`) and `utc_offset_s`
-     (nothing reads them), and `sport` and `sub_sport` (below).  The `sport` part was left out of the squash of step 0 of
-     dev/plot-activity.md, 2026-11-25, as it changes code across several packages: a fragment that drops the columns, or
-     the squash after.
-  2. **Active time and distance from the data.**  `timer_s` goes: active time is the riding less our breaks (`manual`,
+  it cannot be cut at a split, and its figures are Garmin's, not ours.  Done (2026-11-26): what was not ours or not read
+  is dropped (`sport`, `sub_sport`, `elapsed_s`, `calories`, `utc_offset_s`; the sport is the `sport:` tag, read by
+  `tags/sport.nim`).  Two steps left, in this order, each a rebuild:
+  1. **Active time and distance from the data.**  `timer_s` goes: active time is the riding less our breaks (`manual`,
      `carried`, `pause`), one SQL expression written once (37 ms for all 1,117 activities, measured 2026-11-26) for the
      list, `--active` and the attempts; it will differ from Garmin's, as it should.  Look first at the files where it
      differs most, which are files with power cycles (activities 146, 950, 306: 1h26m, 24m and 16m more than Garmin's):
@@ -99,20 +97,8 @@ next instance, and write the visual rules down in one place (C).  Every item is 
      activity 950); the length of the cleaned route only for a file with no distance field (none today).  Measuring the
      route in SQL each time was rejected: 0.23 s a listing (`GreatCircleLength`; `GeodesicLength` 8.7 s) and no distance
      for rides without GPS.
-  3. **The split at a break over 12 hours** (the ride of 8 and 10 January, above): after 1 and 2 a part is a shorter
+  2. **The split at a break over 12 hours** (the ride of 8 and 10 January, above): after step 1 a part is a shorter
      session, made the same way; the key `(file_id, session)` gains a part.
-  Step 1 in detail:
-  * **`sport` and `sub_sport` go: the sport is the `sport:` tag only** (one fact, which the user can edit for finer
-    control, `sport:cycling:gravel`).  What reads them reads the tag, through one helper in `tags` (an activity's sport
-    from its tag, the first if there are several, written as now, `cycling/road`): the activities list (its sport column,
-    the count by sport on its last line, the transitions of a multisport file, `sport:transition`, in `hide`), the map's
-    route popups (`activities/mapframes`, `mapfeatures`, `map-routes.js`), whether an activity is a run
-    (`activities/activityframes.isRun`: its cadence is drawn as steps), the attempts of `climbs -v`
-    (`climbs/attempts.nim`), and `importer/describe.sportText`.  At import the session's sport goes to the tag directly:
-    the import step is given it, as it is given the samples and the labels, instead of reading a column.  The delete
-    question's count by sport (`importer/remove.describe`) cannot read a tag (`importer` is below `tags`): it moves to
-    `activities`, which asks the question.  Rejected: keeping the columns as "what the file said" (nothing would read
-    them; the file itself is that record, read again at a rebuild).
 
 1. **Susceptible climbs: left as they are, on purpose** (decided 2026-11-12; evidence in dev/HISTORY.md "Gates have no direction").  `overPaths`
    now pairs the crossings closest to the climb's length first, which is good enough: of 4,493 efforts 4,411 are right
@@ -171,7 +157,7 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   packages soon and may change it again.
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **Each ride's own time zone** (the author, 2026-11-26): from where it was (the date and the positions), not from the
-  device (`utc_offset_s` goes, step 1 of the item on the `activity` table).  Needs a source of time-zone boundaries:
+  device (`utc_offset_s` is gone: 2026-11-26).  Needs a source of time-zone boundaries:
   look for one first (licence, size, whether SpatiaLite can query it).  Now every time is shown in the user's zone.
 * **The map**: labels, a legend, landmarks on the map, style rules by
   property (colour by sport or year).

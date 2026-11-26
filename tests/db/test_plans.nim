@@ -49,7 +49,7 @@ let st = openSession(":memory:", allFragments, access = allAccess)
 
 suite "query plans: no query reads a whole table":
   test "the check can fail: a column with no index is a scan":
-    check scans(plan(st.db, "select id from activity where sport = 'x'")).len == 1
+    check scans(plan(st.db, "select id from activity where timer_s = 1")).len == 1
   test "a spatial query asks the spatial index, and reads no table through":
     for (what, text) in [
       ("features in a box", featuresInBoxSql),

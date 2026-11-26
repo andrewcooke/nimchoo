@@ -12,6 +12,7 @@ import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../fit/time
+import ../tags/sport
 import ../importer/describe
 import ../util/lookup/lookup
 import ../ui/style
@@ -82,7 +83,7 @@ type
   AttemptRow =
     tuple[
       sectorId, startT: int64,
-      sport, subSport: string,
+      sport: string,
       distanceM, activeS: Option[float],
       place, name: string,
       elapsed: float,
@@ -121,7 +122,7 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     sums.mustMut(r.id).manual = r.manual
   for r in st.db.query(
     AttemptRow,
-    """select e.sector_id, a.start_epoch, coalesce(a.sport, ''), coalesce(a.sub_sport, ''), a.distance_m, a.timer_s,
+    "select e.sector_id, a.start_epoch, " & sportSql() & """, a.distance_m, a.timer_s,
               coalesce(a.start_place, ''), coalesce(a.name, ''), e.elapsed_s,
               a.id in (select activity_id from activity_selection where user_id = :userId),
               rank() over (partition by e.sector_id order by e.elapsed_s),
@@ -132,10 +133,11 @@ proc summaries*(st: Session, ids: seq[int64]): seq[Summary] {.raises: [StoreErro
     userId = st.userId,
     ids = wanted,
   ):
+    let (sport, subSport) = sportParts(r.sport)
     let info = ActivityInfo(
       startT: UnixTime(r.startT),
-      sport: r.sport,
-      subSport: r.subSport,
+      sport: sport,
+      subSport: subSport,
       distanceM: r.distanceM,
       activeS: r.activeS,
       place: r.place,

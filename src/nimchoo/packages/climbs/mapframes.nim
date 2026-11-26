@@ -256,7 +256,10 @@ proc contributions*(): seq[Contribution] =
         summary: "the routes of your rides that went up them",
         shown: false,
         readsSelection: true,
-        tables: @["activity", "climb_selection", "effort", "file", "route", "sector"],
+        tables: @[
+          "activity", "activity_tag", "climb_selection", "effort", "file", "route",
+          "sector",
+        ],
         make: makeChosenRoutes,
         style: routesStyle,
         styleKeys: routesStyleKeys,

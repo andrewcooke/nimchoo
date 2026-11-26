@@ -41,7 +41,6 @@ export coord
 
 const
   minCalendarFit* = FitTime(0x10000000) ## 1998-07-03; earlier times are not UTC
-  maxUtcOffsetS = 86_400 ## a local time more than a day from UTC is not a time zone
   maxSessionS = 30 * 86_400
     ## a session lasting longer has damaged times (the longest of the author's 1,113 lasts 13.5 days)
   sessionSlackS = 3_600
@@ -65,10 +64,9 @@ type
   ActivityData* = object ## One session of a file.
     session*: int ## position of the session message in the file
     startT*, endT*: UnixTime
-    utcOffsetS*: Option[int] ## local time minus UTC
-    sport*, subSport*: string ## "" if unknown
-    elapsedS*, timerS*, distanceM*: Option[float]
-    calories*: Option[int]
+    sport*, subSport*: string
+      ## "" if unknown (not stored: given to the import steps, `tags` makes it a tag)
+    timerS*, distanceM*: Option[float]
     coords*: seq[Coord] ## in time order, one per second at most
     samples*: Samples ## the other fields asked for (see `readActivities`), by name
     riding*: Span
@@ -139,12 +137,8 @@ func sessionOf(
     )
   result.sport = nameOf(p, r, "sport")
   result.subSport = nameOf(p, r, "sub_sport")
-  result.elapsedS = r.firstNum("total_elapsed_time")
   result.timerS = r.firstNum("total_timer_time")
   result.distanceM = r.firstNum("total_distance")
-  let cal = r.firstNum("total_calories")
-  if cal.isSome:
-    result.calories = some(int(cal.get))
 
 func coordOf(r: Record, t: UnixTime, index, offset: int): Option[RawCoord] =
   ## The coordinate of a record, if it has a position.
@@ -370,7 +364,6 @@ proc readActivities*(
     raw: seq[RawCoord]
     rawSamples: seq[RawSample]
     timer: seq[TimerEvent]
-    offsetS = none(int)
     count = 0
     notActivity = false ## the file says it is not an activity (its `file_id` type)
   try:
@@ -420,22 +413,6 @@ proc readActivities*(
             notActivity = true
         of "session":
           sessions.add sessionOf(p, rec, sessions.len)
-        of "activity":
-          let local = rec.firstInt("local_timestamp")
-          if offsetS.isNone and local.isSome and rec.timestamp.isSome:
-            # (the field may be declared wider than 32 bits and hold anything: subtract only two real times)
-            if not isFitTime(FitTime(local.get)):
-              ws.add wkInvalidTime,
-                ev.offset,
-                fmt"activity: local_timestamp {local.get} is not a time (ignored)"
-            else:
-              let diff = int(local.get - int64(rec.timestamp.get))
-              if abs(diff) <= maxUtcOffsetS:
-                offsetS = some(diff)
-              else:
-                ws.add wkInvalidTime,
-                  ev.offset,
-                  fmt"activity: local time {diff} s from UTC is not a time zone (ignored)"
         else:
           discard
   finally:
@@ -504,7 +481,6 @@ proc readActivities*(
       inc k
     perSession[k].add e
   for i, s in sessions.mpairs:
-    s.utcOffsetS = offsetS
     var segs = segmentsOf(s.startT, s.endT, perSession[i])
     cover(segs, s.coords, ws)
     (s.riding, s.breaks) =

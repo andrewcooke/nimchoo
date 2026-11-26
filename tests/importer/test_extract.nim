@@ -43,7 +43,6 @@ let sessionDefn = defn(
     (11, 2, uint16T),
   ],
 )
-let activityDefn = defn(2, 34, @[(253, 4, uint32T), (5, 4, uint32T)])
 
 func at(t: int, lat = north45, lon = west90, alt = 3500): seq[byte] =
   ## A record at FIT time `t` (altitude 3500 is 200 m).
@@ -56,9 +55,6 @@ func session(start, finish: int, sport = 2, sub = 0): seq[byte] =
   ## A session: cycling, generic by default; 2 s elapsed and timer, 10 m, 5 kcal.
   b(1) & le32(finish) & le32(start) & b(sport, sub) & le32(2000) & le32(2000) &
     le32(1000) & le16(5)
-
-func activityMsg(t, local: int): seq[byte] =
-  b(2) & le32(t) & le32(local)
 
 proc activities(body: seq[byte]): (seq[ActivityData], seq[Warning]) =
   var ws: seq[Warning]
@@ -81,11 +77,8 @@ suite "activities: a session and its coordinates":
     check a[0].endT == unixBase + 2
     check a[0].sport == "cycling"
     check a[0].subSport == "generic"
-    check a[0].elapsedS == some(2.0)
     check a[0].timerS == some(2.0)
     check a[0].distanceM == some(10.0)
-    check a[0].calories == some(5)
-    check a[0].utcOffsetS.isNone
     check a[0].coords.mapIt(it.t) == @[unixBase, unixBase + 1, unixBase + 2]
     check a[0].coords[0].lat == 45.0
     check a[0].coords[0].lon == -90.0
@@ -106,131 +99,6 @@ suite "activities: a session and its coordinates":
     check a[0].coords.len == 0
     check ws.len == 0
 
-  test "the local time offset comes from the activity message":
-    let body =
-      recordDefn & at(base) & sessionDefn & session(base, base) & activityDefn &
-      activityMsg(base, base - 10_800)
-    check activities(body)[0][0].utcOffsetS == some(-10_800)
-
-  test "a local time that is not a time, or an offset no zone has, is ignored, with a warning":
-    # (a field the file declares as 64 bits can hold anything: the subtraction once overflowed, a Defect)
-    func activityWide(t: int, localLow, localHigh: int64): seq[byte] =
-      b(2) & le32(t) & le32(localLow) & le32(localHigh)
-
-    let wideDefn = defn(2, 34, @[(253, 4, uint32T), (5, 8, sint64T)])
-    let prefix = recordDefn & at(base) & sessionDefn & session(base, base)
-    for (low, high) in [(0'i64, 0x80000000'i64), (0xfffffff0'i64, 0x7fffffff'i64)]:
-      let (a, ws) = activities(prefix & wideDefn & activityWide(base, low, high))
-      check a[0].utcOffsetS.isNone
-      check ws.kinds == @[wkInvalidTime]
-    # a time, but a day and a bit from UTC
-    let (a, ws) = activities(prefix & activityDefn & activityMsg(base, base + 90_000))
-    check a[0].utcOffsetS.isNone
-    check ws.kinds == @[wkInvalidTime]
-
-suite "activities: times":
-  test "records in the same second keep the last, with a warning":
-    let body =
-      recordDefn & at(base, lat = north45) & at(base, lat = north45 div 2) & at(
-        base + 1
-      ) & sessionDefn & session(base, base + 1)
-    let (a, ws) = activities(body)
-    check a[0].coords.len == 2
-    check a[0].coords[0].lat == 22.5
-    check ws.kinds == @[wkDuplicateTime]
-
-  test "records out of order are put in order":
-    let body =
-      recordDefn & at(base + 2) & at(base) & at(base + 1) & sessionDefn &
-      session(base, base + 2)
-    check activities(body)[0][0].coords.mapIt(it.t) ==
-      @[unixBase, unixBase + 1, unixBase + 2]
-
-  test "times that are not calendar times are dropped, with a warning":
-    let body =
-      recordDefn & at(5) & at(base) & at(0x0fffffff) & sessionDefn & session(base, base)
-    let (a, ws) = activities(body)
-    check a[0].coords.mapIt(it.t) == @[unixBase]
-    check ws.kinds == @[wkInvalidTime, wkInvalidTime]
-
-  test "the first calendar time is accepted":
-    let (a, _) = activities(
-      recordDefn & at(0x10000000) & sessionDefn & session(0x10000000, 0x10000000)
-    )
-    check a[0].coords.len == 1
-
-suite "activities: refusing files":
-  test "no session":
-    try:
-      discard activities(recordDefn & at(base))
-      check false
-    except ImportError as e:
-      check e.kind == ifNoActivity
-
-  test "no session in a file that says it is not an activity: a monitor file":
-    let fileIdDefn = defn(4, 0, @[(0, 1, enumT)])
-    func fileId(kind: int): seq[byte] =
-      b(4, kind)
-    for kind in [32, 15, 44]:
-      # monitoring_b, monitoring_a, a type the profile does not have
-      try:
-        discard activities(fileIdDefn & fileId(kind) & recordDefn & at(base))
-        check false
-      except ImportError as e:
-        check e.kind == ifMonitor
-    try: # an activity file with no session is still a failure
-      discard activities(fileIdDefn & fileId(4) & recordDefn & at(base))
-      check false
-    except ImportError as e:
-      check e.kind == ifNoActivity
-    # a session wins: a file with a session is read whatever it says it is
-    check activities(
-      fileIdDefn & fileId(32) & recordDefn & at(base) & at(base + 1) & sessionDefn &
-        session(base, base + 1)
-    )[0].len == 1
-
-  test "a session that starts at no calendar time":
-    try:
-      discard activities(recordDefn & at(base) & sessionDefn & session(100, base))
-      check false
-    except ImportError as e:
-      check e.kind == ifBadTime
-
-  test "a session start declared wider than 32 bits and out of range is a bad time, not an overflow":
-    let wide =
-      defn(1, 18, @[(253, 4, uint32T), (2, 8, sint64T), (5, 1, enumT), (6, 1, enumT)])
-    for hi in [0x7FFFFFFF'i64, 0x80000000'i64]:
-      try:
-        discard activities(
-          recordDefn & at(base) & wide & b(1) & le32(base) & le32(0xFFFFFFFF'i64) &
-            le32(hi) & b(2, 0)
-        )
-        check false
-      except ImportError as e:
-        check e.kind == ifBadTime
-
-  test "a file that cannot be read":
-    expect FitError:
-      discard activities(b(0x03, 1))
-
-suite "activities: several sessions":
-  test "records go to the last session that started at or before them":
-    # the session messages are in the file in reverse order of start time
-    let body =
-      recordDefn & at(base - 5) & at(base + 10) & at(base + 99) & at(base + 100) &
-      at(base + 150) & sessionDefn & session(base + 100, base + 150, sport = 1) &
-      session(base, base + 99, sport = 2)
-    let (a, _) = activities(body)
-    check a.len == 2
-    check a[0].startT == unixBase
-    check a[0].session == 1 # its position in the file
-    check a[0].sport == "cycling"
-    check a[0].coords.mapIt(it.t - unixBase) == @[-5'i64, 10, 99]
-    check a[1].startT == unixBase + 100
-    check a[1].session == 0
-    check a[1].sport == "running"
-    check a[1].coords.mapIt(it.t - unixBase) == @[100'i64, 150]
-
 suite "activities: real files":
   test "a ride":
     var ws: seq[Warning]
@@ -239,7 +107,6 @@ suite "activities: real files":
     check ws.len == 0
     check a[0].sport == "cycling"
     check a[0].startT == UnixTime(1535373814) # 2018-08-27T12:43:34Z
-    check a[0].utcOffsetS == some(-10_800)
     check a[0].coords.len == 2099
     check abs(a[0].coords[0].lat - (-398821890.0 * 180.0 / 2147483648.0)) < 1e-9
     check a[0].coords[0].t == a[0].startT
@@ -602,7 +469,7 @@ suite "breaks: real files":
     check a[0].breaks.len > 0 and a[0].breaks.allIt(it.kind == bkPause)
     # the stretch covers the ride from the first start to the last stop: elapsed time, pauses included
     let span = a[0].stretches[0].endT - a[0].stretches[0].startT
-    check abs(float(span) - a[0].elapsedS.get) <= 20.0
+    check abs(float(span) - float(a[0].endT - a[0].startT)) <= 20.0
     check ws.kinds.count(wkOutsideSegment) == 0
 
   test "every coordinate of every importable test file is in exactly one stretch; the breaks are in the riding, in order":

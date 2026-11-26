@@ -14,10 +14,10 @@ from nimchoo/registry import allFragments, allAccess, newAllAccess, extensions
 let dir = getTempDir() / "nch-test-calendar-cmd"
 
 const
-  july1 = 1530446400 # 2018-07-01T12:00Z, cycling, selected
-  aug27 = 1535371200 # 2018-08-27T12:00Z, running
+  july1 = 1530446400 # 2018-07-01T12:00Z, a ride, selected
+  aug27 = 1535371200 # 2018-08-27T12:00Z, a run
 
-proc addActivity(s: Session, tag: string, startT: int, sport: string) =
+proc addActivity(s: Session, tag: string, startT: int) =
   s.db.execute(
     "insert into file(user_id, name, sha256, imported_epoch) values (:userId, :name, :sha256, 0)",
     userId = s.userId,
@@ -25,18 +25,17 @@ proc addActivity(s: Session, tag: string, startT: int, sport: string) =
     sha256 = tag,
   )
   s.db.execute(
-    "insert into activity(file_id, session, start_epoch, end_epoch, sport, distance_m, timer_s, riding_start_epoch, riding_end_epoch) select max(id), 0, :startT, :endT, :sport, 1000.0, 600.0, :startT, :endT from file",
+    "insert into activity(file_id, session, start_epoch, end_epoch, distance_m, timer_s, riding_start_epoch, riding_end_epoch) select max(id), 0, :startT, :endT, 1000.0, 600.0, :startT, :endT from file",
     startT = startT,
     endT = startT + 100,
-    sport = sport,
   )
 
 proc world(name: string): Session =
   ## The default user has a ride on 1 July 2018, which is selected, and a run on 27 August, which is not.
   removeDir(dir / name)
   result = openSession(dir / name / "x.db", allFragments, access = allAccess)
-  result.addActivity("ride", july1, "cycling")
-  result.addActivity("run", aug27, "running")
+  result.addActivity("ride", july1)
+  result.addActivity("run", aug27)
   result.db.execute(
     "insert into activity_selection(user_id, activity_id) select :userId, min(id) from activity",
     userId = result.userId,

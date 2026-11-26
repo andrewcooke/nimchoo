@@ -4,14 +4,12 @@
 ## activity left is forgotten too (its record and the paths it was seen at), so that importing the folder again brings its
 ## activities back; a file that still holds other activities (a file can hold several) stays, and so does its memory.
 
-import std/[algorithm, strutils, tables, times]
+import std/algorithm
 import ../db/statement
 import ../db/store
 import ../../core/errors
 import ../user/session
-import ../ui/units
 import ../fit/time
-import ./describe
 
 {.push raises: [].}
 
@@ -21,8 +19,6 @@ type
     fileOf*: seq[FileId] ## the file of each (parallel to `ids`)
     fileIds*: seq[FileId] ## their files (each once)
     first*, last*: UnixTime ## when the first and the last of them began
-    sports*: seq[(string, int)]
-      ## how many of each sport ("" is not recorded), the most first
 
   Done* = object
     activities*: int
@@ -30,25 +26,24 @@ type
     kept*: int ## files kept: they hold other activities
 
 proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
-  ## What deleting these activities (of the current user) would take: their files, the sports and the dates.
+  ## What deleting these activities (of the current user) would take: their files and the dates.
   var files: seq[FileId]
-  var sports = initTable[string, int]()
-  # id, file, start, sport
+  # id, file, start
   var rows = st.db.query(
-    (ActivityId, FileId, int64, string),
-    "select a.id, a.file_id, a.start_epoch, coalesce(a.sport, '') from activity a " &
+    (ActivityId, FileId, int64),
+    "select a.id, a.file_id, a.start_epoch from activity a " &
       "join file f on f.id = a.file_id where f.user_id = :userId and " &
       "a.id in (select value from json_each(:ids))",
     userId = st.userId,
     ids = jsonList(ids),
   )
   rows.sort(
-    proc(a, b: (ActivityId, FileId, int64, string)): int =
+    proc(a, b: (ActivityId, FileId, int64)): int =
       result = cmp(a[2], b[2])
       if result == 0:
         result = cmp(int64(a[0]), int64(b[0]))
   )
-  for (id, file, t, sport) in rows:
+  for (id, file, t) in rows:
     result.ids.add id
     result.fileOf.add file
     if file notin files:
@@ -56,31 +51,7 @@ proc planDelete*(st: Session, ids: seq[int64]): Plan {.raises: [StoreError].} =
     if result.ids.len == 1:
       result.first = UnixTime(t)
     result.last = UnixTime(t)
-    sports.mgetOrPut(sport, 0) += 1
   result.fileIds = files
-  for sport, n in sports:
-    result.sports.add (sport, n)
-  result.sports.sort(
-    proc(a, b: (string, int)): int =
-      result = cmp(b[1], a[1])
-      if result == 0:
-        result = cmp(a[0], b[0])
-  )
-
-proc describe*(p: Plan, zone: Timezone): string =
-  ## "12 activities (cycling 9, running 3) from 2018-07-01 to 2026-10-30": the days in `zone`, and the sports and
-  ## counts, as the list of activities writes them (describe.nim).
-  let n = p.ids.len
-  result = counted(n, "activity", "activities")
-  if n == 0:
-    return
-  var sp: seq[string]
-  for (sport, k) in p.sports:
-    sp.add sportText(sport, "", false) & " " & count(k)
-  result.add " (" & sp.join(", ") & ")"
-  let a = dateText(p.first, zone)
-  let b = dateText(p.last, zone)
-  result.add (if a == b: " on " & a else: " from " & a & " to " & b)
 
 const chunk* = 25
   ## activities deleted between two reports of progress (a ride with a track takes about 9 ms)

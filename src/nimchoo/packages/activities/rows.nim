@@ -6,6 +6,7 @@ import ../../core/[errors, ids]
 import ../db/[sqltext, statement, store]
 import ../fit/time
 import ../user/session
+import ../tags/sport
 import ./table
 
 {.push raises: [].}
@@ -15,9 +16,8 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
   ## What a row of the listing is made of (see table.nim); not recorded: -1 and ''.
   ## The path of the file (for `verbose`) is where it was last seen, else its name.
   sqlOf(
-    "a.start_epoch as start_epoch, coalesce(a.sport, '') as sport, " &
-      "coalesce(a.sub_sport, '') as sub, coalesce(a.distance_m, -1) as dist, " &
-      "coalesce(a.timer_s, -1) as active, " &
+    "a.start_epoch as start_epoch, " & sportSql() & " as sport, " &
+      "coalesce(a.distance_m, -1) as dist, " & "coalesce(a.timer_s, -1) as active, " &
       # whether the user has it in their selection
       "a.id in (select activity_id from activity_selection where user_id = :me) as chosen, " &
     (
@@ -42,7 +42,7 @@ func rowColumns*(verbose: bool, userId: UserId): Sql =
     .with("me", userId)
 
 const rowFields* =
-  "start_epoch, sport, sub, dist, active, chosen, path, pname, aname, slat, slon, tags"
+  "start_epoch, sport, dist, active, chosen, path, pname, aname, slat, slon, tags"
   ## the columns of a row, in the order `readRows` reads them
 
 proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
@@ -50,7 +50,7 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
   for r in st.db.query(
     tuple[
       startT: int64,
-      sport, subSport: string,
+      sport: string,
       dist, active: float,
       chosen: bool,
       path, place, name: string,
@@ -59,10 +59,11 @@ proc readRows*(st: Store, query: Sql): seq[ListRow] {.raises: [StoreError].} =
     ],
     query,
   ):
+    let (sport, subSport) = sportParts(r.sport)
     result.add ListRow(
       startT: UnixTime(r.startT),
-      sport: r.sport,
-      subSport: r.subSport,
+      sport: sport,
+      subSport: subSport,
       distanceM: (if r.dist >= 0: some(r.dist) else: none(float)),
       activeS: (if r.active >= 0: some(r.active) else: none(float)),
       selected: r.chosen,

@@ -27,19 +27,22 @@ type
     key*: Option[string]
     value*: string
 
+  StepInput* = object ## What a step is given of an activity, besides its id.
+    sport*, subSport*: string
+      ## what the file says it was (the FIT profile's names; "" if it does not say): kept by no table of the importer
+      ## (the `tags` step makes it a tag)
+    samples*: Samples ## the `record` fields the steps asked for
+    labels*: seq[PathLabel]
+      ## what the template of the path caught (none for a plain path)
+
   ImportStep* = object
     label*, labels*: string ## what it writes, one and many: "channel reading(s)"
     channels*: seq[string] ## the `record` fields it wants
     write*: proc(
-      db: DbConn,
-      activityId: ActivityId,
-      samples: Samples,
-      labels: seq[PathLabel],
-      warnings: var seq[Warning],
+      db: DbConn, activityId: ActivityId, input: StepInput, warnings: var seq[Warning]
     ): int {.nimcall, raises: [StoreError].}
-      ## write the rows for an activity (inside the transaction that imports it), given what the template of the
-      ## path caught (`labels`, none for a plain path); returns how many, and adds to `warnings` what it noticed (the
-      ## file's advisories)
+      ## write the rows for an activity (inside the transaction that imports it); returns how many, and adds to
+      ## `warnings` what it noticed (the file's advisories)
 
   ExtraCount* = object ## How much of what a step wrote.
     n*: int

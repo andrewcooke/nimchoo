@@ -10,7 +10,7 @@ import ../../core/[errors, ids]
 import ../db/statement
 import ../importer/channel
 import ../util/warnings/warnings
-import ./tag
+import ./[sport, tag]
 
 {.push raises: [].}
 
@@ -21,9 +21,9 @@ func sportTag*(sport, subSport: string): Option[Tag] =
     return none(Tag)
   let text =
     if subSport.len == 0 or subSport == "generic":
-      fmt"sport:{sport}"
+      fmt"{sportKey}{sport}"
     else:
-      fmt"sport:{sport}:{subSport}"
+      fmt"{sportKey}{sport}:{subSport}"
   parseTag(text).tag
 
 func labelTag*(l: PathLabel): tuple[tag: Option[Tag], problem: Option[string]] =
@@ -37,23 +37,13 @@ func labelTag*(l: PathLabel): tuple[tag: Option[Tag], problem: Option[string]] =
   (r.tag, r.problem)
 
 proc write(
-    db: DbConn,
-    activity: ActivityId,
-    samples: Samples,
-    labels: seq[PathLabel],
-    warnings: var seq[Warning],
+    db: DbConn, activity: ActivityId, input: StepInput, warnings: var seq[Warning]
 ): int {.nimcall, raises: [StoreError].} =
-  let row = db.queryOne(
-    tuple[sport, subSport: string],
-    "select coalesce(sport, ''), coalesce(sub_sport, '') from activity where id = :activity",
-    activity = activity,
-  )
-  doAssert row.isSome, "the importer writes the activity before its steps"
   var tags: seq[Tag]
-  let t = sportTag(row.get.sport, row.get.subSport)
+  let t = sportTag(input.sport, input.subSport)
   if t.isSome:
     tags.add t.get
-  for l in labels:
+  for l in input.labels:
     let lt = labelTag(l)
     if lt.tag.isSome:
       tags.add lt.tag.get

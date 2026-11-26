@@ -59,9 +59,4 @@ suite "tags: the sport as a tag":
     check r.activities == 1
     check r.extras[0].n == 1
     let a = ActivityId(s.db.scalar(int64, "select id from activity"))
-    let sport = s.db.scalar(string, "select sport from activity")
-    check s.tagsOf(a).mapIt($it).len == 1
-    check $s.tagsOf(a)[0] ==
-      $sportTag(
-        sport, s.db.scalar(string, "select coalesce(sub_sport, '') from activity")
-      ).get
+    check s.tagsOf(a).mapIt($it) == @["sport:cycling"] # (cycling, generic: the file's)

@@ -22,6 +22,7 @@ import ../importer/[describe, stretch, track]
 import ../plot/frames
 import ../selection/selection
 import ../subject/subjects
+import ../tags/sport
 import ../../core/markup
 import ../user/session
 
@@ -99,10 +100,9 @@ func shownAs*(ch: ChannelKind): tuple[unit: string, factor: float] =
     (specs[ch].unit, 1.0)
 
 proc isRun(st: Session, id: ActivityId): bool {.raises: [StoreError].} =
-  ## Whether the activity is a run (its sport, as the file gave it).
-  st.db.scalar(
-    int, "select count(*) from activity where id = :id and sport = 'running'", id = id
-  ) > 0
+  ## Whether the activity is a run (its sport: `tags/sport`).
+  let text = st.db.scalar(string, "select " & sportSql(":id"), id = id)
+  sportParts(text).sport == "running"
 
 proc cadenceOf(
     st: Session, id: ActivityId, run: bool, factor: float
@@ -262,7 +262,9 @@ proc contributions*(): seq[Contribution] =
         readsSelection: true,
         tables:
           @["activity", "channel_series", "ride_break"] &
-          (if isDistance: @["track"] else: @[]),
+          (if isDistance: @["track"] else: @[]) &
+          (if ch == chCadence: @["activity_tag"] else: @[]),
+          # (whether it is a run: its sport)
         unit: shownAs(ch).unit,
         mark: mkLine,
         axis: axActivity,
@@ -281,7 +283,7 @@ proc contributions*(): seq[Contribution] =
             "the steps a minute of a run: twice the cadence its device recorded, which counts one foot",
           shown: false,
           readsSelection: true,
-          tables: @["activity", "channel_series", "ride_break"],
+          tables: @["activity", "channel_series", "ride_break", "activity_tag"],
           unit: stepsUnit,
           mark: mkLine,
           axis: axActivity,

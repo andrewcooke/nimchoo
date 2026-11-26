@@ -55,7 +55,7 @@ proc snapshot(s: Session): string =
   ## Everything the import wrote, as one text (the ids too).
   for q in [
     "select group_concat(id || ':' || name || ':' || sha256, ';') from (select * from file order by id)",
-    "select group_concat(id || ':' || file_id || ':' || session || ':' || start_epoch || ':' || end_epoch || ':' || riding_start_epoch || ':' || riding_end_epoch || ':' || ifnull(sport, '') || ':' || ifnull(name, ''), ';') from (select * from activity order by id)",
+    "select group_concat(id || ':' || file_id || ':' || session || ':' || start_epoch || ':' || end_epoch || ':' || riding_start_epoch || ':' || riding_end_epoch || ':' || ifnull(name, ''), ';') from (select * from activity order by id)",
     "select group_concat(activity_id || ':' || start_epoch || ':' || end_epoch || ':' || kind, ';') from (select * from ride_break order by activity_id, start_epoch, kind)",
     "select group_concat(activity_id || ':' || start_epoch || ':' || end_epoch || ':' || n_readings || ':' || hex(offsets_s) || hex(lon_semi) || hex(lat_semi) || hex(alt_fit), ';') from (select * from track order by activity_id)",
     "select group_concat(activity_id || ':' || channel || ':' || start_epoch || ':' || n_readings || ':' || hex(gaps_s) || hex(readings), ';') from (select * from channel_series order by activity_id, channel)",

@@ -1,4 +1,4 @@
-import std/[math, sequtils, unittest]
+import std/[math, options, sequtils, unittest]
 import nimchoo/core/[extension, ids]
 import nimchoo/packages/db/statement
 import nimchoo/packages/user/session
@@ -9,6 +9,7 @@ import nimchoo/packages/channels/kinds
 import nimchoo/packages/plot/frames
 import nimchoo/packages/fit/time
 import nimchoo/packages/importer/stretch
+import nimchoo/packages/tags/tag
 
 func shape(points: seq[Point]): seq[string] =
   ## each point as its time, or "|" where the line breaks
@@ -78,6 +79,7 @@ suite "activity: cadence, and a run's steps":
             result.add v
     let rpm = values(cadence.makeActivity(s, id))
     check rpm.len > 0 and values(steps.makeActivity(s, id)).len == 0
-    s.db.execute("update activity set sport = 'running' where id = :id", id = id)
+    s.addTags(ActivityId(id), [parseTag("sport:running").tag.get])
+      # (as an import gives it)
     check values(cadence.makeActivity(s, id)).len == 0
     check values(steps.makeActivity(s, id)) == rpm.mapIt(it * 2)

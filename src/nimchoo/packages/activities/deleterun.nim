@@ -1,12 +1,15 @@
 ## `nch activities --delete`: delete activities of the current user (the selection, or those the criteria find), with
-## everything made from them.  Does nothing without -f; on a terminal it then counts down, in the bad style, so there is time to press
-## Ctrl-C, and shows how far it has got.  The file of an activity is forgotten too, so importing its folder again brings the
-## activity back.  (The command line is `activities`'s; the planning and the deleting are in remove.nim.)
+## everything made from them.  It asks first, saying what would go (`core/ask`), and on a terminal shows how far it has
+## got.  The file of an activity is forgotten too, so importing its folder again brings the activity back.  (The command
+## line is `activities`'s; the planning and the deleting are in `importer/remove.nim`; the question is here, as it counts
+## the sports, which are tags, and `importer` is below `tags`.)
 
-import std/[options, times]
+import std/[algorithm, options, strformat, strutils, tables, times]
 import ./cmdname
 import ../../core/[ask, globals]
-import ../db/store
+import ../db/[statement, store]
+import ../importer/describe
+import ../tags/sport
 import ../../core/errors
 import ../../core/logfile
 import ../ui/live
@@ -28,6 +31,47 @@ func deletingLines*(done, total, files: int): seq[Line] =
   let t = counted(total, "activity", "activities")
   @[~"<em deleting >{d} / {t}", ~"<bad activities {d}><hide  · ><bad files {f}>"]
 
+proc sportsOf*(
+    st: Session, ids: seq[ActivityId]
+): seq[(string, int)] {.raises: [StoreError].} =
+  ## How many of the activities are of each sport (`tags/sport`; "" none), the most first, then by name.
+  var n = initCountTable[string]()
+  for (text) in st.db.query(
+    (string,),
+    "select " & sportSql() &
+      " from activity a where a.id in (select value from json_each(:ids))",
+    ids = jsonList(ids),
+  ):
+    n.inc sportParts(text).sport
+  for sport, k in n:
+    result.add (sport, k)
+  result.sort(
+    proc(a, b: (string, int)): int =
+      result = cmp(b[1], a[1])
+      if result == 0:
+        result = cmp(a[0], b[0])
+  )
+
+proc question*(p: Plan, sports: seq[(string, int)], zone: Timezone): string =
+  ## "12 activities (cycling 9, running 3) from 2018-07-01 to 2026-10-30": the days in `zone`, and the sports and
+  ## counts (`sportsOf`), as the list of activities writes them (`importer/describe`).
+  let n = p.ids.len
+  result = counted(n, "activity", "activities")
+  if n == 0:
+    return
+  var sp: seq[string]
+  for (sport, k) in sports:
+    let (s, c) = (sportText(sport, "", false), count(k))
+    sp.add fmt"{s} {c}"
+  let (a, b) = (dateText(p.first, zone), dateText(p.last, zone))
+  let days =
+    if a == b:
+      fmt"on {a}"
+    else:
+      fmt"from {a} to {b}"
+  let listed = sp.join(", ")
+  result.add fmt" ({listed}) {days}"
+
 proc runDelete*(
     g: Globals,
     st: Session,
@@ -43,7 +87,7 @@ proc runDelete*(
     if plan.ids.len == 0:
       g.warn nothing # (as an empty selection is everywhere: a warning, not a failure)
       return exitOk
-    let what = describe(plan, zone)
+    let what = question(plan, sportsOf(st, plan.ids), zone)
     let refused = askDelete(g, what, yOrN)
     if refused.isSome:
       return refused.get
@@ -68,14 +112,14 @@ proc runDelete*(
         live.keep(deletingLines(plan.ids.len, plan.ids.len, done.files))
       else:
         live.finish()
-    var said = "deleted " & what
+    var said = fmt"deleted {what}"
     if done.files > 0:
-      said.add "; " & counted(done.files, "file", "files") &
-        " forgotten (importing them again would bring the activities back)"
+      let files = counted(done.files, "file", "files")
+      said.add fmt"; {files} forgotten (importing them again would bring the activities back)"
     if done.kept > 0:
-      said.add "; " & counted(done.kept, "file", "files") &
-        " kept, with other activities in"
-    g.log.log(lvInfo, commandName, leDeleted, said & " from " & st.path)
+      let files = counted(done.kept, "file", "files")
+      said.add fmt"; {files} kept, with other activities in"
+    g.log.log(lvInfo, commandName, leDeleted, fmt"{said} from {st.path}")
     sayDeleted(g, said)
     exitOk
   except StoreError as e:

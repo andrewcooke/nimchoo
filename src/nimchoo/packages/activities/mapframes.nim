@@ -10,6 +10,7 @@ import ../fit/time
 import ../geo/cells
 import ../map/[frames, geojson]
 import ../selection/selection
+import ../tags/sport
 import ./mapfeatures
 import ../user/session
 import ../ui/units
@@ -34,7 +35,8 @@ proc routesOf*(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].
       distanceM: Option[float],
       geometry: string,
     ],
-    "select a.id, a.start_epoch, coalesce(a.sport, ''), coalesce(a.name, ''), a.distance_m, " &
+    "select a.id, a.start_epoch, " & sportSql() &
+      ", coalesce(a.name, ''), a.distance_m, " &
       "AsGeoJSON(Simplify(r.geom, :tolerance), 5) " &
       "from activity a join route r on r.activity_id = a.id " &
       "where a.id in (select value from json_each(:ids)) order by a.start_epoch, a.id",
@@ -44,7 +46,7 @@ proc routesOf*(st: Session, ids: seq[int64]): seq[Route] {.raises: [StoreError].
     result.add Route(
       id: r.id,
       startT: UnixTime(r.startT),
-      sport: r.sport,
+      sport: sportParts(r.sport).sport,
       name: r.name,
       distanceM: r.distanceM,
       geometry: r.geometry,
@@ -110,7 +112,7 @@ proc contributions*(): seq[Contribution] =
           "the route of each activity (several over the same road show as a glow)",
         shown: true,
         readsSelection: true,
-        tables: @["activity", "route", "activity_selection"],
+        tables: @["activity", "route", "activity_selection", "activity_tag"],
         make: makeRoutes,
         style: routesStyle,
         styleKeys: routesStyleKeys,

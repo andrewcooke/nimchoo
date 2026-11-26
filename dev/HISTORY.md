@@ -4,6 +4,20 @@ The finished tasks and the reasoning behind decisions, as TODO.md held them unti
 became open work only).  **Not current guidance**: names of commands, files and modules here are those of their
 time, and the "Conventions" below were superseded by CLAUDE.md.  Read it for *why* something was decided.
 
+## The activity keeps nothing of the file's summary that is not ours (2026-11-26, the author's)
+
+Found while looking at the file of two rides (8 and 10 January 2026): the session message is written when the activity is
+saved and covers the whole file, so a file cut in two has no figures for each part.  Of what `activity` copied from it,
+`calories`, `elapsed_s` (it is `end_epoch - start_epoch`) and `utc_offset_s` were read by nothing; `sport` and `sub_sport`
+were a second copy of the `sport:` tag.  All five are dropped (`importer/002-summary.sql`: an `alter table`, so no rebuild:
+every activity had its sport tag already).  The sport is the tag only (one fact, which the user may change): the import
+steps are given the file's sport (`StepInput`, beside the samples and the labels) and `tags` makes the tag;
+`tags/sport.nim` reads it for the list, the map's popups, the climbs' attempts, whether an activity is a run, and the
+question before a delete, which moved to `activities` (`importer` is below `tags`).  A ride's own time zone should come
+from where it was, not from the device (TODO).  Next: active time from our breaks and distance from the `distance`
+channel (the device's, not a length of straight lines between our positions), then the split at a break over 12 hours,
+for which power events were looked at and are no rule: crashes and visits to the doctor have them too.
+
 ## Options for one case: settled (2026-11-26, A5 of the consistency pass)
 
 Of the options kept for one case (2026-11-20): `--latest` stayed, `together` went, `ff`'s scales and `--hourly` are in

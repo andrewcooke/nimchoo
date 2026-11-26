@@ -44,14 +44,12 @@ proc addActivity(
   )
   let f = s.db.scalar(int64, "select max(id) from file")
   s.db.execute(
-    """insert into activity(file_id, session, start_epoch, end_epoch, sport, sub_sport,
+    """insert into activity(file_id, session, start_epoch, end_epoch,
                                        distance_m, timer_s, riding_start_epoch, riding_end_epoch)
-                  values (:fileId, 0, :startT, :endT, nullif(:sport, ''), nullif(:subSport, ''), 12345.0, 3661.0, :startT, :endT)""",
+                  values (:fileId, 0, :startT, :endT, 12345.0, 3661.0, :startT, :endT)""",
     fileId = f,
     startT = startT,
     endT = startT + 100,
-    sport = sport,
-    subSport = subSport,
   )
   let a = s.db.scalar(int64, "select max(id) from activity")
   let sportT = sportTag(sport, subSport) # (as an import gives it)

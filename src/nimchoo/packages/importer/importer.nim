@@ -36,15 +36,10 @@ proc insertActivity(
   st.bindInt(2, a.session)
   st.bindInt(3, int64(a.startT))
   st.bindInt(4, int64(a.endT))
-  st.bindInt(5, a.utcOffsetS)
-  st.bindOptText(6, a.sport)
-  st.bindOptText(7, a.subSport)
-  st.bindReal(8, a.elapsedS)
-  st.bindReal(9, a.timerS)
-  st.bindReal(10, a.distanceM)
-  st.bindInt(11, a.calories)
-  st.bindInt(12, int64(a.riding.startT))
-  st.bindInt(13, int64(a.riding.endT))
+  st.bindReal(5, a.timerS)
+  st.bindReal(6, a.distanceM)
+  st.bindInt(7, int64(a.riding.startT))
+  st.bindInt(8, int64(a.riding.endT))
   st.run()
 
 proc insertBreak(st: Stmt, activityId: ActivityId, b: Break) {.raises: [StoreError].} =
@@ -144,9 +139,8 @@ proc writeDecoded*(
     let actStmt = prepareStmt(
       s.db,
       "insert into activity(file_id, session, " &
-        "start_epoch, end_epoch, utc_offset_s, sport, sub_sport, elapsed_s, timer_s, " &
-        "distance_m, calories, riding_start_epoch, riding_end_epoch) " &
-        "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "start_epoch, end_epoch, timer_s, distance_m, riding_start_epoch, riding_end_epoch) " &
+        "values (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     let breakStmt = prepareStmt(
       s.db,
@@ -201,7 +195,14 @@ proc writeDecoded*(
       for i, step in steps:
         timed "step: " & step.label:
           result.extras[i].n +=
-            step.write(s.db, activityId, a.samples, labels, result.warnings)
+            step.write(
+              s.db,
+              activityId,
+              StepInput(
+                sport: a.sport, subSport: a.subSport, samples: a.samples, labels: labels
+              ),
+              result.warnings,
+            )
       inc result.activities
       result.stretches += a.stretches.len
       result.coords += a.coords.len

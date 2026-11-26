@@ -26,7 +26,7 @@ proc world(name: string): string =
       name = tag,
     )
     s.db.execute(
-      "insert into activity(file_id, session, start_epoch, end_epoch, sport, distance_m, timer_s, riding_start_epoch, riding_end_epoch) select max(id), 0, :t, :t + 100, 'cycling', 1000.0, 600.0, :t, :t + 100 from file",
+      "insert into activity(file_id, session, start_epoch, end_epoch, distance_m, timer_s, riding_start_epoch, riding_end_epoch) select max(id), 0, :t, :t + 100, 1000.0, 600.0, :t, :t + 100 from file",
       t = t,
     )
   s.db.execute(
