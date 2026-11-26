@@ -20,7 +20,7 @@ import ../importer/[describe, stretch, track]
 import ../plot/frames
 import ../selection/selection
 import ../subject/subjects
-import ../ui/markup
+import ../../core/markup
 import ../user/session
 
 {.push raises: [].}

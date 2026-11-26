@@ -2,7 +2,7 @@
 ## text).  A style is a name; what it looks like is the theme's to say (`theme.nim`), so the same line is drawn in whatever
 ## theme is in force, and with or without colour (`ui/style.render()`).  Lines, not strings full of escape codes, so that
 ## they can be measured, wrapped, cut to a width and laid out in tables (`ruled.nim`) without splitting a code.  The one kind
-## of styled text: the usages, the views and the messages are all made of it (markup, `~"..."` of `ui/markup`, makes it too).
+## of styled text: the usages, the views and the messages are all made of it (markup, `~"..."` of `core/markup`, makes it too).
 ##
 ## The styles the program uses are one list (`programStyles`), and a name written in the code is checked against it when it
 ## is compiled (`span("failed", "bad")`, `styleName"select"`): a misspelt style is a compile error.  The built-in themes

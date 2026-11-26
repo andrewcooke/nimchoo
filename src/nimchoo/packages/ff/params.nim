@@ -4,7 +4,8 @@
 import std/[options, strformat, strutils]
 import ../../core/line
 import ../util/args/args
-import ../ui/[markup, units]
+import ../ui/units
+import ../../core/markup
 import ../editable/editable
 import ../subject/steps
 import ../tags/tag

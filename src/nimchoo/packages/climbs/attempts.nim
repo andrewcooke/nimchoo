@@ -14,7 +14,8 @@ import ../../core/errors
 import ../fit/time
 import ../importer/describe
 import ../util/lookup/lookup
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ../ui/units
 import ../ui/vocabulary
 import ./[describe, display, report]

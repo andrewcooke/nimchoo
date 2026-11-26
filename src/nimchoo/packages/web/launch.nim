@@ -12,7 +12,7 @@ import std/[net, options, os, osproc, strformat, strutils]
 import ../cache/cache
 import ../../core/[extension, globals, line]
 import ../db/store
-import ../ui/markup
+import ../../core/markup
 import ../../core/logfile
 import ../ui/interrupt
 import ../ui/vocabulary

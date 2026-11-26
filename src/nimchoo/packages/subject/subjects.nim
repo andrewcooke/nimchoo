@@ -5,7 +5,7 @@
 
 import std/[options, sequtils, strutils]
 import ../../core/[errors, extension, line]
-import ../ui/markup
+import ../../core/markup
 import ../util/args/args
 import ../user/session
 

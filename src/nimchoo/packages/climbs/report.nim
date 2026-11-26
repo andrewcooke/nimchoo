@@ -7,7 +7,8 @@ import ../../core/ruled
 import ../db/statement
 import ../db/store
 import ../../core/errors
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ./[describe, display, work]
 import ../text/fold/fold
 import ../ui/units

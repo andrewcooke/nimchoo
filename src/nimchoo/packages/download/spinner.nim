@@ -12,7 +12,8 @@
 import std/[locks, monotimes, os, tables, times, typedthreads]
 import ../../core/theme
 import ../ui/live
-import ../ui/[markup, style, units]
+import ../ui/[style, units]
+import ../../core/markup
 import ./fetch
 
 {.push raises: [].}

@@ -22,6 +22,7 @@ import
   ./near/test_distance,
   ./near/test_near,
   ./core/test_line,
+  ./core/test_markup,
   ./core/test_ruled,
   ./core/test_backticks,
   ./text/fold/test_fold,
@@ -169,8 +170,7 @@ import ./user/test_command
 import ./importer/test_count
 import ./bundle/test_unpack
 import ./themes/test_choose
-import
-  ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval, test_markup]
+import ./ui/[test_units, test_style, test_live, test_vocabulary, test_interval]
 import ./log/test_lines
 import ./log/test_command
 import ./tags/[test_tag, test_step, test_params, test_found]

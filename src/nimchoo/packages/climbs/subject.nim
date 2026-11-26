@@ -1,7 +1,7 @@
 ## The climbs as a subject (`subject/subjects`): the user's climbs selection, which the views show with `nch map climbs` and
 ## `nch calendar climbs`.
 
-import ../ui/markup
+import ../../core/markup
 import ../../core/[errors, extension]
 import ../subject/subjects
 import ../user/session

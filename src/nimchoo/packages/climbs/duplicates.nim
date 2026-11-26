@@ -7,7 +7,8 @@
 
 import std/[algorithm, math, options, strformat, tables]
 import ../../core/ruled
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ../db/statement
 import ../util/lookup/lookup
 import ../db/store

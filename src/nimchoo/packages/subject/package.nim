@@ -9,7 +9,7 @@ import ../../core/[extension, manifest]
 import ./subjects
 
 const package* = Package(
-  depends: @["args", "ui", "user"],
+  depends: @["args", "user"],
   defines: @[
     PointDecl(
       name: subjectPoint.name,

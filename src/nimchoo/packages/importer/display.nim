@@ -9,7 +9,8 @@
 ## terminal; the sink only keeps the counts and asks the Live when to draw.
 
 import std/os
-import ../ui/[live, markup]
+import ../ui/live
+import ../../core/markup
 import ../ui/style
 import ../ui/vocabulary
 import ../../core/globals

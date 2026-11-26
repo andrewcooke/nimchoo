@@ -7,7 +7,7 @@
 ##     build/look THEME - < lines.txt    # each line of stdin (read as markup)
 ##     build/look --plain THEME ...      # without colour, as NO_COLOR would show it
 ##
-## The markup is that of `ui/markup.nim`: `<NAME text>`, nesting, `\<` `\>` `\\`.  Each TEXT given is a line; a `\n` in one
+## The markup is that of `core/markup.nim`: `<NAME text>`, nesting, `\<` `\>` `\\`.  Each TEXT given is a line; a `\n` in one
 ## (as two characters, typed in the shell) is a newline too, so that a style running over lines can be tried.
 
 import std/[math, options, os, sequtils, strformat, strutils, tables]
@@ -15,7 +15,8 @@ import nimchoo/core/errors
 import nimchoo/core/theme
 import nimchoo/packages/cache/cache
 import nimchoo/packages/themes/choose
-import nimchoo/packages/ui/[markup, style]
+import nimchoo/core/markup
+import nimchoo/packages/ui/style
 
 const examples = [
   "<good imported> 3 files <hide (1.2s)>",

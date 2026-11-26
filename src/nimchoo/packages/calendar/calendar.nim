@@ -22,7 +22,8 @@
 
 import std/[algorithm, options, sequtils, sets, strformat, strutils, tables, times]
 import ../fit/time
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ../ui/vocabulary
 
 {.push raises: [].}

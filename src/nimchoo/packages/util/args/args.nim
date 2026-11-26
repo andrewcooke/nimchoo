@@ -16,7 +16,8 @@
 
 import std/[math, options, strutils]
 import ../../../core/[ask, line, optdoc, unitfix]
-import ../../ui/[markup, units]
+import ../../ui/units
+import ../../../core/markup
 export optdoc, line, markup, unitfix, ask.YesOrNo
 
 {.push raises: [].}

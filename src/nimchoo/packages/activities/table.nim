@@ -15,7 +15,8 @@ import ../fit/time
 import ../geo/position
 import ../importer/describe
 import ../ui/interval
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ../../core/globals
 import ../../core/ruled
 import ../ui/units

@@ -1,7 +1,8 @@
 import std/[sequtils, strutils, unittest]
 import nimchoo/core/errors
 import nimchoo/core/[line, theme]
-import nimchoo/packages/ui/[markup, style, vocabulary]
+import nimchoo/packages/ui/[style, vocabulary]
+import nimchoo/core/markup
 import nimchoo/core/logfile
 
 proc problem(text: string): string =

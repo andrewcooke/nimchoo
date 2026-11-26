@@ -5,7 +5,7 @@
 import std/options
 import ../../core/[globals, line]
 import ../cache/cache
-import ../ui/markup
+import ../../core/markup
 import ./[launch, pages, webopts]
 
 {.push raises: [].}

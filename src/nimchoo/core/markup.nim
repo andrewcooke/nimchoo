@@ -12,8 +12,7 @@
 ## (a name no theme defines changes nothing when drawn).
 
 import std/[macros, strformat, strutils]
-import ../../core/[errors, line]
-import ./style
+import ./[errors, line, theme]
 
 {.push raises: [].}
 

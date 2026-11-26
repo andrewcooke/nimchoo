@@ -1,6 +1,7 @@
 import std/[tables, unittest]
 import nimchoo/core/theme
-import nimchoo/packages/ui/[markup, style]
+import nimchoo/packages/ui/style
+import nimchoo/core/markup
 
 suite "ui style: rendering":
   let paint = Paint(

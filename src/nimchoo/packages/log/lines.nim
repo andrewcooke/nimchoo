@@ -8,7 +8,8 @@
 ## but match no filter.  Pure: no files, no terminal.
 
 import std/[options, strutils]
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ../../core/logfile
 import ../ui/vocabulary
 

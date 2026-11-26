@@ -13,7 +13,8 @@ import ../../core/[globals, line]
 import ../util/warnings/warnings
 import ./events
 import ./cmdname
-import ../ui/[markup, vocabulary]
+import ../ui/vocabulary
+import ../../core/markup
 import ./failure
 import ../ui/units
 

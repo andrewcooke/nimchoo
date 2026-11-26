@@ -1,6 +1,6 @@
 ## The activities as a subject (`subject/subjects`): what the views show by default, with the user's selection of them.
 
-import ../ui/markup
+import ../../core/markup
 import ../../core/[errors, extension]
 import ../selection/selection
 import ../subject/subjects

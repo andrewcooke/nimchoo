@@ -10,7 +10,8 @@ import ../names/climb
 import ../names/climbpick
 import ../names/countries
 import ../names/open
-import ../ui/[markup, units]
+import ../ui/units
+import ../../core/markup
 import ./[match, ordinal]
 
 {.push raises: [].}

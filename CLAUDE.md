@@ -69,7 +69,7 @@ describing itself (packages, `--points`, `--graph`; `nch db` shows the tables, `
   `depends`, `fragments`, `commands`, `defines` (its extension points, each with a summary) and `contributes`.
 * `core/` is not a package: `errors`, `ids`, the `Package`, `CommandDecl` and `Fragment` types, `theme.nim` (what a theme says: `Globals` carries the one in force), `Globals` and the exit
   codes, the log, `ownership.nim`, `registry.nim` (the dependency order), `inventory.nim` (what `nch packages` shows),
-  `optdoc.nim` (`OptDoc`, what an option is), `ruled.nim` (every table: lines between the columns, a rule under the headings; a test refuses columns lined up any other way), `line.nim` (the styled line, and the style names the program uses), `ask.nim` (the one question every confirmation is, with `-y`) and `complete.nim` (what tab completion offers, from the options' descriptions).
+  `optdoc.nim` (`OptDoc`, what an option is), `ruled.nim` (every table: lines between the columns, a rule under the headings; a test refuses columns lined up any other way), `line.nim` (the styled line, and the style names the program uses), `markup.nim` (`~"..."`: styled text written as markup, read when compiled), `ask.nim` (the one question every confirmation is, with `-y`) and `complete.nim` (what tab completion offers, from the options' descriptions).
 * **the registry**: `nimble registry` (run first by the other tasks) writes `src/nimchoo/registry.nim` from the packages
   found, in dependency order, with their documentation; it is checked in, and a test fails if it is stale.  a cycle, a
   missing dependency, a package or command name used twice, or a contribution to a point nobody defines stops the build.
@@ -279,7 +279,7 @@ four kinds of things go wrong, and each has one mechanism:
   is larger, `a-b` borrows the other side's, none given: the default).  a range with every unit written goes through.
 * **everything a person reads is in the theme** (decided 2026-11-18): a command writes with `g.say(osOut, text)` (plain
   text, in the theme's `default`), `g.show(osOut, line)` (a `Line` of styled spans) and `failure(g, ...)`; styled text
-  in the code is `~"<good imported> {n} files, see `nch log`"` (`ui/markup`: markup read when compiled, backticks are
+  in the code is `~"<good imported> {n} files, see `nch log`"` (`core/markup`: markup read when compiled, backticks are
   `<code ...>`, a style the built-in theme lacks is a compile error; a style can be a value, `<{leImported} ...>`, anything
   with a `style` function; nothing in a value is read as markup), or
   `span(text, "bad")`.  help texts, the problems of the parser and the introductions of a usage are `Line`s too.  a

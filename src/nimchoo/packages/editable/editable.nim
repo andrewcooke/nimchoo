@@ -5,7 +5,8 @@
 
 import std/[options, sequtils, strutils]
 import ../../core/[line, optdoc]
-import ../ui/[markup, vocabulary]
+import ../ui/vocabulary
+import ../../core/markup
 import ../util/args/args
 import ../subject/steps
 import ../../core/ruled

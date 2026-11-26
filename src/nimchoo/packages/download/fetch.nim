@@ -15,7 +15,8 @@ import ../util/zip/zipbytes
 import ../util/zip/zipchild
 import ../util/atomic/atomic
 import ../../core/line
-import ../ui/[markup, units]
+import ../ui/units
+import ../../core/markup
 import ./sources
 when defined(posix):
   import std/posix

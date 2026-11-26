@@ -1,7 +1,7 @@
 ## The models as a subject (`subject/subjects`), called `ff` in the views: the user's models selection, whose fitness,
 ## fatigue and form `nch plot ff` draws.
 
-import ../ui/markup
+import ../../core/markup
 import ../../core/[errors, extension]
 import ../subject/subjects
 import ../user/session

@@ -10,7 +10,7 @@
 
 import std/[options, os, strformat, strutils]
 import ./core/[complete, globals, manifest]
-import ./packages/ui/markup
+import ./core/markup
 import ./packages/util/atomic/atomic
 
 {.push raises: [].}

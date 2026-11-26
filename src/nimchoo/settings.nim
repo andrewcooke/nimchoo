@@ -7,7 +7,8 @@ import ./core/[access, errors, globals, logfile, ruled]
 import ./packages/cache/cache
 import ./packages/db/store
 import ./packages/fit/default
-import ./packages/ui/[markup, style, units]
+import ./packages/ui/[style, units]
+import ./core/markup
 import ./packages/user/session
 import ./packages/util/version/version
 import ./registry as generated

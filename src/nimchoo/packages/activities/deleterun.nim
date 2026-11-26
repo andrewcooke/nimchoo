@@ -10,7 +10,8 @@ import ../db/store
 import ../../core/errors
 import ../../core/logfile
 import ../ui/live
-import ../ui/[markup, style]
+import ../ui/style
+import ../../core/markup
 import ../importer/remove
 import ../user/session
 import ../ui/units

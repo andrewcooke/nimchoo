@@ -8,7 +8,8 @@ import std/strformat
 import ../db/statement
 import ../db/store
 import ../../core/[errors, line]
-import ../ui/[markup, units]
+import ../ui/units
+import ../../core/markup
 import ../names/activity
 import ../names/countries
 import ../names/lookup
