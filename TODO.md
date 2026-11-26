@@ -59,6 +59,17 @@ next instance, and write the visual rules down in one place (C).  Every item is 
   activity dated the 8th, 51 hours elapsed and 4.6 on the timer, in three stretches.  Check how the import handles it
   (the date it is listed under, its name and distance, what the map and the calendar show) and whether a file like this
   should be one activity or two.
+  Looked at 2026-11-26: the Edge was switched off on the 8th without saving (`power_down`) and on again on the 10th
+  (`power_up`), so the file has one session and one lap; the 45 h gap is already a `manual` break (`ride_break`), but the
+  activity is one (dated the 8th, "El Toyo and back").  It is the only break over 12 h of the 1,117 activities.  Power
+  events are no help as a rule (the importer reads only timer events, which is right): of the 1,174 ride, run and walk
+  files, 24 have them, mostly after the last record (switched off, saved later) or a lone `power_up` a minute or so into a
+  gap (a crash); the four `-clc` files have a power cycle of 0.6 to 1.4 h mid-ride (a visit to the doctor: one ride each).
+  Proposed: split a session at a break of any kind longer than 12 h (anything from 7 h to 44 h gives the same answer
+  today), each part an activity of its own: `extract.nim` cuts the coordinates, samples, riding and breaks by time; the
+  summary (`elapsed_s`, `timer_s`, `distance_m`, `calories`) comes from the session message, for the whole file, so for
+  a part it is worked out (calories: none, or shared by timer time?); the key `(file_id, session)` gains a part.  Not
+  decided.
 
 * **A FIT file cut off at its end is imported, up to where it stops** (the author, 2026-11-25).  Now any truncated file fails
   as a whole (decided early: dev/HISTORY.md, "a truncated or corrupt FIT file fails as a whole").  A device that stops
@@ -143,6 +154,9 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 * **The log**: level filtering (`--level warn`); the `saved` word is green for every use (low priority).
 * **The map**: labels, a legend, landmarks on the map, style rules by
   property (colour by sport or year).
+* **The map: a box for each ride, as on the plot** (the author, 2026-11-26): the page lists the selected activities with a
+  box each (as `nch plot activity` does, dev/plot-activity.md), and only the ticked rides are drawn.  First tidy the plot's
+  page (what to tidy: to discuss with the author), so that the list of rides to tick is one piece the two pages share.
 * **`ff`**: a form column (fitness minus fatigue); a switch between days and hours in the page (superseded if the plot command comes first).
 * **The selection's style in `nch climbs`**: the `-v` attempts of selected rides have it (done); left, the latest/rank cells
   when the latest attempt is of a selected ride, once display step 6 has said what `nch climbs` lists.  The author also asked
