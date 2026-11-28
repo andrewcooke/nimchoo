@@ -80,6 +80,11 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Larger changes (designs not started)
 
+1. **A ride's altitude: the device's and a terrain model's, blended** (dev/terrain.md, designed 2026-11-28; not started).
+   The device's altitude glitches (settling at switch-on, swings in mid-ride) make false climbs, as in the flat part of
+   Providencia; one altitude for climbs and the plot: the terrain (SRTM, AWS Terrain Tiles) above about 100 m of
+   distance, the device below.  Step 1: the tiles' licence and what a tile over the sea gives.
+
 2. **Arrays: what is left.**  Built and measured (2026-11-13, dev/HISTORY.md "The arrays"): the cleaning, the arrays and every reader;
    `coords` and `heartrate` are gone.  Left: (b) a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at
    -33.4253,-70.6331`), so the 98 rides over it are named after it (dev/NAMING.md says why a landmark and not a rule); the rides
@@ -138,9 +143,6 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 * **More climb features**: the elevation profile of a climb, the lead/lag comparison, the near-miss report, `exclude`, a way to retire many climbs
   (auto-retire of duplicates was tried and dropped: it retired long climbs into shorter near copies).
 * **Per-sport threshold heart rate and models**, if wanted.
-* **A terrain model (SRTM)**: if added, smooth its heights (`climbs/profile.smoothed` is there for that).  It would give
-  altitude to the 139 rides without any (101 of them in 2019: measured 2026-11-20), which now have no climbs or attempts;
-  how the device's altitude and the model's combine (compare, fix, replace) is to be decided then.
 * **Versions** (dev/HISTORY.md, Task 11): when the version number changes; tie it to releases and the end of squashing.
 * **Tab completion**: zsh (`--install-completion zsh`: its own directory and mechanism), if wanted; `--edit NAME` for the other plural
   commands, and a `--model` of `map`, if they gain them (completion follows the specs).
