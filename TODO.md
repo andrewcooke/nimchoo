@@ -80,10 +80,10 @@ next instance, and write the visual rules down in one place (C).  Every item is 
 
 ## Larger changes (designs not started)
 
-1. **A ride's altitude: the device's and a terrain model's, blended** (dev/terrain.md, designed 2026-11-28; not started).
+1. **A ride's altitude: the device's and a terrain model's, blended** (dev/terrain.md, designed 2026-11-28).
    The device's altitude glitches (settling at switch-on, swings in mid-ride) make false climbs, as in the flat part of
    Providencia; one altitude for climbs and the plot: the terrain (SRTM, AWS Terrain Tiles) above about 100 m of
-   distance, the device below.  Step 1: the tiles' licence and what a tile over the sea gives.
+   distance, the device below.  Step 1 (the source's licence, the sea) done 2026-11-28; next: step 2, the package.
 
 2. **Arrays: what is left.**  Built and measured (2026-11-13, dev/HISTORY.md "The arrays"): the cleaning, the arrays and every reader;
    `coords` and `heartrate` are gone.  Left: (b) a **landmark for Cerro San Cristóbal** (`nch landmarks --add "Cerro San Cristóbal" --at

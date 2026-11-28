@@ -102,6 +102,34 @@ the line).  It is a constant, not an option.
 
 The author's rides start in about 3 tiles.
 
+**Checked 2026-11-28 (step 1), and accepted by the author:**
+
+* **Licence.**  The registry of open data gives the tile set's licence as tilezen/joerd's `docs/attribution.md`: one
+  list of required attribution for all its sources (SRTM, GMTED2010, ETOPO1, 3DEP, EU-DEM, and national models for
+  Australia, Austria, Canada, Mexico, New Zealand, Norway, the United Kingdom; plus "Mapzen" for its hosted service).
+  None is non-commercial or restrictive: public domain, CC BY, open government licences.  **NOTICE takes the whole
+  list** and "Mapzen", not only the lines for where the author has ridden (otherwise the credits would depend on the
+  rides).  GMTED2010's terms ask anyone who modifies the data to describe the modifications: the package's
+  documentation says what it does to the heights (interpolation, smoothing, the blend).
+* **The bucket is static and unmaintained** ("managed by Mapzen, a Linux Foundation project"; tiles last changed 2016;
+  a copy in an EU region, `elevation-tiles-prod-eu`).  The heights will not change and the program keeps the tiles it
+  downloads, so the only risk is the bucket going before a tile is fetched: accepted.  The source is behind an
+  interface for that reason (decision 5).
+* **The sea.**  Every tile exists, also over open sea (`S34W080`), with no "no height" values in the four opened: over
+  the sea a tile holds the **depth of the seabed** (ETOPO1: to −4,551 m in `S34W080`, −5,724 m in `S34W073`).  Off Viña
+  del Mar and Cartagena it is −10 to −30 m within a few hundred metres of the shore, so a ride on a beach road may pick
+  up a few metres by interpolation, which the smoothing mostly hides.  One ride of the author's goes west of −71.3°.
+  Nothing is clipped unless a coastal ride shows a problem.
+
+### 5. The source is behind an interface
+
+Everything that is Terrain Tiles' own (its `Source`, the tile of a position, the reader of `.hgt`) is in one file,
+which offers the height at a position (`Option[float]`); the rest of the package (the stored arrays, the blend) uses
+only that.  Another source (Copernicus) is another file of the same shape.  An extension point (sources contributed by
+other packages) only if two sources are ever wanted at once (a better national model for one country, say).  The
+record of which tracks have their terrain stored carries the source's version, so a change of source rebuilds the
+arrays (and then the climbs), as a change of the climbs' method does.
+
 ### 4. Stored: the raw terrain height of each position
 
 The plot is live (made again on every request), so working out the terrain on demand would inflate a 26 MB tile per
@@ -123,10 +151,9 @@ never store a failure as a result.
 
 ## Steps
 
-1. **Licence and source.**  Read the Terrain Tiles attribution list; see what a tile over the sea gives (a 404,
-   zeros?) and decide how a ride by the sea is handled; confirm the source with the author.
-2. **A package that owns a ride's altitude** (`terrain`, or `altitude`): a `Source` in `download/sources.nim`; the tile
-   of a position (the floor of latitude and longitude, `N`/`S`, `E`/`W`); a reader that refuses a file of the wrong
+1. **Licence and source.**  Done 2026-11-28 (decision 3): Terrain Tiles, the whole attribution list in NOTICE.
+2. **A package that owns a ride's altitude** (`terrain`, or `altitude`): behind the interface of decision 5, a `Source`
+   in `download/sources.nim`, the tile of a position (the floor of latitude and longitude, `N`/`S`, `E`/`W`); a reader that refuses a file of the wrong
    size (an `NchError`) and reads -32768 as no height; `elevation(coord): Option[float]`, bilinear; its table of terrain
    heights per track, filled at import and lazily; the blend (one function: a ride's altitude, per stretch, over
    distance).  Tests on a small tile made by hand (edges, corners, the four hemispheres, missing heights) and on the
